@@ -373,7 +373,7 @@ namespace RtxTool
             // runs of one build agree pixel for pixel.
             CellLighting lighting = request.mLighting;
             lighting.mSeconds = static_cast<float>(std::chrono::duration<double>(now - began).count());
-            applyLighting(lighting, scene, constants);
+            applyLighting(lighting, constants);
 
             const VkCommandBuffer commands = commandBuffers[frame];
             recordFrame(commands, *targets[frame], swapchain.getImage(image), extent, constants);

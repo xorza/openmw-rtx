@@ -10,8 +10,6 @@
 
 namespace Rtx
 {
-    class SceneDesc;
-
     namespace Shaders
     {
         struct VisibilityConstants;
@@ -44,13 +42,15 @@ namespace RtxTool
         RtxBridge::Fog mFog;
     };
 
-    /// Writes the lighting and the scene's lamp count into the constants a frame is traced with.
+    /// Writes how the cell is lit into the constants a frame is traced with.
     ///
     /// Shared because a screenshot and a window are the same frame: the two paths differ in where
     /// the camera comes from and in nothing else, and a light that reached one but not the other
     /// would be a difference nobody was looking for.
-    void applyLighting(
-        const CellLighting& lighting, const Rtx::SceneDesc& scene, Rtx::Shaders::VisibilityConstants& constants);
+    ///
+    /// The lamps themselves are not here. They are in the scene, and the pass finds them through the
+    /// grid `SceneBuffers` binned them into rather than through a count anyone has to remember.
+    void applyLighting(const CellLighting& lighting, Rtx::Shaders::VisibilityConstants& constants);
 }
 
 #endif

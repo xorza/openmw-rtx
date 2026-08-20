@@ -62,6 +62,7 @@ namespace Rtx
     SceneBuffers::SceneBuffers(
         const Device& device, CommandPool& pool, const SceneDesc& scene, VkBuffer indices, const SeaState& sea)
         : mIndices(indices)
+        , mLightGrid(scene.getLights())
     {
         std::vector<Shaders::GpuMesh> meshes;
         meshes.reserve(scene.getMeshes().size());
@@ -134,6 +135,16 @@ namespace Rtx
                            : std::span<const Shaders::GpuLight>(lights),
             sTableUsage);
 
+        // Binned in the initialiser from the same list uploaded above: a grid built from a
+        // different one would be worse than no grid at all.
+        mLightOffsets = uploadBuffer(device, pool, mLightGrid.getOffsets(), sTableUsage);
+
+        // An empty run is still a buffer: nothing may be bound to a descriptor a shader declares.
+        static constexpr std::uint32_t noIndex = 0;
+        mLightIndices = uploadBuffer(device, pool,
+            mLightGrid.getIndices().empty() ? std::span<const std::uint32_t>(&noIndex, 1) : mLightGrid.getIndices(),
+            sTableUsage);
+
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mMaterials.getHandle()), "materials");
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mTexCoords.getHandle()), "uvs");
     }
@@ -143,6 +154,7 @@ namespace Rtx
         // The indices are not counted here: they belong to the acceleration structure, which reports
         // its own size.
         return mNormals.getSize() + mTexCoords.getSize() + mMeshes.getSize() + mInstances.getSize()
-            + mMaterials.getSize() + mLayers.getSize() + mMasks.getSize() + mLights.getSize() + mWaves.getSize();
+            + mMaterials.getSize() + mLayers.getSize() + mMasks.getSize() + mLights.getSize() + mLightOffsets.getSize()
+            + mLightIndices.getSize() + mWaves.getSize();
     }
 }

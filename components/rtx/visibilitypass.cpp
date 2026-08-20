@@ -71,7 +71,7 @@ namespace Rtx
     {
         constexpr auto compute = VK_SHADER_STAGE_COMPUTE_BIT;
         constexpr auto storage = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        constexpr std::array<VkDescriptorSetLayoutBinding, 13> bindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 15> bindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 2, storage, 1, compute, nullptr },
@@ -85,6 +85,8 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 10, storage, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 11, storage, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 12, storage, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 13, storage, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 14, storage, 1, compute, nullptr },
         };
 
         const VkDescriptorSetLayoutCreateInfo layout{
@@ -152,7 +154,7 @@ namespace Rtx
         };
 
         // Bindings two upwards are all storage buffers, in the order the shader declares them.
-        const std::array<VkDescriptorBufferInfo, 11> buffers{
+        const std::array<VkDescriptorBufferInfo, 13> buffers{
             VkDescriptorBufferInfo{ hitCount.getHandle(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getNormals(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getTexCoords(), 0, VK_WHOLE_SIZE },
@@ -163,10 +165,12 @@ namespace Rtx
             VkDescriptorBufferInfo{ inputs.mBuffers->getLayers(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getMasks(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getLights(), 0, VK_WHOLE_SIZE },
+            VkDescriptorBufferInfo{ inputs.mBuffers->getLightOffsets(), 0, VK_WHOLE_SIZE },
+            VkDescriptorBufferInfo{ inputs.mBuffers->getLightIndices(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getWaves(), 0, VK_WHOLE_SIZE },
         };
 
-        std::array<VkWriteDescriptorSet, 13> writes{};
+        std::array<VkWriteDescriptorSet, 15> writes{};
         writes[0] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = &sceneWrite,
@@ -195,7 +199,16 @@ namespace Rtx
             static_cast<std::uint32_t>(writes.size()), writes.data());
         vkCmdBindDescriptorSets(
             commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipelineLayout, 1, 1, &inputs.mTextures, 0, nullptr);
-        vkCmdPushConstants(commands, mPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(constants), &constants);
+        // The grid's geometry belongs to the lamps it was binned from, so it is filled here rather
+        // than by whoever assembled the camera: a caller setting it would be repeating what
+        // `SceneBuffers` already worked out, and could get it wrong without the shader noticing.
+        const LightGrid& grid = inputs.mBuffers->getLightGrid();
+        Shaders::VisibilityConstants pushed = constants;
+        pushed.mGridOrigin = grid.getOrigin();
+        pushed.mGridInverseCell = grid.getInverseCell();
+        pushed.mGridSize = grid.getSize();
+
+        vkCmdPushConstants(commands, mPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pushed), &pushed);
         vkCmdDispatch(commands, groupsFor(constants.mWidth), groupsFor(constants.mHeight), 1);
     }
 

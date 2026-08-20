@@ -115,7 +115,7 @@ namespace RtxTool
         Rtx::Shaders::VisibilityConstants camera = Rtx::makeCamera(
             placement.mOrigin, placement.mTarget, request.mFieldOfView, request.mWidth, request.mHeight, far);
         camera.mShowAlbedo = request.mShowAlbedo ? 1u : 0u;
-        applyLighting(request.mLighting, scene, camera);
+        applyLighting(request.mLighting, camera);
 
         std::vector<double> traces;
         traces.reserve(request.mRepeat);

@@ -70,7 +70,19 @@ layout(set = 0, binding = 11, scalar) readonly buffer Lights
     GpuLight lights[];
 };
 
-layout(set = 0, binding = 12, scalar) readonly buffer Waves
+/// Where each cell's lamps start, with a sentinel so the last cell's end needs no special case.
+layout(set = 0, binding = 12, scalar) readonly buffer LightOffsets
+{
+    uint lightOffsets[];
+};
+
+/// Every cell's lamps, run together in cell order.
+layout(set = 0, binding = 13, scalar) readonly buffer LightIndices
+{
+    uint lightIndices[];
+};
+
+layout(set = 0, binding = 14, scalar) readonly buffer Waves
 {
     GpuWave waves[];
 };
@@ -501,6 +513,30 @@ vec3 sunThroughWater(vec3 position, float footprint)
     return exp(-WATER_EXTINCTION * path) * caustic(position.xy, depth, camera.mTime, footprint);
 }
 
+/// Which lamps could reach `position`, as a range into `lightIndices`.
+///
+/// **A shading point should not have to ask every lamp in the cell whether it is near.** Walking
+/// them all costs the same whether one contributes or none do — and the fog made that unaffordable
+/// rather than merely wasteful, since a march asks twenty-four times per pixel where a surface asks
+/// once per hit.
+///
+/// A lamp is binned into every cell its reach touches, so this range is complete: the distance test
+/// each caller still makes is a refinement of the answer and never a correction to it. A position
+/// outside the grid is one no lamp can reach, which is why falling off the edge returns nothing
+/// rather than clamping to the nearest cell's list.
+uvec2 lampsReaching(vec3 position)
+{
+    const vec3 cell = floor((position - camera.mGridOrigin) * camera.mGridInverseCell);
+    if (any(lessThan(cell, vec3(0.0))) || any(greaterThanEqual(cell, vec3(camera.mGridSize))))
+        return uvec2(0u, 0u);
+
+    const uvec3 at = uvec3(cell);
+    // `flat` is what this wants to be called, and GLSL reserves it for interpolation.
+    const uint index = (at.z * camera.mGridSize.y + at.y) * camera.mGridSize.x + at.x;
+
+    return uvec2(lightOffsets[index], lightOffsets[index + 1u]);
+}
+
 /// How much of a light `distance` away arrives, per unit intensity.
 ///
 /// An inverse square windowed to arrive at exactly zero where the light's reach ends. Morrowind's
@@ -557,9 +593,10 @@ float fogExtinctionAt(vec3 position)
 vec3 fogLight(vec3 position)
 {
     vec3 lamps = vec3(0.0);
-    for (uint i = 0u; i < camera.mLightCount; ++i)
+    const uvec2 near = lampsReaching(position);
+    for (uint i = near.x; i < near.y; ++i)
     {
-        const GpuLight light = lights[i];
+        const GpuLight light = lights[lightIndices[i]];
 
         const float distance = length(light.mPosition - position);
         if (distance >= light.mReach || distance <= 0.0)
@@ -715,9 +752,10 @@ vec3 gather(vec3 position, vec3 normal, float footprint)
         && !occluded(position, -camera.mSunDirection, camera.mFar))
         radiance += camera.mSunIrradiance * sunThroughWater(position, footprint) * (sunCosine * INV_PI);
 
-    for (uint i = 0u; i < camera.mLightCount; ++i)
+    const uvec2 near = lampsReaching(position);
+    for (uint i = near.x; i < near.y; ++i)
     {
-        const GpuLight light = lights[i];
+        const GpuLight light = lights[lightIndices[i]];
 
         const vec3 offset = light.mPosition - position;
         const float distance = length(offset);

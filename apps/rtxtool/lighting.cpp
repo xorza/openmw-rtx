@@ -1,14 +1,10 @@
 #include "lighting.hpp"
 
-#include <cstdint>
-
-#include <components/rtx/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
 
 namespace RtxTool
 {
-    void applyLighting(
-        const CellLighting& lighting, const Rtx::SceneDesc& scene, Rtx::Shaders::VisibilityConstants& constants)
+    void applyLighting(const CellLighting& lighting, Rtx::Shaders::VisibilityConstants& constants)
     {
         constants.mAmbient = lighting.mAmbient;
         constants.mTime = lighting.mSeconds;
@@ -19,6 +15,5 @@ namespace RtxTool
         constants.mSkyZenith = lighting.mDaylight.mSkyZenith;
         constants.mFogColour = lighting.mFog.mColour;
         constants.mFogExtinction = lighting.mFog.mExtinction;
-        constants.mLightCount = static_cast<std::uint32_t>(scene.getLights().size());
     }
 }

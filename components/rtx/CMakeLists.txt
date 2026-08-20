@@ -66,6 +66,8 @@ set(RTX_FILES
     image.hpp
     instance.cpp
     instance.hpp
+    lightgrid.cpp
+    lightgrid.hpp
     memory.cpp
     memory.hpp
     physicaldevice.cpp

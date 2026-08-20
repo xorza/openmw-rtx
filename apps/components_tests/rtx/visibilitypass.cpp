@@ -952,7 +952,6 @@ namespace Rtx
 
                 Shaders::VisibilityConstants camera = base;
                 camera.mAmbient = ambient;
-                camera.mLightCount = static_cast<std::uint32_t>(scene.getLights().size());
 
                 std::vector<std::uint8_t> pixels;
                 EXPECT_GT(countHits(scene, noTextures(), camera, size, pixels), 0u);
@@ -1710,7 +1709,6 @@ namespace Rtx
                 // expectation below needs no term for the haze `litThroughFog` would otherwise put
                 // in it.
                 camera.mFogColour = osg::Vec3f();
-                camera.mLightCount = static_cast<std::uint32_t>(scene.getLights().size());
 
                 std::vector<std::uint8_t> pixels;
                 countHits(scene, noTextures(), camera, size, pixels);

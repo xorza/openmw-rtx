@@ -6,6 +6,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "buffer.hpp"
+#include "lightgrid.hpp"
 #include "wavespectrum.hpp"
 
 namespace Rtx
@@ -43,6 +44,11 @@ namespace Rtx
         VkBuffer getLayers() const { return mLayers.getHandle(); }
         VkBuffer getMasks() const { return mMasks.getHandle(); }
         VkBuffer getLights() const { return mLights.getHandle(); }
+        VkBuffer getLightOffsets() const { return mLightOffsets.getHandle(); }
+        VkBuffer getLightIndices() const { return mLightIndices.getHandle(); }
+
+        /// Where the lamps were binned, for the constants the pass pushes.
+        const LightGrid& getLightGrid() const { return mLightGrid; }
         VkBuffer getWaves() const { return mWaves.getHandle(); }
 
         VkDeviceSize getBytes() const;
@@ -57,7 +63,12 @@ namespace Rtx
         Buffer mLayers;
         Buffer mMasks;
         Buffer mLights;
+        Buffer mLightOffsets;
+        Buffer mLightIndices;
         Buffer mWaves;
+
+        /// Kept because the pass needs its geometry, which no buffer carries.
+        LightGrid mLightGrid;
     };
 }
 

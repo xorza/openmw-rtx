@@ -10,10 +10,12 @@
 #include <cstdint>
 
 #include <osg/Vec3f>
+#include <osg/Vec3ui>
 
 namespace Rtx::Shaders
 {
     using vec3 = osg::Vec3f;
+    using uvec3 = osg::Vec3ui;
     using uint = std::uint32_t;
 
 #endif
@@ -56,9 +58,6 @@ namespace Rtx::Shaders
         /// Non-zero to write the albedo straight out, with no shading over it. What a test asserting
         /// "this pixel is that texel" needs, and what makes a texture problem visible as itself.
         uint mShowAlbedo;
-
-        /// How many of the scene's lights to gather from. Every one costs a shadow ray per hit.
-        uint mLightCount;
 
         /// Where the sun's light travels, and how much of it arrives on a surface square to it.
         ///
@@ -110,6 +109,16 @@ namespace Rtx::Shaders
         /// with fog over it is a differently lit one.
         vec3 mFogColour;
         float mFogExtinction;
+
+        /// Where the light grid's cell zero starts, how wide a cell is, and how many there are.
+        ///
+        /// **The scene's, not the camera's**, and written by the pass rather than by whoever built
+        /// the rest of this: the grid belongs to the lamps it was binned from, and a caller setting
+        /// these would be repeating what `SceneBuffers` already worked out. A position outside the
+        /// grid is one no lamp reaches, so its cell is empty by construction rather than by clamp.
+        vec3 mGridOrigin;
+        float mGridInverseCell;
+        uvec3 mGridSize;
     };
 
 #ifdef __cplusplus

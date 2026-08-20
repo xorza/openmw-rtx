@@ -104,6 +104,7 @@ if (OPENMW_RTX)
         rtx/allocations.cpp
         rtx/allocations.hpp
         rtx/device.cpp
+        rtx/lightgrid.cpp
         rtx/requirements.cpp
         rtx/scenedesc.cpp
         rtx/visibilitypass.cpp
