@@ -7,7 +7,9 @@
 
 #include <osg/Math>
 
+#include "bluenoise.hpp"
 #include "buffer.hpp"
+#include "commands.hpp"
 #include "device.hpp"
 #include "error.hpp"
 #include "image.hpp"
@@ -64,14 +66,15 @@ namespace Rtx
         };
     }
 
-    VisibilityPass::VisibilityPass(
-        const Device& device, const std::filesystem::path& shaderDirectory, VkDescriptorSetLayout textureLayout)
+    VisibilityPass::VisibilityPass(const Device& device, CommandPool& pool,
+        const std::filesystem::path& shaderDirectory, VkDescriptorSetLayout textureLayout)
         : mDevice(device)
+        , mBlueNoise(uploadBuffer(device, pool, BlueNoise::shared().getValues(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT))
         , mTextureLayout(textureLayout)
     {
         constexpr auto compute = VK_SHADER_STAGE_COMPUTE_BIT;
         constexpr auto storage = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        constexpr std::array<VkDescriptorSetLayoutBinding, 16> bindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 17> bindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 2, storage, 1, compute, nullptr },
@@ -88,6 +91,7 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 13, storage, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 14, storage, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 15, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 16, storage, 1, compute, nullptr },
         };
 
         const VkDescriptorSetLayoutCreateInfo layout{
@@ -176,8 +180,9 @@ namespace Rtx
             VkDescriptorBufferInfo{ inputs.mBuffers->getLightIndices(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getWaves(), 0, VK_WHOLE_SIZE },
         };
+        const VkDescriptorBufferInfo noiseWrite{ mBlueNoise.getHandle(), 0, VK_WHOLE_SIZE };
 
-        std::array<VkWriteDescriptorSet, 16> writes{};
+        std::array<VkWriteDescriptorSet, 17> writes{};
         writes[0] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = &sceneWrite,
@@ -206,6 +211,13 @@ namespace Rtx
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
             .pImageInfo = &historyWrite,
+        };
+        writes[16] = VkWriteDescriptorSet{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstBinding = 16,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            .pBufferInfo = &noiseWrite,
         };
 
         vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline);

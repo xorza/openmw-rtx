@@ -83,6 +83,26 @@ namespace Rtx::Shaders
     /// it. Shared with the shader because everything else on this scale is measured against it.
     const float DAYLIGHT = 8.0f;
 
+    /// How many independent numbers one pixel draws in one frame.
+    ///
+    /// **A channel of the blue-noise tile apiece**, so that two draws a pixel makes are uncorrelated
+    /// with each other as well as with its neighbours'. Shared with C++ because the tile is
+    /// generated there and has to carry exactly this many masks.
+    ///
+    /// Exactly the number drawn and not a round one: the fog takes a number and the bounce takes a
+    /// pair. A spare channel would have to be given a step to advance by, and the honest step for a
+    /// stream nobody reads is nothing — which is a value frozen for the life of the process, waiting
+    /// for whoever reaches for it next.
+    const uint RANDOM_STREAMS = 3;
+
+    /// Edge of the blue-noise tile, in pixels.
+    ///
+    /// **Small enough that generating it costs a fraction of a second, large enough that the repeat
+    /// does not read as one.** The tile is turned by an irrational step every frame, so what would
+    /// be a fixed grid of sixty-four is a different arrangement each time; and the pattern inside it
+    /// has no low frequencies to begin with, which is the whole point of it.
+    const uint BLUE_NOISE_EXTENT = 64;
+
     /// Angular radius of the sun, in radians — a disc about half a degree across.
     ///
     /// The real figure, because there is only one right answer and nothing about this renderer wants

@@ -93,7 +93,7 @@ namespace RtxTool
         const Rtx::TextureArray textures = RtxBridge::buildTextures(device, pool, scene, images);
         const double buildMs = millisecondsSince(buildStart);
 
-        const Rtx::VisibilityPass pass(device, request.mShaderDirectory, textures.getLayout());
+        const Rtx::VisibilityPass pass(device, pool, request.mShaderDirectory, textures.getLayout());
         const Rtx::VisibilityInputs inputs{
             .mScene = acceleration.getTopLevel(),
             .mBuffers = &buffers,

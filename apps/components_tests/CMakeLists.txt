@@ -101,6 +101,7 @@ source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 
 if (OPENMW_RTX)
     set(RTX_TEST_FILES
+        rtx/bluenoise.cpp
         rtx/allocations.cpp
         rtx/allocations.hpp
         rtx/device.cpp

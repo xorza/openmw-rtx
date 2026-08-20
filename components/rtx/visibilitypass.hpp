@@ -8,11 +8,12 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "buffer.hpp"
 #include "shaders/visibility.h"
 
 namespace Rtx
 {
-    class Buffer;
+    class CommandPool;
     class Device;
     class Image;
     class SceneBuffers;
@@ -43,10 +44,13 @@ namespace Rtx
     class VisibilityPass
     {
     public:
+        /// @param pool used once, to get the blue-noise tile onto the device. The pass owns the
+        ///        tile because it belongs to the sampler and not to the scene or the camera: it is
+        ///        the same numbers whatever is being looked at.
         /// @param textureLayout the layout of the bindless array this will be handed at record
         ///        time. Needed here because a pipeline layout names every set it will ever see.
-        VisibilityPass(
-            const Device& device, const std::filesystem::path& shaderDirectory, VkDescriptorSetLayout textureLayout);
+        VisibilityPass(const Device& device, CommandPool& pool, const std::filesystem::path& shaderDirectory,
+            VkDescriptorSetLayout textureLayout);
         ~VisibilityPass();
 
         VisibilityPass(const VisibilityPass&) = delete;
@@ -62,6 +66,7 @@ namespace Rtx
 
     private:
         const Device& mDevice;
+        Buffer mBlueNoise;
         VkDescriptorSetLayout mSetLayout = VK_NULL_HANDLE;
         VkDescriptorSetLayout mTextureLayout = VK_NULL_HANDLE;
         VkPipelineLayout mPipelineLayout = VK_NULL_HANDLE;

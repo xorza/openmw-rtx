@@ -361,7 +361,7 @@ namespace Rtx
                 const SceneAcceleration acceleration(device, pool, scene);
                 const SceneBuffers buffers(device, pool, scene, acceleration.getIndices(), sea);
 
-                const VisibilityPass& pass = passFor(textures.getLayout());
+                const VisibilityPass& pass = passFor(pool, textures.getLayout());
                 const VisibilityInputs inputs{
                     .mScene = acceleration.getTopLevel(),
                     .mBuffers = &buffers,
@@ -432,12 +432,12 @@ namespace Rtx
             ///
             /// Rebuilt when that shape changes, which in practice is once: a test uses one texture
             /// array throughout, and most use the empty one.
-            const VisibilityPass& passFor(VkDescriptorSetLayout textures)
+            const VisibilityPass& passFor(CommandPool& pool, VkDescriptorSetLayout textures)
             {
                 if (mPass == nullptr || mPassLayout != textures)
                 {
-                    mPass
-                        = std::make_unique<VisibilityPass>(*mHarness->mDevice, Testing::getShaderDirectory(), textures);
+                    mPass = std::make_unique<VisibilityPass>(
+                        *mHarness->mDevice, pool, Testing::getShaderDirectory(), textures);
                     mPassLayout = textures;
                 }
 
@@ -1182,9 +1182,23 @@ namespace Rtx
             // and worth asserting rather than assuming, because a sum that dropped or double-counted
             // a frame would still look converged.
             //
-            // Green: 0.058926 spread over one draw, so 0.007366 over sixty-four. The spread's
-            // tolerance is a fifth of that, which the estimate's own uncertainty — a standard
-            // deviation over `sqrt(2 * 4096)` samples, about 1% — sits well inside.
+            // **And what the accumulator is for: averaging drives the error down and leaves the mean
+            // alone.** Every pixel here has the same normal under the same sky, so its true value is
+            // the same number — which makes the spread across the frame the error itself, and its
+            // fall with the count the whole basis for calling a long run a reference.
+            //
+            // **The reduction is bounded at both ends, and both ends are derived.** Independent
+            // draws would divide the standard deviation by `sqrt(64)`, which is eight, and nothing
+            // can do worse than that — so a floor of eight catches a sum that dropped frames or a
+            // turn that stopped turning, either of which leaves a pixel's samples repeating and the
+            // spread where one frame left it. The ceiling is sixty-four, the reduction a perfectly
+            // stratified sequence would reach, and it catches the opposite fault: a tile that failed
+            // to upload reads as zero everywhere, every pixel draws the same direction as every
+            // other, and the spread collapses to nothing while the mean stays right.
+            //
+            // Measured, the reduction is 17, 27 and 21 — comfortably past what independence gives,
+            // because the frames are a golden-ratio sweep of the interval rather than sixty-four
+            // guesses at it.
             //
             // **The mean's tolerance is twenty times tighter than the single-frame one above**, and
             // has to be: at sixty-four samples a pixel's values cluster inside a few bytes, so the
@@ -1203,8 +1217,10 @@ namespace Rtx
                     << "channel " << channel << " keeps its mean when averaged";
 
                 const float alone = 0.5f * std::abs(range) * 0.235702f;
-                EXPECT_NEAR(spread, alone / std::sqrt(float{ averaged }), 0.2f * alone / std::sqrt(float{ averaged }))
-                    << "channel " << channel << " converges as the square root of the count";
+                EXPECT_GT(alone / spread, std::sqrt(float{ averaged }))
+                    << "channel " << channel << " converges at least as fast as independent draws";
+                EXPECT_LT(alone / spread, float{ averaged })
+                    << "channel " << channel << " converges no faster than a perfect sweep";
             }
         }
 
@@ -2229,7 +2245,7 @@ namespace Rtx
             const SceneBuffers buffers(device, pool, scene, acceleration.getIndices());
 
             const TextureArray textures(device, std::vector<Texture>{});
-            const VisibilityPass pass(device, Testing::getShaderDirectory(), textures.getLayout());
+            const VisibilityPass pass(device, pool, Testing::getShaderDirectory(), textures.getLayout());
             const VisibilityInputs inputs{
                 .mScene = acceleration.getTopLevel(),
                 .mBuffers = &buffers,

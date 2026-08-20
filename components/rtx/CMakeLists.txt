@@ -54,6 +54,8 @@ add_custom_target(openmw-rtx-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS} SOURCES $
 copy_resource_file("${OpenMW_SOURCE_DIR}/files/rtx/views.cfg" "${OPENMW_RESOURCES_ROOT}" "resources/rtx/views.cfg")
 
 set(RTX_FILES
+    bluenoise.cpp
+    bluenoise.hpp
     buffer.cpp
     buffer.hpp
     commands.cpp

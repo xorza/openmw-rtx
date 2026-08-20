@@ -87,6 +87,12 @@ layout(set = 0, binding = 14, scalar) readonly buffer Waves
     GpuWave waves[];
 };
 
+/// The blue-noise tile, `RANDOM_STREAMS` channels interleaved per pixel. See `Rtx::BlueNoise`.
+layout(set = 0, binding = 16, scalar) readonly buffer BlueNoiseTile
+{
+    float blueNoise[];
+};
+
 /// The running sum of every frame's linear colour, while `mAccumulate` asks for one.
 ///
 /// Untouched otherwise — a frame that is not being averaged neither reads nor writes it — but bound
@@ -714,11 +720,13 @@ float falloff(float distance, float reach)
     return window * window / (distance * distance + 1.0);
 }
 
-/// Three integers to one number in `[0, 1]`.
+/// Three integers to one number in `[0, 1]`: a repeatable value for a cell of the noise field.
 ///
-/// **The noise's lattice values and the march's own jitter, from one hash.** They want the same
-/// thing — a repeatable number from a place — and the places differ: a cell of the field for one, a
-/// pixel and a frame for the other. A second hash would be a second set of statistics to know.
+/// **The field's lattice and nothing else.** It fed the march's own jitter too, once; that draw
+/// comes from the blue-noise tile now, because where a hash puts its error is nobody's decision and
+/// a tile's is the whole point of it. What is left wants a hash and not a tile: `fogNoise` asks
+/// about a place in the world rather than a pixel on the screen, and there is no screen-space
+/// arrangement to arrange.
 ///
 /// Sixteen bits is more than a haze needs, and taking the high ones is what keeps the low bits of a
 /// weak avalanche out of the field.
@@ -735,22 +743,42 @@ float hashToUnit(ivec3 at)
     return float(h >> 16u) / 65535.0;
 }
 
-/// How many independent numbers one pixel is allowed to draw in one frame.
+/// Which channel of the tile each draw takes. A pair costs two, which is why the bounce leaves a gap.
 ///
-/// **A partition of the hash's domain, not a salt added to the frame.** Every draw a pixel makes has
-/// to be uncorrelated with every other, and adding a constant to the frame index only moves the
-/// collision to a later frame — the fog's march offset and the bounce's elevation were literally the
-/// same number until this existed, so a pixel whose fog started late also bounced near its normal.
-/// Scaling `x` instead gives each pixel its own run of lattice points and can never alias: an image
-/// is a few thousand pixels across and the product does not come near overflowing.
-const int RANDOM_STREAMS = 4;
-const int STREAM_FOG = 0;
-const int STREAM_BOUNCE = 1;
+/// **A channel apiece, not a salt on a shared one.** Every draw a pixel makes has to be uncorrelated
+/// with every other, and the fog's march offset and the bounce's elevation were literally the same
+/// number until the streams were separated — a pixel whose fog started late also bounced near its
+/// normal.
+const uint STREAM_FOG = 0u;
+const uint STREAM_BOUNCE = 1u;
 
-/// One number in `[0, 1]` for `pixel`, from this frame's `stream`th draw.
-float randomAt(uvec2 pixel, int stream)
+/// How far each stream's sequence advances between frames.
+///
+/// **An additive recurrence with an irrational step**, which is the cheapest sequence whose every
+/// prefix covers `[0, 1)` evenly rather than only its powers of two. The fog draws one number and
+/// takes the golden ratio; the bounce draws a pair and takes R2's steps, the plastic constant's
+/// first two powers, which is the same construction in two dimensions.
+///
+/// A rational step would close into a cycle and the frames after it would resample what the ones
+/// before had already asked.
+const float STREAM_TURN[RANDOM_STREAMS] = float[](0.6180340, 0.7548777, 0.5698403);
+
+/// One number in `[0, 1)` for `pixel`, from this frame's `stream`th draw.
+///
+/// **Blue noise across the screen, a low-discrepancy sequence along time.** The tile decides how a
+/// pixel's draw differs from its neighbours' — deliberately, so that the error between them
+/// alternates rather than clumping into blotches a filter would read as shading. The turn decides
+/// how it differs from its own last frame, so the samples a pixel accumulates sweep the interval
+/// instead of stumbling about in it.
+///
+/// Shifting every value by the same amount and wrapping is Cranley and Patterson's rotation: it
+/// moves which pixel holds which number and leaves the arrangement's spectrum where it was.
+float randomAt(uvec2 pixel, uint stream)
 {
-    return hashToUnit(ivec3(int(pixel.x) * RANDOM_STREAMS + stream, int(pixel.y), int(camera.mFrame)));
+    const uvec2 tile = pixel % BLUE_NOISE_EXTENT;
+    const uint at = (tile.y * BLUE_NOISE_EXTENT + tile.x) * RANDOM_STREAMS + stream;
+
+    return fract(blueNoise[at] + float(camera.mFrame) * STREAM_TURN[stream]);
 }
 
 /// Trilinear value noise, which is as much structure as a drifting haze needs.
@@ -1516,12 +1544,10 @@ vec3 shadeWater(Surface surface, vec3 incident)
 /// which reads the coarse mips a bounce should see without collapsing every one to the top level.
 const float BOUNCE_SPREAD = 1.0;
 
-/// Two numbers in `[0, 1]` for one pixel, from `stream` and the one after it.
-///
-/// A pair costs two of the frame's streams, which is why `STREAM_BOUNCE` leaves a gap after it.
-vec2 unitPair(uvec2 pixel, int stream)
+/// Two numbers in `[0, 1)` for one pixel, from `stream` and the one after it.
+vec2 unitPair(uvec2 pixel, uint stream)
 {
-    return vec2(randomAt(pixel, stream), randomAt(pixel, stream + 1));
+    return vec2(randomAt(pixel, stream), randomAt(pixel, stream + 1u));
 }
 
 /// A direction about `normal`, drawn with probability proportional to its cosine.

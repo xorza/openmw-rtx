@@ -141,7 +141,7 @@ namespace RtxTool
         const Rtx::SceneBuffers buffers(device, pool, scene, acceleration.getIndices());
         const Rtx::TextureArray textures = RtxBridge::buildTextures(device, pool, scene, images);
 
-        const Rtx::VisibilityPass pass(device, request.mShaderDirectory, textures.getLayout());
+        const Rtx::VisibilityPass pass(device, pool, request.mShaderDirectory, textures.getLayout());
         const Rtx::VisibilityInputs inputs{
             .mScene = acceleration.getTopLevel(),
             .mBuffers = &buffers,
