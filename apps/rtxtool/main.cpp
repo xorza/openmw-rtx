@@ -81,6 +81,14 @@ namespace RtxTool
                 "write the albedo with no shading over it, which is what a texture problem looks like "
                 "when nothing else is in the way");
 
+            addOption("weather", bpo::value<std::string>()->default_value("Clear"),
+                "which weather's sun and sky an exterior stands under, named as the content files "
+                "spell it: Clear, Cloudy, Foggy, Overcast, Rain, Thunderstorm, Ashstorm, Blight");
+
+            addOption("hour", bpo::value<float>()->default_value(12.0f),
+                "what time an exterior's sun is at, on a twenty-four hour clock. An interior is lit "
+                "by its own lamps and does not care");
+
             addOption("frames", bpo::value<std::uint32_t>()->default_value(0),
                 "with `view`, close after this many frames instead of waiting to be closed");
 
@@ -354,19 +362,23 @@ namespace RtxTool
             return 0;
         }
 
-        /// Reads a cell and places all of it, lights included, returning what is left to be told.
+        /// Reads a cell and places all of it, lights included.
         ///
-        /// The ambient is the one thing a scene cannot carry: it belongs to the cell rather than to
-        /// anything in it, so it travels in the request — which is why both commands below take
-        /// theirs by value and fill it in here.
-        osg::Vec3f loadCell(
-            World& world, const ESM::Cell& cell, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor)
+        /// An interior's illumination is its own lamps over its own `AMBI`; an exterior's is the sky
+        /// and the weather, which the cell says nothing about and the clock decides.
+        CellLighting loadCell(World& world, const ESM::Cell& cell, Rtx::SceneDesc& scene,
+            RtxBridge::SceneExtractor& extractor, std::string_view weather, float hour)
         {
             const CellReport report = readCell(world, cell, extractor);
             for (const Rtx::Light& light : report.mLights)
                 scene.addLight(light);
 
-            return report.mAmbient;
+            // An interior's sky is never seen and its sun never shines, so the daylight stays dark.
+            if (!cell.isExterior())
+                return CellLighting{ .mAmbient = report.mAmbient, .mDaylight = {} };
+
+            const RtxBridge::Daylight daylight = RtxBridge::makeDaylight(weather, hour);
+            return CellLighting{ .mAmbient = daylight.mAmbient, .mDaylight = daylight };
         }
 
         int runShot(
@@ -378,7 +390,7 @@ namespace RtxTool
 
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
-            request.mAmbient = loadCell(world, *cell, scene, extractor);
+            request.mLighting = loadCell(world, *cell, scene, extractor, request.mWeather, request.mHour);
 
             printCellHeading(*cell);
             out() << '\n';
@@ -395,7 +407,7 @@ namespace RtxTool
 
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
-            request.mAmbient = loadCell(world, *cell, scene, extractor);
+            request.mLighting = loadCell(world, *cell, scene, extractor, request.mWeather, request.mHour);
 
             printCellHeading(*cell);
 
@@ -561,6 +573,8 @@ namespace RtxTool
                     request.mTarget = chosen.mTarget;
                     request.mFrames = variables["frames"].as<std::uint32_t>();
                     request.mShowAlbedo = variables["albedo"].as<bool>();
+                    request.mWeather = variables["weather"].as<std::string>();
+                    request.mHour = variables["hour"].as<float>();
 
                     return runView(world, chosen.mCell, instanceOptions, request);
                 }
@@ -574,6 +588,8 @@ namespace RtxTool
                 request.mOrigin = chosen.mOrigin;
                 request.mTarget = chosen.mTarget;
                 request.mShowAlbedo = variables["albedo"].as<bool>();
+                request.mWeather = variables["weather"].as<std::string>();
+                request.mHour = variables["hour"].as<float>();
 
                 return runShot(world, chosen.mCell, instanceOptions, request);
             }

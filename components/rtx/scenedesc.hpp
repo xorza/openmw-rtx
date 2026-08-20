@@ -151,6 +151,22 @@ namespace Rtx
         float mReach = 0.0f;
     };
 
+    /// The sun, as a directional light.
+    ///
+    /// Far enough away that its rays are parallel, so it has a direction and no position, and its
+    /// shadow ray runs to the end of the world rather than to an emitter.
+    struct Sun
+    {
+        /// The unit vector the light travels *along* — from the sun toward the world, which is the
+        /// sense OpenMW's own `setSunDirection` is written in. The direction *to* the sun is its
+        /// negation.
+        osg::Vec3f mDirection{ 0.0f, 0.0f, -1.0f };
+
+        /// Irradiance on a surface square to it, linear. Zero where there is no sun: an interior,
+        /// or a night.
+        osg::Vec3f mIrradiance;
+    };
+
     /// One mesh placed in the world: a row of the top-level acceleration structure.
     ///
     /// Not `Instance`, which in this namespace is the `VkInstance` a device comes from.

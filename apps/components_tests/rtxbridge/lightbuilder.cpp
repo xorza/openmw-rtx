@@ -65,6 +65,63 @@ namespace RtxBridge
             EXPECT_FLOAT_EQ(larger->mReach, 528.0f);
         }
 
+        /// The sun's arc, which is the engine's own and not an approximation of it.
+        ///
+        /// `(-400 * orbit, 75, -100)` with `orbit` running from one at sunrise to minus one at
+        /// nightfall — so the vector is where the light *goes*, west at dawn and east at dusk, and
+        /// the two are mirror images. Its length is 125 at the midpoint, which makes that one exact.
+        TEST(RtxLightBuilderTest, theSunCrossesTheSkyTheWayTheEngineSaysItDoes)
+        {
+            constexpr float sunrise = 6.0f;
+            constexpr float nightStart = 20.0f;
+
+            // Halfway through a fourteen-hour day is hour 13, where the orbit is zero and the vector
+            // is (0, 75, -100) — length exactly 125, so the direction is exactly (0, 0.6, -0.8).
+            const osg::Vec3f noon = sunDirection(13.0f, sunrise, nightStart);
+            EXPECT_NEAR(noon.x(), 0.0f, 1e-6f);
+            EXPECT_NEAR(noon.y(), 0.6f, 1e-6f);
+            EXPECT_NEAR(noon.z(), -0.8f, 1e-6f);
+
+            // At either end the swing is full: (-+400, 75, -100), whose length is 419.077.
+            const osg::Vec3f dawn = sunDirection(sunrise, sunrise, nightStart);
+            const osg::Vec3f dusk = sunDirection(nightStart, sunrise, nightStart);
+
+            EXPECT_NEAR(dawn.x(), -400.0f / 419.077f, 1e-4f) << "light travels west at dawn";
+            EXPECT_NEAR(dusk.x(), 400.0f / 419.077f, 1e-4f) << "and east at dusk";
+            EXPECT_NEAR(dawn.x(), -dusk.x(), 1e-6f) << "the two ends mirror";
+
+            // Only the swing changes: the northing and the climb are fixed, so their ratio is the
+            // same at every hour of the day and of the night alike. The engine's is too — a night is
+            // dark because the sun stops shining, not because it drops below the world.
+            for (const float hour : { 0.0f, 6.0f, 13.0f, 20.0f, 23.0f })
+            {
+                const osg::Vec3f at = sunDirection(hour, sunrise, nightStart);
+                EXPECT_NEAR(at.z() / at.y(), -100.0f / 75.0f, 1e-5f) << "at hour " << hour;
+                EXPECT_LT(at.z(), 0.0f) << "the light always travels downward, at hour " << hour;
+            }
+        }
+
+        /// The four phases, and where their boundaries fall.
+        TEST(RtxLightBuilderTest, anHourReadsThePhaseItFallsIn)
+        {
+            constexpr float sunrise = 6.0f;
+            constexpr float nightStart = 20.0f;
+
+            EXPECT_EQ(phaseAt(13.0f, sunrise, nightStart), SkyPhase::Day);
+            EXPECT_EQ(phaseAt(6.0f, sunrise, nightStart), SkyPhase::Sunrise);
+            EXPECT_EQ(phaseAt(20.0f, sunrise, nightStart), SkyPhase::Sunset);
+            EXPECT_EQ(phaseAt(2.0f, sunrise, nightStart), SkyPhase::Night);
+            EXPECT_EQ(phaseAt(23.0f, sunrise, nightStart), SkyPhase::Night);
+
+            // An hour either side of each boundary, which is the window the game ramps across and
+            // this one steps in the middle of.
+            EXPECT_EQ(phaseAt(4.9f, sunrise, nightStart), SkyPhase::Night);
+            EXPECT_EQ(phaseAt(5.1f, sunrise, nightStart), SkyPhase::Sunrise);
+            EXPECT_EQ(phaseAt(7.1f, sunrise, nightStart), SkyPhase::Day);
+            EXPECT_EQ(phaseAt(18.9f, sunrise, nightStart), SkyPhase::Day);
+            EXPECT_EQ(phaseAt(21.1f, sunrise, nightStart), SkyPhase::Night);
+        }
+
         /// Three kinds of record place a mesh and no light, and one kind is nonsense.
         TEST(RtxLightBuilderTest, carriedNegativeAndUnlitRecordsCastNothing)
         {

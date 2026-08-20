@@ -7,6 +7,8 @@ set(RTXTOOL_FILES
     shot.hpp
     terrainstorage.cpp
     terrainstorage.hpp
+    lighting.cpp
+    lighting.hpp
     view.cpp
     view.hpp
     views.cpp

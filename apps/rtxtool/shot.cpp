@@ -1,5 +1,6 @@
 #include "shot.hpp"
 
+#include "lighting.hpp"
 #include "placement.hpp"
 #include "png.hpp"
 
@@ -86,8 +87,7 @@ namespace RtxTool
         Rtx::Shaders::VisibilityConstants camera = Rtx::makeCamera(
             placement.mOrigin, placement.mTarget, request.mFieldOfView, request.mWidth, request.mHeight, far);
         camera.mShowAlbedo = request.mShowAlbedo ? 1u : 0u;
-        camera.mAmbient = request.mAmbient;
-        camera.mLightCount = static_cast<std::uint32_t>(scene.getLights().size());
+        applyLighting(request.mLighting, scene, camera);
 
         const Clock::time_point traceStart = Clock::now();
         pool.submitAndWait([&](VkCommandBuffer commands) {

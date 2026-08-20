@@ -209,6 +209,13 @@ Driven by `MWWorld::Weather` and `DateTimeManager` rather than re-derived from t
 place this fork starts ahead of rtxmw (`design.md` §8.45, §8.50, §8.53, §8.59 all describe work that
 is a getter here). Sky is a light source, not a backdrop.
 
+The sun and the sky's two colours came first, off the fallback settings the game reads for itself and
+the orbit at `apps/openmw/mwworld/weather.cpp:901`. The harness has no weather *simulation* — that
+needs `MWWorld::World` — so it takes a weather name and an hour, and steps between the four phases
+where the engine ramps across each transition. Exact at every hour outside a transition window, and
+the ramp arrives with the engine at M11. What is still missing is the sky *dome*: moons, clouds, the
+sun's own disc, and stars.
+
 ### M6 — Water
 
 A port of rtxmw's water, which is the reason this fork exists in this shape. Read

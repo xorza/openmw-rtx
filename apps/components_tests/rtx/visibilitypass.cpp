@@ -446,6 +446,98 @@ namespace Rtx
             EXPECT_EQ(at(green, 63)[2], 0);
         }
 
+        /// The sun, which is one direction everywhere and casts a shadow to the end of the world.
+        ///
+        /// The wall's normal is (0, -1, 0), so a sun travelling straight along it meets it square and
+        /// the whole answer is the irradiance: 0.5 albedo times 2.0 over pi is 0.318310 linear, which
+        /// encodes to 1.055 * 0.318310^(1/2.4) - 0.055 = 0.599797, or 153 of 255.
+        TEST_F(RtxVisibilityTest, theSunLightsWhatItFacesAndTheOccluderTakesItAway)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+
+            const Shaders::VisibilityConstants base = makeCamera(
+                osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            const std::array occluder{
+                osg::Vec3f(-10.0f, -25.0f, -10.0f),
+                osg::Vec3f(10.0f, -25.0f, -10.0f),
+                osg::Vec3f(10.0f, -25.0f, 10.0f),
+                osg::Vec3f(-10.0f, -25.0f, 10.0f),
+            };
+            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
+
+            const auto render = [&](const osg::Vec3f& direction, const osg::Vec3f& irradiance, bool blocked,
+                                    const osg::Vec3f& ambient = osg::Vec3f()) {
+                SceneDesc scene = makeWall();
+                if (blocked)
+                    scene.addInstance(MeshInstance{
+                        .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(occluder, {}, {}, indices) });
+
+                Shaders::VisibilityConstants camera = base;
+                camera.mSunDirection = direction;
+                camera.mSunIrradiance = irradiance;
+                camera.mAmbient = ambient;
+
+                std::vector<std::uint8_t> pixels;
+                EXPECT_GT(countHits(scene, noTextures(), camera, size, pixels), 0u);
+                return pixels[centre];
+            };
+
+            // Travelling along +Y, which is straight into the wall's face.
+            const osg::Vec3f onto(0.0f, 1.0f, 0.0f);
+            const osg::Vec3f bright(2.0f, 2.0f, 2.0f);
+
+            EXPECT_EQ(render(onto, bright, false), 153) << "square to the sun";
+            EXPECT_EQ(render(onto, bright, true), 0) << "and with something standing in the way";
+
+            // A sun travelling out of the wall rather than into it reaches its back, and is dropped
+            // rather than arithmetically applied. Asserted against the ambient, because a negative
+            // contribution clamps to black as well and the two only tell apart against something:
+            // 0.5 * 0.4 = 0.2 linear, which encodes to 124 of 255.
+            EXPECT_EQ(render(-onto, bright, false, osg::Vec3f(0.4f, 0.4f, 0.4f)), 124)
+                << "a sun behind the wall lights nothing";
+
+            // Half the irradiance is nowhere near half the byte, because the encoding is not
+            // linear: 0.5 * 1.0 / pi = 0.159155, which encodes to 0.435542, or 111 of 255.
+            EXPECT_EQ(render(onto, osg::Vec3f(1.0f, 1.0f, 1.0f), false), 111) << "and half as much sun";
+
+            // At sixty degrees off square the cosine is exactly a half, so this is the same radiance
+            // the half-irradiance case gave — the same 111, reached the other way.
+            const osg::Vec3f slanted(std::sqrt(3.0f) * 0.5f, 0.5f, 0.0f);
+            EXPECT_EQ(render(slanted, bright, false), 111) << "or the same again from a slant";
+        }
+
+        /// A ray that hits nothing comes back with the sky the weather named, not a constant.
+        TEST_F(RtxVisibilityTest, theSkyIsTheWeathersOwnColourAndRunsFromHorizonToZenith)
+        {
+            constexpr std::uint32_t size = 33;
+
+            // Facing straight up, so the centre pixel looks at the zenith and the frame's edge looks
+            // sixty degrees off it. Nothing is placed, so every ray misses.
+            Shaders::VisibilityConstants camera
+                = makeCamera(osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            camera.mSkyHorizon = osg::Vec3f(1.0f, 0.0f, 0.0f);
+            camera.mSkyZenith = osg::Vec3f(0.0f, 0.0f, 1.0f);
+
+            SceneDesc scene = makeWall();
+            std::vector<std::uint8_t> pixels;
+            countHits(scene, noTextures(), camera, size, pixels);
+
+            // The camera looks level, so the middle row's rays are horizontal: z of zero, which is
+            // the horizon end of the mix exactly. Pure red, and no blue at all.
+            const std::size_t middle = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            EXPECT_EQ(pixels[middle], 255) << "the horizon colour, undiluted";
+            EXPECT_EQ(pixels[middle + 2], 0);
+
+            // The top row tilts up by tan(30) of the half-frame, so its z is sin of that angle and
+            // the mix has moved toward the zenith. Only the direction of the move is asserted: the
+            // exact angle is the camera's business and has its own test.
+            const std::size_t top = std::size_t{ size / 2 } * 4;
+            EXPECT_LT(pixels[top], 255) << "less horizon overhead";
+            EXPECT_GT(pixels[top + 2], 0) << "and some zenith";
+        }
+
         /// A masked surface in front of a wall: the ray stops on what survives the cutout and goes
         /// on through what does not.
         ///
@@ -664,22 +756,24 @@ namespace Rtx
         TEST_F(RtxVisibilityTest, aCameraFacingAwayHitsNothingAndTheImageIsAllSky)
         {
             constexpr std::uint32_t size = 64;
-            const Shaders::VisibilityConstants camera = makeCamera(
+            Shaders::VisibilityConstants camera = makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -200.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            // A sky with green in it and nothing else, so that "this is sky" and "this is the
+            // untextured wall" cannot be confused: the wall is grey through every channel.
+            camera.mSkyHorizon = osg::Vec3f(0.0f, 0.25f, 0.0f);
+            camera.mSkyZenith = osg::Vec3f(0.0f, 0.25f, 0.0f);
 
             std::vector<std::uint8_t> pixels;
             EXPECT_EQ(countHits(makeWall(), noTextures(), camera, size, pixels), 0u);
 
-            // The sky runs from the horizon to the zenith, so its red is somewhere in 0.10 to 0.30 and
-            // never zero — and a pixel showing this wall would have exactly zero red. Asserting one
-            // colour instead would be wrong: only the middle row of rays is level, and the rest tilt
-            // far enough to move along the gradient.
+            // Flat, so every pixel is the same byte: 1.055 * 0.25^(1/2.4) - 0.055 = 0.537099, which
+            // is 137 of 255.
             ASSERT_EQ(pixels.size(), std::size_t{ size } * size * 4);
             for (std::size_t i = 0; i < pixels.size(); i += 4)
             {
-                ASSERT_GE(pixels[i], std::uint8_t{ 25 }) << "red at pixel " << i / 4;
-                ASSERT_LE(pixels[i], std::uint8_t{ 77 }) << "red at pixel " << i / 4;
-                ASSERT_GE(pixels[i + 2], std::uint8_t{ 76 }) << "blue at pixel " << i / 4;
+                ASSERT_EQ(pixels[i], 0) << "red at pixel " << i / 4;
+                ASSERT_EQ(pixels[i + 1], 137) << "green at pixel " << i / 4;
             }
         }
 

@@ -40,7 +40,10 @@ namespace Rtx::Shaders
         uint mWidth;
         uint mHeight;
 
-        /// How far a primary ray travels before it counts as having hit the sky.
+        /// How far a ray travels before whatever it was looking for counts as not being there.
+        ///
+        /// The world's own size, near enough: a primary ray that reaches this has left it, and so
+        /// has the sun's shadow ray, which is the same question asked from the other end.
         float mFar;
 
         /// The angle one pixel subtends, in radians.
@@ -56,6 +59,22 @@ namespace Rtx::Shaders
 
         /// How many of the scene's lights to gather from. Every one costs a shadow ray per hit.
         uint mLightCount;
+
+        /// Where the sun's light travels, and how much of it arrives on a surface square to it.
+        ///
+        /// One directional light, handled apart from the point lights because it has no position and
+        /// no falloff: it is the same everywhere and its shadow ray runs to the end of the world.
+        /// A zero irradiance is how an interior and a night are both said, and the direction must
+        /// be a unit vector: it is used as a ray and as a cosine without being normalised again.
+        vec3 mSunDirection;
+        vec3 mSunIrradiance;
+
+        /// What a ray that hits nothing comes back with, at the horizon and overhead.
+        ///
+        /// The game's own two colours: its atmosphere is the one overhead and its fog is what that
+        /// fades to at the horizon, which is most of what a Morrowind sky is.
+        vec3 mSkyHorizon;
+        vec3 mSkyZenith;
 
         /// The cell's own ambient, linear.
         ///

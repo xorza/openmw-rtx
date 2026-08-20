@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 #include <components/esm3/loadligh.hpp>
+#include <components/fallback/fallback.hpp>
 
 namespace RtxBridge
 {
@@ -31,16 +33,115 @@ namespace RtxBridge
         /// term narrows the two instead, and it is the candles that most need to leave their table.
         constexpr float sReachScale = 2.0f;
         constexpr float sReachBonus = 128.0f;
+
+        /// Irradiance of the sun against the sky it is set in.
+        ///
+        /// Not a physical figure. Exposure absorbs any overall scale, so what matters is the ratio
+        /// between the direct sun and the sky, which on a clear day is roughly five to one on a
+        /// surface facing it. Provisional in the same way `sIntensity` is, and for the same reason.
+        constexpr float sDaylight = 8.0f;
+
+        /// Morrowind's own sun, out of `apps/openmw/mwworld/weather.cpp:901`'s
+        /// `(-400 * orbit, 75, -100)` — how far it swings east to west, how far north it sits, and
+        /// how far down it looks at noon. The vector is where the light *goes*, so the negative z is
+        /// the sun being above the world rather than below it.
+        constexpr float sSwing = 400.0f;
+        constexpr float sNorthing = 75.0f;
+        constexpr float sClimb = 100.0f;
+
+        float channelToLinear(float encoded)
+        {
+            return encoded <= 0.04045f ? encoded / 12.92f : std::pow((encoded + 0.055f) / 1.055f, 2.4f);
+        }
+
+        /// A weather's colour for one time of day, decoded.
+        ///
+        /// Absent settings read as black, which is what an unknown weather name should look like —
+        /// these come off a file this does not own and cannot be asserted about.
+        osg::Vec3f weatherColour(std::string_view weather, std::string_view field, std::string_view phase)
+        {
+            const osg::Vec4f colour = Fallback::Map::getColour(
+                "Weather_" + std::string(weather) + "_" + std::string(field) + "_" + std::string(phase) + "_Color");
+
+            return osg::Vec3f(channelToLinear(colour.x()), channelToLinear(colour.y()), channelToLinear(colour.z()));
+        }
+
+        std::string_view nameOf(SkyPhase phase)
+        {
+            switch (phase)
+            {
+                case SkyPhase::Night:
+                    return "Night";
+                case SkyPhase::Sunrise:
+                    return "Sunrise";
+                case SkyPhase::Day:
+                    return "Day";
+                case SkyPhase::Sunset:
+                    return "Sunset";
+            }
+
+            return "Night";
+        }
+    }
+
+    SkyPhase phaseAt(float hour, float sunrise, float nightStart)
+    {
+        // How long either end of the day counts as its own phase. The game ramps across a window
+        // this wide from its own settings; this steps in the middle of one, which is the single
+        // stand-in here and the reason an hour inside a transition is the only hour that differs.
+        constexpr float sTransition = 1.0f;
+
+        if (hour < sunrise - sTransition || hour > nightStart + sTransition)
+            return SkyPhase::Night;
+        if (hour <= sunrise + sTransition)
+            return SkyPhase::Sunrise;
+        if (hour >= nightStart - sTransition)
+            return SkyPhase::Sunset;
+
+        return SkyPhase::Day;
+    }
+
+    osg::Vec3f sunDirection(float hour, float sunrise, float nightStart)
+    {
+        const bool night = phaseAt(hour, sunrise, nightStart) == SkyPhase::Night;
+        const float duration = night ? 24.0f - (nightStart - sunrise) : nightStart - sunrise;
+        const float since = night ? std::fmod(hour - nightStart + 24.0f, 24.0f) : hour - sunrise;
+        const float travelled = duration > 0.0f ? since / duration : 0.0f;
+        const float orbit = night ? 2.0f * travelled - 1.0f : 1.0f - 2.0f * travelled;
+
+        osg::Vec3f direction(-sSwing * orbit, sNorthing, -sClimb);
+        direction.normalize();
+        return direction;
+    }
+
+    Daylight makeDaylight(std::string_view weather, float hour)
+    {
+        const float sunrise = Fallback::Map::getFloat("Weather_Sunrise_Time");
+        const float nightStart
+            = Fallback::Map::getFloat("Weather_Sunset_Time") + Fallback::Map::getFloat("Weather_Sunset_Duration");
+
+        const SkyPhase phase = phaseAt(hour, sunrise, nightStart);
+        const std::string_view name = nameOf(phase);
+
+        Daylight daylight{
+            .mSun = { .mDirection = sunDirection(hour, sunrise, nightStart) },
+            .mSkyHorizon = weatherColour(weather, "Fog", name),
+            .mSkyZenith = weatherColour(weather, "Sky", name),
+            .mAmbient = weatherColour(weather, "Ambient", name),
+        };
+
+        if (phase != SkyPhase::Night)
+            daylight.mSun.mIrradiance = weatherColour(weather, "Sun", name) * sDaylight;
+
+        return daylight;
     }
 
     osg::Vec3f decodeColour(std::uint32_t packed)
     {
-        const auto toLinear = [](std::uint32_t channel) {
-            const float encoded = static_cast<float>(channel & 0xFFu) / 255.0f;
-            return encoded <= 0.04045f ? encoded / 12.92f : std::pow((encoded + 0.055f) / 1.055f, 2.4f);
-        };
+        const auto channel
+            = [](std::uint32_t bits) { return channelToLinear(static_cast<float>(bits & 0xFFu) / 255.0f); };
 
-        return osg::Vec3f(toLinear(packed), toLinear(packed >> 8), toLinear(packed >> 16));
+        return osg::Vec3f(channel(packed), channel(packed >> 8), channel(packed >> 16));
     }
 
     std::optional<Rtx::Light> makeLight(const ESM::Light& record, const osg::Vec3f& position)

@@ -77,11 +77,6 @@ layout(push_constant, scalar) uniform Push
     VisibilityConstants camera;
 };
 
-// Linear, because everything downstream of a texture fetch is. The sRGB textures are converted by
-// the sampler, and the frame is encoded once on the way out.
-const vec3 SKY_HORIZON = vec3(0.073, 0.107, 0.164);
-const vec3 SKY_ZENITH = vec3(0.010, 0.021, 0.073);
-
 /// Untextured surfaces are mid-grey rather than black, so a missing texture reads as missing rather
 /// than as shadow.
 const vec3 NO_TEXTURE_ALBEDO = vec3(0.5);
@@ -297,6 +292,13 @@ vec3 gather(vec3 position, vec3 normal)
 {
     vec3 radiance = camera.mAmbient;
 
+    // The sun, which is one direction everywhere and needs none of the machinery below: no falloff,
+    // no reach, and a shadow ray that runs until it leaves the world rather than until it arrives.
+    const float sunCosine = dot(normal, -camera.mSunDirection);
+    if (sunCosine > 0.0 && camera.mSunIrradiance != vec3(0.0)
+        && !occluded(position, -camera.mSunDirection, camera.mFar))
+        radiance += camera.mSunIrradiance * (sunCosine * INV_PI);
+
     for (uint i = 0u; i < camera.mLightCount; ++i)
     {
         const GpuLight light = lights[i];
@@ -360,7 +362,7 @@ void main()
     vec3 colour;
     if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT)
     {
-        colour = mix(SKY_HORIZON, SKY_ZENITH, clamp(direction.z, 0.0, 1.0));
+        colour = mix(camera.mSkyHorizon, camera.mSkyZenith, clamp(direction.z, 0.0, 1.0));
     }
     else
     {

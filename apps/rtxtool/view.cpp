@@ -27,6 +27,7 @@
 #include <components/rtx/visibilitypass.hpp>
 #include <components/rtxbridge/texturebuilder.hpp>
 
+#include "lighting.hpp"
 #include "placement.hpp"
 #include "png.hpp"
 #include "window.hpp"
@@ -367,8 +368,7 @@ namespace RtxTool
             Rtx::Shaders::VisibilityConstants constants = Rtx::makeCamera(
                 camera.getOrigin(), camera.getTarget(), request.mFieldOfView, extent.width, extent.height, far);
             constants.mShowAlbedo = request.mShowAlbedo ? 1u : 0u;
-            constants.mAmbient = request.mAmbient;
-            constants.mLightCount = static_cast<std::uint32_t>(scene.getLights().size());
+            applyLighting(request.mLighting, scene, constants);
 
             const VkCommandBuffer commands = commandBuffers[frame];
             recordFrame(commands, *targets[frame], swapchain.getImage(image), extent, constants);

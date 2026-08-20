@@ -4,8 +4,11 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <string>
 
 #include <osg/Vec3f>
+
+#include "lighting.hpp"
 
 namespace Resource
 {
@@ -33,8 +36,14 @@ namespace RtxTool
         /// Write the albedo with no shading over it.
         bool mShowAlbedo = false;
 
-        /// The cell's ambient, linear. Black leaves a room lit only by its own lamps.
-        osg::Vec3f mAmbient;
+        /// Filled in from the cell once it has been read, which is why both commands take their
+        /// request by value.
+        CellLighting mLighting;
+
+        /// When and in what weather, for the exterior that has a sky. A weather is named as the
+        /// fallback settings spell it, and the hour is on a twenty-four hour clock.
+        std::string mWeather = "Clear";
+        float mHour = 12.0f;
 
         /// Where to stand and what to look at. Both default to a view of the whole cell from outside
         /// it, which is the only placement that needs nothing known about the cell.
