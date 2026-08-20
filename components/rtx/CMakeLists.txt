@@ -23,11 +23,9 @@ set(RTX_SHADERS
 set(RTX_SHADER_OUTPUTS)
 set(RTX_SPIRV_DIR "${OPENMW_RESOURCES_ROOT}/resources/rtx/shaders")
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(RTX_GLSLC_FLAGS -g -O0)
-else()
-    set(RTX_GLSLC_FLAGS -g -O)
-endif()
+# -g always: source correlation in Nsight is what makes a shader debuggable, and the debug info sits
+# in the module rather than costing anything at runtime.
+set(RTX_GLSLC_FLAGS -g $<IF:$<CONFIG:Debug>,-O0,-O>)
 
 foreach (shader ${RTX_SHADERS})
     get_filename_component(name "${shader}" NAME)

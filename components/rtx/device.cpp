@@ -55,27 +55,40 @@ namespace Rtx
 
         checkVk(vkCreateDevice(mPhysicalDevice.getHandle(), &createInfo, nullptr, &mHandle), "vkCreateDevice");
 
-        vkGetDeviceQueue(mHandle, mPhysicalDevice.getQueueFamily(), 0, &mQueue);
+        // A constructor that throws runs no destructor, and a driver that advertises an extension it
+        // cannot dispatch is exactly the case this reports — so the device goes back before the
+        // failure leaves here.
+        try
+        {
+            vkGetDeviceQueue(mHandle, mPhysicalDevice.getQueueFamily(), 0, &mQueue);
 
-        load(mHandle, mFunctions.mGetAccelerationStructureBuildSizes, "vkGetAccelerationStructureBuildSizesKHR");
-        load(mHandle, mFunctions.mCreateAccelerationStructure, "vkCreateAccelerationStructureKHR");
-        load(mHandle, mFunctions.mDestroyAccelerationStructure, "vkDestroyAccelerationStructureKHR");
-        load(mHandle, mFunctions.mCmdBuildAccelerationStructures, "vkCmdBuildAccelerationStructuresKHR");
-        load(mHandle, mFunctions.mCmdCopyAccelerationStructure, "vkCmdCopyAccelerationStructureKHR");
-        load(mHandle, mFunctions.mCmdWriteAccelerationStructuresProperties,
-            "vkCmdWriteAccelerationStructuresPropertiesKHR");
-        load(mHandle, mFunctions.mGetAccelerationStructureDeviceAddress, "vkGetAccelerationStructureDeviceAddressKHR");
-        load(mHandle, mFunctions.mCreateRayTracingPipelines, "vkCreateRayTracingPipelinesKHR");
-        load(mHandle, mFunctions.mGetRayTracingShaderGroupHandles, "vkGetRayTracingShaderGroupHandlesKHR");
-        load(mHandle, mFunctions.mCmdTraceRays, "vkCmdTraceRaysKHR");
-        load(mHandle, mFunctions.mCreateMicromap, "vkCreateMicromapEXT");
-        load(mHandle, mFunctions.mDestroyMicromap, "vkDestroyMicromapEXT");
-        load(mHandle, mFunctions.mGetMicromapBuildSizes, "vkGetMicromapBuildSizesEXT");
-        load(mHandle, mFunctions.mCmdBuildMicromaps, "vkCmdBuildMicromapsEXT");
+            load(mHandle, mFunctions.mGetAccelerationStructureBuildSizes, "vkGetAccelerationStructureBuildSizesKHR");
+            load(mHandle, mFunctions.mCreateAccelerationStructure, "vkCreateAccelerationStructureKHR");
+            load(mHandle, mFunctions.mDestroyAccelerationStructure, "vkDestroyAccelerationStructureKHR");
+            load(mHandle, mFunctions.mCmdBuildAccelerationStructures, "vkCmdBuildAccelerationStructuresKHR");
+            load(mHandle, mFunctions.mCmdCopyAccelerationStructure, "vkCmdCopyAccelerationStructureKHR");
+            load(mHandle, mFunctions.mCmdWriteAccelerationStructuresProperties,
+                "vkCmdWriteAccelerationStructuresPropertiesKHR");
+            load(mHandle, mFunctions.mGetAccelerationStructureDeviceAddress,
+                "vkGetAccelerationStructureDeviceAddressKHR");
+            load(mHandle, mFunctions.mCreateRayTracingPipelines, "vkCreateRayTracingPipelinesKHR");
+            load(mHandle, mFunctions.mGetRayTracingShaderGroupHandles, "vkGetRayTracingShaderGroupHandlesKHR");
+            load(mHandle, mFunctions.mCmdTraceRays, "vkCmdTraceRaysKHR");
+            load(mHandle, mFunctions.mCreateMicromap, "vkCreateMicromapEXT");
+            load(mHandle, mFunctions.mDestroyMicromap, "vkDestroyMicromapEXT");
+            load(mHandle, mFunctions.mGetMicromapBuildSizes, "vkGetMicromapBuildSizesEXT");
+            load(mHandle, mFunctions.mCmdBuildMicromaps, "vkCmdBuildMicromapsEXT");
 
-        if (instance.getValidationLog() != nullptr)
-            mSetObjectName = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(
-                vkGetDeviceProcAddr(mHandle, "vkSetDebugUtilsObjectNameEXT"));
+            if (instance.hasDebugUtils())
+                mSetObjectName = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(
+                    vkGetDeviceProcAddr(mHandle, "vkSetDebugUtilsObjectNameEXT"));
+        }
+        catch (...)
+        {
+            vkDestroyDevice(mHandle, nullptr);
+            mHandle = VK_NULL_HANDLE;
+            throw;
+        }
     }
 
     Device::~Device()
@@ -85,11 +98,6 @@ namespace Rtx
             vkDeviceWaitIdle(mHandle);
             vkDestroyDevice(mHandle, nullptr);
         }
-    }
-
-    void Device::waitIdle() const
-    {
-        checkVk(vkDeviceWaitIdle(mHandle), "vkDeviceWaitIdle");
     }
 
     void Device::setNameImpl(VkObjectType type, std::uint64_t handle, const char* name) const
@@ -103,6 +111,11 @@ namespace Rtx
             .objectHandle = handle,
             .pObjectName = name,
         };
-        checkVk(mSetObjectName(mHandle, &info), "vkSetDebugUtilsObjectNameEXT");
+
+        // Deliberately unchecked. This is a label on a debugging aid, called from every resource
+        // that gets created; a failure here must not be what stops a renderer that is otherwise
+        // working, and the only documented failure is host memory exhaustion, which will announce
+        // itself elsewhere within microseconds.
+        mSetObjectName(mHandle, &info);
     }
 }

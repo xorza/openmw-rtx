@@ -55,12 +55,6 @@ namespace Rtx
         return result;
     }
 
-    std::size_t ValidationLog::getErrorCount() const
-    {
-        const std::lock_guard<std::mutex> lock(mMutex);
-        return mErrors.size();
-    }
-
     void ValidationLog::clear()
     {
         const std::lock_guard<std::mutex> lock(mMutex);

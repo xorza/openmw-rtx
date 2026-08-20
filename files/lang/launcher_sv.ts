@@ -184,19 +184,19 @@
     </message>
     <message>
         <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs an Ada-class NVIDIA GPU.</source>
-        <translation type="unfinished"></translation>
+        <translation>Ersätter OpenGL-renderaren med den experimentella strålspårningsrenderaren i Vulkan. Kräver ett NVIDIA-grafikkort av Ada-generation.</translation>
     </message>
     <message>
         <source>Experimental Ray Tracing</source>
-        <translation type="unfinished"></translation>
+        <translation>Experimentell strålspårning</translation>
     </message>
     <message>
         <source>Loads the Vulkan validation layers and stops the process on any error they report. Developers only.</source>
-        <translation type="unfinished"></translation>
+        <translation>Läser in Vulkans valideringslager och stoppar processen vid varje fel de rapporterar. Endast för utvecklare.</translation>
     </message>
     <message>
         <source>Vulkan Validation Layers</source>
-        <translation type="unfinished"></translation>
+        <translation>Vulkan-valideringslager</translation>
     </message>
     <message>
         <source>Custom:</source>
@@ -434,7 +434,7 @@ de ordinarie fonterna i Morrowind. Bocka denna ruta om du ändå föredrar ordin
     </message>
     <message>
         <source>This build was made without the ray tracing renderer.</source>
-        <translation type="unfinished"></translation>
+        <translation>Det här bygget skapades utan strålspårningsrenderaren.</translation>
     </message>
     <message>
         <source>Error receiving resolutions</source>

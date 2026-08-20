@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -17,6 +18,9 @@ namespace Rtx
     /// no descriptor set to allocate is one fewer thing standing between a frame and zero
     /// allocations.
     inline constexpr std::uint32_t sApiVersion = VK_API_VERSION_1_4;
+
+    /// A packed Vulkan version as `major.minor.patch`.
+    std::string versionString(std::uint32_t version);
 
     /// Every feature structure the renderer touches, chained by the constructor.
     ///
@@ -81,6 +85,7 @@ namespace Rtx
     /// `openmw-rtxtool info` so it is visible which of them a run actually had.
     std::span<const char* const> getOptionalDeviceExtensions();
 
+    /// The table itself, so a test can prove its entries address distinct fields.
     std::span<const RequiredFeature> getRequiredDeviceFeatures();
 
     /// Sets every required feature to `VK_TRUE`, leaving the rest alone.

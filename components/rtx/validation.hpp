@@ -1,7 +1,6 @@
 #ifndef OPENMW_COMPONENTS_RTX_VALIDATION_H
 #define OPENMW_COMPONENTS_RTX_VALIDATION_H
 
-#include <cstddef>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -61,8 +60,6 @@ namespace Rtx
 
         /// Errors raised by Vulkan calls made on the calling thread.
         std::vector<ValidationMessage> getErrorsOnThisThread() const;
-
-        std::size_t getErrorCount() const;
 
         void clear();
 

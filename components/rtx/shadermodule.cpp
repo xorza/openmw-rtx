@@ -52,8 +52,19 @@ namespace Rtx
         };
 
         checkVk(vkCreateShaderModule(mDevice, &createInfo, nullptr, &mHandle), "vkCreateShaderModule");
-        device.setName(VK_OBJECT_TYPE_SHADER_MODULE, reinterpret_cast<std::uint64_t>(mHandle),
-            Files::pathToUnicodeString(path.filename()).c_str());
+
+        // A constructor that throws runs no destructor; the name is built from a path, so it can.
+        try
+        {
+            device.setName(VK_OBJECT_TYPE_SHADER_MODULE, reinterpret_cast<std::uint64_t>(mHandle),
+                Files::pathToUnicodeString(path.filename()).c_str());
+        }
+        catch (...)
+        {
+            vkDestroyShaderModule(mDevice, mHandle, nullptr);
+            mHandle = VK_NULL_HANDLE;
+            throw;
+        }
     }
 
     ShaderModule::~ShaderModule()

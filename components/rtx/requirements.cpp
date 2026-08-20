@@ -1,6 +1,7 @@
 #include "requirements.hpp"
 
 #include <array>
+#include <string>
 
 namespace Rtx
 {
@@ -127,6 +128,12 @@ namespace Rtx
     std::span<const char* const> getOptionalDeviceExtensions()
     {
         return sOptionalDeviceExtensions;
+    }
+
+    std::string versionString(std::uint32_t version)
+    {
+        return std::to_string(VK_API_VERSION_MAJOR(version)) + '.' + std::to_string(VK_API_VERSION_MINOR(version)) + '.'
+            + std::to_string(VK_API_VERSION_PATCH(version));
     }
 
     std::span<const RequiredFeature> getRequiredDeviceFeatures()

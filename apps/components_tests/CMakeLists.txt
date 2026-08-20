@@ -100,7 +100,7 @@ file(GLOB UNITTEST_SRC_FILES
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 
 if (OPENMW_RTX)
-    list(APPEND UNITTEST_SRC_FILES rtx/device.cpp)
+    list(APPEND UNITTEST_SRC_FILES rtx/device.cpp rtx/requirements.cpp)
 endif()
 
 openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})

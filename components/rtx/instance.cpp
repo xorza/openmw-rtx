@@ -26,10 +26,18 @@ namespace Rtx
                 [&](const VkLayerProperties& layer) { return std::strcmp(layer.layerName, name) == 0; });
         }
 
-        std::string versionString(std::uint32_t version)
+        bool hasInstanceExtension(const char* name)
         {
-            return std::to_string(VK_API_VERSION_MAJOR(version)) + '.' + std::to_string(VK_API_VERSION_MINOR(version))
-                + '.' + std::to_string(VK_API_VERSION_PATCH(version));
+            std::uint32_t count = 0;
+            checkVk(vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr),
+                "vkEnumerateInstanceExtensionProperties");
+            std::vector<VkExtensionProperties> extensions(count);
+            checkVk(vkEnumerateInstanceExtensionProperties(nullptr, &count, extensions.data()),
+                "vkEnumerateInstanceExtensionProperties");
+
+            return std::any_of(extensions.begin(), extensions.end(), [&](const VkExtensionProperties& extension) {
+                return std::strcmp(extension.extensionName, name) == 0;
+            });
         }
     }
 
@@ -43,15 +51,31 @@ namespace Rtx
         std::vector<const char*> extensions(options.mSurfaceExtensions);
         std::vector<const char*> layers;
 
-        const bool validation = options.mValidation && hasLayer(sValidationLayer);
+        // Object names and command-buffer labels are what make a capture readable, and a capture is
+        // most wanted on a run that is not carrying the layers, so the extension is asked for
+        // whenever this build names anything.
+#ifdef OPENMW_RTX_DEBUG_NAMES
+        const bool wantDebugUtils = true;
+#else
+        const bool wantDebugUtils = options.mValidation;
+#endif
+        mDebugUtils = wantDebugUtils && hasInstanceExtension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+
+        // Validation reaches us only through the messenger, so without the extension it would run
+        // and report nothing — worse than not running at all, because the clean output would read
+        // as a pass.
+        const bool validation = options.mValidation && mDebugUtils && hasLayer(sValidationLayer);
         if (options.mValidation && !validation)
-            Log(Debug::Warning) << "Vulkan validation was requested but " << sValidationLayer << " is not installed.";
+            Log(Debug::Warning) << "Vulkan validation was requested but " << sValidationLayer << " or "
+                                << VK_EXT_DEBUG_UTILS_EXTENSION_NAME << " is missing.";
+
+        if (mDebugUtils)
+            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
         if (validation)
         {
             mValidationLog = std::make_unique<ValidationLog>(options.mPolicy);
             layers.push_back(sValidationLayer);
-            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
 
         const VkApplicationInfo application{
@@ -104,14 +128,26 @@ namespace Rtx
 
         checkVk(vkCreateInstance(&createInfo, nullptr, &mHandle), "vkCreateInstance");
 
-        if (validation)
+        // A constructor that throws runs no destructor, and failing to start the renderer is a
+        // supported outcome rather than the end of the process — the game carries on with OpenGL.
+        // So anything after a successful create cleans up before it rethrows.
+        try
         {
-            const auto create = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-                vkGetInstanceProcAddr(mHandle, "vkCreateDebugUtilsMessengerEXT"));
-            if (create == nullptr)
-                throw Error("the validation layer is loaded but vkCreateDebugUtilsMessengerEXT is missing");
+            if (validation)
+            {
+                const auto create = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+                    vkGetInstanceProcAddr(mHandle, "vkCreateDebugUtilsMessengerEXT"));
+                if (create == nullptr)
+                    throw Error("the validation layer is loaded but vkCreateDebugUtilsMessengerEXT is missing");
 
-            checkVk(create(mHandle, &messengerInfo, nullptr, &mMessenger), "vkCreateDebugUtilsMessengerEXT");
+                checkVk(create(mHandle, &messengerInfo, nullptr, &mMessenger), "vkCreateDebugUtilsMessengerEXT");
+            }
+        }
+        catch (...)
+        {
+            vkDestroyInstance(mHandle, nullptr);
+            mHandle = VK_NULL_HANDLE;
+            throw;
         }
     }
 

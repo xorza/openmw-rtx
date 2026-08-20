@@ -1,8 +1,6 @@
-#include <exception>
-#include <iostream>
+#include <ostream>
 #include <string>
 #include <string_view>
-#include <vector>
 
 #include <boost/program_options.hpp>
 
@@ -45,10 +43,9 @@ namespace RtxTool
         {
             const Rtx::Instance instance(instanceOptions);
 
-            out() << "loader:            Vulkan " << VK_API_VERSION_MAJOR(instance.getApiVersion()) << '.'
-                  << VK_API_VERSION_MINOR(instance.getApiVersion()) << '.'
-                  << VK_API_VERSION_PATCH(instance.getApiVersion()) << '\n'
-                  << "validation:        " << (instance.getValidationLog() != nullptr ? "on" : "off") << '\n';
+            out() << "loader:            Vulkan " << Rtx::versionString(instance.getApiVersion()) << '\n'
+                  << "validation:        " << (instance.getValidationLog() != nullptr ? "on" : "off") << '\n'
+                  << "debug utils:       " << (instance.hasDebugUtils() ? "on" : "off") << '\n';
 
             Rtx::PhysicalDevice physicalDevice = Rtx::PhysicalDevice::select(instance.getHandle());
             out() << physicalDevice.describe();

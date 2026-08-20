@@ -252,19 +252,19 @@
     </message>
     <message>
         <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs an Ada-class NVIDIA GPU.</source>
-        <translation type="unfinished"></translation>
+        <translation>Заменя визуализатора OpenGL с експерименталния визуализатор с трасиране на лъчи чрез Vulkan. Изисква видеокарта NVIDIA от клас Ada.</translation>
     </message>
     <message>
         <source>Experimental Ray Tracing</source>
-        <translation type="unfinished"></translation>
+        <translation>Експериментално трасиране на лъчи</translation>
     </message>
     <message>
         <source>Loads the Vulkan validation layers and stops the process on any error they report. Developers only.</source>
-        <translation type="unfinished"></translation>
+        <translation>Зарежда слоевете за проверка на Vulkan и спира процеса при всяка съобщена от тях грешка. Само за разработчици.</translation>
     </message>
     <message>
         <source>Vulkan Validation Layers</source>
-        <translation type="unfinished"></translation>
+        <translation>Слоеве за проверка на Vulkan</translation>
     </message>
 </context>
 <context>
@@ -433,7 +433,7 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
     </message>
     <message>
         <source>This build was made without the ray tracing renderer.</source>
-        <translation type="unfinished"></translation>
+        <translation>Тази компилация е направена без визуализатора с трасиране на лъчи.</translation>
     </message>
     <message>
         <source>Error receiving resolutions</source>

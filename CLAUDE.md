@@ -202,3 +202,9 @@ A bug noticed outside the current change goes to `./.notes/ISSUES.md` (create `.
 and then work carries on — no fixing it, widening the task, or stopping to ask. Describe the issue
 only: no fix, patch, severity or rationale. A fixed issue is **deleted**, not annotated; the file
 lists open issues only.
+
+**Only this fork's own code.** A defect that came in with upstream OpenMW is not logged, not fixed
+and not mentioned — the tree is 400k lines somebody else wrote and cataloguing it is not work this
+project wants. Check with `git show d7db6be390:<path>` (the last upstream commit) before writing an
+entry. Upstream code the RTX renderer *depends on* is different: if it blocks a milestone, it stops
+being an upstream quirk and becomes this project's problem.

@@ -37,9 +37,6 @@ namespace Rtx
         /// Which of `getOptionalDeviceExtensions()` this device offers, in that order.
         const std::vector<const char*>& getAvailableOptionalExtensions() const { return mOptionalExtensions; }
 
-        /// Total size of the device-local heaps, in bytes.
-        VkDeviceSize getDeviceLocalMemory() const { return mDeviceLocalMemory; }
-
         /// Multi-line report for `openmw-rtxtool info`.
         std::string describe() const;
 

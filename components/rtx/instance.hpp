@@ -46,7 +46,16 @@ namespace Rtx
         VkInstance getHandle() const { return mHandle; }
 
         /// Null unless validation was requested and the layer was present.
+        ///
+        /// Mutable through a const instance on purpose: the log is a sink the debug callback writes
+        /// to from whichever thread made the offending call, and that is not a property of the
+        /// instance the way its handle is.
         ValidationLog* getValidationLog() const { return mValidationLog.get(); }
+
+        /// Whether `VK_EXT_debug_utils` was enabled, which is what object names and command-buffer
+        /// labels need. True whenever this build names objects, not only under validation — a
+        /// capture is worth having without paying for the layers.
+        bool hasDebugUtils() const { return mDebugUtils; }
 
         /// The version the loader reported, which is at least `sApiVersion`.
         std::uint32_t getApiVersion() const { return mApiVersion; }
@@ -57,6 +66,7 @@ namespace Rtx
         VkInstance mHandle = VK_NULL_HANDLE;
         VkDebugUtilsMessengerEXT mMessenger = VK_NULL_HANDLE;
         std::uint32_t mApiVersion = 0;
+        bool mDebugUtils = false;
     };
 }
 

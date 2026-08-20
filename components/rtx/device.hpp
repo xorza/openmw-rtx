@@ -41,6 +41,8 @@ namespace Rtx
     class Device
     {
     public:
+        /// @param instance must outlive the device. Not held: a `VkDevice` does not reference its
+        ///        instance, but every entry point reached through it does.
         /// @param extraExtensions device extensions beyond the required and optional lists — the
         ///        swapchain, when there is a window.
         Device(const Instance& instance, PhysicalDevice&& physicalDevice,
@@ -67,8 +69,6 @@ namespace Rtx
             setNameImpl(type, handle, name);
 #endif
         }
-
-        void waitIdle() const;
 
     private:
         void setNameImpl(VkObjectType type, std::uint64_t handle, const char* name) const;

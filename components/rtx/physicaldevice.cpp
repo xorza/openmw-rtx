@@ -1,8 +1,7 @@
 #include "physicaldevice.hpp"
 
 #include <algorithm>
-#include <cstring>
-#include <set>
+#include <sstream>
 #include <string_view>
 
 #include "error.hpp"
@@ -63,14 +62,18 @@ namespace Rtx
         }
 
         /// Why a candidate was rejected, or empty when it was not.
-        std::string disqualify(VkPhysicalDevice handle, const DeviceProperties& properties)
+        ///
+        /// Fills `available` with the device's extensions on the way through: the caller needs the
+        /// same list to work out which optional ones to enable, and enumerating twice for the device
+        /// that qualifies is the sort of waste that spreads.
+        std::string disqualify(
+            VkPhysicalDevice handle, const DeviceProperties& properties, std::vector<std::string>& available)
         {
-            if (properties.mProperties2.properties.apiVersion < sApiVersion)
-                return "reports Vulkan "
-                    + std::to_string(VK_API_VERSION_MAJOR(properties.mProperties2.properties.apiVersion)) + '.'
-                    + std::to_string(VK_API_VERSION_MINOR(properties.mProperties2.properties.apiVersion));
+            available = getDeviceExtensions(handle);
 
-            const std::vector<std::string> available = getDeviceExtensions(handle);
+            if (properties.mProperties2.properties.apiVersion < sApiVersion)
+                return "reports Vulkan " + versionString(properties.mProperties2.properties.apiVersion);
+
             std::string missing;
             for (const char* const required : getRequiredDeviceExtensions())
                 if (!has(available, required))
@@ -125,7 +128,8 @@ namespace Rtx
             auto properties = std::make_unique<DeviceProperties>();
             vkGetPhysicalDeviceProperties2(handle, &properties->mProperties2);
 
-            const std::string reason = disqualify(handle, *properties);
+            std::vector<std::string> available;
+            const std::string reason = disqualify(handle, *properties, available);
             if (!reason.empty())
             {
                 rejections += "\n  ";
@@ -140,7 +144,6 @@ namespace Rtx
             if (best.mHandle != VK_NULL_HANDLE && (bestIsDiscrete || !discrete))
                 continue;
 
-            const std::vector<std::string> available = getDeviceExtensions(handle);
             std::vector<const char*> optional;
             for (const char* const name : getOptionalDeviceExtensions())
                 if (has(available, name))
@@ -163,58 +166,44 @@ namespace Rtx
     std::string PhysicalDevice::describe() const
     {
         const VkPhysicalDeviceProperties& base = mProperties->mProperties2.properties;
+        const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& rt = mProperties->mRayTracingPipeline;
+        const VkPhysicalDeviceAccelerationStructurePropertiesKHR& as = mProperties->mAccelerationStructure;
 
-        std::string out;
-        out += "device:            ";
-        out += base.deviceName;
-        out += "\ndriver:            ";
-        out += mProperties->mVulkan12.driverName;
-        out += ' ';
-        out += mProperties->mVulkan12.driverInfo;
-        out += "\nVulkan:            " + std::to_string(VK_API_VERSION_MAJOR(base.apiVersion)) + '.'
-            + std::to_string(VK_API_VERSION_MINOR(base.apiVersion)) + '.'
-            + std::to_string(VK_API_VERSION_PATCH(base.apiVersion));
-        out += "\ndevice-local heap: " + std::to_string(mDeviceLocalMemory / (1024 * 1024)) + " MiB";
-        out += "\nqueue family:      " + std::to_string(mQueueFamily);
-        out += "\nsubgroup size:     " + std::to_string(mProperties->mVulkan11.subgroupSize);
+        std::ostringstream out;
+        out << "device:            " << base.deviceName << '\n'
+            << "driver:            " << mProperties->mVulkan12.driverName << ' ' << mProperties->mVulkan12.driverInfo
+            << '\n'
+            << "Vulkan:            " << versionString(base.apiVersion) << '\n'
+            << "device-local heap: " << mDeviceLocalMemory / (1024 * 1024) << " MiB\n"
+            << "queue family:      " << mQueueFamily << '\n'
+            << "subgroup size:     " << mProperties->mVulkan11.subgroupSize << '\n';
 
-        out += "\n\nray tracing\n";
-        out += "  shader group handle size:     "
-            + std::to_string(mProperties->mRayTracingPipeline.shaderGroupHandleSize) + " bytes\n";
-        out += "  shader group base alignment:  "
-            + std::to_string(mProperties->mRayTracingPipeline.shaderGroupBaseAlignment) + " bytes\n";
-        out += "  max ray recursion depth:      "
-            + std::to_string(mProperties->mRayTracingPipeline.maxRayRecursionDepth) + '\n';
-        out += "  max ray dispatch invocations: "
-            + std::to_string(mProperties->mRayTracingPipeline.maxRayDispatchInvocationCount) + '\n';
-        out += "  max geometry count:           " + std::to_string(mProperties->mAccelerationStructure.maxGeometryCount)
-            + '\n';
-        out += "  max instance count:           " + std::to_string(mProperties->mAccelerationStructure.maxInstanceCount)
-            + '\n';
-        out += "  max primitive count:          "
-            + std::to_string(mProperties->mAccelerationStructure.maxPrimitiveCount) + '\n';
-        out += "  micromap subdivision levels:  "
-            + std::to_string(mProperties->mOpacityMicromap.maxOpacity2StateSubdivisionLevel) + " (2-state), "
-            + std::to_string(mProperties->mOpacityMicromap.maxOpacity4StateSubdivisionLevel) + " (4-state)\n";
+        out << "\nray tracing\n"
+            << "  shader group handle size:     " << rt.shaderGroupHandleSize << " bytes\n"
+            << "  shader group base alignment:  " << rt.shaderGroupBaseAlignment << " bytes\n"
+            << "  max ray recursion depth:      " << rt.maxRayRecursionDepth << '\n'
+            << "  max ray dispatch invocations: " << rt.maxRayDispatchInvocationCount << '\n'
+            << "  max geometry count:           " << as.maxGeometryCount << '\n'
+            << "  max instance count:           " << as.maxInstanceCount << '\n'
+            << "  max primitive count:          " << as.maxPrimitiveCount << '\n'
+            << "  micromap subdivision levels:  " << mProperties->mOpacityMicromap.maxOpacity2StateSubdivisionLevel
+            << " (2-state), " << mProperties->mOpacityMicromap.maxOpacity4StateSubdivisionLevel << " (4-state)\n";
 
         // A driver may expose the extension and then decline to reorder, which would make every
         // measurement of SER meaningless. The hint is the only way to tell.
-        out += "  invocation reorder:           ";
-        out += mProperties->mInvocationReorder.rayTracingInvocationReorderReorderingHint
-                == VK_RAY_TRACING_INVOCATION_REORDER_MODE_REORDER_EXT
-            ? "reorders"
-            : "accepts the call and does nothing";
+        out << "  invocation reorder:           "
+            << (mProperties->mInvocationReorder.rayTracingInvocationReorderReorderingHint
+                           == VK_RAY_TRACING_INVOCATION_REORDER_MODE_REORDER_EXT
+                       ? "reorders"
+                       : "accepts the call and does nothing")
+            << '\n';
 
-        out += "\n\noptional extensions present\n";
+        out << "\noptional extensions present\n";
         if (mOptionalExtensions.empty())
-            out += "  (none)\n";
+            out << "  (none)\n";
         for (const char* const name : mOptionalExtensions)
-        {
-            out += "  ";
-            out += name;
-            out += '\n';
-        }
+            out << "  " << name << '\n';
 
-        return out;
+        return out.str();
     }
 }
