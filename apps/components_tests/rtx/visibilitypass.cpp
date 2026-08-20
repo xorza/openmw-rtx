@@ -1785,6 +1785,83 @@ namespace Rtx
             EXPECT_NEAR(ratio, 0.971, 0.05) << "banked air against even air, over nine viewpoints";
         }
 
+        /// The fog scatters the sun forward far harder than back, which is what a Mie phase is for.
+        ///
+        /// **A single Henyey-Greenstein lobe cannot do this shape.** Real droplets throw a peak
+        /// within a degree of the light that is orders of magnitude above anything one `g` reaches,
+        /// and still send a sixth of isotropic *backwards* — the blaze around a low sun, and fog not
+        /// going black when you turn away from it. Before this the fog was lit by the sky and the
+        /// lamps and not at all by the sun, so facing it rendered identically to facing away.
+        ///
+        /// **A ratio, because it is the only thing the fixture computes exactly.** Two frames differ
+        /// in nothing but which side of the camera the sun is on, at the same elevation — so the
+        /// column of fog it crosses, the extinction, the transmittance and the march all cancel, and
+        /// what is left is `p(26.6 degrees) / p(153.4)`. An isotropic fog would give exactly one.
+        TEST_F(RtxVisibilityTest, theFogScattersTheSunForwardFarHarderThanBack)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+
+            // Bright enough to read against eight bits after the fog's own column has taken 83% of
+            // it, and the forward case still has to stay inside one.
+            constexpr float irradiance = 12.7f;
+
+            // Level, so the centre ray holds one height and the medium along it is uniform — which
+            // is what lets the two frames cancel to the phase function alone.
+            const auto lookPast = [&](float towardsY) {
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1000.0f, 0.0f), 60.0f, size, size, 100000.0f);
+
+                // The sun a quarter of the way up, ahead of the camera or behind it. Both carry the
+                // same climb, so `fogSunDepth` is the same for each and cancels.
+                osg::Vec3f towards(0.0f, towardsY, 0.5f);
+                towards.normalize();
+                camera.mSunDirection = -towards;
+                camera.mSunIrradiance = osg::Vec3f(irradiance, irradiance, irradiance);
+                camera.mFogExtinction = 3.0e-4f;
+                camera.mFogUniform = 1.0f;
+
+                // Nothing to hit and nothing else to scatter: every ray runs out to `FOG_REACH`
+                // through even air whose own colour is black, so the pixel is the sun and no more.
+                const SceneDesc scene = makeWall();
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, noTextures(), camera, size, pixels);
+
+                return decodeSrgb(pixels[centre]);
+            };
+
+            const float ahead = lookPast(1.0f);
+            const float behind = lookPast(-1.0f);
+
+            // Hand-computed from Jendersie and d'Eon's fit at a droplet diameter of eight microns:
+            // the blend is 47.4% Draine over a Henyey-Greenstein peak of g = 0.98447, and at
+            // `cos = +-0.8944` that comes to 0.225158 forward against 0.011708 back.
+            constexpr float forward = 0.225158f;
+            constexpr float backward = 0.011708f;
+
+            EXPECT_NEAR(ahead / behind, forward / backward, 1.0f) << "forward against backward scattering";
+
+            // **And the absolute value, because a ratio cannot see a factor of `4 pi`.** That is the
+            // mistake this shape of function invites: normalise the phase so isotropic reads one —
+            // the convention a lamp is written in — and both frames grow together while their ratio
+            // stays put. What the eye gets is the sun's irradiance times the phase *per steradian*,
+            // less the fog's own column on the way down, over a ray that runs to `FOG_REACH`:
+            //
+            //   12.7 * 0.225158 * exp(-2600 * 3e-4 / 0.44721) * (1 - exp(-3e-4 * 30000)) = 0.4998
+            //
+            // which the sRGB curve puts at 188 of 255. Four pi times that is white.
+            const float climb = 0.5f / std::sqrt(1.25f);
+            const float column = std::exp(-Shaders::FOG_HEIGHT * 3.0e-4f / climb);
+            const float crossed = 1.0f - std::exp(-3.0e-4f * Shaders::FOG_REACH);
+
+            EXPECT_NEAR(ahead, irradiance * forward * column * crossed, 0.006f)
+                << "the sun's own irradiance through the phase function, per steradian";
+
+            // And the backward half is not nothing, which is the other half of why a single lobe
+            // will not do: fog behind you still glows.
+            EXPECT_GT(behind, 0.01f) << "a sixth of isotropic still comes back";
+        }
+
         /// Its own device, because the validation layers allocate and this test counts allocations.
         class RtxFrameCostTest : public ::testing::Test
         {

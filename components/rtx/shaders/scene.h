@@ -100,6 +100,12 @@ namespace Rtx::Shaders
     /// visible in shade, and a glowing mushroom is not as bright as the sun on it.
     const float EMISSIVE_INTENSITY = DAYLIGHT * 0.2f;
 
+    /// How far a ray carries fog before whatever is behind it stops mattering.
+    ///
+    /// Four hundred metres. Past this the transmittance of even the thinnest weather is a rounding
+    /// error, and a ray that hit nothing has to stop somewhere.
+    const float FOG_REACH = 30000.0f;
+
     /// The height over the fog's base at which its density falls to `1/e`, in world units.
     ///
     /// Seventy units to the metre, so about thirty-seven of them — a layer deep enough to fill a

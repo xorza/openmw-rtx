@@ -240,12 +240,6 @@ const uint FOG_STEPS = 24u;
 /// enough to a floor to serve indoors.
 const float FOG_BASE = 0.0;
 
-/// How far a ray carries fog before whatever is behind it stops mattering.
-///
-/// Four hundred metres. Past this the transmittance of even the thinnest weather is a rounding
-/// error, and a ray that hit nothing has to stop somewhere.
-const float FOG_REACH = 30000.0;
-
 vec3 encodeSrgb(vec3 linear)
 {
     const bvec3 small = lessThanEqual(linear, vec3(0.0031308));
@@ -766,6 +760,73 @@ float fogExtinctionAt(vec3 position, float spacing)
     return camera.mFogExtinction * height * coverage;
 }
 
+/// The mean diameter of the fog's water droplets, in micrometres.
+///
+/// **The one dial on the shape of the sun's halo.** Radiation fog runs from a few micrometres to
+/// about twenty, and the forward peak sharpens brutally with size: at five the fog scatters 1,300
+/// times an isotropic one straight down the sun's line, at eight 4,300, at thirty 81,000. Eight is
+/// a thick coastal fog.
+const float FOG_DROPLET = 8.0;
+
+/// Henyey-Greenstein, normalised to integrate to one over the sphere.
+float henyeyGreenstein(float g, float cosine)
+{
+    const float squared = g * g;
+    const float denominator = 1.0 + squared - 2.0 * g * cosine;
+
+    return INV_FOUR_PI * (1.0 - squared) / (denominator * sqrt(denominator));
+}
+
+/// What the fog sends toward the eye per steradian, `cosine` off the sun's line.
+///
+/// **Mie, not Henyey-Greenstein.** A single lobe is the usual choice and it cannot do this shape:
+/// real droplets throw a diffraction peak within a degree of the light that is orders of magnitude
+/// above anything one `g` reaches, and they still send a sixth of isotropic *backwards*. Both are
+/// what fog looks like — the blaze around a low sun, and fog not going black when you turn away
+/// from it. Jendersie and d'Eon fit an HG peak blended with Draine's function to tabulated Mie over
+/// droplet diameters of five to fifty micrometres, which is two lobes and four `exp` rather than a
+/// table: <https://research.nvidia.com/labs/rtr/approximate-mie/>.
+///
+/// **Per steradian, and that is not a detail.** The sky needs no phase function at all — it arrives
+/// from every direction and a phase function integrates to one over the sphere, so the whole of it
+/// scatters in whatever shape the fog has. The sun arrives from one direction as *irradiance*, and
+/// what comes back is that irradiance times this. Normalising instead so that isotropic reads one —
+/// the convention a lamp's `INV_FOUR_PI` is written in — makes the sun `4 pi` times too bright.
+///
+/// One evaluation for a whole ray: the sun is directional, so its angle to the view ray is the same
+/// at every step, which is the only reason a function of this shape is affordable here.
+float fogPhase(float cosine)
+{
+    const float peak = exp(-0.0990567 / (FOG_DROPLET - 1.67154));
+    const float bulk = exp(-2.20679 / (FOG_DROPLET + 3.91029) - 0.428934);
+    const float alpha = exp(3.62489 - 8.29288 / (FOG_DROPLET + 5.52825));
+    const float share = exp(-0.599085 / (FOG_DROPLET - 0.641583) - 0.665888);
+
+    // Draine's function is Henyey-Greenstein with a `1 + alpha cos^2` term over what that costs it
+    // in normalisation.
+    const float draine = henyeyGreenstein(bulk, cosine) * (1.0 + alpha * cosine * cosine)
+        / (1.0 + alpha * (1.0 + 2.0 * bulk * bulk) / 3.0);
+
+    return mix(henyeyGreenstein(peak, cosine), draine, share);
+}
+
+/// How much fog stands between a point of the given `extinction` and the sky along the sun's line.
+///
+/// **Fog shadows itself, and leaving that out is what makes single scattering white out.** Light
+/// reaching a point deep in a bank crossed the whole bank to get there; without this, every point is
+/// lit as though it were the first the sun touched — and a phase function that aims the sun at the
+/// eye then multiplies something already several times too large.
+///
+/// Closed form rather than a second march: the density falls off exponentially with height, so the
+/// column along a straight line out of it integrates to `sigma * H / cos(zenith)`. Its assumption is
+/// that the coverage a point sits in continues along that line, which is what a bank looks like from
+/// inside one and is wrong only near an edge, where the fog is thin and the term is near one anyway.
+float fogSunDepth(float extinction)
+{
+    // A sun on the horizon lights an infinite column of fog; the floor is what keeps that finite.
+    return extinction * FOG_HEIGHT / max(-camera.mSunDirection.z, 1.0e-3);
+}
+
 /// What the air at a point sends toward the eye, per unit of light it takes out of the beam.
 ///
 /// **Every lamp that reaches it, so a lantern is a halo in the murk rather than a light with a dark
@@ -782,7 +843,11 @@ float fogExtinctionAt(vec3 position, float spacing)
 /// The loop is `gather`'s without its cosine or its shadow ray — the air has no normal to face away
 /// from, and nothing here is occluded. What the two must agree on is `falloff`, which is the whole
 /// of what a lamp delivers at a distance.
-vec3 fogLight(vec3 position)
+///
+/// @param sun what the sun puts into the air here, with its phase function, its own column of fog
+///        and any water overhead already taken out of it. It arrives whole because its angle to the
+///        ray does not change along one, unlike every lamp's.
+vec3 fogLight(vec3 position, vec3 sun)
 {
     vec3 lamps = vec3(0.0);
     const uvec2 near = lampsReaching(position);
@@ -797,7 +862,7 @@ vec3 fogLight(vec3 position)
         lamps += light.mIntensity * falloff(distance, light.mReach);
     }
 
-    return camera.mFogColour + INV_FOUR_PI * lamps;
+    return camera.mFogColour + sun + INV_FOUR_PI * lamps;
 }
 
 /// What `distance` units of air take out of what is behind them, and what they put in on the way.
@@ -824,6 +889,15 @@ vec4 fogAlong(vec3 origin, vec3 direction, float distance, float offset)
 
     const float span = min(distance, FOG_REACH);
 
+    // One evaluation for the whole march: a directional source holds its angle to the ray, which is
+    // what makes a phase function of this shape affordable at all.
+    //
+    // **Asked once whether there is a sun at all**, the same question `gather` asks before it spends
+    // a shadow ray. An interior and a night both answer no, and what they would otherwise pay is an
+    // `exp` for the sun's own column at every one of the steps below.
+    const bool sunlit = camera.mSunIrradiance != vec3(0.0);
+    const vec3 sunward = sunlit ? camera.mSunIrradiance * fogPhase(dot(direction, -camera.mSunDirection)) : vec3(0.0);
+
     float transmittance = 1.0;
     vec3 scattered = vec3(0.0);
     float behind = 0.0;
@@ -849,13 +923,18 @@ vec4 fogAlong(vec3 origin, vec3 direction, float distance, float offset)
         // What this step is worth to the frame, computed once and used twice: what it scatters in
         // is weighted by it, and what the transmittance loses to it is exactly it, since
         // `T * (1 - absorbed)` is `T - T * absorbed`.
+        // Everything between the sun and this point: what the fog itself took on the way down, and
+        // what any water overhead took out of it.
+        const vec3 sun
+            = sunlit ? sunward * exp(-fogSunDepth(extinction)) * daylightReaching(position) : vec3(0.0);
+
         const float weight = transmittance * (1.0 - exp(-extinction * stride));
 
         // **Skipping the lamps where that weight is negligible was measured and is not here.** Air
         // above the layer and air behind fog already opaque both look like free steps to drop, and
         // dropping them bought 3% on Balmora and nothing at all in an interior: at this layer's
         // scale height there is no thin fraction of the ray to skip.
-        scattered += weight * fogLight(position);
+        scattered += weight * fogLight(position, sun);
         transmittance -= weight;
     }
 

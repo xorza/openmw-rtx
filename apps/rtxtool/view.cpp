@@ -47,6 +47,31 @@ namespace RtxTool
             return Debug::getRawStdout();
         }
 
+        /// Runs its lambda however the scope is left.
+        ///
+        /// **The frame loop can throw, and what freed its semaphores and fences came after it.** A
+        /// `checkVk` failure anywhere in a frame left all seven behind — and with the layers on by
+        /// default that is worse than a leak: `vkDestroyDevice` reports them, the abort policy fires
+        /// while the stack is still unwinding, and the error that actually happened never reaches
+        /// anyone. What the loop broke on is what should be printed.
+        template <typename Run>
+        class OnScopeExit
+        {
+        public:
+            explicit OnScopeExit(Run run)
+                : mRun(std::move(run))
+            {
+            }
+
+            OnScopeExit(const OnScopeExit&) = delete;
+            OnScopeExit& operator=(const OnScopeExit&) = delete;
+
+            ~OnScopeExit() { mRun(); }
+
+        private:
+            Run mRun;
+        };
+
         VkSemaphore makeSemaphore(VkDevice device)
         {
             const VkSemaphoreCreateInfo create{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
@@ -205,6 +230,23 @@ namespace RtxTool
         };
 
         remakeImageSync();
+
+        // **`vkDeviceWaitIdle` rather than `Device::waitIdle`, because this runs in a destructor.**
+        // The wrapper reports a failure by throwing, and throwing while the stack is already
+        // unwinding is a call to `std::terminate` — which would replace the error being reported
+        // with no error at all. Nothing here can be done about a device that will not go idle.
+        const OnScopeExit freeFrameSync([&] {
+            vkDeviceWaitIdle(device.getHandle());
+
+            for (const VkSemaphore semaphore : rendered)
+                vkDestroySemaphore(device.getHandle(), semaphore, nullptr);
+
+            for (std::uint32_t i = 0; i < sFramesInFlight; ++i)
+            {
+                vkDestroySemaphore(device.getHandle(), acquired[i], nullptr);
+                vkDestroyFence(device.getHandle(), finished[i], nullptr);
+            }
+        });
 
         const auto rebuild = [&] {
             device.waitIdle();
@@ -474,15 +516,6 @@ namespace RtxTool
 
         out() << '\n';
         printCamera(camera);
-
-        device.waitIdle();
-        for (const VkSemaphore semaphore : rendered)
-            vkDestroySemaphore(device.getHandle(), semaphore, nullptr);
-        for (std::uint32_t i = 0; i < sFramesInFlight; ++i)
-        {
-            vkDestroySemaphore(device.getHandle(), acquired[i], nullptr);
-            vkDestroyFence(device.getHandle(), finished[i], nullptr);
-        }
 
         return 0;
     }
