@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <limits>
 
 #include <osg/Math>
 
@@ -57,6 +58,9 @@ namespace Rtx
             .mHeight = height,
             .mFar = far,
             .mSpreadAngle = spread,
+            // Not zero, which would be sea level: a world with no water has to answer "how deep is
+            // this point" with never, and only an infinity does that without a second question.
+            .mWaterLevel = -std::numeric_limits<float>::infinity(),
         };
     }
 

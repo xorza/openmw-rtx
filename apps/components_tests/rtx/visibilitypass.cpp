@@ -82,6 +82,12 @@ namespace Rtx
                 makeCamera(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, 64, 64, 1.0f), Error);
         }
 
+        /// A level bed `depth` units under a level surface of water, both `extent` across.
+        ///
+        /// The shape all three water tests want: something to see through the water at, and the
+        /// water to see it through.
+        SceneDesc makeFlooded(float extent, float depth);
+
         /// A level square of `extent` about the origin at height `z`, facing up.
         std::array<osg::Vec3f, 4> makeSheet(float extent, float z)
         {
@@ -91,6 +97,23 @@ namespace Rtx
                 osg::Vec3f(extent, extent, z),
                 osg::Vec3f(-extent, extent, z),
             };
+        }
+
+        SceneDesc makeFlooded(float extent, float depth)
+        {
+            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
+
+            SceneDesc scene;
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                .mMesh = scene.addMesh(makeSheet(extent, -depth), {}, {}, indices) });
+
+            Material water;
+            water.mKind = MaterialKind::Water;
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                .mMesh = scene.addMesh(makeSheet(extent, 0.0f), {}, {}, indices),
+                .mMaterial = scene.addMaterial(water) });
+
+            return scene;
         }
 
         /// A square in the xz plane at y = 0, facing along -Y, four hundred units across.
@@ -940,18 +963,7 @@ namespace Rtx
             constexpr float depth = 200.0f;
 
             // A bed and a surface, both level and both wide enough to fill the frame.
-            const auto sheet = [](float z) { return makeSheet(400.0f, z); };
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
-
-            SceneDesc scene;
-            scene.addInstance(MeshInstance{
-                .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(sheet(-depth), {}, {}, indices) });
-
-            Material water;
-            water.mKind = MaterialKind::Water;
-            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
-                .mMesh = scene.addMesh(sheet(0.0f), {}, {}, indices),
-                .mMaterial = scene.addMaterial(water) });
+            const SceneDesc scene = makeFlooded(400.0f, depth);
 
             Shaders::VisibilityConstants camera = makeCamera(
                 osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
@@ -959,6 +971,7 @@ namespace Rtx
             camera.mSunIrradiance = osg::Vec3f(2.0f, 2.0f, 2.0f);
             camera.mSkyHorizon = osg::Vec3f();
             camera.mSkyZenith = osg::Vec3f();
+            camera.mWaterLevel = 0.0f;
 
             // No height at all, which is a flat sea: a table whose amplitudes are zero.
             std::vector<std::uint8_t> pixels;
@@ -968,14 +981,18 @@ namespace Rtx
             //
             //   bed = 0.5 * 2.0 / pi = 0.318310
             //
-            // Two hundred units of water take `exp(-extinction * 200)` of it, and give back what
-            // they scattered — both legs attenuated, so `(1 - T^2) / 2` against a black ambient,
-            // which is zero here. The sky is black too, so the two per cent Fresnel reflects nothing.
+            // **The water is crossed twice**, which is the whole point of this test: the sun is
+            // attenuated on its way down to the bed and again on the way back up to the eye, so what
+            // arrives is `T^2` of it and not `T`. Lighting the bottom as though the water above it
+            // were not there is what makes the same column read differently from above and below.
+            //
+            // The scattering gives back `(1 - T^2) / 2` against a black ambient, which is zero here,
+            // and the sky is black too, so the two per cent Fresnel reflects nothing.
             constexpr float bed = 0.5f * 2.0f / 3.14159265f;
             for (int channel = 0; channel < 3; ++channel)
             {
                 const float transmittance = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth);
-                const auto expected = static_cast<int>(encodeSrgb(bed * transmittance * 0.98f));
+                const auto expected = static_cast<int>(encodeSrgb(bed * transmittance * transmittance * 0.98f));
 
                 EXPECT_NEAR(pixels[centre + static_cast<std::size_t>(channel)], expected, 1)
                     << "channel " << channel << ", transmittance " << transmittance;
@@ -1011,18 +1028,7 @@ namespace Rtx
             constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
             constexpr float depth = 2000.0f;
 
-            const auto sheet = [](float z) { return makeSheet(4000.0f, z); };
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
-
-            SceneDesc scene;
-            scene.addInstance(MeshInstance{
-                .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(sheet(-depth), {}, {}, indices) });
-
-            Material water;
-            water.mKind = MaterialKind::Water;
-            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
-                .mMesh = scene.addMesh(sheet(0.0f), {}, {}, indices),
-                .mMaterial = scene.addMaterial(water) });
+            const SceneDesc scene = makeFlooded(4000.0f, depth);
 
             // No sun and a black sky, so the ambient is the only light and the two per cent that
             // reflects off the surface reflects nothing.
@@ -1035,6 +1041,57 @@ namespace Rtx
             countHits(scene, noTextures(), camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
 
             EXPECT_EQ(pixels[centre], 18) << "red, settled at what the water scatters";
+        }
+
+        /// The same column of water has to look the same from either side of it.
+        ///
+        /// **This is the test that found the missing half.** Seen from ten units above, a ray crosses
+        /// the surface, the water and back; seen from ten units below, it crosses the water and the
+        /// ray is fogged by it directly. Those are different code paths through the same physics, and
+        /// they have to agree — which they cannot while the light reaching the bottom is not
+        /// attenuated by the water over it.
+        ///
+        /// M6's stated done-when, and the sort of thing that is found by measuring rather than by
+        /// looking: neither view is obviously wrong on its own.
+        TEST_F(RtxVisibilityTest, aColumnOfWaterAgreesFromAboveAndFromBelow)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            constexpr float depth = 200.0f;
+
+            const SceneDesc scene = makeFlooded(400.0f, depth);
+
+            // A fifth of a degree off the vertical, which `makeCamera` insists on and which changes
+            // the path by a part in ten thousand.
+            const auto look = [&](float from) {
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(0.0f, -0.05f, from), osg::Vec3f(0.0f, 0.0f, from - 10.0f), 60.0f, size, size, 10000.0f);
+                camera.mSunDirection = osg::Vec3f(0.0f, 0.0f, -1.0f);
+                camera.mSunIrradiance = osg::Vec3f(2.0f, 2.0f, 2.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mWaterLevel = 0.0f;
+
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, noTextures(), camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
+                return std::array<int, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
+            };
+
+            // Ten above and ten below, and the two legitimately differ by a little. From above the
+            // ray crosses the whole 200 units after the surface and loses two per cent to Fresnel on
+            // the way in; from below it crosses 190 and meets no surface at all. In radiance that is
+            //
+            //   exp(0.004572 * 10) / 0.98 = 1.068
+            //
+            // for red, which the sRGB curve compresses to about three per cent of a byte — so 63 and
+            // 65, and a tolerance of two rather than a round fraction chosen to pass.
+            const std::array<int, 3> above = look(10.0f);
+            const std::array<int, 3> below = look(-10.0f);
+
+            EXPECT_GT(above[0], 0) << "the bed is visible from above";
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                EXPECT_NEAR(below[channel], above[channel], 2) << "channel " << channel << ": " << above[channel]
+                                                               << " from above, " << below[channel] << " from below";
         }
 
         /// Its own device, because the validation layers allocate and this test counts allocations.

@@ -12,6 +12,7 @@ namespace RtxTool
     {
         constants.mAmbient = lighting.mAmbient;
         constants.mTime = lighting.mSeconds;
+        constants.mWaterLevel = lighting.mWaterLevel;
         constants.mSunDirection = lighting.mDaylight.mSun.mDirection;
         constants.mSunIrradiance = lighting.mDaylight.mSun.mIrradiance;
         constants.mSkyHorizon = lighting.mDaylight.mSkyHorizon;

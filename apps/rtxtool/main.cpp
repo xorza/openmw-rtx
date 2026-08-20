@@ -23,7 +23,9 @@
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/rtxbridge/waterbuilder.hpp>
+
 #include <components/settings/settings.hpp>
+#include <limits>
 
 #include "placement.hpp"
 #include "shot.hpp"
@@ -380,14 +382,16 @@ namespace RtxTool
             // After the geometry, because an interior's pool is sized by what the room holds and
             // there is nothing to measure until the room is in. Here rather than in `readCell` for
             // the reason the lights are: reading a cell twice must not fill it twice.
-            RtxBridge::addWater(scene, cell);
+            const std::optional<float> water = RtxBridge::addWater(scene, cell);
+
+            const float level = water.value_or(-std::numeric_limits<float>::infinity());
 
             // An interior's sky is never seen and its sun never shines, so the daylight stays dark.
             if (!cell.isExterior())
-                return CellLighting{ .mAmbient = report.mAmbient, .mDaylight = {} };
+                return CellLighting{ .mAmbient = report.mAmbient, .mWaterLevel = level, .mDaylight = {} };
 
             const RtxBridge::Daylight daylight = RtxBridge::makeDaylight(weather, hour);
-            return CellLighting{ .mAmbient = daylight.mAmbient, .mDaylight = daylight };
+            return CellLighting{ .mAmbient = daylight.mAmbient, .mWaterLevel = level, .mDaylight = daylight };
         }
 
         int runShot(

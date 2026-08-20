@@ -1,6 +1,8 @@
 #ifndef OPENMW_COMPONENTS_RTXBRIDGE_WATERBUILDER_H
 #define OPENMW_COMPONENTS_RTXBRIDGE_WATERBUILDER_H
 
+#include <optional>
+
 namespace ESM
 {
     struct Cell;
@@ -25,7 +27,9 @@ namespace RtxBridge
     /// of it. An interior's pool sits at the height its record names and spans what the room holds,
     /// which is as much as a flat quad can know about a cave — so this must be called after the
     /// cell's geometry, which is what gives it those bounds.
-    void addWater(Rtx::SceneDesc& scene, const ESM::Cell& cell);
+    /// @return where the surface went, or nothing where the cell holds no water — which everything
+    ///         downstream reads as a depth that is never positive.
+    std::optional<float> addWater(Rtx::SceneDesc& scene, const ESM::Cell& cell);
 }
 
 #endif

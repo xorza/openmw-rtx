@@ -321,6 +321,23 @@ vec3 waterNormal(vec2 at, float time, float footprint, out float unresolved)
     return normalize(vec3(-slope, 1.0));
 }
 
+/// What is left of the daylight by the time it reaches a point, as a fraction per channel.
+///
+/// The sun and the sky both come from above, so what they lose is the water between the surface and
+/// the point they land on. **This was the half that was missing**: absorbing on the way up while
+/// lighting the bottom as though the water were not there makes the same column of water read
+/// differently from above and below, which is what the invariant test measures.
+///
+/// White above the surface, and for a cell with no water at all.
+vec3 daylightReaching(vec3 position)
+{
+    const float depth = camera.mWaterLevel - position.z;
+    if (!(depth > 0.0))
+        return vec3(1.0);
+
+    return exp(-WATER_EXTINCTION * depth);
+}
+
 /// How much of a light `distance` away arrives, per unit intensity.
 ///
 /// An inverse square windowed to arrive at exactly zero where the light's reach ends. Morrowind's
@@ -395,14 +412,19 @@ bool occluded(vec3 from, vec3 towards, float distance)
 /// from — the two tests before it are what keep a cell's worth of lamps affordable.
 vec3 gather(vec3 position, vec3 normal)
 {
-    vec3 radiance = camera.mAmbient;
+    // The sky and the sun both arrive from above, so both are dimmed by whatever water is over the
+    // point they reach. A lamp is not: it is usually in the same water as what it lights, and the
+    // column above the two of them is not between them.
+    const vec3 daylight = daylightReaching(position);
+
+    vec3 radiance = camera.mAmbient * daylight;
 
     // The sun, which is one direction everywhere and needs none of the machinery below: no falloff,
     // no reach, and a shadow ray that runs until it leaves the world rather than until it arrives.
     const float sunCosine = dot(normal, -camera.mSunDirection);
     if (sunCosine > 0.0 && camera.mSunIrradiance != vec3(0.0)
         && !occluded(position, -camera.mSunDirection, camera.mFar))
-        radiance += camera.mSunIrradiance * (sunCosine * INV_PI);
+        radiance += camera.mSunIrradiance * daylight * (sunCosine * INV_PI);
 
     for (uint i = 0u; i < camera.mLightCount; ++i)
     {
@@ -724,6 +746,16 @@ void main()
         colour = surface.mAlbedo;
     else
         colour = shadeSurface(surface);
+
+    // A camera under the surface sees everything through the water in front of it. Only a hit that
+    // is not water itself: the surface shades its own two sides, and a ray that reached it from
+    // below has already been through this.
+    //
+    // Applied to the whole colour rather than to the albedo alone, which is a distinction that costs
+    // nothing today and will matter later: a denoiser demodulates by albedo, so dimming both would
+    // put the water straight back, and what the depth took is a property of the path.
+    if (camera.mOrigin.z < camera.mWaterLevel && !(surface.mHit && surface.mWater))
+        colour = absorbedByWater(colour, surface.mDistance);
 
     if (surface.mHit)
         atomicAdd(hits, 1);

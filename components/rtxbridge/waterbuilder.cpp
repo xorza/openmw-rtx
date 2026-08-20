@@ -48,10 +48,10 @@ namespace RtxBridge
         }
     }
 
-    void addWater(Rtx::SceneDesc& scene, const ESM::Cell& cell)
+    std::optional<float> addWater(Rtx::SceneDesc& scene, const ESM::Cell& cell)
     {
         if (!cell.hasWater())
-            return;
+            return std::nullopt;
 
         osg::Vec3f scale;
         osg::Vec3f centre;
@@ -67,7 +67,7 @@ namespace RtxBridge
         {
             const osg::BoundingBoxf bounds = scene.getBounds();
             if (!bounds.valid())
-                return;
+                return std::nullopt;
 
             scale = osg::Vec3f(bounds.xMax() - bounds.xMin(), bounds.yMax() - bounds.yMin(), 1.0f);
             centre = osg::Vec3f(
@@ -82,5 +82,7 @@ namespace RtxBridge
             .mMesh = addQuad(scene),
             .mMaterial = scene.addMaterial(material),
         });
+
+        return centre.z();
     }
 }

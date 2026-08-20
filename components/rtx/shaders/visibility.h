@@ -76,6 +76,13 @@ namespace Rtx::Shaders
         vec3 mSkyHorizon;
         vec3 mSkyZenith;
 
+        /// Where the water's surface is, or negative infinity where the cell holds none.
+        ///
+        /// Infinity rather than a flag: everything that asks does so as "how deep is this point",
+        /// and a level of minus infinity makes that never positive, so a cell with no water takes
+        /// the same path as a point above the surface with no branch of its own.
+        float mWaterLevel;
+
         /// How long the water has been moving, in seconds.
         ///
         /// Zero is a still sea and a deterministic frame, which is what a test wants; the window

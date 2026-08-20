@@ -249,10 +249,11 @@ not a specification, and **the shader is more current than the document**.
   surface, `shadeSurface` lights one, and water calls both — which is how a shader with no recursion
   reflects.
 
-  Two pieces of the same model are still missing and go together: **the daylight is not attenuated on
-  its way down**, so a seabed is lit as though the water above it were not there, and **a primary ray
-  is not attenuated when the camera is under the surface**. Both need the water level in the frame's
-  constants, and the ten-above/ten-below invariant below cannot be written until they are in.
+  The daylight is attenuated on its way down as well as up, and a primary ray is fogged when the
+  camera is under the surface — both off one water level in the frame's constants, which is minus
+  infinity where a cell holds no water so that "how deep is this point" is never positive and nothing
+  needs a second question. The GGX sun glint is the piece still outstanding, and it wants the LEAN
+  roughness that is computed and dropped today.
 - Waves below the ray cone are **averaged, and their variance returns as roughness** — LEAN mapping
   in one dimension. This is what makes the sun a shimmering road instead of a hard dot, and what
   keeps distant water from crawling with white sparks.
@@ -275,6 +276,11 @@ folds, which is where whitecaps belong) and underwater sun shafts.
 at a slant, for the reason in §7.6 — water really is clearer from a boat); caustic contrast and
 per-twelfth-second change are measured, not eyeballed; every expectation derives from one
 `EXTINCTION` constant so tuning is a one-line change.
+
+The invariant holds, and it is what found the missing half: the two views are different code paths
+through the same physics and cannot agree while one of them lights the bottom as though the water
+over it were not there. Every water expectation in the tests derives from `WATER_EXTINCTION`. The
+caustics are the remaining piece.
 
 ### M7 — Fog
 

@@ -1,6 +1,8 @@
 #ifndef OPENMW_APPS_RTXTOOL_LIGHTING_H
 #define OPENMW_APPS_RTXTOOL_LIGHTING_H
 
+#include <limits>
+
 #include <osg/Vec3f>
 
 #include <components/rtxbridge/lightbuilder.hpp>
@@ -28,6 +30,10 @@ namespace RtxTool
         /// How long the water has been moving, in seconds. Zero is a still sea and a deterministic
         /// frame, which is what a screenshot wants; a window passes its own clock.
         float mSeconds = 0.0f;
+
+        /// Where the water's surface is. Minus infinity where the cell holds none, so that "how deep
+        /// is this point" is never positive and nothing downstream needs a second question.
+        float mWaterLevel = -std::numeric_limits<float>::infinity();
 
         /// The sun and the sky over an exterior. An interior leaves this dark.
         RtxBridge::Daylight mDaylight;
