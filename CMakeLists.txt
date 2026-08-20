@@ -671,6 +671,29 @@ endif()
 add_subdirectory (components)
 
 if (OPENMW_RTX)
+    # How this fork's own code is compiled, in one place rather than once per target.
+    #
+    # Warnings are errors here and nowhere else: the tree around this belongs to upstream and
+    # `extern/` to third parties, and breaking the build on their warnings would only mean turning
+    # this off again. The extra warnings were measured before being adopted — each of them costs
+    # nothing today. Three more were tried and rejected: `-Wfloat-equal` fires 29 times on deliberate
+    # sentinels, and `-Wold-style-cast` and `-Wuseless-cast` fire inside OpenMW's own headers.
+    #
+    # `-Wno-missing-field-initializers` is the one subtraction. Vulkan's create-info structs are
+    # filled with designated initializers, which value-initialise every field not named — that is the
+    # point of using them, and GCC does not distinguish it from an accidentally short aggregate.
+    if (CMAKE_CXX_COMPILER_ID STREQUAL GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
+        set(OPENMW_RTX_COMPILE_OPTIONS
+            -Werror
+            -Wno-missing-field-initializers
+            -Wsuggest-override
+            -Wzero-as-null-pointer-constant
+            -Wnull-dereference
+            -Wdouble-promotion
+            -Wcast-qual
+        )
+    endif()
+
     add_subdirectory (components/rtx)
     add_subdirectory (components/rtxbridge)
     add_subdirectory (apps/rtxtool)

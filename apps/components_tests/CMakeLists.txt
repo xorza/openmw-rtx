@@ -100,7 +100,15 @@ file(GLOB UNITTEST_SRC_FILES
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 
 if (OPENMW_RTX)
-    list(APPEND UNITTEST_SRC_FILES rtx/device.cpp rtx/requirements.cpp rtx/scenedesc.cpp rtx/visibilitypass.cpp rtxbridge/sceneextractor.cpp rtxtool/terrainstorage.cpp)
+    set(RTX_TEST_FILES
+        rtx/device.cpp
+        rtx/requirements.cpp
+        rtx/scenedesc.cpp
+        rtx/visibilitypass.cpp
+        rtxbridge/sceneextractor.cpp
+        rtxtool/terrainstorage.cpp
+    )
+    list(APPEND UNITTEST_SRC_FILES ${RTX_TEST_FILES})
 endif()
 
 openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
@@ -113,6 +121,10 @@ target_link_libraries(components-tests
 
 if (OPENMW_RTX)
     target_link_libraries(components-tests openmw-rtx openmw-rtx-bridge openmw-rtxtool-lib)
+
+    # Per file rather than per target: this binary holds upstream's tests as well as this fork's, and
+    # only the latter are ours to keep warning-free.
+    set_source_files_properties(${RTX_TEST_FILES} PROPERTIES COMPILE_OPTIONS "${OPENMW_RTX_COMPILE_OPTIONS}")
 endif()
 
 if (WIN32)

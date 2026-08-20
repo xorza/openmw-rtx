@@ -283,7 +283,8 @@ namespace Rtx
             const auto expected = static_cast<std::uint32_t>(covered * covered * size * size);
 
             // Within a pixel of edge on each side of a 33-pixel square.
-            EXPECT_NEAR(static_cast<double>(hits), static_cast<double>(expected), 2.0 * covered * size + 4.0);
+            const double tolerance = 2.0 * static_cast<double>(covered) * size + 4.0;
+            EXPECT_NEAR(static_cast<double>(hits), static_cast<double>(expected), tolerance);
         }
     }
 }

@@ -94,7 +94,8 @@ namespace Rtx
             const Index mesh = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
             const Index material = scene.addMaterial(Material{});
             scene.addTexture(VFS::Path::NormalizedView("textures/tx_stone_01.dds"));
-            scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+            scene.addInstance(
+                MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = material });
 
             scene.clear();
 

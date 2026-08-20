@@ -88,6 +88,12 @@ cmake --build build -j32 --target openmw-rtxtool   # just the harness — the us
 cmake --build build -j32 --target components-tests openmw-tests
 ```
 
+**Never `cmake --build --clean-first`.** Upstream declares `files/lang/*.ts` — translation files in
+the *source* tree, with thousands of human translations in them — as build byproducts of the
+`translations` target. Cleaning deletes them, and the rebuild regenerates them from scratch with
+`lupdate`, so every translation becomes `type="unfinished"`. `git checkout -- files/lang/` puts them
+back. Delete the build directory instead if a clean build is really wanted.
+
 Tests are gtest binaries run directly. **There is no ctest registration in this project.**
 
 ```sh
@@ -194,6 +200,17 @@ Four places, and the build enforces it (`openmw.md` §6): the category header in
 `docs/source/reference/modding/settings/`, and — for a user-facing toggle — either four `UserString`
 lines in `files/data/mygui/openmw_settings_window.layout` or a widget in
 `apps/launcher/ui/graphicspage.ui` with load/save in `graphicspage.cpp`.
+
+### Warnings
+
+Warnings are errors in this fork's own targets and nowhere else — upstream's tree and `extern/`
+belong to other people, and breaking the build on their warnings would only mean turning it off
+again. The flags live in one place, `OPENMW_RTX_COMPILE_OPTIONS` in the root `CMakeLists.txt`, on top
+of the `-Wall -Wextra -Wshadow -pedantic` the project already sets.
+
+Adding a warning to that list means measuring it first. `-Wfloat-equal` fires 29 times on deliberate
+`== 0.0f` sentinels; `-Wold-style-cast` and `-Wuseless-cast` fire inside OpenMW's own headers, which
+this fork does not fix. All three were tried and rejected on those counts.
 
 ### Adding a shader
 

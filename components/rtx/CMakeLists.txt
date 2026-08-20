@@ -92,12 +92,7 @@ add_library(openmw-rtx STATIC ${RTX_FILES})
 
 target_link_libraries(openmw-rtx PUBLIC Vulkan::Vulkan PRIVATE components)
 
-# Vulkan's create-info structs are filled with designated initializers, which value-initialise every
-# field not named — that is the point of using them, and it is what keeps a 20-field struct readable.
-# GCC's -Wmissing-field-initializers does not distinguish that from an accidentally short aggregate.
-if (CMAKE_CXX_COMPILER_ID STREQUAL GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
-    target_compile_options(openmw-rtx PRIVATE -Wno-missing-field-initializers)
-endif()
+target_compile_options(openmw-rtx PRIVATE ${OPENMW_RTX_COMPILE_OPTIONS})
 
 add_dependencies(openmw-rtx openmw-rtx-shaders)
 
@@ -111,3 +106,4 @@ if (BUILD_WITH_CODE_COVERAGE)
     target_compile_options(openmw-rtx PRIVATE --coverage)
     target_link_libraries(openmw-rtx gcov)
 endif()
+
