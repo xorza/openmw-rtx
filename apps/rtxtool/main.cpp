@@ -67,11 +67,22 @@ namespace RtxTool
         /// Shared because `info` and every other command have to agree: a device that reported its
         /// limits under one set of layers and traced under another would be describing something
         /// nobody ran.
-        Rtx::InstanceOptions chooseValidation(const bpo::variables_map& variables)
+        ///
+        /// @param windowed whether this run opens a window, which is the one place GPU-assisted
+        ///        validation cannot be left on.
+        Rtx::InstanceOptions chooseValidation(const bpo::variables_map& variables, bool windowed)
         {
             Rtx::InstanceOptions options;
             options.mSynchronizationValidation = variables["sync-validation"].as<bool>();
             options.mGpuAssistedValidation = variables["gpu-validation"].as<bool>();
+
+            // **A window under GPU-assisted validation loses the device**: `vkWaitForFences` comes
+            // back `VK_ERROR_DEVICE_LOST`, on three runs of four, somewhere between twenty seconds
+            // and a minute in. It is not the shader — three thousand headless traces of the same
+            // frame under the same layer are clean — so it is that layer over a swapchain, and the
+            // answer for now is not to pay for it where it cannot be had. Asking still turns it on.
+            if (windowed && variables["gpu-validation"].defaulted())
+                options.mGpuAssistedValidation = false;
 
             // Either of the two is a kind of validation, so either implies the layer that carries it.
             options.mValidation = variables["validation"].as<bool>() || options.mSynchronizationValidation
@@ -104,7 +115,8 @@ namespace RtxTool
                 "add synchronization validation, which catches missing barriers (implies --validation)");
             addOption("gpu-validation", bpo::value<bool>()->default_value(sValidationByDefault)->implicit_value(true),
                 "add GPU-assisted validation, which instruments shaders and catches what a ray query "
-                "does with its own arguments (implies --validation). Costs about half the frame rate");
+                "does with its own arguments (implies --validation). Costs about half the frame rate, "
+                "and is left off by `view` unless asked for: a window under it loses the device");
 
             addOption("cell", bpo::value<std::string>()->default_value(""),
                 "cell to read, addressed the way Morrowind does: a pair of integers is an exterior, "
@@ -585,7 +597,7 @@ namespace RtxTool
 
             if (command == "info")
             {
-                const Rtx::InstanceOptions instanceOptions = chooseValidation(variables);
+                const Rtx::InstanceOptions instanceOptions = chooseValidation(variables, false);
 
                 return runInfo(instanceOptions);
             }
@@ -618,7 +630,7 @@ namespace RtxTool
                 // and the one place every player of this game has stood.
                 const Chosen chosen = chooseView(variables, resources);
 
-                const Rtx::InstanceOptions instanceOptions = chooseValidation(variables);
+                const Rtx::InstanceOptions instanceOptions = chooseValidation(variables, command == "view");
 
                 World world(config, variables, resources);
 

@@ -92,6 +92,28 @@ namespace Rtx
         VkDebugUtilsMessengerCreateInfoEXT messengerInfo{};
         std::vector<VkValidationFeatureEnableEXT> enabled;
         VkValidationFeaturesEXT validationFeatures{};
+
+        // What GPU-assisted validation does about reads past the end of a buffer.
+        //
+        /// **Its own instrumentation is what makes it unaffordable here**, and it says so: the layer
+        // warns that a shader with this many storage buffers "will be very slow to compile and
+        // runtime performance may also be slow", and points at this setting. Left alone it is worse
+        // than slow — a window under GPU-AV loses the device inside half a minute.
+        //
+        // Turning it on hands the same job to the hardware's own robust buffer access, which returns
+        // zero for a read past the end instead of instrumenting every access to catch it. What is
+        // given up is the *report*; what is kept is everything else GPU-AV checks, including what a
+        // ray query does with its own arguments — which is what it caught here first.
+        const VkBool32 robustness = VK_TRUE;
+        const VkLayerSettingEXT robustSetting{
+            .pLayerName = sValidationLayer,
+            .pSettingName = "gpuav_force_on_robustness",
+            .type = VK_LAYER_SETTING_TYPE_BOOL32_EXT,
+            .valueCount = 1,
+            .pValues = &robustness,
+        };
+        VkLayerSettingsCreateInfoEXT layerSettings{};
+
         const void* next = nullptr;
 
         if (validation)
@@ -113,6 +135,17 @@ namespace Rtx
                     .pEnabledValidationFeatures = enabled.data(),
                 };
                 next = &validationFeatures;
+            }
+
+            if (options.mGpuAssistedValidation)
+            {
+                layerSettings = VkLayerSettingsCreateInfoEXT{
+                    .sType = VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT,
+                    .pNext = next,
+                    .settingCount = 1,
+                    .pSettings = &robustSetting,
+                };
+                next = &layerSettings;
             }
         }
 
