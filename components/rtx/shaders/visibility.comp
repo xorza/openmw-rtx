@@ -895,8 +895,17 @@ bool alphaPasses(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed, ve
 ///
 /// No cone here, so the cutout is decided at the finest mip. A shadow ray carries no footprint, and
 /// aliasing in a leaf's shadow is worth far less than aliasing on the leaf.
+///
+/// **A ray shorter than the bias it starts past is not a ray.** A candle sitting a unit off a table
+/// asks for a shadow ray whose end is behind its own beginning, and `rayQueryInitializeEXT` with a
+/// `tmax` under its `tmin` is undefined — which is a hang or a garbage answer rather than an empty
+/// one. Nothing fits in that gap anyway: the bias is what a hit point's own surface needs to be
+/// clear of, so a light inside it is a light nothing can stand between.
 bool occluded(vec3 from, vec3 towards, float distance)
 {
+    if (distance <= SHADOW_BIAS)
+        return false;
+
     rayQueryEXT query;
     rayQueryInitializeEXT(
         query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT, MASK_SOLID, from, SHADOW_BIAS, towards, distance);

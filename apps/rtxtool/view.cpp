@@ -157,9 +157,23 @@ namespace RtxTool
 
         // One per swapchain image rather than per frame in flight: a present may still be reading
         // the semaphore a frame signalled, and there is no fence that says when it stopped.
-        std::vector<VkSemaphore> rendered(swapchain.getImageCount());
-        for (VkSemaphore& semaphore : rendered)
-            semaphore = makeSemaphore(device.getHandle());
+        //
+        // **Rebuilt with the swapchain, because the image count is the surface's to decide.** A
+        // recreate can come back with a different number of images, and a vector sized to the old
+        // one is then indexed past its end by `rendered[image]` — which hands `vkQueueSubmit2` a
+        // semaphore made of whatever was next on the heap. The layers call that out at once; with
+        // them off it is a frozen window and nothing in the log.
+        std::vector<VkSemaphore> rendered;
+
+        /// What the last frame to use each swapchain image waits on, so it is not used again while
+        /// its present is still outstanding.
+        ///
+        /// **Mailbox hands an image back before the presentation engine has finished with it.** A
+        /// queued frame that a newer one replaces is free to be acquired again immediately, and
+        /// signalling `rendered[image]` a second time while the first present's wait is still
+        /// pending is undefined — the case the frames-in-flight fence alone does not cover, because
+        /// it counts frames rather than images.
+        std::vector<VkFence> presenting;
 
         const osg::BoundingBoxf bounds = scene.getBounds();
         const Placement start = placeCamera(bounds, request.mFieldOfView, request.mOrigin, request.mTarget);
@@ -178,10 +192,25 @@ namespace RtxTool
         std::uint32_t frame = 0;
         std::uint32_t drawn = 0;
 
+        const auto remakeImageSync = [&] {
+            for (VkSemaphore semaphore : rendered)
+                vkDestroySemaphore(device.getHandle(), semaphore, nullptr);
+
+            rendered.assign(swapchain.getImageCount(), VK_NULL_HANDLE);
+            for (VkSemaphore& semaphore : rendered)
+                semaphore = makeSemaphore(device.getHandle());
+
+            // Nothing is in flight after a `waitIdle`, and nothing at all before the first frame.
+            presenting.assign(swapchain.getImageCount(), VK_NULL_HANDLE);
+        };
+
+        remakeImageSync();
+
         const auto rebuild = [&] {
             device.waitIdle();
             swapchain.recreate(window.getExtent());
             targets = makeTargets(swapchain.getExtent());
+            remakeImageSync();
             resized = false;
         };
 
@@ -362,6 +391,17 @@ namespace RtxTool
                 continue;
             }
 
+            // **This image may still be in the presentation engine's hands.** Mailbox releases a
+            // frame the moment a newer one replaces it, so an image can come back round before the
+            // present that queued it has consumed `rendered[image]` — and the frames-in-flight
+            // fence does not cover that, because two frames in flight over three images is not the
+            // same count. Waiting on whatever frame last used *this* image is what closes it.
+            if (presenting[image] != VK_NULL_HANDLE)
+                Rtx::checkVk(
+                    vkWaitForFences(device.getHandle(), 1, &presenting[image], VK_TRUE, UINT64_MAX), "vkWaitForFences");
+
+            presenting[image] = finished[frame];
+
             Rtx::checkVk(vkResetFences(device.getHandle(), 1, &finished[frame]), "vkResetFences");
 
             const VkExtent2D extent = swapchain.getExtent();
@@ -424,7 +464,15 @@ namespace RtxTool
         // someone watching the title bar, and scrollback to someone who ran this with --frames.
         const double lasted = std::chrono::duration<double>(Clock::now() - began).count();
         out() << std::format(
-            "\n{} frames in {:.2f} s, {:.0f} fps average\n", drawn, lasted, drawn / std::max(lasted, 1e-6));
+            "\n{} frames in {:.2f} s, {:.0f} fps average", drawn, lasted, drawn / std::max(lasted, 1e-6));
+
+        // The same caveat `shot` prints beside its own figure: the layers are on by default outside
+        // a Release build and cost about half the frame rate between them, so this is not a number
+        // to compare against anything without `--validation=false`.
+        if (instance.getValidationLog() != nullptr)
+            out() << ", with the validation layers on";
+
+        out() << '\n';
         printCamera(camera);
 
         device.waitIdle();

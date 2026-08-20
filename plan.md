@@ -498,6 +498,12 @@ statistic; the mean and the median are not.
 The default is eight, which costs four milliseconds against a quarter-second of device setup and is
 within 16% of the converged figure. **A comparison worth quoting uses hundreds**, and quotes the best.
 
+**And it uses `--validation=false`, because the layers are on by default outside a Release build.**
+Core and synchronization validation cost about 6% of a trace; GPU-assisted validation costs another
+100%, so a Balmora frame that traces in 2.66 ms reads 5.68 under all three. `shot` says "with the
+validation layers on" beside any figure measured under them, so a number that should not be compared
+carries the reason with it.
+
 ### 7.7 Build speed
 
 `ninja`, `mold`, `ccache` at 25 GB, `-DOPENMW_UNITY_BUILD=OFF` so incremental edits stay cheap, and

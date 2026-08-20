@@ -44,6 +44,42 @@ namespace RtxTool
 
         constexpr std::string_view applicationName = "RtxTool";
 
+        /// Whether the validation layers load without anyone asking.
+        ///
+        /// **On outside a Release build**, because the alternative is what this fork just spent an
+        /// afternoon on: a window that stuttered and froze with nothing in the log, whose cause was
+        /// a ray query built with its end behind its start — undefined, silent, and named outright
+        /// by GPU-assisted validation the first time it was switched on. A rule the layers can check
+        /// is one nobody should have to think to check for.
+        ///
+        /// They are not free. GPU-assisted validation instruments every shader and costs roughly
+        /// half the frame rate, and the layers themselves allocate on the frame path, which is why
+        /// the test that counts allocations builds its own device without them. `--validation=false`
+        /// turns them off for a measurement, and a Release build never had them.
+#ifdef OPENMW_RTX_VALIDATION_BY_DEFAULT
+        constexpr bool sValidationByDefault = true;
+#else
+        constexpr bool sValidationByDefault = false;
+#endif
+
+        /// Which layers a run wants, from what the command line asked for.
+        ///
+        /// Shared because `info` and every other command have to agree: a device that reported its
+        /// limits under one set of layers and traced under another would be describing something
+        /// nobody ran.
+        Rtx::InstanceOptions chooseValidation(const bpo::variables_map& variables)
+        {
+            Rtx::InstanceOptions options;
+            options.mSynchronizationValidation = variables["sync-validation"].as<bool>();
+            options.mGpuAssistedValidation = variables["gpu-validation"].as<bool>();
+
+            // Either of the two is a kind of validation, so either implies the layer that carries it.
+            options.mValidation = variables["validation"].as<bool>() || options.mSynchronizationValidation
+                || options.mGpuAssistedValidation;
+
+            return options;
+        }
+
         /// Reports go to the unprefixed stream.
         ///
         /// `Debug::wrapApplication` routes `std::cout` through the log formatter, which stamps every
@@ -60,11 +96,15 @@ namespace RtxTool
             auto addOption = result.add_options();
             addOption("help", "print this message and quit");
 
-            addOption("validation", bpo::bool_switch(), "load VK_LAYER_KHRONOS_validation");
-            addOption("sync-validation", bpo::bool_switch(),
+            // On unless this was built for release, and `--validation=false` turns any of them off
+            // again. An implicit value is what lets the bare `--validation` still mean "yes".
+            addOption("validation", bpo::value<bool>()->default_value(sValidationByDefault)->implicit_value(true),
+                "load VK_LAYER_KHRONOS_validation. On by default outside a Release build");
+            addOption("sync-validation", bpo::value<bool>()->default_value(sValidationByDefault)->implicit_value(true),
                 "add synchronization validation, which catches missing barriers (implies --validation)");
-            addOption("gpu-validation", bpo::bool_switch(),
-                "add GPU-assisted validation, which instruments shaders (implies --validation)");
+            addOption("gpu-validation", bpo::value<bool>()->default_value(sValidationByDefault)->implicit_value(true),
+                "add GPU-assisted validation, which instruments shaders and catches what a ray query "
+                "does with its own arguments (implies --validation). Costs about half the frame rate");
 
             addOption("cell", bpo::value<std::string>()->default_value(""),
                 "cell to read, addressed the way Morrowind does: a pair of integers is an exterior, "
@@ -545,11 +585,7 @@ namespace RtxTool
 
             if (command == "info")
             {
-                Rtx::InstanceOptions instanceOptions;
-                instanceOptions.mSynchronizationValidation = variables["sync-validation"].as<bool>();
-                instanceOptions.mGpuAssistedValidation = variables["gpu-validation"].as<bool>();
-                instanceOptions.mValidation = variables["validation"].as<bool>()
-                    || instanceOptions.mSynchronizationValidation || instanceOptions.mGpuAssistedValidation;
+                const Rtx::InstanceOptions instanceOptions = chooseValidation(variables);
 
                 return runInfo(instanceOptions);
             }
@@ -582,11 +618,7 @@ namespace RtxTool
                 // and the one place every player of this game has stood.
                 const Chosen chosen = chooseView(variables, resources);
 
-                Rtx::InstanceOptions instanceOptions;
-                instanceOptions.mSynchronizationValidation = variables["sync-validation"].as<bool>();
-                instanceOptions.mGpuAssistedValidation = variables["gpu-validation"].as<bool>();
-                instanceOptions.mValidation = variables["validation"].as<bool>()
-                    || instanceOptions.mSynchronizationValidation || instanceOptions.mGpuAssistedValidation;
+                const Rtx::InstanceOptions instanceOptions = chooseValidation(variables);
 
                 World world(config, variables, resources);
 

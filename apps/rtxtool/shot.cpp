@@ -166,10 +166,18 @@ namespace RtxTool
             << "trace:      " << trace.mBest << " ms";
 
         if (request.mRepeat > 1)
-            out << " (best of " << request.mRepeat << "; median " << trace.mMedian << ", worst " << trace.mWorst
-                << ")\n";
+            out << " (best of " << request.mRepeat << "; median " << trace.mMedian << ", worst " << trace.mWorst << ")";
         else
-            out << " (one submit, including the wait)\n";
+            out << " (one submit, including the wait)";
+
+        // **Said out loud, because it doubles the number above it.** The layers are on by default
+        // outside a Release build, and a figure measured under them is not one to compare against
+        // anything: core and synchronization validation cost about 6% here, GPU-assisted another
+        // 100%. Anyone quoting a trace time wants `--validation=false`.
+        if (instance.getValidationLog() != nullptr)
+            out << ", with the validation layers on";
+
+        out << '\n';
 
         return 0;
     }
