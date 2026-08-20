@@ -105,6 +105,7 @@ if (OPENMW_RTX)
         rtx/requirements.cpp
         rtx/scenedesc.cpp
         rtx/visibilitypass.cpp
+        rtxbridge/lightbuilder.cpp
         rtxbridge/sceneextractor.cpp
         rtxbridge/texturebuilder.cpp
         rtxtool/terrainstorage.cpp

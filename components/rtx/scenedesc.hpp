@@ -126,6 +126,31 @@ namespace Rtx
         osg::Vec4f mMaskTransform{ 1.0f, 1.0f, 0.0f, 0.0f };
     };
 
+    /// One point light, placed in the world.
+    ///
+    /// Everything here is derived rather than read. A `LIGH` record carries a colour and a radius
+    /// and **no intensity at all** — the original renderer had a fixed attenuation curve and no
+    /// physical units, so brightness fell out of the curve and there is no authored value to be
+    /// faithful to.
+    struct Light
+    {
+        osg::Vec3f mPosition;
+
+        /// Radiant intensity, linear, with the colour folded in.
+        ///
+        /// Scaled by the square of the recorded radius, which is what makes a lantern and a candle
+        /// differ by their size rather than by an arbitrary per-light number.
+        osg::Vec3f mIntensity;
+
+        /// How far the light reaches, beyond which it contributes exactly nothing.
+        ///
+        /// **Not the recorded radius.** Morrowind's radii run 64 to 256 units in an interior — a
+        /// metre to three and a half — because a fixed falloff curve lit the lamp's own post and an
+        /// ambient term filled the room. Here the ambient is real light and the lamps have to be
+        /// what lights the place, so the reach is stretched while the brightness is not.
+        float mReach = 0.0f;
+    };
+
     /// One mesh placed in the world: a row of the top-level acceleration structure.
     ///
     /// Not `Instance`, which in this namespace is the `VkInstance` a device comes from.
@@ -140,8 +165,9 @@ namespace Rtx
 
     /// Everything the renderer needs to know about a world, with no Vulkan and no scene graph in it.
     ///
-    /// No lights yet. `NifOsg` never reads `NiLight`, so a model carries none; the world's lights come
-    /// from ESM `Light` records, which the content loader does not read either. Both are M4's.
+    /// Lights come from ESM `Light` records rather than from the graph: `NifOsg` never reads
+    /// `NiLight`, so a model carries none — a candle's mesh and the light it casts arrive by
+    /// different routes and are placed by the same reference.
     ///
     /// Deliberately dumb: it appends and it dedups paths, and nothing else. Deciding that two
     /// drawables are the same mesh belongs to whoever is reading the scene graph, which knows what
@@ -170,6 +196,8 @@ namespace Rtx
         /// so there is no index to hand out.
         void addLayer(const MaterialLayer& layer);
 
+        void addLight(const Light& light);
+
         /// Returns the index of `path`, adding it only if it is not already known.
         Index addTexture(VFS::Path::NormalizedView path);
 
@@ -187,6 +215,7 @@ namespace Rtx
         std::span<const MeshInstance> getInstances() const { return mInstances; }
         std::span<const Material> getMaterials() const { return mMaterials; }
         std::span<const MaterialLayer> getLayers() const { return mLayers; }
+        std::span<const Light> getLights() const { return mLights; }
         std::span<const float> getMasks() const { return mMasks; }
         std::span<const VFS::Path::Normalized> getTextures() const { return mTextures; }
 
@@ -215,6 +244,7 @@ namespace Rtx
         std::vector<MeshInstance> mInstances;
         std::vector<Material> mMaterials;
         std::vector<MaterialLayer> mLayers;
+        std::vector<Light> mLights;
         std::vector<float> mMasks;
         std::vector<VFS::Path::Normalized> mTextures;
 

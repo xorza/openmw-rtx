@@ -20,6 +20,7 @@
 #include <components/rtx/physicaldevice.hpp>
 #include <components/rtx/requirements.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/settings/settings.hpp>
 
@@ -194,8 +195,25 @@ namespace RtxTool
 
             /// References whose model is named but will not load. Logged individually as they fail.
             std::uint32_t mUnreadable = 0;
+
+            /// What the cell's `LIGH` references cast. Carried, negative and off-by-default records
+            /// place a mesh and no light, so this is shorter than the cell's list of them.
+            ///
+            /// Reported rather than placed, because reading a cell twice must not light it twice.
+            /// Geometry is safe from that — the extractor recognises what it has already seen — and
+            /// a light has no such identity, so the decision to place one belongs to whoever knows
+            /// whether this cell is already in the scene.
+            std::vector<Rtx::Light> mLights;
+
+            /// The cell's ambient, linear. Black for an exterior, whose sky is M5's.
+            osg::Vec3f mAmbient;
         };
 
+        /// Mirrors one cell's geometry through `extractor`, and reports what else it holds.
+        ///
+        /// The content arrives by two routes and only one of them is the scene graph: lights are not
+        /// in it at all, because `NifOsg` never reads `NiLight`. They come off the `LIGH` records the
+        /// same references point at, and leave here in the report.
         CellReport readCell(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor)
         {
             CellReport report;
@@ -205,7 +223,18 @@ namespace RtxTool
             if (const osg::ref_ptr<osg::Node> terrain = world.buildTerrain(cell))
                 report.mTerrain = extractor.extract(*terrain, osg::Matrixf::identity());
 
+            // Interiors were authored against a renderer with no bounce, so the cell's own ambient
+            // is most of what lights one. An exterior's `AMBI` is the weather system's business and
+            // is not read here.
+            if (!cell.isExterior() && cell.mHasAmbi)
+                report.mAmbient = RtxBridge::decodeColour(cell.mAmbi.mAmbient);
+
             report.mSkipped = world.forEachObject(cell, [&](const World::Object& object) {
+                if (object.mLight != nullptr)
+                    if (const std::optional<Rtx::Light> light
+                        = RtxBridge::makeLight(*object.mLight, object.mTransform.getTrans()))
+                        report.mLights.push_back(*light);
+
                 osg::ref_ptr<const osg::Node> node;
                 try
                 {
@@ -297,7 +326,9 @@ namespace RtxTool
                 cutouts += material.isCutout() ? 1 : 0;
                 tested += material.mAlphaMode == Rtx::AlphaMode::Cutout ? 1 : 0;
             }
-            out() << "  cutout materials:     " << cutouts << ", " << tested << " of them alpha-tested outright\n";
+            out() << "  cutout materials:     " << cutouts << ", " << tested << " of them alpha-tested outright\n"
+                  << "  lights:               " << report.mLights.size() << " casting, ambient " << report.mAmbient.x()
+                  << ", " << report.mAmbient.y() << ", " << report.mAmbient.z() << '\n';
 
             out() << "\nnot placed\n"
                   << "  record type unread:   " << report.mSkipped.mUnknownType << '\n'
@@ -323,8 +354,23 @@ namespace RtxTool
             return 0;
         }
 
-        int runShot(World& world, const std::string& cellSpec, const Rtx::InstanceOptions& instanceOptions,
-            const ShotRequest& request)
+        /// Reads a cell and places all of it, lights included, returning what is left to be told.
+        ///
+        /// The ambient is the one thing a scene cannot carry: it belongs to the cell rather than to
+        /// anything in it, so it travels in the request — which is why both commands below take
+        /// theirs by value and fill it in here.
+        osg::Vec3f loadCell(
+            World& world, const ESM::Cell& cell, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor)
+        {
+            const CellReport report = readCell(world, cell, extractor);
+            for (const Rtx::Light& light : report.mLights)
+                scene.addLight(light);
+
+            return report.mAmbient;
+        }
+
+        int runShot(
+            World& world, const std::string& cellSpec, const Rtx::InstanceOptions& instanceOptions, ShotRequest request)
         {
             const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
             if (cell == nullptr)
@@ -332,7 +378,7 @@ namespace RtxTool
 
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
-            readCell(world, *cell, extractor);
+            request.mAmbient = loadCell(world, *cell, scene, extractor);
 
             printCellHeading(*cell);
             out() << '\n';
@@ -340,8 +386,8 @@ namespace RtxTool
             return renderShot(scene, world.getImageManager(), instanceOptions, request);
         }
 
-        int runView(World& world, const std::string& cellSpec, const Rtx::InstanceOptions& instanceOptions,
-            const ViewRequest& request)
+        int runView(
+            World& world, const std::string& cellSpec, const Rtx::InstanceOptions& instanceOptions, ViewRequest request)
         {
             const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
             if (cell == nullptr)
@@ -349,7 +395,7 @@ namespace RtxTool
 
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
-            readCell(world, *cell, extractor);
+            request.mAmbient = loadCell(world, *cell, scene, extractor);
 
             printCellHeading(*cell);
 

@@ -1,6 +1,8 @@
 # OpenSceneGraph in, `Rtx::SceneDesc` out. The only place that knows both worlds.
 
 set(RTXBRIDGE_FILES
+    lightbuilder.cpp
+    lightbuilder.hpp
     sceneextractor.cpp
     sceneextractor.hpp
     texturebuilder.cpp

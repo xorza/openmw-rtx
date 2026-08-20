@@ -2,6 +2,7 @@
 #include <array>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -205,34 +206,6 @@ namespace Rtx
                 ASSERT_NEAR(pixels[i + 1], 187, 1) << "green at pixel " << i / 4;
                 ASSERT_NEAR(pixels[i + 2], 187, 1) << "blue at pixel " << i / 4;
             }
-        }
-
-        /// The normal survives the acceleration structure, and points at the eye.
-        ///
-        /// The shading term is `0.25 + 0.75 * dot(normal, -direction)`, which is exactly one for a
-        /// surface square to the ray and a quarter for one edge-on. So a wall facing the camera must
-        /// shade to the same bytes as its own unshaded albedo — and would not if the normal came back
-        /// rotated, mirrored, or read off the wrong vertex.
-        TEST_F(RtxVisibilityTest, aWallFacingTheCameraShadesToExactlyItsAlbedo)
-        {
-            // Odd, so that one pixel sits exactly on the axis and its ray is exactly square to the
-            // wall. At an even size the middle is half a pixel off and the term is 0.9996, which
-            // rounds to a different byte and would make "exactly" a lie.
-            constexpr std::uint32_t size = 33;
-            const Shaders::VisibilityConstants shaded = makeCamera(
-                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
-
-            Shaders::VisibilityConstants albedo = shaded;
-            albedo.mShowAlbedo = 1u;
-
-            std::vector<std::uint8_t> withShading;
-            std::vector<std::uint8_t> withoutShading;
-            countHits(makeWall(), noTextures(), shaded, size, withShading);
-            countHits(makeWall(), noTextures(), albedo, size, withoutShading);
-
-            const std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
-            EXPECT_EQ(withShading[centre], withoutShading[centre]);
-            EXPECT_EQ(withShading[centre + 1], withoutShading[centre + 1]);
         }
 
         /// The mip chain a ray cone selects from, at a distance chosen so the answer is a whole
@@ -589,6 +562,101 @@ namespace Rtx
                 ASSERT_EQ(opaque[i], 255) << "red at pixel " << i / 4;
                 ASSERT_EQ(opaque[i + 1], 0) << "green at pixel " << i / 4;
             }
+        }
+
+        /// A wall lit by one lamp, at the radiance the falloff says and nowhere else.
+        ///
+        /// The centre pixel looks straight at the origin, where the wall's normal is (0, -1, 0) and
+        /// the light sits fifty units along it, so the cosine is exactly one and the whole answer is
+        /// the falloff. Written out, with a reach of 500 and the untextured albedo of 0.5:
+        ///
+        ///   window    = 1 - (50 / 500)^4              = 0.99990
+        ///   falloff   = window^2 / (50^2 + 1)         = 0.99980 / 2501 = 3.99760e-4
+        ///   radiance  = 4000 * falloff / pi           = 0.508947
+        ///   encoded   = 1.055 * (0.5 * 0.508947)^(1/2.4) - 0.055 = 0.54150, or 138 of 255
+        ///
+        /// The camera stands off the light's axis so that something can be put between the wall and
+        /// the lamp without also standing in front of the wall.
+        ///
+        /// That cosine of one is also what pins the normal: it holds only if the plane's normal came
+        /// back out of the acceleration structure unrotated and unmirrored, which symmetrical
+        /// geometry otherwise hides well enough to survive being looked at.
+        TEST_F(RtxVisibilityTest, aLampLightsAWallByItsFalloffAndAnObstacleTakesItAway)
+        {
+            // Odd, so one pixel sits exactly on the axis and its ray lands exactly on the origin.
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+
+            const Shaders::VisibilityConstants base = makeCamera(
+                osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            // Ten units across, a quarter of the way from the wall to the lamp: it covers the whole
+            // shadow ray and none of the camera's, which passes through x = 25 at that height.
+            const std::array occluder{
+                osg::Vec3f(-10.0f, -25.0f, -10.0f),
+                osg::Vec3f(10.0f, -25.0f, -10.0f),
+                osg::Vec3f(10.0f, -25.0f, 10.0f),
+                osg::Vec3f(-10.0f, -25.0f, 10.0f),
+            };
+            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
+
+            const auto render = [&](const std::optional<Light>& light, const osg::Vec3f& ambient, bool blocked) {
+                SceneDesc scene = makeWall();
+                if (light.has_value())
+                    scene.addLight(*light);
+                if (blocked)
+                    scene.addInstance(MeshInstance{
+                        .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(occluder, {}, {}, indices) });
+
+                Shaders::VisibilityConstants camera = base;
+                camera.mAmbient = ambient;
+                camera.mLightCount = static_cast<std::uint32_t>(scene.getLights().size());
+
+                std::vector<std::uint8_t> pixels;
+                EXPECT_GT(countHits(scene, noTextures(), camera, size, pixels), 0u);
+                return pixels[centre];
+            };
+
+            const Light lamp{
+                .mPosition = osg::Vec3f(0.0f, -50.0f, 0.0f),
+                .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
+                .mReach = 500.0f,
+            };
+
+            EXPECT_EQ(render(lamp, osg::Vec3f(), false), 138) << "lit by the lamp alone";
+
+            // The same lamp with something in the way. Nothing else lights the wall, so the pixel
+            // goes to black rather than merely dimmer — which is what tells a shadow from a falloff.
+            EXPECT_EQ(render(lamp, osg::Vec3f(), true), 0) << "and shadowed by the quad between them";
+
+            // Ambient with no lamp at all: 0.5 * 0.4 = 0.2 linear, which encodes to
+            // 1.055 * 0.2^(1/2.4) - 0.055 = 0.48453, or 124 of 255.
+            const osg::Vec3f ambient(0.4f, 0.4f, 0.4f);
+            EXPECT_EQ(render(std::nullopt, ambient, false), 124) << "ambient alone";
+
+            // A lamp behind the wall meets it at a cosine of minus one, and is dropped rather than
+            // arithmetically applied. Asserted against the ambient and not against black, because
+            // black is what a negative contribution clamps to as well — the two only tell apart
+            // where there is something for it to be subtracted from.
+            Light behind = lamp;
+            behind.mPosition = osg::Vec3f(0.0f, 50.0f, 0.0f);
+            EXPECT_EQ(render(behind, ambient, false), 124) << "a lamp on the far side lights nothing";
+
+            // The window, biting at half the reach rather than at the very end of it, where it is
+            // indistinguishable from the inverse square alone:
+            //
+            //   window   = 1 - (50 / 100)^4      = 0.93750
+            //   falloff  = 0.87891 / 2501        = 3.51422e-4
+            //   radiance = 4000 * falloff / pi   = 0.447465
+            //   encoded  = 1.055 * (0.5 * 0.447465)^(1/2.4) - 0.055 = 0.51035, or 130 of 255
+            Light near = lamp;
+            near.mReach = 100.0f;
+            EXPECT_EQ(render(near, osg::Vec3f(), false), 130) << "the window taking a bite out of it";
+
+            // And the reach as a hard limit: at exactly its own reach a lamp is skipped outright.
+            Light spent = lamp;
+            spent.mReach = 50.0f;
+            EXPECT_EQ(render(spent, osg::Vec3f(), false), 0) << "and one whose reach ends at the wall";
         }
 
         /// The same scene with the camera turned around. Nothing is in front of it, so nothing is hit

@@ -8,10 +8,12 @@
 
 #include <cstdint>
 
+#include <osg/Vec3f>
 #include <osg/Vec4f>
 
 namespace Rtx::Shaders
 {
+    using vec3 = osg::Vec3f;
     using vec4 = osg::Vec4f;
     using uint = std::uint32_t;
 
@@ -33,6 +35,18 @@ namespace Rtx::Shaders
     {
         uint mMesh;
         uint mMaterial;
+    };
+
+    /// One point light, with everything a shader needs already derived.
+    ///
+    /// The colour is folded into the intensity and the reach is not the radius the record carried;
+    /// both are settled on the way in, so the shader has one falloff to evaluate and no rules to
+    /// remember. `Rtx::Light` says why each is what it is.
+    struct GpuLight
+    {
+        vec3 mPosition;
+        vec3 mIntensity;
+        float mReach;
     };
 
     /// One layer of terrain: a tiling ground texture and the weights that place it.

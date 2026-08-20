@@ -3,6 +3,7 @@
 
 #include <components/esm/defs.hpp>
 #include <components/esm/refid.hpp>
+#include <components/esmloader/lessbyid.hpp>
 #include <components/misc/tuplemeta.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -27,6 +28,7 @@
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/loadweap.hpp>
 
+#include <algorithm>
 #include <bitset>
 #include <cstdint>
 #include <span>
@@ -171,6 +173,17 @@ namespace EsmLoader
             return std::get<std::vector<T>>(mModels);
         }
     };
+
+    /// The record of one model-bearing type with this id, or null.
+    ///
+    /// Every table in `ModelStore` is sorted by id, and this is the one place that knows it.
+    template <class T>
+    const T* find(const EsmData& content, const ESM::RefId& refId)
+    {
+        const std::vector<T>& records = content.get<T>();
+        const auto it = std::lower_bound(records.begin(), records.end(), refId, LessById{});
+        return it != records.end() && it->mId == refId ? &*it : nullptr;
+    }
 
     VFS::Path::NormalizedView getModel(const EsmData& content, const ESM::RefId& refId, ESM::RecNameInts type);
 

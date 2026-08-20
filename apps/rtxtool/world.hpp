@@ -47,6 +47,7 @@ namespace osg
 
 namespace ESM
 {
+    struct Light;
     struct Cell;
 }
 
@@ -77,6 +78,12 @@ namespace RtxTool
         {
             VFS::Path::Normalized mModel;
             osg::Matrixf mTransform;
+
+            /// The `LIGH` record this reference stands for, or null. A candle is both things at
+            /// once: a mesh to place and a light to cast, arriving by the same reference.
+            ///
+            /// Points into the loaded content, which outlives every call.
+            const ESM::Light* mLight = nullptr;
         };
 
         /// What `forEachObject` met but could not place.

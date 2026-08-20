@@ -82,6 +82,11 @@ namespace Rtx
         mLayers.push_back(layer);
     }
 
+    void SceneDesc::addLight(const Light& light)
+    {
+        mLights.push_back(light);
+    }
+
     Index SceneDesc::addTexture(VFS::Path::NormalizedView path)
     {
         const auto known = mTextureIndex.find(path);
@@ -112,6 +117,7 @@ namespace Rtx
         mMaterials.clear();
         mLayers.clear();
         mMasks.clear();
+        mLights.clear();
         mTextures.clear();
         mTextureIndex.clear();
     }

@@ -35,6 +35,9 @@ namespace RtxTool
         /// Write the albedo with no shading over it.
         bool mShowAlbedo = false;
 
+        /// The cell's ambient, linear. Black leaves a room lit only by its own lamps.
+        osg::Vec3f mAmbient;
+
         std::optional<osg::Vec3f> mOrigin;
         std::optional<osg::Vec3f> mTarget;
 

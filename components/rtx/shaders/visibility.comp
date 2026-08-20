@@ -65,6 +65,11 @@ layout(set = 0, binding = 10, scalar) readonly buffer Masks
     float masks[];
 };
 
+layout(set = 0, binding = 11, scalar) readonly buffer Lights
+{
+    GpuLight lights[];
+};
+
 layout(set = 1, binding = 0) uniform sampler2D textures[];
 
 layout(push_constant, scalar) uniform Push
@@ -83,6 +88,16 @@ const vec3 NO_TEXTURE_ALBEDO = vec3(0.5);
 
 /// A texture that maps straight onto the mesh's own coordinates, which is everything but terrain.
 const vec4 UV_IDENTITY = vec4(1.0, 1.0, 0.0, 0.0);
+
+/// How far off a surface a shadow ray starts, in world units.
+///
+/// A Morrowind unit is about 1.4 cm, and a float at the far side of a worldspace resolves to a
+/// hundredth of one — so this is invisible and still an order of magnitude clear of where a hit
+/// point can land on the wrong side of its own triangle.
+const float SHADOW_BIAS = 1.0;
+
+/// The Lambertian BRDF's `1 / pi`, which the light intensities are pre-multiplied against.
+const float INV_PI = 0.31830989;
 
 vec3 encodeSrgb(vec3 linear)
 {
@@ -124,8 +139,13 @@ vec3 cornerWeights(vec2 bary)
 /// the only thing standing between every fetch and level zero.
 /// @param crossed the triangle's edge cross product, whose length is twice its area. The texel area
 ///        below is doubled the same way, so the two cancel in the ratio.
+/// @param distance how far the ray travelled, or zero for a ray that carries no cone at all — which
+///        is every shadow ray, and which reads the finest level.
 float coneLod(uint slot, vec2 uv0, vec2 uv1, vec2 uv2, vec3 crossed, vec3 direction, float distance)
 {
+    if (distance <= 0.0)
+        return 0.0;
+
     const float worldArea = length(crossed);
     const float uvArea = abs((uv1.x - uv0.x) * (uv2.y - uv0.y) - (uv2.x - uv0.x) * (uv1.y - uv0.y));
     if (worldArea <= 0.0 || uvArea <= 0.0)
@@ -201,6 +221,18 @@ float maskWeight(GpuLayer layer, vec2 uv)
         mix(masks[row1 + uint(base.x)], masks[row1 + uint(high.x)], frac.x), frac.y);
 }
 
+/// How much of a light `distance` away arrives, per unit intensity.
+///
+/// An inverse square windowed to arrive at exactly zero where the light's reach ends. Morrowind's
+/// reach is a hard cutoff, and merely clipping an inverse square leaves a visible ring on the floor
+/// where it stops. The `+ 1` keeps the singularity at zero distance finite; a lamp is not a point.
+float falloff(float distance, float reach)
+{
+    const float ratio = distance / reach;
+    const float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
+    return window * window / (distance * distance + 1.0);
+}
+
 /// Whether a candidate hit landed on the material or in one of its holes.
 ///
 /// Only instances the build marked non-opaque reach this, and it marked exactly the materials with
@@ -224,6 +256,72 @@ bool alphaPasses(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed, ve
         direction, distance);
 
     return texel.a >= material.mAlphaCutoff;
+}
+
+/// Whether anything stands between `from` and a light `reach` away along `towards`.
+///
+/// The candidate loop is the one `main` runs and it cannot be shared: `glslc` rejects `rayQueryEXT`
+/// as an `out` or `inout` parameter, so a traversal cannot be handed to a function. Any change to
+/// the cutout has to be made in both places.
+///
+/// No cone here, so the cutout is decided at the finest mip. A shadow ray carries no footprint, and
+/// aliasing in a leaf's shadow is worth far less than aliasing on the leaf.
+bool occluded(vec3 from, vec3 towards, float distance)
+{
+    rayQueryEXT query;
+    rayQueryInitializeEXT(
+        query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, from, SHADOW_BIAS, towards, distance);
+    while (rayQueryProceedEXT(query))
+    {
+        if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)
+            continue;
+
+        vec3 corners[3];
+        rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, corners);
+
+        if (alphaPasses(rayQueryGetIntersectionInstanceCustomIndexEXT(query, false),
+                rayQueryGetIntersectionPrimitiveIndexEXT(query, false),
+                rayQueryGetIntersectionBarycentricsEXT(query, false),
+                triangleCross(corners, rayQueryGetIntersectionObjectToWorldEXT(query, false)), towards, 0.0))
+            rayQueryConfirmIntersectionEXT(query);
+    }
+
+    return rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
+}
+
+/// The light arriving at a point and turning back out of it, per unit albedo.
+///
+/// One shadow ray per light that could reach at all, and none for a light the surface faces away
+/// from — the two tests before it are what keep a cell's worth of lamps affordable.
+vec3 gather(vec3 position, vec3 normal)
+{
+    vec3 radiance = camera.mAmbient;
+
+    for (uint i = 0u; i < camera.mLightCount; ++i)
+    {
+        const GpuLight light = lights[i];
+
+        const vec3 offset = light.mPosition - position;
+        const float distance = length(offset);
+
+        // An early-out and not a rule: the window below is already exactly zero at and beyond the
+        // light's reach, so this changes no pixel. What it saves is the shadow ray, which is the
+        // expensive half of a light and the reason the test is worth making twice.
+        if (distance >= light.mReach || distance <= 0.0)
+            continue;
+
+        const vec3 towards = offset / distance;
+        const float cosine = dot(normal, towards);
+        if (cosine <= 0.0)
+            continue;
+
+        if (occluded(position, towards, distance - SHADOW_BIAS))
+            continue;
+
+        radiance += light.mIntensity * (cosine * falloff(distance, light.mReach) * INV_PI);
+    }
+
+    return radiance;
 }
 
 void main()
@@ -322,9 +420,9 @@ void main()
         }
         albedo *= material.mDiffuseColour.rgb;
 
-        // Not lighting, and not pretending to be: a headlight so that shape reads while the only
-        // thing being judged is whether the right texel landed in the right place.
-        colour = camera.mShowAlbedo != 0u ? albedo : albedo * (0.25 + 0.75 * max(dot(facing, -direction), 0.0));
+        colour = camera.mShowAlbedo != 0u
+            ? albedo
+            : albedo * gather(camera.mOrigin + direction * hitDistance, facing);
         atomicAdd(hits, 1);
     }
 

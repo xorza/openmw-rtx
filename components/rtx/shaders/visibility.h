@@ -53,6 +53,16 @@ namespace Rtx::Shaders
         /// Non-zero to write the albedo straight out, with no shading over it. What a test asserting
         /// "this pixel is that texel" needs, and what makes a texture problem visible as itself.
         uint mShowAlbedo;
+
+        /// How many of the scene's lights to gather from. Every one costs a shadow ray per hit.
+        uint mLightCount;
+
+        /// The cell's own ambient, linear.
+        ///
+        /// Morrowind's interiors were authored against a renderer with no bounce at all, so this
+        /// term stands in for every one of them — and applying it on top of real light therefore
+        /// double-counts, the same way a pre-lit texture does. Both are M9's to unpick.
+        vec3 mAmbient;
     };
 
 #ifdef __cplusplus

@@ -27,6 +27,15 @@ namespace Rtx
             };
         }
 
+        Shaders::GpuLight toGpu(const Light& light)
+        {
+            return Shaders::GpuLight{
+                .mPosition = light.mPosition,
+                .mIntensity = light.mIntensity,
+                .mReach = light.mReach,
+            };
+        }
+
         Shaders::GpuLayer toGpu(const MaterialLayer& layer)
         {
             return Shaders::GpuLayer{
@@ -79,6 +88,11 @@ namespace Rtx
         for (const MaterialLayer& layer : scene.getLayers())
             layers.push_back(toGpu(layer));
 
+        std::vector<Shaders::GpuLight> lights;
+        lights.reserve(scene.getLights().size());
+        for (const Light& light : scene.getLights())
+            lights.push_back(toGpu(light));
+
         mNormals = uploadBuffer(device, pool, scene.getNormals(), sTableUsage);
         mTexCoords = uploadBuffer(device, pool, scene.getTexCoords(), sTableUsage);
         mMeshes = uploadBuffer(device, pool, std::span<const Shaders::GpuMesh>(meshes), sTableUsage);
@@ -89,6 +103,7 @@ namespace Rtx
         // and a zero-length buffer is not a thing Vulkan will make. One unread element each — and
         // the layer cannot be `constexpr`, because `osg::Vec4f` has no constexpr default.
         const Shaders::GpuLayer noLayer{};
+        const Shaders::GpuLight noLight{};
         constexpr float noMask = 1.0f;
 
         mLayers = uploadBuffer(device, pool,
@@ -97,6 +112,10 @@ namespace Rtx
             sTableUsage);
         mMasks = uploadBuffer(device, pool,
             scene.getMasks().empty() ? std::span<const float>(&noMask, 1) : scene.getMasks(), sTableUsage);
+        mLights = uploadBuffer(device, pool,
+            lights.empty() ? std::span<const Shaders::GpuLight>(&noLight, 1)
+                           : std::span<const Shaders::GpuLight>(lights),
+            sTableUsage);
 
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mMaterials.getHandle()), "materials");
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mTexCoords.getHandle()), "uvs");
@@ -107,6 +126,6 @@ namespace Rtx
         // The indices are not counted here: they belong to the acceleration structure, which reports
         // its own size.
         return mNormals.getSize() + mTexCoords.getSize() + mMeshes.getSize() + mInstances.getSize()
-            + mMaterials.getSize() + mLayers.getSize() + mMasks.getSize();
+            + mMaterials.getSize() + mLayers.getSize() + mMasks.getSize() + mLights.getSize();
     }
 }

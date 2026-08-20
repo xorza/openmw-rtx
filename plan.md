@@ -186,11 +186,19 @@ proves the cone is being used; a masked surface in front of a wall shows the wal
 
 ### M4 — Direct lighting and shadows
 
-Sun plus point lights, binned into a world grid (`design.md` §8.10). Traced shadows, with water
-excluded by a mask bit rather than by a cutout test — the any-hit version halves the frame rate
-(`design.md` §7.6). A shadow ray runs the same candidate loop primary visibility does, so a grate
-throws bars, but at the finest mip: a shadow carries no cone to resolve with. Opacity micromaps
-retire the loop at M12.
+Point lights and cell ambient first, since that is what an interior *is* — and the sun waits for M5,
+because an exterior's direction and colour come from `MWWorld::Weather` and the harness has no
+weather. Traced shadows, with water excluded by a mask bit rather than by a cutout test — the
+any-hit version halves the frame rate (`design.md` §7.6). A shadow ray runs the same candidate loop
+primary visibility does, so a grate throws bars, but at the finest mip: a shadow carries no cone to
+resolve with. Opacity micromaps retire the loop at M12.
+
+Everything about a lamp is derived, because a `LIGH` record carries a colour and a radius and **no
+intensity**: the original renderer's fixed falloff curve supplied brightness. Intensity comes off the
+recorded radius squared, and the reach off the radius stretched — Morrowind's radii light a lantern's
+own post and nothing else, which worked when an ambient term lit the room and does not when the
+ambient is real light. Binning into a world grid (`design.md` §8.10) waits until a cell has enough
+lights to measure; the most so far is 26.
 
 *Done when:* radiance at a test pixel matches a hand-computed value; removing a light provably
 changes that pixel; the sun's shadow terminator lands where the geometry says.

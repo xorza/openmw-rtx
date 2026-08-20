@@ -278,7 +278,11 @@ namespace RtxTool
             if (ref.mType != ESM::REC_STAT)
                 model = Misc::ResourceHelpers::correctActorModelPath(model, &mVfs);
 
-            handle(Object{ Misc::ResourceHelpers::correctMeshPath(model), makeTransform(ref) });
+            handle(Object{
+                .mModel = Misc::ResourceHelpers::correctMeshPath(model),
+                .mTransform = makeTransform(ref),
+                .mLight = ref.mType == ESM::REC_LIGH ? EsmLoader::find<ESM::Light>(mEsmData, ref.mRefId) : nullptr,
+            });
         }
 
         return skipped;
