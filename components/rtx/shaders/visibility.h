@@ -110,6 +110,21 @@ namespace Rtx::Shaders
         vec3 mFogColour;
         float mFogExtinction;
 
+        /// One where the air is an even haze, zero where it is banked.
+        ///
+        /// **A room is not a small valley.** Banks are what weather does to a landscape, and a cell
+        /// smaller than one bank running the outdoor coverage field reads as a rendering fault
+        /// rather than as weather. The two are mixed rather than branched, so a cell can be anywhere
+        /// between — and because the banked field is normalised to average one, moving along that
+        /// mix changes the air's character and never how much of it there is.
+        float mFogUniform;
+
+        /// Which frame this is, for anything that wants a different answer than last time.
+        ///
+        /// The fog's step jitter is the only reader so far. Zero is a repeatable frame, which is
+        /// what a test wants; a window passes its own count.
+        uint mFrame;
+
         /// Where the light grid's cell zero starts, how wide a cell is, and how many there are.
         ///
         /// **The scene's, not the camera's**, and written by the pass rather than by whoever built

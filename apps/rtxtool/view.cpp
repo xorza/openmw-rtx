@@ -375,6 +375,11 @@ namespace RtxTool
             lighting.mSeconds = static_cast<float>(std::chrono::duration<double>(now - began).count());
             applyLighting(lighting, constants);
 
+            // What the fog's step jitter varies by. A screenshot leaves it at zero and gets the same
+            // frame twice; here it has to move, or twenty-four shells stand still in front of the
+            // camera and the jitter hides nothing.
+            constants.mFrame = drawn;
+
             const VkCommandBuffer commands = commandBuffers[frame];
             recordFrame(commands, *targets[frame], swapchain.getImage(image), extent, constants);
 

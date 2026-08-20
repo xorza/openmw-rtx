@@ -250,6 +250,11 @@ namespace Rtx
             camera.mFogColour = sHaze;
             camera.mFogExtinction = extinction;
             camera.mWaterLevel = level;
+
+            // Even air, which is what every exact expectation here needs: a banked field varies
+            // along the ray, and then the march stops telescoping and its answer stops being one
+            // anyone can write down. The banks have their own test.
+            camera.mFogUniform = 1.0f;
         }
 
         /// A texture whose every mip is one flat colour — level `i` is `40 + 30i`, evenly spaced
@@ -1724,6 +1729,60 @@ namespace Rtx
             // ray's light the fog took: 0.15 + 1 / (4 pi) * 0.5 = 0.18979, which encodes to 121.
             const float scattered = 0.25f * Shaders::INV_PI * 0.5f;
             EXPECT_NEAR(look(true), int{ encodeSrgb(0.5f * wall + scattered) }, 1) << "the lamp in the air";
+        }
+
+        /// The banked field holds as much air as an even one, which is what `FOG_COVERAGE` is for.
+        ///
+        /// **The noise redistributes the fog, it does not remove it.** The extinction the host
+        /// derived is Morrowind's own view distance turned into a coefficient, and a band that
+        /// leaves 40% of the volume clear would silently make the world twice as clear as the game
+        /// says. Dividing the coverage by its own mean is what holds the average where it was — and
+        /// this is what makes that constant a measurement rather than a note, since moving the band
+        /// without re-measuring moves this ratio by the constant's own error.
+        ///
+        /// **It settles just under one, and that is Jensen's inequality rather than a mistake.** A
+        /// banked field's optical depth varies far more than an even one's, and `exp` is convex, so
+        /// more light survives the same *average* density. Measured at 0.971 against a thickness of
+        /// 0.09 — and the deficit scales with it, so a thinner fog would sit closer to one.
+        ///
+        /// Nine viewpoints, because one is not a sample: the steps bunch near the camera, so a
+        /// single frame weighs one small volume of the field heavily and lands anywhere within six
+        /// per cent. Nine brings that to about two.
+        TEST_F(RtxVisibilityTest, theBankedFieldHoldsAsMuchAirAsAnEvenOne)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::size_t count = std::size_t{ size } * size;
+
+            const auto air = [&](float uniform, float where) {
+                Shaders::VisibilityConstants camera = makeCamera(osg::Vec3f(where, -50000.0f, 0.0f),
+                    osg::Vec3f(where, -60000.0f, 0.0f), 90.0f, size, size, 100000.0f);
+                camera.mFogColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
+                camera.mFogExtinction = 3.0e-6f;
+                camera.mFogUniform = uniform;
+
+                // A wall behind the camera, because a scene has to hold something. Every ray runs
+                // to `FOG_REACH` and comes back with air and the sky, which is what makes the
+                // frame's mean a measurement of the air alone.
+                const SceneDesc scene = makeWall();
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, noTextures(), camera, size, pixels);
+
+                double total = 0.0;
+                for (std::size_t i = 0; i < count; ++i)
+                    total += double{ decodeSrgb(pixels[i * 4]) };
+
+                return total / static_cast<double>(count);
+            };
+
+            double ratio = 0.0;
+            constexpr std::array places{ 0.0f, 12345.0f, -31000.0f, 77000.0f, 250000.0f, -140000.0f, 33000.0f,
+                -420000.0f, 610000.0f };
+            for (const float where : places)
+                ratio += air(0.0f, where) / air(1.0f, where);
+
+            ratio /= static_cast<double>(places.size());
+
+            EXPECT_NEAR(ratio, 0.971, 0.05) << "banked air against even air, over nine viewpoints";
         }
 
         /// Its own device, because the validation layers allocate and this test counts allocations.

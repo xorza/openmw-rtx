@@ -15,5 +15,6 @@ namespace RtxTool
         constants.mSkyZenith = lighting.mDaylight.mSkyZenith;
         constants.mFogColour = lighting.mFog.mColour;
         constants.mFogExtinction = lighting.mFog.mExtinction;
+        constants.mFogUniform = lighting.mFog.mUniform;
     }
 }

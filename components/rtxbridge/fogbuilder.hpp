@@ -19,6 +19,9 @@ namespace RtxBridge
         /// How fast it swallows what is behind it, per world unit. Zero is a cell with no fog, and
         /// costs the shader nothing.
         float mExtinction = 0.0f;
+
+        /// One where the air is an even haze rather than banked, which is what a room holds.
+        float mUniform = 0.0f;
     };
 
     /// What a recorded fog depth comes to as an extinction coefficient.

@@ -27,6 +27,9 @@ namespace RtxBridge
         return Fog{
             .mColour = decodeColour(cell.mAmbi.mFog),
             .mExtinction = fogExtinction(cell.mAmbi.mFogDensity),
+
+            // A room is smaller than one bank of fog, and its air is still.
+            .mUniform = 1.0f,
         };
     }
 }
