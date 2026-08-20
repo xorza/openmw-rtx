@@ -250,6 +250,22 @@
         <source>Vertical Synchronization</source>
         <translation>Synchronizacja pionowa</translation>
     </message>
+    <message>
+        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs an Ada-class NVIDIA GPU.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Experimental Ray Tracing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loads the Vulkan validation layers and stops the process on any error they report. Developers only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vulkan Validation Layers</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ImportPage</name>
@@ -416,6 +432,10 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
     <message>
         <source>Screen </source>
         <translation>Ekran </translation>
+    </message>
+    <message>
+        <source>This build was made without the ray tracing renderer.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Error receiving resolutions</source>

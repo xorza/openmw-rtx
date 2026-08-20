@@ -292,6 +292,21 @@ namespace MWGui
         getWidget(mClassicFalloffWidget, "ClassicFalloffWidget");
         getWidget(mMinimumBrightnessText, "MinimumBrightnessText");
         getWidget(mMinimumBrightnessScroll, "MinimumBrightnessScroll");
+        getWidget(mRayTracingButton, "RayTracingButton");
+        getWidget(mRayTracingValidationButton, "RayTracingValidationButton");
+        getWidget(mRayTracingRestartHint, "RayTracingRestartHint");
+        getWidget(mRayTracingUnavailableHint, "RayTracingUnavailableHint");
+
+        // The renderer is a compile-time option, so a build without it shows the switch as
+        // dead rather than hiding it: a setting that silently does nothing is worse than one
+        // that says why.
+#ifdef OPENMW_RTX
+        mRayTracingUnavailableHint->setVisible(false);
+#else
+        mRayTracingButton->setEnabled(false);
+        mRayTracingValidationButton->setEnabled(false);
+        mRayTracingRestartHint->setVisible(false);
+#endif
 
 #ifndef WIN32
         // hide gamma controls since it currently does not work under Linux

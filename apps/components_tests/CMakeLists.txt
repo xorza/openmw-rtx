@@ -99,6 +99,10 @@ file(GLOB UNITTEST_SRC_FILES
 
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 
+if (OPENMW_RTX)
+    list(APPEND UNITTEST_SRC_FILES rtx/device.cpp)
+endif()
+
 openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
 
 target_link_libraries(components-tests
@@ -106,6 +110,10 @@ target_link_libraries(components-tests
     GMock::GMock
     components
 )
+
+if (OPENMW_RTX)
+    target_link_libraries(components-tests openmw-rtx)
+endif()
 
 if (WIN32)
     target_sources(components-tests PRIVATE ${CMAKE_SOURCE_DIR}/files/windows/other-apps.manifest)

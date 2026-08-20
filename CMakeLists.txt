@@ -45,6 +45,7 @@ option(BUILD_NAVMESHTOOL        "Build navmesh tool" ON)
 option(BUILD_BULLETOBJECTTOOL   "Build Bullet object tool" ON)
 option(BUILD_OPENCS_TESTS       "Build OpenMW Construction Set tests" OFF)
 option(BUILD_OPENMW_TESTS       "Build OpenMW tests" OFF)
+option(OPENMW_RTX               "Build the experimental Vulkan ray tracing renderer" OFF)
 option(PRECOMPILE_HEADERS_WITH_MSVC "Precompile most common used headers with MSVC (alternative to ccache)" ON)
 
 set(OpenGL_GL_PREFERENCE LEGACY)  # Use LEGACY as we use GL2; GLNVD is for GL3 and up.
@@ -668,6 +669,11 @@ endif()
 
 # Components
 add_subdirectory (components)
+
+if (OPENMW_RTX)
+    add_subdirectory (components/rtx)
+    add_subdirectory (apps/rtxtool)
+endif()
 
 # Apps and tools
 if (BUILD_OPENMW OR BUILD_OPENMW_TESTS)

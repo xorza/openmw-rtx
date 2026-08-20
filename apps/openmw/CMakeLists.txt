@@ -155,6 +155,12 @@ if(BUILD_OPENMW)
 
     target_link_libraries(openmw openmw-lib)
 
+if (OPENMW_RTX)
+    # One macro gates every game-side reference to the ray tracing renderer.
+    target_compile_definitions(openmw-lib PUBLIC OPENMW_RTX)
+    target_link_libraries(openmw-lib openmw-rtx)
+endif()
+
     # Workaround necessary to ensure osgAnimation::MatrixLinearSampler dynamic casts work under Clang
     # NOTE: it's unclear whether the broken behavior is spec-compliant
     if (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
