@@ -379,6 +379,7 @@ namespace Rtx
                 scene.addTexture(VFS::Path::NormalizedView("strip.dds"));
 
                 Material material;
+                material.mKind = MaterialKind::Terrain;
                 material.mLayerOffset = 0;
                 material.mLayerCount = 2;
                 scene.addLayer(MaterialLayer{
@@ -844,6 +845,64 @@ namespace Rtx
             Light spent = lamp;
             spent.mReach = 50.0f;
             EXPECT_EQ(render(spent, osg::Vec3f(), false), 0) << "and one whose reach ends at the wall";
+        }
+
+        /// Water is seen by a camera and not by a shadow ray, and the mask is what says so.
+        ///
+        /// Sunlight reaching a seabed has come through the surface, so a sea that occluded would
+        /// black out every shallow in the game. Telling traversal in the mask costs nothing; the
+        /// alternative — non-opaque water and a candidate loop that waves shadow rays past — was
+        /// measured at half the frame rate, because every shadow ray crossing the sea then invokes a
+        /// shader where traversal alone had been enough.
+        TEST_F(RtxVisibilityTest, waterIsVisibleToACameraAndInvisibleToAShadowRay)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+
+            // A pane twenty units across at y = -50, between the wall and everything in front of it.
+            const std::array pane{
+                osg::Vec3f(-20.0f, -50.0f, -20.0f),
+                osg::Vec3f(20.0f, -50.0f, -20.0f),
+                osg::Vec3f(20.0f, -50.0f, 20.0f),
+                osg::Vec3f(-20.0f, -50.0f, 20.0f),
+            };
+            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
+
+            const auto render = [&](MaterialKind kind, bool lookAtIt) {
+                SceneDesc scene = makeWall();
+
+                Material material;
+                material.mKind = kind;
+                scene.addInstance(MeshInstance{
+                    .mTransform = osg::Matrixf::identity(),
+                    .mMesh = scene.addMesh(pane, {}, {}, indices),
+                    .mMaterial = scene.addMaterial(material),
+                });
+
+                // Off the sun's axis, so the centre pixel lands on the patch of wall the pane
+                // shadows without the camera's own ray having to cross the pane: it passes y = -50
+                // at x = 50, and the pane reaches 20. Or straight at the pane, to see it at all.
+                Shaders::VisibilityConstants camera = lookAtIt
+                    ? makeCamera(
+                          osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -50.0f, 0.0f), 60.0f, size, size, 10000.0f)
+                    : makeCamera(
+                          osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                camera.mSunDirection = osg::Vec3f(0.0f, 1.0f, 0.0f);
+                camera.mSunIrradiance = osg::Vec3f(2.0f, 2.0f, 2.0f);
+
+                std::vector<std::uint8_t> pixels;
+                EXPECT_GT(countHits(scene, noTextures(), camera, size, pixels), 0u);
+                return pixels[centre];
+            };
+
+            // A solid pane stops the camera's ray and the sun's alike, so the wall behind is dark.
+            EXPECT_EQ(render(MaterialKind::Surface, false), 0) << "a solid pane shadows the wall";
+
+            // The same pane as water: the camera still meets it, and the sun goes straight through.
+            // 0.5 albedo times 2.0 over pi is 0.318310, which encodes to 153 of 255.
+            EXPECT_EQ(render(MaterialKind::Water, false), 153) << "and water does not";
+            // And the camera does still meet it: the placeholder colour, which nothing else wears.
+            EXPECT_EQ(render(MaterialKind::Water, true), 69) << "though a camera still sees it";
         }
 
         /// Its own device, because the validation layers allocate and this test counts allocations.

@@ -262,7 +262,7 @@ bool occluded(vec3 from, vec3 towards, float distance)
 {
     rayQueryEXT query;
     rayQueryInitializeEXT(
-        query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, from, SHADOW_BIAS, towards, distance);
+        query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT, MASK_SOLID, from, SHADOW_BIAS, towards, distance);
     while (rayQueryProceedEXT(query))
     {
         if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)
@@ -337,7 +337,8 @@ void main()
     // No blanket opaque flag: the per-instance bits the build set from each material are what decide
     // whether traversal stops to ask, and forcing opacity here would override them and put every
     // leaf back inside the card it was painted on.
-    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsNoneEXT, 0xFF, camera.mOrigin, 0.0, direction, camera.mFar);
+    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsNoneEXT, MASK_SOLID | MASK_WATER, camera.mOrigin, 0.0,
+        direction, camera.mFar);
     while (rayQueryProceedEXT(query))
     {
         if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)
@@ -391,7 +392,7 @@ void main()
         triangleUvs(corner, uv);
 
         vec3 albedo = NO_TEXTURE_ALBEDO;
-        if (material.mLayerCount != 0u)
+        if (material.mKind == KIND_TERRAIN)
         {
             // Ground. Each layer is a tiling texture masked by its own grid of weights, and the
             // stack sums to one where the masks were built to — the same sum the rasterizer reaches
@@ -419,7 +420,15 @@ void main()
         }
         albedo *= material.mDiffuseColour.rgb;
 
-        if (camera.mShowAlbedo != 0u)
+        if (material.mKind == KIND_WATER)
+        {
+            // A placeholder, and the one thing in this shader that is not trying to be right. Water
+            // has no albedo: its colour is a reflection, a refraction and what the depth between
+            // them absorbed, and all three are the next milestone. Until then it is a flat surface
+            // in the right place at the right height, which is what this step is for.
+            colour = vec3(0.06, 0.12, 0.15);
+        }
+        else if (camera.mShowAlbedo != 0u)
         {
             colour = albedo;
         }

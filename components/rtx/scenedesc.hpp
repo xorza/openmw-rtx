@@ -55,12 +55,28 @@ namespace Rtx
         Blend,
     };
 
+    /// What shading a hit takes, which is not a variation on one path but three different ones.
+    enum class MaterialKind
+    {
+        /// One diffuse texture over a lit surface, which is nearly everything in the game.
+        Surface,
+
+        /// A stack of tiling ground textures, each masked by its own grid of weights.
+        Terrain,
+
+        /// Water, which has no albedo at all: it reflects, refracts and absorbs, and its colour is
+        /// what is behind and above it rather than anything of its own.
+        Water,
+    };
+
     /// How a surface is shaded, as recovered from the model.
     ///
     /// Vanilla textures are pre-lit, so `mDiffuse` is not an albedo yet; recovering one is M9. What
     /// is here is what the file says.
     struct Material
     {
+        MaterialKind mKind = MaterialKind::Surface;
+
         Index mDiffuse = sNoIndex;
         Index mNormal = sNoIndex;
         Index mEmissive = sNoIndex;

@@ -224,7 +224,10 @@ A port of rtxmw's water, which is the reason this fork exists in this shape. Rea
 not a specification, and **the shader is more current than the document**.
 
 - One unit quad instanced per water cell, level in the transform, **in the acceleration structure**
-  so reflections, shadows and refraction see it without a second code path.
+  so reflections, shadows and refraction see it without a second code path. **Done**, along with the
+  material kind water needed — a third one beside the object's single diffuse and terrain's layer
+  stack — and the mask bit that keeps water out of a shadow ray. Water shades to a flat placeholder
+  until the rest of this arrives.
 - Height field: **TMA spectrum** (JONSWAP under Kitaigorodskii shallow-water attenuation) spread by
   **Donelan-Banner**; 32 components as 8 wavenumber bands × 4 directions, sampled by *quantile* of
   the spread so every component carries equal energy; scaled to a significant wave height. Shortest

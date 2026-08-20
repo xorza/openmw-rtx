@@ -307,6 +307,7 @@ namespace RtxBridge
         }
 
         Rtx::Material material;
+        material.mKind = Rtx::MaterialKind::Terrain;
         material.mLayerOffset = static_cast<Rtx::Index>(mScene.getLayers().size());
 
         for (const osg::ref_ptr<osg::StateSet>& pass : passes)

@@ -51,6 +51,20 @@ namespace Rtx::Shaders
     /// visible in shade, and a glowing mushroom is not as bright as the sun on it.
     const float EMISSIVE_INTENSITY = DAYLIGHT * 0.2f;
 
+    /// What shading a hit takes. `Rtx::MaterialKind`, which these must agree with.
+    const uint KIND_SURFACE = 0u;
+    const uint KIND_TERRAIN = 1u;
+    const uint KIND_WATER = 2u;
+
+    /// Which instances a ray is interested in.
+    ///
+    /// **Water must not cast a shadow, and the mask is how traversal is told so at no cost.** The
+    /// alternative — building water non-opaque so the candidate loop can wave shadow rays past — was
+    /// measured at half the frame rate, because every shadow ray crossing the sea then invokes a
+    /// shader where traversal alone had been enough.
+    const uint MASK_SOLID = 0x01u;
+    const uint MASK_WATER = 0x02u;
+
     /// Where a mesh's vertices and indices begin in the shared buffers.
     ///
     /// Indices are mesh-local, so a triangle's vertex is `mVertexOffset` plus what the index says.
@@ -98,6 +112,9 @@ namespace Rtx::Shaders
 
     struct GpuMaterial
     {
+        /// One of the `KIND_` values.
+        uint mKind;
+
         uint mDiffuse;
 
         /// The alpha below which a texel is a hole, or zero where the surface has none.

@@ -22,6 +22,7 @@
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
+#include <components/rtxbridge/waterbuilder.hpp>
 #include <components/settings/settings.hpp>
 
 #include "placement.hpp"
@@ -375,6 +376,11 @@ namespace RtxTool
             const CellReport report = readCell(world, cell, extractor);
             for (const Rtx::Light& light : report.mLights)
                 scene.addLight(light);
+
+            // After the geometry, because an interior's pool is sized by what the room holds and
+            // there is nothing to measure until the room is in. Here rather than in `readCell` for
+            // the reason the lights are: reading a cell twice must not fill it twice.
+            RtxBridge::addWater(scene, cell);
 
             // An interior's sky is never seen and its sun never shines, so the daylight stays dark.
             if (!cell.isExterior())

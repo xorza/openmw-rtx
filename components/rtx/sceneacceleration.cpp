@@ -8,6 +8,7 @@
 #include "device.hpp"
 #include "error.hpp"
 #include "scenedesc.hpp"
+#include "shaders/scene.h"
 
 namespace Rtx
 {
@@ -223,6 +224,9 @@ namespace Rtx
                 .accelerationStructure = mBottomLevel[instance.mMesh],
             };
 
+            const bool water
+                = instance.mMaterial != sNoIndex && materials[instance.mMaterial].mKind == MaterialKind::Water;
+
             VkGeometryInstanceFlagsKHR flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
 
             // This bit is what buys the candidate loop the chance to run: without it the geometry's
@@ -237,7 +241,10 @@ namespace Rtx
             instances.push_back(VkAccelerationStructureInstanceKHR{
                 .transform = toVulkanTransform(instance.mTransform),
                 .instanceCustomIndex = static_cast<std::uint32_t>(instances.size()) & 0xFFFFFFu,
-                .mask = 0xFF,
+                // Water is left out of what a shadow ray asks for. Sunlight reaching a seabed has
+                // come through the surface, and a sea that occluded would black out every shallow in
+                // the game — so it is told in the mask, where traversal skips it for nothing.
+                .mask = static_cast<std::uint32_t>(water ? Shaders::MASK_WATER : Shaders::MASK_SOLID),
                 .flags = flags,
                 .accelerationStructureReference
                 = functions.mGetAccelerationStructureDeviceAddress(mDevice.getHandle(), &address),

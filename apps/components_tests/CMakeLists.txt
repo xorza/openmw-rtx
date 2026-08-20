@@ -110,6 +110,7 @@ if (OPENMW_RTX)
         rtxbridge/lightbuilder.cpp
         rtxbridge/sceneextractor.cpp
         rtxbridge/texturebuilder.cpp
+        rtxbridge/waterbuilder.cpp
         rtxtool/terrainstorage.cpp
     )
     list(APPEND UNITTEST_SRC_FILES ${RTX_TEST_FILES})
