@@ -202,8 +202,9 @@ namespace Rtx
             .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
             .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
             .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-            .anisotropyEnable = VK_TRUE,
-            .maxAnisotropy = 16.0f,
+            // Off, and not an oversight: every fetch names its own level, and anisotropic filtering
+            // only applies to the implicit and gradient forms. A cone is isotropic by construction.
+            .anisotropyEnable = VK_FALSE,
             .maxLod = VK_LOD_CLAMP_NONE,
         };
         checkVk(vkCreateSampler(device.getHandle(), &sampler, nullptr, &mSampler), "vkCreateSampler");

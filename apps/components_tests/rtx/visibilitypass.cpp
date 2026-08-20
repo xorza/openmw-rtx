@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -78,6 +80,14 @@ namespace Rtx
                 makeCamera(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, 64, 64, 1.0f), Error);
         }
 
+        /// What the shader writes for a linear value, so a test can name the byte it expects.
+        std::uint8_t encodeSrgb(float linear)
+        {
+            const float encoded
+                = linear <= 0.0031308f ? linear * 12.92f : 1.055f * std::pow(linear, 1.0f / 2.4f) - 0.055f;
+            return static_cast<std::uint8_t>(std::lround(std::clamp(encoded, 0.0f, 1.0f) * 255.0f));
+        }
+
         class RtxVisibilityTest : public ::testing::Test
         {
         protected:
@@ -119,17 +129,13 @@ namespace Rtx
             }
 
             /// Renders `scene` at `size` square and returns how many primary rays hit.
-            std::uint32_t countHits(const SceneDesc& scene, const Shaders::VisibilityConstants& camera,
-                std::uint32_t size, std::vector<std::uint8_t>& pixels)
+            std::uint32_t countHits(const SceneDesc& scene, const TextureArray& textures,
+                const Shaders::VisibilityConstants& camera, std::uint32_t size, std::vector<std::uint8_t>& pixels)
             {
                 Device& device = *mHarness->mDevice;
                 CommandPool pool(device);
                 const SceneAcceleration acceleration(device, pool, scene);
                 const SceneBuffers buffers(device, pool, scene, acceleration.getIndices());
-
-                // No textures: these scenes are quads with no material, and the shader is told so
-                // rather than being handed an array it must not index.
-                const TextureArray textures(device, {});
 
                 const VisibilityPass pass(device, Testing::getShaderDirectory(), textures.getLayout());
                 const VisibilityInputs inputs{
@@ -160,7 +166,17 @@ namespace Rtx
                 return count;
             }
 
+            /// For the scenes whose quads carry no material and never index the array.
+            TextureArray& noTextures()
+            {
+                if (mNoTextures == nullptr)
+                    mNoTextures = std::make_unique<TextureArray>(*mHarness->mDevice, std::vector<Texture>{});
+
+                return *mNoTextures;
+            }
+
             Testing::Harness* mHarness = nullptr;
+            std::unique_ptr<TextureArray> mNoTextures;
         };
 
         /// A wall bigger than the field of view leaves no room for sky.
@@ -180,7 +196,7 @@ namespace Rtx
             camera.mShowAlbedo = 1u;
 
             std::vector<std::uint8_t> pixels;
-            EXPECT_EQ(countHits(makeWall(), camera, size, pixels), size * size);
+            EXPECT_EQ(countHits(makeWall(), noTextures(), camera, size, pixels), size * size);
 
             ASSERT_EQ(pixels.size(), std::size_t{ size } * size * 4);
             for (std::size_t i = 0; i < pixels.size(); i += 4)
@@ -211,12 +227,104 @@ namespace Rtx
 
             std::vector<std::uint8_t> withShading;
             std::vector<std::uint8_t> withoutShading;
-            countHits(makeWall(), shaded, size, withShading);
-            countHits(makeWall(), albedo, size, withoutShading);
+            countHits(makeWall(), noTextures(), shaded, size, withShading);
+            countHits(makeWall(), noTextures(), albedo, size, withoutShading);
 
             const std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
             EXPECT_EQ(withShading[centre], withoutShading[centre]);
             EXPECT_EQ(withShading[centre + 1], withoutShading[centre + 1]);
+        }
+
+        /// The mip chain a ray cone selects from, at a distance chosen so the answer is a whole
+        /// number.
+        ///
+        /// Sixty-four texels across a quad that exactly fills a sixty-degree frame at a hundred
+        /// units: one texel per pixel, so the cone is one texel wide and the level is zero. The
+        /// arithmetic, which the shader repeats:
+        ///
+        ///   spread    = atan(2 * tan(30) / 64)  = 0.0180402 radians per pixel
+        ///   coneWidth = spread * 100            = 1.80402 units
+        ///   texelArea = 1 * 64 * 64             = 4096      (the shader's doubled form)
+        ///   worldArea = |cross| = 115.47^2      = 13333.3   (doubled the same way, so it cancels)
+        ///   lambda    = 0.5 * log2(4096/13333.3) + log2(1.80402) = -0.85138 + 0.85140 = 0
+        ///
+        /// Double the distance and the cone doubles, so lambda becomes exactly one. Each level is a
+        /// different grey, so the level chosen is legible in a single pixel.
+        TEST_F(RtxVisibilityTest, theConeReadsTheMipTheDistanceCallsFor)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t levels = 7;
+            constexpr float halfExtent = 57.735027f;
+
+            // Level i is 40 + 30i, so no level is black and none is another's neighbour.
+            std::vector<std::uint8_t> bytes;
+            std::vector<MipLevel> mips;
+            for (std::uint32_t level = 0; level < levels; ++level)
+            {
+                const std::uint32_t extent = size >> level;
+                mips.push_back(MipLevel{ static_cast<std::uint32_t>(bytes.size()), extent, extent });
+                bytes.insert(
+                    bytes.end(), std::size_t{ extent } * extent * 4, static_cast<std::uint8_t>(40 + 30 * level));
+            }
+
+            const TextureData data{
+                .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                .mWidth = size,
+                .mHeight = size,
+                .mBytes = std::as_bytes(std::span(bytes)),
+                .mLevels = mips,
+            };
+
+            Device& device = *mHarness->mDevice;
+            CommandPool pool(device);
+            std::vector<Texture> uploaded;
+            uploaded.emplace_back(device, pool, data, "mip ladder");
+            const TextureArray textures(device, std::move(uploaded));
+
+            const std::array positions{
+                osg::Vec3f(-halfExtent, 0.0f, -halfExtent),
+                osg::Vec3f(halfExtent, 0.0f, -halfExtent),
+                osg::Vec3f(halfExtent, 0.0f, halfExtent),
+                osg::Vec3f(-halfExtent, 0.0f, halfExtent),
+            };
+            const std::array texCoords{
+                osg::Vec2f(0.0f, 0.0f),
+                osg::Vec2f(1.0f, 0.0f),
+                osg::Vec2f(1.0f, 1.0f),
+                osg::Vec2f(0.0f, 1.0f),
+            };
+            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
+
+            SceneDesc scene;
+            const Index mesh = scene.addMesh(positions, {}, texCoords, indices);
+            const Index material
+                = scene.addMaterial(Material{ .mDiffuse = scene.addTexture(VFS::Path::NormalizedView("mip.dds")) });
+            scene.addInstance(
+                MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = material });
+
+            const auto centreOf = [](const std::vector<std::uint8_t>& pixels) {
+                return pixels[(std::size_t{ size / 2 } * size + size / 2) * 4];
+            };
+
+            const auto renderAt = [&](float distance) {
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(0.0f, -distance, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                camera.mShowAlbedo = 1u;
+
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, textures, camera, size, pixels);
+                return centreOf(pixels);
+            };
+
+            // Within a byte, because the claim is which level was read and the levels are twenty-odd
+            // bytes apart once encoded — no rounding difference between the shader's transfer
+            // function and this one can make a level look like its neighbour. Exact equality would
+            // fail on the third, whose encoded value happens to land on 207.51.
+            EXPECT_NEAR(renderAt(100.0f), encodeSrgb(40.0f / 255.0f), 1);
+            EXPECT_NEAR(renderAt(200.0f), encodeSrgb(70.0f / 255.0f), 1);
+
+            // And the far end of the ladder, so a shader that clamped at level one would be caught.
+            EXPECT_NEAR(renderAt(1600.0f), encodeSrgb(160.0f / 255.0f), 1);
         }
 
         /// The same scene with the camera turned around. Nothing is in front of it, so nothing is hit
@@ -228,7 +336,7 @@ namespace Rtx
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -200.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
             std::vector<std::uint8_t> pixels;
-            EXPECT_EQ(countHits(makeWall(), camera, size, pixels), 0u);
+            EXPECT_EQ(countHits(makeWall(), noTextures(), camera, size, pixels), 0u);
 
             // The sky runs from the horizon to the zenith, so its red is somewhere in 0.10 to 0.30 and
             // never zero — and a pixel showing this wall would have exactly zero red. Asserting one
@@ -283,8 +391,8 @@ namespace Rtx
 
             std::vector<std::uint8_t> byInstance;
             std::vector<std::uint8_t> byVertex;
-            const std::uint32_t instanceHits = countHits(placedByInstance, camera, size, byInstance);
-            const std::uint32_t vertexHits = countHits(placedByVertex, camera, size, byVertex);
+            const std::uint32_t instanceHits = countHits(placedByInstance, noTextures(), camera, size, byInstance);
+            const std::uint32_t vertexHits = countHits(placedByVertex, noTextures(), camera, size, byVertex);
 
             // Both blank would agree for the wrong reason.
             ASSERT_GT(vertexHits, 0u);
@@ -317,7 +425,7 @@ namespace Rtx
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
             std::vector<std::uint8_t> pixels;
-            const std::uint32_t hits = countHits(scene, camera, size, pixels);
+            const std::uint32_t hits = countHits(scene, noTextures(), camera, size, pixels);
 
             const float halfExtent = 100.0f * std::tan(osg::DegreesToRadians(30.0f));
             const float covered = 30.0f / halfExtent;

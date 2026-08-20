@@ -45,6 +45,9 @@ namespace Rtx
         const float halfHeight = std::tan(osg::DegreesToRadians(verticalFovDegrees) * 0.5f);
         const float halfWidth = halfHeight * static_cast<float>(width) / static_cast<float>(height);
 
+        // The vertical angle one pixel covers. Pixels are square here, so one number does for both.
+        const float spread = std::atan(2.0f * halfHeight / static_cast<float>(height));
+
         return Shaders::VisibilityConstants{
             .mOrigin = origin,
             .mForward = forward,
@@ -53,6 +56,7 @@ namespace Rtx
             .mWidth = width,
             .mHeight = height,
             .mFar = far,
+            .mSpreadAngle = spread,
         };
     }
 

@@ -43,6 +43,13 @@ namespace Rtx::Shaders
         /// How far a primary ray travels before it counts as having hit the sky.
         float mFar;
 
+        /// The angle one pixel subtends, in radians.
+        ///
+        /// A primary ray is the axis of a cone this wide, and the cone's width where it lands is
+        /// what decides which mip a texture is read from. Without it every fetch is level zero, the
+        /// mip chains are carried and never read, and everything in the distance crawls.
+        float mSpreadAngle;
+
         /// Non-zero to write the albedo straight out, with no shading over it. What a test asserting
         /// "this pixel is that texel" needs, and what makes a texture problem visible as itself.
         uint mShowAlbedo;
