@@ -71,16 +71,19 @@ working. A native Vulkan window is a legitimate end state; it is not the way in.
 
 ```
 components/rtx/                 openmw-rtx        Vulkan. Knows osg math types, nothing else of OSG.
-    device/     instance, physical device selection, memory, command rings, validation
-    scene/      SceneDesc — meshes, instances, materials, lights, environment. API-agnostic.
-    passes/     visibility, lighting, water, fog, denoise, dlss, tonemap, composite
     shaders/    GLSL + headers shared verbatim with C++ (`#ifdef __cplusplus`)
 components/rtxbridge/           openmw-rtx-bridge osg::Node -> SceneDesc, with change tracking.
 apps/openmw/mwrender/rtx/       the game-side owner: environment inputs, interop composite
-apps/rtxtool/                   openmw-rtxtool    headless screenshots, benchmarks, golden images
+apps/rtxtool/                   openmw-rtxtool    headless harness: cell reports, screenshots,
+                                                  benchmarks, golden images
 files/rtx/views.cfg             named viewpoints
 files/rtx/golden/               reference images
 ```
+
+C++ sources sit flat in each directory, as every other component in this tree does; only the GLSL
+gets a subdirectory, matching `files/shaders`. An earlier draft of this plan grouped them into
+`device/`, `scene/` and `passes/`, which would have made every include read `rtx/device/device.hpp`
+and put this component at odds with its twenty-five neighbours.
 
 The seam that matters: **`openmw-rtx` never includes an OSG scene-graph header and never includes a
 game header.** It is testable against synthetic scenes with no game data present, which is what makes

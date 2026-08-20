@@ -59,6 +59,8 @@ set(RTX_FILES
     physicaldevice.hpp
     requirements.cpp
     requirements.hpp
+    scenedesc.cpp
+    scenedesc.hpp
     shadermodule.cpp
     shadermodule.hpp
     validation.cpp

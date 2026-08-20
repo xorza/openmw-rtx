@@ -1,0 +1,298 @@
+#include "sceneextractor.hpp"
+
+#include <osg/BlendFunc>
+#include <osg/CullFace>
+#include <osg/Geometry>
+#include <osg/Material>
+#include <osg/NodeVisitor>
+#include <osg/Texture2D>
+#include <osg/TriangleIndexFunctor>
+
+#include <components/sceneutil/texturetype.hpp>
+
+namespace RtxBridge
+{
+    namespace
+    {
+        /// Collects triangle indices whatever primitive mode the geometry used.
+        ///
+        /// Strips, fans and quads all arrive here as triangles, which is the only form an
+        /// acceleration structure takes. Degenerate triangles — how a strip restarts — are dropped:
+        /// they contribute no surface and a zero-area triangle in a BLAS is wasted traversal.
+        struct TriangleCollector
+        {
+            std::vector<std::uint32_t>* mIndices = nullptr;
+
+            void operator()(unsigned int a, unsigned int b, unsigned int c) const
+            {
+                if (a == b || b == c || a == c)
+                    return;
+
+                mIndices->push_back(a);
+                mIndices->push_back(b);
+                mIndices->push_back(c);
+            }
+        };
+
+        /// The state set nearest the drawable, or null when nothing on the path has one.
+        ///
+        /// This is the material's identity. Two drawables that share it share their shading: OpenMW's
+        /// optimizer collapses equivalent state sets into one object, so sharing the pointer means
+        /// sharing the values, and what the parents above contribute in this graph is light and
+        /// render-bin state rather than material.
+        const osg::StateSet* findOwnStateSet(const osg::NodePath& path)
+        {
+            for (auto it = path.rbegin(); it != path.rend(); ++it)
+                if (const osg::StateSet* stateSet = (*it)->getStateSet())
+                    return stateSet;
+
+            return nullptr;
+        }
+
+        /// The state set nearest the drawable that binds any texture.
+        ///
+        /// Separate from `findOwnStateSet` because the two can differ: `NifOsg` puts a model's
+        /// textures on the geometry, but a drawable can carry a state set of its own that only sets
+        /// culling or blending. Taking the whole material from whichever state set happened to hold
+        /// the textures would then hand it a parent's two-sidedness.
+        const osg::StateSet* findTexturedStateSet(const osg::NodePath& path)
+        {
+            for (auto it = path.rbegin(); it != path.rend(); ++it)
+                if (const osg::StateSet* stateSet = (*it)->getStateSet())
+                    if (!stateSet->getTextureAttributeList().empty())
+                        return stateSet;
+
+            return nullptr;
+        }
+
+        /// The texture bound at `unit`, or null.
+        const osg::Texture2D* getTexture(const osg::StateSet& stateSet, unsigned int unit)
+        {
+            return dynamic_cast<const osg::Texture2D*>(
+                stateSet.getTextureAttribute(unit, osg::StateAttribute::TEXTURE));
+        }
+
+        /// The role OpenMW's shader visitor assigned to `unit` — "diffuseMap", "normalMap" and the
+        /// rest — or empty when it did not run or did not recognise the slot.
+        std::string_view getTextureRole(const osg::StateSet& stateSet, unsigned int unit)
+        {
+            const osg::StateAttribute* attribute
+                = stateSet.getTextureAttribute(unit, SceneUtil::TextureType::AttributeType);
+            if (attribute == nullptr)
+                return {};
+
+            return attribute->getName();
+        }
+
+        bool isBlended(const osg::StateSet& stateSet)
+        {
+            return (stateSet.getMode(GL_BLEND) & osg::StateAttribute::ON) != 0
+                && stateSet.getAttribute(osg::StateAttribute::BLENDFUNC) != nullptr;
+        }
+
+        /// Whether back faces are drawn.
+        ///
+        /// OpenGL culls nothing unless told to, and `NifOsg` adds a `CullFace` only where the model's
+        /// stencil property asked for it — so the absence of the attribute means two-sided, not
+        /// one-sided. Getting this backwards lights every sheet in the game from one side only.
+        bool isTwoSided(const osg::StateSet& stateSet)
+        {
+            const osg::StateAttribute* attribute = stateSet.getAttribute(osg::StateAttribute::CULLFACE);
+            if (attribute == nullptr)
+                return true;
+
+            return (stateSet.getMode(GL_CULL_FACE) & osg::StateAttribute::ON) == 0;
+        }
+
+        float getAlphaRef(const osg::StateSet& stateSet)
+        {
+            // The shader visitor turns the fixed-function alpha test into this uniform and removes
+            // the attribute, so the uniform is the surviving record of a cutout.
+            const osg::Uniform* uniform = stateSet.getUniform("alphaRef");
+            float value = 0.0f;
+            if (uniform != nullptr && uniform->get(value))
+                return value;
+
+            return 0.0f;
+        }
+    }
+
+    ExtractionStats& ExtractionStats::operator+=(const ExtractionStats& other)
+    {
+        mMeshesAdded += other.mMeshesAdded;
+        mMeshesReused += other.mMeshesReused;
+        mMaterialsAdded += other.mMaterialsAdded;
+        mMaterialsReused += other.mMaterialsReused;
+        mInstances += other.mInstances;
+        mSkippedDeformed += other.mSkippedDeformed;
+        mSkippedEmpty += other.mSkippedEmpty;
+        return *this;
+    }
+
+    namespace
+    {
+        /// Walks the graph and hands every geometry it meets to the extractor.
+        class ExtractionVisitor : public osg::NodeVisitor
+        {
+        public:
+            ExtractionVisitor(SceneExtractor& extractor, const osg::Matrixf& root, ExtractionStats& stats)
+                : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
+                , mExtractor(extractor)
+                , mRoot(root)
+                , mStats(stats)
+            {
+            }
+
+            void apply(osg::Drawable& drawable) override
+            {
+                osg::Geometry* geometry = drawable.asGeometry();
+                if (geometry == nullptr)
+                {
+                    ++mStats.mSkippedDeformed;
+                    return;
+                }
+
+                mExtractor.addDrawable(*geometry, getNodePath(), mRoot, mStats);
+            }
+
+        private:
+            SceneExtractor& mExtractor;
+            const osg::Matrixf mRoot;
+            ExtractionStats& mStats;
+        };
+    }
+
+    ExtractionStats SceneExtractor::extract(const osg::Node& node, const osg::Matrixf& transform)
+    {
+        ExtractionStats stats;
+        ExtractionVisitor visitor(*this, transform, stats);
+
+        // OSG's visitor API is non-const even for a visitor that only reads, which this one does.
+        const_cast<osg::Node&>(node).accept(visitor);
+
+        return stats;
+    }
+
+    void SceneExtractor::addDrawable(
+        const osg::Geometry& geometry, const osg::NodePath& path, const osg::Matrixf& root, ExtractionStats& stats)
+    {
+        const Rtx::Index mesh = resolveMesh(geometry, stats);
+        if (mesh == Rtx::sNoIndex)
+            return;
+
+        mScene.addInstance(Rtx::MeshInstance{
+            .mTransform = osg::Matrixf(osg::computeLocalToWorld(path)) * root,
+            .mMesh = mesh,
+            .mMaterial = resolveMaterial(path, stats),
+        });
+        ++stats.mInstances;
+    }
+
+    Rtx::Index SceneExtractor::resolveMesh(const osg::Geometry& geometry, ExtractionStats& stats)
+    {
+        const auto known = mMeshes.find(&geometry);
+        if (known != mMeshes.end())
+        {
+            ++stats.mMeshesReused;
+            return known->second;
+        }
+
+        const auto* positions = dynamic_cast<const osg::Vec3Array*>(geometry.getVertexArray());
+        if (positions == nullptr || positions->empty())
+        {
+            ++stats.mSkippedEmpty;
+            return Rtx::sNoIndex;
+        }
+
+        mIndexScratch.clear();
+        osg::TriangleIndexFunctor<TriangleCollector> collector;
+        collector.mIndices = &mIndexScratch;
+        geometry.accept(collector);
+
+        if (mIndexScratch.empty())
+        {
+            ++stats.mSkippedEmpty;
+            return Rtx::sNoIndex;
+        }
+
+        // A per-vertex array is the only binding worth carrying: anything coarser describes the whole
+        // drawable, and a ray tracer shading a hit point wants a value it can interpolate.
+        std::span<const osg::Vec3f> normals;
+        const auto* normalArray = dynamic_cast<const osg::Vec3Array*>(geometry.getNormalArray());
+        if (normalArray != nullptr && normalArray->size() == positions->size())
+            normals = std::span(normalArray->asVector());
+
+        std::span<const osg::Vec2f> texCoords;
+        const auto* texCoordArray = dynamic_cast<const osg::Vec2Array*>(geometry.getTexCoordArray(0));
+        if (texCoordArray != nullptr && texCoordArray->size() == positions->size())
+            texCoords = std::span(texCoordArray->asVector());
+
+        const Rtx::Index mesh = mScene.addMesh(std::span(positions->asVector()), normals, texCoords, mIndexScratch);
+        mMeshes.emplace(&geometry, mesh);
+        ++stats.mMeshesAdded;
+        return mesh;
+    }
+
+    Rtx::Index SceneExtractor::resolveMaterial(const osg::NodePath& path, ExtractionStats& stats)
+    {
+        const osg::StateSet* own = findOwnStateSet(path);
+        if (own == nullptr)
+            return Rtx::sNoIndex;
+
+        const auto known = mMaterials.find(own);
+        if (known != mMaterials.end())
+        {
+            ++stats.mMaterialsReused;
+            return known->second;
+        }
+
+        Rtx::Material material;
+
+        if (const osg::StateSet* textured = findTexturedStateSet(path))
+        {
+            for (unsigned int unit = 0; unit < textured->getTextureAttributeList().size(); ++unit)
+            {
+                const osg::Texture2D* texture = getTexture(*textured, unit);
+                if (texture == nullptr || texture->getImage(0) == nullptr)
+                    continue;
+
+                const std::string& file = texture->getImage(0)->getFileName();
+                if (file.empty())
+                    continue;
+
+                const Rtx::Index index = mScene.addTexture(VFS::Path::Normalized(file));
+                const std::string_view role = getTextureRole(*textured, unit);
+
+                // Unit 0 without a role is the diffuse slot: that is where `NifOsg` puts the base map
+                // when the shader visitor has not run to label it.
+                if (role == "diffuseMap" || (role.empty() && unit == 0))
+                    material.mDiffuse = index;
+                else if (role == "normalMap" || role == "normalHeightMap")
+                    material.mNormal = index;
+                else if (role == "emissiveMap")
+                    material.mEmissive = index;
+            }
+        }
+
+        material.mAlphaRef = getAlphaRef(*own);
+        if (isBlended(*own))
+            material.mAlphaMode = Rtx::AlphaMode::Blend;
+        else if (material.mAlphaRef > 0.0f)
+            material.mAlphaMode = Rtx::AlphaMode::Cutout;
+
+        material.mTwoSided = isTwoSided(*own);
+
+        const auto* colours = dynamic_cast<const osg::Material*>(own->getAttribute(osg::StateAttribute::MATERIAL));
+        if (colours != nullptr)
+        {
+            material.mDiffuseColour = colours->getDiffuse(osg::Material::FRONT);
+            const osg::Vec4f emissive = colours->getEmission(osg::Material::FRONT);
+            material.mEmissiveColour = osg::Vec3f(emissive.x(), emissive.y(), emissive.z());
+        }
+
+        const Rtx::Index index = mScene.addMaterial(material);
+        mMaterials.emplace(own, index);
+        ++stats.mMaterialsAdded;
+        return index;
+    }
+}

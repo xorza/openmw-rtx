@@ -672,6 +672,7 @@ add_subdirectory (components)
 
 if (OPENMW_RTX)
     add_subdirectory (components/rtx)
+    add_subdirectory (components/rtxbridge)
     add_subdirectory (apps/rtxtool)
 endif()
 

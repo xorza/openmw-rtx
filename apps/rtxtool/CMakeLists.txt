@@ -1,10 +1,17 @@
-source_group(apps\\rtxtool FILES main.cpp)
+set(RTXTOOL_FILES
+    main.cpp
+    world.cpp
+    world.hpp
+)
 
-openmw_add_executable(openmw-rtxtool main.cpp)
+source_group(apps\\rtxtool FILES ${RTXTOOL_FILES})
+
+openmw_add_executable(openmw-rtxtool ${RTXTOOL_FILES})
 
 target_link_libraries(openmw-rtxtool
     Boost::program_options
     openmw-rtx
+    openmw-rtx-bridge
     components
 )
 

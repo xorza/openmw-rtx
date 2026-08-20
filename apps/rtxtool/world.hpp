@@ -1,0 +1,100 @@
+#ifndef OPENMW_APPS_RTXTOOL_WORLD_H
+#define OPENMW_APPS_RTXTOOL_WORLD_H
+
+#include <filesystem>
+#include <functional>
+#include <memory>
+#include <string_view>
+
+#include <osg/Matrixf>
+
+#include <components/esm3/readerscache.hpp>
+#include <components/esmloader/esmdata.hpp>
+#include <components/files/collections.hpp>
+#include <components/toutf8/toutf8.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
+
+namespace boost::program_options
+{
+    class variables_map;
+}
+
+namespace Files
+{
+    struct ConfigurationManager;
+}
+
+namespace Resource
+{
+    class ResourceSystem;
+    class SceneManager;
+}
+
+namespace ESM
+{
+    struct Cell;
+}
+
+namespace RtxTool
+{
+    /// A Morrowind installation, opened with no window and no game running.
+    ///
+    /// Everything OpenMW builds below its simulation on the way to a frame — the virtual file
+    /// system, the content files, and the resource managers that turn a model path into a scene
+    /// graph — and nothing above it. No GL context is created or needed: contexts are for drawing,
+    /// not for loading.
+    class World
+    {
+    public:
+        World(Files::ConfigurationManager& config, const boost::program_options::variables_map& variables,
+            const std::filesystem::path& resourcePath);
+        ~World();
+
+        World(const World&) = delete;
+        World& operator=(const World&) = delete;
+
+        /// Finds a cell the way Morrowind addresses one: a pair of integers is an exterior, anything
+        /// else is an interior's name. Null when there is no such cell.
+        const ESM::Cell* findCell(std::string_view spec) const;
+
+        /// One object a cell places.
+        struct Object
+        {
+            VFS::Path::Normalized mModel;
+            osg::Matrixf mTransform;
+        };
+
+        /// What `forEachObject` met but could not place.
+        struct SkippedObjects
+        {
+            /// References to a record type whose model this tool does not read — lights, creatures,
+            /// items on the floor. Their geometry is real; loading it needs more of the content
+            /// files than the static world does.
+            std::uint32_t mUnknownType = 0;
+
+            /// References whose record has no model at all. Markers, mostly.
+            std::uint32_t mNoModel = 0;
+        };
+
+        /// Calls `handle` for every object the cell places that has a model to draw.
+        SkippedObjects forEachObject(const ESM::Cell& cell, const std::function<void(const Object&)>& handle);
+
+        Resource::SceneManager& getSceneManager();
+
+    private:
+        // Declaration order is destruction order reversed, and the managers hold references to the
+        // encoder and the VFS, so those come first and go last.
+        ToUTF8::Utf8Encoder mEncoder;
+        Files::Collections mFileCollections;
+        VFS::Manager mVfs;
+        ESM::ReadersCache mReaders;
+
+        // Built in the initialiser list: `EsmData` is move-constructible and not assignable, which is
+        // the right shape for something this size and means it cannot be filled in from the body.
+        EsmLoader::EsmData mEsmData;
+        std::unique_ptr<Resource::ResourceSystem> mResourceSystem;
+    };
+}
+
+#endif
