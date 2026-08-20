@@ -2,6 +2,8 @@
 #define OPENMW_COMPONENTS_RTXBRIDGE_SCENEEXTRACTOR_H
 
 #include <cstdint>
+#include <map>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -40,6 +42,12 @@ namespace RtxBridge
         /// Drawables that carry no `osg::Geometry` this can read: skinned and morphed geometry,
         /// whose vertices are produced during cull. M12's problem, counted so it is not a surprise.
         std::uint32_t mSkippedDeformed = 0;
+
+        /// What the textures a scene reached for turned out to be.
+        ///
+        /// Kept because the answer decides how they are uploaded, and guessing it from what the
+        /// content files ought to contain is how a renderer ends up with a path nothing takes.
+        std::map<std::string, std::uint32_t> mTextureFormats;
 
         /// Geometry with no vertices or no triangles. Morrowind ships some.
         std::uint32_t mSkippedEmpty = 0;

@@ -3,6 +3,7 @@
 #include <osg/BlendFunc>
 #include <osg/CullFace>
 #include <osg/Geometry>
+#include <osg/Image>
 #include <osg/Material>
 #include <osg/NodeVisitor>
 #include <osg/Texture2D>
@@ -104,6 +105,44 @@ namespace RtxBridge
             return (stateSet.getMode(GL_CULL_FACE) & osg::StateAttribute::ON) == 0;
         }
 
+        /// The image's format, as a name a person can act on.
+        std::string describeFormat(const osg::Image& image)
+        {
+            std::string name;
+            switch (image.getPixelFormat())
+            {
+                case GL_COMPRESSED_RGB_S3TC_DXT1_EXT:
+                    name = "BC1 (DXT1, no alpha)";
+                    break;
+                case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
+                    name = "BC1 (DXT1, 1-bit alpha)";
+                    break;
+                case GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:
+                    name = "BC2 (DXT3)";
+                    break;
+                case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT:
+                    name = "BC3 (DXT5)";
+                    break;
+                case GL_RGB:
+                    name = "RGB8";
+                    break;
+                case GL_RGBA:
+                    name = "RGBA8";
+                    break;
+                case GL_LUMINANCE:
+                    name = "L8";
+                    break;
+                case GL_LUMINANCE_ALPHA:
+                    name = "LA8";
+                    break;
+                default:
+                    name = "pixel format " + std::to_string(image.getPixelFormat());
+                    break;
+            }
+
+            return name + (image.getNumMipmapLevels() > 1 ? ", with mips" : ", one level");
+        }
+
         float getAlphaRef(const osg::StateSet& stateSet)
         {
             // The shader visitor turns the fixed-function alpha test into this uniform and removes
@@ -119,6 +158,9 @@ namespace RtxBridge
 
     ExtractionStats& ExtractionStats::operator+=(const ExtractionStats& other)
     {
+        for (const auto& [format, count] : other.mTextureFormats)
+            mTextureFormats[format] += count;
+
         mMeshesAdded += other.mMeshesAdded;
         mMeshesReused += other.mMeshesReused;
         mMaterialsAdded += other.mMaterialsAdded;
@@ -261,6 +303,7 @@ namespace RtxBridge
                     continue;
 
                 const Rtx::Index index = mScene.addTexture(VFS::Path::Normalized(file));
+                ++stats.mTextureFormats[describeFormat(*texture->getImage(0))];
                 const std::string_view role = getTextureRole(*textured, unit);
 
                 // Unit 0 without a role is the diffuse slot: that is where `NifOsg` puts the base map

@@ -10,6 +10,7 @@
 #include "device.hpp"
 #include "error.hpp"
 #include "image.hpp"
+#include "scenebuffers.hpp"
 #include "shadermodule.hpp"
 
 namespace Rtx
@@ -55,16 +56,23 @@ namespace Rtx
         };
     }
 
-    VisibilityPass::VisibilityPass(const Device& device, const std::filesystem::path& shaderDirectory)
+    VisibilityPass::VisibilityPass(
+        const Device& device, const std::filesystem::path& shaderDirectory, VkDescriptorSetLayout textureLayout)
         : mDevice(device)
+        , mTextureLayout(textureLayout)
     {
-        constexpr std::array<VkDescriptorSetLayoutBinding, 3> bindings{
-            VkDescriptorSetLayoutBinding{
-                0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{
-                1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{
-                2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+        constexpr auto compute = VK_SHADER_STAGE_COMPUTE_BIT;
+        constexpr auto storage = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        constexpr std::array<VkDescriptorSetLayoutBinding, 9> bindings{
+            VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 2, storage, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 3, storage, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 4, storage, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 5, storage, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 6, storage, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 7, storage, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 8, storage, 1, compute, nullptr },
         };
 
         const VkDescriptorSetLayoutCreateInfo layout{
@@ -80,10 +88,11 @@ namespace Rtx
             .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
             .size = sizeof(Shaders::VisibilityConstants),
         };
+        const std::array<VkDescriptorSetLayout, 2> sets{ mSetLayout, mTextureLayout };
         const VkPipelineLayoutCreateInfo pipelineLayout{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .setLayoutCount = 1,
-            .pSetLayouts = &mSetLayout,
+            .setLayoutCount = static_cast<std::uint32_t>(sets.size()),
+            .pSetLayouts = sets.data(),
             .pushConstantRangeCount = 1,
             .pPushConstantRanges = &range,
         };
@@ -117,51 +126,61 @@ namespace Rtx
             vkDestroyDescriptorSetLayout(mDevice.getHandle(), mSetLayout, nullptr);
     }
 
-    void VisibilityPass::record(VkCommandBuffer commands, VkAccelerationStructureKHR scene, const Image& target,
+    void VisibilityPass::record(VkCommandBuffer commands, const VisibilityInputs& inputs, const Image& target,
         const Buffer& hitCount, const Shaders::VisibilityConstants& constants) const
     {
         const VkWriteDescriptorSetAccelerationStructureKHR sceneWrite{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
             .accelerationStructureCount = 1,
-            .pAccelerationStructures = &scene,
+            .pAccelerationStructures = &inputs.mScene,
         };
         const VkDescriptorImageInfo targetWrite{
             .imageView = target.getView(),
             .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
         };
-        const VkDescriptorBufferInfo hitWrite{
-            .buffer = hitCount.getHandle(),
-            .range = VK_WHOLE_SIZE,
+
+        // Bindings two upwards are all storage buffers, in the order the shader declares them.
+        const std::array<VkDescriptorBufferInfo, 7> buffers{
+            VkDescriptorBufferInfo{ hitCount.getHandle(), 0, VK_WHOLE_SIZE },
+            VkDescriptorBufferInfo{ inputs.mBuffers->getNormals(), 0, VK_WHOLE_SIZE },
+            VkDescriptorBufferInfo{ inputs.mBuffers->getTexCoords(), 0, VK_WHOLE_SIZE },
+            VkDescriptorBufferInfo{ inputs.mBuffers->getIndices(), 0, VK_WHOLE_SIZE },
+            VkDescriptorBufferInfo{ inputs.mBuffers->getMeshes(), 0, VK_WHOLE_SIZE },
+            VkDescriptorBufferInfo{ inputs.mBuffers->getInstances(), 0, VK_WHOLE_SIZE },
+            VkDescriptorBufferInfo{ inputs.mBuffers->getMaterials(), 0, VK_WHOLE_SIZE },
         };
 
-        const std::array<VkWriteDescriptorSet, 3> writes{
-            VkWriteDescriptorSet{
+        std::array<VkWriteDescriptorSet, 9> writes{};
+        writes[0] = VkWriteDescriptorSet{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = &sceneWrite,
+            .dstBinding = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+        };
+        writes[1] = VkWriteDescriptorSet{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstBinding = 1,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+            .pImageInfo = &targetWrite,
+        };
+        for (std::uint32_t i = 0; i < buffers.size(); ++i)
+            writes[i + 2] = VkWriteDescriptorSet{
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .pNext = &sceneWrite,
-                .dstBinding = 0,
-                .descriptorCount = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-            },
-            VkWriteDescriptorSet{
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .dstBinding = 1,
-                .descriptorCount = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                .pImageInfo = &targetWrite,
-            },
-            VkWriteDescriptorSet{
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .dstBinding = 2,
+                .dstBinding = i + 2,
                 .descriptorCount = 1,
                 .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                .pBufferInfo = &hitWrite,
-            },
-        };
+                .pBufferInfo = &buffers[i],
+            };
 
         vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline);
         vkCmdPushDescriptorSet(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipelineLayout, 0,
             static_cast<std::uint32_t>(writes.size()), writes.data());
+        vkCmdBindDescriptorSets(
+            commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipelineLayout, 1, 1, &inputs.mTextures, 0, nullptr);
         vkCmdPushConstants(commands, mPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(constants), &constants);
         vkCmdDispatch(commands, groupsFor(constants.mWidth), groupsFor(constants.mHeight), 1);
     }
+
 }

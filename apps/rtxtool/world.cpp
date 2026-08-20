@@ -191,6 +191,11 @@ namespace RtxTool
         return *mResourceSystem->getSceneManager();
     }
 
+    Resource::ImageManager& World::getImageManager()
+    {
+        return *mResourceSystem->getImageManager();
+    }
+
     World::~World() = default;
 
     const ESM::Cell* World::findCell(std::string_view spec) const

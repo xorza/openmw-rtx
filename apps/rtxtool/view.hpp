@@ -8,6 +8,11 @@
 
 #include <osg/Vec3f>
 
+namespace Resource
+{
+    class ImageManager;
+}
+
 namespace Rtx
 {
     struct InstanceOptions;
@@ -27,6 +32,9 @@ namespace RtxTool
         std::uint32_t mHeight = 1080;
         float mFieldOfView = 60.0f;
 
+        /// Write the albedo with no shading over it.
+        bool mShowAlbedo = false;
+
         std::optional<osg::Vec3f> mOrigin;
         std::optional<osg::Vec3f> mTarget;
 
@@ -36,7 +44,8 @@ namespace RtxTool
     };
 
     /// Opens a window on `scene` and flies around it until it is closed.
-    int runWindow(const Rtx::SceneDesc& scene, const Rtx::InstanceOptions& instanceOptions, const ViewRequest& request);
+    int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images,
+        const Rtx::InstanceOptions& instanceOptions, const ViewRequest& request);
 }
 
 #endif

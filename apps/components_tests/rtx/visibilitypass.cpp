@@ -10,7 +10,9 @@
 #include <components/rtx/error.hpp>
 #include <components/rtx/image.hpp>
 #include <components/rtx/sceneacceleration.hpp>
+#include <components/rtx/scenebuffers.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/texture.hpp>
 #include <components/rtx/visibilitypass.hpp>
 
 #include "harness.hpp"
@@ -123,7 +125,18 @@ namespace Rtx
                 Device& device = *mHarness->mDevice;
                 CommandPool pool(device);
                 const SceneAcceleration acceleration(device, pool, scene);
-                const VisibilityPass pass(device, Testing::getShaderDirectory());
+                const SceneBuffers buffers(device, pool, scene, acceleration.getIndices());
+
+                // No textures: these scenes are quads with no material, and the shader is told so
+                // rather than being handed an array it must not index.
+                const TextureArray textures(device, {});
+
+                const VisibilityPass pass(device, Testing::getShaderDirectory(), textures.getLayout());
+                const VisibilityInputs inputs{
+                    .mScene = acceleration.getTopLevel(),
+                    .mBuffers = &buffers,
+                    .mTextures = textures.getSet(),
+                };
 
                 Image target(device, size, size, VK_FORMAT_R8G8B8A8_UNORM,
                     VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
@@ -137,7 +150,7 @@ namespace Rtx
                     target.transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
                         VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                         VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-                    pass.record(commands, acceleration.getTopLevel(), target, hits, camera);
+                    pass.record(commands, inputs, target, hits, camera);
                 });
 
                 pixels = target.read(pool, VK_IMAGE_LAYOUT_GENERAL);
@@ -156,15 +169,15 @@ namespace Rtx
         /// tall; the wall is four hundred. Every ray must land on it, so the answer is exact rather
         /// than a threshold.
         ///
-        /// The colour is exact too, and says more than the count does. The wall's normal is (0, -1, 0)
-        /// and the shader shades by its absolute value, so a surface pixel is pure green: any red or
-        /// blue at all would mean the normal came out of the acceleration structure pointing
-        /// somewhere else, which is what a wrong transform or a wrong winding looks like.
-        TEST_F(RtxVisibilityTest, aWallLargerThanTheFrameIsHitByEveryRayAndShadesAlongItsNormal)
+        /// The colour is exact too. These quads carry no state set, so they get the untextured
+        /// material: a linear albedo of 0.5, which the shader encodes on the way out as
+        /// 1.055 * 0.5^(1/2.4) - 0.055 = 0.735, or 187 of 255.
+        TEST_F(RtxVisibilityTest, aWallLargerThanTheFrameIsHitByEveryRay)
         {
             constexpr std::uint32_t size = 64;
-            const Shaders::VisibilityConstants camera = makeCamera(
+            Shaders::VisibilityConstants camera = makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            camera.mShowAlbedo = 1u;
 
             std::vector<std::uint8_t> pixels;
             EXPECT_EQ(countHits(makeWall(), camera, size, pixels), size * size);
@@ -172,10 +185,38 @@ namespace Rtx
             ASSERT_EQ(pixels.size(), std::size_t{ size } * size * 4);
             for (std::size_t i = 0; i < pixels.size(); i += 4)
             {
-                ASSERT_EQ(pixels[i], std::uint8_t{ 0 }) << "red at pixel " << i / 4;
-                ASSERT_GT(pixels[i + 1], std::uint8_t{ 0 }) << "green at pixel " << i / 4;
-                ASSERT_EQ(pixels[i + 2], std::uint8_t{ 0 }) << "blue at pixel " << i / 4;
+                ASSERT_NEAR(pixels[i], 187, 1) << "red at pixel " << i / 4;
+                ASSERT_NEAR(pixels[i + 1], 187, 1) << "green at pixel " << i / 4;
+                ASSERT_NEAR(pixels[i + 2], 187, 1) << "blue at pixel " << i / 4;
             }
+        }
+
+        /// The normal survives the acceleration structure, and points at the eye.
+        ///
+        /// The shading term is `0.25 + 0.75 * dot(normal, -direction)`, which is exactly one for a
+        /// surface square to the ray and a quarter for one edge-on. So a wall facing the camera must
+        /// shade to the same bytes as its own unshaded albedo — and would not if the normal came back
+        /// rotated, mirrored, or read off the wrong vertex.
+        TEST_F(RtxVisibilityTest, aWallFacingTheCameraShadesToExactlyItsAlbedo)
+        {
+            // Odd, so that one pixel sits exactly on the axis and its ray is exactly square to the
+            // wall. At an even size the middle is half a pixel off and the term is 0.9996, which
+            // rounds to a different byte and would make "exactly" a lie.
+            constexpr std::uint32_t size = 33;
+            const Shaders::VisibilityConstants shaded = makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            Shaders::VisibilityConstants albedo = shaded;
+            albedo.mShowAlbedo = 1u;
+
+            std::vector<std::uint8_t> withShading;
+            std::vector<std::uint8_t> withoutShading;
+            countHits(makeWall(), shaded, size, withShading);
+            countHits(makeWall(), albedo, size, withoutShading);
+
+            const std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            EXPECT_EQ(withShading[centre], withoutShading[centre]);
+            EXPECT_EQ(withShading[centre + 1], withoutShading[centre + 1]);
         }
 
         /// The same scene with the camera turned around. Nothing is in front of it, so nothing is hit

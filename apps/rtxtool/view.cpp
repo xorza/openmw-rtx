@@ -20,9 +20,12 @@
 #include <components/rtx/instance.hpp>
 #include <components/rtx/physicaldevice.hpp>
 #include <components/rtx/sceneacceleration.hpp>
+#include <components/rtx/scenebuffers.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtx/swapchain.hpp>
+#include <components/rtx/texture.hpp>
 #include <components/rtx/visibilitypass.hpp>
+#include <components/rtxbridge/texturebuilder.hpp>
 
 #include "placement.hpp"
 #include "png.hpp"
@@ -87,7 +90,8 @@ namespace RtxTool
         }
     }
 
-    int runWindow(const Rtx::SceneDesc& scene, const Rtx::InstanceOptions& instanceOptions, const ViewRequest& request)
+    int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images,
+        const Rtx::InstanceOptions& instanceOptions, const ViewRequest& request)
     {
         if (scene.getInstances().empty())
         {
@@ -108,7 +112,15 @@ namespace RtxTool
 
         Rtx::CommandPool pool(device);
         const Rtx::SceneAcceleration acceleration(device, pool, scene);
-        const Rtx::VisibilityPass pass(device, request.mShaderDirectory);
+        const Rtx::SceneBuffers buffers(device, pool, scene, acceleration.getIndices());
+        const Rtx::TextureArray textures = RtxBridge::buildTextures(device, pool, scene, images);
+
+        const Rtx::VisibilityPass pass(device, request.mShaderDirectory, textures.getLayout());
+        const Rtx::VisibilityInputs inputs{
+            .mScene = acceleration.getTopLevel(),
+            .mBuffers = &buffers,
+            .mTextures = textures.getSet(),
+        };
 
         // Declared after the instance so it is destroyed before it, which the validation layers are
         // otherwise quick to point out.
@@ -189,7 +201,7 @@ namespace RtxTool
                 VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                 VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
 
-            pass.record(commands, acceleration.getTopLevel(), target, hitCount, constants);
+            pass.record(commands, inputs, target, hitCount, constants);
 
             target.transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
@@ -352,8 +364,9 @@ namespace RtxTool
             Rtx::checkVk(vkResetFences(device.getHandle(), 1, &finished[frame]), "vkResetFences");
 
             const VkExtent2D extent = swapchain.getExtent();
-            const Rtx::Shaders::VisibilityConstants constants = Rtx::makeCamera(
+            Rtx::Shaders::VisibilityConstants constants = Rtx::makeCamera(
                 camera.getOrigin(), camera.getTarget(), request.mFieldOfView, extent.width, extent.height, far);
+            constants.mShowAlbedo = request.mShowAlbedo ? 1u : 0u;
 
             const VkCommandBuffer commands = commandBuffers[frame];
             recordFrame(commands, *targets[frame], swapchain.getImage(image), extent, constants);

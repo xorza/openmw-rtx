@@ -3,6 +3,8 @@
 set(RTXBRIDGE_FILES
     sceneextractor.cpp
     sceneextractor.hpp
+    texturebuilder.cpp
+    texturebuilder.hpp
 )
 
 source_group(components\\rtxbridge FILES ${RTXBRIDGE_FILES})

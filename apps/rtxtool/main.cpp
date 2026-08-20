@@ -76,6 +76,10 @@ namespace RtxTool
 
             addOption("list-views", bpo::bool_switch(), "print the named viewpoints and quit");
 
+            addOption("albedo", bpo::bool_switch(),
+                "write the albedo with no shading over it, which is what a texture problem looks like "
+                "when nothing else is in the way");
+
             addOption("frames", bpo::value<std::uint32_t>()->default_value(0),
                 "with `view`, close after this many frames instead of waiting to be closed");
 
@@ -280,6 +284,9 @@ namespace RtxTool
                   << "  triangles:            " << scene.getTriangleCount() << '\n'
                   << "  vertex+index bytes:   " << scene.getGeometryBytes() / 1024 << " KiB\n";
 
+            for (const auto& [format, count] : report.mStats.mTextureFormats)
+                out() << "  " << count << " x " << format << '\n';
+
             out() << "\nnot placed\n"
                   << "  record type unread:   " << report.mSkipped.mUnknownType << '\n'
                   << "  record has no model:  " << report.mSkipped.mNoModel << '\n'
@@ -318,7 +325,7 @@ namespace RtxTool
             printCellHeading(*cell);
             out() << '\n';
 
-            return renderShot(scene, instanceOptions, request);
+            return renderShot(scene, world.getImageManager(), instanceOptions, request);
         }
 
         int runView(World& world, const std::string& cellSpec, const Rtx::InstanceOptions& instanceOptions,
@@ -334,7 +341,7 @@ namespace RtxTool
 
             printCellHeading(*cell);
 
-            return runWindow(scene, instanceOptions, request);
+            return runWindow(scene, world.getImageManager(), instanceOptions, request);
         }
 
         /// Where the command line and the view file meet.
@@ -495,6 +502,7 @@ namespace RtxTool
                     request.mOrigin = chosen.mOrigin;
                     request.mTarget = chosen.mTarget;
                     request.mFrames = variables["frames"].as<std::uint32_t>();
+                    request.mShowAlbedo = variables["albedo"].as<bool>();
 
                     return runView(world, chosen.mCell, instanceOptions, request);
                 }
@@ -507,6 +515,7 @@ namespace RtxTool
                 request.mFieldOfView = variables["fov"].as<float>();
                 request.mOrigin = chosen.mOrigin;
                 request.mTarget = chosen.mTarget;
+                request.mShowAlbedo = variables["albedo"].as<bool>();
 
                 return runShot(world, chosen.mCell, instanceOptions, request);
             }

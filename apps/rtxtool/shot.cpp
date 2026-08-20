@@ -17,8 +17,11 @@
 #include <components/rtx/instance.hpp>
 #include <components/rtx/physicaldevice.hpp>
 #include <components/rtx/sceneacceleration.hpp>
+#include <components/rtx/scenebuffers.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/texture.hpp>
 #include <components/rtx/visibilitypass.hpp>
+#include <components/rtxbridge/texturebuilder.hpp>
 
 namespace RtxTool
 {
@@ -33,7 +36,8 @@ namespace RtxTool
 
     }
 
-    int renderShot(const Rtx::SceneDesc& scene, const Rtx::InstanceOptions& instanceOptions, const ShotRequest& request)
+    int renderShot(const Rtx::SceneDesc& scene, Resource::ImageManager& images,
+        const Rtx::InstanceOptions& instanceOptions, const ShotRequest& request)
     {
         std::ostream& out = Debug::getRawStdout();
 
@@ -56,9 +60,16 @@ namespace RtxTool
 
         const Clock::time_point buildStart = Clock::now();
         const Rtx::SceneAcceleration acceleration(device, pool, scene);
+        const Rtx::SceneBuffers buffers(device, pool, scene, acceleration.getIndices());
+        const Rtx::TextureArray textures = RtxBridge::buildTextures(device, pool, scene, images);
         const double buildMs = millisecondsSince(buildStart);
 
-        const Rtx::VisibilityPass pass(device, request.mShaderDirectory);
+        const Rtx::VisibilityPass pass(device, request.mShaderDirectory, textures.getLayout());
+        const Rtx::VisibilityInputs inputs{
+            .mScene = acceleration.getTopLevel(),
+            .mBuffers = &buffers,
+            .mTextures = textures.getSet(),
+        };
 
         Rtx::Image target(device, request.mWidth, request.mHeight, VK_FORMAT_R8G8B8A8_UNORM,
             VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
@@ -72,8 +83,9 @@ namespace RtxTool
         // Far enough to cross any cell: the largest exterior view in the game is a few tens of
         // thousands of units, and a primary ray that reaches this has left the world.
         const float far = bounds.radius() * 8.0f;
-        const Rtx::Shaders::VisibilityConstants camera = Rtx::makeCamera(
+        Rtx::Shaders::VisibilityConstants camera = Rtx::makeCamera(
             placement.mOrigin, placement.mTarget, request.mFieldOfView, request.mWidth, request.mHeight, far);
+        camera.mShowAlbedo = request.mShowAlbedo ? 1u : 0u;
 
         const Clock::time_point traceStart = Clock::now();
         pool.submitAndWait([&](VkCommandBuffer commands) {
@@ -81,7 +93,7 @@ namespace RtxTool
                 VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                 VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
 
-            pass.record(commands, acceleration.getTopLevel(), target, hitCount, camera);
+            pass.record(commands, inputs, target, hitCount, camera);
         });
         const double traceMs = millisecondsSince(traceStart);
 
@@ -102,6 +114,8 @@ namespace RtxTool
             << "primary rays that hit: " << fraction << "%\n"
             << "instances:  " << acceleration.getInstanceCount() << '\n'
             << "structures: " << acceleration.getStructureBytes() / 1024 << " KiB\n"
+            << "tables:     " << buffers.getBytes() / 1024 << " KiB\n"
+            << "textures:   " << textures.getCount() << " in " << textures.getBytes() / 1024 << " KiB\n"
             << "device up:  " << deviceMs << " ms\n"
             << "build:      " << buildMs << " ms\n"
             << "trace:      " << traceMs << " ms (one submit, including the wait)\n";

@@ -29,6 +29,7 @@ namespace Files
 
 namespace Resource
 {
+    class ImageManager;
     class ResourceSystem;
     class SceneManager;
 }
@@ -110,6 +111,8 @@ namespace RtxTool
         osg::ref_ptr<osg::Node> buildTerrain(const ESM::Cell& cell);
 
         Resource::SceneManager& getSceneManager();
+
+        Resource::ImageManager& getImageManager();
 
     private:
         // Declaration order is destruction order reversed, and the managers hold references to the

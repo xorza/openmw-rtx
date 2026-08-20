@@ -74,12 +74,16 @@ set(RTX_FILES
     requirements.hpp
     sceneacceleration.cpp
     sceneacceleration.hpp
+    scenebuffers.cpp
+    scenebuffers.hpp
     scenedesc.cpp
     scenedesc.hpp
     shadermodule.cpp
     shadermodule.hpp
     swapchain.cpp
     swapchain.hpp
+    texture.cpp
+    texture.hpp
     validation.cpp
     validation.hpp
     visibilitypass.cpp

@@ -42,6 +42,10 @@ namespace Rtx::Shaders
 
         /// How far a primary ray travels before it counts as having hit the sky.
         float mFar;
+
+        /// Non-zero to write the albedo straight out, with no shading over it. What a test asserting
+        /// "this pixel is that texel" needs, and what makes a texture problem visible as itself.
+        uint mShowAlbedo;
     };
 
 #ifdef __cplusplus

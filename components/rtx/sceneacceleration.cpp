@@ -20,9 +20,11 @@ namespace Rtx
             return (value + alignment - 1) / alignment * alignment;
         }
 
+        // Storage as well as build input, because the shader reads the indices back at a hit and
+        // there is no reason for a second copy of them to exist.
         constexpr VkBufferUsageFlags sBuildInputUsage
             = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
-            | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+            | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
         constexpr VkBufferUsageFlags sStorageUsage
             = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;

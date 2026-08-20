@@ -42,6 +42,13 @@ namespace Rtx
         SceneAcceleration& operator=(const SceneAcceleration&) = delete;
 
         VkAccelerationStructureKHR getTopLevel() const { return mTopLevel; }
+
+        /// The index buffer the structures were built from.
+        ///
+        /// A shader needs the same indices at a hit, to find which three vertices it landed between.
+        /// They are here rather than in `SceneBuffers` because the build had to have them first, and
+        /// uploading a cell's worth of them twice is a megabyte for nothing.
+        VkBuffer getIndices() const { return mIndices.getHandle(); }
         std::uint32_t getInstanceCount() const { return mInstanceCount; }
 
         /// Bytes held by the structures themselves, not counting the geometry they were built from.

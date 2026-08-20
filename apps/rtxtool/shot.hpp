@@ -7,6 +7,11 @@
 
 #include <osg/Vec3f>
 
+namespace Resource
+{
+    class ImageManager;
+}
+
 namespace Rtx
 {
     struct InstanceOptions;
@@ -25,6 +30,9 @@ namespace RtxTool
         std::uint32_t mHeight = 1080;
         float mFieldOfView = 60.0f;
 
+        /// Write the albedo with no shading over it.
+        bool mShowAlbedo = false;
+
         /// Where to stand and what to look at. Both default to a view of the whole cell from outside
         /// it, which is the only placement that needs nothing known about the cell.
         std::optional<osg::Vec3f> mOrigin;
@@ -35,8 +43,8 @@ namespace RtxTool
     ///
     /// Reports the fraction of primary rays that hit something, which is what tells "the cell
     /// rendered" from "the camera faced away from it" without anyone opening the file.
-    int renderShot(
-        const Rtx::SceneDesc& scene, const Rtx::InstanceOptions& instanceOptions, const ShotRequest& request);
+    int renderShot(const Rtx::SceneDesc& scene, Resource::ImageManager& images,
+        const Rtx::InstanceOptions& instanceOptions, const ShotRequest& request);
 }
 
 #endif

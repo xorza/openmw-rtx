@@ -15,6 +15,17 @@ namespace Rtx
     class Buffer;
     class Device;
     class Image;
+    class SceneBuffers;
+
+    /// What a trace reads about the world, as against the camera that looks at it.
+    struct VisibilityInputs
+    {
+        VkAccelerationStructureKHR mScene = VK_NULL_HANDLE;
+        const SceneBuffers* mBuffers = nullptr;
+
+        /// The bindless texture array's set, bound once and not pushed.
+        VkDescriptorSet mTextures = VK_NULL_HANDLE;
+    };
 
     /// Constants for a pinhole camera looking from `origin` towards `target`.
     ///
@@ -32,7 +43,10 @@ namespace Rtx
     class VisibilityPass
     {
     public:
-        VisibilityPass(const Device& device, const std::filesystem::path& shaderDirectory);
+        /// @param textureLayout the layout of the bindless array this will be handed at record
+        ///        time. Needed here because a pipeline layout names every set it will ever see.
+        VisibilityPass(
+            const Device& device, const std::filesystem::path& shaderDirectory, VkDescriptorSetLayout textureLayout);
         ~VisibilityPass();
 
         VisibilityPass(const VisibilityPass&) = delete;
@@ -40,12 +54,13 @@ namespace Rtx
 
         /// @param target must be in `VK_IMAGE_LAYOUT_GENERAL`.
         /// @param hitCount a storage buffer of one `uint32` the shader increments per hit.
-        void record(VkCommandBuffer commands, VkAccelerationStructureKHR scene, const Image& target,
+        void record(VkCommandBuffer commands, const VisibilityInputs& inputs, const Image& target,
             const Buffer& hitCount, const Shaders::VisibilityConstants& constants) const;
 
     private:
         const Device& mDevice;
         VkDescriptorSetLayout mSetLayout = VK_NULL_HANDLE;
+        VkDescriptorSetLayout mTextureLayout = VK_NULL_HANDLE;
         VkPipelineLayout mPipelineLayout = VK_NULL_HANDLE;
         VkPipeline mPipeline = VK_NULL_HANDLE;
     };
