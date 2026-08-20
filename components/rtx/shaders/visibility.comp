@@ -729,6 +729,24 @@ float hashToUnit(ivec3 at)
     return float(h >> 16u) / 65535.0;
 }
 
+/// How many independent numbers one pixel is allowed to draw in one frame.
+///
+/// **A partition of the hash's domain, not a salt added to the frame.** Every draw a pixel makes has
+/// to be uncorrelated with every other, and adding a constant to the frame index only moves the
+/// collision to a later frame — the fog's march offset and the bounce's elevation were literally the
+/// same number until this existed, so a pixel whose fog started late also bounced near its normal.
+/// Scaling `x` instead gives each pixel its own run of lattice points and can never alias: an image
+/// is a few thousand pixels across and the product does not come near overflowing.
+const int RANDOM_STREAMS = 4;
+const int STREAM_FOG = 0;
+const int STREAM_BOUNCE = 1;
+
+/// One number in `[0, 1]` for `pixel`, from this frame's `stream`th draw.
+float randomAt(uvec2 pixel, int stream)
+{
+    return hashToUnit(ivec3(int(pixel.x) * RANDOM_STREAMS + stream, int(pixel.y), int(camera.mFrame)));
+}
+
 /// Trilinear value noise, which is as much structure as a drifting haze needs.
 float fogNoise(vec3 at)
 {
@@ -1064,7 +1082,11 @@ vec4 fogAlong(vec3 origin, vec3 direction, float distance, float offset)
     return vec4(scattered, transmittance);
 }
 
-/// The light arriving at a point and turning back out of it, per unit albedo.
+/// The *direct* light arriving at a point and turning back out of it, per unit albedo.
+///
+/// **Sources that can be asked where they are, and nothing else.** The sun and the lamps are each a
+/// known direction and a shadow ray; everything that arrives by having bounced off something is
+/// `bounceLight`'s, and adding a fill here as well would count that half twice.
 ///
 /// One shadow ray per light that could reach at all, and none for a light the surface faces away
 /// from — the two tests before it are what keep a cell's worth of lamps affordable.
@@ -1073,10 +1095,7 @@ vec4 fogAlong(vec3 origin, vec3 direction, float distance, float offset)
 ///        caustics are allowed to resolve waves at.
 vec3 gather(vec3 position, vec3 normal, float footprint)
 {
-    // The sky arrives from every direction above, so what it loses is the column of water straight
-    // over the point. A lamp loses nothing: it is usually in the same water as what it lights, and
-    // the column above the two of them is not between them.
-    vec3 radiance = camera.mAmbient * daylightReaching(position);
+    vec3 radiance = vec3(0.0);
 
     // The sun, which is one direction everywhere and needs none of the machinery below: no falloff,
     // no reach, and a shadow ray that runs until it leaves the world rather than until it arrives.
@@ -1090,6 +1109,9 @@ vec3 gather(vec3 position, vec3 normal, float footprint)
         && !occluded(position, -camera.mSunDirection, camera.mFar))
         radiance += camera.mSunIrradiance * sunThroughWater(position, footprint) * (sunCosine * INV_PI);
 
+    // A lamp loses nothing to the water, where the sun and the sky both lose the column above the
+    // point: it is usually standing in the same water as what it lights, and the depth over the two
+    // of them is not between them.
     const uvec2 near = lampsReaching(position);
     for (uint i = near.x; i < near.y; ++i)
     {
@@ -1129,7 +1151,18 @@ float pixelBlur()
     return 0.5 * camera.mSpreadAngle;
 }
 
-/// The radiance a ray that hit nothing comes back with.
+/// The sky's own glow along a direction, with nothing drawn in it.
+///
+/// **This is the sky as a source of light**, which is not the sky as a thing to look at. What a
+/// bounce gathers must leave out the sun's disc: `gather` asks the sun directly, so a hemisphere
+/// that also picked it up out of the sky would count it twice — and a bounce cone a radian wide
+/// would pick it up over a quarter of the sky at that.
+vec3 skyGlow(vec3 direction)
+{
+    return mix(camera.mSkyHorizon, camera.mSkyZenith, clamp(direction.z, 0.0, 1.0));
+}
+
+/// The radiance a ray that hit nothing comes back with, for a ray being looked along.
 ///
 /// **The sun is drawn here rather than answered by a lobe on each surface that could reflect it.**
 /// A glint is what a mirror does when there is something to see, so the water needs no highlight
@@ -1151,7 +1184,7 @@ float pixelBlur()
 /// @param blur how far this ray's cone has spread from its axis, in radians.
 vec3 skyRadiance(vec3 direction, float blur)
 {
-    vec3 colour = mix(camera.mSkyHorizon, camera.mSkyZenith, clamp(direction.z, 0.0, 1.0));
+    vec3 colour = skyGlow(direction);
 
     // The chord across the disc rather than the cosine of its angle. Both answer "is this direction
     // inside it", and at half a degree the cosine is 0.999988 — five of a float's seven digits spent
@@ -1317,8 +1350,28 @@ Surface trace(vec3 origin, vec3 direction, float tmin, float footprint, float sp
     return surface;
 }
 
+/// What terminates a path: the cell's own ambient, dimmed by whatever water stands over the point.
+///
+/// **A stand-in for every bounce that is not being traced**, which is what it always was — the
+/// difference is that it is now one level down rather than added on top of the one that is. A
+/// surface the eye can see gathers a real hemisphere; what *that* ray lands on gets this instead,
+/// and the path stops there.
+///
+/// It stands in for light that arrived from above, so what it loses to water is the column straight
+/// over the point — `daylightReaching`'s approximation, and the same one the bounce's own escape to
+/// the sky uses.
+vec3 pathEnd(vec3 position)
+{
+    return camera.mAmbient * daylightReaching(position);
+}
+
 /// What an ordinary lit surface sends back along the ray that found it.
-vec3 shadeSurface(Surface surface)
+///
+/// @param incoming what arrives from everything that is not a light: a gathered hemisphere at the
+///        hit the eye found, and `pathEnd` at the hit that hemisphere found. **One statement of what
+///        a diffuse surface does with light, used at both depths** — writing it twice is how the two
+///        would come to disagree.
+vec3 shadeSurface(Surface surface, vec3 incoming)
 {
     // The emissive colour joins the light rather than the albedo, which is where the original engine
     // puts it: it sums the term with the diffuse and ambient light and multiplies the whole by the
@@ -1329,7 +1382,7 @@ vec3 shadeSurface(Surface surface)
     // (`objects.frag:244`): added after the multiply, so it glows through whatever the surface is
     // made of rather than being tinted by it.
     return surface.mAlbedo
-        * (gather(surface.mPosition, surface.mNormal, surface.mFootprint)
+        * (incoming + gather(surface.mPosition, surface.mNormal, surface.mFootprint)
             + surface.mEmissiveColour * EMISSIVE_INTENSITY)
         + surface.mEmitted;
 }
@@ -1361,7 +1414,7 @@ vec3 waterRay(vec3 origin, vec3 direction, float footprint, float lobe, out floa
         = trace(origin, direction, WATER_BIAS, footprint, camera.mSpreadAngle + 2.0 * lobe, MASK_SOLID);
     travelled = hit.mHit ? hit.mDistance : WATER_MAX_PATH;
 
-    return hit.mHit ? shadeSurface(hit) : skyRadiance(direction, pixelBlur() + lobe);
+    return hit.mHit ? shadeSurface(hit, pathEnd(hit.mPosition)) : skyRadiance(direction, pixelBlur() + lobe);
 }
 
 /// What is left of `radiance` after `path` units of water, plus what the water scattered back.
@@ -1450,6 +1503,71 @@ vec3 shadeWater(Surface surface, vec3 incident)
     return mix(behind, mix(refracted, reflected, fresnel), shore);
 }
 
+/// How fast a bounce ray's cone widens, against a primary ray's.
+///
+/// A diffuse bounce spreads over the whole hemisphere, and what the indirect term wants from a
+/// texture is its *average* rather than any texel of it — so the cone is opened to about a radian,
+/// which reads the coarse mips a bounce should see without collapsing every one to the top level.
+const float BOUNCE_SPREAD = 1.0;
+
+/// Two numbers in `[0, 1]` for one pixel, from `stream` and the one after it.
+///
+/// A pair costs two of the frame's streams, which is why `STREAM_BOUNCE` leaves a gap after it.
+vec2 unitPair(uvec2 pixel, int stream)
+{
+    return vec2(randomAt(pixel, stream), randomAt(pixel, stream + 1));
+}
+
+/// A direction about `normal`, drawn with probability proportional to its cosine.
+///
+/// **The one distribution that cancels the cosine term.** A diffuse surface weights what arrives by
+/// `cos / pi` and this draws in exactly that proportion, so the estimator is the incoming radiance
+/// itself with no weight left to carry — which is why a single sample is worth anything at all.
+///
+/// Malley's method: a disc sampled evenly, lifted onto the hemisphere. `sqrt(u.x)` is the disc's
+/// radius, so the height off the surface is `sqrt(1 - u.x)` and averages two thirds — which is the
+/// number a test can hold this to, and the half a uniform draw would give instead.
+vec3 cosineDirection(vec3 normal, vec2 u)
+{
+    const float radius = sqrt(u.x);
+    const float angle = TAU * u.y;
+
+    // Any vector not parallel to the normal will do to build a basis from.
+    const vec3 aside = abs(normal.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+    const vec3 tangent = normalize(cross(aside, normal));
+
+    return tangent * (radius * cos(angle)) + cross(normal, tangent) * (radius * sin(angle))
+        + normal * sqrt(max(1.0 - u.x, 0.0));
+}
+
+/// What reaches a surface from everything that is not a light: one diffuse bounce.
+///
+/// **Traced only from the hit the eye found.** A shader with no recursion cannot bounce a bounce, and
+/// it should not: what the second hit gathers is `pathEnd`, the flat ambient that stands in for the
+/// rest of the path. That is also what keeps `shadeSurface` from calling itself — the water's
+/// reflections already shade through it, and a bounce inside it would have no bottom.
+///
+/// A miss returns the sky, which is what makes the sky an emitter rather than a backdrop: outdoors
+/// it is by far the largest source in the scene, and a surface facing it should be lit by it.
+vec3 bounceLight(Surface surface, uvec2 pixel)
+{
+    const vec3 towards = cosineDirection(surface.mNormal, unitPair(pixel, STREAM_BOUNCE));
+    const Surface hit
+        = trace(surface.mPosition, towards, SHADOW_BIAS, surface.mFootprint, BOUNCE_SPREAD, MASK_SOLID);
+
+    // The glow and not the disc: the sun is already a term of its own in `gather`, and a bounce
+    // that found it in the sky would be the same light counted twice.
+    //
+    // Dimmed by the column of water over the point, on `daylightReaching`'s vertical approximation
+    // and for its reason: this ray left for the sky and the sky is above, so what stands between
+    // them is the depth. Without it a flooded floor reads brighter than the same floor seen from
+    // over the surface, which is the disagreement M6 closed.
+    if (!hit.mHit)
+        return skyGlow(towards) * daylightReaching(surface.mPosition);
+
+    return shadeSurface(hit, pathEnd(hit.mPosition));
+}
+
 void main()
 {
     const uvec2 pixel = gl_GlobalInvocationID.xy;
@@ -1470,7 +1588,7 @@ void main()
     else if (camera.mShowAlbedo != 0u)
         colour = surface.mAlbedo;
     else
-        colour = shadeSurface(surface);
+        colour = shadeSurface(surface, bounceLight(surface, pixel));
 
     // A camera under the surface sees everything through the water in front of it. Only a hit that
     // is not water itself: the surface shades its own two sides, and a ray that reached it from
@@ -1486,7 +1604,7 @@ void main()
     // stands between the eye and — the water's own absorption included, which is a different medium
     // over a different part of the path. A ray that hit nothing carries `mFar`, which the march
     // clamps to the distance past which air stops mattering.
-    const vec4 fog = fogAlong(camera.mOrigin, direction, surface.mDistance, hashToUnit(ivec3(pixel, camera.mFrame)));
+    const vec4 fog = fogAlong(camera.mOrigin, direction, surface.mDistance, randomAt(pixel, STREAM_FOG));
     colour = colour * fog.w + fog.xyz;
 
     if (surface.mHit)

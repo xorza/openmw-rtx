@@ -232,21 +232,28 @@ namespace Rtx
             return encodeSrgb(bed * down * up * (1.0f - Shaders::WATER_F0));
         }
 
-        /// How brightly the cell is lit, and what colour its air is, in the tests that measure a
+        /// How brightly the sky is lit, and what colour the air is, in the tests that measure a
         /// wall through fog.
         ///
         /// Named for the reason `sSunOverWater` is: each test's arithmetic uses these as well as
         /// handing them to the shader, and the two have to be one number. The haze is deliberately
         /// not grey, so a fog scattering the wrong colour cannot pass by matching a total.
-        constexpr float sFoggyAmbient = 0.6f;
+        ///
+        /// **The sky rather than the cell's ambient, because a wall is lit by what it can see.** The
+        /// ambient is what terminates a path now, one bounce further along; what fills a surface the
+        /// eye is looking at is the hemisphere it gathers. A sky of one radiance makes that gather
+        /// exact rather than noisy — every direction returns the same number, so one sample is the
+        /// whole answer.
+        constexpr float sFoggySky = 0.6f;
         const osg::Vec3f sHaze(0.1f, 0.2f, 0.4f);
 
-        /// Puts `camera` in a cell lit by nothing but its ambient, with air of `extinction` in it
+        /// Puts `camera` under a sky of one radiance and nothing else, with air of `extinction` in it
         /// pooling at `level`.
         void litThroughFog(Shaders::VisibilityConstants& camera, float extinction,
             float level = -std::numeric_limits<float>::infinity())
         {
-            camera.mAmbient = osg::Vec3f(sFoggyAmbient, sFoggyAmbient, sFoggyAmbient);
+            camera.mSkyHorizon = osg::Vec3f(sFoggySky, sFoggySky, sFoggySky);
+            camera.mSkyZenith = camera.mSkyHorizon;
             camera.mFogColour = sHaze;
             camera.mFogExtinction = extinction;
             camera.mWaterLevel = level;
@@ -643,8 +650,12 @@ namespace Rtx
                 osg::Vec3f(-10.0f, -25.0f, 10.0f),
             };
 
+            // **A sky rather than the cell's ambient, because that is what fills a wall now.** The
+            // ambient terminates a path one bounce further along; what a surface the eye can see
+            // gathers is its own hemisphere, and a sky of one radiance makes that gather exact —
+            // every direction returns the same number, so one sample is the whole answer.
             const auto render = [&](const osg::Vec3f& direction, const osg::Vec3f& irradiance, bool blocked,
-                                    const osg::Vec3f& ambient = osg::Vec3f()) {
+                                    const osg::Vec3f& sky = osg::Vec3f()) {
                 SceneDesc scene = makeWall();
                 if (blocked)
                     scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
@@ -653,7 +664,8 @@ namespace Rtx
                 Shaders::VisibilityConstants camera = base;
                 camera.mSunDirection = direction;
                 camera.mSunIrradiance = irradiance;
-                camera.mAmbient = ambient;
+                camera.mSkyHorizon = sky;
+                camera.mSkyZenith = sky;
 
                 std::vector<std::uint8_t> pixels;
                 EXPECT_GT(countHits(scene, noTextures(), camera, size, pixels), 0u);
@@ -668,7 +680,7 @@ namespace Rtx
             EXPECT_EQ(render(onto, bright, true), 0) << "and with something standing in the way";
 
             // A sun travelling out of the wall rather than into it reaches its back, and is dropped
-            // rather than arithmetically applied. Asserted against the ambient, because a negative
+            // rather than arithmetically applied. Asserted against the sky, because a negative
             // contribution clamps to black as well and the two only tell apart against something:
             // 0.5 * 0.4 = 0.2 linear, which encodes to 124 of 255.
             EXPECT_EQ(render(-onto, bright, false, osg::Vec3f(0.4f, 0.4f, 0.4f)), 124)
@@ -947,7 +959,9 @@ namespace Rtx
                 osg::Vec3f(-10.0f, -25.0f, 10.0f),
             };
 
-            const auto render = [&](const std::optional<Light>& light, const osg::Vec3f& ambient, bool blocked) {
+            // A sky rather than the cell's ambient, for the reason the sun's own test gives: what
+            // fills a wall the eye can see is the hemisphere it gathers.
+            const auto render = [&](const std::optional<Light>& light, const osg::Vec3f& sky, bool blocked) {
                 SceneDesc scene = makeWall();
                 if (light.has_value())
                     scene.addLight(*light);
@@ -956,7 +970,8 @@ namespace Rtx
                         .mMesh = scene.addMesh(occluder, {}, {}, sQuadIndices) });
 
                 Shaders::VisibilityConstants camera = base;
-                camera.mAmbient = ambient;
+                camera.mSkyHorizon = sky;
+                camera.mSkyZenith = sky;
 
                 std::vector<std::uint8_t> pixels;
                 EXPECT_GT(countHits(scene, noTextures(), camera, size, pixels), 0u);
@@ -977,16 +992,16 @@ namespace Rtx
 
             // Ambient with no lamp at all: 0.5 * 0.4 = 0.2 linear, which encodes to
             // 1.055 * 0.2^(1/2.4) - 0.055 = 0.48453, or 124 of 255.
-            const osg::Vec3f ambient(0.4f, 0.4f, 0.4f);
-            EXPECT_EQ(render(std::nullopt, ambient, false), 124) << "ambient alone";
+            const osg::Vec3f sky(0.4f, 0.4f, 0.4f);
+            EXPECT_EQ(render(std::nullopt, sky, false), 124) << "the sky alone";
 
             // A lamp behind the wall meets it at a cosine of minus one, and is dropped rather than
-            // arithmetically applied. Asserted against the ambient and not against black, because
+            // arithmetically applied. Asserted against the sky and not against black, because
             // black is what a negative contribution clamps to as well — the two only tell apart
             // where there is something for it to be subtracted from.
             Light behind = lamp;
             behind.mPosition = osg::Vec3f(0.0f, 50.0f, 0.0f);
-            EXPECT_EQ(render(behind, ambient, false), 124) << "a lamp on the far side lights nothing";
+            EXPECT_EQ(render(behind, sky, false), 124) << "a lamp on the far side lights nothing";
 
             // The window, biting at half the reach rather than at the very end of it, where it is
             // indistinguishable from the inverse square alone:
@@ -1003,6 +1018,99 @@ namespace Rtx
             Light spent = lamp;
             spent.mReach = 50.0f;
             EXPECT_EQ(render(spent, osg::Vec3f(), false), 0) << "and one whose reach ends at the wall";
+        }
+
+        /// A bounce is drawn by the cosine, and two thirds is the number that says so.
+        ///
+        /// **The one property of the estimator a uniform sky cannot show.** Every other test here
+        /// fills the sky with one radiance so that a single sample carries no variance — which is
+        /// what makes them exact, and what leaves `cosineDirection` unmeasured. A sky that runs from
+        /// horizon to zenith turns the direction itself into the answer.
+        ///
+        /// Malley's method draws `d.z = sqrt(1 - u)` for uniform `u`, so
+        ///
+        ///   E[d.z]   = integral of sqrt(t) over [0, 1]  = 2/3
+        ///   Var[d.z] = E[1 - u] - (2/3)^2 = 1/2 - 4/9   = 1/18,  sd = 0.235702
+        ///
+        /// A floor of albedo 0.5 under `mix(horizon, zenith, d.z)` therefore has to come back at
+        /// `0.5 * (horizon + 2/3 * range)` per channel, spread by `0.5 * |range| * 0.235702`.
+        ///
+        /// **The mean is also what tells this estimator from the wrong one.** Drawing uniformly over
+        /// the hemisphere and carrying the cosine as a weight is unbiased as well, but its
+        /// directions average `E[d.z] = 1/2` — a picture a sixth of the sky's range away, which is
+        /// ten times the tolerance below and cannot be mistaken for it.
+        TEST_F(RtxVisibilityTest, aBounceDrawsItsDirectionByTheCosineAndNotUniformly)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float samples = float{ size } * size;
+
+            SceneDesc scene;
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                .mMesh = scene.addMesh(makeSheet(4000.0f, 0.0f), {}, {}, sQuadIndices) });
+
+            // Three ranges rather than one, and one of them descending, so a test that passed by
+            // matching a total or by swapping two channels would not.
+            const osg::Vec3f horizon(0.20f, 0.15f, 0.60f);
+            const osg::Vec3f zenith(0.80f, 0.65f, 0.15f);
+
+            // As near straight down as `makeCamera` will take, so every ray lands on the floor and
+            // every pixel is one bounce off a normal of +z with nothing else in the frame. Nothing
+            // stands above the floor either, so every bounce escapes and the sky is the whole answer.
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 300.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = horizon;
+            camera.mSkyZenith = zenith;
+
+            const auto shade = [&](std::uint32_t frame) {
+                camera.mFrame = frame;
+
+                std::vector<std::uint8_t> pixels;
+                EXPECT_EQ(countHits(scene, noTextures(), camera, size, pixels), size * size);
+                return pixels;
+            };
+
+            const std::vector<std::uint8_t> first = shade(0);
+            ASSERT_EQ(first.size(), std::size_t{ size } * size * 4);
+
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                float sum = 0.0f;
+                float squares = 0.0f;
+                for (std::size_t i = channel; i < first.size(); i += 4)
+                {
+                    const float linear = decodeSrgb(first[i]);
+                    sum += linear;
+                    squares += linear * linear;
+                }
+
+                const float mean = sum / samples;
+                const float spread = std::sqrt(squares / samples - mean * mean);
+
+                const float range = zenith[channel] - horizon[channel];
+                const float byTheCosine = 0.5f * (horizon[channel] + range * 2.0f / 3.0f);
+                const float ifDrawnEvenly = 0.5f * (horizon[channel] + range * 0.5f);
+
+                // One sRGB step at a quarter brightness is 0.004 of linear — a 255th divided by the
+                // curve's slope there — and it swamps the sampling standard error, which over 4096
+                // samples is `0.5 * |range| * 0.235702 / 64`, at most 0.0011.
+                EXPECT_NEAR(mean, byTheCosine, 0.004f) << "channel " << channel << " averages two thirds up";
+                EXPECT_GT(std::abs(mean - ifDrawnEvenly), 0.02f)
+                    << "channel " << channel << " is nowhere near the half an even draw would give";
+
+                EXPECT_NEAR(spread, 0.5f * std::abs(range) * 0.235702f, 0.003f)
+                    << "channel " << channel << " is spread by the square root's own variance";
+            }
+
+            // The frame index has to move every pixel's draw, or a bounce would be a fixed pattern
+            // that no amount of accumulation could average away. Two independent samples land on the
+            // same byte only by coincidence — green's range covers some eighty of them here, so a
+            // few per cent — and the rest must differ.
+            const std::vector<std::uint8_t> second = shade(1);
+            std::size_t moved = 0;
+            for (std::size_t i = 1; i < first.size(); i += 4)
+                moved += first[i] != second[i] ? 1u : 0u;
+
+            EXPECT_GT(moved, std::size_t{ size } * size * 9 / 10) << "the frame redraws the bounce";
         }
 
         /// Water is seen by a camera and not by a shadow ray, and the mask is what says so.
@@ -1217,6 +1325,67 @@ namespace Rtx
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_NEAR(below[channel], above[channel], 2) << "channel " << channel << ": " << above[channel]
                                                                << " from above, " << below[channel] << " from below";
+        }
+
+        /// The sky loses the column of water over a bed just as the sun does.
+        ///
+        /// **The half a bounce could quietly skip.** A bounce that escapes to the sky is the sky
+        /// arriving at the point it left, so it crosses the same depth the sun crosses and has to
+        /// lose the same fraction to it. Returning the sky whole lights a submerged floor as though
+        /// the water above it were not there — the fault `aColumnOfWaterAgreesFromAboveAndFromBelow`
+        /// was written for, in the one term that test cannot see: a bounce shades the same bed
+        /// identically from either side of the surface, so the two views agree while both are wrong.
+        ///
+        /// **From under the water, because only a primary hit bounces.** A bed seen down through the
+        /// surface is the far end of `waterRay`, which terminates it with `pathEnd` — the flat
+        /// ambient — precisely so that a reflection cannot recurse. Put the eye below and the bed is
+        /// what the camera ray found, and it gathers a real hemisphere.
+        ///
+        /// **A sky of one radiance, which makes that hemisphere exact rather than noisy.** Every
+        /// direction returns the same number, so the single sample carries no variance and what
+        /// follows is an equality rather than an average.
+        ///
+        /// Red, off a bed two hundred units down, seen from a hundred and ninety units above it:
+        ///
+        ///   down  = exp(-0.004572 * 200)         = 0.400757   the sky's own way in
+        ///   bed   = 0.5 albedo * 0.6 sky * down  = 0.120227   what leaves it
+        ///   out   = exp(-0.004572 * 190)         = 0.419505   and the way back to the eye
+        ///   pixel = bed * out                    = 0.050436,  or 63 of 255
+        ///
+        /// No Fresnel and no surface: the ray never crosses one. Green and blue absorb far less and
+        /// land at 131 and 121. Drop the column and red reads 99 — half the scale away, so this
+        /// cannot be passed by widening a tolerance.
+        TEST_F(RtxVisibilityTest, aBounceIntoTheSkyLosesTheWaterOverTheBedItLeft)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            constexpr float depth = 200.0f;
+            constexpr float above = 190.0f;
+            constexpr float sky = 0.6f;
+
+            const SceneDesc scene = makeFlooded(4000.0f, depth);
+
+            // Straight down but for the third of a degree `makeCamera` insists on — it refuses a
+            // view along the world's up axis, where roll has no answer — so the way out is the
+            // vertical column to a part in seventy thousand and the bed is met square on.
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -1.0f, above - depth), osg::Vec3f(0.0f, 0.0f, -depth), 60.0f, size, size, 10000.0f);
+            camera.mSkyHorizon = osg::Vec3f(sky, sky, sky);
+            camera.mSkyZenith = camera.mSkyHorizon;
+            camera.mWaterLevel = 0.0f;
+
+            // Flat, so the surface the bounce passes through neither bends it nor gathers it.
+            std::vector<std::uint8_t> pixels;
+            countHits(scene, noTextures(), camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
+
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                const float down = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth);
+                const float out = std::exp(-Shaders::WATER_EXTINCTION[channel] * above);
+
+                EXPECT_NEAR(pixels[centre + channel], int{ encodeSrgb(0.5f * sky * down * out) }, 1)
+                    << "channel " << channel;
+            }
         }
 
         /// The waves gather the sun into moving lines on the bed, and move light rather than make it.
@@ -1584,7 +1753,7 @@ namespace Rtx
             // with the rest of the path's worth of the fog's own colour in front of it.
             const float transmittance = std::exp(-extinction * distance);
             const std::array<int, 3> fogged = look(extinction);
-            constexpr float wall = 0.5f * sFoggyAmbient;
+            constexpr float wall = 0.5f * sFoggySky;
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
                 const auto expected
@@ -1648,7 +1817,7 @@ namespace Rtx
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
                 const auto expected = static_cast<int>(
-                    encodeSrgb(0.5f * sFoggyAmbient * transmittance + sHaze[channel] * (1.0f - transmittance)));
+                    encodeSrgb(0.5f * sFoggySky * transmittance + sHaze[channel] * (1.0f - transmittance)));
 
                 EXPECT_NEAR(high[channel], expected, 1) << "channel " << channel << ", high over the layer";
             }
@@ -1722,7 +1891,7 @@ namespace Rtx
 
             // With no lamp the air scatters nothing, because the fog's own colour is black here: the
             // wall is all there is, at half of it.
-            constexpr float wall = 0.5f * sFoggyAmbient;
+            constexpr float wall = 0.5f * sFoggySky;
             EXPECT_EQ(look(false), int{ encodeSrgb(0.5f * wall) }) << "black air over a lit wall";
 
             // And with it, one unit of irradiance through an isotropic sphere, over the half of the
@@ -1823,7 +1992,17 @@ namespace Rtx
 
                 // Nothing to hit and nothing else to scatter: every ray runs out to `FOG_REACH`
                 // through even air whose own colour is black, so the pixel is the sun and no more.
-                const SceneDesc scene = makeWall();
+                //
+                // **Out of reach of the shadow rays and not merely out of the frame.** The march
+                // sends one at the sun from every stretch of the ray, and a wall standing at y = 0
+                // is squarely in the path of the ones the *backward* case sends — so it shadowed the
+                // near steps, at a march offset that decides which, and the ratio below moved by a
+                // sixth with the dither. A sheet below the world is past `mFar` in every direction
+                // any ray here travels.
+                SceneDesc scene;
+                scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                    .mMesh = scene.addMesh(makeSheet(4000.0f, -200000.0f), {}, {}, sQuadIndices) });
+
                 std::vector<std::uint8_t> pixels;
                 countHits(scene, noTextures(), camera, size, pixels);
 
