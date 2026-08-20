@@ -41,9 +41,9 @@ namespace Rtx::Shaders
 
     /// One sinusoid of the sea, as the shader reads it.
     ///
-    /// **One height field, differentiated twice.** The normal is its gradient and the caustics to
-    /// come are its curvature, so the two cannot disagree about where a crest is — which they would
-    /// the moment either sampled a field of its own.
+    /// **One height field, differentiated twice.** The normal is its gradient and the caustics are
+    /// its curvature, so the two cannot disagree about where a crest is — which they would the
+    /// moment either sampled a field of its own.
     struct GpuWave
     {
         /// Unit vector the wave travels along.

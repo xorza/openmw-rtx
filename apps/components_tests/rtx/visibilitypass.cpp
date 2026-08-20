@@ -116,6 +116,28 @@ namespace Rtx
             return scene;
         }
 
+        /// How bright the sun is in the tests that measure through water.
+        ///
+        /// Named because their arithmetic uses it as well: the number the shader is handed and the
+        /// number an expectation is computed from have to be one number, or the test quietly stops
+        /// describing the shader.
+        constexpr float sSunOverWater = 2.0f;
+
+        /// Puts `camera` over a flooded scene with nothing in its sky but the sun.
+        ///
+        /// The water level is the one `makeFlooded` builds to, and the sky is black so the two per
+        /// cent that reflects off the surface reflects nothing. Every byte in the frame has then
+        /// come up through the depth, which is what lets these tests name an exact value.
+        void litThroughWater(
+            Shaders::VisibilityConstants& camera, const osg::Vec3f& sun = osg::Vec3f(0.0f, 0.0f, -1.0f))
+        {
+            camera.mSunDirection = sun;
+            camera.mSunIrradiance = osg::Vec3f(sSunOverWater, sSunOverWater, sSunOverWater);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mWaterLevel = 0.0f;
+        }
+
         /// A square in the xz plane at y = 0, facing along -Y, four hundred units across.
         SceneDesc makeWall()
         {
@@ -139,6 +161,16 @@ namespace Rtx
             const float encoded
                 = linear <= 0.0031308f ? linear * 12.92f : 1.055f * std::pow(linear, 1.0f / 2.4f) - 0.055f;
             return static_cast<std::uint8_t>(std::lround(std::clamp(encoded, 0.0f, 1.0f) * 255.0f));
+        }
+
+        /// A byte the shader wrote, back to the linear value behind it.
+        ///
+        /// Ratios have to be taken in linear. sRGB is a power curve, so the same proportional
+        /// brightening is a different number of bytes at the top of the range and at the bottom.
+        float decodeSrgb(std::uint8_t byte)
+        {
+            const float encoded = static_cast<float>(byte) / 255.0f;
+            return encoded <= 0.04045f ? encoded / 12.92f : std::pow((encoded + 0.055f) / 1.055f, 2.4f);
         }
 
         class RtxVisibilityTest : public ::testing::Test
@@ -947,16 +979,19 @@ namespace Rtx
             EXPECT_GT(seen[2], seen[0]) << "though a camera still sees it";
         }
 
-        /// Water over a bed, absorbing exactly what Beer-Lambert says it should.
+        /// Water over a bed, absorbing exactly what Beer-Lambert says it should over the path taken.
         ///
         /// A flat sea, so the surface is its own plane and the ray crosses the depth once rather than
         /// through whatever facet a wave put in the way. Nearly straight down — `makeCamera` will not
         /// take a look along the world's up axis, so this is a fifth of a degree off it, where the
         /// cosine is 0.99999 and Fresnel is its head-on 0.02.
         ///
+        /// **The sun's path is not the depth unless the sun is overhead**, which is the second half
+        /// of this: it enters at Snell's angle and crosses more water than it would straight down.
+        ///
         /// Every expectation here derives from `WATER_EXTINCTION`, so a tuning pass is one line
         /// rather than five pieces of arithmetic that quietly stop describing the shader.
-        TEST_F(RtxVisibilityTest, waterTakesWhatBeerLambertSaysOverTheDepthBelowIt)
+        TEST_F(RtxVisibilityTest, waterTakesWhatBeerLambertSaysOverThePathTheLightTook)
         {
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
@@ -965,19 +1000,20 @@ namespace Rtx
             // A bed and a surface, both level and both wide enough to fill the frame.
             const SceneDesc scene = makeFlooded(400.0f, depth);
 
-            Shaders::VisibilityConstants camera = makeCamera(
-                osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
-            camera.mSunDirection = osg::Vec3f(0.0f, 0.0f, -1.0f);
-            camera.mSunIrradiance = osg::Vec3f(2.0f, 2.0f, 2.0f);
-            camera.mSkyHorizon = osg::Vec3f();
-            camera.mSkyZenith = osg::Vec3f();
-            camera.mWaterLevel = 0.0f;
+            const auto look = [&](const osg::Vec3f& sun) {
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                litThroughWater(camera, sun);
 
-            // No height at all, which is a flat sea: a table whose amplitudes are zero.
-            std::vector<std::uint8_t> pixels;
-            countHits(scene, noTextures(), camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
+                // No height at all, which is a flat sea: a table whose amplitudes are zero. It is
+                // also what makes the caustic exactly one — a flat surface has no curvature to
+                // gather anything with, so the Jacobian is the identity.
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, noTextures(), camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
+                return std::array<int, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
+            };
 
-            // The bed is untextured, so its albedo is 0.5, and the sun meets it square:
+            // The bed is untextured, so its albedo is 0.5, and an overhead sun meets it square:
             //
             //   bed = 0.5 * 2.0 / pi = 0.318310
             //
@@ -988,13 +1024,15 @@ namespace Rtx
             //
             // The scattering gives back `(1 - T^2) / 2` against a black ambient, which is zero here,
             // and the sky is black too, so the two per cent Fresnel reflects nothing.
-            constexpr float bed = 0.5f * 2.0f / 3.14159265f;
-            for (int channel = 0; channel < 3; ++channel)
+            const std::array<int, 3> overhead = look(osg::Vec3f(0.0f, 0.0f, -1.0f));
+            const float bed = 0.5f * sSunOverWater * Shaders::INV_PI;
+            for (std::size_t channel = 0; channel < 3; ++channel)
             {
                 const float transmittance = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth);
-                const auto expected = static_cast<int>(encodeSrgb(bed * transmittance * transmittance * 0.98f));
+                const auto expected
+                    = static_cast<int>(encodeSrgb(bed * transmittance * transmittance * (1.0f - Shaders::WATER_F0)));
 
-                EXPECT_NEAR(pixels[centre + static_cast<std::size_t>(channel)], expected, 1)
+                EXPECT_NEAR(overhead[channel], expected, 1)
                     << "channel " << channel << ", transmittance " << transmittance;
             }
 
@@ -1003,8 +1041,33 @@ namespace Rtx
             // not a matter of taste. **Green survives most, not blue**, which is what makes a
             // coastal shelf green where open ocean is blue: Jerlov's coastal extinction is
             // 0.004572, 0.000714, 0.001143, so blue is taken half again as fast as green.
-            EXPECT_LT(pixels[centre], pixels[centre + 2]) << "red is taken before blue";
-            EXPECT_LT(pixels[centre + 2], pixels[centre + 1]) << "and blue before green";
+            EXPECT_LT(overhead[0], overhead[2]) << "red is taken before blue";
+            EXPECT_LT(overhead[2], overhead[1]) << "and blue before green";
+
+            // Now the same column under a sun 45 degrees off the vertical. Snell's law turns it to
+            //
+            //   asin(sin(45) / 1.333) = 32.03 degrees,
+            //
+            // so it reaches a bed 200 units down after 200 / cos(32.03) = 235.93 units of water
+            // rather than 200 — while the view back up is unchanged. Red comes out at 48 where the
+            // vertical depth would have said 52, which is the size of the error this is here for.
+            //
+            // The cosine on the bed stays the one the sun has *in air*: refraction at a level
+            // surface moves no flux across a horizontal patch, so what lands on the bottom is what
+            // fell on the top, times what the longer path took.
+            constexpr float slant = 0.70710678f;
+            const std::array<int, 3> slanted = look(osg::Vec3f(0.0f, slant, -slant));
+
+            const float refracted = std::sqrt(1.0f - 0.5f / (Shaders::WATER_IOR * Shaders::WATER_IOR));
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                const float down = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth / refracted);
+                const float up = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth);
+                const auto expected
+                    = static_cast<int>(encodeSrgb(bed * slant * down * up * (1.0f - Shaders::WATER_F0)));
+
+                EXPECT_NEAR(slanted[channel], expected, 1) << "channel " << channel << " under a slanted sun";
+            }
         }
 
         /// Deep water settles at what it scatters, and at half what only-the-return-leg would give.
@@ -1066,11 +1129,7 @@ namespace Rtx
             const auto look = [&](float from) {
                 Shaders::VisibilityConstants camera = makeCamera(
                     osg::Vec3f(0.0f, -0.05f, from), osg::Vec3f(0.0f, 0.0f, from - 10.0f), 60.0f, size, size, 10000.0f);
-                camera.mSunDirection = osg::Vec3f(0.0f, 0.0f, -1.0f);
-                camera.mSunIrradiance = osg::Vec3f(2.0f, 2.0f, 2.0f);
-                camera.mSkyHorizon = osg::Vec3f();
-                camera.mSkyZenith = osg::Vec3f();
-                camera.mWaterLevel = 0.0f;
+                litThroughWater(camera);
 
                 std::vector<std::uint8_t> pixels;
                 countHits(scene, noTextures(), camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
@@ -1092,6 +1151,89 @@ namespace Rtx
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_NEAR(below[channel], above[channel], 2) << "channel " << channel << ": " << above[channel]
                                                                << " from above, " << below[channel] << " from below";
+        }
+
+        /// The waves gather the sun into moving lines on the bed, and move light rather than make it.
+        ///
+        /// Caustics are ray density — the determinant of the Jacobian of the map from where light
+        /// met the surface to where it landed — and what isolates that term from everything else in
+        /// the frame is a **ratio**: the same bed, camera and sun, rendered with a sea state and
+        /// without one. Dividing the two cancels the albedo, the absorption, the cosine and the
+        /// geometry, and leaves the term itself, pixel for pixel.
+        ///
+        /// **Looked at from underneath**, so no wavy surface stands between the eye and the bed.
+        /// Seen from above, what the waves do to the *view* would be mixed into what they do to the
+        /// *light*, and the ratio would measure both.
+        TEST_F(RtxVisibilityTest, theWavesGatherSunlightOntoTheBedWithoutMakingAnyOfIt)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::size_t count = std::size_t{ size } * size;
+
+            // A wide look from 135 units above the bed *whatever the depth is*, so that two depths
+            // see the same patch of water and their caustics can be compared pixel for pixel.
+            const auto render = [&](float depth, const SeaState& sea) {
+                const SceneDesc scene = makeFlooded(4000.0f, depth);
+
+                Shaders::VisibilityConstants camera = makeCamera(osg::Vec3f(0.0f, -1.0f, 135.0f - depth),
+                    osg::Vec3f(0.0f, 0.0f, -depth), 90.0f, size, size, 100000.0f);
+                litThroughWater(camera);
+
+                std::vector<std::uint8_t> image;
+                countHits(scene, noTextures(), camera, size, image, sea);
+                return image;
+            };
+
+            // Green, which survives the water best of the three and so has the most of a byte left
+            // to vary over.
+            const auto causticField = [&](float depth) {
+                const std::vector<std::uint8_t> still = render(depth, SeaState{ .mSignificantHeight = 0.0f });
+                const std::vector<std::uint8_t> running = render(depth, SeaState{});
+
+                std::vector<float> field;
+                field.reserve(count);
+                for (std::size_t i = 0; i < count; ++i)
+                    field.push_back(decodeSrgb(running[i * 4 + 1]) / decodeSrgb(still[i * 4 + 1]));
+
+                return field;
+            };
+
+            // A hundred and forty units down, which is where the lens stops sharpening.
+            const std::vector<float> capped = causticField(140.0f);
+            const auto [dimmest, brightest] = std::minmax_element(capped.begin(), capped.end());
+
+            float total = 0.0f;
+            for (const float gathered : capped)
+                total += gathered;
+            const float mean = total / static_cast<float>(count);
+
+            // Measured over this patch: the brightest place on the bed is gathered to 2.75 of what
+            // a flat sea would put there and the dimmest thinned to 0.38, so the pattern is bold
+            // rather than a wobble.
+            EXPECT_GT(*brightest, 2.0f) << "measured 2.75, gathered into lines";
+            EXPECT_LT(*dimmest, 0.6f) << "measured 0.38, and thinned between them";
+
+            // **And the mean is one**, which is the claim that makes it light and not decoration.
+            // It comes out at 1.024: a reciprocal of something that fluctuates is worth more than
+            // the reciprocal of its mean, and what the shader takes out analytically is the second
+            // order of that. **With the correction removed this reads 1.123** — four times the
+            // slack allowed here, which is what makes this tolerance a test rather than a comment.
+            EXPECT_NEAR(mean, 1.0f, 0.04f) << "the waves redistribute the sun, they do not make any";
+
+            // Past the cap the lens is still the one at a hundred and forty, so a bed four hundred
+            // units down gets the *same* pattern rather than a sharper one. Both are looked at from
+            // the same height above the bed, so the two frames cover the same water at the same cone
+            // width and the fields subtract.
+            //
+            // What is left is the eight-bit round trip. The deeper bed is darker — green comes back
+            // at 119 of 255 against 141 — so half a byte on each of the two reads is about 1.4 per
+            // cent of a ratio, and on a pixel gathered to 2.7 that is 0.04. The worst over the frame
+            // measures 0.050, and the tolerance is twice it.
+            //
+            // Without the cap the reference renderer measured three quarters more light than fell
+            // at this depth — the fold the small-angle map cannot describe.
+            const std::vector<float> deeper = causticField(400.0f);
+            for (std::size_t i = 0; i < count; ++i)
+                ASSERT_NEAR(deeper[i], capped[i], 0.1f) << "pixel " << i << ", past the depth cap";
         }
 
         /// Its own device, because the validation layers allocate and this test counts allocations.
