@@ -150,6 +150,14 @@ BLAS per mesh, TLAS per frame, a ray-query compute pass writing depth, instance 
 `openmw-rtxtool screenshot`. **Interop spike here, not later** — get a flat-shaded RT image into the
 game window while it is still simple enough to debug.
 
+**Terrain is missing from the harness, and the plan did not say so.** In the game it arrives free:
+`Terrain::QuadTreeWorld` has already put chunks in the scene graph by cull time, and the mirror picks
+them up like anything else. Headless there is no `Terrain::World` at all, so an exterior renders as
+objects floating in sky. Standing one up needs an `ESMTerrain::Storage` over `EsmData::mLands`, which
+are already loaded, feeding a `Terrain::ChunkManager`. It belongs to the harness rather than to the
+renderer, and nothing after M2 depends on it, but every exterior screenshot until then is missing its
+ground.
+
 *Done when:* Seyda Neen's shore renders recognisably; the primary-hit fraction is reported on stdout
 and asserted by a test; the same image appears in the game window through the interop path.
 

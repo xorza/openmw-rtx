@@ -14,7 +14,7 @@ find_program(OPENMW_SPIRV_VAL NAMES spirv-val REQUIRED
     DOC "spirv-val, from SPIRV-Tools — validates every module the build produces")
 
 set(RTX_SHADERS
-    shaders/probe.comp
+    shaders/visibility.comp
 )
 
 # Compiling and validating in one custom command is deliberate: an invalid module must fail the
@@ -37,7 +37,9 @@ foreach (shader ${RTX_SHADERS})
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${RTX_SPIRV_DIR}"
         COMMAND "${OPENMW_GLSLC}" ${RTX_GLSLC_FLAGS} --target-env=vulkan1.4 -MD -MF "${depfile}"
                 -o "${spv}" "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
-        COMMAND "${OPENMW_SPIRV_VAL}" --target-env vulkan1.4 "${spv}"
+        # --scalar-block-layout because the shared C++/GLSL headers rely on the feature the
+        # device enables; without the flag the validator applies std430 straddling rules.
+        COMMAND "${OPENMW_SPIRV_VAL}" --target-env vulkan1.4 --scalar-block-layout "${spv}"
         DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
         DEPFILE "${depfile}"
         COMMENT "Compiling and validating ${name}"
@@ -49,22 +51,34 @@ endforeach()
 add_custom_target(openmw-rtx-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS} SOURCES ${RTX_SHADERS})
 
 set(RTX_FILES
+    buffer.cpp
+    buffer.hpp
+    commands.cpp
+    commands.hpp
     device.cpp
     device.hpp
     error.cpp
     error.hpp
+    image.cpp
+    image.hpp
     instance.cpp
     instance.hpp
+    memory.cpp
+    memory.hpp
     physicaldevice.cpp
     physicaldevice.hpp
     requirements.cpp
     requirements.hpp
+    sceneacceleration.cpp
+    sceneacceleration.hpp
     scenedesc.cpp
     scenedesc.hpp
     shadermodule.cpp
     shadermodule.hpp
     validation.cpp
     validation.hpp
+    visibilitypass.cpp
+    visibilitypass.hpp
 )
 
 source_group(components\\rtx FILES ${RTX_FILES})

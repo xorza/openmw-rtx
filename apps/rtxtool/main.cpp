@@ -1,4 +1,6 @@
+#include <charconv>
 #include <cstdint>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -21,6 +23,7 @@
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/settings/settings.hpp>
 
+#include "shot.hpp"
 #include "world.hpp"
 
 namespace RtxTool
@@ -64,6 +67,16 @@ namespace RtxTool
                 "extract the cell a second time and report what the second pass added, which should "
                 "be nothing");
 
+            addOption("out", bpo::value<std::string>()->default_value("shot.png"), "where to write the image");
+            addOption("size", bpo::value<std::string>()->default_value("1920x1080"), "image size, as WIDTHxHEIGHT");
+            addOption("fov", bpo::value<float>()->default_value(60.0f), "vertical field of view, in degrees");
+            addOption("pos", bpo::value<std::string>()->default_value(""),
+                "where to put the camera, as x,y,z. Defaults to a view of the whole cell from outside it, "
+                "which is a poor view of an interior. Write --pos=-100,200,300, or a leading minus reads "
+                "as an option.");
+            addOption("look", bpo::value<std::string>()->default_value(""),
+                "what the camera looks at, as x,y,z. Defaults to the centre of the cell.");
+
             addOption("data",
                 bpo::value<Files::MaybeQuotedPathContainer>()
                     ->default_value(Files::MaybeQuotedPathContainer(), "data")
@@ -102,13 +115,58 @@ namespace RtxTool
             return result;
         }
 
+        /// Parses `x,y,z`. Empty input means "not given", which is not a failure.
+        std::optional<osg::Vec3f> parseVec3(std::string_view text)
+        {
+            if (text.empty())
+                return std::nullopt;
+
+            osg::Vec3f result;
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                const std::size_t comma = text.find(',');
+                const std::string_view field = text.substr(0, comma);
+                const auto parsed = std::from_chars(field.data(), field.data() + field.size(), result[axis]);
+                if (parsed.ec != std::errc() || parsed.ptr != field.data() + field.size())
+                    throw std::runtime_error("not a coordinate triple: " + std::string(text));
+
+                if (axis < 2)
+                {
+                    if (comma == std::string_view::npos)
+                        throw std::runtime_error("not a coordinate triple: " + std::string(text));
+                    text = text.substr(comma + 1);
+                }
+                else if (comma != std::string_view::npos)
+                    throw std::runtime_error("not a coordinate triple: " + std::string(text));
+            }
+            return result;
+        }
+
+        /// Parses `WIDTHxHEIGHT`.
+        std::pair<std::uint32_t, std::uint32_t> parseSize(std::string_view text)
+        {
+            const std::size_t cross = text.find('x');
+            std::uint32_t width = 0;
+            std::uint32_t height = 0;
+
+            const bool ok = cross != std::string_view::npos
+                && std::from_chars(text.data(), text.data() + cross, width).ec == std::errc()
+                && std::from_chars(text.data() + cross + 1, text.data() + text.size(), height).ec == std::errc();
+
+            if (!ok || width == 0 || height == 0)
+                throw std::runtime_error("not a size: " + std::string(text));
+
+            return { width, height };
+        }
+
         void printUsage(const bpo::options_description& options)
         {
             out() << "Drives the experimental ray tracing renderer without the game window.\n\n"
                      "Usage: openmw-rtxtool <command> [options]\n\n"
                      "Commands:\n"
                      "  info     report the device this renderer would run on\n"
-                     "  scene    read a cell and report what the renderer would be handed\n\n"
+                     "  scene    read a cell and report what the renderer would be handed\n"
+                     "  shot     render a cell and write a PNG, with no window\n\n"
                   << options;
         }
 
@@ -132,48 +190,71 @@ namespace RtxTool
             return 0;
         }
 
-        int runScene(World& world, const std::string& cellSpec, bool twice)
+        /// What reading a cell produced besides the scene itself.
+        struct CellReport
+        {
+            RtxBridge::ExtractionStats mStats;
+            World::SkippedObjects mSkipped;
+
+            /// References whose model is named but will not load. Logged individually as they fail.
+            std::uint32_t mUnreadable = 0;
+        };
+
+        CellReport readCell(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor)
+        {
+            CellReport report;
+            report.mSkipped = world.forEachObject(cell, [&](const World::Object& object) {
+                osg::ref_ptr<const osg::Node> node;
+                try
+                {
+                    node = world.getSceneManager().getTemplate(object.mModel, false);
+                }
+                catch (const std::exception& e)
+                {
+                    Log(Debug::Warning) << "Cannot load " << object.mModel << ": " << e.what();
+                    ++report.mUnreadable;
+                    return;
+                }
+
+                report.mStats += extractor.extract(*node, object.mTransform);
+            });
+
+            return report;
+        }
+
+        void printCellHeading(const ESM::Cell& cell)
+        {
+            out() << "cell:        " << (cell.isExterior() ? "exterior " : "interior ") << '"' << cell.mName << '"';
+            if (cell.isExterior())
+                out() << " at " << cell.getGridX() << ',' << cell.getGridY();
+            out() << "\nwater:       " << (cell.hasWater() ? "yes, at z = " + std::to_string(cell.mWater) : "no")
+                  << '\n';
+        }
+
+        /// The named cell, or null with the complaint already printed.
+        const ESM::Cell* findCellOrComplain(World& world, const std::string& cellSpec)
         {
             const ESM::Cell* cell = world.findCell(cellSpec);
             if (cell == nullptr)
-            {
                 out() << "No cell is called \"" << cellSpec << "\".\n";
+
+            return cell;
+        }
+
+        int runScene(World& world, const std::string& cellSpec, bool twice)
+        {
+            const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
+            if (cell == nullptr)
                 return 1;
-            }
 
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
+            const CellReport report = readCell(world, *cell, extractor);
 
-            const auto readCell = [&](RtxBridge::ExtractionStats& totals, std::uint32_t& unreadable) {
-                return world.forEachObject(*cell, [&](const World::Object& object) {
-                    osg::ref_ptr<const osg::Node> node;
-                    try
-                    {
-                        node = world.getSceneManager().getTemplate(object.mModel, false);
-                    }
-                    catch (const std::exception& e)
-                    {
-                        Log(Debug::Warning) << "Cannot load " << object.mModel << ": " << e.what();
-                        ++unreadable;
-                        return;
-                    }
-
-                    totals += extractor.extract(*node, object.mTransform);
-                });
-            };
-
-            RtxBridge::ExtractionStats stats;
-            std::uint32_t unreadable = 0;
-            const World::SkippedObjects skipped = readCell(stats, unreadable);
-
-            out() << "cell:        " << (cell->isExterior() ? "exterior " : "interior ") << '"' << cell->mName << '"';
-            if (cell->isExterior())
-                out() << " at " << cell->getGridX() << ',' << cell->getGridY();
-            out() << "\nwater:       " << (cell->hasWater() ? "yes, at z = " + std::to_string(cell->mWater) : "no")
-                  << '\n';
+            printCellHeading(*cell);
 
             out() << "\nplaced\n"
-                  << "  instances:            " << stats.mInstances << '\n'
+                  << "  instances:            " << report.mStats.mInstances << '\n'
                   << "  meshes:               " << scene.getMeshes().size() << '\n'
                   << "  materials:            " << scene.getMaterials().size() << '\n'
                   << "  textures:             " << scene.getTextures().size() << '\n'
@@ -181,25 +262,39 @@ namespace RtxTool
                   << "  vertex+index bytes:   " << scene.getGeometryBytes() / 1024 << " KiB\n";
 
             out() << "\nnot placed\n"
-                  << "  record type unread:   " << skipped.mUnknownType << '\n'
-                  << "  record has no model:  " << skipped.mNoModel << '\n'
-                  << "  model would not load: " << unreadable << '\n'
-                  << "  deformed drawables:   " << stats.mSkippedDeformed << '\n'
-                  << "  empty geometry:       " << stats.mSkippedEmpty << '\n';
+                  << "  record type unread:   " << report.mSkipped.mUnknownType << '\n'
+                  << "  record has no model:  " << report.mSkipped.mNoModel << '\n'
+                  << "  model would not load: " << report.mUnreadable << '\n'
+                  << "  deformed drawables:   " << report.mStats.mSkippedDeformed << '\n'
+                  << "  empty geometry:       " << report.mStats.mSkippedEmpty << '\n';
 
             if (twice)
             {
-                RtxBridge::ExtractionStats second;
-                std::uint32_t ignored = 0;
-                readCell(second, ignored);
-
+                const CellReport second = readCell(world, *cell, extractor);
                 out() << "\nsecond pass over the same graph\n"
-                      << "  new meshes:           " << second.mMeshesAdded << " (should be 0)\n"
-                      << "  new materials:        " << second.mMaterialsAdded << " (should be 0)\n"
-                      << "  drawables resolved:   " << second.mMeshesReused << " to a known mesh\n";
+                      << "  new meshes:           " << second.mStats.mMeshesAdded << " (should be 0)\n"
+                      << "  new materials:        " << second.mStats.mMaterialsAdded << " (should be 0)\n"
+                      << "  drawables resolved:   " << second.mStats.mMeshesReused << " to a known mesh\n";
             }
 
             return 0;
+        }
+
+        int runShot(World& world, const std::string& cellSpec, const Rtx::InstanceOptions& instanceOptions,
+            const ShotRequest& request)
+        {
+            const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
+            if (cell == nullptr)
+                return 1;
+
+            Rtx::SceneDesc scene;
+            RtxBridge::SceneExtractor extractor(scene);
+            readCell(world, *cell, extractor);
+
+            printCellHeading(*cell);
+            out() << '\n';
+
+            return renderShot(scene, instanceOptions, request);
         }
 
         int dispatch(int argc, char* argv[])
@@ -248,10 +343,35 @@ namespace RtxTool
                 return runInfo(instanceOptions);
             }
 
+            const std::filesystem::path resources = variables["resources"].as<Files::MaybeQuotedPath>();
+
             if (command == "scene")
             {
-                World world(config, variables, variables["resources"].as<Files::MaybeQuotedPath>());
+                World world(config, variables, resources);
                 return runScene(world, variables["cell"].as<std::string>(), variables["twice"].as<bool>());
+            }
+
+            if (command == "shot")
+            {
+                const auto [width, height] = parseSize(variables["size"].as<std::string>());
+
+                ShotRequest request;
+                request.mOutput = variables["out"].as<std::string>();
+                request.mShaderDirectory = resources / "rtx" / "shaders";
+                request.mWidth = width;
+                request.mHeight = height;
+                request.mFieldOfView = variables["fov"].as<float>();
+                request.mOrigin = parseVec3(variables["pos"].as<std::string>());
+                request.mTarget = parseVec3(variables["look"].as<std::string>());
+
+                Rtx::InstanceOptions instanceOptions;
+                instanceOptions.mSynchronizationValidation = variables["sync-validation"].as<bool>();
+                instanceOptions.mGpuAssistedValidation = variables["gpu-validation"].as<bool>();
+                instanceOptions.mValidation = variables["validation"].as<bool>()
+                    || instanceOptions.mSynchronizationValidation || instanceOptions.mGpuAssistedValidation;
+
+                World world(config, variables, resources);
+                return runShot(world, variables["cell"].as<std::string>(), instanceOptions, request);
             }
 
             out() << "Unknown command: " << command << "\n\n";

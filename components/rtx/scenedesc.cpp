@@ -97,6 +97,27 @@ namespace Rtx
         return static_cast<std::uint32_t>(mIndices.size() / 3);
     }
 
+    osg::BoundingBoxf SceneDesc::getBounds() const
+    {
+        std::vector<osg::BoundingBoxf> local(mMeshes.size());
+        for (std::size_t i = 0; i < mMeshes.size(); ++i)
+            for (const osg::Vec3f& position : getMeshPositions(static_cast<Index>(i)))
+                local[i].expandBy(position);
+
+        osg::BoundingBoxf bounds;
+        for (const MeshInstance& instance : mInstances)
+        {
+            const osg::BoundingBoxf& box = local[instance.mMesh];
+            if (!box.valid())
+                continue;
+
+            for (unsigned int corner = 0; corner < 8; ++corner)
+                bounds.expandBy(box.corner(corner) * instance.mTransform);
+        }
+
+        return bounds;
+    }
+
     std::size_t SceneDesc::getGeometryBytes() const
     {
         return mPositions.size() * sizeof(osg::Vec3f) + mNormals.size() * sizeof(osg::Vec3f)

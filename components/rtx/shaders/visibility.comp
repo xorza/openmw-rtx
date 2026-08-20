@@ -1,0 +1,81 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_ray_query : require
+#extension GL_EXT_ray_tracing_position_fetch : require
+#extension GL_EXT_scalar_block_layout : require
+
+// Primary visibility, and nothing else. One ray per pixel against the top-level structure, shaded by
+// the geometric normal of whatever it hit.
+//
+// Nothing here binds a vertex buffer. `GL_EXT_ray_tracing_position_fetch` reads the hit triangle's
+// corners back out of the acceleration structure, which is enough for a normal and is the reason
+// this pass needs three descriptors rather than a material system.
+
+#include "visibility.h"
+
+layout(local_size_x = VISIBILITY_WORKGROUP, local_size_y = VISIBILITY_WORKGROUP) in;
+
+layout(set = 0, binding = 0) uniform accelerationStructureEXT sceneTop;
+layout(set = 0, binding = 1, rgba8) uniform writeonly image2D target;
+// One atomic per hit on a single address, which looks like contention and measures as nothing: at
+// 3840x2160 over Seyda Neen the trace runs 0.57-0.79 ms, and a subgroup reduction in place of this
+// ran 0.65-0.78 for an identical count. Only 5.5% of rays hit, and the reduction would have cost the
+// device a subgroup-arithmetic requirement it does not otherwise need. Measure again if a pass ever
+// hits most of its pixels.
+layout(set = 0, binding = 2) buffer HitCount
+{
+    uint hits;
+};
+
+layout(push_constant, scalar) uniform Push
+{
+    VisibilityConstants camera;
+};
+
+const vec3 SKY_HORIZON = vec3(0.30, 0.36, 0.44);
+const vec3 SKY_ZENITH = vec3(0.10, 0.16, 0.30);
+
+void main()
+{
+    const uvec2 pixel = gl_GlobalInvocationID.xy;
+    if (pixel.x >= camera.mWidth || pixel.y >= camera.mHeight)
+        return;
+
+    // Pixel centres, and y downwards in the image against z upwards in the world.
+    const vec2 uv = (vec2(pixel) + 0.5) / vec2(camera.mWidth, camera.mHeight) * 2.0 - 1.0;
+    const vec3 direction = normalize(camera.mForward + camera.mRight * uv.x - camera.mUp * uv.y);
+
+    rayQueryEXT query;
+    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsOpaqueEXT, 0xFF, camera.mOrigin, 0.0, direction, camera.mFar);
+    while (rayQueryProceedEXT(query))
+    {
+    }
+
+    vec3 colour;
+    if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT)
+    {
+        colour = mix(SKY_HORIZON, SKY_ZENITH, clamp(direction.z, 0.0, 1.0));
+    }
+    else
+    {
+        vec3 corners[3];
+        rayQueryGetIntersectionTriangleVertexPositionsEXT(query, true, corners);
+
+        // Object to world is a rotation, a uniform scale and a translation, so the plane normal
+        // survives it up to a length this normalises away — no inverse transpose needed.
+        const mat4x3 toWorld = rayQueryGetIntersectionObjectToWorldEXT(query, true);
+        const vec3 edge0 = mat3(toWorld) * (corners[1] - corners[0]);
+        const vec3 edge1 = mat3(toWorld) * (corners[2] - corners[0]);
+        const vec3 normal = normalize(cross(edge0, edge1));
+
+        // Morrowind's sheet geometry is lit from both faces, so the side the ray arrived on is not
+        // information: take the normal facing the eye and shade with it.
+        const vec3 facing = faceforward(normal, direction, normal);
+
+        colour = abs(facing) * (0.30 + 0.70 * max(dot(facing, -direction), 0.0));
+        atomicAdd(hits, 1);
+    }
+
+    imageStore(target, ivec2(pixel), vec4(colour, 1.0));
+}

@@ -1,5 +1,7 @@
 set(RTXTOOL_FILES
     main.cpp
+    shot.cpp
+    shot.hpp
     world.cpp
     world.hpp
 )

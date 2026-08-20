@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <osg/BoundingBox>
 #include <osg/Matrixf>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
@@ -127,6 +128,13 @@ namespace Rtx
         std::span<const std::uint32_t> getMeshIndices(Index mesh) const;
 
         std::uint32_t getTriangleCount() const;
+
+        /// The world-space extent of everything placed. Invalid when nothing is.
+        ///
+        /// Computed from each mesh's local box carried through its instances rather than from every
+        /// vertex of every instance, which is the difference between eight transforms per instance
+        /// and several hundred.
+        osg::BoundingBoxf getBounds() const;
 
         /// Bytes held by the vertex and index buffers. What the upload at M3 will cost.
         std::size_t getGeometryBytes() const;
