@@ -3,6 +3,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <format>
 #include <memory>
 #include <ostream>
 #include <vector>
@@ -59,6 +60,17 @@ namespace RtxTool
             VkFence fence = VK_NULL_HANDLE;
             Rtx::checkVk(vkCreateFence(device, &create, nullptr, &fence), "vkCreateFence");
             return fence;
+        }
+
+        /// The camera as the two lines `views.cfg` wants, so that flying somewhere and keeping it is
+        /// a copy and a paste.
+        void printCamera(const FlyCamera& camera)
+        {
+            const osg::Vec3f at = camera.getOrigin();
+            const osg::Vec3f to = camera.getTarget();
+
+            out() << std::format("pos = {:.0f}, {:.0f}, {:.0f}\nlook = {:.0f}, {:.0f}, {:.0f}\n", at.x(), at.y(),
+                at.z(), to.x(), to.y(), to.z());
         }
 
         void printHelp()
@@ -272,12 +284,7 @@ namespace RtxTool
                     else if (event.key.keysym.sym == SDLK_F1)
                         printHelp();
                     else if (event.key.keysym.sym == SDLK_p)
-                    {
-                        const osg::Vec3f at = camera.getOrigin();
-                        const osg::Vec3f to = camera.getTarget();
-                        out() << "pos = " << at.x() << ", " << at.y() << ", " << at.z() << "\nlook = " << to.x() << ", "
-                              << to.y() << ", " << to.z() << '\n';
-                    }
+                        printCamera(camera);
                     else if (event.key.keysym.sym == SDLK_F2 && drawn > 0)
                     {
                         device.waitIdle();
@@ -294,9 +301,14 @@ namespace RtxTool
                     break;
             }
         };
-        std::uint32_t framesThisSecond = 0;
         Clock::time_point previous = Clock::now();
-        Clock::time_point lastReport = previous;
+        const Clock::time_point began = previous;
+
+        // Five times a second: fast enough that the coordinates keep up with the mouse, slow enough
+        // that the compositor is not asked to redraw a title bar every frame.
+        constexpr auto titleInterval = std::chrono::milliseconds(200);
+        Clock::time_point lastTitle = previous;
+        std::uint32_t framesSinceTitle = 0;
 
         while (running)
         {
@@ -309,14 +321,19 @@ namespace RtxTool
             previous = now;
             camera.advance(std::min(seconds, 0.1f));
 
-            ++framesThisSecond;
-            if (now - lastReport >= std::chrono::seconds(1))
+            ++framesSinceTitle;
+            if (now - lastTitle >= titleInterval)
             {
-                out() << framesThisSecond << " fps at " << swapchain.getExtent().width << 'x'
-                      << swapchain.getExtent().height << ", speed " << static_cast<int>(camera.getSpeed())
-                      << " units/s\n";
-                framesThisSecond = 0;
-                lastReport = now;
+                const double elapsed = std::chrono::duration<double>(now - lastTitle).count();
+                const osg::Vec3f at = camera.getOrigin();
+                const VkExtent2D shown = swapchain.getExtent();
+
+                window.setTitle(std::format("{}  |  {:.0f} fps  |  {}x{}  |  {:.0f}, {:.0f}, {:.0f}  |  {:.0f} u/s",
+                    request.mTitle, framesSinceTitle / elapsed, shown.width, shown.height, at.x(), at.y(), at.z(),
+                    camera.getSpeed()));
+
+                framesSinceTitle = 0;
+                lastTitle = now;
             }
 
             if (resized)
@@ -371,9 +388,19 @@ namespace RtxTool
 
             frame = (frame + 1) % sFramesInFlight;
 
-            if (request.mFrames != 0 && ++drawn >= request.mFrames)
+            // Counted unconditionally: the summary at the end reports it whether or not a limit
+            // was asked for, and `&&` would have skipped the increment in the interactive case.
+            ++drawn;
+            if (request.mFrames != 0 && drawn >= request.mFrames)
                 running = false;
         }
+
+        // One line at the end rather than one a second throughout: a number per second is noise to
+        // someone watching the title bar, and scrollback to someone who ran this with --frames.
+        const double lasted = std::chrono::duration<double>(Clock::now() - began).count();
+        out() << std::format(
+            "\n{} frames in {:.2f} s, {:.0f} fps average\n", drawn, lasted, drawn / std::max(lasted, 1e-6));
+        printCamera(camera);
 
         device.waitIdle();
         for (const VkSemaphore semaphore : rendered)

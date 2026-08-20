@@ -33,7 +33,16 @@ namespace RtxTool
 
         const osg::Vec3f& getOrigin() const { return mOrigin; }
         osg::Vec3f getForward() const;
-        osg::Vec3f getTarget() const { return mOrigin + getForward(); }
+
+        /// How far ahead `getTarget` reports.
+        ///
+        /// The renderer only wants the direction, but a person reading `pos` and `look` in
+        /// `views.cfg` wants to be able to tell where they point. A cell is eight thousand units
+        /// across, so this is a landmark's distance rather than a nose's.
+        static constexpr float sLookAhead = 1000.0f;
+
+        /// A point the camera is looking at, `sLookAhead` units away.
+        osg::Vec3f getTarget() const { return mOrigin + getForward() * sLookAhead; }
         float getSpeed() const { return mSpeed; }
 
     private:
@@ -64,6 +73,10 @@ namespace RtxTool
 
         /// The drawable size in pixels, which is not the window size on a scaled display.
         VkExtent2D getExtent() const;
+
+        /// Replaces the title bar's text. Where this tool puts its instruments: a window someone is
+        /// flying has nowhere else to show a number without drawing over the thing being looked at.
+        void setTitle(const std::string& title);
 
         SDL_Window* getHandle() const { return mHandle; }
 

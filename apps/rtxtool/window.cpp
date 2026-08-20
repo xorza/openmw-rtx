@@ -135,6 +135,11 @@ namespace RtxTool
             vkDestroySurfaceKHR(mInstance, mHandle, nullptr);
     }
 
+    void Window::setTitle(const std::string& title)
+    {
+        SDL_SetWindowTitle(mHandle, title.c_str());
+    }
+
     VkExtent2D Window::getExtent() const
     {
         int width = 0;

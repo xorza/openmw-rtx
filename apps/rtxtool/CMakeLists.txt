@@ -30,6 +30,13 @@ target_link_libraries(openmw-rtxtool-lib
     components
 )
 
+# The same call `components/rtx` makes, for the same reason: Vulkan's create-info structs are filled
+# with designated initializers, which value-initialise every field not named, and GCC's warning does
+# not distinguish that from an accidentally short aggregate.
+if (CMAKE_CXX_COMPILER_ID STREQUAL GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
+    target_compile_options(openmw-rtxtool-lib PRIVATE -Wno-missing-field-initializers)
+endif()
+
 openmw_add_executable(openmw-rtxtool main.cpp)
 
 target_link_libraries(openmw-rtxtool openmw-rtxtool-lib)
