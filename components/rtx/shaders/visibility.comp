@@ -603,10 +603,56 @@ vec3 gather(vec3 position, vec3 normal, float footprint)
     return radiance;
 }
 
-/// The radiance a ray that hit nothing comes back with.
-vec3 skyRadiance(vec3 direction)
+/// How far a primary ray's cone has spread from its axis where it starts, in radians.
+///
+/// **Half of `mSpreadAngle`, and the half matters.** Everywhere else in this file that number grows
+/// a cone's *width* — `resolved` compares it against a wavelength and `coneLod` against a texel area
+/// — so a place that wants an angle from the axis has to take half of it, and a disc whose
+/// brightness goes as one over the radius squared would be four times wrong otherwise.
+float pixelBlur()
 {
-    return mix(camera.mSkyHorizon, camera.mSkyZenith, clamp(direction.z, 0.0, 1.0));
+    return 0.5 * camera.mSpreadAngle;
+}
+
+/// The radiance a ray that hit nothing comes back with.
+///
+/// **The sun is drawn here rather than answered by a lobe on each surface that could reflect it.**
+/// A glint is what a mirror does when there is something to see, so the water needs no highlight
+/// model of its own: it already traces a reflection ray, and this is what that ray finds. Anything
+/// else reflective gets the same sun for nothing, and there is one place where the sun's size lives.
+///
+/// **Drawn, and lighting nothing.** `gather` asks the sun directly, so a path that also gathered the
+/// sky as a source would count it twice — this is the sky as a thing to look *at*.
+///
+/// The disc is widened by the ray's own spread and dimmed by exactly the widening, so what changes
+/// is where the light is and never how much. Two things widen it and both have to. **The pixel**,
+/// because a sun smaller than the pixel that found it has to be averaged over the pixel rather than
+/// hit or missed — sampled instead, it is a one-pixel speck that crawls as the camera moves. And
+/// **the slopes the cone could not resolve**, because water too fine to draw is not flat: what those
+/// slopes do to a reflected sun is spread it, and that spreading *is* the glitter path. A mirror
+/// shows one hard dot; a mile of ruffled water shows a shimmering road to the horizon. Cox and Munk
+/// measured sea roughness by photographing exactly this in 1954.
+///
+/// @param blur how far this ray's cone has spread from its axis, in radians.
+vec3 skyRadiance(vec3 direction, float blur)
+{
+    vec3 colour = mix(camera.mSkyHorizon, camera.mSkyZenith, clamp(direction.z, 0.0, 1.0));
+
+    // The chord across the disc rather than the cosine of its angle. Both answer "is this direction
+    // inside it", and at half a degree the cosine is 0.999988 — five of a float's seven digits spent
+    // before the question is asked. `|a - b|` is `2 sin(theta / 2)` for unit vectors, which loses
+    // nothing, and it is the same quantity the cap's solid angle is built from: `pi * chord^2`.
+    const float edge = 2.0 * sin(0.5 * (SUN_ANGULAR_RADIUS + blur));
+    if (length(direction + camera.mSunDirection) < edge)
+    {
+        // **The sun's radiance is five orders of magnitude above the sky's** and this does not
+        // pretend otherwise, so it saturates until there is an exposure stage to bring it down.
+        // That is a fact about the sun rather than a choice made here: a photograph exposed for a
+        // landscape shows a white disc, and a glitter road really is a field of blown-out sparks.
+        colour += camera.mSunIrradiance / (0.5 * TAU * edge * edge);
+    }
+
+    return colour;
 }
 
 /// What a ray found, resolved down to the inputs shading needs.
@@ -793,7 +839,7 @@ vec3 waterRay(vec3 origin, vec3 direction, float footprint, float lobe, out floa
     const Surface hit = trace(origin, direction, WATER_BIAS, footprint, camera.mSpreadAngle + lobe, MASK_SOLID);
     travelled = hit.mHit ? hit.mDistance : WATER_MAX_PATH;
 
-    return hit.mHit ? shadeSurface(hit) : skyRadiance(direction);
+    return hit.mHit ? shadeSurface(hit) : skyRadiance(direction, pixelBlur() + lobe);
 }
 
 /// What is left of `radiance` after `path` units of water, plus what the water scattered back.
@@ -896,7 +942,7 @@ void main()
 
     vec3 colour;
     if (!surface.mHit)
-        colour = skyRadiance(direction);
+        colour = skyRadiance(direction, pixelBlur());
     else if (surface.mWater)
         colour = shadeWater(surface, direction);
     else if (camera.mShowAlbedo != 0u)

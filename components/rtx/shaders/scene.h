@@ -74,6 +74,14 @@ namespace Rtx::Shaders
     /// it. Shared with the shader because everything else on this scale is measured against it.
     const float DAYLIGHT = 8.0f;
 
+    /// Angular radius of the sun, in radians — a disc about half a degree across.
+    ///
+    /// The real figure, because there is only one right answer and nothing about this renderer wants
+    /// a different sun. It decides how wide the disc in the sky is drawn, and with it how wide the
+    /// glitter path on water is: the two are the same number seen twice, one directly and one in a
+    /// mirror, and they cannot be allowed to disagree.
+    const float SUN_ANGULAR_RADIUS = 0.004654f;
+
     /// What an emissive of one is worth, as light.
     ///
     /// **The original's scale is not this renderer's.** There a fully lit surface reached one and an

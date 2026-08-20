@@ -243,26 +243,51 @@ not a specification, and **the shader is more current than the document**.
   ray at the pixel's own cone spread, not the bounce spread** — that single mistake flattened every
   reflection in the game and cut the caustic term to a sixth; Beer–Lambert with Jerlov coastal
   extinction `(0.004572, 0.000714, 0.001143)`; single scattering with **both legs** attenuated,
-  `(1 − T²)/2`; GGX sun glint against the wave normal. **Done bar the sun glint**, together with the
-  shore fade, total internal reflection, and the facet guard that keeps a glancing reflection finite.
-  Hit resolution split from traversal to make it possible: `trace` owns its query and returns a
-  surface, `shadeSurface` lights one, and water calls both — which is how a shader with no recursion
-  reflects.
+  `(1 − T²)/2`; and the sun itself. **Done**, together with the shore fade, total internal
+  reflection, and the facet guard that keeps a glancing reflection finite. Hit resolution split from
+  traversal to make it possible: `trace` owns its query and returns a surface, `shadeSurface` lights
+  one, and water calls both — which is how a shader with no recursion reflects.
 
   The daylight is attenuated on its way down as well as up, and a primary ray is fogged when the
   camera is under the surface — both off one water level in the frame's constants, which is minus
   infinity where a cell holds no water so that "how deep is this point" is never positive and nothing
-  needs a second question. The GGX sun glint is the piece still outstanding, and it wants the LEAN
-  roughness that is computed and dropped today.
+  needs a second question.
+
+  **The glint is not a lobe on the water, it is a disc in the sky** — which is `water.glsl`'s answer
+  and not §7.3's, and the shader is the more current of the two. Water already traces a reflection
+  ray, so a highlight model of its own would be a second way to draw the same thing; the sun is drawn
+  where a ray that hit nothing looks, and the reflection finds it. The disc is widened by the ray
+  cone *and* by the slopes the cone could not resolve, and dimmed by exactly the widening — the same
+  flux over a larger cap — so a rougher sea spreads the sun without adding any. Measured: a flat sea
+  puts it on 4 pixels of 4,096 at 202 of 255, a sea with a state in it on 1,914 at a peak of 10.
+  Anything else reflective now gets the sun for nothing, and the sun's size lives in one place.
 - Waves below the ray cone are **averaged, and their variance returns as roughness** — LEAN mapping
   in one dimension. This is what makes the sun a shimmering road instead of a hard dot, and what
   keeps distant water from crawling with white sparks.
 - Side-of-surface is decided by the **plane**, never by the wave normal.
-- **Caustics analytically**, from the Jacobian of the refraction map:
-  `det(I + dD) / det(I + dD − bend·depth·H)`, `1/|det J|`, depth capped at 140 units (past the first
-  focus the model starts making light). Chromatic dispersion at 1.3326/1.3342/1.3392 for 600/550/450 nm
-  is two extra multiply-adds and changes twelve pixels in ninety thousand — keep it, it is free and
-  it is right.
+- **Caustics analytically**, from the Jacobian of the refraction map: `1/|det J|` with
+  `J = I − bend·depth·H`, depth capped at 140 units (past the first focus the rays have folded and
+  one Jacobian no longer describes what is there). **Done**, and two things came out differently
+  here.
+
+  One determinant and not the reference's ratio of two, because this surface is not displaced: the
+  quad stays flat and only its normal moves, so the patch of surface the light left *is* the patch of
+  parameter space it came from. A Gerstner sea would need `det(I + dD)` over the numerator.
+
+  And the textbook form is quietly wrong by twelve per cent. The map is evaluated at the bed rather
+  than at the surface the light left, so samples are not weighted by the area each stands for, and
+  `E[1/det] > 1/E[det]`: measured over a bed at the depth cap, the term handed back **12.3% more
+  light than fell on the water**. Writing `det = 1 − u + v`, `E[det H]` vanishes for independent
+  sinusoids — `Hxx·Hyy` and `Hxy²` are the same sum — leaving `Var[u] = bend²·Σ(Ak²)²/2` as the whole
+  of the second order, which accumulates in the loop already running for a multiply and an add.
+  12.3% → 2.4%, with the pattern's contrast unmoved at 0.366; on a real frame the mean green goes
+  from 109.34 without caustics to 109.33 with them.
+
+  **Chromatic dispersion was measured out rather than in.** Cauchy's 1.3326/1.3342/1.3392 costs three
+  determinants over a Hessian that does not depend on the channel, and the reference measured twelve
+  pixels in ninety thousand differing by more than one level — which this fork's own rule about
+  proving a parameter matters cannot be satisfied for. It goes in if the sea ever gets steep enough
+  for the determinant to approach zero, which is where prism edges on cusps would come from.
 - Underwater: Beer–Lambert on primary rays, total internal reflection past 48.6°, sun colour filtered
   by depth, and **the albedo is dimmed, not the lighting** (the filter divides by albedo).
 - Shore fade over the last 35 units of depth; both water rays leave from the viewer's side and trace
@@ -277,10 +302,16 @@ at a slant, for the reason in §7.6 — water really is clearer from a boat); ca
 per-twelfth-second change are measured, not eyeballed; every expectation derives from one
 `EXTINCTION` constant so tuning is a one-line change.
 
-The invariant holds, and it is what found the missing half: the two views are different code paths
+All three hold. The invariant is what found the missing half: the two views are different code paths
 through the same physics and cannot agree while one of them lights the bottom as though the water
-over it were not there. Every water expectation in the tests derives from `WATER_EXTINCTION`. The
-caustics are the remaining piece.
+over it were not there — it agrees to two bytes of 63, where the arithmetic says 1.068 in radiance
+compressed by sRGB to about 3%. Every water expectation in the tests derives from `WATER_EXTINCTION`,
+`WATER_IOR` and `WATER_F0` rather than from a literal beside them.
+
+Contrast is 0.366 of the pattern's own mean, and **51.1% of it is new a twelfth of a second later** —
+against the reference's sweep of 73% at an 18-unit cutoff (its best caustics, and they tear), 51% at
+32, and 33% at 50. This fork cuts at 32 and lands on 51: the same spectrum reproducing the same
+behaviour. Both numbers are asserted, so moving the cutoff cannot silently move them.
 
 ### M7 — Fog
 

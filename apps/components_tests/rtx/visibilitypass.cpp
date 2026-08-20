@@ -82,12 +82,6 @@ namespace Rtx
                 makeCamera(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, 64, 64, 1.0f), Error);
         }
 
-        /// A level bed `depth` units under a level surface of water, both `extent` across.
-        ///
-        /// The shape all three water tests want: something to see through the water at, and the
-        /// water to see it through.
-        SceneDesc makeFlooded(float extent, float depth);
-
         /// A level square of `extent` about the origin at height `z`, facing up.
         std::array<osg::Vec3f, 4> makeSheet(float extent, float z)
         {
@@ -99,19 +93,32 @@ namespace Rtx
             };
         }
 
-        SceneDesc makeFlooded(float extent, float depth)
+        /// A level sheet of water `extent` across at z = 0, with nothing under it.
+        SceneDesc makeOpenWater(float extent)
         {
             constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
 
             SceneDesc scene;
-            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
-                .mMesh = scene.addMesh(makeSheet(extent, -depth), {}, {}, indices) });
-
             Material water;
             water.mKind = MaterialKind::Water;
             scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
                 .mMesh = scene.addMesh(makeSheet(extent, 0.0f), {}, {}, indices),
                 .mMaterial = scene.addMaterial(water) });
+
+            return scene;
+        }
+
+        /// A level bed `depth` units under a level surface of water, both `extent` across.
+        ///
+        /// The shape most of the water tests want: something to see through the water at, and the
+        /// water to see it through.
+        SceneDesc makeFlooded(float extent, float depth)
+        {
+            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
+
+            SceneDesc scene = makeOpenWater(extent);
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                .mMesh = scene.addMesh(makeSheet(extent, -depth), {}, {}, indices) });
 
             return scene;
         }
@@ -123,15 +130,31 @@ namespace Rtx
         /// describing the shader.
         constexpr float sSunOverWater = 2.0f;
 
+        /// The sun's direction of travel, from how far it stands off the vertical.
+        osg::Vec3f sunAt(float zenith)
+        {
+            return osg::Vec3f(0.0f, std::sin(zenith), -std::cos(zenith));
+        }
+
+        /// Where the sun stands over the tests that measure through water — and it must not be
+        /// straight up.
+        ///
+        /// Overhead, the sun's own mirror image lands exactly where a camera looking straight down
+        /// sends its reflection ray, and a saturated disc of sun in the middle of the frame is not
+        /// what these are measuring. Two degrees puts it twelve disc-widths clear of the reflection
+        /// and costs the arithmetic a part in a thousand, which `throughFlatWater` accounts for
+        /// anyway.
+        const float sNearlyOverhead = osg::DegreesToRadians(2.0f);
+
         /// Puts `camera` over a flooded scene with nothing in its sky but the sun.
         ///
-        /// The water level is the one `makeFlooded` builds to, and the sky is black so the two per
-        /// cent that reflects off the surface reflects nothing. Every byte in the frame has then
-        /// come up through the depth, which is what lets these tests name an exact value.
-        void litThroughWater(
-            Shaders::VisibilityConstants& camera, const osg::Vec3f& sun = osg::Vec3f(0.0f, 0.0f, -1.0f))
+        /// The water level is the one `makeFlooded` builds to, and the sky is black — so apart from
+        /// the sun's own disc, the two per cent that reflects off the surface reflects nothing.
+        /// Every byte in the frame has then come up through the depth, which is what lets these
+        /// tests name an exact value.
+        void litThroughWater(Shaders::VisibilityConstants& camera, float zenith = sNearlyOverhead)
         {
-            camera.mSunDirection = sun;
+            camera.mSunDirection = sunAt(zenith);
             camera.mSunIrradiance = osg::Vec3f(sSunOverWater, sSunOverWater, sSunOverWater);
             camera.mSkyHorizon = osg::Vec3f();
             camera.mSkyZenith = osg::Vec3f();
@@ -171,6 +194,34 @@ namespace Rtx
         {
             const float encoded = static_cast<float>(byte) / 255.0f;
             return encoded <= 0.04045f ? encoded / 12.92f : std::pow((encoded + 0.055f) / 1.055f, 2.4f);
+        }
+
+        /// What the centre pixel must read over `depth` units of flat water with a bed under it.
+        ///
+        /// The bed is untextured, so its albedo is 0.5, and **the water is crossed twice**: the sun
+        /// is attenuated on its way down and again on the way back up to the eye, so what arrives is
+        /// the product of two paths and not one of them. Lighting the bottom as though the water
+        /// over it were not there is what makes the same column read differently from above and
+        /// below.
+        ///
+        /// The way down is the *slant* path — Snell bends the sun to `asin(sin(zenith) / IOR)` and
+        /// it crosses `depth / cos` of water — while the way back is vertical, because the camera
+        /// is. The cosine on the bed stays the sun's own in air: refraction at a level surface moves
+        /// no flux across a horizontal patch, so what lands on the bottom is what fell on the top
+        /// times whatever the longer path took.
+        ///
+        /// Nothing else adds. The scattering term `(1 - T^2) / 2` meets a black ambient, and the
+        /// sky is black, so all the surface reflects is the two per cent it takes off the way in.
+        int throughFlatWater(float depth, float zenith, std::size_t channel)
+        {
+            const float sine = std::sin(zenith) / Shaders::WATER_IOR;
+            const float refracted = std::sqrt(1.0f - sine * sine);
+
+            const float down = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth / refracted);
+            const float up = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth);
+            const float bed = 0.5f * sSunOverWater * std::cos(zenith) * Shaders::INV_PI;
+
+            return encodeSrgb(bed * down * up * (1.0f - Shaders::WATER_F0));
         }
 
         class RtxVisibilityTest : public ::testing::Test
@@ -1000,10 +1051,10 @@ namespace Rtx
             // A bed and a surface, both level and both wide enough to fill the frame.
             const SceneDesc scene = makeFlooded(400.0f, depth);
 
-            const auto look = [&](const osg::Vec3f& sun) {
+            const auto look = [&](float zenith) {
                 Shaders::VisibilityConstants camera = makeCamera(
                     osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
-                litThroughWater(camera, sun);
+                litThroughWater(camera, zenith);
 
                 // No height at all, which is a flat sea: a table whose amplitudes are zero. It is
                 // also what makes the caustic exactly one — a flat surface has no curvature to
@@ -1013,28 +1064,15 @@ namespace Rtx
                 return std::array<int, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
             };
 
-            // The bed is untextured, so its albedo is 0.5, and an overhead sun meets it square:
+            // A sun as near overhead as the reflection allows, where `throughFlatWater`'s slant is
+            // a part in three thousand and the answer is all but exactly `bed * T^2`:
             //
-            //   bed = 0.5 * 2.0 / pi = 0.318310
-            //
-            // **The water is crossed twice**, which is the whole point of this test: the sun is
-            // attenuated on its way down to the bed and again on the way back up to the eye, so what
-            // arrives is `T^2` of it and not `T`. Lighting the bottom as though the water above it
-            // were not there is what makes the same column read differently from above and below.
-            //
-            // The scattering gives back `(1 - T^2) / 2` against a black ambient, which is zero here,
-            // and the sky is black too, so the two per cent Fresnel reflects nothing.
-            const std::array<int, 3> overhead = look(osg::Vec3f(0.0f, 0.0f, -1.0f));
-            const float bed = 0.5f * sSunOverWater * Shaders::INV_PI;
+            //   0.5 * 2.0 / pi = 0.318310, times the two transmittances, times the 0.98 that is not
+            //   the surface's own reflection.
+            const std::array<int, 3> overhead = look(sNearlyOverhead);
             for (std::size_t channel = 0; channel < 3; ++channel)
-            {
-                const float transmittance = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth);
-                const auto expected
-                    = static_cast<int>(encodeSrgb(bed * transmittance * transmittance * (1.0f - Shaders::WATER_F0)));
-
-                EXPECT_NEAR(overhead[channel], expected, 1)
-                    << "channel " << channel << ", transmittance " << transmittance;
-            }
+                EXPECT_NEAR(overhead[channel], throughFlatWater(depth, sNearlyOverhead, channel), 1)
+                    << "channel " << channel << " under a sun all but overhead";
 
             // And the ordering that makes this water's colour. Red goes first — every water
             // absorbs it within a metre or two, which is the one thing about water's colour that is
@@ -1044,30 +1082,21 @@ namespace Rtx
             EXPECT_LT(overhead[0], overhead[2]) << "red is taken before blue";
             EXPECT_LT(overhead[2], overhead[1]) << "and blue before green";
 
-            // Now the same column under a sun 45 degrees off the vertical. Snell's law turns it to
-            //
-            //   asin(sin(45) / 1.333) = 32.03 degrees,
-            //
-            // so it reaches a bed 200 units down after 200 / cos(32.03) = 235.93 units of water
-            // rather than 200 — while the view back up is unchanged. Red comes out at 48 where the
-            // vertical depth would have said 52, which is the size of the error this is here for.
-            //
-            // The cosine on the bed stays the one the sun has *in air*: refraction at a level
-            // surface moves no flux across a horizontal patch, so what lands on the bottom is what
-            // fell on the top, times what the longer path took.
-            constexpr float slant = 0.70710678f;
-            const std::array<int, 3> slanted = look(osg::Vec3f(0.0f, slant, -slant));
-
-            const float refracted = std::sqrt(1.0f - 0.5f / (Shaders::WATER_IOR * Shaders::WATER_IOR));
+            // And now 45 degrees off the vertical, where the slant is the whole point. Snell's law
+            // turns the sun to `asin(sin(45) / 1.333)` = 32.03 degrees, so it reaches a bed 200
+            // units down after 200 / cos(32.03) = 235.93 units of water rather than 200 — while the
+            // view back up is unchanged. One expectation serves both angles, which is what makes
+            // this a measurement of the zenith rather than two unrelated numbers.
+            const float slanted = osg::DegreesToRadians(45.0f);
+            const std::array<int, 3> across = look(slanted);
             for (std::size_t channel = 0; channel < 3; ++channel)
-            {
-                const float down = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth / refracted);
-                const float up = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth);
-                const auto expected
-                    = static_cast<int>(encodeSrgb(bed * slant * down * up * (1.0f - Shaders::WATER_F0)));
+                EXPECT_NEAR(across[channel], throughFlatWater(depth, slanted, channel), 1)
+                    << "channel " << channel << " under a slanted sun";
 
-                EXPECT_NEAR(slanted[channel], expected, 1) << "channel " << channel << " under a slanted sun";
-            }
+            // The parameter has to matter, and it does in the direction physics says: a slanted sun
+            // both meets the bed at a cosine and crosses more water to get there, so less of it
+            // comes back. Red, which the extra 36 units of water costs the most.
+            EXPECT_LT(across[0], overhead[0]) << "a slanted sun reaches the bed with less left";
         }
 
         /// Deep water settles at what it scatters, and at half what only-the-return-leg would give.
@@ -1171,12 +1200,13 @@ namespace Rtx
 
             // A wide look from 135 units above the bed *whatever the depth is*, so that two depths
             // see the same patch of water and their caustics can be compared pixel for pixel.
-            const auto render = [&](float depth, const SeaState& sea) {
+            const auto render = [&](float depth, const SeaState& sea, float seconds) {
                 const SceneDesc scene = makeFlooded(4000.0f, depth);
 
                 Shaders::VisibilityConstants camera = makeCamera(osg::Vec3f(0.0f, -1.0f, 135.0f - depth),
                     osg::Vec3f(0.0f, 0.0f, -depth), 90.0f, size, size, 100000.0f);
                 litThroughWater(camera);
+                camera.mTime = seconds;
 
                 std::vector<std::uint8_t> image;
                 countHits(scene, noTextures(), camera, size, image, sea);
@@ -1185,9 +1215,10 @@ namespace Rtx
 
             // Green, which survives the water best of the three and so has the most of a byte left
             // to vary over.
-            const auto causticField = [&](float depth) {
-                const std::vector<std::uint8_t> still = render(depth, SeaState{ .mSignificantHeight = 0.0f });
-                const std::vector<std::uint8_t> running = render(depth, SeaState{});
+            const auto causticField = [&](float depth, float seconds = 0.0f) {
+                // The still sea does not move, so one baseline serves whatever the clock says.
+                const std::vector<std::uint8_t> still = render(depth, SeaState{ .mSignificantHeight = 0.0f }, 0.0f);
+                const std::vector<std::uint8_t> running = render(depth, SeaState{}, seconds);
 
                 std::vector<float> field;
                 field.reserve(count);
@@ -1234,6 +1265,176 @@ namespace Rtx
             const std::vector<float> deeper = causticField(400.0f);
             for (std::size_t i = 0; i < count; ++i)
                 ASSERT_NEAR(deeper[i], capped[i], 0.1f) << "pixel " << i << ", past the depth cap";
+
+            // **How bold the pattern is, and how fast it moves** — M6 asks for both measured rather
+            // than eyeballed, and they are the two halves of one choice. The spectrum's short cutoff
+            // is a limit in *time*, not in space: the waves that focus hardest are the shortest, and
+            // a wave's period falls with its length, so the same waves that make the boldest
+            // caustics are the ones that make them tear.
+            float spread = 0.0f;
+            for (const float gathered : capped)
+                spread += (gathered - mean) * (gathered - mean);
+
+            EXPECT_NEAR(std::sqrt(spread / static_cast<float>(count)) / mean, 0.366f, 0.02f)
+                << "the pattern's contrast, as a fraction of its own mean";
+
+            // A twelfth of a second, which is how long a frame is worth caring about. For two
+            // samples of one field, `E[(b - a)^2] = 2 sigma^2 (1 - rho)`, so half the ratio of the
+            // two sums is the share of the pattern that is new — 51.1% here.
+            //
+            // That is the number the shortest wave was chosen on. The reference renderer's sweep:
+            // **18 units gives the best caustics it ever drew and they tear at 73%**, 32 units comes
+            // out at 51%, and 50 units is dull at 33%. This fork cuts at 32 and lands on 51 — the
+            // same spectrum reproducing the same behaviour, which is worth an assertion because
+            // moving the cutoff would silently move this.
+            const std::vector<float> later = causticField(140.0f, 1.0f / 12.0f);
+            float moved = 0.0f;
+            for (std::size_t i = 0; i < count; ++i)
+                moved += (later[i] - capped[i]) * (later[i] - capped[i]);
+
+            EXPECT_NEAR(0.5f * moved / spread, 0.511f, 0.03f) << "how much of the pattern is new a twelfth later";
+        }
+
+        /// The sun's disc carries exactly its irradiance, however wide the pixel that finds it.
+        ///
+        /// **The sun is drawn in the sky, not answered by a highlight on each surface that could
+        /// reflect it** — so the one thing that must hold is that widening the disc never changes
+        /// how much light is in it. A cone twice as wide covers four times the solid angle and has
+        /// to be four times dimmer, and that is what makes a rough sea spread the sun without
+        /// brightening the sea.
+        ///
+        /// Two fields of view over the same sun, so the pixel doing the finding is ten times wider
+        /// in one than the other. The irradiance is small because nothing here has an exposure stage
+        /// and the real thing saturates on sight.
+        TEST_F(RtxVisibilityTest, theSunsDiscCarriesItsIrradianceHoweverWideThePixelThatFindsIt)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float irradiance = 4.0e-5f;
+
+            struct Disc
+            {
+                float mPeak;
+                float mTotal;
+                float mSpreadAngle;
+            };
+
+            // Looking straight at a sun 45 degrees up, from clear of the only thing in the scene.
+            const auto lookAtTheSun = [&](float fov) {
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(0.0f, -500.0f, 0.0f), osg::Vec3f(0.0f, -501.0f, 1.0f), fov, size, size, 10000.0f);
+                camera.mSunDirection = sunAt(osg::DegreesToRadians(45.0f));
+                camera.mSunIrradiance = osg::Vec3f(irradiance, irradiance, irradiance);
+
+                const SceneDesc scene = makeWall();
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, noTextures(), camera, size, pixels);
+
+                // A pixel's solid angle is its side squared at these angles: the frame is two
+                // degrees across in one case and twenty in the other, where the cos-cubed the exact
+                // form carries is a part in two thousand.
+                Disc disc{ .mPeak = 0.0f, .mTotal = 0.0f, .mSpreadAngle = camera.mSpreadAngle };
+                for (std::size_t i = 0; i < std::size_t{ size } * size; ++i)
+                {
+                    const float radiance = decodeSrgb(pixels[i * 4]);
+                    disc.mPeak = std::max(disc.mPeak, radiance);
+                    disc.mTotal += radiance * camera.mSpreadAngle * camera.mSpreadAngle;
+                }
+                return disc;
+            };
+
+            // The same arithmetic the shader does, from the same two constants: a cap of angular
+            // radius `r` subtends `pi * (2 sin(r / 2))^2`, and the disc's radiance is the sun's
+            // irradiance spread over it.
+            const auto capRadiance = [&](float spreadAngle) {
+                const float edge = 2.0f * std::sin(0.5f * (Shaders::SUN_ANGULAR_RADIUS + 0.5f * spreadAngle));
+                return irradiance / (0.5f * Shaders::TAU * edge * edge);
+            };
+
+            // A byte is worth about 0.006 of a linear value up here, so that is the tolerance.
+            const Disc fine = lookAtTheSun(2.0f);
+            EXPECT_NEAR(fine.mPeak, capRadiance(fine.mSpreadAngle), 0.007f)
+                << "a pixel a third of the sun's width across";
+
+            // **And the light in it is the sun's**, integrated over the frame rather than argued
+            // for. Two hundred and fifty-six pixels land inside this disc, so the sum is a real
+            // quadrature: it comes out at 4.015e-5 against the 4.0e-5 that was put in.
+            EXPECT_NEAR(fine.mTotal, irradiance, 0.03f * irradiance) << "the disc holds what the sun sent";
+
+            // Ten times the field of view, so ten times the pixel and a disc widened by 1.6 — which
+            // by the cap's solid angle is 2.28 times dimmer, and measures so. **This is the whole
+            // mechanism**: the same flux over a larger cap.
+            const Disc coarse = lookAtTheSun(20.0f);
+            EXPECT_NEAR(coarse.mPeak, capRadiance(coarse.mSpreadAngle), 0.007f)
+                << "a pixel wider than the sun, which averages it rather than sampling it";
+
+            // Its total is not asserted, and the reason is the honest one: this disc covers 5.7
+            // pixels and four pixel centres fall inside it, so a sum over pixels is quadrature with
+            // four samples and lands 30% low. The peak above is the exact statement.
+            EXPECT_LT(coarse.mPeak, fine.mPeak) << "a wider cone is a dimmer sun, never a brighter one";
+        }
+
+        /// A rough sea spreads the sun into a road across the water, and a flat one does not.
+        ///
+        /// **This is what the lost slopes are for.** Water too fine for the ray cone is averaged
+        /// into a flat facet, and a facet that lost its slope is a mirror: it reflects the sun as
+        /// one hard dot, and as the camera moves that dot jumps between pixels — the field of
+        /// crawling white sparks that distant water becomes. Handing the variance of what was
+        /// dropped to the sun's disc instead is what turns it into a road.
+        ///
+        /// Far enough out that the cone cannot resolve the waves, which is where the term decides
+        /// the picture. Water and sky only, so every byte in the frame is the sun off the surface:
+        /// the refraction ray leaves through the bottom, finds nothing, and comes back black.
+        TEST_F(RtxVisibilityTest, aRoughSeaSpreadsTheSunIntoARoadAndAFlatOneShowsOneDot)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float irradiance = 1.0e-3f;
+
+            struct Road
+            {
+                int mPeak;
+                std::size_t mLit;
+            };
+
+            const auto road = [&](const SeaState& sea) {
+                const osg::Vec3f eye(0.0f, 0.0f, 6000.0f);
+                const osg::Vec3f at(0.0f, 14000.0f, 0.0f);
+
+                Shaders::VisibilityConstants camera = makeCamera(eye, at, 20.0f, size, size, 1000000.0f);
+
+                // The sun put exactly where the centre pixel's reflection points, which is the view
+                // mirrored in the water's plane and then reversed into a direction of travel. Off
+                // the top of the frame by twice the camera's own tilt, so the disc in the sky and
+                // the disc in the water are never in the same picture.
+                osg::Vec3f view = at - eye;
+                view.normalize();
+                camera.mSunDirection = osg::Vec3f(-view.x(), -view.y(), view.z());
+                camera.mSunIrradiance = osg::Vec3f(irradiance, irradiance, irradiance);
+                camera.mWaterLevel = 0.0f;
+
+                const SceneDesc scene = makeOpenWater(20000.0f);
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, noTextures(), camera, size, pixels, sea);
+
+                Road found{ .mPeak = 0, .mLit = 0 };
+                for (std::size_t i = 0; i < std::size_t{ size } * size; ++i)
+                {
+                    found.mPeak = std::max(found.mPeak, int{ pixels[i * 4] });
+                    found.mLit += pixels[i * 4] > 0 ? 1 : 0;
+                }
+                return found;
+            };
+
+            // A flat sea is a mirror and shows the sun once: four pixels of 4,096, at 202 of 255.
+            const Road still = road(SeaState{ .mSignificantHeight = 0.0f });
+            EXPECT_LT(still.mLit, 20u) << "measured 4 pixels: a mirror shows one dot";
+            EXPECT_GT(still.mPeak, 150) << "measured 202: and shows it at full strength";
+
+            // The same sun over a sea with a state in it reaches 1,914 pixels — near half the frame
+            // — at a peak of 10. **Nearly five hundred times the area at a twentieth the strength**,
+            // which is a road rather than a spark.
+            const Road running = road(SeaState{});
+            EXPECT_GT(running.mLit, 1000u) << "measured 1914 pixels: the sun spread across the water";
+            EXPECT_LT(running.mPeak, 40) << "measured 10: and no pixel of it near the mirror's";
         }
 
         /// Its own device, because the validation layers allocate and this test counts allocations.
