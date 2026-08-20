@@ -480,9 +480,23 @@ live in one hot-reloadable block, not in `const` declarations. Tuning must not b
 ### 7.6 Profiling
 
 Per-pass timestamp queries into a ring buffer; `bench --json` for the harness, an overlay in-game.
-**Only A/B pairs measured back-to-back in one run mean anything on this laptop** — rtxmw measured the
-same scene at 116 and 382 fps because the GPU idles at 315 MHz and ramps to 2,280 under sustained
-load. No absolute frame rate from this machine is worth writing down.
+
+**One submit times the GPU's clock rather than the shader**, which this laptop makes unmissable: it
+idles at 315 MHz and ramps only under load, so rtxmw measured the same scene at 116 and 382 fps. Here
+a single cold trace of one view came back at 0.485, 1.21, 1.89 and 2.13 ms on four runs of identical
+code — and three interleaved eight-run blocks of an A/B gave 0.373, 0.440, 0.707, where the two
+*identical* blocks differed by more than the change did. A single number from `shot` was worse than
+no number, because it looked like one.
+
+**`shot --repeat N` traces the same frame N times inside one device session and reports the best,
+with the median and worst beside it.** The best is the answer and the spread is whether to believe
+it. Measured over five separate processes at 1920x1080 with `--repeat=100`, the best came to 0.1908,
+0.1908, 0.1927, 0.1946 and 0.1948 ms — **a spread of 2.1%**, against 4.4x for the cold single submit,
+and against a *median* whose own spread is 6.8%. The minimum over enough runs is the repeatable
+statistic; the mean and the median are not.
+
+The default is eight, which costs four milliseconds against a quarter-second of device setup and is
+within 16% of the converged figure. **A comparison worth quoting uses hundreds**, and quotes the best.
 
 ### 7.7 Build speed
 

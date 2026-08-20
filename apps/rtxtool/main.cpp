@@ -96,6 +96,10 @@ namespace RtxTool
             addOption("frames", bpo::value<std::uint32_t>()->default_value(0),
                 "with `view`, close after this many frames instead of waiting to be closed");
 
+            addOption("repeat", bpo::value<std::uint32_t>()->default_value(8),
+                "with `shot`, trace the frame this many times and report the best. One submit times "
+                "the GPU's clock rather than the shader; a comparison worth making wants hundreds");
+
             addOption("find", bpo::value<std::string>()->default_value(""),
                 "with `scene`, print the world position of every object whose model path contains this. "
                 "How the coordinates in a view are found.");
@@ -616,6 +620,7 @@ namespace RtxTool
                 request.mShowAlbedo = variables["albedo"].as<bool>();
                 request.mWeather = variables["weather"].as<std::string>();
                 request.mHour = variables["hour"].as<float>();
+                request.mRepeat = variables["repeat"].as<std::uint32_t>();
 
                 return runShot(world, chosen.mCell, instanceOptions, request);
             }
