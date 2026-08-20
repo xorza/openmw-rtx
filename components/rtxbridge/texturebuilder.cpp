@@ -22,8 +22,13 @@ namespace RtxBridge
         {
             switch (pixelFormat)
             {
+                // Both DXT1 spellings land on the format that reads the alpha bit, and the header
+                // that claims there is none is not consulted. A BC1 block is punch-through whenever
+                // its first endpoint sorts below its second, which is how every mask in the game is
+                // stored; almost none of Morrowind's files set `DDPF_ALPHAPIXELS`, so believing the
+                // header would decode that bit as opaque black and leave every canopy a solid card.
+                // The bytes are identical either way — this only chooses whether the bit is looked at.
                 case GL_COMPRESSED_RGB_S3TC_DXT1_EXT:
-                    return VK_FORMAT_BC1_RGB_SRGB_BLOCK;
                 case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
                     return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
                 case GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:

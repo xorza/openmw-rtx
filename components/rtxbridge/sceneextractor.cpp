@@ -111,11 +111,11 @@ namespace RtxBridge
             std::string name;
             switch (image.getPixelFormat())
             {
+                // One entry for both spellings: whether the file's header claimed alpha decides
+                // nothing, since a BC1 block carries its punch-through bit either way.
                 case GL_COMPRESSED_RGB_S3TC_DXT1_EXT:
-                    name = "BC1 (DXT1, no alpha)";
-                    break;
                 case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
-                    name = "BC1 (DXT1, 1-bit alpha)";
+                    name = "BC1 (DXT1)";
                     break;
                 case GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:
                     name = "BC2 (DXT3)";

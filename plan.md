@@ -178,13 +178,15 @@ chains preserved or generated. One bindless descriptor array. Ray-cone texture L
 retrofitting it is how rtxmw lost a week of caustics (`design.md` §7.6).
 
 *Done when:* an albedo-only render matches the vanilla texel at a named pixel; a mip-level test
-proves the cone is being used.
+proves the cone is being used; a masked surface in front of a wall shows the wall through its holes.
 
 ### M4 — Direct lighting and shadows
 
 Sun plus point lights, binned into a world grid (`design.md` §8.10). Traced shadows, with water
-excluded by a mask bit rather than by any-hit — the any-hit version halves the frame rate
-(`design.md` §7.6). Cutout foliage via any-hit for now, opacity micromaps at M12.
+excluded by a mask bit rather than by a cutout test — the any-hit version halves the frame rate
+(`design.md` §7.6). A shadow ray runs the same candidate loop primary visibility does, so a grate
+throws bars, but at the finest mip: a shadow carries no cone to resolve with. Opacity micromaps
+retire the loop at M12.
 
 *Done when:* radiance at a test pixel matches a hand-computed value; removing a light provably
 changes that pixel; the sun's shadow terminator lands where the geometry says.

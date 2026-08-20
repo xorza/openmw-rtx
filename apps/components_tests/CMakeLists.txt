@@ -106,6 +106,7 @@ if (OPENMW_RTX)
         rtx/scenedesc.cpp
         rtx/visibilitypass.cpp
         rtxbridge/sceneextractor.cpp
+        rtxbridge/texturebuilder.cpp
         rtxtool/terrainstorage.cpp
     )
     list(APPEND UNITTEST_SRC_FILES ${RTX_TEST_FILES})

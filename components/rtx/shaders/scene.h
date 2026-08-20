@@ -20,10 +20,6 @@ namespace Rtx::Shaders
     /// A material with no texture in a slot stores this.
     const uint NO_TEXTURE = 0xFFFFFFFFu;
 
-    const uint ALPHA_OPAQUE = 0u;
-    const uint ALPHA_CUTOUT = 1u;
-    const uint ALPHA_BLEND = 2u;
-
     /// Where a mesh's vertices and indices begin in the shared buffers.
     ///
     /// Indices are mesh-local, so a triangle's vertex is `mVertexOffset` plus what the index says.
@@ -42,8 +38,15 @@ namespace Rtx::Shaders
     struct GpuMaterial
     {
         uint mDiffuse;
-        uint mAlphaMode;
-        float mAlphaRef;
+
+        /// The alpha below which a texel is a hole, or zero where the surface has none.
+        ///
+        /// The mode it came from does not survive the trip: what a cutout costs traversal is one
+        /// comparison, and a material that wants none stores a threshold nothing can fail. Which
+        /// instances stop to make that comparison at all is settled by the build, from the same
+        /// number.
+        float mAlphaCutoff;
+
         vec4 mDiffuseColour;
     };
 

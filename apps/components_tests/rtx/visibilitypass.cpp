@@ -327,6 +327,124 @@ namespace Rtx
             EXPECT_NEAR(renderAt(1600.0f), encodeSrgb(160.0f / 255.0f), 1);
         }
 
+        /// A masked surface in front of a wall: the ray stops on what survives the cutout and goes
+        /// on through what does not.
+        ///
+        /// The scene is arranged so the answer is a whole number of pixels. The mask is sixteen
+        /// texels across, red throughout, and transparent over its left half; the quad carrying it
+        /// exactly fills a sixty-degree frame at a hundred units, so image column c samples
+        /// u = (c + 0.5) / 64 and the sampler's REPEAT wrap makes both seams behave the same way.
+        /// At column 31 the filter sits 0.375 of the way onto the first opaque texel and at column
+        /// 32 it sits 0.625 on, so a cutoff of 0.5 falls exactly between them with a margin of
+        /// 0.125 either side — far wider than the four bits of sub-texel precision Vulkan
+        /// guarantees. The left half of the image is therefore the wall behind and the right half
+        /// is the mask, with nothing in between.
+        TEST_F(RtxVisibilityTest, aCutoutStopsARayOnItsMaskAndLetsItThroughTheHoles)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t seam = size / 2;
+
+            std::vector<std::uint8_t> bytes(std::size_t{ extent } * extent * 4);
+            for (std::uint32_t y = 0; y < extent; ++y)
+                for (std::uint32_t x = 0; x < extent; ++x)
+                {
+                    std::uint8_t* const texel = &bytes[(std::size_t{ y } * extent + x) * 4];
+                    texel[0] = 255;
+                    texel[3] = x < extent / 2 ? 0 : 255;
+                }
+
+            const MipLevel level{ 0, extent, extent };
+            const TextureData data{
+                .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                .mWidth = extent,
+                .mHeight = extent,
+                .mBytes = std::as_bytes(std::span(bytes)),
+                .mLevels = std::span(&level, 1),
+            };
+
+            Device& device = *mHarness->mDevice;
+            CommandPool pool(device);
+            std::vector<Texture> uploaded;
+            uploaded.emplace_back(device, pool, data, "half-masked");
+            const TextureArray textures(device, std::move(uploaded));
+
+            // A hundred units from the camera, where the frame is 2 * 100 * tan(30) across.
+            constexpr float halfExtent = 57.735027f;
+            const std::array masked{
+                osg::Vec3f(-halfExtent, -50.0f, -halfExtent),
+                osg::Vec3f(halfExtent, -50.0f, -halfExtent),
+                osg::Vec3f(halfExtent, -50.0f, halfExtent),
+                osg::Vec3f(-halfExtent, -50.0f, halfExtent),
+            };
+            const std::array maskedUv{
+                osg::Vec2f(0.0f, 0.0f),
+                osg::Vec2f(1.0f, 0.0f),
+                osg::Vec2f(1.0f, 1.0f),
+                osg::Vec2f(0.0f, 1.0f),
+            };
+            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
+
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -150.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            camera.mShowAlbedo = 1u;
+
+            const auto render = [&](AlphaMode mode, float alphaRef) {
+                SceneDesc scene = makeWall();
+                const Index mesh = scene.addMesh(masked, {}, maskedUv, indices);
+                const Index material = scene.addMaterial(Material{
+                    .mDiffuse = scene.addTexture(VFS::Path::NormalizedView("mask.dds")),
+                    .mAlphaRef = alphaRef,
+                    .mAlphaMode = mode,
+                });
+                scene.addInstance(
+                    MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = material });
+
+                std::vector<std::uint8_t> pixels;
+                // Something is behind every hole, so every ray lands on one surface or the other.
+                EXPECT_EQ(countHits(scene, textures, camera, size, pixels), size * size);
+                return pixels;
+            };
+
+            // Red where the mask survived and grey where the wall shows through: the mask is pure
+            // red, so its green is zero, and the untextured wall's albedo of 0.5 encodes to
+            // 1.055 * 0.5^(1/2.4) - 0.055 = 0.73536, or 187.5 of 255 — which is why the grey is the
+            // one value here given a byte of room.
+            constexpr int wallGrey = 188;
+
+            const std::vector<std::uint8_t> cutout = render(AlphaMode::Cutout, 0.5f);
+            ASSERT_EQ(cutout.size(), std::size_t{ size } * size * 4);
+            for (std::uint32_t row = 0; row < size; ++row)
+                for (std::uint32_t column = 0; column < size; ++column)
+                {
+                    const std::uint8_t* const pixel = &cutout[(std::size_t{ row } * size + column) * 4];
+                    if (column >= seam)
+                    {
+                        ASSERT_EQ(pixel[0], 255) << "red at " << column << ", " << row;
+                        ASSERT_EQ(pixel[1], 0) << "green at " << column << ", " << row;
+                    }
+                    else
+                    {
+                        ASSERT_NEAR(pixel[0], wallGrey, 1) << "red at " << column << ", " << row;
+                        ASSERT_NEAR(pixel[1], wallGrey, 1) << "green at " << column << ", " << row;
+                    }
+                }
+
+            // A blend that named no threshold of its own is traced against the stand-in, and the
+            // stand-in is the same half. Same bytes, or Morrowind's foliage — which is blended and
+            // never alpha-tested — would not be cut out at all.
+            EXPECT_EQ(render(AlphaMode::Blend, 0.0f), cutout);
+
+            // And the control: the same texture on an opaque material hides the wall completely, so
+            // it is the cutout doing this and not the geometry.
+            const std::vector<std::uint8_t> opaque = render(AlphaMode::Opaque, 0.5f);
+            for (std::size_t i = 0; i < opaque.size(); i += 4)
+            {
+                ASSERT_EQ(opaque[i], 255) << "red at pixel " << i / 4;
+                ASSERT_EQ(opaque[i + 1], 0) << "green at pixel " << i / 4;
+            }
+        }
+
         /// The same scene with the camera turned around. Nothing is in front of it, so nothing is hit
         /// — the check that the pass reports geometry rather than reporting that it ran.
         TEST_F(RtxVisibilityTest, aCameraFacingAwayHitsNothingAndTheImageIsAllSky)

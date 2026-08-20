@@ -15,16 +15,12 @@ namespace Rtx
 
         Shaders::GpuMaterial toGpu(const Material& material)
         {
-            std::uint32_t alpha = Shaders::ALPHA_OPAQUE;
-            if (material.mAlphaMode == AlphaMode::Cutout)
-                alpha = Shaders::ALPHA_CUTOUT;
-            else if (material.mAlphaMode == AlphaMode::Blend)
-                alpha = Shaders::ALPHA_BLEND;
-
+            // Zero where the material has no texture to read a mask out of, so that the shader's
+            // comparison agrees with `Material::isCutout`, which is what decided whether traversal
+            // would ever make it.
             return Shaders::GpuMaterial{
                 .mDiffuse = material.mDiffuse,
-                .mAlphaMode = alpha,
-                .mAlphaRef = material.mAlphaRef,
+                .mAlphaCutoff = material.isCutout() ? material.getAlphaCutoff() : 0.0f,
                 .mDiffuseColour = material.mDiffuseColour,
             };
         }
@@ -50,8 +46,7 @@ namespace Rtx
         const auto sentinel = static_cast<std::uint32_t>(materials.size());
         materials.push_back(Shaders::GpuMaterial{
             .mDiffuse = Shaders::NO_TEXTURE,
-            .mAlphaMode = Shaders::ALPHA_OPAQUE,
-            .mAlphaRef = 0.0f,
+            .mAlphaCutoff = 0.0f,
             .mDiffuseColour = osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f),
         });
 

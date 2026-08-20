@@ -43,11 +43,15 @@ namespace Rtx
         /// Ignore it. The overwhelming majority of Morrowind's geometry.
         Opaque,
 
-        /// Test against `Material::mAlphaRef`. Foliage, grates, chains — the case opacity micromaps
-        /// exist for, and the case that costs an any-hit shader until they are built.
+        /// Test against `Material::mAlphaRef`. The case opacity micromaps exist for, and the case
+        /// that costs a candidate loop until they are built.
         Cutout,
 
-        /// Blend. Glass, water planes placed as objects, magic effects.
+        /// Blend, and read the opposite of the obvious way: **this is where the foliage is.** Barely
+        /// any of Morrowind's material set is alpha-tested outright — a canopy, a grate or a banner
+        /// is an `NiAlphaProperty` over a texture whose alpha is all but binary, and the original
+        /// renderer sorted it rather than testing it. Marking only the tested ones would look
+        /// correct and leave every tree a solid card.
         Blend,
     };
 
@@ -70,6 +74,21 @@ namespace Rtx
         /// Sheet geometry lit and hit from both faces. Morrowind leans on this heavily and a ray
         /// tracer has to be told, because back-face culling is not free the way a rasterizer's is.
         bool mTwoSided = false;
+
+        /// The alpha below which a texel is a hole, or zero where the surface has none.
+        ///
+        /// A blended material that never asked for a test gets a stand-in, because that is where
+        /// the game keeps its foliage. Right for a leaf and wrong for a pane of glass, until
+        /// ordered transparency gives the second one somewhere else to go.
+        float getAlphaCutoff() const;
+
+        /// Whether traversal has to stop and ask this material whether a hit is a hole.
+        ///
+        /// The one predicate: the build marks an instance non-opaque by this and the shader tests
+        /// against the same cutoff, so the two cannot disagree about which triangles reach the
+        /// candidate loop. A cutoff with no texture to sample is not one — the mask lives in the
+        /// diffuse map's alpha and there is nothing else to read.
+        bool isCutout() const { return getAlphaCutoff() > 0.0f && mDiffuse != sNoIndex; }
     };
 
     /// One mesh placed in the world: a row of the top-level acceleration structure.

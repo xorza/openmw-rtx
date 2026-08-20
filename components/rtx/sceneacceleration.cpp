@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <span>
 
 #include "commands.hpp"
 #include "device.hpp"
@@ -136,8 +137,9 @@ namespace Rtx
                                   .indexData = { .deviceAddress
                                       = indices + VkDeviceSize{ mesh.mIndexOffset } * sizeof(std::uint32_t) },
                               } },
-                // Opaque until materials arrive: a cutout needs an any-hit shader or an opacity
-                // micromap, and until one exists claiming opacity is the honest default.
+                // Opaque as built, and overridden per instance where a material says otherwise:
+                // opacity is a property of the material and a mesh does not carry one, so the
+                // top-level flags are the only place the question can be answered exactly.
                 .flags = VK_GEOMETRY_OPAQUE_BIT_KHR,
             };
 
@@ -212,6 +214,8 @@ namespace Rtx
         std::vector<VkAccelerationStructureInstanceKHR> instances;
         instances.reserve(scene.getInstances().size());
 
+        const std::span<const Material> materials = scene.getMaterials();
+
         for (const MeshInstance& instance : scene.getInstances())
         {
             const VkAccelerationStructureDeviceAddressInfoKHR address{
@@ -219,11 +223,22 @@ namespace Rtx
                 .accelerationStructure = mBottomLevel[instance.mMesh],
             };
 
+            VkGeometryInstanceFlagsKHR flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+
+            // This bit is what buys the candidate loop the chance to run: without it the geometry's
+            // own opaque flag stands, traversal commits the first triangle it meets, and a canopy
+            // stays the rectangle it was painted on.
+            if (instance.mMaterial != sNoIndex && materials[instance.mMaterial].isCutout())
+            {
+                flags |= VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR;
+                ++mCutoutInstanceCount;
+            }
+
             instances.push_back(VkAccelerationStructureInstanceKHR{
                 .transform = toVulkanTransform(instance.mTransform),
                 .instanceCustomIndex = static_cast<std::uint32_t>(instances.size()) & 0xFFFFFFu,
                 .mask = 0xFF,
-                .flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
+                .flags = flags,
                 .accelerationStructureReference
                 = functions.mGetAccelerationStructureDeviceAddress(mDevice.getHandle(), &address),
             });

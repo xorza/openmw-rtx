@@ -51,6 +51,13 @@ namespace Rtx
         VkBuffer getIndices() const { return mIndices.getHandle(); }
         std::uint32_t getInstanceCount() const { return mInstanceCount; }
 
+        /// How many of those instances traversal has to stop and ask about.
+        ///
+        /// The cost of the cutout, as a number: every one of these is a candidate loop and a texture
+        /// fetch where an opaque instance is a hit. Reported so that a material change that marks
+        /// half a cell non-opaque shows up as a number before it shows up as a frame time.
+        std::uint32_t getCutoutInstanceCount() const { return mCutoutInstanceCount; }
+
         /// Bytes held by the structures themselves, not counting the geometry they were built from.
         VkDeviceSize getStructureBytes() const { return mStructureBytes; }
 
@@ -70,6 +77,7 @@ namespace Rtx
         VkAccelerationStructureKHR mTopLevel = VK_NULL_HANDLE;
 
         std::uint32_t mInstanceCount = 0;
+        std::uint32_t mCutoutInstanceCount = 0;
         VkDeviceSize mStructureBytes = 0;
     };
 }

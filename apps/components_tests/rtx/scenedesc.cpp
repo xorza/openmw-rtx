@@ -88,6 +88,38 @@ namespace Rtx
             EXPECT_EQ(scene.getGeometryBytes(), 8u * 12u + 8u * 12u + 8u * 8u + 12u * 4u);
         }
 
+        /// The cutoff a material is traced against, and which materials get traced against one.
+        ///
+        /// The blended case is the load-bearing one: Morrowind's foliage is drawn with
+        /// `NiAlphaProperty` and no alpha test, so a renderer that only honoured the tested mode
+        /// would find nothing to cut out. A blend that *did* name a threshold keeps its own.
+        TEST(RtxSceneDescTest, onlyAMaterialWithAMaskToReadIsTracedAsACutout)
+        {
+            constexpr Index texture = 3;
+
+            const Material opaque{ .mDiffuse = texture };
+            EXPECT_EQ(opaque.getAlphaCutoff(), 0.0f);
+            EXPECT_FALSE(opaque.isCutout());
+
+            const Material tested{ .mDiffuse = texture, .mAlphaRef = 0.3f, .mAlphaMode = AlphaMode::Cutout };
+            EXPECT_EQ(tested.getAlphaCutoff(), 0.3f);
+            EXPECT_TRUE(tested.isCutout());
+
+            const Material blended{ .mDiffuse = texture, .mAlphaMode = AlphaMode::Blend };
+            EXPECT_EQ(blended.getAlphaCutoff(), 0.5f);
+            EXPECT_TRUE(blended.isCutout());
+
+            const Material blendedWithRef{ .mDiffuse = texture, .mAlphaRef = 0.8f, .mAlphaMode = AlphaMode::Blend };
+            EXPECT_EQ(blendedWithRef.getAlphaCutoff(), 0.8f);
+
+            // The mask lives in the diffuse map's alpha, so a cutoff with no map to read it from is
+            // not a cutout — and marking it one would cost traversal a candidate loop that could
+            // only ever say yes.
+            const Material untextured{ .mAlphaMode = AlphaMode::Blend };
+            EXPECT_EQ(untextured.getAlphaCutoff(), 0.5f);
+            EXPECT_FALSE(untextured.isCutout());
+        }
+
         TEST(RtxSceneDescTest, clearingEmptiesEveryTable)
         {
             SceneDesc scene;

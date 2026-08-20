@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/BlendFunc>
 #include <osg/CullFace>
 #include <osg/Geometry>
 #include <osg/Group>
@@ -189,6 +190,40 @@ namespace RtxBridge
             EXPECT_EQ(scene.getTextures()[0], VFS::Path::NormalizedView("textures/tx_stone_01.dds"));
             EXPECT_EQ(scene.getMaterials()[0].mDiffuse, 0u);
             EXPECT_FALSE(scene.getMaterials()[0].mTwoSided);
+        }
+
+        /// A blend is what marks a cutout in this data, and it has to survive into the material.
+        ///
+        /// Morrowind's foliage, grates and banners are drawn with `NiAlphaProperty` over a texture
+        /// whose alpha is all but binary; hardly anything in the game sets an alpha test. Losing
+        /// the blend here loses every mask with it.
+        TEST(RtxSceneExtractorTest, aBlendedSurfaceIsTracedAsACutoutAndAPlainOneIsNot)
+        {
+            const auto extractOne = [](bool blend) {
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->setFileName("textures/tx_leaves.dds");
+
+                osg::ref_ptr<osg::Geometry> quad = makeQuad();
+                osg::StateSet& state = *quad->getOrCreateStateSet();
+                state.setTextureAttributeAndModes(0, new osg::Texture2D(image), osg::StateAttribute::ON);
+                if (blend)
+                    state.setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
+
+                Rtx::SceneDesc scene;
+                SceneExtractor extractor(scene);
+                extractor.extract(*quad, osg::Matrixf::identity());
+
+                EXPECT_EQ(scene.getMaterials().size(), 1u);
+                return scene.getMaterials().front();
+            };
+
+            const Rtx::Material blended = extractOne(true);
+            EXPECT_EQ(blended.mAlphaMode, Rtx::AlphaMode::Blend);
+            EXPECT_TRUE(blended.isCutout());
+
+            const Rtx::Material plain = extractOne(false);
+            EXPECT_EQ(plain.mAlphaMode, Rtx::AlphaMode::Opaque);
+            EXPECT_FALSE(plain.isCutout());
         }
 
         /// OpenGL culls nothing unless told to, and `NifOsg` only adds a `CullFace` where the model

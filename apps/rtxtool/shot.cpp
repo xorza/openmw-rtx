@@ -112,7 +112,8 @@ namespace RtxTool
             << "  looking at " << placement.mTarget.x() << ", " << placement.mTarget.y() << ", "
             << placement.mTarget.z() << '\n'
             << "primary rays that hit: " << fraction << "%\n"
-            << "instances:  " << acceleration.getInstanceCount() << '\n'
+            << "instances:  " << acceleration.getInstanceCount() << ", of which "
+            << acceleration.getCutoutInstanceCount() << " are cutouts\n"
             << "structures: " << acceleration.getStructureBytes() / 1024 << " KiB\n"
             << "tables:     " << buffers.getBytes() / 1024 << " KiB\n"
             << "textures:   " << textures.getCount() << " in " << textures.getBytes() / 1024 << " KiB\n"

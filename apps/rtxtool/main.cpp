@@ -287,6 +287,18 @@ namespace RtxTool
             for (const auto& [format, count] : report.mStats.mTextureFormats)
                 out() << "  " << count << " x " << format << '\n';
 
+            // Which materials traversal will have to stop and ask about, and which of those asked
+            // for it outright. The second number being the small one is the point: Morrowind keeps
+            // its foliage under `NiAlphaProperty` rather than under an alpha test.
+            std::uint32_t cutouts = 0;
+            std::uint32_t tested = 0;
+            for (const Rtx::Material& material : scene.getMaterials())
+            {
+                cutouts += material.isCutout() ? 1 : 0;
+                tested += material.mAlphaMode == Rtx::AlphaMode::Cutout ? 1 : 0;
+            }
+            out() << "  cutout materials:     " << cutouts << ", " << tested << " of them alpha-tested outright\n";
+
             out() << "\nnot placed\n"
                   << "  record type unread:   " << report.mSkipped.mUnknownType << '\n'
                   << "  record has no model:  " << report.mSkipped.mNoModel << '\n'

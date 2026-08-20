@@ -80,17 +80,41 @@ vec3 encodeSrgb(vec3 linear)
     return clamp(mix(high, low, vec3(small)), 0.0, 1.0);
 }
 
+/// Twice the area of a hit triangle, as a vector along its plane's normal.
+///
+/// Object to world is a rotation, a uniform scale and a translation, so a direction survives it —
+/// and the translation cancels in an edge, so the upper 3x3 is all an edge needs. One cross product
+/// then answers two questions: normalised it is the plane's normal, and its length is the size a
+/// cone has to compare its own against.
+vec3 triangleCross(vec3 corners[3], mat4x3 toWorld)
+{
+    return cross(mat3(toWorld) * (corners[1] - corners[0]), mat3(toWorld) * (corners[2] - corners[0]));
+}
+
+/// Where in the shared vertex buffers the three corners of a mesh's triangle are.
+uvec3 triangleCorners(GpuMesh mesh, uint primitive)
+{
+    const uint triangle = mesh.mIndexOffset + primitive * 3u;
+    return mesh.mVertexOffset + uvec3(indices[triangle], indices[triangle + 1u], indices[triangle + 2u]);
+}
+
+/// What each corner contributes at a hit, from the two barycentrics a query reports.
+vec3 cornerWeights(vec2 bary)
+{
+    return vec3(1.0 - bary.x - bary.y, bary.x, bary.y);
+}
+
 /// Which mip a cone this wide should be read from.
 ///
 /// Akenine-Moller's ray-cone formulation: the texel-to-world area ratio of the triangle fixes a
 /// base level, the cone's width where it landed moves off it, and the angle the surface presents
 /// stretches the footprint when it is seen edge-on. A compute shader has no derivatives, so this is
 /// the only thing standing between every fetch and level zero.
-/// @param worldArea the length of the triangle's edge cross product, which is twice its area. The
-///        texel area below is doubled the same way, so the two cancel in the ratio.
-/// @param facing `abs(dot(normal, direction))`, already clamped away from zero.
-float coneLod(uint slot, vec2 uv0, vec2 uv1, vec2 uv2, float worldArea, float facing, float distance)
+/// @param crossed the triangle's edge cross product, whose length is twice its area. The texel area
+///        below is doubled the same way, so the two cancel in the ratio.
+float coneLod(uint slot, vec2 uv0, vec2 uv1, vec2 uv2, vec3 crossed, vec3 direction, float distance)
 {
+    const float worldArea = length(crossed);
     const float uvArea = abs((uv1.x - uv0.x) * (uv2.y - uv0.y) - (uv2.x - uv0.x) * (uv1.y - uv0.y));
     if (worldArea <= 0.0 || uvArea <= 0.0)
         return 0.0;
@@ -99,7 +123,49 @@ float coneLod(uint slot, vec2 uv0, vec2 uv1, vec2 uv2, float worldArea, float fa
     const float texelArea = uvArea * size.x * size.y;
     const float coneWidth = camera.mSpreadAngle * distance;
 
+    // A surface seen edge-on covers more of itself per pixel, and the cone's footprint on it grows
+    // by the same factor. Clamped because a grazing hit sends it to infinity.
+    const float facing = max(abs(dot(crossed / worldArea, direction)), 1e-3);
+
     return 0.5 * log2(texelArea / worldArea) + log2(coneWidth) - log2(facing);
+}
+
+/// The diffuse texel a hit landed on, read at the level its cone can resolve.
+///
+/// Shared by the two things that ask: the colour of a committed hit, and the mask of a candidate
+/// one. Sharing it is what keeps them reading the same level — a cutout resolved against a
+/// different mip than the surface it cuts would put the hole and the leaf in different places.
+/// @param slot must already carry `nonuniformEXT`.
+vec4 sampleDiffuse(uint slot, uvec3 corner, vec3 weight, vec3 crossed, vec3 direction, float distance)
+{
+    const vec2 uv0 = texCoords[corner.x];
+    const vec2 uv1 = texCoords[corner.y];
+    const vec2 uv2 = texCoords[corner.z];
+    const vec2 at = uv0 * weight.x + uv1 * weight.y + uv2 * weight.z;
+
+    return textureLod(textures[slot], at, coneLod(slot, uv0, uv1, uv2, crossed, direction, distance));
+}
+
+/// Whether a candidate hit landed on the material or in one of its holes.
+///
+/// Only instances the build marked non-opaque reach this, and it marked exactly the materials with
+/// a mask to read, so there is no mode to branch on here: the comparison is the whole test, and a
+/// surface that wants none stores a threshold nothing can fail.
+///
+/// The level it reads at matters as much as the test does. A mask point-sampled at its finest mip
+/// answers for one texel out of the hundreds a distant pixel covers, and a binary test on that is a
+/// coin toss per pixel — a canopy comes back as speckle, and it crawls as the camera moves. Letting
+/// the cone average the mask first costs a leaf edge some of its bite, which is by a long way the
+/// better of the two errors.
+bool alphaPasses(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed, vec3 direction, float distance)
+{
+    const GpuInstance instance = instances[instanceIndex];
+    const GpuMaterial material = materials[instance.mMaterial];
+
+    const vec4 texel = sampleDiffuse(nonuniformEXT(material.mDiffuse),
+        triangleCorners(meshes[instance.mMesh], primitive), cornerWeights(bary), crossed, direction, distance);
+
+    return texel.a >= material.mAlphaCutoff;
 }
 
 void main()
@@ -113,9 +179,26 @@ void main()
     const vec3 direction = normalize(camera.mForward + camera.mRight * uv.x - camera.mUp * uv.y);
 
     rayQueryEXT query;
-    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsOpaqueEXT, 0xFF, camera.mOrigin, 0.0, direction, camera.mFar);
+    // No blanket opaque flag: the per-instance bits the build set from each material are what decide
+    // whether traversal stops to ask, and forcing opacity here would override them and put every
+    // leaf back inside the card it was painted on.
+    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsNoneEXT, 0xFF, camera.mOrigin, 0.0, direction, camera.mFar);
     while (rayQueryProceedEXT(query))
     {
+        if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)
+            continue;
+
+        // The cone as it is at *this* candidate, which is what decides how much of the mask one
+        // pixel is looking at.
+        vec3 candidateCorners[3];
+        rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, candidateCorners);
+
+        if (alphaPasses(rayQueryGetIntersectionInstanceCustomIndexEXT(query, false),
+                rayQueryGetIntersectionPrimitiveIndexEXT(query, false),
+                rayQueryGetIntersectionBarycentricsEXT(query, false),
+                triangleCross(candidateCorners, rayQueryGetIntersectionObjectToWorldEXT(query, false)), direction,
+                rayQueryGetIntersectionTEXT(query, false)))
+            rayQueryConfirmIntersectionEXT(query);
     }
 
     vec3 colour;
@@ -126,29 +209,17 @@ void main()
     else
     {
         const GpuInstance instance = instances[rayQueryGetIntersectionInstanceCustomIndexEXT(query, true)];
-        const GpuMesh mesh = meshes[instance.mMesh];
-
-        const uint triangle = mesh.mIndexOffset + rayQueryGetIntersectionPrimitiveIndexEXT(query, true) * 3u;
-        const uvec3 corner = mesh.mVertexOffset
-            + uvec3(indices[triangle], indices[triangle + 1u], indices[triangle + 2u]);
-
-        const vec2 bary = rayQueryGetIntersectionBarycentricsEXT(query, true);
-        const vec3 weight = vec3(1.0 - bary.x - bary.y, bary.x, bary.y);
+        const uvec3 corner
+            = triangleCorners(meshes[instance.mMesh], rayQueryGetIntersectionPrimitiveIndexEXT(query, true));
+        const vec3 weight = cornerWeights(rayQueryGetIntersectionBarycentricsEXT(query, true));
 
         const mat4x3 toWorld = rayQueryGetIntersectionObjectToWorldEXT(query, true);
 
         // The plane's normal is always available; the vertices' is not, and is better where it is.
-        // Object to world is a rotation, a uniform scale and a translation, so a direction survives
-        // it — and the translation cancels in an edge, so the upper 3x3 is all an edge needs.
-        //
-        // One cross product answers two questions: normalised it is the normal, and its length is
-        // twice the triangle's area, which is what a cone needs to know.
         vec3 corners[3];
         rayQueryGetIntersectionTriangleVertexPositionsEXT(query, true, corners);
-        const vec3 crossed = cross(
-            mat3(toWorld) * (corners[1] - corners[0]), mat3(toWorld) * (corners[2] - corners[0]));
-        const float worldArea = length(crossed);
-        const vec3 geometric = worldArea > 0.0 ? crossed / worldArea : vec3(0.0, 0.0, 1.0);
+        const vec3 crossed = triangleCross(corners, toWorld);
+        const vec3 geometric = dot(crossed, crossed) > 0.0 ? normalize(crossed) : vec3(0.0, 0.0, 1.0);
 
         const vec3 shading
             = normals[corner.x] * weight.x + normals[corner.y] * weight.y + normals[corner.z] * weight.z;
@@ -161,22 +232,9 @@ void main()
         const GpuMaterial material = materials[instance.mMaterial];
         vec3 albedo = NO_TEXTURE_ALBEDO;
         if (material.mDiffuse != NO_TEXTURE)
-        {
-            const vec2 uv0 = texCoords[corner.x];
-            const vec2 uv1 = texCoords[corner.y];
-            const vec2 uv2 = texCoords[corner.z];
-            const vec2 at = uv0 * weight.x + uv1 * weight.y + uv2 * weight.z;
-
-            // A surface seen edge-on covers more of itself per pixel, and the cone's footprint on it
-            // grows by the same factor. Clamped because a grazing hit sends it to infinity.
-            const float slope = max(abs(dot(geometric, direction)), 1e-3);
-
-            const uint slot = nonuniformEXT(material.mDiffuse);
-            const float lod
-                = coneLod(slot, uv0, uv1, uv2, worldArea, slope, rayQueryGetIntersectionTEXT(query, true));
-
-            albedo = textureLod(textures[slot], at, lod).rgb;
-        }
+            albedo = sampleDiffuse(nonuniformEXT(material.mDiffuse), corner, weight, crossed, direction,
+                rayQueryGetIntersectionTEXT(query, true))
+                         .rgb;
         albedo *= material.mDiffuseColour.rgb;
 
         // Not lighting, and not pretending to be: a headlight so that shape reads while the only
