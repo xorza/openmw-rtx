@@ -34,6 +34,8 @@ namespace Rtx
         VkBuffer getMeshes() const { return mMeshes.getHandle(); }
         VkBuffer getInstances() const { return mInstances.getHandle(); }
         VkBuffer getMaterials() const { return mMaterials.getHandle(); }
+        VkBuffer getLayers() const { return mLayers.getHandle(); }
+        VkBuffer getMasks() const { return mMasks.getHandle(); }
 
         VkDeviceSize getBytes() const;
 
@@ -44,6 +46,8 @@ namespace Rtx
         Buffer mMeshes;
         Buffer mInstances;
         Buffer mMaterials;
+        Buffer mLayers;
+        Buffer mMasks;
     };
 }
 

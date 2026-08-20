@@ -166,11 +166,14 @@ and this one loads a cell and stops. **The renderer does not change at all** —
 `osg::Geometry` and the extractor takes them like any other drawable, which is the mirroring argument
 proving itself on the first thing it was asked to carry.
 
-Land *textures* are not part of it. A cell's blend map indexes into the texture list of the plugin
-that wrote it, so the same index means different things in different files — and `EsmLoader` keys
-everything by record id, which is a rule that cannot express it. The loader's model records were
-widened without them for that reason: they need the plugin index threaded through the read, which is
-a mechanism of their own. Every layer falls back to `_land_default.dds` until they arrive.
+Land *textures* came later, with M3's materials, and needed two things the rest of the loader does
+not have. A cell's blend map indexes into the texture list of the plugin that wrote it, so the key is
+`(plugin, index)` rather than a record id — and the id still matters, because redefining one repaints
+every index that reaches it. And the shading is not on the scene graph at all:
+`Terrain::TerrainDrawable` carries one alpha-blended pass per ground texture over the same triangles,
+which is how a rasterizer draws a blend it cannot sample in one go. The RT path reads the pass vector
+back into layers and sums them at the hit — the first place a mirrored material is not a copy of what
+OpenSceneGraph would have drawn.
 
 ### M3 — Textures and bindless materials
 

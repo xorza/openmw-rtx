@@ -56,6 +56,15 @@ layout(set = 0, binding = 8, scalar) readonly buffer Materials
     GpuMaterial materials[];
 };
 
+layout(set = 0, binding = 9, scalar) readonly buffer Layers
+{
+    GpuLayer layers[];
+};
+layout(set = 0, binding = 10, scalar) readonly buffer Masks
+{
+    float masks[];
+};
+
 layout(set = 1, binding = 0) uniform sampler2D textures[];
 
 layout(push_constant, scalar) uniform Push
@@ -71,6 +80,9 @@ const vec3 SKY_ZENITH = vec3(0.010, 0.021, 0.073);
 /// Untextured surfaces are mid-grey rather than black, so a missing texture reads as missing rather
 /// than as shadow.
 const vec3 NO_TEXTURE_ALBEDO = vec3(0.5);
+
+/// A texture that maps straight onto the mesh's own coordinates, which is everything but terrain.
+const vec4 UV_IDENTITY = vec4(1.0, 1.0, 0.0, 0.0);
 
 vec3 encodeSrgb(vec3 linear)
 {
@@ -130,20 +142,63 @@ float coneLod(uint slot, vec2 uv0, vec2 uv1, vec2 uv2, vec3 crossed, vec3 direct
     return 0.5 * log2(texelArea / worldArea) + log2(coneWidth) - log2(facing);
 }
 
+/// The texture coordinates of the triangle a hit landed on.
+void triangleUvs(uvec3 corner, out vec2 uv[3])
+{
+    uv[0] = texCoords[corner.x];
+    uv[1] = texCoords[corner.y];
+    uv[2] = texCoords[corner.z];
+}
+
+vec2 interpolate(vec2 uv[3], vec3 weight)
+{
+    return uv[0] * weight.x + uv[1] * weight.y + uv[2] * weight.z;
+}
+
 /// The diffuse texel a hit landed on, read at the level its cone can resolve.
 ///
-/// Shared by the two things that ask: the colour of a committed hit, and the mask of a candidate
-/// one. Sharing it is what keeps them reading the same level — a cutout resolved against a
-/// different mip than the surface it cuts would put the hole and the leaf in different places.
+/// Shared by everything that asks: the colour of a committed hit, the mask of a candidate one, and
+/// each layer of a piece of ground. Sharing it is what keeps them reading the same level — a cutout
+/// resolved against a different mip than the surface it cuts would put the hole and the leaf in
+/// different places.
 /// @param slot must already carry `nonuniformEXT`.
-vec4 sampleDiffuse(uint slot, uvec3 corner, vec3 weight, vec3 crossed, vec3 direction, float distance)
+/// @param transform mesh texture coordinates to this texture's, as `uv * xy + zw`.
+vec4 sampleDiffuse(uint slot, vec2 uv[3], vec3 weight, vec4 transform, vec3 crossed, vec3 direction, float distance)
 {
-    const vec2 uv0 = texCoords[corner.x];
-    const vec2 uv1 = texCoords[corner.y];
-    const vec2 uv2 = texCoords[corner.z];
+    const vec2 uv0 = uv[0] * transform.xy + transform.zw;
+    const vec2 uv1 = uv[1] * transform.xy + transform.zw;
+    const vec2 uv2 = uv[2] * transform.xy + transform.zw;
     const vec2 at = uv0 * weight.x + uv1 * weight.y + uv2 * weight.z;
 
     return textureLod(textures[slot], at, coneLod(slot, uv0, uv1, uv2, crossed, direction, distance));
+}
+
+/// How much of a terrain layer shows at `uv`, from its grid of weights.
+///
+/// Sampled by hand rather than through a sampler because the grid is ten texels across and lives in
+/// a buffer, and because a mask has to clamp at its edges — the one sampler every texture in this
+/// scene shares repeats, which is what the tiling ground needs and the mask cannot have.
+float maskWeight(GpuLayer layer, vec2 uv)
+{
+    // A chunk of one ground type is given no mask at all: there is nothing to blend it against.
+    if (layer.mMaskWidth == 0u || layer.mMaskHeight == 0u)
+        return 1.0;
+
+    const ivec2 grid = ivec2(layer.mMaskWidth, layer.mMaskHeight);
+    const vec2 at = uv * layer.mMaskTransform.xy + layer.mMaskTransform.zw;
+
+    // Texel centres sit at half-integers, so the bilinear footprint starts half a texel back.
+    const vec2 texel = at * vec2(grid) - 0.5;
+    const vec2 frac = fract(texel);
+    const ivec2 low = ivec2(floor(texel));
+    const ivec2 high = min(low + 1, grid - 1);
+    const ivec2 base = max(low, ivec2(0));
+
+    const uint row0 = layer.mMaskOffset + uint(base.y) * layer.mMaskWidth;
+    const uint row1 = layer.mMaskOffset + uint(high.y) * layer.mMaskWidth;
+
+    return mix(mix(masks[row0 + uint(base.x)], masks[row0 + uint(high.x)], frac.x),
+        mix(masks[row1 + uint(base.x)], masks[row1 + uint(high.x)], frac.x), frac.y);
 }
 
 /// Whether a candidate hit landed on the material or in one of its holes.
@@ -162,8 +217,11 @@ bool alphaPasses(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed, ve
     const GpuInstance instance = instances[instanceIndex];
     const GpuMaterial material = materials[instance.mMaterial];
 
-    const vec4 texel = sampleDiffuse(nonuniformEXT(material.mDiffuse),
-        triangleCorners(meshes[instance.mMesh], primitive), cornerWeights(bary), crossed, direction, distance);
+    vec2 uv[3];
+    triangleUvs(triangleCorners(meshes[instance.mMesh], primitive), uv);
+
+    const vec4 texel = sampleDiffuse(nonuniformEXT(material.mDiffuse), uv, cornerWeights(bary), UV_IDENTITY, crossed,
+        direction, distance);
 
     return texel.a >= material.mAlphaCutoff;
 }
@@ -230,11 +288,38 @@ void main()
         const vec3 facing = faceforward(normal, direction, normal);
 
         const GpuMaterial material = materials[instance.mMaterial];
+        const float hitDistance = rayQueryGetIntersectionTEXT(query, true);
+
+        vec2 uv[3];
+        triangleUvs(corner, uv);
+
         vec3 albedo = NO_TEXTURE_ALBEDO;
-        if (material.mDiffuse != NO_TEXTURE)
-            albedo = sampleDiffuse(nonuniformEXT(material.mDiffuse), corner, weight, crossed, direction,
-                rayQueryGetIntersectionTEXT(query, true))
+        if (material.mLayerCount != 0u)
+        {
+            // Ground. Each layer is a tiling texture masked by its own grid of weights, and the
+            // stack sums to one where the masks were built to — the same sum the rasterizer reaches
+            // by drawing the layers over each other with additive blending and one pass apiece.
+            albedo = vec3(0.0);
+            const vec2 chunkUv = interpolate(uv, weight);
+            for (uint i = 0u; i < material.mLayerCount; ++i)
+            {
+                const GpuLayer layer = layers[material.mLayerOffset + i];
+                const float showing = maskWeight(layer, chunkUv);
+                if (showing <= 0.0)
+                    continue;
+
+                albedo += showing
+                    * sampleDiffuse(nonuniformEXT(layer.mDiffuse), uv, weight, layer.mDiffuseTransform, crossed,
+                        direction, hitDistance)
+                          .rgb;
+            }
+        }
+        else if (material.mDiffuse != NO_TEXTURE)
+        {
+            albedo = sampleDiffuse(
+                nonuniformEXT(material.mDiffuse), uv, weight, UV_IDENTITY, crossed, direction, hitDistance)
                          .rgb;
+        }
         albedo *= material.mDiffuseColour.rgb;
 
         // Not lighting, and not pretending to be: a headlight so that shape reads while the only

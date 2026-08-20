@@ -67,7 +67,7 @@ namespace Rtx
     {
         constexpr auto compute = VK_SHADER_STAGE_COMPUTE_BIT;
         constexpr auto storage = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        constexpr std::array<VkDescriptorSetLayoutBinding, 9> bindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 11> bindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 2, storage, 1, compute, nullptr },
@@ -77,6 +77,8 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 6, storage, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 7, storage, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 8, storage, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 9, storage, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 10, storage, 1, compute, nullptr },
         };
 
         const VkDescriptorSetLayoutCreateInfo layout{
@@ -144,7 +146,7 @@ namespace Rtx
         };
 
         // Bindings two upwards are all storage buffers, in the order the shader declares them.
-        const std::array<VkDescriptorBufferInfo, 7> buffers{
+        const std::array<VkDescriptorBufferInfo, 9> buffers{
             VkDescriptorBufferInfo{ hitCount.getHandle(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getNormals(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getTexCoords(), 0, VK_WHOLE_SIZE },
@@ -152,9 +154,11 @@ namespace Rtx
             VkDescriptorBufferInfo{ inputs.mBuffers->getMeshes(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getInstances(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getMaterials(), 0, VK_WHOLE_SIZE },
+            VkDescriptorBufferInfo{ inputs.mBuffers->getLayers(), 0, VK_WHOLE_SIZE },
+            VkDescriptorBufferInfo{ inputs.mBuffers->getMasks(), 0, VK_WHOLE_SIZE },
         };
 
-        std::array<VkWriteDescriptorSet, 9> writes{};
+        std::array<VkWriteDescriptorSet, 11> writes{};
         writes[0] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = &sceneWrite,

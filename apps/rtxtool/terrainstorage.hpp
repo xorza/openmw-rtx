@@ -26,13 +26,11 @@ namespace RtxTool
 
         osg::ref_ptr<const ESMTerrain::LandObject> getLand(ESM::ExteriorCellLocation cellLocation) override;
 
-        /// Always `_land_default.dds`, whatever was asked for.
+        /// What the plugin that wrote the cell called index `index`, or null.
         ///
-        /// Land texture records are indexed per content file and `EsmLoader` flattens records across
-        /// files, so answering this properly means teaching the loader a shape it does not have.
-        /// Nothing looks at a terrain texture until M3, and returning the default is the same answer
-        /// the caller's own fallback would reach — without a warning per layer per cell claiming a
-        /// lookup failed, which is a different and more alarming thing than not having looked.
+        /// The caller falls back to `_land_default.dds` and warns when this finds nothing, which is
+        /// the right answer: the shipped data does dangle, and a layer quietly taking the default is
+        /// worth a line.
         const VFS::Path::Normalized* getLandTexture(std::uint16_t index, int plugin) override;
 
         /// Null: this tool reads Morrowind, and these are Bethesda's later formats.
@@ -51,7 +49,8 @@ namespace RtxTool
         /// Pointers into the caller's `EsmData`, which therefore has to outlive this.
         std::map<CellKey, const ESM::Land*> mLands;
 
-        VFS::Path::Normalized mDefaultTexture;
+        /// Kept whole for the land textures, which are already one binary search and want no index.
+        const EsmLoader::EsmData& mEsmData;
 
         // Decoding a land record is the expensive half, and a chunk asks for its neighbours as well
         // as itself, so the same record is wanted several times over.

@@ -75,6 +75,13 @@ namespace Rtx
         /// tracer has to be told, because back-face culling is not free the way a rasterizer's is.
         bool mTwoSided = false;
 
+        /// Where this material's terrain layers sit in the scene's layer table.
+        ///
+        /// Empty for everything that is not terrain, which is all but a handful of materials in a
+        /// cell — so the layered path costs the rest of them one comparison and no indirection.
+        Index mLayerOffset = 0;
+        Index mLayerCount = 0;
+
         /// The alpha below which a texel is a hole, or zero where the surface has none.
         ///
         /// A blended material that never asked for a test gets a stand-in, because that is where
@@ -89,6 +96,34 @@ namespace Rtx
         /// candidate loop. A cutoff with no texture to sample is not one — the mask lives in the
         /// diffuse map's alpha and there is nothing else to read.
         bool isCutout() const { return getAlphaCutoff() > 0.0f && mDiffuse != sNoIndex; }
+    };
+
+    /// One layer of a terrain material: a ground texture and the weights that place it.
+    ///
+    /// Morrowind's ground is a stack of tiling textures, each masked by a small grid of weights that
+    /// `ESMTerrain` derives from the land records — and OpenMW draws that stack as one alpha-blended
+    /// pass per layer over the same triangles. A ray tracer has one hit and shades it once, so the
+    /// stack is read back into layers and summed at the hit instead.
+    struct MaterialLayer
+    {
+        /// The ground texture, which tiles many times across a chunk.
+        Index mDiffuse = sNoIndex;
+
+        /// Where this layer's weights begin in the scene's mask table, and the grid they form.
+        ///
+        /// A zero-sized grid means the layer covers everything: a chunk of a single ground type is
+        /// given no mask at all, because there is nothing for it to blend against.
+        Index mMaskOffset = 0;
+        std::uint16_t mMaskWidth = 0;
+        std::uint16_t mMaskHeight = 0;
+
+        /// Chunk texture coordinates to this layer's, as `uv * xy + zw`.
+        ///
+        /// Read off the texture matrices the terrain builder attached rather than recomputed: the
+        /// mask's carries a half-texel inset and a nudge that exist to match the original game, and
+        /// deriving them again from the tile size is how the two quietly stop agreeing.
+        osg::Vec4f mDiffuseTransform{ 1.0f, 1.0f, 0.0f, 0.0f };
+        osg::Vec4f mMaskTransform{ 1.0f, 1.0f, 0.0f, 0.0f };
     };
 
     /// One mesh placed in the world: a row of the top-level acceleration structure.
@@ -124,6 +159,17 @@ namespace Rtx
 
         Index addMaterial(const Material& material);
 
+        /// Copies `weights` into the shared mask table and returns where they landed.
+        ///
+        /// One float per weight rather than the byte the source holds: a mask is a few hundred
+        /// texels and a whole cell's worth is tens of kilobytes, which is not worth requiring
+        /// 8-bit storage of the device for.
+        Index addMask(std::span<const float> weights);
+
+        /// Appends one layer. A material's layers must be added in order and read back as a range,
+        /// so there is no index to hand out.
+        void addLayer(const MaterialLayer& layer);
+
         /// Returns the index of `path`, adding it only if it is not already known.
         Index addTexture(VFS::Path::NormalizedView path);
 
@@ -140,6 +186,8 @@ namespace Rtx
         std::span<const MeshRange> getMeshes() const { return mMeshes; }
         std::span<const MeshInstance> getInstances() const { return mInstances; }
         std::span<const Material> getMaterials() const { return mMaterials; }
+        std::span<const MaterialLayer> getLayers() const { return mLayers; }
+        std::span<const float> getMasks() const { return mMasks; }
         std::span<const VFS::Path::Normalized> getTextures() const { return mTextures; }
 
         /// The vertices of one mesh, for a test or a build that wants to read back what it appended.
@@ -166,6 +214,8 @@ namespace Rtx
         std::vector<MeshRange> mMeshes;
         std::vector<MeshInstance> mInstances;
         std::vector<Material> mMaterials;
+        std::vector<MaterialLayer> mLayers;
+        std::vector<float> mMasks;
         std::vector<VFS::Path::Normalized> mTextures;
 
         // The scan this replaces was O(materials x textures). A cell is a hundred of each and would

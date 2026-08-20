@@ -101,6 +101,7 @@ namespace RtxTool
             query.mLoadCells = true;
             query.mLoadGameSettings = true;
             query.mLoadLands = true;
+            query.mLoadLandTextures = true;
             // Everything that names a model, because everything a cell places has to be rendered:
             // a room missing its lamps and its bookshelves is not the room.
             query.mModels = EsmLoader::allModelRecords();

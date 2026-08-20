@@ -327,6 +327,152 @@ namespace Rtx
             EXPECT_NEAR(renderAt(1600.0f), encodeSrgb(160.0f / 255.0f), 1);
         }
 
+        /// Ground: layers summed by their masks, at the weights the mask grid names.
+        ///
+        /// Two layers over one quad, each a solid colour, with a mask two weights wide: layer zero
+        /// is [1, 0] and layer one [0, 1]. A mask samples at `u * width - 0.5`, so texel centres sit
+        /// at u = 0.25 and u = 0.75 and the weight between them is a straight ramp — pure layer zero
+        /// left of the first centre, pure layer one right of the second, and exactly half of each in
+        /// the middle. Those three points are what this checks, because they are the ones the
+        /// arithmetic pins: 0.5 of a linear one encodes to 1.055 * 0.5^(1/2.4) - 0.055, or 188.
+        TEST_F(RtxVisibilityTest, groundSumsItsLayersByTheWeightsItsMasksName)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float halfExtent = 57.735027f;
+
+            // Two solid textures and one two-texel strip, all one level so nothing but the layer
+            // arithmetic can move a byte.
+            const auto makeSolid = [](std::uint8_t red, std::uint8_t green, std::uint8_t blue) {
+                return std::array<std::uint8_t, 4>{ red, green, blue, 255 };
+            };
+            const std::array<std::uint8_t, 4> redTexel = makeSolid(255, 0, 0);
+            const std::array<std::uint8_t, 4> greenTexel = makeSolid(0, 255, 0);
+            // Sixty-four texels for sixty-four columns, so every pixel samples exactly one texel
+            // centre and no filtering weight can enter the answer. Green for the first half, blue
+            // for the second.
+            std::array<std::uint8_t, size * 4> strip{};
+            for (std::uint32_t texel = 0; texel < size; ++texel)
+                strip[texel * 4 + (texel < size / 2 ? 1 : 2)] = 255;
+
+            const MipLevel one{ 0, 1, 1 };
+            const MipLevel wide{ 0, size, 1 };
+            const auto describe
+                = [](VkFormat format, std::uint32_t width, std::span<const std::uint8_t> bytes, const MipLevel& level) {
+                      return TextureData{
+                          .mFormat = format,
+                          .mWidth = width,
+                          .mHeight = 1,
+                          .mBytes = std::as_bytes(bytes),
+                          .mLevels = std::span(&level, 1),
+                      };
+                  };
+
+            Device& device = *mHarness->mDevice;
+            CommandPool pool(device);
+            std::vector<Texture> uploaded;
+            uploaded.emplace_back(device, pool, describe(VK_FORMAT_R8G8B8A8_UNORM, 1, redTexel, one), "red");
+            uploaded.emplace_back(device, pool, describe(VK_FORMAT_R8G8B8A8_UNORM, 1, greenTexel, one), "green");
+            uploaded.emplace_back(
+                device, pool, describe(VK_FORMAT_R8G8B8A8_UNORM, size, strip, wide), "green then blue");
+            const TextureArray textures(device, std::move(uploaded));
+
+            const std::array positions{
+                osg::Vec3f(-halfExtent, 0.0f, -halfExtent),
+                osg::Vec3f(halfExtent, 0.0f, -halfExtent),
+                osg::Vec3f(halfExtent, 0.0f, halfExtent),
+                osg::Vec3f(-halfExtent, 0.0f, halfExtent),
+            };
+            const std::array texCoords{
+                osg::Vec2f(0.0f, 0.0f),
+                osg::Vec2f(1.0f, 0.0f),
+                osg::Vec2f(1.0f, 1.0f),
+                osg::Vec2f(0.0f, 1.0f),
+            };
+            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
+            constexpr std::array<float, 2> firstMask{ 1.0f, 0.0f };
+            constexpr std::array<float, 2> secondMask{ 0.0f, 1.0f };
+
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            camera.mShowAlbedo = 1u;
+
+            /// @param second the texture slot and diffuse transform of the layer on the right.
+            const auto render = [&](Index second, const osg::Vec4f& secondTransform) {
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(positions, {}, texCoords, indices);
+                scene.addTexture(VFS::Path::NormalizedView("red.dds"));
+                scene.addTexture(VFS::Path::NormalizedView("green.dds"));
+                scene.addTexture(VFS::Path::NormalizedView("strip.dds"));
+
+                Material material;
+                material.mLayerOffset = 0;
+                material.mLayerCount = 2;
+                scene.addLayer(MaterialLayer{
+                    .mDiffuse = 0,
+                    .mMaskOffset = scene.addMask(firstMask),
+                    .mMaskWidth = 2,
+                    .mMaskHeight = 1,
+                });
+                scene.addLayer(MaterialLayer{
+                    .mDiffuse = second,
+                    .mMaskOffset = scene.addMask(secondMask),
+                    .mMaskWidth = 2,
+                    .mMaskHeight = 1,
+                    .mDiffuseTransform = secondTransform,
+                });
+
+                scene.addInstance(MeshInstance{
+                    .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = scene.addMaterial(material) });
+
+                std::vector<std::uint8_t> pixels;
+                EXPECT_EQ(countHits(scene, textures, camera, size, pixels), size * size);
+                return pixels;
+            };
+
+            const std::vector<std::uint8_t> ramp = render(1, osg::Vec4f(1.0f, 1.0f, 0.0f, 0.0f));
+
+            // Column c samples u = (c + 0.5) / 64, so the two texel centres fall on columns 15.5 and
+            // 47.5 and the middle of the ramp on column 31.5. Sampling either side of a boundary
+            // would land on a value the ramp only reaches between pixels.
+            const auto at = [&](const std::vector<std::uint8_t>& pixels, std::uint32_t column) {
+                return &pixels[(std::size_t{ size / 2 } * size + column) * 4];
+            };
+
+            EXPECT_EQ(at(ramp, 0)[0], 255) << "pure first layer, red";
+            EXPECT_EQ(at(ramp, 0)[1], 0);
+            EXPECT_EQ(at(ramp, 63)[0], 0) << "pure second layer, green";
+            EXPECT_EQ(at(ramp, 63)[1], 255);
+
+            // Columns 31 and 32 straddle the halfway point by half a pixel each, so neither is an
+            // even split and the two are mirror images. Column 31 samples u = 31.5 / 64 = 0.49219,
+            // which is 0.48438 of the way from the first texel centre to the second, so the second
+            // layer weighs that and the first weighs 0.51563. Encoded:
+            //
+            //   1.055 * 0.51563^(1/2.4) - 0.055 = 0.74547, or 190 of 255
+            //   1.055 * 0.48438^(1/2.4) - 0.055 = 0.72503, or 185 of 255
+            EXPECT_EQ(at(ramp, 31)[0], 190) << "the first layer, three sixty-fourths past centre";
+            EXPECT_EQ(at(ramp, 31)[1], 185);
+            EXPECT_EQ(at(ramp, 32)[0], 185) << "and the mirror of it on the other side";
+            EXPECT_EQ(at(ramp, 32)[1], 190);
+
+            // Outside the two centres the ramp is flat, which is the clamp doing its work: a mask
+            // that wrapped would fold the far layer back over the near one at both edges.
+            EXPECT_EQ(at(ramp, 15)[0], 255) << "still pure at the first texel centre";
+            EXPECT_EQ(at(ramp, 48)[1], 255) << "and at the second";
+
+            // The layer's own texture transform, proved by moving it under a fixed pixel. Column 63
+            // samples u = 0.99219, which on the sixty-four-texel strip is texel 63's centre — the
+            // blue half. Half a unit of offset puts the same pixel on texel 31, the green half, and
+            // both are exact centres so the answer is a texel rather than a blend of two.
+            const std::vector<std::uint8_t> blue = render(2, osg::Vec4f(1.0f, 1.0f, 0.0f, 0.0f));
+            const std::vector<std::uint8_t> green = render(2, osg::Vec4f(1.0f, 1.0f, -0.5f, 0.0f));
+
+            EXPECT_EQ(at(blue, 63)[2], 255) << "the strip's far half";
+            EXPECT_EQ(at(blue, 63)[1], 0);
+            EXPECT_EQ(at(green, 63)[1], 255) << "and its near half, half a coordinate back";
+            EXPECT_EQ(at(green, 63)[2], 0);
+        }
+
         /// A masked surface in front of a wall: the ray stops on what survives the cutout and goes
         /// on through what does not.
         ///

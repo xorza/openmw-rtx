@@ -192,6 +192,13 @@ Two properties of this pipeline matter:
    already hold, not a re-decode.
 2. **Nothing in the chain needs a GL context.** Contexts are needed to *draw*, not to load.
 
+`Terrain::TerrainDrawable` (`components/terrain/terraindrawable.hpp:51`) does not put its material on
+the graph. It carries a `PassVector` — one `osg::StateSet` per ground layer, each holding the layer's
+tiling texture at unit 0 and its blend map at unit 1, drawn over the same triangles with additive
+blending and equal-depth ordering (`components/terrain/material.cpp:200`). A node-state walk finds
+nothing on a chunk, so anything reading terrain shading has to ask the drawable. The two texture
+matrices are `texMat0` and `texMat1` uniforms, transposed on the way to GLSL.
+
 `components/esmloader/` (`EsmLoader::loadEsmData`) reads content files into flat vectors with no
 world simulation attached — this is how the non-graphical tools work. Which record types it reads is
 `EsmLoader::ModelRecords`, one list that the reader, the store, the query mask and `getModel` are all

@@ -11,9 +11,13 @@
 #include <components/esm3/variant.hpp>
 
 #include <algorithm>
+#include <cstdint>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace EsmLoader
@@ -40,6 +44,45 @@ namespace EsmLoader
     }
 
     EsmData::~EsmData() {}
+
+    std::vector<LandTextureRef> prepareLandTextures(std::span<const LandTextureRecord> records)
+    {
+        std::unordered_map<ESM::RefId, VFS::Path::Normalized> byId;
+        for (const LandTextureRecord& record : records)
+            if (!record.mDeleted)
+                byId[record.mId] = record.mTexture;
+
+        std::vector<LandTextureRef> result;
+        result.reserve(records.size());
+        for (const LandTextureRecord& record : records)
+            if (!record.mDeleted)
+                result.push_back(LandTextureRef{
+                    .mPlugin = record.mPlugin,
+                    .mIndex = record.mIndex,
+                    .mTexture = byId[record.mId],
+                });
+
+        // Stable, and `unique` keeps the front of each group, so between them the first claim on a
+        // pair is the one that survives.
+        const auto byKey = [](const LandTextureRef& l, const LandTextureRef& r) { return l.getKey() < r.getKey(); };
+        const auto sameKey = [](const LandTextureRef& l, const LandTextureRef& r) { return l.getKey() == r.getKey(); };
+        std::stable_sort(result.begin(), result.end(), byKey);
+        result.erase(std::unique(result.begin(), result.end(), sameKey), result.end());
+
+        return result;
+    }
+
+    const VFS::Path::Normalized* getLandTexture(const EsmData& content, std::uint32_t index, int plugin)
+    {
+        const std::pair<int, std::uint32_t> key(plugin, index);
+        const auto it = std::lower_bound(content.mLandTextures.begin(), content.mLandTextures.end(), key,
+            [](const LandTextureRef& l, const std::pair<int, std::uint32_t>& r) { return l.getKey() < r; });
+
+        if (it == content.mLandTextures.end() || it->getKey() != key)
+            return nullptr;
+
+        return &it->mTexture;
+    }
 
     VFS::Path::NormalizedView getModel(const EsmData& content, const ESM::RefId& refId, ESM::RecNameInts type)
     {

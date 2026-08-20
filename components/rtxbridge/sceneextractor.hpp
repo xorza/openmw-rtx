@@ -20,6 +20,11 @@ namespace osg
     class StateSet;
 }
 
+namespace Terrain
+{
+    class TerrainDrawable;
+}
+
 namespace RtxBridge
 {
     /// What one extraction pass did.
@@ -89,6 +94,14 @@ namespace RtxBridge
         Rtx::Index resolveMesh(const osg::Geometry& geometry, ExtractionStats& stats);
         Rtx::Index resolveMaterial(const osg::NodePath& path, ExtractionStats& stats);
 
+        /// The layered material of a terrain chunk, whose shading is not on the graph at all.
+        ///
+        /// `Terrain::TerrainDrawable` carries one pass per ground texture, each alpha-blended over
+        /// the last across the same triangles, because that is how a rasterizer draws a blend it
+        /// cannot sample in one go. A ray tracer hits the ground once and shades it once, so the
+        /// passes are read back into layers and summed there instead.
+        Rtx::Index resolveTerrainMaterial(const Terrain::TerrainDrawable& terrain, ExtractionStats& stats);
+
         Rtx::SceneDesc& mScene;
 
         // Keyed on pointer identity, which OpenMW's resource cache and its optimizer's
@@ -101,6 +114,7 @@ namespace RtxBridge
         std::vector<std::uint32_t> mIndexScratch;
         std::vector<osg::Vec3f> mNormalScratch;
         std::vector<osg::Vec2f> mTexCoordScratch;
+        std::vector<float> mMaskScratch;
     };
 }
 

@@ -18,7 +18,7 @@ namespace RtxTool
 
     TerrainStorage::TerrainStorage(const VFS::Manager& vfs, const EsmLoader::EsmData& esmData)
         : ESMTerrain::Storage(&vfs)
-        , mDefaultTexture(VFS::Path::NormalizedView("_land_default.dds"))
+        , mEsmData(esmData)
     {
         for (const ESM::Land& land : esmData.mLands)
             mLands[CellKey(land.mX, land.mY)] = &land;
@@ -52,9 +52,9 @@ namespace RtxTool
         return decoded;
     }
 
-    const VFS::Path::Normalized* TerrainStorage::getLandTexture(std::uint16_t /*index*/, int /*plugin*/)
+    const VFS::Path::Normalized* TerrainStorage::getLandTexture(std::uint16_t index, int plugin)
     {
-        return &mDefaultTexture;
+        return EsmLoader::getLandTexture(mEsmData, index, plugin);
     }
 
     const ESM4::LandTexture* TerrainStorage::getEsm4LandTexture(ESM::RefId /*ltexId*/) const

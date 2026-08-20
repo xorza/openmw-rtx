@@ -9,7 +9,14 @@
 #include <osg/Texture2D>
 #include <osg/TriangleIndexFunctor>
 
+#include <array>
+#include <cassert>
+
 #include <components/sceneutil/texturetype.hpp>
+// `terraindrawable.hpp` holds `osg::ref_ptr`s to composite-map types it only forward-declares, so it
+// does not compile on its own. This is what completes them.
+#include <components/terrain/compositemaprenderer.hpp>
+#include <components/terrain/terraindrawable.hpp>
 
 namespace RtxBridge
 {
@@ -143,6 +150,39 @@ namespace RtxBridge
             return name + (image.getNumMipmapLevels() > 1 ? ", with mips" : ", one level");
         }
 
+        /// A pass's texture matrix for `unit`, as the `uv * xy + zw` the shader wants.
+        ///
+        /// OpenSceneGraph hands the matrix to GLSL transposed — it stores rows where GLSL reads
+        /// columns — so what a shader multiplies its coordinate by is the transpose of what is here,
+        /// and the translation it picks up is this matrix's last row.
+        osg::Vec4f getTextureTransform(const osg::StateSet& stateSet, unsigned int unit)
+        {
+            // Terrain binds two units and no more, so the names are spelled rather than built.
+            static constexpr std::array<std::string_view, 2> sNames{ "texMat0", "texMat1" };
+            assert(unit < sNames.size());
+
+            const osg::Uniform* uniform = stateSet.getUniform(std::string(sNames[unit]));
+            osg::Matrixf matrix;
+            if (uniform == nullptr || !uniform->get(matrix))
+                return osg::Vec4f(1.0f, 1.0f, 0.0f, 0.0f);
+
+            return osg::Vec4f(matrix(0, 0), matrix(1, 1), matrix(3, 0), matrix(3, 1));
+        }
+
+        /// The weights of one blend map, as floats in row order.
+        ///
+        /// `ESMTerrain` builds these as one byte per texel in `GL_ALPHA`, which is a hundred bytes
+        /// for a chunk; widening them costs a few kilobytes a cell and saves requiring 8-bit storage
+        /// of the device for the sake of it.
+        void readMask(const osg::Image& image, std::vector<float>& weights)
+        {
+            weights.clear();
+            weights.reserve(static_cast<std::size_t>(image.s()) * image.t());
+            for (int row = 0; row < image.t(); ++row)
+                for (int column = 0; column < image.s(); ++column)
+                    weights.push_back(image.getColor(column, row).a());
+        }
+
         float getAlphaRef(const osg::StateSet& stateSet)
         {
             // The shader visitor turns the fixed-function alpha test into this uniform and removes
@@ -222,12 +262,73 @@ namespace RtxBridge
         if (mesh == Rtx::sNoIndex)
             return;
 
+        // Terrain keeps its material on the drawable rather than on the graph, so it is asked first
+        // and the state-set walk never sees a chunk.
+        const auto* terrain = dynamic_cast<const Terrain::TerrainDrawable*>(&geometry);
+        const Rtx::Index material
+            = terrain != nullptr ? resolveTerrainMaterial(*terrain, stats) : resolveMaterial(path, stats);
+
         mScene.addInstance(Rtx::MeshInstance{
             .mTransform = osg::Matrixf(osg::computeLocalToWorld(path)) * root,
             .mMesh = mesh,
-            .mMaterial = resolveMaterial(path, stats),
+            .mMaterial = material,
         });
         ++stats.mInstances;
+    }
+
+    Rtx::Index SceneExtractor::resolveTerrainMaterial(const Terrain::TerrainDrawable& terrain, ExtractionStats& stats)
+    {
+        const Terrain::TerrainDrawable::PassVector& passes = terrain.getPasses();
+        if (passes.empty())
+            return Rtx::sNoIndex;
+
+        // The first pass is as good an identity as the chunk itself and is already a state set, so
+        // terrain shares the material map with everything else.
+        const osg::StateSet* identity = passes.front().get();
+        const auto known = mMaterials.find(identity);
+        if (known != mMaterials.end())
+        {
+            ++stats.mMaterialsReused;
+            return known->second;
+        }
+
+        Rtx::Material material;
+        material.mLayerOffset = static_cast<Rtx::Index>(mScene.getLayers().size());
+
+        for (const osg::ref_ptr<osg::StateSet>& pass : passes)
+        {
+            const osg::Texture2D* diffuse = getTexture(*pass, 0);
+            if (diffuse == nullptr || diffuse->getImage(0) == nullptr || diffuse->getImage(0)->getFileName().empty())
+                continue;
+
+            Rtx::MaterialLayer layer;
+            layer.mDiffuse = mScene.addTexture(VFS::Path::Normalized(diffuse->getImage(0)->getFileName()));
+            layer.mDiffuseTransform = getTextureTransform(*pass, 0);
+            ++stats.mTextureFormats[describeFormat(*diffuse->getImage(0))];
+
+            // A chunk of a single ground type is given no blend map at all, and stays at full weight.
+            const osg::Texture2D* mask = getTexture(*pass, 1);
+            if (mask != nullptr && mask->getImage(0) != nullptr)
+            {
+                const osg::Image& image = *mask->getImage(0);
+                readMask(image, mMaskScratch);
+                layer.mMaskOffset = mScene.addMask(mMaskScratch);
+                layer.mMaskWidth = static_cast<std::uint16_t>(image.s());
+                layer.mMaskHeight = static_cast<std::uint16_t>(image.t());
+                layer.mMaskTransform = getTextureTransform(*pass, 1);
+            }
+
+            mScene.addLayer(layer);
+            ++material.mLayerCount;
+        }
+
+        if (material.mLayerCount == 0)
+            return Rtx::sNoIndex;
+
+        const Rtx::Index index = mScene.addMaterial(material);
+        mMaterials.emplace(identity, index);
+        ++stats.mMaterialsAdded;
+        return index;
     }
 
     Rtx::Index SceneExtractor::resolveMesh(const osg::Geometry& geometry, ExtractionStats& stats)

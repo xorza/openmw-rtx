@@ -21,7 +21,21 @@ namespace Rtx
             return Shaders::GpuMaterial{
                 .mDiffuse = material.mDiffuse,
                 .mAlphaCutoff = material.isCutout() ? material.getAlphaCutoff() : 0.0f,
+                .mLayerOffset = material.mLayerOffset,
+                .mLayerCount = material.mLayerCount,
                 .mDiffuseColour = material.mDiffuseColour,
+            };
+        }
+
+        Shaders::GpuLayer toGpu(const MaterialLayer& layer)
+        {
+            return Shaders::GpuLayer{
+                .mDiffuse = layer.mDiffuse,
+                .mMaskOffset = layer.mMaskOffset,
+                .mMaskWidth = layer.mMaskWidth,
+                .mMaskHeight = layer.mMaskHeight,
+                .mDiffuseTransform = layer.mDiffuseTransform,
+                .mMaskTransform = layer.mMaskTransform,
             };
         }
     }
@@ -47,6 +61,8 @@ namespace Rtx
         materials.push_back(Shaders::GpuMaterial{
             .mDiffuse = Shaders::NO_TEXTURE,
             .mAlphaCutoff = 0.0f,
+            .mLayerOffset = 0,
+            .mLayerCount = 0,
             .mDiffuseColour = osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f),
         });
 
@@ -58,11 +74,29 @@ namespace Rtx
                 .mMaterial = instance.mMaterial == sNoIndex ? sentinel : instance.mMaterial,
             });
 
+        std::vector<Shaders::GpuLayer> layers;
+        layers.reserve(scene.getLayers().size());
+        for (const MaterialLayer& layer : scene.getLayers())
+            layers.push_back(toGpu(layer));
+
         mNormals = uploadBuffer(device, pool, scene.getNormals(), sTableUsage);
         mTexCoords = uploadBuffer(device, pool, scene.getTexCoords(), sTableUsage);
         mMeshes = uploadBuffer(device, pool, std::span<const Shaders::GpuMesh>(meshes), sTableUsage);
         mInstances = uploadBuffer(device, pool, std::span<const Shaders::GpuInstance>(instances), sTableUsage);
         mMaterials = uploadBuffer(device, pool, std::span<const Shaders::GpuMaterial>(materials), sTableUsage);
+
+        // A scene with no terrain in it still has to bind something: a descriptor may not be null,
+        // and a zero-length buffer is not a thing Vulkan will make. One unread element each — and
+        // the layer cannot be `constexpr`, because `osg::Vec4f` has no constexpr default.
+        const Shaders::GpuLayer noLayer{};
+        constexpr float noMask = 1.0f;
+
+        mLayers = uploadBuffer(device, pool,
+            layers.empty() ? std::span<const Shaders::GpuLayer>(&noLayer, 1)
+                           : std::span<const Shaders::GpuLayer>(layers),
+            sTableUsage);
+        mMasks = uploadBuffer(device, pool,
+            scene.getMasks().empty() ? std::span<const float>(&noMask, 1) : scene.getMasks(), sTableUsage);
 
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mMaterials.getHandle()), "materials");
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mTexCoords.getHandle()), "uvs");
@@ -73,6 +107,6 @@ namespace Rtx
         // The indices are not counted here: they belong to the acceleration structure, which reports
         // its own size.
         return mNormals.getSize() + mTexCoords.getSize() + mMeshes.getSize() + mInstances.getSize()
-            + mMaterials.getSize();
+            + mMaterials.getSize() + mLayers.getSize() + mMasks.getSize();
     }
 }

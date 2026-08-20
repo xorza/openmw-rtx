@@ -70,6 +70,18 @@ namespace Rtx
         return static_cast<Index>(mMaterials.size() - 1);
     }
 
+    Index SceneDesc::addMask(std::span<const float> weights)
+    {
+        const auto offset = static_cast<Index>(mMasks.size());
+        mMasks.insert(mMasks.end(), weights.begin(), weights.end());
+        return offset;
+    }
+
+    void SceneDesc::addLayer(const MaterialLayer& layer)
+    {
+        mLayers.push_back(layer);
+    }
+
     Index SceneDesc::addTexture(VFS::Path::NormalizedView path)
     {
         const auto known = mTextureIndex.find(path);
@@ -98,6 +110,8 @@ namespace Rtx
         mMeshes.clear();
         mInstances.clear();
         mMaterials.clear();
+        mLayers.clear();
+        mMasks.clear();
         mTextures.clear();
         mTextureIndex.clear();
     }

@@ -86,6 +86,87 @@ namespace
 
     INSTANTIATE_TEST_SUITE_P(Params, EsmLoaderGetModelTest, ValuesIn(params));
 
+    LandTextureRecord makeLandTexture(std::string_view id, std::uint32_t index, const char* texture, int plugin)
+    {
+        return LandTextureRecord{
+            .mId = ESM::RefId::stringRefId(id),
+            .mIndex = index,
+            .mTexture = VFS::Path::Normalized(texture),
+            .mPlugin = plugin,
+            .mDeleted = false,
+        };
+    }
+
+    /// The same index means different textures in different plugins, and both stay reachable.
+    ///
+    /// A cell's blend map indexes into the texture list of the file that wrote the cell, so a pair
+    /// keyed on the index alone would have the later plugin silently repaint the earlier one's
+    /// ground.
+    TEST(EsmLoaderLandTextureTest, anIndexIsResolvedWithinThePluginThatClaimedIt)
+    {
+        const std::array records{
+            makeLandTexture("sand", 0, "tx_sand.dds", 0),
+            makeLandTexture("rock", 1, "tx_rock.dds", 0),
+            makeLandTexture("snow", 0, "tx_snow.dds", 1),
+        };
+
+        EsmData data;
+        data.mLandTextures = prepareLandTextures(records);
+
+        ASSERT_EQ(data.mLandTextures.size(), 3);
+        ASSERT_NE(getLandTexture(data, 0, 0), nullptr);
+        EXPECT_EQ(*getLandTexture(data, 0, 0), VFS::Path::NormalizedView("tx_sand.dds"));
+        ASSERT_NE(getLandTexture(data, 1, 0), nullptr);
+        EXPECT_EQ(*getLandTexture(data, 1, 0), VFS::Path::NormalizedView("tx_rock.dds"));
+        ASSERT_NE(getLandTexture(data, 0, 1), nullptr);
+        EXPECT_EQ(*getLandTexture(data, 0, 1), VFS::Path::NormalizedView("tx_snow.dds"));
+
+        EXPECT_EQ(getLandTexture(data, 1, 1), nullptr);
+        EXPECT_EQ(getLandTexture(data, 7, 0), nullptr);
+    }
+
+    /// The two merge rules, which point opposite ways and are easy to get backwards.
+    ///
+    /// Redefining an **id** replaces the texture everywhere the id is reached, which is how a
+    /// replacer plugin changes what sand looks like. Claiming a **(plugin, index)** pair a second
+    /// time does nothing, because the pair names a slot in one file's own list.
+    TEST(EsmLoaderLandTextureTest, aRedefinedIdRepaintsEveryIndexThatReachesItAndAReusedPairIsIgnored)
+    {
+        const std::array records{
+            makeLandTexture("sand", 0, "tx_sand.dds", 0),
+            // A later file gives the same id a different texture, and never mentions an index of
+            // its own: the plugin-zero cell that names index 0 must now get the new one.
+            makeLandTexture("sand", 3, "tx_ash.dds", 1),
+            // And a second claim on a pair plugin zero already used, which must not take.
+            makeLandTexture("rock", 0, "tx_rock.dds", 0),
+        };
+
+        EsmData data;
+        data.mLandTextures = prepareLandTextures(records);
+
+        ASSERT_NE(getLandTexture(data, 0, 0), nullptr);
+        EXPECT_EQ(*getLandTexture(data, 0, 0), VFS::Path::NormalizedView("tx_ash.dds"));
+        ASSERT_NE(getLandTexture(data, 3, 1), nullptr);
+        EXPECT_EQ(*getLandTexture(data, 3, 1), VFS::Path::NormalizedView("tx_ash.dds"));
+    }
+
+    /// A deleted record contributes neither a texture nor a claim on its pair.
+    TEST(EsmLoaderLandTextureTest, aDeletedRecordLeavesNothingBehind)
+    {
+        std::array records{
+            makeLandTexture("sand", 0, "tx_sand.dds", 0),
+            makeLandTexture("rock", 1, "tx_rock.dds", 0),
+        };
+        records[0].mDeleted = true;
+
+        EsmData data;
+        data.mLandTextures = prepareLandTextures(records);
+
+        EXPECT_EQ(data.mLandTextures.size(), 1);
+        EXPECT_EQ(getLandTexture(data, 0, 0), nullptr);
+        EXPECT_NE(getLandTexture(data, 1, 0), nullptr);
+    }
+
     TEST(EsmLoaderGetGameSettingTest, shouldReturnFoundValue)
     {
         std::vector<ESM::GameSetting> settings;

@@ -10,6 +10,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadland.hpp>
+#include <components/esm3/loadltex.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/files/collections.hpp>
 #include <components/files/conversion.hpp>
@@ -139,11 +140,27 @@ namespace EsmLoader
 
         constexpr auto sModelIndices = std::make_index_sequence<std::tuple_size_v<ModelRecords>>{};
 
+        void loadRecord(ESM::ESMReader& reader, std::vector<LandTextureRecord>& records)
+        {
+            ESM::LandTexture value;
+            bool deleted = false;
+            value.load(reader, deleted);
+
+            records.push_back(LandTextureRecord{
+                .mId = std::move(value.mId),
+                .mIndex = value.mIndex,
+                .mTexture = value.mTexture.getNormalized(),
+                .mPlugin = reader.getIndex(),
+                .mDeleted = deleted,
+            });
+        }
+
         struct ShallowContent
         {
             CellRecords mCells;
             Records<ESM::GameSetting> mGameSettings;
             Records<ESM::Land> mLands;
+            std::vector<LandTextureRecord> mLandTextures;
             ShallowModels mModels;
         };
 
@@ -184,6 +201,10 @@ namespace EsmLoader
                 case ESM::REC_LAND:
                     if (query.mLoadLands)
                         return loadRecord(reader, content.mLands);
+                    break;
+                case ESM::REC_LTEX:
+                    if (query.mLoadLandTextures)
+                        return loadRecord(reader, content.mLandTextures);
                     break;
                 default:
                     if (loadModelRecord(query, name, reader, content, sModelIndices))
@@ -339,6 +360,8 @@ namespace EsmLoader
             loaded << ' ' << content.mGameSettings.size() << " game settings,";
         if (query.mLoadLands)
             loaded << ' ' << content.mLands.size() << " lands,";
+        if (query.mLoadLandTextures)
+            loaded << ' ' << content.mLandTextures.size() << " land textures,";
         reportModels(loaded, content.mModels, sModelIndices);
 
         Log(Debug::Info) << "Loaded" << loaded.str();
@@ -351,6 +374,7 @@ namespace EsmLoader
             result.mGameSettings = prepareRecords(content.mGameSettings, GetKey{});
         if (query.mLoadLands)
             result.mLands = prepareRecords(content.mLands, GetKey{});
+        result.mLandTextures = prepareLandTextures(content.mLandTextures);
         prepareModels(content.mModels, result.mModels, sModelIndices);
 
         addRefIdsTypes(result);
@@ -363,6 +387,8 @@ namespace EsmLoader
             prepared << ' ' << result.mGameSettings.size() << " game settings,";
         if (query.mLoadLands)
             prepared << ' ' << result.mLands.size() << " lands,";
+        if (query.mLoadLandTextures)
+            prepared << ' ' << result.mLandTextures.size() << " land textures,";
         reportModels(prepared, result.mModels, sModelIndices);
 
         Log(Debug::Info) << "Merged across content files to" << prepared.str();

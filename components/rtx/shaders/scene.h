@@ -35,6 +35,24 @@ namespace Rtx::Shaders
         uint mMaterial;
     };
 
+    /// One layer of terrain: a tiling ground texture and the weights that place it.
+    ///
+    /// A chunk is four or five of these summed. The mask is a grid of weights in the shared mask
+    /// buffer rather than a texture, because it is ten texels across — a whole cell's worth fits in
+    /// tens of kilobytes, and sampling it by hand is what lets the edges clamp instead of inheriting
+    /// the repeat every other texture in the game needs.
+    struct GpuLayer
+    {
+        uint mDiffuse;
+        uint mMaskOffset;
+        uint mMaskWidth;
+        uint mMaskHeight;
+
+        /// Chunk texture coordinates to this layer's, as `uv * xy + zw`.
+        vec4 mDiffuseTransform;
+        vec4 mMaskTransform;
+    };
+
     struct GpuMaterial
     {
         uint mDiffuse;
@@ -46,6 +64,11 @@ namespace Rtx::Shaders
         /// instances stop to make that comparison at all is settled by the build, from the same
         /// number.
         float mAlphaCutoff;
+
+        /// Where this material's terrain layers are, or a count of zero for a single-textured
+        /// surface — which is everything but the ground.
+        uint mLayerOffset;
+        uint mLayerCount;
 
         vec4 mDiffuseColour;
     };

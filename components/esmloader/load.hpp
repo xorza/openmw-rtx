@@ -33,6 +33,7 @@ namespace EsmLoader
         bool mLoadCells = false;
         bool mLoadGameSettings = false;
         bool mLoadLands = false;
+        bool mLoadLandTextures = false;
 
         /// Which model-bearing record types to read; see `modelRecords` and `allModelRecords`.
         ModelRecordMask mModels;
