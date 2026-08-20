@@ -145,8 +145,11 @@ const float WATER_SHORE_FADE = 35.0;
 
 /// Steps along the view ray.
 ///
-/// The integrand is smooth — an exponential with no noise in it yet — so what the count buys is
-/// evenness rather than detail.
+/// **The height falloff is smooth and the lamps are not.** An exponential needs few samples and
+/// would take half of these; an inverse square does not, and a step landing beside a lantern reads a
+/// spike the two either side of it never see. What that costs is a lamp's halo wobbling as the steps
+/// sweep through it while the camera moves — the jitter that arrives with the noise is the answer to
+/// it, and until then this count is what keeps it from being obvious.
 const uint FOG_STEPS = 24u;
 
 /// Where the fog pools when the cell has no water to gather over: sea level outdoors, and close
@@ -498,6 +501,18 @@ vec3 sunThroughWater(vec3 position, float footprint)
     return exp(-WATER_EXTINCTION * path) * caustic(position.xy, depth, camera.mTime, footprint);
 }
 
+/// How much of a light `distance` away arrives, per unit intensity.
+///
+/// An inverse square windowed to arrive at exactly zero where the light's reach ends. Morrowind's
+/// reach is a hard cutoff, and merely clipping an inverse square leaves a visible ring on the floor
+/// where it stops. The `+ 1` keeps the singularity at zero distance finite; a lamp is not a point.
+float falloff(float distance, float reach)
+{
+    const float ratio = distance / reach;
+    const float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
+    return window * window / (distance * distance + 1.0);
+}
+
 /// The height the fog pools at.
 ///
 /// **Measured from the water, not from the origin.** Fog gathers over water and drains off high
@@ -521,6 +536,39 @@ float fogExtinctionAt(vec3 position)
         return 0.0;
 
     return camera.mFogExtinction * exp(-max(position.z - fogBase(), 0.0) / FOG_HEIGHT);
+}
+
+/// What the air at a point sends toward the eye, per unit of light it takes out of the beam.
+///
+/// **Every lamp that reaches it, so a lantern is a halo in the murk rather than a light with a dark
+/// sphere around it.** Unshadowed: a shaft wants a ray per light per step, which is a different
+/// order of cost and belongs with the sun's.
+///
+/// **Isotropic, and `INV_FOUR_PI` is what isotropic is.** A lamp arrives here as irradiance exactly
+/// as it arrives at a surface, and what comes back toward the eye is that irradiance spread over the
+/// sphere — so a lamp with no phase function still owes the factor. Not the real one, either: a
+/// lamp's angle to the view ray changes at every step and for every lamp, where a directional
+/// source's is fixed for a whole march, and a forward peak thousands of times isotropic would be a
+/// firefly waiting for a step to land on the line from the eye through a lantern.
+///
+/// The loop is `gather`'s without its cosine or its shadow ray — the air has no normal to face away
+/// from, and nothing here is occluded. What the two must agree on is `falloff`, which is the whole
+/// of what a lamp delivers at a distance.
+vec3 fogLight(vec3 position)
+{
+    vec3 lamps = vec3(0.0);
+    for (uint i = 0u; i < camera.mLightCount; ++i)
+    {
+        const GpuLight light = lights[i];
+
+        const float distance = length(light.mPosition - position);
+        if (distance >= light.mReach || distance <= 0.0)
+            continue;
+
+        lamps += light.mIntensity * falloff(distance, light.mReach);
+    }
+
+    return camera.mFogColour + INV_FOUR_PI * lamps;
 }
 
 /// What `distance` units of air take out of what is behind them, and what they put in on the way.
@@ -563,28 +611,26 @@ vec4 fogAlong(vec3 origin, vec3 direction, float distance)
 
         // The step's midpoint, which is the second-order estimate of its average and costs nothing
         // over its near end. A jittered probe is what replaces this once there is noise for it to
-        // hide the banding of; against a smooth exponential there is none to hide.
-        const float extinction = fogExtinctionAt(origin + direction * (behind + 0.5 * stride));
+        // hide the banding of — and the lamps want it as much as the noise will, since a fixed set
+        // of steps sweeping past a lantern samples its falloff at the same places every frame.
+        const vec3 position = origin + direction * (behind + 0.5 * stride);
+        const float extinction = fogExtinctionAt(position);
         behind = ahead;
 
-        const float absorbed = 1.0 - exp(-extinction * stride);
-        scattered += transmittance * absorbed * camera.mFogColour;
-        transmittance *= 1.0 - absorbed;
+        // What this step is worth to the frame, computed once and used twice: what it scatters in
+        // is weighted by it, and what the transmittance loses to it is exactly it, since
+        // `T * (1 - absorbed)` is `T - T * absorbed`.
+        const float weight = transmittance * (1.0 - exp(-extinction * stride));
+
+        // **Skipping the lamps where that weight is negligible was measured and is not here.** Air
+        // above the layer and air behind fog already opaque both look like free steps to drop, and
+        // dropping them bought 3% on Balmora and nothing at all in an interior: at this layer's
+        // scale height there is no thin fraction of the ray to skip.
+        scattered += weight * fogLight(position);
+        transmittance -= weight;
     }
 
     return vec4(scattered, transmittance);
-}
-
-/// How much of a light `distance` away arrives, per unit intensity.
-///
-/// An inverse square windowed to arrive at exactly zero where the light's reach ends. Morrowind's
-/// reach is a hard cutoff, and merely clipping an inverse square leaves a visible ring on the floor
-/// where it stops. The `+ 1` keeps the singularity at zero distance finite; a lamp is not a point.
-float falloff(float distance, float reach)
-{
-    const float ratio = distance / reach;
-    const float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
-    return window * window / (distance * distance + 1.0);
 }
 
 /// Whether a candidate hit landed on the material or in one of its holes.

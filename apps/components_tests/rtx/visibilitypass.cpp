@@ -1657,6 +1657,77 @@ namespace Rtx
                 EXPECT_EQ(submerged[channel], withoutFog[channel]) << "channel " << channel << ", under the surface";
         }
 
+        /// A lamp lights the air it stands in, and by the isotropic share of what it delivers.
+        ///
+        /// **`INV_FOUR_PI` is what this is really about.** A lamp reaches a point in the fog as
+        /// irradiance, exactly as it reaches a surface, and what comes back toward the eye is that
+        /// irradiance spread over the whole sphere. Dropping the factor is not subtle — it lights
+        /// the air 4pi times over, and the centre pixel here goes from 121 of 255 to 211.
+        ///
+        /// **The lamp is put far enough away that its falloff is flat along the ray**, which is what
+        /// makes the march's answer analytic: with the light it delivers constant, the scattered
+        /// terms telescope to `E / 4pi * (1 - T)` exactly as a constant fog colour does. Twenty
+        /// thousand units off a two-hundred-unit ray varies the irradiance by 0.02%.
+        TEST_F(RtxVisibilityTest, aLampLightsTheAirItStandsInByTheIsotropicShareOfWhatItDelivers)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            constexpr float distance = 200.0f;
+            constexpr float reach = 30000.0f;
+
+            // Half the ray's worth of fog, so the wall and the air contribute comparably.
+            const float extinction = std::log(2.0f) / distance;
+
+            // Behind the wall in y, so its cosine there is negative and the lamp lights the air
+            // without also lighting what the air is in front of.
+            const osg::Vec3f lamp(0.0f, 100.0f, 20000.0f);
+
+            // What one unit of intensity delivers at the middle of the ray, from the same windowed
+            // inverse square the shader uses: an inverse square that reaches exactly zero at the
+            // light's reach, because Morrowind's is a hard cutoff and clipping one leaves a ring.
+            const osg::Vec3f middle(0.0f, -0.5f * distance, 0.0f);
+            const float span = (lamp - middle).length();
+            const float ratio = span / reach;
+            const float window = 1.0f - ratio * ratio * ratio * ratio;
+            const float delivered = window * window / (span * span + 1.0f);
+
+            const auto look = [&](bool lit) {
+                SceneDesc scene = makeWall();
+                if (lit)
+                    scene.addLight(Light{
+                        .mPosition = lamp,
+                        // Scaled so the lamp delivers exactly one unit of irradiance to the ray,
+                        // which is what lets the expectation below be written without it.
+                        .mIntensity = osg::Vec3f(1.0f, 1.0f, 1.0f) / delivered,
+                        .mReach = reach,
+                    });
+
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(0.0f, -distance, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                litThroughFog(camera, extinction);
+
+                // Black air, so the lamp is the only thing in the frame the fog scatters and the
+                // expectation below needs no term for the haze `litThroughFog` would otherwise put
+                // in it.
+                camera.mFogColour = osg::Vec3f();
+                camera.mLightCount = static_cast<std::uint32_t>(scene.getLights().size());
+
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, noTextures(), camera, size, pixels);
+                return int{ pixels[centre] };
+            };
+
+            // With no lamp the air scatters nothing, because the fog's own colour is black here: the
+            // wall is all there is, at half of it.
+            constexpr float wall = 0.5f * sFoggyAmbient;
+            EXPECT_EQ(look(false), int{ encodeSrgb(0.5f * wall) }) << "black air over a lit wall";
+
+            // And with it, one unit of irradiance through an isotropic sphere, over the half of the
+            // ray's light the fog took: 0.15 + 1 / (4 pi) * 0.5 = 0.18979, which encodes to 121.
+            const float scattered = 0.25f * Shaders::INV_PI * 0.5f;
+            EXPECT_NEAR(look(true), int{ encodeSrgb(0.5f * wall + scattered) }, 1) << "the lamp in the air";
+        }
+
         /// Its own device, because the validation layers allocate and this test counts allocations.
         class RtxFrameCostTest : public ::testing::Test
         {

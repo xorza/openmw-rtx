@@ -67,6 +67,15 @@ namespace Rtx::Shaders
     const float PI = 3.14159265f;
     const float INV_PI = 1.0f / PI;
 
+    /// What an isotropic phase function is worth: one over the solid angle of the whole sphere.
+    ///
+    /// **A light owes this to the air even with no phase function of its own.** A lamp reaches a
+    /// point in the fog as *irradiance*, the same as it reaches a surface, and what comes back
+    /// toward the eye is that irradiance spread over every direction — so the air scatters `1/4pi`
+    /// of it this way. Left out, lamps light the air twelve and a half times too strongly, which is
+    /// a lantern with a white sphere around it rather than a halo.
+    const float INV_FOUR_PI = 0.25f * INV_PI;
+
     /// Irradiance of the sun against the sky it is set in.
     ///
     /// Not a physical figure: exposure absorbs any overall scale, so what matters is the ratio
