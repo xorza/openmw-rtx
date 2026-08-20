@@ -340,6 +340,36 @@ per-weather fog colour and density, which rtxmw substitutes the sky for.
 *Done when:* fog is off in the tests that measure surface radiance, and on in a view whose histogram
 is asserted; a ridge view shows banks below it and a ground view shows structure.
 
+**Done.** The extinction is not the reference's eyeballed figure but `MWRender::FogManager`'s own
+ramp read back: the original fogs *linearly* from `view * (1 - depth)` to `view`, so matching where
+each is half gone gives `sigma = ln(2) / (view * (1 - depth / 2))`, and clear weather's 0.69 over the
+game's 7168 units comes to 1.476e-4 against the 1.5e-4 settled by eye. It is the same conversion
+indoors, which is why there is no second scale: a room is faint because it is small.
+
+The coverage band was measured against this field rather than copied — mean 0.4996, standard
+deviation 0.1204, and `0.45..0.65` leaves 40% of the volume clear. **Sample that over a plane wider
+than the grain, not a sphere**: a million pixels of a sphere of radius 5,000 is a million samples of
+about 390 cells, and the mean it gives is wrong by 9% while looking precise. The band is normalised
+by its own mean so the noise redistributes air rather than removing it, and
+`theBankedFieldHoldsAsMuchAirAsAnEvenOne` is what stops that constant drifting when the band moves.
+It settles at 0.971 rather than 1.000, which is Jensen's inequality on a convex `exp` and not an
+error.
+
+Octaves fade where the march's own step outruns them, which is `resolved`'s argument with a different
+sampler — and **fewer octaves is a wider distribution, not a narrower one**, so the field is rescaled
+about its mean to hold the spread the whole stack would have. It pays only on long rays: a third off
+an open view, under 4% at Balmora, where the steps are short enough to resolve everything.
+
+The sun scatters through Jendersie and d'Eon's HG-Draine fit at eight-micron droplets, **per steradian
+rather than normalised to isotropic** — the `4 pi` a ratio test cannot see, so the absolute value is
+asserted beside the ratio. Eight shadow rays cut the march into stretches, gated off below a fiftieth
+of what the sky puts in, which costs 0.2 to 0.36 ms where the sun is in play and nothing at all in an
+interior. `aLidOverTheMarchTakesTheSunOutOfTheAirBeneathIt` asserts the air under a lid scatters
+*exactly* what sunless air does, because merely darker would pass while leaking.
+
+What is looked at rather than asserted: the banks over a shore, and the shafts themselves. There is
+no histogram test of a real view.
+
 ### M8 — Indirect light
 
 Path-traced diffuse bounce, sky as an emitter, blue-noise sampling, à-trous denoise demodulated by

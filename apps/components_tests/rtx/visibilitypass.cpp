@@ -1862,6 +1862,56 @@ namespace Rtx
             EXPECT_GT(behind, 0.01f) << "a sixth of isotropic still comes back";
         }
 
+        /// A lid over the march takes the sun out of the air beneath it, and takes all of it.
+        ///
+        /// **Exactly what sunless air scatters, not merely less than open air.** A shaft that leaked
+        /// a tenth of the sun would still be darker than the open sky beside it, and an assertion
+        /// that only asked for darker would pass while it leaked. The lid spans the whole march and
+        /// the camera's own ray never reaches it — it runs level while the lid is five hundred units
+        /// overhead — so what changes between the two frames is the shadow ray and nothing else.
+        TEST_F(RtxVisibilityTest, aLidOverTheMarchTakesTheSunOutOfTheAirBeneathIt)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            constexpr float irradiance = 4.0f;
+
+            const auto look = [&](bool lidded, bool lit) {
+                // The same sheet either way, over the march or under it, so the two frames differ
+                // in what the shadow ray finds and in nothing else — not in what is in the scene,
+                // nor in how large it is.
+                SceneDesc scene;
+                scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                    .mMesh = scene.addMesh(makeSheet(40000.0f, lidded ? 500.0f : -500.0f), {}, {}, sQuadIndices) });
+
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1000.0f, 0.0f), 60.0f, size, size, 100000.0f);
+
+                // Ahead of the camera and well up, so the phase function has something to scatter
+                // forward and every shadow ray still climbs into the lid.
+                osg::Vec3f travelling(0.0f, -0.6f, -0.8f);
+                travelling.normalize();
+                camera.mSunDirection = travelling;
+                camera.mSunIrradiance = lit ? osg::Vec3f(irradiance, irradiance, irradiance) : osg::Vec3f();
+
+                // Even air with a colour of its own, so the frame is never empty and the two sunless
+                // cases have something to agree about.
+                camera.mFogColour = osg::Vec3f(0.02f, 0.02f, 0.02f);
+                camera.mFogExtinction = 2.0e-4f;
+                camera.mFogUniform = 1.0f;
+
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, noTextures(), camera, size, pixels);
+                return int{ pixels[centre] };
+            };
+
+            const int open = look(false, true);
+            const int shaded = look(true, true);
+            const int sunless = look(true, false);
+
+            EXPECT_EQ(shaded, sunless) << "the lid takes all of the sun, not most of it";
+            EXPECT_GT(open, shaded + 20) << "and there was a sun to take";
+        }
+
         /// Its own device, because the validation layers allocate and this test counts allocations.
         class RtxFrameCostTest : public ::testing::Test
         {

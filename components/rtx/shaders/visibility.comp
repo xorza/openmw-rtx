@@ -227,6 +227,27 @@ const float FOG_SOLID = 0.65;
 /// One` is what enforces that rather than anyone remembering to.
 const float FOG_COVERAGE = 0.3756;
 
+/// How many shadow rays the sun gets in the fog, and so how many stretches the march is cut into.
+///
+/// **Not one per step.** A ray costs about four march steps here, so shadowing all twenty-four would
+/// cost more than the whole fog does. One ray answers for a stretch, which is what a froxel does
+/// too — and the jitter is what keeps that from being a decision always taken in the same place: over
+/// frames the probe walks its stretch, so a shaft's edge lands between two neighbours as noise
+/// rather than as a step.
+///
+/// Eight rather than four because they are perfectly coherent — every one of them points at the same
+/// sun — so the eighth costs almost nothing. Against a ray-per-step reference the renderer this is
+/// ported from measured errors of 0.0155, 0.0134, 0.0087 and 0.0048 for one, two, four and eight.
+const uint FOG_SHADOW_RAYS = 8u;
+
+/// Below this share of what the sky puts into the air, the sun does not get a shadow ray.
+///
+/// **What makes the cost fall only where the shafts are.** Ninety degrees off the sun the phase
+/// function is two thousandths of its forward value, so the sun puts less light into the air there
+/// than the rounding on the sky's term — and a shaft cut out of light that faint is one nobody can
+/// see. Looking away from the sun, and in every interior, this is the whole of what shafts cost.
+const float FOG_SHAFT_FLOOR = 0.02;
+
 /// Steps along the view ray.
 ///
 /// **The height falloff is smooth and the lamps are not.** An exponential needs few samples and
@@ -235,6 +256,9 @@ const float FOG_COVERAGE = 0.3756;
 /// sweep through it while the camera moves — the jitter that arrives with the noise is the answer to
 /// it, and until then this count is what keeps it from being obvious.
 const uint FOG_STEPS = 24u;
+
+/// How many march steps one shadow ray answers for. `FOG_SHADOW_RAYS` must divide `FOG_STEPS`.
+const uint FOG_STEPS_PER_RAY = FOG_STEPS / FOG_SHADOW_RAYS;
 
 /// Where the fog pools when the cell has no water to gather over: sea level outdoors, and close
 /// enough to a floor to serve indoors.
@@ -607,6 +631,71 @@ uvec2 lampsReaching(vec3 position)
     return uvec2(lightOffsets[index], lightOffsets[index + 1u]);
 }
 
+/// Whether a candidate hit landed on the material or in one of its holes.
+///
+/// Only instances the build marked non-opaque reach this, and it marked exactly the materials with
+/// a mask to read, so there is no mode to branch on here: the comparison is the whole test, and a
+/// surface that wants none stores a threshold nothing can fail.
+///
+/// The level it reads at matters as much as the test does. A mask point-sampled at its finest mip
+/// answers for one texel out of the hundreds a distant pixel covers, and a binary test on that is a
+/// coin toss per pixel — a canopy comes back as speckle, and it crawls as the camera moves. Letting
+/// the cone average the mask first costs a leaf edge some of its bite, which is by a long way the
+/// better of the two errors.
+bool alphaPasses(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed, vec3 direction, float coneWidth)
+{
+    const GpuInstance instance = instances[instanceIndex];
+    const GpuMaterial material = materials[instance.mMaterial];
+
+    vec2 uv[3];
+    triangleUvs(triangleCorners(meshes[instance.mMesh], primitive), uv);
+
+    const vec4 texel = sampleDiffuse(nonuniformEXT(material.mDiffuse), uv, cornerWeights(bary), UV_IDENTITY, crossed,
+        direction, coneWidth);
+
+    return texel.a >= material.mAlphaCutoff;
+}
+
+/// Whether anything stands between `from` and a light `reach` away along `towards`.
+///
+/// The candidate loop is the one `main` runs and it cannot be shared: `glslc` rejects `rayQueryEXT`
+/// as an `out` or `inout` parameter, so a traversal cannot be handed to a function. Any change to
+/// the cutout has to be made in both places.
+///
+/// No cone here, so the cutout is decided at the finest mip. A shadow ray carries no footprint, and
+/// aliasing in a leaf's shadow is worth far less than aliasing on the leaf.
+///
+/// **A ray shorter than the bias it starts past is not a ray.** A candle sitting a unit off a table
+/// asks for a shadow ray whose end is behind its own beginning, and `rayQueryInitializeEXT` with a
+/// `tmax` under its `tmin` is undefined — which is a hang or a garbage answer rather than an empty
+/// one. Nothing fits in that gap anyway: the bias is what a hit point's own surface needs to be
+/// clear of, so a light inside it is a light nothing can stand between.
+bool occluded(vec3 from, vec3 towards, float distance)
+{
+    if (distance <= SHADOW_BIAS)
+        return false;
+
+    rayQueryEXT query;
+    rayQueryInitializeEXT(
+        query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT, MASK_SOLID, from, SHADOW_BIAS, towards, distance);
+    while (rayQueryProceedEXT(query))
+    {
+        if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)
+            continue;
+
+        vec3 corners[3];
+        rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, corners);
+
+        if (alphaPasses(rayQueryGetIntersectionInstanceCustomIndexEXT(query, false),
+                rayQueryGetIntersectionPrimitiveIndexEXT(query, false),
+                rayQueryGetIntersectionBarycentricsEXT(query, false),
+                triangleCross(corners, rayQueryGetIntersectionObjectToWorldEXT(query, false)), towards, 0.0))
+            rayQueryConfirmIntersectionEXT(query);
+    }
+
+    return rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
+}
+
 /// How much of a light `distance` away arrives, per unit intensity.
 ///
 /// An inverse square windowed to arrive at exactly zero where the light's reach ends. Morrowind's
@@ -760,6 +849,23 @@ float fogExtinctionAt(vec3 position, float spacing)
     return camera.mFogExtinction * height * coverage;
 }
 
+/// The largest of a colour's three channels.
+float brightest(vec3 colour)
+{
+    return max(colour.x, max(colour.y, colour.z));
+}
+
+/// Where along the ray the step ending at `fraction` of the way through reaches.
+///
+/// **Squared, so the steps bunch where the fog has any shape to it.** Even steps over a ray that can
+/// run thirty thousand units give the first hundred a twentieth of one sample and lay the rest
+/// across ground too far off to resolve — the same reasoning that makes a froxel grid slice its
+/// frustum exponentially rather than evenly.
+float fogDepth(float fraction)
+{
+    return fraction * fraction;
+}
+
 /// The mean diameter of the fog's water droplets, in micrometres.
 ///
 /// **The one dial on the shape of the sun's halo.** Radiation fog runs from a few micrometres to
@@ -896,114 +1002,66 @@ vec4 fogAlong(vec3 origin, vec3 direction, float distance, float offset)
     // a shadow ray. An interior and a night both answer no, and what they would otherwise pay is an
     // `exp` for the sun's own column at every one of the steps below.
     const bool sunlit = camera.mSunIrradiance != vec3(0.0);
-    const vec3 sunward = sunlit ? camera.mSunIrradiance * fogPhase(dot(direction, -camera.mSunDirection)) : vec3(0.0);
+    const vec3 sunward
+        = sunlit ? camera.mSunIrradiance * fogPhase(dot(direction, -camera.mSunDirection)) : vec3(0.0);
+
+    // **Only where a shaft could be seen.** The gate is what keeps the rays off every interior and
+    // off everything but the sunward part of an exterior, which is most of a frame.
+    const bool shafts = brightest(sunward) > FOG_SHAFT_FLOOR * brightest(camera.mFogColour);
 
     float transmittance = 1.0;
     vec3 scattered = vec3(0.0);
     float behind = 0.0;
 
-    for (uint i = 1u; i <= FOG_STEPS; ++i)
+    for (uint stretch = 0u; stretch < FOG_SHADOW_RAYS; ++stretch)
     {
-        // **Squared, so the steps bunch where the fog has any shape to it.** Even steps over a ray
-        // that can run thirty thousand units give the first hundred a twentieth of one sample and
-        // lay the rest across ground too far off to resolve — the same reasoning that makes a froxel
-        // grid slice its frustum exponentially rather than evenly.
-        const float fraction = float(i) / float(FOG_STEPS);
-        const float ahead = fraction * fraction * span;
-        const float stride = ahead - behind;
+        // One ray for the whole stretch, from a point drawn anywhere along it. Holding an answer
+        // across several steps is what a froxel does too; drawing where it is taken from the same
+        // jitter the steps use is what stops the choice being made in one fixed place every frame.
+        float visible = 1.0;
+        if (shafts)
+        {
+            const float reach = fogDepth(float((stretch + 1u) * FOG_STEPS_PER_RAY) / float(FOG_STEPS)) * span;
+            const vec3 probe = origin + direction * mix(behind, reach, offset);
 
-        // **A different place in every step for every pixel**, so what would be twenty-four visible
-        // shells becomes noise a temporal filter can take out. Twenty-four samples of a field with
-        // structure in it land on the same places every frame otherwise, and a lantern's halo wobbles
-        // as the steps sweep through its falloff.
-        const vec3 position = origin + direction * (behind + offset * stride);
-        const float extinction = fogExtinctionAt(position, stride);
-        behind = ahead;
+            visible = occluded(probe, -camera.mSunDirection, camera.mFar) ? 0.0 : 1.0;
+        }
 
-        // What this step is worth to the frame, computed once and used twice: what it scatters in
-        // is weighted by it, and what the transmittance loses to it is exactly it, since
-        // `T * (1 - absorbed)` is `T - T * absorbed`.
-        // Everything between the sun and this point: what the fog itself took on the way down, and
-        // what any water overhead took out of it.
-        const vec3 sun
-            = sunlit ? sunward * exp(-fogSunDepth(extinction)) * daylightReaching(position) : vec3(0.0);
+        for (uint k = 0u; k < FOG_STEPS_PER_RAY; ++k)
+        {
+            const uint i = stretch * FOG_STEPS_PER_RAY + k + 1u;
+            const float ahead = fogDepth(float(i) / float(FOG_STEPS)) * span;
+            const float stride = ahead - behind;
 
-        const float weight = transmittance * (1.0 - exp(-extinction * stride));
+            // **A different place in every step for every pixel**, so what would be twenty-four
+            // visible shells becomes noise a temporal filter can take out. A fixed set of steps
+            // lands on the same places every frame otherwise, and a lantern's halo wobbles as they
+            // sweep through its falloff.
+            const vec3 position = origin + direction * (behind + offset * stride);
+            const float extinction = fogExtinctionAt(position, stride);
+            behind = ahead;
 
-        // **Skipping the lamps where that weight is negligible was measured and is not here.** Air
-        // above the layer and air behind fog already opaque both look like free steps to drop, and
-        // dropping them bought 3% on Balmora and nothing at all in an interior: at this layer's
-        // scale height there is no thin fraction of the ray to skip.
-        scattered += weight * fogLight(position, sun);
-        transmittance -= weight;
+            // Everything between the sun and this point: what the geometry stopped, what the fog
+            // took on the way down, and what any water overhead took out of it.
+            const vec3 sun = sunlit
+                ? sunward * visible * exp(-fogSunDepth(extinction)) * daylightReaching(position)
+                : vec3(0.0);
+
+            // What this step is worth to the frame, computed once and used twice: what it scatters
+            // in is weighted by it, and what the transmittance loses to it is exactly it, since
+            // `T * (1 - absorbed)` is `T - T * absorbed`.
+            const float weight = transmittance * (1.0 - exp(-extinction * stride));
+
+            // **Skipping the lamps where that weight is negligible was measured and is not here.**
+            // Air above the layer and air behind fog already opaque both look like free steps to
+            // drop, and dropping them bought 3% on Balmora and nothing at all in an interior: at
+            // this layer's scale height there is no thin fraction of the ray to skip.
+            scattered += weight * fogLight(position, sun);
+            transmittance -= weight;
+        }
     }
 
     return vec4(scattered, transmittance);
-}
-
-/// Whether a candidate hit landed on the material or in one of its holes.
-///
-/// Only instances the build marked non-opaque reach this, and it marked exactly the materials with
-/// a mask to read, so there is no mode to branch on here: the comparison is the whole test, and a
-/// surface that wants none stores a threshold nothing can fail.
-///
-/// The level it reads at matters as much as the test does. A mask point-sampled at its finest mip
-/// answers for one texel out of the hundreds a distant pixel covers, and a binary test on that is a
-/// coin toss per pixel — a canopy comes back as speckle, and it crawls as the camera moves. Letting
-/// the cone average the mask first costs a leaf edge some of its bite, which is by a long way the
-/// better of the two errors.
-bool alphaPasses(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed, vec3 direction, float coneWidth)
-{
-    const GpuInstance instance = instances[instanceIndex];
-    const GpuMaterial material = materials[instance.mMaterial];
-
-    vec2 uv[3];
-    triangleUvs(triangleCorners(meshes[instance.mMesh], primitive), uv);
-
-    const vec4 texel = sampleDiffuse(nonuniformEXT(material.mDiffuse), uv, cornerWeights(bary), UV_IDENTITY, crossed,
-        direction, coneWidth);
-
-    return texel.a >= material.mAlphaCutoff;
-}
-
-/// Whether anything stands between `from` and a light `reach` away along `towards`.
-///
-/// The candidate loop is the one `main` runs and it cannot be shared: `glslc` rejects `rayQueryEXT`
-/// as an `out` or `inout` parameter, so a traversal cannot be handed to a function. Any change to
-/// the cutout has to be made in both places.
-///
-/// No cone here, so the cutout is decided at the finest mip. A shadow ray carries no footprint, and
-/// aliasing in a leaf's shadow is worth far less than aliasing on the leaf.
-///
-/// **A ray shorter than the bias it starts past is not a ray.** A candle sitting a unit off a table
-/// asks for a shadow ray whose end is behind its own beginning, and `rayQueryInitializeEXT` with a
-/// `tmax` under its `tmin` is undefined — which is a hang or a garbage answer rather than an empty
-/// one. Nothing fits in that gap anyway: the bias is what a hit point's own surface needs to be
-/// clear of, so a light inside it is a light nothing can stand between.
-bool occluded(vec3 from, vec3 towards, float distance)
-{
-    if (distance <= SHADOW_BIAS)
-        return false;
-
-    rayQueryEXT query;
-    rayQueryInitializeEXT(
-        query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT, MASK_SOLID, from, SHADOW_BIAS, towards, distance);
-    while (rayQueryProceedEXT(query))
-    {
-        if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)
-            continue;
-
-        vec3 corners[3];
-        rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, corners);
-
-        if (alphaPasses(rayQueryGetIntersectionInstanceCustomIndexEXT(query, false),
-                rayQueryGetIntersectionPrimitiveIndexEXT(query, false),
-                rayQueryGetIntersectionBarycentricsEXT(query, false),
-                triangleCross(corners, rayQueryGetIntersectionObjectToWorldEXT(query, false)), towards, 0.0))
-            rayQueryConfirmIntersectionEXT(query);
-    }
-
-    return rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
 }
 
 /// The light arriving at a point and turning back out of it, per unit albedo.
