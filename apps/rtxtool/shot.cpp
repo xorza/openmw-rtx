@@ -103,6 +103,12 @@ namespace RtxTool
         Rtx::Image target(device, request.mWidth, request.mHeight, VK_FORMAT_R8G8B8A8_UNORM,
             VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
+        // Sixteen bytes a pixel, which is 33 MiB at 1080p and the price of a sum that neither rounds
+        // nor clips. Made even for a run that is not averaging, and full size: the shader leaves it
+        // alone then, but the descriptor still has to point at an image the pass will accept.
+        Rtx::Image history(
+            device, request.mWidth, request.mHeight, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT);
+
         const Rtx::Buffer hitCount(device, sizeof(std::uint32_t),
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -117,8 +123,21 @@ namespace RtxTool
         camera.mShowAlbedo = request.mShowAlbedo ? 1u : 0u;
         applyLighting(request.mLighting, camera);
 
+        // **Accumulating replaces repeating rather than joining it.** A run of `--accumulate=4` that
+        // also honoured the repeat default would quietly average eight frames and report four — and
+        // a convergence ladder built on that reads as though the first four samples bought nothing,
+        // which is exactly what it looked like. A shot traces at least once either way, because a
+        // shot is a picture.
+        const bool averaging = request.mAccumulate > 0;
+        const std::uint32_t frames = averaging ? request.mAccumulate : std::max(request.mRepeat, 1u);
+
         std::vector<double> traces;
-        traces.reserve(request.mRepeat);
+        traces.reserve(frames);
+
+        // **A `do` and not a `for`, for the reason `summarise` takes its argument by reference.** The
+        // bound below is `max(..., 1)` and a `for` over it still leaves the compiler unable to prove
+        // the body ran, so `front()` on what it filled becomes a hard warning. Looping this way says
+        // it structurally.
         std::uint32_t frame = 0;
         do
         {
@@ -127,17 +146,33 @@ namespace RtxTool
             *static_cast<std::uint32_t*>(hitCount.map()) = 0;
             hitCount.unmap();
 
+            // **The seed moves only when the frames are being averaged.** A timing run wants the
+            // same work every trace, so that what the spread shows is the machine and not two
+            // frames that happened to sample different geometry.
+            camera.mFrame = averaging ? frame : 0;
+            camera.mAccumulate = averaging ? frame + 1 : 0;
+
             const Clock::time_point traceStart = Clock::now();
             pool.submitAndWait([&](VkCommandBuffer commands) {
                 target.transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
                     VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                     VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
 
-                pass.record(commands, inputs, target, hitCount, camera);
+                // The first frame writes the sum without reading it, so it needs no contents and
+                // nothing to wait on. Every frame after reads what the last one left, which is a
+                // hazard across submits that the fence orders but does not make visible.
+                const bool fresh = frame == 0;
+                history.transition(commands, fresh ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_GENERAL,
+                    VK_IMAGE_LAYOUT_GENERAL,
+                    fresh ? VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                    fresh ? 0 : VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+
+                pass.record(commands, inputs, target, history, hitCount, camera);
             });
             traces.push_back(millisecondsSince(traceStart));
             ++frame;
-        } while (frame < request.mRepeat);
+        } while (frame < frames);
 
         const TraceTimes trace = summarise(traces);
 
@@ -165,8 +200,11 @@ namespace RtxTool
             << "build:      " << buildMs << " ms\n"
             << "trace:      " << trace.mBest << " ms";
 
-        if (request.mRepeat > 1)
-            out << " (best of " << request.mRepeat << "; median " << trace.mMedian << ", worst " << trace.mWorst << ")";
+        if (averaging)
+            out << " (best of " << frames << " accumulated; median " << trace.mMedian << ", worst " << trace.mWorst
+                << ")";
+        else if (frames > 1)
+            out << " (best of " << frames << "; median " << trace.mMedian << ", worst " << trace.mWorst << ")";
         else
             out << " (one submit, including the wait)";
 

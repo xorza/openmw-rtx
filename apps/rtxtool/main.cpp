@@ -152,6 +152,11 @@ namespace RtxTool
                 "with `shot`, trace the frame this many times and report the best. One submit times "
                 "the GPU's clock rather than the shader; a comparison worth making wants hundreds");
 
+            addOption("accumulate", bpo::value<std::uint32_t>()->default_value(0),
+                "with `shot`, average this many differently-seeded frames into the picture. The way "
+                "to a converged reference for a sampled renderer: error falls as the square root, so "
+                "a hundred is a clean picture and a thousand is something to measure against");
+
             addOption("find", bpo::value<std::string>()->default_value(""),
                 "with `scene`, print the world position of every object whose model path contains this. "
                 "How the coordinates in a view are found.");
@@ -665,6 +670,7 @@ namespace RtxTool
                 request.mWeather = variables["weather"].as<std::string>();
                 request.mHour = variables["hour"].as<float>();
                 request.mRepeat = variables["repeat"].as<std::uint32_t>();
+                request.mAccumulate = variables["accumulate"].as<std::uint32_t>();
 
                 return runShot(world, chosen.mCell, instanceOptions, request);
             }

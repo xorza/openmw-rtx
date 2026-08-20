@@ -165,6 +165,17 @@ namespace RtxTool
         };
         std::vector<std::unique_ptr<Rtx::Image>> targets = makeTargets(swapchain.getExtent());
 
+        // Bound and never touched: a window renders one frame at a time and has no use for a running
+        // sum, so it leaves `mAccumulate` at zero and the shader skips this entirely. It exists
+        // because the descriptor has to point somewhere, and it is full size because the pass will
+        // not take one smaller than the target. One serves every frame in flight — nothing writes
+        // it, so there is nothing for them to race over.
+        const auto makeHistory = [&device](VkExtent2D extent) {
+            return std::make_unique<Rtx::Image>(
+                device, extent.width, extent.height, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT);
+        };
+        std::unique_ptr<Rtx::Image> history = makeHistory(swapchain.getExtent());
+
         // The pass counts its hits into this because a screenshot wants the number. A window does
         // not: reading it would mean waiting for the GPU, and what it would say is already on the
         // screen. It is bound, written to, and ignored.
@@ -252,6 +263,7 @@ namespace RtxTool
             device.waitIdle();
             swapchain.recreate(window.getExtent());
             targets = makeTargets(swapchain.getExtent());
+            history = makeHistory(swapchain.getExtent());
             remakeImageSync();
             resized = false;
         };
@@ -273,7 +285,11 @@ namespace RtxTool
                 VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                 VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
 
-            pass.record(commands, inputs, target, hitCount, constants);
+            history->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+
+            pass.record(commands, inputs, target, *history, hitCount, constants);
 
             target.transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,

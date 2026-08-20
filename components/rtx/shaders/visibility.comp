@@ -87,6 +87,12 @@ layout(set = 0, binding = 14, scalar) readonly buffer Waves
     GpuWave waves[];
 };
 
+/// The running sum of every frame's linear colour, while `mAccumulate` asks for one.
+///
+/// Untouched otherwise — a frame that is not being averaged neither reads nor writes it — but bound
+/// either way, because a descriptor the shader declares has to point at something.
+layout(set = 0, binding = 15, rgba32f) uniform image2D history;
+
 layout(set = 1, binding = 0) uniform sampler2D textures[];
 
 layout(push_constant, scalar) uniform Push
@@ -1609,6 +1615,16 @@ void main()
 
     if (surface.mHit)
         atomicAdd(hits, 1);
+
+    // **The average of the frames so far, in linear and before the curve.** Encoding first and
+    // averaging after would add up rounded numbers, and clip every sample brighter than the display
+    // range to the same 255 — losing exactly the fireflies a reference is wanted to measure.
+    if (camera.mAccumulate > 0u)
+    {
+        const vec3 total = camera.mAccumulate > 1u ? imageLoad(history, ivec2(pixel)).rgb + colour : colour;
+        imageStore(history, ivec2(pixel), vec4(total, 1.0));
+        colour = total / float(camera.mAccumulate);
+    }
 
     imageStore(target, ivec2(pixel), vec4(encodeSrgb(colour), 1.0));
 }

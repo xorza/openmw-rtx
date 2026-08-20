@@ -348,16 +348,20 @@ namespace Rtx
             /// Renders `scene` at `size` square and returns how many primary rays hit.
             /// @param sea what the water is doing. A state with no height in it is a flat sea, which
             ///        is what a test asserting an exact transmittance through one needs.
+            /// @param accumulate how many differently-seeded frames to average, overriding the
+            ///        camera's own frame index with 0, 1, ... Zero renders the camera's frame alone.
+            ///        Every frame hits the same primary geometry, so the count returned is divided
+            ///        back down rather than reported as however many frames were traced.
             std::uint32_t countHits(const SceneDesc& scene, const TextureArray& textures,
                 const Shaders::VisibilityConstants& camera, std::uint32_t size, std::vector<std::uint8_t>& pixels,
-                const SeaState& sea = SeaState{})
+                const SeaState& sea = SeaState{}, std::uint32_t accumulate = 0)
             {
                 Device& device = *mHarness->mDevice;
                 CommandPool pool(device);
                 const SceneAcceleration acceleration(device, pool, scene);
                 const SceneBuffers buffers(device, pool, scene, acceleration.getIndices(), sea);
 
-                const VisibilityPass pass(device, Testing::getShaderDirectory(), textures.getLayout());
+                const VisibilityPass& pass = passFor(textures.getLayout());
                 const VisibilityInputs inputs{
                     .mScene = acceleration.getTopLevel(),
                     .mBuffers = &buffers,
@@ -366,24 +370,78 @@ namespace Rtx
 
                 Image target(device, size, size, VK_FORMAT_R8G8B8A8_UNORM,
                     VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+                Image history(device, size, size, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT);
 
                 const Buffer hits(device, sizeof(std::uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
                 *static_cast<std::uint32_t*>(hits.map()) = 0;
                 hits.unmap();
 
+                const std::uint32_t frames = std::max(accumulate, 1u);
+
                 pool.submitAndWait([&](VkCommandBuffer commands) {
                     target.transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
                         VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                         VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-                    pass.record(commands, inputs, target, hits, camera);
+                    history.transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                        VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                        VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+
+                    for (std::uint32_t frame = 0; frame < frames; ++frame)
+                    {
+                        // Each dispatch reads the sum the one before it wrote, and overwrites the
+                        // same display image. One submit rather than several, so the barrier here is
+                        // what orders them rather than a queue that happened to drain.
+                        if (frame > 0)
+                        {
+                            const auto both
+                                = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+                            history.transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, both);
+                            target.transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+                        }
+
+                        Shaders::VisibilityConstants sampled = camera;
+                        if (accumulate > 0)
+                        {
+                            sampled.mFrame = frame;
+                            sampled.mAccumulate = frame + 1;
+                        }
+
+                        pass.record(commands, inputs, target, history, hits, sampled);
+                    }
                 });
 
                 pixels = target.read(pool, VK_IMAGE_LAYOUT_GENERAL);
 
                 const std::uint32_t count = *static_cast<const std::uint32_t*>(hits.map());
                 hits.unmap();
-                return count;
+                return count / frames;
+            }
+
+            /// The pass, kept between renders because building one compiles the shader.
+            ///
+            /// **Half a second a render, measured.** The driver turns the module's SPIR-V into
+            /// machine code when the pipeline is created, and this one is a ray-query shader that
+            /// traces twice and inlines everything it shades with — so a test that rendered three
+            /// times spent a second and a half compiling the same program three times. Nothing about
+            /// a pass depends on the scene; only on the device and on the shape of the texture set.
+            ///
+            /// Rebuilt when that shape changes, which in practice is once: a test uses one texture
+            /// array throughout, and most use the empty one.
+            const VisibilityPass& passFor(VkDescriptorSetLayout textures)
+            {
+                if (mPass == nullptr || mPassLayout != textures)
+                {
+                    mPass
+                        = std::make_unique<VisibilityPass>(*mHarness->mDevice, Testing::getShaderDirectory(), textures);
+                    mPassLayout = textures;
+                }
+
+                return *mPass;
             }
 
             /// For the scenes whose quads carry no material and never index the array.
@@ -397,6 +455,8 @@ namespace Rtx
 
             Testing::Harness* mHarness = nullptr;
             std::unique_ptr<TextureArray> mNoTextures;
+            std::unique_ptr<VisibilityPass> mPass;
+            VkDescriptorSetLayout mPassLayout = VK_NULL_HANDLE;
         };
 
         /// A wall bigger than the field of view leaves no room for sky.
@@ -1061,12 +1121,27 @@ namespace Rtx
             camera.mSkyHorizon = horizon;
             camera.mSkyZenith = zenith;
 
-            const auto shade = [&](std::uint32_t frame) {
+            const auto shade = [&](std::uint32_t frame, std::uint32_t accumulate = 0) {
                 camera.mFrame = frame;
 
                 std::vector<std::uint8_t> pixels;
-                EXPECT_EQ(countHits(scene, noTextures(), camera, size, pixels), size * size);
+                EXPECT_EQ(countHits(scene, noTextures(), camera, size, pixels, SeaState{}, accumulate), size * size);
                 return pixels;
+            };
+
+            // The mean and the standard deviation of one channel across the frame, in linear.
+            const auto measure = [&](const std::vector<std::uint8_t>& pixels, std::size_t channel) {
+                float sum = 0.0f;
+                float squares = 0.0f;
+                for (std::size_t i = channel; i < pixels.size(); i += 4)
+                {
+                    const float linear = decodeSrgb(pixels[i]);
+                    sum += linear;
+                    squares += linear * linear;
+                }
+
+                const float mean = sum / samples;
+                return std::pair{ mean, std::sqrt(squares / samples - mean * mean) };
             };
 
             const std::vector<std::uint8_t> first = shade(0);
@@ -1074,18 +1149,7 @@ namespace Rtx
 
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
-                float sum = 0.0f;
-                float squares = 0.0f;
-                for (std::size_t i = channel; i < first.size(); i += 4)
-                {
-                    const float linear = decodeSrgb(first[i]);
-                    sum += linear;
-                    squares += linear * linear;
-                }
-
-                const float mean = sum / samples;
-                const float spread = std::sqrt(squares / samples - mean * mean);
-
+                const auto [mean, spread] = measure(first, channel);
                 const float range = zenith[channel] - horizon[channel];
                 const float byTheCosine = 0.5f * (horizon[channel] + range * 2.0f / 3.0f);
                 const float ifDrawnEvenly = 0.5f * (horizon[channel] + range * 0.5f);
@@ -1111,6 +1175,37 @@ namespace Rtx
                 moved += first[i] != second[i] ? 1u : 0u;
 
             EXPECT_GT(moved, std::size_t{ size } * size * 9 / 10) << "the frame redraws the bounce";
+
+            // **And what the accumulator is for: the error falls as the square root of the count.**
+            // Averaging sixty-four independent draws divides the standard deviation of each by eight
+            // and leaves the mean where it was — the whole basis for calling a long run a reference,
+            // and worth asserting rather than assuming, because a sum that dropped or double-counted
+            // a frame would still look converged.
+            //
+            // Green: 0.058926 spread over one draw, so 0.007366 over sixty-four. The spread's
+            // tolerance is a fifth of that, which the estimate's own uncertainty — a standard
+            // deviation over `sqrt(2 * 4096)` samples, about 1% — sits well inside.
+            //
+            // **The mean's tolerance is twenty times tighter than the single-frame one above**, and
+            // has to be: at sixty-four samples a pixel's values cluster inside a few bytes, so the
+            // sRGB step that dominated there is no longer what limits this. A divisor off by one
+            // moves the mean by 0.0046 — the whole point of the assertion, and something a tolerance
+            // sized for one noisy frame would wave through.
+            constexpr std::uint32_t averaged = 64;
+            const std::vector<std::uint8_t> converged = shade(0, averaged);
+
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                const auto [mean, spread] = measure(converged, channel);
+                const float range = zenith[channel] - horizon[channel];
+
+                EXPECT_NEAR(mean, 0.5f * (horizon[channel] + range * 2.0f / 3.0f), 0.0002f)
+                    << "channel " << channel << " keeps its mean when averaged";
+
+                const float alone = 0.5f * std::abs(range) * 0.235702f;
+                EXPECT_NEAR(spread, alone / std::sqrt(float{ averaged }), 0.2f * alone / std::sqrt(float{ averaged }))
+                    << "channel " << channel << " converges as the square root of the count";
+            }
         }
 
         /// Water is seen by a camera and not by a shadow ray, and the mask is what says so.
@@ -2143,6 +2238,7 @@ namespace Rtx
 
             Image target(device, size, size, VK_FORMAT_R8G8B8A8_UNORM,
                 VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+            Image history(device, size, size, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT);
             const Buffer hits(device, sizeof(std::uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
@@ -2176,7 +2272,7 @@ namespace Rtx
                     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
                 };
                 vkBeginCommandBuffer(commands, &begin);
-                pass.record(commands, inputs, target, hits, camera);
+                pass.record(commands, inputs, target, history, hits, camera);
                 vkEndCommandBuffer(commands);
 
                 const VkCommandBufferSubmitInfo buffer{

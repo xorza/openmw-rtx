@@ -53,8 +53,11 @@ namespace Rtx
         VisibilityPass& operator=(const VisibilityPass&) = delete;
 
         /// @param target must be in `VK_IMAGE_LAYOUT_GENERAL`.
+        /// @param history a float image at least as large as `target`, in `VK_IMAGE_LAYOUT_GENERAL`,
+        ///        holding the running sum when `mAccumulate` is set. Written every frame either way,
+        ///        so its contents are undefined rather than preserved when it is not.
         /// @param hitCount a storage buffer of one `uint32` the shader increments per hit.
-        void record(VkCommandBuffer commands, const VisibilityInputs& inputs, const Image& target,
+        void record(VkCommandBuffer commands, const VisibilityInputs& inputs, const Image& target, const Image& history,
             const Buffer& hitCount, const Shaders::VisibilityConstants& constants) const;
 
     private:

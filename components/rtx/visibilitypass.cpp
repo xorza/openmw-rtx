@@ -71,7 +71,7 @@ namespace Rtx
     {
         constexpr auto compute = VK_SHADER_STAGE_COMPUTE_BIT;
         constexpr auto storage = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        constexpr std::array<VkDescriptorSetLayoutBinding, 15> bindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 16> bindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 2, storage, 1, compute, nullptr },
@@ -87,6 +87,7 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 12, storage, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 13, storage, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 14, storage, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 15, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
         };
 
         const VkDescriptorSetLayoutCreateInfo layout{
@@ -141,8 +142,10 @@ namespace Rtx
     }
 
     void VisibilityPass::record(VkCommandBuffer commands, const VisibilityInputs& inputs, const Image& target,
-        const Buffer& hitCount, const Shaders::VisibilityConstants& constants) const
+        const Image& history, const Buffer& hitCount, const Shaders::VisibilityConstants& constants) const
     {
+        assert(history.getWidth() >= target.getWidth() && history.getHeight() >= target.getHeight());
+
         const VkWriteDescriptorSetAccelerationStructureKHR sceneWrite{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
             .accelerationStructureCount = 1,
@@ -150,6 +153,10 @@ namespace Rtx
         };
         const VkDescriptorImageInfo targetWrite{
             .imageView = target.getView(),
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+        };
+        const VkDescriptorImageInfo historyWrite{
+            .imageView = history.getView(),
             .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
         };
 
@@ -170,7 +177,7 @@ namespace Rtx
             VkDescriptorBufferInfo{ inputs.mBuffers->getWaves(), 0, VK_WHOLE_SIZE },
         };
 
-        std::array<VkWriteDescriptorSet, 15> writes{};
+        std::array<VkWriteDescriptorSet, 16> writes{};
         writes[0] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = &sceneWrite,
@@ -193,6 +200,13 @@ namespace Rtx
                 .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 .pBufferInfo = &buffers[i],
             };
+        writes[15] = VkWriteDescriptorSet{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstBinding = 15,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+            .pImageInfo = &historyWrite,
+        };
 
         vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline);
         vkCmdPushDescriptorSet(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipelineLayout, 0,

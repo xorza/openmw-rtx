@@ -54,6 +54,20 @@ namespace RtxTool
         /// A shot traces at least once whatever this says, because a shot is a picture.
         std::uint32_t mRepeat = 8;
 
+        /// How many differently-seeded frames to average into the picture. Zero leaves `mRepeat` in
+        /// charge, and the picture is one frame however many times that traced it.
+        ///
+        /// **A converged reference, which is the only ground truth a sampled renderer has.** One
+        /// bounce per pixel estimates an integral without bias, so enough of them average to the
+        /// value itself — and there is nothing else to compare a denoised frame against, since the
+        /// answer cannot be written down. Error falls as the square root of this, so four times the
+        /// frames halves it: a hundred is a clean picture and a thousand is a reference.
+        ///
+        /// **Not the same knob as `mRepeat`**, which traces one frame over and over to time it. This
+        /// advances the seed, so every trace is a different sample and the picture improves; timing
+        /// a run of these measures the accumulation as well as the trace.
+        std::uint32_t mAccumulate = 0;
+
         /// Filled in from the cell once it has been read, which is why both commands take their
         /// request by value.
         CellLighting mLighting;
