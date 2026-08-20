@@ -88,6 +88,31 @@ namespace Rtx::Shaders
     const uint KIND_TERRAIN = 1u;
     const uint KIND_WATER = 2u;
 
+    /// Water's index of refraction, and the reflectance it gives head-on.
+    ///
+    /// `((1.333 - 1) / (1.333 + 1))^2`, which is why water is a window seen from above and a mirror
+    /// seen along it.
+    const float WATER_IOR = 1.333f;
+    const float WATER_F0 = 0.02f;
+
+    /// Extinction per world unit, per channel — how fast water swallows light along a path.
+    ///
+    /// **Red goes first and the rest goes slowly**, which is the one thing about water's colour that
+    /// is not a matter of taste and is why shallow water reads green where deep water reads blue.
+    /// Jerlov's coastal type, quoted per metre as 0.32, 0.05 and 0.08, over the game's 69.99 units
+    /// to the metre. Every expectation a test makes about water derives from this, so a tuning pass
+    /// is one line rather than five pieces of arithmetic that quietly stop describing the shader.
+    const vec3 WATER_EXTINCTION = vec3(0.004572f, 0.000714f, 0.001143f);
+
+    /// The single-scattering albedo: the share of extinction that was scattering and not absorption,
+    /// and so the part the water hands back as its own colour instead of swallowing.
+    ///
+    /// **This is what decides whether deep water is dark.** A channel whose scattering albedo
+    /// approaches one settles at a bright colour however deep it gets — a milky sheet. Clear
+    /// tropical water really does behave that way, because molecular scattering dominates its blue;
+    /// a tannin-stained coastal swamp does not, and this game's water is the second.
+    const vec3 WATER_SCATTER = vec3(0.012f, 0.042f, 0.040f);
+
     /// Which instances a ray is interested in.
     ///
     /// **Water must not cast a shadow, and the mask is how traversal is told so at no cost.** The

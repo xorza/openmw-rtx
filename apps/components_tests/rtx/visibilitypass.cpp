@@ -82,6 +82,17 @@ namespace Rtx
                 makeCamera(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, 64, 64, 1.0f), Error);
         }
 
+        /// A level square of `extent` about the origin at height `z`, facing up.
+        std::array<osg::Vec3f, 4> makeSheet(float extent, float z)
+        {
+            return {
+                osg::Vec3f(-extent, -extent, z),
+                osg::Vec3f(extent, -extent, z),
+                osg::Vec3f(extent, extent, z),
+                osg::Vec3f(-extent, extent, z),
+            };
+        }
+
         /// A square in the xz plane at y = 0, facing along -Y, four hundred units across.
         SceneDesc makeWall()
         {
@@ -131,13 +142,16 @@ namespace Rtx
             }
 
             /// Renders `scene` at `size` square and returns how many primary rays hit.
+            /// @param sea what the water is doing. A state with no height in it is a flat sea, which
+            ///        is what a test asserting an exact transmittance through one needs.
             std::uint32_t countHits(const SceneDesc& scene, const TextureArray& textures,
-                const Shaders::VisibilityConstants& camera, std::uint32_t size, std::vector<std::uint8_t>& pixels)
+                const Shaders::VisibilityConstants& camera, std::uint32_t size, std::vector<std::uint8_t>& pixels,
+                const SeaState& sea = SeaState{})
             {
                 Device& device = *mHarness->mDevice;
                 CommandPool pool(device);
                 const SceneAcceleration acceleration(device, pool, scene);
-                const SceneBuffers buffers(device, pool, scene, acceleration.getIndices());
+                const SceneBuffers buffers(device, pool, scene, acceleration.getIndices(), sea);
 
                 const VisibilityPass pass(device, Testing::getShaderDirectory(), textures.getLayout());
                 const VisibilityInputs inputs{
@@ -908,6 +922,119 @@ namespace Rtx
             // water's shading changing, as it will.
             const std::array<std::uint8_t, 3> seen = renderPixel(MaterialKind::Water, true);
             EXPECT_GT(seen[2], seen[0]) << "though a camera still sees it";
+        }
+
+        /// Water over a bed, absorbing exactly what Beer-Lambert says it should.
+        ///
+        /// A flat sea, so the surface is its own plane and the ray crosses the depth once rather than
+        /// through whatever facet a wave put in the way. Nearly straight down — `makeCamera` will not
+        /// take a look along the world's up axis, so this is a fifth of a degree off it, where the
+        /// cosine is 0.99999 and Fresnel is its head-on 0.02.
+        ///
+        /// Every expectation here derives from `WATER_EXTINCTION`, so a tuning pass is one line
+        /// rather than five pieces of arithmetic that quietly stop describing the shader.
+        TEST_F(RtxVisibilityTest, waterTakesWhatBeerLambertSaysOverTheDepthBelowIt)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            constexpr float depth = 200.0f;
+
+            // A bed and a surface, both level and both wide enough to fill the frame.
+            const auto sheet = [](float z) { return makeSheet(400.0f, z); };
+            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
+
+            SceneDesc scene;
+            scene.addInstance(MeshInstance{
+                .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(sheet(-depth), {}, {}, indices) });
+
+            Material water;
+            water.mKind = MaterialKind::Water;
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                .mMesh = scene.addMesh(sheet(0.0f), {}, {}, indices),
+                .mMaterial = scene.addMaterial(water) });
+
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            camera.mSunDirection = osg::Vec3f(0.0f, 0.0f, -1.0f);
+            camera.mSunIrradiance = osg::Vec3f(2.0f, 2.0f, 2.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+
+            // No height at all, which is a flat sea: a table whose amplitudes are zero.
+            std::vector<std::uint8_t> pixels;
+            countHits(scene, noTextures(), camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
+
+            // The bed is untextured, so its albedo is 0.5, and the sun meets it square:
+            //
+            //   bed = 0.5 * 2.0 / pi = 0.318310
+            //
+            // Two hundred units of water take `exp(-extinction * 200)` of it, and give back what
+            // they scattered — both legs attenuated, so `(1 - T^2) / 2` against a black ambient,
+            // which is zero here. The sky is black too, so the two per cent Fresnel reflects nothing.
+            constexpr float bed = 0.5f * 2.0f / 3.14159265f;
+            for (int channel = 0; channel < 3; ++channel)
+            {
+                const float transmittance = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth);
+                const auto expected = static_cast<int>(encodeSrgb(bed * transmittance * 0.98f));
+
+                EXPECT_NEAR(pixels[centre + static_cast<std::size_t>(channel)], expected, 1)
+                    << "channel " << channel << ", transmittance " << transmittance;
+            }
+
+            // And the ordering that makes this water's colour. Red goes first — every water
+            // absorbs it within a metre or two, which is the one thing about water's colour that is
+            // not a matter of taste. **Green survives most, not blue**, which is what makes a
+            // coastal shelf green where open ocean is blue: Jerlov's coastal extinction is
+            // 0.004572, 0.000714, 0.001143, so blue is taken half again as fast as green.
+            EXPECT_LT(pixels[centre], pixels[centre + 2]) << "red is taken before blue";
+            EXPECT_LT(pixels[centre + 2], pixels[centre + 1]) << "and blue before green";
+        }
+
+        /// Deep water settles at what it scatters, and at half what only-the-return-leg would give.
+        ///
+        /// Light scattered toward the eye had to get down there first. Attenuating only the way back
+        /// lets deep water asymptote to the scattering colour at full sky brightness, which is a
+        /// milky sheet rather than a channel. Integrating both legs replaces `1 - T` with
+        /// `(1 - T^2) / 2` — the same answer in the shallows, half as bright where it settles.
+        ///
+        /// Two thousand units down, red's transmittance is `exp(-9.144)`, a part in ten thousand, so
+        /// what comes back is the scattering term almost alone:
+        ///
+        ///   0.5 * 1.07e-4 + 0.012 * 0.5 * 1.0 = 0.0060535
+        ///   times the 0.98 that is not Fresnel  = 0.0059324
+        ///   1.055 * 0.0059324^(1/2.4) - 0.055   = 0.06958, or 18 of 255
+        ///
+        /// Only the return leg would put the same pixel at 28 — the factor of two, made visible.
+        TEST_F(RtxVisibilityTest, deepWaterSettlesAtHalfWhatOneAttenuatedLegWouldGive)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            constexpr float depth = 2000.0f;
+
+            const auto sheet = [](float z) { return makeSheet(4000.0f, z); };
+            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
+
+            SceneDesc scene;
+            scene.addInstance(MeshInstance{
+                .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(sheet(-depth), {}, {}, indices) });
+
+            Material water;
+            water.mKind = MaterialKind::Water;
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                .mMesh = scene.addMesh(sheet(0.0f), {}, {}, indices),
+                .mMaterial = scene.addMaterial(water) });
+
+            // No sun and a black sky, so the ambient is the only light and the two per cent that
+            // reflects off the surface reflects nothing.
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
+
+            // No height at all, which is a flat sea: a table whose amplitudes are zero.
+            std::vector<std::uint8_t> pixels;
+            countHits(scene, noTextures(), camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
+
+            EXPECT_EQ(pixels[centre], 18) << "red, settled at what the water scatters";
         }
 
         /// Its own device, because the validation layers allocate and this test counts allocations.

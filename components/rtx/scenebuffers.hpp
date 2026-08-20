@@ -6,6 +6,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "buffer.hpp"
+#include "wavespectrum.hpp"
 
 namespace Rtx
 {
@@ -23,7 +24,12 @@ namespace Rtx
     public:
         /// @param indices the buffer `SceneAcceleration` already built from, borrowed rather than
         ///        uploaded again. It must outlive this.
-        SceneBuffers(const Device& device, CommandPool& pool, const SceneDesc& scene, VkBuffer indices);
+        /// @param sea what the water is doing, which belongs to no cell: one table for the whole
+        ///        world, animated by the time in the frame's constants rather than rebuilt. A state
+        ///        with no height in it is a flat sea, which is what a test asserting an exact
+        ///        transmittance needs.
+        SceneBuffers(const Device& device, CommandPool& pool, const SceneDesc& scene, VkBuffer indices,
+            const SeaState& sea = SeaState{});
 
         SceneBuffers(const SceneBuffers&) = delete;
         SceneBuffers& operator=(const SceneBuffers&) = delete;

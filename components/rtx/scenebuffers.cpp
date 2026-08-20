@@ -59,7 +59,8 @@ namespace Rtx
         }
     }
 
-    SceneBuffers::SceneBuffers(const Device& device, CommandPool& pool, const SceneDesc& scene, VkBuffer indices)
+    SceneBuffers::SceneBuffers(
+        const Device& device, CommandPool& pool, const SceneDesc& scene, VkBuffer indices, const SeaState& sea)
         : mIndices(indices)
     {
         std::vector<Shaders::GpuMesh> meshes;
@@ -125,9 +126,7 @@ namespace Rtx
             sTableUsage);
         mMasks = uploadBuffer(device, pool,
             scene.getMasks().empty() ? std::span<const float>(&noMask, 1) : scene.getMasks(), sTableUsage);
-        // The sea's own shape, which belongs to no cell: one table for the whole world, animated by
-        // the time in the frame's constants rather than by being rebuilt.
-        const std::array<Shaders::GpuWave, Shaders::WAVE_COUNT> table = SeaState{}.getWaves();
+        const std::array<Shaders::GpuWave, Shaders::WAVE_COUNT> table = sea.getWaves();
         mWaves = uploadBuffer(device, pool, std::span<const Shaders::GpuWave>(table), sTableUsage);
 
         mLights = uploadBuffer(device, pool,

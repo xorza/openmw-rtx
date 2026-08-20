@@ -96,6 +96,36 @@ const vec4 UV_IDENTITY = vec4(1.0, 1.0, 0.0, 0.0);
 /// point can land on the wrong side of its own triangle.
 const float SHADOW_BIAS = 1.0;
 
+/// How far off the water a reflection or refraction starts. The same bias, for the same reason.
+const float WATER_BIAS = SHADOW_BIAS;
+
+/// How far a ray that found no bottom is taken to have travelled through water.
+///
+/// Twenty-eight metres, past which the transmittance of even blue is under a part in a thousand, so
+/// whatever is behind it cannot matter.
+const float WATER_MAX_PATH = 2000.0;
+
+/// How squarely a wave facet has to face the ray that found it before it is tilted back toward the
+/// plane. Small: a guard against a facet turning away entirely, not a limit on the waves.
+const float WATER_MIN_FACING = 0.03;
+
+/// How far refraction deflects a ray, per unit of surface slope.
+///
+/// A tilted surface bends light toward its normal, and the deflection is the difference between the
+/// angles of incidence and refraction — which for small angles is the slope times this. Derived from
+/// the index of refraction rather than written out, so nothing here can come to disagree about what
+/// water is.
+const float WATER_REFRACTION_BEND = 1.0 - 1.0 / WATER_IOR;
+
+/// The waterline, over which water with nothing under it becomes the shore beside it.
+///
+/// Where the ground rises to meet the surface the depth between them goes to zero, and a pixel of
+/// water with no water in it has to come out as the ground — otherwise the plane cuts the terrain
+/// along a hard line, which is the classic tell of a water plane and is on screen in 533 of the
+/// game's 1,292 land cells. Half a metre is enough to hide the intersection without making the
+/// shallows look thin.
+const float WATER_SHORE_FADE = 35.0;
+
 vec3 encodeSrgb(vec3 linear)
 {
     const bvec3 small = lessThanEqual(linear, vec3(0.0031308));
@@ -136,11 +166,11 @@ vec3 cornerWeights(vec2 bary)
 /// the only thing standing between every fetch and level zero.
 /// @param crossed the triangle's edge cross product, whose length is twice its area. The texel area
 ///        below is doubled the same way, so the two cancel in the ratio.
-/// @param distance how far the ray travelled, or zero for a ray that carries no cone at all — which
-///        is every shadow ray, and which reads the finest level.
-float coneLod(uint slot, vec2 uv0, vec2 uv1, vec2 uv2, vec3 crossed, vec3 direction, float distance)
+/// @param coneWidth how wide the ray's cone is where it landed, or zero for a ray that carries no
+///        cone at all — which is every shadow ray, and which reads the finest level.
+float coneLod(uint slot, vec2 uv0, vec2 uv1, vec2 uv2, vec3 crossed, vec3 direction, float coneWidth)
 {
-    if (distance <= 0.0)
+    if (coneWidth <= 0.0)
         return 0.0;
 
     const float worldArea = length(crossed);
@@ -150,7 +180,6 @@ float coneLod(uint slot, vec2 uv0, vec2 uv1, vec2 uv2, vec3 crossed, vec3 direct
 
     const vec2 size = vec2(textureSize(textures[slot], 0));
     const float texelArea = uvArea * size.x * size.y;
-    const float coneWidth = camera.mSpreadAngle * distance;
 
     // A surface seen edge-on covers more of itself per pixel, and the cone's footprint on it grows
     // by the same factor. Clamped because a grazing hit sends it to infinity.
@@ -180,14 +209,15 @@ vec2 interpolate(vec2 uv[3], vec3 weight)
 /// different places.
 /// @param slot must already carry `nonuniformEXT`.
 /// @param transform mesh texture coordinates to this texture's, as `uv * xy + zw`.
-vec4 sampleDiffuse(uint slot, vec2 uv[3], vec3 weight, vec4 transform, vec3 crossed, vec3 direction, float distance)
+vec4 sampleDiffuse(
+    uint slot, vec2 uv[3], vec3 weight, vec4 transform, vec3 crossed, vec3 direction, float coneWidth)
 {
     const vec2 uv0 = uv[0] * transform.xy + transform.zw;
     const vec2 uv1 = uv[1] * transform.xy + transform.zw;
     const vec2 uv2 = uv[2] * transform.xy + transform.zw;
     const vec2 at = uv0 * weight.x + uv1 * weight.y + uv2 * weight.z;
 
-    return textureLod(textures[slot], at, coneLod(slot, uv0, uv1, uv2, crossed, direction, distance));
+    return textureLod(textures[slot], at, coneLod(slot, uv0, uv1, uv2, crossed, direction, coneWidth));
 }
 
 /// How much of a terrain layer shows at `uv`, from its grid of weights.
@@ -314,7 +344,7 @@ float falloff(float distance, float reach)
 /// coin toss per pixel — a canopy comes back as speckle, and it crawls as the camera moves. Letting
 /// the cone average the mask first costs a leaf edge some of its bite, which is by a long way the
 /// better of the two errors.
-bool alphaPasses(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed, vec3 direction, float distance)
+bool alphaPasses(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed, vec3 direction, float coneWidth)
 {
     const GpuInstance instance = instances[instanceIndex];
     const GpuMaterial material = materials[instance.mMaterial];
@@ -323,7 +353,7 @@ bool alphaPasses(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed, ve
     triangleUvs(triangleCorners(meshes[instance.mMesh], primitive), uv);
 
     const vec4 texel = sampleDiffuse(nonuniformEXT(material.mDiffuse), uv, cornerWeights(bary), UV_IDENTITY, crossed,
-        direction, distance);
+        direction, coneWidth);
 
     return texel.a >= material.mAlphaCutoff;
 }
@@ -401,22 +431,65 @@ vec3 gather(vec3 position, vec3 normal)
     return radiance;
 }
 
-void main()
+/// The radiance a ray that hit nothing comes back with.
+vec3 skyRadiance(vec3 direction)
 {
-    const uvec2 pixel = gl_GlobalInvocationID.xy;
-    if (pixel.x >= camera.mWidth || pixel.y >= camera.mHeight)
-        return;
+    return mix(camera.mSkyHorizon, camera.mSkyZenith, clamp(direction.z, 0.0, 1.0));
+}
 
-    // Pixel centres, and y downwards in the image against z upwards in the world.
-    const vec2 uv = (vec2(pixel) + 0.5) / vec2(camera.mWidth, camera.mHeight) * 2.0 - 1.0;
-    const vec3 direction = normalize(camera.mForward + camera.mRight * uv.x - camera.mUp * uv.y);
+/// What a ray found, resolved down to the inputs shading needs.
+///
+/// Geometry and material only — no light. That is what lets water shade by tracing again: the
+/// reflection's hit is resolved by this same function and shaded by `shadeSurface`, and neither
+/// calls back into water, which a shader with no recursion could not survive.
+struct Surface
+{
+    bool mHit;
+    bool mWater;
+
+    vec3 mPosition;
+
+    /// The shading normal, turned to face the ray. Morrowind's sheet geometry is lit from both
+    /// faces, so the side a ray arrived on is not information.
+    vec3 mNormal;
+
+    /// The triangle's own plane, unturned — which is what a question about *sides* has to ask.
+    vec3 mGeometric;
+
+    vec3 mAlbedo;
+
+    /// The material's own glow, as a lighting term. See `GpuMaterial::mEmissiveColour`.
+    vec3 mEmissiveColour;
+
+    /// What its emissive map adds past the albedo, already scaled.
+    vec3 mEmitted;
+
+    float mDistance;
+};
+
+/// Traverses, and resolves whatever it hit.
+///
+/// @param footprint how wide the ray's cone starts, which for a primary ray is nothing and for a
+///        reflection is whatever the pixel had already spread to at the water.
+/// @param spread how much wider that cone gets per unit travelled.
+Surface trace(vec3 origin, vec3 direction, float tmin, float footprint, float spread, uint mask)
+{
+    Surface surface;
+    surface.mHit = false;
+    surface.mWater = false;
+    surface.mPosition = origin;
+    surface.mNormal = vec3(0.0, 0.0, 1.0);
+    surface.mGeometric = vec3(0.0, 0.0, 1.0);
+    surface.mAlbedo = vec3(0.0);
+    surface.mEmissiveColour = vec3(0.0);
+    surface.mEmitted = vec3(0.0);
+    surface.mDistance = camera.mFar;
 
     rayQueryEXT query;
     // No blanket opaque flag: the per-instance bits the build set from each material are what decide
     // whether traversal stops to ask, and forcing opacity here would override them and put every
     // leaf back inside the card it was painted on.
-    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsNoneEXT, MASK_SOLID | MASK_WATER, camera.mOrigin, 0.0,
-        direction, camera.mFar);
+    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsNoneEXT, mask, origin, tmin, direction, camera.mFar);
     while (rayQueryProceedEXT(query))
     {
         if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)
@@ -431,115 +504,229 @@ void main()
                 rayQueryGetIntersectionPrimitiveIndexEXT(query, false),
                 rayQueryGetIntersectionBarycentricsEXT(query, false),
                 triangleCross(candidateCorners, rayQueryGetIntersectionObjectToWorldEXT(query, false)), direction,
-                rayQueryGetIntersectionTEXT(query, false)))
+                footprint + spread * rayQueryGetIntersectionTEXT(query, false)))
             rayQueryConfirmIntersectionEXT(query);
     }
 
-    vec3 colour;
     if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT)
+        return surface;
+
+    surface.mHit = true;
+    surface.mDistance = rayQueryGetIntersectionTEXT(query, true);
+    surface.mPosition = origin + direction * surface.mDistance;
+
+    const float coneWidth = footprint + spread * surface.mDistance;
+
+    const GpuInstance instance = instances[rayQueryGetIntersectionInstanceCustomIndexEXT(query, true)];
+    const uvec3 corner
+        = triangleCorners(meshes[instance.mMesh], rayQueryGetIntersectionPrimitiveIndexEXT(query, true));
+    const vec3 weight = cornerWeights(rayQueryGetIntersectionBarycentricsEXT(query, true));
+
+    const mat4x3 toWorld = rayQueryGetIntersectionObjectToWorldEXT(query, true);
+
+    // The plane's normal is always available; the vertices' is not, and is better where it is.
+    vec3 corners[3];
+    rayQueryGetIntersectionTriangleVertexPositionsEXT(query, true, corners);
+    const vec3 crossed = triangleCross(corners, toWorld);
+    surface.mGeometric = dot(crossed, crossed) > 0.0 ? normalize(crossed) : vec3(0.0, 0.0, 1.0);
+
+    const vec3 shading = normals[corner.x] * weight.x + normals[corner.y] * weight.y + normals[corner.z] * weight.z;
+    const vec3 normal = dot(shading, shading) > 1e-8 ? normalize(mat3(toWorld) * shading) : surface.mGeometric;
+    surface.mNormal = faceforward(normal, direction, normal);
+
+    const GpuMaterial material = materials[instance.mMaterial];
+    surface.mWater = material.mKind == KIND_WATER;
+    surface.mEmissiveColour = material.mEmissiveColour;
+
+    vec2 uv[3];
+    triangleUvs(corner, uv);
+
+    vec3 albedo = NO_TEXTURE_ALBEDO;
+    if (material.mKind == KIND_TERRAIN)
     {
-        colour = mix(camera.mSkyHorizon, camera.mSkyZenith, clamp(direction.z, 0.0, 1.0));
+        // Ground. Each layer is a tiling texture masked by its own grid of weights, and the stack
+        // sums to one where the masks were built to — the same sum the rasterizer reaches by drawing
+        // the layers over each other with additive blending and one pass apiece.
+        albedo = vec3(0.0);
+        const vec2 chunkUv = interpolate(uv, weight);
+        for (uint i = 0u; i < material.mLayerCount; ++i)
+        {
+            const GpuLayer layer = layers[material.mLayerOffset + i];
+            const float showing = maskWeight(layer, chunkUv);
+            if (showing <= 0.0)
+                continue;
+
+            albedo += showing
+                * sampleDiffuse(nonuniformEXT(layer.mDiffuse), uv, weight, layer.mDiffuseTransform, crossed, direction,
+                    coneWidth)
+                      .rgb;
+        }
     }
+    else if (material.mDiffuse != NO_TEXTURE)
+    {
+        albedo
+            = sampleDiffuse(nonuniformEXT(material.mDiffuse), uv, weight, UV_IDENTITY, crossed, direction, coneWidth)
+                  .rgb;
+    }
+    surface.mAlbedo = albedo * material.mDiffuseColour.rgb;
+
+    if (material.mEmissive != NO_TEXTURE)
+        surface.mEmitted = EMISSIVE_INTENSITY
+            * sampleDiffuse(nonuniformEXT(material.mEmissive), uv, weight, UV_IDENTITY, crossed, direction, coneWidth)
+                  .rgb;
+
+    return surface;
+}
+
+/// What an ordinary lit surface sends back along the ray that found it.
+vec3 shadeSurface(Surface surface)
+{
+    // The emissive colour joins the light rather than the albedo, which is where the original engine
+    // puts it: it sums the term with the diffuse and ambient light and multiplies the whole by the
+    // texture (`files/shaders/compatibility/objects.frag:232`). Added past the albedo instead, a
+    // mushroom cap carrying half against its stalk's nothing comes out flat white.
+    //
+    // The emissive *map* is the other way round, and that is the engine's doing too
+    // (`objects.frag:244`): added after the multiply, so it glows through whatever the surface is
+    // made of rather than being tinted by it.
+    return surface.mAlbedo * (gather(surface.mPosition, surface.mNormal) + surface.mEmissiveColour * EMISSIVE_INTENSITY)
+        + surface.mEmitted;
+}
+
+/// What a ray sees along `direction` after leaving the water, and how far it went to see it.
+///
+/// **The pixel's own cone, not a bounce's.** A reflection and a refraction are specular: they carry
+/// the footprint the primary ray had, where a diffuse bounce spreads over a hemisphere and wants the
+/// coarse mip that goes with it. Traced at the bounce rate, a seabed a hundred units down gets a
+/// hundred-unit footprint — every texture at its top mip, and every wave averaged out of the
+/// caustics the same footprint governs.
+///
+/// The cone widens by the lobe as well as by the pixel: a reflection off water too fine to resolve
+/// is blurred by the slopes that were averaged away, and what it reflects should blur with it.
+///
+/// **Solid geometry only.** Culling water from its own reflection removes the self-intersection the
+/// ray offset exists to avoid, which is what once put a ribbon of flat colour along every waterline:
+/// a refraction ray offset to the far side of the plane began under the ground wherever the bed sat
+/// nearer the surface than the offset, and reported water of unbounded depth.
+vec3 waterRay(vec3 origin, vec3 direction, float footprint, float lobe, out float travelled)
+{
+    const Surface hit = trace(origin, direction, WATER_BIAS, footprint, camera.mSpreadAngle + lobe, MASK_SOLID);
+    travelled = hit.mHit ? hit.mDistance : WATER_MAX_PATH;
+
+    return hit.mHit ? shadeSurface(hit) : skyRadiance(direction);
+}
+
+/// What is left of `radiance` after `path` units of water, plus what the water scattered back.
+///
+/// **Light that scatters toward the eye had to get down there first.** Attenuating only the way back
+/// — `1 - T` — lets deep water settle at the scattering colour at full sky brightness, which is the
+/// milky sheet a real channel is not. Integrating both legs turns that into `(1 - T^2) / 2`: the
+/// same answer in the shallows, half as bright where it settles, and markedly less red, because
+/// squaring the transmittance costs red twice over.
+vec3 absorbedByWater(vec3 radiance, float path)
+{
+    const vec3 transmittance = exp(-WATER_EXTINCTION * path);
+    const vec3 scattered = (1.0 - transmittance * transmittance) * 0.5;
+
+    return radiance * transmittance + WATER_SCATTER * scattered * camera.mAmbient;
+}
+
+/// What the water sends back along the ray that found it.
+vec3 shadeWater(Surface surface, vec3 incident)
+{
+    // **Which side of the water a ray is on is a question about the plane, not about a wave.** At a
+    // glancing angle a facet can tilt far enough to face away from the ray, and reading that as "the
+    // camera is underwater" sends the reflection down into the seabed and turns the far water white.
+    // Water is the one surface whose sides have absolute names: it is a horizontal plane, so a ray
+    // travelling upward into it came from underneath, whatever the quad's winding says.
+    const bool fromBelow = incident.z > 0.0;
+    const vec3 plane = fromBelow ? vec3(0.0, 0.0, -1.0) : vec3(0.0, 0.0, 1.0);
+
+    // Keyed off world position rather than anything interpolated, so one cell's surface continues
+    // into the next without a seam at the boundary.
+    float unresolved = 0.0;
+    const float footprint = camera.mSpreadAngle * surface.mDistance;
+    const vec3 waves = waterNormal(surface.mPosition.xy, camera.mTime, footprint, unresolved);
+
+    // A normal tilting by an angle turns its reflection by twice that, so the lobe the lost slopes
+    // leave behind is twice their root mean square.
+    const float lobe = clamp(2.0 * sqrt(unresolved), 0.0, 1.0);
+    vec3 normal = fromBelow ? -waves : waves;
+
+    // A facet still facing away is one the surface would have hidden behind the wave in front of it.
+    // Tilting it back toward the plane until it faces the ray is the cheap stand-in for the
+    // self-occlusion that is missing, and it is what keeps a glancing reflection finite.
+    const float facing = dot(-incident, normal);
+    const float flatFacing = dot(-incident, plane);
+    if (facing < WATER_MIN_FACING)
+    {
+        // The dot is linear in the blend, so this is the exact fraction that brings it back to
+        // `WATER_MIN_FACING` — solved rather than iterated.
+        const float back = (WATER_MIN_FACING - facing) / max(flatFacing - facing, 1e-4);
+        normal = normalize(mix(normal, plane, clamp(back, 0.0, 1.0)));
+    }
+
+    const float cosine = clamp(dot(-incident, normal), 0.0, 1.0);
+    const float fresnel = WATER_F0 + (1.0 - WATER_F0) * pow(1.0 - cosine, 5.0);
+
+    // Offset along the *plane*, not the facet: what a ray has to clear to avoid finding this surface
+    // again is the quad, and only the plane's normal is guaranteed to take it off that.
+    //
+    // **Absorption follows whichever ray went into the water, and that flips with the side.** Seen
+    // from above, the refraction dives in and the reflection leaves into air; from below, the
+    // reflection stays under and the refraction is the sky through Snell's window, which has
+    // travelled no water at all. Attenuating the wrong one turns that window green.
+    const vec3 leaving = surface.mPosition + plane * WATER_BIAS;
+
+    float mirrored = 0.0;
+    vec3 reflected = waterRay(leaving, reflect(incident, normal), footprint, lobe, mirrored);
+    if (fromBelow)
+        reflected = absorbedByWater(reflected, mirrored);
+
+    const vec3 through = refract(incident, normal, fromBelow ? WATER_IOR : 1.0 / WATER_IOR);
+    if (dot(through, through) < 1e-6)
+    {
+        // Past the critical angle looking up from underwater, where the surface is a mirror and
+        // there is nothing behind it to see.
+        return reflected;
+    }
+
+    float depth = 0.0;
+    // Refraction bends by a third of what reflection does, so what is seen *through* the surface is
+    // blurred correspondingly less by the same lost slopes.
+    const vec3 behind = waterRay(leaving, through, footprint, lobe * WATER_REFRACTION_BEND, depth);
+    const vec3 refracted = fromBelow ? behind : absorbedByWater(behind, depth);
+
+    // With no water left between the surface and the ground, this is the ground. Only from above:
+    // seen from under it, `depth` is a distance through air and says nothing about a shore.
+    const float shore = fromBelow ? 1.0 : smoothstep(0.0, WATER_SHORE_FADE, depth);
+    return mix(behind, mix(refracted, reflected, fresnel), shore);
+}
+
+void main()
+{
+    const uvec2 pixel = gl_GlobalInvocationID.xy;
+    if (pixel.x >= camera.mWidth || pixel.y >= camera.mHeight)
+        return;
+
+    // Pixel centres, and y downwards in the image against z upwards in the world.
+    const vec2 uv = (vec2(pixel) + 0.5) / vec2(camera.mWidth, camera.mHeight) * 2.0 - 1.0;
+    const vec3 direction = normalize(camera.mForward + camera.mRight * uv.x - camera.mUp * uv.y);
+
+    const Surface surface = trace(camera.mOrigin, direction, 0.0, 0.0, camera.mSpreadAngle, MASK_SOLID | MASK_WATER);
+
+    vec3 colour;
+    if (!surface.mHit)
+        colour = skyRadiance(direction);
+    else if (surface.mWater)
+        colour = shadeWater(surface, direction);
+    else if (camera.mShowAlbedo != 0u)
+        colour = surface.mAlbedo;
     else
-    {
-        const GpuInstance instance = instances[rayQueryGetIntersectionInstanceCustomIndexEXT(query, true)];
-        const uvec3 corner
-            = triangleCorners(meshes[instance.mMesh], rayQueryGetIntersectionPrimitiveIndexEXT(query, true));
-        const vec3 weight = cornerWeights(rayQueryGetIntersectionBarycentricsEXT(query, true));
+        colour = shadeSurface(surface);
 
-        const mat4x3 toWorld = rayQueryGetIntersectionObjectToWorldEXT(query, true);
-
-        // The plane's normal is always available; the vertices' is not, and is better where it is.
-        vec3 corners[3];
-        rayQueryGetIntersectionTriangleVertexPositionsEXT(query, true, corners);
-        const vec3 crossed = triangleCross(corners, toWorld);
-        const vec3 geometric = dot(crossed, crossed) > 0.0 ? normalize(crossed) : vec3(0.0, 0.0, 1.0);
-
-        const vec3 shading
-            = normals[corner.x] * weight.x + normals[corner.y] * weight.y + normals[corner.z] * weight.z;
-        const vec3 normal = dot(shading, shading) > 1e-8 ? normalize(mat3(toWorld) * shading) : geometric;
-
-        // Morrowind's sheet geometry is lit from both faces, so the side the ray arrived on is not
-        // information: take the normal facing the eye and shade with it.
-        const vec3 facing = faceforward(normal, direction, normal);
-
-        const GpuMaterial material = materials[instance.mMaterial];
-        const float hitDistance = rayQueryGetIntersectionTEXT(query, true);
-
-        vec2 uv[3];
-        triangleUvs(corner, uv);
-
-        vec3 albedo = NO_TEXTURE_ALBEDO;
-        if (material.mKind == KIND_TERRAIN)
-        {
-            // Ground. Each layer is a tiling texture masked by its own grid of weights, and the
-            // stack sums to one where the masks were built to — the same sum the rasterizer reaches
-            // by drawing the layers over each other with additive blending and one pass apiece.
-            albedo = vec3(0.0);
-            const vec2 chunkUv = interpolate(uv, weight);
-            for (uint i = 0u; i < material.mLayerCount; ++i)
-            {
-                const GpuLayer layer = layers[material.mLayerOffset + i];
-                const float showing = maskWeight(layer, chunkUv);
-                if (showing <= 0.0)
-                    continue;
-
-                albedo += showing
-                    * sampleDiffuse(nonuniformEXT(layer.mDiffuse), uv, weight, layer.mDiffuseTransform, crossed,
-                        direction, hitDistance)
-                          .rgb;
-            }
-        }
-        else if (material.mDiffuse != NO_TEXTURE)
-        {
-            albedo = sampleDiffuse(
-                nonuniformEXT(material.mDiffuse), uv, weight, UV_IDENTITY, crossed, direction, hitDistance)
-                         .rgb;
-        }
-        albedo *= material.mDiffuseColour.rgb;
-
-        if (material.mKind == KIND_WATER)
-        {
-            // Still a placeholder — water's colour is a reflection, a refraction and what the depth
-            // between them absorbed, and all three are the next step. What is real here is the
-            // surface: the waves are the height field the caustics will differentiate, and shading
-            // by their normal is how a field with no colour of its own can be looked at.
-            // The roughness comes back and is dropped: it is what widens the specular lobe, and
-            // there is no lobe to widen until the reflection ray exists. Kept because the variance
-            // has to be summed inside the wave loop or not at all — reconstructing it afterwards
-            // would mean walking the spectrum a second time.
-            float unresolved = 0.0;
-            const vec3 wave = waterNormal((camera.mOrigin + direction * hitDistance).xy, camera.mTime,
-                camera.mSpreadAngle * hitDistance, unresolved);
-
-            colour = vec3(0.06, 0.12, 0.15) * (0.3 + 0.7 * max(dot(wave, -direction), 0.0));
-        }
-        else if (camera.mShowAlbedo != 0u)
-        {
-            colour = albedo;
-        }
-        else
-        {
-            const vec3 position = camera.mOrigin + direction * hitDistance;
-
-            // The emissive colour joins the light rather than the albedo, which is where the
-            // original engine puts it: it sums the term with the diffuse and ambient light and
-            // multiplies the whole by the texture (`files/shaders/compatibility/objects.frag:232`).
-            // Added past the albedo instead, a mushroom cap carrying half against its stalk's
-            // nothing comes out flat white with none of its texture left in it.
-            colour = albedo * (gather(position, facing) + material.mEmissiveColour * EMISSIVE_INTENSITY);
-
-            // The emissive *map* is the other way round, and that is the engine's doing too
-            // (`objects.frag:244`): it is added after the multiply, so it glows through whatever
-            // the surface is made of rather than being tinted by it.
-            if (material.mEmissive != NO_TEXTURE)
-                colour += EMISSIVE_INTENSITY
-                    * sampleDiffuse(
-                        nonuniformEXT(material.mEmissive), uv, weight, UV_IDENTITY, crossed, direction, hitDistance)
-                          .rgb;
-        }
+    if (surface.mHit)
         atomicAdd(hits, 1);
-    }
 
     imageStore(target, ivec2(pixel), vec4(encodeSrgb(colour), 1.0));
 }

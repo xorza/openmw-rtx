@@ -243,7 +243,16 @@ not a specification, and **the shader is more current than the document**.
   ray at the pixel's own cone spread, not the bounce spread** — that single mistake flattened every
   reflection in the game and cut the caustic term to a sixth; Beer–Lambert with Jerlov coastal
   extinction `(0.004572, 0.000714, 0.001143)`; single scattering with **both legs** attenuated,
-  `(1 − T²)/2`; GGX sun glint against the wave normal.
+  `(1 − T²)/2`; GGX sun glint against the wave normal. **Done bar the sun glint**, together with the
+  shore fade, total internal reflection, and the facet guard that keeps a glancing reflection finite.
+  Hit resolution split from traversal to make it possible: `trace` owns its query and returns a
+  surface, `shadeSurface` lights one, and water calls both — which is how a shader with no recursion
+  reflects.
+
+  Two pieces of the same model are still missing and go together: **the daylight is not attenuated on
+  its way down**, so a seabed is lit as though the water above it were not there, and **a primary ray
+  is not attenuated when the camera is under the surface**. Both need the water level in the frame's
+  constants, and the ten-above/ten-below invariant below cannot be written until they are in.
 - Waves below the ray cone are **averaged, and their variance returns as roughness** — LEAN mapping
   in one dimension. This is what makes the sun a shimmering road instead of a hard dot, and what
   keeps distant water from crawling with white sparks.
