@@ -82,6 +82,17 @@ namespace Rtx
                 makeCamera(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, 64, 64, 1.0f), Error);
         }
 
+        /// Two triangles of a quad, wound so its face points the way its corners were listed.
+        constexpr std::array<std::uint32_t, 6> sQuadIndices{ 0, 1, 2, 0, 2, 3 };
+
+        /// The unit square, in the same corner order — a texture laid once across a quad.
+        const std::array<osg::Vec2f, 4> sQuadUv{
+            osg::Vec2f(0.0f, 0.0f),
+            osg::Vec2f(1.0f, 0.0f),
+            osg::Vec2f(1.0f, 1.0f),
+            osg::Vec2f(0.0f, 1.0f),
+        };
+
         /// A level square of `extent` about the origin at height `z`, facing up.
         std::array<osg::Vec3f, 4> makeSheet(float extent, float z)
         {
@@ -96,13 +107,12 @@ namespace Rtx
         /// A level sheet of water `extent` across at z = 0, with nothing under it.
         SceneDesc makeOpenWater(float extent)
         {
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
 
             SceneDesc scene;
             Material water;
             water.mKind = MaterialKind::Water;
             scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
-                .mMesh = scene.addMesh(makeSheet(extent, 0.0f), {}, {}, indices),
+                .mMesh = scene.addMesh(makeSheet(extent, 0.0f), {}, {}, sQuadIndices),
                 .mMaterial = scene.addMaterial(water) });
 
             return scene;
@@ -114,11 +124,10 @@ namespace Rtx
         /// water to see it through.
         SceneDesc makeFlooded(float extent, float depth)
         {
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
 
             SceneDesc scene = makeOpenWater(extent);
             scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
-                .mMesh = scene.addMesh(makeSheet(extent, -depth), {}, {}, indices) });
+                .mMesh = scene.addMesh(makeSheet(extent, -depth), {}, {}, sQuadIndices) });
 
             return scene;
         }
@@ -170,10 +179,9 @@ namespace Rtx
                 osg::Vec3f(200.0f, 0.0f, 200.0f),
                 osg::Vec3f(-200.0f, 0.0f, 200.0f),
             };
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
 
             SceneDesc scene;
-            const Index mesh = scene.addMesh(positions, {}, {}, indices);
+            const Index mesh = scene.addMesh(positions, {}, {}, sQuadIndices);
             scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh });
             return scene;
         }
@@ -222,6 +230,64 @@ namespace Rtx
             const float bed = 0.5f * sSunOverWater * std::cos(zenith) * Shaders::INV_PI;
 
             return encodeSrgb(bed * down * up * (1.0f - Shaders::WATER_F0));
+        }
+
+        /// A texture whose every mip is one flat colour — level `i` is `40 + 30i`, evenly spaced
+        /// and none of them black.
+        ///
+        /// **The byte a ray comes back with reads out the level it sampled**, and because the levels
+        /// are evenly spaced in value, `textureLod` blending two of them lands exactly on
+        /// `40 + 30 * lod`. A *fractional* level is readable that way, which is what makes a cone's
+        /// width measurable rather than merely orderable. Flat colours also mean the answer does not
+        /// depend on where in the texture the cone landed.
+        TextureArray makeMipLadder(Device& device, CommandPool& pool)
+        {
+            constexpr std::uint32_t extent = 64;
+            constexpr std::uint32_t levels = 7;
+
+            std::vector<std::uint8_t> bytes;
+            std::vector<MipLevel> mips;
+            for (std::uint32_t level = 0; level < levels; ++level)
+            {
+                const std::uint32_t side = extent >> level;
+                mips.push_back(MipLevel{ static_cast<std::uint32_t>(bytes.size()), side, side });
+                bytes.insert(bytes.end(), std::size_t{ side } * side * 4, static_cast<std::uint8_t>(40 + 30 * level));
+            }
+
+            const TextureData data{
+                .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                .mWidth = extent,
+                .mHeight = extent,
+                .mBytes = std::as_bytes(std::span(bytes)),
+                .mLevels = mips,
+            };
+
+            std::vector<Texture> uploaded;
+            uploaded.emplace_back(device, pool, data, "mip ladder");
+            return TextureArray(device, std::move(uploaded));
+        }
+
+        /// Which level of `makeMipLadder` a linear sample came from.
+        float ladderLevel(float sampled)
+        {
+            return (sampled * 255.0f - 40.0f) / 30.0f;
+        }
+
+        /// The lobe the shader arrives at for a sea whose every wave is past the cone's reach.
+        ///
+        /// Read off the same table the shader reads. With no wave resolved, `unresolved` is the
+        /// whole spectrum's mean square slope, and the lobe is twice its root — a normal tilted by
+        /// an angle turns a reflection by twice it.
+        float lobeOf(const SeaState& sea)
+        {
+            float unresolved = 0.0f;
+            for (const Shaders::GpuWave& wave : sea.getWaves())
+            {
+                const float steepness = wave.mAmplitude * wave.mWavenumber;
+                unresolved += 0.5f * steepness * steepness;
+            }
+
+            return std::min(2.0f * std::sqrt(unresolved), 1.0f);
         }
 
         class RtxVisibilityTest : public ::testing::Test
@@ -347,33 +413,11 @@ namespace Rtx
         TEST_F(RtxVisibilityTest, theConeReadsTheMipTheDistanceCallsFor)
         {
             constexpr std::uint32_t size = 64;
-            constexpr std::uint32_t levels = 7;
             constexpr float halfExtent = 57.735027f;
-
-            // Level i is 40 + 30i, so no level is black and none is another's neighbour.
-            std::vector<std::uint8_t> bytes;
-            std::vector<MipLevel> mips;
-            for (std::uint32_t level = 0; level < levels; ++level)
-            {
-                const std::uint32_t extent = size >> level;
-                mips.push_back(MipLevel{ static_cast<std::uint32_t>(bytes.size()), extent, extent });
-                bytes.insert(
-                    bytes.end(), std::size_t{ extent } * extent * 4, static_cast<std::uint8_t>(40 + 30 * level));
-            }
-
-            const TextureData data{
-                .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
-                .mWidth = size,
-                .mHeight = size,
-                .mBytes = std::as_bytes(std::span(bytes)),
-                .mLevels = mips,
-            };
 
             Device& device = *mHarness->mDevice;
             CommandPool pool(device);
-            std::vector<Texture> uploaded;
-            uploaded.emplace_back(device, pool, data, "mip ladder");
-            const TextureArray textures(device, std::move(uploaded));
+            const TextureArray textures = makeMipLadder(device, pool);
 
             const std::array positions{
                 osg::Vec3f(-halfExtent, 0.0f, -halfExtent),
@@ -381,16 +425,9 @@ namespace Rtx
                 osg::Vec3f(halfExtent, 0.0f, halfExtent),
                 osg::Vec3f(-halfExtent, 0.0f, halfExtent),
             };
-            const std::array texCoords{
-                osg::Vec2f(0.0f, 0.0f),
-                osg::Vec2f(1.0f, 0.0f),
-                osg::Vec2f(1.0f, 1.0f),
-                osg::Vec2f(0.0f, 1.0f),
-            };
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
 
             SceneDesc scene;
-            const Index mesh = scene.addMesh(positions, {}, texCoords, indices);
+            const Index mesh = scene.addMesh(positions, {}, sQuadUv, sQuadIndices);
             const Index material
                 = scene.addMaterial(Material{ .mDiffuse = scene.addTexture(VFS::Path::NormalizedView("mip.dds")) });
             scene.addInstance(
@@ -476,13 +513,6 @@ namespace Rtx
                 osg::Vec3f(halfExtent, 0.0f, halfExtent),
                 osg::Vec3f(-halfExtent, 0.0f, halfExtent),
             };
-            const std::array texCoords{
-                osg::Vec2f(0.0f, 0.0f),
-                osg::Vec2f(1.0f, 0.0f),
-                osg::Vec2f(1.0f, 1.0f),
-                osg::Vec2f(0.0f, 1.0f),
-            };
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
             constexpr std::array<float, 2> firstMask{ 1.0f, 0.0f };
             constexpr std::array<float, 2> secondMask{ 0.0f, 1.0f };
 
@@ -493,7 +523,7 @@ namespace Rtx
             /// @param second the texture slot and diffuse transform of the layer on the right.
             const auto render = [&](Index second, const osg::Vec4f& secondTransform) {
                 SceneDesc scene;
-                const Index mesh = scene.addMesh(positions, {}, texCoords, indices);
+                const Index mesh = scene.addMesh(positions, {}, sQuadUv, sQuadIndices);
                 scene.addTexture(VFS::Path::NormalizedView("red.dds"));
                 scene.addTexture(VFS::Path::NormalizedView("green.dds"));
                 scene.addTexture(VFS::Path::NormalizedView("strip.dds"));
@@ -587,14 +617,13 @@ namespace Rtx
                 osg::Vec3f(10.0f, -25.0f, 10.0f),
                 osg::Vec3f(-10.0f, -25.0f, 10.0f),
             };
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
 
             const auto render = [&](const osg::Vec3f& direction, const osg::Vec3f& irradiance, bool blocked,
                                     const osg::Vec3f& ambient = osg::Vec3f()) {
                 SceneDesc scene = makeWall();
                 if (blocked)
-                    scene.addInstance(MeshInstance{
-                        .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(occluder, {}, {}, indices) });
+                    scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                        .mMesh = scene.addMesh(occluder, {}, {}, sQuadIndices) });
 
                 Shaders::VisibilityConstants camera = base;
                 camera.mSunDirection = direction;
@@ -701,13 +730,6 @@ namespace Rtx
                 osg::Vec3f(halfExtent, 0.0f, halfExtent),
                 osg::Vec3f(-halfExtent, 0.0f, halfExtent),
             };
-            const std::array texCoords{
-                osg::Vec2f(0.0f, 0.0f),
-                osg::Vec2f(1.0f, 0.0f),
-                osg::Vec2f(1.0f, 1.0f),
-                osg::Vec2f(0.0f, 1.0f),
-            };
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
 
             // Nothing lights this scene at all: no lamp, no sun, no ambient. Whatever comes back is
             // the surface's own glow and nothing else.
@@ -716,7 +738,7 @@ namespace Rtx
 
             const auto render = [&](Index diffuse, Index emissiveMap, const osg::Vec3f& emissiveColour) {
                 SceneDesc scene;
-                const Index mesh = scene.addMesh(positions, {}, texCoords, indices);
+                const Index mesh = scene.addMesh(positions, {}, sQuadUv, sQuadIndices);
                 scene.addTexture(VFS::Path::NormalizedView("white.dds"));
                 scene.addTexture(VFS::Path::NormalizedView("green.dds"));
                 scene.addTexture(VFS::Path::NormalizedView("red.dds"));
@@ -804,13 +826,6 @@ namespace Rtx
                 osg::Vec3f(halfExtent, -50.0f, halfExtent),
                 osg::Vec3f(-halfExtent, -50.0f, halfExtent),
             };
-            const std::array maskedUv{
-                osg::Vec2f(0.0f, 0.0f),
-                osg::Vec2f(1.0f, 0.0f),
-                osg::Vec2f(1.0f, 1.0f),
-                osg::Vec2f(0.0f, 1.0f),
-            };
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
 
             Shaders::VisibilityConstants camera = makeCamera(
                 osg::Vec3f(0.0f, -150.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
@@ -818,7 +833,7 @@ namespace Rtx
 
             const auto render = [&](AlphaMode mode, float alphaRef) {
                 SceneDesc scene = makeWall();
-                const Index mesh = scene.addMesh(masked, {}, maskedUv, indices);
+                const Index mesh = scene.addMesh(masked, {}, sQuadUv, sQuadIndices);
                 const Index material = scene.addMaterial(Material{
                     .mDiffuse = scene.addTexture(VFS::Path::NormalizedView("mask.dds")),
                     .mAlphaRef = alphaRef,
@@ -906,15 +921,14 @@ namespace Rtx
                 osg::Vec3f(10.0f, -25.0f, 10.0f),
                 osg::Vec3f(-10.0f, -25.0f, 10.0f),
             };
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
 
             const auto render = [&](const std::optional<Light>& light, const osg::Vec3f& ambient, bool blocked) {
                 SceneDesc scene = makeWall();
                 if (light.has_value())
                     scene.addLight(*light);
                 if (blocked)
-                    scene.addInstance(MeshInstance{
-                        .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(occluder, {}, {}, indices) });
+                    scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                        .mMesh = scene.addMesh(occluder, {}, {}, sQuadIndices) });
 
                 Shaders::VisibilityConstants camera = base;
                 camera.mAmbient = ambient;
@@ -986,7 +1000,6 @@ namespace Rtx
                 osg::Vec3f(20.0f, -50.0f, 20.0f),
                 osg::Vec3f(-20.0f, -50.0f, 20.0f),
             };
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
 
             const auto renderPixel = [&](MaterialKind kind, bool lookAtIt) {
                 SceneDesc scene = makeWall();
@@ -995,7 +1008,7 @@ namespace Rtx
                 material.mKind = kind;
                 scene.addInstance(MeshInstance{
                     .mTransform = osg::Matrixf::identity(),
-                    .mMesh = scene.addMesh(pane, {}, {}, indices),
+                    .mMesh = scene.addMesh(pane, {}, {}, sQuadIndices),
                     .mMaterial = scene.addMaterial(material),
                 });
 
@@ -1437,6 +1450,86 @@ namespace Rtx
             EXPECT_LT(running.mPeak, 40) << "measured 10: and no pixel of it near the mirror's";
         }
 
+        /// Water too fine for the cone to resolve widens the cone that refracts through it.
+        ///
+        /// **What the cone could not resolve is not gone, it is rough** — and that roughness has to
+        /// reach the texture filter, not only the specular lobe. A seabed seen through a mile of
+        /// ruffled water is blurred by the slopes that were averaged away, and read at its sharpest
+        /// mip instead it comes back as crawling detail no filter downstream can take out.
+        ///
+        /// **The sea here is built so that every wave is past the cone's reach.** The spectrum runs
+        /// from 32 units up to its peak, so with a peak of 64 a footprint of 66 resolves none of it:
+        /// every slope is averaged out and the surface is geometrically flat — the normal is exactly
+        /// up, the refraction goes straight down, and nothing wobbles — while the whole spectrum's
+        /// variance is still carried as roughness. That leaves the cone's width as the only thing
+        /// that differs from a still sea, and a ladder of mips on the bed to read it off.
+        TEST_F(RtxVisibilityTest, waterTooFineToResolveWidensTheConeItRefractsThrough)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            constexpr float height = 12000.0f;
+            constexpr float depth = 1500.0f;
+
+            Device& device = *mHarness->mDevice;
+            CommandPool pool(device);
+            const TextureArray textures = makeMipLadder(device, pool);
+
+            // A fifth of a degree off the vertical, which is the least `makeCamera` will take.
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -50.0f, height), osg::Vec3f(0.0f, 0.0f, -depth), 20.0f, size, size, 100000.0f);
+            camera.mWaterLevel = 0.0f;
+
+            // Water over a bed that glows its own ladder. Emissive rather than lit, so the byte is
+            // the texture and nothing else: an unlit albedo would need a light, and a light would
+            // put its own falloff between the mip and the measurement.
+            const auto level = [&](const SeaState& sea) {
+                SceneDesc scene = makeOpenWater(4000.0f);
+
+                const Index bed = scene.addMesh(makeSheet(500.0f, -depth), {}, sQuadUv, sQuadIndices);
+                const Index ladder = scene.addMaterial(
+                    Material{ .mEmissive = scene.addTexture(VFS::Path::NormalizedView("ladder.dds")) });
+                scene.addInstance(
+                    MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = bed, .mMaterial = ladder });
+
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, textures, camera, size, pixels, sea);
+
+                // Back out everything between the texture and the byte: the emissive scale, the
+                // water the glow crossed on its way up, and the two per cent the surface reflected.
+                const float carried = Shaders::EMISSIVE_INTENSITY * std::exp(-Shaders::WATER_EXTINCTION[1] * depth)
+                    * (1.0f - Shaders::WATER_F0);
+                return ladderLevel(decodeSrgb(pixels[centre + 1]) / carried);
+            };
+
+            // How wide the refraction's cone is where it lands, in world units: the pixel's own
+            // footprint where it met the water, plus what it gained over the leg down. **Twice the
+            // lobe**, because the lobe is an rms angle from the axis and a cone spread is a width —
+            // and a quarter of it to begin with, because refraction bends by `1 - 1 / n` of what
+            // reflection does, so what is seen *through* a rough surface is blurred that much less.
+            const auto coneAtBed = [&](float lobe) {
+                const float bent = lobe * (1.0f - 1.0f / Shaders::WATER_IOR);
+                return camera.mSpreadAngle * height + (camera.mSpreadAngle + 2.0f * bent) * depth;
+            };
+
+            const SeaState fine{ .mSignificantHeight = 3.0f, .mPeakWavelength = 64.0f };
+            const float still = level(SeaState{ .mSignificantHeight = 0.0f });
+            const float ruffled = level(fine);
+
+            // The ladder has seven levels and the readout is only meaningful off both ends of it.
+            EXPECT_GT(still, 1.0f) << "measured 2.26, clear of the sharpest mip";
+            EXPECT_LT(ruffled, 5.0f) << "measured 3.71, clear of the coarsest";
+
+            // Mip level is the log of the cone's width, so the difference is the log of the ratio —
+            // and the base term, which is the triangle's texels against its world area, cancels.
+            // Predicted 1.474 from the wave table the shader was handed; measured 1.449, which is
+            // three quarters of a byte on a ladder 30 bytes to the level.
+            //
+            // **The factor of two is what this pins.** Adding the lobe once instead of twice puts
+            // the prediction at 0.918, sixteen bytes from what the frame actually reads.
+            EXPECT_NEAR(ruffled - still, std::log2(coneAtBed(lobeOf(fine)) / coneAtBed(0.0f)), 0.08f)
+                << "the cone widened by twice the rms slope the sea could not show";
+        }
+
         /// Its own device, because the validation layers allocate and this test counts allocations.
         class RtxFrameCostTest : public ::testing::Test
         {
@@ -1598,11 +1691,10 @@ namespace Rtx
                 osg::Vec3f(90.0f, 0.0f, 110.0f),
                 osg::Vec3f(-140.0f, 0.0f, 60.0f),
             };
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
 
             SceneDesc placedByInstance;
-            placedByInstance.addInstance(
-                MeshInstance{ .mTransform = transform, .mMesh = placedByInstance.addMesh(local, {}, {}, indices) });
+            placedByInstance.addInstance(MeshInstance{
+                .mTransform = transform, .mMesh = placedByInstance.addMesh(local, {}, {}, sQuadIndices) });
 
             std::array<osg::Vec3f, 4> moved{};
             for (std::size_t i = 0; i < local.size(); ++i)
@@ -1610,7 +1702,7 @@ namespace Rtx
 
             SceneDesc placedByVertex;
             placedByVertex.addInstance(MeshInstance{
-                .mTransform = osg::Matrixf::identity(), .mMesh = placedByVertex.addMesh(moved, {}, {}, indices) });
+                .mTransform = osg::Matrixf::identity(), .mMesh = placedByVertex.addMesh(moved, {}, {}, sQuadIndices) });
 
             constexpr std::uint32_t size = 64;
             const osg::Vec3f centre(11.0f, -23.0f, 5.0f);
@@ -1643,10 +1735,9 @@ namespace Rtx
                 osg::Vec3f(30.0f, 0.0f, 30.0f),
                 osg::Vec3f(-30.0f, 0.0f, 30.0f),
             };
-            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
 
             SceneDesc scene;
-            const Index mesh = scene.addMesh(positions, {}, {}, indices);
+            const Index mesh = scene.addMesh(positions, {}, {}, sQuadIndices);
             scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh });
 
             const Shaders::VisibilityConstants camera = makeCamera(

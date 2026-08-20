@@ -834,9 +834,16 @@ vec3 shadeSurface(Surface surface)
 /// ray offset exists to avoid, which is what once put a ribbon of flat colour along every waterline:
 /// a refraction ray offset to the far side of the plane began under the ground wherever the bed sat
 /// nearer the surface than the offset, and reported water of unbounded depth.
+///
+/// @param lobe the rms angle those slopes deflect this ray by — a *radius*, which is why the cone
+///        it traces is widened by twice it. Everything `spread` feeds is a width: `resolved` compares
+///        it against a wavelength and `coneLod` against a texel area, and `mSpreadAngle` is the whole
+///        angle a pixel covers rather than half of one. The sky's disc takes the same number
+///        unhalved, because a disc is named by its radius.
 vec3 waterRay(vec3 origin, vec3 direction, float footprint, float lobe, out float travelled)
 {
-    const Surface hit = trace(origin, direction, WATER_BIAS, footprint, camera.mSpreadAngle + lobe, MASK_SOLID);
+    const Surface hit
+        = trace(origin, direction, WATER_BIAS, footprint, camera.mSpreadAngle + 2.0 * lobe, MASK_SOLID);
     travelled = hit.mHit ? hit.mDistance : WATER_MAX_PATH;
 
     return hit.mHit ? shadeSurface(hit) : skyRadiance(direction, pixelBlur() + lobe);
