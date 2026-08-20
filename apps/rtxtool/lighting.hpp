@@ -5,6 +5,7 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtxbridge/fogbuilder.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
 
 namespace Rtx
@@ -37,6 +38,10 @@ namespace RtxTool
 
         /// The sun and the sky over an exterior. An interior leaves this dark.
         RtxBridge::Daylight mDaylight;
+
+        /// The air in the cell, whichever of the two places it came from: an interior's `AMBI` or
+        /// the weather over an exterior. A zero extinction is a cell with no fog, and costs nothing.
+        RtxBridge::Fog mFog;
     };
 
     /// Writes the lighting and the scene's lamp count into the constants a frame is traced with.

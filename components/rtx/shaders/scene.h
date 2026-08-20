@@ -91,6 +91,12 @@ namespace Rtx::Shaders
     /// visible in shade, and a glowing mushroom is not as bright as the sun on it.
     const float EMISSIVE_INTENSITY = DAYLIGHT * 0.2f;
 
+    /// The height over the fog's base at which its density falls to `1/e`, in world units.
+    ///
+    /// Seventy units to the metre, so about thirty-seven of them — a layer deep enough to fill a
+    /// valley and still thin out over the hill beside it.
+    const float FOG_HEIGHT = 2600.0f;
+
     /// What shading a hit takes. `Rtx::MaterialKind`, which these must agree with.
     const uint KIND_SURFACE = 0u;
     const uint KIND_TERRAIN = 1u;

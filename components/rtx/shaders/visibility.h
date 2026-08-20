@@ -95,6 +95,21 @@ namespace Rtx::Shaders
         /// term stands in for every one of them — and applying it on top of real light therefore
         /// double-counts, the same way a pre-lit texture does. Both are M9's to unpick.
         vec3 mAmbient;
+
+        /// What the air between the eye and everything else scatters toward it, and how much of it
+        /// there is.
+        ///
+        /// **The colour is the horizon's**, and not by coincidence: Morrowind records one colour for
+        /// the fog and the sky's lower half because they are the same thing seen at two distances,
+        /// which is why a ray that reaches nothing has to converge on exactly what a ray through a
+        /// mile of air does. An interior carries its own in `AMBI` instead.
+        ///
+        /// The extinction is absolute, per world unit, at the fog's base: the host has already
+        /// turned the record's view-range-relative dial into one. Zero is no fog at all and costs
+        /// nothing — which is what the tests that measure surface radiance need, since a lit surface
+        /// with fog over it is a differently lit one.
+        vec3 mFogColour;
+        float mFogExtinction;
     };
 
 #ifdef __cplusplus

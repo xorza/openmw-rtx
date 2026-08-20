@@ -143,6 +143,22 @@ const float WATER_CAUSTIC_MAX_DEPTH = 140.0;
 /// shallows look thin.
 const float WATER_SHORE_FADE = 35.0;
 
+/// Steps along the view ray.
+///
+/// The integrand is smooth — an exponential with no noise in it yet — so what the count buys is
+/// evenness rather than detail.
+const uint FOG_STEPS = 24u;
+
+/// Where the fog pools when the cell has no water to gather over: sea level outdoors, and close
+/// enough to a floor to serve indoors.
+const float FOG_BASE = 0.0;
+
+/// How far a ray carries fog before whatever is behind it stops mattering.
+///
+/// Four hundred metres. Past this the transmittance of even the thinnest weather is a rounding
+/// error, and a ray that hit nothing has to stop somewhere.
+const float FOG_REACH = 30000.0;
+
 vec3 encodeSrgb(vec3 linear)
 {
     const bvec3 small = lessThanEqual(linear, vec3(0.0031308));
@@ -480,6 +496,83 @@ vec3 sunThroughWater(vec3 position, float footprint)
     const float path = depth / max(-downward.z, 0.05);
 
     return exp(-WATER_EXTINCTION * path) * caustic(position.xy, depth, camera.mTime, footprint);
+}
+
+/// The height the fog pools at.
+///
+/// **Measured from the water, not from the origin.** Fog gathers over water and drains off high
+/// ground, so the level a cell records is where its layer sits — and above the layer there is none
+/// of it, which is what standing on a hill is supposed to look like. A dry cell is handed minus
+/// infinity, the same sentinel every other depth question reads, so it falls back to sea level
+/// rather than putting the layer infinitely far below the world.
+float fogBase()
+{
+    return isinf(camera.mWaterLevel) ? FOG_BASE : camera.mWaterLevel;
+}
+
+/// The fog's extinction at a point, per world unit.
+float fogExtinctionAt(vec3 position)
+{
+    // **Air only, and under a bay there is none.** The layer pools *at* the water rather than in
+    // it, and a point below the surface already has the water's own absorption over it — fog there
+    // would be a second medium laid on the first, putting grey between the eye and the seabed twice
+    // over. `mWaterLevel - z` is never positive for a dry cell, so this costs one nothing.
+    if (camera.mWaterLevel - position.z > 0.0)
+        return 0.0;
+
+    return camera.mFogExtinction * exp(-max(position.z - fogBase(), 0.0) / FOG_HEIGHT);
+}
+
+/// What `distance` units of air take out of what is behind them, and what they put in on the way.
+///
+/// **Marched rather than integrated.** An exponential falloff with height has a closed form — the
+/// whole ray in a handful of instructions — but only while the density is uniform across the
+/// horizontal plane, and fog that cannot move is the one thing this is not to be. The march is what
+/// the drifting noise costs, paid before there is any.
+///
+/// Returns the transmittance in `w` and what scattered in along the way in `xyz`, so a caller forms
+/// `colour * w + xyz`. Kept apart rather than applied because the two halves separate later — a
+/// denoiser demodulates by albedo — and
+///
+///   `(emitted + albedo * lighting) * T + inscatter == (emitted * T + inscatter) + albedo * (lighting * T)`
+///
+/// so fogging each half is the same as fogging their sum. That identity is what lets fog live here,
+/// where the lights already are, instead of in a pass that would have to bind them all again.
+vec4 fogAlong(vec3 origin, vec3 direction, float distance)
+{
+    // No air is the frame untouched, and it has to be exactly that: a lit surface with fog over it
+    // is a differently lit one, and the tests that measure radiance turn this off.
+    if (!(camera.mFogExtinction > 0.0))
+        return vec4(0.0, 0.0, 0.0, 1.0);
+
+    const float span = min(distance, FOG_REACH);
+
+    float transmittance = 1.0;
+    vec3 scattered = vec3(0.0);
+    float behind = 0.0;
+
+    for (uint i = 1u; i <= FOG_STEPS; ++i)
+    {
+        // **Squared, so the steps bunch where the fog has any shape to it.** Even steps over a ray
+        // that can run thirty thousand units give the first hundred a twentieth of one sample and
+        // lay the rest across ground too far off to resolve — the same reasoning that makes a froxel
+        // grid slice its frustum exponentially rather than evenly.
+        const float fraction = float(i) / float(FOG_STEPS);
+        const float ahead = fraction * fraction * span;
+        const float stride = ahead - behind;
+
+        // The step's midpoint, which is the second-order estimate of its average and costs nothing
+        // over its near end. A jittered probe is what replaces this once there is noise for it to
+        // hide the banding of; against a smooth exponential there is none to hide.
+        const float extinction = fogExtinctionAt(origin + direction * (behind + 0.5 * stride));
+        behind = ahead;
+
+        const float absorbed = 1.0 - exp(-extinction * stride);
+        scattered += transmittance * absorbed * camera.mFogColour;
+        transmittance *= 1.0 - absorbed;
+    }
+
+    return vec4(scattered, transmittance);
 }
 
 /// How much of a light `distance` away arrives, per unit intensity.
@@ -966,6 +1059,13 @@ void main()
     // put the water straight back, and what the depth took is a property of the path.
     if (camera.mOrigin.z < camera.mWaterLevel && !(surface.mHit && surface.mWater))
         colour = absorbedByWater(colour, surface.mDistance);
+
+    // The air in front of all of it. Last, because everything else in the frame is what the fog
+    // stands between the eye and — the water's own absorption included, which is a different medium
+    // over a different part of the path. A ray that hit nothing carries `mFar`, which the march
+    // clamps to the distance past which air stops mattering.
+    const vec4 fog = fogAlong(camera.mOrigin, direction, surface.mDistance);
+    colour = colour * fog.w + fog.xyz;
 
     if (surface.mHit)
         atomicAdd(hits, 1);

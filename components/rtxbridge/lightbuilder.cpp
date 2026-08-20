@@ -119,11 +119,18 @@ namespace RtxBridge
         const SkyPhase phase = phaseAt(hour, sunrise, nightStart);
         const std::string_view name = nameOf(phase);
 
+        // One read, two uses: the horizon is fog seen from far enough away, which is why the game
+        // records a single colour for both.
+        const osg::Vec3f haze = weatherColour(weather, "Fog", name);
+
         Daylight daylight{
             .mSun = { .mDirection = sunDirection(hour, sunrise, nightStart) },
-            .mSkyHorizon = weatherColour(weather, "Fog", name),
+            .mSkyHorizon = haze,
             .mSkyZenith = weatherColour(weather, "Sky", name),
             .mAmbient = weatherColour(weather, "Ambient", name),
+            .mFog = { .mColour = haze,
+                .mExtinction = fogExtinction(Fallback::Map::getFloat(
+                    "Weather_" + std::string(weather) + "_Land_Fog_" + std::string(name) + "_Depth")) },
         };
 
         if (phase != SkyPhase::Night)

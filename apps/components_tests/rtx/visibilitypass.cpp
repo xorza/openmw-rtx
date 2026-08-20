@@ -232,6 +232,26 @@ namespace Rtx
             return encodeSrgb(bed * down * up * (1.0f - Shaders::WATER_F0));
         }
 
+        /// How brightly the cell is lit, and what colour its air is, in the tests that measure a
+        /// wall through fog.
+        ///
+        /// Named for the reason `sSunOverWater` is: each test's arithmetic uses these as well as
+        /// handing them to the shader, and the two have to be one number. The haze is deliberately
+        /// not grey, so a fog scattering the wrong colour cannot pass by matching a total.
+        constexpr float sFoggyAmbient = 0.6f;
+        const osg::Vec3f sHaze(0.1f, 0.2f, 0.4f);
+
+        /// Puts `camera` in a cell lit by nothing but its ambient, with air of `extinction` in it
+        /// pooling at `level`.
+        void litThroughFog(Shaders::VisibilityConstants& camera, float extinction,
+            float level = -std::numeric_limits<float>::infinity())
+        {
+            camera.mAmbient = osg::Vec3f(sFoggyAmbient, sFoggyAmbient, sFoggyAmbient);
+            camera.mFogColour = sHaze;
+            camera.mFogExtinction = extinction;
+            camera.mWaterLevel = level;
+        }
+
         /// A texture whose every mip is one flat colour — level `i` is `40 + 30i`, evenly spaced
         /// and none of them black.
         ///
@@ -1528,6 +1548,113 @@ namespace Rtx
             // the prediction at 0.918, sixteen bytes from what the frame actually reads.
             EXPECT_NEAR(ruffled - still, std::log2(coneAtBed(lobeOf(fine)) / coneAtBed(0.0f)), 0.08f)
                 << "the cone widened by twice the rms slope the sea could not show";
+        }
+
+        /// Fog takes what Beer-Lambert says over the path and gives its own colour back in place.
+        ///
+        /// **A horizontal ray is what makes the march exact.** The layer's density varies only with
+        /// height, so along a ray that holds its own the medium is uniform — and then the march
+        /// telescopes: the per-step transmittances multiply to `exp(-sigma * span)` whatever the
+        /// step distribution is, and the scattered terms sum to `colour * (1 - T)`. So this asserts
+        /// the analytic answer rather than the march's approximation of it.
+        TEST_F(RtxVisibilityTest, fogTakesWhatBeerLambertSaysOverThePathAndGivesItsOwnColourBack)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            constexpr float distance = 2000.0f;
+            constexpr float extinction = 3.5e-4f;
+
+            const auto look = [&](float thickness) {
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(0.0f, -distance, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                litThroughFog(camera, thickness);
+
+                const SceneDesc scene = makeWall();
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, noTextures(), camera, size, pixels);
+                return std::array<int, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
+            };
+
+            // The wall is untextured, so its albedo is 0.5 and the cell's ambient is all that is on
+            // it: 0.5 * 0.6 = 0.3. Over that sits `exp(-3.5e-4 * 2000)` = 0.4966 of transmittance,
+            // with the rest of the path's worth of the fog's own colour in front of it.
+            const float transmittance = std::exp(-extinction * distance);
+            const std::array<int, 3> fogged = look(extinction);
+            constexpr float wall = 0.5f * sFoggyAmbient;
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                const auto expected
+                    = static_cast<int>(encodeSrgb(wall * transmittance + sHaze[channel] * (1.0f - transmittance)));
+
+                EXPECT_NEAR(fogged[channel], expected, 1) << "channel " << channel;
+            }
+
+            // The three channels also have to come apart the way the fog's colour does, or a grey
+            // haze would pass the arithmetic above by accident.
+            EXPECT_LT(fogged[0], fogged[1]) << "the fog's own colour, showing through";
+            EXPECT_LT(fogged[1], fogged[2]);
+
+            // And no fog is *exactly* no fog. A lit surface with air over it is a differently lit
+            // one, which is why every test here that measures radiance leaves this at zero.
+            const std::array<int, 3> clear = look(0.0f);
+            for (const int level : clear)
+                EXPECT_EQ(level, int{ encodeSrgb(wall) }) << "with no fog in the cell";
+        }
+
+        /// The fog layer sits on the water, thins with height above it, and stops at the surface.
+        ///
+        /// Fog gathers over water and drains off high ground, so the level a cell records is where
+        /// its layer sits — and *at* it rather than in it, because a point under the surface already
+        /// has the water's own absorption over it. Fog there would be a second medium laid on the
+        /// first, putting grey between the eye and the seabed twice over.
+        TEST_F(RtxVisibilityTest, theFogLayerSitsOnTheWaterThinsAboveItAndStopsAtIt)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            constexpr float distance = 2000.0f;
+            constexpr float extinction = 3.5e-4f;
+
+            // The ray runs level at z = 0, so how much fog it crosses is decided by where the layer
+            // is put under it and by nothing else.
+            const auto look = [&](float level, float thickness) {
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(0.0f, -distance, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                litThroughFog(camera, thickness, level);
+
+                const SceneDesc scene = makeWall();
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, noTextures(), camera, size, pixels);
+                return std::array<int, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
+            };
+
+            // A dry cell is handed minus infinity, and falls back to sea level — which is where a
+            // water level of zero puts the layer anyway, so the two have to agree exactly.
+            const std::array<int, 3> dry = look(-std::numeric_limits<float>::infinity(), extinction);
+            const std::array<int, 3> atSeaLevel = look(0.0f, extinction);
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                EXPECT_EQ(dry[channel], atSeaLevel[channel]) << "channel " << channel << ", the dry-cell fallback";
+
+            // Three thousand units under the ray, so it runs `exp(-3000 / 2600)` = 0.3154 of the way
+            // up the layer's own falloff and crosses less than a third of the fog.
+            constexpr float below = 3000.0f;
+            const float thinned = extinction * std::exp(-below / Shaders::FOG_HEIGHT);
+            const float transmittance = std::exp(-thinned * distance);
+
+            const std::array<int, 3> high = look(-below, extinction);
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                const auto expected = static_cast<int>(
+                    encodeSrgb(0.5f * sFoggyAmbient * transmittance + sHaze[channel] * (1.0f - transmittance)));
+
+                EXPECT_NEAR(high[channel], expected, 1) << "channel " << channel << ", high over the layer";
+            }
+
+            // And with the surface over the ray instead there is no air to fog at all: the frame is
+            // whatever the water did to it and nothing else, whatever the cell's fog says.
+            const std::array<int, 3> submerged = look(100.0f, extinction);
+            const std::array<int, 3> withoutFog = look(100.0f, 0.0f);
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                EXPECT_EQ(submerged[channel], withoutFog[channel]) << "channel " << channel << ", under the surface";
         }
 
         /// Its own device, because the validation layers allocate and this test counts allocations.

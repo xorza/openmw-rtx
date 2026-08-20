@@ -17,6 +17,8 @@ namespace RtxTool
         constants.mSunIrradiance = lighting.mDaylight.mSun.mIrradiance;
         constants.mSkyHorizon = lighting.mDaylight.mSkyHorizon;
         constants.mSkyZenith = lighting.mDaylight.mSkyZenith;
+        constants.mFogColour = lighting.mFog.mColour;
+        constants.mFogExtinction = lighting.mFog.mExtinction;
         constants.mLightCount = static_cast<std::uint32_t>(scene.getLights().size());
     }
 }

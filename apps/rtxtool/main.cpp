@@ -20,6 +20,7 @@
 #include <components/rtx/physicaldevice.hpp>
 #include <components/rtx/requirements.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtxbridge/fogbuilder.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/rtxbridge/waterbuilder.hpp>
@@ -271,6 +272,12 @@ namespace RtxTool
                 out() << " at " << cell.getGridX() << ',' << cell.getGridY();
             out() << "\nwater:       " << (cell.hasWater() ? "yes, at z = " + std::to_string(cell.mWater) : "no")
                   << '\n';
+
+            // Only interiors carry an `AMBI`; an exterior's air comes off the weather and the clock,
+            // which the cell says nothing about.
+            if (!cell.isExterior())
+                out() << "fog:         depth " << cell.mAmbi.mFogDensity << ", extinction "
+                      << RtxBridge::interiorFog(cell).mExtinction << " per unit\n";
         }
 
         /// The named cell, or null with the complaint already printed.
@@ -387,11 +394,17 @@ namespace RtxTool
             const float level = water.value_or(-std::numeric_limits<float>::infinity());
 
             // An interior's sky is never seen and its sun never shines, so the daylight stays dark.
+            // Its air is its own, out of the same `AMBI` its ambient came from.
             if (!cell.isExterior())
-                return CellLighting{ .mAmbient = report.mAmbient, .mWaterLevel = level, .mDaylight = {} };
+                return CellLighting{ .mAmbient = report.mAmbient,
+                    .mWaterLevel = level,
+                    .mDaylight = {},
+                    .mFog = RtxBridge::interiorFog(cell) };
 
             const RtxBridge::Daylight daylight = RtxBridge::makeDaylight(weather, hour);
-            return CellLighting{ .mAmbient = daylight.mAmbient, .mWaterLevel = level, .mDaylight = daylight };
+            return CellLighting{
+                .mAmbient = daylight.mAmbient, .mWaterLevel = level, .mDaylight = daylight, .mFog = daylight.mFog
+            };
         }
 
         int runShot(

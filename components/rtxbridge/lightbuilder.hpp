@@ -7,6 +7,8 @@
 
 #include <components/rtx/scenedesc.hpp>
 
+#include "fogbuilder.hpp"
+
 namespace ESM
 {
     struct Light;
@@ -39,6 +41,14 @@ namespace RtxBridge
 
         /// What an exterior gets in place of a cell's `AMBI`, which only interiors carry.
         osg::Vec3f mAmbient;
+
+        /// The weather's own air.
+        ///
+        /// **Its colour is `mSkyHorizon`, and the same read fills both.** Morrowind records one
+        /// colour for the fog and for the sky's lower half because they are the same thing at two
+        /// distances — the horizon *is* fog — so a ray that reaches nothing and a ray through a mile
+        /// of air have to arrive at the same answer.
+        Fog mFog;
     };
 
     /// Which of the four sets of colours a weather is read at.
