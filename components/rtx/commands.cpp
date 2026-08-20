@@ -10,7 +10,7 @@ namespace Rtx
     {
         const VkCommandPoolCreateInfo create{
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-            .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+            .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
             .queueFamilyIndex = device.getQueueFamily(),
         };
         checkVk(vkCreateCommandPool(device.getHandle(), &create, nullptr, &mHandle), "vkCreateCommandPool");
@@ -25,6 +25,20 @@ namespace Rtx
             vkDestroyFence(mDevice.getHandle(), mFence, nullptr);
         if (mHandle != VK_NULL_HANDLE)
             vkDestroyCommandPool(mDevice.getHandle(), mHandle, nullptr);
+    }
+
+    std::vector<VkCommandBuffer> CommandPool::allocate(std::uint32_t count)
+    {
+        const VkCommandBufferAllocateInfo allocate{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .commandPool = mHandle,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = count,
+        };
+
+        std::vector<VkCommandBuffer> buffers(count);
+        checkVk(vkAllocateCommandBuffers(mDevice.getHandle(), &allocate, buffers.data()), "vkAllocateCommandBuffers");
+        return buffers;
     }
 
     VkCommandBuffer CommandPool::begin()

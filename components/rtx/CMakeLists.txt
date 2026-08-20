@@ -50,6 +50,9 @@ endforeach()
 
 add_custom_target(openmw-rtx-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS} SOURCES ${RTX_SHADERS})
 
+# Named viewpoints, beside the shaders under resources/rtx so one --resources finds both.
+copy_resource_file("${OpenMW_SOURCE_DIR}/files/rtx/views.cfg" "${OPENMW_RESOURCES_ROOT}" "resources/rtx/views.cfg")
+
 set(RTX_FILES
     buffer.cpp
     buffer.hpp
@@ -75,6 +78,8 @@ set(RTX_FILES
     scenedesc.hpp
     shadermodule.cpp
     shadermodule.hpp
+    swapchain.cpp
+    swapchain.hpp
     validation.cpp
     validation.hpp
     visibilitypass.cpp

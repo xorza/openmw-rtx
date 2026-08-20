@@ -70,6 +70,10 @@ namespace Rtx
 #endif
         }
 
+        /// Blocks until the queue has finished everything. For tearing down and for resizing, not
+        /// for pacing a frame.
+        void waitIdle() const;
+
     private:
         void setNameImpl(VkObjectType type, std::uint64_t handle, const char* name) const;
 

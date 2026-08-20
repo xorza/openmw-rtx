@@ -1,12 +1,11 @@
 #include "shot.hpp"
 
+#include "placement.hpp"
+#include "png.hpp"
+
 #include <chrono>
-#include <cstring>
 #include <ostream>
 #include <vector>
-
-#include <osg/Image>
-#include <osgDB/WriteFile>
 
 #include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
@@ -32,51 +31,6 @@ namespace RtxTool
             return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
         }
 
-        /// Where the camera ended up once the request's blanks were filled in.
-        struct Placement
-        {
-            osg::Vec3f mOrigin;
-            osg::Vec3f mTarget;
-        };
-
-        /// Fills in whichever of origin and target the request left out, with a view of the whole
-        /// scene from outside it.
-        ///
-        /// The one placement that needs nothing known about the cell. It is a poor view of an
-        /// interior, whose walls are between the camera and everything worth seeing — pass
-        /// coordinates for those.
-        Placement placeCamera(const osg::BoundingBoxf& bounds, const ShotRequest& request)
-        {
-            const osg::Vec3f centre = bounds.center();
-
-            osg::Vec3f direction(0.6f, 0.6f, 0.35f);
-            direction.normalize();
-
-            // Far enough back that the bounding sphere fits the vertical field of view, and a little
-            // further so it is not touching the edges.
-            const float distance
-                = bounds.radius() / std::tan(osg::DegreesToRadians(request.mFieldOfView) * 0.5f) * 1.15f;
-
-            return Placement{
-                .mOrigin = request.mOrigin.value_or(centre + direction * distance),
-                .mTarget = request.mTarget.value_or(centre),
-            };
-        }
-
-        void writePng(const std::filesystem::path& path, std::uint32_t width, std::uint32_t height,
-            const std::vector<std::uint8_t>& pixels)
-        {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->allocateImage(static_cast<int>(width), static_cast<int>(height), 1, GL_RGBA, GL_UNSIGNED_BYTE);
-
-            // The compute pass writes row zero at the top; OSG's images start at the bottom.
-            const std::size_t stride = std::size_t{ width } * 4;
-            for (std::uint32_t y = 0; y < height; ++y)
-                std::memcpy(image->data(0, static_cast<int>(height - 1 - y)), pixels.data() + y * stride, stride);
-
-            if (!osgDB::writeImageFile(*image, Files::pathToUnicodeString(path)))
-                throw Rtx::Error("cannot write " + Files::pathToUnicodeString(path));
-        }
     }
 
     int renderShot(const Rtx::SceneDesc& scene, const Rtx::InstanceOptions& instanceOptions, const ShotRequest& request)
@@ -91,7 +45,7 @@ namespace RtxTool
 
         // Walks every mesh, so it is asked for once and the answer kept.
         const osg::BoundingBoxf bounds = scene.getBounds();
-        const Placement placement = placeCamera(bounds, request);
+        const Placement placement = placeCamera(bounds, request.mFieldOfView, request.mOrigin, request.mTarget);
 
         const Clock::time_point deviceStart = Clock::now();
         const Rtx::Instance instance(instanceOptions);

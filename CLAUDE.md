@@ -110,10 +110,20 @@ clang-format -i <file>...
 Running things:
 
 ```sh
-./build/openmw-rtxtool shot out.png --view seyda-shore      # headless, no window — the default way to look
-./build/openmw --skip-menu --new-game --start "Seyda Neen, Census and Excise Office"
-./build/openmw-navmeshtool --help                           # the model for headless world loading
+cd build                       # --resources defaults to ./resources, so the tool runs from here
+
+./openmw-rtxtool                                   # a window on the ship at Seyda Neen
+./openmw-rtxtool view --view=balmora               # a window somewhere else; P prints the camera
+./openmw-rtxtool shot --view=balmora --out=b.png   # one frame, no window — the default way to look
+./openmw-rtxtool scene --view=balmora --twice      # what the renderer was handed
+./openmw-rtxtool scene --list-views                # the named viewpoints
+./openmw-rtxtool info                              # the device and its ray tracing limits
+
+./openmw --skip-menu --new-game --start "Seyda Neen, Census and Excise Office"
 ```
+
+`~/.config/openmw/openmw.cfg` points at the Morrowind install, so none of these needs `--data`.
+Views live in `files/rtx/views.cfg` and each one is a task in `.zed/tasks.json`.
 
 Game data: Morrowind GOTY at `/home/Games/Morrowind`, data files in
 `/home/Games/Morrowind/Data Files`. Tests that need it **skip** when it is absent and **fail** when
@@ -126,9 +136,13 @@ Building the world to check a one-line change in the harness is waste; so is cla
 because it compiled.
 
 **Do not open the game window to check a rendering change.** `openmw-rtxtool shot` renders the real
-renderer headlessly in about a second and prints a summary line — hit fraction, mean luminance, frame
-time — so a change is checkable without a screenshot ever being looked at. The window is for the
-things only the window can show.
+renderer headlessly in about a second and prints a summary line — hit fraction, camera, frame time —
+so a change is checkable without a screenshot ever being looked at.
+
+`openmw-rtxtool view` opens a window, which is for the things only a window shows: how something
+moves, how it holds up while you fly through it, whether an artefact is a still or a shimmer. It
+takes `--frames N` so it can also be run by something that cannot click — which is how the window
+path gets exercised under the validation layers.
 
 ## Architecture, in one screen
 

@@ -100,6 +100,11 @@ namespace Rtx
         }
     }
 
+    void Device::waitIdle() const
+    {
+        checkVk(vkDeviceWaitIdle(mHandle), "vkDeviceWaitIdle");
+    }
+
     void Device::setNameImpl(VkObjectType type, std::uint64_t handle, const char* name) const
     {
         if (mSetObjectName == nullptr)

@@ -23,7 +23,10 @@
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/settings/settings.hpp>
 
+#include "placement.hpp"
 #include "shot.hpp"
+#include "view.hpp"
+#include "views.hpp"
 #include "world.hpp"
 
 namespace RtxTool
@@ -58,14 +61,27 @@ namespace RtxTool
             addOption("gpu-validation", bpo::bool_switch(),
                 "add GPU-assisted validation, which instruments shaders (implies --validation)");
 
-            addOption("cell", bpo::value<std::string>()->default_value("Seyda Neen, Census and Excise Office"),
+            addOption("cell", bpo::value<std::string>()->default_value(""),
                 "cell to read, addressed the way Morrowind does: a pair of integers is an exterior, "
                 "anything else is an interior's name. Write --cell=-2,-9 rather than --cell -2,-9, or "
-                "the leading minus reads as an option.");
+                "the leading minus reads as an option. Left out, the default view decides.");
 
             addOption("twice", bpo::bool_switch(),
                 "extract the cell a second time and report what the second pass added, which should "
                 "be nothing");
+
+            addOption("view", bpo::value<std::string>()->default_value(""),
+                "a named viewpoint from resources/rtx/views.cfg, which supplies the cell and usually the "
+                "camera. Overrides --cell.");
+
+            addOption("list-views", bpo::bool_switch(), "print the named viewpoints and quit");
+
+            addOption("frames", bpo::value<std::uint32_t>()->default_value(0),
+                "with `view`, close after this many frames instead of waiting to be closed");
+
+            addOption("find", bpo::value<std::string>()->default_value(""),
+                "with `scene`, print the world position of every object whose model path contains this. "
+                "How the coordinates in a view are found.");
 
             addOption("out", bpo::value<std::string>()->default_value("shot.png"), "where to write the image");
             addOption("size", bpo::value<std::string>()->default_value("1920x1080"), "image size, as WIDTHxHEIGHT");
@@ -115,33 +131,6 @@ namespace RtxTool
             return result;
         }
 
-        /// Parses `x,y,z`. Empty input means "not given", which is not a failure.
-        std::optional<osg::Vec3f> parseVec3(std::string_view text)
-        {
-            if (text.empty())
-                return std::nullopt;
-
-            osg::Vec3f result;
-            for (int axis = 0; axis < 3; ++axis)
-            {
-                const std::size_t comma = text.find(',');
-                const std::string_view field = text.substr(0, comma);
-                const auto parsed = std::from_chars(field.data(), field.data() + field.size(), result[axis]);
-                if (parsed.ec != std::errc() || parsed.ptr != field.data() + field.size())
-                    throw std::runtime_error("not a coordinate triple: " + std::string(text));
-
-                if (axis < 2)
-                {
-                    if (comma == std::string_view::npos)
-                        throw std::runtime_error("not a coordinate triple: " + std::string(text));
-                    text = text.substr(comma + 1);
-                }
-                else if (comma != std::string_view::npos)
-                    throw std::runtime_error("not a coordinate triple: " + std::string(text));
-            }
-            return result;
-        }
-
         /// Parses `WIDTHxHEIGHT`.
         std::pair<std::uint32_t, std::uint32_t> parseSize(std::string_view text)
         {
@@ -166,7 +155,9 @@ namespace RtxTool
                      "Commands:\n"
                      "  info     report the device this renderer would run on\n"
                      "  scene    read a cell and report what the renderer would be handed\n"
-                     "  shot     render a cell and write a PNG, with no window\n\n"
+                     "  shot     render a cell and write a PNG, with no window\n"
+                     "  view     open a window on a cell and fly around it\n\n"
+                     "With no arguments at all: a window on the ship at Seyda Neen, where the game starts.\n\n"
                   << options;
         }
 
@@ -241,6 +232,26 @@ namespace RtxTool
             return cell;
         }
 
+        /// Prints where every object whose model path contains `needle` stands.
+        ///
+        /// A cell is thousands of references and a view wants to point at one of them. Grepping the
+        /// content files gives a model name; this gives the place it was put.
+        int runFind(World& world, const ESM::Cell& cell, const std::string& needle)
+        {
+            std::uint32_t found = 0;
+            world.forEachObject(cell, [&](const World::Object& object) {
+                if (object.mModel.value().find(needle) == std::string::npos)
+                    return;
+
+                const osg::Vec3f at = object.mTransform.getTrans();
+                out() << "  " << at.x() << ", " << at.y() << ", " << at.z() << "   " << object.mModel << '\n';
+                ++found;
+            });
+
+            out() << found << " objects match \"" << needle << "\"\n";
+            return 0;
+        }
+
         int runScene(World& world, const std::string& cellSpec, bool twice)
         {
             const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
@@ -297,6 +308,85 @@ namespace RtxTool
             return renderShot(scene, instanceOptions, request);
         }
 
+        int runView(World& world, const std::string& cellSpec, const Rtx::InstanceOptions& instanceOptions,
+            const ViewRequest& request)
+        {
+            const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
+            if (cell == nullptr)
+                return 1;
+
+            Rtx::SceneDesc scene;
+            RtxBridge::SceneExtractor extractor(scene);
+            readCell(world, *cell, extractor);
+
+            printCellHeading(*cell);
+
+            return runWindow(scene, instanceOptions, request);
+        }
+
+        /// Where the command line and the view file meet.
+        ///
+        /// A named view supplies the cell and usually the camera; anything given explicitly on the
+        /// command line wins over it, so a view is a starting point rather than a straitjacket.
+        struct Chosen
+        {
+            std::string mCell;
+            std::string mTitle;
+            std::optional<osg::Vec3f> mOrigin;
+            std::optional<osg::Vec3f> mTarget;
+        };
+
+        /// Where someone starts when they have said nothing about where: the ship at Seyda Neen,
+        /// where the game starts and the one place every player of it has stood.
+        constexpr std::string_view sDefaultView = "seyda-neen-ship";
+
+        Chosen chooseView(const bpo::variables_map& variables, const std::filesystem::path& resources)
+        {
+            Chosen chosen{
+                .mCell = variables["cell"].as<std::string>(),
+                .mTitle = "OpenMW RTX",
+                .mOrigin = parseVec3(variables["pos"].as<std::string>(), "--pos"),
+                .mTarget = parseVec3(variables["look"].as<std::string>(), "--look"),
+            };
+
+            std::string name = variables["view"].as<std::string>();
+            if (name.empty())
+            {
+                if (!chosen.mCell.empty())
+                    return chosen;
+
+                name = sDefaultView;
+            }
+
+            const std::vector<View> views = loadViews(resources / "rtx" / "views.cfg");
+            const View* view = findView(views, name);
+            if (view == nullptr)
+            {
+                std::string known;
+                for (const View& candidate : views)
+                    known += "\n  " + candidate.mName + "   " + candidate.mNote;
+
+                throw std::runtime_error("no view is called \"" + name + "\". These are:" + known);
+            }
+
+            chosen.mCell = view->mCell;
+            chosen.mTitle = "OpenMW RTX - " + view->mName;
+            if (!chosen.mOrigin)
+                chosen.mOrigin = view->mOrigin;
+            if (!chosen.mTarget)
+                chosen.mTarget = view->mTarget;
+
+            return chosen;
+        }
+
+        int runListViews(const std::filesystem::path& resources)
+        {
+            for (const View& view : loadViews(resources / "rtx" / "views.cfg"))
+                out() << "  " << view.mName << "\n      " << view.mCell << "\n      " << view.mNote << '\n';
+
+            return 0;
+        }
+
         int dispatch(int argc, char* argv[])
         {
             Platform::init();
@@ -305,19 +395,20 @@ namespace RtxTool
             // `ConfigurationManager::readConfiguration` walks the variables map and looks every key
             // up in the options description it was handed, so a key that is deliberately not in that
             // description — which is what a hidden positional is — makes it throw.
-            if (argc < 2 || argv[1][0] == '-')
-            {
-                printUsage(makeOptionsDescription());
-                return argc >= 2 && std::string_view(argv[1]) == "--help" ? 0 : 1;
-            }
-
-            const std::string command = argv[1];
+            // A window is what this is for, so that is what it does when nobody says otherwise —
+            // with no arguments at all, or with only options and no verb.
+            const bool hasVerb = argc >= 2 && argv[1][0] != '-';
+            const std::string command = hasVerb ? argv[1] : "view";
 
             bpo::options_description options = makeOptionsDescription();
 
             // Boost skips the first token as the program name; here that token is the verb.
+            // Boost skips the first token as the program name; when there is a verb, that token is
+            // the verb.
             bpo::variables_map variables;
-            bpo::store(bpo::command_line_parser(argc - 1, argv + 1).options(options).run(), variables);
+            bpo::store(hasVerb ? bpo::command_line_parser(argc - 1, argv + 1).options(options).run()
+                               : bpo::command_line_parser(argc, argv).options(options).run(),
+                variables);
             bpo::notify(variables);
 
             if (variables.count("help") > 0)
@@ -345,24 +436,31 @@ namespace RtxTool
 
             const std::filesystem::path resources = variables["resources"].as<Files::MaybeQuotedPath>();
 
+            if (variables["list-views"].as<bool>())
+                return runListViews(resources);
+
             if (command == "scene")
             {
+                const Chosen chosen = chooseView(variables, resources);
                 World world(config, variables, resources);
-                return runScene(world, variables["cell"].as<std::string>(), variables["twice"].as<bool>());
+
+                const std::string needle = variables["find"].as<std::string>();
+                if (!needle.empty())
+                {
+                    const ESM::Cell* cell = findCellOrComplain(world, chosen.mCell);
+                    return cell == nullptr ? 1 : runFind(world, *cell, needle);
+                }
+
+                return runScene(world, chosen.mCell, variables["twice"].as<bool>());
             }
 
-            if (command == "shot")
+            if (command == "shot" || command == "view")
             {
                 const auto [width, height] = parseSize(variables["size"].as<std::string>());
 
-                ShotRequest request;
-                request.mOutput = variables["out"].as<std::string>();
-                request.mShaderDirectory = resources / "rtx" / "shaders";
-                request.mWidth = width;
-                request.mHeight = height;
-                request.mFieldOfView = variables["fov"].as<float>();
-                request.mOrigin = parseVec3(variables["pos"].as<std::string>());
-                request.mTarget = parseVec3(variables["look"].as<std::string>());
+                // With nothing on the command line, the ship at Seyda Neen: where the game starts,
+                // and the one place every player of this game has stood.
+                const Chosen chosen = chooseView(variables, resources);
 
                 Rtx::InstanceOptions instanceOptions;
                 instanceOptions.mSynchronizationValidation = variables["sync-validation"].as<bool>();
@@ -371,7 +469,33 @@ namespace RtxTool
                     || instanceOptions.mSynchronizationValidation || instanceOptions.mGpuAssistedValidation;
 
                 World world(config, variables, resources);
-                return runShot(world, variables["cell"].as<std::string>(), instanceOptions, request);
+
+                if (command == "view")
+                {
+                    ViewRequest request;
+                    request.mTitle = chosen.mTitle;
+                    request.mShaderDirectory = resources / "rtx" / "shaders";
+                    request.mScreenshotDirectory = config.getScreenshotPath();
+                    request.mWidth = width;
+                    request.mHeight = height;
+                    request.mFieldOfView = variables["fov"].as<float>();
+                    request.mOrigin = chosen.mOrigin;
+                    request.mTarget = chosen.mTarget;
+                    request.mFrames = variables["frames"].as<std::uint32_t>();
+
+                    return runView(world, chosen.mCell, instanceOptions, request);
+                }
+
+                ShotRequest request;
+                request.mOutput = variables["out"].as<std::string>();
+                request.mShaderDirectory = resources / "rtx" / "shaders";
+                request.mWidth = width;
+                request.mHeight = height;
+                request.mFieldOfView = variables["fov"].as<float>();
+                request.mOrigin = chosen.mOrigin;
+                request.mTarget = chosen.mTarget;
+
+                return runShot(world, chosen.mCell, instanceOptions, request);
             }
 
             out() << "Unknown command: " << command << "\n\n";

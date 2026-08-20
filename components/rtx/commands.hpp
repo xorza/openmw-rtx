@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <span>
+#include <vector>
 
 #include <vulkan/vulkan_core.h>
 
@@ -33,6 +34,12 @@ namespace Rtx
             record(commands);
             endAndWait(commands);
         }
+
+        /// Command buffers the caller records into again every frame.
+        ///
+        /// The pool allows individual reset, so re-recording one is `vkBeginCommandBuffer` and
+        /// nothing else. They live as long as the pool does and are not freed individually.
+        std::vector<VkCommandBuffer> allocate(std::uint32_t count);
 
     private:
         VkCommandBuffer begin();

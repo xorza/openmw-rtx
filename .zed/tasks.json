@@ -1,0 +1,231 @@
+[
+  {
+    "label": "RTX: where the game starts",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: seyda-neen-ship  (where the game starts, on the deck looking at the town)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=seyda-neen-ship --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: seyda-neen-shore  (water, a shoreline, and the shallow seabed that makes caustics worth having)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=seyda-neen-shore --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: seyda-neen-customs  (a small lit room with no sky in it)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=seyda-neen-customs --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: balmora  (a town on a river, seen from its bridge)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=balmora --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: balmora-mages-guild  (a guild interior, dense with clutter)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=balmora-mages-guild --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: vivec  (the cantons: enormous, regular, and stacked vertically)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=vivec --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: vivec-canalworks  (below the waterline, where a canton is a corridor)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=vivec-canalworks --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: ald-ruhn  (Redoran shells in the ashlands, under a different sky)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=ald-ruhn --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: sadrith-mora  (Telvanni mushroom towers, organic geometry throughout)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=sadrith-mora --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: wolverine-hall  (an imperial fort interior inside a Telvanni town)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=wolverine-hall --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: dagon-fel  (a Nord village in the far north, the least Morrowind-looking place in the game)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=dagon-fel --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: addamasartus  (a cave, which is one continuous irregular mesh rather than a kit of parts)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=addamasartus --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: arkngthand  (Dwemer ruins: metal, straight lines, and the game's most reflective surfaces)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=arkngthand --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: andrano-tomb  (an ancestral tomb, small and unlit)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=andrano-tomb --size=1920x1080",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: list views",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool scene --list-views",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "RTX: device report",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool info",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "RTX: scene report, Balmora",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool scene --view=balmora --twice",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "RTX: validate a view (layers on, aborts on any error)",
+    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool view --view=balmora --frames=600 --validation --sync-validation",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Build: rtxtool",
+    "command": "cmake --build . -j32 --target openmw-rtxtool",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Build: everything",
+    "command": "cmake --build . -j32",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Test: RTX only",
+    "command": "cmake --build . -j32 --target components-tests && ./components-tests --gtest_filter='Rtx*'",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Test: everything",
+    "command": "cmake --build . -j32 --target components-tests openmw-tests && ./components-tests && ./openmw-tests",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  }
+]

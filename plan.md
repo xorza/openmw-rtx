@@ -295,25 +295,31 @@ This is not overhead; it is what decides how fast the milestones above go.
 ### 7.1 `openmw-rtxtool`
 
 ```
+openmw-rtxtool                                        a window where the game starts
 openmw-rtxtool info                                   device, extensions, limits, memory
-openmw-rtxtool scene   --cell "Balmora"               instance/mesh/material/light counts, VRAM
-openmw-rtxtool shot    out.png --view seyda-shore     one frame, no window
-openmw-rtxtool shot    out.png --cell -2,-9 --pos ... --time 14:30 --size 1920x1080
-openmw-rtxtool sheet   out.png --views all            contact sheet, for judging a look change
-openmw-rtxtool golden  --views all                    compare against files/rtx/golden, write diffs
-openmw-rtxtool bench   --views all --frames 300 --json
-openmw-rtxtool watch   --view seyda-shore             re-render on shader change
+openmw-rtxtool scene  --view balmora --twice          instance/mesh/material counts, and what a
+                                                      second extraction pass adds, which is nothing
+openmw-rtxtool scene  --list-views                    the named viewpoints
+openmw-rtxtool scene  --cell -2,-9 --find lighthouse  where an object stands, for authoring a view
+openmw-rtxtool shot   --view balmora --out b.png      one frame, no window
+openmw-rtxtool view   --view vivec --size 2560x1440   a window to fly around in
+openmw-rtxtool view   --view balmora --frames 600     the same, for something that cannot click
+openmw-rtxtool sheet  out.png --views all             contact sheet, for judging a look change
+openmw-rtxtool golden --views all                     compare against files/rtx/golden, write diffs
+openmw-rtxtool bench  --views all --frames 300 --json
+openmw-rtxtool watch  --view seyda-neen-shore         re-render on shader change
 ```
+
+The first four verbs exist. `sheet`, `golden`, `bench` and `watch` do not yet.
 
 - **A cell argument is addressed the way Morrowind does**: a pair of integers is an exterior,
   anything else is an interior's name.
 - **Every run prints a summary line** — primary-hit fraction, mean luminance, frame time — so a
   change is checkable without opening the PNG. rtxmw's single best harness decision.
-- **Named views** in `files/rtx/views.cfg`: cell, position, orientation, hour, weather, resolution.
-  A view id is the unit of comparison across commits. Seed the list with the places that stress
-  different things — Seyda Neen's shore (water, shoreline, caustics), the Balmora bridge at dusk
-  (lamps, fog, town density), Ghostgate (open terrain, long view), a Census Office interior (small
-  room, no sky), Vivec at night (lamps, water, verticality).
+- **Named views** in `files/rtx/views.cfg`: cell, and usually a camera. A view id is the unit of
+  comparison across commits, and every one of them is a Zed task in `.zed/tasks.json`. Pressing `P`
+  in the window prints the current camera as a block to paste back into the file, which is how a
+  view gets authored once someone has flown to somewhere worth keeping.
 - **Deterministic by construction**: fixed frame index drives jitter and blue-noise offsets, time of
   day and weather are forced, `--seed` fixes anything left. Two runs of the same view are the same
   bytes.
