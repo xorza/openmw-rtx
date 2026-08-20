@@ -10,10 +10,10 @@ that. What it stops owning is the picture.
 
 Three documents, and they do not overlap:
 
-- **`openmw.md`** — how the host engine is built and where the seams are. Read before touching
+- **`docs/rtx/openmw.md`** — how the host engine is built and where the seams are. Read before touching
   anything in `apps/openmw/mwrender/`, `components/sceneutil/`, `components/resource/` or the
   settings plumbing.
-- **`plan.md`** — the route: the scene-mirroring decision, the milestones, the tooling.
+- **`docs/rtx/plan.md`** — the route: the scene-mirroring decision, the milestones, the tooling.
 - **this file** — goals and working rules. Status goes in commits, never here.
 
 The reference implementation is **`/home/xxorza/Projects/rtxmw/`** — a Rust Morrowind ray tracer
@@ -58,7 +58,7 @@ Upstream's constraints are not ours. Where they conflict, ours win.
 
 ## Commands
 
-The RTX targets below are created by `plan.md` M0. If `cmake` does not recognise `OPENMW_RTX`,
+The RTX targets below are created by `docs/rtx/plan.md` M0. If `cmake` does not recognise `OPENMW_RTX`,
 or `apps/rtxtool/` is absent, that milestone has not landed and the rest of the tree builds as
 upstream does.
 
@@ -155,7 +155,7 @@ path gets exercised under the validation layers.
 OpenMW is OpenSceneGraph 3.6 on OpenGL. `Engine::frame` (`apps/openmw/engine.cpp:191`) runs
 simulation, then `updateTraversal()`, then `renderingTraversals()` — and **that last call is the only
 thing the RT renderer displaces**. Cull still runs: CPU skinning, terrain LOD and object paging are
-all cull-time decisions (`openmw.md` §3.4).
+all cull-time decisions (`docs/rtx/openmw.md` §3.4).
 
 `MWRender::RenderingManager` (`apps/openmw/mwrender/renderingmanager.hpp`) is the rendering
 god-object, owned by `MWWorld::World`. There is one abstract interface in the whole rendering layer
@@ -165,7 +165,7 @@ The RT renderer takes its scene by **mirroring the live OSG scene graph**, becau
 world is already CPU-resident triangles with world transforms, resolved texture roles and — for
 actors — already-skinned vertex positions. It reaches the screen through **GL/Vulkan interop**, not a
 Vulkan window, so the GUI, the inventory doll, the local map and video playback keep working. Both
-decisions and their alternatives are in `plan.md` §2–3.
+decisions and their alternatives are in `docs/rtx/plan.md` §2–3.
 
 Code lives in `components/rtx/` (Vulkan, knows no OSG scene graph and no game headers),
 `components/rtxbridge/` (`osg::Node` → scene description), `apps/openmw/mwrender/rtx/` (the game-side
@@ -186,7 +186,7 @@ the posture behind them does.
   earning its place. No shims, no compat wrappers.
 - **Allocation is a metric on the frame path.** Persistent scratch buffers refilled with `clear()`,
   results into an out-parameter, nothing that constructs a `std::string` or a `std::function` per
-  frame, logging that compiles out. There is a test that enforces this (`plan.md` §7.3).
+  frame, logging that compiles out. There is a test that enforces this (`docs/rtx/plan.md` §7.3).
 - **Asserts** guard contracts the code must keep, not data the world might supply. Hot paths use the
   debug-only form; untrusted input is never an assert.
 - **Tests assert hand-computed values**, cover the empty and boundary cases, and prove that
@@ -195,7 +195,7 @@ the posture behind them does.
 
 ### Adding a setting
 
-Four places, and the build enforces it (`openmw.md` §6): the category header in
+Four places, and the build enforces it (`docs/rtx/openmw.md` §6): the category header in
 `components/settings/categories/`, the default in `files/settings-default.cfg`, the documentation in
 `docs/source/reference/modding/settings/`, and — for a user-facing toggle — either four `UserString`
 lines in `files/data/mygui/openmw_settings_window.layout` or a widget in

@@ -1,7 +1,7 @@
 # Implementation plan
 
 An experimental ray-traced renderer inside this OpenMW fork. The posture and the priority order live
-in `CLAUDE.md`; the host engine's structure and the seams named below are in `openmw.md`. This file
+in `CLAUDE.md`; the host engine's structure and the seams named below are in `docs/rtx/openmw.md`. This file
 is the route.
 
 Status belongs in commits and in `docs/rtx/design.md` once that exists — **not here**, so this file
@@ -30,14 +30,14 @@ Three ways to feed a ray tracer from this codebase.
 | **B. Mirror the OSG scene graph** | Keep OpenMW's whole content pipeline; traverse the live graph each frame and maintain a Vulkan mirror of it | **Yes.** |
 | **C. Replace OSG's draw backend** | A Vulkan `osg::GraphicsContext` implementation | No. OSG's drawing model is fixed-function-shaped state assignment; ray tracing is not a draw call. |
 
-**B, because of §3.3 and §3.5 of `openmw.md`**: by cull time the world is already CPU-resident
+**B, because of §3.3 and §3.5 of `docs/rtx/openmw.md`**: by cull time the world is already CPU-resident
 triangles with world transforms, resolved texture roles, and — for actors — *already skinned*
 positions in `RigGeometry::getGeometry(frame)`. Terrain LOD, object paging and groundcover have all
 already made their decisions. The mirror is a traversal and a diff, not a content pipeline.
 
 Consequences to accept:
 
-- The cull traversal still runs (`openmw.md` §3.4). It is cheap and it is what makes skinning and
+- The cull traversal still runs (`docs/rtx/openmw.md` §3.4). It is cheap and it is what makes skinning and
   LOD happen. The **draw** is what goes away.
 - The mirror must be incremental. A full rebuild per frame is the naive version and it will not hold
   a frame budget; instance transforms change every frame, geometry rarely, materials almost never.
@@ -63,7 +63,7 @@ RTX 4090 Laptop).
 
 Why not a native Vulkan window with a Vulkan MyGUI backend: the GUI is not the problem — the
 character-preview doll, the local map, the global map and video playback are all OSG render-to-texture
-users (`openmw.md` §7), and each would need reimplementing before the game was playable again.
+users (`docs/rtx/openmw.md` §7), and each would need reimplementing before the game was playable again.
 Interop costs one full-screen blit and one semaphore wait per frame and keeps every one of them
 working. A native Vulkan window is a legitimate end state; it is not the way in.
 
@@ -127,7 +127,7 @@ demonstrates it.
 
 CMake option and targets; shader compile + validate step; instance and device bring-up with the
 feature set of §5; `VK_EXT_debug_utils` messenger that **aborts on any error in debug builds**;
-`openmw-rtxtool info`. Settings category `[RTX]` declared in all four places (`openmw.md` §6) and a
+`openmw-rtxtool info`. Settings category `[RTX]` declared in all four places (`docs/rtx/openmw.md` §6) and a
 checkbox in the launcher's Graphics page plus the in-game settings window, both marked as taking
 effect on restart.
 

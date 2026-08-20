@@ -27,7 +27,7 @@ namespace Rtx
         };
 
         constexpr std::array sOptionalDeviceExtensions{
-            // The in-game path hands its image to OpenGL rather than to a swapchain (plan.md §3).
+            // The in-game path hands its image to OpenGL rather than to a swapchain (docs/rtx/plan.md §3).
             VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
             VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME,
             // Turns a device loss from "the driver said no" into a list of what had not completed.

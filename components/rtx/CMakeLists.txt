@@ -1,5 +1,5 @@
 # The experimental ray tracing renderer. Built only with -DOPENMW_RTX=ON; nothing here is reachable
-# from the rest of the tree without that. See plan.md.
+# from the rest of the tree without that. See docs/rtx/plan.md.
 
 # Ninja needs the NEW behaviour to consume glslc's depfile; the root project's minimum predates it.
 if (POLICY CMP0116)
