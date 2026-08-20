@@ -15,6 +15,8 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "terrainstorage.hpp"
+
 namespace boost::program_options
 {
     class variables_map;
@@ -29,6 +31,17 @@ namespace Resource
 {
     class ResourceSystem;
     class SceneManager;
+}
+
+namespace Terrain
+{
+    class TerrainGrid;
+}
+
+namespace osg
+{
+    class Group;
+    class Node;
 }
 
 namespace ESM
@@ -80,6 +93,22 @@ namespace RtxTool
         /// Calls `handle` for every object the cell places that has a model to draw.
         SkippedObjects forEachObject(const ESM::Cell& cell, const std::function<void(const Object&)>& handle);
 
+        /// Loads an exterior cell's terrain and returns the graph it went into. Null for an
+        /// interior, and for an exterior with no land record.
+        ///
+        /// The graph is the same one every time and it accumulates: asking for a second cell adds
+        /// its chunks beside the first's. Nothing here loads more than one, and a caller that did
+        /// would want them together anyway.
+        ///
+        /// The game gets terrain without asking: by cull time `Terrain::QuadTreeWorld` has already
+        /// put chunks in the scene graph, and the mirror picks them up like any other geometry.
+        /// Headless there is no such thing, so the harness stands one up — and the renderer still
+        /// does not have to know terrain exists, which is the whole argument for mirroring a graph
+        /// rather than reading the content files twice.
+        ///
+        /// The returned node lives as long as this `World` does.
+        osg::ref_ptr<osg::Node> buildTerrain(const ESM::Cell& cell);
+
         Resource::SceneManager& getSceneManager();
 
     private:
@@ -94,6 +123,17 @@ namespace RtxTool
         // the right shape for something this size and means it cannot be filled in from the body.
         EsmLoader::EsmData mEsmData;
         std::unique_ptr<Resource::ResourceSystem> mResourceSystem;
+
+        // Built on the first exterior asked for. The grid keeps the chunks it made: its destructor
+        // unloads every cell and detaches its root, so it has to outlive whoever is reading them.
+        //
+        // Declaration order here is load-bearing, because destruction runs backwards through it.
+        // The grid deregisters itself from the resource system, so it must go first; the storage
+        // holds pointers into `mEsmData`, so it must go before that.
+        std::unique_ptr<TerrainStorage> mTerrainStorage;
+        osg::ref_ptr<osg::Group> mTerrainParent;
+        osg::ref_ptr<osg::Group> mCompileRoot;
+        std::unique_ptr<Terrain::TerrainGrid> mTerrain;
     };
 }
 

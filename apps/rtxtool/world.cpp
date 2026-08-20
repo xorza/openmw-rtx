@@ -8,6 +8,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcell.hpp>
+#include <components/esm3/loadland.hpp>
 #include <components/esmloader/lessbyid.hpp>
 #include <components/esmloader/load.hpp>
 #include <components/esmloader/record.hpp>
@@ -25,6 +26,7 @@
 #include <components/sceneutil/shadow.hpp>
 #include <components/settings/values.hpp>
 #include <components/shader/shadermanager.hpp>
+#include <components/terrain/terraingrid.hpp>
 #include <components/vfs/registerarchives.hpp>
 
 namespace RtxTool
@@ -159,6 +161,29 @@ namespace RtxTool
         sceneManager.setNormalHeightMapPattern(Settings::shaders().mNormalHeightMapPattern);
         sceneManager.setAutoUseSpecularMaps(Settings::shaders().mAutoUseObjectSpecularMaps);
         sceneManager.setSpecularMapPattern(Settings::shaders().mSpecularMapPattern);
+    }
+
+    osg::ref_ptr<osg::Node> World::buildTerrain(const ESM::Cell& cell)
+    {
+        if (!cell.isExterior())
+            return nullptr;
+
+        if (mTerrain == nullptr)
+        {
+            mTerrainStorage = std::make_unique<TerrainStorage>(mVfs, mEsmData);
+            mTerrainParent = new osg::Group;
+
+            // `Terrain::World` hangs a pre-render camera off this to build composite maps. Nothing
+            // here ever draws, so the camera is inert and the chunks come out with their blend maps
+            // instead, which is what a ray tracer wants anyway.
+            mCompileRoot = new osg::Group;
+
+            mTerrain = std::make_unique<Terrain::TerrainGrid>(mTerrainParent, mCompileRoot, mResourceSystem.get(),
+                mTerrainStorage.get(), ~0u, ESM::Cell::sDefaultWorldspaceId, sExpiryDelay);
+        }
+
+        mTerrain->loadCell(cell.getGridX(), cell.getGridY());
+        return mTerrainParent;
     }
 
     Resource::SceneManager& World::getSceneManager()

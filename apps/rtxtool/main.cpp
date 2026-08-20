@@ -185,6 +185,7 @@ namespace RtxTool
         struct CellReport
         {
             RtxBridge::ExtractionStats mStats;
+            RtxBridge::ExtractionStats mTerrain;
             World::SkippedObjects mSkipped;
 
             /// References whose model is named but will not load. Logged individually as they fail.
@@ -194,6 +195,12 @@ namespace RtxTool
         CellReport readCell(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor)
         {
             CellReport report;
+
+            // Terrain first, because it is what everything else stands on and its absence is the
+            // loudest thing about a screenshot that lacks it.
+            if (const osg::ref_ptr<osg::Node> terrain = world.buildTerrain(cell))
+                report.mTerrain = extractor.extract(*terrain, osg::Matrixf::identity());
+
             report.mSkipped = world.forEachObject(cell, [&](const World::Object& object) {
                 osg::ref_ptr<const osg::Node> node;
                 try
@@ -265,7 +272,8 @@ namespace RtxTool
             printCellHeading(*cell);
 
             out() << "\nplaced\n"
-                  << "  instances:            " << report.mStats.mInstances << '\n'
+                  << "  terrain chunks:       " << report.mTerrain.mInstances << '\n'
+                  << "  object instances:     " << report.mStats.mInstances << '\n'
                   << "  meshes:               " << scene.getMeshes().size() << '\n'
                   << "  materials:            " << scene.getMaterials().size() << '\n'
                   << "  textures:             " << scene.getTextures().size() << '\n'
@@ -281,11 +289,16 @@ namespace RtxTool
 
             if (twice)
             {
+                // Terrain and objects together: the property is about the whole graph, and terrain
+                // is half the geometry in an exterior.
                 const CellReport second = readCell(world, *cell, extractor);
+                RtxBridge::ExtractionStats total = second.mStats;
+                total += second.mTerrain;
+
                 out() << "\nsecond pass over the same graph\n"
-                      << "  new meshes:           " << second.mStats.mMeshesAdded << " (should be 0)\n"
-                      << "  new materials:        " << second.mStats.mMaterialsAdded << " (should be 0)\n"
-                      << "  drawables resolved:   " << second.mStats.mMeshesReused << " to a known mesh\n";
+                      << "  new meshes:           " << total.mMeshesAdded << " (should be 0)\n"
+                      << "  new materials:        " << total.mMaterialsAdded << " (should be 0)\n"
+                      << "  drawables resolved:   " << total.mMeshesReused << " to a known mesh\n";
             }
 
             return 0;

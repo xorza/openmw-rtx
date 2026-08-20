@@ -150,16 +150,26 @@ BLAS per mesh, TLAS per frame, a ray-query compute pass writing depth, instance 
 `openmw-rtxtool screenshot`. **Interop spike here, not later** — get a flat-shaded RT image into the
 game window while it is still simple enough to debug.
 
-**Terrain is missing from the harness, and the plan did not say so.** In the game it arrives free:
-`Terrain::QuadTreeWorld` has already put chunks in the scene graph by cull time, and the mirror picks
-them up like anything else. Headless there is no `Terrain::World` at all, so an exterior renders as
-objects floating in sky. Standing one up needs an `ESMTerrain::Storage` over `EsmData::mLands`, which
-are already loaded, feeding a `Terrain::ChunkManager`. It belongs to the harness rather than to the
-renderer, and nothing after M2 depends on it, but every exterior screenshot until then is missing its
-ground.
-
 *Done when:* Seyda Neen's shore renders recognisably; the primary-hit fraction is reported on stdout
 and asserted by a test; the same image appears in the game window through the interop path.
+
+### M2b — Terrain, in the harness only
+
+In the game terrain arrives free: `Terrain::QuadTreeWorld` has already put chunks in the scene graph
+by cull time, and the mirror picks them up like anything else. Headless there is no `Terrain::World`
+at all, so an exterior renders as objects floating in sky — Seyda Neen traced at 5.5% before this and
+79% after.
+
+A `ESMTerrain::Storage` over `EsmData::mLands`, which are already loaded, feeding a
+`Terrain::TerrainGrid`. One chunk grid per cell, no LOD: the quadtree is for a world that streams,
+and this one loads a cell and stops. **The renderer does not change at all** — chunks come out as
+`osg::Geometry` and the extractor takes them like any other drawable, which is the mirroring argument
+proving itself on the first thing it was asked to carry.
+
+Land *textures* are not part of it. They are indexed per content file and `EsmLoader` flattens
+records across files, so answering `getLandTexture` properly means teaching the loader a shape it
+does not have. Every layer falls back to `_land_default.dds` until M3, which is where terrain
+materials belong anyway.
 
 ### M3 — Textures and bindless materials
 
