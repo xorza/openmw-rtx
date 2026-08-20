@@ -72,8 +72,15 @@ cmake -S . -B build -G Ninja \
   -DBUILD_COMPONENTS_TESTS=ON -DBUILD_OPENMW_TESTS=ON \
   -DBUILD_OPENCS=OFF -DBUILD_WIZARD=OFF -DBUILD_ESSIMPORTER=OFF \
   -DBUILD_MWINIIMPORTER=OFF -DBUILD_OPENCS_TESTS=OFF \
+  -DOPENMW_USE_SYSTEM_RECASTNAVIGATION=ON -DOPENMW_USE_SYSTEM_GOOGLETEST=ON \
+  -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
   -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=mold
 ```
+
+Arch packages: `yaml-cpp openscenegraph mygui openal boost recastnavigation ccache mold ninja
+vulkan-headers vulkan-validation-layers shaderc spirv-tools`, and **`bullet-dp`, not `bullet`** —
+OpenMW requires a double-precision Bullet and refuses to configure against the single-precision one.
+The two packages conflict, so the single-precision `bullet` has to come out first.
 
 ```sh
 cmake --build build -j32                      # everything configured

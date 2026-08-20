@@ -373,9 +373,12 @@ load. No absolute frame rate from this machine is worth writing down.
 
 ### 7.7 Build speed
 
-`ninja`, `mold` (present), `ccache` (**not installed — install it**), `-DOPENMW_UNITY_BUILD=OFF` for
-our targets so incremental edits stay cheap, and `CMAKE_EXPORT_COMPILE_COMMANDS=ON` for clang-tidy
-and the LSP. 32 threads available.
+`ninja`, `mold`, `ccache` at 25 GB, `-DOPENMW_UNITY_BUILD=OFF` so incremental edits stay cheap, and
+`CMAKE_EXPORT_COMPILE_COMMANDS=ON` for clang-tidy and the LSP. 32 threads available; a cold build of
+everything except the Qt tools is under six minutes, and the RTX targets alone are seconds.
+
+Nothing further is worth adding. `sccache` and `distcc` distribute across machines and there is one
+machine; GCC precompiled headers are a rebuild-everything hazard for a saving ccache already has.
 
 ---
 
