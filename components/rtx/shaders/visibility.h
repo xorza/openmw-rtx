@@ -76,6 +76,12 @@ namespace Rtx::Shaders
         vec3 mSkyHorizon;
         vec3 mSkyZenith;
 
+        /// How long the water has been moving, in seconds.
+        ///
+        /// Zero is a still sea and a deterministic frame, which is what a test wants; the window
+        /// path passes its own clock.
+        float mTime;
+
         /// The cell's own ambient, linear.
         ///
         /// Morrowind's interiors were authored against a renderer with no bounce at all, so this

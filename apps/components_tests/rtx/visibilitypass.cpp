@@ -868,7 +868,7 @@ namespace Rtx
             };
             constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
 
-            const auto render = [&](MaterialKind kind, bool lookAtIt) {
+            const auto renderPixel = [&](MaterialKind kind, bool lookAtIt) {
                 SceneDesc scene = makeWall();
 
                 Material material;
@@ -892,8 +892,9 @@ namespace Rtx
 
                 std::vector<std::uint8_t> pixels;
                 EXPECT_GT(countHits(scene, noTextures(), camera, size, pixels), 0u);
-                return pixels[centre];
+                return std::array<std::uint8_t, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
             };
+            const auto render = [&](MaterialKind kind, bool lookAtIt) { return renderPixel(kind, lookAtIt)[0]; };
 
             // A solid pane stops the camera's ray and the sun's alike, so the wall behind is dark.
             EXPECT_EQ(render(MaterialKind::Surface, false), 0) << "a solid pane shadows the wall";
@@ -901,8 +902,12 @@ namespace Rtx
             // The same pane as water: the camera still meets it, and the sun goes straight through.
             // 0.5 albedo times 2.0 over pi is 0.318310, which encodes to 153 of 255.
             EXPECT_EQ(render(MaterialKind::Water, false), 153) << "and water does not";
-            // And the camera does still meet it: the placeholder colour, which nothing else wears.
-            EXPECT_EQ(render(MaterialKind::Water, true), 69) << "though a camera still sees it";
+
+            // And the camera does still meet it. Asserted as "bluer than it is red", which the wall
+            // cannot be at any brightness — it is grey through every channel — and which survives
+            // water's shading changing, as it will.
+            const std::array<std::uint8_t, 3> seen = renderPixel(MaterialKind::Water, true);
+            EXPECT_GT(seen[2], seen[0]) << "though a camera still sees it";
         }
 
         /// Its own device, because the validation layers allocate and this test counts allocations.

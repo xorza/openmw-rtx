@@ -25,6 +25,10 @@ namespace RtxTool
     {
         osg::Vec3f mAmbient;
 
+        /// How long the water has been moving, in seconds. Zero is a still sea and a deterministic
+        /// frame, which is what a screenshot wants; a window passes its own clock.
+        float mSeconds = 0.0f;
+
         /// The sun and the sky over an exterior. An interior leaves this dark.
         RtxBridge::Daylight mDaylight;
     };

@@ -11,6 +11,7 @@ namespace RtxTool
         const CellLighting& lighting, const Rtx::SceneDesc& scene, Rtx::Shaders::VisibilityConstants& constants)
     {
         constants.mAmbient = lighting.mAmbient;
+        constants.mTime = lighting.mSeconds;
         constants.mSunDirection = lighting.mDaylight.mSun.mDirection;
         constants.mSunIrradiance = lighting.mDaylight.mSun.mIrradiance;
         constants.mSkyHorizon = lighting.mDaylight.mSkyHorizon;

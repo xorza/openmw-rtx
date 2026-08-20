@@ -13,11 +13,13 @@
 
 #include <cstdint>
 
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
 namespace Rtx::Shaders
 {
+    using vec2 = osg::Vec2f;
     using vec3 = osg::Vec3f;
     using vec4 = osg::Vec4f;
     using uint = std::uint32_t;
@@ -26,6 +28,36 @@ namespace Rtx::Shaders
 
     /// A material with no texture in a slot stores this.
     const uint NO_TEXTURE = 0xFFFFFFFFu;
+
+    /// How many sinusoids the water surface is summed from.
+    const uint WAVE_COUNT = 32u;
+
+    /// A whole turn, which is how a wavelength becomes a wavenumber.
+    const float TAU = 6.2831853f;
+
+    /// Morrowind's gravity, in world units per second squared: 8.96 m/s^2 across 69.99 units to
+    /// the metre.
+    const float WATER_GRAVITY = 627.1f;
+
+    /// One sinusoid of the sea, as the shader reads it.
+    ///
+    /// **One height field, differentiated twice.** The normal is its gradient and the caustics to
+    /// come are its curvature, so the two cannot disagree about where a crest is — which they would
+    /// the moment either sampled a field of its own.
+    struct GpuWave
+    {
+        /// Unit vector the wave travels along.
+        vec2 mDirection;
+
+        /// Radians of phase per world unit.
+        float mWavenumber;
+
+        /// Half the crest-to-trough height, in world units.
+        float mAmplitude;
+
+        /// Radians of phase per second, from the dispersion relation at this depth.
+        float mSpeed;
+    };
 
     /// The circle constant, and the Lambertian BRDF's reciprocal of it.
     ///

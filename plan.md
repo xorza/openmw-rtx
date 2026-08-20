@@ -232,7 +232,10 @@ not a specification, and **the shader is more current than the document**.
   **Donelan-Banner**; 32 components as 8 wavenumber bands × 4 directions, sampled by *quantile* of
   the spread so every component carries equal energy; scaled to a significant wave height. Shortest
   wave **32 units** — 18 gives better caustics that tear, 50 is dull. Dispersion `sqrt(gk)` with
-  Morrowind's gravity, 627.1.
+  Morrowind's gravity, 627.1. **Done**, along with the drift, the cone filter and the normal. The
+  dispersion is the full `omega^2 = g k tanh(k h)` rather than its deep-water limit, because the
+  shelf is the whole reason this is TMA: a 1257-unit wave over 60 units of water travels at 54% of
+  its open-sea speed. The table resolves once on the host and animates from the frame's clock.
 - **Ripples carried on the swell**: displace the sample position by a low-frequency field
   (`WAVE_DRIFT` 13 units over `WAVE_DRIFT_LENGTH` 640) before evaluating, and take the Hessian with
   respect to the drifted position. Without this the caustics tile into a lattice.

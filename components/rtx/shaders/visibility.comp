@@ -70,6 +70,11 @@ layout(set = 0, binding = 11, scalar) readonly buffer Lights
     GpuLight lights[];
 };
 
+layout(set = 0, binding = 12, scalar) readonly buffer Waves
+{
+    GpuWave waves[];
+};
+
 layout(set = 1, binding = 0) uniform sampler2D textures[];
 
 layout(push_constant, scalar) uniform Push
@@ -211,6 +216,79 @@ float maskWeight(GpuLayer layer, vec2 uv)
 
     return mix(mix(masks[row0 + uint(base.x)], masks[row0 + uint(high.x)], frac.x),
         mix(masks[row1 + uint(base.x)], masks[row1 + uint(high.x)], frac.x), frac.y);
+}
+
+/// How far the swell carries the ripples riding on it, and over what distance that carrying turns.
+///
+/// **A sum of plane waves is a lattice, and curvature is where that shows.** The second derivative
+/// weights a component by `A k^2`, which climbs with wavenumber however the spectrum falls, so the
+/// shortest few dominate it whatever else is in the sum — and a handful of plane waves crossing is a
+/// grid, regular enough to read as a texture rather than as water.
+///
+/// So the short waves are carried. On real water they ride the long swell's orbital motion, which
+/// bends their crests and slides them out of step from one trough to the next. Thirteen units is
+/// most of a wavelength to the shortest waves and a rounding error to the longest, so one field does
+/// the whole job without touching the swell it came from.
+const float WAVE_DRIFT = 13.0;
+const float WAVE_DRIFT_LENGTH = 640.0;
+
+/// Where the ripples have been carried to by the time they are sampled.
+///
+/// Two long crossing swells at angles the band sequence never takes, so the drift cannot fall into
+/// step with the waves it displaces.
+vec2 drifted(vec2 at, float time)
+{
+    const float wavenumber = TAU / WAVE_DRIFT_LENGTH;
+    const float speed = sqrt(WATER_GRAVITY * wavenumber);
+    const float along = wavenumber * dot(vec2(0.8347, 0.5507), at) - speed * time;
+    const float across = wavenumber * dot(vec2(-0.4132, 0.9106), at) - speed * time * 0.83;
+
+    return at + WAVE_DRIFT * vec2(sin(along) + 0.6 * cos(across), cos(along) - 0.6 * sin(across));
+}
+
+/// How much of a wave that long a cone this wide can still tell apart, from none of it to all.
+///
+/// A wave narrower than the pixel looking at it is averaged away rather than drawn: a cone a
+/// wavelength across covers a crest and a trough whose slopes cancel, and picking one of them
+/// instead is what makes distant water a field of crawling white sparks.
+float resolved(float wavelength, float footprint)
+{
+    return 1.0 - smoothstep(0.25 * wavelength, 0.75 * wavelength, footprint);
+}
+
+/// The surface normal at a point, from the gradient of the wave height field.
+///
+/// The height is `sum(A sin(k dot(d, p) - w t))` and this is its slope, so the two cannot disagree —
+/// which matters more than it sounds: the caustics to come differentiate this same field again, and
+/// a normal that did not come from the height would put the light where the surface is not.
+///
+/// @param unresolved what the cone averaged away, as mean square slope. **Not gone, rough.** A
+///        surface that lost its slope reflects like polished plastic; keeping the variance of what
+///        was dropped is what lets it come back as a widened specular lobe instead, which is LEAN
+///        mapping's argument in the one dimension it needs.
+vec3 waterNormal(vec2 at, float time, float footprint, out float unresolved)
+{
+    const vec2 here = drifted(at, time);
+
+    vec2 slope = vec2(0.0);
+    unresolved = 0.0;
+
+    for (uint i = 0u; i < WAVE_COUNT; ++i)
+    {
+        const GpuWave wave = waves[i];
+        const float detail = resolved(TAU / wave.mWavenumber, footprint);
+        const float steepness = wave.mAmplitude * wave.mWavenumber;
+
+        // A sinusoid of steepness `s` has mean square slope `s^2 / 2`.
+        unresolved += (1.0 - detail * detail) * 0.5 * steepness * steepness;
+        if (detail <= 0.0)
+            continue;
+
+        const float phase = wave.mWavenumber * dot(wave.mDirection, here) - wave.mSpeed * time;
+        slope += wave.mDirection * (detail * steepness * cos(phase));
+    }
+
+    return normalize(vec3(-slope, 1.0));
 }
 
 /// How much of a light `distance` away arrives, per unit intensity.
@@ -422,11 +500,19 @@ void main()
 
         if (material.mKind == KIND_WATER)
         {
-            // A placeholder, and the one thing in this shader that is not trying to be right. Water
-            // has no albedo: its colour is a reflection, a refraction and what the depth between
-            // them absorbed, and all three are the next milestone. Until then it is a flat surface
-            // in the right place at the right height, which is what this step is for.
-            colour = vec3(0.06, 0.12, 0.15);
+            // Still a placeholder — water's colour is a reflection, a refraction and what the depth
+            // between them absorbed, and all three are the next step. What is real here is the
+            // surface: the waves are the height field the caustics will differentiate, and shading
+            // by their normal is how a field with no colour of its own can be looked at.
+            // The roughness comes back and is dropped: it is what widens the specular lobe, and
+            // there is no lobe to widen until the reflection ray exists. Kept because the variance
+            // has to be summed inside the wave loop or not at all — reconstructing it afterwards
+            // would mean walking the spectrum a second time.
+            float unresolved = 0.0;
+            const vec3 wave = waterNormal((camera.mOrigin + direction * hitDistance).xy, camera.mTime,
+                camera.mSpreadAngle * hitDistance, unresolved);
+
+            colour = vec3(0.06, 0.12, 0.15) * (0.3 + 0.7 * max(dot(wave, -direction), 0.0));
         }
         else if (camera.mShowAlbedo != 0u)
         {

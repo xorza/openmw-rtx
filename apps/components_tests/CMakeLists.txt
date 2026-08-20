@@ -107,6 +107,7 @@ if (OPENMW_RTX)
         rtx/requirements.cpp
         rtx/scenedesc.cpp
         rtx/visibilitypass.cpp
+        rtx/wavespectrum.cpp
         rtxbridge/lightbuilder.cpp
         rtxbridge/sceneextractor.cpp
         rtxbridge/texturebuilder.cpp

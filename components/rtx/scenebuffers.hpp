@@ -37,6 +37,7 @@ namespace Rtx
         VkBuffer getLayers() const { return mLayers.getHandle(); }
         VkBuffer getMasks() const { return mMasks.getHandle(); }
         VkBuffer getLights() const { return mLights.getHandle(); }
+        VkBuffer getWaves() const { return mWaves.getHandle(); }
 
         VkDeviceSize getBytes() const;
 
@@ -50,6 +51,7 @@ namespace Rtx
         Buffer mLayers;
         Buffer mMasks;
         Buffer mLights;
+        Buffer mWaves;
     };
 }
 

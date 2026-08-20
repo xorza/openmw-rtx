@@ -368,7 +368,12 @@ namespace RtxTool
             Rtx::Shaders::VisibilityConstants constants = Rtx::makeCamera(
                 camera.getOrigin(), camera.getTarget(), request.mFieldOfView, extent.width, extent.height, far);
             constants.mShowAlbedo = request.mShowAlbedo ? 1u : 0u;
-            applyLighting(request.mLighting, scene, constants);
+
+            // The window is the only path with a clock. A screenshot leaves the sea still, so two
+            // runs of one build agree pixel for pixel.
+            CellLighting lighting = request.mLighting;
+            lighting.mSeconds = static_cast<float>(std::chrono::duration<double>(now - began).count());
+            applyLighting(lighting, scene, constants);
 
             const VkCommandBuffer commands = commandBuffers[frame];
             recordFrame(commands, *targets[frame], swapchain.getImage(image), extent, constants);

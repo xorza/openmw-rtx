@@ -6,6 +6,7 @@
 #include "device.hpp"
 #include "scenedesc.hpp"
 #include "shaders/scene.h"
+#include "wavespectrum.hpp"
 
 namespace Rtx
 {
@@ -124,6 +125,11 @@ namespace Rtx
             sTableUsage);
         mMasks = uploadBuffer(device, pool,
             scene.getMasks().empty() ? std::span<const float>(&noMask, 1) : scene.getMasks(), sTableUsage);
+        // The sea's own shape, which belongs to no cell: one table for the whole world, animated by
+        // the time in the frame's constants rather than by being rebuilt.
+        const std::array<Shaders::GpuWave, Shaders::WAVE_COUNT> table = SeaState{}.getWaves();
+        mWaves = uploadBuffer(device, pool, std::span<const Shaders::GpuWave>(table), sTableUsage);
+
         mLights = uploadBuffer(device, pool,
             lights.empty() ? std::span<const Shaders::GpuLight>(&noLight, 1)
                            : std::span<const Shaders::GpuLight>(lights),
@@ -138,6 +144,6 @@ namespace Rtx
         // The indices are not counted here: they belong to the acceleration structure, which reports
         // its own size.
         return mNormals.getSize() + mTexCoords.getSize() + mMeshes.getSize() + mInstances.getSize()
-            + mMaterials.getSize() + mLayers.getSize() + mMasks.getSize() + mLights.getSize();
+            + mMaterials.getSize() + mLayers.getSize() + mMasks.getSize() + mLights.getSize() + mWaves.getSize();
     }
 }

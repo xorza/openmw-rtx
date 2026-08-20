@@ -87,6 +87,8 @@ set(RTX_FILES
     validation.cpp
     validation.hpp
     visibilitypass.cpp
+    wavespectrum.cpp
+    wavespectrum.hpp
     visibilitypass.hpp
 )
 
