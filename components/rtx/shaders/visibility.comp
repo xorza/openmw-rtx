@@ -176,6 +176,15 @@ const vec3 FOG_CHURN[FOG_OCTAVES] = vec3[FOG_OCTAVES](vec3(11.0, 7.0, 0.0), vec3
 /// Frequency step between octaves. Not two, so the lattices never line up and repeat.
 const float FOG_LACUNARITY = 2.27;
 
+/// The spread of the full stack, as a share of one octave's: `sum(a^2) / sum(a)^2` for amplitudes
+/// 1, 1/2 and 1/4, which is three sevenths.
+///
+/// **What the field is rescaled to hold when an octave drops out.** Fewer octaves is a *wider*
+/// distribution, not a narrower one — one octave alone has more than twice the variance of three
+/// averaged — so a field that simply lost its fine detail would present a different spread to the
+/// coverage band, cut a different share of the volume, and quietly stop averaging to `FOG_COVERAGE`.
+const float FOG_SPREAD = 3.0 / 7.0;
+
 /// How far the field drags itself sideways before it is sampled, in world units.
 ///
 /// **Domain warping**: rather than adding octaves, the *coordinate* is displaced by a noise of its
@@ -387,11 +396,15 @@ vec2 drifted(vec2 at, float time)
     return at + WAVE_DRIFT * vec2(sin(along) + 0.6 * cos(across), cos(along) - 0.6 * sin(across));
 }
 
-/// How much of a wave that long a cone this wide can still tell apart, from none of it to all.
+/// How much of something that long a sampler this wide can still tell apart, from none of it to all.
 ///
 /// A wave narrower than the pixel looking at it is averaged away rather than drawn: a cone a
 /// wavelength across covers a crest and a trough whose slopes cancel, and picking one of them
 /// instead is what makes distant water a field of crawling white sparks.
+///
+/// **The fog's octaves ask the same question of the march's step**, which is the same argument with
+/// a different sampler: a field finer than the distance between two samples is not detail, it is
+/// noise dressed as detail. What `footprint` means is whatever is doing the looking.
 float resolved(float wavelength, float footprint)
 {
     return 1.0 - smoothstep(0.25 * wavelength, 0.75 * wavelength, footprint);
@@ -659,27 +672,55 @@ float fogNoise(vec3 at)
 /// because averaging octaves narrows a distribution: with amplitudes 1, 1/2 and 1/4 the variance
 /// falls to `sum(a^2) / sum(a)^2` — three sevenths — of a single octave's. That is what the coverage
 /// band has to be measured against rather than guessed at.
-float fogShape(vec3 position)
+///
+/// **An octave finer than the march's own step is aliasing, not detail.** The steps run from about
+/// fifty units near the camera to two and a half thousand at the far end of a long ray, so the
+/// finest octave — features 175 units across — is sampled properly on one step in twenty-four and
+/// turned into noise on the rest. Fading each one out where the spacing outruns it is the same
+/// argument `resolved` makes for a wave against a ray cone.
+///
+/// **It pays only where the ray is long, which is the half worth knowing.** The span is the distance
+/// to whatever was hit, so a view down a street stays fully sampled and gains nothing — measured at
+/// Balmora, where every ray ends within a couple of thousand units, the fade is worth under 4%. A
+/// view across open ground gains a third, and that is the case that was costing the most.
+///
+/// The coarsest never fades. It is the one that reads as a bank, so there is always a field here and
+/// never a division by nothing.
+float fogShape(vec3 position, float spacing)
 {
     // Two samples of the same field far apart, which is a cheap way to get a vector out of a scalar
-    // noise: they are uncorrelated enough to displace with.
-    const vec3 coarse = position / (FOG_GRAIN * 2.0);
-    const vec2 warp = vec2(fogNoise(coarse), fogNoise(coarse + vec3(5.2, 1.3, 7.1))) - 0.5;
-    position.xy += warp * FOG_WARP;
+    // noise: they are uncorrelated enough to displace with. It fades on its own terms — its features
+    // are twice the grain — and unlike an octave it can go without touching the field's spread,
+    // because an undisplaced domain is the same field seen from a different place.
+    const float warping = resolved(FOG_GRAIN * 2.0, spacing);
+    if (warping > 0.0)
+    {
+        const vec3 coarse = position / (FOG_GRAIN * 2.0);
+        const vec2 warp = vec2(fogNoise(coarse), fogNoise(coarse + vec3(5.2, 1.3, 7.1))) - 0.5;
+        position.xy += warp * (FOG_WARP * warping);
+    }
 
     float total = 0.0;
     float weight = 0.0;
+    float squares = 0.0;
     float amplitude = 1.0;
     float frequency = 1.0;
     for (int octave = 0; octave < FOG_OCTAVES; ++octave)
     {
-        total += amplitude * fogNoise((position * frequency + FOG_CHURN[octave] * camera.mTime) / FOG_GRAIN);
-        weight += amplitude;
+        const float held = octave == 0 ? 1.0 : resolved(FOG_GRAIN / frequency, spacing);
+        const float used = amplitude * held;
+        if (used > 0.0)
+            total += used * fogNoise((position * frequency + FOG_CHURN[octave] * camera.mTime) / FOG_GRAIN);
+
+        weight += used;
+        squares += used * used;
         amplitude *= 0.5;
         frequency *= FOG_LACUNARITY;
     }
 
-    return total / weight;
+    // Rescaled about the mean, which every octave shares, so that whatever survives presents the
+    // spread the whole stack would have. The band above is cut against that spread and nothing else.
+    return 0.5 + (total - 0.5 * weight) * sqrt(FOG_SPREAD / squares);
 }
 
 /// The height the fog pools at.
@@ -695,7 +736,10 @@ float fogBase()
 }
 
 /// The fog's extinction at a point, per world unit.
-float fogExtinctionAt(vec3 position)
+///
+/// @param spacing how far apart the march is sampling here, which decides how much of the field it
+///        can resolve.
+float fogExtinctionAt(vec3 position, float spacing)
 {
     // **Air only, and under a bay there is none.** The layer pools *at* the water rather than in
     // it, and a point below the surface already has the water's own absorption over it — fog there
@@ -708,11 +752,18 @@ float fogExtinctionAt(vec3 position)
 
     // **Even indoors, and banked out of doors.** Banks are something weather does to a landscape; a
     // room is smaller than one bank and its air is still, so what belongs there is a faint uniform
-    // haze rather than a rendering fault. Mixing toward exactly one is what makes the two differ in
-    // character and not in how much air there is, since one is what the band averages to.
-    const float banks = smoothstep(FOG_CLEARING, FOG_SOLID, fogShape(position)) / FOG_COVERAGE;
+    // haze rather than a rendering fault. One is what the band averages to, so moving between them
+    // changes the air's character and never how much of it there is.
+    //
+    // **Branched rather than mixed, because `mix` evaluates both sides.** An interior is uniform
+    // outright, and a field it then multiplies by nothing was costing it forty hashes a step for an
+    // answer it discards — measured at 2.0 ms of a 2.1 ms trace.
+    float coverage = 1.0;
+    if (camera.mFogUniform < 1.0)
+        coverage = mix(smoothstep(FOG_CLEARING, FOG_SOLID, fogShape(position, spacing)) / FOG_COVERAGE, 1.0,
+            camera.mFogUniform);
 
-    return camera.mFogExtinction * height * mix(banks, 1.0, camera.mFogUniform);
+    return camera.mFogExtinction * height * coverage;
 }
 
 /// What the air at a point sends toward the eye, per unit of light it takes out of the beam.
@@ -792,7 +843,7 @@ vec4 fogAlong(vec3 origin, vec3 direction, float distance, float offset)
         // structure in it land on the same places every frame otherwise, and a lantern's halo wobbles
         // as the steps sweep through its falloff.
         const vec3 position = origin + direction * (behind + offset * stride);
-        const float extinction = fogExtinctionAt(position);
+        const float extinction = fogExtinctionAt(position, stride);
         behind = ahead;
 
         // What this step is worth to the frame, computed once and used twice: what it scatters in
