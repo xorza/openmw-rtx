@@ -193,7 +193,11 @@ Two properties of this pipeline matter:
 2. **Nothing in the chain needs a GL context.** Contexts are needed to *draw*, not to load.
 
 `components/esmloader/` (`EsmLoader::loadEsmData`) reads content files into flat vectors with no
-world simulation attached — this is how the non-graphical tools work.
+world simulation attached — this is how the non-graphical tools work. Which record types it reads is
+`EsmLoader::ModelRecords`, one list that the reader, the store, the query mask and `getModel` are all
+generated from; a caller names the subset it wants with `modelRecords<...>()`, because what gets read
+decides what its world contains. The navmesh tools ask for the four types that carry collision and
+the RT harness asks for everything, which is a third of an interior's references either way.
 
 ---
 

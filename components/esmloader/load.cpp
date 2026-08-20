@@ -7,13 +7,9 @@
 #include <components/esm/defs.hpp>
 #include <components/esm/typetraits.hpp>
 #include <components/esm3/esmreader.hpp>
-#include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadcell.hpp>
-#include <components/esm3/loadcont.hpp>
-#include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadland.hpp>
-#include <components/esm3/loadstat.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/files/collections.hpp>
 #include <components/files/conversion.hpp>
@@ -128,36 +124,58 @@ namespace EsmLoader
             }
         }
 
+        template <class T>
+        struct AsShallow;
+
+        template <class... Ts>
+        struct AsShallow<std::tuple<Ts...>>
+        {
+            using Type = std::tuple<Records<Ts>...>;
+        };
+
+        /// The shallow half of `ModelStore`: every model-bearing type as it comes off the reader,
+        /// still carrying the deletion flags and the duplicates that merging will resolve.
+        using ShallowModels = AsShallow<ModelRecords>::Type;
+
+        constexpr auto sModelIndices = std::make_index_sequence<std::tuple_size_v<ModelRecords>>{};
+
         struct ShallowContent
         {
-            Records<ESM::Activator> mActivators;
             CellRecords mCells;
-            Records<ESM::Container> mContainers;
-            Records<ESM::Door> mDoors;
             Records<ESM::GameSetting> mGameSettings;
             Records<ESM::Land> mLands;
-            Records<ESM::Static> mStatics;
+            ShallowModels mModels;
         };
+
+        /// Reads the record into the `i`th model table if that is the one `name` belongs to.
+        ///
+        /// Returns false both when the type does not match and when it matches a type the query did
+        /// not ask for, because either way this record is one for the caller to skip.
+        template <std::size_t i>
+        bool loadModelRecord(const Query& query, const ESM::NAME& name, ESM::ESMReader& reader, ShallowContent& content)
+        {
+            using T = std::tuple_element_t<i, ModelRecords>;
+            if (name.toInt() != T::sRecordId || !query.mModels.test(i))
+                return false;
+
+            loadRecord(reader, std::get<i>(content.mModels));
+            return true;
+        }
+
+        template <std::size_t... i>
+        bool loadModelRecord(const Query& query, const ESM::NAME& name, ESM::ESMReader& reader, ShallowContent& content,
+            std::index_sequence<i...>)
+        {
+            return (loadModelRecord<i>(query, name, reader, content) || ...);
+        }
 
         void loadRecord(const Query& query, const ESM::NAME& name, ESM::ESMReader& reader, ShallowContent& content)
         {
             switch (name.toInt())
             {
-                case ESM::REC_ACTI:
-                    if (query.mLoadActivators)
-                        return loadRecord(reader, content.mActivators);
-                    break;
                 case ESM::REC_CELL:
                     if (query.mLoadCells)
                         return loadRecord(reader, content.mCells);
-                    break;
-                case ESM::REC_CONT:
-                    if (query.mLoadContainers)
-                        return loadRecord(reader, content.mContainers);
-                    break;
-                case ESM::REC_DOOR:
-                    if (query.mLoadDoors)
-                        return loadRecord(reader, content.mDoors);
                     break;
                 case ESM::REC_GMST:
                     if (query.mLoadGameSettings)
@@ -167,9 +185,9 @@ namespace EsmLoader
                     if (query.mLoadLands)
                         return loadRecord(reader, content.mLands);
                     break;
-                case ESM::REC_STAT:
-                    if (query.mLoadStatics)
-                        return loadRecord(reader, content.mStatics);
+                default:
+                    if (loadModelRecord(query, name, reader, content, sModelIndices))
+                        return;
                     break;
             }
 
@@ -262,15 +280,37 @@ namespace EsmLoader
 
         void addRefIdsTypes(EsmData& content)
         {
-            content.mRefIdTypes.reserve(content.mActivators.size() + content.mContainers.size() + content.mDoors.size()
-                + content.mStatics.size());
+            std::size_t total = 0;
+            std::apply([&](const auto&... records) { ((total += records.size()), ...); }, content.mModels);
+            content.mRefIdTypes.reserve(total);
 
-            addRefIdsTypes(content.mActivators, content.mRefIdTypes);
-            addRefIdsTypes(content.mContainers, content.mRefIdTypes);
-            addRefIdsTypes(content.mDoors, content.mRefIdTypes);
-            addRefIdsTypes(content.mStatics, content.mRefIdTypes);
+            std::apply(
+                [&](const auto&... records) { (addRefIdsTypes(records, content.mRefIdTypes), ...); }, content.mModels);
 
             std::sort(content.mRefIdTypes.begin(), content.mRefIdTypes.end(), LessById{});
+        }
+
+        /// Names a record type and how many of it there were, or says nothing when there were none.
+        ///
+        /// Silent on the empty ones because a query naming seventeen types and finding three of them
+        /// would otherwise print fourteen zeroes and bury the answer.
+        template <class T>
+        void reportCount(std::ostringstream& out, std::size_t count)
+        {
+            if (count != 0)
+                out << ' ' << count << ' ' << T::getRecordType() << ',';
+        }
+
+        template <class Tuple, std::size_t... i>
+        void reportModels(std::ostringstream& out, const Tuple& models, std::index_sequence<i...>)
+        {
+            (reportCount<std::tuple_element_t<i, ModelRecords>>(out, std::get<i>(models).size()), ...);
+        }
+
+        template <std::size_t... i>
+        void prepareModels(ShallowModels& shallow, ModelStore& prepared, std::index_sequence<i...>)
+        {
+            ((std::get<i>(prepared) = prepareRecords(std::get<i>(shallow), GetKey{})), ...);
         }
 
         std::vector<ESM::Cell> prepareCellRecords(Records<ESM::Cell>& records)
@@ -293,60 +333,39 @@ namespace EsmLoader
 
         std::ostringstream loaded;
 
-        if (query.mLoadActivators)
-            loaded << ' ' << content.mActivators.size() << " activators,";
         if (query.mLoadCells)
             loaded << ' ' << content.mCells.mValues.size() << " cells,";
-        if (query.mLoadContainers)
-            loaded << ' ' << content.mContainers.size() << " containers,";
-        if (query.mLoadDoors)
-            loaded << ' ' << content.mDoors.size() << " doors,";
         if (query.mLoadGameSettings)
             loaded << ' ' << content.mGameSettings.size() << " game settings,";
         if (query.mLoadLands)
             loaded << ' ' << content.mLands.size() << " lands,";
-        if (query.mLoadStatics)
-            loaded << ' ' << content.mStatics.size() << " statics,";
+        reportModels(loaded, content.mModels, sModelIndices);
 
         Log(Debug::Info) << "Loaded" << loaded.str();
 
         EsmData result;
 
-        if (query.mLoadActivators)
-            result.mActivators = prepareRecords(content.mActivators, GetKey{});
         if (query.mLoadCells)
             result.mCells = prepareCellRecords(content.mCells.mValues);
-        if (query.mLoadContainers)
-            result.mContainers = prepareRecords(content.mContainers, GetKey{});
-        if (query.mLoadDoors)
-            result.mDoors = prepareRecords(content.mDoors, GetKey{});
         if (query.mLoadGameSettings)
             result.mGameSettings = prepareRecords(content.mGameSettings, GetKey{});
         if (query.mLoadLands)
             result.mLands = prepareRecords(content.mLands, GetKey{});
-        if (query.mLoadStatics)
-            result.mStatics = prepareRecords(content.mStatics, GetKey{});
+        prepareModels(content.mModels, result.mModels, sModelIndices);
 
         addRefIdsTypes(result);
 
         std::ostringstream prepared;
 
-        if (query.mLoadActivators)
-            prepared << ' ' << result.mActivators.size() << " unique activators,";
         if (query.mLoadCells)
-            prepared << ' ' << result.mCells.size() << " unique cells,";
-        if (query.mLoadContainers)
-            prepared << ' ' << result.mContainers.size() << " unique containers,";
-        if (query.mLoadDoors)
-            prepared << ' ' << result.mDoors.size() << " unique doors,";
+            prepared << ' ' << result.mCells.size() << " cells,";
         if (query.mLoadGameSettings)
-            prepared << ' ' << result.mGameSettings.size() << " unique game settings,";
+            prepared << ' ' << result.mGameSettings.size() << " game settings,";
         if (query.mLoadLands)
-            prepared << ' ' << result.mLands.size() << " unique lands,";
-        if (query.mLoadStatics)
-            prepared << ' ' << result.mStatics.size() << " unique statics,";
+            prepared << ' ' << result.mLands.size() << " lands,";
+        reportModels(prepared, result.mModels, sModelIndices);
 
-        Log(Debug::Info) << "Prepared" << prepared.str();
+        Log(Debug::Info) << "Merged across content files to" << prepared.str();
 
         return result;
     }

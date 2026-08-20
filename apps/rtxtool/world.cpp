@@ -98,13 +98,12 @@ namespace RtxTool
             contentFiles.insert(contentFiles.end(), configured.begin(), configured.end());
 
             EsmLoader::Query query;
-            query.mLoadActivators = true;
             query.mLoadCells = true;
-            query.mLoadContainers = true;
-            query.mLoadDoors = true;
             query.mLoadGameSettings = true;
             query.mLoadLands = true;
-            query.mLoadStatics = true;
+            // Everything that names a model, because everything a cell places has to be rendered:
+            // a room missing its lamps and its bookshelves is not the room.
+            query.mModels = EsmLoader::allModelRecords();
             return EsmLoader::loadEsmData(query, contentFiles, fileCollections, readers, &encoder);
         }
 

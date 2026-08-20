@@ -166,10 +166,11 @@ and this one loads a cell and stops. **The renderer does not change at all** —
 `osg::Geometry` and the extractor takes them like any other drawable, which is the mirroring argument
 proving itself on the first thing it was asked to carry.
 
-Land *textures* are not part of it. They are indexed per content file and `EsmLoader` flattens
-records across files, so answering `getLandTexture` properly means teaching the loader a shape it
-does not have. Every layer falls back to `_land_default.dds` until M3, which is where terrain
-materials belong anyway.
+Land *textures* are not part of it. A cell's blend map indexes into the texture list of the plugin
+that wrote it, so the same index means different things in different files — and `EsmLoader` keys
+everything by record id, which is a rule that cannot express it. The loader's model records were
+widened without them for that reason: they need the plugin index threaded through the read, which is
+a mechanism of their own. Every layer falls back to `_land_default.dds` until they arrive.
 
 ### M3 — Textures and bindless materials
 

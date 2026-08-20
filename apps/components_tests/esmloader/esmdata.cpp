@@ -1,10 +1,6 @@
-#include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadcell.hpp>
-#include <components/esm3/loadcont.hpp>
-#include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadland.hpp>
-#include <components/esm3/loadstat.hpp>
 #include <components/esm3/variant.hpp>
 #include <components/esmloader/esmdata.hpp>
 
@@ -40,26 +36,6 @@ namespace
             GetParam().mResult);
     }
 
-    void pushBack(ESM::Activator&& value, EsmData& esmData)
-    {
-        esmData.mActivators.push_back(std::move(value));
-    }
-
-    void pushBack(ESM::Container&& value, EsmData& esmData)
-    {
-        esmData.mContainers.push_back(std::move(value));
-    }
-
-    void pushBack(ESM::Door&& value, EsmData& esmData)
-    {
-        esmData.mDoors.push_back(std::move(value));
-    }
-
-    void pushBack(ESM::Static&& value, EsmData& esmData)
-    {
-        esmData.mStatics.push_back(std::move(value));
-    }
-
     template <class T>
     struct PushBack
     {
@@ -71,7 +47,7 @@ namespace
             T value;
             value.mId = ESM::RefId::stringRefId(mId);
             value.mModel = mModel;
-            pushBack(std::move(value), esmData);
+            esmData.get<T>().push_back(std::move(value));
         }
     };
 
@@ -92,8 +68,20 @@ namespace
         Params{ "cont_ref_id_z", ESM::REC_CONT, {}, PushBack<ESM::Container>{ "cont_ref_id_a", "cont_model" } },
         Params{ "door_ref_id_z", ESM::REC_DOOR, {}, PushBack<ESM::Door>{ "door_ref_id_a", "door_model" } },
         Params{ "static_ref_id_z", ESM::REC_STAT, {}, PushBack<ESM::Static>{ "static_ref_id_a", "static_model" } },
+        // The types the widening added, which the four above cannot speak for: a lookup that only
+        // knew the collision-bearing records would answer these with nothing and look right doing it.
+        Params{ "light_ref_id", ESM::REC_LIGH, VFS::Path::NormalizedView("light_model"),
+            PushBack<ESM::Light>{ "light_ref_id", "light_model" } },
+        Params{ "book_ref_id", ESM::REC_BOOK, VFS::Path::NormalizedView("book_model"),
+            PushBack<ESM::Book>{ "book_ref_id", "book_model" } },
+        Params{ "misc_ref_id", ESM::REC_MISC, VFS::Path::NormalizedView("misc_model"),
+            PushBack<ESM::Miscellaneous>{ "misc_ref_id", "misc_model" } },
+        // The right id in the wrong table stays unfound: the type picks the table before the id is
+        // looked for, so a light and a book sharing a name are still two different records.
+        Params{ "light_ref_id", ESM::REC_BOOK, {}, PushBack<ESM::Light>{ "light_ref_id", "light_model" } },
         Params{ "ref_id", ESM::REC_STAT, {}, [](EsmData&) {} },
-        Params{ "ref_id", ESM::REC_BOOK, {}, [](EsmData&) {} },
+        // A record type the list deliberately leaves out. An NPC names no model of its own.
+        Params{ "ref_id", ESM::REC_NPC_, {}, [](EsmData&) {} },
     };
 
     INSTANTIATE_TEST_SUITE_P(Params, EsmLoaderGetModelTest, ValuesIn(params));
