@@ -379,15 +379,28 @@ tests do not fail each other (rtxmw's `validation_log.rs` is the pattern).
 A steady-state frame with a stationary camera must not touch the heap. The concern is jitter, not
 throughput: at 60 fps a single 2 ms allocator stall is a dropped frame and an average hides it.
 
-A test binary linked with `-Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free` plus a
-counting global `operator new`/`delete` renders N frames of the real renderer — frame constants,
-recording, submit, wait — and asserts the counter is zero across the measured window. Warm up first;
-device bring-up and first-call driver caching allocate legitimately. Budget expressed as a named
-constant, not `== 0`, so a driver path that must allocate can be accommodated *deliberately*, with
-the number and the reason visible.
+A counting global `operator new`/`delete`, defined in one translation unit of the test binary so the
+linker uses it for the whole thing, renders N frames of the real renderer — frame constants,
+recording, submit, wait — and asserts the counter across the measured window. Warm up first; device
+bring-up and first-call driver caching allocate legitimately. Budget expressed as a named constant,
+not `== 0`, so a driver path that must allocate can be accommodated *deliberately*, with the number
+and the reason visible. It measures zero.
 
-In debug builds a `NoAllocScope` guard around the record path asserts on the same counter, so a
-regression surfaces during ordinary play rather than only in CI.
+**No `--wrap=malloc`**, which the first version of this called for. It would also count the driver's
+own allocations, which are not this renderer's to control, and every one of the things the frame path
+is forbidden to do — a `std::string` built, an unreserved vector grown, a `std::function` captured, a
+`make_unique` reached for — arrives through `operator new` regardless. Wrapping malloc would have
+added noise without adding reach.
+
+**Two things had to be true before the number meant anything.** `CommandPool::submitAndWait` takes a
+fresh command buffer from the pool on every call, which the driver satisfies out of the heap: it is
+setup's shape and says so, and a frame has to reuse a buffer against a fence instead. And the
+validation layers go to the heap on every command they inspect — sixty-six times a frame here — so
+the test needs a device without them, which is what `getUnvalidatedHarness` is for.
+
+A `NoAllocScope` guard asserting on the same counter in debug builds waits for M11: it needs the
+counter in the renderer rather than in a test binary, and there is no ordinary play for it to surface
+during until the renderer is inside the engine.
 
 What this forbids on the frame path: `format!`-equivalents, `std::string` construction, `push_back`
 into an unreserved vector, `std::function` capture, `make_unique`, and any logging that is not

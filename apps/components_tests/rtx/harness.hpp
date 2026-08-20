@@ -25,24 +25,19 @@ namespace Rtx::Testing
         std::unique_ptr<Device> mDevice;
     };
 
-    /// Null when this machine has no Vulkan device at all, with `reason` saying so.
-    ///
-    /// A machine without a GPU legitimately cannot run these, and skipping is honest. A machine
-    /// *with* one that does not meet the requirements is a finding, so that throws out of
-    /// `PhysicalDevice::select` and fails the suite rather than skipping.
-    inline Harness* getHarness(std::string& reason)
+    namespace Details
     {
-        static std::string sReason;
-        static const std::unique_ptr<Harness> sHarness = []() -> std::unique_ptr<Harness> {
+        inline std::unique_ptr<Harness> build(bool validation, std::string& reason)
+        {
             std::uint32_t version = 0;
             if (vkEnumerateInstanceVersion(&version) != VK_SUCCESS || version < sApiVersion)
             {
-                sReason = "the Vulkan loader is absent or older than this renderer requires";
+                reason = "the Vulkan loader is absent or older than this renderer requires";
                 return nullptr;
             }
 
             InstanceOptions options;
-            options.mValidation = true;
+            options.mValidation = validation;
             // Tests provoke errors deliberately and assert on them; aborting would take the suite
             // down with the first one.
             options.mPolicy = ValidationPolicy::Log;
@@ -54,14 +49,40 @@ namespace Rtx::Testing
             if (vkEnumeratePhysicalDevices(harness->mInstance->getHandle(), &count, nullptr) != VK_SUCCESS
                 || count == 0)
             {
-                sReason = "no Vulkan device is installed";
+                reason = "no Vulkan device is installed";
                 return nullptr;
             }
 
             harness->mDevice = std::make_unique<Device>(
                 *harness->mInstance, PhysicalDevice::select(harness->mInstance->getHandle()));
             return harness;
-        }();
+        }
+    }
+
+    /// Null when this machine has no Vulkan device at all, with `reason` saying so.
+    ///
+    /// A machine without a GPU legitimately cannot run these, and skipping is honest. A machine
+    /// *with* one that does not meet the requirements is a finding, so that throws out of
+    /// `PhysicalDevice::select` and fails the suite rather than skipping.
+    inline Harness* getHarness(std::string& reason)
+    {
+        static std::string sReason;
+        static const std::unique_ptr<Harness> sHarness = Details::build(true, sReason);
+
+        reason = sReason;
+        return sHarness.get();
+    }
+
+    /// The same, with no validation layers loaded.
+    ///
+    /// One test wants this and wants it for a particular reason: the layers go to the heap on every
+    /// command they inspect — sixty-six times a frame in this renderer — which drowns out anything
+    /// an allocation count is trying to see. Everything else is better off validated, so this second
+    /// device is only built if something asks for it.
+    inline Harness* getUnvalidatedHarness(std::string& reason)
+    {
+        static std::string sReason;
+        static const std::unique_ptr<Harness> sHarness = Details::build(false, sReason);
 
         reason = sReason;
         return sHarness.get();

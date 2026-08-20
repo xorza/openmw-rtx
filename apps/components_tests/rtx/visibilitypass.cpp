@@ -18,6 +18,7 @@
 #include <components/rtx/texture.hpp>
 #include <components/rtx/visibilitypass.hpp>
 
+#include "allocations.hpp"
 #include "harness.hpp"
 
 namespace Rtx
@@ -81,6 +82,23 @@ namespace Rtx
                 makeCamera(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, 64, 64, 1.0f), Error);
         }
 
+        /// A square in the xz plane at y = 0, facing along -Y, four hundred units across.
+        SceneDesc makeWall()
+        {
+            const std::array positions{
+                osg::Vec3f(-200.0f, 0.0f, -200.0f),
+                osg::Vec3f(200.0f, 0.0f, -200.0f),
+                osg::Vec3f(200.0f, 0.0f, 200.0f),
+                osg::Vec3f(-200.0f, 0.0f, 200.0f),
+            };
+            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
+
+            SceneDesc scene;
+            const Index mesh = scene.addMesh(positions, {}, {}, indices);
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh });
+            return scene;
+        }
+
         /// What the shader writes for a linear value, so a test can name the byte it expects.
         std::uint8_t encodeSrgb(float linear)
         {
@@ -110,23 +128,6 @@ namespace Rtx
                 for (const ValidationMessage& message :
                     mHarness->mInstance->getValidationLog()->getErrorsOnThisThread())
                     ADD_FAILURE() << "validation error: " << message.mText;
-            }
-
-            /// A square in the xz plane at y = 0, facing along -Y, four hundred units across.
-            static SceneDesc makeWall()
-            {
-                const std::array positions{
-                    osg::Vec3f(-200.0f, 0.0f, -200.0f),
-                    osg::Vec3f(200.0f, 0.0f, -200.0f),
-                    osg::Vec3f(200.0f, 0.0f, 200.0f),
-                    osg::Vec3f(-200.0f, 0.0f, 200.0f),
-                };
-                constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
-
-                SceneDesc scene;
-                const Index mesh = scene.addMesh(positions, {}, {}, indices);
-                scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh });
-                return scene;
             }
 
             /// Renders `scene` at `size` square and returns how many primary rays hit.
@@ -843,6 +844,122 @@ namespace Rtx
             Light spent = lamp;
             spent.mReach = 50.0f;
             EXPECT_EQ(render(spent, osg::Vec3f(), false), 0) << "and one whose reach ends at the wall";
+        }
+
+        /// Its own device, because the validation layers allocate and this test counts allocations.
+        class RtxFrameCostTest : public ::testing::Test
+        {
+        protected:
+            void SetUp() override
+            {
+                std::string reason;
+                mHarness = Testing::getUnvalidatedHarness(reason);
+                if (mHarness == nullptr)
+                    GTEST_SKIP() << reason;
+            }
+
+            Testing::Harness* mHarness = nullptr;
+        };
+
+        /// A frame that changes nothing must not go to the heap.
+        ///
+        /// The concern is jitter rather than throughput: at sixty frames a second a single
+        /// allocator stall is a dropped frame, and an average hides it. What this forbids on the
+        /// frame path is a `std::string` built, an unreserved vector grown, a `std::function`
+        /// captured, a `make_unique` reached for, or logging that did not compile out.
+        ///
+        /// Warmed up first, because the first of anything legitimately allocates: descriptor pools
+        /// grow, the driver caches its first call, and a command buffer finds its size.
+        TEST_F(RtxFrameCostTest, aSteadyFrameDoesNotTouchTheHeap)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr int warmUpFrames = 8;
+            constexpr int measuredFrames = 32;
+
+            // What a frame is allowed, and why. Zero is the claim; a constant rather than a literal
+            // zero is so that a path which must allocate can be admitted deliberately, with the
+            // number and the reason written down beside it.
+            constexpr std::size_t budgetPerFrame = 0;
+
+            const SceneDesc scene = makeWall();
+
+            Device& device = *mHarness->mDevice;
+            CommandPool pool(device);
+            const SceneAcceleration acceleration(device, pool, scene);
+            const SceneBuffers buffers(device, pool, scene, acceleration.getIndices());
+
+            const TextureArray textures(device, std::vector<Texture>{});
+            const VisibilityPass pass(device, Testing::getShaderDirectory(), textures.getLayout());
+            const VisibilityInputs inputs{
+                .mScene = acceleration.getTopLevel(),
+                .mBuffers = &buffers,
+                .mTextures = textures.getSet(),
+            };
+
+            Image target(device, size, size, VK_FORMAT_R8G8B8A8_UNORM,
+                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+            const Buffer hits(device, sizeof(std::uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+            pool.submitAndWait([&](VkCommandBuffer commands) {
+                target.transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+            });
+
+            // A command buffer reused against a fence, which is what a frame is and what the window
+            // loop does. `submitAndWait` would be the setup shape — a fresh buffer from the pool and
+            // a wait on the whole queue — and it is measured here as allocating nothing either, so
+            // this is about what is being pinned rather than about what it costs today.
+            const std::vector<VkCommandBuffer> recorded = pool.allocate(1);
+            const VkCommandBuffer commands = recorded.front();
+
+            const VkFenceCreateInfo describeFence{ .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+            VkFence finished = VK_NULL_HANDLE;
+            ASSERT_EQ(vkCreateFence(device.getHandle(), &describeFence, nullptr, &finished), VK_SUCCESS);
+
+            // Everything a still frame does: the camera worked out, the pass recorded, the work
+            // submitted and waited on. The camera is the same every time, which is what "steady"
+            // means — a moving one would still allocate nothing, but then nothing would be pinned.
+            const auto frame = [&] {
+                const Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+                vkResetCommandBuffer(commands, 0);
+                const VkCommandBufferBeginInfo begin{
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+                };
+                vkBeginCommandBuffer(commands, &begin);
+                pass.record(commands, inputs, target, hits, camera);
+                vkEndCommandBuffer(commands);
+
+                const VkCommandBufferSubmitInfo buffer{
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                    .commandBuffer = commands,
+                };
+                const VkSubmitInfo2 submit{
+                    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+                    .commandBufferInfoCount = 1,
+                    .pCommandBufferInfos = &buffer,
+                };
+                vkQueueSubmit2(device.getQueue(), 1, &submit, finished);
+                vkWaitForFences(device.getHandle(), 1, &finished, VK_TRUE, ~std::uint64_t{ 0 });
+                vkResetFences(device.getHandle(), 1, &finished);
+            };
+
+            for (int i = 0; i < warmUpFrames; ++i)
+                frame();
+
+            const std::size_t before = Testing::getAllocationCount();
+            for (int i = 0; i < measuredFrames; ++i)
+                frame();
+            const std::size_t after = Testing::getAllocationCount();
+
+            vkDestroyFence(device.getHandle(), finished, nullptr);
+
+            EXPECT_LE(after - before, budgetPerFrame * measuredFrames)
+                << (after - before) << " allocations across " << measuredFrames << " frames";
         }
 
         /// The same scene with the camera turned around. Nothing is in front of it, so nothing is hit
