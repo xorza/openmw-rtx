@@ -6,6 +6,7 @@
 
 #include <components/esm3/loadligh.hpp>
 #include <components/fallback/fallback.hpp>
+#include <components/rtx/shaders/scene.h>
 
 namespace RtxBridge
 {
@@ -18,8 +19,10 @@ namespace RtxBridge
         /// into them already, so every lamp here is competing with illumination that is in the
         /// albedo, and this number only starts to mean something once that is unpicked.
         ///
-        /// The pi is the Lambertian `1/pi` the shader divides by, kept here so the two cancel.
-        constexpr float sIntensity = 0.25f * 3.14159265f;
+        /// The pi is the Lambertian `1/pi` the shader divides by, and cancels against it exactly —
+        /// so a lamp is measured on the scale below and the sun, which carries no such factor, is
+        /// measured a pi apart from it. Both sides read the one constant.
+        const float sIntensity = 0.25f * Rtx::Shaders::PI;
 
         /// How much further a light reaches than its record says, and how much further again.
         ///
@@ -33,13 +36,6 @@ namespace RtxBridge
         /// term narrows the two instead, and it is the candles that most need to leave their table.
         constexpr float sReachScale = 2.0f;
         constexpr float sReachBonus = 128.0f;
-
-        /// Irradiance of the sun against the sky it is set in.
-        ///
-        /// Not a physical figure. Exposure absorbs any overall scale, so what matters is the ratio
-        /// between the direct sun and the sky, which on a clear day is roughly five to one on a
-        /// surface facing it. Provisional in the same way `sIntensity` is, and for the same reason.
-        constexpr float sDaylight = 8.0f;
 
         /// Morrowind's own sun, out of `apps/openmw/mwworld/weather.cpp:901`'s
         /// `(-400 * orbit, 75, -100)` — how far it swings east to west, how far north it sits, and
@@ -131,7 +127,7 @@ namespace RtxBridge
         };
 
         if (phase != SkyPhase::Night)
-            daylight.mSun.mIrradiance = weatherColour(weather, "Sun", name) * sDaylight;
+            daylight.mSun.mIrradiance = weatherColour(weather, "Sun", name) * Rtx::Shaders::DAYLIGHT;
 
         return daylight;
     }

@@ -91,9 +91,6 @@ const vec4 UV_IDENTITY = vec4(1.0, 1.0, 0.0, 0.0);
 /// point can land on the wrong side of its own triangle.
 const float SHADOW_BIAS = 1.0;
 
-/// The Lambertian BRDF's `1 / pi`, which the light intensities are pre-multiplied against.
-const float INV_PI = 0.31830989;
-
 vec3 encodeSrgb(vec3 linear)
 {
     const bvec3 small = lessThanEqual(linear, vec3(0.0031308));
@@ -422,9 +419,30 @@ void main()
         }
         albedo *= material.mDiffuseColour.rgb;
 
-        colour = camera.mShowAlbedo != 0u
-            ? albedo
-            : albedo * gather(camera.mOrigin + direction * hitDistance, facing);
+        if (camera.mShowAlbedo != 0u)
+        {
+            colour = albedo;
+        }
+        else
+        {
+            const vec3 position = camera.mOrigin + direction * hitDistance;
+
+            // The emissive colour joins the light rather than the albedo, which is where the
+            // original engine puts it: it sums the term with the diffuse and ambient light and
+            // multiplies the whole by the texture (`files/shaders/compatibility/objects.frag:232`).
+            // Added past the albedo instead, a mushroom cap carrying half against its stalk's
+            // nothing comes out flat white with none of its texture left in it.
+            colour = albedo * (gather(position, facing) + material.mEmissiveColour * EMISSIVE_INTENSITY);
+
+            // The emissive *map* is the other way round, and that is the engine's doing too
+            // (`objects.frag:244`): it is added after the multiply, so it glows through whatever
+            // the surface is made of rather than being tinted by it.
+            if (material.mEmissive != NO_TEXTURE)
+                colour += EMISSIVE_INTENSITY
+                    * sampleDiffuse(
+                        nonuniformEXT(material.mEmissive), uv, weight, UV_IDENTITY, crossed, direction, hitDistance)
+                          .rgb;
+        }
         atomicAdd(hits, 1);
     }
 

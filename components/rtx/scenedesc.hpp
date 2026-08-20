@@ -66,6 +66,12 @@ namespace Rtx
         Index mEmissive = sNoIndex;
 
         osg::Vec4f mDiffuseColour{ 1.0f, 1.0f, 1.0f, 1.0f };
+
+        /// How much the surface glows on its own, with the material's own multiplier folded in.
+        ///
+        /// The multiplier is not kept apart because nothing wants it apart: the game's own shader
+        /// only ever uses their product, and carrying two numbers would be carrying one of them for
+        /// the sake of it.
         osg::Vec3f mEmissiveColour{ 0.0f, 0.0f, 0.0f };
 
         float mAlphaRef = 0.0f;

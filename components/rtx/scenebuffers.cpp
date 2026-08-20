@@ -23,7 +23,9 @@ namespace Rtx
                 .mAlphaCutoff = material.isCutout() ? material.getAlphaCutoff() : 0.0f,
                 .mLayerOffset = material.mLayerOffset,
                 .mLayerCount = material.mLayerCount,
+                .mEmissive = material.mEmissive,
                 .mDiffuseColour = material.mDiffuseColour,
+                .mEmissiveColour = material.mEmissiveColour,
             };
         }
 
@@ -72,7 +74,9 @@ namespace Rtx
             .mAlphaCutoff = 0.0f,
             .mLayerOffset = 0,
             .mLayerCount = 0,
+            .mEmissive = Shaders::NO_TEXTURE,
             .mDiffuseColour = osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f),
+            .mEmissiveColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
         });
 
         std::vector<Shaders::GpuInstance> instances;

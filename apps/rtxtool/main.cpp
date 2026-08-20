@@ -329,12 +329,15 @@ namespace RtxTool
             // its foliage under `NiAlphaProperty` rather than under an alpha test.
             std::uint32_t cutouts = 0;
             std::uint32_t tested = 0;
+            std::uint32_t glowing = 0;
             for (const Rtx::Material& material : scene.getMaterials())
             {
                 cutouts += material.isCutout() ? 1 : 0;
                 tested += material.mAlphaMode == Rtx::AlphaMode::Cutout ? 1 : 0;
+                glowing += material.mEmissiveColour.length2() > 0.0f || material.mEmissive != Rtx::sNoIndex ? 1 : 0;
             }
             out() << "  cutout materials:     " << cutouts << ", " << tested << " of them alpha-tested outright\n"
+                  << "  emissive materials:   " << glowing << '\n'
                   << "  lights:               " << report.mLights.size() << " casting, ambient " << report.mAmbient.x()
                   << ", " << report.mAmbient.y() << ", " << report.mAmbient.z() << '\n';
 

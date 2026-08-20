@@ -7,6 +7,7 @@
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/Image>
+#include <osg/Material>
 #include <osg/MatrixTransform>
 #include <osg/Texture2D>
 
@@ -224,6 +225,36 @@ namespace RtxBridge
             const Rtx::Material plain = extractOne(false);
             EXPECT_EQ(plain.mAlphaMode, Rtx::AlphaMode::Opaque);
             EXPECT_FALSE(plain.isCutout());
+        }
+
+        /// The emissive multiplier is folded into the colour, because their product is all the
+        /// game's own shader ever uses.
+        TEST(RtxSceneExtractorTest, anEmissiveMultiplierIsFoldedIntoTheColourItScales)
+        {
+            const auto extractOne = [](float multiplier, bool attach) {
+                osg::ref_ptr<osg::Material> colours = new osg::Material;
+                colours->setEmission(osg::Material::FRONT, osg::Vec4f(0.5f, 0.25f, 0.0f, 1.0f));
+
+                osg::ref_ptr<osg::Geometry> quad = makeQuad();
+                osg::StateSet& state = *quad->getOrCreateStateSet();
+                state.setAttributeAndModes(colours, osg::StateAttribute::ON);
+                if (attach)
+                    state.addUniform(new osg::Uniform("emissiveMult", multiplier));
+
+                Rtx::SceneDesc scene;
+                SceneExtractor extractor(scene);
+                extractor.extract(*quad, osg::Matrixf::identity());
+
+                EXPECT_EQ(scene.getMaterials().size(), 1u);
+                return scene.getMaterials().front().mEmissiveColour;
+            };
+
+            EXPECT_EQ(extractOne(2.0f, true), osg::Vec3f(1.0f, 0.5f, 0.0f));
+            EXPECT_EQ(extractOne(0.5f, true), osg::Vec3f(0.25f, 0.125f, 0.0f));
+
+            // `NifOsg` only attaches the uniform where a model asked for something other than one,
+            // so its absence is the default rather than a value nobody wrote.
+            EXPECT_EQ(extractOne(0.0f, false), osg::Vec3f(0.5f, 0.25f, 0.0f));
         }
 
         /// OpenGL culls nothing unless told to, and `NifOsg` only adds a `CullFace` where the model

@@ -538,6 +538,100 @@ namespace Rtx
             EXPECT_GT(pixels[top + 2], 0) << "and some zenith";
         }
 
+        /// A glow, which the engine treats as two different things and so does this.
+        ///
+        /// The emissive **colour** joins the light and is multiplied by the texture, so a surface
+        /// glows *with its own texture in it*. The emissive **map** is added past the albedo, so it
+        /// glows through whatever the surface is made of. Getting either backwards is visible: a
+        /// mushroom cap comes out flat white, or a map on a coloured surface goes black.
+        TEST_F(RtxVisibilityTest, aGlowJoinsTheLightAndAGlowingMapIsAddedPastIt)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            constexpr float halfExtent = 57.735027f;
+
+            const std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+            const std::array<std::uint8_t, 4> green{ 0, 255, 0, 255 };
+            const std::array<std::uint8_t, 4> dimRed{ 64, 0, 0, 255 };
+
+            const MipLevel one{ 0, 1, 1 };
+            const auto describe = [&one](std::span<const std::uint8_t> bytes) {
+                return TextureData{
+                    .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                    .mWidth = 1,
+                    .mHeight = 1,
+                    .mBytes = std::as_bytes(bytes),
+                    .mLevels = std::span(&one, 1),
+                };
+            };
+
+            Device& device = *mHarness->mDevice;
+            CommandPool pool(device);
+            std::vector<Texture> uploaded;
+            uploaded.emplace_back(device, pool, describe(white), "white");
+            uploaded.emplace_back(device, pool, describe(green), "green");
+            uploaded.emplace_back(device, pool, describe(dimRed), "dim red");
+            const TextureArray textures(device, std::move(uploaded));
+
+            const std::array positions{
+                osg::Vec3f(-halfExtent, 0.0f, -halfExtent),
+                osg::Vec3f(halfExtent, 0.0f, -halfExtent),
+                osg::Vec3f(halfExtent, 0.0f, halfExtent),
+                osg::Vec3f(-halfExtent, 0.0f, halfExtent),
+            };
+            const std::array texCoords{
+                osg::Vec2f(0.0f, 0.0f),
+                osg::Vec2f(1.0f, 0.0f),
+                osg::Vec2f(1.0f, 1.0f),
+                osg::Vec2f(0.0f, 1.0f),
+            };
+            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
+
+            // Nothing lights this scene at all: no lamp, no sun, no ambient. Whatever comes back is
+            // the surface's own glow and nothing else.
+            const Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            const auto render = [&](Index diffuse, Index emissiveMap, const osg::Vec3f& emissiveColour) {
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(positions, {}, texCoords, indices);
+                scene.addTexture(VFS::Path::NormalizedView("white.dds"));
+                scene.addTexture(VFS::Path::NormalizedView("green.dds"));
+                scene.addTexture(VFS::Path::NormalizedView("red.dds"));
+
+                const Index material = scene.addMaterial(Material{
+                    .mDiffuse = diffuse,
+                    .mEmissive = emissiveMap,
+                    .mEmissiveColour = emissiveColour,
+                });
+                scene.addInstance(
+                    MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = material });
+
+                std::vector<std::uint8_t> pixels;
+                EXPECT_EQ(countHits(scene, textures, camera, size, pixels), size * size);
+                return std::array<std::uint8_t, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
+            };
+
+            // A quarter of a glow on a white surface. The scale carries the original's "one is a
+            // fully lit surface" onto this renderer's, where the sun is eight and the sky a fifth of
+            // that: 0.25 * 1.6 = 0.4 linear, and 1.055 * 0.4^(1/2.4) - 0.055 = 0.66514, or 170.
+            const osg::Vec3f quarter(0.25f, 0.25f, 0.25f);
+            EXPECT_EQ(render(0, sNoIndex, quarter)[0], 170) << "a glow on white";
+
+            // The same glow on a texture with no red in it keeps the texture's colour, because the
+            // glow goes through the albedo. Added past it, the surface would come back white.
+            const std::array<std::uint8_t, 3> onGreen = render(1, sNoIndex, quarter);
+            EXPECT_EQ(onGreen[1], 170) << "the same glow, still through green";
+            EXPECT_EQ(onGreen[0], 0) << "and with none of the red the white one had";
+
+            // The map is the other way round: red light off a green surface. Through the albedo it
+            // would be black, since green times red is nothing. 64 of 255 is 0.25098, times 1.6 is
+            // 0.40157, which encodes to 170 — the same byte, reached without the texture's help.
+            const std::array<std::uint8_t, 3> mapped = render(1, 2, osg::Vec3f());
+            EXPECT_EQ(mapped[0], 170) << "the map's own red, undimmed by the green under it";
+            EXPECT_EQ(mapped[1], 0) << "and none of the green, which nothing is lighting";
+        }
+
         /// A masked surface in front of a wall: the ray stops on what survives the cutout and goes
         /// on through what does not.
         ///

@@ -183,6 +183,20 @@ namespace RtxBridge
                     weights.push_back(image.getColor(column, row).a());
         }
 
+        /// How much a material's emissive colour is worth, which a model can scale.
+        ///
+        /// `NifOsg` only attaches the uniform where the model asked for something other than one, so
+        /// its absence is the default rather than a missing value.
+        float getEmissiveMult(const osg::StateSet& stateSet)
+        {
+            const osg::Uniform* uniform = stateSet.getUniform("emissiveMult");
+            float value = 1.0f;
+            if (uniform != nullptr && uniform->get(value))
+                return value;
+
+            return 1.0f;
+        }
+
         float getAlphaRef(const osg::StateSet& stateSet)
         {
             // The shader visitor turns the fixed-function alpha test into this uniform and removes
@@ -430,7 +444,9 @@ namespace RtxBridge
         if (colours != nullptr)
         {
             material.mDiffuseColour = colours->getDiffuse(osg::Material::FRONT);
-            const osg::Vec4f emissive = colours->getEmission(osg::Material::FRONT);
+
+            // Folded together here because the game's own shader only ever uses their product.
+            const osg::Vec4f emissive = colours->getEmission(osg::Material::FRONT) * getEmissiveMult(*own);
             material.mEmissiveColour = osg::Vec3f(emissive.x(), emissive.y(), emissive.z());
         }
 
