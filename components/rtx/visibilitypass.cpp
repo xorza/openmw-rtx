@@ -129,7 +129,8 @@ namespace Rtx
             },
             .layout = mPipelineLayout,
         };
-        checkVk(vkCreateComputePipelines(device.getHandle(), VK_NULL_HANDLE, 1, &pipeline, nullptr, &mPipeline),
+        checkVk(
+            vkCreateComputePipelines(device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr, &mPipeline),
             "vkCreateComputePipelines");
 
         device.setName(VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<std::uint64_t>(mPipeline), "visibility");

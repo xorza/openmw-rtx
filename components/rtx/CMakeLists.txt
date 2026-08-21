@@ -72,6 +72,8 @@ set(RTX_FILES
     lightgrid.hpp
     memory.cpp
     memory.hpp
+    pipelinecache.cpp
+    pipelinecache.hpp
     physicaldevice.cpp
     physicaldevice.hpp
     requirements.cpp

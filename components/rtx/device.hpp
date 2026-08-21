@@ -2,6 +2,7 @@
 #define OPENMW_COMPONENTS_RTX_DEVICE_H
 
 #include <cstdint>
+#include <memory>
 #include <string_view>
 
 #include <vulkan/vulkan_core.h>
@@ -11,6 +12,7 @@
 namespace Rtx
 {
     class Instance;
+    class PipelineCache;
 
     /// Entry points that come from the required extensions rather than from core Vulkan.
     ///
@@ -58,6 +60,13 @@ namespace Rtx
         const PhysicalDevice& getPhysicalDevice() const { return mPhysicalDevice; }
         const DeviceFunctions& getFunctions() const { return mFunctions; }
 
+        /// Handed to every `vkCreate*Pipelines` on this device, so that a shader is compiled once
+        /// per change rather than once per pipeline.
+        ///
+        /// Out of line because the cache is only forward-declared here: it carries `<filesystem>`,
+        /// and this header is included by two dozen others that have no use for it.
+        VkPipelineCache getPipelineCache() const;
+
         /// Attaches a name to a Vulkan object so captures and validation messages name it.
         ///
         /// Compiled to nothing in release: an unreadable capture is a debugging session that does
@@ -82,6 +91,10 @@ namespace Rtx
         VkQueue mQueue = VK_NULL_HANDLE;
         DeviceFunctions mFunctions;
         PFN_vkSetDebugUtilsObjectNameEXT mSetObjectName = nullptr;
+
+        // Last, so that it is torn down first: saving it reads from the device, which the members
+        // above are still holding open at that point.
+        std::unique_ptr<PipelineCache> mPipelineCache;
     };
 }
 

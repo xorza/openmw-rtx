@@ -4,6 +4,7 @@
 
 #include "error.hpp"
 #include "instance.hpp"
+#include "pipelinecache.hpp"
 
 namespace Rtx
 {
@@ -82,6 +83,9 @@ namespace Rtx
             if (instance.hasDebugUtils())
                 mSetObjectName = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(
                     vkGetDeviceProcAddr(mHandle, "vkSetDebugUtilsObjectNameEXT"));
+
+            mPipelineCache
+                = std::make_unique<PipelineCache>(mHandle, mPhysicalDevice.getProperties().mProperties2.properties);
         }
         catch (...)
         {
@@ -96,8 +100,18 @@ namespace Rtx
         if (mHandle != VK_NULL_HANDLE)
         {
             vkDeviceWaitIdle(mHandle);
+
+            // Before the device it was made on, and explicitly rather than by member order: saving
+            // it calls into the device, so it cannot outlive one this destructor is about to close.
+            mPipelineCache.reset();
+
             vkDestroyDevice(mHandle, nullptr);
         }
+    }
+
+    VkPipelineCache Device::getPipelineCache() const
+    {
+        return mPipelineCache->getHandle();
     }
 
     void Device::waitIdle() const
