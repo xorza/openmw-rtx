@@ -146,7 +146,6 @@ public:
 
 struct RendererOptions
 {
-    Backend mBackend = Backend::Default;
     std::filesystem::path mShaderDirectory;
     std::uint32_t mWidth = 1920;
     std::uint32_t mHeight = 1080;
@@ -360,13 +359,19 @@ unchanged, and any that does not is the conversion getting a binding wrong.
 
 ### 5.7 The switch
 
-`OPENMW_RTX_VULKAN` and `OPENMW_RTX_METAL`, defaulting to what the platform has. `createRenderer`
-dispatches on `Backend`, and `Backend::Default` is the one backend built where there is one. The
-harness gains `--backend=`, which on a machine with both is how the two are compared on the same
-scene — and which is the only way a golden image means anything across them.
+`OPENMW_RTX_VULKAN` and `OPENMW_RTX_METAL`, defaulting to what the platform has, and one small
+`openmw-rtx-backends` that consults them. It exists because the core declares `createRenderer` and
+cannot link a backend without a cycle, and because every consumer — the harness, the tests, the game
+— wants a renderer rather than a choice.
 
-A missing backend is a hard failure naming it, in the spirit of `docs/rtx/plan.md` §5: there is no fallback
-path, there is a different renderer.
+**And it offers no choice, because no machine has one.** A build has the backend its platform runs
+natively and at most one more that it merely compiles; asking for the second could only ever return
+the reason it cannot run. So there is no `--backend=` and no `Backend` in `RendererOptions` — which
+backend a machine develops is settled by what the machine is, exactly as §7 of `CLAUDE.md` has it.
+Comparing the two is diffing images from two machines, not a flag on one.
+
+A build with no backend at all is a hard failure naming it, in the spirit of `docs/rtx/plan.md` §5:
+there is no fallback path, there is a different renderer.
 
 ## 6. What this costs, honestly
 

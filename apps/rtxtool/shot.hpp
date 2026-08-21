@@ -14,10 +14,11 @@ namespace Resource
     class ImageManager;
 }
 
+#include <components/rtx/renderer.hpp>
+
 namespace Rtx
 {
     class SceneDesc;
-    struct ValidationOptions;
 }
 
 namespace RtxTool

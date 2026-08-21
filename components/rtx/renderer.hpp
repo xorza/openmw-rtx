@@ -15,15 +15,6 @@ namespace Rtx
 {
     class SceneDesc;
 
-    /// Which API a renderer reaches the picture through.
-    enum class Backend
-    {
-        /// Whichever this build has, which is the only value that means anything where it has one.
-        Default,
-        Vulkan,
-        Metal,
-    };
-
     /// Developer instrumentation. Nobody enables any of this in a run they care about the frame rate
     /// of, and a backend reads whichever of it its API offers.
     struct ValidationOptions
@@ -43,8 +34,6 @@ namespace Rtx
 
     struct RendererOptions
     {
-        Backend mBackend = Backend::Default;
-
         /// Where the build wrote the compiled shaders for whichever backend this is.
         std::filesystem::path mShaderDirectory;
 
