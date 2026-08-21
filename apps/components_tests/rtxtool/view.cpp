@@ -30,6 +30,26 @@ namespace RtxTool
             return request;
         }
 
+        /// A held exposure names its number where a measured one names itself.
+        ///
+        /// **Both are in the line because both change the frame**, and one of them changes what it
+        /// costs: measuring is two dispatches over the finished image, about a tenth of a
+        /// millisecond at 4K.
+        TEST(RtxProfileLineTest, aHeldExposureIsInTheLineAsItsNumber)
+        {
+            ViewRequest request = makeRequest();
+            const Rtx::ValidationOptions validation{};
+            const osg::Vec3f origin(0.0f, 0.0f, 0.0f);
+            const osg::Vec3f target(0.0f, 100.0f, 0.0f);
+
+            EXPECT_NE(describeProfile(request, validation, origin, target, 64, 64).find("--exposure=auto"),
+                std::string::npos);
+
+            request.mExposure = 0.25f;
+            EXPECT_NE(describeProfile(request, validation, origin, target, 64, 64).find("--exposure=0.25"),
+                std::string::npos);
+        }
+
         /// A profiling line has to be pasteable and it has to be exact, so both are asserted.
         ///
         /// The position is deliberately one that rounding would lose, and it survives because the
@@ -46,7 +66,8 @@ namespace RtxTool
 
             EXPECT_EQ(describeProfile(request, validation, origin, target, 2560, 1440),
                 "--cell=\"Balmora, Guild of Fighters\" --pos=-19216.5,-14896.25,160 --look=-19323,-13903,109.5"
-                " --fov=60 --size=2560x1440 --weather=Ashstorm --hour=17.25 --filter=false --validation=true"
+                " --fov=60 --size=2560x1440 --weather=Ashstorm --hour=17.25 --exposure=auto --filter=false "
+                "--validation=true"
                 " --sync-validation=true --gpu-validation=false");
         }
 

@@ -91,11 +91,16 @@ namespace RtxTool
         // frame when the camera is a hand's width from a wall.
         //
         // The cell is the only field quoted, because it is the only one that can hold a space.
+        // A measured exposure is a different frame *and* a different cost from a held one, which is
+        // both reasons a field is in this line.
+        const std::string exposure
+            = request.mExposure.has_value() ? std::format("{}", *request.mExposure) : std::string("auto");
+
         return std::format(
             "--cell=\"{}\" --pos={},{},{} --look={},{},{} --fov={} --size={}x{} --weather={}"
-            " --hour={} --filter={} --validation={} --sync-validation={} --gpu-validation={}{}",
+            " --hour={} --exposure={} --filter={} --validation={} --sync-validation={} --gpu-validation={}{}",
             request.mCell, origin.x(), origin.y(), origin.z(), target.x(), target.y(), target.z(), request.mFieldOfView,
-            width, height, request.mWeather, request.mHour, request.mFilter, validation.mEnabled,
+            width, height, request.mWeather, request.mHour, exposure, request.mFilter, validation.mEnabled,
             validation.mSynchronization, validation.mGpuAssisted, request.mShowAlbedo ? " --albedo" : "");
     }
 }

@@ -8,6 +8,9 @@
 // **The one pass that knows what a display is**, and the last thing in the frame for that reason:
 // everything before it works in linear radiance, including the upscaler, which reconstructs from
 // several frames of it.
+//
+// Exposure is a multiply and not a curve. There is no tone-mapping operator here yet, so what the
+// sun does above one is still clipped rather than rolled off — see `docs/rtx/plan.md`.
 
 #include "tone.h"
 
@@ -18,6 +21,13 @@ layout(set = 0, binding = 0, rgba32f) uniform readonly image2D colour;
 
 /// The picture, as bytes a display understands.
 layout(set = 0, binding = 1, rgba8) uniform writeonly image2D target;
+
+/// What to scale the frame by before the curve — measured off this same image by the two passes
+/// before this one, or written straight in where a caller named a fixed value.
+layout(set = 0, binding = 2, scalar) readonly buffer Exposure
+{
+    float exposure;
+};
 
 layout(push_constant, scalar) uniform Push
 {
@@ -43,5 +53,5 @@ void main()
         return;
 
     const ivec2 at = ivec2(pixel);
-    imageStore(target, at, vec4(encodeSrgb(imageLoad(colour, at).rgb), 1.0));
+    imageStore(target, at, vec4(encodeSrgb(imageLoad(colour, at).rgb * exposure), 1.0));
 }

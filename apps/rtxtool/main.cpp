@@ -129,6 +129,20 @@ namespace RtxTool
             throw std::runtime_error("not an upscale mode: " + std::string(text));
         }
 
+        /// What `--exposure` asked for: a number to hold it at, or nothing to measure it.
+        std::optional<float> parseExposure(std::string_view text)
+        {
+            if (text == "auto")
+                return std::nullopt;
+
+            float value = 0.0f;
+            const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+            if (error != std::errc() || end != text.data() + text.size() || !(value > 0.0f))
+                throw std::runtime_error("not an exposure: " + std::string(text));
+
+            return value;
+        }
+
         void printUsage(const bpo::options_description& options)
         {
             out() << "Drives the experimental ray tracing renderer without the game window.\n\n"
@@ -499,6 +513,18 @@ namespace RtxTool
 
                 if (command == "view")
                 {
+                    // **Refused rather than ignored, and only when it was actually asked for.** The
+                    // window still drives its own swapchain instead of going through `Renderer`
+                    // (`docs/rtx/backends.md` §5.4), so it has no upscaler to hand — and the default
+                    // is now on, which would make an honest refusal fire on every plain `view`.
+                    if (!variables["upscale"].defaulted()
+                        && parseUpscale(variables["upscale"].as<std::string>()) != Rtx::Upscale::Off)
+                    {
+                        out() << "The window cannot upscale yet: presentation has not moved behind "
+                                 "Renderer.\nUse `shot` for an upscaled frame.\n";
+                        return 1;
+                    }
+
                     ViewRequest request;
                     request.mTitle = chosen.mTitle;
                     request.mView = chosen.mView;
@@ -514,6 +540,7 @@ namespace RtxTool
                     request.mFrames = variables["frames"].as<std::uint32_t>();
                     request.mShowAlbedo = variables["albedo"].as<bool>();
                     request.mFilter = variables["filter"].as<bool>();
+                    request.mExposure = parseExposure(variables["exposure"].as<std::string>());
                     request.mDelight = variables["delight"].as<float>();
                     request.mWeather = variables["weather"].as<std::string>();
                     request.mHour = variables["hour"].as<float>();
@@ -532,10 +559,20 @@ namespace RtxTool
                 request.mShowAlbedo = variables["albedo"].as<bool>();
                 request.mJitter = variables["jitter"].as<bool>();
                 request.mFilter = variables["filter"].as<bool>();
+                request.mExposure = parseExposure(variables["exposure"].as<std::string>());
                 request.mDelight = variables["delight"].as<float>();
                 request.mWeather = variables["weather"].as<std::string>();
                 request.mHour = variables["hour"].as<float>();
                 request.mUpscale = parseUpscale(variables["upscale"].as<std::string>());
+
+                // **A reference cannot be built through a denoiser.** `--accumulate` averages frames
+                // towards the truth and Ray Reconstruction resolves each of them towards its own
+                // opinion, so a thousand of those converge on the network rather than on the
+                // integral — the same argument `mFilter` carries, one denoiser along. Turned off
+                // rather than refused, because the default is on and nobody asking for a reference
+                // is asking for this; someone who names `--upscale` too gets what they named.
+                if (variables["accumulate"].as<std::uint32_t>() > 0 && variables["upscale"].defaulted())
+                    request.mUpscale = Rtx::Upscale::Off;
                 request.mRepeat = variables["repeat"].as<std::uint32_t>();
                 request.mAccumulate = variables["accumulate"].as<std::uint32_t>();
 

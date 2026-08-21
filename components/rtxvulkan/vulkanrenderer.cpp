@@ -32,6 +32,7 @@ namespace Rtx
         , mUpscale(options.mUpscale)
         , mFilter(mDevice, options.mShaderDirectory)
         , mComposite(mDevice, mPool, options.mShaderDirectory)
+        , mExposure(mDevice, options.mShaderDirectory)
         , mTone(mDevice, options.mShaderDirectory)
     {
         mHitCount = Buffer(mDevice, sizeof(std::uint32_t),
@@ -354,7 +355,15 @@ namespace Rtx
             }
 #endif
 
-            mTone.record(commands, *shown, *mTarget);
+            // **Measured off the image the curve is about to map**, which is the upscaled one
+            // wherever something upscales — see `histogram.comp` for what measuring the other one
+            // costs. One `shown` feeds both, so the two cannot come apart.
+            if (options.mExposure.has_value())
+                mExposure.recordFixed(commands, *options.mExposure);
+            else
+                mExposure.record(commands, *shown);
+
+            mTone.record(commands, *shown, mExposure.getExposure(), *mTarget);
         });
 
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();

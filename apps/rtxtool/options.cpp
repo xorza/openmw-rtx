@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <boost/program_options/value_semantic.hpp>
@@ -16,6 +17,21 @@ namespace RtxTool
     namespace
     {
         using StringsVector = std::vector<std::string>;
+
+        /// What `--upscale` reads when nobody names it.
+        ///
+        /// **It follows the build**, because the two are one decision: `-DOPENMW_RTX_DLSS=OFF` is a
+        /// deliberate opt-out, and a tool that then refused every default invocation would be
+        /// telling its user to turn on the thing they had just turned off.
+        ///
+        /// Quality rather than performance, so a plain run is the renderer with everything switched
+        /// on and not one that quietly quartered the pixels it traced. `--upscale=performance` is
+        /// the 1920x1080 to 3840x2160 the frame budget is written against.
+#ifdef OPENMW_RTX_DLSS
+        constexpr std::string_view sUpscaleByDefault = "quality";
+#else
+        constexpr std::string_view sUpscaleByDefault = "off";
+#endif
     }
 
     boost::program_options::options_description makeOptionsDescription(const bool validationByDefault)
@@ -59,10 +75,21 @@ namespace RtxTool
         addOption("filter", bpo::value<bool>()->default_value(true)->implicit_value(true),
             "run the denoiser over the indirect light. Off shows the raw bounce, and is what a "
             "reference built with --accumulate has to be made with");
-        addOption("upscale", bpo::value<std::string>()->default_value("off"),
+        addOption("upscale", bpo::value<std::string>()->default_value(std::string(sUpscaleByDefault)),
             "put DLSS Ray Reconstruction between the trace and the picture: off, performance, "
-            "balanced, quality or dlaa. --size is then what comes out, and what gets traced is "
-            "DLSS's answer for it. It denoises for itself, so --filter stops applying");
+            "balanced, quality or dlaa. --size is what comes out, and what gets traced is DLSS's "
+            "answer for it. It denoises for itself, so --filter stops applying. Quality by default, "
+            "so a plain run is the renderer with everything switched on without quartering the "
+            "pixels it traced; --upscale=performance is the 1920x1080 to 3840x2160 the frame budget "
+            "is written against, and --upscale=off is what an A/B against the unupscaled path "
+            "needs. --accumulate turns it off unless this is named, because a reference cannot be "
+            "built through a denoiser. The window cannot upscale yet and refuses the flag rather "
+            "than ignoring it");
+
+        addOption("exposure", bpo::value<std::string>()->default_value("auto"),
+            "what to scale the frame by before the display curve: auto measures it off the frame, "
+            "and a number holds it there. A pixel test and a converged reference want it held, "
+            "because a measured exposure makes every value depend on the whole frame");
 
         addOption("albedo", bpo::bool_switch(),
             "write the albedo with no shading over it, which is what a texture problem looks like "

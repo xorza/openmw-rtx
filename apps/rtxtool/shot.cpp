@@ -145,8 +145,10 @@ namespace RtxTool
             camera.mFrame = sequenced ? frame : 0;
 
             const Rtx::FrameResult result = renderer->renderFrame(camera,
-                Rtx::FrameOptions{
-                    .mAccumulate = averaging ? frame + 1 : 0, .mJitter = request.mJitter, .mFilter = request.mFilter });
+                Rtx::FrameOptions{ .mAccumulate = averaging ? frame + 1 : 0,
+                    .mJitter = request.mJitter,
+                    .mFilter = request.mFilter,
+                    .mExposure = request.mExposure });
             traces.push_back(result.mTraceMs);
             hits = result.mHits;
             ++frame;

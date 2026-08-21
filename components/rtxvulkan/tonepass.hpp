@@ -27,10 +27,12 @@ namespace Rtx
         TonePass& operator=(const TonePass&) = delete;
 
         /// @param colour the finished frame in linear radiance, in `VK_IMAGE_LAYOUT_GENERAL`.
+        /// @param exposure one float, what to scale it by. `ExposurePass` writes it, measured off
+        ///        this same image or fixed, and this pass never learns which.
         /// @param target the displayable image, in `VK_IMAGE_LAYOUT_GENERAL`. Its size is what the
         ///        curve is dispatched over, so this is where an upscaled frame gets its extra
         ///        pixels encoded rather than a corner of them.
-        void record(VkCommandBuffer commands, const Image& colour, const Image& target) const;
+        void record(VkCommandBuffer commands, const Image& colour, VkBuffer exposure, const Image& target) const;
 
     private:
         ComputePipeline mPipeline;

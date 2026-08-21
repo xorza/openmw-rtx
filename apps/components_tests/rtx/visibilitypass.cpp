@@ -392,7 +392,7 @@ namespace Rtx
             std::uint32_t countHits(const SceneDesc& scene, std::span<const TextureData> textures,
                 const Shaders::VisibilityConstants& camera, std::uint32_t size, std::vector<std::uint8_t>& pixels,
                 const SeaState& sea = SeaState{}, std::uint32_t accumulate = 0, bool filter = false,
-                bool jitter = false)
+                bool jitter = false, std::optional<float> exposure = 1.0f)
             {
                 mRenderer->resize(size, size);
                 mRenderer->setScene(scene, textures, sea);
@@ -414,7 +414,8 @@ namespace Rtx
                                ->renderFrame(sampled,
                                    FrameOptions{ .mAccumulate = accumulate > 0 ? frame + 1 : 0,
                                        .mJitter = jitter,
-                                       .mFilter = filter })
+                                       .mFilter = filter,
+                                       .mExposure = exposure })
                                .mHits;
                 }
 
@@ -809,6 +810,30 @@ namespace Rtx
                 ASSERT_NEAR(pixels[i], 187, 1) << "red at pixel " << i / 4;
                 ASSERT_NEAR(pixels[i + 1], 187, 1) << "green at pixel " << i / 4;
                 ASSERT_NEAR(pixels[i + 2], 187, 1) << "blue at pixel " << i / 4;
+            }
+
+            // **The same frame, measured rather than held, and the whole of the arithmetic is
+            // here.** A flat frame is the one input whose exposure can be worked out by hand, and
+            // working it out means going through the binning rather than around it — which is the
+            // half a check against "it got darker" would not cover.
+            //
+            // Luminance is 0.5, so `log2` is -1 and the histogram places it at
+            // `uint((-1 + 10) / 16 * 254) + 1 = 143`. Every lit pixel lands in that one bin, so the
+            // mean bin is 143 and the reduction reads back
+            // `(143 - 1) / 254 * 16 - 10 = -1.055118` — a luminance of 0.481258, which is the
+            // quantisation and not a mistake. The key over that, to the adaptation power, is
+            // `(0.18 / 0.481258)^0.75 = 0.478268`; the frame comes out at 0.239134 linear and
+            // `1.055 * 0.239134^(1/2.4) - 0.055 = 0.5262`, or 134 of 255.
+            std::vector<std::uint8_t> measured;
+            EXPECT_EQ(countHits(makeWall(), {}, camera, size, measured, SeaState{}, 0, false, false, std::nullopt),
+                size * size);
+
+            ASSERT_EQ(measured.size(), pixels.size());
+            for (std::size_t i = 0; i < measured.size(); i += 4)
+            {
+                ASSERT_NEAR(measured[i], 134, 1) << "red at pixel " << i / 4;
+                ASSERT_NEAR(measured[i + 1], 134, 1) << "green at pixel " << i / 4;
+                ASSERT_NEAR(measured[i + 2], 134, 1) << "blue at pixel " << i / 4;
             }
         }
 

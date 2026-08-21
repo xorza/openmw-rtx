@@ -53,6 +53,10 @@ namespace RtxTool
         /// Write the albedo with no shading over it.
         bool mShowAlbedo = false;
 
+        /// What to scale the frame by before the display curve, or nothing to measure it off the
+        /// frame. A picture wants it measured; a reference wants it held still.
+        std::optional<float> mExposure;
+
         /// Filled in from the cell once it has been read, which is why both commands take their
         /// request by value.
         CellLighting mLighting;

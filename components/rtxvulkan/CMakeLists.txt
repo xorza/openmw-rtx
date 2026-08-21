@@ -28,7 +28,8 @@ if (OPENMW_RTX_DLSS)
     # at. Asking for it and not having it is one message instead.
     if (NOT EXISTS "${DLSS_LIB}/libnvsdk_ngx.a")
         message(FATAL_ERROR
-            "OPENMW_RTX_DLSS needs NVIDIA's NGX SDK, and there is none at ${DLSS_LIB}.\n"
+            "OPENMW_RTX_DLSS is on by default and needs NVIDIA's NGX SDK, and there is none at "
+            "${DLSS_LIB}.\n"
             "Clone it with: git clone --depth 1 https://github.com/NVIDIA/DLSS.git .refs/dlss\n"
             "or point -DOPENMW_DLSS_SDK= at a copy.")
     endif()
@@ -42,6 +43,8 @@ find_program(OPENMW_SPIRV_VAL NAMES spirv-val REQUIRED
 set(RTX_SHADERS
     shaders/atrous.comp
     shaders/composite.comp
+    shaders/exposure.comp
+    shaders/histogram.comp
     shaders/tone.comp
     shaders/visibility.comp
 )
@@ -92,6 +95,8 @@ set(RTX_VULKAN_FILES
     computepipeline.hpp
     device.cpp
     device.hpp
+    exposurepass.cpp
+    exposurepass.hpp
     gbuffer.cpp
     gbuffer.hpp
     image.cpp

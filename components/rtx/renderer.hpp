@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -135,6 +136,16 @@ namespace Rtx
         /// Reconstruction reconstructs detail from the raw bounce, and handing it a frame already
         /// blurred is asking it to recover what was thrown away.
         bool mFilter = true;
+
+        /// What to scale the frame by before the display curve, or nothing to measure it off the
+        /// frame itself.
+        ///
+        /// **One by default, and that default is what makes a pixel test possible.** A measured
+        /// exposure makes every expected value depend on the whole frame's histogram, which is not
+        /// a number anybody can hand-compute — and a converged reference wants the exposure held
+        /// still across the frames it averages. A picture wants it measured, so the harness turns it
+        /// on and the tests leave it alone.
+        std::optional<float> mExposure = 1.0f;
     };
 
     /// What one traced frame came to.

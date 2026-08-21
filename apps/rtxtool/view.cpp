@@ -23,6 +23,7 @@
 #include <components/rtxvulkan/commands.hpp>
 #include <components/rtxvulkan/compositepass.hpp>
 #include <components/rtxvulkan/device.hpp>
+#include <components/rtxvulkan/exposurepass.hpp>
 #include <components/rtxvulkan/gbuffer.hpp>
 #include <components/rtxvulkan/image.hpp>
 #include <components/rtxvulkan/instance.hpp>
@@ -161,6 +162,7 @@ namespace RtxTool
         const Rtx::VisibilityPass pass(device, pool, request.mShaderDirectory, textures.getLayout());
         Rtx::AtrousPass filter(device, request.mShaderDirectory);
         const Rtx::CompositePass composite(device, pool, request.mShaderDirectory);
+        const Rtx::ExposurePass exposure(device, request.mShaderDirectory);
         const Rtx::TonePass tone(device, request.mShaderDirectory);
         const Rtx::VisibilityInputs inputs{
             .mScene = acceleration.getTopLevel(),
@@ -336,7 +338,13 @@ namespace RtxTool
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
 
-            tone.record(commands, colour, target);
+            // Measured off the frame the curve is about to map, unless the command line held it
+            // still — which is what an A/B against a fixed exposure needs.
+            if (request.mExposure.has_value())
+                exposure.recordFixed(commands, *request.mExposure);
+            else
+                exposure.record(commands, colour);
+            tone.record(commands, colour, exposure.getExposure(), target);
 
             target.transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,

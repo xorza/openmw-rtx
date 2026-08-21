@@ -57,6 +57,10 @@ namespace RtxTool
         /// Write the albedo with no shading over it.
         bool mShowAlbedo = false;
 
+        /// What to scale the frame by before the display curve, or nothing to measure it off the
+        /// frame. A picture wants it measured; a reference wants it held still.
+        std::optional<float> mExposure;
+
         /// How many times to trace the same frame before reporting on it.
         ///
         /// **One submit measures the clock, not the shader.** This machine's GPU idles at 315 MHz

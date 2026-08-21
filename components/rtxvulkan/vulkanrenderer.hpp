@@ -14,6 +14,7 @@
 #include "commands.hpp"
 #include "compositepass.hpp"
 #include "device.hpp"
+#include "exposurepass.hpp"
 #include "instance.hpp"
 #include "tonepass.hpp"
 
@@ -118,6 +119,7 @@ namespace Rtx
         /// not const only because it keeps a channel the size of the frame.
         AtrousPass mFilter;
         CompositePass mComposite;
+        ExposurePass mExposure;
         TonePass mTone;
 
 #ifdef OPENMW_RTX_DLSS
