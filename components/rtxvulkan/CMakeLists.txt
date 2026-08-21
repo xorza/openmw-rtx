@@ -30,10 +30,6 @@ set(RTX_SPIRV_DIR "${RTX_RESOURCES_ROOT}/resources/rtx/shaders")
 # in the module rather than costing anything at runtime.
 set(RTX_GLSLC_FLAGS -g $<IF:$<CONFIG:Debug>,-O0,-O>)
 
-# The structures shared with C++ sit with the neutral core rather than beside the GLSL, because a
-# Metal shader includes the same file. This is what lets `#include "scene.h"` still resolve.
-set(RTX_SHADER_INCLUDE "${OpenMW_SOURCE_DIR}/components/rtx/shaders")
-
 foreach (shader ${RTX_SHADERS})
     get_filename_component(name "${shader}" NAME)
     set(spv "${RTX_SPIRV_DIR}/${name}.spv")

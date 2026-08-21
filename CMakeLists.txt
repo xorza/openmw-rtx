@@ -715,6 +715,10 @@ if (OPENMW_RTX)
         set(RTX_RESOURCES_ROOT "${OpenMW_BINARY_DIR}")
     endif()
 
+    # Where the structures shared with every shader language live. Both backends compile against
+    # them, so the path is settled once rather than in each.
+    set(RTX_SHADER_INCLUDE "${OpenMW_SOURCE_DIR}/components/rtx/shaders")
+
     add_subdirectory (components/rtx)
 
     if (OPENMW_RTX_VULKAN)
