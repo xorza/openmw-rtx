@@ -93,11 +93,19 @@ namespace Rtx::Shaders
         /// path passes its own clock.
         float mTime;
 
-        /// The cell's own ambient, linear.
+        /// The cell's own ambient, linear, and what a path is terminated with.
         ///
+        /// **No longer added on top of the light that is traced, which is what it used to be.**
         /// Morrowind's interiors were authored against a renderer with no bounce at all, so this
-        /// term stands in for every one of them — and applying it on top of real light therefore
-        /// double-counts, the same way a pre-lit texture does. Both are M9's to unpick.
+        /// term stood in for every one of them; adding it to a surface that now gathers a real
+        /// hemisphere would count the same light twice. It sits one level down instead — a bounce
+        /// that lands on something is shaded with this rather than gathering a hemisphere of its
+        /// own, so it estimates the rest of a path nobody traces.
+        ///
+        /// **It is load-bearing indoors and marginal outdoors.** Measured from inside the Balmora
+        /// mages' guild, zeroing it halves the frame: 0.0033 mean luminance to 0.0016. Over Balmora
+        /// itself it is worth 1.8%, because an exterior's second bounce mostly finds sky, which is
+        /// traced for real.
         vec3 mAmbient;
 
         /// What the air between the eye and everything else scatters toward it, and how much of it
