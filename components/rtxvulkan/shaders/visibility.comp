@@ -1342,6 +1342,9 @@ struct Surface
 
     float mDistance;
 
+    /// Which row of the instance table this came off, so the frame can ask where it used to be.
+    uint mInstance;
+
     /// How wide the ray's cone was where it landed. Everything sampled here was averaged over it,
     /// and so is everything the light arriving here was.
     float mFootprint;
@@ -1398,7 +1401,9 @@ Surface trace(vec3 origin, vec3 direction, float tmin, float footprint, float sp
 
     surface.mFootprint = footprint + spread * surface.mDistance;
 
-    const GpuInstance instance = instances[rayQueryGetIntersectionInstanceCustomIndexEXT(query, true)];
+    surface.mInstance = rayQueryGetIntersectionInstanceCustomIndexEXT(query, true);
+
+    const GpuInstance instance = instances[surface.mInstance];
     const uvec3 corner
         = triangleCorners(meshes[instance.mMesh], rayQueryGetIntersectionPrimitiveIndexEXT(query, true));
     const vec3 weight = cornerWeights(rayQueryGetIntersectionBarycentricsEXT(query, true));
@@ -1689,9 +1694,26 @@ vec3 bounceLight(Surface surface, uvec2 pixel)
 ///
 /// Both ends are pixel centres and neither carries the jitter: an upscaler is told what the jitter
 /// was, and a motion vector that carried it too would have it applied twice.
-vec2 motionOf(uvec2 pixel, vec3 direction, float distance)
+/// How far a point moved between the last frame and this one, in world units.
+///
+/// **A delta and not the previous position**, which is what keeps this honest at Morrowind's
+/// distances: the two positions are six figures long and nearly equal, so subtracting them on the
+/// device is the mistake `docs/rtx/plan.md` warns about for the camera. The matrix is exactly the
+/// identity for anything that did not move, so `motion * p - p` is bit-exactly zero and a static
+/// world produces no motion at all rather than a drift of rounding.
+vec3 movedBy(uint index, vec3 position)
 {
-    const vec3 was = direction * distance + camera.mCameraMotion;
+    const vec4 rows[3] = instances[index].mMotion;
+    const vec3 was = vec3(dot(rows[0], vec4(position, 1.0)), dot(rows[1], vec4(position, 1.0)),
+        dot(rows[2], vec4(position, 1.0)));
+
+    return was - position;
+}
+
+vec2 motionOf(uvec2 pixel, vec3 direction, float distance, uint instance)
+{
+    const vec3 point = camera.mOrigin + direction * distance;
+    const vec3 was = direction * distance + camera.mCameraMotion + movedBy(instance, point);
 
     // Behind the previous eye there is no answer, and the divide below would fold such a point back
     // into the frame as a plausible coordinate.
@@ -1800,7 +1822,7 @@ void main()
     // A miss stores nothing, which a temporal filter reads as "this pixel did not move" — and for
     // the sky that is true.
     imageStore(motion, at,
-        vec4(surface.mHit ? motionOf(pixel, direction, surface.mDistance) : vec2(0.0), 0.0, 0.0));
+        vec4(surface.mHit ? motionOf(pixel, direction, surface.mDistance, surface.mInstance) : vec2(0.0), 0.0, 0.0));
 
     // A miss is as far away as anything can be, and `mDistance` already carries `mFar` for it.
     imageStore(depth, at,

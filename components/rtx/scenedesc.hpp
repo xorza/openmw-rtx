@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <span>
 #include <unordered_map>
 #include <vector>
@@ -195,6 +196,20 @@ namespace Rtx
     {
         /// Object space to world space.
         osg::Matrixf mTransform;
+
+        /// Where the same object stood on the previous frame, or nothing where nobody knows.
+        ///
+        /// **What a temporal upscaler needs and camera reprojection cannot give.** A motion vector
+        /// built from the camera alone says every surface stood still, which was true while the
+        /// mirror ran once; the moment the world started moving it became a lie told to a resolve
+        /// that believes it, and the mover smears.
+        ///
+        /// **Absent and not "the same as `mTransform`", which is the whole reason it is an
+        /// optional.** A default-constructed matrix is the identity, so a caller that simply did not
+        /// fill this in — the water builder, every test that places a quad — would be saying the
+        /// object was at the world origin last frame and has since flown to where it is. That reads
+        /// as a plausible field and traces as a smear across the entire frame.
+        std::optional<osg::Matrixf> mPrevious;
 
         Index mMesh = sNoIndex;
         Index mMaterial = sNoIndex;

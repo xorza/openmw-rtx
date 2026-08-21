@@ -242,6 +242,11 @@ namespace MWRender::Rtx
         if (!mShared)
             share();
 
+        // **After the frame and not before the walk.** Where everything stood this frame is what
+        // the next one measures its motion against, and saying so any earlier would have this frame
+        // comparing itself with itself.
+        mExtractor->advance();
+
         // **After the share and not before**, because reading the frame back moves it out of the
         // layout the composite blits from and the next frame's trace is what puts it back.
         keep();

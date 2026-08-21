@@ -1,5 +1,7 @@
 #include "scenebuffers.hpp"
 
+#include <components/rtx/instancerecord.hpp>
+
 #include <vector>
 
 #include <components/rtx/scenedesc.hpp>
@@ -91,13 +93,29 @@ namespace Rtx
             .mEmissiveColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
         });
 
+        // **Built from the records rather than from the instances**, so the motion transform the
+        // shader reads and the one the acceleration structure was placed with come out of the same
+        // arithmetic. Two places computing an inverse is two places to get it wrong.
+        std::vector<InstanceRecord> records;
+        makeInstanceRecords(scene, records);
+
         std::vector<Shaders::GpuInstance> instances;
-        instances.reserve(scene.getInstances().size());
-        for (const MeshInstance& instance : scene.getInstances())
-            instances.push_back(Shaders::GpuInstance{
-                .mMesh = instance.mMesh,
-                .mMaterial = instance.mMaterial == sNoIndex ? sentinel : instance.mMaterial,
-            });
+        instances.reserve(records.size());
+        for (const InstanceRecord& record : records)
+        {
+            Shaders::GpuInstance row{
+                .mMesh = record.mMesh,
+                .mMaterial = scene.getInstances()[instances.size()].mMaterial == sNoIndex
+                    ? sentinel
+                    : scene.getInstances()[instances.size()].mMaterial,
+            };
+
+            for (int r = 0; r < 3; ++r)
+                row.mMotion[r] = osg::Vec4f(record.mMotion.mRows[r][0], record.mMotion.mRows[r][1],
+                    record.mMotion.mRows[r][2], record.mMotion.mRows[r][3]);
+
+            instances.push_back(row);
+        }
 
         std::vector<Shaders::GpuLayer> layers;
         layers.reserve(scene.getLayers().size());

@@ -13,6 +13,7 @@
 
 #include <array>
 #include <cassert>
+#include <functional>
 
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/texturetype.hpp>
@@ -286,6 +287,26 @@ namespace RtxBridge
         return stats;
     }
 
+    std::size_t SceneExtractor::identify(const osg::NodePath& path)
+    {
+        std::size_t key = 0xcbf29ce484222325ull;
+        for (const osg::Node* node : path)
+        {
+            key ^= std::hash<const osg::Node*>{}(node);
+            key *= 0x100000001b3ull;
+        }
+
+        return key;
+    }
+
+    void SceneExtractor::advance()
+    {
+        // Swapped rather than copied, and the new one cleared: this frame's placements are next
+        // frame's history, and anything that was here last frame and is not here now has gone.
+        mStood.swap(mStanding);
+        mStanding.clear();
+    }
+
     void SceneExtractor::addLight(const SceneUtil::LightSource& source, const osg::NodePath& path,
         const osg::Matrixf& root, std::size_t frame, ExtractionStats& stats)
     {
@@ -326,8 +347,17 @@ namespace RtxBridge
         const Rtx::Index material
             = terrain != nullptr ? resolveTerrainMaterial(*terrain, stats) : resolveMaterial(path, stats);
 
+        const osg::Matrixf place = osg::Matrixf(osg::computeLocalToWorld(path)) * root;
+
+        // Where it stood last frame, or here if nothing saw it move — a placement met for the first
+        // time has no history, and saying it moved from nowhere is worse than saying it stood still.
+        const std::size_t who = identify(path);
+        const auto stood = mStood.find(who);
+        mStanding.emplace(who, place);
+
         mScene.addInstance(Rtx::MeshInstance{
-            .mTransform = osg::Matrixf(osg::computeLocalToWorld(path)) * root,
+            .mTransform = place,
+            .mPrevious = stood != mStood.end() ? std::optional<osg::Matrixf>(stood->second) : std::nullopt,
             .mMesh = mesh,
             .mMaterial = material,
         });

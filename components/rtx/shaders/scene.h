@@ -198,6 +198,13 @@ namespace Rtx::Shaders
     {
         uint mMesh;
         uint mMaterial;
+
+        /// World space to where this instance was on the previous frame, as three rows of four.
+        ///
+        /// **The identity for anything that did not move**, which is nearly everything — and it is
+        /// what makes a static surface produce a motion vector of exactly zero rather than one of
+        /// rounding. See `Rtx::InstanceRecord::mMotion`.
+        vec4 mMotion[3];
     };
 
     /// One point light, with everything a shader needs already derived.
@@ -288,7 +295,7 @@ namespace Rtx::Shaders
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
     static_assert(sizeof(GpuWave) == 20, "GpuWave must be scalar-packed on every side");
     static_assert(sizeof(GpuMesh) == 8, "GpuMesh must be scalar-packed on every side");
-    static_assert(sizeof(GpuInstance) == 8, "GpuInstance must be scalar-packed on every side");
+    static_assert(sizeof(GpuInstance) == 56, "GpuInstance must be scalar-packed on every side");
     static_assert(sizeof(GpuLight) == 28, "GpuLight must be scalar-packed on every side");
     static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 48, "GpuLayer must be scalar-packed on every side");

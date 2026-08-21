@@ -35,6 +35,17 @@ namespace Rtx
     {
         Transform3x4 mTransform;
 
+        /// World space to where this instance's world space was on the previous frame.
+        ///
+        /// **A single matrix rather than the previous transform**, so the shader multiplies once
+        /// instead of inverting: `inverse(current) * previous`.
+        ///
+        /// **Set to the identity outright where the instance did not move**, rather than computed
+        /// as an inverse times itself, which lands a few ulps away. `motion * p - p` is then
+        /// bit-exactly zero and a static world produces no motion at all — see the cost of the
+        /// alternative where it is built.
+        Transform3x4 mMotion;
+
         /// The mesh whose bottom-level structure this places.
         Index mMesh = sNoIndex;
 

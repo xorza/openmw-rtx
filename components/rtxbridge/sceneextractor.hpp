@@ -94,6 +94,14 @@ namespace RtxBridge
         ///        anything with no `LightManager` in its graph can leave it.
         ExtractionStats extract(const osg::Node& node, const osg::Matrixf& transform, std::size_t frame = 0);
 
+        /// Ends a frame: what was placed becomes what was placed before.
+        ///
+        /// **Called once per frame by whoever is mirroring a live graph, and never by anything that
+        /// walks a world once.** Until it is called, every instance's previous transform is its
+        /// current one, which is exactly right for a scene that does not move — and a harness that
+        /// loads a region and flies a camera round it wants that answer, not a stale one.
+        void advance();
+
         /// Places one light. **The graph and not the content files**, because that is where a light
         /// that moves with the thing carrying it exists: a torch in an NPC's hand is no cell
         /// record, and neither is a lamp something picked up and put down.
@@ -108,6 +116,15 @@ namespace RtxBridge
             const osg::Geometry& geometry, const osg::NodePath& path, const osg::Matrixf& root, ExtractionStats& stats);
 
     private:
+        /// What identifies one placement from one frame to the next.
+        ///
+        /// **The node path, hashed.** A drawable alone is not an instance — a hundred crates share
+        /// one geometry — and the path down to it is what tells them apart. Hashed rather than kept,
+        /// because a path is a vector of pointers per instance and the map is walked every frame; a
+        /// collision costs one object one frame of wrong motion, and at sixty-four bits over tens of
+        /// thousands of instances it is not a thing that happens.
+        static std::size_t identify(const osg::NodePath& path);
+
         Rtx::Index resolveMesh(const osg::Geometry& geometry, ExtractionStats& stats);
         Rtx::Index resolveMaterial(const osg::NodePath& path, ExtractionStats& stats);
 
@@ -120,6 +137,10 @@ namespace RtxBridge
         Rtx::Index resolveTerrainMaterial(const Terrain::TerrainDrawable& terrain, ExtractionStats& stats);
 
         Rtx::SceneDesc& mScene;
+
+        /// Where each placement stood, this frame and last. Swapped by `advance`.
+        std::unordered_map<std::size_t, osg::Matrixf> mStanding;
+        std::unordered_map<std::size_t, osg::Matrixf> mStood;
 
         // Keyed on pointer identity, which OpenMW's resource cache and its optimizer's
         // SHARE_DUPLICATE_STATE pass together make meaningful: the same model loaded twice is the
