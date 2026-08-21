@@ -71,10 +71,12 @@ namespace Rtx
         /// Compiled to nothing in release: an unreadable capture is a debugging session that does
         /// not happen, and a released build has no captures.
         void setName([[maybe_unused]] VkObjectType type, [[maybe_unused]] std::uint64_t handle,
-            [[maybe_unused]] const char* name) const
+            [[maybe_unused]] std::string_view name) const
         {
 #ifdef OPENMW_RTX_DEBUG_NAMES
-            setNameImpl(type, handle, name);
+            // Terminated here and nowhere else, so a release build constructs nothing at all — and a
+            // caller may hand over a literal or a view into a path it is already holding.
+            setNameImpl(type, handle, std::string(name).c_str());
 #endif
         }
 

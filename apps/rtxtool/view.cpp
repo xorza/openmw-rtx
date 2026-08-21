@@ -140,7 +140,10 @@ namespace RtxTool
         Rtx::CommandPool pool(device);
         const Rtx::SceneAcceleration acceleration(device, pool, scene);
         const Rtx::SceneBuffers buffers(device, pool, scene, acceleration.getIndices());
-        const Rtx::TextureArray textures = RtxBridge::buildTextures(device, pool, scene, images);
+        // The bridge decodes and describes; the backend uploads. Held because the descriptions
+        // span its storage until the upload has finished.
+        const RtxBridge::SceneTextures described(scene, images);
+        const Rtx::TextureArray textures(device, pool, described.getDescriptions());
 
         const Rtx::VisibilityPass pass(device, pool, request.mShaderDirectory, textures.getLayout());
         const Rtx::VisibilityInputs inputs{

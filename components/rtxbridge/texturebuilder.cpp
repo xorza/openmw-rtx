@@ -5,7 +5,6 @@
 
 #include <osg/Image>
 
-#include <components/debug/debuglog.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/rtx/error.hpp>
 #include <components/rtx/scenedesc.hpp>
@@ -52,9 +51,8 @@ namespace RtxBridge
         const auto width = static_cast<std::uint32_t>(image.s());
         const auto height = static_cast<std::uint32_t>(image.t());
 
-        levels.clear();
+        const std::size_t first = levels.size();
         const unsigned int count = image.getNumMipmapLevels();
-        levels.reserve(count);
         for (unsigned int level = 0; level < count; ++level)
             levels.push_back(Rtx::MipLevel{
                 .mOffset = image.getMipmapOffset(level),
@@ -68,28 +66,31 @@ namespace RtxBridge
             .mHeight = height,
             .mBytes
             = std::span(reinterpret_cast<const std::byte*>(image.data()), image.getTotalSizeInBytesIncludingMipmaps()),
-            .mLevels = levels,
+            .mLevels = std::span<const Rtx::MipLevel>(levels).subspan(first, count),
+            .mName = image.getFileName(),
         };
     }
 
-    Rtx::TextureArray buildTextures(
-        const Rtx::Device& device, Rtx::CommandPool& pool, const Rtx::SceneDesc& scene, Resource::ImageManager& images)
+    SceneTextures::SceneTextures(const Rtx::SceneDesc& scene, Resource::ImageManager& images)
     {
-        std::vector<Rtx::Texture> textures;
-        textures.reserve(scene.getTextures().size());
+        const std::span<const VFS::Path::Normalized> paths = scene.getTextures();
 
-        // Refilled per texture rather than reallocated, and it has to outlive the description that
-        // points into it, which is why it is here and not inside the loop.
-        std::vector<Rtx::MipLevel> levels;
-
-        for (const VFS::Path::Normalized& path : scene.getTextures())
-        {
+        mImages.reserve(paths.size());
+        for (const VFS::Path::Normalized& path : paths)
             // Already decoded and still resident: the scene manager keeps image data on the CPU
             // after apply, so this is a cache hit and a memcpy rather than a second decode.
-            const osg::ref_ptr<osg::Image> image = images.getImage(path);
-            textures.emplace_back(device, pool, describeImage(*image, levels), path.value());
-        }
+            mImages.push_back(images.getImage(path));
 
-        return Rtx::TextureArray(device, std::move(textures));
+        // **Reserved exactly, and that is what makes the spans safe.** Every description points into
+        // this one table, so it must not reallocate while they are being taken — and every level
+        // count is known before the first description is built.
+        std::size_t levels = 0;
+        for (const osg::ref_ptr<const osg::Image>& image : mImages)
+            levels += image->getNumMipmapLevels();
+        mLevels.reserve(levels);
+
+        mDescriptions.reserve(mImages.size());
+        for (const osg::ref_ptr<const osg::Image>& image : mImages)
+            mDescriptions.push_back(describeImage(*image, mLevels));
     }
 }

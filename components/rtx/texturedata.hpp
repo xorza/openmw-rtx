@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <string_view>
 
 namespace Rtx
 {
@@ -51,5 +52,10 @@ namespace Rtx
         /// Every level, back to back. The levels index into this.
         std::span<const std::byte> mBytes;
         std::span<const MipLevel> mLevels;
+
+        /// What to call it in a capture — the file it came from. Spans storage the description's
+        /// owner holds, like everything else here. Empty is allowed and only costs a nameless object
+        /// in a debugger; every backend has somewhere to put it.
+        std::string_view mName;
     };
 }

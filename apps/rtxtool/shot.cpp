@@ -90,7 +90,10 @@ namespace RtxTool
         const Clock::time_point buildStart = Clock::now();
         const Rtx::SceneAcceleration acceleration(device, pool, scene);
         const Rtx::SceneBuffers buffers(device, pool, scene, acceleration.getIndices());
-        const Rtx::TextureArray textures = RtxBridge::buildTextures(device, pool, scene, images);
+        // The bridge decodes and describes; the backend uploads. Held because the descriptions
+        // span its storage until the upload has finished.
+        const RtxBridge::SceneTextures described(scene, images);
+        const Rtx::TextureArray textures(device, pool, described.getDescriptions());
         const double buildMs = millisecondsSince(buildStart);
 
         const Rtx::VisibilityPass pass(device, pool, request.mShaderDirectory, textures.getLayout());

@@ -77,7 +77,7 @@ namespace Rtx
         }
     }
 
-    Texture::Texture(const Device& device, CommandPool& pool, const TextureData& data, const std::string& name)
+    Texture::Texture(const Device& device, CommandPool& pool, const TextureData& data, std::string_view name)
         : mDevice(device.getHandle())
         , mBytes(data.mBytes.size())
     {
@@ -169,7 +169,7 @@ namespace Rtx
         };
         checkVk(vkCreateImageView(mDevice, &view, nullptr, &mView), "vkCreateImageView");
 
-        device.setName(VK_OBJECT_TYPE_IMAGE, reinterpret_cast<std::uint64_t>(mHandle), name.c_str());
+        device.setName(VK_OBJECT_TYPE_IMAGE, reinterpret_cast<std::uint64_t>(mHandle), name);
     }
 
     Texture::~Texture()
@@ -209,6 +209,24 @@ namespace Rtx
         mView = VK_NULL_HANDLE;
         mHandle = VK_NULL_HANDLE;
         mMemory = DeviceMemory();
+    }
+
+    namespace
+    {
+        std::vector<Texture> uploadAll(const Device& device, CommandPool& pool, std::span<const TextureData> textures)
+        {
+            std::vector<Texture> uploaded;
+            uploaded.reserve(textures.size());
+            for (const TextureData& texture : textures)
+                uploaded.emplace_back(device, pool, texture, texture.mName);
+
+            return uploaded;
+        }
+    }
+
+    TextureArray::TextureArray(const Device& device, CommandPool& pool, std::span<const TextureData> textures)
+        : TextureArray(device, uploadAll(device, pool, textures))
+    {
     }
 
     TextureArray::TextureArray(const Device& device, std::vector<Texture>&& textures)

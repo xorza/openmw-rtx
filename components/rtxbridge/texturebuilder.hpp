@@ -1,13 +1,11 @@
 #pragma once
 
+#include <span>
 #include <vector>
 
-#include <components/rtxvulkan/texture.hpp>
+#include <osg/Image>
 
-namespace osg
-{
-    class Image;
-}
+#include <components/rtx/texturedata.hpp>
 
 namespace Resource
 {
@@ -16,23 +14,53 @@ namespace Resource
 
 namespace Rtx
 {
-    class CommandPool;
-    class Device;
     class SceneDesc;
 }
 
 namespace RtxBridge
 {
-    /// Describes an image for the uploader without copying a byte of it.
+    /// Describes one image for a backend's uploader without copying a byte of it.
     ///
-    /// `levels` is filled in and the returned description points into it and into the image, so both
-    /// must outlive the upload. Throws for a format Morrowind does not produce — every texture in
-    /// the game is BC1 or BC2 with its mip chain already built, and inventing a conversion path for
-    /// something no content file contains is how a renderer grows code nothing runs.
+    /// Levels are **appended** to `levels`, and the returned description spans the ones it added —
+    /// so `levels` must outlive the upload and must not grow again while the description is alive.
+    /// `SceneTextures` is what reserves for that.
+    ///
+    /// Throws for a format Morrowind does not produce: every texture in the game is block
+    /// compressed with its mip chain already built, and inventing a conversion path for something no
+    /// content file contains is how a renderer grows code nothing runs.
     Rtx::TextureData describeImage(const osg::Image& image, std::vector<Rtx::MipLevel>& levels);
 
-    /// Uploads every texture the scene names, in the order it names them, so a material's texture
-    /// index is an index into the returned array.
-    Rtx::TextureArray buildTextures(
-        const Rtx::Device& device, Rtx::CommandPool& pool, const Rtx::SceneDesc& scene, Resource::ImageManager& images);
+    /// Every texture a scene names, described in the order it names them, and the storage those
+    /// descriptions point into.
+    ///
+    /// **This is where the bridge stops.** `Rtx::TextureData` carries spans rather than bytes, so
+    /// something has to own the decoded images and the level table while a backend reads them; this
+    /// is that, and it knows no graphics API. Which of them becomes a `VkImage` or an `MTLTexture`
+    /// is the backend's business and none of this one's.
+    ///
+    /// Non-copyable because the descriptions point into its own vectors. Moving is fine: a moved
+    /// vector keeps the buffer they point at.
+    class SceneTextures
+    {
+    public:
+        /// Resolves and describes every texture `scene` names.
+        SceneTextures(const Rtx::SceneDesc& scene, Resource::ImageManager& images);
+
+        SceneTextures(const SceneTextures&) = delete;
+        SceneTextures& operator=(const SceneTextures&) = delete;
+        SceneTextures(SceneTextures&&) = default;
+        SceneTextures& operator=(SceneTextures&&) = default;
+
+        /// Indexed by the scene's texture index, which is what a material stores.
+        std::span<const Rtx::TextureData> getDescriptions() const { return mDescriptions; }
+
+    private:
+        std::vector<osg::ref_ptr<const osg::Image>> mImages;
+
+        /// Every image's levels, back to back. One table rather than one vector each: a cell reaches
+        /// a couple of hundred textures, and the descriptions want a span into something stable.
+        std::vector<Rtx::MipLevel> mLevels;
+
+        std::vector<Rtx::TextureData> mDescriptions;
+    };
 }

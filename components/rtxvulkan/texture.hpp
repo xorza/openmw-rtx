@@ -1,7 +1,8 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
+#include <span>
+#include <string_view>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -19,7 +20,7 @@ namespace Rtx
     class Texture
     {
     public:
-        Texture(const Device& device, CommandPool& pool, const TextureData& data, const std::string& name);
+        Texture(const Device& device, CommandPool& pool, const TextureData& data, std::string_view name);
         ~Texture();
 
         Texture(const Texture&) = delete;
@@ -49,6 +50,10 @@ namespace Rtx
     class TextureArray
     {
     public:
+        /// Uploads every description, in the order given, so a material's texture index is an index
+        /// into this. May be empty; the shader is told the count and does not index past it.
+        TextureArray(const Device& device, CommandPool& pool, std::span<const TextureData> textures);
+
         /// @param textures may be empty; the shader is told the count and does not index past it.
         TextureArray(const Device& device, std::vector<Texture>&& textures);
         ~TextureArray();
