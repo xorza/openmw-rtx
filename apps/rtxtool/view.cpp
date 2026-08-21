@@ -16,6 +16,7 @@
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/texturebuilder.hpp>
+#include <components/rtxvulkan/atrouspass.hpp>
 #include <components/rtxvulkan/buffer.hpp>
 #include <components/rtxvulkan/commands.hpp>
 #include <components/rtxvulkan/compositepass.hpp>
@@ -131,10 +132,10 @@ namespace RtxTool
         // The cell is the only field quoted, because it is the only one that can hold a space.
         return std::format(
             "--cell=\"{}\" --pos={},{},{} --look={},{},{} --fov={} --size={}x{} --weather={}"
-            " --hour={} --validation={} --sync-validation={} --gpu-validation={}{}",
+            " --hour={} --filter={} --validation={} --sync-validation={} --gpu-validation={}{}",
             request.mCell, origin.x(), origin.y(), origin.z(), target.x(), target.y(), target.z(), request.mFieldOfView,
-            width, height, request.mWeather, request.mHour, validation.mEnabled, validation.mSynchronization,
-            validation.mGpuAssisted, request.mShowAlbedo ? " --albedo" : "");
+            width, height, request.mWeather, request.mHour, request.mFilter, validation.mEnabled,
+            validation.mSynchronization, validation.mGpuAssisted, request.mShowAlbedo ? " --albedo" : "");
     }
 
     int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::ValidationOptions& validation,
@@ -168,6 +169,7 @@ namespace RtxTool
         const Rtx::TextureArray textures(device, pool, described.getDescriptions());
 
         const Rtx::VisibilityPass pass(device, pool, request.mShaderDirectory, textures.getLayout());
+        Rtx::AtrousPass filter(device, request.mShaderDirectory);
         const Rtx::CompositePass composite(device, pool, request.mShaderDirectory);
         const Rtx::VisibilityInputs inputs{
             .mScene = acceleration.getTopLevel(),
@@ -201,6 +203,7 @@ namespace RtxTool
             return std::make_unique<Rtx::GBuffer>(device, extent.width, extent.height);
         };
         std::unique_ptr<Rtx::GBuffer> channels = makeChannels(swapchain.getExtent());
+        filter.resize(swapchain.getExtent().width, swapchain.getExtent().height);
 
         // The pass counts its hits into this because a screenshot wants the number. A window does
         // not: reading it would mean waiting for the GPU, and what it would say is already on the
@@ -290,6 +293,7 @@ namespace RtxTool
             swapchain.recreate(window.getExtent());
             targets = makeTargets(swapchain.getExtent());
             channels = makeChannels(swapchain.getExtent());
+            filter.resize(swapchain.getExtent().width, swapchain.getExtent().height);
             remakeImageSync();
             resized = false;
         };
@@ -314,8 +318,12 @@ namespace RtxTool
             channels->begin(commands);
             pass.record(commands, inputs, *channels, hitCount, constants);
             channels->handOver(commands);
+
+            const Rtx::Image& indirect
+                = request.mFilter ? filter.record(commands, *channels, constants) : channels->getIndirect();
+
             // No running sum: a window draws one frame at a time and has nothing to average.
-            composite.record(commands, *channels, nullptr, target,
+            composite.record(commands, *channels, indirect, nullptr, target,
                 Rtx::Shaders::CompositeConstants{
                     .mWidth = constants.mWidth, .mHeight = constants.mHeight, .mAccumulate = 0 });
 

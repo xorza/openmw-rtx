@@ -37,6 +37,9 @@ namespace RtxTool
         std::uint32_t mHeight = 1080;
         float mFieldOfView = 60.0f;
 
+        /// Whether the denoiser runs. Off is what shows the noise it is there to remove.
+        bool mFilter = true;
+
         /// Write the albedo with no shading over it.
         bool mShowAlbedo = false;
 
@@ -67,10 +70,9 @@ namespace RtxTool
     /// the size are passed rather than read off `request` because both move while the window is
     /// open; the rest of the conditions do not, and come off the request as they were given.
     ///
-    /// The validation flags are in it deliberately: a trace time taken under the layers is not one
-    /// to compare against anything — core and synchronization cost about 6% here and GPU-assisted
-    /// doubles the frame — so a profiling line that left them unsaid would quote a number nobody
-    /// could reproduce.
+    /// The denoiser and the validation flags are in it deliberately, because both cost time a
+    /// profiling line has to account for: five wavelet levels are about 2 ms at 1080p, and a trace
+    /// timed under the layers is not a figure to compare against anything at all.
     std::string describeProfile(const ViewRequest& request, const Rtx::ValidationOptions& validation,
         const osg::Vec3f& origin, const osg::Vec3f& target, std::uint32_t width, std::uint32_t height);
 }

@@ -17,6 +17,7 @@ find_program(OPENMW_SPIRV_VAL NAMES spirv-val REQUIRED
     DOC "spirv-val, from SPIRV-Tools — validates every module the build produces")
 
 set(RTX_SHADERS
+    shaders/atrous.comp
     shaders/composite.comp
     shaders/visibility.comp
 )
@@ -55,6 +56,8 @@ endforeach()
 add_custom_target(openmw-rtx-vulkan-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS} SOURCES ${RTX_SHADERS})
 
 set(RTX_VULKAN_FILES
+    atrouspass.cpp
+    atrouspass.hpp
     buffer.cpp
     buffer.hpp
     commands.cpp

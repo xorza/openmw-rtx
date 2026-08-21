@@ -131,7 +131,8 @@ namespace RtxTool
             // frames that happened to sample different geometry.
             camera.mFrame = averaging ? frame : 0;
 
-            const Rtx::FrameResult result = renderer->renderFrame(camera, averaging ? frame + 1 : 0);
+            const Rtx::FrameResult result = renderer->renderFrame(
+                camera, Rtx::FrameOptions{ .mAccumulate = averaging ? frame + 1 : 0, .mFilter = request.mFilter });
             traces.push_back(result.mTraceMs);
             hits = result.mHits;
             ++frame;

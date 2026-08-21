@@ -121,6 +121,9 @@ namespace RtxTool
 
             addOption("list-views", bpo::bool_switch(), "print the named viewpoints and quit");
 
+            addOption("filter", bpo::value<bool>()->default_value(true)->implicit_value(true),
+                "run the denoiser over the indirect light. Off shows the raw bounce, and is what a "
+                "reference built with --accumulate has to be made with");
             addOption("albedo", bpo::bool_switch(),
                 "write the albedo with no shading over it, which is what a texture problem looks like "
                 "when nothing else is in the way");
@@ -644,6 +647,7 @@ namespace RtxTool
                     request.mTarget = chosen.mTarget;
                     request.mFrames = variables["frames"].as<std::uint32_t>();
                     request.mShowAlbedo = variables["albedo"].as<bool>();
+                    request.mFilter = variables["filter"].as<bool>();
                     request.mWeather = variables["weather"].as<std::string>();
                     request.mHour = variables["hour"].as<float>();
 
@@ -659,6 +663,7 @@ namespace RtxTool
                 request.mOrigin = chosen.mOrigin;
                 request.mTarget = chosen.mTarget;
                 request.mShowAlbedo = variables["albedo"].as<bool>();
+                request.mFilter = variables["filter"].as<bool>();
                 request.mWeather = variables["weather"].as<std::string>();
                 request.mHour = variables["hour"].as<float>();
                 request.mRepeat = variables["repeat"].as<std::uint32_t>();

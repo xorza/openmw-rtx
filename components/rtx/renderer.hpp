@@ -59,6 +59,27 @@ namespace Rtx
         std::uint64_t mTextureBytes = 0;
     };
 
+    /// What a frame is asked for, beyond where the camera stands.
+    struct FrameOptions
+    {
+        /// How many frames have gone into the running sum, this one included. Zero is no averaging.
+        ///
+        /// **A field here and not of `camera`, because the trace does not read it.** What is being
+        /// averaged is the finished picture, which is the last pass's business; a number in the
+        /// struct the trace is handed would say it belonged to the trace. The sum is kept in
+        /// floating point rather than by averaging the images afterwards: eight bits per channel
+        /// would round every sample before adding it, and worse, clip the sun's disc and a water
+        /// glint, which are exactly the pixels a filter is most likely to get wrong.
+        std::uint32_t mAccumulate = 0;
+
+        /// Whether the denoiser runs over the indirect channel.
+        ///
+        /// **Off is how the answer it is judged against gets made.** A converged reference is the
+        /// average of enough unbiased samples, and a filtered sample is not one of those — so a
+        /// thousand filtered frames converge on the filter's opinion rather than on the truth.
+        bool mFilter = true;
+    };
+
     /// What one traced frame came to.
     struct FrameResult
     {
@@ -110,15 +131,7 @@ namespace Rtx
         virtual void resize(std::uint32_t width, std::uint32_t height) = 0;
 
         /// Traces one frame. `setScene` first, which is a contract and so an assert.
-        ///
-        /// @param accumulate how many frames have gone into the running sum, this one included.
-        ///        Zero is no averaging, which is every frame a window draws.
-        ///
-        ///        **A parameter and not a field of `camera`, because the trace does not read it.**
-        ///        What is being averaged is the finished picture, which is the last pass's business
-        ///        and not the trace's; a number in the struct the trace is handed would say it
-        ///        belonged to the trace. What the sum is kept in is the backend's to decide.
-        virtual FrameResult renderFrame(const Shaders::VisibilityConstants& camera, std::uint32_t accumulate) = 0;
+        virtual FrameResult renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) = 0;
 
         /// Copies the traced image into `pixels`, four bytes per pixel, tightly packed.
         /// Not const: it submits a copy and waits for it.

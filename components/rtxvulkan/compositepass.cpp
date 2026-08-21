@@ -40,10 +40,11 @@ namespace Rtx
         });
     }
 
-    void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Image* history,
-        const Image& target, const Shaders::CompositeConstants& constants) const
+    void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Image& indirect,
+        const Image* history, const Image& target, const Shaders::CompositeConstants& constants) const
     {
         assert(buffer.getWidth() >= constants.mWidth && buffer.getHeight() >= constants.mHeight);
+        assert(indirect.getWidth() >= constants.mWidth && indirect.getHeight() >= constants.mHeight);
         assert(target.getWidth() >= constants.mWidth && target.getHeight() >= constants.mHeight);
 
         // A sum has to cover the frame it is a sum of; a stand-in never read does not.
@@ -55,7 +56,7 @@ namespace Rtx
 
         const std::array<VkDescriptorImageInfo, 5> images{
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getDirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
-            VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getIndirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
+            VkDescriptorImageInfo{ VK_NULL_HANDLE, indirect.getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getModulate().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, sum.getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, target.getView(), VK_IMAGE_LAYOUT_GENERAL },

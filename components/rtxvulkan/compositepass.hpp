@@ -30,13 +30,17 @@ namespace Rtx
         CompositePass(const CompositePass&) = delete;
         CompositePass& operator=(const CompositePass&) = delete;
 
-        /// @param buffer must have been handed over, so its writes are visible to this read.
+        /// @param buffer must have been handed over, so its writes are visible to this read. Its
+        ///        indirect channel is not read: `indirect` says where the bounce actually is.
+        /// @param indirect the bounce to modulate — the filter's output, or the buffer's own
+        ///        channel where nothing filtered it. Whose image it is depends on how many wavelet
+        ///        levels ran, which is why it is named rather than assumed.
         /// @param history the running sum, at least as large as `target` and in
         ///        `VK_IMAGE_LAYOUT_GENERAL`. Null where `mAccumulate` is zero, which is every frame
         ///        that is not building a reference.
         /// @param target the displayable image, in `VK_IMAGE_LAYOUT_GENERAL`.
-        void record(VkCommandBuffer commands, const GBuffer& buffer, const Image* history, const Image& target,
-            const Shaders::CompositeConstants& constants) const;
+        void record(VkCommandBuffer commands, const GBuffer& buffer, const Image& indirect, const Image* history,
+            const Image& target, const Shaders::CompositeConstants& constants) const;
 
     private:
         ComputePipeline mPipeline;

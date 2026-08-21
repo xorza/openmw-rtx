@@ -22,6 +22,7 @@ namespace Rtx
         , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()))
         , mPool(mDevice)
         , mShaderDirectory(options.mShaderDirectory)
+        , mFilter(mDevice, options.mShaderDirectory)
         , mComposite(mDevice, mPool, options.mShaderDirectory)
     {
         mHitCount = Buffer(mDevice, sizeof(std::uint32_t),
@@ -45,6 +46,7 @@ namespace Rtx
             VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "target");
 
         mChannels = std::make_unique<GBuffer>(mDevice, width, height);
+        mFilter.resize(width, height);
 
         // **Dropped rather than resized, because most runs never make one.** Sixteen bytes a pixel
         // is 33 MiB at 1080p and 133 MiB at 4K, and it buys a sum that neither rounds nor clips —
@@ -122,7 +124,7 @@ namespace Rtx
         createTargets(width, height);
     }
 
-    FrameResult VulkanRenderer::renderFrame(const Shaders::VisibilityConstants& camera, std::uint32_t accumulate)
+    FrameResult VulkanRenderer::renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options)
     {
         assert(mPass != nullptr && "renderFrame before setScene");
 
@@ -137,7 +139,7 @@ namespace Rtx
         };
 
         // Made by the first frame that averages, and that frame is the one that fills it.
-        const bool fresh = accumulate > 0 && mHistory == nullptr;
+        const bool fresh = options.mAccumulate > 0 && mHistory == nullptr;
         if (fresh)
             mHistory = std::make_unique<Image>(
                 mDevice, mWidth, mHeight, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT, "history");
@@ -161,11 +163,17 @@ namespace Rtx
             mChannels->begin(commands);
             mPass->record(commands, inputs, *mChannels, mHitCount, camera);
             mChannels->handOver(commands);
-            mComposite.record(commands, *mChannels, mHistory.get(), *mTarget,
+
+            // Where the bounce ended up: the filter's last level, or the channel the trace wrote
+            // when nothing filtered it.
+            const Image& indirect
+                = options.mFilter ? mFilter.record(commands, *mChannels, camera) : mChannels->getIndirect();
+
+            mComposite.record(commands, *mChannels, indirect, mHistory.get(), *mTarget,
                 Shaders::CompositeConstants{
                     .mWidth = mWidth,
                     .mHeight = mHeight,
-                    .mAccumulate = accumulate,
+                    .mAccumulate = options.mAccumulate,
                 });
         });
 

@@ -384,9 +384,14 @@ namespace Rtx
             ///        is what a test asserting an exact transmittance through one needs.
             /// @param accumulate how many differently-seeded frames to average, overriding the
             ///        camera's own frame index with 0, 1, ... Zero renders the camera's frame alone.
+            /// @param filter whether the denoiser runs, and off by default on purpose. Almost
+            ///        everything here asserts a radiance a particular pixel must have, and a filter
+            ///        mixes its neighbours into it — a test that let one run would be measuring the
+            ///        denoiser rather than the thing it was written to measure. The tests that are
+            ///        about the filter ask for it.
             std::uint32_t countHits(const SceneDesc& scene, std::span<const TextureData> textures,
                 const Shaders::VisibilityConstants& camera, std::uint32_t size, std::vector<std::uint8_t>& pixels,
-                const SeaState& sea = SeaState{}, std::uint32_t accumulate = 0)
+                const SeaState& sea = SeaState{}, std::uint32_t accumulate = 0, bool filter = false)
             {
                 mRenderer->resize(size, size);
                 mRenderer->setScene(scene, textures, sea);
@@ -404,7 +409,10 @@ namespace Rtx
 
                     // Every frame hits the same primary geometry, so the last one's count is the
                     // answer rather than a sum to be divided back down.
-                    hits = mRenderer->renderFrame(sampled, accumulate > 0 ? frame + 1 : 0).mHits;
+                    hits = mRenderer
+                               ->renderFrame(sampled,
+                                   FrameOptions{ .mAccumulate = accumulate > 0 ? frame + 1 : 0, .mFilter = filter })
+                               .mHits;
                 }
 
                 mRenderer->readPixels(pixels);
@@ -2308,7 +2316,7 @@ namespace Rtx
                 channels.handOver(commands);
                 // No history: a still frame averages nothing, and the pass stands in for the
                 // binding rather than making the caller carry an image it never reads.
-                composite.record(commands, channels, nullptr, target,
+                composite.record(commands, channels, channels.getIndirect(), nullptr, target,
                     Shaders::CompositeConstants{ .mWidth = size, .mHeight = size, .mAccumulate = 0 });
                 vkEndCommandBuffer(commands);
 
@@ -2412,6 +2420,217 @@ namespace Rtx
             ASSERT_GT(vertexHits, 0u);
             EXPECT_EQ(instanceHits, vertexHits);
             EXPECT_EQ(byInstance, byVertex);
+        }
+
+        /// The denoiser, measured against the estimator it is smoothing.
+        ///
+        /// One flat floor under an open sky, so every pixel is one bounce off the same normal with
+        /// the same answer in expectation: the mean is fixed and the scatter around it is pure
+        /// sampling noise. A filter has one job on a surface like this — take the scatter away and
+        /// leave the mean where it was — and both halves are asserted, because a filter that dimmed
+        /// the picture would pass a test that only looked at the noise.
+        TEST_F(RtxVisibilityTest, theFilterTakesTheNoiseOffAFlatSurfaceAndLeavesTheLightWhereItWas)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float samples = float{ size } * size;
+
+            SceneDesc scene;
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                .mMesh = scene.addMesh(makeSheet(4000.0f, 0.0f), {}, {}, sQuadIndices) });
+
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 300.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f(0.20f, 0.15f, 0.60f);
+            camera.mSkyZenith = osg::Vec3f(0.80f, 0.65f, 0.15f);
+
+            const auto shade = [&](bool filter) {
+                std::vector<std::uint8_t> pixels;
+                EXPECT_EQ(countHits(scene, {}, camera, size, pixels, SeaState{}, 0, filter), size * size);
+                return pixels;
+            };
+
+            const auto measure = [&](const std::vector<std::uint8_t>& pixels, std::size_t channel) {
+                float sum = 0.0f;
+                float squares = 0.0f;
+                for (std::size_t i = channel; i < pixels.size(); i += 4)
+                {
+                    const float linear = decodeSrgb(pixels[i]);
+                    sum += linear;
+                    squares += linear * linear;
+                }
+
+                const float mean = sum / samples;
+                return std::pair{ mean, std::sqrt(std::max(squares / samples - mean * mean, 0.0f)) };
+            };
+
+            const std::vector<std::uint8_t> raw = shade(false);
+            const std::vector<std::uint8_t> filtered = shade(true);
+
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                const auto [rawMean, rawSpread] = measure(raw, channel);
+                const auto [filteredMean, filteredSpread] = measure(filtered, channel);
+
+                // Half an sRGB step at this brightness, which is the most the two can differ by
+                // without one of them having moved the light.
+                EXPECT_NEAR(filteredMean, rawMean, 0.004f) << "channel " << channel << " keeps its light";
+
+                EXPECT_LT(filteredSpread, rawSpread * 0.2f)
+                    << "channel " << channel << " has most of its noise taken away";
+            }
+        }
+
+        /// The same floor at a grazing angle, against the answer it is trying to reach.
+        ///
+        /// **Terrain is nearly always seen this way, and it is the case a depth test gets wrong.**
+        /// Pixels down a grazing surface stand a long way apart in distance while remaining one
+        /// flat plane, so a filter that refused taps by how far away they are keeps only the taps
+        /// across the slope and throws away the ones along it — it still smooths, just half as
+        /// well, which is why this measures the error rather than the smoothness. Weighing by how
+        /// far a tap sits off the centre pixel's tangent plane costs one dot product and asks the
+        /// question that was meant.
+        ///
+        /// The reference is what `--accumulate` builds: sixty-four differently seeded samples of
+        /// the same unbiased estimator, averaged. One sample against that is the error a denoiser
+        /// exists to reduce, and the ratio of the two is the only honest way to say it worked.
+        ///
+        /// **The bound sits between the two weightings on purpose.** Measured here: one sample is
+        /// 0.0419 off the reference, the plane weight brings that to 0.0023 and a plain depth weight
+        /// to 0.0061 — eighteen times better against seven. Every number is repeatable, because
+        /// frame zero and a sixty-four frame average are both deterministic, so a tenth is a bound
+        /// this passes with room and a depth test cannot reach.
+        TEST_F(RtxVisibilityTest, theFilterHalvesTheErrorAgainstAConvergedGrazingSurface)
+        {
+            constexpr std::uint32_t size = 64;
+
+            SceneDesc scene;
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                .mMesh = scene.addMesh(makeSheet(40000.0f, 0.0f), {}, {}, sQuadIndices) });
+
+            // A degree and a half above the floor: the horizon sits near the top of the frame and
+            // the ground runs from a few hundred units away to eight thousand, so the distance
+            // between vertical neighbours changes by more than a pixel footprint nearly everywhere.
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -8000.0f, 200.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f(0.20f, 0.15f, 0.60f);
+            camera.mSkyZenith = osg::Vec3f(0.80f, 0.65f, 0.15f);
+
+            const auto render = [&](std::uint32_t accumulate, bool filter) {
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, {}, camera, size, pixels, SeaState{}, accumulate, filter);
+                return pixels;
+            };
+
+            // Unfiltered, because a thousand filtered frames converge on the filter's opinion and
+            // not on the answer.
+            const std::vector<std::uint8_t> reference = render(64, false);
+            const std::vector<std::uint8_t> raw = render(0, false);
+            const std::vector<std::uint8_t> filtered = render(0, true);
+
+            const auto errorAgainstReference = [&](const std::vector<std::uint8_t>& pixels) {
+                float squares = 0.0f;
+                std::size_t counted = 0;
+                for (std::size_t i = 1; i < pixels.size(); i += 4)
+                {
+                    // Only where there is a surface: the sky above the horizon is not being
+                    // filtered and averages to itself, so counting it would dilute both figures.
+                    if (pixels[i] == reference[i] && pixels[i] == 0)
+                        continue;
+
+                    const float error = decodeSrgb(pixels[i]) - decodeSrgb(reference[i]);
+                    squares += error * error;
+                    ++counted;
+                }
+
+                return std::sqrt(squares / static_cast<float>(counted));
+            };
+
+            const float before = errorAgainstReference(raw);
+            const float after = errorAgainstReference(filtered);
+
+            EXPECT_GT(before, 0.02f) << "one sample is noisy enough here for the question to mean something";
+            EXPECT_LT(after, before * 0.10f)
+                << "and the filter takes most of that error away: " << before << " becomes " << after;
+        }
+
+        /// A floor meeting a wall, and the filter keeping them apart.
+        ///
+        /// **Everything else here would pass with a plain blur.** Smoothing noise and preserving a
+        /// mean are what any average does; what makes this a denoiser rather than a soft-focus
+        /// filter is that it refuses to mix two surfaces that happen to be neighbours on screen.
+        ///
+        /// So this measures the one place where that shows: the step from one row to the next
+        /// across the crease. Away from it a blur is nearly harmless, because five levels of a
+        /// B3 kernel put most of their weight near the centre however far the taps reach — which is
+        /// exactly why a test comparing the two ends of the frame passes with the guide switched
+        /// off, and this one does not.
+        ///
+        /// The crease is found rather than assumed: it is the row boundary where the unfiltered
+        /// picture jumps hardest, which is where the geometry says it should be. The two surfaces
+        /// are told apart by their normals alone, and lit differently for the same reason — a
+        /// floor's cosine-weighted hemisphere is centred on the zenith and a wall's lies along the
+        /// horizon, and this sky runs a long way between the two.
+        TEST_F(RtxVisibilityTest, theFilterWillNotMixAFloorIntoTheWallStandingOnIt)
+        {
+            constexpr std::uint32_t size = 64;
+
+            const std::array wall{
+                osg::Vec3f(-2000.0f, 0.0f, 0.0f),
+                osg::Vec3f(2000.0f, 0.0f, 0.0f),
+                osg::Vec3f(2000.0f, 0.0f, 4000.0f),
+                osg::Vec3f(-2000.0f, 0.0f, 4000.0f),
+            };
+
+            SceneDesc scene;
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                .mMesh = scene.addMesh(makeSheet(4000.0f, 0.0f), {}, {}, sQuadIndices) });
+            scene.addInstance(MeshInstance{
+                .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(wall, {}, {}, sQuadIndices) });
+
+            // The floor fills the bottom of the frame and the wall the top, with the crease running
+            // straight across the middle of it.
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -1200.0f, 900.0f), osg::Vec3f(0.0f, 0.0f, 250.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f(0.20f, 0.15f, 0.60f);
+            camera.mSkyZenith = osg::Vec3f(0.80f, 0.65f, 0.15f);
+
+            // Green, where this sky has its widest range between the horizon and the zenith. A row
+            // at a time, so that sixty-four pixels stand behind every number and the sampling noise
+            // that is left cannot be mistaken for a step.
+            const auto rowMeans = [&](std::uint32_t accumulate, bool filter) {
+                std::vector<std::uint8_t> pixels;
+                EXPECT_EQ(countHits(scene, {}, camera, size, pixels, SeaState{}, accumulate, filter), size * size);
+
+                std::array<float, size> rows{};
+                for (std::uint32_t y = 0; y < size; ++y)
+                {
+                    float sum = 0.0f;
+                    for (std::uint32_t x = 0; x < size; ++x)
+                        sum += decodeSrgb(pixels[(std::size_t{ y } * size + x) * 4 + 1]);
+
+                    rows[y] = sum / size;
+                }
+
+                return rows;
+            };
+
+            // Where the crease is, off a converged frame rather than a noisy one. A single sample's
+            // row means swing by more than the step does, so asking a noisy picture where its
+            // biggest jump is answers with the loudest pixel and not with the geometry.
+            const std::array<float, size> converged = rowMeans(64, false);
+
+            std::uint32_t crease = 0;
+            for (std::uint32_t y = 1; y < size; ++y)
+                if (std::abs(converged[y] - converged[y - 1]) > std::abs(converged[crease + 1] - converged[crease]))
+                    crease = y - 1;
+
+            const float truth = std::abs(converged[crease + 1] - converged[crease]);
+            const std::array<float, size> filtered = rowMeans(0, true);
+            const float kept = std::abs(filtered[crease + 1] - filtered[crease]);
+
+            ASSERT_GT(truth, 0.02f) << "the two surfaces have to part company for this to mean anything";
+            EXPECT_GT(kept, truth * 0.7f) << "the step at row " << crease << " survives the filter: it is " << truth
+                                          << " in the converged frame and " << kept << " in the filtered one";
         }
 
         /// A wall smaller than the frame leaves sky around it, and the count is the area it covers.

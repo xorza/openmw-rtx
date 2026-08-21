@@ -9,6 +9,7 @@
 
 #include <components/rtx/renderer.hpp>
 
+#include "atrouspass.hpp"
 #include "buffer.hpp"
 #include "commands.hpp"
 #include "compositepass.hpp"
@@ -42,7 +43,7 @@ namespace Rtx
         void setScene(const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea) override;
         const SceneStats& getSceneStats() const override { return mStats; }
         void resize(std::uint32_t width, std::uint32_t height) override;
-        FrameResult renderFrame(const Shaders::VisibilityConstants& camera, std::uint32_t accumulate) override;
+        FrameResult renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) override;
         void readPixels(std::vector<std::uint8_t>& pixels) override;
         void takeValidationErrors(std::vector<std::string>& errors) override;
 
@@ -82,8 +83,10 @@ namespace Rtx
         std::unique_ptr<VisibilityPass> mPass;
         SceneStats mStats;
 
-        /// Held by value rather than built with the scene, because it depends on neither the scene
-        /// nor the size of the image: the trace's channels and the target are pushed at record time.
+        /// Held by value rather than built with the scene, because they depend on neither the
+        /// scene nor the size of the image: what they read is pushed at record time. The filter is
+        /// not const only because it keeps a channel the size of the frame.
+        AtrousPass mFilter;
         CompositePass mComposite;
     };
 

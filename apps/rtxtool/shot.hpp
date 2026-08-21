@@ -33,6 +33,10 @@ namespace RtxTool
         std::uint32_t mHeight = 1080;
         float mFieldOfView = 60.0f;
 
+        /// Whether the denoiser runs. Off is how a reference is made, and how the noise the filter
+        /// is meant to remove can be looked at.
+        bool mFilter = true;
+
         /// Write the albedo with no shading over it.
         bool mShowAlbedo = false;
 
