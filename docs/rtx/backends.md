@@ -132,7 +132,7 @@ public:
     /// Resizes the traced image. Kept by the backend; nothing here allocates per frame.
     virtual void resize(std::uint32_t width, std::uint32_t height) = 0;
 
-    virtual FrameResult renderFrame(const Shaders::VisibilityConstants& camera) = 0;
+    virtual FrameResult renderFrame(const Shaders::VisibilityConstants& camera, std::uint32_t accumulate) = 0;
 
     /// Copies the traced image into `pixels`, four bytes per pixel, tightly packed.
     ///
@@ -294,11 +294,12 @@ should never have had it:
 
 Mechanical. `components/rtxvulkan/` takes instance, physicaldevice, device, requirements, validation,
 memory, buffer, image, texture, commands, swapchain, shadermodule, sceneacceleration, scenebuffers,
-visibilitypass, the `checkVk` half of error, and `shaders/visibility.comp`.
+visibilitypass, compositepass, gbuffer, the `checkVk` half of error, and
+`shaders/{visibility.comp, composite.comp}`.
 
 `components/rtx/` keeps scenedesc, lightgrid, wavespectrum, camera, texturedata, instancerecord,
-error, renderer.hpp, and `shaders/{scene.h, visibility.h}` — which both backends and the C++ include,
-and which is why they stay neutral rather than following the GLSL.
+error, renderer.hpp, and `shaders/{scene.h, visibility.h, composite.h}` — which both backends and the
+C++ include, and which is why they stay neutral rather than following the GLSL.
 
 `openmw-rtx` drops `Vulkan::Vulkan`. Everything that breaks at that moment is the seam being drawn
 for the first time, and the list of breakages is the list of things §5.1 missed.

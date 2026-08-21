@@ -18,7 +18,9 @@
 #include <components/rtxbridge/texturebuilder.hpp>
 #include <components/rtxvulkan/buffer.hpp>
 #include <components/rtxvulkan/commands.hpp>
+#include <components/rtxvulkan/compositepass.hpp>
 #include <components/rtxvulkan/device.hpp>
+#include <components/rtxvulkan/gbuffer.hpp>
 #include <components/rtxvulkan/image.hpp>
 #include <components/rtxvulkan/instance.hpp>
 #include <components/rtxvulkan/physicaldevice.hpp>
@@ -149,6 +151,7 @@ namespace RtxTool
         const Rtx::TextureArray textures(device, pool, described.getDescriptions());
 
         const Rtx::VisibilityPass pass(device, pool, request.mShaderDirectory, textures.getLayout());
+        const Rtx::CompositePass composite(device, request.mShaderDirectory);
         const Rtx::VisibilityInputs inputs{
             .mScene = acceleration.getTopLevel(),
             .mBuffers = &buffers,
@@ -173,15 +176,24 @@ namespace RtxTool
         std::vector<std::unique_ptr<Rtx::Image>> targets = makeTargets(swapchain.getExtent());
 
         // Bound and never touched: a window renders one frame at a time and has no use for a running
-        // sum, so it leaves `mAccumulate` at zero and the shader skips this entirely. It exists
-        // because the descriptor has to point somewhere, and it is full size because the pass will
-        // not take one smaller than the target. One serves every frame in flight — nothing writes
-        // it, so there is nothing for them to race over.
+        // sum, so it leaves `mAccumulate` at zero and the composite skips this entirely. It exists
+        // because the descriptor has to point somewhere, and it is full size because the composite
+        // will not take one smaller than the target. One serves every frame in flight — nothing
+        // writes it, so there is nothing for them to race over.
         const auto makeHistory = [&device](VkExtent2D extent) {
             return std::make_unique<Rtx::Image>(
                 device, extent.width, extent.height, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT);
         };
         std::unique_ptr<Rtx::Image> history = makeHistory(swapchain.getExtent());
+
+        // One set of channels and not one per frame in flight, which the targets beside them are.
+        // The difference is that `begin` waits for the last composite to have finished reading
+        // before the next trace overwrites them — being in one submit orders a frame against
+        // itself and says nothing about the frame still running beside it.
+        const auto makeChannels = [&device](VkExtent2D extent) {
+            return std::make_unique<Rtx::GBuffer>(device, extent.width, extent.height);
+        };
+        std::unique_ptr<Rtx::GBuffer> channels = makeChannels(swapchain.getExtent());
 
         // The pass counts its hits into this because a screenshot wants the number. A window does
         // not: reading it would mean waiting for the GPU, and what it would say is already on the
@@ -271,6 +283,7 @@ namespace RtxTool
             swapchain.recreate(window.getExtent());
             targets = makeTargets(swapchain.getExtent());
             history = makeHistory(swapchain.getExtent());
+            channels = makeChannels(swapchain.getExtent());
             remakeImageSync();
             resized = false;
         };
@@ -296,7 +309,12 @@ namespace RtxTool
                 VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                 VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
 
-            pass.record(commands, inputs, target, *history, hitCount, constants);
+            channels->begin(commands);
+            pass.record(commands, inputs, *channels, hitCount, constants);
+            channels->handOver(commands);
+            composite.record(commands, *channels, *history, target,
+                Rtx::Shaders::CompositeConstants{
+                    .mWidth = constants.mWidth, .mHeight = constants.mHeight, .mAccumulate = 0 });
 
             target.transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,

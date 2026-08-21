@@ -130,9 +130,8 @@ namespace RtxTool
             // same work every trace, so that what the spread shows is the machine and not two
             // frames that happened to sample different geometry.
             camera.mFrame = averaging ? frame : 0;
-            camera.mAccumulate = averaging ? frame + 1 : 0;
 
-            const Rtx::FrameResult result = renderer->renderFrame(camera);
+            const Rtx::FrameResult result = renderer->renderFrame(camera, averaging ? frame + 1 : 0);
             traces.push_back(result.mTraceMs);
             hits = result.mHits;
             ++frame;

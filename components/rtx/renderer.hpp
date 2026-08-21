@@ -110,7 +110,15 @@ namespace Rtx
         virtual void resize(std::uint32_t width, std::uint32_t height) = 0;
 
         /// Traces one frame. `setScene` first, which is a contract and so an assert.
-        virtual FrameResult renderFrame(const Shaders::VisibilityConstants& camera) = 0;
+        ///
+        /// @param accumulate how many frames have gone into the running sum, this one included.
+        ///        Zero is no averaging, which is every frame a window draws.
+        ///
+        ///        **A parameter and not a field of `camera`, because the trace does not read it.**
+        ///        What is being averaged is the finished picture, which is the last pass's business
+        ///        and not the trace's; a number in the struct the trace is handed would say it
+        ///        belonged to the trace. What the sum is kept in is the backend's to decide.
+        virtual FrameResult renderFrame(const Shaders::VisibilityConstants& camera, std::uint32_t accumulate) = 0;
 
         /// Copies the traced image into `pixels`, four bytes per pixel, tightly packed.
         /// Not const: it submits a copy and waits for it.

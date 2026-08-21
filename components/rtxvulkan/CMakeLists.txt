@@ -17,6 +17,7 @@ find_program(OPENMW_SPIRV_VAL NAMES spirv-val REQUIRED
     DOC "spirv-val, from SPIRV-Tools — validates every module the build produces")
 
 set(RTX_SHADERS
+    shaders/composite.comp
     shaders/visibility.comp
 )
 
@@ -58,8 +59,12 @@ set(RTX_VULKAN_FILES
     buffer.hpp
     commands.cpp
     commands.hpp
+    compositepass.cpp
+    compositepass.hpp
     device.cpp
     device.hpp
+    gbuffer.cpp
+    gbuffer.hpp
     image.cpp
     image.hpp
     instance.cpp

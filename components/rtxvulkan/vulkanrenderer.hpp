@@ -11,11 +11,13 @@
 
 #include "buffer.hpp"
 #include "commands.hpp"
+#include "compositepass.hpp"
 #include "device.hpp"
 #include "instance.hpp"
 
 namespace Rtx
 {
+    class GBuffer;
     class Image;
     class SceneAcceleration;
     class SceneBuffers;
@@ -40,7 +42,7 @@ namespace Rtx
         void setScene(const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea) override;
         const SceneStats& getSceneStats() const override { return mStats; }
         void resize(std::uint32_t width, std::uint32_t height) override;
-        FrameResult renderFrame(const Shaders::VisibilityConstants& camera) override;
+        FrameResult renderFrame(const Shaders::VisibilityConstants& camera, std::uint32_t accumulate) override;
         void readPixels(std::vector<std::uint8_t>& pixels) override;
         void takeValidationErrors(std::vector<std::string>& errors) override;
 
@@ -60,6 +62,9 @@ namespace Rtx
         std::unique_ptr<Image> mTarget;
         std::unique_ptr<Image> mHistory;
 
+        /// What the trace writes and the composite reads: one frame's light, still in pieces.
+        std::unique_ptr<GBuffer> mChannels;
+
         /// Whether anything has written the history since it was made.
         ///
         /// A property of the image rather than of the caller's frame counter: the first write needs
@@ -76,6 +81,10 @@ namespace Rtx
         std::unique_ptr<TextureArray> mTextures;
         std::unique_ptr<VisibilityPass> mPass;
         SceneStats mStats;
+
+        /// Held by value rather than built with the scene, because it depends on neither the scene
+        /// nor the size of the image: the trace's channels and the target are pushed at record time.
+        CompositePass mComposite;
     };
 
     /// Builds a Vulkan renderer, or nothing where this machine has no driver that qualifies.

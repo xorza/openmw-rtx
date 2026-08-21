@@ -131,19 +131,6 @@ namespace Rtx::Shaders
         /// frame, which is what a test wants; a window passes its own count.
         uint mFrame;
 
-        /// How many frames have gone into the running sum, this one included. Zero is no averaging.
-        ///
-        /// **What turns a noisy estimator into a reference.** One bounce per pixel is an unbiased
-        /// sample of an integral, so the average of enough of them is the answer the denoiser has to
-        /// be judged against — and there is no other way to get one: the value is not computable by
-        /// hand, only approachable.
-        ///
-        /// The sum is kept in floating point rather than by averaging the images afterwards. Eight
-        /// bits per channel would round every sample before adding it, and worse, clip: the sun's
-        /// disc and a water glint both leave the range the display image can hold, and they are
-        /// exactly the pixels a filter is most likely to get wrong.
-        uint mAccumulate;
-
         /// Where the light grid's cell zero starts, how wide a cell is, and how many there are.
         ///
         /// **The scene's, not the camera's**, and written by the pass rather than by whoever built
@@ -158,7 +145,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
-    static_assert(sizeof(VisibilityConstants) == 192, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 188, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

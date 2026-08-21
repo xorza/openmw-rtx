@@ -13,7 +13,7 @@ namespace Rtx
 {
     class CommandPool;
     class Device;
-    class Image;
+    class GBuffer;
     class SceneBuffers;
 
     /// What a trace reads about the world, as against the camera that looks at it.
@@ -45,12 +45,11 @@ namespace Rtx
         VisibilityPass(const VisibilityPass&) = delete;
         VisibilityPass& operator=(const VisibilityPass&) = delete;
 
-        /// @param target must be in `VK_IMAGE_LAYOUT_GENERAL`.
-        /// @param history a float image at least as large as `target`, in `VK_IMAGE_LAYOUT_GENERAL`,
-        ///        holding the running sum when `mAccumulate` is set. Written every frame either way,
-        ///        so its contents are undefined rather than preserved when it is not.
+        /// @param buffer where the trace leaves its channels, all four in `VK_IMAGE_LAYOUT_GENERAL`
+        ///        and at least as large as the frame. It writes a picture no longer: the indirect
+        ///        term has to survive to the filter with the albedo still divided out.
         /// @param hitCount a storage buffer of one `uint32` the shader increments per hit.
-        void record(VkCommandBuffer commands, const VisibilityInputs& inputs, const Image& target, const Image& history,
+        void record(VkCommandBuffer commands, const VisibilityInputs& inputs, const GBuffer& buffer,
             const Buffer& hitCount, const Shaders::VisibilityConstants& constants) const;
 
     private:

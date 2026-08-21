@@ -1,13 +1,14 @@
 #include "visibilitypass.hpp"
 
 #include <array>
+#include <cassert>
 
 #include <components/rtx/bluenoise.hpp>
 
 #include "buffer.hpp"
 #include "commands.hpp"
 #include "device.hpp"
-#include "image.hpp"
+#include "gbuffer.hpp"
 #include "result.hpp"
 #include "scenebuffers.hpp"
 #include "shadermodule.hpp"
@@ -30,7 +31,7 @@ namespace Rtx
     {
         constexpr auto compute = VK_SHADER_STAGE_COMPUTE_BIT;
         constexpr auto storage = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        constexpr std::array<VkDescriptorSetLayoutBinding, 17> bindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 19> bindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 2, storage, 1, compute, nullptr },
@@ -48,6 +49,8 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 14, storage, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 15, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
             VkDescriptorSetLayoutBinding{ 16, storage, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 17, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
+            VkDescriptorSetLayoutBinding{ 18, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
         };
 
         const VkDescriptorSetLayoutCreateInfo layout{
@@ -102,24 +105,25 @@ namespace Rtx
             vkDestroyDescriptorSetLayout(mDevice.getHandle(), mSetLayout, nullptr);
     }
 
-    void VisibilityPass::record(VkCommandBuffer commands, const VisibilityInputs& inputs, const Image& target,
-        const Image& history, const Buffer& hitCount, const Shaders::VisibilityConstants& constants) const
+    void VisibilityPass::record(VkCommandBuffer commands, const VisibilityInputs& inputs, const GBuffer& buffer,
+        const Buffer& hitCount, const Shaders::VisibilityConstants& constants) const
     {
-        assert(history.getWidth() >= target.getWidth() && history.getHeight() >= target.getHeight());
+        assert(buffer.getWidth() >= constants.mWidth && buffer.getHeight() >= constants.mHeight);
 
         const VkWriteDescriptorSetAccelerationStructureKHR sceneWrite{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
             .accelerationStructureCount = 1,
             .pAccelerationStructures = &inputs.mScene,
         };
-        const VkDescriptorImageInfo targetWrite{
-            .imageView = target.getView(),
-            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+        // One, then fifteen, seventeen, eighteen: the channels grew onto the end of a layout that
+        // already existed rather than renumbering every table under them.
+        const std::array<VkDescriptorImageInfo, 4> channels{
+            VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getDirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
+            VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getIndirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
+            VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getModulate().getView(), VK_IMAGE_LAYOUT_GENERAL },
+            VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getGuide().getView(), VK_IMAGE_LAYOUT_GENERAL },
         };
-        const VkDescriptorImageInfo historyWrite{
-            .imageView = history.getView(),
-            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-        };
+        constexpr std::array<std::uint32_t, 4> channelBindings{ 1, 15, 17, 18 };
 
         // Bindings two upwards are all storage buffers, in the order the shader declares them.
         const std::array<VkDescriptorBufferInfo, 13> buffers{
@@ -139,7 +143,7 @@ namespace Rtx
         };
         const VkDescriptorBufferInfo noiseWrite{ mBlueNoise.getHandle(), 0, VK_WHOLE_SIZE };
 
-        std::array<VkWriteDescriptorSet, 17> writes{};
+        std::array<VkWriteDescriptorSet, 19> writes{};
         writes[0] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = &sceneWrite,
@@ -147,29 +151,23 @@ namespace Rtx
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
         };
-        writes[1] = VkWriteDescriptorSet{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstBinding = 1,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-            .pImageInfo = &targetWrite,
-        };
+        for (std::uint32_t i = 0; i < channels.size(); ++i)
+            writes[1 + i] = VkWriteDescriptorSet{
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstBinding = channelBindings[i],
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                .pImageInfo = &channels[i],
+            };
         for (std::uint32_t i = 0; i < buffers.size(); ++i)
-            writes[i + 2] = VkWriteDescriptorSet{
+            writes[i + 5] = VkWriteDescriptorSet{
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .dstBinding = i + 2,
                 .descriptorCount = 1,
                 .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 .pBufferInfo = &buffers[i],
             };
-        writes[15] = VkWriteDescriptorSet{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstBinding = 15,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-            .pImageInfo = &historyWrite,
-        };
-        writes[16] = VkWriteDescriptorSet{
+        writes[18] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstBinding = 16,
             .descriptorCount = 1,

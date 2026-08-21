@@ -15,6 +15,8 @@
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxvulkan/buffer.hpp>
 #include <components/rtxvulkan/commands.hpp>
+#include <components/rtxvulkan/compositepass.hpp>
+#include <components/rtxvulkan/gbuffer.hpp>
 #include <components/rtxvulkan/image.hpp>
 #include <components/rtxvulkan/sceneacceleration.hpp>
 #include <components/rtxvulkan/scenebuffers.hpp>
@@ -397,14 +399,11 @@ namespace Rtx
                 {
                     Shaders::VisibilityConstants sampled = camera;
                     if (accumulate > 0)
-                    {
                         sampled.mFrame = frame;
-                        sampled.mAccumulate = frame + 1;
-                    }
 
                     // Every frame hits the same primary geometry, so the last one's count is the
                     // answer rather than a sum to be divided back down.
-                    hits = mRenderer->renderFrame(sampled).mHits;
+                    hits = mRenderer->renderFrame(sampled, accumulate > 0 ? frame + 1 : 0).mHits;
                 }
 
                 mRenderer->readPixels(pixels);
@@ -1733,10 +1732,10 @@ namespace Rtx
                 SceneDesc scene = makeOpenWater(4000.0f);
 
                 const Index bed = scene.addMesh(makeSheet(500.0f, -depth), {}, sQuadUv, sQuadIndices);
-                const Index ladder = scene.addMaterial(
+                const Index glow = scene.addMaterial(
                     Material{ .mEmissive = scene.addTexture(VFS::Path::NormalizedView("ladder.dds")) });
                 scene.addInstance(
-                    MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = bed, .mMaterial = ladder });
+                    MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = bed, .mMaterial = glow });
 
                 std::vector<std::uint8_t> pixels;
                 countHits(scene, textures, camera, size, pixels, sea);
@@ -2195,16 +2194,21 @@ namespace Rtx
                 .mTextures = textures.getSet(),
             };
 
-            Image target(device, size, size, VK_FORMAT_R8G8B8A8_UNORM,
-                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+            const GBuffer channels(device, size, size);
+            const CompositePass composite(device, Testing::getShaderDirectory());
+            Image target(device, size, size, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT);
             Image history(device, size, size, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT);
             const Buffer hits(device, sizeof(std::uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
+            // Once, so that the frames below start from laid-out images rather than each paying
+            // transitions the real loop pays at startup.
             pool.submitAndWait([&](VkCommandBuffer commands) {
-                target.transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                    VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+                channels.begin(commands);
+                for (const Image* image : { &target, &history })
+                    image->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                        VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                        VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
             });
 
             // A command buffer reused against a fence, which is what a frame is and what the window
@@ -2218,9 +2222,10 @@ namespace Rtx
             VkFence finished = VK_NULL_HANDLE;
             ASSERT_EQ(vkCreateFence(device.getHandle(), &describeFence, nullptr, &finished), VK_SUCCESS);
 
-            // Everything a still frame does: the camera worked out, the pass recorded, the work
-            // submitted and waited on. The camera is the same every time, which is what "steady"
-            // means — a moving one would still allocate nothing, but then nothing would be pinned.
+            // Everything a still frame does — both passes, because a frame is two now: the camera
+            // worked out, the trace and the composite recorded, the work submitted and waited on.
+            // The camera is the same every time, which is what "steady" means — a moving one would
+            // still allocate nothing, but then nothing would be pinned.
             const auto frame = [&] {
                 const Shaders::VisibilityConstants camera = makeCamera(
                     osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
@@ -2231,7 +2236,11 @@ namespace Rtx
                     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
                 };
                 vkBeginCommandBuffer(commands, &begin);
-                pass.record(commands, inputs, target, history, hits, camera);
+                channels.begin(commands);
+                pass.record(commands, inputs, channels, hits, camera);
+                channels.handOver(commands);
+                composite.record(commands, channels, history, target,
+                    Shaders::CompositeConstants{ .mWidth = size, .mHeight = size, .mAccumulate = 0 });
                 vkEndCommandBuffer(commands);
 
                 const VkCommandBufferSubmitInfo buffer{
