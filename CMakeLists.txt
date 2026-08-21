@@ -735,6 +735,7 @@ if (OPENMW_RTX)
 
     add_subdirectory (components/rtxbackends)
     add_subdirectory (components/rtxbridge)
+    add_subdirectory (components/rtxgl)
     add_subdirectory (apps/rtxtool)
 endif()
 

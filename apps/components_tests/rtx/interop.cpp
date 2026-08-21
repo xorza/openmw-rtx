@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cstring>
 #include <string>
@@ -7,11 +8,15 @@
 
 #include <gtest/gtest.h>
 
+#include <SDL.h>
+
 #include <components/rtx/error.hpp>
+#include <components/rtxgl/importedframe.hpp>
 #include <components/rtxvulkan/commands.hpp>
 #include <components/rtxvulkan/device.hpp>
 #include <components/rtxvulkan/image.hpp>
 #include <components/rtxvulkan/instance.hpp>
+#include <components/rtxvulkan/physicaldevice.hpp>
 
 #include "harness.hpp"
 
@@ -124,6 +129,119 @@ namespace Rtx
 
             for (const ValidationMessage& message : exporter->mInstance->getValidationLog()->getErrorsOnThisThread())
                 ADD_FAILURE() << "validation error from the export: " << message.mText;
+        }
+
+        /// A hidden OpenGL window, for the half of interop the Vulkan-to-Vulkan test cannot reach.
+        ///
+        /// **4.5 core**, because the import is done with direct state access: `glCreateTextures`
+        /// and `glTextureStorageMem2DEXT` rather than a bind. Hidden because nothing is drawn — what
+        /// is being asked is whether the texture holds the right bytes, not whether it can be shown.
+        class GlContext
+        {
+        public:
+            GlContext()
+            {
+                if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0)
+                {
+                    mObstacle = std::string("no display: ") + SDL_GetError();
+                    return;
+                }
+
+                SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+                SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
+                SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+                mWindow = SDL_CreateWindow("rtx interop", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 16, 16,
+                    SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
+                if (mWindow == nullptr)
+                {
+                    mObstacle = std::string("no OpenGL window: ") + SDL_GetError();
+                    return;
+                }
+
+                mContext = SDL_GL_CreateContext(mWindow);
+                if (mContext == nullptr)
+                    mObstacle = std::string("no OpenGL 4.5 context: ") + SDL_GetError();
+            }
+
+            ~GlContext()
+            {
+                if (mContext != nullptr)
+                    SDL_GL_DeleteContext(mContext);
+                if (mWindow != nullptr)
+                    SDL_DestroyWindow(mWindow);
+
+                SDL_QuitSubSystem(SDL_INIT_VIDEO);
+            }
+
+            GlContext(const GlContext&) = delete;
+            GlContext& operator=(const GlContext&) = delete;
+
+            /// Why there is no context, or empty where there is one.
+            const std::string& getObstacle() const { return mObstacle; }
+
+        private:
+            SDL_Window* mWindow = nullptr;
+            SDL_GLContext mContext = nullptr;
+            std::string mObstacle;
+        };
+
+        /// **The whole of the in-game path's handoff, end to end**: Vulkan writes a frame, exports
+        /// its allocation, and OpenGL reads back the pixels that were written.
+        ///
+        /// This is what the second-Vulkan-device test above stands in for and cannot prove. It is
+        /// also the check the project's own rule asks for — a rendering change verified by opening
+        /// the game window is one nobody verifies — so the import has a component of its own rather
+        /// than living where only the game can reach it.
+        ///
+        /// Skips where there is no display, which is the ordinary case over ssh and is where nearly
+        /// all of this project's iteration happens.
+        TEST(RtxInteropTest, openGlImportsTheFrameVulkanExported)
+        {
+            std::string reason;
+            Testing::Harness* harness = Testing::getHarness(reason);
+            if (harness == nullptr)
+                GTEST_SKIP() << reason;
+
+            const GlContext gl;
+            if (!gl.getObstacle().empty())
+                GTEST_SKIP() << gl.getObstacle();
+
+            // **Before anything is imported, not after it looks wrong.** Two GPUs with the window on
+            // one and the tracer on the other is not a case that fails loudly: the import succeeds
+            // and the texture holds whatever was at that address.
+            const std::array<std::uint8_t, VK_UUID_SIZE> vulkan = harness->mDevice->getPhysicalDevice().getUuid();
+            RtxGl::DeviceUuid same{};
+            std::copy(vulkan.begin(), vulkan.end(), same.begin());
+            if (const std::string mismatch = RtxGl::findDeviceMismatch(same); !mismatch.empty())
+                GTEST_SKIP() << mismatch;
+
+            constexpr std::uint32_t sWidth = 64;
+            constexpr std::uint32_t sHeight = 48;
+
+            const Image shared(*harness->mDevice, sWidth, sHeight, VK_FORMAT_R8G8B8A8_UNORM,
+                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                    | VK_IMAGE_USAGE_SAMPLED_BIT,
+                "gl-shared-frame", Sharing::Exportable);
+
+            CommandPool pool(*harness->mDevice);
+            fill(pool, shared, { 64.0f / 255.0f, 128.0f / 255.0f, 191.0f / 255.0f, 1.0f });
+
+            const RtxGl::ImportedFrame imported(shared.exportMemory(), shared.getMemoryBytes(), sWidth, sHeight);
+
+            std::vector<std::uint8_t> pixels;
+            imported.read(pixels);
+            ASSERT_EQ(pixels.size(), std::size_t{ sWidth } * sHeight * 4);
+
+            for (std::size_t at = 0; at < pixels.size(); at += 4)
+            {
+                ASSERT_EQ(pixels[at], 64) << "red at " << at / 4;
+                ASSERT_EQ(pixels[at + 1], 128) << "green at " << at / 4;
+                ASSERT_EQ(pixels[at + 2], 191) << "blue at " << at / 4;
+                ASSERT_EQ(pixels[at + 3], 255) << "alpha at " << at / 4;
+            }
+
+            harness->mInstance->getValidationLog()->clear();
         }
 
         /// Exporting what was never made shareable is a caller's mistake, and the descriptor a
