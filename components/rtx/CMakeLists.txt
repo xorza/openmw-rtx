@@ -18,6 +18,8 @@ set(RTX_FILES
     renderer.hpp
     scenedesc.cpp
     scenedesc.hpp
+    shadingmap.cpp
+    shadingmap.hpp
     texturedata.hpp
     wavespectrum.cpp
     wavespectrum.hpp
