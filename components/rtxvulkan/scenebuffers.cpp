@@ -2,6 +2,7 @@
 
 #include <components/rtx/instancerecord.hpp>
 
+#include <array>
 #include <vector>
 
 #include <components/rtx/scenedesc.hpp>
@@ -64,7 +65,8 @@ namespace Rtx
 
     SceneBuffers::SceneBuffers(
         const Device& device, CommandPool& pool, const SceneDesc& scene, VkBuffer indices, const SeaState& sea)
-        : mIndices(indices)
+        : mDevice(&device)
+        , mIndices(indices)
         , mLightGrid(scene.getLights())
     {
         std::vector<Shaders::GpuMesh> meshes;
@@ -81,7 +83,6 @@ namespace Rtx
         // A drawable with no state set has no material, and `sNoIndex` is not somewhere the shader
         // can be allowed to look. One untextured entry at the end costs less than a branch per hit,
         // and every instance that had nothing points at it.
-        const auto sentinel = static_cast<std::uint32_t>(materials.size());
         materials.push_back(Shaders::GpuMaterial{
             .mKind = Shaders::KIND_SURFACE,
             .mDiffuse = Shaders::NO_TEXTURE,
@@ -93,86 +94,123 @@ namespace Rtx
             .mEmissiveColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
         });
 
-        // **Built from the records rather than from the instances**, so the motion transform the
-        // shader reads and the one the acceleration structure was placed with come out of the same
-        // arithmetic. Two places computing an inverse is two places to get it wrong.
-        std::vector<InstanceRecord> records;
-        makeInstanceRecords(scene, records);
-
-        std::vector<Shaders::GpuInstance> instances;
-        instances.reserve(records.size());
-        for (const InstanceRecord& record : records)
-        {
-            Shaders::GpuInstance row{
-                .mMesh = record.mMesh,
-                .mMaterial = scene.getInstances()[instances.size()].mMaterial == sNoIndex
-                    ? sentinel
-                    : scene.getInstances()[instances.size()].mMaterial,
-            };
-
-            for (int r = 0; r < 3; ++r)
-                row.mMotion[r] = osg::Vec4f(record.mMotion.mRows[r][0], record.mMotion.mRows[r][1],
-                    record.mMotion.mRows[r][2], record.mMotion.mRows[r][3]);
-
-            instances.push_back(row);
-        }
-
         std::vector<Shaders::GpuLayer> layers;
         layers.reserve(scene.getLayers().size());
         for (const MaterialLayer& layer : scene.getLayers())
             layers.push_back(toGpu(layer));
 
-        std::vector<Shaders::GpuLight> lights;
-        lights.reserve(scene.getLights().size());
-        for (const Light& light : scene.getLights())
-            lights.push_back(toGpu(light));
-
-        mNormals = uploadBuffer(device, pool, scene.getNormals(), sTableUsage);
-        mTexCoords = uploadBuffer(device, pool, scene.getTexCoords(), sTableUsage);
-        mMeshes = uploadBuffer(device, pool, std::span<const Shaders::GpuMesh>(meshes), sTableUsage);
-        mInstances = uploadBuffer(device, pool, std::span<const Shaders::GpuInstance>(instances), sTableUsage);
-        mMaterials = uploadBuffer(device, pool, std::span<const Shaders::GpuMaterial>(materials), sTableUsage);
-
         // A scene with no terrain in it still has to bind something: a descriptor may not be null,
         // and a zero-length buffer is not a thing Vulkan will make. One unread element each — and
         // the layer cannot be `constexpr`, because `osg::Vec4f` has no constexpr default.
         const Shaders::GpuLayer noLayer{};
-        const Shaders::GpuLight noLight{};
         constexpr float noMask = 1.0f;
 
+        mTexCoords = uploadBuffer(device, pool, scene.getTexCoords(), sTableUsage);
+        mMeshes = uploadBuffer(device, pool, std::span<const Shaders::GpuMesh>(meshes), sTableUsage);
+        mMaterials = uploadBuffer(device, pool, std::span<const Shaders::GpuMaterial>(materials), sTableUsage);
         mLayers = uploadBuffer(device, pool,
             layers.empty() ? std::span<const Shaders::GpuLayer>(&noLayer, 1)
                            : std::span<const Shaders::GpuLayer>(layers),
             sTableUsage);
         mMasks = uploadBuffer(device, pool,
             scene.getMasks().empty() ? std::span<const float>(&noMask, 1) : scene.getMasks(), sTableUsage);
-        const std::array<Shaders::GpuWave, Shaders::WAVE_COUNT> table = sea.getWaves();
-        mWaves = uploadBuffer(device, pool, std::span<const Shaders::GpuWave>(table), sTableUsage);
 
-        mLights = uploadBuffer(device, pool,
-            lights.empty() ? std::span<const Shaders::GpuLight>(&noLight, 1)
-                           : std::span<const Shaders::GpuLight>(lights),
-            sTableUsage);
+        // **Whole here and a mesh at a time afterwards.** Only a skinned body's normals change, so
+        // filling this once is a load's cost and every frame after it pays for what actually moved.
+        mNormals = HostBuffer(device, scene.getNormals().size_bytes(), sTableUsage);
+        mNormals.write(scene.getNormals());
 
-        // Binned in the initialiser from the same list uploaded above: a grid built from a
-        // different one would be worse than no grid at all.
-        mLightOffsets = uploadBuffer(device, pool, mLightGrid.getOffsets(), sTableUsage);
+        place(scene, sea);
+
+        device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mMaterials.getHandle()), "materials");
+        device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mTexCoords.getHandle()), "uvs");
+        device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mInstances.getHandle()), "instance rows");
+        device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mNormals.getHandle()), "normals");
+    }
+
+    void SceneBuffers::reserve(HostBuffer& held, const VkDeviceSize bytes)
+    {
+        if (held.getSize() >= bytes)
+            return;
+
+        held = HostBuffer(*mDevice, bytes, sTableUsage);
+    }
+
+    void SceneBuffers::place(const SceneDesc& scene, const SeaState& sea)
+    {
+        // **Built from the records rather than from the instances**, so the motion transform the
+        // shader reads and the one the acceleration structure was placed with come out of the same
+        // arithmetic. Two places computing an inverse is two places to get it wrong.
+        makeInstanceRecords(scene, mRecordScratch);
+
+        // The sentinel material sits one past the real ones, which is where the constructor put it.
+        const auto sentinel = static_cast<std::uint32_t>(scene.getMaterials().size());
+
+        mInstanceScratch.clear();
+        mInstanceScratch.reserve(mRecordScratch.size());
+        for (const InstanceRecord& record : mRecordScratch)
+        {
+            Shaders::GpuInstance row{
+                .mMesh = record.mMesh,
+                .mMaterial = scene.getInstances()[mInstanceScratch.size()].mMaterial == sNoIndex
+                    ? sentinel
+                    : scene.getInstances()[mInstanceScratch.size()].mMaterial,
+            };
+
+            for (int r = 0; r < 3; ++r)
+                row.mMotion[r] = osg::Vec4f(record.mMotion.mRows[r][0], record.mMotion.mRows[r][1],
+                    record.mMotion.mRows[r][2], record.mMotion.mRows[r][3]);
+
+            mInstanceScratch.push_back(row);
+        }
+
+        mLightScratch.clear();
+        mLightScratch.reserve(scene.getLights().size());
+        for (const Light& light : scene.getLights())
+            mLightScratch.push_back(toGpu(light));
+
+        mLightGrid = LightGrid(scene.getLights());
+
+        // Nothing may be bound to a descriptor a shader declares, so an empty table is one element.
+        const Shaders::GpuLight noLight{};
+        static constexpr std::uint32_t noIndex = 0;
+
+        const std::span<const Shaders::GpuInstance> instances(mInstanceScratch);
+        const std::span<const Shaders::GpuLight> lights = mLightScratch.empty()
+            ? std::span<const Shaders::GpuLight>(&noLight, 1)
+            : std::span<const Shaders::GpuLight>(mLightScratch);
+        const std::span<const std::uint32_t> indices
+            = mLightGrid.getIndices().empty() ? std::span<const std::uint32_t>(&noIndex, 1) : mLightGrid.getIndices();
 
         const Shaders::GpuLightGrid geometry{
             .mOrigin = mLightGrid.getOrigin(),
             .mInverseCell = mLightGrid.getInverseCell(),
             .mSize = mLightGrid.getSize(),
         };
-        mGrid = uploadBuffer(device, pool, std::span<const Shaders::GpuLightGrid>(&geometry, 1), sTableUsage);
+        const std::array<Shaders::GpuWave, Shaders::WAVE_COUNT> waves = sea.getWaves();
 
-        // An empty run is still a buffer: nothing may be bound to a descriptor a shader declares.
-        static constexpr std::uint32_t noIndex = 0;
-        mLightIndices = uploadBuffer(device, pool,
-            mLightGrid.getIndices().empty() ? std::span<const std::uint32_t>(&noIndex, 1) : mLightGrid.getIndices(),
-            sTableUsage);
+        reserve(mInstances, instances.size_bytes());
+        reserve(mLights, lights.size_bytes());
+        reserve(mLightOffsets, mLightGrid.getOffsets().size_bytes());
+        reserve(mLightIndices, indices.size_bytes());
+        reserve(mGrid, sizeof(geometry));
+        reserve(mWaves, sizeof(waves));
 
-        device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mMaterials.getHandle()), "materials");
-        device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mTexCoords.getHandle()), "uvs");
+        mInstances.write(instances);
+        mLights.write(lights);
+        mLightOffsets.write(mLightGrid.getOffsets());
+        mLightIndices.write(indices);
+        mGrid.write(std::span<const Shaders::GpuLightGrid>(&geometry, 1));
+        mWaves.write(std::span<const Shaders::GpuWave>(waves));
+
+        // **Only what changed shape.** A cell's normals are the same normals from one frame to the
+        // next; a skinned body's are new every frame, and `getDeformed` is the list of exactly those.
+        for (const Index mesh : scene.getDeformed())
+        {
+            const MeshRange& range = scene.getMeshes()[mesh];
+            mNormals.writeAt(VkDeviceSize{ range.mVertexOffset } * sizeof(osg::Vec3f),
+                scene.getNormals().subspan(range.mVertexOffset, range.mVertexCount));
+        }
     }
 
     VkDeviceSize SceneBuffers::getBytes() const
@@ -181,6 +219,6 @@ namespace Rtx
         // its own size.
         return mNormals.getSize() + mTexCoords.getSize() + mMeshes.getSize() + mInstances.getSize()
             + mMaterials.getSize() + mLayers.getSize() + mMasks.getSize() + mLights.getSize() + mLightOffsets.getSize()
-            + mLightIndices.getSize() + mWaves.getSize();
+            + mLightIndices.getSize() + mGrid.getSize() + mWaves.getSize();
     }
 }

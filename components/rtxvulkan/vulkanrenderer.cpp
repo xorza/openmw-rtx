@@ -254,12 +254,10 @@ namespace Rtx
         mAcceleration->refitMeshes(mPool, scene);
         mAcceleration->placeInstances(mPool, scene);
 
-        // **Rebuilt whole rather than in part, and measured before it is split.** Most of what this
-        // uploads has not changed — the vertices, the meshes, the materials — and only the instance
-        // records, the lights and the grid over them have. Splitting it is an obvious optimisation
-        // and an unmeasured one; a cell's tables are a few megabytes, which is a cost worth seeing
-        // in a profile before it is designed around.
-        mBuffers = std::make_unique<SceneBuffers>(mDevice, mPool, scene, mAcceleration->getIndices(), sea);
+        // **Only what a moving world changed**, which is the instance rows, the lights and the
+        // vertices of anything skinned. Rebuilding all of it was measured at twenty to twenty-seven
+        // milliseconds on a nine-by-nine region and was the largest single cost in the frame.
+        mBuffers->place(scene, sea);
 
         mStats.mInstances = mAcceleration->getInstanceCount();
         mStats.mCutoutInstances = mAcceleration->getCutoutInstanceCount();

@@ -4,10 +4,15 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <vector>
+
+#include <components/rtx/instancerecord.hpp>
 #include <components/rtx/lightgrid.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/wavespectrum.hpp>
 
 #include "buffer.hpp"
+#include "hostbuffer.hpp"
 
 namespace Rtx
 {
@@ -31,6 +36,21 @@ namespace Rtx
         ///        transmittance needs.
         SceneBuffers(const Device& device, CommandPool& pool, const SceneDesc& scene, VkBuffer indices,
             const SeaState& sea = SeaState{});
+
+        /// Rewrites what a moving world changes, leaving what it is made of alone.
+        ///
+        /// **The split is the whole point of this class having two entry points.** Rebuilding all of
+        /// it per frame was the largest single cost in the renderer — measured at twenty to
+        /// twenty-seven milliseconds on a nine-by-nine region — and almost none of it had changed:
+        /// the texture coordinates, the mesh table, the materials and the masks are what the scene is
+        /// made of and only `setScene` can alter them.
+        ///
+        /// What does change is where things are, what is lit, and the vertices of anything skinned.
+        /// Those live in memory the host writes straight into, so this is a `memcpy` and not a
+        /// staging buffer, a copy command, a submit and a wait on the queue.
+        ///
+        /// `scene` must be the one the constructor was given.
+        void place(const SceneDesc& scene, const SeaState& sea);
 
         SceneBuffers(const SceneBuffers&) = delete;
         SceneBuffers& operator=(const SceneBuffers&) = delete;
@@ -57,19 +77,43 @@ namespace Rtx
         VkDeviceSize getBytes() const;
 
     private:
-        Buffer mNormals;
+        /// Makes `held` at least `bytes` long, keeping it where it is already big enough.
+        ///
+        /// A frame that placed more than the last one is a cell that arrived, and that goes through
+        /// `setScene` — so this is the rare path and never shrinks. Growing rather than sizing
+        /// exactly is what keeps a light appearing from reallocating every buffer behind it.
+        void reserve(HostBuffer& held, VkDeviceSize bytes);
+
+        const Device* mDevice = nullptr;
+
+        // What the scene is made of. Written once, through a staging copy, because nothing rewrites
+        // them and device-only memory is the faster place for the device to read.
         Buffer mTexCoords;
-        VkBuffer mIndices = VK_NULL_HANDLE;
         Buffer mMeshes;
-        Buffer mInstances;
         Buffer mMaterials;
         Buffer mLayers;
         Buffer mMasks;
-        Buffer mLights;
-        Buffer mLightOffsets;
-        Buffer mGrid;
-        Buffer mLightIndices;
-        Buffer mWaves;
+
+        VkBuffer mIndices = VK_NULL_HANDLE;
+
+        // What a moving world changes. Written straight into video memory every frame.
+        //
+        // The normals are here for the sake of a few dozen of them: a skinned body's are recomputed
+        // per frame and the rest of a cell's never change, so the buffer is filled once and then
+        // written a mesh at a time.
+        HostBuffer mNormals;
+        HostBuffer mInstances;
+        HostBuffer mLights;
+        HostBuffer mLightOffsets;
+        HostBuffer mGrid;
+        HostBuffer mLightIndices;
+        HostBuffer mWaves;
+
+        // Refilled per placement rather than reallocated: a scene is tens of thousands of instances
+        // and this is the frame path.
+        std::vector<Shaders::GpuInstance> mInstanceScratch;
+        std::vector<InstanceRecord> mRecordScratch;
+        std::vector<Shaders::GpuLight> mLightScratch;
 
         /// Kept because the pass needs its geometry, which no buffer carries.
         LightGrid mLightGrid;

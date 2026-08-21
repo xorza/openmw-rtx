@@ -67,6 +67,29 @@ namespace Rtx
 
         /// Why a candidate was rejected, or empty when it was not.
         ///
+        /// Whether any memory type is video memory the host can write into directly.
+        ///
+        /// **Required, and not fallen back from.** Every table the frame rewrites — the instance
+        /// rows, the light grid, the deformed vertices — is written straight into the memory the
+        /// shader reads, which is what removes a staging buffer, a queue submit and a wait on the
+        /// whole queue from each of them. Without it the renderer would need the staging path back,
+        /// and a second way of doing this is a second thing to keep correct for hardware this fork
+        /// does not target.
+        bool hasResizableBar(VkPhysicalDevice handle)
+        {
+            constexpr VkMemoryPropertyFlags wanted = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+                | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+            VkPhysicalDeviceMemoryProperties memory{};
+            vkGetPhysicalDeviceMemoryProperties(handle, &memory);
+
+            for (std::uint32_t i = 0; i < memory.memoryTypeCount; ++i)
+                if ((memory.memoryTypes[i].propertyFlags & wanted) == wanted)
+                    return true;
+
+            return false;
+        }
+
         /// Fills `available` with the device's extensions on the way through: the caller needs the
         /// same list to work out which optional ones to enable, and enumerating twice for the device
         /// that qualifies is the sort of waste that spreads.
@@ -108,6 +131,10 @@ namespace Rtx
 
             if (findQueueFamily(handle) < 0)
                 return "no queue family with graphics, compute and transfer";
+
+            if (!hasResizableBar(handle))
+                return "no video memory the host can write: resizable BAR is off in firmware, or the "
+                       "driver does not expose it";
 
             return {};
         }

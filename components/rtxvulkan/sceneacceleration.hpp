@@ -8,6 +8,7 @@
 #include <components/rtx/instancerecord.hpp>
 
 #include "buffer.hpp"
+#include "hostbuffer.hpp"
 
 namespace Rtx
 {
@@ -88,11 +89,17 @@ namespace Rtx
 
         const Device& mDevice;
 
-        Buffer mPositions;
+        /// Host-written, because a skinned body rewrites its own slice every frame and the build
+        /// that reads it runs in the same submit — a host write before a submit needs no barrier.
+        HostBuffer mPositions;
+
         Buffer mIndices;
         Buffer mBottomLevelStorage;
         Buffer mTopLevelStorage;
-        Buffer mInstances;
+
+        /// The rows the top level is built from. Rewritten whole every frame, so it is written where
+        /// the builder reads it rather than staged into place.
+        HostBuffer mInstances;
 
         std::vector<VkAccelerationStructureKHR> mBottomLevel;
         VkAccelerationStructureKHR mTopLevel = VK_NULL_HANDLE;
@@ -100,10 +107,9 @@ namespace Rtx
         /// What each mesh's build asked for, so a rebuild does not have to ask the driver again.
         std::vector<VkDeviceSize> mBuildScratch;
 
-        // Kept across frames rather than made per refit: a device allocation on the frame path is a
-        // stall, and these settle at the high-water mark of whatever the world is showing. Neither
-        // ever shrinks, which is what makes them settle at all.
-        Buffer mDeformedStaging;
+        /// Kept across frames rather than made per refit: a device allocation on the frame path is a
+        /// stall, and this settles at the high-water mark of whatever the world is showing. It never
+        /// shrinks, which is what makes it settle at all.
         Buffer mRefitScratch;
 
         // Refilled per refit. The build reads `pGeometries` through a pointer, so the geometries are
@@ -112,7 +118,10 @@ namespace Rtx
         std::vector<VkAccelerationStructureBuildGeometryInfoKHR> mRefitBuilds;
         std::vector<VkAccelerationStructureBuildRangeInfoKHR> mRefitRanges;
         std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> mRefitRangePointers;
-        std::vector<VkBufferCopy> mRefitCopies;
+
+        // Refilled per placement rather than reallocated: a scene is tens of thousands of these.
+        std::vector<InstanceRecord> mRecordScratch;
+        std::vector<VkAccelerationStructureInstanceKHR> mRowScratch;
 
         std::uint32_t mInstanceCount = 0;
         std::uint32_t mCutoutInstanceCount = 0;

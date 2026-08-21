@@ -37,24 +37,6 @@ namespace Rtx
         constexpr VkBufferUsageFlags sScratchUsage
             = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
-        /// Everything between an upload and the build that reads the vertices it wrote.
-        void barrierBeforeBuild(VkCommandBuffer commands)
-        {
-            const VkMemoryBarrier2 barrier{
-                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
-                .srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
-                .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                .dstStageMask = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
-            };
-            const VkDependencyInfo dependency{
-                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-                .memoryBarrierCount = 1,
-                .pMemoryBarriers = &barrier,
-            };
-            vkCmdPipelineBarrier2(commands, &dependency);
-        }
-
         /// Everything between a build and whatever reads the structure it wrote.
         void barrierAfterBuild(VkCommandBuffer commands)
         {
@@ -90,7 +72,9 @@ namespace Rtx
     {
         assert(!scene.getInstances().empty());
 
-        mPositions = uploadBuffer(device, pool, scene.getPositions(), sBuildInputUsage);
+        mPositions = HostBuffer(device, scene.getPositions().size_bytes(), sBuildInputUsage);
+        mPositions.write(scene.getPositions());
+
         mIndices = uploadBuffer(device, pool, scene.getIndices(), sBuildInputUsage);
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mPositions.getHandle()), "positions");
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mIndices.getHandle()), "indices");
@@ -245,18 +229,12 @@ namespace Rtx
                   .getProperties()
                   .mAccelerationStructure.minAccelerationStructureScratchOffsetAlignment;
 
-        VkDeviceSize staged = 0;
         VkDeviceSize scratchTotal = 0;
         for (const Index mesh : deformed)
         {
             assert(mesh < mBottomLevel.size() && "a mesh this holds no structure for");
-            staged += VkDeviceSize{ scene.getMeshes()[mesh].mVertexCount } * sizeof(osg::Vec3f);
             scratchTotal = alignUp(scratchTotal + mBuildScratch[mesh], scratchAlignment);
         }
-
-        if (mDeformedStaging.getSize() < staged)
-            mDeformedStaging = Buffer(mDevice, staged, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
         if (mRefitScratch.getSize() < scratchTotal)
             mRefitScratch = Buffer(mDevice, scratchTotal, sScratchUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -269,24 +247,16 @@ namespace Rtx
         mRefitBuilds.resize(count);
         mRefitRanges.resize(count);
         mRefitRangePointers.resize(count);
-        mRefitCopies.resize(count);
-
-        auto* mapped = static_cast<std::byte*>(mDeformedStaging.map());
-        VkDeviceSize stagedAt = 0;
 
         for (std::uint32_t i = 0; i < count; ++i)
         {
             const Index index = deformed[i];
             const MeshRange& mesh = scene.getMeshes()[index];
-            const std::span<const osg::Vec3f> vertices = scene.getMeshPositions(index);
 
-            std::memcpy(mapped + stagedAt, vertices.data(), vertices.size_bytes());
-            mRefitCopies[i] = VkBufferCopy{
-                .srcOffset = stagedAt,
-                .dstOffset = VkDeviceSize{ mesh.mVertexOffset } * sizeof(osg::Vec3f),
-                .size = vertices.size_bytes(),
-            };
-            stagedAt += vertices.size_bytes();
+            // **Straight into the memory the builder reads**, with no staging buffer between and no
+            // copy to record. The submit below carries an implicit dependency on host writes made
+            // before it, which is what a barrier would otherwise have been for.
+            mPositions.writeAt(VkDeviceSize{ mesh.mVertexOffset } * sizeof(osg::Vec3f), scene.getMeshPositions(index));
 
             // The same description the first build was given, which is what makes the structure it
             // produces the same size as the one already sitting at this mesh's offset.
@@ -310,8 +280,6 @@ namespace Rtx
             mRefitRanges[i] = VkAccelerationStructureBuildRangeInfoKHR{ .primitiveCount = mesh.getTriangleCount() };
             mRefitRangePointers[i] = &mRefitRanges[i];
         }
-
-        mDeformedStaging.unmap();
 
         // A second pass, because `pGeometries` is a pointer into a vector the first pass was still
         // filling: a build info written beside a geometry that later moved would name freed memory.
@@ -340,8 +308,6 @@ namespace Rtx
         }
 
         pool.submitAndWait([&](VkCommandBuffer commands) {
-            vkCmdCopyBuffer(commands, mDeformedStaging.getHandle(), mPositions.getHandle(), count, mRefitCopies.data());
-            barrierBeforeBuild(commands);
             functions.mCmdBuildAccelerationStructures(commands, count, mRefitBuilds.data(), mRefitRangePointers.data());
             barrierAfterBuild(commands);
         });
@@ -374,16 +340,15 @@ namespace Rtx
                 + std::to_string(scene.getMeshes().size())
                 + " without being built again; placeScene can only move what setScene made");
 
-        std::vector<InstanceRecord> records;
-        makeInstanceRecords(scene, records);
-        mCutoutInstanceCount = countCutouts(records);
+        makeInstanceRecords(scene, mRecordScratch);
+        mCutoutInstanceCount = countCutouts(mRecordScratch);
 
-        std::vector<VkAccelerationStructureInstanceKHR> instances;
-        instances.reserve(records.size());
+        mRowScratch.clear();
+        mRowScratch.reserve(mRecordScratch.size());
 
-        for (std::uint32_t index = 0; index < records.size(); ++index)
+        for (std::uint32_t index = 0; index < mRecordScratch.size(); ++index)
         {
-            const InstanceRecord& record = records[index];
+            const InstanceRecord& record = mRecordScratch[index];
             const VkAccelerationStructureDeviceAddressInfoKHR address{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
                 .accelerationStructure = mBottomLevel[record.mMesh],
@@ -394,7 +359,7 @@ namespace Rtx
             if (record.mCutout)
                 flags |= VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR;
 
-            instances.push_back(VkAccelerationStructureInstanceKHR{
+            mRowScratch.push_back(VkAccelerationStructureInstanceKHR{
                 .transform = toVulkanTransform(record.mTransform),
                 // A record's position is the custom index the shader reads back at a hit.
                 .instanceCustomIndex = index & 0xFFFFFFu,
@@ -405,9 +370,15 @@ namespace Rtx
             });
         }
 
-        mInstanceCount = static_cast<std::uint32_t>(instances.size());
-        mInstances = uploadBuffer(
-            mDevice, pool, std::span<const VkAccelerationStructureInstanceKHR>(instances), sBuildInputUsage);
+        mInstanceCount = static_cast<std::uint32_t>(mRowScratch.size());
+
+        // **Written where the builder reads it.** These are rewritten whole every frame, so staging
+        // them was a buffer made, a copy recorded, a submit and a wait on the queue for a memcpy.
+        const std::span<const VkAccelerationStructureInstanceKHR> rows(mRowScratch);
+        if (mInstances.getSize() < rows.size_bytes())
+            mInstances = HostBuffer(mDevice, rows.size_bytes(), sBuildInputUsage);
+
+        mInstances.write(rows);
 
         const VkAccelerationStructureGeometryKHR geometry{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
