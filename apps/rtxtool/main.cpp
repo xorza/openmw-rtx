@@ -642,6 +642,7 @@ namespace RtxTool
                 {
                     ViewRequest request;
                     request.mTitle = chosen.mTitle;
+                    request.mCell = chosen.mCell;
                     request.mShaderDirectory = resources / "rtx" / "shaders";
                     request.mScreenshotDirectory = config.getScreenshotPath();
                     request.mWidth = width;

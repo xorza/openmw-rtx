@@ -26,6 +26,10 @@ namespace RtxTool
     struct ViewRequest
     {
         std::string mTitle;
+
+        /// The cell, spelled the way `--cell` takes it: a pair of integers for an exterior, a name
+        /// for an interior. Carried so the window can print a command line that comes back here.
+        std::string mCell;
         std::filesystem::path mShaderDirectory;
         std::filesystem::path mScreenshotDirectory;
 
@@ -56,4 +60,17 @@ namespace RtxTool
     /// Opens a window on `scene` and flies around it until it is closed.
     int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::ValidationOptions& validation,
         const ViewRequest& request);
+
+    /// One line of arguments that renders this frame again, wherever it is pasted.
+    ///
+    /// **What the window is looking at, plus everything that changes what it costs.** The camera and
+    /// the size are passed rather than read off `request` because both move while the window is
+    /// open; the rest of the conditions do not, and come off the request as they were given.
+    ///
+    /// The validation flags are in it deliberately: a trace time taken under the layers is not one
+    /// to compare against anything — core and synchronization cost about 6% here and GPU-assisted
+    /// doubles the frame — so a profiling line that left them unsaid would quote a number nobody
+    /// could reproduce.
+    std::string describeProfile(const ViewRequest& request, const Rtx::ValidationOptions& validation,
+        const osg::Vec3f& origin, const osg::Vec3f& target, std::uint32_t width, std::uint32_t height);
 }

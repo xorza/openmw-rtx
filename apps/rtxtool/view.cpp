@@ -114,10 +114,27 @@ namespace RtxTool
                      "  shift / alt    six times faster / seven times slower\n"
                      "  wheel          change the base speed\n"
                      "  P              print this camera as a block for views.cfg\n"
+                     "  F3             print this frame as a command line, for profiling\n"
                      "  F2             write a screenshot\n"
                      "  F1             this list\n"
                      "  Esc            quit\n\n";
         }
+    }
+
+    std::string describeProfile(const ViewRequest& request, const Rtx::ValidationOptions& validation,
+        const osg::Vec3f& origin, const osg::Vec3f& target, std::uint32_t width, std::uint32_t height)
+    {
+        // Shortest round-trip rather than the rounded form `printCamera` uses: these numbers exist
+        // to be read back into the same floats, and a position rounded to the unit is a different
+        // frame when the camera is a hand's width from a wall.
+        //
+        // The cell is the only field quoted, because it is the only one that can hold a space.
+        return std::format(
+            "--cell=\"{}\" --pos={},{},{} --look={},{},{} --fov={} --size={}x{} --weather={}"
+            " --hour={} --validation={} --sync-validation={} --gpu-validation={}{}",
+            request.mCell, origin.x(), origin.y(), origin.z(), target.x(), target.y(), target.z(), request.mFieldOfView,
+            width, height, request.mWeather, request.mHour, validation.mEnabled, validation.mSynchronization,
+            validation.mGpuAssisted, request.mShowAlbedo ? " --albedo" : "");
     }
 
     int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::ValidationOptions& validation,
@@ -410,6 +427,13 @@ namespace RtxTool
                         printHelp();
                     else if (event.key.keysym.sym == SDLK_p)
                         printCamera(camera);
+                    else if (event.key.keysym.sym == SDLK_F3)
+                    {
+                        const VkExtent2D extent = swapchain.getExtent();
+                        out() << describeProfile(
+                            request, validation, camera.getOrigin(), camera.getTarget(), extent.width, extent.height)
+                              << '\n';
+                    }
                     else if (event.key.keysym.sym == SDLK_F2 && drawn > 0)
                     {
                         device.waitIdle();

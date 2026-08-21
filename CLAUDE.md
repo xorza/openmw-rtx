@@ -130,7 +130,7 @@ Running things:
 cd build                       # --resources defaults to ./resources, so the tool runs from here
 
 ./openmw-rtxtool                                   # a window on the ship at Seyda Neen
-./openmw-rtxtool view --view=balmora               # a window somewhere else; P prints the camera
+./openmw-rtxtool view --view=balmora               # a window somewhere else; F1 lists its keys
 ./openmw-rtxtool shot --view=balmora --out=b.png   # one frame, no window — the default way to look
 ./openmw-rtxtool scene --view=balmora --twice      # what the renderer was handed
 ./openmw-rtxtool scene --list-views                # the named viewpoints
@@ -160,6 +160,10 @@ so a change is checkable without a screenshot ever being looked at.
 moves, how it holds up while you fly through it, whether an artefact is a still or a shimmer. It
 takes `--frames N` so it can also be run by something that cannot click — which is how the window
 path gets exercised under the validation layers.
+
+In the window, **P** prints the camera as a block for `views.cfg` and **F3** prints the whole frame
+as a command line — cell, camera, size, weather, hour and which validation layers were loaded. A
+file of those lines is a profiling corpus: each one renders that frame again under `shot`.
 
 ## Architecture, in one screen
 
