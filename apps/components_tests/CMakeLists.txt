@@ -122,6 +122,7 @@ if (OPENMW_RTX)
         rtxbridge/sceneextractor.cpp
         rtxbridge/texturebuilder.cpp
         rtxbridge/waterbuilder.cpp
+        rtxtool/actor.cpp
         rtxtool/contactsheet.cpp
         rtxtool/stability.cpp
         rtxtool/terrainstorage.cpp

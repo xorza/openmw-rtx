@@ -23,11 +23,36 @@ namespace Rtx
 
 namespace RtxTool
 {
+    /// Something that changes the scene between one traced frame and the next.
+    ///
+    /// **What makes a run of shots a run rather than the same shot over again.** A still world needs
+    /// none, and passing none is what keeps `--repeat` measuring one frame's cost instead of a
+    /// different frame each time; an actor needs one, because its vertices *are* the animation.
+    class Motion
+    {
+    public:
+        virtual ~Motion() = default;
+
+        Motion(const Motion&) = delete;
+        Motion& operator=(const Motion&) = delete;
+
+        /// Advances to `frame` and re-walks whatever moved. False where nothing did, which is what
+        /// spares the frame a placement it does not need.
+        virtual bool step(std::uint32_t frame) = 0;
+
+    protected:
+        Motion() = default;
+    };
+
     /// Everything the screenshot needs that is not the world itself.
     struct ShotRequest
     {
         std::filesystem::path mOutput;
         std::filesystem::path mShaderDirectory;
+
+        /// What moves between traced frames, or null for a world that holds still. Borrowed for the
+        /// length of the call.
+        Motion* mMotion = nullptr;
 
         /// The size the picture is written at. What it is traced at follows from `mUpscale`, and
         /// the summary line says so whenever the two differ.

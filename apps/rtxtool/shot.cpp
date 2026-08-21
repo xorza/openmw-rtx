@@ -140,6 +140,12 @@ namespace RtxTool
         std::uint32_t frame = 0;
         do
         {
+            // **After the first, which is the frame `setScene` already built.** Stepping before it
+            // would put the shot one frame into the animation and make `--repeat=1` a different
+            // picture from no repeat at all.
+            if (frame > 0 && request.mMotion != nullptr && request.mMotion->step(frame))
+                renderer->placeScene(scene, Rtx::SeaState{});
+
             // A plain timing run holds it still, so that what the spread shows is the machine and
             // not two frames that happened to sample different geometry.
             camera.mFrame = sequenced ? frame : 0;

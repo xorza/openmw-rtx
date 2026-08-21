@@ -81,6 +81,20 @@ namespace RtxTool
             "Every cell costs its own geometry, so a wide region is a slow load and a large scene, "
             "and `view` brings the next ring in as the camera crosses into it");
 
+        // Defaulted to an empty list rather than left absent, because `readConfiguration` walks
+        // every option in this description and casts it: a composing option with no value in the
+        // map is a `bad_any_cast` on every run that did not name one.
+        addOption("actor", bpo::value<StringsVector>()->default_value(StringsVector(), "")->composing(),
+            "put an animated creature in front of the camera, by the model path a CREA record "
+            "holds — meshes/r/cliffracer.nif, not the x-prefixed skeleton beside it. Repeatable, "
+            "and several stand in a row across the view. This is the only way to see skinned "
+            "geometry without starting the game, which is what it is for");
+        addOption("actor-time", bpo::value<float>()->default_value(0.0f),
+            "how many seconds into its animation each actor stands, wrapped to the track's own "
+            "length. A --repeat carries on from there at sixty frames a second, so a repeat with "
+            "actors in it measures an animated frame -- the skinning, and the structure rebuild "
+            "behind it -- rather than the same frame over again");
+
         addOption("upscale", bpo::value<std::string>()->default_value(std::string(sUpscaleByDefault)),
             "put DLSS Ray Reconstruction between the trace and the picture: off, performance, "
             "balanced, quality or dlaa. --size is what comes out, and what gets traced is DLSS's "

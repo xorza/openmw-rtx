@@ -126,6 +126,10 @@ namespace RtxTool
 
         Resource::ImageManager& getImageManager();
 
+        /// For what wants a manager this does not hand out one by one — the keyframes an actor is
+        /// posed by, and the virtual file system they are looked up in.
+        Resource::ResourceSystem& getResourceSystem() { return *mResourceSystem; }
+
     private:
         // Declaration order is destruction order reversed, and the managers hold references to the
         // encoder and the VFS, so those come first and go last.

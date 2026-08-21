@@ -1,4 +1,6 @@
 set(RTXTOOL_FILES
+    actor.cpp
+    actor.hpp
     cellscene.cpp
     cellscene.hpp
     contactsheet.cpp
