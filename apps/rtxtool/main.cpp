@@ -15,15 +15,15 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/platform/platform.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/device.hpp>
-#include <components/rtx/instance.hpp>
-#include <components/rtx/physicaldevice.hpp>
-#include <components/rtx/requirements.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/fogbuilder.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/rtxbridge/waterbuilder.hpp>
+#include <components/rtxvulkan/device.hpp>
+#include <components/rtxvulkan/instance.hpp>
+#include <components/rtxvulkan/physicaldevice.hpp>
+#include <components/rtxvulkan/requirements.hpp>
 
 #include <components/settings/settings.hpp>
 #include <limits>

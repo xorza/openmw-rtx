@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RTX_CAMERA_H
-#define OPENMW_COMPONENTS_RTX_CAMERA_H
+#pragma once
 
 #include <cstdint>
 
@@ -18,5 +17,3 @@ namespace Rtx
     Shaders::VisibilityConstants makeCamera(const osg::Vec3f& origin, const osg::Vec3f& target,
         float verticalFovDegrees, std::uint32_t width, std::uint32_t height, float far);
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RTX_BLUENOISE_H
-#define OPENMW_COMPONENTS_RTX_BLUENOISE_H
+#pragma once
 
 #include <span>
 #include <vector>
@@ -47,5 +46,3 @@ namespace Rtx
         std::vector<float> mValues;
     };
 }
-
-#endif

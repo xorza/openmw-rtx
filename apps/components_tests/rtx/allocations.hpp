@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_COMPONENTS_TESTS_RTX_ALLOCATIONS_H
-#define OPENMW_APPS_COMPONENTS_TESTS_RTX_ALLOCATIONS_H
+#pragma once
 
 #include <cstddef>
 
@@ -17,5 +16,3 @@ namespace Rtx::Testing
     /// a `std::function`, reach for `make_unique` — arrives here regardless.
     std::size_t getAllocationCount();
 }
-
-#endif

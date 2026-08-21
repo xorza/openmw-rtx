@@ -4,10 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <components/rtx/device.hpp>
-#include <components/rtx/physicaldevice.hpp>
-#include <components/rtx/pipelinecache.hpp>
-#include <components/rtx/requirements.hpp>
+#include <components/rtxvulkan/device.hpp>
+#include <components/rtxvulkan/physicaldevice.hpp>
+#include <components/rtxvulkan/pipelinecache.hpp>
+#include <components/rtxvulkan/requirements.hpp>
 
 #include "harness.hpp"
 

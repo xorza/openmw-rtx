@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_RTXTOOL_PNG_H
-#define OPENMW_APPS_RTXTOOL_PNG_H
+#pragma once
 
 #include <cstdint>
 #include <filesystem>
@@ -14,5 +13,3 @@ namespace RtxTool
     void writePng(const std::filesystem::path& path, std::uint32_t width, std::uint32_t height,
         std::span<const std::uint8_t> pixels);
 }
-
-#endif

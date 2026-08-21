@@ -28,11 +28,16 @@ target_link_libraries(openmw-rtxtool-lib
     Boost::program_options
     SDL2::SDL2
     openmw-rtx
+    openmw-rtx-vulkan
     openmw-rtx-bridge
     components
 )
 
 target_compile_options(openmw-rtxtool-lib PRIVATE ${OPENMW_RTX_COMPILE_OPTIONS})
+
+# Named viewpoints. Copied here because this is the only thing that reads them, and beside the
+# backend's shaders under resources/rtx so one --resources finds both.
+copy_resource_file("${OpenMW_SOURCE_DIR}/files/rtx/views.cfg" "${RTX_RESOURCES_ROOT}" "resources/rtx/views.cfg")
 
 openmw_add_executable(openmw-rtxtool main.cpp)
 

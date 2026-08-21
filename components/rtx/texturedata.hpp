@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RTX_TEXTUREDATA_H
-#define OPENMW_COMPONENTS_RTX_TEXTUREDATA_H
+#pragma once
 
 #include <cstddef>
 #include <cstdint>
@@ -54,5 +53,3 @@ namespace Rtx
         std::span<const MipLevel> mLevels;
     };
 }
-
-#endif

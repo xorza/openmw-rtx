@@ -5,12 +5,12 @@
 
 #include <gtest/gtest.h>
 
-#include <components/rtx/device.hpp>
 #include <components/rtx/error.hpp>
-#include <components/rtx/instance.hpp>
-#include <components/rtx/physicaldevice.hpp>
-#include <components/rtx/requirements.hpp>
-#include <components/rtx/shadermodule.hpp>
+#include <components/rtxvulkan/device.hpp>
+#include <components/rtxvulkan/instance.hpp>
+#include <components/rtxvulkan/physicaldevice.hpp>
+#include <components/rtxvulkan/requirements.hpp>
+#include <components/rtxvulkan/shadermodule.hpp>
 
 #include "harness.hpp"
 

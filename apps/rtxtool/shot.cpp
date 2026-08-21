@@ -11,20 +11,19 @@
 
 #include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
-#include <components/rtx/buffer.hpp>
 #include <components/rtx/camera.hpp>
-#include <components/rtx/commands.hpp>
-#include <components/rtx/device.hpp>
-#include <components/rtx/error.hpp>
-#include <components/rtx/image.hpp>
-#include <components/rtx/instance.hpp>
-#include <components/rtx/physicaldevice.hpp>
-#include <components/rtx/sceneacceleration.hpp>
-#include <components/rtx/scenebuffers.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtx/texture.hpp>
-#include <components/rtx/visibilitypass.hpp>
 #include <components/rtxbridge/texturebuilder.hpp>
+#include <components/rtxvulkan/buffer.hpp>
+#include <components/rtxvulkan/commands.hpp>
+#include <components/rtxvulkan/device.hpp>
+#include <components/rtxvulkan/image.hpp>
+#include <components/rtxvulkan/instance.hpp>
+#include <components/rtxvulkan/physicaldevice.hpp>
+#include <components/rtxvulkan/sceneacceleration.hpp>
+#include <components/rtxvulkan/scenebuffers.hpp>
+#include <components/rtxvulkan/texture.hpp>
+#include <components/rtxvulkan/visibilitypass.hpp>
 
 namespace RtxTool
 {

@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_RTXTOOL_WORLD_H
-#define OPENMW_APPS_RTXTOOL_WORLD_H
+#pragma once
 
 #include <filesystem>
 #include <functional>
@@ -146,5 +145,3 @@ namespace RtxTool
         std::unique_ptr<Terrain::TerrainGrid> mTerrain;
     };
 }
-
-#endif

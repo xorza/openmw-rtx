@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RTX_SCENEDESC_H
-#define OPENMW_COMPONENTS_RTX_SCENEDESC_H
+#pragma once
 
 #include <cstdint>
 #include <functional>
@@ -292,5 +291,3 @@ namespace Rtx
         std::unordered_map<VFS::Path::Normalized, Index, VFS::Path::Hash, std::equal_to<>> mTextureIndex;
     };
 }
-
-#endif

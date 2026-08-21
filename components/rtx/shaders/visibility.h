@@ -1,3 +1,6 @@
+// `#pragma once` everywhere else in this tree, and an include guard here: `glslc` warns
+// "'#pragma once' : not implemented" and carries on, so a header included twice by one
+// shader would redefine everything in it.
 #ifndef OPENMW_COMPONENTS_RTX_SHADERS_VISIBILITY_H
 #define OPENMW_COMPONENTS_RTX_SHADERS_VISIBILITY_H
 

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RTXBRIDGE_WATERBUILDER_H
-#define OPENMW_COMPONENTS_RTXBRIDGE_WATERBUILDER_H
+#pragma once
 
 #include <optional>
 
@@ -31,5 +30,3 @@ namespace RtxBridge
     ///         downstream reads as a depth that is never positive.
     std::optional<float> addWater(Rtx::SceneDesc& scene, const ESM::Cell& cell);
 }
-
-#endif

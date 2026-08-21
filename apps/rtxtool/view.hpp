@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_RTXTOOL_VIEW_H
-#define OPENMW_APPS_RTXTOOL_VIEW_H
+#pragma once
 
 #include <cstdint>
 #include <filesystem>
@@ -58,5 +57,3 @@ namespace RtxTool
     int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images,
         const Rtx::InstanceOptions& instanceOptions, const ViewRequest& request);
 }
-
-#endif

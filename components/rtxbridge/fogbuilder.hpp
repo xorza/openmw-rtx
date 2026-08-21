@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RTXBRIDGE_FOGBUILDER_H
-#define OPENMW_COMPONENTS_RTXBRIDGE_FOGBUILDER_H
+#pragma once
 
 #include <osg/Vec3f>
 
@@ -49,5 +48,3 @@ namespace RtxBridge
     /// belongs to the weather.
     Fog interiorFog(const ESM::Cell& cell);
 }
-
-#endif

@@ -1,16 +1,15 @@
-#ifndef OPENMW_APPS_COMPONENTS_TESTS_RTX_HARNESS_H
-#define OPENMW_APPS_COMPONENTS_TESTS_RTX_HARNESS_H
+#pragma once
 
 #include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <string>
 
-#include <components/rtx/device.hpp>
 #include <components/rtx/error.hpp>
-#include <components/rtx/instance.hpp>
-#include <components/rtx/physicaldevice.hpp>
-#include <components/rtx/requirements.hpp>
+#include <components/rtxvulkan/device.hpp>
+#include <components/rtxvulkan/instance.hpp>
+#include <components/rtxvulkan/physicaldevice.hpp>
+#include <components/rtxvulkan/requirements.hpp>
 
 namespace Rtx::Testing
 {
@@ -121,5 +120,3 @@ namespace Rtx::Testing
         return std::filesystem::path(OPENMW_RTX_SHADER_DIR);
     }
 }
-
-#endif

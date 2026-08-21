@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RTX_WAVESPECTRUM_H
-#define OPENMW_COMPONENTS_RTX_WAVESPECTRUM_H
+#pragma once
 
 #include <array>
 
@@ -52,5 +51,3 @@ namespace Rtx
         float getWavenumber(float frequency) const;
     };
 }
-
-#endif

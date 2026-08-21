@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_RTXTOOL_VIEWS_H
-#define OPENMW_APPS_RTXTOOL_VIEWS_H
+#pragma once
 
 #include <filesystem>
 #include <optional>
@@ -36,5 +35,3 @@ namespace RtxTool
     /// The view called `name`, or null.
     const View* findView(const std::vector<View>& views, std::string_view name);
 }
-
-#endif

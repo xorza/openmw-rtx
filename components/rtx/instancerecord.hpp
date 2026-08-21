@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RTX_INSTANCERECORD_H
-#define OPENMW_COMPONENTS_RTX_INSTANCERECORD_H
+#pragma once
 
 #include <cstdint>
 #include <span>
@@ -72,5 +71,3 @@ namespace Rtx
     /// shows up as a number before it shows up as a frame time.
     std::uint32_t countCutouts(std::span<const InstanceRecord> records);
 }
-
-#endif

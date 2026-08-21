@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_RTXTOOL_SHOT_H
-#define OPENMW_APPS_RTXTOOL_SHOT_H
+#pragma once
 
 #include <cstdint>
 #include <filesystem>
@@ -90,5 +89,3 @@ namespace RtxTool
     int renderShot(const Rtx::SceneDesc& scene, Resource::ImageManager& images,
         const Rtx::InstanceOptions& instanceOptions, const ShotRequest& request);
 }
-
-#endif

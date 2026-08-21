@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <components/rtx/requirements.hpp>
+#include <components/rtxvulkan/requirements.hpp>
 
 namespace Rtx
 {

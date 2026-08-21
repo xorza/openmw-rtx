@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_RTXTOOL_LIGHTING_H
-#define OPENMW_APPS_RTXTOOL_LIGHTING_H
+#pragma once
 
 #include <limits>
 
@@ -52,5 +51,3 @@ namespace RtxTool
     /// grid `SceneBuffers` binned them into rather than through a count anyone has to remember.
     void applyLighting(const CellLighting& lighting, Rtx::Shaders::VisibilityConstants& constants);
 }
-
-#endif

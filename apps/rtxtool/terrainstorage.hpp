@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_RTXTOOL_TERRAINSTORAGE_H
-#define OPENMW_APPS_RTXTOOL_TERRAINSTORAGE_H
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -57,5 +56,3 @@ namespace RtxTool
         std::map<CellKey, osg::ref_ptr<const ESMTerrain::LandObject>> mDecoded;
     };
 }
-
-#endif

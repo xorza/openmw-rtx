@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RTXBRIDGE_SCENEEXTRACTOR_H
-#define OPENMW_COMPONENTS_RTXBRIDGE_SCENEEXTRACTOR_H
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -117,5 +116,3 @@ namespace RtxBridge
         std::vector<float> mMaskScratch;
     };
 }
-
-#endif

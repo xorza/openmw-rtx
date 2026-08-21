@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RTX_LIGHTGRID_H
-#define OPENMW_COMPONENTS_RTX_LIGHTGRID_H
+#pragma once
 
 #include <cstdint>
 #include <span>
@@ -63,5 +62,3 @@ namespace Rtx
         std::vector<std::uint32_t> mIndices;
     };
 }
-
-#endif

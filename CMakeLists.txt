@@ -702,7 +702,19 @@ if (OPENMW_RTX)
         endif()
     endif()
 
+    # Where the RTX resources land. Not `OPENMW_RESOURCES_ROOT`: the top level only defines that for
+    # non-Apple builds, and macOS derives its own — the bundle's `Contents/Resources` — inside
+    # `apps/openmw/CMakeLists.txt`, which is configured after these subdirectories. Both roots it
+    # would resolve to are known here, so this settles it once instead of depending on the order two
+    # subdirectories happen to be added in.
+    if (APPLE)
+        set(RTX_RESOURCES_ROOT "${APP_BUNDLE_DIR}/Contents/Resources")
+    else()
+        set(RTX_RESOURCES_ROOT "${OpenMW_BINARY_DIR}")
+    endif()
+
     add_subdirectory (components/rtx)
+    add_subdirectory (components/rtxvulkan)
     add_subdirectory (components/rtxbridge)
     add_subdirectory (apps/rtxtool)
 endif()

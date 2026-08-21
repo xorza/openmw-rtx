@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RTXBRIDGE_LIGHTBUILDER_H
-#define OPENMW_COMPONENTS_RTXBRIDGE_LIGHTBUILDER_H
+#pragma once
 
 #include <optional>
 
@@ -85,5 +84,3 @@ namespace RtxBridge
     /// obviously wrong and where a test pins it.
     osg::Vec3f decodeColour(std::uint32_t packed);
 }
-
-#endif

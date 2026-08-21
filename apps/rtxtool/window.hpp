@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_RTXTOOL_WINDOW_H
-#define OPENMW_APPS_RTXTOOL_WINDOW_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -106,5 +105,3 @@ namespace RtxTool
         VkSurfaceKHR mHandle = VK_NULL_HANDLE;
     };
 }
-
-#endif

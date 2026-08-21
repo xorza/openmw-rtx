@@ -1,9 +1,8 @@
-#ifndef OPENMW_COMPONENTS_RTXBRIDGE_TEXTUREBUILDER_H
-#define OPENMW_COMPONENTS_RTXBRIDGE_TEXTUREBUILDER_H
+#pragma once
 
 #include <vector>
 
-#include <components/rtx/texture.hpp>
+#include <components/rtxvulkan/texture.hpp>
 
 namespace osg
 {
@@ -37,5 +36,3 @@ namespace RtxBridge
     Rtx::TextureArray buildTextures(
         const Rtx::Device& device, Rtx::CommandPool& pool, const Rtx::SceneDesc& scene, Resource::ImageManager& images);
 }
-
-#endif

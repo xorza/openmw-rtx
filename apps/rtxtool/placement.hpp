@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_RTXTOOL_PLACEMENT_H
-#define OPENMW_APPS_RTXTOOL_PLACEMENT_H
+#pragma once
 
 #include <optional>
 #include <string_view>
@@ -31,5 +30,3 @@ namespace RtxTool
     /// Throws `std::runtime_error` naming `what` when the text is present and malformed.
     std::optional<osg::Vec3f> parseVec3(std::string_view text, std::string_view what);
 }
-
-#endif

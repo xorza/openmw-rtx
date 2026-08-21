@@ -198,6 +198,9 @@ the posture behind them does.
 - **Allocation is a metric on the frame path.** Persistent scratch buffers refilled with `clear()`,
   results into an out-parameter, nothing that constructs a `std::string` or a `std::function` per
   frame, logging that compiles out. There is a test that enforces this (`docs/rtx/plan.md` §7.3).
+- **No exceptions in this fork's code.** A broken contract is an assert; a failure a caller can act
+  on is a returned value. `-fno-exceptions` is not available — upstream's `vfs/pathutil.hpp` and
+  `esm/*.hpp` throw from headers this code includes — so the rule is held by review.
 - **Asserts** guard contracts the code must keep, not data the world might supply. Hot paths use the
   debug-only form; untrusted input is never an assert.
 - **Tests assert hand-computed values**, cover the empty and boundary cases, and prove that

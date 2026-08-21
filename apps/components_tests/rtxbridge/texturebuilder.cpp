@@ -5,8 +5,8 @@
 #include <osg/Image>
 
 #include <components/rtx/error.hpp>
-#include <components/rtx/texture.hpp>
 #include <components/rtxbridge/texturebuilder.hpp>
+#include <components/rtxvulkan/texture.hpp>
 
 namespace RtxBridge
 {
