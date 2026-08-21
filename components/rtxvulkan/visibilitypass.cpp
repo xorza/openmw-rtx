@@ -29,6 +29,21 @@ namespace Rtx
         , mBlueNoise(uploadBuffer(device, pool, BlueNoise::shared().getValues(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT))
         , mTextureLayout(textureLayout)
     {
+        // Cleaned up by hand where a later step fails, for the reason `CompositePass` gives: a
+        // constructor that throws gets no destructor, and a layout left behind outlives the device.
+        try
+        {
+            build(shaderDirectory);
+        }
+        catch (...)
+        {
+            destroy();
+            throw;
+        }
+    }
+
+    void VisibilityPass::build(const std::filesystem::path& shaderDirectory)
+    {
         constexpr auto compute = VK_SHADER_STAGE_COMPUTE_BIT;
         constexpr auto storage = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         constexpr std::array<VkDescriptorSetLayoutBinding, 19> bindings{
@@ -59,7 +74,7 @@ namespace Rtx
             .bindingCount = static_cast<std::uint32_t>(bindings.size()),
             .pBindings = bindings.data(),
         };
-        checkVk(vkCreateDescriptorSetLayout(device.getHandle(), &layout, nullptr, &mSetLayout),
+        checkVk(vkCreateDescriptorSetLayout(mDevice.getHandle(), &layout, nullptr, &mSetLayout),
             "vkCreateDescriptorSetLayout");
 
         const VkPushConstantRange range{
@@ -74,10 +89,10 @@ namespace Rtx
             .pushConstantRangeCount = 1,
             .pPushConstantRanges = &range,
         };
-        checkVk(vkCreatePipelineLayout(device.getHandle(), &pipelineLayout, nullptr, &mPipelineLayout),
+        checkVk(vkCreatePipelineLayout(mDevice.getHandle(), &pipelineLayout, nullptr, &mPipelineLayout),
             "vkCreatePipelineLayout");
 
-        const ShaderModule module(device, shaderDirectory / "visibility.comp.spv");
+        const ShaderModule module(mDevice, shaderDirectory / "visibility.comp.spv");
         const VkComputePipelineCreateInfo pipeline{
             .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
             .stage = {
@@ -88,14 +103,19 @@ namespace Rtx
             },
             .layout = mPipelineLayout,
         };
-        checkVk(
-            vkCreateComputePipelines(device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr, &mPipeline),
+        checkVk(vkCreateComputePipelines(
+                    mDevice.getHandle(), mDevice.getPipelineCache(), 1, &pipeline, nullptr, &mPipeline),
             "vkCreateComputePipelines");
 
-        device.setName(VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<std::uint64_t>(mPipeline), "visibility");
+        mDevice.setName(VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<std::uint64_t>(mPipeline), "visibility");
     }
 
     VisibilityPass::~VisibilityPass()
+    {
+        destroy();
+    }
+
+    void VisibilityPass::destroy()
     {
         if (mPipeline != VK_NULL_HANDLE)
             vkDestroyPipeline(mDevice.getHandle(), mPipeline, nullptr);

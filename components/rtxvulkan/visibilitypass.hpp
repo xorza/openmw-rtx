@@ -53,6 +53,9 @@ namespace Rtx
             const Buffer& hitCount, const Shaders::VisibilityConstants& constants) const;
 
     private:
+        void build(const std::filesystem::path& shaderDirectory);
+        void destroy();
+
         const Device& mDevice;
         Buffer mBlueNoise;
         VkDescriptorSetLayout mSetLayout = VK_NULL_HANDLE;

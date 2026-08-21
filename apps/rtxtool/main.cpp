@@ -235,13 +235,19 @@ namespace RtxTool
                   << options;
         }
 
-        int runInfo(const Rtx::ValidationOptions& validation)
+        int runInfo(const std::filesystem::path& shaderDirectory, const Rtx::ValidationOptions& validation)
         {
             // A one-pixel target: this reports on a device rather than drawing with it, and the
             // default would spend fifty megabytes of images to print a page of text.
+            //
+            // **The shaders are still named, because standing a renderer up compiles one.**
+            // Reporting on a device is not a reason to build half a renderer, and a build whose
+            // shaders are missing should say so here rather than at the first frame asked for.
             std::string reason;
             const std::unique_ptr<Rtx::Renderer> renderer = Rtx::createRenderer(
-                Rtx::RendererOptions{ .mWidth = 1, .mHeight = 1, .mValidation = validation }, reason);
+                Rtx::RendererOptions{
+                    .mShaderDirectory = shaderDirectory, .mWidth = 1, .mHeight = 1, .mValidation = validation },
+                reason);
             if (renderer == nullptr)
             {
                 out() << reason << '\n';
@@ -593,14 +599,14 @@ namespace RtxTool
             Debug::setupLogging(config.getLogPath(), applicationName);
             Settings::Manager::load(config);
 
+            const std::filesystem::path resources = variables["resources"].as<Files::MaybeQuotedPath>();
+
             if (command == "info")
             {
                 const Rtx::ValidationOptions validation = chooseValidation(variables, false);
 
-                return runInfo(validation);
+                return runInfo(resources / "rtx" / "shaders", validation);
             }
-
-            const std::filesystem::path resources = variables["resources"].as<Files::MaybeQuotedPath>();
 
             if (variables["list-views"].as<bool>())
                 return runListViews(resources);

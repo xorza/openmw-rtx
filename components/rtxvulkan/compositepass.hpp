@@ -36,6 +36,9 @@ namespace Rtx
             const Shaders::CompositeConstants& constants) const;
 
     private:
+        void build(const std::filesystem::path& shaderDirectory);
+        void destroy();
+
         const Device& mDevice;
         VkDescriptorSetLayout mSetLayout = VK_NULL_HANDLE;
         VkPipelineLayout mPipelineLayout = VK_NULL_HANDLE;

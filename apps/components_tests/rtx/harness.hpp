@@ -55,6 +55,54 @@ namespace Rtx::Testing
 
     namespace Details
     {
+        /// Something built once for the whole binary, and the reason where it could not be.
+        ///
+        /// Held here rather than in a function-local static so that `releaseDevices` can close it
+        /// while the process is still whole; see the environment in `harness.cpp`.
+        template <class T>
+        struct Once
+        {
+            std::unique_ptr<T> mValue;
+            std::string mReason;
+            bool mTried = false;
+
+            template <class Build>
+            T* get(std::string& reason, Build&& build)
+            {
+                if (!mTried)
+                {
+                    mTried = true;
+                    mValue = build(mReason);
+                }
+
+                reason = mReason;
+                return mValue.get();
+            }
+
+            /// Closes it, and says so to anything that asks afterwards rather than answering an
+            /// empty reason — which a test would report as a skip with no explanation.
+            void release()
+            {
+                mValue.reset();
+                mReason = "the suite closed its devices after the last test";
+            }
+        };
+
+        /// Keyed on validation, which is the only axis any of these vary along.
+        inline Once<Harness>& harnessCache(bool validation)
+        {
+            static Once<Harness> sValidated;
+            static Once<Harness> sPlain;
+            return validation ? sValidated : sPlain;
+        }
+
+        inline Once<Renderer>& rendererCache(bool validation)
+        {
+            static Once<Renderer> sValidated;
+            static Once<Renderer> sPlain;
+            return validation ? sValidated : sPlain;
+        }
+
         inline std::unique_ptr<Harness> build(bool validation, std::string& reason)
         {
             if (std::string obstacle = findInstanceObstacle(); !obstacle.empty())
@@ -93,11 +141,7 @@ namespace Rtx::Testing
     /// `PhysicalDevice::select` and fails the suite rather than skipping.
     inline Harness* getHarness(std::string& reason)
     {
-        static std::string sReason;
-        static const std::unique_ptr<Harness> sHarness = Details::build(true, sReason);
-
-        reason = sReason;
-        return sHarness.get();
+        return Details::harnessCache(true).get(reason, [](std::string& why) { return Details::build(true, why); });
     }
 
     /// The same, with no validation layers loaded.
@@ -108,11 +152,7 @@ namespace Rtx::Testing
     /// device is only built if something asks for it.
     inline Harness* getUnvalidatedHarness(std::string& reason)
     {
-        static std::string sReason;
-        static const std::unique_ptr<Harness> sHarness = Details::build(false, sReason);
-
-        reason = sReason;
-        return sHarness.get();
+        return Details::harnessCache(false).get(reason, [](std::string& why) { return Details::build(false, why); });
     }
 
     /// Where the build wrote the compiled shaders.
@@ -149,11 +189,8 @@ namespace Rtx::Testing
     /// backend that passes this file is correct.
     inline Renderer* getRenderer(std::string& reason)
     {
-        static std::string sReason;
-        static const std::unique_ptr<Renderer> sRenderer = Details::buildRenderer(true, sReason);
-
-        reason = sReason;
-        return sRenderer.get();
+        return Details::rendererCache(true).get(
+            reason, [](std::string& why) { return Details::buildRenderer(true, why); });
     }
 
     /// The same, uninstrumented, for the one test that counts allocations.
@@ -162,11 +199,8 @@ namespace Rtx::Testing
     /// allocation count is trying to see.
     inline Renderer* getUnvalidatedRenderer(std::string& reason)
     {
-        static std::string sReason;
-        static const std::unique_ptr<Renderer> sRenderer = Details::buildRenderer(false, sReason);
-
-        reason = sReason;
-        return sRenderer.get();
+        return Details::rendererCache(false).get(
+            reason, [](std::string& why) { return Details::buildRenderer(false, why); });
     }
 
 }

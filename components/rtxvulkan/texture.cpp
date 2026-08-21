@@ -45,18 +45,29 @@ namespace Rtx
             throw Error("unknown texture format");
         }
 
-        VkDescriptorSetLayout makeLayout(const Device& device, std::uint32_t count)
+        /// The layout every array declares, which is the same layout whatever the scene holds.
+        ///
+        /// **Sized to the maximum and not to the scene, because a pipeline outlives a cell.** Two
+        /// set layouts are compatible only where they are identically defined, so a layout that
+        /// counted the scene's textures made every cell's array incompatible with the pipeline
+        /// layout built from the last one's — and a renderer that keeps its pass across scenes, as
+        /// this one does because building one compiles a shader, would bind a set the pipeline
+        /// cannot accept. The count moves to the allocation, where it costs what the scene actually
+        /// uses.
+        VkDescriptorSetLayout makeLayout(const Device& device)
         {
             const VkDescriptorSetLayoutBinding binding{
                 .binding = 0,
                 .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                .descriptorCount = std::max(count, 1u),
+                .descriptorCount = sMaxTextures,
                 .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
             };
 
             // Partially bound because a scene with fewer textures than the array can hold leaves the
             // tail unwritten, and a shader that never indexes there must not be told it is an error.
-            constexpr VkDescriptorBindingFlags flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
+            // Variable count is what keeps the declared maximum from being what gets allocated.
+            constexpr VkDescriptorBindingFlags flags
+                = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
             const VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{
                 .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
                 .bindingCount = 1,
@@ -253,8 +264,10 @@ namespace Rtx
         };
         checkVk(vkCreateSampler(device.getHandle(), &sampler, nullptr, &mSampler), "vkCreateSampler");
 
+        // At least one even where the scene has no textures: a pool size of zero is not a legal
+        // request, and neither is a variable count the pool has no room for.
         const auto count = static_cast<std::uint32_t>(std::max<std::size_t>(mTextures.size(), 1));
-        mLayout = makeLayout(device, count);
+        mLayout = makeLayout(device);
 
         const VkDescriptorPoolSize size{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, count };
         const VkDescriptorPoolCreateInfo pool{
@@ -265,8 +278,16 @@ namespace Rtx
         };
         checkVk(vkCreateDescriptorPool(device.getHandle(), &pool, nullptr, &mPool), "vkCreateDescriptorPool");
 
+        // What the layout left open: the array is declared at its maximum and allocated at the
+        // scene's, so the descriptors paid for are the ones a cell put in it.
+        const VkDescriptorSetVariableDescriptorCountAllocateInfo variable{
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO,
+            .descriptorSetCount = 1,
+            .pDescriptorCounts = &count,
+        };
         const VkDescriptorSetAllocateInfo allocate{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            .pNext = &variable,
             .descriptorPool = mPool,
             .descriptorSetCount = 1,
             .pSetLayouts = &mLayout,

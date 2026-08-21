@@ -22,6 +22,23 @@ namespace Rtx
     CompositePass::CompositePass(const Device& device, const std::filesystem::path& shaderDirectory)
         : mDevice(device)
     {
+        // **Every handle below has to be given back if a later one cannot be made.** A constructor
+        // that throws gets no destructor, and what it had already created would outlive the device
+        // — which the layers report at `vkDestroyDevice`, and which the abort policy then turns into
+        // an abort in place of the message naming the shader that was missing.
+        try
+        {
+            build(shaderDirectory);
+        }
+        catch (...)
+        {
+            destroy();
+            throw;
+        }
+    }
+
+    void CompositePass::build(const std::filesystem::path& shaderDirectory)
+    {
         constexpr auto compute = VK_SHADER_STAGE_COMPUTE_BIT;
         constexpr auto image = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         constexpr std::array<VkDescriptorSetLayoutBinding, 5> bindings{
@@ -38,7 +55,7 @@ namespace Rtx
             .bindingCount = static_cast<std::uint32_t>(bindings.size()),
             .pBindings = bindings.data(),
         };
-        checkVk(vkCreateDescriptorSetLayout(device.getHandle(), &layout, nullptr, &mSetLayout),
+        checkVk(vkCreateDescriptorSetLayout(mDevice.getHandle(), &layout, nullptr, &mSetLayout),
             "vkCreateDescriptorSetLayout");
 
         const VkPushConstantRange range{
@@ -52,10 +69,10 @@ namespace Rtx
             .pushConstantRangeCount = 1,
             .pPushConstantRanges = &range,
         };
-        checkVk(vkCreatePipelineLayout(device.getHandle(), &pipelineLayout, nullptr, &mPipelineLayout),
+        checkVk(vkCreatePipelineLayout(mDevice.getHandle(), &pipelineLayout, nullptr, &mPipelineLayout),
             "vkCreatePipelineLayout");
 
-        const ShaderModule module(device, shaderDirectory / "composite.comp.spv");
+        const ShaderModule module(mDevice, shaderDirectory / "composite.comp.spv");
         const VkComputePipelineCreateInfo pipeline{
             .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
             .stage = {
@@ -66,14 +83,19 @@ namespace Rtx
             },
             .layout = mPipelineLayout,
         };
-        checkVk(
-            vkCreateComputePipelines(device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr, &mPipeline),
+        checkVk(vkCreateComputePipelines(
+                    mDevice.getHandle(), mDevice.getPipelineCache(), 1, &pipeline, nullptr, &mPipeline),
             "vkCreateComputePipelines");
 
-        device.setName(VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<std::uint64_t>(mPipeline), "composite");
+        mDevice.setName(VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<std::uint64_t>(mPipeline), "composite");
     }
 
     CompositePass::~CompositePass()
+    {
+        destroy();
+    }
+
+    void CompositePass::destroy()
     {
         if (mPipeline != VK_NULL_HANDLE)
             vkDestroyPipeline(mDevice.getHandle(), mPipeline, nullptr);

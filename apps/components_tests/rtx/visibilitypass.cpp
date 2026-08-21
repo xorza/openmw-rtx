@@ -195,17 +195,18 @@ namespace Rtx
         }
 
         /// A square in the xz plane at y = 0, facing along -Y, four hundred units across.
+        /// Four hundred units square in the XZ plane, which is larger than any frame here sees.
+        const std::array<osg::Vec3f, 4> sWallQuad{
+            osg::Vec3f(-200.0f, 0.0f, -200.0f),
+            osg::Vec3f(200.0f, 0.0f, -200.0f),
+            osg::Vec3f(200.0f, 0.0f, 200.0f),
+            osg::Vec3f(-200.0f, 0.0f, 200.0f),
+        };
+
         SceneDesc makeWall()
         {
-            const std::array positions{
-                osg::Vec3f(-200.0f, 0.0f, -200.0f),
-                osg::Vec3f(200.0f, 0.0f, -200.0f),
-                osg::Vec3f(200.0f, 0.0f, 200.0f),
-                osg::Vec3f(-200.0f, 0.0f, 200.0f),
-            };
-
             SceneDesc scene;
-            const Index mesh = scene.addMesh(positions, {}, {}, sQuadIndices);
+            const Index mesh = scene.addMesh(sWallQuad, {}, {}, sQuadIndices);
             scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh });
             return scene;
         }
@@ -440,6 +441,74 @@ namespace Rtx
                 ASSERT_NEAR(pixels[i + 1], 187, 1) << "green at pixel " << i / 4;
                 ASSERT_NEAR(pixels[i + 2], 187, 1) << "blue at pixel " << i / 4;
             }
+        }
+
+        /// One renderer, three scenes, and the number of textures changing under it.
+        ///
+        /// **The pass is built once and kept, because building one compiles a shader** — so the set
+        /// layout the bindless array declares cannot depend on how many textures a cell holds. It
+        /// did: a scene with a different count produced a layout the kept pipeline layout would not
+        /// accept, and the frame came out looking right while the layers said
+        /// `VUID-vkCmdBindDescriptorSets-pDescriptorSets-00358`. That is why the two tests that
+        /// caught it passed when either was run on its own.
+        ///
+        /// Half the assertion is the fixture's: `TearDown` fails on any validation error, and this
+        /// is a defect that shows up there before it shows up in a pixel.
+        TEST_F(RtxVisibilityTest, aSceneChangingItsTextureCountStillBindsAgainstTheKeptPass)
+        {
+            constexpr std::uint32_t size = 32;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            camera.mShowAlbedo = 1u;
+
+            // No textures at all, so the array is allocated with nothing in it. The untextured
+            // material's 0.5 encoded, which is the 187 the first test in this file works out.
+            std::vector<std::uint8_t> plain;
+            EXPECT_EQ(countHits(makeWall(), {}, camera, size, plain), size * size);
+            EXPECT_NEAR(plain[centre], 187, 1);
+
+            // The same wall carrying two textures. Two and not one, because an empty array is
+            // allocated a slot anyway — a scene of none and a scene of one ask for the same thing,
+            // and it takes a second texture for the counts to differ at all.
+            //
+            // Red is the diffuse and is what the albedo view shows; the green is emissive, which
+            // that view does not read, so it is here to be counted rather than to be seen.
+            constexpr std::array<std::uint8_t, 4> redTexel{ 255, 0, 0, 255 };
+            constexpr std::array<std::uint8_t, 4> greenTexel{ 0, 255, 0, 255 };
+            constexpr MipLevel one{ 0, 1, 1 };
+            const auto describe = [&one](std::span<const std::uint8_t> texel) {
+                return TextureData{
+                    .mFormat = TextureFormat::Rgba8Unorm,
+                    .mWidth = 1,
+                    .mHeight = 1,
+                    .mBytes = std::as_bytes(texel),
+                    .mLevels = std::span(&one, 1),
+                };
+            };
+            const std::array<TextureData, 2> textures{ describe(redTexel), describe(greenTexel) };
+
+            // The same wall, and it needs texture coordinates that `makeWall` has no use for.
+            SceneDesc textured;
+            const Index mesh = textured.addMesh(sWallQuad, {}, sQuadUv, sQuadIndices);
+            const Index material
+                = textured.addMaterial(Material{ .mDiffuse = textured.addTexture(VFS::Path::NormalizedView("red.dds")),
+                    .mEmissive = textured.addTexture(VFS::Path::NormalizedView("green.dds")) });
+            textured.addInstance(
+                MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = material });
+
+            std::vector<std::uint8_t> shown;
+            EXPECT_EQ(countHits(textured, textures, camera, size, shown), size * size);
+            EXPECT_EQ(shown[centre], 255) << "red";
+            EXPECT_EQ(shown[centre + 1], 0) << "green";
+            EXPECT_EQ(shown[centre + 2], 0) << "blue";
+
+            // And back down to none, which was as broken as the way up and is the direction a cell
+            // change actually takes when a player walks out of a rich interior.
+            std::vector<std::uint8_t> again;
+            EXPECT_EQ(countHits(makeWall(), {}, camera, size, again), size * size);
+            EXPECT_EQ(again, plain);
         }
 
         /// The mip chain a ray cone selects from, at a distance chosen so the answer is a whole

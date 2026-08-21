@@ -95,9 +95,11 @@ namespace Rtx
 
         // **Built once and kept, because building one compiles the shader — half a second a time,
         // measured.** Nothing about the pass depends on the scene: it needs the device and the shape
-        // of the texture set, and every array this renderer makes declares that shape identically.
-        // Identically defined descriptor set layouts are compatible, so a set allocated from a later
-        // array still binds against the pipeline layout the first one produced.
+        // of the texture set, and every array declares that shape identically — the bindless binding
+        // is sized to its maximum rather than to the cell, so what varies between scenes is how many
+        // descriptors get allocated and never what the layout says. Identically defined layouts are
+        // compatible, so a set from a later array binds against the pipeline layout the first one
+        // produced. `TextureArray`'s layout is where that invariant is kept.
         if (mPass == nullptr)
             mPass = std::make_unique<VisibilityPass>(mDevice, mPool, mShaderDirectory, mTextures->getLayout());
 
