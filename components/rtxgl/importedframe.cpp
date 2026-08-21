@@ -28,6 +28,10 @@ namespace RtxGl
             PFNGLCREATETEXTURESPROC mCreateTextures = nullptr;
             PFNGLGETTEXTUREIMAGEPROC mGetTextureImage = nullptr;
             PFNGLTEXTUREPARAMETERIPROC mTextureParameteri = nullptr;
+            PFNGLCREATEFRAMEBUFFERSPROC mCreateFramebuffers = nullptr;
+            PFNGLDELETEFRAMEBUFFERSPROC mDeleteFramebuffers = nullptr;
+            PFNGLNAMEDFRAMEBUFFERTEXTUREPROC mNamedFramebufferTexture = nullptr;
+            PFNGLBLITNAMEDFRAMEBUFFERPROC mBlitNamedFramebuffer = nullptr;
 
             /// What is missing, or empty where nothing is.
             std::string mObstacle;
@@ -51,6 +55,10 @@ namespace RtxGl
                 load(found.mCreateTextures, "glCreateTextures");
                 load(found.mGetTextureImage, "glGetTextureImage");
                 load(found.mTextureParameteri, "glTextureParameteri");
+                load(found.mCreateFramebuffers, "glCreateFramebuffers");
+                load(found.mDeleteFramebuffers, "glDeleteFramebuffers");
+                load(found.mNamedFramebufferTexture, "glNamedFramebufferTexture");
+                load(found.mBlitNamedFramebuffer, "glBlitNamedFramebuffer");
 
                 return found;
             }();
@@ -121,15 +129,40 @@ namespace RtxGl
         // Optimal and not linear, because that is how Vulkan created the image. The two sides have
         // to agree on the tiling or they agree on the bytes and not on their order.
         gl.mTextureParameteri(mTexture, GL_TEXTURE_TILING_EXT, GL_OPTIMAL_TILING_EXT);
-        gl.mTextureStorageMem2D(mTexture, 1, GL_RGBA8, static_cast<GLsizei>(width), static_cast<GLsizei>(height),
-            mMemory, 0);
+        gl.mTextureStorageMem2D(
+            mTexture, 1, GL_RGBA8, static_cast<GLsizei>(width), static_cast<GLsizei>(height), mMemory, 0);
+
+        gl.mCreateFramebuffers(1, &mReadFrom);
+        gl.mNamedFramebufferTexture(mReadFrom, GL_COLOR_ATTACHMENT0, mTexture, 0);
 
         if (const GLenum failed = glGetError(); failed != GL_NO_ERROR)
             throw std::runtime_error(std::format("OpenGL would not import the frame: error {:#x}", failed));
     }
 
+    void ImportedFrame::blit(std::uint32_t width, std::uint32_t height) const
+    {
+        const Entries& gl = entries();
+
+        // Whatever is bound for drawing, which is the one OSG is composing into rather than the
+        // window's own — the frame goes under the GUI, not over it.
+        GLint target = 0;
+        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &target);
+
+        // **Flipped, and it is not a matter of taste.** The tracer writes row zero at the top of
+        // the picture, the way a screenshot is laid out and the way `readPixels` hands it back;
+        // OpenGL's framebuffer origin is the bottom left. Blitting straight across puts the sky on
+        // the floor. Swapping the destination's Y rather than the source's keeps the source
+        // rectangle the whole texture, which is what `GL_LINEAR` wants when the sizes differ.
+        gl.mBlitNamedFramebuffer(mReadFrom, static_cast<GLuint>(target), 0, 0, static_cast<GLint>(mWidth),
+            static_cast<GLint>(mHeight), 0, static_cast<GLint>(height), static_cast<GLint>(width), 0,
+            GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    }
+
     ImportedFrame::~ImportedFrame()
     {
+        if (mReadFrom != 0)
+            entries().mDeleteFramebuffers(1, &mReadFrom);
+
         if (mTexture != 0)
             glDeleteTextures(1, &mTexture);
 
@@ -140,7 +173,7 @@ namespace RtxGl
     void ImportedFrame::read(std::vector<std::uint8_t>& pixels) const
     {
         pixels.resize(std::size_t{ mWidth } * mHeight * 4);
-        entries().mGetTextureImage(mTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, static_cast<GLsizei>(pixels.size()),
-            pixels.data());
+        entries().mGetTextureImage(
+            mTexture, 0, GL_RGBA, GL_UNSIGNED_BYTE, static_cast<GLsizei>(pixels.size()), pixels.data());
     }
 }

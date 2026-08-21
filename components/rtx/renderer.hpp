@@ -91,6 +91,21 @@ namespace Rtx
         std::uint32_t mOutputHeight = 0;
     };
 
+    /// The traced frame's allocation, as another API can import it.
+    ///
+    /// **A pair and not two calls**, so a descriptor cannot be handed over with the wrong size
+    /// beside it — an import at the arithmetic size rather than the driver's padded one either fails
+    /// or gives back a torn picture.
+    struct SharedFrame
+    {
+        /// A POSIX file descriptor. **The caller owns it**, and OpenGL's importer closes it whether
+        /// or not the import succeeds. Negative where this renderer cannot share.
+        int mMemory = -1;
+
+        /// How large the allocation is, which is not width times height times four.
+        std::uint64_t mBytes = 0;
+    };
+
     /// A frame's float channels, which are what an upscaler reads and what a test can check.
     enum class Channel
     {
@@ -217,6 +232,17 @@ namespace Rtx
 
         /// Traces one frame. `setScene` first, which is a contract and so an assert.
         virtual FrameResult renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) = 0;
+
+        /// The traced frame's allocation, for another API to import.
+        ///
+        /// **This is how the frame reaches the game**, which does not present through a swapchain:
+        /// the SDL window stays OpenGL's, and Vulkan renders offscreen into an image OpenGL imports
+        /// and draws under the GUI. The character doll, both maps and video playback are all OSG
+        /// render-to-texture users, and a Vulkan window would mean reimplementing every one of them
+        /// before the game was playable again (`docs/rtx/plan.md` §3).
+        ///
+        /// A new descriptor every call, so this is asked once per resize rather than per frame.
+        virtual SharedFrame shareFrame() = 0;
 
         /// Shows the frame `renderFrame` just produced, where this renderer was given a window.
         ///

@@ -62,6 +62,14 @@ namespace RtxGl
         std::uint32_t getWidth() const { return mWidth; }
         std::uint32_t getHeight() const { return mHeight; }
 
+        /// Blits the frame onto whatever framebuffer is bound for drawing, scaled to `width` by
+        /// `height`.
+        ///
+        /// **A blit and not a textured quad.** A quad in a core context needs a program, a vertex
+        /// array and a state save-and-restore around whatever OSG had bound; a framebuffer blit
+        /// needs none of them and is the one full-screen copy this route was costed at.
+        void blit(std::uint32_t width, std::uint32_t height) const;
+
         /// Reads the texture back, four bytes a pixel, tightly packed.
         ///
         /// For a test to compare against what Vulkan wrote. Nothing on the frame path does this.
@@ -70,6 +78,10 @@ namespace RtxGl
     private:
         unsigned int mMemory = 0;
         unsigned int mTexture = 0;
+
+        /// A read framebuffer with the texture attached, so `blit` is one call rather than a bind,
+        /// an attach and an unbind every frame.
+        unsigned int mReadFrom = 0;
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
     };

@@ -2,6 +2,11 @@
 
 #include <cstdlib>
 
+#ifdef OPENMW_RTX
+#include "rtx/composite.hpp"
+#include "rtx/tracer.hpp"
+#endif
+
 #include <osg/ClipControl>
 #include <osg/ComputeBoundsVisitor>
 #include <osg/Group>
@@ -413,6 +418,30 @@ namespace MWRender
         updateProjectionMatrix();
 
         mViewer->getCamera()->setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+#ifdef OPENMW_RTX
+        if (Settings::rtx().mEnabled)
+        {
+            const osg::Viewport* viewport = mViewer->getCamera()->getViewport();
+            std::string reason;
+            mTracer = Rtx::Tracer::tryCreate(static_cast<std::uint32_t>(viewport->width()),
+                static_cast<std::uint32_t>(viewport->height()),
+                resourceSystem->getSceneManager()->getShaderManager().getShaderPath().parent_path() / "rtx" / "shaders",
+                reason);
+
+            if (mTracer == nullptr)
+            {
+                // **Reported and survivable.** The rasterizer is untouched and the game is playable;
+                // a machine that cannot ray trace should say so once and carry on.
+                Log(Debug::Warning) << "Ray tracing is on and cannot start: " << reason;
+            }
+            else
+            {
+                mPostProcessor->getHUDCamera()->addChild(&mTracer->getComposite());
+                Log(Debug::Info) << "Ray tracing is on, compositing over the rasterizer";
+            }
+        }
+#endif
     }
 
     RenderingManager::~RenderingManager()
@@ -759,6 +788,19 @@ namespace MWRender
         stateUpdater->setSkyColor(mSky->getSkyColor());
         mPostProcessor->setUnderwaterFlag(isUnderwater);
     }
+
+#ifdef OPENMW_RTX
+    void RenderingManager::traceFrame()
+    {
+        if (mTracer == nullptr)
+            return;
+
+        const osg::Viewport* viewport = mViewer->getCamera()->getViewport();
+        mTracer->resize(static_cast<std::uint32_t>(viewport->width()), static_cast<std::uint32_t>(viewport->height()));
+
+        mTracer->trace(*mSceneRoot, *mViewer->getCamera(), *mResourceSystem->getImageManager());
+    }
+#endif
 
     void RenderingManager::updatePlayerPtr(const MWWorld::Ptr& ptr)
     {

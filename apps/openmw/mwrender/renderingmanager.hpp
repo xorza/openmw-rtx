@@ -107,6 +107,13 @@ namespace MWRender
     class Groundcover;
     class PostProcessor;
 
+#ifdef OPENMW_RTX
+    namespace Rtx
+    {
+        class Tracer;
+    }
+#endif
+
     class RenderingManager : public MWRender::RenderingInterface
     {
     public:
@@ -208,6 +215,18 @@ namespace MWRender
         void notifyWorldSpaceChanged();
 
         void update(float dt, bool paused);
+
+#ifdef OPENMW_RTX
+        /// Traces one frame and leaves it where the composite can draw it.
+        ///
+        /// **After `updateTraversal` and before `renderingTraversals`**, which is the one place the
+        /// scene graph is settled and nothing has drawn yet — and the call `docs/rtx/plan.md` says
+        /// the ray tracing renderer eventually displaces. It does not displace it yet: this slice
+        /// composites over the rasterizer rather than replacing it.
+        ///
+        /// Does nothing where the renderer is off or could not start.
+        void traceFrame();
+#endif
 
         Animation* getAnimation(const MWWorld::Ptr& ptr);
         const Animation* getAnimation(const MWWorld::ConstPtr& ptr) const;
@@ -338,6 +357,12 @@ namespace MWRender
         std::unique_ptr<SkyManager> mSky;
         std::unique_ptr<FogManager> mFog;
         std::unique_ptr<ScreenshotManager> mScreenshotManager;
+
+#ifdef OPENMW_RTX
+        /// Null when `Settings::rtx().mEnabled` is off, and when it is on and the renderer would not
+        /// start — which is reported once and then left alone, because the game is still playable.
+        std::unique_ptr<Rtx::Tracer> mTracer;
+#endif
         std::unique_ptr<EffectManager> mEffectManager;
         std::unique_ptr<SceneUtil::ShadowManager> mShadowManager;
         osg::ref_ptr<PostProcessor> mPostProcessor;

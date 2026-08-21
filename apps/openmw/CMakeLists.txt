@@ -26,6 +26,13 @@ add_openmw_dir (mwrender
     actorutil distortion animationpriority bonegroup blendmask animblendcontroller
     )
 
+# Gated, because these are the only files in the game that name a graphics API other than OpenGL.
+if (OPENMW_RTX)
+    add_openmw_dir (mwrender/rtx
+        composite tracer
+        )
+endif()
+
 add_openmw_dir (mwinput
     actions actionmanager bindingsmanager controllermanager controlswitch
     inputmanagerimp mousemanager keyboardmanager sensormanager gyromanager
@@ -158,7 +165,7 @@ if(BUILD_OPENMW)
 if (OPENMW_RTX)
     # One macro gates every game-side reference to the ray tracing renderer.
     target_compile_definitions(openmw-lib PUBLIC OPENMW_RTX)
-    target_link_libraries(openmw-lib openmw-rtx)
+    target_link_libraries(openmw-lib openmw-rtx openmw-rtx-backends openmw-rtx-bridge openmw-rtx-gl)
 endif()
 
     # Workaround necessary to ensure osgAnimation::MatrixLinearSampler dynamic casts work under Clang

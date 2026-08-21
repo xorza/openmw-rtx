@@ -72,6 +72,7 @@
 #include "mwworld/datetimemanager.hpp"
 #include "mwworld/worldimp.hpp"
 
+#include "mwrender/renderingmanager.hpp"
 #include "mwrender/vismask.hpp"
 
 #include "mwclass/classes.hpp"
@@ -356,6 +357,14 @@ bool OMW::Engine::frame(unsigned frameNumber, float frametime)
 
     // if there is a separate Lua thread, it starts the update now
     mLuaWorker->allowUpdate(frameStart, frameNumber, *stats);
+
+#ifdef OPENMW_RTX
+    // **The seam.** `docs/rtx/plan.md` §2 has the ray tracing renderer eventually displacing the
+    // call below; for now it runs beside it and composites over the result, which is what separates
+    // "can Vulkan reach the screen" from "can the graph be mirrored every frame".
+    if (MWRender::RenderingManager* rendering = mWorld->getRenderingManager())
+        rendering->traceFrame();
+#endif
 
     mViewer->renderingTraversals();
 
