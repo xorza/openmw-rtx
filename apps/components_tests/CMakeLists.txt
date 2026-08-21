@@ -108,6 +108,7 @@ if (OPENMW_RTX)
         rtx/device.cpp
         rtx/dlss.cpp
         rtx/harness.cpp
+        rtx/interop.cpp
         rtx/harness.hpp
         rtx/lightgrid.cpp
         rtx/pipelinecache.cpp
