@@ -8,6 +8,7 @@
 #include <components/rtx/shaders/visibility.h>
 
 #include "buffer.hpp"
+#include "computepipeline.hpp"
 
 namespace Rtx
 {
@@ -40,7 +41,6 @@ namespace Rtx
         ///        time. Needed here because a pipeline layout names every set it will ever see.
         VisibilityPass(const Device& device, CommandPool& pool, const std::filesystem::path& shaderDirectory,
             VkDescriptorSetLayout textureLayout);
-        ~VisibilityPass();
 
         VisibilityPass(const VisibilityPass&) = delete;
         VisibilityPass& operator=(const VisibilityPass&) = delete;
@@ -53,14 +53,7 @@ namespace Rtx
             const Buffer& hitCount, const Shaders::VisibilityConstants& constants) const;
 
     private:
-        void build(const std::filesystem::path& shaderDirectory);
-        void destroy();
-
-        const Device& mDevice;
         Buffer mBlueNoise;
-        VkDescriptorSetLayout mSetLayout = VK_NULL_HANDLE;
-        VkDescriptorSetLayout mTextureLayout = VK_NULL_HANDLE;
-        VkPipelineLayout mPipelineLayout = VK_NULL_HANDLE;
-        VkPipeline mPipeline = VK_NULL_HANDLE;
+        ComputePipeline mPipeline;
     };
 }

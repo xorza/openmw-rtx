@@ -3,11 +3,8 @@
 #include <array>
 #include <cassert>
 
-#include "device.hpp"
 #include "gbuffer.hpp"
 #include "image.hpp"
-#include "result.hpp"
-#include "shadermodule.hpp"
 
 namespace Rtx
 {
@@ -17,92 +14,21 @@ namespace Rtx
         {
             return (extent + Shaders::COMPOSITE_WORKGROUP - 1) / Shaders::COMPOSITE_WORKGROUP;
         }
+
+        /// Three channels in, the running sum, and the picture out — all storage images, all pushed.
+        constexpr std::array<VkDescriptorSetLayoutBinding, 5> sBindings{
+            VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 4, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+        };
     }
 
     CompositePass::CompositePass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mDevice(device)
+        : mPipeline(device, sBindings, sizeof(Shaders::CompositeConstants), {}, shaderDirectory / "composite.comp.spv",
+              "composite")
     {
-        // **Every handle below has to be given back if a later one cannot be made.** A constructor
-        // that throws gets no destructor, and what it had already created would outlive the device
-        // — which the layers report at `vkDestroyDevice`, and which the abort policy then turns into
-        // an abort in place of the message naming the shader that was missing.
-        try
-        {
-            build(shaderDirectory);
-        }
-        catch (...)
-        {
-            destroy();
-            throw;
-        }
-    }
-
-    void CompositePass::build(const std::filesystem::path& shaderDirectory)
-    {
-        constexpr auto compute = VK_SHADER_STAGE_COMPUTE_BIT;
-        constexpr auto image = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        constexpr std::array<VkDescriptorSetLayoutBinding, 5> bindings{
-            VkDescriptorSetLayoutBinding{ 0, image, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 1, image, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 2, image, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 3, image, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 4, image, 1, compute, nullptr },
-        };
-
-        const VkDescriptorSetLayoutCreateInfo layout{
-            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-            .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT,
-            .bindingCount = static_cast<std::uint32_t>(bindings.size()),
-            .pBindings = bindings.data(),
-        };
-        checkVk(vkCreateDescriptorSetLayout(mDevice.getHandle(), &layout, nullptr, &mSetLayout),
-            "vkCreateDescriptorSetLayout");
-
-        const VkPushConstantRange range{
-            .stageFlags = compute,
-            .size = sizeof(Shaders::CompositeConstants),
-        };
-        const VkPipelineLayoutCreateInfo pipelineLayout{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .setLayoutCount = 1,
-            .pSetLayouts = &mSetLayout,
-            .pushConstantRangeCount = 1,
-            .pPushConstantRanges = &range,
-        };
-        checkVk(vkCreatePipelineLayout(mDevice.getHandle(), &pipelineLayout, nullptr, &mPipelineLayout),
-            "vkCreatePipelineLayout");
-
-        const ShaderModule module(mDevice, shaderDirectory / "composite.comp.spv");
-        const VkComputePipelineCreateInfo pipeline{
-            .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-            .stage = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .stage = compute,
-                .module = module.getHandle(),
-                .pName = "main",
-            },
-            .layout = mPipelineLayout,
-        };
-        checkVk(vkCreateComputePipelines(
-                    mDevice.getHandle(), mDevice.getPipelineCache(), 1, &pipeline, nullptr, &mPipeline),
-            "vkCreateComputePipelines");
-
-        mDevice.setName(VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<std::uint64_t>(mPipeline), "composite");
-    }
-
-    CompositePass::~CompositePass()
-    {
-        destroy();
-    }
-
-    void CompositePass::destroy()
-    {
-        if (mPipeline != VK_NULL_HANDLE)
-            vkDestroyPipeline(mDevice.getHandle(), mPipeline, nullptr);
-        if (mPipelineLayout != VK_NULL_HANDLE)
-            vkDestroyPipelineLayout(mDevice.getHandle(), mPipelineLayout, nullptr);
-        if (mSetLayout != VK_NULL_HANDLE)
-            vkDestroyDescriptorSetLayout(mDevice.getHandle(), mSetLayout, nullptr);
     }
 
     void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Image& history,
@@ -130,10 +56,11 @@ namespace Rtx
                 .pImageInfo = &images[i],
             };
 
-        vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline);
-        vkCmdPushDescriptorSet(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipelineLayout, 0,
+        vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getHandle());
+        vkCmdPushDescriptorSet(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getLayout(), 0,
             static_cast<std::uint32_t>(writes.size()), writes.data());
-        vkCmdPushConstants(commands, mPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(constants), &constants);
+        vkCmdPushConstants(
+            commands, mPipeline.getLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(constants), &constants);
         vkCmdDispatch(commands, groupsFor(constants.mWidth), groupsFor(constants.mHeight), 1);
     }
 }

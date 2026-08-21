@@ -61,6 +61,8 @@ set(RTX_VULKAN_FILES
     commands.hpp
     compositepass.cpp
     compositepass.hpp
+    computepipeline.cpp
+    computepipeline.hpp
     device.cpp
     device.hpp
     gbuffer.cpp

@@ -104,6 +104,7 @@ if (OPENMW_RTX)
         rtx/bluenoise.cpp
         rtx/allocations.cpp
         rtx/allocations.hpp
+        rtx/computepipeline.cpp
         rtx/device.cpp
         rtx/harness.cpp
         rtx/harness.hpp

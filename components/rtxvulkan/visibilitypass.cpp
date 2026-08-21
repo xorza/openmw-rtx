@@ -2,16 +2,14 @@
 
 #include <array>
 #include <cassert>
+#include <span>
 
 #include <components/rtx/bluenoise.hpp>
 
 #include "buffer.hpp"
 #include "commands.hpp"
-#include "device.hpp"
 #include "gbuffer.hpp"
-#include "result.hpp"
 #include "scenebuffers.hpp"
-#include "shadermodule.hpp"
 
 namespace Rtx
 {
@@ -21,108 +19,44 @@ namespace Rtx
         {
             return (extent + Shaders::VISIBILITY_WORKGROUP - 1) / Shaders::VISIBILITY_WORKGROUP;
         }
+
+        constexpr auto sCompute = VK_SHADER_STAGE_COMPUTE_BIT;
+        constexpr auto sStorage = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        constexpr auto sImage = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+
+        /// The structure, the four channels it writes, and the tables a hit reads, in the order the
+        /// shader declares them. The channels are at one, fifteen, seventeen and eighteen because
+        /// they grew onto the end of a layout that already existed rather than renumbering the
+        /// tables under them.
+        constexpr std::array<VkDescriptorSetLayoutBinding, 19> sBindings{
+            VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 1, sImage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 2, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 3, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 4, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 5, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 6, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 7, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 8, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 9, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 10, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 11, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 12, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 13, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 14, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 15, sImage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 16, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 17, sImage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 18, sImage, 1, sCompute },
+        };
     }
 
     VisibilityPass::VisibilityPass(const Device& device, CommandPool& pool,
         const std::filesystem::path& shaderDirectory, VkDescriptorSetLayout textureLayout)
-        : mDevice(device)
-        , mBlueNoise(uploadBuffer(device, pool, BlueNoise::shared().getValues(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT))
-        , mTextureLayout(textureLayout)
+        : mBlueNoise(uploadBuffer(device, pool, BlueNoise::shared().getValues(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT))
+        , mPipeline(device, sBindings, sizeof(Shaders::VisibilityConstants), std::span(&textureLayout, 1),
+              shaderDirectory / "visibility.comp.spv", "visibility")
     {
-        // Cleaned up by hand where a later step fails, for the reason `CompositePass` gives: a
-        // constructor that throws gets no destructor, and a layout left behind outlives the device.
-        try
-        {
-            build(shaderDirectory);
-        }
-        catch (...)
-        {
-            destroy();
-            throw;
-        }
-    }
-
-    void VisibilityPass::build(const std::filesystem::path& shaderDirectory)
-    {
-        constexpr auto compute = VK_SHADER_STAGE_COMPUTE_BIT;
-        constexpr auto storage = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        constexpr std::array<VkDescriptorSetLayoutBinding, 19> bindings{
-            VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 2, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 3, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 4, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 5, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 6, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 7, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 8, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 9, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 10, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 11, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 12, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 13, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 14, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 15, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 16, storage, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 17, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
-            VkDescriptorSetLayoutBinding{ 18, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, compute, nullptr },
-        };
-
-        const VkDescriptorSetLayoutCreateInfo layout{
-            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-            .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT,
-            .bindingCount = static_cast<std::uint32_t>(bindings.size()),
-            .pBindings = bindings.data(),
-        };
-        checkVk(vkCreateDescriptorSetLayout(mDevice.getHandle(), &layout, nullptr, &mSetLayout),
-            "vkCreateDescriptorSetLayout");
-
-        const VkPushConstantRange range{
-            .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-            .size = sizeof(Shaders::VisibilityConstants),
-        };
-        const std::array<VkDescriptorSetLayout, 2> sets{ mSetLayout, mTextureLayout };
-        const VkPipelineLayoutCreateInfo pipelineLayout{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .setLayoutCount = static_cast<std::uint32_t>(sets.size()),
-            .pSetLayouts = sets.data(),
-            .pushConstantRangeCount = 1,
-            .pPushConstantRanges = &range,
-        };
-        checkVk(vkCreatePipelineLayout(mDevice.getHandle(), &pipelineLayout, nullptr, &mPipelineLayout),
-            "vkCreatePipelineLayout");
-
-        const ShaderModule module(mDevice, shaderDirectory / "visibility.comp.spv");
-        const VkComputePipelineCreateInfo pipeline{
-            .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-            .stage = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .stage = VK_SHADER_STAGE_COMPUTE_BIT,
-                .module = module.getHandle(),
-                .pName = "main",
-            },
-            .layout = mPipelineLayout,
-        };
-        checkVk(vkCreateComputePipelines(
-                    mDevice.getHandle(), mDevice.getPipelineCache(), 1, &pipeline, nullptr, &mPipeline),
-            "vkCreateComputePipelines");
-
-        mDevice.setName(VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<std::uint64_t>(mPipeline), "visibility");
-    }
-
-    VisibilityPass::~VisibilityPass()
-    {
-        destroy();
-    }
-
-    void VisibilityPass::destroy()
-    {
-        if (mPipeline != VK_NULL_HANDLE)
-            vkDestroyPipeline(mDevice.getHandle(), mPipeline, nullptr);
-        if (mPipelineLayout != VK_NULL_HANDLE)
-            vkDestroyPipelineLayout(mDevice.getHandle(), mPipelineLayout, nullptr);
-        if (mSetLayout != VK_NULL_HANDLE)
-            vkDestroyDescriptorSetLayout(mDevice.getHandle(), mSetLayout, nullptr);
     }
 
     void VisibilityPass::record(VkCommandBuffer commands, const VisibilityInputs& inputs, const GBuffer& buffer,
@@ -135,14 +69,13 @@ namespace Rtx
             .accelerationStructureCount = 1,
             .pAccelerationStructures = &inputs.mScene,
         };
-        // One, then fifteen, seventeen, eighteen: the channels grew onto the end of a layout that
-        // already existed rather than renumbering every table under them.
         const std::array<VkDescriptorImageInfo, 4> channels{
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getDirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getIndirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getModulate().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getGuide().getView(), VK_IMAGE_LAYOUT_GENERAL },
         };
+        // In `sBindings`' order, which is where those four numbers are explained.
         constexpr std::array<std::uint32_t, 4> channelBindings{ 1, 15, 17, 18 };
 
         // Bindings two upwards are all storage buffers, in the order the shader declares them.
@@ -195,11 +128,11 @@ namespace Rtx
             .pBufferInfo = &noiseWrite,
         };
 
-        vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline);
-        vkCmdPushDescriptorSet(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipelineLayout, 0,
+        vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getHandle());
+        vkCmdPushDescriptorSet(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getLayout(), 0,
             static_cast<std::uint32_t>(writes.size()), writes.data());
         vkCmdBindDescriptorSets(
-            commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipelineLayout, 1, 1, &inputs.mTextures, 0, nullptr);
+            commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getLayout(), 1, 1, &inputs.mTextures, 0, nullptr);
         // The grid's geometry belongs to the lamps it was binned from, so it is filled here rather
         // than by whoever assembled the camera: a caller setting it would be repeating what
         // `SceneBuffers` already worked out, and could get it wrong without the shader noticing.
@@ -209,7 +142,7 @@ namespace Rtx
         pushed.mGridInverseCell = grid.getInverseCell();
         pushed.mGridSize = grid.getSize();
 
-        vkCmdPushConstants(commands, mPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pushed), &pushed);
+        vkCmdPushConstants(commands, mPipeline.getLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pushed), &pushed);
         vkCmdDispatch(commands, groupsFor(constants.mWidth), groupsFor(constants.mHeight), 1);
     }
 
