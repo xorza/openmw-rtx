@@ -38,6 +38,15 @@ namespace Rtx
         Rgba8Unorm,
     };
 
+    /// Whether a format's bytes are display-encoded, which every content format's are.
+    ///
+    /// The one that is not exists for tests: a value written into an `Rgba8Unorm` texture is the
+    /// value light transport sees, with no transfer function between the expectation and the answer.
+    inline bool isSrgb(TextureFormat format)
+    {
+        return format != TextureFormat::Rgba8Unorm;
+    }
+
     /// A decoded texture, ready to upload and owning none of it.
     ///
     /// Deliberately not an `osg::Image`, and deliberately with no graphics API in it: every one of

@@ -13,6 +13,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
+#include <components/files/conversion.hpp>
 #include <components/platform/platform.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/renderer.hpp>
@@ -20,11 +21,13 @@
 #include <components/rtxbridge/fogbuilder.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
+#include <components/rtxbridge/texturebuilder.hpp>
 #include <components/rtxbridge/waterbuilder.hpp>
 
 #include <components/settings/settings.hpp>
 #include <limits>
 
+#include "contactsheet.hpp"
 #include "placement.hpp"
 #include "shot.hpp"
 #include "validationchoice.hpp"
@@ -228,7 +231,8 @@ namespace RtxTool
                      "  info     report the device this renderer would run on\n"
                      "  scene    read a cell and report what the renderer would be handed\n"
                      "  shot     render a cell and write a PNG, with no window\n"
-                     "  view     open a window on a cell and fly around it\n\n"
+                     "  view     open a window on a cell and fly around it\n"
+                     "  textures every texture a cell uses, vanilla beside de-lit, as one sheet\n\n"
                      "With no arguments at all: a window on the ship at Seyda Neen, where the game starts.\n\n"
                   << options;
         }
@@ -365,6 +369,36 @@ namespace RtxTool
             });
 
             out() << found << " objects match \"" << needle << "\"\n";
+            return 0;
+        }
+
+        /// Every texture a cell uses, vanilla beside de-lit, and the names to read it by.
+        int runTextures(World& world, const std::string& cellSpec, const std::filesystem::path& output, float strength)
+        {
+            const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
+            if (cell == nullptr)
+                return 1;
+
+            Rtx::SceneDesc scene;
+            RtxBridge::SceneExtractor extractor(scene);
+            readCell(world, *cell, extractor);
+
+            const RtxBridge::SceneTextures described(scene, world.getImageManager());
+            const ContactSheet sheet = writeContactSheet(described.getDescriptions(), output, strength);
+            if (sheet.mCount == 0)
+            {
+                out() << "The cell uses no textures.\n";
+                return 1;
+            }
+
+            // The sheet carries no lettering, so the order is printed instead: left to right, top to
+            // bottom, the way it was drawn.
+            const std::span<const VFS::Path::Normalized> paths = scene.getTextures();
+            for (std::size_t i = 0; i < paths.size(); ++i)
+                out() << "  " << i << "  " << paths[i] << '\n';
+
+            out() << "wrote " << Files::pathToUnicodeString(output) << ", " << sheet.mCount
+                  << " textures at --delight=" << strength << '\n';
             return 0;
         }
 
@@ -608,6 +642,15 @@ namespace RtxTool
 
             if (variables["list-views"].as<bool>())
                 return runListViews(resources);
+
+            if (command == "textures")
+            {
+                const Chosen chosen = chooseView(variables, resources);
+                World world(config, variables, resources);
+
+                return runTextures(
+                    world, chosen.mCell, variables["out"].as<std::string>(), variables["delight"].as<float>());
+            }
 
             if (command == "scene")
             {

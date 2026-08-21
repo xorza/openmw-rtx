@@ -120,6 +120,7 @@ if (OPENMW_RTX)
         rtxbridge/sceneextractor.cpp
         rtxbridge/texturebuilder.cpp
         rtxbridge/waterbuilder.cpp
+        rtxtool/contactsheet.cpp
         rtxtool/terrainstorage.cpp
         rtxtool/validationchoice.cpp
         rtxtool/view.cpp

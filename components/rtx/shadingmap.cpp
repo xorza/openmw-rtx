@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cmath>
 
+#include "colourblock.hpp"
 #include "error.hpp"
 #include "texturedata.hpp"
 
@@ -29,33 +30,6 @@ namespace Rtx
             return encoded <= 0.04045f ? encoded / 12.92f : std::pow((encoded + 0.055f) / 1.055f, 2.4f);
         }
 
-        bool isSrgb(TextureFormat format)
-        {
-            return format != TextureFormat::Rgba8Unorm;
-        }
-
-        /// One colour out of the five-six-five pair a block stores its ends as.
-        struct Endpoint
-        {
-            float mRed = 0.0f;
-            float mGreen = 0.0f;
-            float mBlue = 0.0f;
-        };
-
-        Endpoint decode565(std::uint16_t packed)
-        {
-            // Five and six bits replicated into eight, which is what every decoder does and what
-            // makes the endpoints exactly representable as bytes.
-            const auto five = [](std::uint32_t bits) { return static_cast<float>(bits << 3 | bits >> 2) / 255.0f; };
-            const auto six = [](std::uint32_t bits) { return static_cast<float>(bits << 2 | bits >> 4) / 255.0f; };
-
-            return Endpoint{
-                .mRed = five((packed >> 11) & 0x1Fu),
-                .mGreen = six((packed >> 5) & 0x3Fu),
-                .mBlue = five(packed & 0x1Fu),
-            };
-        }
-
         /// What one block contributes: the sum of its texels' luminance, and how many counted.
         struct BlockLuminance
         {
@@ -63,53 +37,29 @@ namespace Rtx
             std::uint32_t mCount = 0;
         };
 
-        /// The mean luminance of a block, from its palette and its indices.
+        /// The mean luminance of a block, from its palette and the indices that chose it.
         ///
-        /// @param punchThrough whether the `c0 <= c1` spelling means a three-colour palette with a
-        ///        transparent fourth entry. True for BC1; BC2 and BC3 carry alpha of their own and
-        ///        always use four colours.
-        BlockLuminance blockLuminance(std::span<const std::byte, 8> block, bool punchThrough, bool srgb)
+        /// A transparent texel is not a colour and does not belong in an average of them.
+        BlockLuminance blockLuminance(std::span<const std::byte, 8> bytes, bool punchThrough, bool srgb)
         {
-            const auto read16 = [&](std::size_t at) {
-                return static_cast<std::uint16_t>(
-                    std::to_integer<std::uint32_t>(block[at]) | std::to_integer<std::uint32_t>(block[at + 1]) << 8);
-            };
+            const ColourBlock block = ColourBlock::read(bytes, punchThrough);
 
-            const std::uint16_t first = read16(0);
-            const std::uint16_t second = read16(2);
-            const Endpoint c0 = decode565(first);
-            const Endpoint c1 = decode565(second);
-            const bool threeColour = punchThrough && first <= second;
-
-            const auto mix = [&](float a, float b, float weight) { return a + (b - a) * weight; };
-            const auto blend = [&](float weight) {
-                return luminanceOf(srgb ? toLinear(mix(c0.mRed, c1.mRed, weight)) : mix(c0.mRed, c1.mRed, weight),
-                    srgb ? toLinear(mix(c0.mGreen, c1.mGreen, weight)) : mix(c0.mGreen, c1.mGreen, weight),
-                    srgb ? toLinear(mix(c0.mBlue, c1.mBlue, weight)) : mix(c0.mBlue, c1.mBlue, weight));
-            };
-
-            // The palette in index order. A three-colour block's fourth entry is transparent, which
-            // is not a colour and does not belong in an average of one.
-            const std::array<float, 4> palette{
-                blend(0.0f),
-                blend(1.0f),
-                threeColour ? blend(0.5f) : blend(1.0f / 3.0f),
-                threeColour ? 0.0f : blend(2.0f / 3.0f),
-            };
+            std::array<float, 4> palette{};
+            for (std::size_t entry = 0; entry < palette.size(); ++entry)
+            {
+                const osg::Vec3f& colour = block.mPalette[entry];
+                palette[entry] = srgb ? luminanceOf(toLinear(colour.x()), toLinear(colour.y()), toLinear(colour.z()))
+                                      : luminanceOf(colour.x(), colour.y(), colour.z());
+            }
 
             BlockLuminance total;
-            for (std::size_t row = 0; row < 4; ++row)
+            for (std::size_t texel = 0; texel < 16; ++texel)
             {
-                const auto indices = std::to_integer<std::uint32_t>(block[4 + row]);
-                for (std::size_t texel = 0; texel < 4; ++texel)
-                {
-                    const std::uint32_t index = indices >> (texel * 2) & 0x3u;
-                    if (threeColour && index == 3)
-                        continue;
+                if (block.isTransparent(texel))
+                    continue;
 
-                    total.mSum += palette[index];
-                    ++total.mCount;
-                }
+                total.mSum += palette[block.indexAt(texel)];
+                ++total.mCount;
             }
 
             return total;

@@ -10,6 +10,8 @@ set(RTX_FILES
     bluenoise.hpp
     camera.cpp
     camera.hpp
+    colourblock.cpp
+    colourblock.hpp
     error.hpp
     instancerecord.cpp
     instancerecord.hpp

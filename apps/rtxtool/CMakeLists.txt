@@ -1,4 +1,6 @@
 set(RTXTOOL_FILES
+    contactsheet.cpp
+    contactsheet.hpp
     placement.cpp
     placement.hpp
     png.cpp
