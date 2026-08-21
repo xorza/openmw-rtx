@@ -8,6 +8,7 @@
 #include <components/resource/imagemanager.hpp>
 #include <components/rtx/error.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/shadingmap.hpp>
 
 namespace RtxBridge
 {
@@ -92,5 +93,20 @@ namespace RtxBridge
         mDescriptions.reserve(mImages.size());
         for (const osg::ref_ptr<const osg::Image>& image : mImages)
             mDescriptions.push_back(describeImage(*image, mLevels));
+
+        // After the descriptions, because the estimate reads the bytes they point at, and into one
+        // table for the reason the levels are: the spans have to stay put.
+        constexpr std::size_t cells = std::size_t{ Rtx::ShadingMap::sExtent } * Rtx::ShadingMap::sExtent;
+        mShading.resize(mDescriptions.size() * cells);
+
+        for (std::size_t i = 0; i < mDescriptions.size(); ++i)
+        {
+            const Rtx::ShadingMap map(mDescriptions[i]);
+            const std::span<const float> values = map.getValues();
+            std::copy(values.begin(), values.end(), mShading.begin() + static_cast<std::ptrdiff_t>(i * cells));
+        }
+
+        for (std::size_t i = 0; i < mDescriptions.size(); ++i)
+            mDescriptions[i].mShading = std::span(mShading).subspan(i * cells, cells);
     }
 }

@@ -175,6 +175,7 @@ namespace RtxTool
             .mScene = acceleration.getTopLevel(),
             .mBuffers = &buffers,
             .mTextures = textures.getSet(),
+            .mShading = textures.getShading(),
         };
 
         // Declared after the instance so it is destroyed before it, which the validation layers are
@@ -510,6 +511,7 @@ namespace RtxTool
             Rtx::Shaders::VisibilityConstants constants = Rtx::makeCamera(
                 camera.getOrigin(), camera.getTarget(), request.mFieldOfView, extent.width, extent.height, far);
             constants.mShowAlbedo = request.mShowAlbedo ? 1u : 0u;
+            constants.mDelight = request.mDelight;
 
             // The window is the only path with a clock. A screenshot leaves the sea still, so two
             // runs of one build agree pixel for pixel.

@@ -53,6 +53,13 @@ namespace Rtx
         std::span<const std::byte> mBytes;
         std::span<const MipLevel> mLevels;
 
+        /// The light already painted into it, as `SHADING_EXTENT` squared factors to divide out.
+        ///
+        /// Empty where nothing estimated one, which the shader reads as neutral. Described here
+        /// rather than computed by the backend for the reason the texels are: what is true of
+        /// Morrowind's content is worked out once and uploaded by whichever API is present.
+        std::span<const float> mShading;
+
         /// What to call it in a capture — the file it came from. Spans storage the description's
         /// owner holds, like everything else here. Empty is allowed and only costs a nameless object
         /// in a debugger; every backend has somewhere to put it.

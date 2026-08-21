@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <span>
 
+#include "shaders/scene.h"
+
 namespace Rtx
 {
     struct TextureData;
@@ -31,8 +33,9 @@ namespace Rtx
     class ShadingMap
     {
     public:
-        /// Cells along each edge of the grid the estimate is made on.
-        static constexpr std::uint32_t sExtent = 32;
+        /// Cells along each edge of the grid the estimate is made on, which the shader indexes
+        /// with and so declares.
+        static constexpr std::uint32_t sExtent = Shaders::SHADING_EXTENT;
 
         /// How far the correction may reach, either way.
         static constexpr float sFloor = 0.5f;

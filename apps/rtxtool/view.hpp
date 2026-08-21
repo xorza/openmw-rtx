@@ -37,6 +37,10 @@ namespace RtxTool
         std::uint32_t mHeight = 1080;
         float mFieldOfView = 60.0f;
 
+        /// How much of the lighting painted into each texture to divide back out, from zero to one.
+        /// Zero shows the textures as they were drawn, with their lighting still in them.
+        float mDelight = 1.0f;
+
         /// Whether the denoiser runs. Off is what shows the noise it is there to remove.
         bool mFilter = true;
 

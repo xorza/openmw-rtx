@@ -104,6 +104,7 @@ namespace RtxTool
         Rtx::Shaders::VisibilityConstants camera = Rtx::makeCamera(
             placement.mOrigin, placement.mTarget, request.mFieldOfView, request.mWidth, request.mHeight, far);
         camera.mShowAlbedo = request.mShowAlbedo ? 1u : 0u;
+        camera.mDelight = request.mDelight;
         applyLighting(request.mLighting, camera);
 
         // **Accumulating replaces repeating rather than joining it.** A run of `--accumulate=4` that

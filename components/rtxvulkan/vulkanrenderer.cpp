@@ -136,6 +136,7 @@ namespace Rtx
             .mScene = mAcceleration->getTopLevel(),
             .mBuffers = mBuffers.get(),
             .mTextures = mTextures->getSet(),
+            .mShading = mTextures->getShading(),
         };
 
         // Made by the first frame that averages, and that frame is the one that fills it.

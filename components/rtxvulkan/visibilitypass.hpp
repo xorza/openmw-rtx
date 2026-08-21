@@ -25,6 +25,9 @@ namespace Rtx
 
         /// The bindless texture array's set, bound once and not pushed.
         VkDescriptorSet mTextures = VK_NULL_HANDLE;
+
+        /// Every texture's shading map, which the array owns beside the textures themselves.
+        VkBuffer mShading = VK_NULL_HANDLE;
     };
 
     /// One ray per pixel against the top-level structure, shaded by the geometric normal it hit.

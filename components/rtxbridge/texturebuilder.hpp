@@ -57,6 +57,12 @@ namespace RtxBridge
     private:
         std::vector<osg::ref_ptr<const osg::Image>> mImages;
 
+        /// Every texture's estimated lighting, back to back and `SHADING_EXTENT` squared apiece.
+        ///
+        /// **Made on load and thrown away with the cell**, because a cache would cost more than it
+        /// saved: a cell's couple of hundred textures estimate in well under a millisecond.
+        std::vector<float> mShading;
+
         /// Every image's levels, back to back. One table rather than one vector each: a cell reaches
         /// a couple of hundred textures, and the descriptions want a span into something stable.
         std::vector<Rtx::MipLevel> mLevels;

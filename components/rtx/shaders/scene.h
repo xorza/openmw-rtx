@@ -34,6 +34,13 @@ namespace Rtx::Shaders
     /// A material with no texture in a slot stores this.
     RTX_CONST uint NO_TEXTURE = 0xFFFFFFFFu;
 
+    /// Cells along each edge of the grid a texture's baked lighting is estimated over.
+    ///
+    /// Coarse on purpose: painted lighting varies slowly across a surface and painted detail does
+    /// not, so a grid this size follows the first and cannot follow the second. `Rtx::ShadingMap`
+    /// makes them and says why at length.
+    RTX_CONST uint SHADING_EXTENT = 32u;
+
     /// How many sinusoids the water surface is summed from.
     RTX_CONST uint WAVE_COUNT = 32u;
 

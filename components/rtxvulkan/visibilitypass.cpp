@@ -28,7 +28,7 @@ namespace Rtx
         /// shader declares them. The channels are at one, fifteen, seventeen and eighteen because
         /// they grew onto the end of a layout that already existed rather than renumbering the
         /// tables under them.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 19> sBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 20> sBindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 1, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 2, sStorage, 1, sCompute },
@@ -48,6 +48,7 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 16, sStorage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 17, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 18, sImage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 19, sStorage, 1, sCompute },
         };
     }
 
@@ -95,8 +96,9 @@ namespace Rtx
             VkDescriptorBufferInfo{ inputs.mBuffers->getWaves(), 0, VK_WHOLE_SIZE },
         };
         const VkDescriptorBufferInfo noiseWrite{ mBlueNoise.getHandle(), 0, VK_WHOLE_SIZE };
+        const VkDescriptorBufferInfo shadingWrite{ inputs.mShading, 0, VK_WHOLE_SIZE };
 
-        std::array<VkWriteDescriptorSet, 19> writes{};
+        std::array<VkWriteDescriptorSet, 20> writes{};
         writes[0] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = &sceneWrite,
@@ -126,6 +128,13 @@ namespace Rtx
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             .pBufferInfo = &noiseWrite,
+        };
+        writes[19] = VkWriteDescriptorSet{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstBinding = 19,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            .pBufferInfo = &shadingWrite,
         };
 
         vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getHandle());

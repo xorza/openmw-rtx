@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <cassert>
 #include <utility>
+#include <vector>
 
 #include <components/rtx/error.hpp>
+#include <components/rtx/shaders/scene.h>
 
 #include "buffer.hpp"
 #include "commands.hpp"
@@ -234,16 +236,34 @@ namespace Rtx
 
             return uploaded;
         }
+
+        /// Every texture's shading map end to end, and a neutral one wherever there is no estimate.
+        ///
+        /// **A missing map has to be neutral rather than absent.** A material whose texture would
+        /// not load still indexes this buffer, and reading whatever happened to be at that offset is
+        /// how the reference implementation came to divide every untextured surface by two.
+        Buffer uploadShading(const Device& device, CommandPool& pool, std::span<const TextureData> textures)
+        {
+            constexpr std::size_t cells = std::size_t{ Shaders::SHADING_EXTENT } * Shaders::SHADING_EXTENT;
+
+            // One texture's worth even for a scene with none: a buffer of nothing is not a legal
+            // thing to make, and the descriptor is bound either way.
+            std::vector<float> values(std::max<std::size_t>(textures.size(), 1) * cells, 1.0f);
+            for (std::size_t i = 0; i < textures.size(); ++i)
+                if (const std::span<const float> map = textures[i].mShading; !map.empty())
+                {
+                    assert(map.size() == cells);
+                    std::copy(map.begin(), map.end(), values.begin() + static_cast<std::ptrdiff_t>(i * cells));
+                }
+
+            return uploadBuffer(device, pool, std::span<const float>(values), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        }
     }
 
     TextureArray::TextureArray(const Device& device, CommandPool& pool, std::span<const TextureData> textures)
-        : TextureArray(device, uploadAll(device, pool, textures))
-    {
-    }
-
-    TextureArray::TextureArray(const Device& device, std::vector<Texture>&& textures)
         : mDevice(device)
-        , mTextures(std::move(textures))
+        , mTextures(uploadAll(device, pool, textures))
+        , mShading(uploadShading(device, pool, textures))
     {
         if (mTextures.size() > sMaxTextures)
             throw Error("a scene with " + std::to_string(mTextures.size()) + " textures is past the "
@@ -271,13 +291,13 @@ namespace Rtx
         mLayout = makeLayout(device);
 
         const VkDescriptorPoolSize size{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, count };
-        const VkDescriptorPoolCreateInfo pool{
+        const VkDescriptorPoolCreateInfo describePool{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
             .maxSets = 1,
             .poolSizeCount = 1,
             .pPoolSizes = &size,
         };
-        checkVk(vkCreateDescriptorPool(device.getHandle(), &pool, nullptr, &mPool), "vkCreateDescriptorPool");
+        checkVk(vkCreateDescriptorPool(device.getHandle(), &describePool, nullptr, &mPool), "vkCreateDescriptorPool");
 
         // What the layout left open: the array is declared at its maximum and allocated at the
         // scene's, so the descriptors paid for are the ones a cell put in it.

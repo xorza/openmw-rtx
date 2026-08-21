@@ -9,6 +9,7 @@
 
 #include <components/rtx/texturedata.hpp>
 
+#include "buffer.hpp"
 #include "memory.hpp"
 
 namespace Rtx
@@ -53,9 +54,6 @@ namespace Rtx
         /// Uploads every description, in the order given, so a material's texture index is an index
         /// into this. May be empty; the shader is told the count and does not index past it.
         TextureArray(const Device& device, CommandPool& pool, std::span<const TextureData> textures);
-
-        /// @param textures may be empty; the shader is told the count and does not index past it.
-        TextureArray(const Device& device, std::vector<Texture>&& textures);
         ~TextureArray();
 
         TextureArray(const TextureArray&) = delete;
@@ -63,12 +61,21 @@ namespace Rtx
 
         VkDescriptorSetLayout getLayout() const { return mLayout; }
         VkDescriptorSet getSet() const { return mSet; }
+
+        /// Every texture's shading map, back to back, `SHADING_EXTENT` squared floats apiece.
+        ///
+        /// **A buffer and not a second bindless array.** The maps are a thousand floats each and
+        /// read once per hit, so a manual bilinear out of a buffer costs four loads against one
+        /// sample — and it keeps them out of the array the cone's mip selection measures, which is
+        /// where interleaving them cost the reference implementation every grazing mip in the frame.
+        VkBuffer getShading() const { return mShading.getHandle(); }
         std::uint32_t getCount() const { return static_cast<std::uint32_t>(mTextures.size()); }
         VkDeviceSize getBytes() const;
 
     private:
         const Device& mDevice;
         std::vector<Texture> mTextures;
+        Buffer mShading;
         VkSampler mSampler = VK_NULL_HANDLE;
         VkDescriptorSetLayout mLayout = VK_NULL_HANDLE;
         VkDescriptorPool mPool = VK_NULL_HANDLE;

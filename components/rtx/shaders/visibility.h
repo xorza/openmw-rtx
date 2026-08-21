@@ -124,6 +124,13 @@ namespace Rtx::Shaders
         /// mix changes the air's character and never how much of it there is.
         float mFogUniform;
 
+        /// How much of each texture's painted-in lighting to divide back out, from zero to one.
+        ///
+        /// **Morrowind's textures were lit before they were saved**, and a ray tracer lights them
+        /// again — so a corner with occlusion painted into it is dark twice over. One is the whole
+        /// estimate and zero is the A/B that says what it did.
+        float mDelight;
+
         /// Which frame this is, for anything that wants a different answer than last time.
         ///
         /// Every random draw in the shader is keyed on it — the fog's step jitter and the bounce's
@@ -145,7 +152,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
-    static_assert(sizeof(VisibilityConstants) == 188, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 192, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

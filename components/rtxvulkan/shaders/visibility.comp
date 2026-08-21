@@ -94,6 +94,13 @@ layout(set = 0, binding = 16, scalar) readonly buffer BlueNoiseTile
     float blueNoise[];
 };
 
+/// What each texture already has painted into it, `SHADING_EXTENT` squared factors apiece and one
+/// texture after another. A texture with no estimate holds ones.
+layout(set = 0, binding = 19, scalar) readonly buffer ShadingMaps
+{
+    float shading[];
+};
+
 /// One bounce, with the albedo divided out — the only channel a filter is allowed to touch.
 ///
 /// **Demodulated because a blur must not touch texture.** What varies slowly across a wall is the
@@ -375,6 +382,55 @@ vec4 sampleDiffuse(
     const vec2 at = uv0 * weight.x + uv1 * weight.y + uv2 * weight.z;
 
     return textureLod(textures[slot], at, coneLod(slot, uv0, uv1, uv2, crossed, direction, coneWidth));
+}
+
+/// The light a texture already carries at `at`, bilinear across its grid and wrapping with it.
+///
+/// Wrapping because Morrowind's textures tile and a great many of them rely on it: a map that
+/// clamped at the edges would put a seam down every wall that repeats.
+float paintedLight(uint slot, vec2 at)
+{
+    const vec2 grid = fract(at) * float(SHADING_EXTENT) - 0.5;
+    const ivec2 low = ivec2(floor(grid));
+    const vec2 across = grid - vec2(low);
+
+    const ivec2 first = (low % int(SHADING_EXTENT) + int(SHADING_EXTENT)) % int(SHADING_EXTENT);
+    const ivec2 second = (first + 1) % int(SHADING_EXTENT);
+    const uint base = slot * SHADING_EXTENT * SHADING_EXTENT;
+
+    const float topLeft = shading[base + uint(first.y) * SHADING_EXTENT + uint(first.x)];
+    const float topRight = shading[base + uint(first.y) * SHADING_EXTENT + uint(second.x)];
+    const float bottomLeft = shading[base + uint(second.y) * SHADING_EXTENT + uint(first.x)];
+    const float bottomRight = shading[base + uint(second.y) * SHADING_EXTENT + uint(second.x)];
+
+    return mix(mix(topLeft, topRight, across.x), mix(bottomLeft, bottomRight, across.x), across.y);
+}
+
+/// The albedo a hit landed on, with the light painted into the texture divided back out.
+///
+/// **A texture drawn for a renderer with no bounce has the bounce drawn into it** — occlusion in
+/// the corners, a highlight along a rim, the glow a lamp throws on the wall behind it. Lighting it
+/// again puts every one of those in twice, so what is wanted from the file is the colour underneath
+/// and the estimate is what takes the rest off.
+///
+/// Only where an albedo is being read. The same sampler serves a cutout's mask, which is alpha and
+/// unaffected, and an emissive map, which is light rather than a surface and must keep what it was
+/// painted with.
+vec3 sampleAlbedo(uint slot, vec2 uv[3], vec3 weight, vec4 transform, vec3 crossed, vec3 direction, float coneWidth)
+{
+    const vec3 texel = sampleDiffuse(slot, uv, weight, transform, crossed, direction, coneWidth).rgb;
+    if (camera.mDelight <= 0.0)
+        return texel;
+
+    // The same point `sampleDiffuse` read, worked out again rather than handed back: it is six
+    // multiplies against an out-parameter on the hottest sampler in the shader, and it is not
+    // computed at all when nothing is being divided out.
+    const vec2 uv0 = uv[0] * transform.xy + transform.zw;
+    const vec2 uv1 = uv[1] * transform.xy + transform.zw;
+    const vec2 uv2 = uv[2] * transform.xy + transform.zw;
+    const vec2 at = uv0 * weight.x + uv1 * weight.y + uv2 * weight.z;
+
+    return texel / mix(1.0, paintedLight(slot, at), camera.mDelight);
 }
 
 /// How much of a terrain layer shows at `uv`, from its grid of weights.
@@ -1369,16 +1425,14 @@ Surface trace(vec3 origin, vec3 direction, float tmin, float footprint, float sp
                 continue;
 
             albedo += showing
-                * sampleDiffuse(nonuniformEXT(layer.mDiffuse), uv, weight, layer.mDiffuseTransform, crossed, direction,
-                    surface.mFootprint)
-                      .rgb;
+                * sampleAlbedo(nonuniformEXT(layer.mDiffuse), uv, weight, layer.mDiffuseTransform, crossed, direction,
+                    surface.mFootprint);
         }
     }
     else if (material.mDiffuse != NO_TEXTURE)
     {
-        albedo = sampleDiffuse(
-            nonuniformEXT(material.mDiffuse), uv, weight, UV_IDENTITY, crossed, direction, surface.mFootprint)
-                     .rgb;
+        albedo = sampleAlbedo(
+            nonuniformEXT(material.mDiffuse), uv, weight, UV_IDENTITY, crossed, direction, surface.mFootprint);
     }
     surface.mAlbedo = albedo * material.mDiffuseColour.rgb;
 

@@ -519,6 +519,64 @@ namespace Rtx
             EXPECT_EQ(again, plain);
         }
 
+        /// The other half of de-lighting: the shader dividing the estimate back out.
+        ///
+        /// `ShadingMap`'s own tests say the estimate is right; this says the frame uses it. A map is
+        /// handed in rather than estimated, so what is asserted is the arithmetic at the sample and
+        /// nothing about how the number was arrived at.
+        ///
+        /// The texture is a linear 128, which is 0.50196. Divided by a map of two that is 0.25098,
+        /// and `1.055 * 0.25098^(1/2.4) - 0.055` encodes to 137 of 255; left alone it encodes to
+        /// 188, which is the byte every untextured surface in this file comes out at for the same
+        /// reason.
+        TEST_F(RtxVisibilityTest, aTexturesPaintedLightIsDividedBackOutOfItsAlbedo)
+        {
+            constexpr std::uint32_t size = 32;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+            constexpr std::size_t cells = std::size_t{ Shaders::SHADING_EXTENT } * Shaders::SHADING_EXTENT;
+
+            constexpr std::array<std::uint8_t, 4> texel{ 128, 128, 128, 255 };
+            constexpr MipLevel one{ 0, 1, 1 };
+
+            std::array<float, cells> painted{};
+
+            const TextureData grey{
+                .mFormat = TextureFormat::Rgba8Unorm,
+                .mWidth = 1,
+                .mHeight = 1,
+                .mBytes = std::as_bytes(std::span(texel)),
+                .mLevels = std::span(&one, 1),
+                .mShading = painted,
+            };
+
+            SceneDesc scene;
+            const Index mesh = scene.addMesh(sWallQuad, {}, sQuadUv, sQuadIndices);
+            const Index material
+                = scene.addMaterial(Material{ .mDiffuse = scene.addTexture(VFS::Path::NormalizedView("grey.dds")) });
+            scene.addInstance(
+                MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = material });
+
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            camera.mShowAlbedo = 1u;
+
+            const auto shownAt = [&](float delight, float factor) {
+                painted.fill(factor);
+                camera.mDelight = delight;
+
+                std::vector<std::uint8_t> pixels;
+                EXPECT_EQ(countHits(scene, std::span(&grey, 1), camera, size, pixels), size * size);
+                return static_cast<int>(pixels[centre]);
+            };
+
+            EXPECT_NEAR(shownAt(1.0f, 2.0f), 137, 1) << "a texture painted twice as bright comes back half";
+            EXPECT_NEAR(shownAt(1.0f, 1.0f), 188, 1) << "and a neutral map changes nothing";
+
+            // The strength is what makes this answerable rather than believable: the same map at no
+            // strength has to leave the texture exactly as it was drawn.
+            EXPECT_NEAR(shownAt(0.0f, 2.0f), 188, 1) << "at zero strength the estimate is not applied";
+        }
+
         /// The mip chain a ray cone selects from, at a distance chosen so the answer is a whole
         /// number.
         ///
@@ -2263,7 +2321,7 @@ namespace Rtx
             const SceneAcceleration acceleration(device, pool, scene);
             const SceneBuffers buffers(device, pool, scene, acceleration.getIndices());
 
-            const TextureArray textures(device, std::vector<Texture>{});
+            const TextureArray textures(device, pool, {});
             const VisibilityPass pass(device, pool, Testing::getShaderDirectory(), textures.getLayout());
             const VisibilityInputs inputs{
                 .mScene = acceleration.getTopLevel(),
