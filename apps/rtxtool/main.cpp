@@ -289,13 +289,14 @@ namespace RtxTool
             out() << "  cutout materials:     " << cutouts << ", " << tested << " of them alpha-tested outright\n"
                   << "  emissive materials:   " << glowing << '\n'
                   << "  lights:               " << report.mLights.size() << " casting, ambient " << report.mAmbient.x()
-                  << ", " << report.mAmbient.y() << ", " << report.mAmbient.z() << '\n';
+                  << ", " << report.mAmbient.y() << ", " << report.mAmbient.z() << '\n'
+                  << "  deforming drawables:  " << report.mStats.mDeformed << '\n';
 
             out() << "\nnot placed\n"
                   << "  record type unread:   " << report.mSkipped.mUnknownType << '\n'
                   << "  record has no model:  " << report.mSkipped.mNoModel << '\n'
                   << "  model would not load: " << report.mUnreadable << '\n'
-                  << "  deformed drawables:   " << report.mStats.mSkippedDeformed << '\n'
+                  << "  unreadable drawables: " << report.mStats.mSkippedUnknown << '\n'
                   << "  empty geometry:       " << report.mStats.mSkippedEmpty << '\n';
 
             if (twice)

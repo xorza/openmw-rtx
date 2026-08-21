@@ -64,6 +64,25 @@ namespace Rtx
         return static_cast<Index>(mMeshes.size() - 1);
     }
 
+    void SceneDesc::updateMesh(Index mesh, std::span<const osg::Vec3f> positions, std::span<const osg::Vec3f> normals)
+    {
+        assert(mesh < mMeshes.size());
+
+        const MeshRange& range = mMeshes[mesh];
+        assert(positions.size() == range.mVertexCount);
+        assert(normals.empty() || normals.size() == range.mVertexCount);
+
+        std::copy(positions.begin(), positions.end(), mPositions.begin() + range.mVertexOffset);
+        if (!normals.empty())
+            std::copy(normals.begin(), normals.end(), mNormals.begin() + range.mVertexOffset);
+
+        // Named once however many callers reach it, because a backend builds one structure per mesh
+        // and building it twice in a frame is the same answer for twice the cost. Linear over a list
+        // that is the frame's moving meshes — a crowd, not a cell.
+        if (std::find(mDeformed.begin(), mDeformed.end(), mesh) == mDeformed.end())
+            mDeformed.push_back(mesh);
+    }
+
     Index SceneDesc::addMaterial(const Material& material)
     {
         mMaterials.push_back(material);
@@ -110,6 +129,7 @@ namespace Rtx
     {
         mInstances.clear();
         mLights.clear();
+        mDeformed.clear();
     }
 
     void SceneDesc::clear()
@@ -119,6 +139,7 @@ namespace Rtx
         mTexCoords.clear();
         mIndices.clear();
         mMeshes.clear();
+        mDeformed.clear();
         mInstances.clear();
         mMaterials.clear();
         mLayers.clear();

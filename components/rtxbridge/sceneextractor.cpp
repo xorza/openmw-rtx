@@ -14,8 +14,11 @@
 #include <array>
 #include <cassert>
 #include <functional>
+#include <span>
 
 #include <components/sceneutil/lightmanager.hpp>
+#include <components/sceneutil/morphgeometry.hpp>
+#include <components/sceneutil/riggeometry.hpp>
 #include <components/sceneutil/texturetype.hpp>
 // `terraindrawable.hpp` holds `osg::ref_ptr`s to composite-map types it only forward-declares, so it
 // does not compile on its own. This is what completes them.
@@ -225,7 +228,8 @@ namespace RtxBridge
         mMaterialsAdded += other.mMaterialsAdded;
         mMaterialsReused += other.mMaterialsReused;
         mInstances += other.mInstances;
-        mSkippedDeformed += other.mSkippedDeformed;
+        mDeformed += other.mDeformed;
+        mSkippedUnknown += other.mSkippedUnknown;
         mSkippedEmpty += other.mSkippedEmpty;
         return *this;
     }
@@ -258,14 +262,7 @@ namespace RtxBridge
 
             void apply(osg::Drawable& drawable) override
             {
-                osg::Geometry* geometry = drawable.asGeometry();
-                if (geometry == nullptr)
-                {
-                    ++mStats.mSkippedDeformed;
-                    return;
-                }
-
-                mExtractor.addDrawable(*geometry, getNodePath(), mRoot, mStats);
+                mExtractor.addDrawable(drawable, getNodePath(), mRoot, mStats);
             }
 
         private:
@@ -334,10 +331,77 @@ namespace RtxBridge
         ++stats.mLights;
     }
 
-    void SceneExtractor::addDrawable(
-        const osg::Geometry& geometry, const osg::NodePath& path, const osg::Matrixf& root, ExtractionStats& stats)
+    namespace
     {
-        const Rtx::Index mesh = resolveMesh(geometry, stats);
+        /// The geometry a drawable holds, and whether its vertices are recomputed every frame.
+        struct DrawableGeometry
+        {
+            const osg::Geometry* mGeometry = nullptr;
+            bool mDeforming = false;
+        };
+
+        /// What of a drawable there is to mirror.
+        ///
+        /// Nearly everything in a cell is an `osg::Geometry` and answers in one virtual call. A
+        /// skinned body and a morphed face are not: each is an `osg::Drawable` keeping two internal
+        /// geometries and writing the pose the last cull traversal computed into whichever of them
+        /// was not being drawn. So the geometry to read is behind an accessor, it is one frame
+        /// behind anything running before cull, and it is a different object every other frame.
+        DrawableGeometry readDrawable(const osg::Drawable& drawable)
+        {
+            if (const osg::Geometry* geometry = drawable.asGeometry())
+                return DrawableGeometry{ .mGeometry = geometry, .mDeforming = false };
+
+            if (const auto* rig = dynamic_cast<const SceneUtil::RigGeometry*>(&drawable))
+                return DrawableGeometry{ .mGeometry = rig->getDeformedGeometry(), .mDeforming = true };
+
+            if (const auto* morph = dynamic_cast<const SceneUtil::MorphGeometry*>(&drawable))
+                return DrawableGeometry{ .mGeometry = morph->getDeformedGeometry(), .mDeforming = true };
+
+            return DrawableGeometry{};
+        }
+
+        /// A geometry's per-vertex positions and normals.
+        struct VertexArrays
+        {
+            std::span<const osg::Vec3f> mPositions;
+
+            /// Empty where the geometry has none, or binds one per primitive rather than per vertex.
+            /// A per-vertex array is the only binding worth carrying: anything coarser describes the
+            /// whole drawable, and a ray tracer shading a hit point wants a value it can interpolate.
+            std::span<const osg::Vec3f> mNormals;
+        };
+
+        VertexArrays readVertices(const osg::Geometry& geometry)
+        {
+            VertexArrays arrays;
+
+            const auto* positions = dynamic_cast<const osg::Vec3Array*>(geometry.getVertexArray());
+            if (positions == nullptr)
+                return arrays;
+
+            arrays.mPositions = std::span(positions->asVector());
+
+            const auto* normals = dynamic_cast<const osg::Vec3Array*>(geometry.getNormalArray());
+            if (normals != nullptr && normals->size() == positions->size())
+                arrays.mNormals = std::span(normals->asVector());
+
+            return arrays;
+        }
+    }
+
+    void SceneExtractor::addDrawable(
+        const osg::Drawable& drawable, const osg::NodePath& path, const osg::Matrixf& root, ExtractionStats& stats)
+    {
+        const DrawableGeometry read = readDrawable(drawable);
+        if (read.mGeometry == nullptr)
+        {
+            ++stats.mSkippedUnknown;
+            return;
+        }
+
+        const osg::Geometry& geometry = *read.mGeometry;
+        const Rtx::Index mesh = resolveMesh(drawable, geometry, read.mDeforming, stats);
         if (mesh == Rtx::sNoIndex)
             return;
 
@@ -420,17 +484,30 @@ namespace RtxBridge
         return index;
     }
 
-    Rtx::Index SceneExtractor::resolveMesh(const osg::Geometry& geometry, ExtractionStats& stats)
+    Rtx::Index SceneExtractor::resolveMesh(
+        const osg::Drawable& drawable, const osg::Geometry& geometry, bool deforming, ExtractionStats& stats)
     {
-        const auto known = mMeshes.find(&geometry);
+        const auto known = mMeshes.find(&drawable);
         if (known != mMeshes.end())
         {
             ++stats.mMeshesReused;
+
+            // Nothing else in the map is re-read: the whole point of it is that a crate met again is
+            // the crate already uploaded. A pose is not, so this is the one path that goes back to
+            // the vertex arrays on a hit — and it is why the mirror stays cheap for a cell and pays
+            // only for what is actually moving.
+            if (deforming)
+            {
+                const VertexArrays arrays = readVertices(geometry);
+                mScene.updateMesh(known->second, arrays.mPositions, arrays.mNormals);
+                ++stats.mDeformed;
+            }
+
             return known->second;
         }
 
-        const auto* positions = dynamic_cast<const osg::Vec3Array*>(geometry.getVertexArray());
-        if (positions == nullptr || positions->empty())
+        const VertexArrays arrays = readVertices(geometry);
+        if (arrays.mPositions.empty())
         {
             ++stats.mSkippedEmpty;
             return Rtx::sNoIndex;
@@ -447,21 +524,17 @@ namespace RtxBridge
             return Rtx::sNoIndex;
         }
 
-        // A per-vertex array is the only binding worth carrying: anything coarser describes the whole
-        // drawable, and a ray tracer shading a hit point wants a value it can interpolate.
-        std::span<const osg::Vec3f> normals;
-        const auto* normalArray = dynamic_cast<const osg::Vec3Array*>(geometry.getNormalArray());
-        if (normalArray != nullptr && normalArray->size() == positions->size())
-            normals = std::span(normalArray->asVector());
-
         std::span<const osg::Vec2f> texCoords;
         const auto* texCoordArray = dynamic_cast<const osg::Vec2Array*>(geometry.getTexCoordArray(0));
-        if (texCoordArray != nullptr && texCoordArray->size() == positions->size())
+        if (texCoordArray != nullptr && texCoordArray->size() == arrays.mPositions.size())
             texCoords = std::span(texCoordArray->asVector());
 
-        const Rtx::Index mesh = mScene.addMesh(std::span(positions->asVector()), normals, texCoords, mIndexScratch);
-        mMeshes.emplace(&geometry, mesh);
+        const Rtx::Index mesh = mScene.addMesh(arrays.mPositions, arrays.mNormals, texCoords, mIndexScratch);
+        mMeshes.emplace(&drawable, mesh);
         ++stats.mMeshesAdded;
+        if (deforming)
+            ++stats.mDeformed;
+
         return mesh;
     }
 

@@ -235,6 +235,20 @@ namespace Rtx
         Index addMesh(std::span<const osg::Vec3f> positions, std::span<const osg::Vec3f> normals,
             std::span<const osg::Vec2f> texCoords, std::span<const std::uint32_t> indices);
 
+        /// Replaces one mesh's positions and normals, keeping its topology and its index.
+        ///
+        /// **What a skinned body or a morphed face is.** Its vertices are recomputed every frame
+        /// and its triangles are not, so it keeps the slot in the shared buffers that every
+        /// instance already names — a mesh appended afresh each frame would grow the scene without
+        /// bound and invalidate every index beside it.
+        ///
+        /// The counts must match what `addMesh` was given, which deformation never changes;
+        /// `normals` may be empty where the mesh has none. Both are contracts on the caller.
+        ///
+        /// The mesh joins `getDeformed` for the frame, which is what tells a backend whose
+        /// acceleration structure to build again.
+        void updateMesh(Index mesh, std::span<const osg::Vec3f> positions, std::span<const osg::Vec3f> normals);
+
         Index addMaterial(const Material& material);
 
         /// Copies `weights` into the shared mask table and returns where they landed.
@@ -275,6 +289,10 @@ namespace Rtx
         std::span<const osg::Vec2f> getTexCoords() const { return mTexCoords; }
         std::span<const std::uint32_t> getIndices() const { return mIndices; }
         std::span<const MeshRange> getMeshes() const { return mMeshes; }
+
+        /// Which meshes changed shape since the last `clearPlacement`, each named once and in no
+        /// particular order. Empty for a world that only moves.
+        std::span<const Index> getDeformed() const { return mDeformed; }
         std::span<const MeshInstance> getInstances() const { return mInstances; }
         std::span<const Material> getMaterials() const { return mMaterials; }
         std::span<const MaterialLayer> getLayers() const { return mLayers; }
@@ -304,6 +322,7 @@ namespace Rtx
         std::vector<osg::Vec2f> mTexCoords;
         std::vector<std::uint32_t> mIndices;
         std::vector<MeshRange> mMeshes;
+        std::vector<Index> mDeformed;
         std::vector<MeshInstance> mInstances;
         std::vector<Material> mMaterials;
         std::vector<MaterialLayer> mLayers;

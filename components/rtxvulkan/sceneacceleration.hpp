@@ -39,6 +39,19 @@ namespace Rtx
         SceneAcceleration(const SceneAcceleration&) = delete;
         SceneAcceleration& operator=(const SceneAcceleration&) = delete;
 
+        /// Rebuilds the bottom-level structure of every mesh `scene.getDeformed()` names, and
+        /// re-uploads the vertices they were built from.
+        ///
+        /// **What a skinned body is.** Its triangles never change and its vertices change every
+        /// frame, so the mesh keeps its slice of the shared position buffer and only the contents
+        /// of that slice — and the structure over it — are made again. A rebuild rather than a
+        /// refit: `VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR` costs every static mesh in
+        /// the cell a larger structure and a slower trace to make a few dozen actors cheaper to
+        /// animate, which is M12's measurement to take and not an assumption to build on.
+        ///
+        /// Does nothing where nothing deformed, which is every frame of a world with no actor in it.
+        void refitMeshes(CommandPool& pool, const SceneDesc& scene);
+
         /// Rebuilds the top level over `scene`'s instances, keeping every bottom-level structure.
         ///
         /// **What a frame does when the world has moved.** A crate's geometry does not change when
@@ -83,6 +96,23 @@ namespace Rtx
 
         std::vector<VkAccelerationStructureKHR> mBottomLevel;
         VkAccelerationStructureKHR mTopLevel = VK_NULL_HANDLE;
+
+        /// What each mesh's build asked for, so a rebuild does not have to ask the driver again.
+        std::vector<VkDeviceSize> mBuildScratch;
+
+        // Kept across frames rather than made per refit: a device allocation on the frame path is a
+        // stall, and these settle at the high-water mark of whatever the world is showing. Neither
+        // ever shrinks, which is what makes them settle at all.
+        Buffer mDeformedStaging;
+        Buffer mRefitScratch;
+
+        // Refilled per refit. The build reads `pGeometries` through a pointer, so the geometries are
+        // sized before any build info names one.
+        std::vector<VkAccelerationStructureGeometryKHR> mRefitGeometries;
+        std::vector<VkAccelerationStructureBuildGeometryInfoKHR> mRefitBuilds;
+        std::vector<VkAccelerationStructureBuildRangeInfoKHR> mRefitRanges;
+        std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> mRefitRangePointers;
+        std::vector<VkBufferCopy> mRefitCopies;
 
         std::uint32_t mInstanceCount = 0;
         std::uint32_t mCutoutInstanceCount = 0;

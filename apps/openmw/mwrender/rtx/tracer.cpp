@@ -158,8 +158,8 @@ namespace MWRender::Rtx
         if (arrived)
         {
             Log(Debug::Info) << "Ray tracing built " << mScene.getMeshes().size() << " meshes into " << found.mInstances
-                             << " instances with " << found.mLights << " lights, and skipped " << found.mSkippedDeformed
-                             << " deformed";
+                             << " instances with " << found.mLights << " lights, " << found.mDeformed
+                             << " of them deforming, and skipped " << found.mSkippedUnknown << " it cannot read";
 
             // The bridge decodes and describes; the backend uploads. Held only across the call —
             // `setScene` has finished with the descriptions when it returns.

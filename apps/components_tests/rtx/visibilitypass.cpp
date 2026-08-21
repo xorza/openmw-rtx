@@ -785,6 +785,68 @@ namespace Rtx
             }
         }
 
+        /// A mesh whose vertices changed is traced against the new ones, without a scene rebuild.
+        ///
+        /// **What a skinned body needs and moving an instance cannot give.** A crate that moves says
+        /// so with its transform; an arm that swings does not — the actor's transform is where the
+        /// actor stands, and the pose lives in vertices underneath it. So this wall stays at the
+        /// identity throughout and only its four corners are written again: a `placeScene` that
+        /// rebuilt the top level over an untouched bottom level would trace the first wall every
+        /// time and read the first distance.
+        ///
+        /// The distance is the assertion rather than the hit count, because it names *where* the
+        /// new triangles are and not merely that something changed. Its 1.0000814 is the centre
+        /// pixel's own half-pixel offset from the view axis, worked out in the depth test above.
+        TEST_F(RtxVisibilityTest, aDeformedMeshIsTracedAgainstItsNewVerticesWithoutRebuildingTheScene)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float far = 100000.0f;
+            constexpr float centreCosine = 1.0000814f;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 2 + 1;
+
+            const auto wallAt = [](float away) {
+                return std::array{
+                    osg::Vec3f(-8000.0f, away, -8000.0f),
+                    osg::Vec3f(8000.0f, away, -8000.0f),
+                    osg::Vec3f(8000.0f, away, 8000.0f),
+                    osg::Vec3f(-8000.0f, away, 8000.0f),
+                };
+            };
+
+            const Shaders::VisibilityConstants camera
+                = makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, far);
+
+            SceneDesc scene;
+            const Index wall = scene.addMesh(wallAt(200.0f), {}, {}, sQuadIndices);
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = wall });
+
+            std::vector<std::uint8_t> pixels;
+            ASSERT_EQ(countHits(scene, {}, camera, size, pixels), size * size);
+
+            std::vector<float> depth;
+            mRenderer->readChannel(Channel::Depth, depth);
+            ASSERT_NEAR(depth[centre], 200.0f * centreCosine, 0.2f) << "where it was built";
+
+            /// Writes the wall's corners again `away` units off and replaces the scene's placement,
+            /// exactly as a frame of the game does: clear, re-walk, hand it back.
+            const auto deformTo = [&](float away) {
+                scene.clearPlacement();
+                scene.updateMesh(wall, wallAt(away), {});
+                scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = wall });
+                mRenderer->placeScene(scene, SeaState{});
+            };
+
+            deformTo(400.0f);
+            EXPECT_EQ(mRenderer->renderFrame(camera, FrameOptions{}).mHits, size * size);
+
+            mRenderer->readChannel(Channel::Depth, depth);
+            EXPECT_NEAR(depth[centre], 400.0f * centreCosine, 0.4f) << "and the structure followed its vertices";
+
+            // Behind the eye, where a wall that was never rebuilt would still be filling the frame.
+            deformTo(-1000.0f);
+            EXPECT_EQ(mRenderer->renderFrame(camera, FrameOptions{}).mHits, 0u);
+        }
+
         /// A wall bigger than the field of view leaves no room for sky.
         ///
         /// At a hundred units from a sixty-degree camera the frame is 2 * 100 * tan(30) = 115 units

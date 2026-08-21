@@ -250,6 +250,8 @@ namespace Rtx
     {
         assert(mAcceleration != nullptr && "placeScene before setScene");
 
+        // Before the top level, which is built over structures this may be about to replace.
+        mAcceleration->refitMeshes(mPool, scene);
         mAcceleration->placeInstances(mPool, scene);
 
         // **Rebuilt whole rather than in part, and measured before it is split.** Most of what this

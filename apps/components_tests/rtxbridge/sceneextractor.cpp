@@ -13,6 +13,8 @@
 
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
+#include <components/sceneutil/morphgeometry.hpp>
+#include <components/sceneutil/riggeometry.hpp>
 
 namespace RtxBridge
 {
@@ -129,6 +131,125 @@ namespace RtxBridge
             // Instances are not deduplicated, and must not be: the same mesh at two places is two
             // rows of the acceleration structure. A second pass over the same graph places it again.
             EXPECT_EQ(scene.getInstances().size(), 4u);
+        }
+
+        /// Runs a deforming drawable's own cull path, which is where its vertices are computed.
+        ///
+        /// An `osgUtil::CullVisitor` proper would need a render stage and a state graph behind it.
+        /// What `MorphGeometry` actually reads of the visitor is its traversal number and the node
+        /// path, so one that merely says it is a cull drives the real deformation — which is the
+        /// point: this test asserts against vertices the production code computed, not against a
+        /// stand-in for them.
+        struct DeformingCull : osg::NodeVisitor
+        {
+            DeformingCull()
+                : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
+            {
+                setVisitorType(CULL_VISITOR);
+            }
+        };
+
+        /// A skinned body is mirrored, and from the pose rather than from the bind geometry.
+        ///
+        /// The discriminator is replacing the source's vertex array after `setSourceGeometry` has
+        /// taken its deep copy: a mirror reading `getSourceGeometry` shows the replacement, and one
+        /// reading the pose shows what was copied. Without that the two are the same numbers and the
+        /// test could not fail.
+        TEST(RtxSceneExtractorTest, aSkinnedBodyIsMirroredFromItsPoseAndNotItsBindGeometry)
+        {
+            osg::ref_ptr<osg::Geometry> source = makeQuad();
+            osg::ref_ptr<SceneUtil::RigGeometry> rig = new SceneUtil::RigGeometry;
+            rig->setSourceGeometry(source);
+
+            source->setVertexArray(makePositions({
+                osg::Vec3f(100.0f, 100.0f, 100.0f),
+                osg::Vec3f(101.0f, 100.0f, 100.0f),
+                osg::Vec3f(101.0f, 101.0f, 100.0f),
+                osg::Vec3f(100.0f, 101.0f, 100.0f),
+            }));
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            root->addChild(rig);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            const ExtractionStats stats = extractor.extract(*root, osg::Matrixf::identity());
+
+            EXPECT_EQ(stats.mSkippedUnknown, 0u) << "a drawable that is not an osg::Geometry is still geometry";
+            EXPECT_EQ(stats.mMeshesAdded, 1u);
+            EXPECT_EQ(stats.mDeformed, 1u);
+            EXPECT_EQ(stats.mInstances, 1u);
+            EXPECT_EQ(scene.getTriangleCount(), 2u);
+
+            EXPECT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 0.0f)) << "the bind pose, not the source";
+        }
+
+        /// A pose is the one thing the mesh cache does not answer: met again, it is read again — and
+        /// a static drawable met again is not.
+        ///
+        /// The two kinds stand side by side in one graph and one pass, so the same run produces both
+        /// answers and the difference cannot be a difference in how they were set up.
+        ///
+        /// The two culls also land in different halves of the double buffer, which is the case that
+        /// keying the mesh cache on the geometry pointer would break: it would put two frozen poses
+        /// of the same face in the scene and alternate between them.
+        TEST(RtxSceneExtractorTest, aMorphedFaceIsReadAgainEachPassAndAStaticDrawableIsNot)
+        {
+            osg::ref_ptr<SceneUtil::MorphGeometry> morph = new SceneUtil::MorphGeometry;
+            morph->setSourceGeometry(makeQuad());
+
+            // The base target is what the pose starts from; the second is added at its weight. One
+            // unit of z per unit of weight, so the expected value is arithmetic rather than a fit.
+            morph->addMorphTarget(makePositions({
+                osg::Vec3f(0.0f, 0.0f, 0.0f),
+                osg::Vec3f(1.0f, 0.0f, 0.0f),
+                osg::Vec3f(1.0f, 1.0f, 0.0f),
+                osg::Vec3f(0.0f, 1.0f, 0.0f),
+            }));
+            morph->addMorphTarget(makePositions({
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+            }));
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            root->addChild(makeQuad());
+            root->addChild(morph);
+
+            constexpr Rtx::Index sStill = 0;
+            constexpr Rtx::Index sFace = 1;
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+
+            DeformingCull cull;
+            cull.setTraversalNumber(1);
+            root->accept(cull);
+
+            const ExtractionStats first = extractor.extract(*root, osg::Matrixf::identity());
+            EXPECT_EQ(first.mMeshesAdded, 2u);
+            EXPECT_EQ(first.mDeformed, 1u);
+            EXPECT_EQ(scene.getMeshPositions(sFace)[2], osg::Vec3f(1.0f, 1.0f, 1.0f)) << "base plus one of the target";
+
+            scene.clearPlacement();
+            morph->getMorphTarget(1).setWeight(3.0f);
+            morph->dirty();
+            cull.setTraversalNumber(2);
+            root->accept(cull);
+
+            const ExtractionStats second = extractor.extract(*root, osg::Matrixf::identity());
+
+            EXPECT_EQ(second.mMeshesAdded, 0u);
+            EXPECT_EQ(second.mMeshesReused, 2u);
+            EXPECT_EQ(second.mDeformed, 1u) << "the face, and only the face";
+            EXPECT_EQ(scene.getMeshes().size(), 2u) << "the other half of the double buffer is the same mesh";
+
+            ASSERT_EQ(scene.getDeformed().size(), 1u);
+            EXPECT_EQ(scene.getDeformed()[0], sFace) << "the still quad's structure is not built again";
+
+            EXPECT_EQ(scene.getMeshPositions(sFace)[2], osg::Vec3f(1.0f, 1.0f, 3.0f)) << "base plus three";
+            EXPECT_EQ(scene.getMeshPositions(sStill)[2], osg::Vec3f(1.0f, 1.0f, 0.0f)) << "and the neighbour is intact";
         }
 
         TEST(RtxSceneExtractorTest, degenerateTrianglesAreDropped)

@@ -35,6 +35,24 @@ namespace Rtx
         constexpr VkBufferUsageFlags sScratchUsage
             = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
+        /// Everything between an upload and the build that reads the vertices it wrote.
+        void barrierBeforeBuild(VkCommandBuffer commands)
+        {
+            const VkMemoryBarrier2 barrier{
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                .srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
+                .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                .dstStageMask = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
+            };
+            const VkDependencyInfo dependency{
+                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                .memoryBarrierCount = 1,
+                .pMemoryBarriers = &barrier,
+            };
+            vkCmdPipelineBarrier2(commands, &dependency);
+        }
+
         /// Everything between a build and whatever reads the structure it wrote.
         void barrierAfterBuild(VkCommandBuffer commands)
         {
@@ -107,6 +125,7 @@ namespace Rtx
         std::vector<VkDeviceSize> structureOffsets(count);
         std::vector<VkDeviceSize> scratchOffsets(count);
         std::vector<VkDeviceSize> structureSizes(count);
+        mBuildScratch.resize(count);
 
         const VkDeviceSize scratchAlignment
             = mDevice.getPhysicalDevice()
@@ -168,6 +187,10 @@ namespace Rtx
             scratchOffsets[i] = scratchTotal;
             scratchTotal = alignUp(scratchTotal + sizes.buildScratchSize, scratchAlignment);
 
+            // Kept so a rebuild of this one mesh does not have to ask the driver its size again.
+            // The same geometry describes it, so the answer cannot have changed.
+            mBuildScratch[i] = sizes.buildScratchSize;
+
             ranges[i] = VkAccelerationStructureBuildRangeInfoKHR{ .primitiveCount = triangles };
             rangePointers[i] = &ranges[i];
         }
@@ -202,6 +225,122 @@ namespace Rtx
         pool.submitAndWait([&](VkCommandBuffer commands) {
             functions.mCmdBuildAccelerationStructures(
                 commands, static_cast<std::uint32_t>(count), builds.data(), rangePointers.data());
+            barrierAfterBuild(commands);
+        });
+    }
+
+    void SceneAcceleration::refitMeshes(CommandPool& pool, const SceneDesc& scene)
+    {
+        const std::span<const Index> deformed = scene.getDeformed();
+        if (deformed.empty())
+            return;
+
+        const DeviceFunctions& functions = mDevice.getFunctions();
+        const auto count = static_cast<std::uint32_t>(deformed.size());
+
+        const VkDeviceSize scratchAlignment
+            = mDevice.getPhysicalDevice()
+                  .getProperties()
+                  .mAccelerationStructure.minAccelerationStructureScratchOffsetAlignment;
+
+        VkDeviceSize staged = 0;
+        VkDeviceSize scratchTotal = 0;
+        for (const Index mesh : deformed)
+        {
+            assert(mesh < mBottomLevel.size() && "a mesh this holds no structure for");
+            staged += VkDeviceSize{ scene.getMeshes()[mesh].mVertexCount } * sizeof(osg::Vec3f);
+            scratchTotal = alignUp(scratchTotal + mBuildScratch[mesh], scratchAlignment);
+        }
+
+        if (mDeformedStaging.getSize() < staged)
+            mDeformedStaging = Buffer(mDevice, staged, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        if (mRefitScratch.getSize() < scratchTotal)
+            mRefitScratch = Buffer(mDevice, scratchTotal, sScratchUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        const VkDeviceAddress positions = mPositions.getDeviceAddress();
+        const VkDeviceAddress indices = mIndices.getDeviceAddress();
+        const VkDeviceAddress scratchAddress = mRefitScratch.getDeviceAddress();
+
+        mRefitGeometries.resize(count);
+        mRefitBuilds.resize(count);
+        mRefitRanges.resize(count);
+        mRefitRangePointers.resize(count);
+        mRefitCopies.resize(count);
+
+        auto* mapped = static_cast<std::byte*>(mDeformedStaging.map());
+        VkDeviceSize stagedAt = 0;
+
+        for (std::uint32_t i = 0; i < count; ++i)
+        {
+            const Index index = deformed[i];
+            const MeshRange& mesh = scene.getMeshes()[index];
+            const std::span<const osg::Vec3f> vertices = scene.getMeshPositions(index);
+
+            std::memcpy(mapped + stagedAt, vertices.data(), vertices.size_bytes());
+            mRefitCopies[i] = VkBufferCopy{
+                .srcOffset = stagedAt,
+                .dstOffset = VkDeviceSize{ mesh.mVertexOffset } * sizeof(osg::Vec3f),
+                .size = vertices.size_bytes(),
+            };
+            stagedAt += vertices.size_bytes();
+
+            // The same description the first build was given, which is what makes the structure it
+            // produces the same size as the one already sitting at this mesh's offset.
+            mRefitGeometries[i] = VkAccelerationStructureGeometryKHR{
+                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+                .geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
+                .geometry = { .triangles = {
+                                  .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
+                                  .vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
+                                  .vertexData = { .deviceAddress
+                                      = positions + VkDeviceSize{ mesh.mVertexOffset } * sizeof(osg::Vec3f) },
+                                  .vertexStride = sizeof(osg::Vec3f),
+                                  .maxVertex = mesh.mVertexCount - 1,
+                                  .indexType = VK_INDEX_TYPE_UINT32,
+                                  .indexData = { .deviceAddress
+                                      = indices + VkDeviceSize{ mesh.mIndexOffset } * sizeof(std::uint32_t) },
+                              } },
+                .flags = VK_GEOMETRY_OPAQUE_BIT_KHR,
+            };
+
+            mRefitRanges[i] = VkAccelerationStructureBuildRangeInfoKHR{ .primitiveCount = mesh.getTriangleCount() };
+            mRefitRangePointers[i] = &mRefitRanges[i];
+        }
+
+        mDeformedStaging.unmap();
+
+        // A second pass, because `pGeometries` is a pointer into a vector the first pass was still
+        // filling: a build info written beside a geometry that later moved would name freed memory.
+        VkDeviceSize scratchAt = 0;
+        for (std::uint32_t i = 0; i < count; ++i)
+        {
+            const Index index = deformed[i];
+
+            // **Built into the structure that is already there**, rather than into a new one beside
+            // it. A build overwrites its destination outright, the geometry it is given is the same
+            // shape as last time so it needs no more room, and the structure's handle is what every
+            // top-level instance already points at.
+            mRefitBuilds[i] = VkAccelerationStructureBuildGeometryInfoKHR{
+                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+                .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+                .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
+                    | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_BIT_KHR,
+                .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+                .dstAccelerationStructure = mBottomLevel[index],
+                .geometryCount = 1,
+                .pGeometries = &mRefitGeometries[i],
+                .scratchData = { .deviceAddress = scratchAddress + scratchAt },
+            };
+
+            scratchAt = alignUp(scratchAt + mBuildScratch[index], scratchAlignment);
+        }
+
+        pool.submitAndWait([&](VkCommandBuffer commands) {
+            vkCmdCopyBuffer(commands, mDeformedStaging.getHandle(), mPositions.getHandle(), count, mRefitCopies.data());
+            barrierBeforeBuild(commands);
+            functions.mCmdBuildAccelerationStructures(commands, count, mRefitBuilds.data(), mRefitRangePointers.data());
             barrierAfterBuild(commands);
         });
     }

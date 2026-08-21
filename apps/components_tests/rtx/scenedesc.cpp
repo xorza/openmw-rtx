@@ -120,6 +120,64 @@ namespace Rtx
             EXPECT_FALSE(untextured.isCutout());
         }
 
+        /// A deformed mesh keeps its slot and its topology, and says so.
+        ///
+        /// The second mesh is what makes the test worth running: an update that wrote at the wrong
+        /// offset would land in a neighbour, and with one mesh in the scene there is no neighbour to
+        /// land in.
+        TEST(RtxSceneDescTest, aDeformedMeshKeepsItsSlotAndNamesItselfOnce)
+        {
+            const std::array sNormals{
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+            };
+
+            SceneDesc scene;
+            const Index still = scene.addMesh(sQuadPositions, sNormals, {}, sQuadIndices);
+            const Index moving = scene.addMesh(sQuadPositions, sNormals, {}, sQuadIndices);
+
+            EXPECT_TRUE(scene.getDeformed().empty()) << "nothing has deformed yet";
+
+            // The same quad a unit further along z, facing the other way.
+            std::array<osg::Vec3f, 4> posed = sQuadPositions;
+            for (osg::Vec3f& vertex : posed)
+                vertex.z() += 1.0f;
+
+            const std::array sPosedNormals{
+                osg::Vec3f(0.0f, 0.0f, -1.0f),
+                osg::Vec3f(0.0f, 0.0f, -1.0f),
+                osg::Vec3f(0.0f, 0.0f, -1.0f),
+                osg::Vec3f(0.0f, 0.0f, -1.0f),
+            };
+
+            scene.updateMesh(moving, posed, sPosedNormals);
+            scene.updateMesh(moving, posed, sPosedNormals);
+
+            ASSERT_EQ(scene.getDeformed().size(), 1u) << "twice in a frame is one structure to build";
+            EXPECT_EQ(scene.getDeformed()[0], moving);
+
+            // Eight vertices still, at the same offsets: an update is not an append.
+            EXPECT_EQ(scene.getPositions().size(), 8u);
+            EXPECT_EQ(scene.getIndices().size(), 12u);
+            EXPECT_EQ(scene.getMeshes()[moving].mVertexOffset, 4u);
+
+            EXPECT_EQ(scene.getMeshPositions(moving)[2], osg::Vec3f(1.0f, 1.0f, 1.0f));
+            EXPECT_EQ(scene.getNormals()[scene.getMeshes()[moving].mVertexOffset], osg::Vec3f(0.0f, 0.0f, -1.0f));
+            EXPECT_EQ(scene.getMeshIndices(moving)[5], 3u) << "topology is what does not change";
+
+            // And the mesh beside it is untouched, which is the offset arithmetic being right rather
+            // than merely being applied.
+            EXPECT_EQ(scene.getMeshPositions(still)[2], osg::Vec3f(1.0f, 1.0f, 0.0f));
+            EXPECT_EQ(scene.getNormals()[scene.getMeshes()[still].mVertexOffset], osg::Vec3f(0.0f, 0.0f, 1.0f));
+
+            // The list is a frame's worth, so it goes when the frame's placements do.
+            scene.clearPlacement();
+            EXPECT_TRUE(scene.getDeformed().empty());
+            EXPECT_EQ(scene.getMeshes().size(), 2u) << "clearing where things are keeps what they are";
+        }
+
         TEST(RtxSceneDescTest, clearingEmptiesEveryTable)
         {
             SceneDesc scene;
@@ -128,6 +186,7 @@ namespace Rtx
             scene.addTexture(VFS::Path::NormalizedView("textures/tx_stone_01.dds"));
             scene.addInstance(
                 MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = material });
+            scene.updateMesh(mesh, sQuadPositions, {});
 
             scene.clear();
 
@@ -136,6 +195,7 @@ namespace Rtx
             EXPECT_TRUE(scene.getMaterials().empty());
             EXPECT_TRUE(scene.getTextures().empty());
             EXPECT_TRUE(scene.getPositions().empty());
+            EXPECT_TRUE(scene.getDeformed().empty());
             EXPECT_EQ(scene.getTriangleCount(), 0u);
         }
     }

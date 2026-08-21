@@ -15,6 +15,7 @@
 
 namespace osg
 {
+    class Drawable;
     class Geometry;
     class StateSet;
 }
@@ -48,9 +49,21 @@ namespace RtxBridge
         std::uint32_t mMaterialsReused = 0;
         std::uint32_t mInstances = 0;
 
-        /// Drawables that carry no `osg::Geometry` this can read: skinned and morphed geometry,
-        /// whose vertices are produced during cull. M12's problem, counted so it is not a surprise.
-        std::uint32_t mSkippedDeformed = 0;
+        /// Drawables whose vertices are recomputed every frame and so were read from the pose
+        /// rather than from the cache: skinned bodies and morphed faces. Each one already met is a
+        /// bottom-level structure a backend has to build again, which is what makes this the cost
+        /// of an actor rather than a count of them.
+        std::uint32_t mDeformed = 0;
+
+        /// Drawables this cannot read at all — neither an `osg::Geometry` nor either of the two
+        /// deforming kinds.
+        ///
+        /// A cell's worth of these is its particle systems, whose geometry is a point set the
+        /// emitter rewrites and not triangles anybody can build a structure over; the odd one
+        /// beside them is OpenMW's own debug drawing. Both are things a ray tracer answers
+        /// differently rather than things missing here, so this is a canary and not a deficit —
+        /// what it would catch is a new kind of drawable arriving unnoticed.
+        std::uint32_t mSkippedUnknown = 0;
 
         /// What the textures a scene reached for turned out to be.
         ///
@@ -112,8 +125,14 @@ namespace RtxBridge
         ///
         /// `path` is the node path down to the drawable, which is both how the world transform is
         /// computed and where the state that shades it comes from.
+        ///
+        /// **A drawable and not an `osg::Geometry`**, because a skinned body is neither: it is an
+        /// `osg::Drawable` holding two internal geometries and writing the pose the cull traversal
+        /// just computed into whichever of them was not last drawn. Which of the kinds this is
+        /// belongs here rather than to a caller — the visitor would only be asking the same
+        /// question with less to answer it from.
         void addDrawable(
-            const osg::Geometry& geometry, const osg::NodePath& path, const osg::Matrixf& root, ExtractionStats& stats);
+            const osg::Drawable& drawable, const osg::NodePath& path, const osg::Matrixf& root, ExtractionStats& stats);
 
     private:
         /// What identifies one placement from one frame to the next.
@@ -125,7 +144,13 @@ namespace RtxBridge
         /// thousands of instances it is not a thing that happens.
         static std::size_t identify(const osg::NodePath& path);
 
-        Rtx::Index resolveMesh(const osg::Geometry& geometry, ExtractionStats& stats);
+        /// The mesh index for one drawable, adding it or re-reading it as its kind requires.
+        ///
+        /// **Keyed on the drawable and not on the geometry**, because a deforming drawable's
+        /// geometry pointer alternates between its two buffers: keying on that would put two frozen
+        /// poses of every actor in the scene and flicker between them.
+        Rtx::Index resolveMesh(
+            const osg::Drawable& drawable, const osg::Geometry& geometry, bool deforming, ExtractionStats& stats);
         Rtx::Index resolveMaterial(const osg::NodePath& path, ExtractionStats& stats);
 
         /// The layered material of a terrain chunk, whose shading is not on the graph at all.
@@ -145,7 +170,7 @@ namespace RtxBridge
         // Keyed on pointer identity, which OpenMW's resource cache and its optimizer's
         // SHARE_DUPLICATE_STATE pass together make meaningful: the same model loaded twice is the
         // same object, and equivalent state sets are collapsed into one.
-        std::unordered_map<const osg::Geometry*, Rtx::Index> mMeshes;
+        std::unordered_map<const osg::Drawable*, Rtx::Index> mMeshes;
         std::unordered_map<const osg::StateSet*, Rtx::Index> mMaterials;
 
         // Refilled per drawable rather than reallocated, because a cell is tens of thousands of them.
