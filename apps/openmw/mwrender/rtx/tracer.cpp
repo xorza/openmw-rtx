@@ -25,6 +25,9 @@ namespace MWRender::Rtx
         /// Far enough to cross any cell. A primary ray that reaches this has left the world.
         constexpr float sFar = 200000.0f;
 
+        /// How often the trace's running average is reported. Five seconds at sixty frames.
+        constexpr std::uint32_t sReportEvery = 300;
+
         /// How many frames `OPENMW_RTX_SHOT` writes before it stops. A cap rather than a count,
         /// because the alternative to a cap is filling a disk with a run somebody forgot about.
         constexpr std::uint32_t sKeepAtMost = 16;
@@ -70,6 +73,7 @@ namespace MWRender::Rtx
     Tracer::Tracer(std::unique_ptr<::Rtx::Renderer> renderer, std::uint32_t width, std::uint32_t height)
         : mRenderer(std::move(renderer))
         , mComposite(new Composite)
+        , mExtractor(std::make_unique<RtxBridge::SceneExtractor>(mScene))
         , mWidth(width)
         , mHeight(height)
     {
@@ -134,31 +138,43 @@ namespace MWRender::Rtx
     {
         mFrame = frame;
 
-        if (!mMirrored)
+        // **Every frame, and the placements are all that is thrown away.** `clearPlacement` keeps
+        // the meshes, materials and texture paths — which is what the acceleration structures and
+        // the texture array were built from — so a re-walk over an unchanged graph produces the same
+        // geometry indices and a fresh list of where things are.
+        mScene.clearPlacement();
+
+        const RtxBridge::ExtractionStats found
+            = mExtractor->extract(const_cast<osg::Node&>(scene), osg::Matrixf::identity(), mFrame);
+
+        if (mScene.getInstances().empty())
+            return;
+
+        // Geometry the walk has not met before has no bottom-level structure and no uploaded
+        // texture, so the whole scene is rebuilt rather than replaced. **Which is a cell change and
+        // a load, not a frame** — a door opening moves instances the walk already knows.
+        const bool arrived = mScene.getMeshes().size() != mBuilt;
+        if (arrived)
         {
-            ::Rtx::SceneDesc described;
-            RtxBridge::SceneExtractor extractor(described);
-            const RtxBridge::ExtractionStats found
-                = extractor.extract(const_cast<osg::Node&>(scene), osg::Matrixf::identity(), mFrame);
-
-            if (described.getInstances().empty())
-                return;
-
-            Log(Debug::Info) << "Ray tracing mirrored " << found.mMeshesAdded << " meshes into " << found.mInstances
+            Log(Debug::Info) << "Ray tracing built " << mScene.getMeshes().size() << " meshes into " << found.mInstances
                              << " instances with " << found.mLights << " lights, and skipped " << found.mSkippedDeformed
                              << " deformed";
 
             // The bridge decodes and describes; the backend uploads. Held only across the call —
             // `setScene` has finished with the descriptions when it returns.
-            const RtxBridge::SceneTextures textures(described, images);
+            const RtxBridge::SceneTextures textures(mScene, images);
             if (const std::uint32_t missing = textures.getUnreadable(); missing > 0)
                 Log(Debug::Warning) << "Ray tracing could not read " << missing << " of "
                                     << textures.getDescriptions().size()
                                     << " textures and drew them grey — a live graph holds textures that were "
                                        "never files";
 
-            mRenderer->setScene(described, textures.getDescriptions(), ::Rtx::SeaState{});
-            mMirrored = true;
+            mRenderer->setScene(mScene, textures.getDescriptions(), ::Rtx::SeaState{});
+            mBuilt = mScene.getMeshes().size();
+        }
+        else
+        {
+            mRenderer->placeScene(mScene, ::Rtx::SeaState{});
         }
 
         osg::Vec3f eye;
@@ -202,7 +218,18 @@ namespace MWRender::Rtx
         // it is what a reference and a pixel test want, and the default is theirs. Without this an
         // interior lit by nothing but this placeholder's ambient reaches the screen at a few
         // hundredths and reads as black.
-        mRenderer->renderFrame(constants, ::Rtx::FrameOptions{ .mExposure = std::nullopt });
+        const ::Rtx::FrameResult result
+            = mRenderer->renderFrame(constants, ::Rtx::FrameOptions{ .mExposure = std::nullopt });
+
+        mSpentMs += result.mTraceMs;
+        if (++mTimed == sReportEvery)
+        {
+            Log(Debug::Info) << "Ray tracing: " << mSpentMs / mTimed << " ms a frame over the last " << mTimed
+                             << ", tracing " << mScene.getInstances().size() << " instances at " << extents.mRenderWidth
+                             << "x" << extents.mRenderHeight;
+            mSpentMs = 0.0;
+            mTimed = 0;
+        }
 
         if (!mShared)
             share();

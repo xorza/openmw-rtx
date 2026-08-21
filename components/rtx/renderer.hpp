@@ -219,6 +219,17 @@ namespace Rtx
         /// scene's texture index, so their order is the scene's, and they must outlive the call.
         virtual void setScene(const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea) = 0;
 
+        /// The same scene, with its instances and lights somewhere else.
+        ///
+        /// **What a frame does when the world has moved.** `setScene` rebuilds everything: the
+        /// bottom-level acceleration structures, the vertex buffers and the texture array. None of
+        /// that changes when a door swings — the geometry is the same geometry — so this rebuilds
+        /// only what says where things are.
+        ///
+        /// `scene` must be the one `setScene` was given, with `clearPlacement` called and the
+        /// instances re-walked: the placements index into structures this already holds.
+        virtual void placeScene(const SceneDesc& scene, const SeaState& sea) = 0;
+
         /// Only meaningful once `setScene` has been called.
         virtual const SceneStats& getSceneStats() const = 0;
 

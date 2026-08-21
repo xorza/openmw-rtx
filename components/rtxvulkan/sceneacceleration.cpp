@@ -206,6 +206,19 @@ namespace Rtx
         });
     }
 
+    void SceneAcceleration::placeInstances(CommandPool& pool, const SceneDesc& scene)
+    {
+        // The old one is what the last frame traced against, and the fence in `submitAndWait` is
+        // what says nothing is still reading it.
+        if (mTopLevel != VK_NULL_HANDLE)
+        {
+            mDevice.getFunctions().mDestroyAccelerationStructure(mDevice.getHandle(), mTopLevel, nullptr);
+            mTopLevel = VK_NULL_HANDLE;
+        }
+
+        buildTopLevel(pool, scene);
+    }
+
     void SceneAcceleration::buildTopLevel(CommandPool& pool, const SceneDesc& scene)
     {
         const DeviceFunctions& functions = mDevice.getFunctions();

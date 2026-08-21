@@ -39,6 +39,16 @@ namespace Rtx
         SceneAcceleration(const SceneAcceleration&) = delete;
         SceneAcceleration& operator=(const SceneAcceleration&) = delete;
 
+        /// Rebuilds the top level over `scene`'s instances, keeping every bottom-level structure.
+        ///
+        /// **What a frame does when the world has moved.** A crate's geometry does not change when
+        /// the crate does, and its bottom-level structure is the expensive half; the top level is a
+        /// list of transforms and is rebuilt per frame in every renderer that does this.
+        ///
+        /// `scene` must name the same meshes in the same order — the instances index into the
+        /// structures this already holds.
+        void placeInstances(CommandPool& pool, const SceneDesc& scene);
+
         VkAccelerationStructureKHR getTopLevel() const { return mTopLevel; }
 
         /// The index buffer the structures were built from.

@@ -244,6 +244,17 @@ namespace Rtx
         /// the allocator for buffers it already had.
         void clear();
 
+        /// Empties only where things are, keeping what they are made of.
+        ///
+        /// **The difference between a world that moves and one that is rebuilt.** Meshes, materials,
+        /// layers, masks and texture paths are what a bottom-level acceleration structure is built
+        /// from and what a texture array holds; instances and lights are a list of placements that a
+        /// top-level structure is rebuilt from every frame anyway. Clearing the second and keeping
+        /// the first is what lets a mirror re-walk a live scene graph without paying for the geometry
+        /// again — and it is only sound because the indices into the first are stable, which is what
+        /// `SceneExtractor`'s identity maps exist to make true.
+        void clearPlacement();
+
         std::span<const osg::Vec3f> getPositions() const { return mPositions; }
         std::span<const osg::Vec3f> getNormals() const { return mNormals; }
         std::span<const osg::Vec2f> getTexCoords() const { return mTexCoords; }

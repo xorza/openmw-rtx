@@ -10,6 +10,8 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/rtx/scenedesc.hpp>
+
 namespace osg
 {
     class Camera;
@@ -24,6 +26,11 @@ namespace Resource
 namespace Rtx
 {
     class Renderer;
+}
+
+namespace RtxBridge
+{
+    class SceneExtractor;
 }
 
 namespace MWRender::Rtx
@@ -83,11 +90,16 @@ namespace MWRender::Rtx
         Tracer(const Tracer&) = delete;
         Tracer& operator=(const Tracer&) = delete;
 
-        /// Mirrors `scene` the first time it is asked and traces one frame from `camera`.
+        /// Mirrors `scene` and traces one frame from `camera`.
         ///
-        /// **Mirrored once and not per frame**, which is this slice's limitation and not a design:
-        /// `RtxBridge::SceneExtractor` rebuilds a whole `SceneDesc` from a graph, and the game's
-        /// graph changes every frame. Change tracking is the next piece and it is the large one.
+        /// **Re-walked every frame, and most of it is kept.** The extractor's identity maps mean a
+        /// mesh met again resolves to the one already uploaded, so what a second walk produces is a
+        /// new list of placements over the same geometry — which is a top-level acceleration
+        /// structure rebuild, the thing every renderer of this kind does per frame anyway.
+        ///
+        /// What it does not yet catch is geometry *arriving*: a mesh the walk meets for the first
+        /// time needs a bottom-level structure and a texture upload, and this still asks for a full
+        /// `setScene` when the instance count moves far enough to say a cell changed.
         ///
         /// Called after `updateTraversal` and before `renderingTraversals`, which is where the graph
         /// is settled and nothing has drawn yet.
@@ -118,9 +130,26 @@ namespace MWRender::Rtx
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
 
+        /// Kept across frames, which is the whole of what makes a re-walk cheap: the identity maps
+        /// inside the extractor are what resolve a mesh met again to the one already uploaded.
+        ::Rtx::SceneDesc mScene;
+        std::unique_ptr<RtxBridge::SceneExtractor> mExtractor;
+
+        /// How many meshes the scene held after the last full build. A walk that finds more has met
+        /// geometry that has no acceleration structure yet.
+        std::size_t mBuilt = 0;
+
+        /// A running average of what the trace costs, reported every `sReportEvery` frames.
+        ///
+        /// **The only instrument on this path.** The harness times a frame by tracing it thirty
+        /// times and taking the best; a game cannot, so what it can say is what the last few hundred
+        /// frames came to on average — which is the number that matters when the question is whether
+        /// this is playable.
+        double mSpentMs = 0.0;
+        std::uint32_t mTimed = 0;
+
         std::size_t mFrame = 0;
         bool mComplained = false;
-        bool mMirrored = false;
         bool mShared = false;
 
         /// Where `OPENMW_RTX_SHOT` says to write traced frames, and how many are left to write.

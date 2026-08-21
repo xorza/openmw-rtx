@@ -106,6 +106,12 @@ namespace Rtx
         mInstances.push_back(instance);
     }
 
+    void SceneDesc::clearPlacement()
+    {
+        mInstances.clear();
+        mLights.clear();
+    }
+
     void SceneDesc::clear()
     {
         mPositions.clear();
