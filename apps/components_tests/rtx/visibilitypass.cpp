@@ -621,7 +621,7 @@ namespace Rtx
                           makeCamera(somewhere + eye, somewhere + at, 60.0f, size, size, 1000000.0f), FrameOptions{});
 
                       std::vector<float> motion;
-                      mRenderer->readMotion(motion);
+                      mRenderer->readChannel(Channel::Motion, motion);
                       return osg::Vec2f(motion[centre * 2], motion[centre * 2 + 1]);
                   };
 
@@ -681,6 +681,86 @@ namespace Rtx
                 EXPECT_GT(std::abs(near), 1.0f) << "the image slid";
                 EXPECT_LT(std::abs(near), size) << "and stayed on screen";
                 EXPECT_NEAR(near, far, 0.01f) << "by an amount its distance had no say in";
+            }
+        }
+
+        /// The depth an upscaler is handed, against the value a rasterizer would have written.
+        ///
+        /// `far / (far - near) * (1 - near / z)`, zero at the near plane and one at the far one. The
+        /// numbers here: near is 1 and far is 100,000, so a wall 200 units off reads
+        /// `1.00001 * (1 - 1/200) = 0.995`, and one at 400 reads `1.00001 * (1 - 1/400) = 0.9975`.
+        /// Most of the range is spent within a few units of the eye, which is exactly why the filter
+        /// reads world distance out of the guide instead of this.
+        ///
+        /// **Depth along the view axis, not along the ray.** A surface at the corner of the frame is
+        /// further from the eye than one at its centre while lying in the same plane, and a
+        /// rasterizer records the plane. Both are checked, because the difference between them is a
+        /// cosine that only shows away from the middle of the picture.
+        TEST_F(RtxVisibilityTest, theDepthChannelIsWhatARasterizerWouldHaveWritten)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float far = 100000.0f;
+            constexpr float near = 1.0f;
+
+            const auto wallAt = [](float away) {
+                return std::array{
+                    osg::Vec3f(-8000.0f, away, -8000.0f),
+                    osg::Vec3f(8000.0f, away, -8000.0f),
+                    osg::Vec3f(8000.0f, away, 8000.0f),
+                    osg::Vec3f(-8000.0f, away, 8000.0f),
+                };
+            };
+
+            const auto expected = [](float z) { return far / (far - near) * (1.0f - near / z); };
+
+            const auto depthOf = [&](float away) {
+                SceneDesc scene;
+                scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                    .mMesh = scene.addMesh(wallAt(away), {}, {}, sQuadIndices) });
+
+                const Shaders::VisibilityConstants camera
+                    = makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, far);
+
+                std::vector<std::uint8_t> pixels;
+                EXPECT_EQ(countHits(scene, {}, camera, size, pixels), size * size);
+
+                std::vector<float> depth;
+                mRenderer->readChannel(Channel::Depth, depth);
+                return depth;
+            };
+
+            constexpr std::size_t centre = std::size_t{ size / 2 } * size + size / 2;
+            constexpr std::size_t corner = 0;
+
+            for (const float away : { 200.0f, 400.0f })
+            {
+                const std::vector<float> depth = depthOf(away);
+
+                EXPECT_NEAR(depth[centre], expected(away), 1e-5f) << "at " << away;
+
+                // The corner sees the same plane, so it must read the same depth even though it is
+                // a good deal further from the eye. Reading the ray's own length instead would put
+                // this at `expected(away / cos)`, which at this field of view is a whole 0.00002
+                // out — small, and exactly the kind of small that makes an upscaler shimmer.
+                EXPECT_NEAR(depth[corner], depth[centre], 1e-6f) << "the corner of the same wall";
+            }
+
+            // A ray that hit nothing is as far away as anything can be.
+            {
+                SceneDesc scene;
+                scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                    .mMesh = scene.addMesh(wallAt(200.0f), {}, {}, sQuadIndices) });
+
+                const Shaders::VisibilityConstants away
+                    = makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, -100.0f, 0.0f), 60.0f, size, size, far);
+
+                std::vector<std::uint8_t> pixels;
+                EXPECT_EQ(countHits(scene, {}, away, size, pixels), 0u);
+
+                std::vector<float> depth;
+                mRenderer->readChannel(Channel::Depth, depth);
+                for (const float value : depth)
+                    ASSERT_EQ(value, 1.0f);
             }
         }
 

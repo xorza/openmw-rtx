@@ -45,7 +45,7 @@ namespace Rtx
         void resize(std::uint32_t width, std::uint32_t height) override;
         FrameResult renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) override;
         void readPixels(std::vector<std::uint8_t>& pixels) override;
-        void readMotion(std::vector<float>& motion) override;
+        void readChannel(Channel channel, std::vector<float>& values) override;
         void takeValidationErrors(std::vector<std::string>& errors) override;
 
     private:

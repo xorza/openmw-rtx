@@ -20,6 +20,7 @@
 
 #include <osg/Vec2f>
 #include <osg/Vec3f>
+#include <osg/Vec3ui>
 #include <osg/Vec4f>
 
 namespace Rtx::Shaders
@@ -27,6 +28,7 @@ namespace Rtx::Shaders
     using vec2 = osg::Vec2f;
     using vec3 = osg::Vec3f;
     using vec4 = osg::Vec4f;
+    using uvec3 = osg::Vec3ui;
     using uint = std::uint32_t;
 
 #endif
@@ -210,6 +212,21 @@ namespace Rtx::Shaders
         float mReach;
     };
 
+    /// Where the lamps were binned, so a shader can find the few that reach a point.
+    ///
+    /// **A property of the scene's lights and not of the camera.** It used to travel in the camera's
+    /// push constants, which meant copying it into every frame's block from the buffers it was
+    /// derived from — a per-frame copy of something that changes when the cell does.
+    ///
+    /// A position outside the grid is one no lamp reaches, so its cell is empty by construction
+    /// rather than by clamping.
+    struct GpuLightGrid
+    {
+        vec3 mOrigin;
+        float mInverseCell;
+        uvec3 mSize;
+    };
+
     /// One layer of terrain: a tiling ground texture and the weights that place it.
     ///
     /// A chunk is four or five of these summed. The mask is a grid of weights in the shared mask
@@ -273,6 +290,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuMesh) == 8, "GpuMesh must be scalar-packed on every side");
     static_assert(sizeof(GpuInstance) == 8, "GpuInstance must be scalar-packed on every side");
     static_assert(sizeof(GpuLight) == 28, "GpuLight must be scalar-packed on every side");
+    static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 48, "GpuLayer must be scalar-packed on every side");
     static_assert(sizeof(GpuMaterial) == 52, "GpuMaterial must be scalar-packed on every side");
 #endif

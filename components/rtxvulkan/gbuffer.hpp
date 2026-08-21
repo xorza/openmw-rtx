@@ -53,6 +53,15 @@ namespace Rtx
         /// thrown away exactly where the camera is moving fastest.
         const Image& getMotion() const { return mMotion; }
 
+        /// What a rasterizer with this frustum would have written: zero at the near plane, one at
+        /// the far one, and hyperbolic between them.
+        ///
+        /// **Not the distance the filter reads.** That is in the guide, in world units, because a
+        /// tolerance measured against a clip value would mean something different at every distance
+        /// — most of the range is spent within a few units of the eye. This one exists so an
+        /// upscaler's disocclusion test is looking at the depth it expects.
+        const Image& getDepth() const { return mDepth; }
+
         std::uint32_t getWidth() const { return mDirect.getWidth(); }
         std::uint32_t getHeight() const { return mDirect.getHeight(); }
 
@@ -71,5 +80,6 @@ namespace Rtx
         Image mModulate;
         Image mGuide;
         Image mMotion;
+        Image mDepth;
     };
 }

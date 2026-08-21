@@ -28,6 +28,9 @@ namespace Rtx
 
         /// Every texture's shading map, which the array owns beside the textures themselves.
         VkBuffer mShading = VK_NULL_HANDLE;
+
+        /// Where the scene's lamps were binned.
+        VkBuffer mGrid = VK_NULL_HANDLE;
     };
 
     /// One ray per pixel against the top-level structure, shaded by the geometric normal it hit.

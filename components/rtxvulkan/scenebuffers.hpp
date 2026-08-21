@@ -49,6 +49,9 @@ namespace Rtx
 
         /// Where the lamps were binned, for the constants the pass pushes.
         const LightGrid& getLightGrid() const { return mLightGrid; }
+
+        /// The grid's geometry, as the shader reads it.
+        VkBuffer getGrid() const { return mGrid.getHandle(); }
         VkBuffer getWaves() const { return mWaves.getHandle(); }
 
         VkDeviceSize getBytes() const;
@@ -64,6 +67,7 @@ namespace Rtx
         Buffer mMasks;
         Buffer mLights;
         Buffer mLightOffsets;
+        Buffer mGrid;
         Buffer mLightIndices;
         Buffer mWaves;
 

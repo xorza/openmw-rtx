@@ -1,9 +1,12 @@
 #include "device.hpp"
 
+#include <algorithm>
+#include <cstring>
 #include <string>
 
 #include <components/rtx/error.hpp>
 
+#include "dlss.hpp"
 #include "instance.hpp"
 #include "pipelinecache.hpp"
 #include "result.hpp"
@@ -31,6 +34,25 @@ namespace Rtx
             extensions.push_back(name);
         for (const char* const name : mPhysicalDevice.getAvailableOptionalExtensions())
             extensions.push_back(name);
+#ifdef OPENMW_RTX_DLSS
+        // What NGX asks for, which it will not start without. Appended rather than added to the
+        // required list because that list is what this renderer needs to trace at all, and a build
+        // without DLSS must not fail on a device that lacks them.
+        for (const char* const name : Dlss::getDeviceExtensions())
+        {
+            // **`VK_EXT_buffer_device_address` cannot come along**, and not because it is missing:
+            // the feature it provides is Vulkan 1.2 core here, enabled through
+            // `VkPhysicalDeviceVulkan12Features`, and the spec forbids asking for both. NGX names
+            // the pre-1.2 spelling because it supports drivers older than this one does.
+            if (std::strcmp(name, VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME) == 0)
+                continue;
+
+            const auto already = [&](const char* const listed) { return std::strcmp(listed, name) == 0; };
+            if (std::none_of(extensions.begin(), extensions.end(), already))
+                extensions.push_back(name);
+        }
+#endif
+
         for (const char* const name : extraExtensions)
             extensions.push_back(name);
 

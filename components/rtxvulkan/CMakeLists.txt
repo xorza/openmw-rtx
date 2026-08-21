@@ -11,6 +11,29 @@ endif()
 
 find_package(Vulkan REQUIRED)
 
+# NVIDIA's NGX SDK, which is what DLSS is. Public, and 750 MB, so it is pointed at rather than
+# vendored: clone it once with
+#
+#   git clone --depth 1 https://github.com/NVIDIA/DLSS.git .refs/dlss
+#
+# or set OPENMW_DLSS_SDK to wherever it already is.
+set(OPENMW_DLSS_SDK "${OpenMW_SOURCE_DIR}/.refs/dlss" CACHE PATH
+    "NVIDIA's NGX SDK, for OPENMW_RTX_DLSS")
+
+if (OPENMW_RTX_DLSS)
+    set(DLSS_LIB "${OPENMW_DLSS_SDK}/lib/Linux_x86_64")
+
+    # **A hard error and not a quiet disable.** Compiling the feature out would put "is DLSS really
+    # here" in a definition only this directory can see, which every caller would then have to guess
+    # at. Asking for it and not having it is one message instead.
+    if (NOT EXISTS "${DLSS_LIB}/libnvsdk_ngx.a")
+        message(FATAL_ERROR
+            "OPENMW_RTX_DLSS needs NVIDIA's NGX SDK, and there is none at ${DLSS_LIB}.\n"
+            "Clone it with: git clone --depth 1 https://github.com/NVIDIA/DLSS.git .refs/dlss\n"
+            "or point -DOPENMW_DLSS_SDK= at a copy.")
+    endif()
+endif()
+
 find_program(OPENMW_GLSLC NAMES glslc HINTS "${Vulkan_GLSLC_EXECUTABLE}" REQUIRED
     DOC "glslc, from shaderc — compiles the renderer's GLSL to SPIR-V")
 find_program(OPENMW_SPIRV_VAL NAMES spirv-val REQUIRED
@@ -102,6 +125,12 @@ set(RTX_VULKAN_FILES
     vulkanrenderer.hpp
 )
 
+# Only where the SDK is there to compile against: the file is nothing but NGX, so a build without
+# DLSS leaves it out rather than hollowing it with a guard.
+if (OPENMW_RTX_DLSS)
+    list(APPEND RTX_VULKAN_FILES dlss.cpp dlss.hpp)
+endif()
+
 source_group(components\\rtxvulkan FILES ${RTX_VULKAN_FILES})
 
 add_library(openmw-rtx-vulkan STATIC ${RTX_VULKAN_FILES})
@@ -117,6 +146,19 @@ add_dependencies(openmw-rtx-vulkan openmw-rtx-vulkan-shaders)
 target_compile_definitions(openmw-rtx-vulkan PUBLIC $<$<NOT:$<CONFIG:Release>>:OPENMW_RTX_DEBUG_NAMES>)
 
 target_compile_definitions(openmw-rtx-vulkan PUBLIC OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}")
+
+if (OPENMW_RTX_DLSS)
+    # System, because the SDK's headers are somebody else's and this fork's warnings are errors:
+    # `NVSDK_NGX_Parameter` has virtual methods and no virtual destructor, and its helpers use zero
+    # as a null pointer. Neither is ours to fix.
+    target_include_directories(openmw-rtx-vulkan SYSTEM PRIVATE "${OPENMW_DLSS_SDK}/include")
+
+    # The static half is the SDK's own; the shared halves are the feature libraries it loads at
+    # runtime, and NGX looks for those in the application's folder unless it is told otherwise.
+    target_link_libraries(openmw-rtx-vulkan PRIVATE "${DLSS_LIB}/libnvsdk_ngx.a" ${CMAKE_DL_LIBS})
+    target_compile_definitions(openmw-rtx-vulkan PUBLIC OPENMW_RTX_DLSS
+                               PRIVATE OPENMW_RTX_NGX_FEATURES="${DLSS_LIB}/rel")
+endif()
 
 if (BUILD_WITH_CODE_COVERAGE)
     target_compile_options(openmw-rtx-vulkan PRIVATE --coverage)

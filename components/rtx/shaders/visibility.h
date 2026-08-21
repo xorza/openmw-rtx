@@ -49,6 +49,14 @@ namespace Rtx::Shaders
         uint mWidth;
         uint mHeight;
 
+        /// Where the depth buffer's zero sits, in world units from the eye.
+        ///
+        /// **A ray tracer has no near plane and an upscaler asks for one anyway.** Nothing here
+        /// clips against it; it exists so the depth written for DLSS is the value a rasterizer with
+        /// this frustum would have written, which is what NGX's disocclusion test expects to be
+        /// looking at.
+        float mNear;
+
         /// How far a ray travels before whatever it was looking for counts as not being there.
         ///
         /// The world's own size, near enough: a primary ray that reaches this has left it, and so
@@ -178,22 +186,12 @@ namespace Rtx::Shaders
         /// direction — so it is what makes two renders of one camera differ. Zero is a repeatable
         /// frame, which is what a test wants; a window passes its own count.
         uint mFrame;
-
-        /// Where the light grid's cell zero starts, how wide a cell is, and how many there are.
-        ///
-        /// **The scene's, not the camera's**, and written by the pass rather than by whoever built
-        /// the rest of this: the grid belongs to the lamps it was binned from, and a caller setting
-        /// these would be repeating what `SceneBuffers` already worked out. A position outside the
-        /// grid is one no lamp reaches, so its cell is empty by construction rather than by clamp.
-        vec3 mGridOrigin;
-        float mGridInverseCell;
-        uvec3 mGridSize;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
-    static_assert(sizeof(VisibilityConstants) == 248, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 224, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

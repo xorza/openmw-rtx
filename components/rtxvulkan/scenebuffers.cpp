@@ -140,6 +140,13 @@ namespace Rtx
         // different one would be worse than no grid at all.
         mLightOffsets = uploadBuffer(device, pool, mLightGrid.getOffsets(), sTableUsage);
 
+        const Shaders::GpuLightGrid geometry{
+            .mOrigin = mLightGrid.getOrigin(),
+            .mInverseCell = mLightGrid.getInverseCell(),
+            .mSize = mLightGrid.getSize(),
+        };
+        mGrid = uploadBuffer(device, pool, std::span<const Shaders::GpuLightGrid>(&geometry, 1), sTableUsage);
+
         // An empty run is still a buffer: nothing may be bound to a descriptor a shader declares.
         static constexpr std::uint32_t noIndex = 0;
         mLightIndices = uploadBuffer(device, pool,

@@ -94,6 +94,15 @@ layout(set = 0, binding = 16, scalar) readonly buffer BlueNoiseTile
     float blueNoise[];
 };
 
+/// What a rasterizer with this frustum would have written, for whatever upscales the frame.
+layout(set = 0, binding = 22, r32f) uniform writeonly image2D depth;
+
+/// Where the lamps were binned, which is scene geometry rather than camera geometry.
+layout(set = 0, binding = 21, scalar) readonly buffer LightGridBlock
+{
+    GpuLightGrid grid;
+};
+
 /// Where each surface stood on the previous frame's screen, less where it stands on this one.
 layout(set = 0, binding = 20, rg32f) uniform writeonly image2D motion;
 
@@ -698,13 +707,13 @@ vec3 sunThroughWater(vec3 position, float footprint)
 /// rather than clamping to the nearest cell's list.
 uvec2 lampsReaching(vec3 position)
 {
-    const vec3 cell = floor((position - camera.mGridOrigin) * camera.mGridInverseCell);
-    if (any(lessThan(cell, vec3(0.0))) || any(greaterThanEqual(cell, vec3(camera.mGridSize))))
+    const vec3 cell = floor((position - grid.mOrigin) * grid.mInverseCell);
+    if (any(lessThan(cell, vec3(0.0))) || any(greaterThanEqual(cell, vec3(grid.mSize))))
         return uvec2(0u, 0u);
 
     const uvec3 at = uvec3(cell);
     // `flat` is what this wants to be called, and GLSL reserves it for interpolation.
-    const uint index = (at.z * camera.mGridSize.y + at.y) * camera.mGridSize.x + at.x;
+    const uint index = (at.z * grid.mSize.y + at.y) * grid.mSize.x + at.x;
 
     return uvec2(lightOffsets[index], lightOffsets[index + 1u]);
 }
@@ -1698,6 +1707,24 @@ vec2 motionOf(uvec2 pixel, vec3 direction, float distance)
     return before - (vec2(pixel) + 0.5);
 }
 
+/// The depth a rasterizer would have written for a hit `along` units down `direction`.
+///
+/// **Along the view axis and not along the ray.** A rasterizer's depth is the distance to the plane
+/// through the eye that faces the way the camera does, so a surface at the corner of the frame is
+/// nearer in depth than its distance says — and an upscaler comparing this against its own
+/// reprojection would find every corner disagreeing.
+///
+/// `far / (far - near) * (1 - near / z)`, which is zero at the near plane and one at the far one.
+/// A miss writes one: nothing is further away than the end of the world.
+float clipDepth(vec3 direction, float along)
+{
+    const float z = dot(direction, camera.mForward) * along;
+    if (!(z > camera.mNear))
+        return 0.0;
+
+    return camera.mFar / (camera.mFar - camera.mNear) * (1.0 - camera.mNear / z);
+}
+
 void main()
 {
     const uvec2 pixel = gl_GlobalInvocationID.xy;
@@ -1766,4 +1793,6 @@ void main()
     // the sky that is true.
     imageStore(motion, at,
         vec4(surface.mHit ? motionOf(pixel, direction, surface.mDistance) : vec2(0.0), 0.0, 0.0));
+
+    imageStore(depth, at, vec4(surface.mHit ? clipDepth(direction, surface.mDistance) : 1.0));
 }

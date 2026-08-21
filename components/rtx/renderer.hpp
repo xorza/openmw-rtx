@@ -59,6 +59,19 @@ namespace Rtx
         std::uint64_t mTextureBytes = 0;
     };
 
+    /// A frame's float channels, which are what an upscaler reads and what a test can check.
+    enum class Channel
+    {
+        /// Two floats a pixel: where a surface is now, less where it was, in pixels. Zero where the
+        /// ray hit nothing, and zero where the surface stood behind the previous eye — which is not
+        /// a place a screen position exists for.
+        Motion,
+
+        /// One float a pixel: what a rasterizer with this frustum would have written. Zero at the
+        /// near plane, one at the far one and at every miss.
+        Depth,
+    };
+
     /// What a frame is asked for, beyond where the camera stands.
     struct FrameOptions
     {
@@ -148,12 +161,11 @@ namespace Rtx
         /// Not const: it submits a copy and waits for it.
         virtual void readPixels(std::vector<std::uint8_t>& pixels) = 0;
 
-        /// Copies the last frame's motion vectors into `motion`, two floats a pixel, tightly packed.
+        /// Copies one of the last frame's float channels into `values`, tightly packed.
         ///
-        /// **In pixels, from where a surface is now to where it was.** Zero where the ray hit
-        /// nothing, and zero where the surface stood behind the previous eye, which is not a place
-        /// a screen position exists for. Not const: it submits a copy and waits for it.
-        virtual void readMotion(std::vector<float>& motion) = 0;
+        /// The channels an upscaler is handed, and the only way anything outside the backend can
+        /// look at them. Not const: it submits a copy and waits for it.
+        virtual void readChannel(Channel channel, std::vector<float>& values) = 0;
 
         /// Moves whatever the API has complained about since the last call into `errors`.
         ///

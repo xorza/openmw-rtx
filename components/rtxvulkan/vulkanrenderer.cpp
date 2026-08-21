@@ -8,6 +8,10 @@
 #include <components/rtx/error.hpp>
 #include <components/rtx/scenedesc.hpp>
 
+#ifdef OPENMW_RTX_DLSS
+#include "dlss.hpp"
+#endif
+
 #include "gbuffer.hpp"
 #include "image.hpp"
 #include "physicaldevice.hpp"
@@ -67,6 +71,21 @@ namespace Rtx
             + "debug utils:       " + (mInstance.hasDebugUtils() ? "on" : "off") + '\n';
 
         report += mDevice.getPhysicalDevice().describe();
+
+#ifdef OPENMW_RTX_DLSS
+        report += "\nDLSS Ray Reconstruction: ";
+        try
+        {
+            const Dlss ngx(mDevice, mInstance.getHandle());
+            report += ngx.isAvailable() ? "available\n" : "unavailable, " + ngx.getObstacle() + "\n";
+        }
+        catch (const Error& error)
+        {
+            report += std::string("unavailable, ") + error.what() + '\n';
+        }
+#else
+        report += "\nDLSS Ray Reconstruction: not built in; configure with -DOPENMW_RTX_DLSS=ON\n";
+#endif
 
         // Reaching here is the part that proves the rest: the device resolved every entry point the
         // required extensions promise, and a driver advertising one it cannot dispatch fails before
@@ -218,15 +237,17 @@ namespace Rtx
         mTarget->read(mPool, VK_IMAGE_LAYOUT_GENERAL, pixels);
     }
 
-    void VulkanRenderer::readMotion(std::vector<float>& motion)
+    void VulkanRenderer::readChannel(Channel channel, std::vector<float>& values)
     {
         assert(mChannels != nullptr);
 
-        std::vector<std::uint8_t> bytes;
-        mChannels->getMotion().read(mPool, VK_IMAGE_LAYOUT_GENERAL, bytes);
+        const Image& image = channel == Channel::Motion ? mChannels->getMotion() : mChannels->getDepth();
 
-        motion.resize(bytes.size() / sizeof(float));
-        std::memcpy(motion.data(), bytes.data(), bytes.size());
+        std::vector<std::uint8_t> bytes;
+        image.read(mPool, VK_IMAGE_LAYOUT_GENERAL, bytes);
+
+        values.resize(bytes.size() / sizeof(float));
+        std::memcpy(values.data(), bytes.data(), bytes.size());
     }
 
     void VulkanRenderer::takeValidationErrors(std::vector<std::string>& errors)

@@ -73,6 +73,9 @@ namespace Rtx
             .mUp = up * halfHeight,
             .mWidth = width,
             .mHeight = height,
+            // A quarter of a Morrowind foot. Nothing is clipped against it — see `mNear` — so it
+            // only has to be nearer than anything the eye can find itself inside of.
+            .mNear = 1.0f,
             .mFar = far,
             .mSpreadAngle = spread,
             // Not zero, which would be sea level: a world with no water has to answer "how deep is

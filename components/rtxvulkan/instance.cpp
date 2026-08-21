@@ -8,6 +8,7 @@
 
 #include <components/rtx/error.hpp>
 
+#include "dlss.hpp"
 #include "requirements.hpp"
 #include "result.hpp"
 
@@ -61,6 +62,11 @@ namespace Rtx
                 "against " + versionString(sApiVersion));
 
         std::vector<const char*> extensions(options.mSurfaceExtensions);
+#ifdef OPENMW_RTX_DLSS
+        // NGX names instance extensions of its own, and will not start without them.
+        for (const char* const name : Dlss::getInstanceExtensions())
+            extensions.push_back(name);
+#endif
         std::vector<const char*> layers;
 
         // Object names and command-buffer labels are what make a capture readable, and a capture is
