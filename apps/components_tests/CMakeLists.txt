@@ -120,6 +120,7 @@ if (OPENMW_RTX)
         rtxbridge/texturebuilder.cpp
         rtxbridge/waterbuilder.cpp
         rtxtool/terrainstorage.cpp
+        rtxtool/validationchoice.cpp
         rtxtool/view.cpp
     )
     list(APPEND UNITTEST_SRC_FILES ${RTX_TEST_FILES})

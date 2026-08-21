@@ -3,6 +3,8 @@
 #include <array>
 #include <cassert>
 
+#include "commands.hpp"
+#include "device.hpp"
 #include "gbuffer.hpp"
 #include "image.hpp"
 
@@ -25,24 +27,41 @@ namespace Rtx
         };
     }
 
-    CompositePass::CompositePass(const Device& device, const std::filesystem::path& shaderDirectory)
+    CompositePass::CompositePass(const Device& device, CommandPool& pool, const std::filesystem::path& shaderDirectory)
         : mPipeline(device, sBindings, sizeof(Shaders::CompositeConstants), {}, shaderDirectory / "composite.comp.spv",
               "composite")
+        , mNoHistory(device, 1, 1, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT)
     {
+        device.setName(
+            VK_OBJECT_TYPE_IMAGE, reinterpret_cast<std::uint64_t>(mNoHistory.getHandle()), "composite-no-history");
+
+        // A bound storage image has to be in the layout its descriptor names whether the shader
+        // reads it or not, so the one texel is laid out once and then left alone forever.
+        pool.submitAndWait([this](VkCommandBuffer commands) {
+            mNoHistory.transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+        });
     }
 
-    void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Image& history,
+    void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Image* history,
         const Image& target, const Shaders::CompositeConstants& constants) const
     {
         assert(buffer.getWidth() >= constants.mWidth && buffer.getHeight() >= constants.mHeight);
-        assert(history.getWidth() >= constants.mWidth && history.getHeight() >= constants.mHeight);
         assert(target.getWidth() >= constants.mWidth && target.getHeight() >= constants.mHeight);
+
+        // A sum has to cover the frame it is a sum of; a stand-in never read does not.
+        assert(constants.mAccumulate == 0 || history != nullptr);
+        assert(history == nullptr
+            || (history->getWidth() >= constants.mWidth && history->getHeight() >= constants.mHeight));
+
+        const Image& sum = history != nullptr ? *history : mNoHistory;
 
         const std::array<VkDescriptorImageInfo, 5> images{
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getDirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getIndirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getModulate().getView(), VK_IMAGE_LAYOUT_GENERAL },
-            VkDescriptorImageInfo{ VK_NULL_HANDLE, history.getView(), VK_IMAGE_LAYOUT_GENERAL },
+            VkDescriptorImageInfo{ VK_NULL_HANDLE, sum.getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, target.getView(), VK_IMAGE_LAYOUT_GENERAL },
         };
 

@@ -11,6 +11,8 @@ set(RTXTOOL_FILES
     lighting.hpp
     view.cpp
     view.hpp
+    validationchoice.cpp
+    validationchoice.hpp
     views.cpp
     views.hpp
     window.cpp

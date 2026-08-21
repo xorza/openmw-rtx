@@ -62,6 +62,19 @@ namespace RtxBridge
             return osg::Vec3f(channelToLinear(colour.x()), channelToLinear(colour.y()), channelToLinear(colour.z()));
         }
 
+        /// Which of the two land-fog depths a phase reads.
+        ///
+        /// **The colours come in four and the fog depth in two.** A content file records
+        /// `Land Fog Day Depth` and `Land Fog Night Depth` and nothing between them, which is why
+        /// the host's own interpolator takes the day value three times over
+        /// (`apps/openmw/mwworld/weather.cpp`). Asking for a sunrise depth is not a key that reads
+        /// zero — the fallback map does not know it at all and throws — so every hour inside either
+        /// transition took the tool down with it.
+        std::string_view fogDepthPhase(SkyPhase phase)
+        {
+            return phase == SkyPhase::Night ? "Night" : "Day";
+        }
+
         std::string_view nameOf(SkyPhase phase)
         {
             switch (phase)
@@ -130,7 +143,7 @@ namespace RtxBridge
             .mAmbient = weatherColour(weather, "Ambient", name),
             .mFog = { .mColour = haze,
                 .mExtinction = fogExtinction(Fallback::Map::getFloat(
-                    "Weather_" + std::string(weather) + "_Land_Fog_" + std::string(name) + "_Depth")) },
+                    "Weather_" + std::string(weather) + "_Land_Fog_" + std::string(fogDepthPhase(phase)) + "_Depth")) },
         };
 
         if (phase != SkyPhase::Night)

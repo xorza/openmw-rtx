@@ -168,7 +168,7 @@ namespace RtxTool
         const Rtx::TextureArray textures(device, pool, described.getDescriptions());
 
         const Rtx::VisibilityPass pass(device, pool, request.mShaderDirectory, textures.getLayout());
-        const Rtx::CompositePass composite(device, request.mShaderDirectory);
+        const Rtx::CompositePass composite(device, pool, request.mShaderDirectory);
         const Rtx::VisibilityInputs inputs{
             .mScene = acceleration.getTopLevel(),
             .mBuffers = &buffers,
@@ -191,17 +191,6 @@ namespace RtxTool
             return targets;
         };
         std::vector<std::unique_ptr<Rtx::Image>> targets = makeTargets(swapchain.getExtent());
-
-        // Bound and never touched: a window renders one frame at a time and has no use for a running
-        // sum, so it leaves `mAccumulate` at zero and the composite skips this entirely. It exists
-        // because the descriptor has to point somewhere, and it is full size because the composite
-        // will not take one smaller than the target. One serves every frame in flight — nothing
-        // writes it, so there is nothing for them to race over.
-        const auto makeHistory = [&device](VkExtent2D extent) {
-            return std::make_unique<Rtx::Image>(
-                device, extent.width, extent.height, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT);
-        };
-        std::unique_ptr<Rtx::Image> history = makeHistory(swapchain.getExtent());
 
         // One set of channels and not one per frame in flight, which the targets beside them are.
         // The difference is that `begin` waits for the last composite to have finished reading
@@ -299,7 +288,6 @@ namespace RtxTool
             device.waitIdle();
             swapchain.recreate(window.getExtent());
             targets = makeTargets(swapchain.getExtent());
-            history = makeHistory(swapchain.getExtent());
             channels = makeChannels(swapchain.getExtent());
             remakeImageSync();
             resized = false;
@@ -322,14 +310,11 @@ namespace RtxTool
                 VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                 VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
 
-            history->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-
             channels->begin(commands);
             pass.record(commands, inputs, *channels, hitCount, constants);
             channels->handOver(commands);
-            composite.record(commands, *channels, *history, target,
+            // No running sum: a window draws one frame at a time and has nothing to average.
+            composite.record(commands, *channels, nullptr, target,
                 Rtx::Shaders::CompositeConstants{
                     .mWidth = constants.mWidth, .mHeight = constants.mHeight, .mAccumulate = 0 });
 

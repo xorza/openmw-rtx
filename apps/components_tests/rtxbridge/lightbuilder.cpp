@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <components/esm3/loadligh.hpp>
+#include <components/fallback/fallback.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
 
 namespace RtxBridge
@@ -120,6 +121,39 @@ namespace RtxBridge
             EXPECT_EQ(phaseAt(7.1f, sunrise, nightStart), SkyPhase::Day);
             EXPECT_EQ(phaseAt(18.9f, sunrise, nightStart), SkyPhase::Day);
             EXPECT_EQ(phaseAt(21.1f, sunrise, nightStart), SkyPhase::Night);
+        }
+
+        /// Every quarter hour of the day, asked for.
+        ///
+        /// **A fallback key the game does not define throws rather than reading zero**, so this is a
+        /// test that `makeDaylight` asks only for settings that exist. It did not: the land fog
+        /// depth is recorded for day and night alone, and every hour inside sunrise or sunset asked
+        /// for a third that was never written, which took the whole tool down.
+        ///
+        /// The times are seeded here because the phase boundaries come out of the same map, and an
+        /// unseeded one puts sunrise and sunset on top of each other at midnight. **This is the only
+        /// test in the binary that touches it**, and `Fallback::Map::init` keeps the first value it
+        /// is given for a key, so a second seeder would be ignored rather than obeyed.
+        TEST(RtxLightBuilderTest, everyHourAsksOnlyForSettingsTheGameDefines)
+        {
+            Fallback::Map::init({
+                { "Weather_Sunrise_Time", "6" },
+                { "Weather_Sunset_Time", "18" },
+                { "Weather_Sunset_Duration", "2" },
+                { "Weather_Clear_Land_Fog_Day_Depth", "0.4" },
+                { "Weather_Clear_Land_Fog_Night_Depth", "0.8" },
+            });
+
+            for (float hour = 0.0f; hour < 24.0f; hour += 0.25f)
+                EXPECT_NO_THROW(makeDaylight("Clear", hour)) << "at hour " << hour;
+
+            // Sunrise, noon and sunset read the one depth the file records for daylight, and only
+            // night reads the other. Deeper fog is thicker air, so the night value being the larger
+            // of the two is what makes these two comparisons say different things.
+            const float day = makeDaylight("Clear", 12.0f).mFog.mExtinction;
+            EXPECT_EQ(makeDaylight("Clear", 6.0f).mFog.mExtinction, day) << "sunrise";
+            EXPECT_EQ(makeDaylight("Clear", 20.0f).mFog.mExtinction, day) << "sunset";
+            EXPECT_GT(makeDaylight("Clear", 0.0f).mFog.mExtinction, day) << "night";
         }
 
         /// Three kinds of record place a mesh and no light, and one kind is nonsense.

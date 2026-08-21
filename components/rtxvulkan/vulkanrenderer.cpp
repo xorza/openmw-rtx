@@ -22,7 +22,7 @@ namespace Rtx
         , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()))
         , mPool(mDevice)
         , mShaderDirectory(options.mShaderDirectory)
-        , mComposite(mDevice, options.mShaderDirectory)
+        , mComposite(mDevice, mPool, options.mShaderDirectory)
     {
         mHitCount = Buffer(mDevice, sizeof(std::uint32_t),
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -44,15 +44,13 @@ namespace Rtx
         mTarget = std::make_unique<Image>(mDevice, width, height, VK_FORMAT_R8G8B8A8_UNORM,
             VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
-        // Sixteen bytes a pixel, which is 33 MiB at 1080p and the price of a sum that neither rounds
-        // nor clips. Made even for a run that is not averaging: the composite leaves it alone then,
-        // but the descriptor still has to point at an image it will accept.
-        mHistory = std::make_unique<Image>(
-            mDevice, width, height, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT);
-
         mChannels = std::make_unique<GBuffer>(mDevice, width, height);
 
-        mHistoryWritten = false;
+        // **Dropped rather than resized, because most runs never make one.** Sixteen bytes a pixel
+        // is 33 MiB at 1080p and 133 MiB at 4K, and it buys a sum that neither rounds nor clips —
+        // which is worth every byte to the reference mode and nothing at all to the frame a window
+        // or a plain shot draws. The first averaging frame is what asks for it.
+        mHistory.reset();
     }
 
     std::string VulkanRenderer::describeDevice() const
@@ -86,8 +84,9 @@ namespace Rtx
         mBuffers.reset();
         mAcceleration.reset();
 
-        // A sum over one scene means nothing over the next, so the next frame starts it again.
-        mHistoryWritten = false;
+        // A sum over one scene means nothing over the next, so it goes back with the scene rather
+        // than being carried empty into one it cannot describe.
+        mHistory.reset();
 
         mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, scene);
         mBuffers = std::make_unique<SceneBuffers>(mDevice, mPool, scene, mAcceleration->getIndices(), sea);
@@ -137,7 +136,12 @@ namespace Rtx
             .mTextures = mTextures->getSet(),
         };
 
-        const bool fresh = !mHistoryWritten;
+        // Made by the first frame that averages, and that frame is the one that fills it.
+        const bool fresh = accumulate > 0 && mHistory == nullptr;
+        if (fresh)
+            mHistory = std::make_unique<Image>(
+                mDevice, mWidth, mHeight, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT);
+
         const auto start = std::chrono::steady_clock::now();
 
         mPool.submitAndWait([&](VkCommandBuffer commands) {
@@ -147,16 +151,17 @@ namespace Rtx
 
             // The first write needs no contents and nothing to wait on; every one after reads what
             // the last left, which the fence orders and does not make visible.
-            mHistory->transition(commands, fresh ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_GENERAL,
-                VK_IMAGE_LAYOUT_GENERAL,
-                fresh ? VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                fresh ? 0 : VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+            if (mHistory != nullptr)
+                mHistory->transition(commands, fresh ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_GENERAL,
+                    VK_IMAGE_LAYOUT_GENERAL,
+                    fresh ? VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                    fresh ? 0 : VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
 
             mChannels->begin(commands);
             mPass->record(commands, inputs, *mChannels, mHitCount, camera);
             mChannels->handOver(commands);
-            mComposite.record(commands, *mChannels, *mHistory, *mTarget,
+            mComposite.record(commands, *mChannels, mHistory.get(), *mTarget,
                 Shaders::CompositeConstants{
                     .mWidth = mWidth,
                     .mHeight = mHeight,
@@ -165,11 +170,6 @@ namespace Rtx
         });
 
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
-
-        // Only an averaging frame writes the sum, so only one makes the next frame's transition
-        // preserve it. A run that never averages goes on discarding, which is what it should cost.
-        if (accumulate > 0)
-            mHistoryWritten = true;
 
         const std::uint32_t hits = *static_cast<const std::uint32_t*>(mHitCount.map());
         mHitCount.unmap();

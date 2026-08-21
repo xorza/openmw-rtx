@@ -2264,9 +2264,8 @@ namespace Rtx
             };
 
             const GBuffer channels(device, size, size);
-            const CompositePass composite(device, Testing::getShaderDirectory());
+            const CompositePass composite(device, pool, Testing::getShaderDirectory());
             Image target(device, size, size, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT);
-            Image history(device, size, size, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT);
             const Buffer hits(device, sizeof(std::uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
@@ -2274,10 +2273,9 @@ namespace Rtx
             // transitions the real loop pays at startup.
             pool.submitAndWait([&](VkCommandBuffer commands) {
                 channels.begin(commands);
-                for (const Image* image : { &target, &history })
-                    image->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-                        VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                        VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+                target.transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
             });
 
             // A command buffer reused against a fence, which is what a frame is and what the window
@@ -2308,7 +2306,9 @@ namespace Rtx
                 channels.begin(commands);
                 pass.record(commands, inputs, channels, hits, camera);
                 channels.handOver(commands);
-                composite.record(commands, channels, history, target,
+                // No history: a still frame averages nothing, and the pass stands in for the
+                // binding rather than making the caller carry an image it never reads.
+                composite.record(commands, channels, nullptr, target,
                     Shaders::CompositeConstants{ .mWidth = size, .mHeight = size, .mAccumulate = 0 });
                 vkEndCommandBuffer(commands);
 

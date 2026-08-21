@@ -168,10 +168,14 @@ namespace RtxTool
         else
             out << " (one submit, including the wait)";
 
-        // **Said out loud, because it doubles the number above it.** The layers are on by default
-        // outside a Release build, and a figure measured under them is not one to compare against
-        // anything: core and synchronization validation cost about 6% here, GPU-assisted another
-        // 100%. Anyone quoting a trace time wants `--validation=false`.
+        // **Said out loud, because it more than doubles the number above it.** The layers are on by
+        // default outside a Release build, and a figure measured under them is not one to compare
+        // against anything. Measured over Balmora at 1080p, best of twenty: 3.5 ms with no layers,
+        // 3.9 ms with core and synchronization validation, 8.1 ms with GPU-assisted on top — a tenth
+        // for the first two and well over double for the third.
+        //
+        // Anyone quoting a trace time wants `--validation=false`, which turns the two finer switches
+        // off along with the layers wherever they were only on by default.
         if (renderer->isValidating())
             out << ", with the validation layers on";
 

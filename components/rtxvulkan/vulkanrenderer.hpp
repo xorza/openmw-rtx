@@ -60,17 +60,17 @@ namespace Rtx
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
         std::unique_ptr<Image> mTarget;
+
+        /// The running sum, and null until a frame asks to be averaged into one.
+        ///
+        /// **Whether it exists is also whether anything has written it**, because the frame that
+        /// makes one is the frame that fills it: the first write needs no contents and nothing to
+        /// wait on, and every one after reads what the last left — a hazard across submits that the
+        /// fence orders and does not make visible.
         std::unique_ptr<Image> mHistory;
 
         /// What the trace writes and the composite reads: one frame's light, still in pieces.
         std::unique_ptr<GBuffer> mChannels;
-
-        /// Whether anything has written the history since it was made.
-        ///
-        /// A property of the image rather than of the caller's frame counter: the first write needs
-        /// no contents and nothing to wait on, and every one after reads what the last left, which
-        /// is a hazard across submits that the fence orders but does not make visible.
-        bool mHistoryWritten = false;
 
         Buffer mHitCount;
 

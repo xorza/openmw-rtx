@@ -27,6 +27,7 @@
 
 #include "placement.hpp"
 #include "shot.hpp"
+#include "validationchoice.hpp"
 #include "view.hpp"
 #include "views.hpp"
 #include "world.hpp"
@@ -67,24 +68,15 @@ namespace RtxTool
         ///
         /// @param windowed whether this run opens a window, which is the one place GPU-assisted
         ///        validation cannot be left on.
-        Rtx::ValidationOptions chooseValidation(const bpo::variables_map& variables, bool windowed)
+        Rtx::ValidationOptions validationFrom(const bpo::variables_map& variables, bool windowed)
         {
-            Rtx::ValidationOptions options;
-            options.mSynchronization = variables["sync-validation"].as<bool>();
-            options.mGpuAssisted = variables["gpu-validation"].as<bool>();
+            // Whether a switch was set matters as much as what it says, so both come across.
+            const auto asSwitch = [&](const char* name) {
+                return CommandSwitch{ variables[name].as<bool>(), !variables[name].defaulted() };
+            };
 
-            // **A window under GPU-assisted validation loses the device**: `vkWaitForFences` comes
-            // back `VK_ERROR_DEVICE_LOST`, on three runs of four, somewhere between twenty seconds
-            // and a minute in. It is not the shader — three thousand headless traces of the same
-            // frame under the same layer are clean — so it is that layer over a swapchain, and the
-            // answer for now is not to pay for it where it cannot be had. Asking still turns it on.
-            if (windowed && variables["gpu-validation"].defaulted())
-                options.mGpuAssisted = false;
-
-            // Either of the two is a kind of validation, so either implies the layer that carries it.
-            options.mEnabled = variables["validation"].as<bool>() || options.mSynchronization || options.mGpuAssisted;
-
-            return options;
+            return RtxTool::chooseValidation(
+                asSwitch("validation"), asSwitch("sync-validation"), asSwitch("gpu-validation"), windowed);
         }
 
         /// Reports go to the unprefixed stream.
@@ -603,7 +595,7 @@ namespace RtxTool
 
             if (command == "info")
             {
-                const Rtx::ValidationOptions validation = chooseValidation(variables, false);
+                const Rtx::ValidationOptions validation = validationFrom(variables, false);
 
                 return runInfo(resources / "rtx" / "shaders", validation);
             }
@@ -634,7 +626,7 @@ namespace RtxTool
                 // and the one place every player of this game has stood.
                 const Chosen chosen = chooseView(variables, resources);
 
-                const Rtx::ValidationOptions validation = chooseValidation(variables, command == "view");
+                const Rtx::ValidationOptions validation = validationFrom(variables, command == "view");
 
                 World world(config, variables, resources);
 
