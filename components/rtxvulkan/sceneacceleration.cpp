@@ -3,7 +3,9 @@
 #include <cassert>
 #include <cstring>
 #include <span>
+#include <string>
 
+#include <components/rtx/error.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
 
@@ -361,6 +363,16 @@ namespace Rtx
     void SceneAcceleration::buildTopLevel(CommandPool& pool, const SceneDesc& scene)
     {
         const DeviceFunctions& functions = mDevice.getFunctions();
+
+        // **Checked here rather than left to the driver.** A scene that grew a mesh since `setScene`
+        // built the structures is a caller breaking `placeScene`'s contract, and the only symptom is
+        // a top level naming a bottom level that was never made — which surfaces as an invalid handle
+        // inside `vkGetAccelerationStructureDeviceAddressKHR` and says nothing about who did it. One
+        // comparison, once a frame, for a failure that otherwise takes the process down unexplained.
+        if (scene.getMeshes().size() != mBottomLevel.size())
+            throw Error("the scene grew from " + std::to_string(mBottomLevel.size()) + " meshes to "
+                + std::to_string(scene.getMeshes().size())
+                + " without being built again; placeScene can only move what setScene made");
 
         std::vector<InstanceRecord> records;
         makeInstanceRecords(scene, records);

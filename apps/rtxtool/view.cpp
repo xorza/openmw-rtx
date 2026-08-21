@@ -136,6 +136,17 @@ namespace RtxTool
         /// design; the game will need the other half.
         std::vector<CellPerson> arrivals;
 
+        /// Hands the renderer everything now in the scene, structures and textures and all.
+        const auto rebuild = [&] {
+            const RtxBridge::SceneTextures described(scene, world.getImageManager());
+            renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
+        };
+
+        /// Reads the region around `around` into the scene, and says whether anything was there.
+        ///
+        /// **It does not build.** The people who arrive with a ring of cells are bodies nobody has
+        /// assembled yet, and their meshes have to be in the scene before the structures are made
+        /// from it — a top level naming a mesh with no bottom level behind it is a fatal frame.
         const auto bring = [&](const ESM::Cell& around) {
             const Clock::time_point began = Clock::now();
             const CellReport arrived = readRegion(world, around, radius, extractor, loaded);
@@ -148,9 +159,6 @@ namespace RtxTool
 
             arrivals = arrived.mPeople;
 
-            const RtxBridge::SceneTextures described(scene, world.getImageManager());
-            renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
-
             out() << std::format("loaded {} cells in {:.2f} s, {} instances now placed\n", arrived.mCells,
                 std::chrono::duration<double>(Clock::now() - began).count(), scene.getInstances().size());
 
@@ -160,10 +168,6 @@ namespace RtxTool
         RegionLoad arrivedWith
             = loadRegion(world, centre, radius, scene, extractor, loaded, request.mWeather, request.mHour);
         request.mLighting = arrivedWith.mLighting;
-        {
-            const RtxBridge::SceneTextures described(scene, world.getImageManager());
-            renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
-        }
 
         if (scene.getInstances().empty())
         {
@@ -191,14 +195,13 @@ namespace RtxTool
             posed->addResidents(residents);
             posed->addRow(actors, start);
 
-            const std::uint32_t deforming = posed->settle().mDeformed;
-
-            // Their meshes are new, so the whole scene is built again rather than replaced. Once.
-            const RtxBridge::SceneTextures described(scene, world.getImageManager());
-            renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
-
-            out() << std::format("{} actors placed, {} deforming drawables\n", posed->getCount(), deforming);
+            out() << std::format(
+                "{} actors placed, {} deforming drawables\n", posed->getCount(), posed->settle().mDeformed);
         }
+
+        // **Once, and after everyone is in.** The bodies brought meshes of their own, so a build that
+        // ran before them would leave the frame naming geometry it had no structure for.
+        rebuild();
 
         FlyCamera camera;
         camera.look(start.mOrigin, start.mTarget);
@@ -339,16 +342,21 @@ namespace RtxTool
                             posed->unplace();
 
                         arrivals.clear();
-                        bring(*cell);
-
-                        // The snapshot first, then the people who arrived with the ring: the
-                        // snapshot is the still world, and a resident belongs to the half of the
-                        // scene that is walked in again every frame.
-                        if (posed != nullptr)
+                        if (bring(*cell))
                         {
-                            posed->restanding();
-                            if (actors.mResidents)
-                                posed->addResidents(arrivals);
+                            // The snapshot first, then the people who arrived with the ring: the
+                            // snapshot is the still world, and a resident belongs to the half of the
+                            // scene that is walked in again every frame.
+                            if (posed != nullptr)
+                            {
+                                posed->restanding();
+                                if (actors.mResidents)
+                                    posed->addResidents(arrivals);
+
+                                posed->settle();
+                            }
+
+                            rebuild();
                         }
                     }
                 }
