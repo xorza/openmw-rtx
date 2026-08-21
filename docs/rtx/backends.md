@@ -158,8 +158,53 @@ struct RendererOptions
     ValidationOptions mValidation;
 };
 
-std::unique_ptr<Renderer> createRenderer(const RendererOptions& options);
+/// Builds a renderer, or nothing where this machine cannot run the backend asked for.
+///
+/// **Null and a reason rather than a throw.** Bring-up failure is the one failure a caller always
+/// wants to act on — the harness skips its GPU tests, the game keeps its rasterizer — and it is the
+/// case that would otherwise force this fork to keep exceptions. The shape matches the one the test
+/// harness already uses for the same question.
+std::unique_ptr<Renderer> createRenderer(const RendererOptions& options, std::string& reason);
 ```
+
+### What the Metal side says about that shape
+
+Checked against the macOS 26 SDK on the machine this was written on, rather than from memory. Three
+things came back, and only one of them wants the interface changed.
+
+**The instance descriptor maps exactly, and Metal is the simpler of the two.**
+`MTLAccelerationStructureInstanceDescriptor` is `transformationMatrix`, `options`, `mask`,
+`intersectionFunctionTableOffset`, `accelerationStructureIndex` — and every field of §5.1's
+`InstanceRecord` lands on one of them. `mMask` is `mask`. `mCutout` is
+`MTLAccelerationStructureInstanceOptionNonOpaque` against `…Opaque`, the same either-or as Vulkan's
+force-no-opaque bit. The unconditional two-sidedness is
+`MTLAccelerationStructureInstanceOptionDisableTriangleCulling`. `intersectionFunctionTableOffset`
+stays zero, because inline `intersection_query` answers the cutout in the kernel exactly as the ray
+query does now, rather than through a table of intersection functions.
+
+`mMesh` is the one that improves. Metal's `accelerationStructureIndex` indexes the
+`instancedAccelerationStructures` array handed to the instance structure, so building that array in
+mesh order makes the record's mesh index the descriptor's field *directly* — where Vulkan needs a
+`vkGetAccelerationStructureDeviceAddress` per instance. `Transform3x4` costs a reindex and nothing
+more: `MTLPackedFloat4x3` is four columns of three, so `columns[c][r]` is the neutral type's
+`mRows[r][c]`, which is what `theVulkanTransformRestatesTheNeutralRowsUnchanged` exists to pin from
+the other side.
+
+**M10's G-buffer is shared work, not per-backend work.** `MTLFXTemporalDenoisedScaler` takes colour,
+depth, motion, **diffuse albedo, specular albedo, normal and roughness**, with optional specular hit
+distance and a reactive mask — which is DLSS Ray Reconstruction's input set under other names. So the
+shader that *writes* the G-buffer is one piece of work in the neutral core, and only the handing of
+those textures to `MTLFXTemporalDenoisedScaler` or to NGX differs. That is the opposite of what §7's
+table implied when it listed upscaling as a per-backend row.
+
+**`resize` is the one method that will have to change, and not yet.** It takes a single extent, and
+the target is 1920x1080 internal to 3840x2160 out — two extents that only stop being equal when an
+upscaler exists. Left alone until M10 rather than designed for a caller that does not exist; noted
+here so it is a known change and not a surprise.
+
+The rest — `setScene` over a span of descriptions, `renderFrame` over pushed constants, `readPixels`,
+`present` against a `CAMetalLayer` drawable instead of a swapchain image — needs nothing. Both
+backends render offscreen and blit, which `Swapchain` already gives its own reasons for.
 
 `present()` on a headless renderer is a contract the caller broke, so it asserts rather than
 returning an error — the harness knows perfectly well whether it opened a window.
@@ -272,6 +317,12 @@ merged, which is why they agree afterwards and why the diff is mostly deletion.
 Two properties to hold onto while moving it: the target image and the hit-count buffer are created
 once and reused, so `renderFrame` allocates nothing; and `readPixels` fills a caller's vector.
 
+**And this is where the exceptions go.** `createRenderer` returning null with a reason is what gives
+bring-up failure somewhere to land, so the twenty-odd `checkVk` throws behind it stop needing to be
+caught by anyone. It also deletes `Testing::findInstanceObstacle`: a harness that skips when
+`createRenderer` hands back null is asking the same question through the front door, and the test
+that builds an instance of its own is asking it because no renderer existed to ask.
+
 ### 5.4 The consumers
 
 `shot.cpp`, `view.cpp` and `countHits()` are rewritten against `Renderer`. This is the step the whole
@@ -346,12 +397,21 @@ take it:
 | | |
 |---|---|
 | Device and capability report | `MTLDevice`, `supportsRaytracing`, the M-series generation |
-| Allocation and upload | `MTLHeap`, `MTLBuffer`, blit encoder, BC1/BC2 upload unchanged |
-| Acceleration structures | `MTLPrimitiveAccelerationStructure` per mesh, `MTLInstanceAccelerationStructure` over `InstanceRecord`, built on the GPU with no deferred-host-operations equivalent needed |
-| Bindless textures | argument buffer, Tier 2 |
-| The pass | a compute kernel with `intersection_query`, which is the candidate-and-commit loop this shader is already written as |
-| Present | `CAMetalLayer`; in-game, `IOSurface` shared with Apple's GL rather than `external_memory_fd` |
-| Upscaling | `MTLFXTemporalDenoisedScaler` in place of DLSS Ray Reconstruction at M10 |
+| Allocation and upload | `MTLHeap`, `MTLBuffer`, a blit encoder; the block-compressed upload is the same bytes |
+| Acceleration structures | one `MTLPrimitiveAccelerationStructure` per mesh in `instancedAccelerationStructures`, one instance structure over `InstanceRecord`, built on the GPU with nothing standing in for deferred host operations |
+| Bindless textures | an argument buffer, Tier 2 |
+| Residency | `MTLResidencySet` — Metal 4 makes explicit what Vulkan never asked for |
+| The pass | a compute kernel around `intersection_query`, which is the candidate-and-commit loop this shader is already written as |
+| Present | `CAMetalLayer`; in-game, an `IOSurface` shared with Apple's GL, because macOS has never had `external_memory_fd` |
+| Upscaling | `MTLFXTemporalDenoisedScaler`, fed the G-buffer the neutral core writes |
+
+**Metal 4, not Metal 3.** The SDK carries `MTL4AccelerationStructure.h`, `MTL4ArgumentTable.h` and
+`MTL4FXTemporalDenoisedScaler.h` beside their older namesakes, and the target is an M-series chip on
+macOS 26. Picking the older API would be choosing a second legacy path on a fork that keeps none.
+
+**The Metal toolchain is a separate download.** `xcrun metal` reports `missing Metal Toolchain` on a
+stock Xcode; `xcodebuild -downloadComponent MetalToolchain` is the first step of phase two and the
+reason the MSL half of §4's spike could not be measured while this was written.
 
 What Metal does not have, and what each costs: **no opacity micromaps**, so every alpha-cutout
 instance stays in the candidate loop — which this renderer already counts and reports, and which
