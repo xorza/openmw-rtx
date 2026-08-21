@@ -52,17 +52,18 @@ namespace MWRender::Rtx
         }
     }
 
-    std::unique_ptr<Tracer> Tracer::tryCreate(
-        std::uint32_t width, std::uint32_t height, const std::filesystem::path& shaders, std::string& reason)
+    std::unique_ptr<Tracer> Tracer::tryCreate(std::uint32_t width, std::uint32_t height,
+        const std::filesystem::path& shaders, ::Rtx::Upscale upscale, std::string& reason)
     {
         ::Rtx::RendererOptions options;
         options.mShaderDirectory = shaders;
         options.mWidth = width;
         options.mHeight = height;
+        options.mUpscale = upscale;
 
-        // **No window and no upscaler.** The window belongs to OpenGL, which is why the frame is
-        // exported rather than presented; and an upscaler would trace at a size the composite would
-        // then blit from, which is a decision to take once the frame is on the screen at all.
+        // **No window, and that is not the same question as no upscaler.** The window belongs to
+        // OpenGL, which is why the frame is exported rather than presented; the upscaler runs
+        // before the export and the composite blits whatever size comes out of it.
         std::unique_ptr<::Rtx::Renderer> renderer = ::Rtx::createRenderer(options, reason);
         if (renderer == nullptr)
             return nullptr;
@@ -213,6 +214,13 @@ namespace MWRender::Rtx
 
         constants.mFogColour = lighting.mFog;
         constants.mFogExtinction = lighting.mFogExtinction;
+
+        // **What the sampler and the jitter are walked by, and leaving it at zero is a bug with two
+        // faces.** The bounce samples the same point every frame, so nothing ever converges; and the
+        // upscaler, which jitters whatever it is told, is handed the same sub-pixel offset every
+        // frame and reconstructs from one sample taken repeatedly. The harness had exactly this, and
+        // it cost a picture that looked plausible and carried none of the detail it was paying for.
+        constants.mFrame = static_cast<std::uint32_t>(frame);
 
         // **Measured, not held at one.** A picture wants the exposure the frame asks for; holding
         // it is what a reference and a pixel test want, and the default is theirs. Without this an

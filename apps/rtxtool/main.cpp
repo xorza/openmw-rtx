@@ -18,6 +18,7 @@
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/upscale.hpp>
 #include <components/rtxbridge/fogbuilder.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
@@ -113,20 +114,11 @@ namespace RtxTool
 
         Rtx::Upscale parseUpscale(std::string_view text)
         {
-            if (text == "off")
-                return Rtx::Upscale::Off;
-            if (text == "performance")
-                return Rtx::Upscale::Performance;
-            if (text == "balanced")
-                return Rtx::Upscale::Balanced;
-            if (text == "quality")
-                return Rtx::Upscale::Quality;
-            if (text == "dlaa")
-                return Rtx::Upscale::Dlaa;
+            const std::optional<Rtx::Upscale> named = Rtx::upscaleNamed(text);
+            if (!named.has_value())
+                throw std::runtime_error("not an upscale mode: " + std::string(text));
 
-            // **Unrecognised is a failure and not a default.** Silently rendering at a mode nobody
-            // asked for is how a typo becomes a performance measurement of the wrong thing.
-            throw std::runtime_error("not an upscale mode: " + std::string(text));
+            return *named;
         }
 
         /// What `--exposure` asked for: a number to hold it at, or nothing to measure it.

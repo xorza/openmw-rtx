@@ -11,6 +11,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/upscale.hpp>
 
 namespace osg
 {
@@ -82,8 +83,10 @@ namespace MWRender::Rtx
     public:
         /// Null where the renderer cannot start here, with `reason` saying why — no Vulkan loader,
         /// no device that qualifies, no OpenGL that can import what it makes.
-        static std::unique_ptr<Tracer> tryCreate(
-            std::uint32_t width, std::uint32_t height, const std::filesystem::path& shaders, std::string& reason);
+        /// @param width, height the window's size in pixels, which is what comes out. What gets
+        ///        traced is the upscaler's answer for it.
+        static std::unique_ptr<Tracer> tryCreate(std::uint32_t width, std::uint32_t height,
+            const std::filesystem::path& shaders, ::Rtx::Upscale upscale, std::string& reason);
 
         ~Tracer();
 

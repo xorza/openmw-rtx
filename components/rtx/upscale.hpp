@@ -1,5 +1,8 @@
 #pragma once
 
+#include <optional>
+#include <string_view>
+
 namespace Rtx
 {
     /// How the frame gets from the size it is traced at to the size it is shown at.
@@ -28,4 +31,25 @@ namespace Rtx
         /// comes out softer than the reference and the question is which half softened it.
         Dlaa,
     };
+
+    /// The mode `name` spells, or nothing where it spells none of them.
+    ///
+    /// **Nothing rather than a default.** A setting file and a command line both reach this, and
+    /// silently rendering at a mode nobody asked for is how a typo becomes a performance measurement
+    /// of the wrong thing.
+    inline std::optional<Upscale> upscaleNamed(std::string_view name)
+    {
+        if (name == "off")
+            return Upscale::Off;
+        if (name == "performance")
+            return Upscale::Performance;
+        if (name == "balanced")
+            return Upscale::Balanced;
+        if (name == "quality")
+            return Upscale::Quality;
+        if (name == "dlaa")
+            return Upscale::Dlaa;
+
+        return std::nullopt;
+    }
 }

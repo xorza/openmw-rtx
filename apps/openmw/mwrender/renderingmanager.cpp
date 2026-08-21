@@ -6,6 +6,7 @@
 #include <numbers>
 
 #include <components/rtx/shaders/scene.h>
+#include <components/rtx/upscale.hpp>
 
 #include "rtx/composite.hpp"
 #include "rtx/tracer.hpp"
@@ -427,11 +428,21 @@ namespace MWRender
         if (Settings::rtx().mEnabled)
         {
             const osg::Viewport* viewport = mViewer->getCamera()->getViewport();
+            const std::string wanted = Settings::rtx().mUpscale;
+
+            // **Refused rather than defaulted**, for the reason `Rtx::upscaleNamed` gives: a typo
+            // that quietly renders at another mode is a measurement of the wrong thing.
+            const std::optional<::Rtx::Upscale> upscale = ::Rtx::upscaleNamed(wanted);
+
             std::string reason;
-            mTracer = Rtx::Tracer::tryCreate(static_cast<std::uint32_t>(viewport->width()),
-                static_cast<std::uint32_t>(viewport->height()),
-                resourceSystem->getSceneManager()->getShaderManager().getShaderPath().parent_path() / "rtx" / "shaders",
-                reason);
+            if (!upscale.has_value())
+                reason = '"' + wanted + "\" is not one of off, performance, balanced, quality or dlaa";
+            else
+                mTracer = Rtx::Tracer::tryCreate(static_cast<std::uint32_t>(viewport->width()),
+                    static_cast<std::uint32_t>(viewport->height()),
+                    resourceSystem->getSceneManager()->getShaderManager().getShaderPath().parent_path() / "rtx"
+                        / "shaders",
+                    *upscale, reason);
 
             if (mTracer == nullptr)
             {

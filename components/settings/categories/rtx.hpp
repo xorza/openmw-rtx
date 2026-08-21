@@ -1,6 +1,8 @@
 #ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_RTX_H
 #define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_RTX_H
 
+#include <string>
+
 #include <components/settings/settingvalue.hpp>
 
 namespace Settings
@@ -17,6 +19,12 @@ namespace Settings
 
         SettingValue<bool> mEnabled{ mIndex, "RTX", "enabled" };
         SettingValue<bool> mValidation{ mIndex, "RTX", "validation" };
+
+        /// How hard DLSS Ray Reconstruction works, or `off` for none of it.
+        ///
+        /// A name rather than a number, and unrecognised is refused rather than defaulted — see
+        /// `Rtx::upscaleNamed`.
+        SettingValue<std::string> mUpscale{ mIndex, "RTX", "upscale" };
     };
 }
 
