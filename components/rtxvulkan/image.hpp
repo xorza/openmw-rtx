@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -16,8 +17,11 @@ namespace Rtx
     class Image
     {
     public:
-        Image(
-            const Device& device, std::uint32_t width, std::uint32_t height, VkFormat format, VkImageUsageFlags usage);
+        /// @param name what a capture and a validation message call this image and its view.
+        ///        Required, and not because every image deserves prose: they all used to be called
+        ///        "target", so a report naming one said nothing about which it was.
+        Image(const Device& device, std::uint32_t width, std::uint32_t height, VkFormat format, VkImageUsageFlags usage,
+            std::string_view name);
         ~Image();
 
         Image(const Image&) = delete;

@@ -4,7 +4,6 @@
 #include <cassert>
 
 #include "commands.hpp"
-#include "device.hpp"
 #include "gbuffer.hpp"
 #include "image.hpp"
 
@@ -30,11 +29,8 @@ namespace Rtx
     CompositePass::CompositePass(const Device& device, CommandPool& pool, const std::filesystem::path& shaderDirectory)
         : mPipeline(device, sBindings, sizeof(Shaders::CompositeConstants), {}, shaderDirectory / "composite.comp.spv",
               "composite")
-        , mNoHistory(device, 1, 1, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT)
+        , mNoHistory(device, 1, 1, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT, "no-history")
     {
-        device.setName(
-            VK_OBJECT_TYPE_IMAGE, reinterpret_cast<std::uint64_t>(mNoHistory.getHandle()), "composite-no-history");
-
         // A bound storage image has to be in the layout its descriptor names whether the shader
         // reads it or not, so the one texel is laid out once and then left alone forever.
         pool.submitAndWait([this](VkCommandBuffer commands) {

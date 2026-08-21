@@ -2265,7 +2265,7 @@ namespace Rtx
 
             const GBuffer channels(device, size, size);
             const CompositePass composite(device, pool, Testing::getShaderDirectory());
-            Image target(device, size, size, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT);
+            Image target(device, size, size, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT, "cost-target");
             const Buffer hits(device, sizeof(std::uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 

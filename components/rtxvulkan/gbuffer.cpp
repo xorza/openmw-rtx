@@ -1,7 +1,5 @@
 #include "gbuffer.hpp"
 
-#include "device.hpp"
-
 namespace Rtx
 {
     namespace
@@ -31,15 +29,11 @@ namespace Rtx
     }
 
     GBuffer::GBuffer(const Device& device, std::uint32_t width, std::uint32_t height)
-        : mDirect(device, width, height, sRadiance, sUsage)
-        , mIndirect(device, width, height, sRadiance, sUsage)
-        , mModulate(device, width, height, sRadiance, sUsage)
-        , mGuide(device, width, height, sGuide, sUsage)
+        : mDirect(device, width, height, sRadiance, sUsage, "g-direct")
+        , mIndirect(device, width, height, sRadiance, sUsage, "g-indirect")
+        , mModulate(device, width, height, sRadiance, sUsage, "g-modulate")
+        , mGuide(device, width, height, sGuide, sUsage, "g-guide")
     {
-        device.setName(VK_OBJECT_TYPE_IMAGE, reinterpret_cast<std::uint64_t>(mDirect.getHandle()), "g-direct");
-        device.setName(VK_OBJECT_TYPE_IMAGE, reinterpret_cast<std::uint64_t>(mIndirect.getHandle()), "g-indirect");
-        device.setName(VK_OBJECT_TYPE_IMAGE, reinterpret_cast<std::uint64_t>(mModulate.getHandle()), "g-modulate");
-        device.setName(VK_OBJECT_TYPE_IMAGE, reinterpret_cast<std::uint64_t>(mGuide.getHandle()), "g-guide");
     }
 
     void GBuffer::begin(VkCommandBuffer commands) const

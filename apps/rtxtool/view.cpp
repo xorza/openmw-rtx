@@ -186,8 +186,9 @@ namespace RtxTool
         const auto makeTargets = [&device](VkExtent2D extent) {
             std::vector<std::unique_ptr<Rtx::Image>> targets;
             for (std::uint32_t i = 0; i < sFramesInFlight; ++i)
-                targets.push_back(std::make_unique<Rtx::Image>(device, extent.width, extent.height,
-                    VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT));
+                targets.push_back(
+                    std::make_unique<Rtx::Image>(device, extent.width, extent.height, VK_FORMAT_R8G8B8A8_UNORM,
+                        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, std::format("target-{}", i)));
             return targets;
         };
         std::vector<std::unique_ptr<Rtx::Image>> targets = makeTargets(swapchain.getExtent());

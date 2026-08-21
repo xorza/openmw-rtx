@@ -10,8 +10,8 @@
 
 namespace Rtx
 {
-    Image::Image(
-        const Device& device, std::uint32_t width, std::uint32_t height, VkFormat format, VkImageUsageFlags usage)
+    Image::Image(const Device& device, std::uint32_t width, std::uint32_t height, VkFormat format,
+        VkImageUsageFlags usage, std::string_view name)
         : mDevice(device)
         , mWidth(width)
         , mHeight(height)
@@ -46,8 +46,8 @@ namespace Rtx
         };
         checkVk(vkCreateImageView(device.getHandle(), &view, nullptr, &mView), "vkCreateImageView");
 
-        device.setName(VK_OBJECT_TYPE_IMAGE, reinterpret_cast<std::uint64_t>(mHandle), "target");
-        device.setName(VK_OBJECT_TYPE_IMAGE_VIEW, reinterpret_cast<std::uint64_t>(mView), "target");
+        device.setName(VK_OBJECT_TYPE_IMAGE, reinterpret_cast<std::uint64_t>(mHandle), name);
+        device.setName(VK_OBJECT_TYPE_IMAGE_VIEW, reinterpret_cast<std::uint64_t>(mView), name);
     }
 
     Image::~Image()

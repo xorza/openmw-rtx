@@ -181,6 +181,7 @@ namespace Rtx
         checkVk(vkCreateImageView(mDevice, &view, nullptr, &mView), "vkCreateImageView");
 
         device.setName(VK_OBJECT_TYPE_IMAGE, reinterpret_cast<std::uint64_t>(mHandle), name);
+        device.setName(VK_OBJECT_TYPE_IMAGE_VIEW, reinterpret_cast<std::uint64_t>(mView), name);
     }
 
     Texture::~Texture()
