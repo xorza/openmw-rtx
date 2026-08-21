@@ -133,6 +133,11 @@ namespace RtxTool
             addOption("filter", bpo::value<bool>()->default_value(true)->implicit_value(true),
                 "run the denoiser over the indirect light. Off shows the raw bounce, and is what a "
                 "reference built with --accumulate has to be made with");
+            addOption("upscale", bpo::value<std::string>()->default_value("off"),
+                "put DLSS Ray Reconstruction between the trace and the picture: off, performance, "
+                "balanced, quality or dlaa. --size is then what comes out, and what gets traced is "
+                "DLSS's answer for it. It denoises for itself, so --filter stops applying");
+
             addOption("albedo", bpo::bool_switch(),
                 "write the albedo with no shading over it, which is what a texture problem looks like "
                 "when nothing else is in the way");
@@ -224,6 +229,24 @@ namespace RtxTool
                 throw std::runtime_error("not a size: " + std::string(text));
 
             return { width, height };
+        }
+
+        Rtx::Upscale parseUpscale(std::string_view text)
+        {
+            if (text == "off")
+                return Rtx::Upscale::Off;
+            if (text == "performance")
+                return Rtx::Upscale::Performance;
+            if (text == "balanced")
+                return Rtx::Upscale::Balanced;
+            if (text == "quality")
+                return Rtx::Upscale::Quality;
+            if (text == "dlaa")
+                return Rtx::Upscale::Dlaa;
+
+            // **Unrecognised is a failure and not a default.** Silently rendering at a mode nobody
+            // asked for is how a typo becomes a performance measurement of the wrong thing.
+            throw std::runtime_error("not an upscale mode: " + std::string(text));
         }
 
         void printUsage(const bpo::options_description& options)
@@ -718,6 +741,7 @@ namespace RtxTool
                 request.mDelight = variables["delight"].as<float>();
                 request.mWeather = variables["weather"].as<std::string>();
                 request.mHour = variables["hour"].as<float>();
+                request.mUpscale = parseUpscale(variables["upscale"].as<std::string>());
                 request.mRepeat = variables["repeat"].as<std::uint32_t>();
                 request.mAccumulate = variables["accumulate"].as<std::uint32_t>();
 

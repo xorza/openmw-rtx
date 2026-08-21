@@ -42,6 +42,7 @@ find_program(OPENMW_SPIRV_VAL NAMES spirv-val REQUIRED
 set(RTX_SHADERS
     shaders/atrous.comp
     shaders/composite.comp
+    shaders/tone.comp
     shaders/visibility.comp
 )
 
@@ -117,6 +118,8 @@ set(RTX_VULKAN_FILES
     swapchain.hpp
     texture.cpp
     texture.hpp
+    tonepass.cpp
+    tonepass.hpp
     validation.cpp
     validation.hpp
     visibilitypass.cpp
@@ -125,10 +128,10 @@ set(RTX_VULKAN_FILES
     vulkanrenderer.hpp
 )
 
-# Only where the SDK is there to compile against: the file is nothing but NGX, so a build without
-# DLSS leaves it out rather than hollowing it with a guard.
+# Only where the SDK is there to compile against: these are nothing but NGX, so a build without
+# DLSS leaves them out rather than hollowing them with a guard.
 if (OPENMW_RTX_DLSS)
-    list(APPEND RTX_VULKAN_FILES dlss.cpp dlss.hpp)
+    list(APPEND RTX_VULKAN_FILES dlss.cpp dlss.hpp dlsspass.cpp dlsspass.hpp ngx.hpp)
 endif()
 
 source_group(components\\rtxvulkan FILES ${RTX_VULKAN_FILES})

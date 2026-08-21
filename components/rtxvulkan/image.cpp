@@ -42,6 +42,8 @@ namespace Rtx
         : mDevice(device)
         , mWidth(width)
         , mHeight(height)
+        , mFormat(format)
+        , mUsage(usage)
         , mTexelBytes(texelBytesOf(format))
     {
         const VkImageCreateInfo create{

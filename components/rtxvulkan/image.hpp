@@ -31,6 +31,14 @@ namespace Rtx
         VkImageView getView() const { return mView; }
         std::uint32_t getWidth() const { return mWidth; }
         std::uint32_t getHeight() const { return mHeight; }
+        VkFormat getFormat() const { return mFormat; }
+
+        /// What this image was created able to do, which is not always what a reader assumes.
+        ///
+        /// **Kept so a mismatch can be asserted rather than looked at.** An image handed to
+        /// something that samples it, without `VK_IMAGE_USAGE_SAMPLED_BIT`, reads as zero — no
+        /// error, no validation message, just a black frame with nothing pointing at the cause.
+        VkImageUsageFlags getUsage() const { return mUsage; }
 
         /// How many bytes one texel of this image's format occupies.
         std::uint32_t getTexelBytes() const { return mTexelBytes; }
@@ -55,6 +63,8 @@ namespace Rtx
         DeviceMemory mMemory;
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
+        VkFormat mFormat = VK_FORMAT_UNDEFINED;
+        VkImageUsageFlags mUsage = 0;
         std::uint32_t mTexelBytes = 0;
     };
 }

@@ -684,18 +684,24 @@ namespace Rtx
             }
         }
 
-        /// The depth an upscaler is handed, against the value a rasterizer would have written.
+        /// The two answers the depth channel carries, against hand-computed values for both.
         ///
-        /// `far / (far - near) * (1 - near / z)`, zero at the near plane and one at the far one. The
-        /// numbers here: near is 1 and far is 100,000, so a wall 200 units off reads
-        /// `1.00001 * (1 - 1/200) = 0.995`, and one at 400 reads `1.00001 * (1 - 1/400) = 0.9975`.
-        /// Most of the range is spent within a few units of the eye, which is exactly why the filter
-        /// reads world distance out of the guide instead of this.
+        /// **Clip depth in `r`, for an upscaler.** `far / (far - near) * (1 - near / z)`, zero at the
+        /// near plane and one at the far one. The numbers here: near is 1 and far is 100,000, so a
+        /// wall 200 units off reads `1.00001 * (1 - 1/200) = 0.995`, and one at 400 reads
+        /// `1.00001 * (1 - 1/400) = 0.9975`. Most of the range is spent within a few units of the
+        /// eye, which is exactly why the filter reads the second channel instead.
         ///
-        /// **Depth along the view axis, not along the ray.** A surface at the corner of the frame is
-        /// further from the eye than one at its centre while lying in the same plane, and a
-        /// rasterizer records the plane. Both are checked, because the difference between them is a
-        /// cosine that only shows away from the middle of the picture.
+        /// **Distance from the eye in `g`, for the filter.** In world units, along the ray.
+        ///
+        /// **And the two disagree in the one place that matters**, which is what makes this a test
+        /// rather than two readings of one number: at the corner of the frame the same plane is
+        /// further away and no deeper. A 64-pixel square at a sixty-degree field of view puts pixel
+        /// zero at `uv = 0.5/64 * 2 - 1 = -0.984375` on both axes, so its ray is
+        /// `normalize(F - 0.984375 R + 0.984375 U)` with `|R| = |U| = tan(30°)`; the cosine to the
+        /// view axis is `1 / sqrt(1 + 2 (0.984375 tan 30°)^2) = 1 / 1.2829652`. So the corner reads
+        /// the centre's clip value and 1.2829652 times its distance. The centre pixel is itself half
+        /// a pixel off-axis, which is the 1.0000814 below.
         TEST_F(RtxVisibilityTest, theDepthChannelIsWhatARasterizerWouldHaveWritten)
         {
             constexpr std::uint32_t size = 64;
@@ -713,6 +719,11 @@ namespace Rtx
 
             const auto expected = [](float z) { return far / (far - near) * (1.0f - near / z); };
 
+            // Two floats a pixel: clip depth, then distance from the eye.
+            constexpr std::size_t stride = 2;
+            constexpr float cornerCosine = 1.2829652f;
+            constexpr float centreCosine = 1.0000814f;
+
             const auto depthOf = [&](float away) {
                 SceneDesc scene;
                 scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
@@ -729,12 +740,13 @@ namespace Rtx
                 return depth;
             };
 
-            constexpr std::size_t centre = std::size_t{ size / 2 } * size + size / 2;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * stride;
             constexpr std::size_t corner = 0;
 
             for (const float away : { 200.0f, 400.0f })
             {
                 const std::vector<float> depth = depthOf(away);
+                ASSERT_EQ(depth.size(), std::size_t{ size } * size * stride);
 
                 EXPECT_NEAR(depth[centre], expected(away), 1e-5f) << "at " << away;
 
@@ -743,6 +755,11 @@ namespace Rtx
                 // this at `expected(away / cos)`, which at this field of view is a whole 0.00002
                 // out — small, and exactly the kind of small that makes an upscaler shimmer.
                 EXPECT_NEAR(depth[corner], depth[centre], 1e-6f) << "the corner of the same wall";
+
+                // And the second channel is the reading the first is not: the corner really is
+                // further away, by the cosine the depth deliberately divides out.
+                EXPECT_NEAR(depth[centre + 1], away * centreCosine, away * 1e-3f) << "distance at the centre";
+                EXPECT_NEAR(depth[corner + 1], away * cornerCosine, away * 1e-3f) << "distance at the corner";
             }
 
             // A ray that hit nothing is as far away as anything can be.
@@ -759,8 +776,11 @@ namespace Rtx
 
                 std::vector<float> depth;
                 mRenderer->readChannel(Channel::Depth, depth);
-                for (const float value : depth)
-                    ASSERT_EQ(value, 1.0f);
+                for (std::size_t i = 0; i < depth.size(); i += stride)
+                {
+                    ASSERT_EQ(depth[i], 1.0f) << "clip depth at " << i / stride;
+                    ASSERT_EQ(depth[i + 1], far) << "distance at " << i / stride;
+                }
             }
         }
 

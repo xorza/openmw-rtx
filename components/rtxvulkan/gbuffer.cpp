@@ -19,23 +19,26 @@ namespace Rtx
         /// of 0.067% that the test derives from what the format can show. Full floats put it back.
         constexpr VkFormat sRadiance = VK_FORMAT_R32G32B32A32_SFLOAT;
 
-        /// The guide is full floats for a plainer reason.
-        ///
-        /// Its distance channel runs to thirty thousand units, where a half's steps are thirty-two
-        /// units wide — coarser than most of what the filter is being asked to hold an edge across.
+        /// The guide is full floats so that a normal stays a normal after three of its components
+        /// have been quantised; the roughness beside it would fit in anything.
         constexpr VkFormat sGuide = VK_FORMAT_R32G32B32A32_SFLOAT;
 
         /// Two full floats, for the reason `getMotion` gives.
         constexpr VkFormat sMotion = VK_FORMAT_R32G32_SFLOAT;
 
-        /// One, and a full float rather than a half for the reason the guide is: a clip depth puts
-        /// most of its precision within a few units of the eye, so what is left at the far end of a
-        /// Morrowind view is exactly where a coarse format would run out.
-        constexpr VkFormat sDepth = VK_FORMAT_R32_SFLOAT;
+        /// Two, and full floats rather than halves: a clip depth puts most of its precision within a
+        /// few units of the eye, so what is left at the far end of a Morrowind view is exactly where
+        /// a coarse format would run out, and the distance beside it runs past thirty thousand units
+        /// where a half's steps are thirty-two units wide.
+        constexpr VkFormat sDepth = VK_FORMAT_R32G32_SFLOAT;
 
-        constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT;
+        /// **`SAMPLED` on all of them, and it is not decoration.** DLSS samples every input it is
+        /// handed; one without the bit reads as zero, NGX returns success and the validation layers
+        /// say nothing, so the whole frame comes back black with nothing pointing at the cause. It
+        /// costs no memory, so every channel carries it rather than only the four DLSS reads today.
+        constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-        /// The motion channel is also read back, which nothing else here is.
+        /// The motion and depth channels are also read back, which nothing else here is.
         constexpr VkImageUsageFlags sReadable = sUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     }
 

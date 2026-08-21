@@ -14,12 +14,13 @@ namespace Rtx
             return (extent + Shaders::ATROUS_WORKGROUP - 1) / Shaders::ATROUS_WORKGROUP;
         }
 
-        /// The channel coming in, the channel going out, and the guide that says where the edges
-        /// are. All storage images, all pushed.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 3> sBindings{
+        /// The channel coming in, the channel going out, and the two that say where the edges are:
+        /// normals from the guide and distances from the depth. All storage images, all pushed.
+        constexpr std::array<VkDescriptorSetLayoutBinding, 4> sBindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
         };
 
         /// How sharply a tap's normal has to agree with the centre's, and how far off its plane it
@@ -91,13 +92,14 @@ namespace Rtx
                         VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
             }
 
-            const std::array<VkDescriptorImageInfo, 3> images{
+            const std::array<VkDescriptorImageInfo, 4> images{
                 VkDescriptorImageInfo{ VK_NULL_HANDLE, source->getView(), VK_IMAGE_LAYOUT_GENERAL },
                 VkDescriptorImageInfo{ VK_NULL_HANDLE, target->getView(), VK_IMAGE_LAYOUT_GENERAL },
                 VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getGuide().getView(), VK_IMAGE_LAYOUT_GENERAL },
+                VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getDepth().getView(), VK_IMAGE_LAYOUT_GENERAL },
             };
 
-            std::array<VkWriteDescriptorSet, 3> writes{};
+            std::array<VkWriteDescriptorSet, 4> writes{};
             for (std::uint32_t i = 0; i < images.size(); ++i)
                 writes[i] = VkWriteDescriptorSet{
                     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,

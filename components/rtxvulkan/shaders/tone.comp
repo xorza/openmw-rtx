@@ -1,0 +1,47 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_scalar_block_layout : require
+
+// Scene-referred radiance to bytes a display understands.
+//
+// **The one pass that knows what a display is**, and the last thing in the frame for that reason:
+// everything before it works in linear radiance, including the upscaler, which reconstructs from
+// several frames of it.
+
+#include "tone.h"
+
+layout(local_size_x = TONE_WORKGROUP, local_size_y = TONE_WORKGROUP) in;
+
+/// The finished frame in linear radiance, at whatever resolution the pass before this produced.
+layout(set = 0, binding = 0, rgba32f) uniform readonly image2D colour;
+
+/// The picture, as bytes a display understands.
+layout(set = 0, binding = 1, rgba8) uniform writeonly image2D target;
+
+layout(push_constant, scalar) uniform Push
+{
+    ToneConstants frame;
+};
+
+/// The sRGB transfer curve, linear radiance to what a display expects of a byte.
+///
+/// The piecewise form and not the 2.2 approximation. The two differ by several per cent in the
+/// darks, which is where a bounce puts most of what it has to say.
+vec3 encodeSrgb(vec3 linear)
+{
+    const bvec3 small = lessThanEqual(linear, vec3(0.0031308));
+    const vec3 low = linear * 12.92;
+    const vec3 high = 1.055 * pow(max(linear, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055;
+    return clamp(mix(high, low, vec3(small)), 0.0, 1.0);
+}
+
+void main()
+{
+    const uvec2 pixel = gl_GlobalInvocationID.xy;
+    if (pixel.x >= frame.mWidth || pixel.y >= frame.mHeight)
+        return;
+
+    const ivec2 at = ivec2(pixel);
+    imageStore(target, at, vec4(encodeSrgb(imageLoad(colour, at).rgb), 1.0));
+}

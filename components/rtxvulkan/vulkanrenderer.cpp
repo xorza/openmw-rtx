@@ -10,6 +10,7 @@
 
 #ifdef OPENMW_RTX_DLSS
 #include "dlss.hpp"
+#include "dlsspass.hpp"
 #endif
 
 #include "gbuffer.hpp"
@@ -28,12 +29,30 @@ namespace Rtx
         , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()))
         , mPool(mDevice)
         , mShaderDirectory(options.mShaderDirectory)
+        , mUpscale(options.mUpscale)
         , mFilter(mDevice, options.mShaderDirectory)
         , mComposite(mDevice, mPool, options.mShaderDirectory)
+        , mTone(mDevice, options.mShaderDirectory)
     {
         mHitCount = Buffer(mDevice, sizeof(std::uint32_t),
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        // Before the first targets, because what to trace at is its answer and not ours.
+        if (mUpscale != Upscale::Off)
+        {
+#ifdef OPENMW_RTX_DLSS
+            mNgx = std::make_unique<Dlss>(mDevice, mInstance.getHandle());
+            if (!mNgx->isAvailable())
+                throw Error("DLSS Ray Reconstruction was asked for and " + mNgx->getObstacle());
+#else
+            // **Named rather than quietly ignored.** A build that cannot upscale and renders at the
+            // output size anyway is one whose frame times mean something else entirely.
+            throw Error(
+                "upscaling was asked for and this build has no DLSS; configure with "
+                "-DOPENMW_RTX_DLSS=ON");
+#endif
+        }
 
         createTargets(options.mWidth, options.mHeight);
     }
@@ -45,14 +64,65 @@ namespace Rtx
     {
         assert(width > 0 && height > 0);
 
-        mWidth = width;
-        mHeight = height;
+        mOutputWidth = width;
+        mOutputHeight = height;
 
-        mTarget = std::make_unique<Image>(mDevice, width, height, VK_FORMAT_R8G8B8A8_UNORM,
+        // Whatever upscales picks the render size; without one the two extents are the same number
+        // twice, and every pass below is written as though they always might not be.
+        VkExtent2D render{ width, height };
+#ifdef OPENMW_RTX_DLSS
+        if (mNgx != nullptr)
+            render = mNgx->getRenderSize(VkExtent2D{ width, height }, mUpscale);
+#endif
+        mRenderWidth = render.width;
+        mRenderHeight = render.height;
+
+        // `SAMPLED` because an upscaler samples what it is handed, and one bit short of that is a
+        // black frame nothing reports. See `GBuffer`, which carries it for the same reason.
+        mColour = std::make_unique<Image>(mDevice, mRenderWidth, mRenderHeight, VK_FORMAT_R32G32B32A32_SFLOAT,
+            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "colour");
+
+        mTarget = std::make_unique<Image>(mDevice, mOutputWidth, mOutputHeight, VK_FORMAT_R8G8B8A8_UNORM,
             VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "target");
 
-        mChannels = std::make_unique<GBuffer>(mDevice, width, height);
-        mFilter.resize(width, height);
+        mChannels = std::make_unique<GBuffer>(mDevice, mRenderWidth, mRenderHeight);
+        mFilter.resize(mRenderWidth, mRenderHeight);
+
+#ifdef OPENMW_RTX_DLSS
+        // Released before the next is built: the feature holds the network's weights for one pair
+        // of resolutions, which is most of what it occupies.
+        mUpscaler.reset();
+
+        if (mNgx != nullptr)
+        {
+            mUpscaled = std::make_unique<Image>(mDevice, mOutputWidth, mOutputHeight, VK_FORMAT_R32G32B32A32_SFLOAT,
+                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "upscaled");
+
+            mNoSpecular = std::make_unique<Image>(mDevice, mRenderWidth, mRenderHeight, VK_FORMAT_R32G32B32A32_SFLOAT,
+                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                "no-specular");
+
+            // Building uploads the network's weights, and the zero specular albedo is cleared in the
+            // same submit — both are once per resolution rather than once per frame.
+            mPool.submitAndWait([&](VkCommandBuffer commands) {
+                mNoSpecular->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_CLEAR_BIT,
+                    VK_ACCESS_2_TRANSFER_WRITE_BIT);
+
+                const VkClearColorValue nothing{};
+                const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+                vkCmdClearColorImage(
+                    commands, mNoSpecular->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &nothing, 1, &whole);
+
+                mNoSpecular->transition(commands, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_2_CLEAR_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                    VK_ACCESS_2_MEMORY_READ_BIT);
+
+                mUpscaler = std::make_unique<DlssPass>(
+                    *mNgx, commands, render, VkExtent2D{ mOutputWidth, mOutputHeight }, mUpscale);
+            });
+        }
+#endif
 
         // A frame of a different size is not one this one can be reprojected against.
         mPreviousCamera = Shaders::VisibilityConstants{};
@@ -142,7 +212,7 @@ namespace Rtx
 
     void VulkanRenderer::resize(std::uint32_t width, std::uint32_t height)
     {
-        if (width == mWidth && height == mHeight)
+        if (width == mOutputWidth && height == mOutputHeight)
             return;
 
         // The images about to be replaced may still be in flight.
@@ -150,9 +220,21 @@ namespace Rtx
         createTargets(width, height);
     }
 
+    FrameExtents VulkanRenderer::getExtents() const
+    {
+        return FrameExtents{
+            .mRenderWidth = mRenderWidth,
+            .mRenderHeight = mRenderHeight,
+            .mOutputWidth = mOutputWidth,
+            .mOutputHeight = mOutputHeight,
+        };
+    }
+
     FrameResult VulkanRenderer::renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options)
     {
         assert(mPass != nullptr && "renderFrame before setScene");
+        assert(camera.mWidth == mRenderWidth && camera.mHeight == mRenderHeight
+            && "the camera has to be built for the render extent; ask getExtents");
 
         // The count is an atomic sum over the frame, so it starts each one at nothing.
         *static_cast<std::uint32_t*>(mHitCount.map()) = 0;
@@ -161,8 +243,13 @@ namespace Rtx
         // The camera as the caller wrote it, plus where in the pixel this frame samples. Filled
         // here rather than by the caller because the sequence belongs to the frame index, which is
         // the renderer's to walk.
+        // **An upscaler always jitters, whatever was asked for.** Reconstruction across several
+        // frames of the same sample point is reconstruction from one sample, and there is nothing in
+        // `FrameOptions` a caller could set that would make that a reasonable frame to produce.
+        const bool upscaling = mUpscale != Upscale::Off;
+
         Shaders::VisibilityConstants sampled = camera;
-        if (options.mJitter)
+        if (options.mJitter || upscaling)
             sampled.mJitter = haltonJitter(camera.mFrame);
 
         // **The one subtraction of two world points, and it happens here.** Two camera positions a
@@ -183,15 +270,25 @@ namespace Rtx
         // Made by the first frame that averages, and that frame is the one that fills it.
         const bool fresh = options.mAccumulate > 0 && mHistory == nullptr;
         if (fresh)
-            mHistory = std::make_unique<Image>(
-                mDevice, mWidth, mHeight, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT, "history");
+            mHistory = std::make_unique<Image>(mDevice, mRenderWidth, mRenderHeight, VK_FORMAT_R32G32B32A32_SFLOAT,
+                VK_IMAGE_USAGE_STORAGE_BIT, "history");
 
         const auto start = std::chrono::steady_clock::now();
 
         mPool.submitAndWait([&](VkCommandBuffer commands) {
-            mTarget->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+            // All written whole before anything reads them, so none needs its contents carried over
+            // from the last frame.
+            for (const Image* image : { mColour.get(), mTarget.get() })
+                image->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+
+#ifdef OPENMW_RTX_DLSS
+            if (mUpscaled != nullptr)
+                mUpscaled->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                    VK_ACCESS_2_MEMORY_WRITE_BIT);
+#endif
 
             // The first write needs no contents and nothing to wait on; every one after reads what
             // the last left, which the fence orders and does not make visible.
@@ -207,16 +304,57 @@ namespace Rtx
             mChannels->handOver(commands);
 
             // Where the bounce ended up: the filter's last level, or the channel the trace wrote
-            // when nothing filtered it.
-            const Image& indirect
-                = options.mFilter ? mFilter.record(commands, *mChannels, sampled) : mChannels->getIndirect();
+            // when nothing filtered it. **Ray Reconstruction is itself the denoiser**, and handing
+            // it a frame the wavelet already blurred is asking it to recover what was thrown away.
+            const Image& indirect = options.mFilter && !upscaling ? mFilter.record(commands, *mChannels, sampled)
+                                                                  : mChannels->getIndirect();
 
-            mComposite.record(commands, *mChannels, indirect, mHistory.get(), *mTarget,
+            mComposite.record(commands, *mChannels, indirect, mHistory.get(), *mColour,
                 Shaders::CompositeConstants{
-                    .mWidth = mWidth,
-                    .mHeight = mHeight,
+                    .mWidth = mRenderWidth,
+                    .mHeight = mRenderHeight,
                     .mAccumulate = options.mAccumulate,
                 });
+
+            // Whatever comes next reads what the composite just wrote.
+            mColour->transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_MEMORY_READ_BIT);
+
+            const Image* shown = mColour.get();
+
+#ifdef OPENMW_RTX_DLSS
+            if (mUpscaler != nullptr)
+            {
+                mUpscaler->record(commands,
+                    DlssInputs{
+                        .mColour = *mColour,
+                        // **A stand-in, and one worth naming.** What Ray Reconstruction wants is the
+                        // albedo alone; what this is, is the albedo times whatever the water and the
+                        // air took on the way to the eye. The two part company in fog, and they stop
+                        // parting company when there is a material model to separate them.
+                        .mDiffuseAlbedo = mChannels->getModulate(),
+                        .mSpecularAlbedo = *mNoSpecular,
+                        .mNormalRoughness = mChannels->getGuide(),
+                        .mDepth = mChannels->getDepth(),
+                        .mMotion = mChannels->getMotion(),
+                        .mOutput = *mUpscaled,
+                        .mJitter = sampled.mJitter,
+                        // No previous frame to reproject against is exactly what a reset means, and
+                        // a zero basis is how the trace already spells it.
+                        .mReset = mPreviousCamera.mForward.length2() <= 0.0f,
+                    });
+
+                // What NGX recorded is its own; nothing here knows which stages it used.
+                mUpscaled->transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_MEMORY_WRITE_BIT,
+                    VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+
+                shown = mUpscaled.get();
+            }
+#endif
+
+            mTone.record(commands, *shown, *mTarget);
         });
 
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();

@@ -1,0 +1,148 @@
+#include "dlsspass.hpp"
+
+#include <cassert>
+
+// **First, and in a block of its own so clang-format keeps it there.** The DLSSD helper below
+// reaches for `NVSDK_NGX_Create_ImageView_Resource_VK` and `NVSDK_NGX_VK_GBuffer` without including
+// the header that declares them, and sorted alphabetically it would come first.
+#include <nvsdk_ngx_helpers_vk.h>
+
+#include <nvsdk_ngx_helpers_dlssd_vk.h>
+#include <nvsdk_ngx_vk.h>
+
+#include <components/rtx/error.hpp>
+
+#include "image.hpp"
+#include "ngx.hpp"
+
+namespace Rtx
+{
+    namespace
+    {
+        /// How the frame is described to Ray Reconstruction at creation.
+        ///
+        /// `IsHDR` because what the trace writes is scene-referred radiance rather than a tone-mapped
+        /// image — the whole point of the G-buffer split, and the tone curve comes after the upscale.
+        ///
+        /// **`MVLowRes` reads as a description, not a request.** It says the motion vectors *are* at
+        /// the low — render — resolution, which is where the trace writes them. Reasoning it the
+        /// other way round and leaving it out is rejected with "Low resolution Motion Vectors
+        /// required", a message that exists only in NGX's own log: the API returns
+        /// `FAIL_InvalidParameter`, which names no parameter.
+        ///
+        /// **`DepthInverted` is deliberately absent**, unlike in the reference implementation: the
+        /// clip depth this renderer writes is zero at the near plane and one at the far one.
+        ///
+        /// **`AutoExposure` is deliberately absent too**, and so are `DLSS.Pre.Exposure` and
+        /// `DLSS.Exposure.Scale` beside it in the SDK's own helper: Ray Reconstruction does not
+        /// support exposure at all, as its integration guide says in §3.7 and as the reference
+        /// measured — bit-identical with them and without.
+        constexpr int sCreateFlags = NVSDK_NGX_DLSS_Feature_Flags_IsHDR | NVSDK_NGX_DLSS_Feature_Flags_MVLowRes;
+
+        /// An image as NGX takes one.
+        ///
+        /// Read-write because every image here was created with `VK_IMAGE_USAGE_STORAGE_BIT`, which
+        /// is what the flag reports — not a claim that this evaluation writes to it.
+        NVSDK_NGX_Resource_VK resourceOf(const Image& image)
+        {
+            assert((image.getUsage() & VK_IMAGE_USAGE_SAMPLED_BIT) != 0
+                && "DLSS samples its inputs; one it cannot sample reads as zero and nothing reports it");
+
+            const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+            return NVSDK_NGX_Create_ImageView_Resource_VK(image.getView(), image.getHandle(), whole, image.getFormat(),
+                image.getWidth(), image.getHeight(), true);
+        }
+    }
+
+    DlssPass::DlssPass(const Dlss& ngx, VkCommandBuffer commands, VkExtent2D render, VkExtent2D output, Upscale upscale)
+        : mRenderExtent(render)
+        , mOutputExtent(output)
+    {
+        const NVSDK_NGX_Result allocated = NVSDK_NGX_VULKAN_AllocateParameters(&mParameters);
+        if (NVSDK_NGX_FAILED(allocated) || mParameters == nullptr)
+            throw Error("NGX would not allocate a parameter map: " + describeNgxResult(allocated));
+
+        NVSDK_NGX_DLSSD_Create_Params create{};
+        create.InDenoiseMode = NVSDK_NGX_DLSS_Denoise_Mode_DLUnified;
+        // Roughness comes from the normal target's fourth channel, so there is no separate resource
+        // to bind and none to write.
+        create.InRoughnessMode = NVSDK_NGX_DLSS_Roughness_Mode_Packed;
+        // **The enum is about the depth's shape, not where it came from.** `Linear` is 0 and `HW`
+        // is 1, and what the trace writes is a projected clip value whichever shader computed it.
+        // Saying `Linear` because a compute shader wrote it is true and irrelevant, and is the
+        // second thing `FAIL_InvalidParameter` has meant here.
+        create.InUseHWDepth = NVSDK_NGX_DLSS_Depth_Type_HW;
+        create.InWidth = render.width;
+        create.InHeight = render.height;
+        create.InTargetWidth = output.width;
+        create.InTargetHeight = output.height;
+        create.InPerfQualityValue = ngxQualityOf(upscale);
+        create.InFeatureCreateFlags = sCreateFlags;
+        create.InEnableOutputSubrects = false;
+
+        // One GPU, so both node masks are the first node.
+        const NVSDK_NGX_Result built
+            = NGX_VULKAN_CREATE_DLSSD_EXT1(ngx.getDevice(), commands, 1, 1, &mHandle, mParameters, &create);
+        if (NVSDK_NGX_FAILED(built))
+        {
+            // A constructor that throws gets no destructor, and the map is already NGX's to free.
+            NVSDK_NGX_VULKAN_DestroyParameters(mParameters);
+            mParameters = nullptr;
+            throw Error("NGX would not build Ray Reconstruction: " + describeNgxResult(built));
+        }
+    }
+
+    DlssPass::~DlssPass()
+    {
+        // The feature first, then the map it was built from: the map has to outlive it.
+        if (mHandle != nullptr)
+            NVSDK_NGX_VULKAN_ReleaseFeature(mHandle);
+        if (mParameters != nullptr)
+            NVSDK_NGX_VULKAN_DestroyParameters(mParameters);
+    }
+
+    void DlssPass::record(VkCommandBuffer commands, const DlssInputs& inputs) const
+    {
+        assert(inputs.mColour.getWidth() == mRenderExtent.width && inputs.mColour.getHeight() == mRenderExtent.height);
+        assert(inputs.mOutput.getWidth() == mOutputExtent.width && inputs.mOutput.getHeight() == mOutputExtent.height);
+
+        // Held by value across the call: the parameter map keeps the pointers rather than what they
+        // point at, so every one of these has to outlive the evaluation.
+        NVSDK_NGX_Resource_VK colour = resourceOf(inputs.mColour);
+        NVSDK_NGX_Resource_VK diffuse = resourceOf(inputs.mDiffuseAlbedo);
+        NVSDK_NGX_Resource_VK specular = resourceOf(inputs.mSpecularAlbedo);
+        NVSDK_NGX_Resource_VK normals = resourceOf(inputs.mNormalRoughness);
+        NVSDK_NGX_Resource_VK depth = resourceOf(inputs.mDepth);
+        NVSDK_NGX_Resource_VK motion = resourceOf(inputs.mMotion);
+        NVSDK_NGX_Resource_VK target = resourceOf(inputs.mOutput);
+
+        NVSDK_NGX_VK_DLSSD_Eval_Params evaluate{};
+        evaluate.pInColor = &colour;
+        evaluate.pInOutput = &target;
+        evaluate.pInDepth = &depth;
+        evaluate.pInMotionVectors = &motion;
+        evaluate.pInDiffuseAlbedo = &diffuse;
+        evaluate.pInSpecularAlbedo = &specular;
+        evaluate.pInNormals = &normals;
+
+        // **Negated, on both axes.** The trace adds the offset to the *sample coordinate* — it moves
+        // where inside its pixel a ray is fired — where NGX wants the offset as applied to the
+        // projection, which moves the frustum the other way for the same picture. Handing over the
+        // coordinate's sign leaves Ray Reconstruction un-jittering in the direction that doubles the
+        // offset instead of cancelling it, and nothing reports it: the image still resolves, it just
+        // shakes by about a pixel a frame.
+        evaluate.InJitterOffsetX = -inputs.mJitter.x();
+        evaluate.InJitterOffsetY = -inputs.mJitter.y();
+
+        // Already in pixels, so nothing needs scaling. The SDK's helper reads zero here as one,
+        // which would work by accident; saying it is clearer.
+        evaluate.InMVScaleX = 1.0f;
+        evaluate.InMVScaleY = 1.0f;
+        evaluate.InReset = inputs.mReset ? 1 : 0;
+        evaluate.InRenderSubrectDimensions = NVSDK_NGX_Dimensions{ mRenderExtent.width, mRenderExtent.height };
+
+        const NVSDK_NGX_Result ran = NGX_VULKAN_EVALUATE_DLSSD_EXT(commands, mHandle, mParameters, &evaluate);
+        if (NVSDK_NGX_FAILED(ran))
+            throw Error("Ray Reconstruction would not run: " + describeNgxResult(ran));
+    }
+}

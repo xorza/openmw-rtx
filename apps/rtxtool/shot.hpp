@@ -29,9 +29,15 @@ namespace RtxTool
         std::filesystem::path mOutput;
         std::filesystem::path mShaderDirectory;
 
+        /// The size the picture is written at. What it is traced at follows from `mUpscale`, and
+        /// the summary line says so whenever the two differ.
         std::uint32_t mWidth = 1920;
         std::uint32_t mHeight = 1080;
         float mFieldOfView = 60.0f;
+
+        /// Whether Ray Reconstruction stands between the trace and the picture, and how hard it
+        /// works. It denoises for itself, so `mFilter` stops meaning anything once this is on.
+        Rtx::Upscale mUpscale = Rtx::Upscale::Off;
 
         /// How much of the lighting painted into each texture to divide back out, from zero to one.
         /// Zero shows the textures as they were drawn, with their lighting still in them.

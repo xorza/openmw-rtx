@@ -24,7 +24,7 @@ namespace Rtx
     ///
     ///     colour = direct + modulate * filter(indirect)
     ///
-    /// **And this is the same buffer M10 needs.** DLSS Ray Reconstruction asks for exactly this —
+    /// **And this is the same buffer Ray Reconstruction reads.** It asks for exactly this —
     /// demodulated radiance, the albedo to put back, normals and depth — so the split earns its
     /// place twice over even if the filter written on top of it is later replaced.
     class GBuffer
@@ -41,7 +41,12 @@ namespace Rtx
         /// The albedo, times whatever the water and the air took off the way to the eye.
         const Image& getModulate() const { return mModulate; }
 
-        /// The shading normal in `xyz` and the hit distance in `w`, for telling edges apart.
+        /// The shading normal in `xyz` and the surface's roughness in `w`.
+        ///
+        /// **The layout Ray Reconstruction reads when it is told roughness is packed**, which is one
+        /// resource fewer to write and to bind than handing it a separate image. The distance a
+        /// filter compares edges by used to live in `w` and is now the depth channel's second
+        /// component, because two different questions were being answered by one number.
         const Image& getGuide() const { return mGuide; }
 
         /// Where each surface stood on the previous frame's screen, less where it stands on this
@@ -53,13 +58,14 @@ namespace Rtx
         /// thrown away exactly where the camera is moving fastest.
         const Image& getMotion() const { return mMotion; }
 
-        /// What a rasterizer with this frustum would have written: zero at the near plane, one at
-        /// the far one, and hyperbolic between them.
+        /// Clip depth in `r` and the distance from the eye in `g`.
         ///
-        /// **Not the distance the filter reads.** That is in the guide, in world units, because a
-        /// tolerance measured against a clip value would mean something different at every distance
-        /// — most of the range is spent within a few units of the eye. This one exists so an
-        /// upscaler's disocclusion test is looking at the depth it expects.
+        /// **Two answers because they are two questions.** The first is what a rasterizer with this
+        /// frustum would have written — zero at the near plane, one at the far one, hyperbolic
+        /// between — and exists so an upscaler's disocclusion test is looking at the depth it
+        /// expects. The second is what the filter compares surfaces by, in world units, because a
+        /// tolerance measured against a clip value would mean something different at every distance:
+        /// most of that range is spent within a few units of the eye.
         const Image& getDepth() const { return mDepth; }
 
         std::uint32_t getWidth() const { return mDirect.getWidth(); }

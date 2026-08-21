@@ -106,6 +106,7 @@ if (OPENMW_RTX)
         rtx/allocations.hpp
         rtx/computepipeline.cpp
         rtx/device.cpp
+        rtx/dlss.cpp
         rtx/harness.cpp
         rtx/harness.hpp
         rtx/lightgrid.cpp

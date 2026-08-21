@@ -5,6 +5,12 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/upscale.hpp>
+
+// NGX's own, `typedef struct X X` and not defined here: the SDK's headers are private to this
+// target, and a test that builds a feature must be able to include this one.
+struct NVSDK_NGX_Parameter;
+
 namespace Rtx
 {
     class Device;
@@ -15,6 +21,10 @@ namespace Rtx
     /// rather than a filter of our own: it reconstructs from the demodulated radiance, albedo,
     /// normals, depth and motion the G-buffer already carries, across several frames, where the
     /// à-trous pass has one frame and one channel to work with.
+    ///
+    /// **One per device and one per process.** NGX keeps its state globally, keyed by the `VkDevice`
+    /// it was brought up on, so this owns that lifetime: constructing it initialises and destroying
+    /// it shuts down. Two of these alive on one device is not something the SDK promises to survive.
     ///
     /// Built only with `-DOPENMW_RTX_DLSS=ON`, which needs the SDK; the whole class is absent
     /// otherwise, so nothing has to ask at runtime whether it was compiled in.
@@ -43,8 +53,24 @@ namespace Rtx
         /// Why not, where it cannot. Empty where it can.
         const std::string& getObstacle() const { return mObstacle; }
 
+        /// What to render at to produce `output` under `upscale`, which must not be `Off`. Throws
+        /// `Error` where DLSS will not answer, which is the same condition as it being unavailable.
+        ///
+        /// **DLSS's answer and not a ratio applied here.** The feature library picks the size, it
+        /// has changed it between versions, and a frame traced at anything else is a frame it will
+        /// refuse.
+        VkExtent2D getRenderSize(VkExtent2D output, Upscale upscale) const;
+
+        /// The device NGX was brought up on, which is the one a feature is built for.
+        VkDevice getDevice() const { return mDevice; }
+
+        /// NGX's own map, which answers questions. **Not the map a feature is built from** — that
+        /// one is allocated per feature and belongs to it.
+        NVSDK_NGX_Parameter* getCapabilities() const { return mCapabilities; }
+
     private:
         VkDevice mDevice = VK_NULL_HANDLE;
+        NVSDK_NGX_Parameter* mCapabilities = nullptr;
         bool mAvailable = false;
         std::string mObstacle;
     };

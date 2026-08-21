@@ -9,6 +9,7 @@
 
 #include "shaders/visibility.h"
 #include "texturedata.hpp"
+#include "upscale.hpp"
 #include "wavespectrum.hpp"
 
 namespace Rtx
@@ -37,8 +38,13 @@ namespace Rtx
         /// Where the build wrote the compiled shaders for whichever backend this is.
         std::filesystem::path mShaderDirectory;
 
+        /// The size the frame is **presented** at. What it is traced at follows from `mUpscale`.
         std::uint32_t mWidth = 1920;
         std::uint32_t mHeight = 1080;
+
+        /// Fixed for the renderer's lifetime: an upscaler is brought up once and sized per
+        /// resolution, and a build that has none refuses anything but `Off` at construction.
+        Upscale mUpscale = Upscale::Off;
 
         ValidationOptions mValidation;
     };
@@ -59,6 +65,19 @@ namespace Rtx
         std::uint64_t mTextureBytes = 0;
     };
 
+    /// What the renderer traces at, and what it presents at. Equal wherever nothing is upscaling.
+    struct FrameExtents
+    {
+        /// The trace's own resolution, and so the size of every G-buffer channel, of the camera the
+        /// trace is handed, and of what `readChannel` gives back.
+        std::uint32_t mRenderWidth = 0;
+        std::uint32_t mRenderHeight = 0;
+
+        /// The size of what `readPixels` gives back, which is what `resize` was asked for.
+        std::uint32_t mOutputWidth = 0;
+        std::uint32_t mOutputHeight = 0;
+    };
+
     /// A frame's float channels, which are what an upscaler reads and what a test can check.
     enum class Channel
     {
@@ -67,8 +86,15 @@ namespace Rtx
         /// a place a screen position exists for.
         Motion,
 
-        /// One float a pixel: what a rasterizer with this frustum would have written. Zero at the
-        /// near plane, one at the far one and at every miss.
+        /// Two floats a pixel: what a rasterizer with this frustum would have written — zero at the
+        /// near plane, one at the far one and at every miss — and beside it the distance from the
+        /// eye in world units.
+        ///
+        /// **Two answers because they are two questions.** An upscaler's disocclusion test wants
+        /// the clip value it expects of a depth buffer; a filter comparing one surface against
+        /// another wants world units, because a tolerance measured against a clip value would mean
+        /// something different at every distance — most of that range is spent within a few units
+        /// of the eye.
         Depth,
     };
 
@@ -94,6 +120,9 @@ namespace Rtx
         /// **Off unless something is putting the frames back together.** A jittered frame on its own
         /// is the same picture sampled slightly wrong; it is only worth anything to an upscaler
         /// reconstructing from several, or to a sum that averages them into an antialiased one.
+        ///
+        /// **Ignored while the renderer is upscaling**, which always jitters: reconstruction from
+        /// several frames of the same sample point is reconstruction from one sample.
         bool mJitter = false;
 
         /// Whether the denoiser runs over the indirect channel.
@@ -101,6 +130,10 @@ namespace Rtx
         /// **Off is how the answer it is judged against gets made.** A converged reference is the
         /// average of enough unbiased samples, and a filtered sample is not one of those — so a
         /// thousand filtered frames converge on the filter's opinion rather than on the truth.
+        ///
+        /// **Ignored while the renderer is upscaling**, which denoises for itself: Ray
+        /// Reconstruction reconstructs detail from the raw bounce, and handing it a frame already
+        /// blurred is asking it to recover what was thrown away.
         bool mFilter = true;
     };
 
@@ -151,8 +184,13 @@ namespace Rtx
         /// Only meaningful once `setScene` has been called.
         virtual const SceneStats& getSceneStats() const = 0;
 
-        /// Resizes the traced image. Kept by the backend, so nothing here allocates per frame.
+        /// Resizes the **presented** image. What the trace runs at follows from the upscaler, and
+        /// `getExtents` is what says. Kept by the backend, so nothing here allocates per frame.
         virtual void resize(std::uint32_t width, std::uint32_t height) = 0;
+
+        /// What the last `resize` settled on. **The camera has to be built for the render extent**,
+        /// because the trace's per-pixel ray spread comes from it.
+        virtual FrameExtents getExtents() const = 0;
 
         /// Traces one frame. `setScene` first, which is a contract and so an assert.
         virtual FrameResult renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) = 0;

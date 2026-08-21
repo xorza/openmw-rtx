@@ -6,30 +6,20 @@
 #include <string_view>
 
 #include <nvsdk_ngx_defs_dlssd.h>
+#include <nvsdk_ngx_helpers_dlssd.h>
 #include <nvsdk_ngx_helpers_vk.h>
 #include <nvsdk_ngx_vk.h>
 
 #include <components/rtx/error.hpp>
 
 #include "device.hpp"
+#include "ngx.hpp"
 #include "physicaldevice.hpp"
 
 namespace Rtx
 {
     namespace
     {
-        /// Anything but success, as something a message can carry.
-        std::string nameResult(NVSDK_NGX_Result result)
-        {
-            // NGX gives its own wide description, which is more use than the number.
-            const wchar_t* wide = GetNGXResultAsString(result);
-            std::string text;
-            for (const wchar_t* at = wide; at != nullptr && *at != L'\0'; ++at)
-                text += static_cast<char>(*at);
-
-            return text;
-        }
-
         /// Somewhere NGX may write its own files.
         ///
         /// **Not the same thing as where its feature libraries live**, which is the mistake to make:
@@ -125,28 +115,55 @@ namespace Rtx
             vkGetInstanceProcAddr, vkGetDeviceProcAddr, &common, NVSDK_NGX_Version_API);
 
         if (NVSDK_NGX_FAILED(started))
-            throw Error("NGX would not start: " + nameResult(started));
+            throw Error("NGX would not start: " + describeNgxResult(started));
 
-        NVSDK_NGX_Parameter* capabilities = nullptr;
-        const NVSDK_NGX_Result asked = NVSDK_NGX_VULKAN_GetCapabilityParameters(&capabilities);
-        if (NVSDK_NGX_FAILED(asked) || capabilities == nullptr)
-            throw Error("NGX started and would not say what it can do: " + nameResult(asked));
+        const NVSDK_NGX_Result asked = NVSDK_NGX_VULKAN_GetCapabilityParameters(&mCapabilities);
+        if (NVSDK_NGX_FAILED(asked) || mCapabilities == nullptr)
+            throw Error("NGX started and would not say what it can do: " + describeNgxResult(asked));
 
         int available = 0;
-        capabilities->Get(NVSDK_NGX_Parameter_SuperSamplingDenoising_Available, &available);
+        mCapabilities->Get(NVSDK_NGX_Parameter_SuperSamplingDenoising_Available, &available);
         mAvailable = available != 0;
 
         if (!mAvailable)
         {
             int needsDriver = 0;
-            capabilities->Get(NVSDK_NGX_Parameter_SuperSamplingDenoising_NeedsUpdatedDriver, &needsDriver);
+            mCapabilities->Get(NVSDK_NGX_Parameter_SuperSamplingDenoising_NeedsUpdatedDriver, &needsDriver);
             mObstacle = needsDriver != 0 ? "this driver is older than the Ray Reconstruction it would have to load"
                                          : "this device does not offer Ray Reconstruction";
         }
     }
 
+    VkExtent2D Dlss::getRenderSize(VkExtent2D output, Upscale upscale) const
+    {
+        // Dynamic resolution is not something this renderer does — the trace's targets are made
+        // once per size — so the range the query also fills in is read and discarded.
+        unsigned int width = 0;
+        unsigned int height = 0;
+        unsigned int mostWide = 0;
+        unsigned int mostTall = 0;
+        unsigned int leastWide = 0;
+        unsigned int leastTall = 0;
+        float sharpness = 0.0f;
+
+        // **The query is a function pointer inside the capability map, not an exported symbol** —
+        // the driver's feature library puts it there. So it is absent exactly when that library was
+        // not found, and the helper answers `FAIL_OutOfDate` rather than anything about paths.
+        const NVSDK_NGX_Result asked = NGX_DLSSD_GET_OPTIMAL_SETTINGS(mCapabilities, output.width, output.height,
+            ngxQualityOf(upscale), &width, &height, &mostWide, &mostTall, &leastWide, &leastTall, &sharpness);
+
+        if (NVSDK_NGX_FAILED(asked))
+            throw Error("DLSS would not say what to render at: " + describeNgxResult(asked));
+
+        if (width == 0 || height == 0)
+            throw Error("DLSS answered with an empty render size");
+
+        return VkExtent2D{ width, height };
+    }
+
     Dlss::~Dlss()
     {
+        // The capability map is NGX's own and goes with it; nothing releases it separately.
         if (mDevice != VK_NULL_HANDLE)
             NVSDK_NGX_VULKAN_Shutdown1(mDevice);
     }

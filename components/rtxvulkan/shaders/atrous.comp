@@ -23,9 +23,14 @@ layout(set = 0, binding = 0, rgba32f) uniform readonly image2D source;
 /// Where this level puts what it made of it.
 layout(set = 0, binding = 1, rgba32f) uniform writeonly image2D filtered;
 
-/// The shading normal in `xyz` and the hit distance in `w`. A ray that hit nothing left a zero
-/// normal, which no surface can match, so the sky neither contributes nor gets filtered.
+/// The shading normal in `xyz`. A ray that hit nothing left a zero normal, which no surface can
+/// match, so the sky neither contributes nor gets filtered. `w` is roughness, which this does not
+/// read: the edge tests are about where a surface is, not what it is made of.
 layout(set = 0, binding = 2, rgba32f) uniform readonly image2D guide;
+
+/// Clip depth in `r` and the distance from the eye in `g`. This reads the second, in world units,
+/// because a tolerance against a clip value would mean something different at every distance.
+layout(set = 0, binding = 3, rg32f) uniform readonly image2D depth;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -48,8 +53,7 @@ void main()
     if (at.x >= int(level.mWidth) || at.y >= int(level.mHeight))
         return;
 
-    const vec4 centre = imageLoad(guide, at);
-    const vec3 normal = centre.xyz;
+    const vec3 normal = imageLoad(guide, at).xyz;
 
     // A pixel with no surface under it has nothing to filter and nothing to say to its neighbours.
     if (dot(normal, normal) <= 0.0)
@@ -58,11 +62,12 @@ void main()
         return;
     }
 
-    const vec3 position = rayThrough(at) * centre.w;
+    const float away = imageLoad(depth, at).g;
+    const vec3 position = rayThrough(at) * away;
 
     // What one pixel covers where this surface is, which is the scale every plane offset below is
     // measured against. Never zero, or a surface at the eye would reject every neighbour.
-    const float footprint = max(level.mSpreadAngle * centre.w, 1e-4);
+    const float footprint = max(level.mSpreadAngle * away, 1e-4);
 
     vec3 sum = vec3(0.0);
     float weight = 0.0;
@@ -74,15 +79,15 @@ void main()
             if (tap.x < 0 || tap.y < 0 || tap.x >= int(level.mWidth) || tap.y >= int(level.mHeight))
                 continue;
 
-            const vec4 there = imageLoad(guide, tap);
-            if (dot(there.xyz, there.xyz) <= 0.0)
+            const vec3 facingThere = imageLoad(guide, tap).xyz;
+            if (dot(facingThere, facingThere) <= 0.0)
                 continue;
 
             // Two surfaces are the same surface where they face the same way and lie in the same
             // plane. Both tests are needed: a facing test alone joins two parallel walls a room
             // apart, and a plane test alone joins a floor to the wall standing on it.
-            const float facing = pow(max(dot(normal, there.xyz), 0.0), level.mNormalPower);
-            const float offset = abs(dot(normal, rayThrough(tap) * there.w - position));
+            const float facing = pow(max(dot(normal, facingThere), 0.0), level.mNormalPower);
+            const float offset = abs(dot(normal, rayThrough(tap) * imageLoad(depth, tap).g - position));
             const float coplanar = exp(-offset / (level.mPlaneSigma * footprint));
 
             const float w = KERNEL[x + 2] * KERNEL[y + 2] * facing * coplanar;

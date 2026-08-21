@@ -94,8 +94,9 @@ layout(set = 0, binding = 16, scalar) readonly buffer BlueNoiseTile
     float blueNoise[];
 };
 
-/// What a rasterizer with this frustum would have written, for whatever upscales the frame.
-layout(set = 0, binding = 22, r32f) uniform writeonly image2D depth;
+/// Clip depth in `r`, for whatever upscales the frame, and the distance from the eye in `g`, for
+/// whatever filters it. Two questions, and one number cannot answer both.
+layout(set = 0, binding = 22, rg32f) uniform writeonly image2D depth;
 
 /// Where the lamps were binned, which is scene geometry rather than camera geometry.
 layout(set = 0, binding = 21, scalar) readonly buffer LightGridBlock
@@ -128,9 +129,9 @@ layout(set = 0, binding = 15, rgba32f) uniform writeonly image2D indirect;
 /// needs to know about neither.
 layout(set = 0, binding = 17, rgba32f) uniform writeonly image2D modulate;
 
-/// What a filter tells edges apart by: the shading normal, and how far the hit was.
+/// The shading normal in `xyz` and the surface's roughness in `w`.
 ///
-/// A ray that hit nothing writes a zero normal at `mFar`, which no surface can be mistaken for.
+/// A ray that hit nothing writes a zero normal, which no surface can be mistaken for.
 layout(set = 0, binding = 18, rgba32f) uniform writeonly image2D guide;
 
 layout(set = 1, binding = 0) uniform sampler2D textures[];
@@ -1707,6 +1708,13 @@ vec2 motionOf(uvec2 pixel, vec3 direction, float distance)
     return before - (vec2(pixel) + 0.5);
 }
 
+/// How rough every surface in this renderer is, until there is a material model that knows.
+///
+/// **A constant, and it is written rather than left out** — Ray Reconstruction is built for the
+/// packed layout and reads the guide's fourth channel whatever is in it, so the honest answer for a
+/// renderer with no specular lobe is "fully diffuse" rather than whatever the channel held last.
+const float SURFACE_ROUGHNESS = 1.0;
+
 /// The depth a rasterizer would have written for a hit `along` units down `direction`.
 ///
 /// **Along the view axis and not along the ray.** A rasterizer's depth is the distance to the plane
@@ -1787,12 +1795,14 @@ void main()
     imageStore(direct, at, vec4(shaded, 1.0));
     imageStore(indirect, at, vec4(bounced, 1.0));
     imageStore(modulate, at, vec4(tint, 1.0));
-    imageStore(guide, at, vec4(surface.mHit ? surface.mNormal : vec3(0.0), surface.mDistance));
+    imageStore(guide, at, vec4(surface.mHit ? surface.mNormal : vec3(0.0), SURFACE_ROUGHNESS));
 
     // A miss stores nothing, which a temporal filter reads as "this pixel did not move" — and for
     // the sky that is true.
     imageStore(motion, at,
         vec4(surface.mHit ? motionOf(pixel, direction, surface.mDistance) : vec2(0.0), 0.0, 0.0));
 
-    imageStore(depth, at, vec4(surface.mHit ? clipDepth(direction, surface.mDistance) : 1.0));
+    // A miss is as far away as anything can be, and `mDistance` already carries `mFar` for it.
+    imageStore(depth, at,
+        vec4(surface.mHit ? clipDepth(direction, surface.mDistance) : 1.0, surface.mDistance, 0.0, 0.0));
 }

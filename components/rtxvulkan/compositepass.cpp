@@ -16,7 +16,7 @@ namespace Rtx
             return (extent + Shaders::COMPOSITE_WORKGROUP - 1) / Shaders::COMPOSITE_WORKGROUP;
         }
 
-        /// Three channels in, the running sum, and the picture out — all storage images, all pushed.
+        /// Three channels in, the running sum, and the frame out — all storage images, all pushed.
         constexpr std::array<VkDescriptorSetLayoutBinding, 5> sBindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
@@ -41,11 +41,11 @@ namespace Rtx
     }
 
     void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Image& indirect,
-        const Image* history, const Image& target, const Shaders::CompositeConstants& constants) const
+        const Image* history, const Image& colour, const Shaders::CompositeConstants& constants) const
     {
         assert(buffer.getWidth() >= constants.mWidth && buffer.getHeight() >= constants.mHeight);
         assert(indirect.getWidth() >= constants.mWidth && indirect.getHeight() >= constants.mHeight);
-        assert(target.getWidth() >= constants.mWidth && target.getHeight() >= constants.mHeight);
+        assert(colour.getWidth() >= constants.mWidth && colour.getHeight() >= constants.mHeight);
 
         // A sum has to cover the frame it is a sum of; a stand-in never read does not.
         assert(constants.mAccumulate == 0 || history != nullptr);
@@ -59,7 +59,7 @@ namespace Rtx
             VkDescriptorImageInfo{ VK_NULL_HANDLE, indirect.getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getModulate().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, sum.getView(), VK_IMAGE_LAYOUT_GENERAL },
-            VkDescriptorImageInfo{ VK_NULL_HANDLE, target.getView(), VK_IMAGE_LAYOUT_GENERAL },
+            VkDescriptorImageInfo{ VK_NULL_HANDLE, colour.getView(), VK_IMAGE_LAYOUT_GENERAL },
         };
 
         std::array<VkWriteDescriptorSet, 5> writes{};

@@ -30,6 +30,7 @@
 #include <components/rtxvulkan/scenebuffers.hpp>
 #include <components/rtxvulkan/swapchain.hpp>
 #include <components/rtxvulkan/texture.hpp>
+#include <components/rtxvulkan/tonepass.hpp>
 #include <components/rtxvulkan/visibilitypass.hpp>
 
 #include "lighting.hpp"
@@ -171,6 +172,7 @@ namespace RtxTool
         const Rtx::VisibilityPass pass(device, pool, request.mShaderDirectory, textures.getLayout());
         Rtx::AtrousPass filter(device, request.mShaderDirectory);
         const Rtx::CompositePass composite(device, pool, request.mShaderDirectory);
+        const Rtx::TonePass tone(device, request.mShaderDirectory);
         const Rtx::VisibilityInputs inputs{
             .mScene = acceleration.getTopLevel(),
             .mBuffers = &buffers,
@@ -185,15 +187,25 @@ namespace RtxTool
 
         // One per frame in flight, not one shared. The fence a frame waits on is the one from two
         // frames ago, so the frame in between can still be blitting out of a target that a shared
-        // one would already be tracing into.
-        const auto makeTargets = [&device](VkExtent2D extent) {
-            std::vector<std::unique_ptr<Rtx::Image>> targets;
-            for (std::uint32_t i = 0; i < sFramesInFlight; ++i)
-                targets.push_back(
-                    std::make_unique<Rtx::Image>(device, extent.width, extent.height, VK_FORMAT_R8G8B8A8_UNORM,
-                        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, std::format("target-{}", i)));
-            return targets;
+        // one would already be tracing into. The linear frame the curve reads is per frame for the
+        // same reason: the next composite would overwrite it while the last one is still being
+        // encoded.
+        const auto makeImages
+            = [&device](VkExtent2D extent, VkFormat format, VkImageUsageFlags usage, std::string_view name) {
+                  std::vector<std::unique_ptr<Rtx::Image>> made;
+                  for (std::uint32_t i = 0; i < sFramesInFlight; ++i)
+                      made.push_back(std::make_unique<Rtx::Image>(
+                          device, extent.width, extent.height, format, usage, std::format("{}-{}", name, i)));
+                  return made;
+              };
+        const auto makeColours = [&makeImages](VkExtent2D extent) {
+            return makeImages(extent, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT, "colour");
         };
+        const auto makeTargets = [&makeImages](VkExtent2D extent) {
+            return makeImages(extent, VK_FORMAT_R8G8B8A8_UNORM,
+                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "target");
+        };
+        std::vector<std::unique_ptr<Rtx::Image>> colours = makeColours(swapchain.getExtent());
         std::vector<std::unique_ptr<Rtx::Image>> targets = makeTargets(swapchain.getExtent());
 
         // One set of channels and not one per frame in flight, which the targets beside them are.
@@ -292,6 +304,7 @@ namespace RtxTool
         const auto rebuild = [&] {
             device.waitIdle();
             swapchain.recreate(window.getExtent());
+            colours = makeColours(swapchain.getExtent());
             targets = makeTargets(swapchain.getExtent());
             channels = makeChannels(swapchain.getExtent());
             filter.resize(swapchain.getExtent().width, swapchain.getExtent().height);
@@ -304,17 +317,19 @@ namespace RtxTool
         /// Two images rather than one because a compute shader cannot store to most surface formats,
         /// and because every pass after this one wants a target with more precision than a display
         /// has anyway.
-        const auto recordFrame = [&](VkCommandBuffer commands, const Rtx::Image& target, VkImage presented,
-                                     VkExtent2D extent, const Rtx::Shaders::VisibilityConstants& constants) {
+        const auto recordFrame = [&](VkCommandBuffer commands, const Rtx::Image& colour, const Rtx::Image& target,
+                                     VkImage presented, VkExtent2D extent,
+                                     const Rtx::Shaders::VisibilityConstants& constants) {
             const VkCommandBufferBeginInfo begin{
                 .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                 .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
             };
             Rtx::checkVk(vkBeginCommandBuffer(commands, &begin), "vkBeginCommandBuffer");
 
-            target.transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+            for (const Rtx::Image* image : { &colour, &target })
+                image->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
 
             channels->begin(commands);
             pass.record(commands, inputs, *channels, hitCount, constants);
@@ -324,9 +339,15 @@ namespace RtxTool
                 = request.mFilter ? filter.record(commands, *channels, constants) : channels->getIndirect();
 
             // No running sum: a window draws one frame at a time and has nothing to average.
-            composite.record(commands, *channels, indirect, nullptr, target,
+            composite.record(commands, *channels, indirect, nullptr, colour,
                 Rtx::Shaders::CompositeConstants{
                     .mWidth = constants.mWidth, .mHeight = constants.mHeight, .mAccumulate = 0 });
+
+            colour.transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+
+            tone.record(commands, colour, target);
 
             target.transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
@@ -525,7 +546,7 @@ namespace RtxTool
             constants.mFrame = drawn;
 
             const VkCommandBuffer commands = commandBuffers[frame];
-            recordFrame(commands, *targets[frame], swapchain.getImage(image), extent, constants);
+            recordFrame(commands, *colours[frame], *targets[frame], swapchain.getImage(image), extent, constants);
 
             const VkSemaphoreSubmitInfo wait{
                 .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,

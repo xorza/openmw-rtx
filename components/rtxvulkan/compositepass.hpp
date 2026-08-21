@@ -15,12 +15,14 @@ namespace Rtx
     class Device;
     class GBuffer;
 
-    /// Puts the trace's channels back together and hands over a picture.
+    /// Puts the trace's channels back together and hands over one frame of linear radiance.
     ///
-    /// **One multiply, one add and the curve** — everything harder was folded into the modulation
-    /// term by the trace, which is what lets a filter sit in between knowing nothing about water,
-    /// fog or tone. It also owns the running sum, because what a reference has to converge to is the
-    /// picture as it will be shown.
+    /// **One multiply and one add** — everything harder was folded into the modulation term by the
+    /// trace, which is what lets a filter sit in between knowing nothing about water or fog. It also
+    /// owns the running sum, because what a reference has to converge to is the frame as it will be
+    /// shown, filter and all.
+    ///
+    /// The display curve is not here. It is `TonePass`, after whatever upscales.
     class CompositePass
     {
     public:
@@ -38,9 +40,9 @@ namespace Rtx
         /// @param history the running sum, at least as large as `target` and in
         ///        `VK_IMAGE_LAYOUT_GENERAL`. Null where `mAccumulate` is zero, which is every frame
         ///        that is not building a reference.
-        /// @param target the displayable image, in `VK_IMAGE_LAYOUT_GENERAL`.
+        /// @param colour the recombined frame, in `VK_IMAGE_LAYOUT_GENERAL` and in linear radiance.
         void record(VkCommandBuffer commands, const GBuffer& buffer, const Image& indirect, const Image* history,
-            const Image& target, const Shaders::CompositeConstants& constants) const;
+            const Image& colour, const Shaders::CompositeConstants& constants) const;
 
     private:
         ComputePipeline mPipeline;

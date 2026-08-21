@@ -15,9 +15,14 @@
 #include "compositepass.hpp"
 #include "device.hpp"
 #include "instance.hpp"
+#include "tonepass.hpp"
 
 namespace Rtx
 {
+#ifdef OPENMW_RTX_DLSS
+    class Dlss;
+    class DlssPass;
+#endif
     class GBuffer;
     class Image;
     class SceneAcceleration;
@@ -43,12 +48,15 @@ namespace Rtx
         void setScene(const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea) override;
         const SceneStats& getSceneStats() const override { return mStats; }
         void resize(std::uint32_t width, std::uint32_t height) override;
+        FrameExtents getExtents() const override;
         FrameResult renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) override;
         void readPixels(std::vector<std::uint8_t>& pixels) override;
         void readChannel(Channel channel, std::vector<float>& values) override;
         void takeValidationErrors(std::vector<std::string>& errors) override;
 
     private:
+        /// @param width, height what the frame is **presented** at. What it is traced at is the
+        ///        upscaler's answer for that, or the same numbers where nothing upscales.
         void createTargets(std::uint32_t width, std::uint32_t height);
 
         // Declaration order is destruction order reversed, and everything below the device is built
@@ -59,8 +67,23 @@ namespace Rtx
 
         std::filesystem::path mShaderDirectory;
 
-        std::uint32_t mWidth = 0;
-        std::uint32_t mHeight = 0;
+        /// Fixed at construction: an upscaler is brought up once, and there is nothing to switch
+        /// to at runtime that would not mean rebuilding every target anyway.
+        Upscale mUpscale = Upscale::Off;
+
+        /// What the trace runs at, and so what every G-buffer channel and the composite are sized
+        /// to. Equal to the output extent wherever nothing upscales.
+        std::uint32_t mRenderWidth = 0;
+        std::uint32_t mRenderHeight = 0;
+
+        std::uint32_t mOutputWidth = 0;
+        std::uint32_t mOutputHeight = 0;
+
+        /// The composite's output at the render extent: one frame in linear radiance, before
+        /// anything upscales it and before the display curve.
+        std::unique_ptr<Image> mColour;
+
+        /// The frame as bytes at the output extent, which is what anything outside this reads.
         std::unique_ptr<Image> mTarget;
 
         /// The running sum, and null until a frame asks to be averaged into one.
@@ -95,6 +118,25 @@ namespace Rtx
         /// not const only because it keeps a channel the size of the frame.
         AtrousPass mFilter;
         CompositePass mComposite;
+        TonePass mTone;
+
+#ifdef OPENMW_RTX_DLSS
+        /// NGX, brought up only where something asked to be upscaled — it is global to the process
+        /// and keyed by device, so it is owned rather than made and dropped per question.
+        std::unique_ptr<Dlss> mNgx;
+
+        /// Ray Reconstruction, built for one pair of resolutions and so rebuilt by every resize.
+        std::unique_ptr<DlssPass> mUpscaler;
+
+        /// What it writes: the frame at the output extent, still in linear radiance.
+        std::unique_ptr<Image> mUpscaled;
+
+        /// **Zero, and a whole image of it.** Ray Reconstruction demodulates the specular lobe out
+        /// of the colour it is given, and this renderer has no specular lobe to demodulate — no
+        /// material model, no roughness, no F0. Saying zero is the honest answer; saying nothing is
+        /// not an option, because the input is not one NGX treats as optional.
+        std::unique_ptr<Image> mNoSpecular;
+#endif
     };
 
     /// Builds a Vulkan renderer, or nothing where this machine has no driver that qualifies.

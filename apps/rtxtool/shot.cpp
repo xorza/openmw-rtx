@@ -80,6 +80,7 @@ namespace RtxTool
                 .mShaderDirectory = request.mShaderDirectory,
                 .mWidth = request.mWidth,
                 .mHeight = request.mHeight,
+                .mUpscale = request.mUpscale,
                 .mValidation = validation,
             },
             reason);
@@ -89,6 +90,11 @@ namespace RtxTool
             return 1;
         }
         const double deviceMs = millisecondsSince(deviceStart);
+
+        // **Asked rather than assumed.** `--size` is what the picture comes out at; what the trace
+        // runs at is the upscaler's answer for that, and the camera's per-pixel ray spread is
+        // derived from it.
+        const Rtx::FrameExtents extents = renderer->getExtents();
 
         const Clock::time_point buildStart = Clock::now();
         // The bridge decodes and describes; the backend uploads. Held because the descriptions span
@@ -101,8 +107,8 @@ namespace RtxTool
         // Far enough to cross any cell: the largest exterior view in the game is a few tens of
         // thousands of units, and a primary ray that reaches this has left the world.
         const float far = bounds.radius() * 8.0f;
-        Rtx::Shaders::VisibilityConstants camera = Rtx::makeCamera(
-            placement.mOrigin, placement.mTarget, request.mFieldOfView, request.mWidth, request.mHeight, far);
+        Rtx::Shaders::VisibilityConstants camera = Rtx::makeCamera(placement.mOrigin, placement.mTarget,
+            request.mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, far);
         camera.mShowAlbedo = request.mShowAlbedo ? 1u : 0u;
         camera.mDelight = request.mDelight;
         applyLighting(request.mLighting, camera);
@@ -144,13 +150,21 @@ namespace RtxTool
 
         std::vector<std::uint8_t> pixels;
         renderer->readPixels(pixels);
-        writePng(request.mOutput, request.mWidth, request.mHeight, pixels);
+        writePng(request.mOutput, extents.mOutputWidth, extents.mOutputHeight, pixels);
 
+        // Primary rays, so out of the pixels that were traced rather than the pixels written.
         const double fraction
-            = static_cast<double>(hits) / (static_cast<double>(request.mWidth) * request.mHeight) * 100.0;
+            = static_cast<double>(hits) / (static_cast<double>(extents.mRenderWidth) * extents.mRenderHeight) * 100.0;
 
-        out << "wrote " << Files::pathToUnicodeString(request.mOutput) << ' ' << request.mWidth << 'x'
-            << request.mHeight << '\n'
+        out << "wrote " << Files::pathToUnicodeString(request.mOutput) << ' ' << extents.mOutputWidth << 'x'
+            << extents.mOutputHeight;
+
+        // Said whenever the two differ, because a trace time is a statement about the size it was
+        // traced at and the file gives no hint of it.
+        if (extents.mRenderWidth != extents.mOutputWidth || extents.mRenderHeight != extents.mOutputHeight)
+            out << ", traced at " << extents.mRenderWidth << 'x' << extents.mRenderHeight;
+
+        out << '\n'
             << "camera:     " << placement.mOrigin.x() << ", " << placement.mOrigin.y() << ", " << placement.mOrigin.z()
             << "  looking at " << placement.mTarget.x() << ", " << placement.mTarget.y() << ", "
             << placement.mTarget.z() << '\n'

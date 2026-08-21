@@ -25,9 +25,9 @@ namespace Rtx::Shaders
     /// Everything the recombination needs, which is almost nothing.
     ///
     /// **The trace left the hard part done.** Water's absorption and the fog's transmittance were
-    /// folded into the modulation term where they belong, so what is left here is one multiply, one
-    /// add and the curve — which is why the filter can sit between the two without knowing anything
-    /// about either.
+    /// folded into the modulation term where they belong, so what is left here is one multiply and
+    /// one add — which is why the filter can sit between the two without knowing anything about
+    /// either. The display curve is not here; it is the last pass, after whatever upscales.
     struct CompositeConstants
     {
         uint mWidth;
@@ -36,9 +36,10 @@ namespace Rtx::Shaders
         /// How many frames have gone into the running sum, this one included. Zero is no averaging.
         ///
         /// **Here rather than in the trace, and that placement is a decision.** What a reference has
-        /// to converge to is the picture as it will be shown, filter and all — so the sum is taken
+        /// to converge to is the frame as it will be shown, filter and all — so the sum is taken
         /// after the filter, and turning the filter off is what produces the unfiltered reference
-        /// the filter is then judged against.
+        /// the filter is then judged against. It is summed in linear, before the curve, for the
+        /// reason the shader gives.
         uint mAccumulate;
     };
 
