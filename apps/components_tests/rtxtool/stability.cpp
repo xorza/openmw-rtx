@@ -150,7 +150,8 @@ namespace RtxTool
             // is the temporal resolve, and the bound below was calibrated against exactly this much
             // content; forty-nine cells would be a different fixture wearing the same number.
             std::set<std::string> loaded;
-            const CellLighting lighting = loadRegion(*world, *cell, 0, scene, extractor, loaded, "Clear", 12.0f);
+            const CellLighting lighting
+                = loadRegion(*world, *cell, 0, scene, extractor, loaded, "Clear", 12.0f).mLighting;
             ASSERT_FALSE(scene.getInstances().empty()) << "the cell placed no geometry";
 
             Rtx::RendererOptions options;

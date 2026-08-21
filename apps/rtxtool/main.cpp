@@ -292,7 +292,8 @@ namespace RtxTool
                   << "  emissive materials:   " << glowing << '\n'
                   << "  lights:               " << report.mLights.size() << " casting, ambient " << report.mAmbient.x()
                   << ", " << report.mAmbient.y() << ", " << report.mAmbient.z() << '\n'
-                  << "  deforming drawables:  " << report.mStats.mDeformed << '\n';
+                  << "  deforming drawables:  " << report.mStats.mDeformed << '\n'
+                  << "  residents:            " << report.mPeople.size() << " to assemble\n";
 
             out() << "\nnot placed\n"
                   << "  record type unread:   " << report.mSkipped.mUnknownType << '\n'
@@ -336,29 +337,35 @@ namespace RtxTool
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
             std::set<std::string> loaded;
-            request.mLighting
+            const RegionLoad lighting
                 = loadRegion(world, *cell, radius, scene, extractor, loaded, request.mWeather, request.mHour);
+            request.mLighting = lighting.mLighting;
 
             printCellHeading(*cell);
 
             // Declared out here so it outlives the render: the extractor keys its meshes on node
             // pointers, and actors freed while the scene still names them is a dangling identity.
             std::unique_ptr<PosedActors> posed;
-            if (!actors.empty())
+            const std::span<const CellPerson> residents
+                = actors.mResidents ? std::span<const CellPerson>(lighting.mPeople) : std::span<const CellPerson>();
+
+            if (!actors.empty() || !residents.empty())
             {
-                // **Pinned before the actors go in, and from the world's own bounds.** They are
-                // placed relative to where the camera ends up, so the camera cannot be derived from
-                // a scene that already contains them — and pinning it here is what stops
-                // `renderShot` deriving a second, different one from the wider bounds.
+                // **Pinned before anyone goes in, and from the world's own bounds.** A row is placed
+                // relative to where the camera ends up, so the camera cannot be derived from a scene
+                // that already contains it — and pinning it here is what stops `renderShot` deriving
+                // a second, different one from the wider bounds.
                 const Placement placement
                     = placeCamera(scene.getBounds(), request.mFieldOfView, request.mOrigin, request.mTarget);
                 request.mOrigin = placement.mOrigin;
                 request.mTarget = placement.mTarget;
 
-                posed = std::make_unique<PosedActors>(world, scene, extractor, actors, placement);
+                posed = std::make_unique<PosedActors>(world, scene, extractor);
+                posed->addResidents(residents);
+                posed->addRow(actors, placement);
                 request.mMotion = posed.get();
 
-                out() << "actors:     " << posed->getCount() << " placed, " << posed->getPlaced().mDeformed
+                out() << "actors:     " << posed->getCount() << " placed, " << posed->settle().mDeformed
                       << " deforming drawables\n";
             }
 
@@ -536,6 +543,7 @@ namespace RtxTool
                     .mCreatures = variables["actor"].as<std::vector<std::string>>(),
                     .mPeople = variables["npc"].as<std::vector<std::string>>(),
                     .mSeconds = variables["actor-time"].as<float>(),
+                    .mResidents = variables["people"].as<bool>(),
                 };
 
                 World world(config, variables, resources);

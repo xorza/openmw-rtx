@@ -14,6 +14,7 @@
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadappa.hpp>
 #include <components/esm3/loadarmo.hpp>
+#include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadbook.hpp>
 #include <components/esm3/loadclot.hpp>
 #include <components/esm3/loadcont.hpp>
@@ -23,6 +24,7 @@
 #include <components/esm3/loadligh.hpp>
 #include <components/esm3/loadlock.hpp>
 #include <components/esm3/loadmisc.hpp>
+#include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadprob.hpp>
 #include <components/esm3/loadrepa.hpp>
 #include <components/esm3/loadstat.hpp>
@@ -60,11 +62,13 @@ namespace EsmLoader
     /// from it, and adding a type is this line alone. Cells, lands and game settings are absent
     /// because each keys on something other than a record id and has its own path.
     ///
-    /// `ESM::NPC` is absent deliberately. An NPC names no model of its own — it is assembled out of
-    /// `ESM::BodyPart` records by race and by what it is wearing, which is a different problem.
-    using ModelRecords = std::tuple<ESM::Activator, ESM::Apparatus, ESM::Armor, ESM::Book, ESM::Clothing,
+    /// `ESM::NPC` is here for what it *names* rather than for what it draws: its own `mModel` is
+    /// almost always empty, and a person is assembled out of the `ESM::BodyPart` records their race
+    /// and sex call for. Both are in the list because that assembly needs to look both up by id, and
+    /// looking a record up by id is exactly what this list generates.
+    using ModelRecords = std::tuple<ESM::Activator, ESM::Apparatus, ESM::Armor, ESM::BodyPart, ESM::Book, ESM::Clothing,
         ESM::Container, ESM::Creature, ESM::Door, ESM::Ingredient, ESM::Light, ESM::Lockpick, ESM::Miscellaneous,
-        ESM::Potion, ESM::Probe, ESM::Repair, ESM::Static, ESM::Weapon>;
+        ESM::NPC, ESM::Potion, ESM::Probe, ESM::Repair, ESM::Static, ESM::Weapon>;
 
     /// Which of `ModelRecords` a caller wants, one bit each.
     ///

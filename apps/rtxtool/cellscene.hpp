@@ -6,6 +6,7 @@
 #include <string_view>
 #include <vector>
 
+#include <osg/Matrixf>
 #include <osg/Vec3f>
 
 #include <components/rtx/scenedesc.hpp>
@@ -17,10 +18,23 @@
 namespace ESM
 {
     struct Cell;
+    struct NPC;
 }
 
 namespace RtxTool
 {
+    /// One person a cell places, and where they stand.
+    ///
+    /// **Reported rather than built, for the reason the lights are.** A body is a graph the extractor
+    /// keys its meshes on, so whoever owns it has to own it for as long as the scene names it — and
+    /// reading a region twice must not stand two of everyone in it.
+    struct CellPerson
+    {
+        /// Points into the loaded content, which outlives the run.
+        const ESM::NPC* mRecord = nullptr;
+        osg::Matrixf mTransform;
+    };
+
     /// What reading a cell produced besides the scene itself.
     struct CellReport
     {
@@ -30,6 +44,9 @@ namespace RtxTool
 
         /// References whose model is named but will not load. Logged individually as they fail.
         std::uint32_t mUnreadable = 0;
+
+        /// Everyone the region places. Empty is a wilderness cell, not a failure.
+        std::vector<CellPerson> mPeople;
 
         /// How many cells the region actually found. Fewer than asked for at a coastline.
         std::uint32_t mCells = 0;
@@ -74,6 +91,17 @@ namespace RtxTool
     /// Geometry and lights through `extractor` and `scene`, and the sky, water and air as the
     /// return. **In the library rather than beside `main` because it has three callers now** — the
     /// screenshot, the window, and the test that needs a frame of real content to measure.
-    CellLighting loadRegion(World& world, const ESM::Cell& centre, int radius, Rtx::SceneDesc& scene,
+    /// What loading a region left for its caller to place.
+    ///
+    /// The lights and the water are already in the scene; these two are not, because neither is
+    /// something a second read of the same region may do twice — a light has no identity to
+    /// recognise, and a person is a graph whose owner has to outlive the scene that names it.
+    struct RegionLoad
+    {
+        CellLighting mLighting;
+        std::vector<CellPerson> mPeople;
+    };
+
+    RegionLoad loadRegion(World& world, const ESM::Cell& centre, int radius, Rtx::SceneDesc& scene,
         RtxBridge::SceneExtractor& extractor, std::set<std::string>& loaded, std::string_view weather, float hour);
 }

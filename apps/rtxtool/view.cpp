@@ -134,6 +134,8 @@ namespace RtxTool
         /// `SceneDesc` nor the acceleration structures can do that yet — so a long walk grows until
         /// the process is restarted. That is a harness being honest about its limits rather than a
         /// design; the game will need the other half.
+        std::vector<CellPerson> arrivals;
+
         const auto bring = [&](const ESM::Cell& around) {
             const Clock::time_point began = Clock::now();
             const CellReport arrived = readRegion(world, around, radius, extractor, loaded);
@@ -144,6 +146,8 @@ namespace RtxTool
             for (const Rtx::Light& light : arrived.mLights)
                 scene.addLight(light);
 
+            arrivals = arrived.mPeople;
+
             const RtxBridge::SceneTextures described(scene, world.getImageManager());
             renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
 
@@ -153,8 +157,9 @@ namespace RtxTool
             return true;
         };
 
-        request.mLighting
+        RegionLoad arrivedWith
             = loadRegion(world, centre, radius, scene, extractor, loaded, request.mWeather, request.mHour);
+        request.mLighting = arrivedWith.mLighting;
         {
             const RtxBridge::SceneTextures described(scene, world.getImageManager());
             renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
@@ -173,20 +178,26 @@ namespace RtxTool
         const osg::BoundingBoxf bounds = scene.getBounds();
         const Placement start = placeCamera(bounds, request.mFieldOfView, request.mOrigin, request.mTarget);
 
-        // **In front of where the camera starts, and left there.** They stay put while the camera
-        // flies around them, which is what a window is for: an actor that followed the eye would be
-        // a picture of the same pose from every angle.
+        // **The region's own residents, plus whoever was asked for on the command line.** The row
+        // stands in front of where the camera starts and stays there while it flies around them,
+        // which is what a window is for; the residents stand where the cell put them.
+        const std::span<const CellPerson> residents
+            = actors.mResidents ? std::span<const CellPerson>(arrivedWith.mPeople) : std::span<const CellPerson>();
+
         std::unique_ptr<PosedActors> posed;
-        if (!actors.empty())
+        if (!actors.empty() || !residents.empty())
         {
-            posed = std::make_unique<PosedActors>(world, scene, extractor, actors, start);
+            posed = std::make_unique<PosedActors>(world, scene, extractor);
+            posed->addResidents(residents);
+            posed->addRow(actors, start);
+
+            const std::uint32_t deforming = posed->settle().mDeformed;
 
             // Their meshes are new, so the whole scene is built again rather than replaced. Once.
             const RtxBridge::SceneTextures described(scene, world.getImageManager());
             renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
 
-            out() << std::format(
-                "{} actors placed, {} deforming drawables\n", posed->getCount(), posed->getPlaced().mDeformed);
+            out() << std::format("{} actors placed, {} deforming drawables\n", posed->getCount(), deforming);
         }
 
         FlyCamera camera;
@@ -327,10 +338,18 @@ namespace RtxTool
                         if (posed != nullptr)
                             posed->unplace();
 
+                        arrivals.clear();
                         bring(*cell);
 
+                        // The snapshot first, then the people who arrived with the ring: the
+                        // snapshot is the still world, and a resident belongs to the half of the
+                        // scene that is walked in again every frame.
                         if (posed != nullptr)
+                        {
                             posed->restanding();
+                            if (actors.mResidents)
+                                posed->addResidents(arrivals);
+                        }
                     }
                 }
             }

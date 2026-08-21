@@ -49,6 +49,7 @@ namespace ESM
 {
     struct Light;
     struct Cell;
+    struct NPC;
 }
 
 namespace RtxTool
@@ -84,6 +85,13 @@ namespace RtxTool
             ///
             /// Points into the loaded content, which outlives every call.
             const ESM::Light* mLight = nullptr;
+
+            /// The `NPC_` record this reference stands for, or null.
+            ///
+            /// **A person arrives with no model at all.** Everyone else names a file; an NPC record
+            /// names a race and a sex, and the body has to be assembled out of the `BODY` records
+            /// those call for. So the reference hands over the record and `mModel` stays empty.
+            const ESM::NPC* mPerson = nullptr;
         };
 
         /// What `forEachObject` met but could not place.

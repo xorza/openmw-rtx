@@ -2,8 +2,11 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
+
+#include <osg/Matrixf>
 
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
@@ -12,8 +15,10 @@
 
 namespace RtxTool
 {
+    struct ActorModel;
+    struct CellPerson;
+    struct Placement;
     class Actor;
-    class Placement;
     class World;
 
     /// Who to put in front of the camera.
@@ -27,6 +32,9 @@ namespace RtxTool
 
         /// How many seconds into their animation they start.
         float mSeconds = 0.0f;
+
+        /// Whether the region's own residents stand in it as well.
+        bool mResidents = true;
 
         bool empty() const { return mCreatures.empty() && mPeople.empty(); }
         std::size_t size() const { return mCreatures.size() + mPeople.size(); }
@@ -43,15 +51,25 @@ namespace RtxTool
     class PosedActors : public Motion
     {
     public:
-        /// Builds everyone `request` names and walks them in where `placement` is looking.
+        /// Nobody yet, and the world as it currently stands taken as the snapshot.
         ///
-        /// The scene must already hold the world they are standing in: the snapshot is taken here.
-        PosedActors(World& world, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor,
-            const ActorRequest& request, const Placement& placement);
+        /// **The snapshot before anyone is added, and `settle` after everyone is.** Adding builds a
+        /// body without placing it; a snapshot taken with one already in it would put a second copy
+        /// of that person in the scene on the very next frame.
+        PosedActors(World& world, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor);
         ~PosedActors();
 
         PosedActors(const PosedActors&) = delete;
         PosedActors& operator=(const PosedActors&) = delete;
+
+        /// Everyone `request` names, standing in a row in front of `placement` and facing it.
+        void addRow(const ActorRequest& request, const Placement& placement);
+
+        /// Everyone a cell placed, each where the cell put them.
+        void addResidents(std::span<const CellPerson> people);
+
+        /// Walks everyone in for the first time, and reports what they came to.
+        const RtxBridge::ExtractionStats& settle();
 
         /// Advances to `seconds` and walks everyone back in. False where there is nobody.
         bool advanceTo(float seconds);
@@ -75,8 +93,10 @@ namespace RtxTool
         std::size_t getCount() const { return mActors.size(); }
 
     private:
+        void add(ActorModel model, const osg::Matrixf& transform);
         RtxBridge::ExtractionStats place(float seconds);
 
+        World& mWorld;
         Rtx::SceneDesc& mScene;
         RtxBridge::SceneExtractor& mExtractor;
 
@@ -85,6 +105,13 @@ namespace RtxTool
         std::vector<Rtx::Light> mLit;
 
         std::vector<std::unique_ptr<Actor>> mActors;
+
+        /// How far into their own animation each of them is, on top of the clock.
+        ///
+        /// **Without it a town breathes in unison**, which reads as a rank of automata rather than
+        /// as people: everyone plays the same idle and nothing in the content offsets them.
+        std::vector<float> mPhases;
+
         RtxBridge::ExtractionStats mPlaced;
         float mSeconds = 0.0f;
 

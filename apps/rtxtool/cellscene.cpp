@@ -117,6 +117,12 @@ namespace RtxTool
         void readObjects(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor, CellReport& report)
         {
             const World::SkippedObjects skipped = world.forEachObject(cell, [&](const World::Object& object) {
+                if (object.mPerson != nullptr)
+                {
+                    report.mPeople.push_back(CellPerson{ .mRecord = object.mPerson, .mTransform = object.mTransform });
+                    return;
+                }
+
                 if (object.mLight != nullptr)
                     if (const std::optional<Rtx::Light> light
                         = RtxBridge::makeLight(*object.mLight, object.mTransform.getTrans()))
@@ -142,10 +148,10 @@ namespace RtxTool
         }
     }
 
-    CellLighting loadRegion(World& world, const ESM::Cell& centre, int radius, Rtx::SceneDesc& scene,
+    RegionLoad loadRegion(World& world, const ESM::Cell& centre, int radius, Rtx::SceneDesc& scene,
         RtxBridge::SceneExtractor& extractor, std::set<std::string>& loaded, std::string_view weather, float hour)
     {
-        const CellReport report = readRegion(world, centre, radius, extractor, loaded);
+        CellReport report = readRegion(world, centre, radius, extractor, loaded);
         for (const Rtx::Light& light : report.mLights)
             scene.addLight(light);
 
@@ -159,14 +165,17 @@ namespace RtxTool
         // An interior's sky is never seen and its sun never shines, so the daylight stays dark.
         // Its air is its own, out of the same `AMBI` its ambient came from.
         if (!centre.isExterior())
-            return CellLighting{ .mAmbient = report.mAmbient,
-                .mWaterLevel = level,
-                .mDaylight = {},
-                .mFog = RtxBridge::interiorFog(centre) };
+            return RegionLoad{ .mLighting = CellLighting{ .mAmbient = report.mAmbient,
+                                   .mWaterLevel = level,
+                                   .mDaylight = {},
+                                   .mFog = RtxBridge::interiorFog(centre) },
+                .mPeople = std::move(report.mPeople) };
 
         const RtxBridge::Daylight daylight = RtxBridge::makeDaylight(weather, hour);
-        return CellLighting{
-            .mAmbient = daylight.mAmbient, .mWaterLevel = level, .mDaylight = daylight, .mFog = daylight.mFog
-        };
+        return RegionLoad{ .mLighting = CellLighting{ .mAmbient = daylight.mAmbient,
+                               .mWaterLevel = level,
+                               .mDaylight = daylight,
+                               .mFog = daylight.mFog },
+            .mPeople = std::move(report.mPeople) };
     }
 }

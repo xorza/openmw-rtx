@@ -9,6 +9,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
+#include <components/esm3/loadnpc.hpp>
 #include <components/esmloader/lessbyid.hpp>
 #include <components/esmloader/load.hpp>
 #include <components/esmloader/record.hpp>
@@ -265,6 +266,17 @@ namespace RtxTool
             if (ref.mType == ESM::RecNameInts{})
             {
                 ++skipped.mUnknownType;
+                continue;
+            }
+
+            // Before the model check, because a person has none: their body is assembled from the
+            // records their race calls for and the reference names only who they are.
+            if (ref.mType == ESM::REC_NPC_)
+            {
+                handle(Object{
+                    .mTransform = makeTransform(ref),
+                    .mPerson = EsmLoader::find<ESM::NPC>(mEsmData, ref.mRefId),
+                });
                 continue;
             }
 

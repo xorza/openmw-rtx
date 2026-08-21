@@ -94,6 +94,11 @@ namespace RtxTool
             "\"caius cosades\". Repeatable, and they stand in the same row the creatures do. They "
             "come naked: what an NPC is wearing lives in an inventory the simulation owns, and skin "
             "is the surface this renderer most needs to be looking at anyway");
+        addOption("people", bpo::value<bool>()->default_value(true)->implicit_value(true),
+            "put the region's own residents in it, assembled from their races' body parts and "
+            "standing where the cell puts them. On, because a town with nobody in it is not the "
+            "picture this renderer is being judged on; off is the A/B that says what they cost, and "
+            "what a profiling run should hold still");
         addOption("actor-time", bpo::value<float>()->default_value(0.0f),
             "how many seconds into its animation each actor stands, wrapped to the track's own "
             "length. A --repeat carries on from there at sixty frames a second, so a repeat with "
