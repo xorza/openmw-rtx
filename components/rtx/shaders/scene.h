@@ -4,6 +4,8 @@
 #ifndef OPENMW_COMPONENTS_RTX_SHADERS_SCENE_H
 #define OPENMW_COMPONENTS_RTX_SHADERS_SCENE_H
 
+#include "portable.h"
+
 // The scene's tables, and the scale its brightnesses are measured on, as both sides see them.
 // Scalar block layout throughout, so a `uint` is four bytes and a `vec2` is eight on both sides and
 // there is nothing to translate.
@@ -12,7 +14,7 @@
 // other applies has to be one number. Two files each holding their own copy is how a sun and a lamp
 // quietly stop being on the same scale.
 
-#ifdef __cplusplus
+#ifdef RTX_HOST
 
 #include <cstdint>
 
@@ -30,17 +32,17 @@ namespace Rtx::Shaders
 #endif
 
     /// A material with no texture in a slot stores this.
-    const uint NO_TEXTURE = 0xFFFFFFFFu;
+    RTX_CONST uint NO_TEXTURE = 0xFFFFFFFFu;
 
     /// How many sinusoids the water surface is summed from.
-    const uint WAVE_COUNT = 32u;
+    RTX_CONST uint WAVE_COUNT = 32u;
 
     /// A whole turn, which is how a wavelength becomes a wavenumber.
-    const float TAU = 6.2831853f;
+    RTX_CONST float TAU = 6.2831853f;
 
     /// Morrowind's gravity, in world units per second squared: 8.96 m/s^2 across 69.99 units to
     /// the metre.
-    const float WATER_GRAVITY = 627.1f;
+    RTX_CONST float WATER_GRAVITY = 627.1f;
 
     /// One sinusoid of the sea, as the shader reads it.
     ///
@@ -67,8 +69,8 @@ namespace Rtx::Shaders
     /// Shared because the shader divides every light by `INV_PI` and a lamp's intensity is built
     /// with the matching factor so that the two cancel — a relationship that only holds while both
     /// sides read the same number.
-    const float PI = 3.14159265f;
-    const float INV_PI = 1.0f / PI;
+    RTX_CONST float PI = 3.14159265f;
+    RTX_CONST float INV_PI = 1.0f / PI;
 
     /// What an isotropic phase function is worth: one over the solid angle of the whole sphere.
     ///
@@ -77,14 +79,14 @@ namespace Rtx::Shaders
     /// toward the eye is that irradiance spread over every direction — so the air scatters `1/4pi`
     /// of it this way. Left out, lamps light the air twelve and a half times too strongly, which is
     /// a lantern with a white sphere around it rather than a halo.
-    const float INV_FOUR_PI = 0.25f * INV_PI;
+    RTX_CONST float INV_FOUR_PI = 0.25f * INV_PI;
 
     /// Irradiance of the sun against the sky it is set in.
     ///
     /// Not a physical figure: exposure absorbs any overall scale, so what matters is the ratio
     /// between the direct sun and the sky, roughly five to one on a clear day on a surface facing
     /// it. Shared with the shader because everything else on this scale is measured against it.
-    const float DAYLIGHT = 8.0f;
+    RTX_CONST float DAYLIGHT = 8.0f;
 
     /// How many independent numbers one pixel draws in one frame.
     ///
@@ -96,7 +98,7 @@ namespace Rtx::Shaders
     /// pair. A spare channel would have to be given a step to advance by, and the honest step for a
     /// stream nobody reads is nothing — which is a value frozen for the life of the process, waiting
     /// for whoever reaches for it next.
-    const uint RANDOM_STREAMS = 3;
+    RTX_CONST uint RANDOM_STREAMS = 3;
 
     /// Edge of the blue-noise tile, in pixels.
     ///
@@ -104,7 +106,7 @@ namespace Rtx::Shaders
     /// does not read as one.** The tile is turned by an irrational step every frame, so what would
     /// be a fixed grid of sixty-four is a different arrangement each time; and the pattern inside it
     /// has no low frequencies to begin with, which is the whole point of it.
-    const uint BLUE_NOISE_EXTENT = 64;
+    RTX_CONST uint BLUE_NOISE_EXTENT = 64;
 
     /// Angular radius of the sun, in radians — a disc about half a degree across.
     ///
@@ -112,7 +114,7 @@ namespace Rtx::Shaders
     /// a different sun. It decides how wide the disc in the sky is drawn, and with it how wide the
     /// glitter path on water is: the two are the same number seen twice, one directly and one in a
     /// mirror, and they cannot be allowed to disagree.
-    const float SUN_ANGULAR_RADIUS = 0.004654f;
+    RTX_CONST float SUN_ANGULAR_RADIUS = 0.004654f;
 
     /// What an emissive of one is worth, as light.
     ///
@@ -121,31 +123,31 @@ namespace Rtx::Shaders
     /// carried across or a glow that read as bright becomes a rounding error. Matched to the sky
     /// rather than to the sun, which is about a fifth of it: what these materials are for is being
     /// visible in shade, and a glowing mushroom is not as bright as the sun on it.
-    const float EMISSIVE_INTENSITY = DAYLIGHT * 0.2f;
+    RTX_CONST float EMISSIVE_INTENSITY = DAYLIGHT * 0.2f;
 
     /// How far a ray carries fog before whatever is behind it stops mattering.
     ///
     /// Four hundred metres. Past this the transmittance of even the thinnest weather is a rounding
     /// error, and a ray that hit nothing has to stop somewhere.
-    const float FOG_REACH = 30000.0f;
+    RTX_CONST float FOG_REACH = 30000.0f;
 
     /// The height over the fog's base at which its density falls to `1/e`, in world units.
     ///
     /// Seventy units to the metre, so about thirty-seven of them — a layer deep enough to fill a
     /// valley and still thin out over the hill beside it.
-    const float FOG_HEIGHT = 2600.0f;
+    RTX_CONST float FOG_HEIGHT = 2600.0f;
 
     /// What shading a hit takes. `Rtx::MaterialKind`, which these must agree with.
-    const uint KIND_SURFACE = 0u;
-    const uint KIND_TERRAIN = 1u;
-    const uint KIND_WATER = 2u;
+    RTX_CONST uint KIND_SURFACE = 0u;
+    RTX_CONST uint KIND_TERRAIN = 1u;
+    RTX_CONST uint KIND_WATER = 2u;
 
     /// Water's index of refraction, and the reflectance it gives head-on.
     ///
     /// `((1.333 - 1) / (1.333 + 1))^2`, which is why water is a window seen from above and a mirror
     /// seen along it.
-    const float WATER_IOR = 1.333f;
-    const float WATER_F0 = 0.02f;
+    RTX_CONST float WATER_IOR = 1.333f;
+    RTX_CONST float WATER_F0 = 0.02f;
 
     /// Extinction per world unit, per channel — how fast water swallows light along a path.
     ///
@@ -154,7 +156,7 @@ namespace Rtx::Shaders
     /// Jerlov's coastal type, quoted per metre as 0.32, 0.05 and 0.08, over the game's 69.99 units
     /// to the metre. Every expectation a test makes about water derives from this, so a tuning pass
     /// is one line rather than five pieces of arithmetic that quietly stop describing the shader.
-    const vec3 WATER_EXTINCTION = vec3(0.004572f, 0.000714f, 0.001143f);
+    RTX_CONST vec3 WATER_EXTINCTION = vec3(0.004572f, 0.000714f, 0.001143f);
 
     /// The single-scattering albedo: the share of extinction that was scattering and not absorption,
     /// and so the part the water hands back as its own colour instead of swallowing.
@@ -163,7 +165,7 @@ namespace Rtx::Shaders
     /// approaches one settles at a bright colour however deep it gets — a milky sheet. Clear
     /// tropical water really does behave that way, because molecular scattering dominates its blue;
     /// a tannin-stained coastal swamp does not, and this game's water is the second.
-    const vec3 WATER_SCATTER = vec3(0.012f, 0.042f, 0.040f);
+    RTX_CONST vec3 WATER_SCATTER = vec3(0.012f, 0.042f, 0.040f);
 
     /// Which instances a ray is interested in.
     ///
@@ -171,8 +173,8 @@ namespace Rtx::Shaders
     /// alternative — building water non-opaque so the candidate loop can wave shadow rays past — was
     /// measured at half the frame rate, because every shadow ray crossing the sea then invokes a
     /// shader where traversal alone had been enough.
-    const uint MASK_SOLID = 0x01u;
-    const uint MASK_WATER = 0x02u;
+    RTX_CONST uint MASK_SOLID = 0x01u;
+    RTX_CONST uint MASK_WATER = 0x02u;
 
     /// Where a mesh's vertices and indices begin in the shared buffers.
     ///
@@ -255,7 +257,20 @@ namespace Rtx::Shaders
         vec3 mEmissiveColour;
     };
 
-#ifdef __cplusplus
+    // **The two C++-shaped sides have to agree byte for byte**, because one writes these buffers and
+    // the other reads them — and Metal packs a `float3` differently unless told, which is a mistake
+    // that produces a plausible wrong image rather than an error. GLSL is pinned separately, by the
+    // `--scalar-block-layout` the build hands the validator.
+#if defined(RTX_HOST) || defined(__METAL_VERSION__)
+    static_assert(sizeof(GpuWave) == 20, "GpuWave must be scalar-packed on every side");
+    static_assert(sizeof(GpuMesh) == 8, "GpuMesh must be scalar-packed on every side");
+    static_assert(sizeof(GpuInstance) == 8, "GpuInstance must be scalar-packed on every side");
+    static_assert(sizeof(GpuLight) == 28, "GpuLight must be scalar-packed on every side");
+    static_assert(sizeof(GpuLayer) == 48, "GpuLayer must be scalar-packed on every side");
+    static_assert(sizeof(GpuMaterial) == 52, "GpuMaterial must be scalar-packed on every side");
+#endif
+
+#ifdef RTX_HOST
 }
 #endif
 

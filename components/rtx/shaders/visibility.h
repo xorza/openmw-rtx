@@ -4,11 +4,13 @@
 #ifndef OPENMW_COMPONENTS_RTX_SHADERS_VISIBILITY_H
 #define OPENMW_COMPONENTS_RTX_SHADERS_VISIBILITY_H
 
+#include "portable.h"
+
 // Included verbatim by both the shader and the C++ that fills it in, so the two cannot disagree
 // about a field. Scalar block layout is what makes that possible: a `vec3` is twelve bytes on both
 // sides, with none of the padding rules that make std140 a translation exercise.
 
-#ifdef __cplusplus
+#ifdef RTX_HOST
 
 #include <cstdint>
 
@@ -28,7 +30,7 @@ namespace Rtx::Shaders
     /// The shader declares its local size from this and the dispatch rounds the image up to it, so
     /// the two cannot drift: writing the number twice is how a pass quietly stops covering its last
     /// row of pixels.
-    const uint VISIBILITY_WORKGROUP = 8;
+    RTX_CONST uint VISIBILITY_WORKGROUP = 8;
 
     /// The camera, as a ray generator.
     ///
@@ -153,7 +155,13 @@ namespace Rtx::Shaders
         uvec3 mGridSize;
     };
 
-#ifdef __cplusplus
+    // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
+    // reads them are different compilers.
+#if defined(RTX_HOST) || defined(__METAL_VERSION__)
+    static_assert(sizeof(VisibilityConstants) == 192, "VisibilityConstants must be scalar-packed on every side");
+#endif
+
+#ifdef RTX_HOST
 }
 #endif
 

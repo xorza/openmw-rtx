@@ -26,6 +26,7 @@ set(RTX_FILES
 # Structures and constants shared verbatim with every shader language, through `#ifdef __cplusplus`.
 # They stay with the core rather than following the GLSL, because a Metal shader includes them too.
 set(RTX_SHADER_HEADERS
+    shaders/portable.h
     shaders/scene.h
     shaders/visibility.h
 )
