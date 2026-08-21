@@ -25,7 +25,13 @@ namespace Rtx
         /// units wide — coarser than most of what the filter is being asked to hold an edge across.
         constexpr VkFormat sGuide = VK_FORMAT_R32G32B32A32_SFLOAT;
 
+        /// Two full floats, for the reason `getMotion` gives.
+        constexpr VkFormat sMotion = VK_FORMAT_R32G32_SFLOAT;
+
         constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT;
+
+        /// The motion channel is also read back, which nothing else here is.
+        constexpr VkImageUsageFlags sReadable = sUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     }
 
     GBuffer::GBuffer(const Device& device, std::uint32_t width, std::uint32_t height)
@@ -33,6 +39,7 @@ namespace Rtx
         , mIndirect(device, width, height, sRadiance, sUsage, "g-indirect")
         , mModulate(device, width, height, sRadiance, sUsage, "g-modulate")
         , mGuide(device, width, height, sGuide, sUsage, "g-guide")
+        , mMotion(device, width, height, sMotion, sReadable, "g-motion")
     {
     }
 
@@ -48,7 +55,7 @@ namespace Rtx
         // previous frame is still running. Sourcing the barrier at the compute stage is the whole of
         // what a write-after-read needs; nothing has to be made visible, only ordered. Discarding
         // from `TOP_OF_PIPE` waits for nothing at all, and buys a torn frame for a barrier saved.
-        for (const Image* image : { &mDirect, &mIndirect, &mModulate, &mGuide })
+        for (const Image* image : { &mDirect, &mIndirect, &mModulate, &mGuide, &mMotion })
             image->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
@@ -56,7 +63,7 @@ namespace Rtx
 
     void GBuffer::handOver(VkCommandBuffer commands) const
     {
-        for (const Image* image : { &mDirect, &mIndirect, &mModulate, &mGuide })
+        for (const Image* image : { &mDirect, &mIndirect, &mModulate, &mGuide, &mMotion })
             image->transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);

@@ -148,6 +148,13 @@ namespace Rtx
         /// Not const: it submits a copy and waits for it.
         virtual void readPixels(std::vector<std::uint8_t>& pixels) = 0;
 
+        /// Copies the last frame's motion vectors into `motion`, two floats a pixel, tightly packed.
+        ///
+        /// **In pixels, from where a surface is now to where it was.** Zero where the ray hit
+        /// nothing, and zero where the surface stood behind the previous eye, which is not a place
+        /// a screen position exists for. Not const: it submits a copy and waits for it.
+        virtual void readMotion(std::vector<float>& motion) = 0;
+
         /// Moves whatever the API has complained about since the last call into `errors`.
         ///
         /// **Draining, not peeking**, so that clearing before a test and reading after it are the

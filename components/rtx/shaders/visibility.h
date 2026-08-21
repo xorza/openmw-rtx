@@ -154,6 +154,24 @@ namespace Rtx::Shaders
         /// estimate and zero is the A/B that says what it did.
         float mDelight;
 
+        /// Where the eye stands now, less where it stood on the previous frame.
+        ///
+        /// **Differenced on the host, and that is the whole trick.** Morrowind's coordinates run to
+        /// six figures and a motion vector is a fraction of a pixel, so subtracting two world points
+        /// on the device throws the answer away in rounding. Two camera positions within a step of
+        /// each other subtract exactly in a float, and the device only ever adds that small delta to
+        /// an offset from its own eye.
+        vec3 mCameraMotion;
+
+        /// The previous frame's basis, in the same form as `mForward`, `mRight` and `mUp`, with the
+        /// translation left out — it is `mCameraMotion` that carries where the eye was.
+        ///
+        /// All zero before there is a previous frame, which the shader reads as "no answer" and
+        /// leaves the motion at nothing.
+        vec3 mPreviousForward;
+        vec3 mPreviousRight;
+        vec3 mPreviousUp;
+
         /// Which frame this is, for anything that wants a different answer than last time.
         ///
         /// Every random draw in the shader is keyed on it — the fog's step jitter and the bounce's
@@ -175,7 +193,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
-    static_assert(sizeof(VisibilityConstants) == 200, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 248, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

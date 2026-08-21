@@ -45,6 +45,7 @@ namespace Rtx
         void resize(std::uint32_t width, std::uint32_t height) override;
         FrameResult renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) override;
         void readPixels(std::vector<std::uint8_t>& pixels) override;
+        void readMotion(std::vector<float>& motion) override;
         void takeValidationErrors(std::vector<std::string>& errors) override;
 
     private:
@@ -72,6 +73,12 @@ namespace Rtx
 
         /// What the trace writes and the composite reads: one frame's light, still in pieces.
         std::unique_ptr<GBuffer> mChannels;
+
+        /// The camera the last frame was traced with, for reprojecting this one against.
+        ///
+        /// Its basis is all zero until a frame has been traced, and after a resize or a new scene —
+        /// which the shader reads as "there is no previous frame" and answers with no motion at all.
+        Shaders::VisibilityConstants mPreviousCamera{};
 
         Buffer mHitCount;
 

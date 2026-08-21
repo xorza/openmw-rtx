@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <cstring>
 
 #include <components/rtx/camera.hpp>
 #include <components/rtx/error.hpp>
@@ -49,6 +50,9 @@ namespace Rtx
         mChannels = std::make_unique<GBuffer>(mDevice, width, height);
         mFilter.resize(width, height);
 
+        // A frame of a different size is not one this one can be reprojected against.
+        mPreviousCamera = Shaders::VisibilityConstants{};
+
         // **Dropped rather than resized, because most runs never make one.** Sixteen bytes a pixel
         // is 33 MiB at 1080p and 133 MiB at 4K, and it buys a sum that neither rounds nor clips —
         // which is worth every byte to the reference mode and nothing at all to the frame a window
@@ -88,8 +92,10 @@ namespace Rtx
         mAcceleration.reset();
 
         // A sum over one scene means nothing over the next, so it goes back with the scene rather
-        // than being carried empty into one it cannot describe.
+        // than being carried empty into one it cannot describe. Neither does a motion vector, which
+        // would point at where something stood in a world that is no longer there.
         mHistory.reset();
+        mPreviousCamera = Shaders::VisibilityConstants{};
 
         mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, scene);
         mBuffers = std::make_unique<SceneBuffers>(mDevice, mPool, scene, mAcceleration->getIndices(), sea);
@@ -140,6 +146,14 @@ namespace Rtx
         if (options.mJitter)
             sampled.mJitter = haltonJitter(camera.mFrame);
 
+        // **The one subtraction of two world points, and it happens here.** Two camera positions a
+        // step apart subtract exactly in a float; the same difference taken on the device, between
+        // coordinates six figures long, would be rounding.
+        sampled.mCameraMotion = camera.mOrigin - mPreviousCamera.mOrigin;
+        sampled.mPreviousForward = mPreviousCamera.mForward;
+        sampled.mPreviousRight = mPreviousCamera.mRight;
+        sampled.mPreviousUp = mPreviousCamera.mUp;
+
         const VisibilityInputs inputs{
             .mScene = mAcceleration->getTopLevel(),
             .mBuffers = mBuffers.get(),
@@ -188,6 +202,10 @@ namespace Rtx
 
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
 
+        // What the next frame reprojects against, and the camera as the caller gave it: a jitter is
+        // where inside a pixel this frame sampled, not where the eye was.
+        mPreviousCamera = camera;
+
         const std::uint32_t hits = *static_cast<const std::uint32_t*>(mHitCount.map());
         mHitCount.unmap();
 
@@ -198,6 +216,17 @@ namespace Rtx
     {
         assert(mTarget != nullptr);
         mTarget->read(mPool, VK_IMAGE_LAYOUT_GENERAL, pixels);
+    }
+
+    void VulkanRenderer::readMotion(std::vector<float>& motion)
+    {
+        assert(mChannels != nullptr);
+
+        std::vector<std::uint8_t> bytes;
+        mChannels->getMotion().read(mPool, VK_IMAGE_LAYOUT_GENERAL, bytes);
+
+        motion.resize(bytes.size() / sizeof(float));
+        std::memcpy(motion.data(), bytes.data(), bytes.size());
     }
 
     void VulkanRenderer::takeValidationErrors(std::vector<std::string>& errors)

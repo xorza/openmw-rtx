@@ -3,6 +3,8 @@
 #include <cassert>
 #include <cstring>
 
+#include <components/rtx/error.hpp>
+
 #include "buffer.hpp"
 #include "commands.hpp"
 #include "device.hpp"
@@ -10,11 +12,35 @@
 
 namespace Rtx
 {
+    namespace
+    {
+        /// How many bytes one texel takes, for the formats this renderer makes images in.
+        ///
+        /// **A read-back has to know, and only the format does.** Every image here is uncompressed
+        /// and single-plane, so this is the whole of the question — and a format that reaches here
+        /// unlisted is a new one somebody added without saying how large it is.
+        std::uint32_t texelBytesOf(VkFormat format)
+        {
+            switch (format)
+            {
+                case VK_FORMAT_R8G8B8A8_UNORM:
+                    return 4;
+                case VK_FORMAT_R32G32_SFLOAT:
+                    return 8;
+                case VK_FORMAT_R32G32B32A32_SFLOAT:
+                    return 16;
+                default:
+                    throw Error("no texel size is recorded for this image format");
+            }
+        }
+    }
+
     Image::Image(const Device& device, std::uint32_t width, std::uint32_t height, VkFormat format,
         VkImageUsageFlags usage, std::string_view name)
         : mDevice(device)
         , mWidth(width)
         , mHeight(height)
+        , mTexelBytes(texelBytesOf(format))
     {
         const VkImageCreateInfo create{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -86,7 +112,7 @@ namespace Rtx
 
     void Image::read(CommandPool& pool, VkImageLayout layout, std::vector<std::uint8_t>& pixels) const
     {
-        const VkDeviceSize bytes = VkDeviceSize{ mWidth } * mHeight * 4;
+        const VkDeviceSize bytes = VkDeviceSize{ mWidth } * mHeight * mTexelBytes;
         const Buffer staging(mDevice, bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 

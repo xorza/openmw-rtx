@@ -44,6 +44,15 @@ namespace Rtx
         /// The shading normal in `xyz` and the hit distance in `w`, for telling edges apart.
         const Image& getGuide() const { return mGuide; }
 
+        /// Where each surface stood on the previous frame's screen, less where it stands on this
+        /// one, in pixels. Zero where nothing was hit or where the surface was behind the old eye.
+        ///
+        /// **Full floats, and not because the numbers are large.** A motion vector spans the frame
+        /// when the camera turns — a couple of thousand pixels — and a half float lands only on
+        /// whole pixels above 1024, which is the sub-pixel accuracy an upscaler reconstructs from
+        /// thrown away exactly where the camera is moving fastest.
+        const Image& getMotion() const { return mMotion; }
+
         std::uint32_t getWidth() const { return mDirect.getWidth(); }
         std::uint32_t getHeight() const { return mDirect.getHeight(); }
 
@@ -61,5 +70,6 @@ namespace Rtx
         Image mIndirect;
         Image mModulate;
         Image mGuide;
+        Image mMotion;
     };
 }

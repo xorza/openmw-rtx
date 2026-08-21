@@ -94,6 +94,9 @@ layout(set = 0, binding = 16, scalar) readonly buffer BlueNoiseTile
     float blueNoise[];
 };
 
+/// Where each surface stood on the previous frame's screen, less where it stands on this one.
+layout(set = 0, binding = 20, rg32f) uniform writeonly image2D motion;
+
 /// What each texture already has painted into it, `SHADING_EXTENT` squared factors apiece and one
 /// texture after another. A texture with no estimate holds ones.
 layout(set = 0, binding = 19, scalar) readonly buffer ShadingMaps
@@ -1666,6 +1669,35 @@ vec3 bounceLight(Surface surface, uvec2 pixel)
     return shadeSurface(hit, pathEnd(hit.mPosition));
 }
 
+/// Where a surface stood on the previous frame's screen, less where it stands on this one, in
+/// pixels.
+///
+/// **Reprojected as an offset and never as a world point.** `direction * distance` is where the
+/// surface is relative to *this* eye, and `mCameraMotion` carries it to where it is relative to the
+/// last one — so the only large numbers involved were subtracted on the host, between two camera
+/// positions a step apart, where a float is exact.
+///
+/// Both ends are pixel centres and neither carries the jitter: an upscaler is told what the jitter
+/// was, and a motion vector that carried it too would have it applied twice.
+vec2 motionOf(uvec2 pixel, vec3 direction, float distance)
+{
+    const vec3 was = direction * distance + camera.mCameraMotion;
+
+    // Behind the previous eye there is no answer, and the divide below would fold such a point back
+    // into the frame as a plausible coordinate.
+    const float ahead = dot(was, camera.mPreviousForward);
+    if (!(ahead > 0.0))
+        return vec2(0.0);
+
+    // The inverse of the ray generation. The basis carries the image plane's half extents, so
+    // dividing by each vector's own square undoes the direction and the scale together.
+    const float across = dot(was, camera.mPreviousRight) / dot(camera.mPreviousRight, camera.mPreviousRight);
+    const float down = -dot(was, camera.mPreviousUp) / dot(camera.mPreviousUp, camera.mPreviousUp);
+
+    const vec2 before = (vec2(across, down) / ahead * 0.5 + 0.5) * vec2(camera.mWidth, camera.mHeight);
+    return before - (vec2(pixel) + 0.5);
+}
+
 void main()
 {
     const uvec2 pixel = gl_GlobalInvocationID.xy;
@@ -1729,4 +1761,9 @@ void main()
     imageStore(indirect, at, vec4(bounced, 1.0));
     imageStore(modulate, at, vec4(tint, 1.0));
     imageStore(guide, at, vec4(surface.mHit ? surface.mNormal : vec3(0.0), surface.mDistance));
+
+    // A miss stores nothing, which a temporal filter reads as "this pixel did not move" — and for
+    // the sky that is true.
+    imageStore(motion, at,
+        vec4(surface.mHit ? motionOf(pixel, direction, surface.mDistance) : vec2(0.0), 0.0, 0.0));
 }

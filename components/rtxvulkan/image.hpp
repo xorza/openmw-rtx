@@ -32,11 +32,14 @@ namespace Rtx
         std::uint32_t getWidth() const { return mWidth; }
         std::uint32_t getHeight() const { return mHeight; }
 
+        /// How many bytes one texel of this image's format occupies.
+        std::uint32_t getTexelBytes() const { return mTexelBytes; }
+
         /// Moves the whole image to `layout`, recording into `commands`.
         void transition(VkCommandBuffer commands, VkImageLayout from, VkImageLayout to, VkPipelineStageFlags2 srcStage,
             VkAccessFlags2 srcAccess, VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess) const;
 
-        /// Copies the image to host memory. Four bytes per pixel, tightly packed, row by row.
+        /// Copies the image to host memory, `getTexelBytes()` per pixel, tightly packed, row by row.
         ///
         /// Leaves the image in `VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL` rather than putting it back:
         /// everything that reads an image back is finished with it. Anything that is not must
@@ -52,5 +55,6 @@ namespace Rtx
         DeviceMemory mMemory;
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
+        std::uint32_t mTexelBytes = 0;
     };
 }

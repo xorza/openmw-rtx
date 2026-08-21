@@ -565,6 +565,125 @@ namespace Rtx
             EXPECT_LT(redAt(soft, size / 2), 180) << "and did not become it";
         }
 
+        /// Motion vectors, which can be plausible and wrong in three separate ways.
+        ///
+        /// So all three are asserted: a still camera leaves every pixel where it is; a camera that
+        /// only *turns* moves a surface by an amount that does not depend on how far away it is; and
+        /// a camera that *steps* moves a near surface further than a far one.
+        ///
+        /// **The same pixel at two depths, and not two pixels at one depth.** A perspective rotation
+        /// is not a uniform slide — a point at the edge of the frame moves further than one at its
+        /// centre, because screen position goes as the tangent of the angle. Comparing two places in
+        /// one frame would measure that and call it a depth error, so each depth gets its own frame
+        /// and the same pixel is read from both.
+        ///
+        /// The step's arithmetic. Moving the eye `s` sideways leaves the point now straight ahead
+        /// standing `s` to the side of where the eye used to be, so its old screen position had
+        /// `tan(angle) = s / d`. The basis carries `tan(30)` as its half width, so that is
+        /// `(s / d) / tan(30)` in a coordinate running -1 to 1 across the frame, and 32 pixels to
+        /// the unit over 64: `55.426 * s / d`. Four units at two hundred is 1.1085 pixels, at four
+        /// hundred 0.5543.
+        TEST_F(RtxVisibilityTest, aMotionVectorSaysWhereItsSurfaceWasAndNotWhereTheWorldIs)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::size_t centre = std::size_t{ size / 2 } * size + size / 2;
+
+            /// A wall across the view at `away` units, large enough to fill the frame from anywhere
+            /// these cameras stand.
+            const auto wallAt = [](float away) {
+                return std::array{
+                    osg::Vec3f(-8000.0f, away, -8000.0f),
+                    osg::Vec3f(8000.0f, away, -8000.0f),
+                    osg::Vec3f(8000.0f, away, 8000.0f),
+                    osg::Vec3f(-8000.0f, away, 8000.0f),
+                };
+            };
+
+            /// The centre pixel's motion after the camera moves from `somewhere`, looking along +y,
+            /// to `somewhere + eye` looking at `somewhere + at`.
+            const auto motionFrom
+                = [&](const osg::Vec3f& somewhere, float away, const osg::Vec3f& eye, const osg::Vec3f& at) {
+                      SceneDesc scene;
+                      std::array<osg::Vec3f, 4> wall = wallAt(away);
+                      for (osg::Vec3f& corner : wall)
+                          corner += somewhere;
+
+                      scene.addInstance(MeshInstance{
+                          .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(wall, {}, {}, sQuadIndices) });
+
+                      const Shaders::VisibilityConstants first = makeCamera(
+                          somewhere, somewhere + osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
+
+                      std::vector<std::uint8_t> pixels;
+                      EXPECT_EQ(countHits(scene, {}, first, size, pixels), size * size) << "at " << away;
+
+                      mRenderer->renderFrame(
+                          makeCamera(somewhere + eye, somewhere + at, 60.0f, size, size, 1000000.0f), FrameOptions{});
+
+                      std::vector<float> motion;
+                      mRenderer->readMotion(motion);
+                      return osg::Vec2f(motion[centre * 2], motion[centre * 2 + 1]);
+                  };
+
+            /// The same, at the origin, where a formulation that subtracts world points still works.
+            const auto motionAt = [&](float away, const osg::Vec3f& eye, const osg::Vec3f& at) {
+                return motionFrom(osg::Vec3f(), away, eye, at);
+            };
+
+            // **A still camera.** An unproject followed by a project with a float rounding between
+            // them, so this is not exactly zero and must not be far from it.
+            {
+                const osg::Vec2f held = motionAt(200.0f, osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f));
+
+                EXPECT_NEAR(held.x(), 0.0f, 1e-3f) << "a frame that did not move";
+                EXPECT_NEAR(held.y(), 0.0f, 1e-3f);
+            }
+
+            // **A camera that steps**, four units along +x. The point now straight ahead was to the
+            // right of the old eye, so it comes back positive, and twice as far away halves it.
+            {
+                const float near = motionAt(200.0f, osg::Vec3f(4.0f, 0.0f, 0.0f), osg::Vec3f(4.0f, 100.0f, 0.0f)).x();
+                const float far = motionAt(400.0f, osg::Vec3f(4.0f, 0.0f, 0.0f), osg::Vec3f(4.0f, 100.0f, 0.0f)).x();
+
+                EXPECT_NEAR(near, 1.1085f, 0.02f) << "two hundred units away";
+                EXPECT_NEAR(far, 0.5543f, 0.02f) << "and four hundred";
+            }
+
+            // **The same step, a hundred thousand units from the origin**, which is where Morrowind
+            // actually is: the far corner of the map is past 200,000 and every cell but one is
+            // somewhere out there.
+            //
+            // **The formulation keeps every device-side number small**, which is why the answer
+            // out here is the same as the answer at the origin: the only subtraction of two world
+            // points happens on the host, between two camera positions a step apart, and the device
+            // adds that small delta to an offset from its own eye.
+            //
+            // Measured, and worth writing down: taking the difference on the device instead gives
+            // bit-identical results at this distance, because the compiler folds `(o + x) - (o - m)`
+            // back to `x + m`. So this asserts the answer rather than proving the formulation
+            // necessary — what it would catch is a reprojection that built world-space clip
+            // coordinates, whose intermediates really are six figures long.
+            {
+                const osg::Vec3f somewhere(100000.0f, 100000.0f, 0.0f);
+                const float near
+                    = motionFrom(somewhere, 200.0f, osg::Vec3f(4.0f, 0.0f, 0.0f), osg::Vec3f(4.0f, 100.0f, 0.0f)).x();
+
+                EXPECT_NEAR(near, 1.1085f, 0.02f) << "the same two hundred units, a long way from the origin";
+            }
+
+            // **A camera that only turns**, about its own position and by the same angle whichever
+            // wall it is looking at. Distance has no say in what a rotation does.
+            {
+                const osg::Vec3f turned(20.0f, 100.0f, 0.0f);
+                const float near = motionAt(200.0f, osg::Vec3f(), turned).x();
+                const float far = motionAt(400.0f, osg::Vec3f(), turned).x();
+
+                EXPECT_GT(std::abs(near), 1.0f) << "the image slid";
+                EXPECT_LT(std::abs(near), size) << "and stayed on screen";
+                EXPECT_NEAR(near, far, 0.01f) << "by an amount its distance had no say in";
+            }
+        }
+
         /// A wall bigger than the field of view leaves no room for sky.
         ///
         /// At a hundred units from a sixty-degree camera the frame is 2 * 100 * tan(30) = 115 units

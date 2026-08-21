@@ -28,7 +28,7 @@ namespace Rtx
         /// shader declares them. The channels are at one, fifteen, seventeen and eighteen because
         /// they grew onto the end of a layout that already existed rather than renumbering the
         /// tables under them.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 20> sBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 21> sBindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 1, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 2, sStorage, 1, sCompute },
@@ -49,6 +49,7 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 17, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 18, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 19, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 20, sImage, 1, sCompute },
         };
     }
 
@@ -70,14 +71,15 @@ namespace Rtx
             .accelerationStructureCount = 1,
             .pAccelerationStructures = &inputs.mScene,
         };
-        const std::array<VkDescriptorImageInfo, 4> channels{
+        const std::array<VkDescriptorImageInfo, 5> channels{
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getDirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getIndirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getModulate().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getGuide().getView(), VK_IMAGE_LAYOUT_GENERAL },
+            VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getMotion().getView(), VK_IMAGE_LAYOUT_GENERAL },
         };
-        // In `sBindings`' order, which is where those four numbers are explained.
-        constexpr std::array<std::uint32_t, 4> channelBindings{ 1, 15, 17, 18 };
+        // In `sBindings`' order, which is where those five numbers are explained.
+        constexpr std::array<std::uint32_t, 5> channelBindings{ 1, 15, 17, 18, 20 };
 
         // Bindings two upwards are all storage buffers, in the order the shader declares them.
         const std::array<VkDescriptorBufferInfo, 13> buffers{
@@ -98,7 +100,7 @@ namespace Rtx
         const VkDescriptorBufferInfo noiseWrite{ mBlueNoise.getHandle(), 0, VK_WHOLE_SIZE };
         const VkDescriptorBufferInfo shadingWrite{ inputs.mShading, 0, VK_WHOLE_SIZE };
 
-        std::array<VkWriteDescriptorSet, 20> writes{};
+        std::array<VkWriteDescriptorSet, 21> writes{};
         writes[0] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = &sceneWrite,
@@ -115,21 +117,21 @@ namespace Rtx
                 .pImageInfo = &channels[i],
             };
         for (std::uint32_t i = 0; i < buffers.size(); ++i)
-            writes[i + 5] = VkWriteDescriptorSet{
+            writes[i + 6] = VkWriteDescriptorSet{
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .dstBinding = i + 2,
                 .descriptorCount = 1,
                 .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 .pBufferInfo = &buffers[i],
             };
-        writes[18] = VkWriteDescriptorSet{
+        writes[19] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstBinding = 16,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             .pBufferInfo = &noiseWrite,
         };
-        writes[19] = VkWriteDescriptorSet{
+        writes[20] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstBinding = 19,
             .descriptorCount = 1,
