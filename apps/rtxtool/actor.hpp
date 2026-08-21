@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <string_view>
 
 // Complete rather than forward declared, because `getRoot` hands out a `Group` and every caller
 // then wants it as the `osg::Node&` an extractor takes.
@@ -37,6 +38,13 @@ namespace RtxTool
         VFS::Path::Normalized mSkeleton;
     };
 
+    /// A slice of a keyframe track, in the track's own seconds.
+    struct Span
+    {
+        float mStart = 0.0f;
+        float mStop = 0.0f;
+    };
+
     /// A creature: one skinned file, with its animation beside it under the same name.
     ///
     /// @param model the reference's model path — `meshes/r/cliffracer.nif`, not the `x`-prefixed
@@ -61,7 +69,10 @@ namespace RtxTool
     public:
         /// @param model what to pose, from `loadCreature` or `buildNpc`.
         /// @param transform where in the world it stands.
-        Actor(World& world, ActorModel model, const osg::Matrixf& transform);
+        /// @param group which animation to play, by the name its text keys give it. Falls back to the
+        ///        whole track where the actor has no group by that name, which is what a creature
+        ///        with one continuous animation wants.
+        Actor(World& world, ActorModel model, const osg::Matrixf& transform, std::string_view group = "idle");
         ~Actor();
 
         Actor(const Actor&) = delete;
@@ -69,12 +80,12 @@ namespace RtxTool
 
         /// Puts the bones where the keyframes have them at `seconds`, and the skin on the bones.
         ///
-        /// Wrapped to the track's own length, so every time is a valid time and a caller stepping a
-        /// clock never has to know how long the animation is.
+        /// Wrapped to the played group's own length, so every time is a valid time and a caller
+        /// stepping a clock never has to know how long the animation is.
         void pose(float seconds);
 
-        /// How long the whole keyframe track runs, in seconds. Zero where there was none to load.
-        float getDuration() const { return mDuration; }
+        /// How long the group being played runs, in seconds. Zero where there was none to find.
+        float getDuration() const { return mStop - mStart; }
 
         /// How many of the skeleton's bones the keyframes reached.
         ///
@@ -101,7 +112,15 @@ namespace RtxTool
 
         ActorModel mModel;
         osg::Matrixf mTransform;
-        float mDuration = 0.0f;
+
+        /// The slice of the track being played, in the track's own seconds.
+        ///
+        /// **A Morrowind keyframe file is every animation the actor has, laid end to end**, and the
+        /// text keys are what say where one stops and the next begins. A pose taken at an arbitrary
+        /// time in the whole file is a person frozen mid-swing or mid-death — which is exactly what a
+        /// crowd looked like before this was here.
+        float mStart = 0.0f;
+        float mStop = 0.0f;
         std::size_t mPosedBones = 0;
 
         /// Both traversals are keyed on this and both refuse to run twice on the same number, which

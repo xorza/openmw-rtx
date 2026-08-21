@@ -36,6 +36,9 @@ namespace RtxTool
         /// Whether the region's own residents stand in it as well.
         bool mResidents = true;
 
+        /// Whether people wear what their record carries. Off leaves everyone in their skin.
+        bool mClothes = true;
+
         bool empty() const { return mCreatures.empty() && mPeople.empty(); }
         std::size_t size() const { return mCreatures.size() + mPeople.size(); }
     };
@@ -53,10 +56,14 @@ namespace RtxTool
     public:
         /// Nobody yet, and the world as it currently stands taken as the snapshot.
         ///
+        /// @param request read here for what applies to everyone — how they are dressed and where in
+        ///        their animation they start — because the residents go in before any row does.
+        ///
         /// **The snapshot before anyone is added, and `settle` after everyone is.** Adding builds a
         /// body without placing it; a snapshot taken with one already in it would put a second copy
         /// of that person in the scene on the very next frame.
-        PosedActors(World& world, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor);
+        PosedActors(
+            World& world, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor, const ActorRequest& request);
         ~PosedActors();
 
         PosedActors(const PosedActors&) = delete;
@@ -114,6 +121,7 @@ namespace RtxTool
 
         RtxBridge::ExtractionStats mPlaced;
         float mSeconds = 0.0f;
+        bool mClothes = true;
 
         /// How far a repeated frame carries the animation. Sixty a second, because that is what the
         /// frame budget is written against and an actor should move the same amount per frame here

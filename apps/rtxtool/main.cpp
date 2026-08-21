@@ -360,7 +360,7 @@ namespace RtxTool
                 request.mOrigin = placement.mOrigin;
                 request.mTarget = placement.mTarget;
 
-                posed = std::make_unique<PosedActors>(world, scene, extractor);
+                posed = std::make_unique<PosedActors>(world, scene, extractor, actors);
                 posed->addResidents(residents);
                 posed->addRow(actors, placement);
                 request.mMotion = posed.get();
@@ -544,6 +544,7 @@ namespace RtxTool
                     .mPeople = variables["npc"].as<std::vector<std::string>>(),
                     .mSeconds = variables["actor-time"].as<float>(),
                     .mResidents = variables["people"].as<bool>(),
+                    .mClothes = variables["clothes"].as<bool>(),
                 };
 
                 World world(config, variables, resources);

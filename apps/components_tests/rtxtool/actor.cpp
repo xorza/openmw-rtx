@@ -149,14 +149,19 @@ namespace RtxTool
             VFS::Path::Normalized mSkeleton;
             std::uint32_t mInstances = 0;
             std::uint32_t mDeformed = 0;
+
+            /// What they are made of, and not merely how many pieces. Two people can be the same
+            /// number of pieces and a robe is not a pair of legs.
+            std::uint32_t mTriangles = 0;
         };
 
-        /// A person is assembled out of their race's body parts, and race and sex decide which.
+        /// A person is assembled out of their outfit and their race's body parts.
         ///
-        /// **The equal counts are the assertion that matters.** Morrowind's base animation files
-        /// carry placeholder geometry — the female one most visibly — and a person built without
-        /// stripping it comes out wearing a magenta torso and a grey chevron. That defect shows up
-        /// here as a woman made of more meshes than a man of the same race, and as nothing else.
+        /// **A mirror of one has to come back with exactly what was hung on them.** Morrowind's base
+        /// animation files carry placeholder geometry — the female one most visibly — and a person
+        /// built without stripping it comes out wearing a magenta torso and a grey chevron nobody
+        /// drew. That defect has no other shape than this: more meshes in the graph than the outfit
+        /// put there.
         TEST(RtxActorTest, aPersonIsAssembledFromTheirRacesBodyParts)
         {
             Files::ConfigurationManager config;
@@ -165,29 +170,37 @@ namespace RtxTool
             if (world == nullptr)
                 GTEST_SKIP() << "no Morrowind installation configured";
 
-            Rtx::SceneDesc scene;
-            RtxBridge::SceneExtractor extractor(scene);
-
-            const auto assemble = [&](const char* id) {
+            // A scene each, so the triangle count is this person's and not a running total.
+            const auto assemble = [&](const char* id, bool dressed) {
                 const ESM::NPC* who = findNpc(*world, id);
                 EXPECT_NE(who, nullptr) << id;
                 if (who == nullptr)
                     return Assembled{};
 
-                Actor actor(*world, buildNpc(*world, *who), osg::Matrixf::identity());
+                Rtx::SceneDesc scene;
+                RtxBridge::SceneExtractor extractor(scene);
+
+                Actor actor(*world, buildNpc(*world, *who, dressed), osg::Matrixf::identity());
                 actor.pose(0.0f);
 
                 const RtxBridge::ExtractionStats stats = extractor.extract(actor.getRoot(), actor.getTransform());
-                return Assembled{ actor.getSkeleton(), stats.mInstances, stats.mDeformed };
+                return Assembled{ actor.getSkeleton(), stats.mInstances, stats.mDeformed, scene.getTriangleCount() };
             };
 
-            const Assembled man = assemble("madres navur");
-            const Assembled woman = assemble("galsa gindu");
-            const Assembled cat = assemble("ra'virr");
+            const Assembled man = assemble("madres navur", false);
+            const Assembled woman = assemble("galsa gindu", false);
+            const Assembled cat = assemble("ra'virr", false);
 
             ASSERT_GT(man.mInstances, 0u) << "a person made of nothing is not a person";
             EXPECT_EQ(man.mInstances, woman.mInstances)
-                << "two Dunmer are the same body part for body part, so the skeleton brought geometry of its own";
+                << "two naked Dunmer are the same limb for limb, so the skeleton brought geometry of its own";
+
+            // And what somebody carries is what they wear. One woman against herself rather than
+            // against somebody else, and by what she is made of rather than by how many pieces:
+            // a skirt claims the slots two legs had, so the piece count barely moves and the
+            // triangles cannot help but.
+            EXPECT_NE(assemble("galsa gindu", true).mTriangles, woman.mTriangles)
+                << "her own clothes made no difference to her";
 
             // **Some of a person is skinned and most of one is not**, which is worth pinning because
             // it decides how they move: a forearm is a rigid mesh parented to the forearm bone and

@@ -187,7 +187,7 @@ namespace RtxTool
         std::unique_ptr<PosedActors> posed;
         if (!actors.empty() || !residents.empty())
         {
-            posed = std::make_unique<PosedActors>(world, scene, extractor);
+            posed = std::make_unique<PosedActors>(world, scene, extractor, actors);
             posed->addResidents(residents);
             posed->addRow(actors, start);
 

@@ -25,9 +25,12 @@ namespace RtxTool
     /// to a bone of a shared skeleton. Morrowind draws a person the way it draws a paper doll, and
     /// that is why an NPC could not simply be loaded from a file the way a creature can.
     ///
-    /// What this leaves out is what they are wearing. Clothing and armour replace body parts by slot
-    /// and by priority, and an inventory is something the simulation owns — so everyone here is
-    /// naked. That is the right thing for a renderer to be looking at: skin is the hardest surface
-    /// in the game to get right and the one the shipped textures have the most light painted into.
-    ActorModel buildNpc(World& world, const ESM::NPC& npc);
+    /// What they have on comes out of the record's own inventory list, which is what the game equips
+    /// the first time it builds one. A garment claims the body slots it covers and hides the ones it
+    /// merely reaches over, so a robe leaves no shins showing and a cuirass leaves no chest.
+    ///
+    /// @param dressed false to leave them in their skin, which is what a renderer wants to look at:
+    ///        skin is the hardest surface in the game to get right and the one the shipped textures
+    ///        have the most light painted into.
+    ActorModel buildNpc(World& world, const ESM::NPC& npc, bool dressed = true);
 }

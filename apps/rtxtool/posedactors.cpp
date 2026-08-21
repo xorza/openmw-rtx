@@ -28,12 +28,15 @@ namespace RtxTool
         }
     }
 
-    PosedActors::PosedActors(World& world, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor)
+    PosedActors::PosedActors(
+        World& world, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor, const ActorRequest& request)
         : mWorld(world)
         , mScene(scene)
         , mExtractor(extractor)
         , mStanding(scene.getInstances().begin(), scene.getInstances().end())
         , mLit(scene.getLights().begin(), scene.getLights().end())
+        , mSeconds(request.mSeconds)
+        , mClothes(request.mClothes)
     {
     }
 
@@ -51,13 +54,17 @@ namespace RtxTool
 
     void PosedActors::addRow(const ActorRequest& request, const Placement& placement)
     {
-        mSeconds = request.mSeconds;
-
         const std::size_t wanted = request.size();
 
+        // **Counted from where the row starts, not from how many actors there are.** The region's own
+        // residents were added first and stand where the cell put them; a row indexed off the total
+        // would begin as far off to one side as there are people in the town.
+        //
         // Counted off what has actually been added, so somebody nobody has a record for leaves no
         // gap in the row.
-        const auto next = [&] { return placeActor(placement.mOrigin, placement.mTarget, mActors.size(), wanted); };
+        const std::size_t first = mActors.size();
+        const auto next
+            = [&] { return placeActor(placement.mOrigin, placement.mTarget, mActors.size() - first, wanted); };
 
         for (const std::string& model : request.mCreatures)
             add(loadCreature(mWorld, VFS::Path::Normalized(model)), next());
@@ -71,7 +78,7 @@ namespace RtxTool
                 continue;
             }
 
-            add(buildNpc(mWorld, *who), next());
+            add(buildNpc(mWorld, *who, mClothes), next());
         }
     }
 
@@ -79,7 +86,7 @@ namespace RtxTool
     {
         for (const CellPerson& person : people)
             if (person.mRecord != nullptr)
-                add(buildNpc(mWorld, *person.mRecord), person.mTransform);
+                add(buildNpc(mWorld, *person.mRecord, mClothes), person.mTransform);
     }
 
     const RtxBridge::ExtractionStats& PosedActors::settle()

@@ -105,7 +105,42 @@ namespace RtxTool
         return loaded;
     }
 
-    Actor::Actor(World& world, ActorModel model, const osg::Matrixf& transform)
+    namespace
+    {
+        /// Whether `key` is `group` followed by exactly `suffix`.
+        bool names(std::string_view key, std::string_view group, std::string_view suffix)
+        {
+            return key.size() == group.size() + suffix.size() && key.starts_with(group) && key.ends_with(suffix);
+        }
+
+        /// The slice of the track that `group` occupies, or the whole of it where there is no such
+        /// group.
+        ///
+        /// **The last start and the last stop**, which is the game's own choice and not an oversight:
+        /// Morrowind ships keyframe files with a group marked twice, and the later marker is the one
+        /// its own playback uses.
+        Span playedRange(const SceneUtil::TextKeyMap& keys, std::string_view group, float whole)
+        {
+            Span played{ .mStart = 0.0f, .mStop = whole };
+            bool found = false;
+
+            for (const auto& [when, key] : keys)
+            {
+                if (names(key, group, ": start") || names(key, group, ": loop start"))
+                {
+                    played.mStart = when;
+                    played.mStop = whole;
+                    found = true;
+                }
+                else if (found && (names(key, group, ": stop") || names(key, group, ": loop stop")))
+                    played.mStop = when;
+            }
+
+            return found ? played : Span{ .mStart = 0.0f, .mStop = whole };
+        }
+    }
+
+    Actor::Actor(World& world, ActorModel model, const osg::Matrixf& transform, std::string_view group)
         : mClock(std::make_shared<Clock>())
         , mCull(std::make_unique<PoseCull>())
         , mUpdate(std::make_unique<osgUtil::UpdateVisitor>())
@@ -129,6 +164,8 @@ namespace RtxTool
         SceneUtil::NodeMapVisitor collect(bones);
         mModel.mRoot->accept(collect);
 
+        float whole = 0.0f;
+
         for (const auto& [name, controller] : track->mKeyframeControllers)
         {
             const auto bone = bones.find(Misc::StringUtils::lowerCase(name));
@@ -143,10 +180,14 @@ namespace RtxTool
             bone->second->addUpdateCallback(posed->getAsCallback());
 
             if (const std::shared_ptr<SceneUtil::ControllerFunction> function = posed->getFunction())
-                mDuration = std::max(mDuration, function->getMaximum());
+                whole = std::max(whole, function->getMaximum());
 
             ++mPosedBones;
         }
+
+        const Span played = playedRange(track->mTextKeys, group, whole);
+        mStart = played.mStart;
+        mStop = played.mStop;
     }
 
     // Out of line because the members it destroys are only forward declared in the header.
@@ -174,7 +215,8 @@ namespace RtxTool
 
     void Actor::pose(float seconds)
     {
-        mClock->mSeconds = mDuration > 0.0f ? std::fmod(std::fmod(seconds, mDuration) + mDuration, mDuration) : 0.0f;
+        const float length = getDuration();
+        mClock->mSeconds = length > 0.0f ? mStart + std::fmod(std::fmod(seconds, length) + length, length) : mStart;
 
         // **Update then cull, and never the same number twice.** The bones move under the update
         // traversal and the skin follows them under the cull; both keep the last number they saw and
