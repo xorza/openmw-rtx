@@ -135,6 +135,18 @@ namespace RtxTool
             return value;
         }
 
+        /// How many cells out from the centre `--cells` asks for.
+        ///
+        /// A width rather than a radius on the command line, because "seven by seven" is how a
+        /// person thinks about it and "three out in each direction" is how the loop does.
+        int parseRadius(std::uint32_t width)
+        {
+            if (width == 0 || width % 2 == 0)
+                throw std::runtime_error("--cells wants an odd width, so that there is a centre cell");
+
+            return static_cast<int>(width / 2);
+        }
+
         void printUsage(const bpo::options_description& options)
         {
             out() << "Drives the experimental ray tracing renderer without the game window.\n\n"
@@ -226,7 +238,7 @@ namespace RtxTool
 
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
-            readCell(world, *cell, extractor);
+            readRegion(world, *cell, 0, extractor);
 
             const RtxBridge::SceneTextures described(scene, world.getImageManager());
             const ContactSheet sheet = writeContactSheet(described.getDescriptions(), output, strength);
@@ -247,7 +259,7 @@ namespace RtxTool
             return 0;
         }
 
-        int runScene(World& world, const std::string& cellSpec, bool twice)
+        int runScene(World& world, const std::string& cellSpec, int radius, bool twice)
         {
             const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
             if (cell == nullptr)
@@ -255,7 +267,7 @@ namespace RtxTool
 
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
-            const CellReport report = readCell(world, *cell, extractor);
+            const CellReport report = readRegion(world, *cell, radius, extractor);
 
             printCellHeading(*cell);
 
@@ -299,7 +311,7 @@ namespace RtxTool
             {
                 // Terrain and objects together: the property is about the whole graph, and terrain
                 // is half the geometry in an exterior.
-                const CellReport second = readCell(world, *cell, extractor);
+                const CellReport second = readRegion(world, *cell, radius, extractor);
                 RtxBridge::ExtractionStats total = second.mStats;
                 total += second.mTerrain;
 
@@ -316,8 +328,8 @@ namespace RtxTool
         ///
         /// An interior's illumination is its own lamps over its own `AMBI`; an exterior's is the sky
         /// and the weather, which the cell says nothing about and the clock decides.
-        int runShot(
-            World& world, const std::string& cellSpec, const Rtx::ValidationOptions& validation, ShotRequest request)
+        int runShot(World& world, const std::string& cellSpec, int radius, const Rtx::ValidationOptions& validation,
+            ShotRequest request)
         {
             const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
             if (cell == nullptr)
@@ -325,7 +337,7 @@ namespace RtxTool
 
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
-            request.mLighting = loadCell(world, *cell, scene, extractor, request.mWeather, request.mHour);
+            request.mLighting = loadRegion(world, *cell, radius, scene, extractor, request.mWeather, request.mHour);
 
             printCellHeading(*cell);
             out() << '\n';
@@ -333,8 +345,8 @@ namespace RtxTool
             return renderShot(scene, world.getImageManager(), validation, request);
         }
 
-        int runView(
-            World& world, const std::string& cellSpec, const Rtx::ValidationOptions& validation, ViewRequest request)
+        int runView(World& world, const std::string& cellSpec, int radius, const Rtx::ValidationOptions& validation,
+            ViewRequest request)
         {
             const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
             if (cell == nullptr)
@@ -342,7 +354,7 @@ namespace RtxTool
 
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
-            request.mLighting = loadCell(world, *cell, scene, extractor, request.mWeather, request.mHour);
+            request.mLighting = loadRegion(world, *cell, radius, scene, extractor, request.mWeather, request.mHour);
 
             printCellHeading(*cell);
 
@@ -488,7 +500,8 @@ namespace RtxTool
                     return cell == nullptr ? 1 : runFind(world, *cell, needle);
                 }
 
-                return runScene(world, chosen.mCell, variables["twice"].as<bool>());
+                return runScene(world, chosen.mCell, parseRadius(variables["cells"].as<std::uint32_t>()),
+                    variables["twice"].as<bool>());
             }
 
             if (command == "shot" || command == "view")
@@ -526,7 +539,8 @@ namespace RtxTool
                     request.mWeather = variables["weather"].as<std::string>();
                     request.mHour = variables["hour"].as<float>();
 
-                    return runView(world, chosen.mCell, validation, request);
+                    return runView(
+                        world, chosen.mCell, parseRadius(variables["cells"].as<std::uint32_t>()), validation, request);
                 }
 
                 ShotRequest request;
@@ -557,7 +571,8 @@ namespace RtxTool
                 request.mRepeat = variables["repeat"].as<std::uint32_t>();
                 request.mAccumulate = variables["accumulate"].as<std::uint32_t>();
 
-                return runShot(world, chosen.mCell, validation, request);
+                return runShot(
+                    world, chosen.mCell, parseRadius(variables["cells"].as<std::uint32_t>()), validation, request);
             }
 
             out() << "Unknown command: " << command << "\n\n";

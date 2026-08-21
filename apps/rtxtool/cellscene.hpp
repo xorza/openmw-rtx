@@ -29,6 +29,9 @@ namespace RtxTool
         /// References whose model is named but will not load. Logged individually as they fail.
         std::uint32_t mUnreadable = 0;
 
+        /// How many cells the region actually found. Fewer than asked for at a coastline.
+        std::uint32_t mCells = 0;
+
         /// What the cell's `LIGH` references cast. Carried, negative and off-by-default records
         /// place a mesh and no light, so this is shorter than the cell's list of them.
         ///
@@ -47,13 +50,18 @@ namespace RtxTool
     /// The content arrives by two routes and only one of them is the scene graph: lights are not
     /// in it at all, because `NifOsg` never reads `NiLight`. They come off the `LIGH` records the
     /// same references point at, and leave here in the report.
-    CellReport readCell(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor);
+    /// The same, over a square of exterior cells centred on `centre`.
+    ///
+    /// @param radius cells out from the centre in each direction, so three is seven by seven.
+    ///        Ignored for an interior, which has no neighbours. Cells the content files do not
+    ///        define are open sea and are skipped rather than missing.
+    CellReport readRegion(World& world, const ESM::Cell& centre, int radius, RtxBridge::SceneExtractor& extractor);
 
-    /// Everything one cell puts into `scene`, and how it is lit.
+    /// Everything a region puts into `scene`, and how its centre is lit.
     ///
     /// Geometry and lights through `extractor` and `scene`, and the sky, water and air as the
     /// return. **In the library rather than beside `main` because it has three callers now** — the
     /// screenshot, the window, and the test that needs a frame of real content to measure.
-    CellLighting loadCell(World& world, const ESM::Cell& cell, Rtx::SceneDesc& scene,
+    CellLighting loadRegion(World& world, const ESM::Cell& centre, int radius, Rtx::SceneDesc& scene,
         RtxBridge::SceneExtractor& extractor, std::string_view weather, float hour);
 }

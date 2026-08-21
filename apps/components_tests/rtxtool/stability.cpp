@@ -145,7 +145,10 @@ namespace RtxTool
 
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
-            const CellLighting lighting = loadCell(*world, *cell, scene, extractor, "Clear", 12.0f);
+            // **One cell and not the region the harness now loads by default.** What this measures
+            // is the temporal resolve, and the bound below was calibrated against exactly this much
+            // content; forty-nine cells would be a different fixture wearing the same number.
+            const CellLighting lighting = loadRegion(*world, *cell, 0, scene, extractor, "Clear", 12.0f);
             ASSERT_FALSE(scene.getInstances().empty()) << "the cell placed no geometry";
 
             Rtx::RendererOptions options;
