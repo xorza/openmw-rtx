@@ -40,6 +40,14 @@ namespace Rtx
         /// nothing else. They live as long as the pool does and are not freed individually.
         std::vector<VkCommandBuffer> allocate(std::uint32_t count);
 
+        /// Frees every buffer this pool has handed out, and forgets what they referenced.
+        ///
+        /// **A recorded buffer keeps its resources alive as far as the layers are concerned**, so an
+        /// image one of them blitted from cannot be destroyed while the recording still names it —
+        /// which is exactly what a resize does to the frame the last present read. Every handle from
+        /// `allocate` becomes invalid, and nothing may be in flight: the caller has waited.
+        void reset();
+
     private:
         VkCommandBuffer begin();
         void endAndWait(VkCommandBuffer commands);

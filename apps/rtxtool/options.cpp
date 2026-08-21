@@ -83,8 +83,7 @@ namespace RtxTool
             "pixels it traced; --upscale=performance is the 1920x1080 to 3840x2160 the frame budget "
             "is written against, and --upscale=off is what an A/B against the unupscaled path "
             "needs. --accumulate turns it off unless this is named, because a reference cannot be "
-            "built through a denoiser. The window cannot upscale yet and refuses the flag rather "
-            "than ignoring it");
+            "built through a denoiser");
 
         addOption("exposure", bpo::value<std::string>()->default_value("auto"),
             "what to scale the frame by before the display curve: auto measures it off the frame, "

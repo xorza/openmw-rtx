@@ -13,6 +13,8 @@
 #include "upscale.hpp"
 #include "wavespectrum.hpp"
 
+struct SDL_Window;
+
 namespace Rtx
 {
     class SceneDesc;
@@ -46,6 +48,16 @@ namespace Rtx
         /// Fixed for the renderer's lifetime: an upscaler is brought up once and sized per
         /// resolution, and a build that has none refuses anything but `Off` at construction.
         Upscale mUpscale = Upscale::Off;
+
+        /// Where the frame is shown, or null for a renderer that only reads pixels back.
+        ///
+        /// **An `SDL_Window*` and not a surface**, because a surface is a thing an API has and SDL
+        /// is what both of them are windowed through. The backend asks SDL what its instance needs
+        /// and makes the surface itself, so nothing above this line has to know which API it is.
+        ///
+        /// A windowed renderer sizes itself to the window: `mWidth` and `mHeight` are ignored, and
+        /// `resize` is what a resize event calls.
+        SDL_Window* mWindow = nullptr;
 
         ValidationOptions mValidation;
     };
@@ -205,6 +217,16 @@ namespace Rtx
 
         /// Traces one frame. `setScene` first, which is a contract and so an assert.
         virtual FrameResult renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) = 0;
+
+        /// Shows the frame `renderFrame` just produced, where this renderer was given a window.
+        ///
+        /// False means the surface stopped matching the window — a resize, a monitor change, a
+        /// compositor restart — and the caller should `resize` and carry on. None of those is an
+        /// error, which is why this is not one.
+        ///
+        /// **A contract and so an assert**: a renderer built without a window has nothing to
+        /// present into, and asking it to is a caller's mistake rather than a condition.
+        virtual bool presentFrame() = 0;
 
         /// Copies the traced image into `pixels`, four bytes per pixel, tightly packed.
         /// Not const: it submits a copy and waits for it.

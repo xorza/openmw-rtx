@@ -7,6 +7,8 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/upscale.hpp>
+
 #include "lighting.hpp"
 
 namespace Resource
@@ -56,6 +58,10 @@ namespace RtxTool
         /// What to scale the frame by before the display curve, or nothing to measure it off the
         /// frame. A picture wants it measured; a reference wants it held still.
         std::optional<float> mExposure;
+
+        /// Whether Ray Reconstruction stands between the trace and the window, and how hard it
+        /// works. It denoises for itself, so `mFilter` stops meaning anything once this is on.
+        Rtx::Upscale mUpscale = Rtx::Upscale::Off;
 
         /// Filled in from the cell once it has been read, which is why both commands take their
         /// request by value.

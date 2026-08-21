@@ -26,6 +26,7 @@ namespace Rtx
 #endif
     class GBuffer;
     class Image;
+    class Presenter;
     class SceneAcceleration;
     class SceneBuffers;
     class TextureArray;
@@ -51,6 +52,7 @@ namespace Rtx
         void resize(std::uint32_t width, std::uint32_t height) override;
         FrameExtents getExtents() const override;
         FrameResult renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) override;
+        bool presentFrame() override;
         void readPixels(std::vector<std::uint8_t>& pixels) override;
         void readChannel(Channel channel, std::vector<float>& values) override;
         void takeValidationErrors(std::vector<std::string>& errors) override;
@@ -121,6 +123,15 @@ namespace Rtx
         CompositePass mComposite;
         ExposurePass mExposure;
         TonePass mTone;
+
+        /// Null where nothing asked for a window.
+        ///
+        /// **Last, so it is destroyed first**, which is not a detail: its command buffers still hold
+        /// recordings that blit out of `mTarget`, and destroying that image while a recording names
+        /// it is `VUID-vkDestroyImage-image-01000`. Declared beside the device — where its lifetime
+        /// reads as belonging — it outlived the image instead, and the layers said so on the way
+        /// out of a two-hundred-frame run.
+        std::unique_ptr<Presenter> mPresenter;
 
 #ifdef OPENMW_RTX_DLSS
         /// NGX, brought up only where something asked to be upscaled — it is global to the process

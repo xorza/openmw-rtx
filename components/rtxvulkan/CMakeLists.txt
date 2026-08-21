@@ -107,6 +107,8 @@ set(RTX_VULKAN_FILES
     memory.hpp
     physicaldevice.cpp
     physicaldevice.hpp
+    presenter.cpp
+    presenter.hpp
     pipelinecache.cpp
     pipelinecache.hpp
     requirements.cpp
@@ -143,7 +145,7 @@ source_group(components\\rtxvulkan FILES ${RTX_VULKAN_FILES})
 
 add_library(openmw-rtx-vulkan STATIC ${RTX_VULKAN_FILES})
 
-target_link_libraries(openmw-rtx-vulkan PUBLIC Vulkan::Vulkan openmw-rtx PRIVATE components)
+target_link_libraries(openmw-rtx-vulkan PUBLIC Vulkan::Vulkan openmw-rtx PRIVATE SDL2::SDL2 components)
 
 target_compile_options(openmw-rtx-vulkan PRIVATE ${OPENMW_RTX_COMPILE_OPTIONS})
 

@@ -27,6 +27,12 @@ namespace Rtx
             vkDestroyCommandPool(mDevice.getHandle(), mHandle, nullptr);
     }
 
+    void CommandPool::reset()
+    {
+        checkVk(vkResetCommandPool(mDevice.getHandle(), mHandle, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT),
+            "vkResetCommandPool");
+    }
+
     std::vector<VkCommandBuffer> CommandPool::allocate(std::uint32_t count)
     {
         const VkCommandBufferAllocateInfo allocate{

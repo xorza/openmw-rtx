@@ -16,6 +16,7 @@
 #include "gbuffer.hpp"
 #include "image.hpp"
 #include "physicaldevice.hpp"
+#include "presenter.hpp"
 #include "requirements.hpp"
 #include "sceneacceleration.hpp"
 #include "scenebuffers.hpp"
@@ -24,9 +25,31 @@
 
 namespace Rtx
 {
+    namespace
+    {
+        /// The instance a window needs, which is the headless one plus whatever SDL asks for.
+        InstanceOptions instanceOptionsFor(const RendererOptions& options)
+        {
+            InstanceOptions instance = toInstanceOptions(options.mValidation);
+            if (options.mWindow != nullptr)
+                instance.mSurfaceExtensions = Presenter::getInstanceExtensions(options.mWindow);
+
+            return instance;
+        }
+
+        /// A swapchain is the only thing presenting adds to the device.
+        std::vector<const char*> deviceExtensionsFor(const RendererOptions& options)
+        {
+            if (options.mWindow == nullptr)
+                return {};
+
+            return { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+        }
+    }
+
     VulkanRenderer::VulkanRenderer(const RendererOptions& options)
-        : mInstance(toInstanceOptions(options.mValidation))
-        , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()))
+        : mInstance(instanceOptionsFor(options))
+        , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()), deviceExtensionsFor(options))
         , mPool(mDevice)
         , mShaderDirectory(options.mShaderDirectory)
         , mUpscale(options.mUpscale)
@@ -55,7 +78,14 @@ namespace Rtx
 #endif
         }
 
-        createTargets(options.mWidth, options.mHeight);
+        // Before the first targets, because a windowed renderer is sized by its surface rather
+        // than by what the caller guessed the window would come up at.
+        if (options.mWindow != nullptr)
+            mPresenter = std::make_unique<Presenter>(mDevice, mInstance.getHandle(), options.mWindow);
+
+        const VkExtent2D output
+            = mPresenter != nullptr ? mPresenter->getExtent() : VkExtent2D{ options.mWidth, options.mHeight };
+        createTargets(output.width, output.height);
     }
 
     // Out of line because the members it destroys are only forward declared in the header.
@@ -213,12 +243,32 @@ namespace Rtx
 
     void VulkanRenderer::resize(std::uint32_t width, std::uint32_t height)
     {
+        if (mPresenter != nullptr)
+        {
+            // **What the swapchain came back with, not what was asked for.** A surface clamps to
+            // what it can do, and targets sized to the request would then be blitted through a
+            // scale nobody chose.
+            mPresenter->resize(VkExtent2D{ width, height });
+
+            const VkExtent2D shown = mPresenter->getExtent();
+            width = shown.width;
+            height = shown.height;
+        }
+
         if (width == mOutputWidth && height == mOutputHeight)
             return;
 
         // The images about to be replaced may still be in flight.
         mDevice.waitIdle();
         createTargets(width, height);
+    }
+
+    bool VulkanRenderer::presentFrame()
+    {
+        assert(mPresenter != nullptr && "presentFrame on a renderer that was given no window");
+        assert(mTarget != nullptr);
+
+        return mPresenter->present(*mTarget);
     }
 
     FrameExtents VulkanRenderer::getExtents() const

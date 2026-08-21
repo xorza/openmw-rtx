@@ -2,11 +2,8 @@
 
 #include <cstdint>
 #include <string>
-#include <vector>
 
 #include <osg/Vec3f>
-
-#include <vulkan/vulkan_core.h>
 
 struct SDL_Window;
 
@@ -54,10 +51,11 @@ namespace RtxTool
         float mSpeed = 900.0f;
     };
 
-    /// An SDL window with a Vulkan surface on it.
+    /// An SDL window, and nothing about what will be drawn into it.
     ///
-    /// Created before the instance, because the instance has to be told which surface extensions
-    /// this window needs and only the window knows.
+    /// **It names no graphics API.** The renderer is handed the `SDL_Window*` and asks SDL for
+    /// whatever its own backend needs — the instance extensions, the surface — so the window stays
+    /// the tool's and the surface stays the backend's.
     class Window
     {
     public:
@@ -67,11 +65,10 @@ namespace RtxTool
         Window(const Window&) = delete;
         Window& operator=(const Window&) = delete;
 
-        /// Instance extensions the surface will need.
-        std::vector<const char*> getInstanceExtensions() const;
-
-        /// The drawable size in pixels, which is not the window size on a scaled display.
-        VkExtent2D getExtent() const;
+        /// The drawable size in pixels, which is not the window size on a scaled display. Never
+        /// zero: a minimised window reports one, which is a size a swapchain can be built at.
+        std::uint32_t getWidth() const;
+        std::uint32_t getHeight() const;
 
         /// Replaces the title bar's text. Where this tool puts its instruments: a window someone is
         /// flying has nowhere else to show a number without drawing over the thing being looked at.
@@ -83,25 +80,4 @@ namespace RtxTool
         SDL_Window* mHandle = nullptr;
     };
 
-    /// The `VkSurfaceKHR` for a window.
-    ///
-    /// Its own type, and not a member of `Window`, for one reason: a surface must be destroyed
-    /// before the instance that made it, and the window has to exist before the instance so the
-    /// instance can be told which extensions the window wants. Declaring window, then instance, then
-    /// surface makes the destruction order come out right on its own.
-    class Surface
-    {
-    public:
-        Surface(VkInstance instance, const Window& window);
-        ~Surface();
-
-        Surface(const Surface&) = delete;
-        Surface& operator=(const Surface&) = delete;
-
-        VkSurfaceKHR getHandle() const { return mHandle; }
-
-    private:
-        VkInstance mInstance = VK_NULL_HANDLE;
-        VkSurfaceKHR mHandle = VK_NULL_HANDLE;
-    };
 }

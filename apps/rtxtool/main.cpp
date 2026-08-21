@@ -513,18 +513,6 @@ namespace RtxTool
 
                 if (command == "view")
                 {
-                    // **Refused rather than ignored, and only when it was actually asked for.** The
-                    // window still drives its own swapchain instead of going through `Renderer`
-                    // (`docs/rtx/backends.md` §5.4), so it has no upscaler to hand — and the default
-                    // is now on, which would make an honest refusal fire on every plain `view`.
-                    if (!variables["upscale"].defaulted()
-                        && parseUpscale(variables["upscale"].as<std::string>()) != Rtx::Upscale::Off)
-                    {
-                        out() << "The window cannot upscale yet: presentation has not moved behind "
-                                 "Renderer.\nUse `shot` for an upscaled frame.\n";
-                        return 1;
-                    }
-
                     ViewRequest request;
                     request.mTitle = chosen.mTitle;
                     request.mView = chosen.mView;
@@ -541,6 +529,7 @@ namespace RtxTool
                     request.mShowAlbedo = variables["albedo"].as<bool>();
                     request.mFilter = variables["filter"].as<bool>();
                     request.mExposure = parseExposure(variables["exposure"].as<std::string>());
+                    request.mUpscale = parseUpscale(variables["upscale"].as<std::string>());
                     request.mDelight = variables["delight"].as<float>();
                     request.mWeather = variables["weather"].as<std::string>();
                     request.mHour = variables["hour"].as<float>();

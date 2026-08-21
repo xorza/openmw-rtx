@@ -109,43 +109,24 @@ namespace RtxTool
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
     }
 
-    std::vector<const char*> Window::getInstanceExtensions() const
-    {
-        unsigned int count = 0;
-        if (SDL_Vulkan_GetInstanceExtensions(mHandle, &count, nullptr) != SDL_TRUE)
-            throw Rtx::Error(std::string("SDL cannot say what the surface needs: ") + SDL_GetError());
-
-        std::vector<const char*> extensions(count);
-        if (SDL_Vulkan_GetInstanceExtensions(mHandle, &count, extensions.data()) != SDL_TRUE)
-            throw Rtx::Error(std::string("SDL cannot say what the surface needs: ") + SDL_GetError());
-
-        return extensions;
-    }
-
-    Surface::Surface(VkInstance instance, const Window& window)
-        : mInstance(instance)
-    {
-        if (SDL_Vulkan_CreateSurface(window.getHandle(), instance, &mHandle) != SDL_TRUE)
-            throw Rtx::Error(std::string("cannot make a Vulkan surface: ") + SDL_GetError());
-    }
-
-    Surface::~Surface()
-    {
-        if (mHandle != VK_NULL_HANDLE)
-            vkDestroySurfaceKHR(mInstance, mHandle, nullptr);
-    }
-
     void Window::setTitle(const std::string& title)
     {
         SDL_SetWindowTitle(mHandle, title.c_str());
     }
 
-    VkExtent2D Window::getExtent() const
+    std::uint32_t Window::getWidth() const
     {
         int width = 0;
         int height = 0;
         SDL_Vulkan_GetDrawableSize(mHandle, &width, &height);
-        return VkExtent2D{ static_cast<std::uint32_t>(std::max(width, 1)),
-            static_cast<std::uint32_t>(std::max(height, 1)) };
+        return static_cast<std::uint32_t>(std::max(width, 1));
+    }
+
+    std::uint32_t Window::getHeight() const
+    {
+        int width = 0;
+        int height = 0;
+        SDL_Vulkan_GetDrawableSize(mHandle, &width, &height);
+        return static_cast<std::uint32_t>(std::max(height, 1));
     }
 }
