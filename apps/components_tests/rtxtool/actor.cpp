@@ -13,7 +13,10 @@
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 
+#include <components/esm3/loadnpc.hpp>
+
 #include <apps/rtxtool/actor.hpp>
+#include <apps/rtxtool/npc.hpp>
 #include <apps/rtxtool/options.hpp>
 #include <apps/rtxtool/world.hpp>
 
@@ -85,9 +88,9 @@ namespace RtxTool
             if (world == nullptr)
                 GTEST_SKIP() << "no Morrowind installation configured";
 
-            Actor actor(*world, sCreature, osg::Matrixf::identity());
+            Actor actor(*world, loadCreature(*world, sCreature), osg::Matrixf::identity());
 
-            EXPECT_EQ(actor.getSkeleton(), "meshes/r/xcliffracer.nif")
+            EXPECT_EQ(actor.getSkeleton().value(), "meshes/r/xcliffracer.nif")
                 << "an actor's skeleton is a second file beside its model";
             ASSERT_GT(actor.getPosedBones(), 0u) << "keyframes that reach no bone pose nothing";
             ASSERT_GT(actor.getDuration(), 0.0f);
@@ -138,6 +141,66 @@ namespace RtxTool
                 drifted = std::max(drifted, travelled(first, again, mesh));
 
             EXPECT_LT(drifted, 1e-3f) << "a whole track later is the pose it started in";
+        }
+
+        /// What one assembled person came to.
+        struct Assembled
+        {
+            VFS::Path::Normalized mSkeleton;
+            std::uint32_t mInstances = 0;
+            std::uint32_t mDeformed = 0;
+        };
+
+        /// A person is assembled out of their race's body parts, and race and sex decide which.
+        ///
+        /// **The equal counts are the assertion that matters.** Morrowind's base animation files
+        /// carry placeholder geometry — the female one most visibly — and a person built without
+        /// stripping it comes out wearing a magenta torso and a grey chevron. That defect shows up
+        /// here as a woman made of more meshes than a man of the same race, and as nothing else.
+        TEST(RtxActorTest, aPersonIsAssembledFromTheirRacesBodyParts)
+        {
+            Files::ConfigurationManager config;
+            bpo::variables_map variables;
+            const std::unique_ptr<World> world = openWorld(config, variables);
+            if (world == nullptr)
+                GTEST_SKIP() << "no Morrowind installation configured";
+
+            Rtx::SceneDesc scene;
+            RtxBridge::SceneExtractor extractor(scene);
+
+            const auto assemble = [&](const char* id) {
+                const ESM::NPC* who = findNpc(*world, id);
+                EXPECT_NE(who, nullptr) << id;
+                if (who == nullptr)
+                    return Assembled{};
+
+                Actor actor(*world, buildNpc(*world, *who), osg::Matrixf::identity());
+                actor.pose(0.0f);
+
+                const RtxBridge::ExtractionStats stats = extractor.extract(actor.getRoot(), actor.getTransform());
+                return Assembled{ actor.getSkeleton(), stats.mInstances, stats.mDeformed };
+            };
+
+            const Assembled man = assemble("madres navur");
+            const Assembled woman = assemble("galsa gindu");
+            const Assembled cat = assemble("ra'virr");
+
+            ASSERT_GT(man.mInstances, 0u) << "a person made of nothing is not a person";
+            EXPECT_EQ(man.mInstances, woman.mInstances)
+                << "two Dunmer are the same body part for body part, so the skeleton brought geometry of its own";
+
+            // **Some of a person is skinned and most of one is not**, which is worth pinning because
+            // it decides how they move: a forearm is a rigid mesh parented to the forearm bone and
+            // rides the transform, and only the pieces that span a joint — the chest, the hands —
+            // are deformed vertex by vertex. Both routes have to work or half a person animates.
+            EXPECT_GT(woman.mDeformed, 0u) << "the parts that span a joint are skinned";
+            EXPECT_LT(woman.mDeformed, woman.mInstances) << "and the rest ride their bone";
+
+            // Three races and sexes, three skeletons — and the beast one serves both sexes, which is
+            // Morrowind's own arrangement rather than something to correct.
+            EXPECT_NE(man.mSkeleton, woman.mSkeleton) << "a woman is not built on a man's skeleton";
+            EXPECT_NE(cat.mSkeleton, man.mSkeleton) << "and a Khajiit is built on neither";
+            EXPECT_NE(cat.mSkeleton, woman.mSkeleton);
         }
     }
 }

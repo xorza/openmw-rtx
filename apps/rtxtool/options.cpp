@@ -89,6 +89,11 @@ namespace RtxTool
             "holds — meshes/r/cliffracer.nif, not the x-prefixed skeleton beside it. Repeatable, "
             "and several stand in a row across the view. This is the only way to see skinned "
             "geometry without starting the game, which is what it is for");
+        addOption("npc", bpo::value<StringsVector>()->default_value(StringsVector(), "")->composing(),
+            "put a person in front of the camera, by their NPC record id -- fargoth, "
+            "\"caius cosades\". Repeatable, and they stand in the same row the creatures do. They "
+            "come naked: what an NPC is wearing lives in an inventory the simulation owns, and skin "
+            "is the surface this renderer most needs to be looking at anyway");
         addOption("actor-time", bpo::value<float>()->default_value(0.0f),
             "how many seconds into its animation each actor stands, wrapped to the track's own "
             "length. A --repeat carries on from there at sixty frames a second, so a repeat with "

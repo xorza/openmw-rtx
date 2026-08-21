@@ -99,7 +99,7 @@ namespace RtxTool
     }
 
     int runWindow(World& world, const ESM::Cell& centre, int radius, const Rtx::ValidationOptions& validation,
-        ViewRequest request)
+        ViewRequest request, const ActorRequest& actors)
     {
         Window window(request.mTitle, request.mWidth, request.mHeight);
 
@@ -172,6 +172,22 @@ namespace RtxTool
 
         const osg::BoundingBoxf bounds = scene.getBounds();
         const Placement start = placeCamera(bounds, request.mFieldOfView, request.mOrigin, request.mTarget);
+
+        // **In front of where the camera starts, and left there.** They stay put while the camera
+        // flies around them, which is what a window is for: an actor that followed the eye would be
+        // a picture of the same pose from every angle.
+        std::unique_ptr<PosedActors> posed;
+        if (!actors.empty())
+        {
+            posed = std::make_unique<PosedActors>(world, scene, extractor, actors, start);
+
+            // Their meshes are new, so the whole scene is built again rather than replaced. Once.
+            const RtxBridge::SceneTextures described(scene, world.getImageManager());
+            renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
+
+            out() << std::format(
+                "{} actors placed, {} deforming drawables\n", posed->getCount(), posed->getPlaced().mDeformed);
+        }
 
         FlyCamera camera;
         camera.look(start.mOrigin, start.mTarget);
@@ -304,9 +320,26 @@ namespace RtxTool
                 {
                     standing = std::move(square);
                     if (const ESM::Cell* cell = world.findCell(standing))
+                    {
+                        // The new cells are walked into whatever the scene holds, so the actors come
+                        // out first and the snapshot is retaken with the wider world in it. Leaving
+                        // them in would place a second copy of everyone on the very next frame.
+                        if (posed != nullptr)
+                            posed->unplace();
+
                         bring(*cell);
+
+                        if (posed != nullptr)
+                            posed->restanding();
+                    }
                 }
             }
+
+            // **The clock the world runs on, not the frame count.** A window that dropped frames
+            // would otherwise animate in slow motion, and one that ran fast would gabble.
+            if (posed != nullptr
+                && posed->advanceTo(static_cast<float>(std::chrono::duration<double>(now - began).count())))
+                renderer->placeScene(scene, Rtx::SeaState{});
 
             const Rtx::FrameExtents extents = renderer->getExtents();
             Rtx::Shaders::VisibilityConstants constants = Rtx::makeCamera(camera.getOrigin(), camera.getTarget(),

@@ -11,6 +11,7 @@
 
 #include "cellscene.hpp"
 #include "lighting.hpp"
+#include "posedactors.hpp"
 
 namespace Resource
 {
@@ -93,6 +94,6 @@ namespace RtxTool
     /// neighbours in and let the ones behind go, and nothing that took a finished scene could do
     /// that.
     int runWindow(World& world, const ESM::Cell& centre, int radius, const Rtx::ValidationOptions& validation,
-        ViewRequest request);
+        ViewRequest request, const ActorRequest& actors);
 
 }

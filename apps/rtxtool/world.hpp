@@ -7,6 +7,7 @@
 
 #include <osg/Matrixf>
 
+#include <components/esm/refid.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/esmloader/esmdata.hpp>
 #include <components/files/collections.hpp>
@@ -129,6 +130,29 @@ namespace RtxTool
         /// For what wants a manager this does not hand out one by one — the keyframes an actor is
         /// posed by, and the virtual file system they are looked up in.
         Resource::ResourceSystem& getResourceSystem() { return *mResourceSystem; }
+        const Resource::ResourceSystem& getResourceSystem() const { return *mResourceSystem; }
+
+        /// Every record of one type the content files carry, sorted by id.
+        ///
+        /// For what a cell reference cannot answer: a person is assembled out of the `BODY` records
+        /// their race calls for, and nothing places those — they are looked up, not referenced.
+        template <class T>
+        const std::vector<T>& getRecords() const
+        {
+            return mEsmData.get<T>();
+        }
+
+        /// One record by id, or null. Linear over the type, which is what the callers want it for:
+        /// a handful of lookups while something is being built, never a frame.
+        template <class T>
+        const T* findRecord(const ESM::RefId& id) const
+        {
+            for (const T& record : getRecords<T>())
+                if (record.mId == id)
+                    return &record;
+
+            return nullptr;
+        }
 
     private:
         // Declaration order is destruction order reversed, and the managers hold references to the

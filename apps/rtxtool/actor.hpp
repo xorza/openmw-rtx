@@ -20,6 +20,31 @@ namespace RtxTool
 {
     class World;
 
+    /// What an actor is made of, before anything has posed it.
+    ///
+    /// **A separate step because the two kinds of actor are assembled differently and posed
+    /// identically.** A creature is one skinned file; a person is a shared skeleton with a limb hung
+    /// on each bone. Once either exists it is the same problem — bones the keyframes move and skin
+    /// that follows them — which is what `Actor` is.
+    struct ActorModel
+    {
+        /// The graph, with a `SceneUtil::Skeleton` at its root.
+        osg::ref_ptr<osg::Group> mRoot;
+
+        /// What was actually loaded, which is never quite what was asked for: the `x`-prefixed
+        /// skeleton beside a creature's model, or the base animation a person's parts hang on. The
+        /// keyframes are the same path with a different extension.
+        VFS::Path::Normalized mSkeleton;
+    };
+
+    /// A creature: one skinned file, with its animation beside it under the same name.
+    ///
+    /// @param model the reference's model path — `meshes/r/cliffracer.nif`, not the `x`-prefixed
+    ///        skinned one. Morrowind keeps an actor's skeleton in a second file beside the static
+    ///        model and names it by convention, so the correction happens here and a caller passes
+    ///        what a `CREA` record holds.
+    ActorModel loadCreature(World& world, VFS::Path::NormalizedView model);
+
     /// One animated actor, loaded and posed with no game running and no window open.
     ///
     /// **A pose and not an animation system.** `MWRender::Animation` is two thousand lines about
@@ -34,12 +59,9 @@ namespace RtxTool
     class Actor
     {
     public:
-        /// @param model the reference's model path — `meshes/r/cliffracer.nif`, not the `x`-prefixed
-        ///        skinned one. Morrowind keeps an actor's skeleton in a second file beside the
-        ///        static model and names it by convention, so the correction happens here and a
-        ///        caller passes what a `CREA` record holds.
+        /// @param model what to pose, from `loadCreature` or `buildNpc`.
         /// @param transform where in the world it stands.
-        Actor(World& world, VFS::Path::NormalizedView model, const osg::Matrixf& transform);
+        Actor(World& world, ActorModel model, const osg::Matrixf& transform);
         ~Actor();
 
         Actor(const Actor&) = delete;
@@ -62,9 +84,9 @@ namespace RtxTool
         std::size_t getPosedBones() const { return mPosedBones; }
 
         /// What was loaded, which is not what was asked for: the `x`-prefixed skeleton beside it.
-        const std::string& getSkeleton() const { return mSkeleton; }
+        const VFS::Path::Normalized& getSkeleton() const { return mModel.mSkeleton; }
 
-        osg::Group& getRoot() const { return *mRoot; }
+        osg::Group& getRoot() const { return *mModel.mRoot; }
         const osg::Matrixf& getTransform() const { return mTransform; }
 
     private:
@@ -77,9 +99,8 @@ namespace RtxTool
         std::unique_ptr<PoseCull> mCull;
         std::unique_ptr<osgUtil::UpdateVisitor> mUpdate;
 
-        osg::ref_ptr<osg::Group> mRoot;
+        ActorModel mModel;
         osg::Matrixf mTransform;
-        std::string mSkeleton;
         float mDuration = 0.0f;
         std::size_t mPosedBones = 0;
 

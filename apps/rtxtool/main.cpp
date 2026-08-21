@@ -34,6 +34,7 @@
 #include "contactsheet.hpp"
 #include "options.hpp"
 #include "placement.hpp"
+#include "posedactors.hpp"
 #include "shot.hpp"
 #include "validationchoice.hpp"
 #include "view.hpp"
@@ -325,87 +326,8 @@ namespace RtxTool
         ///
         /// An interior's illumination is its own lamps over its own `AMBI`; an exterior's is the sky
         /// and the weather, which the cell says nothing about and the clock decides.
-        /// A row of actors, posed and re-walked once per traced frame.
-        ///
-        /// **The still world is restored from a snapshot rather than walked again.** The game
-        /// re-mirrors its whole graph every frame and can, because it has one; the harness does not
-        /// — a cell is a template fetched per reference and a terrain grid built cell by cell, and
-        /// walking that again per frame is the load again per frame. What the RT path actually needs
-        /// of a frame is that the placements be there and the deforming meshes be re-read, and a
-        /// list copied back gives the first exactly as a re-walk would.
-        class PosedActors : public Motion
-        {
-        public:
-            /// @param seconds where in its animation each actor starts. A later frame of the same
-            ///        run is a sixtieth of a second further on, which is what makes `--repeat`
-            ///        measure an animated frame rather than the same frame eight times.
-            PosedActors(World& world, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor,
-                const std::vector<std::string>& models, const Placement& placement, float seconds)
-                : mScene(scene)
-                , mExtractor(extractor)
-                , mStanding(scene.getInstances().begin(), scene.getInstances().end())
-                , mLit(scene.getLights().begin(), scene.getLights().end())
-                , mSeconds(seconds)
-            {
-                mActors.reserve(models.size());
-                for (std::size_t at = 0; at < models.size(); ++at)
-                    mActors.push_back(std::make_unique<Actor>(world, VFS::Path::Normalized(models[at]),
-                        placeActor(placement.mOrigin, placement.mTarget, at, models.size())));
-
-                mPlaced = place(seconds);
-            }
-
-            bool step(std::uint32_t frame) override
-            {
-                if (mActors.empty())
-                    return false;
-
-                mScene.clearPlacement();
-                for (const Rtx::MeshInstance& instance : mStanding)
-                    mScene.addInstance(instance);
-                for (const Rtx::Light& light : mLit)
-                    mScene.addLight(light);
-
-                place(mSeconds + static_cast<float>(frame) * sFrameSeconds);
-                mExtractor.advance();
-                return true;
-            }
-
-            /// What the actors added the first time they were walked in.
-            const RtxBridge::ExtractionStats& getPlaced() const { return mPlaced; }
-
-        private:
-            RtxBridge::ExtractionStats place(float seconds)
-            {
-                RtxBridge::ExtractionStats stats;
-                for (const std::unique_ptr<Actor>& actor : mActors)
-                {
-                    actor->pose(seconds);
-                    stats += mExtractor.extract(actor->getRoot(), actor->getTransform());
-                }
-
-                return stats;
-            }
-
-            Rtx::SceneDesc& mScene;
-            RtxBridge::SceneExtractor& mExtractor;
-
-            /// The world as it stood before any actor went into it, so a frame can put it back.
-            std::vector<Rtx::MeshInstance> mStanding;
-            std::vector<Rtx::Light> mLit;
-
-            std::vector<std::unique_ptr<Actor>> mActors;
-            RtxBridge::ExtractionStats mPlaced;
-            float mSeconds = 0.0f;
-
-            /// How far a repeat carries the animation per frame. Sixty a second, because that is
-            /// what the frame budget is written against and an actor should move the same amount
-            /// per frame here as it does in the game.
-            static constexpr float sFrameSeconds = 1.0f / 60.0f;
-        };
-
         int runShot(World& world, const std::string& cellSpec, int radius, const Rtx::ValidationOptions& validation,
-            ShotRequest request, const std::vector<std::string>& actors, float actorTime)
+            ShotRequest request, const ActorRequest& actors)
         {
             const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
             if (cell == nullptr)
@@ -433,10 +355,10 @@ namespace RtxTool
                 request.mOrigin = placement.mOrigin;
                 request.mTarget = placement.mTarget;
 
-                posed = std::make_unique<PosedActors>(world, scene, extractor, actors, placement, actorTime);
+                posed = std::make_unique<PosedActors>(world, scene, extractor, actors, placement);
                 request.mMotion = posed.get();
 
-                out() << "actors:     " << actors.size() << " placed, " << posed->getPlaced().mDeformed
+                out() << "actors:     " << posed->getCount() << " placed, " << posed->getPlaced().mDeformed
                       << " deforming drawables\n";
             }
 
@@ -446,7 +368,7 @@ namespace RtxTool
         }
 
         int runView(World& world, const std::string& cellSpec, int radius, const Rtx::ValidationOptions& validation,
-            ViewRequest request)
+            ViewRequest request, const ActorRequest& actors)
         {
             const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
             if (cell == nullptr)
@@ -454,7 +376,7 @@ namespace RtxTool
 
             printCellHeading(*cell);
 
-            return runWindow(world, *cell, radius, validation, std::move(request));
+            return runWindow(world, *cell, radius, validation, std::move(request), actors);
         }
 
         /// Where the command line and the view file meet.
@@ -610,16 +532,16 @@ namespace RtxTool
 
                 const Rtx::ValidationOptions validation = validationFrom(variables, command == "view");
 
+                const ActorRequest actors{
+                    .mCreatures = variables["actor"].as<std::vector<std::string>>(),
+                    .mPeople = variables["npc"].as<std::vector<std::string>>(),
+                    .mSeconds = variables["actor-time"].as<float>(),
+                };
+
                 World world(config, variables, resources);
 
                 if (command == "view")
                 {
-                    // Said rather than ignored. The window re-poses nothing between frames yet, so
-                    // an actor in one would stand in its first pose for as long as it was open —
-                    // which looks like a broken animation rather than an unwired option.
-                    if (!variables["actor"].as<std::vector<std::string>>().empty())
-                        throw std::runtime_error("--actor is a shot option; the window does not pose actors yet");
-
                     ViewRequest request;
                     request.mTitle = chosen.mTitle;
                     request.mView = chosen.mView;
@@ -642,7 +564,7 @@ namespace RtxTool
                     request.mHour = variables["hour"].as<float>();
 
                     return runView(world, chosen.mCell, static_cast<int>(variables["radius"].as<std::uint32_t>()),
-                        validation, request);
+                        validation, request, actors);
                 }
 
                 ShotRequest request;
@@ -674,8 +596,7 @@ namespace RtxTool
                 request.mAccumulate = variables["accumulate"].as<std::uint32_t>();
 
                 return runShot(world, chosen.mCell, static_cast<int>(variables["radius"].as<std::uint32_t>()),
-                    validation, request, variables["actor"].as<std::vector<std::string>>(),
-                    variables["actor-time"].as<float>());
+                    validation, request, actors);
             }
 
             out() << "Unknown command: " << command << "\n\n";

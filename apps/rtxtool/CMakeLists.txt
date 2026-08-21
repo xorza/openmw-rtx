@@ -13,6 +13,11 @@ set(RTXTOOL_FILES
     terrainstorage.hpp
     lighting.cpp
     lighting.hpp
+    motion.hpp
+    npc.cpp
+    npc.hpp
+    posedactors.cpp
+    posedactors.hpp
     options.cpp
     options.hpp
     view.cpp

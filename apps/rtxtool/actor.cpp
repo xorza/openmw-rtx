@@ -81,35 +81,43 @@ namespace RtxTool
         }
     }
 
-    Actor::Actor(World& world, VFS::Path::NormalizedView model, const osg::Matrixf& transform)
+    ActorModel loadCreature(World& world, VFS::Path::NormalizedView model)
+    {
+        Resource::ResourceSystem& resources = world.getResourceSystem();
+
+        ActorModel loaded;
+        loaded.mSkeleton = Misc::ResourceHelpers::correctActorModelPath(model, resources.getVFS());
+
+        // An instance and not a template: keyframe controllers are about to be attached to its
+        // nodes, and a template is shared with every other reference to the same model.
+        osg::ref_ptr<osg::Node> created = resources.getSceneManager()->getInstance(loaded.mSkeleton);
+
+        // A model with no skinning in it loads as a plain group, and one wrapped in a skeleton it
+        // has no bones for is still worth placing — the pose simply does nothing to it.
+        loaded.mRoot = dynamic_cast<SceneUtil::Skeleton*>(created.get());
+        if (loaded.mRoot == nullptr)
+        {
+            osg::ref_ptr<SceneUtil::Skeleton> wrapper = new SceneUtil::Skeleton;
+            wrapper->addChild(created);
+            loaded.mRoot = wrapper;
+        }
+
+        return loaded;
+    }
+
+    Actor::Actor(World& world, ActorModel model, const osg::Matrixf& transform)
         : mClock(std::make_shared<Clock>())
         , mCull(std::make_unique<PoseCull>())
         , mUpdate(std::make_unique<osgUtil::UpdateVisitor>())
+        , mModel(std::move(model))
         , mTransform(transform)
     {
         Resource::ResourceSystem& resources = world.getResourceSystem();
 
-        const VFS::Path::Normalized skeleton = Misc::ResourceHelpers::correctActorModelPath(model, resources.getVFS());
-        mSkeleton = skeleton.value();
-
-        // An instance and not a template: the controllers below are attached to its nodes, and a
-        // template is shared with every other reference to the same model.
-        osg::ref_ptr<osg::Node> created = resources.getSceneManager()->getInstance(skeleton);
-
-        // A model with no skinning in it loads as a plain group, and one wrapped in a skeleton it
-        // has no bones for is still a thing worth placing — the pose simply does nothing to it.
-        mRoot = dynamic_cast<SceneUtil::Skeleton*>(created.get());
-        if (mRoot == nullptr)
-        {
-            osg::ref_ptr<SceneUtil::Skeleton> wrapper = new SceneUtil::Skeleton;
-            wrapper->addChild(created);
-            mRoot = wrapper;
-        }
-
-        const VFS::Path::Normalized keyframes = keyframesFor(skeleton);
+        const VFS::Path::Normalized keyframes = keyframesFor(mModel.mSkeleton);
         if (!resources.getVFS()->exists(keyframes))
         {
-            Log(Debug::Warning) << "No animation beside " << skeleton << ", so " << model << " stands still";
+            Log(Debug::Warning) << "No animation beside " << mModel.mSkeleton << ", so it stands still";
             return;
         }
 
@@ -119,7 +127,7 @@ namespace RtxTool
 
         SceneUtil::NodeMap bones;
         SceneUtil::NodeMapVisitor collect(bones);
-        mRoot->accept(collect);
+        mModel.mRoot->accept(collect);
 
         for (const auto& [name, controller] : track->mKeyframeControllers)
         {
@@ -175,9 +183,9 @@ namespace RtxTool
         ++mTraversal;
 
         mUpdate->setTraversalNumber(mTraversal);
-        mRoot->accept(*mUpdate);
+        mModel.mRoot->accept(*mUpdate);
 
         mCull->setTraversalNumber(mTraversal);
-        mRoot->accept(*mCull);
+        mModel.mRoot->accept(*mCull);
     }
 }
