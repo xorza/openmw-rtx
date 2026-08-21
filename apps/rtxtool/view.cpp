@@ -1,5 +1,7 @@
 #include "view.hpp"
 
+#include "viewpoint.hpp"
+
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -97,15 +99,18 @@ namespace RtxTool
             return fence;
         }
 
-        /// The camera as the two lines `views.cfg` wants, so that flying somewhere and keeping it is
-        /// a copy and a paste.
-        void printCamera(const FlyCamera& camera)
+        /// Where the camera is standing now, under the conditions the window was opened with.
+        Viewpoint spotOf(const ViewRequest& request, const FlyCamera& camera)
         {
-            const osg::Vec3f at = camera.getOrigin();
-            const osg::Vec3f to = camera.getTarget();
-
-            out() << std::format("pos = {:.0f}, {:.0f}, {:.0f}\nlook = {:.0f}, {:.0f}, {:.0f}\n", at.x(), at.y(),
-                at.z(), to.x(), to.y(), to.z());
+            return Viewpoint{
+                .mView = request.mView,
+                .mNote = request.mNote,
+                .mCell = request.mCell,
+                .mOrigin = camera.getOrigin(),
+                .mTarget = camera.getTarget(),
+                .mWeather = request.mWeather,
+                .mHour = request.mHour,
+            };
         }
 
         void printHelp()
@@ -115,28 +120,12 @@ namespace RtxTool
                      "  right drag     look\n"
                      "  shift / alt    six times faster / seven times slower\n"
                      "  wheel          change the base speed\n"
-                     "  P              print this camera as a block for views.cfg\n"
-                     "  F3             print this frame as a command line, for profiling\n"
+                     "  P              print this spot as a views.cfg block\n"
+                     "  F3             print this spot as a command line, for profiling\n"
                      "  F2             write a screenshot\n"
                      "  F1             this list\n"
                      "  Esc            quit\n\n";
         }
-    }
-
-    std::string describeProfile(const ViewRequest& request, const Rtx::ValidationOptions& validation,
-        const osg::Vec3f& origin, const osg::Vec3f& target, std::uint32_t width, std::uint32_t height)
-    {
-        // Shortest round-trip rather than the rounded form `printCamera` uses: these numbers exist
-        // to be read back into the same floats, and a position rounded to the unit is a different
-        // frame when the camera is a hand's width from a wall.
-        //
-        // The cell is the only field quoted, because it is the only one that can hold a space.
-        return std::format(
-            "--cell=\"{}\" --pos={},{},{} --look={},{},{} --fov={} --size={}x{} --weather={}"
-            " --hour={} --filter={} --validation={} --sync-validation={} --gpu-validation={}{}",
-            request.mCell, origin.x(), origin.y(), origin.z(), target.x(), target.y(), target.z(), request.mFieldOfView,
-            width, height, request.mWeather, request.mHour, request.mFilter, validation.mEnabled,
-            validation.mSynchronization, validation.mGpuAssisted, request.mShowAlbedo ? " --albedo" : "");
     }
 
     int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::ValidationOptions& validation,
@@ -442,12 +431,18 @@ namespace RtxTool
                     else if (event.key.keysym.sym == SDLK_F1)
                         printHelp();
                     else if (event.key.keysym.sym == SDLK_p)
-                        printCamera(camera);
+                    {
+                        // The readable line above both formats, so a log of them says where each
+                        // one is without anything having to parse it back first.
+                        const Viewpoint spot = spotOf(request, camera);
+                        out() << describeSpot(spot) << describeBlock(spot);
+                    }
                     else if (event.key.keysym.sym == SDLK_F3)
                     {
                         const VkExtent2D extent = swapchain.getExtent();
-                        out() << describeProfile(
-                            request, validation, camera.getOrigin(), camera.getTarget(), extent.width, extent.height)
+                        out() << describeSpot(spotOf(request, camera))
+                              << describeProfile(request, validation, camera.getOrigin(), camera.getTarget(),
+                                     extent.width, extent.height)
                               << '\n';
                     }
                     else if (event.key.keysym.sym == SDLK_F2 && drawn > 0)
@@ -598,7 +593,9 @@ namespace RtxTool
             out() << ", with the validation layers on";
 
         out() << '\n';
-        printCamera(camera);
+        // Where it was left, so a session that ended somewhere worth keeping did not lose it.
+        const Viewpoint spot = spotOf(request, camera);
+        out() << describeSpot(spot) << describeBlock(spot);
 
         return 0;
     }

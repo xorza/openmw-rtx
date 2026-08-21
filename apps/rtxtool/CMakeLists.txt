@@ -17,6 +17,8 @@ set(RTXTOOL_FILES
     options.hpp
     view.cpp
     view.hpp
+    viewpoint.cpp
+    viewpoint.hpp
     validationchoice.cpp
     validationchoice.hpp
     views.cpp

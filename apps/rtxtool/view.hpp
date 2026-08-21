@@ -27,6 +27,12 @@ namespace RtxTool
     {
         std::string mTitle;
 
+        /// The `views.cfg` id this was opened as, and that entry's note. Both empty where the window
+        /// was opened by `--cell`. Carried so that flying somewhere better and pressing P prints a
+        /// block that replaces the entry rather than one that has to be renamed by hand.
+        std::string mView;
+        std::string mNote;
+
         /// The cell, spelled the way `--cell` takes it: a pair of integers for an exterior, a name
         /// for an interior. Carried so the window can print a command line that comes back here.
         std::string mCell;
@@ -68,15 +74,4 @@ namespace RtxTool
     int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::ValidationOptions& validation,
         const ViewRequest& request);
 
-    /// One line of arguments that renders this frame again, wherever it is pasted.
-    ///
-    /// **What the window is looking at, plus everything that changes what it costs.** The camera and
-    /// the size are passed rather than read off `request` because both move while the window is
-    /// open; the rest of the conditions do not, and come off the request as they were given.
-    ///
-    /// The denoiser and the validation flags are in it deliberately, because both cost time a
-    /// profiling line has to account for: five wavelet levels are about 2 ms at 1080p, and a trace
-    /// timed under the layers is not a figure to compare against anything at all.
-    std::string describeProfile(const ViewRequest& request, const Rtx::ValidationOptions& validation,
-        const osg::Vec3f& origin, const osg::Vec3f& target, std::uint32_t width, std::uint32_t height);
 }

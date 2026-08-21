@@ -351,6 +351,11 @@ namespace RtxTool
         {
             std::string mCell;
             std::string mTitle;
+
+            /// The view file's id and note, empty where nothing named one.
+            std::string mView;
+            std::string mNote;
+
             std::optional<osg::Vec3f> mOrigin;
             std::optional<osg::Vec3f> mTarget;
         };
@@ -390,6 +395,8 @@ namespace RtxTool
 
             chosen.mCell = view->mCell;
             chosen.mTitle = "OpenMW RTX - " + view->mName;
+            chosen.mView = view->mName;
+            chosen.mNote = view->mNote;
             if (!chosen.mOrigin)
                 chosen.mOrigin = view->mOrigin;
             if (!chosen.mTarget)
@@ -494,6 +501,8 @@ namespace RtxTool
                 {
                     ViewRequest request;
                     request.mTitle = chosen.mTitle;
+                    request.mView = chosen.mView;
+                    request.mNote = chosen.mNote;
                     request.mCell = chosen.mCell;
                     request.mShaderDirectory = resources / "rtx" / "shaders";
                     request.mScreenshotDirectory = config.getScreenshotPath();
