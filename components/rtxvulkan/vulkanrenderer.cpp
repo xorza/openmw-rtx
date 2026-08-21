@@ -76,16 +76,26 @@ namespace Rtx
     void VulkanRenderer::setScene(const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea)
     {
         // Torn down before anything is built, so a second scene does not hold two of everything at
-        // once — a cell's structures and textures are most of what this renderer occupies.
-        mPass.reset();
+        // once — a cell's structures and textures are most of what this renderer occupies. The pass
+        // is not among them; see below.
         mTextures.reset();
         mBuffers.reset();
         mAcceleration.reset();
 
+        // A sum over one scene means nothing over the next, so the next frame starts it again.
+        mHistoryWritten = false;
+
         mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, scene);
         mBuffers = std::make_unique<SceneBuffers>(mDevice, mPool, scene, mAcceleration->getIndices(), sea);
         mTextures = std::make_unique<TextureArray>(mDevice, mPool, textures);
-        mPass = std::make_unique<VisibilityPass>(mDevice, mPool, mShaderDirectory, mTextures->getLayout());
+
+        // **Built once and kept, because building one compiles the shader — half a second a time,
+        // measured.** Nothing about the pass depends on the scene: it needs the device and the shape
+        // of the texture set, and every array this renderer makes declares that shape identically.
+        // Identically defined descriptor set layouts are compatible, so a set allocated from a later
+        // array still binds against the pipeline layout the first one produced.
+        if (mPass == nullptr)
+            mPass = std::make_unique<VisibilityPass>(mDevice, mPool, mShaderDirectory, mTextures->getLayout());
 
         mStats = SceneStats{
             .mInstances = mAcceleration->getInstanceCount(),
@@ -153,6 +163,20 @@ namespace Rtx
     {
         assert(mTarget != nullptr);
         mTarget->read(mPool, VK_IMAGE_LAYOUT_GENERAL, pixels);
+    }
+
+    void VulkanRenderer::takeValidationErrors(std::vector<std::string>& errors)
+    {
+        errors.clear();
+
+        ValidationLog* log = mInstance.getValidationLog();
+        if (log == nullptr)
+            return;
+
+        for (const ValidationMessage& message : log->getErrorsOnThisThread())
+            errors.push_back(message.mText);
+
+        log->clear();
     }
 
     std::unique_ptr<Renderer> createVulkanRenderer(const RendererOptions& options, std::string& reason)

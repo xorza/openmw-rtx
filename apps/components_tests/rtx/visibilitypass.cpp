@@ -3,6 +3,7 @@
 #include <cmath>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -285,6 +286,17 @@ namespace Rtx
             camera.mFogUniform = 1.0f;
         }
 
+        /// A texture a test builds by hand, and the storage its description spans.
+        ///
+        /// Filled in place rather than returned, because `TextureData` carries spans into these
+        /// vectors and nothing should have to reason about whether a move kept their buffers.
+        struct TestTexture
+        {
+            std::vector<std::uint8_t> mBytes;
+            std::vector<MipLevel> mLevels;
+            TextureData mData;
+        };
+
         /// A texture whose every mip is one flat colour — level `i` is `40 + 30i`, evenly spaced
         /// and none of them black.
         ///
@@ -293,31 +305,27 @@ namespace Rtx
         /// `40 + 30 * lod`. A *fractional* level is readable that way, which is what makes a cone's
         /// width measurable rather than merely orderable. Flat colours also mean the answer does not
         /// depend on where in the texture the cone landed.
-        TextureArray makeMipLadder(Device& device, CommandPool& pool)
+        void makeMipLadder(TestTexture& texture)
         {
             constexpr std::uint32_t extent = 64;
             constexpr std::uint32_t levels = 7;
 
-            std::vector<std::uint8_t> bytes;
-            std::vector<MipLevel> mips;
             for (std::uint32_t level = 0; level < levels; ++level)
             {
                 const std::uint32_t side = extent >> level;
-                mips.push_back(MipLevel{ static_cast<std::uint32_t>(bytes.size()), side, side });
-                bytes.insert(bytes.end(), std::size_t{ side } * side * 4, static_cast<std::uint8_t>(40 + 30 * level));
+                texture.mLevels.push_back(MipLevel{ static_cast<std::uint32_t>(texture.mBytes.size()), side, side });
+                texture.mBytes.insert(
+                    texture.mBytes.end(), std::size_t{ side } * side * 4, static_cast<std::uint8_t>(40 + 30 * level));
             }
 
-            const TextureData data{
+            texture.mData = TextureData{
                 .mFormat = TextureFormat::Rgba8Unorm,
                 .mWidth = extent,
                 .mHeight = extent,
-                .mBytes = std::as_bytes(std::span(bytes)),
-                .mLevels = mips,
+                .mBytes = std::as_bytes(std::span(texture.mBytes)),
+                .mLevels = texture.mLevels,
+                .mName = "mip ladder",
             };
-
-            std::vector<Texture> uploaded;
-            uploaded.emplace_back(device, pool, data, "mip ladder");
-            return TextureArray(device, std::move(uploaded));
         }
 
         /// Which level of `makeMipLadder` a linear sample came from.
@@ -349,21 +357,23 @@ namespace Rtx
             void SetUp() override
             {
                 std::string reason;
-                mHarness = Testing::getHarness(reason);
-                if (mHarness == nullptr)
+                mRenderer = Testing::getRenderer(reason);
+                if (mRenderer == nullptr)
                     GTEST_SKIP() << reason;
 
-                mHarness->mInstance->getValidationLog()->clear();
+                // Draining is how the slate is cleared: whatever a previous test left behind is not
+                // this one's to report.
+                mRenderer->takeValidationErrors(mErrors);
             }
 
             void TearDown() override
             {
-                if (mHarness == nullptr)
+                if (mRenderer == nullptr)
                     return;
 
-                for (const ValidationMessage& message :
-                    mHarness->mInstance->getValidationLog()->getErrorsOnThisThread())
-                    ADD_FAILURE() << "validation error: " << message.mText;
+                mRenderer->takeValidationErrors(mErrors);
+                for (const std::string& error : mErrors)
+                    ADD_FAILURE() << "validation error: " << error;
             }
 
             /// Renders `scene` at `size` square and returns how many primary rays hit.
@@ -371,113 +381,38 @@ namespace Rtx
             ///        is what a test asserting an exact transmittance through one needs.
             /// @param accumulate how many differently-seeded frames to average, overriding the
             ///        camera's own frame index with 0, 1, ... Zero renders the camera's frame alone.
-            ///        Every frame hits the same primary geometry, so the count returned is divided
-            ///        back down rather than reported as however many frames were traced.
-            std::uint32_t countHits(const SceneDesc& scene, const TextureArray& textures,
+            std::uint32_t countHits(const SceneDesc& scene, std::span<const TextureData> textures,
                 const Shaders::VisibilityConstants& camera, std::uint32_t size, std::vector<std::uint8_t>& pixels,
                 const SeaState& sea = SeaState{}, std::uint32_t accumulate = 0)
             {
-                Device& device = *mHarness->mDevice;
-                CommandPool pool(device);
-                const SceneAcceleration acceleration(device, pool, scene);
-                const SceneBuffers buffers(device, pool, scene, acceleration.getIndices(), sea);
+                mRenderer->resize(size, size);
+                mRenderer->setScene(scene, textures, sea);
 
-                const VisibilityPass& pass = passFor(pool, textures.getLayout());
-                const VisibilityInputs inputs{
-                    .mScene = acceleration.getTopLevel(),
-                    .mBuffers = &buffers,
-                    .mTextures = textures.getSet(),
-                };
-
-                Image target(device, size, size, VK_FORMAT_R8G8B8A8_UNORM,
-                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-                Image history(device, size, size, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT);
-
-                const Buffer hits(device, sizeof(std::uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-                *static_cast<std::uint32_t*>(hits.map()) = 0;
-                hits.unmap();
-
+                // One frame per sample, where this used to record several dispatches into a single
+                // submit. The renderer fences between frames, which orders them, and its own history
+                // barrier is what makes each sum visible to the next.
                 const std::uint32_t frames = std::max(accumulate, 1u);
-
-                pool.submitAndWait([&](VkCommandBuffer commands) {
-                    target.transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-                        VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                        VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-                    history.transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-                        VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                        VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-
-                    for (std::uint32_t frame = 0; frame < frames; ++frame)
-                    {
-                        // Each dispatch reads the sum the one before it wrote, and overwrites the
-                        // same display image. One submit rather than several, so the barrier here is
-                        // what orders them rather than a queue that happened to drain.
-                        if (frame > 0)
-                        {
-                            const auto both
-                                = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
-                            history.transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
-                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, both);
-                            target.transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
-                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-                        }
-
-                        Shaders::VisibilityConstants sampled = camera;
-                        if (accumulate > 0)
-                        {
-                            sampled.mFrame = frame;
-                            sampled.mAccumulate = frame + 1;
-                        }
-
-                        pass.record(commands, inputs, target, history, hits, sampled);
-                    }
-                });
-
-                target.read(pool, VK_IMAGE_LAYOUT_GENERAL, pixels);
-
-                const std::uint32_t count = *static_cast<const std::uint32_t*>(hits.map());
-                hits.unmap();
-                return count / frames;
-            }
-
-            /// The pass, kept between renders because building one compiles the shader.
-            ///
-            /// **Half a second a render, measured.** The driver turns the module's SPIR-V into
-            /// machine code when the pipeline is created, and this one is a ray-query shader that
-            /// traces twice and inlines everything it shades with — so a test that rendered three
-            /// times spent a second and a half compiling the same program three times. Nothing about
-            /// a pass depends on the scene; only on the device and on the shape of the texture set.
-            ///
-            /// Rebuilt when that shape changes, which in practice is once: a test uses one texture
-            /// array throughout, and most use the empty one.
-            const VisibilityPass& passFor(CommandPool& pool, VkDescriptorSetLayout textures)
-            {
-                if (mPass == nullptr || mPassLayout != textures)
+                std::uint32_t hits = 0;
+                for (std::uint32_t frame = 0; frame < frames; ++frame)
                 {
-                    mPass = std::make_unique<VisibilityPass>(
-                        *mHarness->mDevice, pool, Testing::getShaderDirectory(), textures);
-                    mPassLayout = textures;
+                    Shaders::VisibilityConstants sampled = camera;
+                    if (accumulate > 0)
+                    {
+                        sampled.mFrame = frame;
+                        sampled.mAccumulate = frame + 1;
+                    }
+
+                    // Every frame hits the same primary geometry, so the last one's count is the
+                    // answer rather than a sum to be divided back down.
+                    hits = mRenderer->renderFrame(sampled).mHits;
                 }
 
-                return *mPass;
+                mRenderer->readPixels(pixels);
+                return hits;
             }
 
-            /// For the scenes whose quads carry no material and never index the array.
-            TextureArray& noTextures()
-            {
-                if (mNoTextures == nullptr)
-                    mNoTextures = std::make_unique<TextureArray>(*mHarness->mDevice, std::vector<Texture>{});
-
-                return *mNoTextures;
-            }
-
-            Testing::Harness* mHarness = nullptr;
-            std::unique_ptr<TextureArray> mNoTextures;
-            std::unique_ptr<VisibilityPass> mPass;
-            VkDescriptorSetLayout mPassLayout = VK_NULL_HANDLE;
+            Renderer* mRenderer = nullptr;
+            std::vector<std::string> mErrors;
         };
 
         /// A wall bigger than the field of view leaves no room for sky.
@@ -497,7 +432,7 @@ namespace Rtx
             camera.mShowAlbedo = 1u;
 
             std::vector<std::uint8_t> pixels;
-            EXPECT_EQ(countHits(makeWall(), noTextures(), camera, size, pixels), size * size);
+            EXPECT_EQ(countHits(makeWall(), {}, camera, size, pixels), size * size);
 
             ASSERT_EQ(pixels.size(), std::size_t{ size } * size * 4);
             for (std::size_t i = 0; i < pixels.size(); i += 4)
@@ -528,9 +463,9 @@ namespace Rtx
             constexpr std::uint32_t size = 64;
             constexpr float halfExtent = 57.735027f;
 
-            Device& device = *mHarness->mDevice;
-            CommandPool pool(device);
-            const TextureArray textures = makeMipLadder(device, pool);
+            TestTexture ladder;
+            makeMipLadder(ladder);
+            const std::span<const TextureData> textures(&ladder.mData, 1);
 
             const std::array positions{
                 osg::Vec3f(-halfExtent, 0.0f, -halfExtent),
@@ -611,14 +546,11 @@ namespace Rtx
                 };
             };
 
-            Device& device = *mHarness->mDevice;
-            CommandPool pool(device);
-            std::vector<Texture> uploaded;
-            uploaded.emplace_back(device, pool, describe(TextureFormat::Rgba8Unorm, 1, redTexel, one), "red");
-            uploaded.emplace_back(device, pool, describe(TextureFormat::Rgba8Unorm, 1, greenTexel, one), "green");
-            uploaded.emplace_back(
-                device, pool, describe(TextureFormat::Rgba8Unorm, size, strip, wide), "green then blue");
-            const TextureArray textures(device, std::move(uploaded));
+            const std::array<TextureData, 3> textures{
+                describe(TextureFormat::Rgba8Unorm, 1, redTexel, one),
+                describe(TextureFormat::Rgba8Unorm, 1, greenTexel, one),
+                describe(TextureFormat::Rgba8Unorm, size, strip, wide),
+            };
 
             const std::array positions{
                 osg::Vec3f(-halfExtent, 0.0f, -halfExtent),
@@ -749,7 +681,7 @@ namespace Rtx
                 camera.mSkyZenith = sky;
 
                 std::vector<std::uint8_t> pixels;
-                EXPECT_GT(countHits(scene, noTextures(), camera, size, pixels), 0u);
+                EXPECT_GT(countHits(scene, {}, camera, size, pixels), 0u);
                 return pixels[centre];
             };
 
@@ -791,7 +723,7 @@ namespace Rtx
 
             SceneDesc scene = makeWall();
             std::vector<std::uint8_t> pixels;
-            countHits(scene, noTextures(), camera, size, pixels);
+            countHits(scene, {}, camera, size, pixels);
 
             // The camera looks level, so the middle row's rays are horizontal: z of zero, which is
             // the horizon end of the mix exactly. Pure red, and no blue at all.
@@ -834,13 +766,7 @@ namespace Rtx
                 };
             };
 
-            Device& device = *mHarness->mDevice;
-            CommandPool pool(device);
-            std::vector<Texture> uploaded;
-            uploaded.emplace_back(device, pool, describe(white), "white");
-            uploaded.emplace_back(device, pool, describe(green), "green");
-            uploaded.emplace_back(device, pool, describe(dimRed), "dim red");
-            const TextureArray textures(device, std::move(uploaded));
+            const std::array<TextureData, 3> textures{ describe(white), describe(green), describe(dimRed) };
 
             const std::array positions{
                 osg::Vec3f(-halfExtent, 0.0f, -halfExtent),
@@ -930,11 +856,7 @@ namespace Rtx
                 .mLevels = std::span(&level, 1),
             };
 
-            Device& device = *mHarness->mDevice;
-            CommandPool pool(device);
-            std::vector<Texture> uploaded;
-            uploaded.emplace_back(device, pool, data, "half-masked");
-            const TextureArray textures(device, std::move(uploaded));
+            const std::span<const TextureData> textures(&data, 1);
 
             // A hundred units from the camera, where the frame is 2 * 100 * tan(30) across.
             constexpr float halfExtent = 57.735027f;
@@ -1055,7 +977,7 @@ namespace Rtx
                 camera.mSkyZenith = sky;
 
                 std::vector<std::uint8_t> pixels;
-                EXPECT_GT(countHits(scene, noTextures(), camera, size, pixels), 0u);
+                EXPECT_GT(countHits(scene, {}, camera, size, pixels), 0u);
                 return pixels[centre];
             };
 
@@ -1146,7 +1068,7 @@ namespace Rtx
                 camera.mFrame = frame;
 
                 std::vector<std::uint8_t> pixels;
-                EXPECT_EQ(countHits(scene, noTextures(), camera, size, pixels, SeaState{}, accumulate), size * size);
+                EXPECT_EQ(countHits(scene, {}, camera, size, pixels, SeaState{}, accumulate), size * size);
                 return pixels;
             };
 
@@ -1288,7 +1210,7 @@ namespace Rtx
                 camera.mSunIrradiance = osg::Vec3f(2.0f, 2.0f, 2.0f);
 
                 std::vector<std::uint8_t> pixels;
-                EXPECT_GT(countHits(scene, noTextures(), camera, size, pixels), 0u);
+                EXPECT_GT(countHits(scene, {}, camera, size, pixels), 0u);
                 return std::array<std::uint8_t, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
             };
             const auto render = [&](MaterialKind kind, bool lookAtIt) { return renderPixel(kind, lookAtIt)[0]; };
@@ -1337,7 +1259,7 @@ namespace Rtx
                 // also what makes the caustic exactly one — a flat surface has no curvature to
                 // gather anything with, so the Jacobian is the identity.
                 std::vector<std::uint8_t> pixels;
-                countHits(scene, noTextures(), camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
+                countHits(scene, {}, camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
                 return std::array<int, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
             };
 
@@ -1407,7 +1329,7 @@ namespace Rtx
 
             // No height at all, which is a flat sea: a table whose amplitudes are zero.
             std::vector<std::uint8_t> pixels;
-            countHits(scene, noTextures(), camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
+            countHits(scene, {}, camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
 
             EXPECT_EQ(pixels[centre], 18) << "red, settled at what the water scatters";
         }
@@ -1438,7 +1360,7 @@ namespace Rtx
                 litThroughWater(camera);
 
                 std::vector<std::uint8_t> pixels;
-                countHits(scene, noTextures(), camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
+                countHits(scene, {}, camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
                 return std::array<int, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
             };
 
@@ -1508,7 +1430,7 @@ namespace Rtx
 
             // Flat, so the surface the bounce passes through neither bends it nor gathers it.
             std::vector<std::uint8_t> pixels;
-            countHits(scene, noTextures(), camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
+            countHits(scene, {}, camera, size, pixels, SeaState{ .mSignificantHeight = 0.0f });
 
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
@@ -1547,7 +1469,7 @@ namespace Rtx
                 camera.mTime = seconds;
 
                 std::vector<std::uint8_t> image;
-                countHits(scene, noTextures(), camera, size, image, sea);
+                countHits(scene, {}, camera, size, image, sea);
                 return image;
             };
 
@@ -1665,7 +1587,7 @@ namespace Rtx
 
                 const SceneDesc scene = makeWall();
                 std::vector<std::uint8_t> pixels;
-                countHits(scene, noTextures(), camera, size, pixels);
+                countHits(scene, {}, camera, size, pixels);
 
                 // A pixel's solid angle is its side squared at these angles: the frame is two
                 // degrees across in one case and twenty in the other, where the cos-cubed the exact
@@ -1751,7 +1673,7 @@ namespace Rtx
 
                 const SceneDesc scene = makeOpenWater(20000.0f);
                 std::vector<std::uint8_t> pixels;
-                countHits(scene, noTextures(), camera, size, pixels, sea);
+                countHits(scene, {}, camera, size, pixels, sea);
 
                 Road found{ .mPeak = 0, .mLit = 0 };
                 for (std::size_t i = 0; i < std::size_t{ size } * size; ++i)
@@ -1795,9 +1717,9 @@ namespace Rtx
             constexpr float height = 12000.0f;
             constexpr float depth = 1500.0f;
 
-            Device& device = *mHarness->mDevice;
-            CommandPool pool(device);
-            const TextureArray textures = makeMipLadder(device, pool);
+            TestTexture ladder;
+            makeMipLadder(ladder);
+            const std::span<const TextureData> textures(&ladder.mData, 1);
 
             // A fifth of a degree off the vertical, which is the least `makeCamera` will take.
             Shaders::VisibilityConstants camera = makeCamera(
@@ -1876,7 +1798,7 @@ namespace Rtx
 
                 const SceneDesc scene = makeWall();
                 std::vector<std::uint8_t> pixels;
-                countHits(scene, noTextures(), camera, size, pixels);
+                countHits(scene, {}, camera, size, pixels);
                 return std::array<int, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
             };
 
@@ -1928,7 +1850,7 @@ namespace Rtx
 
                 const SceneDesc scene = makeWall();
                 std::vector<std::uint8_t> pixels;
-                countHits(scene, noTextures(), camera, size, pixels);
+                countHits(scene, {}, camera, size, pixels);
                 return std::array<int, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
             };
 
@@ -2017,7 +1939,7 @@ namespace Rtx
                 camera.mFogColour = osg::Vec3f();
 
                 std::vector<std::uint8_t> pixels;
-                countHits(scene, noTextures(), camera, size, pixels);
+                countHits(scene, {}, camera, size, pixels);
                 return int{ pixels[centre] };
             };
 
@@ -2066,7 +1988,7 @@ namespace Rtx
                 // frame's mean a measurement of the air alone.
                 const SceneDesc scene = makeWall();
                 std::vector<std::uint8_t> pixels;
-                countHits(scene, noTextures(), camera, size, pixels);
+                countHits(scene, {}, camera, size, pixels);
 
                 double total = 0.0;
                 for (std::size_t i = 0; i < count; ++i)
@@ -2136,7 +2058,7 @@ namespace Rtx
                     .mMesh = scene.addMesh(makeSheet(4000.0f, -200000.0f), {}, {}, sQuadIndices) });
 
                 std::vector<std::uint8_t> pixels;
-                countHits(scene, noTextures(), camera, size, pixels);
+                countHits(scene, {}, camera, size, pixels);
 
                 return decodeSrgb(pixels[centre]);
             };
@@ -2211,7 +2133,7 @@ namespace Rtx
                 camera.mFogUniform = 1.0f;
 
                 std::vector<std::uint8_t> pixels;
-                countHits(scene, noTextures(), camera, size, pixels);
+                countHits(scene, {}, camera, size, pixels);
                 return int{ pixels[centre] };
             };
 
@@ -2354,7 +2276,7 @@ namespace Rtx
             camera.mSkyZenith = osg::Vec3f(0.0f, 0.25f, 0.0f);
 
             std::vector<std::uint8_t> pixels;
-            EXPECT_EQ(countHits(makeWall(), noTextures(), camera, size, pixels), 0u);
+            EXPECT_EQ(countHits(makeWall(), {}, camera, size, pixels), 0u);
 
             // Flat, so every pixel is the same byte: 1.055 * 0.25^(1/2.4) - 0.055 = 0.537099, which
             // is 137 of 255.
@@ -2405,8 +2327,8 @@ namespace Rtx
 
             std::vector<std::uint8_t> byInstance;
             std::vector<std::uint8_t> byVertex;
-            const std::uint32_t instanceHits = countHits(placedByInstance, noTextures(), camera, size, byInstance);
-            const std::uint32_t vertexHits = countHits(placedByVertex, noTextures(), camera, size, byVertex);
+            const std::uint32_t instanceHits = countHits(placedByInstance, {}, camera, size, byInstance);
+            const std::uint32_t vertexHits = countHits(placedByVertex, {}, camera, size, byVertex);
 
             // Both blank would agree for the wrong reason.
             ASSERT_GT(vertexHits, 0u);
@@ -2438,7 +2360,7 @@ namespace Rtx
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
             std::vector<std::uint8_t> pixels;
-            const std::uint32_t hits = countHits(scene, noTextures(), camera, size, pixels);
+            const std::uint32_t hits = countHits(scene, {}, camera, size, pixels);
 
             const float halfExtent = 100.0f * std::tan(osg::DegreesToRadians(30.0f));
             const float covered = 30.0f / halfExtent;

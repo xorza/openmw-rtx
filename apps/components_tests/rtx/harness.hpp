@@ -6,6 +6,7 @@
 #include <string>
 
 #include <components/rtx/error.hpp>
+#include <components/rtx/renderer.hpp>
 #include <components/rtxvulkan/device.hpp>
 #include <components/rtxvulkan/instance.hpp>
 #include <components/rtxvulkan/physicaldevice.hpp>
@@ -119,4 +120,53 @@ namespace Rtx::Testing
     {
         return std::filesystem::path(OPENMW_RTX_SHADER_DIR);
     }
+
+    namespace Details
+    {
+        inline std::unique_ptr<Renderer> buildRenderer(bool validation, std::string& reason)
+        {
+            RendererOptions options;
+            options.mShaderDirectory = getShaderDirectory();
+            // Every test resizes to what it needs; this is only what the first target costs.
+            options.mWidth = 1;
+            options.mHeight = 1;
+            options.mValidation.mEnabled = validation;
+            // Tests provoke errors deliberately and assert on them; aborting would take the suite
+            // down with the first one.
+            options.mValidation.mAbortOnError = false;
+
+            return createRenderer(options, reason);
+        }
+    }
+
+    /// The renderer the pixel tests trace through, built once for the binary.
+    ///
+    /// Null with `reason` where this machine cannot run the backend this build has — which is the
+    /// ordinary case on a box developing the other one, and a skip rather than a failure.
+    ///
+    /// **What makes these tests an acceptance suite for any backend.** They assert hand-computed
+    /// radiances, mip levels and transmittances, none of which is a statement about an API; a
+    /// backend that passes this file is correct.
+    inline Renderer* getRenderer(std::string& reason)
+    {
+        static std::string sReason;
+        static const std::unique_ptr<Renderer> sRenderer = Details::buildRenderer(true, sReason);
+
+        reason = sReason;
+        return sRenderer.get();
+    }
+
+    /// The same, uninstrumented, for the one test that counts allocations.
+    ///
+    /// The layers go to the heap on every command they inspect, which drowns out anything an
+    /// allocation count is trying to see.
+    inline Renderer* getUnvalidatedRenderer(std::string& reason)
+    {
+        static std::string sReason;
+        static const std::unique_ptr<Renderer> sRenderer = Details::buildRenderer(false, sReason);
+
+        reason = sReason;
+        return sRenderer.get();
+    }
+
 }

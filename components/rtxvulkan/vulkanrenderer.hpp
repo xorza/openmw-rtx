@@ -42,6 +42,7 @@ namespace Rtx
         void resize(std::uint32_t width, std::uint32_t height) override;
         FrameResult renderFrame(const Shaders::VisibilityConstants& camera) override;
         void readPixels(std::vector<std::uint8_t>& pixels) override;
+        void takeValidationErrors(std::vector<std::string>& errors) override;
 
     private:
         void createTargets(std::uint32_t width, std::uint32_t height);

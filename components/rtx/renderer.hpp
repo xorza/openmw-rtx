@@ -127,6 +127,13 @@ namespace Rtx
         /// Not const: it submits a copy and waits for it.
         virtual void readPixels(std::vector<std::uint8_t>& pixels) = 0;
 
+        /// Moves whatever the API has complained about since the last call into `errors`.
+        ///
+        /// **Draining, not peeking**, so that clearing before a test and reading after it are the
+        /// same call. Empty where nothing is instrumented, which is the only reason a suite can ask
+        /// unconditionally.
+        virtual void takeValidationErrors(std::vector<std::string>& errors) = 0;
+
     protected:
         Renderer() = default;
     };
