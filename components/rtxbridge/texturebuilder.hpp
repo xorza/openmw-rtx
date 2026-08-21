@@ -54,6 +54,14 @@ namespace RtxBridge
         /// Indexed by the scene's texture index, which is what a material stores.
         std::span<const Rtx::TextureData> getDescriptions() const { return mDescriptions; }
 
+        /// How many of them could not be read and got the stand-in instead.
+        ///
+        /// **Not zero in the game.** The harness names textures out of content files and every one
+        /// of them is a `.dds` on disk; a live scene graph also holds textures that were never files
+        /// — a terrain composite map rendered on the GPU, a render-to-texture target, something a
+        /// script made. Those have no bytes to upload and no business bringing the renderer down.
+        std::uint32_t getUnreadable() const { return mUnreadable; }
+
     private:
         std::vector<osg::ref_ptr<const osg::Image>> mImages;
 
@@ -68,5 +76,6 @@ namespace RtxBridge
         std::vector<Rtx::MipLevel> mLevels;
 
         std::vector<Rtx::TextureData> mDescriptions;
+        std::uint32_t mUnreadable = 0;
     };
 }

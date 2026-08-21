@@ -1,5 +1,8 @@
 #include "tracer.hpp"
 
+#include <cstdlib>
+#include <format>
+
 #include <osg/Camera>
 #include <osg/Matrixf>
 #include <osg/Node>
@@ -8,6 +11,7 @@
 #include <components/rtx/camera.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtxbridge/png.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/rtxbridge/texturebuilder.hpp>
 #include <components/settings/values.hpp>
@@ -20,6 +24,10 @@ namespace MWRender::Rtx
     {
         /// Far enough to cross any cell. A primary ray that reaches this has left the world.
         constexpr float sFar = 200000.0f;
+
+        /// How many frames `OPENMW_RTX_SHOT` writes before it stops. A cap rather than a count,
+        /// because the alternative to a cap is filling a disk with a run somebody forgot about.
+        constexpr std::uint32_t sKeepAtMost = 16;
 
         /// Whether `makeCamera` can be built from this direction at all.
         ///
@@ -65,6 +73,36 @@ namespace MWRender::Rtx
         , mWidth(width)
         , mHeight(height)
     {
+        if (const char* where = std::getenv("OPENMW_RTX_SHOT"); where != nullptr && *where != '\0')
+        {
+            mKeepAt = where;
+            mKeepLeft = sKeepAtMost;
+            Log(Debug::Info) << "Ray tracing will write its first " << mKeepLeft << " frames to " << mKeepAt
+                             << "-0000.png and on";
+        }
+    }
+
+    void Tracer::keep()
+    {
+        if (mKeepLeft == 0)
+            return;
+
+        --mKeepLeft;
+
+        const ::Rtx::FrameExtents extents = mRenderer->getExtents();
+        mRenderer->readPixels(mPixels);
+
+        const std::filesystem::path file = mKeepAt.string() + std::format("-{:04}.png", sKeepAtMost - mKeepLeft - 1);
+
+        try
+        {
+            RtxBridge::writePng(file, extents.mOutputWidth, extents.mOutputHeight, mPixels);
+        }
+        catch (const std::exception& failed)
+        {
+            mKeepLeft = 0;
+            Log(Debug::Error) << "Ray tracing could not write " << file << ": " << failed.what();
+        }
     }
 
     // Out of line because the members it destroys are only forward declared in the header.
@@ -113,6 +151,12 @@ namespace MWRender::Rtx
             // The bridge decodes and describes; the backend uploads. Held only across the call —
             // `setScene` has finished with the descriptions when it returns.
             const RtxBridge::SceneTextures textures(described, images);
+            if (const std::uint32_t missing = textures.getUnreadable(); missing > 0)
+                Log(Debug::Warning) << "Ray tracing could not read " << missing << " of "
+                                    << textures.getDescriptions().size()
+                                    << " textures and drew them grey — a live graph holds textures that were "
+                                       "never files";
+
             mRenderer->setScene(described, textures.getDescriptions(), ::Rtx::SeaState{});
             mMirrored = true;
         }
@@ -123,7 +167,19 @@ namespace MWRender::Rtx
         camera.getViewMatrixAsLookAt(eye, centre, up);
 
         if (!canLookAlong(centre - eye))
+        {
+            // Once, because a frame the tracer cannot draw is usually a cutscene and occasionally a
+            // camera nobody has filled in — and the two look identical from here until it is said
+            // out loud how often it happens.
+            if (!mComplained)
+            {
+                mComplained = true;
+                Log(Debug::Warning) << "Ray tracing skipped a frame: the camera at " << eye.x() << ", " << eye.y()
+                                    << ", " << eye.z() << " looks along " << (centre - eye).x() << ", "
+                                    << (centre - eye).y() << ", " << (centre - eye).z();
+            }
             return;
+        }
 
         const ::Rtx::FrameExtents extents = mRenderer->getExtents();
         ::Rtx::Shaders::VisibilityConstants constants = ::Rtx::makeCamera(
@@ -150,5 +206,9 @@ namespace MWRender::Rtx
 
         if (!mShared)
             share();
+
+        // **After the share and not before**, because reading the frame back moves it out of the
+        // layout the composite blits from and the next frame's trace is what puts it back.
+        keep();
     }
 }

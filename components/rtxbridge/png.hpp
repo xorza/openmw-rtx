@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <span>
 
-namespace RtxTool
+namespace RtxBridge
 {
     /// Writes tightly packed 8-bit RGBA, top row first, as a PNG.
     ///

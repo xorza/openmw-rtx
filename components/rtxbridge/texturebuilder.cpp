@@ -1,6 +1,7 @@
 #include "texturebuilder.hpp"
 
 #include <algorithm>
+#include <array>
 #include <optional>
 
 #include <osg/Image>
@@ -41,6 +42,39 @@ namespace RtxBridge
         }
     }
 
+    namespace
+    {
+        /// What a texture that could not be read is drawn as.
+        ///
+        /// **Mid grey and not magenta.** A live graph's unreadable textures are mostly things that
+        /// were never files — a composite map, a render target — and painting the ground magenta
+        /// would be shouting about a case the count in `getUnreadable` already reports, at the price
+        /// of the picture nobody can then judge.
+        ///
+        /// One BC1 block: both endpoints the same grey, so every one of its sixteen texels is too,
+        /// and the first endpoint does not sort below the second, so it is opaque rather than
+        /// punch-through.
+        Rtx::TextureData standIn(std::vector<Rtx::MipLevel>& levels)
+        {
+            // 0x8410 is RGB565 for (16, 16, 16) out of (31, 63, 31) — a touch above half, which is
+            // mid grey once the sRGB curve is undone.
+            static constexpr std::array<std::byte, 8> sBlock{ std::byte{ 0x10 }, std::byte{ 0x84 }, std::byte{ 0x10 },
+                std::byte{ 0x84 }, std::byte{}, std::byte{}, std::byte{}, std::byte{} };
+
+            const std::size_t first = levels.size();
+            levels.push_back(Rtx::MipLevel{ 0, 4, 4 });
+
+            return Rtx::TextureData{
+                .mFormat = Rtx::TextureFormat::Bc1RgbaSrgb,
+                .mWidth = 4,
+                .mHeight = 4,
+                .mBytes = sBlock,
+                .mLevels = std::span<const Rtx::MipLevel>(levels).subspan(first, 1),
+                .mName = "unreadable",
+            };
+        }
+    }
+
     Rtx::TextureData describeImage(const osg::Image& image, std::vector<Rtx::MipLevel>& levels)
     {
         const std::optional<Rtx::TextureFormat> format = toTextureFormat(image.getPixelFormat());
@@ -78,21 +112,59 @@ namespace RtxBridge
 
         mImages.reserve(paths.size());
         for (const VFS::Path::Normalized& path : paths)
-            // Already decoded and still resident: the scene manager keeps image data on the CPU
-            // after apply, so this is a cache hit and a memcpy rather than a second decode.
-            mImages.push_back(images.getImage(path));
+        {
+            // Already decoded and still resident where it is a file at all: the scene manager keeps
+            // image data on the CPU after apply, so this is a cache hit and a memcpy rather than a
+            // second decode.
+            //
+            // **Null and a throw are both answers here.** A path that names nothing, and a decoder
+            // that will not have it, are the world's business rather than a broken contract — and
+            // the entry has to exist either way, because the scene indexes into this by position.
+            osg::ref_ptr<const osg::Image> image;
+            try
+            {
+                image = images.getImage(path);
+            }
+            catch (const std::exception&)
+            {
+                image = nullptr;
+            }
+
+            mImages.push_back(std::move(image));
+        }
 
         // **Reserved exactly, and that is what makes the spans safe.** Every description points into
         // this one table, so it must not reallocate while they are being taken — and every level
         // count is known before the first description is built.
         std::size_t levels = 0;
         for (const osg::ref_ptr<const osg::Image>& image : mImages)
-            levels += image->getNumMipmapLevels();
+            levels += image != nullptr ? image->getNumMipmapLevels() : 1u;
         mLevels.reserve(levels);
 
         mDescriptions.reserve(mImages.size());
         for (const osg::ref_ptr<const osg::Image>& image : mImages)
-            mDescriptions.push_back(describeImage(*image, mLevels));
+        {
+            std::optional<Rtx::TextureData> described;
+            if (image != nullptr)
+            {
+                try
+                {
+                    described = describeImage(*image, mLevels);
+                }
+                catch (const Rtx::Error&)
+                {
+                    described.reset();
+                }
+            }
+
+            if (!described.has_value())
+            {
+                ++mUnreadable;
+                described = standIn(mLevels);
+            }
+
+            mDescriptions.push_back(*described);
+        }
 
         // After the descriptions, because the estimate reads the bytes they point at, and into one
         // table for the reason the levels are: the spans have to stay put.

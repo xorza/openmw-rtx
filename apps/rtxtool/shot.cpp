@@ -2,7 +2,7 @@
 
 #include "lighting.hpp"
 #include "placement.hpp"
-#include "png.hpp"
+#include <components/rtxbridge/png.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -158,7 +158,7 @@ namespace RtxTool
 
         std::vector<std::uint8_t> pixels;
         renderer->readPixels(pixels);
-        writePng(request.mOutput, extents.mOutputWidth, extents.mOutputHeight, pixels);
+        RtxBridge::writePng(request.mOutput, extents.mOutputWidth, extents.mOutputHeight, pixels);
 
         // Primary rays, so out of the pixels that were traced rather than the pixels written.
         const double fraction

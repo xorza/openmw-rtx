@@ -5,8 +5,6 @@ set(RTXTOOL_FILES
     contactsheet.hpp
     placement.cpp
     placement.hpp
-    png.cpp
-    png.hpp
     shot.cpp
     shot.hpp
     terrainstorage.cpp

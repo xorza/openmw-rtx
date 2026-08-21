@@ -20,7 +20,7 @@
 
 #include "lighting.hpp"
 #include "placement.hpp"
-#include "png.hpp"
+#include <components/rtxbridge/png.hpp>
 #include "window.hpp"
 
 namespace RtxTool
@@ -203,7 +203,7 @@ namespace RtxTool
                             = request.mScreenshotDirectory / ("rtx-" + std::to_string(SDL_GetTicks()) + ".png");
                         std::vector<std::uint8_t> pixels;
                         renderer->readPixels(pixels);
-                        writePng(file, shown.mOutputWidth, shown.mOutputHeight, pixels);
+                        RtxBridge::writePng(file, shown.mOutputWidth, shown.mOutputHeight, pixels);
                         out() << "wrote " << Files::pathToUnicodeString(file) << '\n';
                     }
                     break;

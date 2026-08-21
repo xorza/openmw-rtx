@@ -1,10 +1,14 @@
-# OpenSceneGraph in, `Rtx::SceneDesc` out. The only place that knows both worlds.
+# OpenSceneGraph in, `Rtx::SceneDesc` out. The only place that knows both worlds — which is also why
+# the PNG writer lives here: it is the one piece of this fork that needs an image library, OSG is the
+# one the engine already has, and both the harness and the game want to write a frame to a file.
 
 set(RTXBRIDGE_FILES
     fogbuilder.cpp
     fogbuilder.hpp
     lightbuilder.cpp
     lightbuilder.hpp
+    png.cpp
+    png.hpp
     sceneextractor.cpp
     sceneextractor.hpp
     texturebuilder.cpp

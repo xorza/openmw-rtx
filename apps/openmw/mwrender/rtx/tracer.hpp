@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
@@ -108,6 +109,9 @@ namespace MWRender::Rtx
         /// Hands the current frame's allocation to the composite. Once per resize.
         void share();
 
+        /// Writes the traced frame to a numbered PNG, where `OPENMW_RTX_SHOT` asked for it.
+        void keep();
+
         std::unique_ptr<::Rtx::Renderer> mRenderer;
         osg::ref_ptr<Composite> mComposite;
 
@@ -115,8 +119,21 @@ namespace MWRender::Rtx
         std::uint32_t mHeight = 0;
 
         std::size_t mFrame = 0;
+        bool mComplained = false;
         bool mMirrored = false;
         bool mShared = false;
+
+        /// Where `OPENMW_RTX_SHOT` says to write traced frames, and how many are left to write.
+        ///
+        /// **The game's answer to `openmw-rtxtool shot`.** Everything the tracer does inside the
+        /// game — the lighting read off the renderer, the lights taken from the graph, the camera —
+        /// is invisible to the harness, and checking it by opening a window and looking is the thing
+        /// `CLAUDE.md` says not to do. A frame on disk is a frame anything can read.
+        std::filesystem::path mKeepAt;
+        std::uint32_t mKeepLeft = 0;
+
+        /// Reused rather than allocated per frame, because this is a debug path and not an excuse.
+        std::vector<std::uint8_t> mPixels;
     };
 }
 

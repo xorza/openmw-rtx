@@ -8,7 +8,7 @@
 #include <components/files/conversion.hpp>
 #include <components/rtx/error.hpp>
 
-namespace RtxTool
+namespace RtxBridge
 {
     void writePng(const std::filesystem::path& path, std::uint32_t width, std::uint32_t height,
         std::span<const std::uint8_t> pixels)
