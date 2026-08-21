@@ -49,10 +49,11 @@ namespace Rtx
         /// the shared harness always asks for validation.
         TEST(RtxInstanceTest, objectNamesDoNotNeedTheValidationLayers)
         {
-            std::uint32_t version = 0;
-            if (vkEnumerateInstanceVersion(&version) != VK_SUCCESS || version < sApiVersion)
-                GTEST_SKIP() << "the Vulkan loader is absent or older than this renderer requires";
+            if (const std::string obstacle = Testing::findInstanceObstacle(); !obstacle.empty())
+                GTEST_SKIP() << obstacle;
 
+            // Its own instance rather than the harness's, because what is being asserted is what an
+            // unvalidated one carries — and the harness's comes with a device this does not need.
             const Instance instance{ InstanceOptions{} };
 
             EXPECT_EQ(instance.getValidationLog(), nullptr);

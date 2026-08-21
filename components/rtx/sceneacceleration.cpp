@@ -54,16 +54,13 @@ namespace Rtx
         }
     }
 
-    VkTransformMatrixKHR toVulkanTransform(const osg::Matrixf& matrix)
+    VkTransformMatrixKHR toVulkanTransform(const Transform3x4& transform)
     {
         VkTransformMatrixKHR result{};
         for (int row = 0; row < 3; ++row)
-        {
-            for (int column = 0; column < 3; ++column)
-                result.matrix[row][column] = matrix(column, row);
+            for (int column = 0; column < 4; ++column)
+                result.matrix[row][column] = transform.mRows[row][column];
 
-            result.matrix[row][3] = matrix(3, row);
-        }
         return result;
     }
 
@@ -212,39 +209,31 @@ namespace Rtx
     {
         const DeviceFunctions& functions = mDevice.getFunctions();
 
+        std::vector<InstanceRecord> records;
+        makeInstanceRecords(scene, records);
+        mCutoutInstanceCount = countCutouts(records);
+
         std::vector<VkAccelerationStructureInstanceKHR> instances;
-        instances.reserve(scene.getInstances().size());
+        instances.reserve(records.size());
 
-        const std::span<const Material> materials = scene.getMaterials();
-
-        for (const MeshInstance& instance : scene.getInstances())
+        for (std::uint32_t index = 0; index < records.size(); ++index)
         {
+            const InstanceRecord& record = records[index];
             const VkAccelerationStructureDeviceAddressInfoKHR address{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
-                .accelerationStructure = mBottomLevel[instance.mMesh],
+                .accelerationStructure = mBottomLevel[record.mMesh],
             };
 
-            const bool water
-                = instance.mMaterial != sNoIndex && materials[instance.mMaterial].mKind == MaterialKind::Water;
-
+            // Morrowind's sheet geometry is lit and hit from both faces, so nothing is culled.
             VkGeometryInstanceFlagsKHR flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-
-            // This bit is what buys the candidate loop the chance to run: without it the geometry's
-            // own opaque flag stands, traversal commits the first triangle it meets, and a canopy
-            // stays the rectangle it was painted on.
-            if (instance.mMaterial != sNoIndex && materials[instance.mMaterial].isCutout())
-            {
+            if (record.mCutout)
                 flags |= VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR;
-                ++mCutoutInstanceCount;
-            }
 
             instances.push_back(VkAccelerationStructureInstanceKHR{
-                .transform = toVulkanTransform(instance.mTransform),
-                .instanceCustomIndex = static_cast<std::uint32_t>(instances.size()) & 0xFFFFFFu,
-                // Water is left out of what a shadow ray asks for. Sunlight reaching a seabed has
-                // come through the surface, and a sea that occluded would black out every shallow in
-                // the game — so it is told in the mask, where traversal skips it for nothing.
-                .mask = static_cast<std::uint32_t>(water ? Shaders::MASK_WATER : Shaders::MASK_SOLID),
+                .transform = toVulkanTransform(record.mTransform),
+                // A record's position is the custom index the shader reads back at a hit.
+                .instanceCustomIndex = index & 0xFFFFFFu,
+                .mask = record.mMask,
                 .flags = flags,
                 .accelerationStructureReference
                 = functions.mGetAccelerationStructureDeviceAddress(mDevice.getHandle(), &address),

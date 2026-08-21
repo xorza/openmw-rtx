@@ -9,9 +9,11 @@
 #include <gtest/gtest.h>
 
 #include <components/rtx/buffer.hpp>
+#include <components/rtx/camera.hpp>
 #include <components/rtx/commands.hpp>
 #include <components/rtx/error.hpp>
 #include <components/rtx/image.hpp>
+#include <components/rtx/instancerecord.hpp>
 #include <components/rtx/sceneacceleration.hpp>
 #include <components/rtx/scenebuffers.hpp>
 #include <components/rtx/scenedesc.hpp>
@@ -25,13 +27,16 @@ namespace Rtx
 {
     namespace
     {
-        /// OpenSceneGraph's transform and Vulkan's must move a point to the same place.
+        /// OpenSceneGraph's transform and an instance descriptor's must move a point to the same
+        /// place.
         ///
-        /// OSG multiplies a row vector on the left and Vulkan a column vector on the right, so the
-        /// conversion is a transpose with the translation moved from the last row to the last
+        /// OSG multiplies a row vector on the left and a descriptor a column vector on the right, so
+        /// the conversion is a transpose with the translation moved from the last row to the last
         /// column. Getting it wrong mirrors the world about its diagonal, which symmetrical
         /// architecture hides well enough to survive being looked at.
-        TEST(RtxTransformTest, theVulkanTransformMovesAPointWhereOpenSceneGraphWould)
+        ///
+        /// Asserted on `Transform3x4`, which is where that transposition happens for every backend.
+        TEST(RtxTransformTest, theNeutralTransformMovesAPointWhereOpenSceneGraphWould)
         {
             osg::Matrixf matrix = osg::Matrixf::scale(2.0f, 2.0f, 2.0f)
                 * osg::Matrixf::rotate(osg::DegreesToRadians(37.0f), osg::Vec3f(0.3f, -0.5f, 0.8f))
@@ -40,13 +45,29 @@ namespace Rtx
             const osg::Vec3f point(3.0f, -5.0f, 7.0f);
             const osg::Vec3f expected = point * matrix;
 
-            const VkTransformMatrixKHR transform = toVulkanTransform(matrix);
+            const Transform3x4 transform = toTransform3x4(matrix);
             for (int row = 0; row < 3; ++row)
             {
-                const float actual = transform.matrix[row][0] * point.x() + transform.matrix[row][1] * point.y()
-                    + transform.matrix[row][2] * point.z() + transform.matrix[row][3];
+                const float actual = transform.mRows[row][0] * point.x() + transform.mRows[row][1] * point.y()
+                    + transform.mRows[row][2] * point.z() + transform.mRows[row][3];
                 EXPECT_NEAR(actual, expected[row], 1e-3f) << "row " << row;
             }
+        }
+
+        /// Vulkan stores the same three rows of four, so its conversion must not reorder anything.
+        ///
+        /// Cheap, and it is the assertion a second backend copies: whatever `MTLPackedFloat4x3` or
+        /// anything else stores, it has to come back to these twelve numbers in this order.
+        TEST(RtxTransformTest, theVulkanTransformRestatesTheNeutralRowsUnchanged)
+        {
+            const Transform3x4 transform{ { { 1.0f, 2.0f, 3.0f, 4.0f }, { 5.0f, 6.0f, 7.0f, 8.0f },
+                { 9.0f, 10.0f, 11.0f, 12.0f } } };
+
+            const VkTransformMatrixKHR converted = toVulkanTransform(transform);
+            for (int row = 0; row < 3; ++row)
+                for (int column = 0; column < 4; ++column)
+                    EXPECT_EQ(converted.matrix[row][column], transform.mRows[row][column])
+                        << "row " << row << " column " << column;
         }
 
         TEST(RtxCameraTest, theBasisIsRightHandedAboutTheWorldsUpAxis)
@@ -287,7 +308,7 @@ namespace Rtx
             }
 
             const TextureData data{
-                .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                .mFormat = TextureFormat::Rgba8Unorm,
                 .mWidth = extent,
                 .mHeight = extent,
                 .mBytes = std::as_bytes(std::span(bytes)),
@@ -579,24 +600,24 @@ namespace Rtx
 
             const MipLevel one{ 0, 1, 1 };
             const MipLevel wide{ 0, size, 1 };
-            const auto describe
-                = [](VkFormat format, std::uint32_t width, std::span<const std::uint8_t> bytes, const MipLevel& level) {
-                      return TextureData{
-                          .mFormat = format,
-                          .mWidth = width,
-                          .mHeight = 1,
-                          .mBytes = std::as_bytes(bytes),
-                          .mLevels = std::span(&level, 1),
-                      };
-                  };
+            const auto describe = [](TextureFormat format, std::uint32_t width, std::span<const std::uint8_t> bytes,
+                                      const MipLevel& level) {
+                return TextureData{
+                    .mFormat = format,
+                    .mWidth = width,
+                    .mHeight = 1,
+                    .mBytes = std::as_bytes(bytes),
+                    .mLevels = std::span(&level, 1),
+                };
+            };
 
             Device& device = *mHarness->mDevice;
             CommandPool pool(device);
             std::vector<Texture> uploaded;
-            uploaded.emplace_back(device, pool, describe(VK_FORMAT_R8G8B8A8_UNORM, 1, redTexel, one), "red");
-            uploaded.emplace_back(device, pool, describe(VK_FORMAT_R8G8B8A8_UNORM, 1, greenTexel, one), "green");
+            uploaded.emplace_back(device, pool, describe(TextureFormat::Rgba8Unorm, 1, redTexel, one), "red");
+            uploaded.emplace_back(device, pool, describe(TextureFormat::Rgba8Unorm, 1, greenTexel, one), "green");
             uploaded.emplace_back(
-                device, pool, describe(VK_FORMAT_R8G8B8A8_UNORM, size, strip, wide), "green then blue");
+                device, pool, describe(TextureFormat::Rgba8Unorm, size, strip, wide), "green then blue");
             const TextureArray textures(device, std::move(uploaded));
 
             const std::array positions{
@@ -805,7 +826,7 @@ namespace Rtx
             const MipLevel one{ 0, 1, 1 };
             const auto describe = [&one](std::span<const std::uint8_t> bytes) {
                 return TextureData{
-                    .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                    .mFormat = TextureFormat::Rgba8Unorm,
                     .mWidth = 1,
                     .mHeight = 1,
                     .mBytes = std::as_bytes(bytes),
@@ -902,7 +923,7 @@ namespace Rtx
 
             const MipLevel level{ 0, extent, extent };
             const TextureData data{
-                .mFormat = VK_FORMAT_R8G8B8A8_UNORM,
+                .mFormat = TextureFormat::Rgba8Unorm,
                 .mWidth = extent,
                 .mHeight = extent,
                 .mBytes = std::as_bytes(std::span(bytes)),

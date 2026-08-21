@@ -4,11 +4,10 @@
 #include <cstdint>
 #include <vector>
 
-#include <osg/Matrixf>
-
 #include <vulkan/vulkan_core.h>
 
 #include "buffer.hpp"
+#include "instancerecord.hpp"
 
 namespace Rtx
 {
@@ -16,13 +15,12 @@ namespace Rtx
     class Device;
     class SceneDesc;
 
-    /// OpenSceneGraph's transform as Vulkan's.
+    /// The neutral transform in Vulkan's storage.
     ///
-    /// OSG multiplies a row vector on the left, so its translation is the last *row*; Vulkan's
-    /// instance transform multiplies a column vector on the right, so its translation is the last
-    /// *column* and the rotation is transposed. Getting this wrong mirrors the world about its
-    /// diagonal, which is subtle enough on symmetrical architecture to survive a look.
-    VkTransformMatrixKHR toVulkanTransform(const osg::Matrixf& matrix);
+    /// `VkTransformMatrixKHR` is three rows of four, which is exactly what `Transform3x4` holds, so
+    /// this restates the rows and changes nothing. The transposition that matters happened in
+    /// `toTransform3x4`, once, where a backend cannot get it wrong on its own.
+    VkTransformMatrixKHR toVulkanTransform(const Transform3x4& transform);
 
     /// Every acceleration structure a scene needs, built once.
     ///

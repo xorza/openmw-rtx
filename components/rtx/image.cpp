@@ -15,7 +15,6 @@ namespace Rtx
         : mDevice(device)
         , mWidth(width)
         , mHeight(height)
-        , mFormat(format)
     {
         const VkImageCreateInfo create{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,

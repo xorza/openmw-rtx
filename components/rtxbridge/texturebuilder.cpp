@@ -1,6 +1,7 @@
 #include "texturebuilder.hpp"
 
 #include <algorithm>
+#include <optional>
 
 #include <osg/Image>
 
@@ -13,12 +14,11 @@ namespace RtxBridge
 {
     namespace
     {
-        /// sRGB throughout, because that is what the files hold.
+        /// What OpenSceneGraph decoded, as one of the formats this renderer uploads.
         ///
-        /// Morrowind's textures were authored and stored display-encoded. Sampling them as sRGB is
-        /// what hands the shader linear values, which is the only thing light transport can be done
-        /// in — and it is free, because the hardware does the conversion in the filter.
-        VkFormat toVulkanFormat(GLenum pixelFormat)
+        /// Nothing where the file is something else, so the caller says so with the file's name in
+        /// the message. `Rtx::TextureFormat` is why every case is sRGB.
+        std::optional<Rtx::TextureFormat> toTextureFormat(GLenum pixelFormat)
         {
             switch (pixelFormat)
             {
@@ -30,21 +30,21 @@ namespace RtxBridge
                 // The bytes are identical either way — this only chooses whether the bit is looked at.
                 case GL_COMPRESSED_RGB_S3TC_DXT1_EXT:
                 case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
-                    return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+                    return Rtx::TextureFormat::Bc1RgbaSrgb;
                 case GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:
-                    return VK_FORMAT_BC2_SRGB_BLOCK;
+                    return Rtx::TextureFormat::Bc2Srgb;
                 case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT:
-                    return VK_FORMAT_BC3_SRGB_BLOCK;
+                    return Rtx::TextureFormat::Bc3Srgb;
                 default:
-                    return VK_FORMAT_UNDEFINED;
+                    return std::nullopt;
             }
         }
     }
 
     Rtx::TextureData describeImage(const osg::Image& image, std::vector<Rtx::MipLevel>& levels)
     {
-        const VkFormat format = toVulkanFormat(image.getPixelFormat());
-        if (format == VK_FORMAT_UNDEFINED)
+        const std::optional<Rtx::TextureFormat> format = toTextureFormat(image.getPixelFormat());
+        if (!format.has_value())
             throw Rtx::Error("texture \"" + image.getFileName() + "\" is pixel format "
                 + std::to_string(image.getPixelFormat())
                 + ", and this renderer uploads only the block-compressed formats Morrowind ships");
@@ -63,7 +63,7 @@ namespace RtxBridge
             });
 
         return Rtx::TextureData{
-            .mFormat = format,
+            .mFormat = *format,
             .mWidth = width,
             .mHeight = height,
             .mBytes

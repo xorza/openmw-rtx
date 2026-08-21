@@ -19,6 +19,30 @@ namespace Rtx
         /// couple of hundred, and a worldspace will not reach this.
         constexpr std::uint32_t sMaxTextures = 4096;
 
+        /// The one place a `TextureFormat` becomes Vulkan's.
+        ///
+        /// Every case is sRGB, and `TextureFormat` says why: the files hold display-encoded bytes
+        /// and the hardware converts them in the filter, which is what hands the shader linear
+        /// values for free.
+        VkFormat toVulkanFormat(TextureFormat format)
+        {
+            switch (format)
+            {
+                case TextureFormat::Bc1RgbaSrgb:
+                    return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+                case TextureFormat::Bc2Srgb:
+                    return VK_FORMAT_BC2_SRGB_BLOCK;
+                case TextureFormat::Bc3Srgb:
+                    return VK_FORMAT_BC3_SRGB_BLOCK;
+                case TextureFormat::Rgba8Unorm:
+                    return VK_FORMAT_R8G8B8A8_UNORM;
+            }
+
+            // Unreachable for any value of the enumeration; a new one that forgets a case lands
+            // here rather than creating an image with a format nobody chose.
+            throw Error("unknown texture format");
+        }
+
         VkDescriptorSetLayout makeLayout(const Device& device, std::uint32_t count)
         {
             const VkDescriptorSetLayoutBinding binding{
@@ -56,14 +80,14 @@ namespace Rtx
         , mBytes(data.mBytes.size())
     {
         assert(!data.mLevels.empty());
-        assert(data.mFormat != VK_FORMAT_UNDEFINED);
 
+        const VkFormat format = toVulkanFormat(data.mFormat);
         const auto levels = static_cast<std::uint32_t>(data.mLevels.size());
 
         const VkImageCreateInfo create{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
             .imageType = VK_IMAGE_TYPE_2D,
-            .format = data.mFormat,
+            .format = format,
             .extent = { data.mWidth, data.mHeight, 1 },
             .mipLevels = levels,
             .arrayLayers = 1,
@@ -138,7 +162,7 @@ namespace Rtx
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .image = mHandle,
             .viewType = VK_IMAGE_VIEW_TYPE_2D,
-            .format = data.mFormat,
+            .format = format,
             .subresourceRange = whole,
         };
         checkVk(vkCreateImageView(mDevice, &view, nullptr, &mView), "vkCreateImageView");

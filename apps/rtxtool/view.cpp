@@ -13,6 +13,7 @@
 #include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/buffer.hpp>
+#include <components/rtx/camera.hpp>
 #include <components/rtx/commands.hpp>
 #include <components/rtx/device.hpp>
 #include <components/rtx/error.hpp>

@@ -7,6 +7,7 @@
 #include <string>
 
 #include <components/rtx/device.hpp>
+#include <components/rtx/error.hpp>
 #include <components/rtx/instance.hpp>
 #include <components/rtx/physicaldevice.hpp>
 #include <components/rtx/requirements.hpp>
@@ -25,14 +26,40 @@ namespace Rtx::Testing
         std::unique_ptr<Device> mDevice;
     };
 
+    /// Why this machine cannot build a Vulkan instance, or empty where it can.
+    ///
+    /// The two ways a machine legitimately has nothing to trace with: no loader, or a loader with no
+    /// driver behind it — which fails at `vkCreateInstance` with `VK_ERROR_INCOMPATIBLE_DRIVER`
+    /// rather than by handing back an empty device list. Both are a skip.
+    ///
+    /// Shared with the tests that build an instance of their own so the two cannot come to disagree
+    /// about which failure is honest and which is a finding. Whether a device that *does* exist
+    /// qualifies is a different question, and `PhysicalDevice::select` still throws it.
+    inline std::string findInstanceObstacle()
+    {
+        std::uint32_t version = 0;
+        if (vkEnumerateInstanceVersion(&version) != VK_SUCCESS || version < sApiVersion)
+            return "the Vulkan loader is absent or older than this renderer requires";
+
+        try
+        {
+            const Instance probe{ InstanceOptions{} };
+        }
+        catch (const Error& error)
+        {
+            return std::string("no Vulkan driver is installed: ") + error.what();
+        }
+
+        return {};
+    }
+
     namespace Details
     {
         inline std::unique_ptr<Harness> build(bool validation, std::string& reason)
         {
-            std::uint32_t version = 0;
-            if (vkEnumerateInstanceVersion(&version) != VK_SUCCESS || version < sApiVersion)
+            if (std::string obstacle = findInstanceObstacle(); !obstacle.empty())
             {
-                reason = "the Vulkan loader is absent or older than this renderer requires";
+                reason = std::move(obstacle);
                 return nullptr;
             }
 

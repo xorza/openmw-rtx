@@ -32,9 +32,9 @@ namespace RtxBridge
             std::vector<Rtx::MipLevel> levels;
 
             EXPECT_EQ(describeImage(*makeBlock(GL_COMPRESSED_RGB_S3TC_DXT1_EXT), levels).mFormat,
-                VK_FORMAT_BC1_RGBA_SRGB_BLOCK);
+                Rtx::TextureFormat::Bc1RgbaSrgb);
             EXPECT_EQ(describeImage(*makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT), levels).mFormat,
-                VK_FORMAT_BC1_RGBA_SRGB_BLOCK);
+                Rtx::TextureFormat::Bc1RgbaSrgb);
         }
 
         /// The formats Morrowind actually ships, kept apart. DXT3 carrying its own alpha is what
@@ -43,10 +43,10 @@ namespace RtxBridge
         {
             std::vector<Rtx::MipLevel> levels;
 
-            EXPECT_EQ(
-                describeImage(*makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT3_EXT), levels).mFormat, VK_FORMAT_BC2_SRGB_BLOCK);
-            EXPECT_EQ(
-                describeImage(*makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT), levels).mFormat, VK_FORMAT_BC3_SRGB_BLOCK);
+            EXPECT_EQ(describeImage(*makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT3_EXT), levels).mFormat,
+                Rtx::TextureFormat::Bc2Srgb);
+            EXPECT_EQ(describeImage(*makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT), levels).mFormat,
+                Rtx::TextureFormat::Bc3Srgb);
         }
 
         /// A format this cannot upload fails by name rather than uploading noise.

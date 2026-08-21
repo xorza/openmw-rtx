@@ -4,8 +4,6 @@
 #include <cstdint>
 #include <filesystem>
 
-#include <osg/Vec3f>
-
 #include <vulkan/vulkan_core.h>
 
 #include "buffer.hpp"
@@ -27,15 +25,6 @@ namespace Rtx
         /// The bindless texture array's set, bound once and not pushed.
         VkDescriptorSet mTextures = VK_NULL_HANDLE;
     };
-
-    /// Constants for a pinhole camera looking from `origin` towards `target`.
-    ///
-    /// The world's up is +Z, as Morrowind has it. A camera standing where it is looking, or pointed
-    /// straight up or straight down, has no basis; both throw `Error`. These arrive from a command
-    /// line, so they are input rather than a contract, and the alternative to a message is a
-    /// normalised zero vector quietly filling the image with NaN.
-    Shaders::VisibilityConstants makeCamera(const osg::Vec3f& origin, const osg::Vec3f& target,
-        float verticalFovDegrees, std::uint32_t width, std::uint32_t height, float far);
 
     /// One ray per pixel against the top-level structure, shaded by the geometric normal it hit.
     ///

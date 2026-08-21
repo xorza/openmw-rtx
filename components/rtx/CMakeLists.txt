@@ -13,6 +13,18 @@ find_program(OPENMW_GLSLC NAMES glslc HINTS "${Vulkan_GLSLC_EXECUTABLE}" REQUIRE
 find_program(OPENMW_SPIRV_VAL NAMES spirv-val REQUIRED
     DOC "spirv-val, from SPIRV-Tools — validates every module the build produces")
 
+# Where the shaders and `views.cfg` land.
+#
+# Not `OPENMW_RESOURCES_ROOT`: the top level only defines that for non-Apple builds, and macOS gets
+# its own — the bundle's `Contents/Resources` — inside `apps/openmw/CMakeLists.txt`, which is
+# configured after this file. Both roots it would resolve to are known here, so this derives the
+# same answer rather than depending on the order two subdirectories happen to be added in.
+if (APPLE)
+    set(RTX_RESOURCES_ROOT "${APP_BUNDLE_DIR}/Contents/Resources")
+else()
+    set(RTX_RESOURCES_ROOT "${OpenMW_BINARY_DIR}")
+endif()
+
 set(RTX_SHADERS
     shaders/visibility.comp
 )
@@ -21,7 +33,7 @@ set(RTX_SHADERS
 # build, never the frame. -MD gives ninja the include graph so editing a shared .glsl rebuilds every
 # shader that includes it.
 set(RTX_SHADER_OUTPUTS)
-set(RTX_SPIRV_DIR "${OPENMW_RESOURCES_ROOT}/resources/rtx/shaders")
+set(RTX_SPIRV_DIR "${RTX_RESOURCES_ROOT}/resources/rtx/shaders")
 
 # -g always: source correlation in Nsight is what makes a shader debuggable, and the debug info sits
 # in the module rather than costing anything at runtime.
@@ -51,13 +63,15 @@ endforeach()
 add_custom_target(openmw-rtx-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS} SOURCES ${RTX_SHADERS})
 
 # Named viewpoints, beside the shaders under resources/rtx so one --resources finds both.
-copy_resource_file("${OpenMW_SOURCE_DIR}/files/rtx/views.cfg" "${OPENMW_RESOURCES_ROOT}" "resources/rtx/views.cfg")
+copy_resource_file("${OpenMW_SOURCE_DIR}/files/rtx/views.cfg" "${RTX_RESOURCES_ROOT}" "resources/rtx/views.cfg")
 
 set(RTX_FILES
     bluenoise.cpp
     bluenoise.hpp
     buffer.cpp
     buffer.hpp
+    camera.cpp
+    camera.hpp
     commands.cpp
     commands.hpp
     device.cpp
@@ -68,6 +82,8 @@ set(RTX_FILES
     image.hpp
     instance.cpp
     instance.hpp
+    instancerecord.cpp
+    instancerecord.hpp
     lightgrid.cpp
     lightgrid.hpp
     memory.cpp
@@ -90,6 +106,7 @@ set(RTX_FILES
     swapchain.hpp
     texture.cpp
     texture.hpp
+    texturedata.hpp
     validation.cpp
     validation.hpp
     visibilitypass.cpp

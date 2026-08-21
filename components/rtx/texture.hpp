@@ -1,45 +1,19 @@
 #ifndef OPENMW_COMPONENTS_RTX_TEXTURE_H
 #define OPENMW_COMPONENTS_RTX_TEXTURE_H
 
-#include <cstddef>
 #include <cstdint>
-#include <span>
 #include <string>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
 
 #include "memory.hpp"
+#include "texturedata.hpp"
 
 namespace Rtx
 {
     class CommandPool;
     class Device;
-
-    /// Where one mip level sits in a texture's bytes, and how big it is.
-    struct MipLevel
-    {
-        std::uint32_t mOffset = 0;
-        std::uint32_t mWidth = 0;
-        std::uint32_t mHeight = 0;
-    };
-
-    /// A decoded texture, ready to upload and owning none of it.
-    ///
-    /// Deliberately not an `osg::Image`: this layer does not know OpenSceneGraph, and everything
-    /// below is true of a block-compressed file read straight off disk. Morrowind's textures arrive
-    /// as BC1 or BC2 with their mip chains already built, so uploading is a copy and never a
-    /// conversion.
-    struct TextureData
-    {
-        VkFormat mFormat = VK_FORMAT_UNDEFINED;
-        std::uint32_t mWidth = 0;
-        std::uint32_t mHeight = 0;
-
-        /// Every level, back to back. The levels index into this.
-        std::span<const std::byte> mBytes;
-        std::span<const MipLevel> mLevels;
-    };
 
     /// A sampled image on the GPU.
     class Texture

@@ -49,7 +49,6 @@ namespace Rtx
         DeviceMemory mMemory;
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
-        VkFormat mFormat = VK_FORMAT_UNDEFINED;
     };
 }
 

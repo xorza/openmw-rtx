@@ -689,9 +689,17 @@ if (OPENMW_RTX)
             -Wsuggest-override
             -Wzero-as-null-pointer-constant
             -Wnull-dereference
-            -Wdouble-promotion
             -Wcast-qual
         )
+
+        # `-Wdouble-promotion` is GCC's only. Clang applies it to implicit argument conversions as
+        # well as to arithmetic, which fires nine times inside `components/misc/convert.hpp` — an
+        # upstream header whose whole job is handing `osg`'s floats to a double-precision Bullet.
+        # The promotion there is the point, the header is not this fork's to change, and the flag
+        # still costs nothing on the compiler it was measured on.
+        if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+            list(APPEND OPENMW_RTX_COMPILE_OPTIONS -Wdouble-promotion)
+        endif()
     endif()
 
     add_subdirectory (components/rtx)
@@ -824,8 +832,9 @@ endif()
 
 set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CUSTOM_CPACK_OS_NAME}-${CUSTOM_CPACK_ARCHITECTURE}")
 
-# Apple bundling
-if (APPLE)
+# Apple bundling. Needs Qt: the bundle embeds Qt platform plugins, whose targets exist only when a
+# Qt tool is built. With none built there is nothing to package; the binaries still land in the bundle.
+if (APPLE AND USE_QT)
     if(CMAKE_VERSION VERSION_LESS 3.19)
         message(FATAL_ERROR "macOS packaging requires CMake 3.19 or higher to sign macOS app bundles.")
     endif()
@@ -1113,7 +1122,7 @@ elseif(NOT APPLE)
         # Install resources
         INSTALL(DIRECTORY "${INSTALL_SOURCE}/resources" DESTINATION "${DATADIR}" COMPONENT "Resources")
     endif(WIN32)
-endif(APPLE)
+endif()
 
 # what is necessary to build documentation
 if ( BUILD_DOCS )
