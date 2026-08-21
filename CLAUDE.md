@@ -53,8 +53,19 @@ Upstream's constraints are not ours. Where they conflict, ours win.
   GitLab reviewer would accept.
 - **Rasterizer workarounds do not come across.** Render-bin ordering, the transparent pass, the
   distortion pass, shadow-map tuning — the RT path answers those questions with rays.
-- Assume **Ada-class NVIDIA on Linux**. A missing extension is a hard failure naming the extension,
-  not a fallback path.
+- **A missing extension or feature is a hard failure naming it**, never a fallback path.
+
+### Two renderers
+
+The picture is reached twice — **Vulkan on Ada-class NVIDIA, Metal on Apple silicon** — as two
+backends behind one API-neutral core, not a portability layer over either (`docs/rtx/backends.md`).
+
+Content, light transport and what the scene *is* live in the core, written once. What is true of an
+API lives in its backend, written twice, and that cost is paid rather than abstracted away.
+
+**Each machine develops its own renderer and leaves the other alone.** The backend this box cannot
+run is not built, tested or debugged here; its skipped tests are the result, not a gap to close. The
+core is the exception — a mistake there is one nobody here can see.
 
 ## Commands
 
