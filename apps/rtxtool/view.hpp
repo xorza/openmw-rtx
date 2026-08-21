@@ -9,11 +9,17 @@
 
 #include <components/rtx/upscale.hpp>
 
+#include "cellscene.hpp"
 #include "lighting.hpp"
 
 namespace Resource
 {
     class ImageManager;
+}
+
+namespace ESM
+{
+    struct Cell;
 }
 
 namespace Rtx
@@ -80,8 +86,13 @@ namespace RtxTool
         std::uint32_t mFrames = 0;
     };
 
-    /// Opens a window on `scene` and flies around it until it is closed.
-    int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::ValidationOptions& validation,
-        const ViewRequest& request);
+    /// Opens a window on the region around `centre` and flies around it until it is closed.
+    ///
+    /// **The window loads its own world rather than being handed one**, because it is the only
+    /// caller whose camera goes somewhere: crossing into the next cell has to bring that cell's
+    /// neighbours in and let the ones behind go, and nothing that took a finished scene could do
+    /// that.
+    int runWindow(World& world, const ESM::Cell& centre, int radius, const Rtx::ValidationOptions& validation,
+        ViewRequest request);
 
 }

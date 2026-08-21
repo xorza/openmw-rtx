@@ -1,5 +1,6 @@
 #include "cellscene.hpp"
 
+#include <cmath>
 #include <functional>
 #include <limits>
 #include <optional>
@@ -19,17 +20,20 @@ namespace RtxTool
     {
         void readObjects(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor, CellReport& report);
 
-        /// Calls `visit` for every cell in the region, centre first.
+        /// Calls `visit` for every cell in the region that `loaded` does not already name, and adds
+        /// each one to it.
         ///
         /// An interior is its own region: it has no neighbours to have. An exterior square that runs
         /// off the edge of the world, or over open sea, simply finds fewer cells — a coastline is
         /// not an error.
-        void forEachCell(
-            World& world, const ESM::Cell& centre, int radius, const std::function<void(const ESM::Cell&)>& visit)
+        void forEachNewCell(World& world, const ESM::Cell& centre, int radius, std::set<std::string>& loaded,
+            const std::function<void(const ESM::Cell&)>& visit)
         {
             if (!centre.isExterior())
             {
-                visit(centre);
+                if (loaded.insert(centre.mName).second)
+                    visit(centre);
+
                 return;
             }
 
@@ -38,29 +42,59 @@ namespace RtxTool
 
             for (int dy = -radius; dy <= radius; ++dy)
                 for (int dx = -radius; dx <= radius; ++dx)
-                    if (const ESM::Cell* cell = world.findCell(std::to_string(x + dx) + ',' + std::to_string(y + dy)))
+                {
+                    std::string spec = std::to_string(x + dx) + ',' + std::to_string(y + dy);
+                    if (loaded.contains(spec))
+                        continue;
+
+                    if (const ESM::Cell* cell = world.findCell(spec))
+                    {
+                        loaded.insert(std::move(spec));
                         visit(*cell);
+                    }
+                }
         }
     }
 
-    CellReport readRegion(World& world, const ESM::Cell& centre, int radius, RtxBridge::SceneExtractor& extractor)
+    std::string cellAt(const osg::Vec3f& position)
+    {
+        const auto square
+            = [](float value) { return static_cast<int>(std::floor(value / static_cast<float>(ESM::Cell::sSize))); };
+
+        return std::to_string(square(position.x())) + ',' + std::to_string(square(position.y()));
+    }
+
+    CellReport readRegion(World& world, const ESM::Cell& centre, int radius, RtxBridge::SceneExtractor& extractor,
+        std::set<std::string>& loaded)
     {
         CellReport report;
 
-        // **Every cell's terrain into the graph before any of it is mirrored.** `World::buildTerrain`
-        // accumulates chunks under one node and hands back that same node each time, so extracting
-        // after each call would place every earlier cell's chunks again — once more per cell.
-        osg::ref_ptr<osg::Node> terrain;
-        forEachCell(world, centre, radius, [&](const ESM::Cell& cell) {
+        // **Every new cell's terrain into the graph before any of it is mirrored.**
+        // `World::buildTerrain` accumulates chunks under one node and hands back that same node each
+        // time, so extracting after each call would place every earlier cell's chunks again — once
+        // more per cell.
+        //
+        // And only the chunks that were not there before, which is what the count remembered here
+        // is for: a camera walking into the next cell brings a ring of new terrain and must not
+        // place the region it was already standing in a second time.
+        // **Counted before anything loads, not after the first cell that did.** A cell with no land
+        // record still returns the accumulating node and adds no chunk to it, so taking the count
+        // from inside the loop would start one short and mirror a chunk that was already there.
+        const osg::Group* root = world.getTerrainRoot();
+        const unsigned int before = root != nullptr ? root->getNumChildren() : 0;
+
+        osg::ref_ptr<osg::Group> terrain;
+        forEachNewCell(world, centre, radius, loaded, [&](const ESM::Cell& cell) {
             ++report.mCells;
-            if (osg::ref_ptr<osg::Node> loaded = world.buildTerrain(cell))
-                terrain = std::move(loaded);
+            if (osg::ref_ptr<osg::Group> chunks = world.buildTerrain(cell))
+                terrain = std::move(chunks);
         });
 
         // Terrain before the objects, because it is what everything else stands on and its absence
         // is the loudest thing about a screenshot that lacks it.
         if (terrain != nullptr)
-            report.mTerrain = extractor.extract(*terrain, osg::Matrixf::identity());
+            for (unsigned int at = before; at < terrain->getNumChildren(); ++at)
+                report.mTerrain += extractor.extract(*terrain->getChild(at), osg::Matrixf::identity());
 
         // Interiors were authored against a renderer with no bounce, so the cell's own ambient
         // is most of what lights one. An exterior's `AMBI` is the weather system's business and
@@ -68,7 +102,12 @@ namespace RtxTool
         if (!centre.isExterior() && centre.mHasAmbi)
             report.mAmbient = RtxBridge::decodeColour(centre.mAmbi.mAmbient);
 
-        forEachCell(world, centre, radius, [&](const ESM::Cell& cell) { readObjects(world, cell, extractor, report); });
+        // A second walk over the same region: the first pass added them to `loaded`, so this one
+        // has to be told about the cells it just took. Kept apart because the terrain has to be in
+        // the graph and mirrored before the objects standing on it are.
+        std::set<std::string> objects;
+        forEachNewCell(world, centre, radius, objects,
+            [&](const ESM::Cell& cell) { readObjects(world, cell, extractor, report); });
 
         return report;
     }
@@ -104,9 +143,9 @@ namespace RtxTool
     }
 
     CellLighting loadRegion(World& world, const ESM::Cell& centre, int radius, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, std::string_view weather, float hour)
+        RtxBridge::SceneExtractor& extractor, std::set<std::string>& loaded, std::string_view weather, float hour)
     {
-        const CellReport report = readRegion(world, centre, radius, extractor);
+        const CellReport report = readRegion(world, centre, radius, extractor, loaded);
         for (const Rtx::Light& light : report.mLights)
             scene.addLight(light);
 

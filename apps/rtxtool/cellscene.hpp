@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <set>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -55,7 +57,17 @@ namespace RtxTool
     /// @param radius cells out from the centre in each direction, so three is seven by seven.
     ///        Ignored for an interior, which has no neighbours. Cells the content files do not
     ///        define are open sea and are skipped rather than missing.
-    CellReport readRegion(World& world, const ESM::Cell& centre, int radius, RtxBridge::SceneExtractor& extractor);
+    /// @param loaded which cells are already in the scene. Cells named here are left alone and
+    ///        every cell this places is added to it, so a caller that keeps one across calls walks
+    ///        into a region rather than reloading it.
+    CellReport readRegion(World& world, const ESM::Cell& centre, int radius, RtxBridge::SceneExtractor& extractor,
+        std::set<std::string>& loaded);
+
+    /// The exterior cell a point stands in, as `--cell` spells it.
+    ///
+    /// A point outside every cell the content files define still has a square: what it does not have
+    /// is a cell record there, which is what `World::findCell` says by answering nothing.
+    std::string cellAt(const osg::Vec3f& position);
 
     /// Everything a region puts into `scene`, and how its centre is lit.
     ///
@@ -63,5 +75,5 @@ namespace RtxTool
     /// return. **In the library rather than beside `main` because it has three callers now** — the
     /// screenshot, the window, and the test that needs a frame of real content to measure.
     CellLighting loadRegion(World& world, const ESM::Cell& centre, int radius, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, std::string_view weather, float hour);
+        RtxBridge::SceneExtractor& extractor, std::set<std::string>& loaded, std::string_view weather, float hour);
 }

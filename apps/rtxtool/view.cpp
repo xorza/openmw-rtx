@@ -18,10 +18,16 @@
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/texturebuilder.hpp>
 
+#include <set>
+
+#include "cellscene.hpp"
 #include "lighting.hpp"
 #include "placement.hpp"
-#include <components/rtxbridge/png.hpp>
 #include "window.hpp"
+#include <components/esm3/loadcell.hpp>
+#include <components/rtxbridge/png.hpp>
+#include <components/rtxbridge/sceneextractor.hpp>
+#include <components/rtxbridge/texturebuilder.hpp>
 
 namespace RtxTool
 {
@@ -92,22 +98,11 @@ namespace RtxTool
         }
     }
 
-    int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::ValidationOptions& validation,
-        const ViewRequest& request)
+    int runWindow(World& world, const ESM::Cell& centre, int radius, const Rtx::ValidationOptions& validation,
+        ViewRequest request)
     {
-        if (scene.getInstances().empty())
-        {
-            out() << "Nothing to show: the cell placed no geometry.\n";
-            return 1;
-        }
-
         Window window(request.mTitle, request.mWidth, request.mHeight);
 
-        // **Everything below this line used to be here twice.** The window stood up its own
-        // instance, device, passes, swapchain and frame sync beside the one `shot` reaches through
-        // `Renderer`, so every pass added to the frame had to be written into both — and the two
-        // drifted, because only one of them keeps frames in flight and so only one of them could
-        // have the hazards that come with that. See docs/rtx/backends.md §5.4.
         std::string reason;
         const std::unique_ptr<Rtx::Renderer> renderer = Rtx::createRenderer(
             Rtx::RendererOptions{
@@ -125,10 +120,55 @@ namespace RtxTool
             return 1;
         }
 
-        // The bridge decodes and describes; the backend uploads. Held because the descriptions span
-        // its storage until the upload has finished.
-        const RtxBridge::SceneTextures described(scene, images);
-        renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
+        // **Kept across loads, which is the whole of what makes walking into a cell cheap.** The
+        // extractor's identity maps resolve geometry met again to the mesh already in the scene, so
+        // a ring of new cells adds its own models and reuses everything the region already had.
+        Rtx::SceneDesc scene;
+        RtxBridge::SceneExtractor extractor(scene);
+        std::set<std::string> loaded;
+
+        /// Brings the region around `around` in, and hands the renderer whatever is now in the
+        /// scene. False where the cell placed nothing at all.
+        ///
+        /// **Nothing is ever taken out.** Removing a cell means removing its instances, and neither
+        /// `SceneDesc` nor the acceleration structures can do that yet — so a long walk grows until
+        /// the process is restarted. That is a harness being honest about its limits rather than a
+        /// design; the game will need the other half.
+        const auto bring = [&](const ESM::Cell& around) {
+            const Clock::time_point began = Clock::now();
+            const CellReport arrived = readRegion(world, around, radius, extractor, loaded);
+
+            if (arrived.mCells == 0)
+                return false;
+
+            for (const Rtx::Light& light : arrived.mLights)
+                scene.addLight(light);
+
+            const RtxBridge::SceneTextures described(scene, world.getImageManager());
+            renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
+
+            out() << std::format("loaded {} cells in {:.2f} s, {} instances now placed\n", arrived.mCells,
+                std::chrono::duration<double>(Clock::now() - began).count(), scene.getInstances().size());
+
+            return true;
+        };
+
+        request.mLighting
+            = loadRegion(world, centre, radius, scene, extractor, loaded, request.mWeather, request.mHour);
+        {
+            const RtxBridge::SceneTextures described(scene, world.getImageManager());
+            renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
+        }
+
+        if (scene.getInstances().empty())
+        {
+            out() << "Nothing to show: the region placed no geometry.\n";
+            return 1;
+        }
+
+        // Which square the camera stood in when the region around it was last brought in. Crossing
+        // out of it is what asks for the next ring.
+        std::string standing;
 
         const osg::BoundingBoxf bounds = scene.getBounds();
         const Placement start = placeCamera(bounds, request.mFieldOfView, request.mOrigin, request.mTarget);
@@ -253,6 +293,19 @@ namespace RtxTool
             {
                 renderer->resize(window.getWidth(), window.getHeight());
                 resized = false;
+            }
+
+            // **The region follows the camera.** Crossing out of the square the last load was
+            // centred on brings the ring that is now in range; the ones behind stay, for the reason
+            // `bring` gives.
+            if (centre.isExterior())
+            {
+                if (std::string square = cellAt(camera.getOrigin()); square != standing)
+                {
+                    standing = std::move(square);
+                    if (const ESM::Cell* cell = world.findCell(standing))
+                        bring(*cell);
+                }
             }
 
             const Rtx::FrameExtents extents = renderer->getExtents();

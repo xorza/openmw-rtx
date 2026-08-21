@@ -163,7 +163,7 @@ namespace RtxTool
         sceneManager.setSpecularMapPattern(Settings::shaders().mSpecularMapPattern);
     }
 
-    osg::ref_ptr<osg::Node> World::buildTerrain(const ESM::Cell& cell)
+    osg::ref_ptr<osg::Group> World::buildTerrain(const ESM::Cell& cell)
     {
         if (!cell.isExterior())
             return nullptr;

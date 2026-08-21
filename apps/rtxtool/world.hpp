@@ -114,7 +114,13 @@ namespace RtxTool
         /// rather than reading the content files twice.
         ///
         /// The returned node lives as long as this `World` does.
-        osg::ref_ptr<osg::Node> buildTerrain(const ESM::Cell& cell);
+        osg::ref_ptr<osg::Group> buildTerrain(const ESM::Cell& cell);
+
+        /// The node `buildTerrain` accumulates into, or null before the first exterior.
+        ///
+        /// For a caller that wants to know which chunks are new: the count before it loads and the
+        /// count after bound exactly the ones it caused.
+        osg::Group* getTerrainRoot() const { return mTerrainParent.get(); }
 
         Resource::SceneManager& getSceneManager();
 

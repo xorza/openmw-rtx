@@ -75,11 +75,11 @@ namespace RtxTool
         addOption("filter", bpo::value<bool>()->default_value(true)->implicit_value(true),
             "run the denoiser over the indirect light. Off shows the raw bounce, and is what a "
             "reference built with --accumulate has to be made with");
-        addOption("cells", bpo::value<std::uint32_t>()->default_value(7),
-            "how wide a square of exterior cells to load, centred on the one asked for. Seven by "
-            "default, which is what the game has around you; one is the cell alone, floating in "
-            "sky. Odd numbers only, and an interior ignores it — a room has no neighbours. Every "
-            "cell costs its own geometry, so a wide square is a slow load and a large scene");
+        addOption("radius", bpo::value<std::uint32_t>()->default_value(4),
+            "how many cells out from the one asked for to load, so four is nine by nine. Zero is "
+            "the cell alone, floating in sky. An interior ignores it — a room has no neighbours. "
+            "Every cell costs its own geometry, so a wide region is a slow load and a large scene, "
+            "and `view` brings the next ring in as the camera crosses into it");
 
         addOption("upscale", bpo::value<std::string>()->default_value(std::string(sUpscaleByDefault)),
             "put DLSS Ray Reconstruction between the trace and the picture: off, performance, "
