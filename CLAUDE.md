@@ -38,6 +38,17 @@ Priorities, in order:
 Nothing else ranks: no mod compatibility, no configurability for its own sake, no portability layer,
 no abstraction over hardware this does not target.
 
+**Feature-complete first, then fast.** That order is about sequencing and not about the two above:
+performance still loses to how it looks, and it also waits. Until the renderer draws everything the
+game has, an optimisation is aimed at a frame that is about to change shape — the thing made cheap
+turns out not to be the expensive one once the missing half arrives, and the measurement it was
+justified by has to be taken again anyway.
+
+So: land what is missing, **measure what it costs the moment it lands**, and write the number down
+rather than acting on it. That list is what M12 is for. The exception is a cost so large it stops
+the work — something that makes the harness too slow to look at, or a frame too slow to judge — and
+that is a judgement to state out loud, not a licence.
+
 Sports programming — strongest technique over safest, fast path first, delete what stopped earning
 its place, settle arguments by measuring. Nothing here is published, so rewriting beats working
 around.
