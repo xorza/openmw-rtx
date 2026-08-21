@@ -15,15 +15,12 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/platform/platform.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/fogbuilder.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/rtxbridge/waterbuilder.hpp>
-#include <components/rtxvulkan/device.hpp>
-#include <components/rtxvulkan/instance.hpp>
-#include <components/rtxvulkan/physicaldevice.hpp>
-#include <components/rtxvulkan/requirements.hpp>
 
 #include <components/settings/settings.hpp>
 #include <limits>
@@ -70,11 +67,11 @@ namespace RtxTool
         ///
         /// @param windowed whether this run opens a window, which is the one place GPU-assisted
         ///        validation cannot be left on.
-        Rtx::InstanceOptions chooseValidation(const bpo::variables_map& variables, bool windowed)
+        Rtx::ValidationOptions chooseValidation(const bpo::variables_map& variables, bool windowed)
         {
-            Rtx::InstanceOptions options;
-            options.mSynchronizationValidation = variables["sync-validation"].as<bool>();
-            options.mGpuAssistedValidation = variables["gpu-validation"].as<bool>();
+            Rtx::ValidationOptions options;
+            options.mSynchronization = variables["sync-validation"].as<bool>();
+            options.mGpuAssisted = variables["gpu-validation"].as<bool>();
 
             // **A window under GPU-assisted validation loses the device**: `vkWaitForFences` comes
             // back `VK_ERROR_DEVICE_LOST`, on three runs of four, somewhere between twenty seconds
@@ -82,11 +79,10 @@ namespace RtxTool
             // frame under the same layer are clean — so it is that layer over a swapchain, and the
             // answer for now is not to pay for it where it cannot be had. Asking still turns it on.
             if (windowed && variables["gpu-validation"].defaulted())
-                options.mGpuAssistedValidation = false;
+                options.mGpuAssisted = false;
 
             // Either of the two is a kind of validation, so either implies the layer that carries it.
-            options.mValidation = variables["validation"].as<bool>() || options.mSynchronizationValidation
-                || options.mGpuAssistedValidation;
+            options.mEnabled = variables["validation"].as<bool>() || options.mSynchronization || options.mGpuAssisted;
 
             return options;
         }
@@ -239,23 +235,20 @@ namespace RtxTool
                   << options;
         }
 
-        int runInfo(const Rtx::InstanceOptions& instanceOptions)
+        int runInfo(const Rtx::ValidationOptions& validation)
         {
-            const Rtx::Instance instance(instanceOptions);
+            // A one-pixel target: this reports on a device rather than drawing with it, and the
+            // default would spend fifty megabytes of images to print a page of text.
+            std::string reason;
+            const std::unique_ptr<Rtx::Renderer> renderer = Rtx::createRenderer(
+                Rtx::RendererOptions{ .mWidth = 1, .mHeight = 1, .mValidation = validation }, reason);
+            if (renderer == nullptr)
+            {
+                out() << reason << '\n';
+                return 1;
+            }
 
-            out() << "loader:            Vulkan " << Rtx::versionString(instance.getApiVersion()) << '\n'
-                  << "validation:        " << (instance.getValidationLog() != nullptr ? "on" : "off") << '\n'
-                  << "debug utils:       " << (instance.hasDebugUtils() ? "on" : "off") << '\n';
-
-            Rtx::PhysicalDevice physicalDevice = Rtx::PhysicalDevice::select(instance.getHandle());
-            out() << physicalDevice.describe();
-
-            // Creating the device is the part that proves the report: it resolves every entry point
-            // the required extensions promise, and a driver that advertises one it cannot dispatch
-            // fails here rather than at the first frame that needed it.
-            const Rtx::Device device(instance, std::move(physicalDevice));
-            out() << "\nlogical device and every required entry point: ok\n";
-
+            out() << renderer->describeDevice();
             return 0;
         }
 
@@ -469,7 +462,7 @@ namespace RtxTool
         }
 
         int runShot(
-            World& world, const std::string& cellSpec, const Rtx::InstanceOptions& instanceOptions, ShotRequest request)
+            World& world, const std::string& cellSpec, const Rtx::ValidationOptions& validation, ShotRequest request)
         {
             const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
             if (cell == nullptr)
@@ -482,11 +475,11 @@ namespace RtxTool
             printCellHeading(*cell);
             out() << '\n';
 
-            return renderShot(scene, world.getImageManager(), instanceOptions, request);
+            return renderShot(scene, world.getImageManager(), validation, request);
         }
 
         int runView(
-            World& world, const std::string& cellSpec, const Rtx::InstanceOptions& instanceOptions, ViewRequest request)
+            World& world, const std::string& cellSpec, const Rtx::ValidationOptions& validation, ViewRequest request)
         {
             const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
             if (cell == nullptr)
@@ -498,7 +491,7 @@ namespace RtxTool
 
             printCellHeading(*cell);
 
-            return runWindow(scene, world.getImageManager(), instanceOptions, request);
+            return runWindow(scene, world.getImageManager(), validation, request);
         }
 
         /// Where the command line and the view file meet.
@@ -602,9 +595,9 @@ namespace RtxTool
 
             if (command == "info")
             {
-                const Rtx::InstanceOptions instanceOptions = chooseValidation(variables, false);
+                const Rtx::ValidationOptions validation = chooseValidation(variables, false);
 
-                return runInfo(instanceOptions);
+                return runInfo(validation);
             }
 
             const std::filesystem::path resources = variables["resources"].as<Files::MaybeQuotedPath>();
@@ -635,7 +628,7 @@ namespace RtxTool
                 // and the one place every player of this game has stood.
                 const Chosen chosen = chooseView(variables, resources);
 
-                const Rtx::InstanceOptions instanceOptions = chooseValidation(variables, command == "view");
+                const Rtx::ValidationOptions validation = chooseValidation(variables, command == "view");
 
                 World world(config, variables, resources);
 
@@ -655,7 +648,7 @@ namespace RtxTool
                     request.mWeather = variables["weather"].as<std::string>();
                     request.mHour = variables["hour"].as<float>();
 
-                    return runView(world, chosen.mCell, instanceOptions, request);
+                    return runView(world, chosen.mCell, validation, request);
                 }
 
                 ShotRequest request;
@@ -672,7 +665,7 @@ namespace RtxTool
                 request.mRepeat = variables["repeat"].as<std::uint32_t>();
                 request.mAccumulate = variables["accumulate"].as<std::uint32_t>();
 
-                return runShot(world, chosen.mCell, instanceOptions, request);
+                return runShot(world, chosen.mCell, validation, request);
             }
 
             out() << "Unknown command: " << command << "\n\n";

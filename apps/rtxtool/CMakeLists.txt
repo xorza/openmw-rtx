@@ -28,6 +28,7 @@ target_link_libraries(openmw-rtxtool-lib
     Boost::program_options
     SDL2::SDL2
     openmw-rtx
+    openmw-rtx-backends
     openmw-rtx-vulkan
     openmw-rtx-bridge
     components

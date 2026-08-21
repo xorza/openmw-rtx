@@ -436,7 +436,7 @@ namespace Rtx
                     }
                 });
 
-                pixels = target.read(pool, VK_IMAGE_LAYOUT_GENERAL);
+                target.read(pool, VK_IMAGE_LAYOUT_GENERAL, pixels);
 
                 const std::uint32_t count = *static_cast<const std::uint32_t*>(hits.map());
                 hits.unmap();

@@ -6,24 +6,17 @@
 
 #include <algorithm>
 #include <chrono>
+#include <memory>
 #include <ostream>
+#include <string>
 #include <vector>
 
 #include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/camera.hpp>
+#include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/texturebuilder.hpp>
-#include <components/rtxvulkan/buffer.hpp>
-#include <components/rtxvulkan/commands.hpp>
-#include <components/rtxvulkan/device.hpp>
-#include <components/rtxvulkan/image.hpp>
-#include <components/rtxvulkan/instance.hpp>
-#include <components/rtxvulkan/physicaldevice.hpp>
-#include <components/rtxvulkan/sceneacceleration.hpp>
-#include <components/rtxvulkan/scenebuffers.hpp>
-#include <components/rtxvulkan/texture.hpp>
-#include <components/rtxvulkan/visibilitypass.hpp>
 
 namespace RtxTool
 {
@@ -66,7 +59,7 @@ namespace RtxTool
     }
 
     int renderShot(const Rtx::SceneDesc& scene, Resource::ImageManager& images,
-        const Rtx::InstanceOptions& instanceOptions, const ShotRequest& request)
+        const Rtx::ValidationOptions& validation, const ShotRequest& request)
     {
         std::ostream& out = Debug::getRawStdout();
 
@@ -81,42 +74,29 @@ namespace RtxTool
         const Placement placement = placeCamera(bounds, request.mFieldOfView, request.mOrigin, request.mTarget);
 
         const Clock::time_point deviceStart = Clock::now();
-        const Rtx::Instance instance(instanceOptions);
-        Rtx::PhysicalDevice physicalDevice = Rtx::PhysicalDevice::select(instance.getHandle());
-        const Rtx::Device device(instance, std::move(physicalDevice));
-        Rtx::CommandPool pool(device);
+        std::string reason;
+        const std::unique_ptr<Rtx::Renderer> renderer = Rtx::createRenderer(
+            Rtx::RendererOptions{
+                .mShaderDirectory = request.mShaderDirectory,
+                .mWidth = request.mWidth,
+                .mHeight = request.mHeight,
+                .mValidation = validation,
+            },
+            reason);
+        if (renderer == nullptr)
+        {
+            out << reason << '\n';
+            return 1;
+        }
         const double deviceMs = millisecondsSince(deviceStart);
 
         const Clock::time_point buildStart = Clock::now();
-        const Rtx::SceneAcceleration acceleration(device, pool, scene);
-        const Rtx::SceneBuffers buffers(device, pool, scene, acceleration.getIndices());
-        // The bridge decodes and describes; the backend uploads. Held because the descriptions
-        // span its storage until the upload has finished.
+        // The bridge decodes and describes; the backend uploads. Held because the descriptions span
+        // its storage until the upload has finished.
         const RtxBridge::SceneTextures described(scene, images);
-        const Rtx::TextureArray textures(device, pool, described.getDescriptions());
+        renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
         const double buildMs = millisecondsSince(buildStart);
-
-        const Rtx::VisibilityPass pass(device, pool, request.mShaderDirectory, textures.getLayout());
-        const Rtx::VisibilityInputs inputs{
-            .mScene = acceleration.getTopLevel(),
-            .mBuffers = &buffers,
-            .mTextures = textures.getSet(),
-        };
-
-        Rtx::Image target(device, request.mWidth, request.mHeight, VK_FORMAT_R8G8B8A8_UNORM,
-            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-
-        // Sixteen bytes a pixel, which is 33 MiB at 1080p and the price of a sum that neither rounds
-        // nor clips. Made even for a run that is not averaging, and full size: the shader leaves it
-        // alone then, but the descriptor still has to point at an image the pass will accept.
-        Rtx::Image history(
-            device, request.mWidth, request.mHeight, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT);
-
-        const Rtx::Buffer hitCount(device, sizeof(std::uint32_t),
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        *static_cast<std::uint32_t*>(hitCount.map()) = 0;
-        hitCount.unmap();
+        const Rtx::SceneStats& stats = renderer->getSceneStats();
 
         // Far enough to cross any cell: the largest exterior view in the game is a few tens of
         // thousands of units, and a primary ray that reaches this has left the world.
@@ -137,6 +117,8 @@ namespace RtxTool
         std::vector<double> traces;
         traces.reserve(frames);
 
+        std::uint32_t hits = 0;
+
         // **A `do` and not a `for`, for the reason `summarise` takes its argument by reference.** The
         // bound below is `max(..., 1)` and a `for` over it still leaves the compiler unable to prove
         // the body ran, so `front()` on what it filled becomes a hard warning. Looping this way says
@@ -144,46 +126,23 @@ namespace RtxTool
         std::uint32_t frame = 0;
         do
         {
-            // The count is an atomic sum over the frame, so it has to start each one at nothing or
-            // the fraction reported below would be however many frames were traced.
-            *static_cast<std::uint32_t*>(hitCount.map()) = 0;
-            hitCount.unmap();
-
             // **The seed moves only when the frames are being averaged.** A timing run wants the
             // same work every trace, so that what the spread shows is the machine and not two
             // frames that happened to sample different geometry.
             camera.mFrame = averaging ? frame : 0;
             camera.mAccumulate = averaging ? frame + 1 : 0;
 
-            const Clock::time_point traceStart = Clock::now();
-            pool.submitAndWait([&](VkCommandBuffer commands) {
-                target.transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                    VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-
-                // The first frame writes the sum without reading it, so it needs no contents and
-                // nothing to wait on. Every frame after reads what the last one left, which is a
-                // hazard across submits that the fence orders but does not make visible.
-                const bool fresh = frame == 0;
-                history.transition(commands, fresh ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_GENERAL,
-                    VK_IMAGE_LAYOUT_GENERAL,
-                    fresh ? VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                    fresh ? 0 : VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                    VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-
-                pass.record(commands, inputs, target, history, hitCount, camera);
-            });
-            traces.push_back(millisecondsSince(traceStart));
+            const Rtx::FrameResult result = renderer->renderFrame(camera);
+            traces.push_back(result.mTraceMs);
+            hits = result.mHits;
             ++frame;
         } while (frame < frames);
 
         const TraceTimes trace = summarise(traces);
 
-        const std::vector<std::uint8_t> pixels = target.read(pool, VK_IMAGE_LAYOUT_GENERAL);
+        std::vector<std::uint8_t> pixels;
+        renderer->readPixels(pixels);
         writePng(request.mOutput, request.mWidth, request.mHeight, pixels);
-
-        const std::uint32_t hits = *static_cast<const std::uint32_t*>(hitCount.map());
-        hitCount.unmap();
 
         const double fraction
             = static_cast<double>(hits) / (static_cast<double>(request.mWidth) * request.mHeight) * 100.0;
@@ -194,11 +153,10 @@ namespace RtxTool
             << "  looking at " << placement.mTarget.x() << ", " << placement.mTarget.y() << ", "
             << placement.mTarget.z() << '\n'
             << "primary rays that hit: " << fraction << "%\n"
-            << "instances:  " << acceleration.getInstanceCount() << ", of which "
-            << acceleration.getCutoutInstanceCount() << " are cutouts\n"
-            << "structures: " << acceleration.getStructureBytes() / 1024 << " KiB\n"
-            << "tables:     " << buffers.getBytes() / 1024 << " KiB\n"
-            << "textures:   " << textures.getCount() << " in " << textures.getBytes() / 1024 << " KiB\n"
+            << "instances:  " << stats.mInstances << ", of which " << stats.mCutoutInstances << " are cutouts\n"
+            << "structures: " << stats.mStructureBytes / 1024 << " KiB\n"
+            << "tables:     " << stats.mTableBytes / 1024 << " KiB\n"
+            << "textures:   " << stats.mTextureCount << " in " << stats.mTextureBytes / 1024 << " KiB\n"
             << "device up:  " << deviceMs << " ms\n"
             << "build:      " << buildMs << " ms\n"
             << "trace:      " << trace.mBest << " ms";
@@ -215,7 +173,7 @@ namespace RtxTool
         // outside a Release build, and a figure measured under them is not one to compare against
         // anything: core and synchronization validation cost about 6% here, GPU-assisted another
         // 100%. Anyone quoting a trace time wants `--validation=false`.
-        if (instance.getValidationLog() != nullptr)
+        if (renderer->isValidating())
             out << ", with the validation layers on";
 
         out << '\n';

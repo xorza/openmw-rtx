@@ -39,7 +39,7 @@ namespace Rtx
         /// transition it again itself.
         ///
         /// Submits and waits, so it belongs to a screenshot rather than to a frame.
-        std::vector<std::uint8_t> read(CommandPool& pool, VkImageLayout layout) const;
+        void read(CommandPool& pool, VkImageLayout layout, std::vector<std::uint8_t>& pixels) const;
 
     private:
         const Device& mDevice;

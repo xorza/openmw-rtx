@@ -16,8 +16,8 @@ namespace Resource
 
 namespace Rtx
 {
-    struct InstanceOptions;
     class SceneDesc;
+    struct ValidationOptions;
 }
 
 namespace RtxTool
@@ -87,5 +87,5 @@ namespace RtxTool
     /// Reports the fraction of primary rays that hit something, which is what tells "the cell
     /// rendered" from "the camera faced away from it" without anyone opening the file.
     int renderShot(const Rtx::SceneDesc& scene, Resource::ImageManager& images,
-        const Rtx::InstanceOptions& instanceOptions, const ShotRequest& request);
+        const Rtx::ValidationOptions& validation, const ShotRequest& request);
 }

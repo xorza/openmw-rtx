@@ -16,7 +16,7 @@ namespace Resource
 
 namespace Rtx
 {
-    struct InstanceOptions;
+    struct ValidationOptions;
     class SceneDesc;
 }
 
@@ -54,6 +54,6 @@ namespace RtxTool
     };
 
     /// Opens a window on `scene` and flies around it until it is closed.
-    int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images,
-        const Rtx::InstanceOptions& instanceOptions, const ViewRequest& request);
+    int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::ValidationOptions& validation,
+        const ViewRequest& request);
 }

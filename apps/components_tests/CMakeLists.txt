@@ -130,7 +130,7 @@ target_link_libraries(components-tests
 )
 
 if (OPENMW_RTX)
-    target_link_libraries(components-tests openmw-rtx openmw-rtx-vulkan openmw-rtx-bridge openmw-rtxtool-lib)
+    target_link_libraries(components-tests openmw-rtx openmw-rtx-backends openmw-rtx-vulkan openmw-rtx-bridge openmw-rtxtool-lib)
 
     # Per file rather than per target: this binary holds upstream's tests as well as this fork's, and
     # only the latter are ours to keep warning-free.

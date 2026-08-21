@@ -92,6 +92,8 @@ set(RTX_VULKAN_FILES
     validation.hpp
     visibilitypass.cpp
     visibilitypass.hpp
+    vulkanrenderer.cpp
+    vulkanrenderer.hpp
 )
 
 source_group(components\\rtxvulkan FILES ${RTX_VULKAN_FILES})

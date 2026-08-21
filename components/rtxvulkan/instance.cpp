@@ -43,6 +43,16 @@ namespace Rtx
         }
     }
 
+    InstanceOptions toInstanceOptions(const ValidationOptions& validation)
+    {
+        return InstanceOptions{
+            .mValidation = validation.mEnabled,
+            .mSynchronizationValidation = validation.mSynchronization,
+            .mGpuAssistedValidation = validation.mGpuAssisted,
+            .mPolicy = validation.mAbortOnError ? ValidationPolicy::Abort : ValidationPolicy::Log,
+        };
+    }
+
     Instance::Instance(const InstanceOptions& options)
     {
         checkVk(vkEnumerateInstanceVersion(&mApiVersion), "vkEnumerateInstanceVersion");

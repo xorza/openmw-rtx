@@ -84,7 +84,7 @@ namespace Rtx
         vkCmdPipelineBarrier2(commands, &dependency);
     }
 
-    std::vector<std::uint8_t> Image::read(CommandPool& pool, VkImageLayout layout) const
+    void Image::read(CommandPool& pool, VkImageLayout layout, std::vector<std::uint8_t>& pixels) const
     {
         const VkDeviceSize bytes = VkDeviceSize{ mWidth } * mHeight * 4;
         const Buffer staging(mDevice, bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -102,10 +102,9 @@ namespace Rtx
                 commands, mHandle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, staging.getHandle(), 1, &region);
         });
 
-        std::vector<std::uint8_t> pixels(bytes);
+        pixels.resize(bytes);
         const void* mapped = staging.map();
         std::memcpy(pixels.data(), mapped, bytes);
         staging.unmap();
-        return pixels;
     }
 }

@@ -6,6 +6,8 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/renderer.hpp>
+
 #include "validation.hpp"
 
 namespace Rtx
@@ -31,6 +33,12 @@ namespace Rtx
         /// `openmw-rtxtool` works over ssh.
         std::vector<const char*> mSurfaceExtensions;
     };
+
+    /// The neutral instrumentation request as this backend takes it.
+    ///
+    /// Shared because the renderer and the window path both build an instance, and two copies of
+    /// this would be two chances for a run to be validated differently than it was asked to be.
+    InstanceOptions toInstanceOptions(const ValidationOptions& validation);
 
     /// A `VkInstance` and, when validation is on, the messenger and the log behind it.
     class Instance

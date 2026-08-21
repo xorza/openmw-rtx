@@ -13,6 +13,7 @@
 #include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/camera.hpp>
+#include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/texturebuilder.hpp>
 #include <components/rtxvulkan/buffer.hpp>
@@ -117,8 +118,8 @@ namespace RtxTool
         }
     }
 
-    int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images,
-        const Rtx::InstanceOptions& instanceOptions, const ViewRequest& request)
+    int runWindow(const Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::ValidationOptions& validation,
+        const ViewRequest& request)
     {
         if (scene.getInstances().empty())
         {
@@ -130,7 +131,9 @@ namespace RtxTool
 
         // The window has to exist before the instance, because only it knows which surface
         // extensions the platform wants.
-        Rtx::InstanceOptions options = instanceOptions;
+        // Still building its own device: the window path drives a swapchain directly, and moves
+        // behind `Renderer` when presentation does. See docs/rtx/backends.md §5.4.
+        Rtx::InstanceOptions options = Rtx::toInstanceOptions(validation);
         options.mSurfaceExtensions = window.getInstanceExtensions();
 
         const Rtx::Instance instance(options);
@@ -396,7 +399,8 @@ namespace RtxTool
                         const Rtx::Image& last = *targets[(frame + sFramesInFlight - 1) % sFramesInFlight];
                         const std::filesystem::path file
                             = request.mScreenshotDirectory / ("rtx-" + std::to_string(SDL_GetTicks()) + ".png");
-                        const std::vector<std::uint8_t> pixels = last.read(pool, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+                        std::vector<std::uint8_t> pixels;
+                        last.read(pool, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, pixels);
                         writePng(file, last.getWidth(), last.getHeight(), pixels);
                         out() << "wrote " << Files::pathToUnicodeString(file) << '\n';
                     }

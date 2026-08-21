@@ -15,6 +15,7 @@ set(RTX_FILES
     instancerecord.hpp
     lightgrid.cpp
     lightgrid.hpp
+    renderer.hpp
     scenedesc.cpp
     scenedesc.hpp
     texturedata.hpp
