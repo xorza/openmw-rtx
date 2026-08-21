@@ -121,6 +121,13 @@ namespace RtxTool
         const bool averaging = request.mAccumulate > 0;
         const std::uint32_t frames = averaging ? request.mAccumulate : std::max(request.mRepeat, 1u);
 
+        // **Whether each trace is a new sample or the same one again**, which is not the same
+        // question as whether the frames are being averaged. An upscaler reconstructs from where
+        // each frame sampled inside its pixel, so a run of traces at one seed hands it the same
+        // sample over and over — the frames still resolve, and the extra detail they were supposed
+        // to carry was never in them.
+        const bool sequenced = averaging || request.mUpscale != Rtx::Upscale::Off;
+
         std::vector<double> traces;
         traces.reserve(frames);
 
@@ -133,10 +140,9 @@ namespace RtxTool
         std::uint32_t frame = 0;
         do
         {
-            // **The seed moves only when the frames are being averaged.** A timing run wants the
-            // same work every trace, so that what the spread shows is the machine and not two
-            // frames that happened to sample different geometry.
-            camera.mFrame = averaging ? frame : 0;
+            // A plain timing run holds it still, so that what the spread shows is the machine and
+            // not two frames that happened to sample different geometry.
+            camera.mFrame = sequenced ? frame : 0;
 
             const Rtx::FrameResult result = renderer->renderFrame(camera,
                 Rtx::FrameOptions{

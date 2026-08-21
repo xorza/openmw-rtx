@@ -292,6 +292,7 @@ namespace Rtx
             for (const std::string& error : errors)
                 ADD_FAILURE() << "validation error from the upscaled frame: " << error;
         }
+
     }
 }
 
@@ -310,6 +311,7 @@ namespace
     {
         GTEST_SKIP() << "this build has no DLSS; configure with -DOPENMW_RTX_DLSS=ON";
     }
+
 }
 
 #endif

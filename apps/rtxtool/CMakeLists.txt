@@ -1,4 +1,6 @@
 set(RTXTOOL_FILES
+    cellscene.cpp
+    cellscene.hpp
     contactsheet.cpp
     contactsheet.hpp
     placement.cpp
@@ -11,6 +13,8 @@ set(RTXTOOL_FILES
     terrainstorage.hpp
     lighting.cpp
     lighting.hpp
+    options.cpp
+    options.hpp
     view.cpp
     view.hpp
     validationchoice.cpp
@@ -39,6 +43,13 @@ target_link_libraries(openmw-rtxtool-lib
 )
 
 target_compile_options(openmw-rtxtool-lib PRIVATE ${OPENMW_RTX_COMPILE_OPTIONS})
+
+# Boost's `typed_value::notify` assigns through a notifier pointer that is null unless one was
+# asked for, and GCC 16 reports the assignment as a potential null dereference — inside
+# `<vector>`, from an instantiation this file triggers, so a system-header exemption does not
+# reach it. Boost's code, on the same footing as `extern/`; the flag comes off for this one file
+# rather than for the target.
+set_source_files_properties(options.cpp PROPERTIES COMPILE_OPTIONS -Wno-null-dereference)
 
 # Named viewpoints. Copied here because this is the only thing that reads them, and beside the
 # backend's shaders under resources/rtx so one --resources finds both.
