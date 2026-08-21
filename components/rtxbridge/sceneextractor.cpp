@@ -1,5 +1,7 @@
 #include "sceneextractor.hpp"
 
+#include "lightbuilder.hpp"
+
 #include <osg/BlendFunc>
 #include <osg/CullFace>
 #include <osg/Geometry>
@@ -12,6 +14,7 @@
 #include <array>
 #include <cassert>
 
+#include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/texturetype.hpp>
 // `terraindrawable.hpp` holds `osg::ref_ptr`s to composite-map types it only forward-declares, so it
 // does not compile on its own. This is what completes them.
@@ -212,6 +215,7 @@ namespace RtxBridge
 
     ExtractionStats& ExtractionStats::operator+=(const ExtractionStats& other)
     {
+        mLights += other.mLights;
         for (const auto& [format, count] : other.mTextureFormats)
             mTextureFormats[format] += count;
 
@@ -231,12 +235,24 @@ namespace RtxBridge
         class ExtractionVisitor : public osg::NodeVisitor
         {
         public:
-            ExtractionVisitor(SceneExtractor& extractor, const osg::Matrixf& root, ExtractionStats& stats)
+            ExtractionVisitor(
+                SceneExtractor& extractor, const osg::Matrixf& root, std::size_t frame, ExtractionStats& stats)
                 : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
                 , mExtractor(extractor)
                 , mRoot(root)
+                , mFrame(frame)
                 , mStats(stats)
             {
+            }
+
+            /// **The only node type this looks at rather than through.** Everything else it wants is
+            /// a drawable; a light is a node with no geometry, so nothing below would ever see it.
+            void apply(osg::Node& node) override
+            {
+                if (auto* source = dynamic_cast<SceneUtil::LightSource*>(&node))
+                    mExtractor.addLight(*source, getNodePath(), mRoot, mFrame, mStats);
+
+                traverse(node);
             }
 
             void apply(osg::Drawable& drawable) override
@@ -254,19 +270,47 @@ namespace RtxBridge
         private:
             SceneExtractor& mExtractor;
             const osg::Matrixf mRoot;
+            const std::size_t mFrame;
             ExtractionStats& mStats;
         };
     }
 
-    ExtractionStats SceneExtractor::extract(const osg::Node& node, const osg::Matrixf& transform)
+    ExtractionStats SceneExtractor::extract(const osg::Node& node, const osg::Matrixf& transform, std::size_t frame)
     {
         ExtractionStats stats;
-        ExtractionVisitor visitor(*this, transform, stats);
+        ExtractionVisitor visitor(*this, transform, frame, stats);
 
         // OSG's visitor API is non-const even for a visitor that only reads, which this one does.
         const_cast<osg::Node&>(node).accept(visitor);
 
         return stats;
+    }
+
+    void SceneExtractor::addLight(const SceneUtil::LightSource& source, const osg::NodePath& path,
+        const osg::Matrixf& root, std::size_t frame, ExtractionStats& stats)
+    {
+        // A source the game has switched off contributes nothing and is not a light.
+        if (source.getEmpty())
+            return;
+
+        // **The buffer update has just finished writing.** A `LightSource` is double buffered
+        // because the draw thread may be reading the other one, and the mirror runs between the two
+        // — after `updateTraversal` and before `renderingTraversals` — so the frame the game is
+        // about to draw is the one to read.
+        const SceneUtil::Light* light = const_cast<SceneUtil::LightSource&>(source).getLight(frame);
+        if (light == nullptr)
+            return;
+
+        const osg::Vec4f colour = light->getDiffuse();
+        const osg::Matrixf place = osg::Matrixf(osg::computeLocalToWorld(path)) * root;
+
+        const std::optional<Rtx::Light> made
+            = makeLight(osg::Vec3f(colour.r(), colour.g(), colour.b()), source.getRadius(), place.getTrans());
+        if (!made.has_value())
+            return;
+
+        mScene.addLight(*made);
+        ++stats.mLights;
     }
 
     void SceneExtractor::addDrawable(

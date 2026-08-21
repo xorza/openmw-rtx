@@ -3,6 +3,10 @@
 #include <cstdlib>
 
 #ifdef OPENMW_RTX
+#include <numbers>
+
+#include <components/rtx/shaders/scene.h>
+
 #include "rtx/composite.hpp"
 #include "rtx/tracer.hpp"
 #endif
@@ -798,7 +802,39 @@ namespace MWRender
         const osg::Viewport* viewport = mViewer->getCamera()->getViewport();
         mTracer->resize(static_cast<std::uint32_t>(viewport->width()), static_cast<std::uint32_t>(viewport->height()));
 
-        mTracer->trace(*mSceneRoot, *mViewer->getCamera(), *mResourceSystem->getImageManager());
+        // **`mSunLight` is where every route to the lighting has already met.** The weather system,
+        // the cell's `AMBI`, the night-eye effect and an interior's minimum brightness all end at
+        // `updateAmbient` and `setSunColour`, so what is on the light is what the rasterizer is
+        // about to draw with — and reading it cannot drift from that the way catching four setters
+        // and redoing the arithmetic between them could.
+        //
+        // Its *position* is the negative of the direction light travels, which is the convention
+        // OpenGL's fixed-function lighting wanted and the opposite of what the tracer takes.
+        const osg::Vec4f place = mSunLight->getPosition();
+        osg::Vec3f sun(-place.x(), -place.y(), -place.z());
+        if (sun.length2() > 0.0f)
+            sun.normalize();
+
+        const osg::Vec4f diffuse = mSunLight->getDiffuse();
+        const osg::Vec4f ambient = mSunLight->getAmbient();
+        const osg::Vec4f haze = mFog->getFogColor(false);
+
+        // **The fog is a linear ramp here and a medium there**, so what is matched is where each is
+        // half gone. The rasterizer's ramp is half gone at the midpoint of `start` and `end`, and an
+        // exponential at `ln(2) / sigma` — the same derivation `RtxBridge::fogExtinction` makes from
+        // a recorded depth, reached instead from the distances the game has already computed.
+        const float half = 0.5f * (mFog->getFogStart(false) + mFog->getFogEnd(false));
+
+        mTracer->trace(*mSceneRoot, *mViewer->getCamera(),
+            Rtx::Lighting{
+                .mSunDirection = sun,
+                .mSunIrradiance = osg::Vec3f(diffuse.r(), diffuse.g(), diffuse.b()) * ::Rtx::Shaders::DAYLIGHT,
+                .mAmbient = osg::Vec3f(ambient.r(), ambient.g(), ambient.b()),
+                .mFog = osg::Vec3f(haze.r(), haze.g(), haze.b()),
+                .mFogExtinction = half > 0.0f ? std::numbers::ln2_v<float> / half : 0.0f,
+                .mWaterLevel = mTracedWaterLevel,
+            },
+            mViewer->getFrameStamp()->getFrameNumber(), *mResourceSystem->getImageManager());
     }
 #endif
 
@@ -849,6 +885,13 @@ namespace MWRender
 
     void RenderingManager::setWaterEnabled(bool enabled)
     {
+#ifdef OPENMW_RTX
+        // Negative infinity and not zero: zero is sea level, and a cell with no water has to answer
+        // "how deep is this point" with never.
+        if (!enabled)
+            mTracedWaterLevel = -std::numeric_limits<float>::infinity();
+#endif
+
         mWater->setEnabled(enabled);
         mSky->setWaterEnabled(enabled);
 
@@ -857,6 +900,10 @@ namespace MWRender
 
     void RenderingManager::setWaterHeight(float height)
     {
+#ifdef OPENMW_RTX
+        mTracedWaterLevel = height;
+#endif
+
         mWater->setCullCallback(mTerrain->getHeightCullCallback(height, Mask_Water));
         mWater->setHeight(height);
         mSky->setWaterHeight(height);

@@ -19,6 +19,11 @@ namespace osg
     class StateSet;
 }
 
+namespace SceneUtil
+{
+    class LightSource;
+}
+
 namespace Terrain
 {
     class TerrainDrawable;
@@ -56,6 +61,10 @@ namespace RtxBridge
         /// Geometry with no vertices or no triangles. Morrowind ships some.
         std::uint32_t mSkippedEmpty = 0;
 
+        /// Lamps taken off the graph. Zero in the harness, which has no `LightManager` and reads
+        /// the cell's `LIGH` records instead.
+        std::uint32_t mLights = 0;
+
         ExtractionStats& operator+=(const ExtractionStats& other);
     };
 
@@ -80,7 +89,16 @@ namespace RtxBridge
         ///
         /// Takes a const reference because nothing here writes to the graph; OSG's visitor API is
         /// non-const throughout regardless, so the cast happens once, here.
-        ExtractionStats extract(const osg::Node& node, const osg::Matrixf& transform);
+        /// @param frame which of a `SceneUtil::LightSource`'s two buffers to read. The game passes
+        ///        the viewer's frame number, which is the one update has just finished writing;
+        ///        anything with no `LightManager` in its graph can leave it.
+        ExtractionStats extract(const osg::Node& node, const osg::Matrixf& transform, std::size_t frame = 0);
+
+        /// Places one light. **The graph and not the content files**, because that is where a light
+        /// that moves with the thing carrying it exists: a torch in an NPC's hand is no cell
+        /// record, and neither is a lamp something picked up and put down.
+        void addLight(const SceneUtil::LightSource& source, const osg::NodePath& path, const osg::Matrixf& root,
+            std::size_t frame, ExtractionStats& stats);
 
         /// Resolves one drawable and places it. The visitor's whole contract with this class.
         ///

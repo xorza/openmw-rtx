@@ -23,6 +23,16 @@ namespace RtxBridge
     /// a framebuffer and meaningless to anything that traces a ray to an emitter.
     std::optional<Rtx::Light> makeLight(const ESM::Light& record, const osg::Vec3f& position);
 
+    /// The same light, from a colour and a radius rather than from a record.
+    ///
+    /// **One conversion and two callers**, which is the point: the harness reads a cell's `LIGH`
+    /// records and the game reads the `SceneUtil::LightSource` nodes its own scene graph already
+    /// holds, and the two must not come to disagree about how bright a candle is.
+    ///
+    /// @param colour linear, as the game's own lighting already is.
+    /// @param radius the recorded one. Null where it is not a size a light can have.
+    std::optional<Rtx::Light> makeLight(const osg::Vec3f& colour, float radius, const osg::Vec3f& position);
+
     /// The sun and the sky at one hour, as the content files describe them.
     ///
     /// Every colour here is a fallback setting the game reads for itself, and the sun's path is the

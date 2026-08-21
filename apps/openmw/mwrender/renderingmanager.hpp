@@ -362,6 +362,10 @@ namespace MWRender
         /// Null when `Settings::rtx().mEnabled` is off, and when it is on and the renderer would not
         /// start — which is reported once and then left alone, because the game is still playable.
         std::unique_ptr<Rtx::Tracer> mTracer;
+
+        /// What `setWaterHeight` was last told. Kept because `Water` has no getter and the trace
+        /// needs the level to know what is under the surface.
+        float mTracedWaterLevel = -std::numeric_limits<float>::infinity();
 #endif
         std::unique_ptr<EffectManager> mEffectManager;
         std::unique_ptr<SceneUtil::ShadowManager> mShadowManager;

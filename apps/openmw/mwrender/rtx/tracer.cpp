@@ -21,26 +21,6 @@ namespace MWRender::Rtx
         /// Far enough to cross any cell. A primary ray that reaches this has left the world.
         constexpr float sFar = 200000.0f;
 
-        /// A plain noon until the game's own weather is wired in.
-        ///
-        /// **A placeholder, and one worth naming rather than leaving as a black frame.** Everything
-        /// the sky and the sun need is already something `RenderingManager` is handed —
-        /// `setSunDirection`, `setSunColour`, `setAmbientColour`, `configureFog` — and connecting
-        /// them is the next piece of M11, not this one.
-        void litPlainly(::Rtx::Shaders::VisibilityConstants& camera)
-        {
-            camera.mSunDirection = osg::Vec3f(0.0f, 0.34f, -0.94f);
-            camera.mSunIrradiance = osg::Vec3f(3.0f, 2.9f, 2.6f);
-            camera.mSkyHorizon = osg::Vec3f(0.42f, 0.52f, 0.72f);
-            camera.mSkyZenith = osg::Vec3f(0.18f, 0.30f, 0.62f);
-
-            // **Enough that an interior is not black.** A room the outdoor sun cannot reach is lit
-            // by its own `AMBI` and its own lamps, and this placeholder has neither — so without
-            // this the first thing anyone sees of the ray tracer in the game is an unlit box, which
-            // looks exactly like a broken handoff.
-            camera.mAmbient = osg::Vec3f(0.12f, 0.12f, 0.14f);
-        }
-
         /// Whether `makeCamera` can be built from this direction at all.
         ///
         /// **Asked here rather than caught there.** A camera with no roll is a contract `makeCamera`
@@ -111,20 +91,24 @@ namespace MWRender::Rtx
         mShared = true;
     }
 
-    void Tracer::trace(const osg::Node& scene, const osg::Camera& camera, Resource::ImageManager& images)
+    void Tracer::trace(const osg::Node& scene, const osg::Camera& camera, const Lighting& lighting, std::size_t frame,
+        Resource::ImageManager& images)
     {
+        mFrame = frame;
+
         if (!mMirrored)
         {
             ::Rtx::SceneDesc described;
             RtxBridge::SceneExtractor extractor(described);
             const RtxBridge::ExtractionStats found
-                = extractor.extract(const_cast<osg::Node&>(scene), osg::Matrixf::identity());
+                = extractor.extract(const_cast<osg::Node&>(scene), osg::Matrixf::identity(), mFrame);
 
             if (described.getInstances().empty())
                 return;
 
             Log(Debug::Info) << "Ray tracing mirrored " << found.mMeshesAdded << " meshes into " << found.mInstances
-                             << " instances, and skipped " << found.mSkippedDeformed << " deformed";
+                             << " instances with " << found.mLights << " lights, and skipped " << found.mSkippedDeformed
+                             << " deformed";
 
             // The bridge decodes and describes; the backend uploads. Held only across the call —
             // `setScene` has finished with the descriptions when it returns.
@@ -144,7 +128,19 @@ namespace MWRender::Rtx
         const ::Rtx::FrameExtents extents = mRenderer->getExtents();
         ::Rtx::Shaders::VisibilityConstants constants = ::Rtx::makeCamera(
             eye, centre, Settings::camera().mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, sFar);
-        litPlainly(constants);
+        constants.mSunDirection = lighting.mSunDirection;
+        constants.mSunIrradiance = lighting.mSunIrradiance;
+        constants.mAmbient = lighting.mAmbient;
+        constants.mWaterLevel = lighting.mWaterLevel;
+
+        // The horizon is the fog, and the zenith with it until the sky's own colour is reached.
+        // **It goes to `SkyManager` and never through `RenderingManager`**, so there is nothing
+        // settled to read it off — which is a wire to run, not a number to invent.
+        constants.mSkyHorizon = lighting.mFog;
+        constants.mSkyZenith = lighting.mFog;
+
+        constants.mFogColour = lighting.mFog;
+        constants.mFogExtinction = lighting.mFogExtinction;
 
         // **Measured, not held at one.** A picture wants the exposure the frame asks for; holding
         // it is what a reference and a pixel test want, and the default is theirs. Without this an

@@ -160,22 +160,27 @@ namespace RtxBridge
         return osg::Vec3f(channel(packed), channel(packed >> 8), channel(packed >> 16));
     }
 
+    std::optional<Rtx::Light> makeLight(const osg::Vec3f& colour, float radius, const osg::Vec3f& position)
+    {
+        // The radius comes off a file something else wrote, or off a graph something else built, so
+        // a nonsensical one is data rather than a broken contract: a light with no size lights
+        // nothing and is dropped.
+        if (!(radius > 0.0f))
+            return std::nullopt;
+
+        return Rtx::Light{
+            .mPosition = position,
+            .mIntensity = colour * (radius * radius * sIntensity),
+            .mReach = radius * sReachScale + sReachBonus,
+        };
+    }
+
     std::optional<Rtx::Light> makeLight(const ESM::Light& record, const osg::Vec3f& position)
     {
         constexpr int notPlaced = ESM::Light::Carry | ESM::Light::Negative | ESM::Light::OffDefault;
         if ((record.mData.mFlags & notPlaced) != 0)
             return std::nullopt;
 
-        // The file is on disk and something else wrote it, so a nonsensical radius is data rather
-        // than a broken contract: a light with no size lights nothing and is dropped.
-        const auto radius = static_cast<float>(record.mData.mRadius);
-        if (!(radius > 0.0f))
-            return std::nullopt;
-
-        return Rtx::Light{
-            .mPosition = position,
-            .mIntensity = decodeColour(record.mData.mColor) * (radius * radius * sIntensity),
-            .mReach = radius * sReachScale + sReachBonus,
-        };
+        return makeLight(decodeColour(record.mData.mColor), static_cast<float>(record.mData.mRadius), position);
     }
 }
