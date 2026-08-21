@@ -37,6 +37,13 @@ namespace RtxTool
         /// Zero shows the textures as they were drawn, with their lighting still in them.
         float mDelight = 1.0f;
 
+        /// Whether each frame samples a different point inside its pixel.
+        ///
+        /// Only worth anything to something putting several frames together: with `--accumulate` it
+        /// turns a converged reference into an antialiased one, and it is what an upscaler
+        /// reconstructs detail from.
+        bool mJitter = false;
+
         /// Whether the denoiser runs. Off is how a reference is made, and how the noise the filter
         /// is meant to remove can be looked at.
         bool mFilter = true;

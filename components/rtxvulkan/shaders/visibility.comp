@@ -1672,8 +1672,10 @@ void main()
     if (pixel.x >= camera.mWidth || pixel.y >= camera.mHeight)
         return;
 
-    // Pixel centres, and y downwards in the image against z upwards in the world.
-    const vec2 uv = (vec2(pixel) + 0.5) / vec2(camera.mWidth, camera.mHeight) * 2.0 - 1.0;
+    // Pixel centres, and y downwards in the image against z upwards in the world. The jitter is
+    // added to the index rather than to the direction so it cannot disagree with which way is down.
+    const vec2 uv
+        = (vec2(pixel) + 0.5 + camera.mJitter) / vec2(camera.mWidth, camera.mHeight) * 2.0 - 1.0;
     const vec3 direction = normalize(camera.mForward + camera.mRight * uv.x - camera.mUp * uv.y);
 
     const Surface surface = trace(camera.mOrigin, direction, 0.0, 0.0, camera.mSpreadAngle, MASK_SOLID | MASK_WATER);

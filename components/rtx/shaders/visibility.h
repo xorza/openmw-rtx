@@ -14,11 +14,13 @@
 
 #include <cstdint>
 
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec3ui>
 
 namespace Rtx::Shaders
 {
+    using vec2 = osg::Vec2f;
     using vec3 = osg::Vec3f;
     using uvec3 = osg::Vec3ui;
     using uint = std::uint32_t;
@@ -52,6 +54,19 @@ namespace Rtx::Shaders
         /// The world's own size, near enough: a primary ray that reaches this has left it, and so
         /// has the sun's shadow ray, which is the same question asked from the other end.
         float mFar;
+
+        /// Where inside its pixel the primary ray is sent, in pixels, `(0, 0)` being the centre.
+        ///
+        /// **The same axes the pixel index uses**: x to the right and y *down* the image. That is
+        /// not the world's up, and writing it the other way round is the mistake to make here — the
+        /// reference implementation shipped this with the sign wrong on both axes and the frame
+        /// looked entirely plausible, because a wrong jitter still antialiases. It rides along with
+        /// the pixel index in the shader for exactly that reason: added to the same number, it
+        /// cannot disagree with it.
+        ///
+        /// Zero is a ray through the pixel's centre, which is every frame that is not being
+        /// upscaled or averaged.
+        vec2 mJitter;
 
         /// The angle one pixel subtends, in radians.
         ///
@@ -160,7 +175,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
-    static_assert(sizeof(VisibilityConstants) == 192, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 200, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

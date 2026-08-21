@@ -124,6 +124,9 @@ namespace RtxTool
 
             addOption("list-views", bpo::bool_switch(), "print the named viewpoints and quit");
 
+            addOption("jitter", bpo::bool_switch(),
+                "move each frame's sample inside its pixel, along a Halton sequence. With "
+                "--accumulate this is what makes a reference antialiased");
             addOption("delight", bpo::value<float>()->default_value(1.0f),
                 "how much of the lighting painted into each texture to divide back out, from 0 to 1. "
                 "Zero is the A/B that says what it did");
@@ -710,6 +713,7 @@ namespace RtxTool
                 request.mOrigin = chosen.mOrigin;
                 request.mTarget = chosen.mTarget;
                 request.mShowAlbedo = variables["albedo"].as<bool>();
+                request.mJitter = variables["jitter"].as<bool>();
                 request.mFilter = variables["filter"].as<bool>();
                 request.mDelight = variables["delight"].as<float>();
                 request.mWeather = variables["weather"].as<std::string>();

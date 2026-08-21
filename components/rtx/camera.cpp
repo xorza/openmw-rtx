@@ -10,6 +10,37 @@
 
 namespace Rtx
 {
+    namespace
+    {
+        /// The `index`th term of the radical inverse in `base`, which is Halton's whole definition:
+        /// write the index in that base and reflect its digits about the point.
+        float radicalInverse(std::uint32_t index, std::uint32_t base)
+        {
+            float result = 0.0f;
+            float place = 1.0f / static_cast<float>(base);
+
+            while (index > 0)
+            {
+                result += static_cast<float>(index % base) * place;
+                index /= base;
+                place /= static_cast<float>(base);
+            }
+
+            return result;
+        }
+    }
+
+    osg::Vec2f haltonJitter(std::uint32_t index)
+    {
+        // Counted from one, because the sequence's zeroth term is the origin — a frame that sampled
+        // the pixel's corner would contribute nothing an unjittered frame did not.
+        const std::uint32_t term = index + 1;
+
+        // Centred, so the offsets straddle the pixel centre rather than filling the quadrant below
+        // and to the right of it.
+        return osg::Vec2f(radicalInverse(term, 2) - 0.5f, radicalInverse(term, 3) - 0.5f);
+    }
+
     Shaders::VisibilityConstants makeCamera(const osg::Vec3f& origin, const osg::Vec3f& target,
         float verticalFovDegrees, std::uint32_t width, std::uint32_t height, float far)
     {

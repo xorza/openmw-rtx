@@ -3,6 +3,7 @@
 #include <cassert>
 #include <chrono>
 
+#include <components/rtx/camera.hpp>
 #include <components/rtx/error.hpp>
 #include <components/rtx/scenedesc.hpp>
 
@@ -132,6 +133,13 @@ namespace Rtx
         *static_cast<std::uint32_t*>(mHitCount.map()) = 0;
         mHitCount.unmap();
 
+        // The camera as the caller wrote it, plus where in the pixel this frame samples. Filled
+        // here rather than by the caller because the sequence belongs to the frame index, which is
+        // the renderer's to walk.
+        Shaders::VisibilityConstants sampled = camera;
+        if (options.mJitter)
+            sampled.mJitter = haltonJitter(camera.mFrame);
+
         const VisibilityInputs inputs{
             .mScene = mAcceleration->getTopLevel(),
             .mBuffers = mBuffers.get(),
@@ -162,13 +170,13 @@ namespace Rtx
                     VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
 
             mChannels->begin(commands);
-            mPass->record(commands, inputs, *mChannels, mHitCount, camera);
+            mPass->record(commands, inputs, *mChannels, mHitCount, sampled);
             mChannels->handOver(commands);
 
             // Where the bounce ended up: the filter's last level, or the channel the trace wrote
             // when nothing filtered it.
             const Image& indirect
-                = options.mFilter ? mFilter.record(commands, *mChannels, camera) : mChannels->getIndirect();
+                = options.mFilter ? mFilter.record(commands, *mChannels, sampled) : mChannels->getIndirect();
 
             mComposite.record(commands, *mChannels, indirect, mHistory.get(), *mTarget,
                 Shaders::CompositeConstants{

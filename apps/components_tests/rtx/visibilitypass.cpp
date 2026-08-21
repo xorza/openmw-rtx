@@ -391,7 +391,8 @@ namespace Rtx
             ///        about the filter ask for it.
             std::uint32_t countHits(const SceneDesc& scene, std::span<const TextureData> textures,
                 const Shaders::VisibilityConstants& camera, std::uint32_t size, std::vector<std::uint8_t>& pixels,
-                const SeaState& sea = SeaState{}, std::uint32_t accumulate = 0, bool filter = false)
+                const SeaState& sea = SeaState{}, std::uint32_t accumulate = 0, bool filter = false,
+                bool jitter = false)
             {
                 mRenderer->resize(size, size);
                 mRenderer->setScene(scene, textures, sea);
@@ -411,7 +412,9 @@ namespace Rtx
                     // answer rather than a sum to be divided back down.
                     hits = mRenderer
                                ->renderFrame(sampled,
-                                   FrameOptions{ .mAccumulate = accumulate > 0 ? frame + 1 : 0, .mFilter = filter })
+                                   FrameOptions{ .mAccumulate = accumulate > 0 ? frame + 1 : 0,
+                                       .mJitter = jitter,
+                                       .mFilter = filter })
                                .mHits;
                 }
 
@@ -422,6 +425,145 @@ namespace Rtx
             Renderer* mRenderer = nullptr;
             std::vector<std::string> mErrors;
         };
+
+        /// Halton, against its own definition worked out by hand.
+        ///
+        /// The radical inverse writes an index in a base and reflects its digits about the point, so
+        /// term one in base two is 0.1 binary and term two is 0.01 — a half and a quarter. Base
+        /// three's first three are a third, two thirds and a ninth. Centring subtracts a half from
+        /// each, and the sequence is counted from one because term zero is the origin: a frame that
+        /// sampled the pixel's corner would tell an upscaler nothing an unjittered one did not.
+        TEST(RtxJitterTest, theSequenceIsHaltonInTwoAndThreeAndStraddlesTheCentre)
+        {
+            EXPECT_NEAR(haltonJitter(0).x(), 0.0f, 1e-6f) << "1/2 - 1/2";
+            EXPECT_NEAR(haltonJitter(1).x(), -0.25f, 1e-6f) << "1/4 - 1/2";
+            EXPECT_NEAR(haltonJitter(2).x(), 0.25f, 1e-6f) << "3/4 - 1/2";
+            EXPECT_NEAR(haltonJitter(3).x(), -0.375f, 1e-6f) << "1/8 - 1/2";
+
+            EXPECT_NEAR(haltonJitter(0).y(), 1.0f / 3.0f - 0.5f, 1e-6f);
+            EXPECT_NEAR(haltonJitter(1).y(), 2.0f / 3.0f - 0.5f, 1e-6f);
+            EXPECT_NEAR(haltonJitter(2).y(), 1.0f / 9.0f - 0.5f, 1e-6f);
+
+            // Inside the pixel, every term, which is what makes it a sub-pixel offset rather than a
+            // camera shake.
+            for (std::uint32_t index = 0; index < 64; ++index)
+            {
+                const osg::Vec2f at = haltonJitter(index);
+                EXPECT_GE(at.x(), -0.5f);
+                EXPECT_LT(at.x(), 0.5f);
+                EXPECT_GE(at.y(), -0.5f);
+                EXPECT_LT(at.y(), 0.5f);
+            }
+        }
+
+        /// Which way the jitter moves the picture, which is the half of this that looks fine wrong.
+        ///
+        /// **A wrong sign still antialiases**, so nothing about a smoothed edge can catch one, and
+        /// the reference implementation shipped both axes inverted. What catches it is an edge and a
+        /// direction: a wall covering the left half of the frame, and a sample point moved right,
+        /// has to lose exactly one column of hits.
+        ///
+        /// Half a pixel exactly, so the answer is a whole column and no pixel lands on the boundary.
+        TEST_F(RtxVisibilityTest, theJitterMovesTheSampleTheWayTheImageIsIndexed)
+        {
+            constexpr std::uint32_t size = 64;
+
+            // The frame is 2 * 100 * tan(30) = 115.47 units across at the wall, which is 1.8042 to
+            // the pixel. The wall's edge is put a quarter of a pixel right of the image's centre
+            // line — 0.4510 units — so that it falls between the boundary and the first column right
+            // of it, and a half-pixel move takes exactly one column across it.
+            constexpr float edge = 0.4510f;
+            const std::array half{
+                osg::Vec3f(-4000.0f, 0.0f, -4000.0f),
+                osg::Vec3f(edge, 0.0f, -4000.0f),
+                osg::Vec3f(edge, 0.0f, 4000.0f),
+                osg::Vec3f(-4000.0f, 0.0f, 4000.0f),
+            };
+
+            SceneDesc scene;
+            scene.addInstance(MeshInstance{
+                .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(half, {}, {}, sQuadIndices) });
+
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            const auto covered = [&](float acrossX) {
+                camera.mJitter = osg::Vec2f(acrossX, 0.0f);
+
+                std::vector<std::uint8_t> pixels;
+                return countHits(scene, {}, camera, size, pixels);
+            };
+
+            const std::uint32_t centred = covered(0.0f);
+            ASSERT_GT(centred, 0u);
+            ASSERT_LT(centred, size * size) << "the wall has to cover part of the frame and not all";
+
+            // **Asymmetric on purpose, because that is what carries the sign.** The first column
+            // right of the edge samples a quarter pixel past it, so moving left by half a pixel
+            // brings that column onto the wall and moving right by half a pixel changes nothing at
+            // all. Invert either axis and the two swap.
+            EXPECT_EQ(covered(-0.5f), centred + size) << "half a pixel left gains one column";
+            EXPECT_EQ(covered(0.5f), centred) << "and half a pixel right crosses nothing";
+        }
+
+        /// Jitter and the reference mode together, which is the only thing jitter is good for.
+        ///
+        /// **One jittered frame is just a frame sampled slightly wrong.** What the sequence buys is
+        /// what several of them cover between them: over sixteen frames the sample points spread
+        /// across the pixel, so a pixel the edge cuts through averages the two sides in proportion
+        /// to how much of it each covers. Unjittered, every frame samples the same point and the
+        /// average is as hard-edged as one frame is.
+        ///
+        /// The edge is put a quarter of a pixel off the centre line, so the column it crosses is
+        /// three quarters wall and one quarter sky and cannot come out as either.
+        TEST_F(RtxVisibilityTest, jitteredFramesAverageIntoAnAntialiasedEdge)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float edge = 0.4510f;
+
+            const std::array half{
+                osg::Vec3f(-4000.0f, 0.0f, -4000.0f),
+                osg::Vec3f(edge, 0.0f, -4000.0f),
+                osg::Vec3f(edge, 0.0f, 4000.0f),
+                osg::Vec3f(-4000.0f, 0.0f, 4000.0f),
+            };
+
+            SceneDesc scene;
+            scene.addInstance(MeshInstance{
+                .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(half, {}, {}, sQuadIndices) });
+
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            // Green sky, so the wall's grey and the sky cannot be confused, and a pixel that mixed
+            // them reads as neither.
+            camera.mSkyHorizon = osg::Vec3f(0.0f, 0.25f, 0.0f);
+            camera.mSkyZenith = osg::Vec3f(0.0f, 0.25f, 0.0f);
+            camera.mShowAlbedo = 1u;
+
+            // The last column the wall covers, and the first one past it.
+            constexpr std::size_t row = std::size_t{ size / 2 } * size;
+            const auto redAt = [](const std::vector<std::uint8_t>& pixels, std::size_t column) {
+                return static_cast<int>(pixels[(row + column) * 4]);
+            };
+
+            std::vector<std::uint8_t> hard;
+            countHits(scene, {}, camera, size, hard, SeaState{}, 16, false, false);
+
+            std::vector<std::uint8_t> soft;
+            countHits(scene, {}, camera, size, soft, SeaState{}, 16, false, true);
+
+            // Unjittered, every one of the sixteen samples the same point, so the two columns are
+            // the wall's byte and the sky's with nothing between them.
+            EXPECT_NEAR(redAt(hard, size / 2 - 1), 187, 1) << "wall";
+            EXPECT_EQ(redAt(hard, size / 2), 0) << "sky, which has no red in it";
+
+            // Jittered, the column the edge crosses is part of each. Red comes only from the wall,
+            // so anything between nothing and the wall's own byte is the edge being resolved.
+            EXPECT_NEAR(redAt(soft, size / 2 - 1), 187, 1) << "still wall a whole pixel in";
+            EXPECT_GT(redAt(soft, size / 2), 10) << "the edge column picked up some wall";
+            EXPECT_LT(redAt(soft, size / 2), 180) << "and did not become it";
+        }
 
         /// A wall bigger than the field of view leaves no room for sky.
         ///

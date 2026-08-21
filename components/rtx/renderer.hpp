@@ -72,6 +72,17 @@ namespace Rtx
         /// glint, which are exactly the pixels a filter is most likely to get wrong.
         std::uint32_t mAccumulate = 0;
 
+        /// Whether to move the primary ray inside its pixel, by where the frame index falls in a
+        /// Halton sequence.
+        ///
+        /// Overwrites the camera's own `mJitter`, which is otherwise left as the caller wrote it —
+        /// zero for anything `makeCamera` made, and an exact offset where something wants one.
+        ///
+        /// **Off unless something is putting the frames back together.** A jittered frame on its own
+        /// is the same picture sampled slightly wrong; it is only worth anything to an upscaler
+        /// reconstructing from several, or to a sum that averages them into an antialiased one.
+        bool mJitter = false;
+
         /// Whether the denoiser runs over the indirect channel.
         ///
         /// **Off is how the answer it is judged against gets made.** A converged reference is the
