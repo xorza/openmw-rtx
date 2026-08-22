@@ -41,6 +41,8 @@ Consequences to accept:
   LOD happen. The **draw** is what goes away.
 - The mirror must be incremental. A full rebuild per frame is the naive version and it will not hold
   a frame budget; instance transforms change every frame, geometry rarely, materials almost never.
+  Geometry and materials met that from M1; placements did not, and `docs/rtx/mirror.md` is the
+  measurement of what that costs and the shape that replaces it.
 - Some things OpenMW hands the graph are draw-order tricks rather than geometry — `RenderBin`
   ordering, the transparent-pass hack, the distortion pass, `pingpongcull`. Those are rasterizer
   workarounds and simply do not come across; the RT path answers the same questions with rays.
