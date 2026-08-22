@@ -1,5 +1,10 @@
 # Open issues
 
+- An actor outside the camera frustum is mirrored in a stale pose. `RigGeometry::accept` skins only
+  when a `CullVisitor` reaches it and `getDeformedGeometry` returns what the last cull produced, so
+  anyone off screen is frozen in whatever pose they had when last visible — wrong in every water
+  reflection and every shadow they cast.
+
 - A freed texture slot keeps the image that was in it until something takes the slot over, so a
   region walked away from goes on costing its texture memory until an equal number arrive.
 

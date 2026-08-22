@@ -4,8 +4,10 @@ An experimental ray-traced renderer inside this OpenMW fork. The posture and the
 in `CLAUDE.md`; the host engine's structure and the seams named below are in `docs/rtx/openmw.md`. This file
 is the route.
 
-Status belongs in commits and in `docs/rtx/design.md` once that exists — **not here**, so this file
-stays worth trusting.
+**Decisions and what they came to, not a changelog.** §2–§5 are the choices everything else rests on;
+§6 is the route and what each milestone settled; §7 is the tooling that decides how fast it goes;
+§10–§12 are the live ones — where the current design came from and what is still wrong. Blow-by-blow
+belongs in commits.
 
 ---
 
@@ -37,8 +39,12 @@ already made their decisions. The mirror is a traversal and a diff, not a conten
 
 Consequences to accept:
 
-- The cull traversal still runs (`docs/rtx/openmw.md` §3.4). It is cheap and it is what makes skinning and
-  LOD happen. The **draw** is what goes away.
+- ~~The cull traversal still runs. It is cheap and it is what makes skinning and LOD happen.~~
+  **Wrong, and §12 has the evidence.** Cull is view-dependent, so inheriting skinning, terrain LOD
+  and object paging from it means an actor outside the frustum is mirrored in a stale pose and
+  distant geometry is absent from reflections. The decision to mirror the graph is untouched; what
+  changes is that the three things OpenMW hangs off the cull traversal have to become ours, after
+  which the traversal has no reason to run and the draw goes with it.
 - The mirror must be incremental. A full rebuild per frame is the naive version and it will not hold
   a frame budget; instance transforms change every frame, geometry rarely, materials almost never.
   Geometry and materials met that from M1; placements did not, and `docs/rtx/mirror.md` is the
@@ -68,6 +74,35 @@ character-preview doll, the local map, the global map and video playback are all
 users (`docs/rtx/openmw.md` §7), and each would need reimplementing before the game was playable again.
 Interop costs one full-screen blit and one semaphore wait per frame and keeps every one of them
 working. A native Vulkan window is a legitimate end state; it is not the way in.
+
+### What the end state would cost, now that it is worth costing
+
+The reasoning above is still right about the *order*, and it has aged in one respect: most of the
+render-to-texture users it names are rasterizer features this renderer replaces rather than things to
+port. Of the ten files in `mwrender` that use one, the sky, the water's reflection and refraction, the
+ripples, the precipitation occlusion and the post-processor are all answered with rays or not needed.
+What is actually left is four things.
+
+| what | what it becomes | size |
+|---|---|---|
+| MyGUI | a Vulkan render manager: textured quads, a scissor, a texture cache | the one real piece — `components/myguiplatform` is 1,529 lines and its twin would be comparable |
+| the inventory doll, the local and global maps | **traces**, not rasterizations: a second camera into an offscreen image, which this renderer already does for `shot` | small |
+| video playback | FFmpeg decodes the same either way; only the upload and the blit change | small |
+| the window and swapchain | already written — `openmw-rtxtool` has run one since M0 | none |
+
+And a long list of deletions: the GL interop backend, `Tracer`'s composite, the post-processor, the
+rasterizer's water, sky and ripples, `osgViewer` altogether, `sdlutil`'s GL window, the shadow maps,
+`pingpongcull` and the render-bin ordering. **OSG stays as a scene graph and a content loader** — the
+harness has proved since M0 that it needs no GL context to be either.
+
+The payoff is not only the blit. It is that §12 stops being a problem to solve: no interop, no frame
+of latency, no world drawn twice, no cull traversal at all, and frame pacing owned rather than
+inherited.
+
+**It contradicts a standing rule and that is the decision to take, not the estimate.** `CLAUDE.md`
+says the rasterizer stays working and untouched and that the RT path is a compile-time option that
+is off by default. Stripping OpenGL ends both. That is a choice about what this fork is, and it
+belongs to whoever is making it rather than to a plan document.
 
 ## 4. Layout
 
@@ -125,98 +160,56 @@ Water and fog are early because they are the parts already solved next door and 
 change the picture most. Each milestone lands with tests and a `openmw-rtxtool` verb or view that
 demonstrates it.
 
-### M0 — Skeleton, device, and the switch
+**M0–M10 are done. M11 is what is left in the game (§12); M12 is continuous.** What follows keeps
+the decisions each milestone settled and drops the acceptance criteria they were built against.
 
-CMake option and targets; shader compile + validate step; instance and device bring-up with the
-feature set of §5; `VK_EXT_debug_utils` messenger that **aborts on any error in debug builds**;
-`openmw-rtxtool info`. Settings category `[RTX]` declared in all four places (`docs/rtx/openmw.md` §6) and a
-checkbox in the launcher's Graphics page plus the in-game settings window, both marked as taking
-effect on restart.
+### M0–M3 — device, mirror, visibility, textures
 
-*Done when:* `openmw-rtxtool info` prints the RT pipeline properties; a test brings a device up and
-down with zero validation errors; the toggle round-trips through the launcher and the config file.
+`SceneDesc` and a `NodeVisitor` in `openmw-rtx-bridge` that walks an `osg::Node` and emits meshes,
+instances with world transforms, materials from the state-set roles, and lights. BLAS per mesh, TLAS
+per frame, a ray-query compute pass. One bindless texture array, DDS blocks passed through untouched.
 
-### M1 — Scene description and extraction
-
-`SceneDesc` types. A `NodeVisitor` in `openmw-rtx-bridge` that walks an `osg::Node` and emits meshes
-(dedup by `osg::Geometry*` and by content hash for paged chunks), instances with world transforms,
-materials from the stateset roles, and lights. Change tracking: a dirty set, not a rebuild.
-`openmw-rtxtool scene --cell X` prints the counts.
-
-*Done when:* a fixture NIF extracts to a hand-counted triangle and material count; re-extracting an
-unchanged graph produces an empty dirty set.
-
-### M2 — Primary visibility
-
-BLAS per mesh, TLAS per frame, a ray-query compute pass writing depth, instance id and barycentrics.
-`openmw-rtxtool screenshot`. **Interop spike here, not later** — get a flat-shaded RT image into the
-game window while it is still simple enough to debug.
-
-*Done when:* Seyda Neen's shore renders recognisably; the primary-hit fraction is reported on stdout
-and asserted by a test; the same image appears in the game window through the interop path.
+Two decisions from this stretch still bind. **The interop spike happened at M2, not later** — getting
+a flat-shaded RT image into the game window while it was still simple enough to debug. And **ray-cone
+texture LOD went in from the start**: retrofitting it is how rtxmw lost a week of caustics
+(`design.md` §7.6).
 
 ### M2b — Terrain, in the harness only
 
-In the game terrain arrives free: `Terrain::QuadTreeWorld` has already put chunks in the scene graph
-by cull time, and the mirror picks them up like anything else. Headless there is no `Terrain::World`
-at all, so an exterior renders as objects floating in sky — Seyda Neen traced at 5.5% before this and
-79% after.
+In the game terrain arrives free: `Terrain::QuadTreeWorld` has already put chunks in the graph by cull
+time and the mirror takes them like anything else. Headless there is no `Terrain::World` at all, so an
+exterior rendered as objects floating in sky — Seyda Neen traced at 5.5% before and 79% after. An
+`ESMTerrain::Storage` over `EsmData::mLands` feeds a `Terrain::TerrainGrid`, one chunk grid per cell,
+no LOD. **The renderer did not change at all**, which is the mirroring argument proving itself on the
+first thing it was asked to carry.
 
-A `ESMTerrain::Storage` over `EsmData::mLands`, which are already loaded, feeding a
-`Terrain::TerrainGrid`. One chunk grid per cell, no LOD: the quadtree is for a world that streams,
-and this one loads a cell and stops. **The renderer does not change at all** — chunks come out as
-`osg::Geometry` and the extractor takes them like any other drawable, which is the mirroring argument
-proving itself on the first thing it was asked to carry.
-
-Land *textures* came later, with M3's materials, and needed two things the rest of the loader does
-not have. A cell's blend map indexes into the texture list of the plugin that wrote it, so the key is
-`(plugin, index)` rather than a record id — and the id still matters, because redefining one repaints
-every index that reaches it. And the shading is not on the scene graph at all:
-`Terrain::TerrainDrawable` carries one alpha-blended pass per ground texture over the same triangles,
-which is how a rasterizer draws a blend it cannot sample in one go. The RT path reads the pass vector
-back into layers and sums them at the hit — the first place a mirrored material is not a copy of what
-OpenSceneGraph would have drawn.
-
-### M3 — Textures and bindless materials
-
-Upload from `osg::Image` — DDS blocks pass through untouched, everything else is converted; mip
-chains preserved or generated. One bindless descriptor array. Ray-cone texture LOD from the start:
-retrofitting it is how rtxmw lost a week of caustics (`design.md` §7.6).
-
-*Done when:* an albedo-only render matches the vanilla texel at a named pixel; a mip-level test
-proves the cone is being used; a masked surface in front of a wall shows the wall through its holes.
+Land textures needed two things the rest of the loader does not have. A cell's blend map indexes into
+the texture list of *the plugin that wrote it*, so the key is `(plugin, index)` and not a record id.
+And the shading is not on the scene graph: `Terrain::TerrainDrawable` carries one alpha-blended pass
+per ground texture over the same triangles, which is how a rasterizer draws a blend it cannot sample
+in one go. The RT path reads the pass vector back into layers and sums them at the hit — the first
+place a mirrored material is not a copy of what OSG would have drawn.
 
 ### M4 — Direct lighting and shadows
 
-Point lights and cell ambient first, since that is what an interior *is* — and the sun waits for M5,
-because an exterior's direction and colour come from `MWWorld::Weather` and the harness has no
-weather. Traced shadows, with water excluded by a mask bit rather than by a cutout test — the
-any-hit version halves the frame rate (`design.md` §7.6). A shadow ray runs the same candidate loop
-primary visibility does, so a grate throws bars, but at the finest mip: a shadow carries no cone to
-resolve with. Opacity micromaps retire the loop at M12.
+Traced shadows, with water excluded **by a mask bit rather than by a cutout test** — the any-hit
+version halves the frame rate (`design.md` §7.6).
 
-Everything about a lamp is derived, because a `LIGH` record carries a colour and a radius and **no
-intensity**: the original renderer's fixed falloff curve supplied brightness. Intensity comes off the
-recorded radius squared, and the reach off the radius stretched — Morrowind's radii light a lantern's
+**Everything about a lamp is derived, because a `LIGH` record carries a colour and a radius and no
+intensity**: the original renderer's fixed falloff supplied the brightness. Intensity comes off the
+recorded radius squared and the reach off the radius stretched — Morrowind's radii light a lantern's
 own post and nothing else, which worked when an ambient term lit the room and does not when the
-ambient is real light. Binning into a world grid (`design.md` §8.10) waits until a cell has enough
-lights to measure; the most so far is 26.
-
-*Done when:* radiance at a test pixel matches a hand-computed value; removing a light provably
-changes that pixel; the sun's shadow terminator lands where the geometry says.
+ambient is real light.
 
 ### M5 — Sky, sun, moons
 
-Driven by `MWWorld::Weather` and `DateTimeManager` rather than re-derived from the ini — the one
-place this fork starts ahead of rtxmw (`design.md` §8.45, §8.50, §8.53, §8.59 all describe work that
-is a getter here). Sky is a light source, not a backdrop.
+Driven by `MWWorld::Weather` and `DateTimeManager` rather than re-derived from the ini — the one place
+this fork starts ahead of rtxmw (`design.md` §8.45, §8.50, §8.53, §8.59 all describe work that is a
+getter here). **Sky is a light source, not a backdrop.**
 
-The sun and the sky's two colours came first, off the fallback settings the game reads for itself and
-the orbit at `apps/openmw/mwworld/weather.cpp:901`. The harness has no weather *simulation* — that
-needs `MWWorld::World` — so it takes a weather name and an hour, and steps between the four phases
-where the engine ramps across each transition. Exact at every hour outside a transition window, and
-the ramp arrives with the engine at M11. What is still missing is the sky *dome*: moons, clouds, the
-sun's own disc, and stars.
+The harness has no weather *simulation* — that needs `MWWorld::World` — so it takes a weather name and
+an hour and steps between the four phases. Still missing: the sky *dome* — moons, clouds, the sun's
+disc, stars.
 
 ### M6 — Water
 
@@ -299,21 +292,14 @@ OpenMW-side inputs: water level per cell, `has_water = (flags & 0x02) || is_exte
 z = 0 outdoors. Not ported yet by anyone: shoreline foam (the **sign** of `det J` is where a surface
 folds, which is where whitecaps belong) and underwater sun shafts.
 
-*Done when:* the ten-units-above / ten-units-below transmission invariant agrees to 3% (and to 11%
-at a slant, for the reason in §7.6 — water really is clearer from a boat); caustic contrast and
-per-twelfth-second change are measured, not eyeballed; every expectation derives from one
-`EXTINCTION` constant so tuning is a one-line change.
-
-All three hold. The invariant is what found the missing half: the two views are different code paths
-through the same physics and cannot agree while one of them lights the bottom as though the water
-over it were not there — it agrees to two bytes of 63, where the arithmetic says 1.068 in radiance
-compressed by sRGB to about 3%. Every water expectation in the tests derives from `WATER_EXTINCTION`,
-`WATER_IOR` and `WATER_F0` rather than from a literal beside them.
-
-Contrast is 0.366 of the pattern's own mean, and **51.1% of it is new a twelfth of a second later** —
-against the reference's sweep of 73% at an 18-unit cutoff (its best caustics, and they tear), 51% at
-32, and 33% at 50. This fork cuts at 32 and lands on 51: the same spectrum reproducing the same
-behaviour. Both numbers are asserted, so moving the cutoff cannot silently move them.
+**Two numbers the tests hold rather than eyeball.** The ten-above/ten-below transmission invariant
+agrees to 3% — it is what found the missing half, because the two views are different code paths
+through the same physics and cannot agree while one lights the bottom as though the water over it
+were not there. And the caustic pattern is 0.366 contrast with **51.1% of it new a twelfth of a second
+later**, against the reference's sweep of 73% at an 18-unit cutoff (its best, and they tear), 51% at
+32 and 33% at 50. This fork cuts at 32 and lands on 51: the same spectrum reproducing the same
+behaviour. Every water expectation derives from `WATER_EXTINCTION`, `WATER_IOR` and `WATER_F0` rather
+than a literal beside it, so tuning is a one-line change.
 
 ### M7 — Fog
 
@@ -339,10 +325,7 @@ parameter that the document does not describe. Read the shader.
 This fork starts ahead again: `MWRender::FogManager` and `MWWorld::Weather` already supply per-region,
 per-weather fog colour and density, which rtxmw substitutes the sky for.
 
-*Done when:* fog is off in the tests that measure surface radiance, and on in a view whose histogram
-is asserted; a ridge view shows banks below it and a ground view shows structure.
-
-**Done.** The extinction is not the reference's eyeballed figure but `MWRender::FogManager`'s own
+The extinction is not the reference's eyeballed figure but `MWRender::FogManager`'s own
 ramp read back: the original fogs *linearly* from `view * (1 - depth)` to `view`, so matching where
 each is half gone gives `sigma = ln(2) / (view * (1 - depth / 2))`, and clear weather's 0.69 over the
 game's 7168 units comes to 1.476e-4 against the 1.5e-4 settled by eye. It is the same conversion
@@ -395,16 +378,19 @@ Cell add/remove, object add/move/remove, player and actor animation, first/third
 menu and pause behaviour, screenshots, the local map. Settings that can change at runtime take effect
 through `processChangedSettings`.
 
-**Removal is done, and it is mark and sweep.** The mirror re-walks the whole graph every frame, so
-anything alive was met: `SceneExtractor::retire` drops every identity it did not find and
-`SceneDesc::retain` closes the gaps behind it, carrying the survivors' indices through. That is not
+**Removal is done, and it is mark and sweep over slots.** The mirror re-walks the whole graph every
+frame, so anything alive was met: `SceneExtractor::retire` drops every identity it did not find and
+`SceneDesc::release` frees the slots behind it **without renumbering anything** (§10). That is not
 only about memory — the identity maps are keyed on raw `osg` pointers, and an address the engine
 freed when a cell unloaded can be handed straight back for something else, so without the sweep the
 next thing allocated there inherits a mesh it has nothing to do with.
 
-What is left of the milestone's first clause is the *harness*, which still never unloads: it keeps a
-snapshot of the still world rather than re-walking it, and a sweep against that would retire the
-region the camera is standing in. Giving it cell graphs to own is what would close it.
+The harness unloads too now (`harness.md` §3.2), so the milestone's first clause is closed.
+
+**What is left is the seam with the rasterizer**, and it is §12: the traced frame reaches the screen
+one frame late, the whole world is rasterized every frame and discarded, and — the part that is a
+defect rather than a cost — skinning, terrain LOD and object paging are inherited from a
+view-dependent cull. Owning those three is what closes this milestone.
 
 ### M12 — Performance
 
@@ -417,28 +403,35 @@ Target: 1920×1080 internal → 3840×2160 at 60 fps.
 `openmw-rtxtool bench`, the `[default]` suite: 1920×1080 out of 1280×720 at DLSS quality, layers off,
 600 frames of world at 60 Hz after a warm-up second, median of each row.
 
-| place | frame | trace submit | place submits | left over | fps |
+| place | frame | trace submit | place submit | left over | fps |
 |---|---|---|---|---|---|
-| Seyda Neen's ship, 51,742 instances | 30.26 ms | 6.94 | 11.60 | 11.72 | 33.0 (25.0 at the 1% low) |
-| Balmora's guild of mages, 1,239 | 7.61 ms | 4.84 | 1.74 | 1.03 | 131.5 (80.5) |
+| Seyda Neen's ship, 7,013 instances | 8.67 ms | 4.87 | 1.87 | 1.93 | 115.3 (77.9 at the 1% low) |
+| Balmora's guild of mages, 1,239 | 6.79 ms | 5.00 | 1.14 | 0.65 | 147.4 (105.0) |
+
+**The instance counts moved as much as the times did.** Seyda Neen was 51,742 because the harness
+loaded a nine-by-nine grid the game never loads; it is three-by-three now and holds what the game
+holds (`harness.md` §4). The frame went from 30.26 ms to 8.67 over the same stretch of work: the
+revision split, the mirror moving after the cull, the appendable texture array, one submit instead of
+three for a moving frame, the instance rows built once instead of twice, and slots instead of
+compaction (§10).
 
 And the same frames as the device's own clock reports them, which is a different story:
 
 | place | trace | upscale | refit | tlas | exposure | composite | tone | **GPU total** |
 |---|---|---|---|---|---|---|---|---|
-| Seyda Neen's ship | 3.55 | 2.55 | 2.08 | 0.43 | 0.06 | 0.04 | 0.03 | **8.74 ms** |
-| Balmora's guild | 2.04 | 2.04 | 0.27 | 0.17 | 0.05 | 0.03 | 0.02 | **4.62 ms** |
+| Seyda Neen's ship | 2.30 | 2.00 | 0.43 | 0.20 | 0.05 | 0.03 | 0.02 | **5.03 ms** |
+| Balmora's guild | 2.21 | 2.07 | 0.27 | 0.17 | 0.04 | 0.03 | 0.02 | **4.81 ms** |
 
-**The GPU is idle for two thirds of the exterior frame.** Eight and three quarter milliseconds of
-device work sit inside a thirty millisecond frame, and the gap is CPU: eleven milliseconds of
-`placeScene` against two and a half of building anything, and eleven more of the harness posing
-actors and walking the graph. Three submits, each fenced before the next begins, so none of it
-overlaps anything.
+**The CPU and the device have converged.** Five milliseconds of device work inside an 8.67 ms frame,
+where it used to be 8.74 inside 30. What closed the gap was the CPU side: one submit for a moving
+frame instead of three fenced ones, the instance rows built once instead of twice, the bottom-level
+addresses asked for once instead of per instance per frame, and the top level's buffers kept instead
+of allocated. `placeScene` is 1.87 ms where it was 11.60.
 
-That reframes M12. The trace is 3.55 ms and the budget is 16.7; what stands between this renderer and
-that number is not the shader. It is packing fifty-one thousand instance records twice a frame,
-handing them over in two submits nobody overlaps with, and a harness that re-poses a town every
-frame — and only the last of those is the harness's rather than the renderer's.
+That reframes M12 again. Both places are inside the 16.7 ms budget at 1080p, and the remaining
+exterior cost is split evenly between the trace and the upscaler with nothing obviously wasteful
+between them. The next real number is not in this table: it is the rasterizer still drawing a world
+nobody looks at, and the frame of latency that comes with it (§12).
 
 #### What the finished features cost
 
@@ -451,20 +444,13 @@ fast*. Numbers are 1920×1080, no upscaling, validation off, best of thirty on t
 | | Balmora's guild of mages, 19 emitters | 7.34 → 7.47 ms |
 | | Balmora from the bridge | 6.87 → 6.92 ms |
 | the harness's live props, whole frame | Balmora in a window, 94 props | 49 → 37 fps |
-| a retirement | any frame a cell leaves | one full `setScene` |
+| a cell arriving | nineteen crossings across the island | 47 ms of building each, none of them a rebuild (§10) |
 
 The trace is the cheap half and the sphere test is why: an emitter is a few units across and one
 rejection throws it away for almost every pixel. The window's six milliseconds are not the sprites —
 they are the 185 extra deforming drawables the instanced props bring, refit once a frame whether or
 not their skeletons moved. A prop's *emitters* change every frame; its geometry usually does not,
 and nothing tells the two apart yet.
-
-The retirement's own cost — a compaction, which is a copy of what survived — is not the number that
-matters about it. What matters is that it bumps the revision, and a changed revision is a full
-`setScene`: every bottom-level structure built again, every table uploaded again, every texture
-uploaded again. That is already what a cell *arriving* costs and removal does not make it worse, but
-it is the thing standing between this renderer and a walk across Vvardenfell, and making the build
-incremental is M12's.
 
 ---
 
@@ -474,129 +460,26 @@ This is not overhead; it is what decides how fast the milestones above go.
 
 ### 7.1 `openmw-rtxtool`
 
-```
-openmw-rtxtool                                        a window where the game starts
-openmw-rtxtool info                                   device, extensions, limits, memory
-openmw-rtxtool scene  --view balmora --twice          instance/mesh/material counts, and what a
-                                                      second extraction pass adds, which is nothing
-openmw-rtxtool scene  --list-views                    the named viewpoints
-openmw-rtxtool scene  --cell -2,-9 --find lighthouse  where an object stands, for authoring a view
-openmw-rtxtool shot   --view balmora --out b.png      one frame, no window
-openmw-rtxtool view   --view vivec --size 2560x1440   a window to fly around in
-openmw-rtxtool view   --view balmora --frames 600     the same, for something that cannot click
-openmw-rtxtool sheet  out.png --views all             contact sheet, for judging a look change
-openmw-rtxtool golden --views all                     compare against files/rtx/golden, write diffs
-openmw-rtxtool bench                                  time the [default] suite of files/rtx/benches.cfg
-openmw-rtxtool bench  --views all --json=bench.json   the same over every named viewpoint
-apps/rtxtool/profile.sh --view balmora-mages-guild    the same under perf, and where the time went
-openmw-rtxtool watch  --view seyda-neen-shore         re-render on shader change
-```
+The verbs and how to run them are in `CLAUDE.md`; what the harness *is* and where it still differs
+from the game is `docs/rtx/harness.md`. Three decisions are worth keeping here.
 
-`sheet`, `golden` and `watch` do not exist yet.
+**Headless is the primary surface.** A window costs tens of seconds of somebody's attention and
+confirms almost nothing a PNG does not. `shot` renders the real renderer in about a second and prints
+a summary line — hit fraction, camera, frame time — so a change is checkable without a screenshot
+being looked at. `view` exists for what only a window shows: how something moves, and whether an
+artefact is a still or a shimmer.
 
-**What the harness cannot see, and what to do about it**, is `docs/rtx/harness.md`: it feeds the
-renderer by a different route from the game — no scene graph, no unloading, no sweep — and every
-renderer defect found in the M12 stretch was invisible here and obvious the moment the game was
-measured.
+**`bench` counts seconds of *world*, not of wall clock.** The world steps a sixtieth per frame however
+long that frame took, so ten seconds is six hundred frames and two builds render the *same* six
+hundred — same particles in the same places, same sample in each pixel. A run against the clock would
+animate further on the faster build and be measuring a different scene. Where it goes is a suite of
+`views.cfg` ids, so a place worth measuring and the same place worth looking at cannot drift apart.
+The validation layers are off unless asked for: a number quietly measured under instrumentation is
+worse than no number.
 
-#### `bench`
-
-**Ten seconds of *world* per place, not ten seconds of wall clock.** The world steps a sixtieth of a
-second per frame however long that frame took — which is `PosedActors`' own step and not a second
-opinion about it — so `--seconds=10` is six hundred frames, and two builds render the same six
-hundred: the same particles in the same places, the same sample in each pixel. A run against the
-clock would animate further on the faster build and be measuring a different scene.
-
-Where it goes is a **suite**: a list of `views.cfg` ids in `files/rtx/benches.cfg`, so a place worth
-measuring and the same place worth looking at cannot drift apart. `--views=a,b` is the same thing for
-one run and `--views=all` is every viewpoint there is. The layers are **off unless asked for**,
-whatever the build default is — a run that quietly measured one under instrumentation is worse than
-no run at all, because it produces a number.
-
-Three distributions per place rather than one figure, because they are three different problems:
-
-| row | what it is |
-|---|---|
-| `trace ms` | the renderer drawing — one submit, including the wait |
-| `place ms` | the renderer being told what moved: the top level rebuilt, every skinned mesh refitted |
-| `frame ms` | the whole loop, so what is left over is the harness posing actors and re-walking the graph |
-
-Each carries median, mean, p95, p99, best and worst, by nearest rank, so every figure is a frame that
-actually happened. A warm-up second is drawn and thrown away first: this box's GPU idles at 315 MHz
-and ramps under load, and a scene's first frames pay for its residency as well.
-
-Under those, a `gpu ms` row of what the **device's own clock** says each stretch cost — `refit`,
-`tlas`, `trace`, `filter`, `composite`, `upscale`, `exposure`, `tone` — medians only, most expensive
-first. That row against the three above it is what separates a slow shader from a slow everything
-else, and on an exterior the answer turned out to be neither the shader nor the GPU at all.
-
-#### The same run, inside the game
-
-`openmw-rtxtool bench` is deterministic and the game is not — but the game is the only thing that
-carries the real workload, and every renderer defect this fork found in the M12 stretch was invisible
-to the harness and obvious the moment the game was measured: the harness stages a world once and
-re-walks only its actors, so it never pays for the whole-graph walk, the sweep, or a cell arriving.
-
-```sh
-apps/rtxtool/bench.sh                       # ten seconds at every bench_*.omwsave, newest first
-apps/rtxtool/bench.sh --seconds=30 --note="after the appendable texture array"
-
-OPENMW_RTX_BENCH=10s:2s openmw --load-savegame <a save>    # one place, by hand
-OPENMW_RTX_BENCH=600:120 openmw --load-savegame <a save>   # or a frame count
-```
-
-The same three rows and the same `gpu ms`, then the game quits — it prints what `bench` prints
-because both call the same `Rtx::describeTimes`. `bench.sh` runs every save whose name begins
-`bench_`, and **prepends** what it measured to `.notes/bench.txt` with the commit it was measured at,
-because the question a results file gets asked is "did that help" and the answer is the top two
-blocks.
-
-**Compiled in by asking, not by build type.** `-DOPENMW_RTX_BENCH=ON`, which `release.sh` passes and
-a shipping build does not. Gating it on "not Release" would have been the obvious thing and the wrong
-one: the build worth measuring is the optimised one, so that puts the benchmark in every build except
-the only one whose numbers mean anything.
-
-**Where to stand is a savegame's job.** `--load-savegame` restores the player, the camera and the
-world exactly; a pair of coordinates restores only the first, and leaves the weather, the actors and
-the animation wherever that run happened to put them.
-
-**Determinism is not on offer here and is not chased.** The game has AI, physics and scripts, so two
-runs differ — what makes the numbers comparable is a fixed camera, enough frames, and reading the
-tail rather than the mean. Measured against itself the median held to a tenth of a millisecond across
-consecutive runs, which is finer than any change worth making.
-
-**It touches nothing outside this fork's own code.** `MWRender::Rtx::Bench` reads one environment
-variable, is fed each frame by `Tracer`, and ends the run through `StateManager::requestQuit` the way
-the quit key does — no command line, no engine loop, no rendering manager. Where `OPENMW_RTX_BENCH`
-is undefined the class has no members and no body, so the frame path carries nothing and a Release
-build contains none of it. The only upstream file involved is `apps/openmw/CMakeLists.txt`, inside
-the `if (OPENMW_RTX)` blocks this fork already added.
-
-#### Timestamps and labels
-
-`Rtx::GpuTimer` writes a pair of timestamps around each of those zones and resolves them after the
-frame's last fence. Both ends are taken at `ALL_COMMANDS`, so a zone begins when the work before it
-has finished and ends when its own has: the spans cannot overlap, which would distort a renderer
-whose passes overlap and does not distort this one, since there is a full barrier between every pass
-already. Zones span all three of a frame's submits — the two structure builds and the draw — because
-each reserves and resets only the pair of queries it writes.
-
-The same bracket opens a `VK_EXT_debug_utils` label, so a Nsight or RenderDoc capture shows the frame
-as named regions rather than as a run of dispatches. That is where the counters a timestamp cannot
-give you live. Labels follow `OPENMW_RTX_DEBUG_NAMES` and so are absent from a Release build;
-timestamps are not gated, because Release is where a measurement is taken.
-
-- **A cell argument is addressed the way Morrowind does**: a pair of integers is an exterior,
-  anything else is an interior's name.
-- **Every run prints a summary line** — primary-hit fraction, mean luminance, frame time — so a
-  change is checkable without opening the PNG. rtxmw's single best harness decision.
-- **Named views** in `files/rtx/views.cfg`: cell, and usually a camera. A view id is the unit of
-  comparison across commits, and every one of them is a Zed task in `.zed/tasks.json`. Pressing `P`
-  in the window prints the current camera as a block to paste back into the file, which is how a
-  view gets authored once someone has flown to somewhere worth keeping.
-- **Deterministic by construction**: fixed frame index drives jitter and blue-noise offsets, time of
-  day and weather are forced, `--seed` fixes anything left. Two runs of the same view are the same
-  bytes.
+**The game is benched too, over savegames** (`apps/rtxtool/bench.sh`), because the harness cannot see
+what costs the game a frame — every renderer defect found in the M12 stretch was invisible in the
+harness and obvious within seconds of measuring the game.
 
 ### 7.2 Tests
 
@@ -629,25 +512,16 @@ bring-up and first-call driver caching allocate legitimately. Budget expressed a
 not `== 0`, so a driver path that must allocate can be accommodated *deliberately*, with the number
 and the reason visible. It measures zero.
 
-**No `--wrap=malloc`**, which the first version of this called for. It would also count the driver's
-own allocations, which are not this renderer's to control, and every one of the things the frame path
-is forbidden to do — a `std::string` built, an unreserved vector grown, a `std::function` captured, a
-`make_unique` reached for — arrives through `operator new` regardless. Wrapping malloc would have
-added noise without adding reach.
+**Not `--wrap=malloc`**: it would count the driver's allocations too, which are not this renderer's
+to control, and everything the frame path is forbidden to do arrives through `operator new` anyway.
 
 **Two things had to be true before the number meant anything.** `CommandPool::submitAndWait` takes a
-fresh command buffer from the pool on every call, which the driver satisfies out of the heap: it is
-setup's shape and says so, and a frame has to reuse a buffer against a fence instead. And the
-validation layers go to the heap on every command they inspect — sixty-six times a frame here — so
-the test needs a device without them, which is what `getUnvalidatedHarness` is for.
+fresh command buffer on every call, which the driver satisfies out of the heap — setup's shape, so a
+frame reuses a buffer against a fence instead. And the validation layers allocate on every command
+they inspect, so the test needs a device without them (`getUnvalidatedHarness`).
 
-A `NoAllocScope` guard asserting on the same counter in debug builds waits for M11: it needs the
-counter in the renderer rather than in a test binary, and there is no ordinary play for it to surface
-during until the renderer is inside the engine.
-
-What this forbids on the frame path: `format!`-equivalents, `std::string` construction, `push_back`
-into an unreserved vector, `std::function` capture, `make_unique`, and any logging that is not
-compiled out.
+Forbidden on the frame path: `std::string` construction, `push_back` into an unreserved vector,
+`std::function` capture, `make_unique`, and any logging that is not compiled out.
 
 ### 7.4 Validation and debugging
 
@@ -670,89 +544,11 @@ live in one hot-reloadable block, not in `const` declarations. Tuning must not b
 
 ### 7.6 Profiling
 
-Per-pass timestamp queries into a ring buffer; `bench --json` for the harness, an overlay in-game.
-The device's side of that is §7.1's `gpu ms` row. The CPU's side is `apps/rtxtool/profile.sh`.
-
-#### `profile.sh`
-
-`perf record` around a `bench` run, and it answers the question the GPU timestamps opened: an
-exterior frame takes 30 ms of which the device does 8.7, so where does the rest go.
-
-**The recording is bounded to the frames that were measured**, by perf's control fifo:
-`--delay=-1` starts the counters off and `bench --perf-control=<path>` writes `enable` when the
-warm-up ends and `disable` when the place is done. Everything else a run does — three ESM files,
-a cell extracted, ninety megabytes of structures built, the renderer taken down — is outside the
-profile rather than a quarter of it, and the alternative is trimming a whole-run recording to a
-boundary nobody can name to better than a second.
-
-Three choices that this machine forces:
-
-| | why |
-|---|---|
-| `-e task-clock`, not `cycles` | The CPU is hybrid. `cycles` resolves to `cpu_core/cycles/` **and** `cpu_atom/cycles/`, so a thread that migrated between a P core and an E core is split across two reports. `task-clock` is one software event on every core, and it counts nanoseconds. |
-| `--call-graph fp` | Arch builds every package with `-fno-omit-frame-pointer`, so the chain runs out through libstdc++, OSG and SDL for free. `--dwarf` is there for the graphics driver, which has `.eh_frame` and no frame pointers, and costs about five times as much. |
-| `--no-inline` | perf resolves the inline stack at a *return* address, which at `-O3` lands in whatever was inlined after the call — a chain through `placeScene` comes back as `~basic_string`, `_M_dispose`, `_M_is_local`. |
-
-**It profiles the build the numbers come from and does not have one of its own.** A stock Release
-build has neither line numbers nor frame pointers, so a report off one is a list of exported symbols
-with no path back to the frame — but the answer to that is `-g1 -fno-omit-frame-pointer` on
-`release.sh`, not a second binary beside it. `-g1` is line tables and nothing else, free at runtime,
-33 MiB against 7 stripped and 140 at full `-g`; frame pointers measured at **0.2%** on a 29 ms frame,
-against a run-to-run spread of 2.7%. A profiling build would have cost no less and would have
-explained a frame the benchmark never timed.
-
-The summary is **cores busy** — the recording's task-clock nanoseconds over the window `bench` says
-it measured — and then the same samples four ways: by total time with pass-through frames collapsed,
-by self time, by source line, and by library. The line view is what `-g1` buys: the second-hottest
-entry in an exterior frame is an unresolved address in libc until the line tables call it
-`memmove-vec-unaligned-erms.S:660`. `--offcpu` swaps the sampler for perf's BPF off-CPU
-profiler, which needs root; it can say which library the process waits in and cannot say which
-frame asked, because a BPF-collected stack is unwound by frame pointer and the driver has none.
-
-**What it found first time out**, on the deck at Seyda Neen at 1280x720 traced, 1920x1080 shown:
-
-| | share of the measured CPU |
-|---|---|
-| `PosedActors::step` — the harness standing in for the game | 54% |
-| `VulkanRenderer::placeScene` | 22% |
-| `SceneExtractor::extract` | 20% |
-| `makeInstanceRecords`, self | 6.4% |
-
-and **0.67 cores busy**. A 30 ms frame with 8.7 ms of device work and two thirds of one core: the
-frame is neither GPU-bound nor CPU-bound, it is serialised — three fenced submits with the harness
-re-posing five hundred actors between them.
-
-**One submit times the GPU's clock rather than the shader**, which this laptop makes unmissable: it
-idles at 315 MHz and ramps only under load, so rtxmw measured the same scene at 116 and 382 fps. Here
-a single cold trace of one view came back at 0.485, 1.21, 1.89 and 2.13 ms on four runs of identical
-code — and three interleaved eight-run blocks of an A/B gave 0.373, 0.440, 0.707, where the two
-*identical* blocks differed by more than the change did. A single number from `shot` was worse than
-no number, because it looked like one.
-
-**`shot --repeat N` traces the same frame N times inside one device session and reports the best,
-with the median and worst beside it.** The best is the answer and the spread is whether to believe
-it. Measured over five separate processes at 1920x1080 with `--repeat=100`, the best came to 0.1908,
-0.1908, 0.1927, 0.1946 and 0.1948 ms — **a spread of 2.1%**, against 4.4x for the cold single submit,
-and against a *median* whose own spread is 6.8%. The minimum over enough runs is the repeatable
-statistic; the mean and the median are not.
-
-The default is eight, which costs four milliseconds against a quarter-second of device setup and is
-within 16% of the converged figure. **A comparison worth quoting uses hundreds**, and quotes the best.
-
-**And it uses `--validation=false`, because the layers are on by default outside a Release build.**
-Core and synchronization validation cost about 6% of a trace; GPU-assisted validation costs another
-100%, so a Balmora frame that traces in 2.66 ms reads 5.68 under all three. `shot` says "with the
-validation layers on" beside any figure measured under them, so a number that should not be compared
-carries the reason with it.
-
-### 7.7 Build speed
-
-`ninja`, `mold`, `ccache` at 25 GB, `-DOPENMW_UNITY_BUILD=OFF` so incremental edits stay cheap, and
-`CMAKE_EXPORT_COMPILE_COMMANDS=ON` for clang-tidy and the LSP. 32 threads available; a cold build of
-everything except the Qt tools is under six minutes, and the RTX targets alone are seconds.
-
-Nothing further is worth adding. `sccache` and `distcc` distribute across machines and there is one
-machine; GCC precompiled headers are a rebuild-everything hazard for a saving ccache already has.
+Per-pass timestamp queries into a ring buffer report the device's side; `apps/rtxtool/profile.sh`
+wraps `perf` for the CPU's. Two things that took a while to get right and would be re-learned
+otherwise: `task-clock` rather than `cycles`, because this box's hybrid PMU splits `cycles` across
+`cpu_core` and `cpu_atom` and halves every count; and a control fifo bounding the recording to the
+measured frames, so what the profile attributes time to is what the report's figures came from.
 
 ---
 
@@ -760,43 +556,14 @@ machine; GCC precompiled headers are a rebuild-everything hazard for a saving cc
 
 | risk | shape | response |
 |---|---|---|
-| **Mirror cost** | The per-frame traversal and diff of the OSG graph becomes the frame's bottleneck | Measure it at M2, before anything depends on it. Dirty sets keyed on OSG's own frame numbers; instance transforms are the only per-frame data. |
-| **Interop stall** | The GL/VK handoff serialises the two devices | Timeline semaphores, one frame of latency, measured at M2's spike. |
-| **Vanilla content assumes a rasterizer** | Sheets lit from both sides, discarded outer transforms, Z-first Euler angles, two-sided stencil (`design.md` §8.1–8.6) | Every one of these is already diagnosed next door. Read §8 before debugging anything that looks like a content bug. |
+| **Vanilla content assumes a rasterizer** | Sheets lit from both sides, discarded outer transforms, Z-first Euler angles, two-sided stencil (`design.md` §8.1–8.6) | Every one is diagnosed next door. Read it before debugging anything that looks like a content bug. |
 | **De-lighting is a look problem, not a code problem** | No test says an albedo is right | Contact sheets and a human. Budget iteration for it. |
-| **Skinned BLAS refit** | Hundreds of actors, refit per frame | It is why `RigGeometry`'s CPU output is a gift and also a memcpy. Measure at M12; consider refitting only what moved. |
-| **clang-format drift** | CI pins 14, this machine has 22 | Format with 14 or accept churn; decide before the first large diff. |
+| **Skinned BLAS refit** | Hundreds of actors, refit per frame | Why `RigGeometry`'s CPU output is a gift and also a memcpy. Consider refitting only what moved. |
+
+Retired: the mirror's cost and the interop stall were the two that justified measuring early, and both
+were measured (§6 M12). Formatting drift is settled — `clang-format` 14, as CI pins.
 
 ## 9. Open questions
-
-- **~~What a table does when a cell leaves~~ — decided: it frees the slot and renumbers nothing.**
-  See "Slots, not compaction" below. What is still open is only how far down the stack that goes.
-
-- **What a table does when a cell leaves, and it is one question for three defects.** `SceneDesc`
-  reclaims by *compacting*: `retain` closes the gaps and `carryPlacement` renumbers what pointed
-  into them. That is correct and it is the reason a crossing costs a full `setScene` — measured over
-  nineteen boundaries flown across Vvardenfell, nineteen of them rebuilt everything, because a
-  departing cell almost always takes a mesh or a material with it and renumbering invalidates every
-  acceleration structure and the whole texture array. The append path `extendScene` exists for is
-  reached only in a town, where the ring that leaves shares all its models with the ring that stays.
-
-  The alternative is slots that are freed and reused rather than closed up, the way placements
-  already work. Each table costs something different to do that to, and that is what makes it a
-  question rather than a task:
-
-  | table | what a freed slot leaves behind | what reuse needs |
-  |---|---|---|
-  | materials | a layer run and its masks | a free list; layers leak until the scene goes, or a second free list for runs |
-  | textures | one slot of a bindless array | a free list, and `TextureArray` writing one element rather than appending — `dstArrayElement` already does this |
-  | meshes | a **variable-sized range** of the shared position, normal, texcoord and index buffers | a real suballocator, or accepting fragmentation, and the buffers must not move — every bottom-level structure holds a device address into them |
-
-  The meshes are the hard one and they are also the one that matters: it is the mesh table moving
-  that forces the acceleration structures to be rebuilt. Not compacting them at all is bounded by
-  the content rather than by the session — Morrowind ships about 3,500 statics — but the geometry
-  behind them is not a budget anything has measured.
-
-  The same immovability blocks the other half: appending bottom-level structures instead of
-  remaking them all, which is what a cell arriving costs even when nothing renumbered.
 
 - **Interiors.** A room is not a valley (`design.md` §8.42) and interiors are half the game. Whether
   fog, sky light and bounce need a separate interior model is unanswered.
@@ -922,17 +689,16 @@ masks, device geometry blocks.
 
 `SceneUtil::StateSetUpdater` — which every one of OpenMW's texture, UV, alpha and material-colour
 animations is — behaves two ways. As an **update** callback it swaps the node's own state set between
-two copies of its own, and the mirror sees both. As a **cull** callback it pushes a state set onto the
-cull visitor and never touches the node, so a mirror running outside cull sees the original for ever.
+two copies of its own; as a **cull** callback it pushes one onto the cull visitor and never touches
+the node, so a mirror running outside cull sees the original for ever. `NifOsg` picks the second for
+anything marked `AnimFlag_AutoPlay`, which is what a fire or a lava flow is.
 
-`NifOsg` picks the second for anything the model marks `AnimFlag_AutoPlay`, which is what a fire or a
-lava flow is; `MWRender::Water` picks it for shader water, which is why that surface arrives with no
-material at all. Both defects are this one fact.
+Water is out of this now — it is identified by node mask and given a material keyed on nothing, which
+is also what fixed the churn and the shader-water case. Everything else autoplayed is still frozen.
 
-**The answer is that the mirror runs the animators itself**: walk the path for
-`SceneUtil::StateSetUpdater`s, `apply` them into a scratch state set, and read the material from
-that. Mirroring *during* cull would be the other answer and is refused — a ray tracer must not
-depend on cull deciding what exists.
+**The answer is that the mirror runs the animators itself**: walk the path for the updaters, `apply`
+them into a scratch state set, read the material from that. Mirroring *during* cull is the other
+answer and is refused — §12.
 
 ### C. "What arrived" is a count, not a set — done for textures
 
@@ -965,6 +731,59 @@ lives in a device buffer that moves when it grows.
 
 ### Order
 
-~~**C** first~~ — done for textures. **A** next: it is what a cell arriving still costs, and it
-carries the layer leak and the rest of C with it. **B** last and independently: it changes what the
-picture looks like rather than what it costs, and it wants a frame to look at.
+**A** next: it is what a cell arriving still costs, and it carries the layer leak and the rest of C
+with it. **B** independently — it changes what the picture looks like rather than what it costs, and
+it wants a frame to look at.
+
+## 12. The seam with the rasterizer, and why the frame is one late
+
+Two defects share one cause and neither is a flag: **the rasterizer draws the whole world every frame
+and the result is thrown away**, and **the traced image on screen is always the previous frame's**.
+
+### What actually happens in a frame
+
+`Engine::frame` calls `mViewer->renderingTraversals()`, which culls the world and draws it into the
+main camera's framebuffer object. `MWRender::PostProcessor`'s HUD camera — `POST_RENDER`, clear mask
+zero — then draws the post-processing canvases and, since this fork, `Tracer`'s composite over the
+top. Every pixel the rasterizer produced is covered. `traceFrame()` runs *after* the traversal
+returns, so the composite that presented the image was drawn before the trace that made it: the
+screen is one frame behind, and the first frame shows the rasterizer because there is nothing to
+present yet.
+
+**Measured at Seyda Neen: 2.05 ms a frame in `renderingTraversals()` against 6.2 ms of tracing.**
+OSG picks `DrawThreadPerContext` — OpenMW never pins a threading model — so the draw runs on its own
+thread and overlaps the trace on the CPU while competing with it for the GPU.
+
+**Why the trace sits after the traversal**: skinned vertices, terrain LOD and which objects are paged
+in are all cull-time decisions (`openmw.md` §3.4), and the mirror reads all three. Tracing before it
+mirrored two different frames at once — a character's hands arrived a frame behind the arms they hang
+off. That is the constraint as the code stands, and the next section is why it should not be one.
+
+### Do we need to cull at all? No
+
+**Not for visibility, ever.** Rays go everywhere — reflections, shadows, bounce — so anything the
+camera frustum rejects still has to be in the acceleration structure. The mirror already avoids that
+trap by walking the graph itself rather than the cull's results.
+
+**What it does not avoid is cull's side effects, and inheriting those is already wrong.**
+`SceneUtil::RigGeometry::accept` skins only when a `CullVisitor` reaches it, and
+`getDeformedGeometry` hands back what the last cull produced. An actor outside the frustum is never
+culled, so the mirror mirrors a pose frozen at whatever they were doing when last on screen — visible
+today in any water reflection or shadow they are in. Terrain LOD and object paging are the same
+shape: view-dependent decisions about *what exists*, taken against a rasterizer's silhouette budget.
+
+So the target is not "skip the draw", it is **stop being downstream of cull**. Three things have to
+become ours:
+
+| what cull gives us now | where it should come from |
+|---|---|
+| skinned and morphed vertices | a visitor of our own over every rig, which is what the harness already does — `PosedActors` drives `RigGeometry` by hand and has no cull traversal at all |
+| terrain chunk LOD | `Terrain::World` asked by distance rather than by view |
+| object paging | the same, by distance |
+
+Once those are ours the traversal has no reason to run, and the latency in §12 dissolves with it: the
+trace moves to the end of the update traversal and presents in the same frame. The two halves above
+become a stepping stone at most, and possibly nothing worth building.
+
+**The harness is the existence proof.** It has no cull, poses its actors by hand, and renders the
+same content correctly (`harness.md` §6).
