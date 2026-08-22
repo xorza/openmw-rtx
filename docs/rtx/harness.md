@@ -188,32 +188,72 @@ have yet. It was nine by nine and is three by three, which is what the game runs
 What is lost is the wide vista for screenshots, and that is the right trade: a picture taken over a
 grid the game never loads was never a picture of the game.
 
-## 5. What else the two could share
+## 5. What else the two could share — surveyed, and the answer is a wall
 
-The grid was the obvious duplication. The survey of what is left:
+The grid was the obvious duplication and it is closed (§4). The question of what is left was asked
+again once §3 and §4 had moved the streaming into `StagedWorld`, and this time it was measured rather
+than guessed. The harness is **6,797 lines**. Here is what each part of it would take to replace.
 
-| in the game | the harness's version | worth sharing? |
-|---|---|---|
-| `iterateOverCellsAround`, `sortCellsToLoad` | its own square loop, in the wrong order | **copied**, not shared — they are private to `scene.cpp`, and a component to hold them cost three upstream files for twenty lines |
-| `Constants::CellGridRadius` | `--radius`, default 4 | **done** — the option is gone |
-| `MWWorld::Scene::changeCellGrid` — the arrival/departure diff | `forEachNewCell`, arrivals only | not directly: it is welded to the world model, physics and the loading screen. The *shape* is worth copying when unloading lands; the code is not. |
-| `MWRender::Objects` — a node per reference under a transform | `getTemplate` and a transform passed beside it | not shareable, but step 1 should end up doing what it does |
-| `CellPreloader` — background threads | nothing | no. The harness wants the load cost visible and on the frame, not hidden behind a thread. |
-| `SceneManager::getInstance` | already used, for actors only | already shared |
-| `Terrain::World` | already used | already shared |
+| harness code | lines | the game's version | what stops it |
+|---|---|---|---|
+| `npc.cpp` — body parts, auto-equip, the drawn weapon | 698 | `MWRender::NpcAnimation` + `InventoryStore::autoEquipWeapon` | takes an `MWWorld::Ptr`, and reaches `MWBase::World`, `SoundManager` and `MechanicsManager` thirteen times |
+| `actor.cpp`, `posedactors.cpp` — skeletons and keyframes | 878 | `MWRender::Animation` | **already shares everything shareable**: `KeyframeManager`, `SceneUtil::Skeleton`, `KeyframeController`, `Misc::ResourceHelpers`. What is left is `Ptr` glue |
+| `cellscene.cpp` — a node per reference under a transform | 463 | `MWRender::Objects` — **zero** `Environment::get()` calls | every method takes a `Ptr` |
+| `world.cpp` — content files, records, references | 508 | `MWWorld::ESMStore` — also **zero** `Environment::get()` calls | nothing, but it buys nothing: this is already thin glue over `components/esmloader`, which is upstream's own shared loader |
+| `terrainstorage.cpp` | 154 | `MWRender::TerrainStorage` | `Environment::get().getESMStore()` ×5, and `LandManager` wants `getWorld()` |
+| `window.cpp` — an SDL window and a fly camera | 215 | `components/sdlutil` | different thing: that is OSG's GL window and the game's input bindings, this is a bare surface for Vulkan |
+| the active grid and its fill order | 20 | `Scene::iterateOverCellsAround`, `sortCellsToLoad` | **copied**, §4 — private to `scene.cpp`, and a component for them cost three upstream files |
 
-The pattern went the other way from the obvious guess: **almost none of it is worth sharing.**
-`Scene::changeCellGrid` reads as the thing to reuse and is the thing that cannot be — it needs
-`MWBase::Environment`, a `WorldModel`, a navigator, a loading listener and the script machinery,
-none
-of which a standalone tool has or should grow. And what *could* be shared is small enough that a
-marked copy beats a new upstream file: a header in `components/` conflicts on every merge, for
-twenty
-lines that have not changed in years.
+**The wall is `MWWorld::Ptr`, and it is the same wall every row hits.** A `Ptr` is a
+`LiveCellRefBase*` and the `CellStore` it lives in; making one goes through
+`WorldModel::registerPtr`, and *using* one dispatches through `MWWorld::Class`, whose implementations
+call `MWBase::Environment::get()` freely. So a caller needs the environment, and the environment is:
 
-What is genuinely shared is what was already a component before either side wanted it —
-`Constants::CellGridRadius`, `SceneManager::getInstance`, `Terrain::World`, `components/esm3`.
+| interface | pure virtual methods |
+|---|---|
+| `MWBase::World` | 186 |
+| `MWBase::WindowManager` | 154 |
+| `MWBase::MechanicsManager` | 80 |
+| `MWBase::LuaManager` | 46 |
+| `MWBase::InputManager` | 37 |
+| `MWBase::SoundManager` | 36 |
+| `MWBase::DialogueManager` | 27 |
+| `MWBase::StateManager` | 17 |
+| `MWBase::Journal` | 14 |
+| `MWBase::ScriptManager` | 7 |
+| | **604** |
 
+Stubbing those is not a reduction of 6,797 lines, it is an addition of several thousand — and every
+upstream change to any of the ten breaks the harness build. Booting them for real is worse: the
+loading screen alone means MyGUI over an OSG viewer with a live GL context, which `shot` and `bench`
+do not have and exist not to need. `MWWorld::Scene::changeCellGrid` calls the window manager fifteen
+times; `worldimp.cpp` calls it twenty-three.
+
+**So the verdict is: the harness is already reusing everything reachable.** What it shares —
+`components/esmloader`, `SceneManager::getInstance`, `KeyframeManager`, `SceneUtil::Skeleton`,
+`Terrain::TerrainGrid`, `ESMTerrain::Storage`, `Constants::CellGridRadius`, `components/esm3` — is
+everything upstream put below the `apps/openmw` line. What it duplicates is what upstream put above
+it, and above that line every function's first argument is a `Ptr`.
+
+The one thing that would change this is upstream moving body-part assembly and reference iteration
+below the line, which is not a change this fork is going to make (`CLAUDE.md`: no merge-back
+discipline, so a `components/` header this fork invents conflicts on every merge for as long as it
+exists).
+
+### What can still come out, and it is internal rather than shared
+
+- `StagedWorld::mirror` and `StagedWorld::getRoot` are public with **no callers** — the streaming
+  moved inside and nothing outside walks the graph any more.
+- `main.cpp` is 742 lines and holds `runScene`, `runFind` and `runTextures` inline beside the
+  subcommand dispatch. `runScene` also builds its own root, scene and extractor rather than staging
+  one.
+- `shot`, `bench` and `view` each assemble the same `VisibilityConstants` block, and it has already
+  drifted: `shot` and `view` honour `--albedo`, `bench` does not; `bench` and `view` advance the sea
+  and `shot` deliberately does not. One of those three differences is a decision and the other two
+  are omissions, and nothing says which is which.
+
+None of that is a reuse question, and none of it is large. It is listed here so the next person to
+ask "can the harness be smaller" finds the measurement rather than repeating it.
 
 ## 6. What stays different, deliberately
 

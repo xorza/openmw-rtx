@@ -100,12 +100,6 @@ namespace RtxTool
         /// being measured wants `getMotion` instead, for the reason above.
         bool advanceTo(float seconds);
 
-        /// The graph the mirror walks. Borrowed for the same reason.
-        osg::Group& getRoot() { return *mRoot; }
-
-        /// Walks the graph into the scene, the way `Tracer` does every frame.
-        RtxBridge::ExtractionStats mirror(std::size_t frame);
-
         /// Brings the region around `where` in and takes the cells that left off the graph.
         ///
         /// **The camera's own cell is what triggers it, not a distance**, which is the game's rule
@@ -128,6 +122,13 @@ namespace RtxTool
         std::size_t getPropCount() const;
 
     private:
+        /// Walks the graph into the scene, the way `Tracer` does every frame.
+        ///
+        /// **Nothing outside calls this any more.** Staging walks once and streaming walks again per
+        /// ring; the per-frame walk belongs to `PosedActors`, which owns the pose that made it
+        /// necessary.
+        RtxBridge::ExtractionStats mirror(std::size_t frame);
+
         /// The graph the mirror walks, assembled the way the game assembles its own: a group per
         /// cell, a reference under a transform inside it, the terrain hung alongside.
         ///
