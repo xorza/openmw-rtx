@@ -12,6 +12,7 @@
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 
+#include "cellscene.hpp"
 #include "lighting.hpp"
 #include "placement.hpp"
 #include "posedactors.hpp"
@@ -100,8 +101,8 @@ namespace RtxTool
         Rtx::SceneDesc mScene;
         RtxBridge::SceneExtractor mExtractor;
 
-        /// Which cells have been read, so the region never reads one twice.
-        std::set<std::string> mLoaded;
+        /// Which cells are in the graph, and the group each hangs under.
+        LoadedCells mLoaded;
 
         CellLighting mLighting;
         Placement mPlacement;

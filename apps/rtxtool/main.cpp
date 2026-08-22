@@ -234,7 +234,7 @@ namespace RtxTool
             osg::ref_ptr<osg::Group> root = new osg::Group;
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
-            std::set<std::string> loaded;
+            LoadedCells loaded;
             readRegion(world, *cell, *root, loaded, false);
             extractor.extract(*root, osg::Matrixf::identity(), 0);
 
@@ -266,7 +266,7 @@ namespace RtxTool
             osg::ref_ptr<osg::Group> root = new osg::Group;
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
-            std::set<std::string> loaded;
+            LoadedCells loaded;
             const CellReport report = readRegion(world, *cell, *root, loaded, false);
 
             // **Reading a region builds the graph; walking it is what mirrors one.** The counts

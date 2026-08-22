@@ -128,9 +128,9 @@ namespace RtxTool
             // **One cell and not the region the harness now loads by default.** What this measures
             // is the temporal resolve, and the bound below was calibrated against exactly this much
             // content; forty-nine cells would be a different fixture wearing the same number.
-            std::set<std::string> loaded;
+            LoadedCells loaded;
             const CellLighting lighting
-                = loadRegion(*world, *cell, *root, scene, loaded, "Clear", 12.0f, false).mLighting;
+                = loadRegion(*world, *cell, *root, scene, extractor, loaded, "Clear", 12.0f, false).mLighting;
             ASSERT_FALSE(scene.getInstances().empty()) << "the cell placed no geometry";
 
             Rtx::RendererOptions options;

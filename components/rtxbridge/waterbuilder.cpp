@@ -48,7 +48,7 @@ namespace RtxBridge
         }
     }
 
-    std::optional<float> addWater(Rtx::SceneDesc& scene, const ESM::Cell& cell)
+    std::optional<WaterSurface> addWater(Rtx::SceneDesc& scene, const ESM::Cell& cell)
     {
         if (!cell.hasWater())
             return std::nullopt;
@@ -77,12 +77,15 @@ namespace RtxBridge
         Rtx::Material material;
         material.mKind = Rtx::MaterialKind::Water;
 
+        const Rtx::Index mesh = addQuad(scene);
+        const Rtx::Index shading = scene.addMaterial(material);
+
         scene.addInstance(Rtx::MeshInstance{
             .mTransform = osg::Matrixf::scale(scale) * osg::Matrixf::translate(centre),
-            .mMesh = addQuad(scene),
-            .mMaterial = scene.addMaterial(material),
+            .mMesh = mesh,
+            .mMaterial = shading,
         });
 
-        return centre.z();
+        return WaterSurface{ .mLevel = centre.z(), .mMesh = mesh, .mMaterial = shading };
     }
 }

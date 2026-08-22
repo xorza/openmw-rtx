@@ -50,3 +50,7 @@
 - `SceneExtractor` keys materials on the address of an `osg::StateSet`. OpenMW gives the water a new
   one every frame as it cycles `textures/water/waterNN.dds`, so the mirror sees a new material each
   frame and sweeps the one it replaced — a table that churns for a surface that has not changed.
+
+- The harness's terrain never unloads. `World::buildTerrain` accumulates every chunk under one node
+  and `dropCellsOutside` can only take a cell's objects off the graph, so a camera flying far enough
+  carries the ground of every cell it has ever visited.

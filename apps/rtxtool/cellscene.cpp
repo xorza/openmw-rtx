@@ -25,7 +25,8 @@ namespace RtxTool
 {
     namespace
     {
-        void readObjects(World& world, const ESM::Cell& cell, osg::Group& root, CellReport& report, bool liveProps);
+        osg::ref_ptr<osg::Group> readObjects(
+            World& world, const ESM::Cell& cell, osg::Group& root, CellReport& report, bool liveProps);
 
         /// Calls `visit` for every cell in the region that `loaded` does not already name, and adds
         /// each one to it.
@@ -69,12 +70,19 @@ namespace RtxTool
             return square;
         }
 
-        void forEachNewCell(World& world, const ESM::Cell& centre, std::set<std::string>& loaded,
+        /// How a cell is keyed, and it has to be what the grid walk builds or nothing matches.
+        std::string keyOf(const ESM::Cell& cell)
+        {
+            return cell.isExterior() ? std::to_string(cell.getGridX()) + ',' + std::to_string(cell.getGridY())
+                                     : cell.mName;
+        }
+
+        void forEachNewCell(World& world, const ESM::Cell& centre, LoadedCells& loaded,
             const std::function<void(const ESM::Cell&)>& visit)
         {
             if (!centre.isExterior())
             {
-                if (loaded.insert(centre.mName).second)
+                if (loaded.emplace(centre.mName, nullptr).second)
                     visit(centre);
 
                 return;
@@ -88,7 +96,7 @@ namespace RtxTool
 
                 if (const ESM::Cell* cell = world.findCell(spec))
                 {
-                    loaded.insert(std::move(spec));
+                    loaded.emplace(std::move(spec), nullptr);
                     visit(*cell);
                 }
             }
@@ -103,8 +111,35 @@ namespace RtxTool
         return std::to_string(square(position.x())) + ',' + std::to_string(square(position.y()));
     }
 
-    CellReport readRegion(
-        World& world, const ESM::Cell& centre, osg::Group& root, std::set<std::string>& loaded, bool liveProps)
+    std::uint32_t dropCellsOutside(const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded)
+    {
+        if (!centre.isExterior())
+            return 0;
+
+        std::set<std::string> keep;
+        for (const auto& [x, y] : squareAround(centre.getGridX(), centre.getGridY()))
+            keep.insert(std::to_string(x) + ',' + std::to_string(y));
+
+        std::uint32_t went = 0;
+        for (auto entry = loaded.begin(); entry != loaded.end();)
+        {
+            if (keep.contains(entry->first))
+            {
+                ++entry;
+                continue;
+            }
+
+            if (entry->second != nullptr)
+                root.removeChild(entry->second);
+
+            entry = loaded.erase(entry);
+            ++went;
+        }
+
+        return went;
+    }
+
+    CellReport readRegion(World& world, const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded, bool liveProps)
     {
         CellReport report;
 
@@ -144,16 +179,17 @@ namespace RtxTool
         // A second walk over the same region: the first pass added them to `loaded`, so this one
         // has to be told about the cells it just took. Kept apart because the terrain has to be in
         // the graph and mirrored before the objects standing on it are.
-        std::set<std::string> objects;
-        forEachNewCell(
-            world, centre, objects, [&](const ESM::Cell& cell) { readObjects(world, cell, root, report, liveProps); });
+        LoadedCells objects;
+        forEachNewCell(world, centre, objects,
+            [&](const ESM::Cell& cell) { loaded[keyOf(cell)] = readObjects(world, cell, root, report, liveProps); });
 
         return report;
     }
 
     namespace
     {
-        void readObjects(World& world, const ESM::Cell& cell, osg::Group& root, CellReport& report, bool liveProps)
+        osg::ref_ptr<osg::Group> readObjects(
+            World& world, const ESM::Cell& cell, osg::Group& root, CellReport& report, bool liveProps)
         {
             // **One group per cell, so a cell can leave the way it arrived.** The game parents every
             // reference under the cell it belongs to; taking that group off the root is what
@@ -214,11 +250,12 @@ namespace RtxTool
 
             report.mSkipped.mUnknownType += skipped.mUnknownType;
             report.mSkipped.mNoModel += skipped.mNoModel;
+            return group;
         }
     }
 
     RegionLoad loadRegion(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
-        std::set<std::string>& loaded, std::string_view weather, float hour, bool liveProps)
+        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded, std::string_view weather, float hour, bool liveProps)
     {
         CellReport report = readRegion(world, centre, root, loaded, liveProps);
         for (const Rtx::Light& light : report.mLights)
@@ -227,9 +264,15 @@ namespace RtxTool
         // After the geometry, because an interior's pool is sized by what the room holds and
         // there is nothing to measure until the room is in. Here rather than in `readRegion` for
         // the reason the lights are: reading a region twice must not fill it twice.
-        const std::optional<float> water = RtxBridge::addWater(scene, centre);
+        const std::optional<RtxBridge::WaterSurface> water = RtxBridge::addWater(scene, centre);
 
-        const float level = water.value_or(-std::numeric_limits<float>::infinity());
+        // **Held, because no walk will ever meet it.** The quad goes straight into the scene, so a
+        // sweep keyed on what the graph holds would take it and leave its placement standing on a
+        // mesh that is gone.
+        if (water.has_value())
+            extractor.hold(water->mMesh, water->mMaterial);
+
+        const float level = water.has_value() ? water->mLevel : -std::numeric_limits<float>::infinity();
 
         // An interior's sky is never seen and its sun never shines, so the daylight stays dark.
         // Its air is its own, out of the same `AMBI` its ambient came from.

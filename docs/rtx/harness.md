@@ -18,11 +18,11 @@ The harness already streams cells as the camera crosses a boundary — that part
 |---|---|---|
 | **active grid** | `Constants::CellGridRadius` — 3x3 | ~~`--radius`, default 4~~ — **the same constant, §4** |
 | **what triggers a load** | the player crosses a cell boundary | the camera crosses a cell boundary — the same shape, and now the same fill order |
-| **unloading** | cells out of range are torn down | **never**; the `loaded` set only grows |
+| **unloading** | cells out of range are torn down | ~~never~~ — **`dropCellsOutside`, §3.2** |
 | **preloading** | background threads, ahead of the player | none, synchronous on the frame that crossed |
 | **after a ring arrives** | `extendScene`, appending | `setScene`, rebuilding all of it |
 | **per-frame walk** | the whole graph | ~~the actors~~ — **the whole graph, §3.1** |
-| **`retire` and compaction** | every frame | never |
+| **`retire` and compaction** | every frame | ~~never~~ — **every frame, §3.2** |
 | **node identity** | `getInstance` — one node per reference | ~~`getTemplate`~~ — **`getInstance`, §3.1** |
 | **cull traversal** | runs, and decides LOD, object paging and groundcover | none; `RigGeometry`'s cull is driven by hand, per actor |
 | **lights** | `SceneUtil::LightSource` nodes off the graph | the cell's `LIGH` records |
@@ -73,8 +73,23 @@ the rest falls out of it.
 This also retires the shared-template problem that Phase 1 had to invent an anchor for: with a node
 per reference, the node path identifies the placement again, the way it does in the game.
 
-**2. Unloading, which is then about twenty lines.** Take the cell's group off the root; the next
-sweep collects what it placed and compaction happens for the same reasons it does in the game.
+**2. Unloading — done, and it was about twenty lines.** `dropCellsOutside` takes the group of every
+cell outside the active grid off the root; the walk that follows does not reach them, so the sweep
+takes their placements, meshes and materials, and a compaction happens for the same reasons one does
+in the game. `LoadedCells` is a map from cell to group now rather than a set of names, which is the
+only new state it needed.
+
+`retire()` went into the frame with it, which needed one thing solved first: the analytic water is
+placed straight into the scene, so a sweep keyed on what the walks met would take its mesh out from
+under a placement still standing on it. `SceneExtractor::hold` pins a mesh and material against
+every
+sweep and carries them through a compaction, and `addWater` now returns the indices to pin. The
+sweep
+costs about 0.15 ms a frame here.
+
+**Terrain does not unload, and that is a known hole.** `World::buildTerrain` keeps every chunk under
+one accumulating node and offers no way to drop a cell's worth, so the ground a departed cell stood
+on stays. It is the one part of the working set that still only grows.
 
 **3. Append instead of rebuild.** A ring arriving takes the same decision `Tracer` takes — grown
 means `extendScene`, renumbered means `setScene`.

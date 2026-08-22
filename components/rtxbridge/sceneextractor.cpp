@@ -395,6 +395,15 @@ namespace RtxBridge
         }
     }
 
+    void SceneExtractor::hold(Rtx::Index mesh, Rtx::Index material)
+    {
+        if (mesh != Rtx::sNoIndex)
+            mHeldMeshes.push_back(mesh);
+
+        if (material != Rtx::sNoIndex)
+            mHeldMaterials.push_back(material);
+    }
+
     Retirement SceneExtractor::retire()
     {
         Retirement went;
@@ -419,6 +428,11 @@ namespace RtxBridge
         went.mMaterials = sweep(mMaterials, mEpoch, mLiveMaterials);
         sweep(mEmitterTextures, mEpoch, mLiveTextures);
 
+        // What no walk can speak for. Duplicates are fine here — `retain` takes a keep set, not a
+        // list of distinct survivors.
+        mLiveMeshes.insert(mLiveMeshes.end(), mHeldMeshes.begin(), mHeldMeshes.end());
+        mLiveMaterials.insert(mLiveMaterials.end(), mHeldMaterials.begin(), mHeldMaterials.end());
+
         // **Compaction renumbers every table, so everything built from them is built again.** That
         // is a spike, and a spike is a dropped frame however rarely it lands — see CLAUDE.md. The
         // answer is not to ration it behind a threshold, which only makes the spike less frequent
@@ -435,6 +449,14 @@ namespace RtxBridge
             // Every slot still standing names a mesh and a material by index, and `retain` has just
             // renumbered both.
             mScene.carryPlacement(mRemap);
+
+            // Held indices move with everything else, or the next sweep speaks for whatever landed
+            // where they used to be.
+            for (Rtx::Index& mesh : mHeldMeshes)
+                mesh = mRemap.mMeshes[mesh];
+
+            for (Rtx::Index& material : mHeldMaterials)
+                material = mRemap.mMaterials[material];
 
             went.mTextures = static_cast<std::uint32_t>(before - mScene.getTextures().size());
         }

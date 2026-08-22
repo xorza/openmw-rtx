@@ -137,6 +137,12 @@ namespace RtxTool
 
         place(seconds);
         mExtractor.advance();
+
+        // **After the walk and after the history, which is where the game has it.** The sweep is
+        // sound here for the first time: the walk above was the whole graph, so anything it did not
+        // meet has genuinely gone. What it costs — the mark, the sweep and the compaction that
+        // follows one — is cost the game pays every frame and this could not see until now.
+        mExtractor.retire();
         return true;
     }
 

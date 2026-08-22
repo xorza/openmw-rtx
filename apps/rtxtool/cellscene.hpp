@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <set>
 #include <string>
 #include <string_view>
@@ -46,6 +47,20 @@ namespace RtxTool
         VFS::Path::Normalized mModel;
         osg::Matrixf mTransform;
     };
+
+    /// Which cells are in the graph, and the group each one's references hang under.
+    ///
+    /// **A group per cell is what makes a cell able to leave.** Taking that node off the root is the
+    /// whole of unloading: the next walk does not reach what was under it, and the sweep that
+    /// follows takes its placements, its meshes and its materials with it.
+    using LoadedCells = std::map<std::string, osg::ref_ptr<osg::Group>>;
+
+    /// Takes every cell outside the active grid around `centre` off the graph. Returns how many.
+    ///
+    /// **Terrain does not go with them, and that is a known hole.** `World::buildTerrain` keeps
+    /// every chunk under one accumulating node and offers no way to drop a cell's worth, so the
+    /// ground a departed cell stood on stays. See `docs/rtx/harness.md`.
+    std::uint32_t dropCellsOutside(const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded);
 
     /// What reading a cell produced besides the scene itself.
     struct CellReport
@@ -97,8 +112,7 @@ namespace RtxTool
     ///        geometry — the clone shares the drawables — so mirroring the template as well would
     ///        stand two candles in one place. A caller with nowhere to keep an instance passes false
     ///        and gets the still template, which is a candle with an authored spark on it.
-    CellReport readRegion(
-        World& world, const ESM::Cell& centre, osg::Group& root, std::set<std::string>& loaded, bool liveProps);
+    CellReport readRegion(World& world, const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded, bool liveProps);
 
     /// The exterior cell a point stands in, as `--cell` spells it.
     ///
@@ -124,5 +138,6 @@ namespace RtxTool
     };
 
     RegionLoad loadRegion(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
-        std::set<std::string>& loaded, std::string_view weather, float hour, bool liveProps);
+        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded, std::string_view weather, float hour,
+        bool liveProps);
 }

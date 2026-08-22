@@ -2,6 +2,8 @@
 
 #include <optional>
 
+#include <components/rtx/scenedesc.hpp>
+
 namespace ESM
 {
     struct Cell;
@@ -28,5 +30,18 @@ namespace RtxBridge
     /// cell's geometry, which is what gives it those bounds.
     /// @return where the surface went, or nothing where the cell holds no water — which everything
     ///         downstream reads as a depth that is never positive.
-    std::optional<float> addWater(Rtx::SceneDesc& scene, const ESM::Cell& cell);
+    /// The water surface a cell placed, and what it is made of.
+    ///
+    /// **The indices are here because nothing else can speak for them.** This mesh and this material
+    /// were put into the scene directly rather than found by a walk, so a mark and sweep keyed on
+    /// what the walk met would find them unreferenced and take them — with a placement still
+    /// standing on them. Whoever places one has to tell the mirror to hold them.
+    struct WaterSurface
+    {
+        float mLevel = 0.0f;
+        Rtx::Index mMesh = Rtx::sNoIndex;
+        Rtx::Index mMaterial = Rtx::sNoIndex;
+    };
+
+    std::optional<WaterSurface> addWater(Rtx::SceneDesc& scene, const ESM::Cell& cell);
 }

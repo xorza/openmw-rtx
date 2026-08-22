@@ -12,7 +12,7 @@ namespace RtxTool
         : mExtractor(mScene)
     {
         const RegionLoad arrived
-            = loadRegion(world, cell, *mRoot, mScene, mLoaded, request.mWeather, request.mHour, actors.mProps);
+            = loadRegion(world, cell, *mRoot, mScene, mExtractor, mLoaded, request.mWeather, request.mHour, actors.mProps);
 
         mLighting = arrived.mLighting;
 

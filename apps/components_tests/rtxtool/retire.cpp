@@ -51,7 +51,7 @@ namespace RtxTool
             osg::ref_ptr<osg::Group> root = new osg::Group;
             kept.push_back(root);
 
-            std::set<std::string> loaded;
+            LoadedCells loaded;
             readRegion(world, cell, *root, loaded, /*liveProps=*/false);
             return extractor.extract(*root, osg::Matrixf::identity(), 0);
         }
@@ -69,8 +69,8 @@ namespace RtxTool
         {
             const osg::ref_ptr<osg::Group> root = keepRoot(kept);
 
-            std::set<std::string> loaded;
-            const CellLighting lit = loadRegion(world, cell, *root, scene, loaded, "Clear", 12.0f, false).mLighting;
+            LoadedCells loaded;
+            const CellLighting lit = loadRegion(world, cell, *root, scene, extractor, loaded, "Clear", 12.0f, false).mLighting;
             extractor.extract(*root, osg::Matrixf::identity(), 0);
 
             return lit;

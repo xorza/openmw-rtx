@@ -128,7 +128,7 @@ namespace RtxTool
 
         Rtx::SceneDesc scene;
         RtxBridge::SceneExtractor extractor(scene);
-        std::set<std::string> loaded;
+        LoadedCells loaded;
 
         /// Brings the region around `around` in, and hands the renderer whatever is now in the
         /// scene. False where the cell placed nothing at all.
@@ -158,9 +158,20 @@ namespace RtxTool
             if (arrived.mCells == 0)
                 return false;
 
-            // **Built, then walked.** Reading a region puts nodes under the root; nothing is
-            // mirrored until something walks them, which is the split the game has too.
+            // **The ring that arrived, and the ones that left.** The game's working set is a square
+            // that follows the player, not everything ever visited; without the second half this
+            // grows for as long as the camera flies and stops resembling the game after the first
+            // crossing.
+            const std::uint32_t went = dropCellsOutside(around, *root, loaded);
+
+            // Built, then walked. Reading a region puts nodes under the root; nothing is mirrored
+            // until something walks them, which is the split the game has too — and the walk is what
+            // tells the sweep below that the departed cells are no longer met.
             extractor.extract(*root, osg::Matrixf::identity(), 0);
+            extractor.advance();
+
+            if (went > 0)
+                extractor.retire();
 
             for (const Rtx::Light& light : arrived.mLights)
                 scene.addLight(light);
@@ -168,14 +179,15 @@ namespace RtxTool
             arrivals = arrived.mPeople;
             arrivedProps = arrived.mProps;
 
-            out() << std::format("loaded {} cells in {:.2f} s, {} instances now placed\n", arrived.mCells,
-                std::chrono::duration<double>(Clock::now() - began).count(), scene.getPlacedCount());
+            out() << std::format("loaded {} cells and dropped {} in {:.2f} s, {} instances now placed\n",
+                arrived.mCells, went, std::chrono::duration<double>(Clock::now() - began).count(),
+                scene.getPlacedCount());
 
             return true;
         };
 
-        RegionLoad arrivedWith
-            = loadRegion(world, centre, *root, scene, loaded, request.mWeather, request.mHour, actors.mProps);
+        RegionLoad arrivedWith = loadRegion(
+            world, centre, *root, scene, extractor, loaded, request.mWeather, request.mHour, actors.mProps);
 
         extractor.extract(*root, osg::Matrixf::identity(), 0);
         request.mLighting = arrivedWith.mLighting;

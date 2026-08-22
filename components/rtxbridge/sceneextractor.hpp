@@ -174,6 +174,18 @@ namespace RtxBridge
         /// stale afterwards, and `Rtx::SceneDesc::getRevision` is what says so.
         Retirement retire();
 
+        /// Keeps a mesh and its material alive through every sweep, whatever the walks find.
+        ///
+        /// **For geometry that was put into the scene rather than found in the graph.** The sweep
+        /// decides what is still alive by what the walks met, which is sound only for things a walk
+        /// can meet; an analytic water quad is placed straight into the scene and no walk will ever
+        /// reach it. Without this the sweep would take its mesh out from under a placement that is
+        /// still standing on it.
+        ///
+        /// Indices move when a compaction closes the gaps, and these are carried through it with
+        /// everything else.
+        void hold(Rtx::Index mesh, Rtx::Index material);
+
         /// Places one light. **The graph and not the content files**, because that is where a light
         /// that moves with the thing carrying it exists: a torch in an NPC's hand is no cell
         /// record, and neither is a lamp something picked up and put down.
@@ -276,6 +288,10 @@ namespace RtxBridge
 
         /// Which sweep is current. Everything a walk resolves or places is stamped with it.
         std::uint64_t mEpoch = 0;
+
+        /// Meshes and materials placed outside any walk, which the sweep must not take. See `hold`.
+        std::vector<Rtx::Index> mHeldMeshes;
+        std::vector<Rtx::Index> mHeldMaterials;
 
         // Refilled per sweep: the survivors, as the scene wants them.
         std::vector<Rtx::Index> mLiveMeshes;

@@ -86,7 +86,7 @@ namespace RtxTool
             {
                 osg::ref_ptr<osg::Group> root = new osg::Group;
                 RtxBridge::SceneExtractor extractor(seeded);
-                std::set<std::string> loaded;
+                LoadedCells loaded;
                 readRegion(*world, *cell, *root, loaded, /*liveProps=*/false);
                 seedStats = extractor.extract(*root, osg::Matrixf::identity(), 0);
             }
@@ -96,7 +96,7 @@ namespace RtxTool
             Rtx::SceneDesc live;
             osg::ref_ptr<osg::Group> root = new osg::Group;
             RtxBridge::SceneExtractor extractor(live);
-            std::set<std::string> loaded;
+            LoadedCells loaded;
             const CellReport report = readRegion(*world, *cell, *root, loaded, /*liveProps=*/true);
             const RtxBridge::ExtractionStats mirrored = extractor.extract(*root, osg::Matrixf::identity(), 0);
 
@@ -130,7 +130,7 @@ namespace RtxTool
             {
                 osg::ref_ptr<osg::Group> twiceRoot = new osg::Group;
                 RtxBridge::SceneExtractor twice(again);
-                std::set<std::string> once;
+                LoadedCells once;
                 readRegion(*world, *cell, *twiceRoot, once, /*liveProps=*/false);
                 twice.extract(*twiceRoot, osg::Matrixf::identity(), 0);
             }
