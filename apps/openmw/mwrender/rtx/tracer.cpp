@@ -206,11 +206,10 @@ namespace MWRender::Rtx
         constants.mAmbient = lighting.mAmbient;
         constants.mWaterLevel = lighting.mWaterLevel;
 
-        // The horizon is the fog, and the zenith with it until the sky's own colour is reached.
-        // **It goes to `SkyManager` and never through `RenderingManager`**, so there is nothing
-        // settled to read it off — which is a wire to run, not a number to invent.
+        // The horizon is the fog and the zenith is the sky's own, which is the pair Morrowind
+        // records: one colour for the air, and one for the dome it fades into overhead.
         constants.mSkyHorizon = lighting.mFog;
-        constants.mSkyZenith = lighting.mFog;
+        constants.mSkyZenith = lighting.mSkyZenith;
 
         constants.mFogColour = lighting.mFog;
         constants.mFogExtinction = lighting.mFogExtinction;

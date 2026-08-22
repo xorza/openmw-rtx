@@ -7,6 +7,7 @@
 
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/upscale.hpp>
+#include <components/rtxbridge/lightbuilder.hpp>
 
 #include "rtx/composite.hpp"
 #include "rtx/tracer.hpp"
@@ -826,9 +827,21 @@ namespace MWRender
         if (sun.length2() > 0.0f)
             sun.normalize();
 
-        const osg::Vec4f diffuse = mSunLight->getDiffuse();
-        const osg::Vec4f ambient = mSunLight->getAmbient();
-        const osg::Vec4f haze = mFog->getFogColor(false);
+        // **Decoded, because none of these has been.** Every one is a content file's three bytes
+        // over 255 and no transfer function — `SceneUtil::colourFromRGB` and `Fallback::Map::getColour`
+        // both stop there — and the transport downstream is linear. `Rtx::Lighting` says so at
+        // length; the harness runs the same decode on the same numbers.
+        const osg::Vec3f diffuse = RtxBridge::decodeColour(mSunLight->getDiffuse());
+        const osg::Vec3f ambient = RtxBridge::decodeColour(mSunLight->getAmbient());
+        const osg::Vec3f haze = RtxBridge::decodeColour(mFog->getFogColor(false));
+
+        // **The sky's own colour, which reaches nothing else.** A weather's sky never settles into
+        // `RenderingManager` the way its sun and its fog do: `SkyManager` takes it and paints the
+        // dome with it, so this is the one light in the frame that has to be read from where it
+        // lives. An interior draws no dome, and what the sky is still holding there is wherever the
+        // player was last outdoors — so the air's own colour stands in, which is what a room's sky
+        // is anyway.
+        const osg::Vec3f zenith = mSky->isEnabled() ? RtxBridge::decodeColour(mSky->getSkyColor()) : haze;
 
         // **The fog is a linear ramp here and a medium there**, so what is matched is where each is
         // half gone. The rasterizer's ramp is half gone at the midpoint of `start` and `end`, and an
@@ -839,9 +852,10 @@ namespace MWRender
         mTracer->trace(*mSceneRoot, *mViewer->getCamera(),
             Rtx::Lighting{
                 .mSunDirection = sun,
-                .mSunIrradiance = osg::Vec3f(diffuse.r(), diffuse.g(), diffuse.b()) * ::Rtx::Shaders::DAYLIGHT,
-                .mAmbient = osg::Vec3f(ambient.r(), ambient.g(), ambient.b()),
-                .mFog = osg::Vec3f(haze.r(), haze.g(), haze.b()),
+                .mSunIrradiance = diffuse * ::Rtx::Shaders::DAYLIGHT,
+                .mAmbient = ambient,
+                .mFog = haze,
+                .mSkyZenith = zenith,
                 .mFogExtinction = half > 0.0f ? std::numbers::ln2_v<float> / half : 0.0f,
                 .mWaterLevel = mTracedWaterLevel,
             },

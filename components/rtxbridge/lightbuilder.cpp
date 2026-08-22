@@ -56,10 +56,8 @@ namespace RtxBridge
         /// these come off a file this does not own and cannot be asserted about.
         osg::Vec3f weatherColour(std::string_view weather, std::string_view field, std::string_view phase)
         {
-            const osg::Vec4f colour = Fallback::Map::getColour(
-                "Weather_" + std::string(weather) + "_" + std::string(field) + "_" + std::string(phase) + "_Color");
-
-            return osg::Vec3f(channelToLinear(colour.x()), channelToLinear(colour.y()), channelToLinear(colour.z()));
+            return decodeColour(Fallback::Map::getColour(
+                "Weather_" + std::string(weather) + "_" + std::string(field) + "_" + std::string(phase) + "_Color"));
         }
 
         /// Which of the two land-fog depths a phase reads.
@@ -150,6 +148,11 @@ namespace RtxBridge
             daylight.mSun.mIrradiance = weatherColour(weather, "Sun", name) * Rtx::Shaders::DAYLIGHT;
 
         return daylight;
+    }
+
+    osg::Vec3f decodeColour(const osg::Vec4f& encoded)
+    {
+        return osg::Vec3f(channelToLinear(encoded.x()), channelToLinear(encoded.y()), channelToLinear(encoded.z()));
     }
 
     osg::Vec3f decodeColour(std::uint32_t packed)
