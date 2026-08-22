@@ -35,10 +35,12 @@
   sprites or emitters, so the static world's particle systems are gone from the frame after the
   first `unplace`.
 
-- A cell arriving rebuilds the whole scene. `Tracer` answers a changed structure revision with
-  `setScene`, which destroys every bottom-level structure, every buffer and the texture array and
-  makes them again, and drops the temporal history with them — where what changed is a few hundred
-  meshes appended to a table of fifteen hundred.
+- A cell arriving rebuilds every bottom-level acceleration structure. `extendScene` keeps the
+  texture array but still makes `SceneAcceleration` and `SceneBuffers` again when the mesh table
+  grows, which is 12 ms of spike on a frame that wanted 16.
+
+- The texture table is append-only and nothing ever reclaims a slot, so a session that walks through
+  enough of the world grows it until it reaches the 4096 the array holds and the renderer throws.
 
 - In the game the water is the rasterizer's `Water Geometry`, mirrored as an ordinary surface:
   `MaterialKind::Water` is set only by `RtxBridge::addWater`, which only the harness calls. So the

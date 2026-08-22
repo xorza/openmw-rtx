@@ -240,6 +240,24 @@ namespace Rtx
         /// scene's texture index, so their order is the scene's, and they must outlive the call.
         virtual void setScene(const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea) = 0;
 
+        /// The same scene with more in it: geometry and textures appended, nothing renumbered.
+        ///
+        /// **What a cell arriving costs, and it must not be what `setScene` costs.** Rebuilding
+        /// measured at 12 ms for every acceleration structure in the scene and **150 to 225 ms for
+        /// the texture array**, because the array was made again from nothing whenever one body
+        /// texture appeared. Appending leaves every image where it is.
+        ///
+        /// `arrived` describes the textures the scene has gained since the last call, in scene
+        /// order and starting at the count this already holds — never the whole table, or the
+        /// describing and the shading estimate are paid twice for what has not changed.
+        ///
+        /// Only for a scene whose tables **grew**. A `retain` that closed the gaps renumbers every
+        /// index, and the answer to that is still `setScene`.
+        virtual void extendScene(const SceneDesc& scene, std::span<const TextureData> arrived, const SeaState& sea) = 0;
+
+        /// How many textures the renderer holds, which is where `extendScene`'s `arrived` begins.
+        virtual std::uint32_t getTextureCount() const = 0;
+
         /// The same scene, with its instances and lights somewhere else and its actors in a new pose.
         ///
         /// **What a frame does when the world has moved.** `setScene` rebuilds everything: the

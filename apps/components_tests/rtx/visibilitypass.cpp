@@ -937,6 +937,83 @@ namespace Rtx
 
         /// One renderer, three scenes, and the number of textures changing under it.
         ///
+        /// **A texture arriving must not disturb the ones already uploaded.**
+        ///
+        /// The array is bindless and a material indexes it by position, so an append that wrote its
+        /// descriptor at the wrong element would leave a surface sampling somebody else's texture —
+        /// which reads as a plausible picture, not as an error. Rebuilding the whole array is what
+        /// this replaces, and it was measured at 150 to 225 ms against 12 for every acceleration
+        /// structure in the scene: the game spent nine tenths of every cell change there.
+        TEST_F(RtxVisibilityTest, aTextureAppendedLandsInItsOwnSlotAndLeavesTheRestAlone)
+        {
+            constexpr std::uint32_t size = 32;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            camera.mShowAlbedo = 1u;
+
+            constexpr std::array<std::uint8_t, 4> redTexel{ 255, 0, 0, 255 };
+            constexpr std::array<std::uint8_t, 4> blueTexel{ 0, 0, 255, 255 };
+            constexpr MipLevel one{ 0, 1, 1 };
+            const auto describe = [&one](std::span<const std::uint8_t> texel) {
+                return TextureData{
+                    .mFormat = TextureFormat::Rgba8Unorm,
+                    .mWidth = 1,
+                    .mHeight = 1,
+                    .mBytes = std::as_bytes(texel),
+                    .mLevels = std::span(&one, 1),
+                };
+            };
+
+            SceneDesc scene;
+            const Index mesh = scene.addMesh(sWallQuad, {}, sQuadUv, sQuadIndices);
+            const Index red
+                = scene.addMaterial(Material{ .mDiffuse = scene.addTexture(VFS::Path::NormalizedView("red.dds")) });
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = red });
+
+            mRenderer->resize(size, size);
+            const TextureData first = describe(redTexel);
+            mRenderer->setScene(scene, std::span(&first, 1), SeaState{});
+            mRenderer->renderFrame(camera, FrameOptions{ .mExposure = 1.0f });
+
+            std::vector<std::uint8_t> shown;
+            mRenderer->readPixels(shown);
+            ASSERT_EQ(shown[centre], 255) << "the wall did not start out red";
+            ASSERT_EQ(shown[centre + 2], 0);
+            ASSERT_EQ(mRenderer->getTextureCount(), 1u);
+
+            // A second texture and a second material, on a wall nearer the eye. The mesh table is
+            // untouched, so this is the append path and not a rebuild.
+            const Index blue
+                = scene.addMaterial(Material{ .mDiffuse = scene.addTexture(VFS::Path::NormalizedView("blue.dds")) });
+            scene.addInstance(MeshInstance{
+                .mTransform = osg::Matrixf::translate(0.0f, -50.0f, 0.0f), .mMesh = mesh, .mMaterial = blue });
+
+            const TextureData second = describe(blueTexel);
+            mRenderer->extendScene(scene, std::span(&second, 1), SeaState{});
+            EXPECT_EQ(mRenderer->getTextureCount(), 2u);
+
+            mRenderer->renderFrame(camera, FrameOptions{ .mExposure = 1.0f });
+            mRenderer->readPixels(shown);
+
+            // The nearer wall wears the texture that was appended, which is only true if its
+            // descriptor went to element one. Written to element zero it would come out red, and
+            // written nowhere it would come out as whatever the array holds there — both plausible.
+            EXPECT_EQ(shown[centre], 0) << "red";
+            EXPECT_EQ(shown[centre + 2], 255) << "blue";
+
+            // And the first texture is still where it was: move the near wall out of the way and the
+            // one behind it has to be red again, sampled from a descriptor nothing rewrote.
+            scene.dropInstance(1);
+            mRenderer->placeScene(scene, SeaState{});
+            mRenderer->renderFrame(camera, FrameOptions{ .mExposure = 1.0f });
+            mRenderer->readPixels(shown);
+
+            EXPECT_EQ(shown[centre], 255) << "the texture already uploaded was disturbed by the append";
+            EXPECT_EQ(shown[centre + 2], 0);
+        }
+
         /// **The pass is built once and kept, because building one compiles a shader** — so the set
         /// layout the bindless array declares cannot depend on how many textures a cell holds. It
         /// did: a scene with a different count produced a layout the kept pipeline layout would not

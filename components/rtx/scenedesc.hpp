@@ -437,6 +437,13 @@ namespace Rtx
         /// which is rewritten every frame by construction.
         std::uint64_t getStructureRevision() const { return mStructureRevision; }
 
+        /// How many times the tables have been **renumbered** by a compaction.
+        ///
+        /// Separate from the structure because the answers differ: a table that grew can be
+        /// appended to, and one whose indices moved cannot — everything built from it has to be
+        /// built again. `retain` is the only thing that moves them.
+        std::uint64_t getCompactionRevision() const { return mCompactionRevision; }
+
         /// How many times the scene's **shading tables** have changed: materials, layers and masks.
         ///
         /// Separate from the structure because the answer is different — a few kilobytes written
@@ -491,6 +498,7 @@ namespace Rtx
         std::vector<VFS::Path::Normalized> mTextures;
 
         std::uint64_t mStructureRevision = 0;
+        std::uint64_t mCompactionRevision = 0;
         std::uint64_t mShadingRevision = 0;
 
         // The scan this replaces was O(materials x textures). A cell is a hundred of each and would

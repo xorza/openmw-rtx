@@ -359,9 +359,19 @@ namespace Rtx
         mLayers.resize(layerWrite);
         mMasks.resize(maskWrite);
 
-        // A texture lives while anything still names it. The caller's set is what speaks for the
-        // ones nothing else can: a particle emitter's sprite hangs off no material at all.
-        std::vector<char> keptTexture = keepFlags(mTextures.size(), textures);
+        // **The texture table is append-only, and a compaction does not touch it.**
+        //
+        // A backend holds these in one bindless array a material indexes by position, so moving one
+        // renumbers all of them and the array has to be made again — measured at 150 to 225 ms
+        // against 12 for every acceleration structure in the scene. Reclaiming the handful a dead
+        // material leaves behind is not worth a frame like that on any cadence, and CLAUDE.md is
+        // explicit that rationing a spike is not an answer to it either. They go when the scene
+        // does, and until then a texture nothing wears costs its bytes and nothing else.
+        //
+        // The caller's set is therefore unused here. It stays in the signature because it says what
+        // a sprite's texture is — the one thing no material can speak for — and the day the array
+        // recycles slots rather than growing, that is what will keep it alive.
+        std::vector<char> keptTexture(mTextures.size(), 1);
         const auto name = [&](Index texture) {
             if (texture != sNoIndex)
                 keptTexture[texture] = 1;
@@ -438,8 +448,15 @@ namespace Rtx
         // has renumbered a table a frame can rewrite; one that dropped a mesh or a texture has
         // invalidated every structure built from them. Reporting the second where the first
         // happened is what made a cell's water animation rebuild the world once a frame.
+        // **Only what the structures and the array are built from counts as a renumbering.** A
+        // material moving is a table a frame rewrites anyway, and reporting it here would send every
+        // water animation back through a full rebuild — which is the whole thing this is here to
+        // avoid.
         if (mMeshes.size() != meshesBefore || mTextures.size() != texturesBefore)
+        {
             ++mStructureRevision;
+            ++mCompactionRevision;
+        }
 
         if (mMaterials.size() != materialsBefore || mTextures.size() != texturesBefore)
             ++mShadingRevision;
@@ -451,6 +468,7 @@ namespace Rtx
     {
         ++mStructureRevision;
         ++mShadingRevision;
+        ++mCompactionRevision;
         mPositions.clear();
         mNormals.clear();
         mTexCoords.clear();

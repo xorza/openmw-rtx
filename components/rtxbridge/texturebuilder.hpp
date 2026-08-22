@@ -43,15 +43,21 @@ namespace RtxBridge
     class SceneTextures
     {
     public:
-        /// Resolves and describes every texture `scene` names.
-        SceneTextures(const Rtx::SceneDesc& scene, Resource::ImageManager& images);
+        /// Resolves and describes the textures `scene` names from `from` onwards.
+        ///
+        /// **`from` is what stops a texture being decoded twice.** Describing reads the image and
+        /// estimating its shading reads every texel of it, and a renderer that already holds the
+        /// first three hundred needs neither done again for them — that repeated work is the 5% of
+        /// the game's CPU that showed up as `ShadingMap` and `ColourBlock::read`.
+        explicit SceneTextures(const Rtx::SceneDesc& scene, Resource::ImageManager& images, std::size_t from = 0);
 
         SceneTextures(const SceneTextures&) = delete;
         SceneTextures& operator=(const SceneTextures&) = delete;
         SceneTextures(SceneTextures&&) = default;
         SceneTextures& operator=(SceneTextures&&) = default;
 
-        /// Indexed by the scene's texture index, which is what a material stores.
+        /// Indexed from `from`, so a whole-scene description is indexed by the scene's texture index
+        /// and a partial one by its offset from where the renderer's array already ends.
         std::span<const Rtx::TextureData> getDescriptions() const { return mDescriptions; }
 
         /// How many of them could not be read and got the stand-in instead.

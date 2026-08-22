@@ -161,6 +161,9 @@ namespace MWRender::Rtx
         /// that has gone.
         std::uint64_t mBuilt = 0;
 
+        /// The compaction the structures were built against, so a renumbering is told from a growth.
+        std::uint64_t mCompacted = 0;
+
         /// A running average of what the trace costs, reported every `sReportEvery` frames.
         ///
         /// **The only instrument on this path.** The harness times a frame by tracing it thirty

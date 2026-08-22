@@ -229,6 +229,7 @@ namespace Rtx
         mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, scene);
         mBuffers = std::make_unique<SceneBuffers>(mDevice, mPool, scene, mAcceleration->getIndices(), sea);
         mTextures = std::make_unique<TextureArray>(mDevice, mPool, textures);
+        mBuiltMeshes = scene.getMeshes().size();
 
         // **Built once and kept, because building one compiles the shader — half a second a time,
         // measured.** Nothing about the pass depends on the scene: it needs the device and the shape
@@ -248,6 +249,46 @@ namespace Rtx
             .mTextureCount = mTextures->getCount(),
             .mTextureBytes = mTextures->getBytes(),
         };
+    }
+
+    void VulkanRenderer::extendScene(const SceneDesc& scene, std::span<const TextureData> arrived, const SeaState& sea)
+    {
+        assert(mAcceleration != nullptr && "extendScene before setScene");
+
+        mTextures->extend(mPool, arrived);
+
+        // **The structures are made again and the array is not**, which is the whole of what this
+        // saves: 12 ms against 150. Building only the meshes that arrived is the next step and a
+        // larger one — a bottom level lives in a storage buffer sized to the batch that built it,
+        // so appending means a second buffer rather than a bigger one.
+        if (scene.getMeshes().size() != mBuiltMeshes)
+        {
+            mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, scene);
+            mBuffers = std::make_unique<SceneBuffers>(mDevice, mPool, scene, mAcceleration->getIndices(), sea);
+            mBuiltMeshes = scene.getMeshes().size();
+            mTimed = false;
+        }
+        else
+        {
+            placeScene(scene, sea);
+        }
+
+        // **The history is kept.** Nothing was renumbered, so what the last frame resolved still
+        // describes the same surfaces — and throwing it away is a visible flash every time an actor
+        // walks into view with a texture nobody has worn yet.
+        mStats = SceneStats{
+            .mInstances = mAcceleration->getInstanceCount(),
+            .mCutoutInstances = mAcceleration->getCutoutInstanceCount(),
+            .mStructureBytes = mAcceleration->getStructureBytes(),
+            .mTableBytes = mBuffers->getBytes(),
+            .mTextureCount = mTextures->getCount(),
+            .mTextureBytes = mTextures->getBytes(),
+        };
+    }
+
+    std::uint32_t VulkanRenderer::getTextureCount() const
+    {
+        return mTextures == nullptr ? 0 : mTextures->getCount();
     }
 
     void VulkanRenderer::placeScene(const SceneDesc& scene, const SeaState& sea)

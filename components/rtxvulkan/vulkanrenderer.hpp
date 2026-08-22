@@ -49,6 +49,8 @@ namespace Rtx
         std::string describeDevice() const override;
         bool isValidating() const override;
         void setScene(const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea) override;
+        void extendScene(const SceneDesc& scene, std::span<const TextureData> arrived, const SeaState& sea) override;
+        std::uint32_t getTextureCount() const override;
         void placeScene(const SceneDesc& scene, const SeaState& sea) override;
         const SceneStats& getSceneStats() const override { return mStats; }
         void resize(std::uint32_t width, std::uint32_t height) override;
@@ -82,6 +84,10 @@ namespace Rtx
         /// Whether `placeScene` has already opened this frame's timer, so `renderFrame` adds to that
         /// report rather than starting a second one and throwing the builds away.
         bool mTimed = false;
+
+        /// How many meshes the acceleration structures were built for, so `extendScene` can tell a
+        /// scene that only gained textures from one that gained geometry too.
+        std::size_t mBuiltMeshes = 0;
 
         std::filesystem::path mShaderDirectory;
 

@@ -302,7 +302,7 @@ namespace Rtx
         /// second sitting behind four of the first. Dropping the first material takes its layer and
         /// its four weights with it, so the two that survive come to layer 0 and the nine weights to
         /// mask 0 — and the texture only that layer named goes with them.
-        TEST(RtxSceneDescTest, retainingCarriesALayersMasksAndDropsTheTexturesNothingNames)
+        TEST(RtxSceneDescTest, retainingCarriesALayersMasksAndKeepsEveryTexture)
         {
             SceneDesc scene;
             const Index ground = scene.addTexture(VFS::Path::NormalizedView("textures/tx_ground.dds"));
@@ -348,18 +348,25 @@ namespace Rtx
             EXPECT_EQ(scene.getMasks()[0], 0.5f) << "the weights that moved are the ones that survived";
             EXPECT_EQ(scene.getLayers()[1].mMaskWidth, 0u) << "a layer with no mask keeps none";
 
-            // `tx_ground` was named by the layer that went and by nothing else.
-            ASSERT_EQ(scene.getTextures().size(), 3u);
-            EXPECT_EQ(remap.mTextures[ground], sNoIndex);
-            EXPECT_EQ(scene.getTextures()[0], VFS::Path::NormalizedView("textures/tx_stone.dds"));
-            EXPECT_EQ(scene.getMaterials()[0].mDiffuse, 0u);
-            EXPECT_EQ(scene.getLayers()[0].mDiffuse, 1u);
-            EXPECT_EQ(scene.getLayers()[1].mDiffuse, 2u);
+            // **`tx_ground` was named by the layer that went, and it stays anyway.** The table is
+            // append-only: a backend holds it as one bindless array a material indexes by position,
+            // so moving a texture renumbers every one of them and the array is made again. Nothing
+            // moves here, so every index a material or a layer holds is the index it had.
+            ASSERT_EQ(scene.getTextures().size(), 4u);
+            EXPECT_EQ(remap.mTextures[ground], ground) << "a texture that nothing wears kept its slot";
+            EXPECT_EQ(scene.getTextures()[ground], VFS::Path::NormalizedView("textures/tx_ground.dds"));
 
-            // The lookup that dedups a path has to have moved with the table, or the next reference
-            // to a texture already here appends a second copy of it.
-            EXPECT_EQ(scene.addTexture(VFS::Path::NormalizedView("textures/tx_stone.dds")), 0u);
-            EXPECT_EQ(scene.getTextures().size(), 3u);
+            // Every index a survivor holds is the index it was given, because nothing above it moved.
+            EXPECT_EQ(scene.getMaterials()[0].mDiffuse, stone);
+            EXPECT_EQ(scene.getLayers()[0].mDiffuse, sand);
+            EXPECT_EQ(scene.getLayers()[1].mDiffuse, moss);
+
+            // The lookup that dedups a path still answers for every slot, or the next reference to a
+            // texture already here appends a second copy of it.
+            EXPECT_EQ(scene.addTexture(VFS::Path::NormalizedView("textures/tx_stone.dds")), stone);
+            EXPECT_EQ(scene.addTexture(VFS::Path::NormalizedView("textures/tx_ground.dds")), ground)
+                << "the one nothing wears is still findable, so it is not added twice";
+            EXPECT_EQ(scene.getTextures().size(), 4u);
         }
 
         /// **The split that keeps an animated state set from rebuilding the world.**
@@ -469,11 +476,12 @@ namespace Rtx
             const std::array materials{ kept, also };
             ASSERT_TRUE(scene.retain(noMeshes, materials, {}, remap));
 
-            // Both survivors are where they already were, so neither index moves and both paths have
-            // to be exactly what they were.
-            ASSERT_EQ(scene.getTextures().size(), 2u);
+            // Nothing moves — the table is append-only — so every path is exactly what it was and
+            // the one the dead material named is still standing in its own slot.
+            ASSERT_EQ(scene.getTextures().size(), 3u);
             EXPECT_EQ(remap.mTextures[0], 0u);
             EXPECT_EQ(remap.mTextures[1], 1u);
+            EXPECT_EQ(remap.mTextures[2], 2u);
             EXPECT_EQ(scene.getTextures()[0], first);
             EXPECT_EQ(scene.getTextures()[1], second);
 
@@ -482,7 +490,7 @@ namespace Rtx
             EXPECT_EQ(scene.getMaterials()[0].mDiffuse, 0u);
             EXPECT_EQ(scene.getMaterials()[1].mDiffuse, 1u);
             EXPECT_EQ(scene.addTexture(first), 0u) << "the path lookup lost track of a texture still here";
-            EXPECT_EQ(scene.getTextures().size(), 2u);
+            EXPECT_EQ(scene.getTextures().size(), 3u);
         }
 
         TEST(RtxSceneDescTest, clearingEmptiesEveryTable)

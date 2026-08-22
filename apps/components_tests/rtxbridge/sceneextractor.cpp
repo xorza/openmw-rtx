@@ -507,7 +507,7 @@ namespace RtxBridge
         }
 
         /// A material and the texture behind it go when the last thing wearing them does.
-        TEST(RtxSceneExtractorTest, aSweepTakesTheMaterialsAndTexturesNothingWearsAnyMore)
+        TEST(RtxSceneExtractorTest, aSweepTakesTheMaterialsNothingWearsAndLeavesTheirTextures)
         {
             osg::ref_ptr<osg::Image> image = new osg::Image;
             image->setFileName("textures/tx_stone_01.dds");
@@ -532,11 +532,15 @@ namespace RtxBridge
             const Retirement went = extractor.retire();
             EXPECT_EQ(went.mMeshes, 1u);
             EXPECT_EQ(went.mMaterials, 1u);
-            EXPECT_EQ(went.mTextures, 1u);
             EXPECT_TRUE(scene.getMeshes().empty());
             EXPECT_TRUE(scene.getMaterials().empty());
-            EXPECT_TRUE(scene.getTextures().empty());
             EXPECT_TRUE(scene.getPositions().empty());
+
+            // **The texture stays, and that is deliberate.** It lives in a bindless array a material
+            // indexes by position, so reclaiming one renumbers the rest and the array is built again
+            // — a fifth of a second, against nothing saved but a texture's bytes.
+            EXPECT_EQ(went.mTextures, 0u);
+            EXPECT_EQ(scene.getTextures().size(), 1u);
         }
 
         /// A particle system under a transform that carries its texture and its blend, the way
@@ -736,17 +740,21 @@ namespace RtxBridge
             extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
 
             const Retirement went = extractor.retire();
-            EXPECT_EQ(went.mTextures, 1u);
-            ASSERT_EQ(scene.getTextures().size(), 1u);
-            EXPECT_EQ(scene.getTextures()[0], VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
 
-            // And the emitter still draws with it after the compaction moved it down a slot.
+            // Nothing is reclaimed from the table — it is append-only — so what this asserts is that
+            // the sprite's texture is still *findable*, which is the thing the emitter map exists
+            // for: a sprite hangs off no material, so nothing else could speak for it.
+            EXPECT_EQ(went.mTextures, 0u);
+            ASSERT_EQ(scene.getTextures().size(), 2u);
+            EXPECT_EQ(scene.getTextures()[1], VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+
+            // And the emitter still draws with it.
             scene.clearPlacement();
             extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
 
             ASSERT_EQ(scene.getEmitters().size(), 1u);
-            EXPECT_EQ(scene.getEmitters().front().mTexture, 0u);
-            EXPECT_EQ(scene.getTextures().size(), 1u) << "the sprite's path was added a second time";
+            EXPECT_EQ(scene.getEmitters().front().mTexture, 1u) << "the sprite lost the slot it was given";
+            EXPECT_EQ(scene.getTextures().size(), 2u) << "the sprite's path was added a second time";
         }
 
         /// Textures come from wherever they are bound; everything else comes from the drawable.

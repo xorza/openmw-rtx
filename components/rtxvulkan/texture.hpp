@@ -10,6 +10,7 @@
 #include <components/rtx/texturedata.hpp>
 
 #include "buffer.hpp"
+#include "hostbuffer.hpp"
 #include "memory.hpp"
 
 namespace Rtx
@@ -56,6 +57,15 @@ namespace Rtx
         TextureArray(const Device& device, CommandPool& pool, std::span<const TextureData> textures);
         ~TextureArray();
 
+        /// Adds `arrived` after what is already here, leaving every texture it holds where it is.
+        ///
+        /// **This is why the set is allocated at the maximum rather than at the scene's count.**
+        /// A cell arriving, or an actor walking into view with a body texture nobody has worn yet,
+        /// used to mean the whole array made again — 327 images re-uploaded, measured at 150 to 225
+        /// milliseconds, against 12 for every acceleration structure in the scene. Appending writes
+        /// the descriptors for the new range and touches nothing else.
+        void extend(CommandPool& pool, std::span<const TextureData> arrived);
+
         TextureArray(const TextureArray&) = delete;
         TextureArray& operator=(const TextureArray&) = delete;
 
@@ -73,9 +83,19 @@ namespace Rtx
         VkDeviceSize getBytes() const;
 
     private:
+        /// Writes the descriptors for textures `[from, mTextures.size())`.
+        void describeFrom(std::size_t from);
+
+        /// Grows the shading buffer to hold `mShadingValues` and writes what is new into it.
+        void reshade(std::size_t from);
+
         const Device& mDevice;
         std::vector<Texture> mTextures;
-        Buffer mShading;
+
+        /// Every texture's shading map, host side, so growing the buffer does not have to ask the
+        /// descriptions for maps it has already uploaded. A cell's worth is a megabyte or so.
+        std::vector<float> mShadingValues;
+        HostBuffer mShading;
         VkSampler mSampler = VK_NULL_HANDLE;
         VkDescriptorSetLayout mLayout = VK_NULL_HANDLE;
         VkDescriptorPool mPool = VK_NULL_HANDLE;

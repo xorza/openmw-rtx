@@ -166,7 +166,20 @@ namespace MWRender::Rtx
         // texture, so the whole scene is rebuilt rather than replaced. **Which is a cell change and
         // a load, not a frame** — a door opening moves instances the walk already knows.
         const bool arrived = mScene.getStructureRevision() != mBuilt;
-        if (arrived)
+
+        // **Grown, or renumbered?** A compaction moves every index, so everything built from them
+        // has to be built again; anything else is an append, and appending is what keeps a body
+        // texture nobody has worn yet from costing a fifth of a second. First time through there is
+        // nothing to append to.
+        const bool renumbered = mScene.getCompactionRevision() != mCompacted || mRenderer->getTextureCount() == 0;
+
+        if (arrived && !renumbered)
+        {
+            const RtxBridge::SceneTextures textures(mScene, images, mRenderer->getTextureCount());
+            mRenderer->extendScene(mScene, textures.getDescriptions(), ::Rtx::SeaState{});
+            mBuilt = mScene.getStructureRevision();
+        }
+        else if (arrived)
         {
             Log(Debug::Info) << "Ray tracing built " << mScene.getMeshes().size() << " meshes into " << found.mInstances
                              << " instances with " << found.mLights << " lights, " << found.mDeformed
@@ -183,6 +196,7 @@ namespace MWRender::Rtx
 
             mRenderer->setScene(mScene, textures.getDescriptions(), ::Rtx::SeaState{});
             mBuilt = mScene.getStructureRevision();
+            mCompacted = mScene.getCompactionRevision();
         }
         else
         {

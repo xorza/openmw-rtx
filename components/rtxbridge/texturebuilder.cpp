@@ -106,9 +106,9 @@ namespace RtxBridge
         };
     }
 
-    SceneTextures::SceneTextures(const Rtx::SceneDesc& scene, Resource::ImageManager& images)
+    SceneTextures::SceneTextures(const Rtx::SceneDesc& scene, Resource::ImageManager& images, std::size_t from)
     {
-        const std::span<const VFS::Path::Normalized> paths = scene.getTextures();
+        const std::span<const VFS::Path::Normalized> paths = scene.getTextures().subspan(from);
 
         mImages.reserve(paths.size());
         for (const VFS::Path::Normalized& path : paths)

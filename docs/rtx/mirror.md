@@ -272,19 +272,25 @@ count climbs by one per rebuild as actors stream in. On top of that the bridge r
 re-computes a `ShadingMap` for all 327 every time, which is the 5% of CPU the game profile shows in
 `ShadingMap` and `ColourBlock::read`.
 
-So the next work is **an appendable texture array**, not incremental geometry:
+So the work was **an appendable texture array**, not incremental geometry — **done**:
 
-1. `TextureArray` gains the ability to take new images without disturbing the ones it holds.
-2. `SceneTextures` describes only what has arrived, so no texture is decoded or shaded twice.
-3. `Renderer` gains the entry point that uses them, and `Tracer` calls it when the tables only grew.
+1. `TextureArray::extend` takes new images without disturbing the ones it holds. The descriptor set
+   is allocated at the 4096 the layout declares rather than at the scene's count, so appending
+   writes the new range and nothing else; the shading buffer grows in blocks with a host-side mirror
+   so a grow needs no description it has already seen.
+2. `SceneTextures` takes a `from`, so nothing is decoded or shading-estimated twice.
+3. `Renderer::extendScene` uses them, and `Tracer` calls it whenever the tables grew rather than
+   moved — which `getCompactionRevision` is what distinguishes.
+4. **The texture table stopped being compacted at all.** A backend holds it as one bindless array a
+   material indexes by position, so reclaiming a slot renumbers the rest and the array is made
+   again. `retain` keeps every texture; they go when the scene does.
 
-A full rebuild stays for the case where `retain` compacted, because that renumbers everything.
+**Measured on the quicksave: 34 full rebuilds in fourteen seconds became 2, and the game went from
+about 4 frames a second to 1080 frames in fourteen — roughly 77 — with the trace at 6.8 ms.**
 
-**And compaction itself has to go**, for the reason in `CLAUDE.md`: it renumbers every table, so it
-is a spike, and rationing a spike behind a threshold only makes it rarer, not smaller. The tables
-should recycle their slots the way Phase 1's placements do — a dead mesh's slot taken by the next
-mesh, a dead texture's by the next texture — and then nothing is ever renumbered and nothing is ever
-rebuilt for it. That is the end state; the appendable array is the first half of it.
+A test appends a texture, checks the surface wearing it samples *that* one, and checks the texture
+already uploaded still reads correctly afterwards; it fails if the descriptor is written to the
+wrong element, which is a defect that otherwise produces a plausible picture rather than an error.
 
 **Still open**, and written up in `.notes/ISSUES.md`:
 the game's water is the rasterizer's geometry mirrored as an ordinary surface, so it is never
