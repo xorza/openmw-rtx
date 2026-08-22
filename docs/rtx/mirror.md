@@ -210,8 +210,10 @@ one pass over it, feeding both consumers.
 
 Phases 1–3 turn `extract`, `buildTopLevel` and `SceneBuffers::place` from O(instances) into
 O(movers). On the measured frame that is 3.9 + 2.6 + 2.1 = **8.6 ms of 19.7**, less whatever floor
-those three keep — Phase 0's miss is the warning that the floor is not zero, and none of the three
-goes to nothing. Phase 0 itself took 0.28 ms off, against the 0.9 forecast here before it landed.
+those three keep — and the floor is not zero.
+
+Against forecast, so far: Phase 0 was predicted at 0.9 ms and delivered **0.28**; Phase 1 was not
+given a figure and delivered **1.7**. Both were measured with `profile.sh` on the same view.
 
 `refitMeshes` is **not** in that number. It is already O(movers) — 167 bottom levels a frame — and
 its 3.2 ms is driver-side build setup and a fenced submit. It is the next problem, not this one.
