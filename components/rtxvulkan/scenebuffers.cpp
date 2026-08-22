@@ -97,51 +97,17 @@ namespace Rtx
             meshes.push_back(
                 Shaders::GpuMesh{ .mVertexOffset = mesh.mVertexOffset, .mIndexOffset = mesh.mIndexOffset });
 
-        std::vector<Shaders::GpuMaterial> materials;
-        materials.reserve(scene.getMaterials().size() + 1);
-        for (const Material& material : scene.getMaterials())
-            materials.push_back(toGpu(material));
-
-        // A drawable with no state set has no material, and `sNoIndex` is not somewhere the shader
-        // can be allowed to look. One untextured entry at the end costs less than a branch per hit,
-        // and every instance that had nothing points at it.
-        materials.push_back(Shaders::GpuMaterial{
-            .mKind = Shaders::KIND_SURFACE,
-            .mDiffuse = Shaders::NO_TEXTURE,
-            .mAlphaCutoff = 0.0f,
-            .mLayerOffset = 0,
-            .mLayerCount = 0,
-            .mEmissive = Shaders::NO_TEXTURE,
-            .mDiffuseColour = osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f),
-            .mEmissiveColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
-        });
-
-        std::vector<Shaders::GpuLayer> layers;
-        layers.reserve(scene.getLayers().size());
-        for (const MaterialLayer& layer : scene.getLayers())
-            layers.push_back(toGpu(layer));
-
-        // A scene with no terrain in it still has to bind something: a descriptor may not be null,
-        // and a zero-length buffer is not a thing Vulkan will make. One unread element each — and
-        // the layer cannot be `constexpr`, because `osg::Vec4f` has no constexpr default.
-        const Shaders::GpuLayer noLayer{};
-        constexpr float noMask = 1.0f;
-
         mTexCoords = uploadBuffer(device, pool, scene.getTexCoords(), sTableUsage);
         mMeshes = uploadBuffer(device, pool, std::span<const Shaders::GpuMesh>(meshes), sTableUsage);
-        mMaterials = uploadBuffer(device, pool, std::span<const Shaders::GpuMaterial>(materials), sTableUsage);
-        mLayers = uploadBuffer(device, pool,
-            layers.empty() ? std::span<const Shaders::GpuLayer>(&noLayer, 1)
-                           : std::span<const Shaders::GpuLayer>(layers),
-            sTableUsage);
-        mMasks = uploadBuffer(device, pool,
-            scene.getMasks().empty() ? std::span<const float>(&noMask, 1) : scene.getMasks(), sTableUsage);
 
         // **Whole here and a mesh at a time afterwards.** Only a skinned body's normals change, so
         // filling this once is a load's cost and every frame after it pays for what actually moved.
         mNormals = HostBuffer(device, scene.getNormals().size_bytes(), sTableUsage);
         mNormals.write(scene.getNormals());
 
+        // The shading tables come from `place`, which is also where they are rewritten when a
+        // material changes. Forced here because nothing has been written at revision zero.
+        mShaded = scene.getShadingRevision() - 1;
         place(scene, sea);
 
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mMaterials.getHandle()), "materials");
@@ -158,8 +124,63 @@ namespace Rtx
         held = HostBuffer(*mDevice, bytes, sTableUsage);
     }
 
+    void SceneBuffers::shade(const SceneDesc& scene)
+    {
+        if (mShaded == scene.getShadingRevision())
+            return;
+
+        mShaded = scene.getShadingRevision();
+
+        mMaterialScratch.clear();
+        mMaterialScratch.reserve(scene.getMaterials().size() + 1);
+        for (const Material& material : scene.getMaterials())
+            mMaterialScratch.push_back(toGpu(material));
+
+        // A drawable with no state set has no material, and `sNoIndex` is not somewhere the shader
+        // can be allowed to look. One untextured entry at the end costs less than a branch per hit,
+        // and every instance that had nothing points at it.
+        mMaterialScratch.push_back(Shaders::GpuMaterial{
+            .mKind = Shaders::KIND_SURFACE,
+            .mDiffuse = Shaders::NO_TEXTURE,
+            .mAlphaCutoff = 0.0f,
+            .mLayerOffset = 0,
+            .mLayerCount = 0,
+            .mEmissive = Shaders::NO_TEXTURE,
+            .mDiffuseColour = osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f),
+            .mEmissiveColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
+        });
+
+        mLayerScratch.clear();
+        mLayerScratch.reserve(scene.getLayers().size());
+        for (const MaterialLayer& layer : scene.getLayers())
+            mLayerScratch.push_back(toGpu(layer));
+
+        // A scene with no terrain in it still has to bind something: a descriptor may not be null,
+        // and a zero-length buffer is not a thing Vulkan will make. One unread element each — and
+        // the layer cannot be `constexpr`, because `osg::Vec4f` has no constexpr default.
+        const Shaders::GpuLayer noLayer{};
+        constexpr float noMask = 1.0f;
+
+        const std::span<const Shaders::GpuMaterial> materials(mMaterialScratch);
+        const std::span<const Shaders::GpuLayer> layers = mLayerScratch.empty()
+            ? std::span<const Shaders::GpuLayer>(&noLayer, 1)
+            : std::span<const Shaders::GpuLayer>(mLayerScratch);
+        const std::span<const float> masks
+            = scene.getMasks().empty() ? std::span<const float>(&noMask, 1) : scene.getMasks();
+
+        reserve(mMaterials, materials.size_bytes());
+        reserve(mLayers, layers.size_bytes());
+        reserve(mMasks, masks.size_bytes());
+
+        mMaterials.write(materials);
+        mLayers.write(layers);
+        mMasks.write(masks);
+    }
+
     void SceneBuffers::place(const SceneDesc& scene, const SeaState& sea)
     {
+        shade(scene);
+
         // **Built from the records rather than from the instances**, so the motion transform the
         // shader reads and the one the acceleration structure was placed with come out of the same
         // arithmetic. Two places computing an inverse is two places to get it wrong.

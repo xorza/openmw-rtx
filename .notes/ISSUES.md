@@ -35,9 +35,16 @@
   sprites or emitters, so the static world's particle systems are gone from the frame after the
   first `unplace`.
 
-- In the game, `MWRender::Water` gives `Water Geometry` and `Simple Water Geometry` a new
-  `osg::StateSet` every frame as it cycles `textures/water/waterNN.dds`. `SceneExtractor` keys
-  materials on the state set's address, so those two are new materials every frame and the two they
-  replace are swept. Each appearance bumps the scene's revision, `Tracer` then takes the `setScene`
-  branch, and every acceleration structure and the whole texture array is rebuilt. Forty-five
-  seconds on the Seyda Neen quicksave rebuilt 85 times.
+- A cell arriving rebuilds the whole scene. `Tracer` answers a changed structure revision with
+  `setScene`, which destroys every bottom-level structure, every buffer and the texture array and
+  makes them again, and drops the temporal history with them — where what changed is a few hundred
+  meshes appended to a table of fifteen hundred.
+
+- In the game the water is the rasterizer's `Water Geometry`, mirrored as an ordinary surface:
+  `MaterialKind::Water` is set only by `RtxBridge::addWater`, which only the harness calls. So the
+  game's water gets no `MASK_WATER`, no shadow pass-through and none of the wave or caustic
+  treatment the renderer has for it.
+
+- `SceneExtractor` keys materials on the address of an `osg::StateSet`. OpenMW gives the water a new
+  one every frame as it cycles `textures/water/waterNN.dds`, so the mirror sees a new material each
+  frame and sweeps the one it replaced — a table that churns for a surface that has not changed.

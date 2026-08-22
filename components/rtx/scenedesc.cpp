@@ -60,7 +60,7 @@ namespace Rtx
         else
             mTexCoords.insert(mTexCoords.end(), texCoords.begin(), texCoords.end());
 
-        ++mRevision;
+        ++mStructureRevision;
         mMeshes.push_back(range);
         return static_cast<Index>(mMeshes.size() - 1);
     }
@@ -86,14 +86,14 @@ namespace Rtx
 
     Index SceneDesc::addMaterial(const Material& material)
     {
-        ++mRevision;
+        ++mShadingRevision;
         mMaterials.push_back(material);
         return static_cast<Index>(mMaterials.size() - 1);
     }
 
     Index SceneDesc::addMask(std::span<const float> weights)
     {
-        ++mRevision;
+        ++mShadingRevision;
         const auto offset = static_cast<Index>(mMasks.size());
         mMasks.insert(mMasks.end(), weights.begin(), weights.end());
         return offset;
@@ -101,7 +101,7 @@ namespace Rtx
 
     void SceneDesc::addLayer(const MaterialLayer& layer)
     {
-        ++mRevision;
+        ++mShadingRevision;
         mLayers.push_back(layer);
     }
 
@@ -149,7 +149,7 @@ namespace Rtx
         if (known != mTextureIndex.end())
             return known->second;
 
-        ++mRevision;
+        ++mStructureRevision;
         const Index index = static_cast<Index>(mTextures.size());
         mTextures.emplace_back(path);
         mTextureIndex.emplace(path, index);
@@ -279,6 +279,11 @@ namespace Rtx
         assert(materials.size() <= mMaterials.size());
         if (meshes.size() == mMeshes.size() && materials.size() == mMaterials.size())
             return false;
+
+        // Read before anything moves, so the tail can say which tier the compaction actually touched.
+        const std::size_t meshesBefore = mMeshes.size();
+        const std::size_t texturesBefore = mTextures.size();
+        const std::size_t materialsBefore = mMaterials.size();
 
         // Allocated here rather than kept, because this runs on the frame a cell left and on no
         // other. What it is not allowed to do is allocate on the frames in between, which is what
@@ -429,13 +434,23 @@ namespace Rtx
         // what puts them back.
         clearPlacement();
 
-        ++mRevision;
+        // **Only the tier that actually moved.** A sweep that dropped a material and nothing else
+        // has renumbered a table a frame can rewrite; one that dropped a mesh or a texture has
+        // invalidated every structure built from them. Reporting the second where the first
+        // happened is what made a cell's water animation rebuild the world once a frame.
+        if (mMeshes.size() != meshesBefore || mTextures.size() != texturesBefore)
+            ++mStructureRevision;
+
+        if (mMaterials.size() != materialsBefore || mTextures.size() != texturesBefore)
+            ++mShadingRevision;
+
         return true;
     }
 
     void SceneDesc::clear()
     {
-        ++mRevision;
+        ++mStructureRevision;
+        ++mShadingRevision;
         mPositions.clear();
         mNormals.clear();
         mTexCoords.clear();

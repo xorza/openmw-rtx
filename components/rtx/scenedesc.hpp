@@ -424,14 +424,25 @@ namespace Rtx
         std::span<const Material> getMaterials() const { return mMaterials; }
         std::span<const MaterialLayer> getLayers() const { return mLayers; }
         std::span<const Light> getLights() const { return mLights; }
-        /// How many times what the scene is *made of* has changed.
+        /// How many times the scene's **structure** has changed: its meshes and its textures.
         ///
-        /// **What tells a frame that moved from a scene that arrived**, and the only honest test
-        /// for it: comparing table sizes misses a cell that left as another arrived, which is
-        /// exactly what walking across a boundary does. Bumped by a mesh, a material, a layer, a
-        /// mask or a texture appearing, and by `retain` and `clear`; never by a placement, which is
-        /// rewritten every frame by construction.
-        std::uint64_t getRevision() const { return mRevision; }
+        /// **What a rebuild costs is why this is separate from the tables.** A mesh appearing means
+        /// a bottom-level acceleration structure that does not exist yet, and a texture appearing
+        /// means an array that has to be made again — hundreds of milliseconds between them, and
+        /// the temporal history goes with them. Nothing else in the scene is worth that.
+        ///
+        /// **The only honest test for it**: comparing table sizes misses a cell that left as another
+        /// arrived, which is exactly what walking across a boundary does. Bumped by a mesh or a
+        /// texture appearing, by `clear`, and by a `retain` that moved either; never by a placement,
+        /// which is rewritten every frame by construction.
+        std::uint64_t getStructureRevision() const { return mStructureRevision; }
+
+        /// How many times the scene's **shading tables** have changed: materials, layers and masks.
+        ///
+        /// Separate from the structure because the answer is different — a few kilobytes written
+        /// where a structure change costs every acceleration structure in the scene. Anything that
+        /// animates a state set churns these, and the mirror must not read that as a world arriving.
+        std::uint64_t getShadingRevision() const { return mShadingRevision; }
 
         std::span<const Sprite> getSprites() const { return mSprites; }
         std::span<const SpriteEmitter> getEmitters() const { return mEmitters; }
@@ -479,7 +490,8 @@ namespace Rtx
         std::vector<float> mMasks;
         std::vector<VFS::Path::Normalized> mTextures;
 
-        std::uint64_t mRevision = 0;
+        std::uint64_t mStructureRevision = 0;
+        std::uint64_t mShadingRevision = 0;
 
         // The scan this replaces was O(materials x textures). A cell is a hundred of each and would
         // never have noticed; a worldspace is thousands of both, and load time is not the place to

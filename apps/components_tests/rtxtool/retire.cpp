@@ -104,11 +104,11 @@ namespace RtxTool
 
             const std::size_t held = scene.getMeshes().size();
             const std::size_t vertices = scene.getPositions().size();
-            const std::uint64_t built = scene.getRevision();
+            const std::uint64_t built = scene.getStructureRevision();
 
             // Nothing has gone: the walk that just happened is the epoch everything survives.
             ASSERT_TRUE(extractor.retire().empty());
-            EXPECT_EQ(scene.getRevision(), built) << "a sweep that dropped nothing must not ask for a rebuild";
+            EXPECT_EQ(scene.getStructureRevision(), built) << "a sweep that dropped nothing must not ask for a rebuild";
             EXPECT_EQ(scene.getMeshes().size(), held);
 
             // The second room, and only the second room. The first is still in the resource cache,
@@ -129,7 +129,7 @@ namespace RtxTool
             EXPECT_EQ(scene.getMeshes().size() + went.mMeshes, held + two.mMeshesAdded);
             EXPECT_GT(went.mMeshes, 0u) << "the room that was walked away from is still in the scene";
             EXPECT_LT(went.mMeshes, held) << "the models the two rooms share were dropped along with it";
-            EXPECT_NE(scene.getRevision(), built);
+            EXPECT_NE(scene.getStructureRevision(), built);
 
             // The buffers are exactly what the survivors need and not a vertex more, which is what
             // says the gaps were closed rather than merely skipped.

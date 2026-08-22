@@ -165,7 +165,7 @@ namespace MWRender::Rtx
         // Geometry the walk has not met before has no bottom-level structure and no uploaded
         // texture, so the whole scene is rebuilt rather than replaced. **Which is a cell change and
         // a load, not a frame** — a door opening moves instances the walk already knows.
-        const bool arrived = mScene.getRevision() != mBuilt;
+        const bool arrived = mScene.getStructureRevision() != mBuilt;
         if (arrived)
         {
             Log(Debug::Info) << "Ray tracing built " << mScene.getMeshes().size() << " meshes into " << found.mInstances
@@ -182,7 +182,7 @@ namespace MWRender::Rtx
                                        "never files";
 
             mRenderer->setScene(mScene, textures.getDescriptions(), ::Rtx::SeaState{});
-            mBuilt = mScene.getRevision();
+            mBuilt = mScene.getStructureRevision();
         }
         else
         {

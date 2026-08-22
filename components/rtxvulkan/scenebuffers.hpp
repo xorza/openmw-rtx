@@ -91,15 +91,31 @@ namespace Rtx
         /// exactly is what keeps a light appearing from reallocating every buffer behind it.
         void reserve(HostBuffer& held, VkDeviceSize bytes);
 
+        /// Rewrites the shading tables if the scene says they have changed, and nothing otherwise.
+        void shade(const SceneDesc& scene);
+
         const Device* mDevice = nullptr;
 
         // What the scene is made of. Written once, through a staging copy, because nothing rewrites
         // them and device-only memory is the faster place for the device to read.
         Buffer mTexCoords;
         Buffer mMeshes;
-        Buffer mMaterials;
-        Buffer mLayers;
-        Buffer mMasks;
+
+        // **Host-visible and rewritten from `place`, not uploaded once.** Anything that animates a
+        // state set gives the mirror a new material every frame — OpenMW's water cycles thirty-two
+        // of them — and a table that could only be filled at construction made that a reason to
+        // rebuild the whole scene. A few kilobytes written when the scene says they changed is what
+        // it is actually worth.
+        HostBuffer mMaterials;
+        HostBuffer mLayers;
+        HostBuffer mMasks;
+
+        /// The shading revision these three were last written at, so a frame that changed nothing
+        /// writes nothing.
+        std::uint64_t mShaded = 0;
+
+        std::vector<Shaders::GpuMaterial> mMaterialScratch;
+        std::vector<Shaders::GpuLayer> mLayerScratch;
 
         VkBuffer mIndices = VK_NULL_HANDLE;
 

@@ -267,7 +267,7 @@ namespace Rtx
             ASSERT_EQ(scene.getIndices().size(), 15u);
             EXPECT_EQ(scene.getMeshes()[last].mVertexOffset, 7u);
 
-            const std::uint64_t was = scene.getRevision();
+            const std::uint64_t was = scene.getStructureRevision();
 
             Remap remap;
             const std::array keep{ first, last };
@@ -290,7 +290,8 @@ namespace Rtx
             EXPECT_EQ(scene.getMeshPositions(1)[0].z(), 2.0f);
             EXPECT_EQ(scene.getMeshIndices(1)[5], 3u);
 
-            EXPECT_GT(scene.getRevision(), was) << "the structures built from this describe a scene that has gone";
+            EXPECT_GT(scene.getStructureRevision(), was)
+                << "the structures built from this describe a scene that has gone";
         }
 
         /// Layers and masks belong to the material that owns them and go where it goes; a texture
@@ -361,6 +362,49 @@ namespace Rtx
             EXPECT_EQ(scene.getTextures().size(), 3u);
         }
 
+        /// **The split that keeps an animated state set from rebuilding the world.**
+        ///
+        /// A material appearing, and a sweep that takes one away again, is a few kilobytes of table.
+        /// A mesh or a texture appearing is every acceleration structure in the scene. The mirror
+        /// reports them apart so a reader can answer them apart — OpenMW's water cycles thirty-two
+        /// materials a second, and reading that as a world arriving cost the game every frame it
+        /// had.
+        TEST(RtxSceneDescTest, aMaterialChangingIsNotAStructureChanging)
+        {
+            SceneDesc scene;
+            const Index mesh = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
+            scene.addMaterial(Material{});
+
+            const std::uint64_t structure = scene.getStructureRevision();
+            const std::uint64_t shading = scene.getShadingRevision();
+
+            // A second material, which is what a state set with a new address comes to.
+            Material other;
+            other.mTwoSided = true;
+            const Index kept = scene.addMaterial(other);
+
+            EXPECT_EQ(scene.getStructureRevision(), structure) << "a material asked for a rebuild";
+            EXPECT_GT(scene.getShadingRevision(), shading);
+
+            // And taking one away again is the same kind of change, not a different one: the mesh
+            // table did not move, so nothing built from it has to be built again.
+            const std::uint64_t settled = scene.getShadingRevision();
+            Remap remap;
+            const std::array meshes{ mesh };
+            const std::array materials{ kept };
+
+            ASSERT_TRUE(scene.retain(meshes, materials, {}, remap));
+            EXPECT_EQ(scene.getMaterials().size(), 1u);
+            EXPECT_EQ(scene.getStructureRevision(), structure) << "a sweep of one material asked for a rebuild";
+            EXPECT_GT(scene.getShadingRevision(), settled);
+
+            // A mesh going is the other answer, and has to stay the other answer.
+            const std::uint64_t before = scene.getStructureRevision();
+            Remap dropped;
+            ASSERT_TRUE(scene.retain({}, materials, {}, dropped));
+            EXPECT_GT(scene.getStructureRevision(), before);
+        }
+
         /// A texture nothing else speaks for survives if the caller names it, and a scene that lost
         /// nothing is left entirely alone.
         TEST(RtxSceneDescTest, retainingKeepsANamedTextureAndDoesNothingWhenNothingWent)
@@ -375,11 +419,13 @@ namespace Rtx
             Remap remap;
             const std::array meshes{ mesh };
             const std::array materials{ material };
-            const std::uint64_t was = scene.getRevision();
+            const std::uint64_t was = scene.getStructureRevision();
+            const std::uint64_t shading = scene.getShadingRevision();
 
             EXPECT_FALSE(scene.retain(meshes, materials, {}, remap));
             EXPECT_TRUE(remap.mMeshes.empty());
-            EXPECT_EQ(scene.getRevision(), was);
+            EXPECT_EQ(scene.getStructureRevision(), was);
+            EXPECT_EQ(scene.getShadingRevision(), shading);
             EXPECT_EQ(scene.getTextures().size(), 1u) << "a sprite's texture is on no material and must not go";
 
             // And with the material gone the sprite's texture is still the caller's to keep — which
