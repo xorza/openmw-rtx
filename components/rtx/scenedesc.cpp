@@ -310,7 +310,17 @@ namespace Rtx
                 continue;
 
             remap.mTextures[old] = textureWrite;
-            mTextures[textureWrite++] = std::move(mTextures[old]);
+
+            // **Only where it is actually moving.** Everything before the first casualty is written
+            // to the slot it is already in, and a path long enough to be on the heap does not
+            // survive being move-assigned to itself: the assignment takes the source's buffer and
+            // then sets the source's length to zero, and the source is the same object. An emptied
+            // path is a texture nothing can load, which reaches the screen as a world with no
+            // textures on it at all.
+            if (textureWrite != old)
+                mTextures[textureWrite] = std::move(mTextures[old]);
+
+            ++textureWrite;
         }
 
         mTextures.resize(textureWrite);

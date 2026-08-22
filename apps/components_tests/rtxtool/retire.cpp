@@ -160,6 +160,13 @@ namespace RtxTool
                     ASSERT_LT(index, range.mVertexCount) << "mesh " << mesh << " indexes past its own vertices";
             }
 
+            // **Not one of them emptied.** A path is what the texture array is built from, and a
+            // survivor written to the slot it already occupied is where one gets lost — the unit
+            // tests reach that case deliberately and a cell reaches it whenever its first texture
+            // outlives the walk.
+            for (const VFS::Path::Normalized& texture : scene.getTextures())
+                EXPECT_FALSE(texture.value().empty()) << "a surviving texture lost its path";
+
             for (const Rtx::Material& material : scene.getMaterials())
             {
                 if (material.mDiffuse != Rtx::sNoIndex)

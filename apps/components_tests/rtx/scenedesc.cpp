@@ -391,6 +391,52 @@ namespace Rtx
             EXPECT_TRUE(scene.getMaterials().empty());
             ASSERT_EQ(scene.getTextures().size(), 1u);
             EXPECT_EQ(remap.mTextures[sprite], 0u);
+            EXPECT_EQ(scene.getTextures()[0], VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+        }
+
+        /// A texture that survives without moving keeps its path.
+        ///
+        /// **The case the other compaction tests cannot reach.** They all drop something early, so
+        /// every survivor slides down at least one slot and the copy is between two different
+        /// entries; the survivors *before* the first casualty are written to the slot they are
+        /// already in. A path long enough to be on the heap self-assigned that way is emptied rather
+        /// than left alone, and an emptied path is a texture nothing can load — which reaches the
+        /// screen as a world with no textures on it at all.
+        TEST(RtxSceneDescTest, aTextureThatSurvivesWhereItStoodKeepsItsPath)
+        {
+            SceneDesc scene;
+
+            // Long enough to be on the heap rather than inside the string, which is the whole
+            // condition: a short name survives a self-assignment that a real path does not.
+            const VFS::Path::NormalizedView first("textures/tx_ai_wickerbasket01.dds");
+            const VFS::Path::NormalizedView second("textures/tx_ai_ceramicbowl01.dds");
+            const VFS::Path::NormalizedView doomed("textures/tx_ai_lanternhandle.dds");
+            ASSERT_GT(first.value().size(), sizeof(std::string))
+                << "a path this short may live inside the string and never be moved";
+
+            const Index kept = scene.addMaterial(Material{ .mDiffuse = scene.addTexture(first) });
+            const Index also = scene.addMaterial(Material{ .mDiffuse = scene.addTexture(second) });
+            scene.addMaterial(Material{ .mDiffuse = scene.addTexture(doomed) });
+
+            Remap remap;
+            const std::array<Index, 0> noMeshes{};
+            const std::array materials{ kept, also };
+            ASSERT_TRUE(scene.retain(noMeshes, materials, {}, remap));
+
+            // Both survivors are where they already were, so neither index moves and both paths have
+            // to be exactly what they were.
+            ASSERT_EQ(scene.getTextures().size(), 2u);
+            EXPECT_EQ(remap.mTextures[0], 0u);
+            EXPECT_EQ(remap.mTextures[1], 1u);
+            EXPECT_EQ(scene.getTextures()[0], first);
+            EXPECT_EQ(scene.getTextures()[1], second);
+
+            // And the two materials still name them, which is what an emptied path takes away: the
+            // lookup would find nothing to load and the surface would come out untextured.
+            EXPECT_EQ(scene.getMaterials()[0].mDiffuse, 0u);
+            EXPECT_EQ(scene.getMaterials()[1].mDiffuse, 1u);
+            EXPECT_EQ(scene.addTexture(first), 0u) << "the path lookup lost track of a texture still here";
+            EXPECT_EQ(scene.getTextures().size(), 2u);
         }
 
         TEST(RtxSceneDescTest, clearingEmptiesEveryTable)
