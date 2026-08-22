@@ -11,6 +11,8 @@ set(RTXBRIDGE_FILES
     png.hpp
     sceneextractor.cpp
     sceneextractor.hpp
+    sceneuploader.cpp
+    sceneuploader.hpp
     texturebuilder.cpp
     texturebuilder.hpp
     waterbuilder.cpp

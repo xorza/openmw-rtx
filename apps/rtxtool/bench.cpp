@@ -18,7 +18,7 @@
 #include <components/rtx/camera.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtx/wavespectrum.hpp>
-#include <components/rtxbridge/texturebuilder.hpp>
+#include <components/rtxbridge/sceneuploader.hpp>
 
 #include "lighting.hpp"
 #include "perfcontrol.hpp"
@@ -242,13 +242,10 @@ namespace RtxTool
                 return 1;
             }
 
+            RtxBridge::SceneUploader uploader;
+
             const Clock::time_point buildStart = Clock::now();
-            {
-                // Held only across the call: the descriptions span the bridge's storage until the
-                // upload behind `setScene` has finished with them.
-                const RtxBridge::SceneTextures described(staged.getScene(), world.getImageManager());
-                renderer->setScene(staged.getScene(), described.getDescriptions(), Rtx::SeaState{});
-            }
+            uploader.hand(*renderer, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
             const double buildMs = std::chrono::duration<double, std::milli>(Clock::now() - buildStart).count();
 
             const float far = std::max(staged.getScene().getBounds().radius() * 8.0f, 10000.0f);
@@ -286,14 +283,18 @@ namespace RtxTool
 
                 const Clock::time_point frameStart = Clock::now();
 
-                // **After the first, which is the frame `setScene` already built**, and by frame
-                // index rather than by the clock: a world stepped by how long the last frame took
-                // would render a different sequence on every machine and on every build.
+                // **After the first, which is the frame the build above already made**, and by
+                // frame index rather than by the clock: a world stepped by how long the last frame
+                // took would render a different sequence on every machine and on every build.
+                //
+                // Handed rather than placed because a step walks the whole graph and sweeps it; on
+                // a bench nothing arrives, so this is a place every frame and the column still
+                // measures what it says it does.
                 double placeMs = 0.0;
                 if (frame > 0 && staged.getMotion() != nullptr && staged.getMotion()->step(frame))
                 {
                     const Clock::time_point placeStart = Clock::now();
-                    renderer->placeScene(staged.getScene(), Rtx::SeaState{});
+                    uploader.hand(*renderer, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
                     placeMs = std::chrono::duration<double, std::milli>(Clock::now() - placeStart).count();
                 }
 

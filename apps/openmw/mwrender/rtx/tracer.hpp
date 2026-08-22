@@ -13,6 +13,7 @@
 
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtx/upscale.hpp>
+#include <components/rtxbridge/sceneuploader.hpp>
 
 #include "bench.hpp"
 
@@ -118,9 +119,9 @@ namespace MWRender::Rtx
         /// new list of placements over the same geometry — which is a top-level acceleration
         /// structure rebuild, the thing every renderer of this kind does per frame anyway.
         ///
-        /// What it does not yet catch is geometry *arriving*: a mesh the walk meets for the first
-        /// time needs a bottom-level structure and a texture upload, and this still asks for a full
-        /// `setScene` when the instance count moves far enough to say a cell changed.
+        /// Geometry *arriving* is appended rather than rebuilt: a mesh the walk meets for the first
+        /// time gets a bottom-level structure and its textures go onto the end of the array, and only
+        /// a sweep that renumbered the tables costs a full `setScene`.
         ///
         /// Called after `updateTraversal` and before `renderingTraversals`, which is where the graph
         /// is settled and nothing has drawn yet.
@@ -156,16 +157,8 @@ namespace MWRender::Rtx
         ::Rtx::SceneDesc mScene;
         std::unique_ptr<RtxBridge::SceneExtractor> mExtractor;
 
-        /// Which revision of the scene the structures and the texture array were built from.
-        ///
-        /// **A counter and not a set of table sizes**, because walking across a cell boundary loses
-        /// one cell as it gains another: a scene that ends the frame the same size it started is
-        /// exactly the case a size comparison misses, and the structures it kept describe geometry
-        /// that has gone.
-        std::uint64_t mBuilt = 0;
-
-        /// The compaction the structures were built against, so a renumbering is told from a growth.
-        std::uint64_t mCompacted = 0;
+        /// Which of place, extend and rebuild a frame is, and what a rebuild has to describe.
+        RtxBridge::SceneUploader mUploader;
 
         /// A running average of what the trace costs, reported every `sReportEvery` frames.
         ///

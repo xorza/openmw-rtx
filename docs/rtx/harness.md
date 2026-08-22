@@ -20,7 +20,7 @@ The harness already streams cells as the camera crosses a boundary — that part
 | **what triggers a load** | the player crosses a cell boundary | the camera crosses a cell boundary — the same shape, and now the same fill order |
 | **unloading** | cells out of range are torn down | ~~never~~ — **`dropCellsOutside`, §3.2** |
 | **preloading** | background threads, ahead of the player | none, synchronous on the frame that crossed |
-| **after a ring arrives** | `extendScene`, appending | `setScene`, rebuilding all of it |
+| **after a ring arrives** | `extendScene`, appending | ~~`setScene`, rebuilding all of it~~ — **the same decision, and the same code, §3.3** |
 | **per-frame walk** | the whole graph | ~~the actors~~ — **the whole graph, §3.1** |
 | **`retire` and compaction** | every frame | ~~never~~ — **every frame, §3.2** |
 | **node identity** | `getInstance` — one node per reference | ~~`getTemplate`~~ — **`getInstance`, §3.1** |
@@ -91,8 +91,31 @@ costs about 0.15 ms a frame here.
 one accumulating node and offers no way to drop a cell's worth, so the ground a departed cell stood
 on stays. It is the one part of the working set that still only grows.
 
-**3. Append instead of rebuild.** A ring arriving takes the same decision `Tracer` takes — grown
-means `extendScene`, renumbered means `setScene`.
+**3. Append instead of rebuild — done, and the decision is now written once.** It moved out of
+`Tracer` into `RtxBridge::SceneUploader`, which both sides call: it holds which revision of the scene
+the renderer was built from, describes only the textures that arrived, and picks between
+`placeScene`, `extendScene` and `setScene`. `view`, `shot`, `bench` and `Tracer` all hand their scene
+over through it, so there is no longer a version of the decision that can be wrong in one of them.
+
+That also closed a real hole in the harness. `shot`, `bench` and `view` all called `placeScene`
+unconditionally after a motion step — but a step walks the whole graph and sweeps it, so an actor who
+draws a weapon brings a mesh with no structure behind it, and a sweep that closed a gap renumbers
+what the last frame was built from. Both reach the frame as geometry naming something else.
+
+**A crossing appends, and that was not the expected answer.** Walking one cell east drops three
+columns as it gains three, and dropping a cell was supposed to compact the tables and force a full
+rebuild. It does not: a town is a few dozen models placed hundreds of times, the resource cache hands
+the same nodes to every cell, and the three columns that left took no mesh with them the six that
+stayed were not still using. `retain` finds every mesh still met, drops nothing, renumbers nothing.
+
+Measured at Balmora (`RtxCrossingTest`): **1,397 meshes to 1,665, and 50 textures described where a
+rebuild would have decoded and shading-estimated all 231 again.** For scale, the full build that
+`shot` reports at the same spot is 667 ms.
+
+What the append still costs is the bottom levels: `VulkanRenderer::extendScene` keeps the texture
+array but makes `SceneAcceleration` and `SceneBuffers` again whenever the mesh table grows, about 12
+ms of spike on a frame that wanted 16. That is in `.notes/ISSUES.md` and is the next thing in the way
+of a uniform frame time across a crossing.
 
 **4. A camera path for `bench`.** Step the camera at a fixed speed between two viewpoints so the
 crossings land in the same places on every run, and the load spikes show up in the p99 where they

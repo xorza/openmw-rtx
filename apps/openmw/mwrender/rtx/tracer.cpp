@@ -15,9 +15,9 @@
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/png.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
+#include <components/rtxbridge/sceneuploader.hpp>
 
 #include "../vismask.hpp"
-#include <components/rtxbridge/texturebuilder.hpp>
 #include <components/settings/values.hpp>
 
 #include "composite.hpp"
@@ -78,9 +78,9 @@ namespace MWRender::Rtx
     Tracer::Tracer(std::unique_ptr<::Rtx::Renderer> renderer, std::uint32_t width, std::uint32_t height)
         : mRenderer(std::move(renderer))
         , mComposite(new Composite)
-        , mExtractor(std::make_unique<RtxBridge::SceneExtractor>(mScene))
         , mWidth(width)
         , mHeight(height)
+        , mExtractor(std::make_unique<RtxBridge::SceneExtractor>(mScene))
     {
         // **The sky is not mirrored.** It is the one subtree the engine rebuilds every frame —
         // state sets and all — so walking it churns the identity maps, and a sweep that drops four
@@ -164,46 +164,18 @@ namespace MWRender::Rtx
         if (mScene.getPlacedCount() == 0)
             return;
 
-        // Geometry the walk has not met before has no bottom-level structure and no uploaded
-        // texture, so the whole scene is rebuilt rather than replaced. **Which is a cell change and
-        // a load, not a frame** — a door opening moves instances the walk already knows.
-        const bool arrived = mScene.getStructureRevision() != mBuilt;
+        // Placed, appended or rebuilt — the decision, and the describing a rebuild needs, are the
+        // harness's too and are written once (`RtxBridge::SceneUploader`).
+        const RtxBridge::SceneUpload handed = mUploader.hand(*mRenderer, mScene, images, ::Rtx::SeaState{});
 
-        // **Grown, or renumbered?** A compaction moves every index, so everything built from them
-        // has to be built again; anything else is an append, and appending is what keeps a body
-        // texture nobody has worn yet from costing a fifth of a second. First time through there is
-        // nothing to append to.
-        const bool renumbered = mScene.getCompactionRevision() != mCompacted || mRenderer->getTextureCount() == 0;
-
-        if (arrived && !renumbered)
-        {
-            const RtxBridge::SceneTextures textures(mScene, images, mRenderer->getTextureCount());
-            mRenderer->extendScene(mScene, textures.getDescriptions(), ::Rtx::SeaState{});
-            mBuilt = mScene.getStructureRevision();
-        }
-        else if (arrived)
-        {
+        if (handed.mKind == RtxBridge::SceneUpload::Kind::Rebuilt)
             Log(Debug::Info) << "Ray tracing built " << mScene.getMeshes().size() << " meshes into " << found.mInstances
                              << " instances with " << found.mLights << " lights, " << found.mDeformed
                              << " of them deforming, and skipped " << found.mSkippedUnknown << " it cannot read";
 
-            // The bridge decodes and describes; the backend uploads. Held only across the call —
-            // `setScene` has finished with the descriptions when it returns.
-            const RtxBridge::SceneTextures textures(mScene, images);
-            if (const std::uint32_t missing = textures.getUnreadable(); missing > 0)
-                Log(Debug::Warning) << "Ray tracing could not read " << missing << " of "
-                                    << textures.getDescriptions().size()
-                                    << " textures and drew them grey — a live graph holds textures that were "
-                                       "never files";
-
-            mRenderer->setScene(mScene, textures.getDescriptions(), ::Rtx::SeaState{});
-            mBuilt = mScene.getStructureRevision();
-            mCompacted = mScene.getCompactionRevision();
-        }
-        else
-        {
-            mRenderer->placeScene(mScene, ::Rtx::SeaState{});
-        }
+        if (handed.mUnreadable > 0)
+            Log(Debug::Warning) << "Ray tracing could not read " << handed.mUnreadable << " of " << handed.mDescribed
+                                << " textures and drew them grey — a live graph holds textures that were never files";
 
         // **In double, and the direction reduced to one before either is narrowed.** OSG hands back
         // a point one unit ahead of the eye, and Morrowind's cells are far enough out that a float

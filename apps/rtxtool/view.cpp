@@ -16,7 +16,6 @@
 #include <components/rtx/camera.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/texturebuilder.hpp>
 
 #include <set>
 
@@ -27,7 +26,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/rtxbridge/png.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
-#include <components/rtxbridge/texturebuilder.hpp>
+#include <components/rtxbridge/sceneuploader.hpp>
 
 namespace RtxTool
 {
@@ -83,6 +82,22 @@ namespace RtxTool
             };
         }
 
+        /// What a hand-over came to, for the line a ring prints.
+        const char* describeUpload(const RtxBridge::SceneUpload& handed)
+        {
+            switch (handed.mKind)
+            {
+                case RtxBridge::SceneUpload::Kind::Placed:
+                    return "nothing arrived, so only the transforms were rewritten";
+                case RtxBridge::SceneUpload::Kind::Extended:
+                    return "appended";
+                case RtxBridge::SceneUpload::Kind::Rebuilt:
+                    return "rebuilt, because the tables were renumbered";
+            }
+
+            return "handed over";
+        }
+
         void printHelp()
         {
             out() << "\n"
@@ -128,23 +143,21 @@ namespace RtxTool
 
         Rtx::SceneDesc scene;
         RtxBridge::SceneExtractor extractor(scene);
+        RtxBridge::SceneUploader uploader;
         LoadedCells loaded;
 
-        /// Brings the region around `around` in, and hands the renderer whatever is now in the
-        /// scene. False where the cell placed nothing at all.
-        ///
-        /// **Nothing is ever taken out.** Removing a cell means removing its instances, and neither
-        /// `SceneDesc` nor the acceleration structures can do that yet — so a long walk grows until
-        /// the process is restarted. That is a harness being honest about its limits rather than a
-        /// design; the game will need the other half.
+        /// The people and props a ring brought with it, held between `bring` and the restanding
+        /// that puts them back into the posed half of the scene.
         std::vector<CellPerson> arrivals;
         std::vector<CellProp> arrivedProps;
 
-        /// Hands the renderer everything now in the scene, structures and textures and all.
-        const auto rebuild = [&] {
-            const RtxBridge::SceneTextures described(scene, world.getImageManager());
-            renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
-        };
+        /// Hands the renderer the scene as it now stands, building only what has to be built.
+        ///
+        /// **The same call the game makes, and it is what makes a ring cheap here too.** A crossing
+        /// brings models the region did not have, which is a growth and not a renumbering, so the
+        /// structures already built stay built and the textures already uploaded stay uploaded —
+        /// a few milliseconds instead of the fifth of a second a full rebuild of the array costs.
+        const auto hand = [&] { return uploader.hand(*renderer, scene, world.getImageManager(), Rtx::SeaState{}); };
 
         /// Reads the region around `around` into the scene, and says whether anything was there.
         ///
@@ -230,9 +243,9 @@ namespace RtxTool
                 settled.mSprites);
         }
 
-        // **Once, and after everyone is in.** The bodies brought meshes of their own, so a build that
-        // ran before them would leave the frame naming geometry it had no structure for.
-        rebuild();
+        // **After everyone is in.** The bodies brought meshes of their own, so a build that ran
+        // before them would leave the frame naming geometry it had no structure for.
+        hand();
 
         FlyCamera camera;
         camera.look(start.mOrigin, start.mTarget);
@@ -390,7 +403,13 @@ namespace RtxTool
                                 posed->settle();
                             }
 
-                            rebuild();
+                            // **What the ring cost, said out loud.** Appending is the whole point of
+                            // taking the game's decision here, and the line that says which branch
+                            // ran is what turns a claim about it into a measurement.
+                            const Clock::time_point handing = Clock::now();
+                            const RtxBridge::SceneUpload handed = hand();
+                            out() << std::format("  {} in {:.1f} ms\n", describeUpload(handed),
+                                std::chrono::duration<double, std::milli>(Clock::now() - handing).count());
                         }
                     }
                 }
@@ -398,9 +417,13 @@ namespace RtxTool
 
             // **The clock the world runs on, not the frame count.** A window that dropped frames
             // would otherwise animate in slow motion, and one that ran fast would gabble.
+            //
+            // Handed rather than placed, because stepping walks the whole graph and sweeps it: an
+            // actor drawing a weapon brings a mesh nothing has built, and a sweep that closed a gap
+            // renumbers what the last frame was built from.
             if (posed != nullptr
                 && posed->advanceTo(static_cast<float>(std::chrono::duration<double>(now - began).count())))
-                renderer->placeScene(scene, Rtx::SeaState{});
+                hand();
 
             const Rtx::FrameExtents extents = renderer->getExtents();
             // The direction rather than `getTarget`, which exists so a person can read `look` in

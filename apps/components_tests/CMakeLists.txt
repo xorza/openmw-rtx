@@ -122,11 +122,13 @@ if (OPENMW_RTX)
         rtxbridge/fogbuilder.cpp
         rtxbridge/lightbuilder.cpp
         rtxbridge/sceneextractor.cpp
+        rtxbridge/sceneuploader.cpp
         rtxbridge/texturebuilder.cpp
         rtxbridge/waterbuilder.cpp
         rtxtool/actor.cpp
         rtxtool/benchsuite.cpp
         rtxtool/contactsheet.cpp
+        rtxtool/crossing.cpp
         rtxtool/installation.cpp
         rtxtool/perfcontrol.cpp
         rtxtool/props.cpp

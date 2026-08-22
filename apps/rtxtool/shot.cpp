@@ -1,8 +1,8 @@
 #include "shot.hpp"
 
-#include <components/rtx/frametimes.hpp>
 #include "lighting.hpp"
 #include "placement.hpp"
+#include <components/rtx/frametimes.hpp>
 #include <components/rtxbridge/png.hpp>
 
 #include <chrono>
@@ -17,7 +17,7 @@
 #include <components/rtx/camera.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/texturebuilder.hpp>
+#include <components/rtxbridge/sceneuploader.hpp>
 
 namespace RtxTool
 {
@@ -70,11 +70,10 @@ namespace RtxTool
         // derived from it.
         const Rtx::FrameExtents extents = renderer->getExtents();
 
+        RtxBridge::SceneUploader uploader;
+
         const Clock::time_point buildStart = Clock::now();
-        // The bridge decodes and describes; the backend uploads. Held because the descriptions span
-        // its storage until the upload has finished.
-        const RtxBridge::SceneTextures described(scene, images);
-        renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
+        uploader.hand(*renderer, scene, images, Rtx::SeaState{});
         const double buildMs = millisecondsSince(buildStart);
         const Rtx::SceneStats& stats = renderer->getSceneStats();
 
@@ -119,11 +118,12 @@ namespace RtxTool
         std::uint32_t frame = 0;
         do
         {
-            // **After the first, which is the frame `setScene` already built.** Stepping before it
-            // would put the shot one frame into the animation and make `--repeat=1` a different
-            // picture from no repeat at all.
+            // **After the first, which is the frame the build above already made.** Stepping before
+            // it would put the shot one frame into the animation and make `--repeat=1` a different
+            // picture from no repeat at all. Handed rather than placed because a step walks the
+            // whole graph and sweeps it, and either half of that can change what has to be built.
             if (frame > 0 && request.mMotion != nullptr && request.mMotion->step(frame))
-                renderer->placeScene(scene, Rtx::SeaState{});
+                uploader.hand(*renderer, scene, images, Rtx::SeaState{});
 
             // A plain timing run holds it still, so that what the spread shows is the machine and
             // not two frames that happened to sample different geometry.
