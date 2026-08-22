@@ -15,8 +15,12 @@
 - A state set that only exists during cull is invisible to the mirror, which runs outside it.
   `SceneUtil::StateSetUpdater` as a cull callback pushes its state set onto the cull visitor and
   never touches the node's own, and `NifOsg` attaches it that way for anything marked
-  `AnimFlag_AutoPlay`. So a fire or a lava flow is frozen on the frame the mirror first met, and
-  `MWRender::Water`'s shader water arrives with no material at all.
+  `AnimFlag_AutoPlay`. So a fire or a lava flow is frozen on the frame the mirror first met.
+
+- The same updater as an *update* callback swaps the node's state set between two copies of its own
+  every frame, so a material keyed on that address is added and swept once a frame for a surface
+  that has not changed. The water no longer goes through it; every other `NifOsg` UV, alpha and
+  material-colour controller still does.
 
 - The game's sea is animated off `steady_clock` since the tracer started rather than off the world's
   own clock, so it goes on moving while the game is paused and does not follow time of day.

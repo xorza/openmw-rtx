@@ -255,7 +255,10 @@ namespace RtxBridge
         /// Whether a drawable carrying `mask` is the world's water.
         bool isWater(osg::Node::NodeMask mask) const;
 
-        Rtx::Index resolveMaterial(const osg::NodePath& path, bool water, ExtractionStats& stats);
+        /// The one material every water drawable wears, made on demand.
+        Rtx::Index resolveWaterMaterial(ExtractionStats& stats);
+
+        Rtx::Index resolveMaterial(const osg::NodePath& path, ExtractionStats& stats);
 
         /// The layered material of a terrain chunk, whose shading is not on the graph at all.
         ///
@@ -303,6 +306,11 @@ namespace RtxBridge
         /// Which drawables are the sea. Zero means none of them, which is every caller that has not
         /// said otherwise.
         osg::Node::NodeMask mWaterMask = 0;
+
+        /// The sea's material and when it was last met. Not in `mMaterials`, because what identifies
+        /// it is the node mask rather than any state set — see `resolveWaterMaterial`.
+        Rtx::Index mWaterMaterial = Rtx::sNoIndex;
+        std::uint64_t mWaterEpoch = 0;
 
         /// What the walk in progress was told it is placing. See `extract`.
         std::size_t mAnchor = 0;

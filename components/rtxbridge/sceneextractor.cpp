@@ -414,6 +414,20 @@ namespace RtxBridge
 
         went.mMeshes = sweep(mMeshes, mEpoch, mLiveMeshes);
         went.mMaterials = sweep(mMaterials, mEpoch, mLiveMaterials);
+
+        // The sea's own, which is in no identity map because it is keyed on nothing. It survives a
+        // frame that met water and goes with the last cell that had any.
+        if (mWaterMaterial != Rtx::sNoIndex)
+        {
+            if (mWaterEpoch == mEpoch)
+                mLiveMaterials.push_back(mWaterMaterial);
+            else
+            {
+                mWaterMaterial = Rtx::sNoIndex;
+                ++went.mMaterials;
+            }
+        }
+
         sweep(mEmitterTextures, mEpoch, mLiveTextures);
 
         // What no walk can speak for. Duplicates are fine here — `release` takes a keep set, not a
@@ -571,8 +585,13 @@ namespace RtxBridge
         // the node above it is a plain transform shared with anything else hanging there.
         const bool water = isWater(drawable.getNodeMask());
 
-        const Rtx::Index material
-            = terrain != nullptr ? resolveTerrainMaterial(*terrain, stats) : resolveMaterial(path, water, stats);
+        Rtx::Index material;
+        if (water)
+            material = resolveWaterMaterial(stats);
+        else if (terrain != nullptr)
+            material = resolveTerrainMaterial(*terrain, stats);
+        else
+            material = resolveMaterial(path, stats);
 
         // **The slot this placement has held since it first appeared**, so a world that stands
         // still writes nothing: the scene already knows where everything is, and only a transform
@@ -835,7 +854,31 @@ namespace RtxBridge
         return mWaterMask != 0 && (mask & ~mWaterMask) == 0;
     }
 
-    Rtx::Index SceneExtractor::resolveMaterial(const osg::NodePath& path, bool water, ExtractionStats& stats)
+    Rtx::Index SceneExtractor::resolveWaterMaterial(ExtractionStats& stats)
+    {
+        // **One material for the sea, and it is keyed on nothing.** Water has no albedo — what it
+        // looks like is what is behind and above it, worked out from the world position — so there
+        // is nothing on a state set worth reading, and reading one is actively wrong twice over.
+        //
+        // `MWRender::Water` animates its surface with a `SceneUtil::StateSetUpdater`, which swaps
+        // the node's state set between two copies of its own every frame: keyed on the address, the
+        // mirror saw a new material each frame and swept the one before it, for a surface that had
+        // not changed. And with `water shader = true` there is no state set on the node at all,
+        // because that one is pushed from a cull callback the mirror runs outside of.
+        if (mWaterMaterial != Rtx::sNoIndex)
+        {
+            ++stats.mMaterialsReused;
+            mWaterEpoch = mEpoch;
+            return mWaterMaterial;
+        }
+
+        mWaterMaterial = mScene.addMaterial(Rtx::Material{ .mKind = Rtx::MaterialKind::Water });
+        mWaterEpoch = mEpoch;
+        ++stats.mMaterialsAdded;
+        return mWaterMaterial;
+    }
+
+    Rtx::Index SceneExtractor::resolveMaterial(const osg::NodePath& path, ExtractionStats& stats)
     {
         const osg::StateSet* own = findOwnStateSet(path);
         if (own == nullptr)
@@ -850,12 +893,6 @@ namespace RtxBridge
         }
 
         Rtx::Material material;
-
-        // **Set before anything is read off the state set, and it overrides all of it.** Water has
-        // no albedo: what it looks like is what is behind and above it, so the texture below is
-        // recorded and then not used for its colour.
-        if (water)
-            material.mKind = Rtx::MaterialKind::Water;
 
         if (const osg::StateSet* textured = findTexturedStateSet(path))
         {
