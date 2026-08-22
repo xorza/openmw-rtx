@@ -33,7 +33,7 @@ micromaps, SER. Vanilla content, new light transport.
 Priorities, in order:
 
 1. **How it looks.** Trading image quality for simplicity or convenience is the wrong trade.
-2. **Performance.** 1920×1080 internal → 3840×2160 at 60 fps (`docs/design.md` §5.3).
+2. **Performance.** 1920×1080 internal → 3840×2160 at 60 fps (`docs/rtx/plan.md` §5).
 
 Nothing else ranks: no mod compatibility, no configurability for its own sake, no portability layer,
 no abstraction over hardware this does not target.
@@ -57,9 +57,20 @@ around.
 
 Upstream's constraints are not ours. Where they conflict, ours win.
 
-- **The rasterizer stays working and untouched.** The RT path is a separate compile-time option
-  (`-DOPENMW_RTX=ON`, off by default) and a separate runtime setting. Not a refactor of the existing
-  renderer, not a strategy pattern bolted onto `RenderingManager`.
+- **Two renderers in one binary, one of them chosen at startup — and the other is then never
+  started.** `-DOPENMW_RTX=ON` decides whether the ray tracer is *built*; `[RTX] enabled` decides
+  whether it *runs*, read once before the window exists. Not a refactor of the existing renderer, not
+  a strategy pattern bolted onto `RenderingManager`.
+
+  **With it on, OpenGL is not initialized at all** — no GL context, no `osgViewer` graphics window,
+  no interop, no rasterized frame underneath. The window is an SDL surface for Vulkan, the GUI is
+  drawn by Vulkan, and the inventory doll and the maps are traces rather than render-to-texture
+  passes. OSG stays, as a scene graph and a content loader; `openmw-rtxtool` has proved since M0
+  that it needs no GL context to be either.
+
+  **With it off, the tree behaves exactly as upstream does.** The rasterizer is not modified, not
+  wrapped and not conditionally compiled around — it is simply the path not taken. Keeping it that
+  way is what makes "does the RT path do this correctly" answerable by comparison.
 - **No merge-back discipline.** This fork is not upstreaming. Do not shape a change around what a
   GitLab reviewer would accept.
 - **Rasterizer workarounds do not come across.** Render-bin ordering, the transparent pass, the
@@ -80,10 +91,6 @@ core is the exception — a mistake there is one nobody here can see.
 
 ## Commands
 
-The RTX targets below are created by `docs/rtx/plan.md` M0. If `cmake` does not recognise `OPENMW_RTX`,
-or `apps/rtxtool/` is absent, that milestone has not landed and the rest of the tree builds as
-upstream does.
-
 Configure once. Turning off the Qt tools cuts the build roughly in half:
 
 ```sh
@@ -100,16 +107,10 @@ cmake -S . -B build -G Ninja \
   -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=mold
 ```
 
-Arch packages: `yaml-cpp openscenegraph mygui openal boost recastnavigation ccache mold ninja
-vulkan-headers vulkan-validation-layers shaderc spirv-tools`, and **`bullet-dp`, not `bullet`** —
-OpenMW requires a double-precision Bullet and refuses to configure against the single-precision one.
-The two packages conflict, so the single-precision `bullet` has to come out first.
-
-```sh
-cmake --build build -j32                      # everything configured
-cmake --build build -j32 --target openmw-rtxtool   # just the harness — the usual inner loop
-cmake --build build -j32 --target components-tests openmw-tests
-```
+If it ever has to be configured again: **`bullet-dp`, not `bullet`** — OpenMW needs a
+double-precision Bullet, the two Arch packages conflict, and the single-precision one has to come out
+first. Targets are `openmw`, `openmw-rtxtool` (the usual inner loop), `components-tests`,
+`openmw-tests`.
 
 **Never `cmake --build --clean-first`.** Upstream declares `files/lang/*.ts` — translation files in
 the *source* tree, with thousands of human translations in them — as build byproducts of the
@@ -117,15 +118,8 @@ the *source* tree, with thousands of human translations in them — as build byp
 `lupdate`, so every translation becomes `type="unfinished"`. `git checkout -- files/lang/` puts them
 back. Delete the build directory instead if a clean build is really wanted.
 
-Tests are gtest binaries run directly. **There is no ctest registration in this project.**
-
-```sh
-./build/components-tests
-./build/openmw-tests
-./build/components-tests --gtest_filter='SettingsValuesTest.*'   # one suite
-./build/components-tests --gtest_filter='*shouldLoadFromSettingsManager*'  # one test
-./build/components-tests --gtest_list_tests
-```
+Tests are gtest binaries run directly — `./build/components-tests`, `./build/openmw-tests`, with
+`--gtest_filter`. **There is no ctest registration in this project.**
 
 Formatting and the other CI gates:
 
@@ -151,12 +145,9 @@ cd build                       # --resources defaults to ./resources, so the too
 ./openmw --skip-menu --new-game --start "Seyda Neen, Census and Excise Office"
 ```
 
-`~/.config/openmw/openmw.cfg` points at the Morrowind install, so none of these needs `--data`.
-Views live in `files/rtx/views.cfg` and each one is a task in `.zed/tasks.json`.
-
-Game data: Morrowind GOTY at `/home/Games/Morrowind`, data files in
-`/home/Games/Morrowind/Data Files`. Tests that need it **skip** when it is absent and **fail** when
-the path is set and wrong — a silent skip looks like a pass.
+`~/.config/openmw/openmw.cfg` points at the Morrowind install (GOTY, `/home/Games/Morrowind`), so
+none of these needs `--data`; views live in `files/rtx/views.cfg`. Tests that need game data **skip**
+when it is absent and **fail** when the path is set and wrong — a silent skip looks like a pass.
 
 ### Verification, after changing code and before saying it works
 
@@ -173,9 +164,9 @@ moves, how it holds up while you fly through it, whether an artefact is a still 
 takes `--frames N` so it can also be run by something that cannot click — which is how the window
 path gets exercised under the validation layers.
 
-In the window, **P** prints the camera as a block for `views.cfg` and **F3** prints the whole frame
-as a command line — cell, camera, size, weather, hour and which validation layers were loaded. A
-file of those lines is a profiling corpus: each one renders that frame again under `shot`.
+In the window, **P** prints the camera as a `views.cfg` block and **F3** prints the whole frame as a
+command line. A file of those lines is a profiling corpus: each one renders that frame again under
+`shot`.
 
 ## Architecture, in one screen
 
@@ -209,8 +200,6 @@ the posture behind them does.
   dividers.
 - **Fix stale narration in code you are already editing**, like fixing indentation on a line you are
   changing. Sweeping files you are not otherwise in is a separate task.
-- **No backward compatibility.** Rename, change signatures, rewrite callers, delete what stopped
-  earning its place. No shims, no compat wrappers.
 - **Frame times are uniform, and an average that hides a spike is not an answer.** A cost that is
   cheap on most frames and enormous on one is worse than the same total spread evenly: the spike is
   a dropped frame and a visible hitch, and no amount of amortising makes it not one. So work is made
@@ -222,58 +211,5 @@ the posture behind them does.
 - **Allocation is a metric on the frame path.** Persistent scratch buffers refilled with `clear()`,
   results into an out-parameter, nothing that constructs a `std::string` or a `std::function` per
   frame, logging that compiles out. There is a test that enforces this (`docs/rtx/plan.md` §7.3).
-- **No exceptions in this fork's code.** A broken contract is an assert; a failure a caller can act
-  on is a returned value. `-fno-exceptions` is not available — upstream's `vfs/pathutil.hpp` and
-  `esm/*.hpp` throw from headers this code includes — so the rule is held by review.
 - **Asserts** guard contracts the code must keep, not data the world might supply. Hot paths use the
   debug-only form; untrusted input is never an assert.
-- **Tests assert hand-computed values**, cover the empty and boundary cases, and prove that
-  parameters matter (A → X, B → Y, `X != Y`). "It ran and produced something plausible" is not a test.
-  Pure refactors need none.
-
-### Adding a setting
-
-Four places, and the build enforces it (`docs/rtx/openmw.md` §6): the category header in
-`components/settings/categories/`, the default in `files/settings-default.cfg`, the documentation in
-`docs/source/reference/modding/settings/`, and — for a user-facing toggle — either four `UserString`
-lines in `files/data/mygui/openmw_settings_window.layout` or a widget in
-`apps/launcher/ui/graphicspage.ui` with load/save in `graphicspage.cpp`.
-
-### Warnings
-
-Warnings are errors in this fork's own targets and nowhere else — upstream's tree and `extern/`
-belong to other people, and breaking the build on their warnings would only mean turning it off
-again. The flags live in one place, `OPENMW_RTX_COMPILE_OPTIONS` in the root `CMakeLists.txt`, on top
-of the `-Wall -Wextra -Wshadow -pedantic` the project already sets.
-
-Adding a warning to that list means measuring it first. `-Wfloat-equal` fires 29 times on deliberate
-`== 0.0f` sentinels; `-Wold-style-cast` and `-Wuseless-cast` fire inside OpenMW's own headers, which
-this fork does not fix. All three were tried and rejected on those counts.
-
-### Adding a shader
-
-`components/rtx/shaders/`. Compiled by `glslc` and validated by `spirv-val` in the same build step,
-so an invalid module fails the build rather than the frame. Structures shared with C++ live in
-headers guarded by `#ifdef __cplusplus`, included by both sides — never duplicated.
-
-## Not on my own initiative
-
-- **Committing.** "Do the work" authorizes the change, not the commit. Finish, verify, stop for the
-  diff to be inspected. Wait for "commit" / "commit push" / "ship it".
-- **New dependencies.** Propose the library and why, then wait.
-- **Posting to GitHub/GitLab** — no PRs, comments, issues or merges. Read-only `gh` is fine.
-- **Authorship.** Nothing in a commit, comment or shared artefact mentions AI tooling. No co-author
-  trailers, no "generated with".
-
-## Issue log
-
-A bug noticed outside the current change goes to `./.notes/ISSUES.md` (create `.notes/` if missing)
-and then work carries on — no fixing it, widening the task, or stopping to ask. Describe the issue
-only: no fix, patch, severity or rationale. A fixed issue is **deleted**, not annotated; the file
-lists open issues only.
-
-**Only this fork's own code.** A defect that came in with upstream OpenMW is not logged, not fixed
-and not mentioned — the tree is 400k lines somebody else wrote and cataloguing it is not work this
-project wants. Check with `git show d7db6be390:<path>` (the last upstream commit) before writing an
-entry. Upstream code the RTX renderer *depends on* is different: if it blocks a milestone, it stops
-being an upstream quirk and becomes this project's problem.

@@ -63,46 +63,42 @@ a PNG. This works over ssh, starts in under a second warm, and is where nearly a
 Copied wholesale from rtxmw, which found that opening a window to check a change "costs tens of
 seconds of the user's screen and confirms almost nothing the headless path does not".
 
-**In-game: GL/Vulkan interop, not a Vulkan window.** The SDL window stays `SDL_WINDOW_OPENGL`. Vulkan
-renders offscreen into an image exported with `VK_KHR_external_memory_fd`, synchronised with
-`VK_KHR_external_semaphore_fd`; GL imports both (`GL_EXT_memory_object_fd`, `GL_EXT_semaphore_fd`)
-and blits the result under the MyGUI overlay. Verified present on this machine (NVIDIA 610.57.04,
-RTX 4090 Laptop).
+**In-game: two paths, chosen at startup, and the one not chosen is never started.**
+`-DOPENMW_RTX=ON` decides whether the ray tracer is built; `[RTX] enabled` decides whether it runs,
+read once before the window exists. With it off the tree behaves exactly as upstream does. With it on
+**OpenGL is not initialized at all** — no GL context, no `osgViewer` graphics window, no interop, no
+rasterized frame underneath. The window is an SDL surface for Vulkan.
 
-Why not a native Vulkan window with a Vulkan MyGUI backend: the GUI is not the problem — the
-character-preview doll, the local map, the global map and video playback are all OSG render-to-texture
-users (`docs/rtx/openmw.md` §7), and each would need reimplementing before the game was playable again.
-Interop costs one full-screen blit and one semaphore wait per frame and keeps every one of them
-working. A native Vulkan window is a legitimate end state; it is not the way in.
+**Interop was the way in and is not the destination.** The SDL window stayed `SDL_WINDOW_OPENGL`,
+Vulkan rendered offscreen into an image exported with `VK_KHR_external_memory_fd`, and GL imported it
+and blitted the result under the MyGUI overlay. That got a traced frame onto the screen at M2 while
+everything around it was still simple, and it is what the game runs today. What it costs is not the
+blit: it is a whole rasterized world drawn and discarded every frame, and a frame of latency, because
+the composite is drawn inside the traversal that precedes the trace (§12).
 
-### What the end state would cost, now that it is worth costing
+### What the second path needs
 
-The reasoning above is still right about the *order*, and it has aged in one respect: most of the
-render-to-texture users it names are rasterizer features this renderer replaces rather than things to
-port. Of the ten files in `mwrender` that use one, the sky, the water's reflection and refraction, the
-ripples, the precipitation occlusion and the post-processor are all answered with rays or not needed.
-What is actually left is four things.
+The original argument against a Vulkan window was that the doll, the maps and video playback are all
+render-to-texture users and each would need reimplementing. That has aged: of the ten files in
+`mwrender` that use a render target, the sky, the water's reflection and refraction, the ripples, the
+precipitation occlusion and the post-processor are **rasterizer features this renderer replaces**.
+They are deletions, not ports. Four things are left.
 
 | what | what it becomes | size |
 |---|---|---|
-| MyGUI | a Vulkan render manager: textured quads, a scissor, a texture cache | the one real piece — `components/myguiplatform` is 1,529 lines and its twin would be comparable |
-| the inventory doll, the local and global maps | **traces**, not rasterizations: a second camera into an offscreen image, which this renderer already does for `shot` | small |
+| MyGUI | a Vulkan render manager: textured quads, a scissor, a texture cache | the one real piece — `components/myguiplatform` is 1,529 lines and its twin is comparable |
+| the inventory doll, the local and global maps | **traces**: a second camera into an offscreen image, which this renderer already does for `shot` | small |
 | video playback | FFmpeg decodes the same either way; only the upload and the blit change | small |
 | the window and swapchain | already written — `openmw-rtxtool` has run one since M0 | none |
 
-And a long list of deletions: the GL interop backend, `Tracer`'s composite, the post-processor, the
-rasterizer's water, sky and ripples, `osgViewer` altogether, `sdlutil`'s GL window, the shadow maps,
-`pingpongcull` and the render-bin ordering. **OSG stays as a scene graph and a content loader** — the
+Against a long list of deletions: the GL interop backend, `Tracer`'s composite, the post-processor,
+the rasterizer's water, sky and ripples, `osgViewer`, `sdlutil`'s GL window, the shadow maps,
+`pingpongcull`, the render-bin ordering. **OSG stays as a scene graph and a content loader** — the
 harness has proved since M0 that it needs no GL context to be either.
 
-The payoff is not only the blit. It is that §12 stops being a problem to solve: no interop, no frame
-of latency, no world drawn twice, no cull traversal at all, and frame pacing owned rather than
-inherited.
-
-**It contradicts a standing rule and that is the decision to take, not the estimate.** `CLAUDE.md`
-says the rasterizer stays working and untouched and that the RT path is a compile-time option that
-is off by default. Stripping OpenGL ends both. That is a choice about what this fork is, and it
-belongs to whoever is making it rather than to a plan document.
+The payoff is not the blit. It is that §12 stops being a problem to solve rather than being solved:
+no interop, no frame of latency, no world drawn twice, no cull traversal, and frame pacing owned
+rather than inherited.
 
 ## 4. Layout
 
@@ -153,6 +149,9 @@ Ada-class NVIDIA, nothing else. Confirmed available here:
 `VK_NV_partitioned_acceleration_structure`, `VK_EXT_mesh_shader`, `VK_KHR_cooperative_matrix`.
 
 Required at startup; a missing one is a hard failure with a named extension, not a fallback path.
+
+**The target this is all written against: 1920×1080 internal → 3840×2160 at 60 fps.** Several code
+comments cite it as "§5.3"; it lives here.
 
 ## 6. Milestones
 
@@ -772,7 +771,8 @@ culled, so the mirror mirrors a pose frozen at whatever they were doing when las
 today in any water reflection or shadow they are in. Terrain LOD and object paging are the same
 shape: view-dependent decisions about *what exists*, taken against a rasterizer's silhouette budget.
 
-So the target is not "skip the draw", it is **stop being downstream of cull**. Three things have to
+So the target is not "skip the draw", it is **stop being downstream of cull** — which is the same
+place §3's second path arrives at from the other direction. Three things have to
 become ours:
 
 | what cull gives us now | where it should come from |
