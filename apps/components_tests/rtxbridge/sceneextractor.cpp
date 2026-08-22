@@ -113,6 +113,78 @@ namespace RtxBridge
             EXPECT_EQ(osg::Vec3f(1.0f, 1.0f, 0.0f) * scene.getInstances()[0].mTransform, osg::Vec3f(2.0f, 2.0f, 5.0f));
         }
 
+        /// The visitor accumulates the local-to-world on its way down instead of rebuilding each
+        /// drawable's chain from the root, so what a chain composes to is its own property to hold.
+        TEST(RtxSceneExtractorTest, nestedTransformsComposeFromTheRootDownwards)
+        {
+            // Outermost first: scale by two, then rotate a quarter turn about z, then move along x.
+            osg::ref_ptr<osg::MatrixTransform> scale = new osg::MatrixTransform(osg::Matrix::scale(2.0, 2.0, 2.0));
+            osg::ref_ptr<osg::MatrixTransform> turn
+                = new osg::MatrixTransform(osg::Matrix::rotate(osg::PI_2, osg::Vec3d(0.0, 0.0, 1.0)));
+            osg::ref_ptr<osg::MatrixTransform> shift = new osg::MatrixTransform(osg::Matrix::translate(3.0, 0.0, 0.0));
+
+            scale->addChild(turn);
+            turn->addChild(shift);
+            shift->addChild(makeQuad());
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            extractor.extract(*scale, osg::Matrixf::identity());
+
+            ASSERT_EQ(scene.getInstances().size(), 1u);
+            const osg::Matrixf& place = scene.getInstances()[0].mTransform;
+
+            // (1,0,0) shifts to (4,0,0), turns to (0,4,0), and scales to (0,8,0). Order is the whole
+            // of what this asserts: composed the other way round it would be (0,2,0) moved to
+            // (3,2,0), which is a different point and a plausible-looking one.
+            const osg::Vec3f corner = osg::Vec3f(1.0f, 0.0f, 0.0f) * place;
+            EXPECT_NEAR(corner.x(), 0.0f, 1e-4f);
+            EXPECT_NEAR(corner.y(), 8.0f, 1e-4f);
+            EXPECT_NEAR(corner.z(), 0.0f, 1e-4f);
+
+            // And the origin lands where only the outer two act on the shift: (3,0,0) turned is
+            // (0,3,0), scaled is (0,6,0).
+            const osg::Vec3f origin = osg::Vec3f(0.0f, 0.0f, 0.0f) * place;
+            EXPECT_NEAR(origin.x(), 0.0f, 1e-4f);
+            EXPECT_NEAR(origin.y(), 6.0f, 1e-4f);
+            EXPECT_NEAR(origin.z(), 0.0f, 1e-4f);
+        }
+
+        /// An absolute reference frame replaces what is above it rather than adding to it, which is
+        /// a branch inside `computeLocalToWorldMatrix` and the one thing an accumulating visitor
+        /// could quietly get wrong by adding where it should overwrite.
+        TEST(RtxSceneExtractorTest, anAbsoluteFrameDiscardsTheTransformsAboveIt)
+        {
+            osg::ref_ptr<osg::MatrixTransform> above
+                = new osg::MatrixTransform(osg::Matrix::translate(100.0, 100.0, 100.0));
+            osg::ref_ptr<osg::MatrixTransform> absolute
+                = new osg::MatrixTransform(osg::Matrix::translate(0.0, 0.0, 7.0));
+            absolute->setReferenceFrame(osg::Transform::ABSOLUTE_RF);
+
+            above->addChild(absolute);
+            absolute->addChild(makeQuad());
+
+            // A relative sibling under the same parent, so the test also shows the frame is not
+            // simply being ignored for everything.
+            osg::ref_ptr<osg::MatrixTransform> relative
+                = new osg::MatrixTransform(osg::Matrix::translate(0.0, 0.0, 7.0));
+            relative->addChild(makeQuad());
+            above->addChild(relative);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            extractor.extract(*above, osg::Matrixf::identity());
+
+            ASSERT_EQ(scene.getInstances().size(), 2u);
+            const osg::Vec3f origin(0.0f, 0.0f, 0.0f);
+
+            // The absolute one stands at its own translation and nowhere near the hundred above it.
+            EXPECT_EQ(origin * scene.getInstances()[0].mTransform, osg::Vec3f(0.0f, 0.0f, 7.0f));
+
+            // The relative one carries it.
+            EXPECT_EQ(origin * scene.getInstances()[1].mTransform, osg::Vec3f(100.0f, 100.0f, 107.0f));
+        }
+
         /// The property the incremental mirror rests on: nothing changed, so nothing is added.
         TEST(RtxSceneExtractorTest, aSecondPassOverAnUnchangedGraphAddsNothing)
         {

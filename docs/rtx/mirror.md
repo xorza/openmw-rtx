@@ -59,17 +59,38 @@ problem. The marshalling is.**
 Three layers. Each is separately landable and separately measurable, and the first does not change
 the architecture at all.
 
-### Phase 0 — carry the transform down instead of recomputing it up
+### Phase 0 — carry the transform down instead of recomputing it up — **done**
 
 The visitor is already standing at the drawable's depth when it calls `computeLocalToWorld(path)`,
 which then walks back to the root and multiplies the chain again — O(depth) per drawable, for a
 product every sibling below the same transform shares. A visitor that pushes on the way down and
-pops on the way up makes it one multiply per node *entered*. The same applies to
-`findOwnStateSet(path)`, which walks the path a second time for the material.
+pops on the way up makes it one multiply per node *entered*.
 
-Costs nothing in design terms and is worth about 4.6% of frame CPU on its own — the matrix lines in
-the profile (`Matrixf:78`, `Matrix_implementation.cpp:495`, `matrixtransform.hpp:18`) add to 0.9 ms.
-**Land this first**, because it is pure win and it makes the phases after it easier to read.
+Landed, and **bit-identical**: six views across exteriors, an interior, a cave and Dwemer ruins
+render to the same bytes. `computeLocalToWorldMatrix` is what `computeLocalToWorld` calls on each
+transform it meets, and the visitor calls it with the same null visitor argument, so an absolute
+reference frame still replaces the accumulation rather than adding to it. Two tests now hold the
+part nothing tested: that a chain of three composes root-downwards, and that an absolute frame
+discards what is above it while a relative sibling carries it.
+
+**It is worth 0.28 ms, and the prediction here said 0.9.** `extract` went from 19.69% of frame CPU
+to 18.28%; frame time did not move, because 1.4 points of 19.7 ms is under the 2.7% run-to-run
+spread. The forecast came from adding up the matrix lines in the profile and assuming
+`computeLocalToWorld` owned them; measured afterwards they had barely moved, because most of that
+time belongs to OSG's own traversal and to the inverse inside `makeInstanceRecords`. OpenMW's node
+paths are shallow, so there was less redundancy in the chain walk than the shape of the code
+suggested.
+
+Two things worth carrying forward. **A saving inferred from source-line attribution across function
+boundaries is a guess**; the figures for the phases below come from whole-function inclusive costs,
+which is a sounder basis, but they are still forecasts and the same caution applies. And the reason
+to keep this phase is no longer its own number: it removes the per-drawable dependency on a node
+path reaching the scene root, which **Phase 2 needs**, because a walk that starts at an anchor does
+not have one.
+
+`findOwnStateSet(path)` was in this phase too and came out of it. It walks from the drawable
+*backwards* and returns the first state set it meets, which is almost always the drawable's own —
+O(1) in practice, not O(depth). There was nothing there to win.
 
 ### Phase 1 — an instance keeps its slot
 
@@ -139,8 +160,9 @@ one pass over it, feeding both consumers.
 ## 4. What it is predicted to save
 
 Phases 1–3 turn `extract`, `buildTopLevel` and `SceneBuffers::place` from O(instances) into
-O(movers). On the measured frame that is 3.9 + 2.6 + 2.1 = **8.6 ms of 19.7**, and Phase 0 takes
-another 0.9 off what remains.
+O(movers). On the measured frame that is 3.9 + 2.6 + 2.1 = **8.6 ms of 19.7**, less whatever floor
+those three keep — Phase 0's miss is the warning that the floor is not zero, and none of the three
+goes to nothing. Phase 0 itself took 0.28 ms off, against the 0.9 forecast here before it landed.
 
 `refitMeshes` is **not** in that number. It is already O(movers) — 167 bottom levels a frame — and
 its 3.2 ms is driver-side build setup and a fenced submit. It is the next problem, not this one.

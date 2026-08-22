@@ -156,21 +156,24 @@ namespace RtxBridge
         /// Places one light. **The graph and not the content files**, because that is where a light
         /// that moves with the thing carrying it exists: a torch in an NPC's hand is no cell
         /// record, and neither is a lamp something picked up and put down.
-        void addLight(const SceneUtil::LightSource& source, const osg::NodePath& path, const osg::Matrixf& root,
+        void addLight(const SceneUtil::LightSource& source, const osg::NodePath& path, const osg::Matrixf& place,
             std::size_t frame, ExtractionStats& stats);
 
         /// Resolves one drawable and places it. The visitor's whole contract with this class.
         ///
-        /// `path` is the node path down to the drawable, which is both how the world transform is
-        /// computed and where the state that shades it comes from.
+        /// `place` is where the drawable stands in the world, which the visitor has accumulated on
+        /// its way down; `path` is what identifies the placement and where the state that shades it
+        /// comes from. **The transform is handed over rather than worked out from the path**,
+        /// because `osg::computeLocalToWorld` rebuilds the whole chain from the root for every
+        /// drawable and the visitor already holds the part they share.
         ///
         /// **A drawable and not an `osg::Geometry`**, because a skinned body is neither: it is an
         /// `osg::Drawable` holding two internal geometries and writing the pose the cull traversal
         /// just computed into whichever of them was not last drawn. Which of the kinds this is
         /// belongs here rather than to a caller — the visitor would only be asking the same
         /// question with less to answer it from.
-        void addDrawable(
-            const osg::Drawable& drawable, const osg::NodePath& path, const osg::Matrixf& root, ExtractionStats& stats);
+        void addDrawable(const osg::Drawable& drawable, const osg::NodePath& path, const osg::Matrixf& place,
+            ExtractionStats& stats);
 
     private:
         /// Places one particle system's live particles as a run of camera-facing discs.
@@ -181,7 +184,7 @@ namespace RtxBridge
         /// colours. Re-deriving that from the `NiParticleSystemController` would be a second
         /// implementation of the same content, free to disagree with the one the game is running.
         void addEmitter(const osgParticle::ParticleSystem& particles, const osg::NodePath& path,
-            const osg::Matrixf& root, ExtractionStats& stats);
+            const osg::Matrixf& place, ExtractionStats& stats);
 
         /// What identifies one placement from one frame to the next.
         ///
