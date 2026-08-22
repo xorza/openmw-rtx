@@ -30,7 +30,7 @@ out="$build/perf"
 
 mode=cpu
 unwind=fp
-freq=997
+freq=5999
 tui=false
 place=()
 extra=()
