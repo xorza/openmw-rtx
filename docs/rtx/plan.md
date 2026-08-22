@@ -769,6 +769,32 @@ machine; GCC precompiled headers are a rebuild-everything hazard for a saving cc
 
 ## 9. Open questions
 
+- **What a table does when a cell leaves, and it is one question for three defects.** `SceneDesc`
+  reclaims by *compacting*: `retain` closes the gaps and `carryPlacement` renumbers what pointed
+  into them. That is correct and it is the reason a crossing costs a full `setScene` — measured over
+  nineteen boundaries flown across Vvardenfell, nineteen of them rebuilt everything, because a
+  departing cell almost always takes a mesh or a material with it and renumbering invalidates every
+  acceleration structure and the whole texture array. The append path `extendScene` exists for is
+  reached only in a town, where the ring that leaves shares all its models with the ring that stays.
+
+  The alternative is slots that are freed and reused rather than closed up, the way placements
+  already work. Each table costs something different to do that to, and that is what makes it a
+  question rather than a task:
+
+  | table | what a freed slot leaves behind | what reuse needs |
+  |---|---|---|
+  | materials | a layer run and its masks | a free list; layers leak until the scene goes, or a second free list for runs |
+  | textures | one slot of a bindless array | a free list, and `TextureArray` writing one element rather than appending — `dstArrayElement` already does this |
+  | meshes | a **variable-sized range** of the shared position, normal, texcoord and index buffers | a real suballocator, or accepting fragmentation, and the buffers must not move — every bottom-level structure holds a device address into them |
+
+  The meshes are the hard one and they are also the one that matters: it is the mesh table moving
+  that forces the acceleration structures to be rebuilt. Not compacting them at all is bounded by
+  the content rather than by the session — Morrowind ships about 3,500 statics — but the geometry
+  behind them is not a budget anything has measured.
+
+  The same immovability blocks the other half: appending bottom-level structures instead of
+  remaking them all, which is what a cell arriving costs even when nothing renumbered.
+
 - **Interiors.** A room is not a valley (`design.md` §8.42) and interiors are half the game. Whether
   fog, sky light and bounce need a separate interior model is unanswered.
 - **Groundcover.** Grass is alpha-cutout and enormous in instance count. Particles were the other

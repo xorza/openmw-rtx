@@ -581,8 +581,12 @@ namespace RtxBridge
         // Terrain keeps its material on the drawable rather than on the graph, so it is asked first
         // and the state-set walk never sees a chunk.
         const auto* terrain = dynamic_cast<const Terrain::TerrainDrawable*>(&geometry);
+        // **Asked of the drawable and not of the path.** OpenMW marks the water geometry itself, and
+        // the node above it is a plain transform shared with anything else hanging there.
+        const bool water = (drawable.getNodeMask() & mWaterMask) != 0;
+
         const Rtx::Index material
-            = terrain != nullptr ? resolveTerrainMaterial(*terrain, stats) : resolveMaterial(path, stats);
+            = terrain != nullptr ? resolveTerrainMaterial(*terrain, stats) : resolveMaterial(path, water, stats);
 
         // **The slot this placement has held since it first appeared**, so a world that stands
         // still writes nothing: the scene already knows where everything is, and only a transform
@@ -836,7 +840,7 @@ namespace RtxBridge
         return mesh;
     }
 
-    Rtx::Index SceneExtractor::resolveMaterial(const osg::NodePath& path, ExtractionStats& stats)
+    Rtx::Index SceneExtractor::resolveMaterial(const osg::NodePath& path, bool water, ExtractionStats& stats)
     {
         const osg::StateSet* own = findOwnStateSet(path);
         if (own == nullptr)
@@ -851,6 +855,12 @@ namespace RtxBridge
         }
 
         Rtx::Material material;
+
+        // **Set before anything is read off the state set, and it overrides all of it.** Water has
+        // no albedo: what it looks like is what is behind and above it, so the texture below is
+        // recorded and then not used for its colour.
+        if (water)
+            material.mKind = Rtx::MaterialKind::Water;
 
         if (const osg::StateSet* textured = findTexturedStateSet(path))
         {

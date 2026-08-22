@@ -127,6 +127,18 @@ namespace RtxBridge
         /// one, so nothing here has to know what a sky is. Everything by default.
         void setTraversalMask(osg::Node::NodeMask mask) { mTraversalMask = mask; }
 
+        /// Which nodes are the world's water, as an `osg` node mask. None by default.
+        ///
+        /// **The engine already marks it and the mirror could not tell otherwise.** Water reaches
+        /// here as an ordinary blended quad with a texture on it, and nothing about the geometry or
+        /// the state set says it is a sea — so without this it is shaded as a painted surface: no
+        /// `MASK_WATER`, so a shadow ray stops at the surface and every shallow in the game goes
+        /// black; and no waves, refraction or caustics, which are what the renderer has for it.
+        ///
+        /// A drawable whose own mask intersects this gets `MaterialKind::Water`. The harness names
+        /// nothing here because it places an analytic sea of its own (`RtxBridge::addWater`).
+        void setWaterMask(osg::Node::NodeMask mask) { mWaterMask = mask; }
+
         /// Walks `node` and places what it finds by `transform`, under `anchor`.
         ///
         /// Takes a const reference because nothing here writes to the graph; OSG's visitor API is
@@ -238,7 +250,7 @@ namespace RtxBridge
         /// poses of every actor in the scene and flicker between them.
         Rtx::Index resolveMesh(
             const osg::Drawable& drawable, const osg::Geometry& geometry, bool deforming, ExtractionStats& stats);
-        Rtx::Index resolveMaterial(const osg::NodePath& path, ExtractionStats& stats);
+        Rtx::Index resolveMaterial(const osg::NodePath& path, bool water, ExtractionStats& stats);
 
         /// The layered material of a terrain chunk, whose shading is not on the graph at all.
         ///
@@ -282,6 +294,10 @@ namespace RtxBridge
         std::unordered_map<const osg::Drawable*, Known> mEmitterTextures;
 
         osg::Node::NodeMask mTraversalMask = ~0u;
+
+        /// Which drawables are the sea. Zero means none of them, which is every caller that has not
+        /// said otherwise.
+        osg::Node::NodeMask mWaterMask = 0;
 
         /// What the walk in progress was told it is placing. See `extract`.
         std::size_t mAnchor = 0;

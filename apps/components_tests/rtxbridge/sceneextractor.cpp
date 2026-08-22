@@ -1,4 +1,5 @@
 #include <initializer_list>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -13,7 +14,9 @@
 #include <osgParticle/Particle>
 #include <osgParticle/ParticleSystem>
 
+#include <components/rtx/instancerecord.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/riggeometry.hpp>
@@ -504,6 +507,70 @@ namespace RtxBridge
             EXPECT_EQ(scene.getInstances()[3].mMesh, 0u);
             EXPECT_EQ(scene.getInstances()[4].mMesh, 1u);
             EXPECT_EQ(scene.getMeshPositions(1)[0].z(), 7.0f) << "the survivor kept somebody else's vertices";
+        }
+
+        /// The sea is named by a node mask, and only the drawables that carry it become water.
+        ///
+        /// **The engine is the only thing that knows.** Water reaches the mirror as a blended quad
+        /// with a texture on it and nothing else — no geometry, state set or name tells it apart
+        /// from a painted floor — so `MWRender::Water`'s own node mask is the answer, and a mirror
+        /// that is not told keeps every surface a surface.
+        TEST(RtxSceneExtractorTest, aDrawableTheCallerCallsWaterIsShadedAsWaterAndTheRestAreNot)
+        {
+            constexpr osg::Node::NodeMask sWater = 1u << 6;
+            constexpr osg::Node::NodeMask sOther = 1u << 3;
+
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName("textures/water/water00.dds");
+
+            const auto quadWith = [&](osg::Node::NodeMask mask) {
+                osg::ref_ptr<osg::Geometry> quad = makeQuad();
+                quad->setNodeMask(mask);
+
+                // A state set of its own, because a material is keyed on one and two quads sharing
+                // one would be one material between them.
+                quad->getOrCreateStateSet()->setTextureAttributeAndModes(
+                    0, new osg::Texture2D(image), osg::StateAttribute::ON);
+
+                return quad;
+            };
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            root->addChild(quadWith(sWater));
+            root->addChild(quadWith(sOther));
+
+            // Nothing said, so nothing is water — which is the harness, and every caller that places
+            // an analytic sea of its own instead.
+            {
+                Rtx::SceneDesc scene;
+                SceneExtractor silent(scene);
+                silent.extract(*root, osg::Matrixf::identity(), 0);
+
+                ASSERT_EQ(scene.getMaterials().size(), 2u);
+                for (const Rtx::Material& material : scene.getMaterials())
+                    EXPECT_EQ(material.mKind, Rtx::MaterialKind::Surface);
+            }
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            extractor.setWaterMask(sWater);
+            extractor.extract(*root, osg::Matrixf::identity(), 0);
+
+            ASSERT_EQ(scene.getMaterials().size(), 2u);
+            EXPECT_EQ(scene.getMaterials()[0].mKind, Rtx::MaterialKind::Water);
+            EXPECT_EQ(scene.getMaterials()[1].mKind, Rtx::MaterialKind::Surface)
+                << "a mask the caller did not name made a surface into a sea";
+
+            // **What being water is actually for.** A shadow ray has to pass through the surface, or
+            // every shallow in the game is lit as though the sea were a wall; the mask is where the
+            // record says so, and the material kind is where it comes from.
+            std::vector<Rtx::InstanceRecord> records;
+            Rtx::makeInstanceRecords(scene, records);
+
+            ASSERT_EQ(records.size(), 2u);
+            EXPECT_EQ(records[0].mMask, Rtx::Shaders::MASK_WATER);
+            EXPECT_EQ(records[1].mMask, Rtx::Shaders::MASK_SOLID);
+            EXPECT_NE(records[0].mMask, records[1].mMask);
         }
 
         /// A material and the texture behind it go when the last thing wearing them does.

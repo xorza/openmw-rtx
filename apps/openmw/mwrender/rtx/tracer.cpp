@@ -87,7 +87,15 @@ namespace MWRender::Rtx
         // materials a frame bumps the revision and makes every frame a full rebuild. Nothing is
         // lost by leaving it out: a ray that reaches the sky has missed everything, and what it
         // gets then is this renderer's own sky rather than the dome the rasterizer draws.
-        mExtractor->setTraversalMask(~static_cast<osg::Node::NodeMask>(Mask_Sky | Mask_Sun));
+        // **And `Mask_SimpleWater` with them, which is a duplicate rather than a subtree to skip.**
+        // `MWRender::Water` hangs two coplanar quads under one node — the world's water under
+        // `Mask_Water`, and a deep copy of it under `Mask_SimpleWater` that exists for the local
+        // map — and the rasterizer picks between them with the drawing camera's traversal mask.
+        // A mirror that walks both places the sea twice, at the same height, as two meshes.
+        mExtractor->setTraversalMask(~static_cast<osg::Node::NodeMask>(Mask_Sky | Mask_Sun | Mask_SimpleWater));
+
+        // What is left of the two is the world's own water, and it is the sea.
+        mExtractor->setWaterMask(Mask_Water);
 
         if (const char* where = std::getenv("OPENMW_RTX_SHOT"); where != nullptr && *where != '\0')
         {
