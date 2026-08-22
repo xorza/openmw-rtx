@@ -36,6 +36,12 @@
   texture array but still makes `SceneAcceleration` and `SceneBuffers` again when the mesh table
   grows, which is 12 ms of spike on a frame that wanted 16.
 
+- Every crossing on a real route compacts, so `extendScene` is never reached: over nineteen
+  boundaries flown across Vvardenfell, nineteen were `setScene`. `SceneExtractor::retire` calls
+  `SceneDesc::retain` whenever a mesh or material goes, and a departing cell almost always takes one
+  with it, so the append path only survives where a whole ring of cells shares its models with the
+  ring that stayed.
+
 - The texture table is append-only and nothing ever reclaims a slot, so a session that walks through
   enough of the world grows it until it reaches the 4096 the array holds and the renderer throws.
 
@@ -48,6 +54,3 @@
   one every frame as it cycles `textures/water/waterNN.dds`, so the mirror sees a new material each
   frame and sweeps the one it replaced — a table that churns for a surface that has not changed.
 
-- The harness's terrain never unloads. `World::buildTerrain` accumulates every chunk under one node
-  and `dropCellsOutside` can only take a cell's objects off the graph, so a camera flying far enough
-  carries the ground of every cell it has ever visited.

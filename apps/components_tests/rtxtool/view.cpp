@@ -3,6 +3,8 @@
 #include <fstream>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -229,6 +231,129 @@ namespace RtxTool
             EXPECT_EQ(read.front().mName, "balmora-guild-of-mages");
             EXPECT_EQ(read.front().mNote, "");
             EXPECT_EQ(read.front().mCell, spot.mCell);
+        }
+
+        /// Writes `text` to a scratch view file, reads it back, and removes the file.
+        std::vector<View> readViews(std::string_view text)
+        {
+            const std::filesystem::path file = std::filesystem::temp_directory_path() / "openmw-rtx-route-test.cfg";
+            {
+                std::ofstream out(file);
+                out << text;
+            }
+
+            struct Remove
+            {
+                std::filesystem::path mFile;
+                ~Remove() { std::filesystem::remove(mFile); }
+            } removed{ file };
+
+            return loadViews(file);
+        }
+
+        /// A route resolves to the coordinates of the view it names, and both halves are required.
+        ///
+        /// **The destination is copied at load and never looked up again**, so this is the one place
+        /// that can get the pairing wrong — and getting it wrong flies the camera somewhere else,
+        /// which a benchmark reports as a different number rather than as an error.
+        TEST(RtxViewsTest, aRouteTakesItsDestinationFromTheViewItNames)
+        {
+            const std::vector<View> read = readViews(R"(
+[start]
+cell = -3,-2
+pos = 100, 200, 300
+look = 100, 300, 300
+to = finish
+speed = 1500
+
+[finish]
+cell = -1,-2
+pos = 8292, 200, 700
+look = 8292, 300, 700
+)");
+
+            ASSERT_EQ(read.size(), std::size_t{ 2 });
+            const View* start = findView(read, "start");
+            ASSERT_NE(start, nullptr);
+            ASSERT_TRUE(start->mRoute.has_value());
+
+            EXPECT_EQ(start->mRoute->mTo, "finish");
+            EXPECT_EQ(start->mRoute->mOrigin, osg::Vec3f(8292.0f, 200.0f, 700.0f));
+            EXPECT_EQ(start->mRoute->mTarget, osg::Vec3f(8292.0f, 300.0f, 700.0f));
+            EXPECT_EQ(start->mRoute->mSpeed, 1500.0f);
+
+            // The destination is an ordinary view and goes nowhere itself.
+            const View* finish = findView(read, "finish");
+            ASSERT_NE(finish, nullptr);
+            EXPECT_FALSE(finish->mRoute.has_value());
+        }
+
+        /// Every way of half-writing a route is a refusal rather than a camera that stands still.
+        TEST(RtxViewsTest, aHalfWrittenRouteIsRefused)
+        {
+            constexpr std::string_view sEnd = "\n[finish]\ncell = -1,-2\npos = 8292, 0, 0\nlook = 8292, 100, 0\n";
+
+            EXPECT_THROW(
+                readViews(std::string("[start]\ncell = -3,-2\nto = finish\n") + std::string(sEnd)), std::runtime_error)
+                << "a destination with no speed";
+
+            EXPECT_THROW(readViews("[start]\ncell = -3,-2\nspeed = 1500\n"), std::runtime_error)
+                << "a speed with nowhere to go";
+
+            EXPECT_THROW(readViews("[start]\ncell = -3,-2\nto = nowhere\nspeed = 1500\n"), std::runtime_error)
+                << "a destination that is not a view";
+
+            EXPECT_THROW(readViews("[start]\ncell = -3,-2\nto = finish\nspeed = 1500\n\n[finish]\ncell = -1,-2\n"),
+                std::runtime_error)
+                << "a destination with no coordinates of its own to arrive at";
+
+            EXPECT_THROW(readViews(std::string("[start]\ncell = -3,-2\nto = finish\nspeed = -1\n") + std::string(sEnd)),
+                std::runtime_error)
+                << "a speed that goes backwards";
+
+            EXPECT_THROW(
+                readViews(std::string("[start]\ncell = -3,-2\nto = finish\nspeed = quickly\n") + std::string(sEnd)),
+                std::runtime_error)
+                << "a speed that is not a number";
+        }
+
+        /// Where the camera stands part-way along, hand-computed and clamped at the far end.
+        ///
+        /// **A thousand units at a hundred a second is a tenth of the way after a second**, and the
+        /// look point moves with it — the two endpoints below are each a hundred units ahead of
+        /// their own position, so the camera faces the same way throughout and the frame at the
+        /// halfway mark is the frame five hundred units in.
+        TEST(RtxViewsTest, aRouteIsFlownAtItsSpeedAndStopsWhenItArrives)
+        {
+            const Placement start{ .mOrigin = { 0.0f, 0.0f, 0.0f }, .mTarget = { 0.0f, 100.0f, 0.0f } };
+            const Route route{ .mTo = "finish",
+                .mOrigin = { 0.0f, 1000.0f, 0.0f },
+                .mTarget = { 0.0f, 1100.0f, 0.0f },
+                .mSpeed = 100.0f };
+
+            EXPECT_EQ(route.partAt(start, 0.0f), 0.0f);
+            EXPECT_EQ(route.partAt(start, 1.0f), 0.1f);
+            EXPECT_EQ(route.partAt(start, 5.0f), 0.5f);
+
+            // Ten seconds is the thousand units exactly; anything past it stands at the far end.
+            EXPECT_EQ(route.partAt(start, 10.0f), 1.0f);
+            EXPECT_EQ(route.partAt(start, 40.0f), 1.0f);
+
+            EXPECT_EQ(route.at(start, 0.5f).mOrigin, osg::Vec3f(0.0f, 500.0f, 0.0f));
+            EXPECT_EQ(route.at(start, 0.5f).mTarget, osg::Vec3f(0.0f, 600.0f, 0.0f));
+            EXPECT_EQ(route.at(start, 1.0f).mOrigin, route.mOrigin);
+            EXPECT_EQ(route.at(start, 1.0f).mTarget, route.mTarget);
+
+            // **Twice the speed is twice the distance, which is what says the speed is read at all.**
+            const Route faster{
+                .mTo = route.mTo, .mOrigin = route.mOrigin, .mTarget = route.mTarget, .mSpeed = 200.0f
+            };
+            EXPECT_EQ(faster.partAt(start, 1.0f), 0.2f);
+            EXPECT_NE(faster.partAt(start, 1.0f), route.partAt(start, 1.0f));
+
+            // A route whose ends coincide has arrived, rather than dividing by nothing.
+            const Route standing{ .mTo = "here", .mOrigin = start.mOrigin, .mTarget = start.mTarget, .mSpeed = 100.0f };
+            EXPECT_EQ(standing.partAt(start, 1.0f), 1.0f);
         }
     }
 }

@@ -1,6 +1,9 @@
 #include "stagedworld.hpp"
 
 #include <span>
+#include <string>
+
+#include <components/esm3/loadcell.hpp>
 
 #include "cellscene.hpp"
 #include "world.hpp"
@@ -10,11 +13,17 @@ namespace RtxTool
     StagedWorld::StagedWorld(
         World& world, const ESM::Cell& cell, const StagingRequest& request, const ActorRequest& actors)
         : mExtractor(mScene)
+        , mWorld(&world)
+        , mActors(actors)
     {
-        const RegionLoad arrived
-            = loadRegion(world, cell, *mRoot, mScene, mExtractor, mLoaded, request.mWeather, request.mHour, actors.mProps);
+        const RegionLoad arrived = loadRegion(
+            world, cell, *mRoot, mScene, mExtractor, mLoaded, request.mWeather, request.mHour, actors.mProps);
 
         mLighting = arrived.mLighting;
+
+        // Absent for an interior, and that is what `moveTo` reads as "this never streams".
+        if (cell.isExterior())
+            mStanding = CellSquare{ .mX = cell.getGridX(), .mY = cell.getGridY() };
 
         // The first walk. Everything after this is the same walk again, once a frame.
         mirror(0);
@@ -44,6 +53,72 @@ namespace RtxTool
     RtxBridge::ExtractionStats StagedWorld::mirror(std::size_t frame)
     {
         return mExtractor.extract(*mRoot, osg::Matrixf::identity(), 0, frame);
+    }
+
+    Crossing StagedWorld::moveTo(const osg::Vec3f& where)
+    {
+        if (!mStanding.has_value())
+            return {};
+
+        // **Two integers compared, and nothing spelled out.** This runs every frame of a streaming
+        // run and answers no on all but a handful of them; naming the square to find that out would
+        // be two allocations a frame for the privilege.
+        const CellSquare square = squareAt(where);
+        if (square == *mStanding)
+            return {};
+
+        mStanding = square;
+
+        // **Open sea, and the answer is to keep what is already loaded.** Every point has a square;
+        // not every square has a cell record, and a camera over the water is standing in one of the
+        // ones that does not. The game holds its last grid there too.
+        const ESM::Cell* cell = mWorld->findCell(cellAt(square));
+        if (cell == nullptr)
+            return {};
+
+        // **The actors come out first.** The new cells are walked into whatever the scene holds, so
+        // a snapshot retaken with everyone still in it would place a second copy of them on the very
+        // next frame.
+        if (mPosed != nullptr)
+            mPosed->unplace();
+
+        const CellReport arrived = readRegion(*mWorld, *cell, *mRoot, mLoaded, mActors.mProps);
+
+        // **The ring that arrived and the ones that left.** The working set is a square that follows
+        // the camera, not everything ever visited; without the second half this grows for as long as
+        // the run lasts and stops resembling the game after the first crossing.
+        const Crossing crossed{ .mArrived = arrived.mCells,
+            .mDeparted = dropCellsOutside(*mWorld, *cell, *mRoot, mLoaded) };
+
+        for (const Rtx::Light& light : arrived.mLights)
+            mScene.addLight(light);
+
+        // Built, then walked, which is the split the game has too. The walk is also what tells the
+        // sweep below that the departed cells are no longer met.
+        mirror(0);
+        mExtractor.advance();
+
+        if (crossed.mDeparted > 0)
+            mExtractor.retire();
+
+        if (mPosed == nullptr)
+            return crossed;
+
+        // The snapshot first, then the people who arrived with the ring: the snapshot is the still
+        // world, and a resident belongs to the half of the scene that is walked in again per frame.
+        mPosed->restanding();
+        if (mActors.mResidents)
+            mPosed->addResidents(arrived.mPeople);
+        if (mActors.mProps)
+            mPosed->addProps(arrived.mProps);
+
+        mSettled = mPosed->settle();
+        return crossed;
+    }
+
+    bool StagedWorld::advanceTo(float seconds)
+    {
+        return mPosed != nullptr && mPosed->advanceTo(seconds);
     }
 
     std::size_t StagedWorld::getActorCount() const

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <set>
@@ -26,12 +27,24 @@ namespace RtxTool
 {
     class World;
 
+    /// What a step of the camera cost the graph, or all zeroes where it stayed in its square.
+    struct Crossing
+    {
+        /// How many cells the ring brought in. Fewer than three at a coastline, where the sea has
+        /// no cell record to read.
+        std::uint32_t mArrived = 0;
+
+        /// How many were taken off the graph behind it.
+        std::uint32_t mDeparted = 0;
+
+        /// Whether anything happened at all, which is what says the scene has to be handed over
+        /// rather than placed.
+        bool happened() const { return mArrived > 0 || mDeparted > 0; }
+    };
+
     /// What has to be decided before a region can be read, beyond which cell it is.
     struct StagingRequest
     {
-        /// How many cells out from the one asked for to read, so four is nine by nine. An interior
-        /// ignores it.
-
         /// When and in what weather, for the exterior that has a sky.
         std::string mWeather = "Clear";
         float mHour = 12.0f;
@@ -52,9 +65,10 @@ namespace RtxTool
     /// anyone stands in it, because a row of actors is placed relative to where the camera ends up
     /// and bounds that already contain them would put it somewhere else.
     ///
-    /// **The window does not use this.** Its camera goes somewhere, so it has to bring the next
-    /// ring of cells in and re-take its snapshot as it flies; what it needs is this plus a way to
-    /// keep doing it, which is `runWindow`'s own business.
+    /// **It streams, so a camera that goes somewhere is not a second implementation of all this.**
+    /// `moveTo` brings the ring the camera has walked into and takes the cells behind it off the
+    /// graph; the window and a route-following bench both cross cells through it, which is what
+    /// stops the two drifting apart again.
     class StagedWorld
     {
     public:
@@ -71,15 +85,39 @@ namespace RtxTool
         const CellLighting& getLighting() const { return mLighting; }
         const Placement& getPlacement() const { return mPlacement; }
 
-        /// What advances the scene between frames, or null where nothing in it moves. Borrowed:
-        /// it does not outlive this.
+        /// What advances the scene between frames by frame index, or null where nothing in it
+        /// moves. Borrowed: it does not outlive this.
+        ///
+        /// **By index and not by the clock**, which is what makes a run of frames reproducible: a
+        /// world stepped by how long the last frame took renders a different sequence on every
+        /// machine. A window wants the other one — see `advanceTo`.
         Motion* getMotion() { return mPosed.get(); }
+
+        /// Advances the world to `seconds` and walks whatever moved back in. False where nothing
+        /// did, which is what spares the frame a hand-over it does not need.
+        ///
+        /// **The window's clock.** Frames it dropped would otherwise animate in slow motion; a run
+        /// being measured wants `getMotion` instead, for the reason above.
+        bool advanceTo(float seconds);
 
         /// The graph the mirror walks. Borrowed for the same reason.
         osg::Group& getRoot() { return *mRoot; }
 
         /// Walks the graph into the scene, the way `Tracer` does every frame.
         RtxBridge::ExtractionStats mirror(std::size_t frame);
+
+        /// Brings the region around `where` in and takes the cells that left off the graph.
+        ///
+        /// **The camera's own cell is what triggers it, not a distance**, which is the game's rule
+        /// and so this one: a step that stays inside the square costs one string comparison, and a
+        /// step that leaves it pays for the whole ring at once. Interiors have no neighbours and
+        /// never cross.
+        ///
+        /// Everything a crossing implies happens here — the actors come out of the scene before the
+        /// walk that would place them twice, the new cells' residents go in, the emitters are warmed
+        /// and the sweep runs — so a caller whose crossing `happened` has a scene that may have
+        /// grown or been renumbered and must hand it over rather than place it.
+        Crossing moveTo(const osg::Vec3f& where);
 
         /// What the actors and props came to once they were walked in. All zero where there are
         /// none.
@@ -111,5 +149,13 @@ namespace RtxTool
         /// freed while the scene still names them is a dangling identity.
         std::unique_ptr<PosedActors> mPosed;
         RtxBridge::ExtractionStats mSettled;
+
+        /// What `moveTo` needs and the constructor already had. Borrowed: the world outlives this.
+        World* mWorld = nullptr;
+        ActorRequest mActors;
+
+        /// Which square the camera stood in when the region was last brought in. Absent for an
+        /// interior, which is the same test as "this never streams".
+        std::optional<CellSquare> mStanding;
     };
 }

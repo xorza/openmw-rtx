@@ -187,6 +187,14 @@ namespace RtxTool
         return mTerrainParent;
     }
 
+    void World::unloadTerrain(int x, int y)
+    {
+        // Nothing was ever built, which is every interior and every run that has not seen an
+        // exterior yet.
+        if (mTerrain != nullptr)
+            mTerrain->unloadCell(x, y);
+    }
+
     Resource::SceneManager& World::getSceneManager()
     {
         return *mResourceSystem->getSceneManager();

@@ -123,6 +123,39 @@ namespace RtxTool
         /// wall is fast and means nothing, and this is what says so without opening a window.
         double mHitPercent = 0.0;
 
+        /// How many cell boundaries a route crossed, and what the rings cost.
+        ///
+        /// **A count and totals rather than a distribution**, because a run of six hundred frames
+        /// crosses a couple of dozen: percentiles over that say nothing, and the number worth
+        /// reading is the worst one — that is the frame a player feels. The whole cost is in
+        /// `mFrame` too, which is where it belongs: a crossing is not a separate budget, it is the
+        /// frame that dropped.
+        ///
+        /// **Split, because the two halves are fixed by different work.** Reading is the content
+        /// files, the models instanced out of them and the terrain chunks built — which the game
+        /// hides behind `CellPreloader`'s threads and this harness deliberately does not. Building
+        /// is what the renderer then does with what arrived, and is the only half this fork can fix
+        /// in `components/rtx`.
+        std::uint32_t mCrossings = 0;
+
+        /// How many of those could not be appended to and cost a full build.
+        ///
+        /// **The single most useful number a route produces.** An append builds the structures the
+        /// ring brought; a rebuild builds every structure in the scene and re-describes the whole
+        /// texture table, which is append-only and has been growing since the run started. Which
+        /// one a crossing gets is decided by whether the sweep found anything to drop, so a town
+        /// appends and open country rebuilds — and the two are an order of magnitude apart.
+        std::uint32_t mCrossRebuilds = 0;
+
+        double mCrossWorstMs = 0.0;
+        double mCrossReadMs = 0.0;
+        double mCrossBuildMs = 0.0;
+
+        /// How far along its route the camera got, as a fraction. One where it arrived, and less
+        /// where the run ended first — a route flown too slowly to finish is measuring a shorter
+        /// journey than it reads as.
+        double mTravelled = 0.0;
+
         Rtx::SceneStats mScene;
     };
 

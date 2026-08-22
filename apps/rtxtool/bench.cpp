@@ -22,6 +22,7 @@
 
 #include "lighting.hpp"
 #include "perfcontrol.hpp"
+#include "placement.hpp"
 #include "stagedworld.hpp"
 #include "window.hpp"
 #include "world.hpp"
@@ -70,6 +71,19 @@ namespace RtxTool
             // above already says how much the whole frame varies.
             out() << Rtx::describeZones(place.mGpu);
 
+            // **Only for a route, because a place that stands still has nothing to say here.** The
+            // worst is the one to read: a crossing is a dropped frame, and an average over six
+            // hundred frames of which four were the expensive ones hides exactly the thing.
+            if (place.mCrossings > 0)
+                out() << std::format(
+                    "  {} crossings, {} of them rebuilds — {:.0f} ms worst; {:.1f} s over the run, "
+                    "{:.1f} reading and {:.1f} building{}\n",
+                    place.mCrossings, place.mCrossRebuilds, place.mCrossWorstMs,
+                    (place.mCrossReadMs + place.mCrossBuildMs) / 1000.0, place.mCrossReadMs / 1000.0,
+                    place.mCrossBuildMs / 1000.0,
+                    place.mTravelled < 1.0 ? std::format(", {:.0f}% of the route flown", place.mTravelled * 100.0)
+                                           : "");
+
             out() << std::format("  {} frames in {:.2f} s — {:.1f} fps, {:.1f} at the 1% low\n", place.mFrames,
                 place.mWallSeconds, place.mFrame.getRate(), place.mFrame.getLowRate());
         }
@@ -107,6 +121,11 @@ namespace RtxTool
                     place.mView, place.mCell, place.mScene.mInstances, place.mBuildMs)
                      << std::format(R"("frames": {}, "wallSeconds": {:.4f}, "hitPercent": {:.2f}, )", place.mFrames,
                             place.mWallSeconds, place.mHitPercent)
+                     << std::format(
+                            R"("crossings": {}, "crossRebuilds": {}, "crossWorstMs": {:.2f}, "crossReadMs": {:.2f}, )"
+                            R"("crossBuildMs": {:.2f}, "travelled": {:.4f}, )",
+                            place.mCrossings, place.mCrossRebuilds, place.mCrossWorstMs, place.mCrossReadMs,
+                            place.mCrossBuildMs, place.mTravelled)
                      << R"("frameMs": )" << asJson(place.mFrame) << R"(, "traceMs": )" << asJson(place.mTrace)
                      << R"(, "placeMs": )" << asJson(place.mPlace) << R"(, "gpuMs": {)";
 
@@ -254,6 +273,13 @@ namespace RtxTool
             traceTimes.clear();
             placeTimes.clear();
 
+            std::uint32_t crossings = 0;
+            std::uint32_t crossRebuilds = 0;
+            double crossWorstMs = 0.0;
+            double crossReadMs = 0.0;
+            double crossBuildMs = 0.0;
+            float part = 0.0f;
+
             // Per place, because the zones a place has are the zones its content asked for: an
             // interior with nothing moving in it never places and never reports one.
             Rtx::GpuBreakdown gpu;
@@ -283,13 +309,46 @@ namespace RtxTool
 
                 const Clock::time_point frameStart = Clock::now();
 
+                // **The route runs over the measured frames and not the warm-up.** Warming up is
+                // the GPU coming off its idle clock; flying during it would start the measurement
+                // partway along and leave the first crossing outside the numbers.
+                //
+                // **And off the frame index rather than the clock**, for the reason the world is
+                // stepped that way: a camera advanced by how long the last frame took crosses its
+                // boundaries somewhere else on every machine, and where they fall is the whole
+                // measurement.
+                Placement standing = staged.getPlacement();
+                if (view.mRoute.has_value() && frame >= warmup)
+                {
+                    part = view.mRoute->partAt(staged.getPlacement(), static_cast<float>(frame - warmup) / sStepRate);
+                    standing = view.mRoute->at(staged.getPlacement(), part);
+                }
+
+                // **Inside the frame's own timing, because a crossing is a dropped frame.** Timing
+                // it outside would report a smooth run with a load cost printed beside it, which is
+                // the opposite of what a p99 is for.
+                if (const Crossing crossed = staged.moveTo(standing.mOrigin); crossed.happened())
+                {
+                    const Clock::time_point read = Clock::now();
+                    const RtxBridge::SceneUpload handed
+                        = uploader.hand(*renderer, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
+                    const Clock::time_point built = Clock::now();
+
+                    ++crossings;
+                    crossRebuilds += handed.mKind == RtxBridge::SceneUpload::Kind::Rebuilt ? 1u : 0u;
+                    crossReadMs += std::chrono::duration<double, std::milli>(read - frameStart).count();
+                    crossBuildMs += std::chrono::duration<double, std::milli>(built - read).count();
+                    crossWorstMs
+                        = std::max(crossWorstMs, std::chrono::duration<double, std::milli>(built - frameStart).count());
+                }
+
                 // **After the first, which is the frame the build above already made**, and by
                 // frame index rather than by the clock: a world stepped by how long the last frame
                 // took would render a different sequence on every machine and on every build.
                 //
-                // Handed rather than placed because a step walks the whole graph and sweeps it; on
-                // a bench nothing arrives, so this is a place every frame and the column still
-                // measures what it says it does.
+                // Handed rather than placed because a step walks the whole graph and sweeps it: an
+                // actor drawing a weapon brings a mesh nothing has built, and a sweep that closed a
+                // gap renumbers what the last frame was built from.
                 double placeMs = 0.0;
                 if (frame > 0 && staged.getMotion() != nullptr && staged.getMotion()->step(frame))
                 {
@@ -299,8 +358,8 @@ namespace RtxTool
                 }
 
                 const Rtx::FrameExtents shown = renderer->getExtents();
-                Rtx::Shaders::VisibilityConstants constants = Rtx::makeCamera(staged.getPlacement().mOrigin,
-                    staged.getPlacement().mTarget, request.mFieldOfView, shown.mRenderWidth, shown.mRenderHeight, far);
+                Rtx::Shaders::VisibilityConstants constants = Rtx::makeCamera(standing.mOrigin, standing.mTarget,
+                    request.mFieldOfView, shown.mRenderWidth, shown.mRenderHeight, far);
                 constants.mDelight = request.mDelight;
 
                 CellLighting lighting = staged.getLighting();
@@ -354,6 +413,12 @@ namespace RtxTool
                 .mPlace = Rtx::summarise(placeTimes),
                 .mGpu = std::vector<Rtx::GpuZone>(zones.begin(), zones.end()),
                 .mHitPercent = static_cast<double>(hits) / pixels * 100.0,
+                .mCrossings = crossings,
+                .mCrossRebuilds = crossRebuilds,
+                .mCrossWorstMs = crossWorstMs,
+                .mCrossReadMs = crossReadMs,
+                .mCrossBuildMs = crossBuildMs,
+                .mTravelled = view.mRoute.has_value() ? static_cast<double>(part) : 1.0,
                 .mScene = renderer->getSceneStats(),
             });
 

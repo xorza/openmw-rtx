@@ -103,15 +103,20 @@ namespace RtxTool
         }
     }
 
-    std::string cellAt(const osg::Vec3f& position)
+    CellSquare squareAt(const osg::Vec3f& position)
     {
         const auto square
             = [](float value) { return static_cast<int>(std::floor(value / static_cast<float>(ESM::Cell::sSize))); };
 
-        return std::to_string(square(position.x())) + ',' + std::to_string(square(position.y()));
+        return CellSquare{ .mX = square(position.x()), .mY = square(position.y()) };
     }
 
-    std::uint32_t dropCellsOutside(const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded)
+    std::string cellAt(const CellSquare& square)
+    {
+        return std::to_string(square.mX) + ',' + std::to_string(square.mY);
+    }
+
+    std::uint32_t dropCellsOutside(World& world, const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded)
     {
         if (!centre.isExterior())
             return 0;
@@ -132,6 +137,12 @@ namespace RtxTool
             if (entry->second != nullptr)
                 root.removeChild(entry->second);
 
+            // **The ground goes with the references standing on it.** They arrive by two routes —
+            // the cell's own group, and the one node `Terrain::TerrainGrid` accumulates into — so
+            // taking the group off the root drops only half of what the cell brought.
+            if (const ESM::Cell* left = world.findCell(entry->first))
+                world.unloadTerrain(left->getGridX(), left->getGridY());
+
             entry = loaded.erase(entry);
             ++went;
         }
@@ -143,20 +154,22 @@ namespace RtxTool
     {
         CellReport report;
 
-        // **Every new cell's terrain into the graph before any of it is mirrored.**
-        // `World::buildTerrain` accumulates chunks under one node and hands back that same node each
-        // time, so extracting after each call would place every earlier cell's chunks again — once
-        // more per cell.
+        // **The cells this call actually brought, and only those.** The grid walk is what decides
+        // which they are, and it decides once: it adds every square to `loaded` as it goes, so
+        // asking it a second time would find nothing new and asking it against a fresh map would
+        // find all nine — reading, instancing and re-parenting the six that were already standing.
+        // That is what leaked, and it leaked two thirds of a grid per crossing.
         //
-        // And only the chunks that were not there before, which is what the count remembered here
-        // is for: a camera walking into the next cell brings a ring of new terrain and must not
-        // place the region it was already standing in a second time.
-        // **Counted before anything loads, not after the first cell that did.** A cell with no land
-        // record still returns the accumulating node and adds no chunk to it, so taking the count
-        // from inside the loop would start one short and mirror a chunk that was already there.
+        // Pointers into the loaded content, which outlives every call.
+        std::vector<const ESM::Cell*> arrived;
+
+        // Terrain first, because `World::buildTerrain` accumulates chunks under one node and hands
+        // that same node back each time: the objects go under groups of their own, and the ground
+        // has to be in the graph before anything walks it.
         osg::ref_ptr<osg::Group> terrain;
         forEachNewCell(world, centre, loaded, [&](const ESM::Cell& cell) {
             ++report.mCells;
+            arrived.push_back(&cell);
             if (osg::ref_ptr<osg::Group> chunks = world.buildTerrain(cell))
                 terrain = std::move(chunks);
         });
@@ -176,12 +189,8 @@ namespace RtxTool
         if (!centre.isExterior() && centre.mHasAmbi)
             report.mAmbient = RtxBridge::decodeColour(centre.mAmbi.mAmbient);
 
-        // A second walk over the same region: the first pass added them to `loaded`, so this one
-        // has to be told about the cells it just took. Kept apart because the terrain has to be in
-        // the graph and mirrored before the objects standing on it are.
-        LoadedCells objects;
-        forEachNewCell(world, centre, objects,
-            [&](const ESM::Cell& cell) { loaded[keyOf(cell)] = readObjects(world, cell, root, report, liveProps); });
+        for (const ESM::Cell* cell : arrived)
+            loaded[keyOf(*cell)] = readObjects(world, *cell, root, report, liveProps);
 
         return report;
     }

@@ -57,10 +57,11 @@ namespace RtxTool
 
     /// Takes every cell outside the active grid around `centre` off the graph. Returns how many.
     ///
-    /// **Terrain does not go with them, and that is a known hole.** `World::buildTerrain` keeps
-    /// every chunk under one accumulating node and offers no way to drop a cell's worth, so the
-    /// ground a departed cell stood on stays. See `docs/rtx/harness.md`.
-    std::uint32_t dropCellsOutside(const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded);
+    /// **Both halves of what a cell brought.** Its references hang under a group of their own and
+    /// its ground under the one node `Terrain::TerrainGrid` accumulates into, so a departure is a
+    /// child removed from the root *and* an `unloadCell` — and dropping only the first leaves a
+    /// working set that gains ground for as long as the camera flies.
+    std::uint32_t dropCellsOutside(World& world, const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded);
 
     /// What reading a cell produced besides the scene itself.
     struct CellReport
@@ -114,11 +115,26 @@ namespace RtxTool
     ///        and gets the still template, which is a candle with an authored spark on it.
     CellReport readRegion(World& world, const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded, bool liveProps);
 
+    /// Which exterior square a point stands in.
+    ///
+    /// **Two integers rather than the string, because a streaming frame asks every frame.** Naming
+    /// the square is how a crossing is noticed, and spelling it out to find that nothing has changed
+    /// is two allocations on the frame path for an answer that is almost always no.
+    struct CellSquare
+    {
+        int mX = 0;
+        int mY = 0;
+
+        friend bool operator==(const CellSquare& a, const CellSquare& b) = default;
+    };
+
+    CellSquare squareAt(const osg::Vec3f& position);
+
     /// The exterior cell a point stands in, as `--cell` spells it.
     ///
     /// A point outside every cell the content files define still has a square: what it does not have
     /// is a cell record there, which is what `World::findCell` says by answering nothing.
-    std::string cellAt(const osg::Vec3f& position);
+    std::string cellAt(const CellSquare& square);
 
     /// Everything a region puts into `scene`, and how its centre is lit.
     ///

@@ -125,6 +125,15 @@ namespace RtxTool
         /// The returned node lives as long as this `World` does.
         osg::ref_ptr<osg::Group> buildTerrain(const ESM::Cell& cell);
 
+        /// Takes one exterior cell's chunks back out of that graph.
+        ///
+        /// **The other half of `buildTerrain`, and the harness went without it for a while.** A
+        /// working set that only ever gains ground is a benchmark measuring a world no player holds:
+        /// nine cells of ashland became twenty-nine over a walk across the island, and the frames
+        /// that reported were not the game's. Harmless before anything streamed and wrong the moment
+        /// something did.
+        void unloadTerrain(int x, int y);
+
         /// The node `buildTerrain` accumulates into, or null before the first exterior.
         ///
         /// For a caller that wants to know which chunks are new: the count before it loads and the

@@ -1,32 +1,27 @@
 #include "view.hpp"
 
-#include "viewpoint.hpp"
-
 #include <chrono>
 #include <cmath>
 #include <format>
 #include <memory>
 #include <ostream>
-#include <vector>
 
 #include <SDL.h>
 
 #include <components/debug/debugging.hpp>
+#include <components/esm3/loadcell.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/camera.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtxbridge/png.hpp>
+#include <components/rtxbridge/sceneuploader.hpp>
 
-#include <set>
-
-#include "cellscene.hpp"
 #include "lighting.hpp"
 #include "placement.hpp"
+#include "stagedworld.hpp"
+#include "viewpoint.hpp"
 #include "window.hpp"
-#include <components/esm3/loadcell.hpp>
-#include <components/rtxbridge/png.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
-#include <components/rtxbridge/sceneuploader.hpp>
 
 namespace RtxTool
 {
@@ -135,21 +130,28 @@ namespace RtxTool
             return 1;
         }
 
-        // **Kept across loads, which is the whole of what makes walking into a cell cheap.** The
-        // extractor's identity maps resolve geometry met again to the mesh already in the scene, so
-        // a ring of new cells adds its own models and reuses everything the region already had.
-        // The graph the mirror walks — one group per cell, the actors hung in it, terrain alongside.
-        osg::ref_ptr<osg::Group> root = new osg::Group;
+        // **The same staging the shot and the bench use, streaming included.** A window's camera
+        // goes somewhere, which used to make it the one caller with its own copy of loading, the
+        // ring, the sweep and the actor snapshot — and the copy is what drifted.
+        StagedWorld staged(world, centre,
+            StagingRequest{
+                .mWeather = request.mWeather,
+                .mHour = request.mHour,
+                .mFieldOfView = request.mFieldOfView,
+                .mOrigin = request.mOrigin,
+                .mTarget = request.mTarget,
+            },
+            actors);
 
-        Rtx::SceneDesc scene;
-        RtxBridge::SceneExtractor extractor(scene);
+        if (staged.empty())
+        {
+            out() << "Nothing to show: the region placed no geometry.\n";
+            return 1;
+        }
+
+        request.mLighting = staged.getLighting();
+
         RtxBridge::SceneUploader uploader;
-        LoadedCells loaded;
-
-        /// The people and props a ring brought with it, held between `bring` and the restanding
-        /// that puts them back into the posed half of the scene.
-        std::vector<CellPerson> arrivals;
-        std::vector<CellProp> arrivedProps;
 
         /// Hands the renderer the scene as it now stands, building only what has to be built.
         ///
@@ -157,91 +159,19 @@ namespace RtxTool
         /// brings models the region did not have, which is a growth and not a renumbering, so the
         /// structures already built stay built and the textures already uploaded stay uploaded —
         /// a few milliseconds instead of the fifth of a second a full rebuild of the array costs.
-        const auto hand = [&] { return uploader.hand(*renderer, scene, world.getImageManager(), Rtx::SeaState{}); };
+        const auto hand
+            = [&] { return uploader.hand(*renderer, staged.getScene(), world.getImageManager(), Rtx::SeaState{}); };
 
-        /// Reads the region around `around` into the scene, and says whether anything was there.
-        ///
-        /// **It does not build.** The people who arrive with a ring of cells are bodies nobody has
-        /// assembled yet, and their meshes have to be in the scene before the structures are made
-        /// from it — a top level naming a mesh with no bottom level behind it is a fatal frame.
-        const auto bring = [&](const ESM::Cell& around) {
-            const Clock::time_point began = Clock::now();
-            const CellReport arrived = readRegion(world, around, *root, loaded, actors.mProps);
-
-            if (arrived.mCells == 0)
-                return false;
-
-            // **The ring that arrived, and the ones that left.** The game's working set is a square
-            // that follows the player, not everything ever visited; without the second half this
-            // grows for as long as the camera flies and stops resembling the game after the first
-            // crossing.
-            const std::uint32_t went = dropCellsOutside(around, *root, loaded);
-
-            // Built, then walked. Reading a region puts nodes under the root; nothing is mirrored
-            // until something walks them, which is the split the game has too — and the walk is what
-            // tells the sweep below that the departed cells are no longer met.
-            extractor.extract(*root, osg::Matrixf::identity(), 0);
-            extractor.advance();
-
-            if (went > 0)
-                extractor.retire();
-
-            for (const Rtx::Light& light : arrived.mLights)
-                scene.addLight(light);
-
-            arrivals = arrived.mPeople;
-            arrivedProps = arrived.mProps;
-
-            out() << std::format("loaded {} cells and dropped {} in {:.2f} s, {} instances now placed\n",
-                arrived.mCells, went, std::chrono::duration<double>(Clock::now() - began).count(),
-                scene.getPlacedCount());
-
-            return true;
-        };
-
-        RegionLoad arrivedWith = loadRegion(
-            world, centre, *root, scene, extractor, loaded, request.mWeather, request.mHour, actors.mProps);
-
-        extractor.extract(*root, osg::Matrixf::identity(), 0);
-        request.mLighting = arrivedWith.mLighting;
-
-        if (scene.getPlacedCount() == 0)
+        if (staged.getActorCount() > 0 || staged.getPropCount() > 0)
         {
-            out() << "Nothing to show: the region placed no geometry.\n";
-            return 1;
-        }
-
-        // Which square the camera stood in when the region around it was last brought in. Crossing
-        // out of it is what asks for the next ring.
-        std::string standing;
-
-        const osg::BoundingBoxf bounds = scene.getBounds();
-        const Placement start = placeCamera(bounds, request.mFieldOfView, request.mOrigin, request.mTarget);
-
-        // **The region's own residents, plus whoever was asked for on the command line.** The row
-        // stands in front of where the camera starts and stays there while it flies around them,
-        // which is what a window is for; the residents stand where the cell put them.
-        const std::span<const CellPerson> residents
-            = actors.mResidents ? std::span<const CellPerson>(arrivedWith.mPeople) : std::span<const CellPerson>();
-
-        const std::span<const CellProp> props
-            = actors.mProps ? std::span<const CellProp>(arrivedWith.mProps) : std::span<const CellProp>();
-
-        std::unique_ptr<PosedActors> posed;
-        if (!actors.empty() || !residents.empty() || !props.empty())
-        {
-            posed = std::make_unique<PosedActors>(world, scene, extractor, *root, actors);
-            posed->addResidents(residents);
-            posed->addProps(props);
-            posed->addRow(actors, start);
-
-            const RtxBridge::ExtractionStats& settled = posed->settle();
+            const RtxBridge::ExtractionStats& settled = staged.getSettled();
             out() << std::format(
                 "{} actors and {} live props placed, {} deforming drawables, {} emitters holding "
                 "{} particles\n",
-                posed->getCount() - posed->getPropCount(), posed->getPropCount(), settled.mDeformed, settled.mEmitters,
-                settled.mSprites);
+                staged.getActorCount(), staged.getPropCount(), settled.mDeformed, settled.mEmitters, settled.mSprites);
         }
+
+        const Placement start = staged.getPlacement();
 
         // **After everyone is in.** The bodies brought meshes of their own, so a build that ran
         // before them would leave the frame naming geometry it had no structure for.
@@ -250,7 +180,7 @@ namespace RtxTool
         FlyCamera camera;
         camera.look(start.mOrigin, start.mTarget);
 
-        const float far = std::max(bounds.radius() * 8.0f, 10000.0f);
+        const float far = std::max(staged.getScene().getBounds().radius() * 8.0f, 10000.0f);
 
         printHelp();
 
@@ -369,50 +299,19 @@ namespace RtxTool
                 resized = false;
             }
 
-            // **The region follows the camera.** Crossing out of the square the last load was
-            // centred on brings the ring that is now in range; the ones behind stay, for the reason
-            // `bring` gives.
-            if (centre.isExterior())
+            // **The region follows the camera.** Crossing out of the square the last ring was
+            // centred on brings the one that is now in range and takes the cells behind it off the
+            // graph, which is `StagedWorld`'s business and the bench's too.
+            const Clock::time_point crossingStart = Clock::now();
+            if (const Crossing crossed = staged.moveTo(camera.getOrigin()); crossed.happened())
             {
-                if (std::string square = cellAt(camera.getOrigin()); square != standing)
-                {
-                    standing = std::move(square);
-                    if (const ESM::Cell* cell = world.findCell(standing))
-                    {
-                        // The new cells are walked into whatever the scene holds, so the actors come
-                        // out first and the snapshot is retaken with the wider world in it. Leaving
-                        // them in would place a second copy of everyone on the very next frame.
-                        if (posed != nullptr)
-                            posed->unplace();
-
-                        arrivals.clear();
-                        arrivedProps.clear();
-                        if (bring(*cell))
-                        {
-                            // The snapshot first, then the people who arrived with the ring: the
-                            // snapshot is the still world, and a resident belongs to the half of the
-                            // scene that is walked in again every frame.
-                            if (posed != nullptr)
-                            {
-                                posed->restanding();
-                                if (actors.mResidents)
-                                    posed->addResidents(arrivals);
-                                if (actors.mProps)
-                                    posed->addProps(arrivedProps);
-
-                                posed->settle();
-                            }
-
-                            // **What the ring cost, said out loud.** Appending is the whole point of
-                            // taking the game's decision here, and the line that says which branch
-                            // ran is what turns a claim about it into a measurement.
-                            const Clock::time_point handing = Clock::now();
-                            const RtxBridge::SceneUpload handed = hand();
-                            out() << std::format("  {} in {:.1f} ms\n", describeUpload(handed),
-                                std::chrono::duration<double, std::milli>(Clock::now() - handing).count());
-                        }
-                    }
-                }
+                // **What the ring cost, said out loud.** Appending is the whole point of taking the
+                // game's decision here, and the line that says which branch ran is what turns a
+                // claim about it into a measurement.
+                const RtxBridge::SceneUpload handed = hand();
+                out() << std::format("loaded {} cells and dropped {}, {} instances now placed — {} in {:.1f} ms\n",
+                    crossed.mArrived, crossed.mDeparted, staged.getScene().getPlacedCount(), describeUpload(handed),
+                    std::chrono::duration<double, std::milli>(Clock::now() - crossingStart).count());
             }
 
             // **The clock the world runs on, not the frame count.** A window that dropped frames
@@ -421,8 +320,7 @@ namespace RtxTool
             // Handed rather than placed, because stepping walks the whole graph and sweeps it: an
             // actor drawing a weapon brings a mesh nothing has built, and a sweep that closed a gap
             // renumbers what the last frame was built from.
-            if (posed != nullptr
-                && posed->advanceTo(static_cast<float>(std::chrono::duration<double>(now - began).count())))
+            if (staged.advanceTo(static_cast<float>(std::chrono::duration<double>(now - began).count())))
                 hand();
 
             const Rtx::FrameExtents extents = renderer->getExtents();

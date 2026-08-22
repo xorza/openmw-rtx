@@ -18,8 +18,8 @@ The harness already streams cells as the camera crosses a boundary — that part
 |---|---|---|
 | **active grid** | `Constants::CellGridRadius` — 3x3 | ~~`--radius`, default 4~~ — **the same constant, §4** |
 | **what triggers a load** | the player crosses a cell boundary | the camera crosses a cell boundary — the same shape, and now the same fill order |
-| **unloading** | cells out of range are torn down | ~~never~~ — **`dropCellsOutside`, §3.2** |
-| **preloading** | background threads, ahead of the player | none, synchronous on the frame that crossed |
+| **unloading** | cells out of range are torn down | ~~never~~ — **`dropCellsOutside`, objects and terrain both, §3.2 and §3.4** |
+| **preloading** | background threads, ahead of the player | none, synchronous on the frame that crossed — deliberate, and now measured (§3.4) |
 | **after a ring arrives** | `extendScene`, appending | ~~`setScene`, rebuilding all of it~~ — **the same decision, and the same code, §3.3** |
 | **per-frame walk** | the whole graph | ~~the actors~~ — **the whole graph, §3.1** |
 | **`retire` and compaction** | every frame | ~~never~~ — **every frame, §3.2** |
@@ -87,9 +87,9 @@ sweep and carries them through a compaction, and `addWater` now returns the indi
 sweep
 costs about 0.15 ms a frame here.
 
-**Terrain does not unload, and that is a known hole.** `World::buildTerrain` keeps every chunk under
-one accumulating node and offers no way to drop a cell's worth, so the ground a departed cell stood
-on stays. It is the one part of the working set that still only grows.
+**Terrain did not unload, and I called that a hole in `World::buildTerrain` that upstream did not
+offer a way out of. That was wrong** — `Terrain::World::unloadCell` has been there all along and the
+harness was not calling it. Closed in §3.4.
 
 **3. Append instead of rebuild — done, and the decision is now written once.** It moved out of
 `Tracer` into `RtxBridge::SceneUploader`, which both sides call: it holds which revision of the scene
@@ -102,24 +102,62 @@ unconditionally after a motion step — but a step walks the whole graph and swe
 draws a weapon brings a mesh with no structure behind it, and a sweep that closed a gap renumbers
 what the last frame was built from. Both reach the frame as geometry naming something else.
 
-**A crossing appends, and that was not the expected answer.** Walking one cell east drops three
-columns as it gains three, and dropping a cell was supposed to compact the tables and force a full
-rebuild. It does not: a town is a few dozen models placed hundreds of times, the resource cache hands
-the same nodes to every cell, and the three columns that left took no mesh with them the six that
-stayed were not still using. `retain` finds every mesh still met, drops nothing, renumbers nothing.
+**A crossing in a town appends, and that was not the expected answer** — nor, as §3.4 found by
+flying one, is it the usual one. Walking one cell east out of Balmora drops three columns as it gains
+three, and dropping a cell was supposed to compact the tables and force a full rebuild. In a town it
+does not: a town is a few dozen models placed hundreds of times, the resource cache hands the same
+nodes to every cell, and the three columns that left took no mesh with them the six that stayed were
+not still using. `retain` finds every mesh still met, drops nothing, renumbers nothing.
 
 Measured at Balmora (`RtxCrossingTest`): **1,397 meshes to 1,665, and 50 textures described where a
 rebuild would have decoded and shading-estimated all 231 again.** For scale, the full build that
 `shot` reports at the same spot is 667 ms.
+
+Out in open country the ring that leaves does *not* share its models with the ring that stays, so the
+sweep compacts and the answer is `setScene` after all. §3.4 has the count.
 
 What the append still costs is the bottom levels: `VulkanRenderer::extendScene` keeps the texture
 array but makes `SceneAcceleration` and `SceneBuffers` again whenever the mesh table grows, about 12
 ms of spike on a frame that wanted 16. That is in `.notes/ISSUES.md` and is the next thing in the way
 of a uniform frame time across a crossing.
 
-**4. A camera path for `bench`.** Step the camera at a fixed speed between two viewpoints so the
-crossings land in the same places on every run, and the load spikes show up in the p99 where they
-can be seen. Uniform frame time is the target the spikes are measured against; see `CLAUDE.md`.
+**4. A camera path for `bench` — done, and it found more than it was built to measure.** A view in
+`views.cfg` can now name a `to` and a `speed`: the camera walks in a straight line from its own
+`pos`/`look` to the named view's, off the frame index rather than the clock, so the crossings land on
+the same frames on every machine and on every build. It runs over the measured frames and not the
+warm-up, and clamps at the far end rather than sailing into the sea. `[island-crossing]` flies the
+Bitter Coast to the Ashlands at 12,000 units a second — nineteen boundaries in ten seconds of world,
+which is fast enough that what a ring costs is what the run measures.
+
+Getting there needed the streaming itself moved. `runWindow` had its own copy of loading, the ring,
+the sweep and the actor snapshot; that copy is gone and both sides cross cells through
+`StagedWorld::moveTo`, which is what stops them drifting apart a second time.
+
+**Two bugs fell out of the first run, and neither was visible standing still.**
+
+`readRegion` re-read *every* cell in the square on every call, not the ones that arrived. The grid
+walk adds each square to `loaded` as it goes, so asking it again against a fresh map found all nine —
+instancing them again, parenting the new groups under the root, and orphaning the six that were
+already there. Two thirds of a grid leaked per crossing: a walk of eight cells north out of Balmora
+took the working set from 6,238 placements to 29,648. It now tracks the content, 6,238 in the town
+and 3,385 out in the wilderness, and `RtxCrossingTest` asserts it settles rather than climbs.
+
+**And the terrain hole in §3.2 was not a hole.** `Terrain::World::unloadCell` has been upstream all
+along; the harness simply never called it. `dropCellsOutside` now drops both halves of what a cell
+brought — its group off the root, and its chunks out of the node `TerrainGrid` accumulates into.
+
+**What the route then measured, and it overturns §3.3.** Nineteen crossings, *nineteen of them
+rebuilds*. The append path exists and is correct, and a real journey never takes it: `retire` calls
+`retain` whenever a mesh or material goes, a departing cell almost always takes one with it, and a
+compaction renumbers everything. Balmora appends because a town is a few dozen models placed
+hundreds of times and the ring that leaves shares them all with the ring that stays. Open country
+does not.
+
+So the crossing cost is dominated by the renderer rather than by the disk — of the run's crossing
+time, roughly a quarter was reading content and three quarters was building what arrived, each one a
+full `setScene` that also re-describes the whole texture table, which is append-only and has been
+growing since the run started. Both halves are in `.notes/ISSUES.md`. The wall-clock figures are not
+quoted here because the machine was not quiet when they were taken; the counts are.
 
 ## 4. The grid — done, and there is no longer a knob
 
