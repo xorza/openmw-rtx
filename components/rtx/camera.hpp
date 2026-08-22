@@ -9,12 +9,23 @@
 
 namespace Rtx
 {
-    /// Constants for a pinhole camera looking from `origin` towards `target`.
+    /// Constants for a pinhole camera at `origin` looking `along`, which need not be a unit vector.
     ///
-    /// The world's up is +Z, as Morrowind has it. A camera standing where it is looking, or pointed
-    /// straight up or straight down, has no basis; both throw `Error`. These arrive from a command
-    /// line, so they are input rather than a contract, and the alternative to a message is a
+    /// The world's up is +Z, as Morrowind has it. A camera with no direction to look along, or one
+    /// pointed straight up or straight down, has no basis; both throw `Error`. These arrive from a
+    /// command line, so they are input rather than a contract, and the alternative to a message is a
     /// normalised zero vector quietly filling the image with NaN.
+    Shaders::VisibilityConstants makeCameraAlong(const osg::Vec3f& origin, const osg::Vec3f& along,
+        float verticalFovDegrees, std::uint32_t width, std::uint32_t height, float far);
+
+    /// The same, from a point to look at rather than a direction.
+    ///
+    /// **Not what a camera far from the origin should use.** A direction recovered by subtracting
+    /// two world points carries their rounding: a float ulp out where Morrowind's cells are is a
+    /// hundredth of a unit, so two points a unit apart name a direction that is a fifth of a degree
+    /// out and that changes every time the eye moves. Anything holding a view matrix has the
+    /// direction already and should hand it over; a target is for a viewpoint written down in a
+    /// file, where it is exact because it never moves.
     Shaders::VisibilityConstants makeCamera(const osg::Vec3f& origin, const osg::Vec3f& target,
         float verticalFovDegrees, std::uint32_t width, std::uint32_t height, float far);
 

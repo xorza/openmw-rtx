@@ -382,7 +382,10 @@ namespace RtxTool
                 renderer->placeScene(scene, Rtx::SeaState{});
 
             const Rtx::FrameExtents extents = renderer->getExtents();
-            Rtx::Shaders::VisibilityConstants constants = Rtx::makeCamera(camera.getOrigin(), camera.getTarget(),
+            // The direction rather than `getTarget`, which exists so a person can read `look` in
+            // `views.cfg` and tell where it points. Recovering it back out of two world points is
+            // rounding, and a flying camera is where that shows.
+            Rtx::Shaders::VisibilityConstants constants = Rtx::makeCameraAlong(camera.getOrigin(), camera.getForward(),
                 request.mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, far);
             constants.mShowAlbedo = request.mShowAlbedo ? 1u : 0u;
             constants.mDelight = request.mDelight;

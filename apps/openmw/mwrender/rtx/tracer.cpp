@@ -32,13 +32,13 @@ namespace MWRender::Rtx
         /// because the alternative to a cap is filling a disk with a run somebody forgot about.
         constexpr std::uint32_t sKeepAtMost = 16;
 
-        /// Whether `makeCamera` can be built from this direction at all.
+        /// Whether `makeCameraAlong` can be built from this direction at all.
         ///
-        /// **Asked here rather than caught there.** A camera with no roll is a contract `makeCamera`
-        /// asserts by throwing, and it is right to: nothing can render from one. But the game hands
-        /// over whatever its own camera is doing — including the frames of a cutscene where it looks
-        /// straight down — and a frame the tracer cannot draw is a frame to skip, not a reason to
-        /// take the game down with it.
+        /// **Asked here rather than caught there.** A camera with no roll is a contract
+        /// `makeCameraAlong` asserts by throwing, and it is right to: nothing can render from one.
+        /// But the game hands over whatever its own camera is doing — including the frames of a
+        /// cutscene where it looks straight down — and a frame the tracer cannot draw is a frame to
+        /// skip, not a reason to take the game down with it.
         bool canLookAlong(const osg::Vec3f& forward)
         {
             if (!(forward.length2() > 0.0f))
@@ -47,7 +47,7 @@ namespace MWRender::Rtx
             osg::Vec3f along = forward;
             along.normalize();
 
-            // The same test `makeCamera` makes: the cross product with the world's up vanishes.
+            // The same test `makeCameraAlong` makes: the cross product with the world's up vanishes.
             return (along ^ osg::Vec3f(0.0f, 0.0f, 1.0f)).length2() > 1e-6f;
         }
     }
@@ -178,12 +178,24 @@ namespace MWRender::Rtx
             mRenderer->placeScene(mScene, ::Rtx::SeaState{});
         }
 
-        osg::Vec3f eye;
-        osg::Vec3f centre;
-        osg::Vec3f up;
-        camera.getViewMatrixAsLookAt(eye, centre, up);
+        // **In double, and the direction reduced to one before either is narrowed.** OSG hands back
+        // a point one unit ahead of the eye, and Morrowind's cells are far enough out that a float
+        // ulp there is a hundredth of a unit: differencing two such points names a direction a fifth
+        // of a degree wide, and it lands somewhere else every time the eye moves. Where the eye is
+        // survives the narrowing — a hundredth of a unit is a fifth of a millimetre — but which way
+        // it faces does not.
+        osg::Vec3d at;
+        osg::Vec3d ahead;
+        osg::Vec3d skyward;
+        camera.getViewMatrixAsLookAt(at, ahead, skyward);
 
-        if (!canLookAlong(centre - eye))
+        osg::Vec3d direction = ahead - at;
+        direction.normalize();
+
+        const osg::Vec3f eye(at);
+        const osg::Vec3f forward(direction);
+
+        if (!canLookAlong(forward))
         {
             // Once, because a frame the tracer cannot draw is usually a cutscene and occasionally a
             // camera nobody has filled in — and the two look identical from here until it is said
@@ -192,15 +204,15 @@ namespace MWRender::Rtx
             {
                 mComplained = true;
                 Log(Debug::Warning) << "Ray tracing skipped a frame: the camera at " << eye.x() << ", " << eye.y()
-                                    << ", " << eye.z() << " looks along " << (centre - eye).x() << ", "
-                                    << (centre - eye).y() << ", " << (centre - eye).z();
+                                    << ", " << eye.z() << " looks along " << forward.x() << ", " << forward.y() << ", "
+                                    << forward.z();
             }
             return;
         }
 
         const ::Rtx::FrameExtents extents = mRenderer->getExtents();
-        ::Rtx::Shaders::VisibilityConstants constants = ::Rtx::makeCamera(
-            eye, centre, Settings::camera().mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, sFar);
+        ::Rtx::Shaders::VisibilityConstants constants = ::Rtx::makeCameraAlong(
+            eye, forward, Settings::camera().mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, sFar);
         constants.mSunDirection = lighting.mSunDirection;
         constants.mSunIrradiance = lighting.mSunIrradiance;
         constants.mAmbient = lighting.mAmbient;

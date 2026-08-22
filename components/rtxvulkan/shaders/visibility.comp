@@ -1869,16 +1869,6 @@ SpriteLayer spritesAlong(vec3 origin, vec3 direction, float limit)
     return layer;
 }
 
-/// Where a surface stood on the previous frame's screen, less where it stands on this one, in
-/// pixels.
-///
-/// **Reprojected as an offset and never as a world point.** `direction * distance` is where the
-/// surface is relative to *this* eye, and `mCameraMotion` carries it to where it is relative to the
-/// last one — so the only large numbers involved were subtracted on the host, between two camera
-/// positions a step apart, where a float is exact.
-///
-/// Both ends are pixel centres and neither carries the jitter: an upscaler is told what the jitter
-/// was, and a motion vector that carried it too would have it applied twice.
 /// How far a point moved between the last frame and this one, in world units.
 ///
 /// **A delta and not the previous position**, which is what keeps this honest at Morrowind's
@@ -1895,6 +1885,20 @@ vec3 movedBy(uint index, vec3 position)
     return was - position;
 }
 
+/// Where a surface stood on the previous frame's screen, less where it stands on this one, in
+/// pixels.
+///
+/// **Reprojected as an offset and never as a world point.** `direction * distance` is where the
+/// surface is relative to *this* eye, and `mCameraMotion` carries it to where it is relative to the
+/// last one — so the only large numbers involved were subtracted on the host, between two camera
+/// positions a step apart, where a float is exact.
+///
+/// **Both ends are where the surface itself projects**, and the near end is therefore the pixel
+/// centre plus this frame's jitter — that offset is where the ray that found the surface was aimed,
+/// so it is where the surface genuinely lands on this frame's screen. Comparing against the bare
+/// centre instead returns the jitter for a world that did not move, and an upscaler handed that
+/// fetches its history a fraction of a pixel out, by a different fraction every frame. That is a
+/// still image that shakes.
 vec2 motionOf(uvec2 pixel, vec3 direction, float distance, uint instance)
 {
     const vec3 point = camera.mOrigin + direction * distance;
@@ -1912,7 +1916,7 @@ vec2 motionOf(uvec2 pixel, vec3 direction, float distance, uint instance)
     const float down = -dot(was, camera.mPreviousUp) / dot(camera.mPreviousUp, camera.mPreviousUp);
 
     const vec2 before = (vec2(across, down) / ahead * 0.5 + 0.5) * vec2(camera.mWidth, camera.mHeight);
-    return before - (vec2(pixel) + 0.5);
+    return before - (vec2(pixel) + 0.5 + camera.mJitter);
 }
 
 /// How rough every surface in this renderer is, until there is a material model that knows.

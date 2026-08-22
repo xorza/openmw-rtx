@@ -640,6 +640,42 @@ namespace Rtx
                 EXPECT_NEAR(held.y(), 0.0f, 1e-3f);
             }
 
+            // **A still camera that jitters**, which is every frame an upscaler ever sees. Where in
+            // its pixel a frame chose to sample says nothing about where the surface went, so this
+            // is the same zero as above — and it is a separate case because the jitter is exactly
+            // what a reprojection can leave in by accident: the ray that found the surface carries
+            // the offset, and the pixel it is being compared against does not.
+            //
+            // Two different terms of the sequence, because a wrong answer that happened to be the
+            // same both frames would still hold an upscaler's history in one wrong place rather
+            // than shaking it between two.
+            {
+                SceneDesc scene;
+                scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                    .mMesh = scene.addMesh(wallAt(200.0f), {}, {}, sQuadIndices) });
+
+                const Shaders::VisibilityConstants camera
+                    = makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
+
+                mRenderer->resize(size, size);
+                mRenderer->setScene(scene, {}, SeaState{});
+
+                for (const std::uint32_t frame : { 1u, 2u })
+                {
+                    Shaders::VisibilityConstants sampled = camera;
+                    sampled.mFrame = frame;
+                    mRenderer->renderFrame(sampled, FrameOptions{ .mJitter = true });
+                }
+
+                std::vector<float> motion;
+                mRenderer->readChannel(Channel::Motion, motion);
+
+                // A quarter pixel and better than a third: the second and third Halton terms, which
+                // is what a reprojection that carried the jitter would report here.
+                EXPECT_NEAR(motion[centre * 2], 0.0f, 1e-3f) << "a jittered frame that did not move";
+                EXPECT_NEAR(motion[centre * 2 + 1], 0.0f, 1e-3f);
+            }
+
             // **A camera that steps**, four units along +x. The point now straight ahead was to the
             // right of the old eye, so it comes back positive, and twice as far away halves it.
             {

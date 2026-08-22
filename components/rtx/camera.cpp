@@ -44,11 +44,21 @@ namespace Rtx
     Shaders::VisibilityConstants makeCamera(const osg::Vec3f& origin, const osg::Vec3f& target,
         float verticalFovDegrees, std::uint32_t width, std::uint32_t height, float far)
     {
+        const osg::Vec3f along = target - origin;
+        if (along.length2() <= 0.0f)
+            throw Error("the camera is standing where it is looking");
+
+        return makeCameraAlong(origin, along, verticalFovDegrees, width, height, far);
+    }
+
+    Shaders::VisibilityConstants makeCameraAlong(const osg::Vec3f& origin, const osg::Vec3f& along,
+        float verticalFovDegrees, std::uint32_t width, std::uint32_t height, float far)
+    {
         assert(width > 0 && height > 0);
 
-        osg::Vec3f forward = target - origin;
+        osg::Vec3f forward = along;
         if (forward.length2() <= 0.0f)
-            throw Error("the camera is standing where it is looking");
+            throw Error("the camera has no direction to look along");
         forward.normalize();
 
         const osg::Vec3f worldUp(0.0f, 0.0f, 1.0f);
