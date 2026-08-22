@@ -12,7 +12,7 @@
   },
   {
     "label": "RTX: the game, on the quicksave (release)",
-    "command": "./release.sh game",
+    "command": "apps/rtxtool/release.sh game",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": true,
@@ -187,8 +187,8 @@
     ]
   },
   {
-    "label": "RTX: profile the default suite (release)",
-    "command": "./release.sh bench",
+    "label": "RTX: time the default suite (release)",
+    "command": "apps/rtxtool/release.sh bench",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
@@ -198,8 +198,41 @@
     ]
   },
   {
-    "label": "RTX: profile every view (release)",
-    "command": "./release.sh bench --views=all --json=bench.json",
+    "label": "RTX: time every view (release)",
+    "command": "apps/rtxtool/release.sh bench --views=all --json=bench.json",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: profile the ship at Seyda Neen",
+    "command": "apps/rtxtool/profile.sh",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: profile the Balmora mages guild",
+    "command": "apps/rtxtool/profile.sh --view=balmora-mages-guild",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
+    "label": "RTX: profile where it waits (needs sudo)",
+    "command": "apps/rtxtool/profile.sh --offcpu",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,

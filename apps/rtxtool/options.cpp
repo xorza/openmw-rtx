@@ -174,6 +174,11 @@ namespace RtxTool
             "with `bench`, also write the run to this file as one record, for comparing against the "
             "same run on another commit");
 
+        addOption("perf-control", bpo::value<std::string>()->default_value(""),
+            "with `bench`, turn a `perf record --delay=-1 --control=fifo:<path>` on around each "
+            "place's measured frames, so the profile holds those frames and not the cell being "
+            "loaded either side of them. profile.sh passes this");
+
         addOption("repeat", bpo::value<std::uint32_t>()->default_value(8),
             "with `shot`, trace the frame this many times and report the best. One submit times "
             "the GPU's clock rather than the shader; a comparison worth making wants hundreds");

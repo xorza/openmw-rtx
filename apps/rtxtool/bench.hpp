@@ -37,6 +37,13 @@ namespace RtxTool
         /// Where to write the run as a record, or empty for none.
         std::filesystem::path mJson;
 
+        /// perf's control fifo, or empty where the run is not being profiled.
+        ///
+        /// A recording bounded by this holds the measured frames of every place and nothing
+        /// between them, so what the profile attributes time to is what the report's figures came
+        /// from. See `PerfControl`.
+        std::filesystem::path mPerfControl;
+
         std::uint32_t mWidth = 1920;
         std::uint32_t mHeight = 1080;
         float mFieldOfView = 60.0f;

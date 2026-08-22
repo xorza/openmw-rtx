@@ -128,6 +128,7 @@ if (OPENMW_RTX)
         rtxtool/contactsheet.cpp
         rtxtool/frametimes.cpp
         rtxtool/installation.cpp
+        rtxtool/perfcontrol.cpp
         rtxtool/props.cpp
         rtxtool/retire.cpp
         rtxtool/stability.cpp

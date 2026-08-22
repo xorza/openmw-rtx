@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Builds with debug info and opens the harness on the ship at Seyda Neen, under the validation
-# layers. Extra arguments are passed to the tool: `./debug.sh --view=balmora`.
+# layers. Extra arguments are passed to the tool: `debug.sh --view=balmora`.
 #
-# `./debug.sh game` builds and runs OpenMW itself on the quicksave instead. Profiling belongs in
-# release.sh: the layers cost between a tenth and half the frame rate, and `bench` will say so.
+# `debug.sh game` builds and runs OpenMW itself on the quicksave instead. Profiling belongs in
+# `release.sh` and `profile.sh`: the layers cost between a tenth and half the frame rate, and
+# `bench` will say so.
 set -euo pipefail
 
-root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 build="$root/build"
 
 # Configured once. `--clean-first` is never used here: it deletes files/lang/*.ts, which are source.
@@ -37,7 +38,7 @@ fi
 cmake --build "$build" -j32 --target openmw-rtxtool
 
 # **The verb stays first.** `dispatch` reads it off argv[1] and takes a leading dash to mean nobody
-# named one, so appending it after the switches below silently ran `view` instead — `./release.sh
+# named one, so appending it after the switches below silently ran `view` instead — `release.sh
 # bench` opened a window and profiled nothing.
 verb=()
 if [ $# -gt 0 ] && [[ "${1}" != -* ]]; then

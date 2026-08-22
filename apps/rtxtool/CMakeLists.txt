@@ -28,6 +28,8 @@ set(RTXTOOL_FILES
     posedactors.hpp
     options.cpp
     options.hpp
+    perfcontrol.cpp
+    perfcontrol.hpp
     view.cpp
     view.hpp
     viewpoint.cpp

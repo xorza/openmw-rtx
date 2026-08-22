@@ -486,6 +486,7 @@ openmw-rtxtool sheet  out.png --views all             contact sheet, for judging
 openmw-rtxtool golden --views all                     compare against files/rtx/golden, write diffs
 openmw-rtxtool bench                                  time the [default] suite of files/rtx/benches.cfg
 openmw-rtxtool bench  --views all --json=bench.json   the same over every named viewpoint
+apps/rtxtool/profile.sh --view balmora-mages-guild    the same under perf, and where the time went
 openmw-rtxtool watch  --view seyda-neen-shore         re-render on shader change
 ```
 
@@ -621,6 +622,49 @@ live in one hot-reloadable block, not in `const` declarations. Tuning must not b
 ### 7.6 Profiling
 
 Per-pass timestamp queries into a ring buffer; `bench --json` for the harness, an overlay in-game.
+The device's side of that is §7.1's `gpu ms` row. The CPU's side is `apps/rtxtool/profile.sh`.
+
+#### `profile.sh`
+
+`perf record` around a `bench` run, and it answers the question the GPU timestamps opened: an
+exterior frame takes 30 ms of which the device does 8.7, so where does the rest go.
+
+**The recording is bounded to the frames that were measured**, by perf's control fifo:
+`--delay=-1` starts the counters off and `bench --perf-control=<path>` writes `enable` when the
+warm-up ends and `disable` when the place is done. Everything else a run does — three ESM files,
+a cell extracted, ninety megabytes of structures built, the renderer taken down — is outside the
+profile rather than a quarter of it, and the alternative is trimming a whole-run recording to a
+boundary nobody can name to better than a second.
+
+Three choices that this machine forces:
+
+| | why |
+|---|---|
+| `-e task-clock`, not `cycles` | The CPU is hybrid. `cycles` resolves to `cpu_core/cycles/` **and** `cpu_atom/cycles/`, so a thread that migrated between a P core and an E core is split across two reports. `task-clock` is one software event on every core, and it counts nanoseconds. |
+| `--call-graph fp` | Arch builds every package with `-fno-omit-frame-pointer`, so the chain runs out through libstdc++, OSG and SDL for free. `--dwarf` is there for the graphics driver, which has `.eh_frame` and no frame pointers, and costs about five times as much. |
+| `--no-inline` | perf resolves the inline stack at a *return* address, which at `-O3` lands in whatever was inlined after the call — a chain through `placeScene` comes back as `~basic_string`, `_M_dispose`, `_M_is_local`. |
+
+Its own build directory, `build-profile`: Release plus `-g -fno-omit-frame-pointer`, because a
+report off a stock Release build is a list of exported symbols with no path back to the frame.
+
+The summary is **cores busy** — the recording's task-clock nanoseconds over the window `bench` says
+it measured — and then the same samples three ways: by total time with pass-through frames
+collapsed, by self time, and by library. `--offcpu` swaps the sampler for perf's BPF off-CPU
+profiler, which needs root; it can say which library the process waits in and cannot say which
+frame asked, because a BPF-collected stack is unwound by frame pointer and the driver has none.
+
+**What it found first time out**, on the deck at Seyda Neen at 1280x720 traced, 1920x1080 shown:
+
+| | share of the measured CPU |
+|---|---|
+| `PosedActors::step` — the harness standing in for the game | 54% |
+| `VulkanRenderer::placeScene` | 22% |
+| `SceneExtractor::extract` | 20% |
+| `makeInstanceRecords`, self | 6.4% |
+
+and **0.67 cores busy**. A 30 ms frame with 8.7 ms of device work and two thirds of one core: the
+frame is neither GPU-bound nor CPU-bound, it is serialised — three fenced submits with the harness
+re-posing five hundred actors between them.
 
 **One submit times the GPU's clock rather than the shader**, which this laptop makes unmissable: it
 idles at 315 MHz and ramps only under load, so rtxmw measured the same scene at 116 and 382 fps. Here

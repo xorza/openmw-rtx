@@ -21,6 +21,7 @@
 #include <components/rtxbridge/texturebuilder.hpp>
 
 #include "lighting.hpp"
+#include "perfcontrol.hpp"
 #include "stagedworld.hpp"
 #include "window.hpp"
 #include "world.hpp"
@@ -170,6 +171,8 @@ namespace RtxTool
         const std::uint32_t measured = request.getMeasured();
         const std::uint32_t warmup = request.getWarmup();
 
+        PerfControl profiling(request.mPerfControl);
+
         std::unique_ptr<Window> window;
         if (request.mWindow)
             window = std::make_unique<Window>("OpenMW RTX - bench", request.mWidth, request.mHeight);
@@ -275,7 +278,11 @@ namespace RtxTool
             GpuBreakdown gpu;
 
             std::uint32_t hits = 0;
-            const Clock::time_point runStart = Clock::now();
+
+            // Restarted when the warmup ends, so `mWallSeconds` covers the frames `mFrames`
+            // counts. A clock left running from here would divide six hundred frames by the time
+            // six hundred and sixty took, and the sixty are the slow ones.
+            Clock::time_point runStart = Clock::now();
 
             for (std::uint32_t frame = 0; frame < warmup + measured; ++frame)
             {
@@ -285,6 +292,12 @@ namespace RtxTool
                 {
                     stopped = true;
                     break;
+                }
+
+                if (frame == warmup)
+                {
+                    runStart = Clock::now();
+                    profiling.enable();
                 }
 
                 const Clock::time_point frameStart = Clock::now();
@@ -331,6 +344,9 @@ namespace RtxTool
                 }
             }
 
+            const Clock::time_point runEnd = Clock::now();
+            profiling.disable();
+
             if (frameTimes.empty())
                 break;
 
@@ -347,7 +363,7 @@ namespace RtxTool
                 .mNote = view.mNote,
                 .mBuildMs = buildMs,
                 .mFrames = static_cast<std::uint32_t>(frameTimes.size()),
-                .mWallSeconds = std::chrono::duration<double>(Clock::now() - runStart).count(),
+                .mWallSeconds = std::chrono::duration<double>(runEnd - runStart).count(),
                 .mFrame = summarise(frameTimes),
                 .mTrace = summarise(traceTimes),
                 .mPlace = summarise(placeTimes),
