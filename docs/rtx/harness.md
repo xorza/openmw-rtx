@@ -21,9 +21,9 @@ The harness already streams cells as the camera crosses a boundary — that part
 | **unloading** | cells out of range are torn down | **never**; the `loaded` set only grows |
 | **preloading** | background threads, ahead of the player | none, synchronous on the frame that crossed |
 | **after a ring arrives** | `extendScene`, appending | `setScene`, rebuilding all of it |
-| **per-frame walk** | the whole graph | the actors, and nothing else |
+| **per-frame walk** | the whole graph | ~~the actors~~ — **the whole graph, §3.1** |
 | **`retire` and compaction** | every frame | never |
-| **node identity** | `getInstance` — one node per reference | `getTemplate` — one node per *model*, shared |
+| **node identity** | `getInstance` — one node per reference | ~~`getTemplate`~~ — **`getInstance`, §3.1** |
 | **cull traversal** | runs, and decides LOD, object paging and groundcover | none; `RigGeometry`'s cull is driven by hand, per actor |
 | **lights** | `SceneUtil::LightSource` nodes off the graph | the cell's `LIGH` records |
 | **water** | the rasterizer's animated geometry, mirrored | an analytic quad, tagged `MaterialKind::Water` |
@@ -31,9 +31,10 @@ The harness already streams cells as the camera crosses a boundary — that part
 
 Two of those are worth stating plainly rather than as a row.
 
-**The harness has no scene graph at all.** It walks each object's template node once at staging,
-with the reference's transform passed in beside it, and keeps nothing. There is no root to re-walk,
-which is why the per-frame walk is only the actors and why `retire` is never called.
+**The harness had no scene graph at all** — it walked each object's template node once at staging
+and
+kept nothing, which is why the per-frame walk was only the actors and why `retire` is never called.
+Step 1 below fixed the first half of that.
 
 **The game's water is not recognised as water.** `MaterialKind::Water` is set only by
 `RtxBridge::addWater`, and only the harness calls it. So the surface the game mirrors is an ordinary

@@ -5,6 +5,8 @@
 #include <set>
 #include <string>
 
+#include <osg/Group>
+
 #include <gtest/gtest.h>
 
 #include <boost/program_options/variables_map.hpp>
@@ -37,10 +39,41 @@ namespace RtxTool
         constexpr std::string_view sFirst = "Seyda Neen, Census and Excise Office";
         constexpr std::string_view sSecond = "Seyda Neen, Arrille's Tradehouse";
 
-        RtxBridge::ExtractionStats readCell(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor)
+        /// Builds one room's graph and mirrors it, keeping the graph alive in `kept`.
+        ///
+        /// **A root per room, and the caller holds them.** Walking a second room's root does not
+        /// stamp the first one's placements, which is exactly how a cell goes: the sweep finds them
+        /// unmet. And the roots have to outlive the mirror, because it keys its meshes on the nodes
+        /// in them and a freed address is one the allocator can hand back holding something else.
+        RtxBridge::ExtractionStats readCell(World& world, const ESM::Cell& cell,
+            std::vector<osg::ref_ptr<osg::Group>>& kept, RtxBridge::SceneExtractor& extractor)
         {
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            kept.push_back(root);
+
             std::set<std::string> loaded;
-            return readRegion(world, cell, extractor, loaded, /*liveProps=*/false).mStats;
+            readRegion(world, cell, *root, loaded, /*liveProps=*/false);
+            return extractor.extract(*root, osg::Matrixf::identity(), 0);
+        }
+
+        /// A fresh root, kept alive by the caller for as long as the mirror names its nodes.
+        osg::ref_ptr<osg::Group> keepRoot(std::vector<osg::ref_ptr<osg::Group>>& kept)
+        {
+            kept.push_back(new osg::Group);
+            return kept.back();
+        }
+
+        /// Builds one room into its own root, mirrors it, and hands back what lit it.
+        CellLighting loadAndMirror(World& world, const ESM::Cell& cell, std::vector<osg::ref_ptr<osg::Group>>& kept,
+            Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor)
+        {
+            const osg::ref_ptr<osg::Group> root = keepRoot(kept);
+
+            std::set<std::string> loaded;
+            const CellLighting lit = loadRegion(world, cell, *root, scene, loaded, "Clear", 12.0f, false).mLighting;
+            extractor.extract(*root, osg::Matrixf::identity(), 0);
+
+            return lit;
         }
 
         /// One number per mesh, over the vertices and the triangles it actually holds.
@@ -96,10 +129,11 @@ namespace RtxTool
             ASSERT_NE(first, nullptr);
             ASSERT_NE(second, nullptr);
 
+            std::vector<osg::ref_ptr<osg::Group>> kept;
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
 
-            const RtxBridge::ExtractionStats one = readCell(*world, *first, extractor);
+            const RtxBridge::ExtractionStats one = readCell(*world, *first, kept, extractor);
             ASSERT_GT(one.mMeshesAdded, 0u);
 
             const std::size_t held = scene.getMeshes().size();
@@ -114,7 +148,7 @@ namespace RtxTool
             // The second room, and only the second room. The first is still in the resource cache,
             // so its drawables are alive and would be recognised if anything walked them.
             scene.clearPlacement();
-            const RtxBridge::ExtractionStats two = readCell(*world, *second, extractor);
+            const RtxBridge::ExtractionStats two = readCell(*world, *second, kept, extractor);
 
             ASSERT_GT(two.mMeshesReused, 0u) << "two Imperial interiors that share no model at all";
             ASSERT_GT(two.mMeshesAdded, 0u);
@@ -183,7 +217,7 @@ namespace RtxTool
             Rtx::SceneDesc alone;
             {
                 RtxBridge::SceneExtractor fresh(alone);
-                readCell(*world, *second, fresh);
+                readCell(*world, *second, kept, fresh);
             }
 
             EXPECT_EQ(meshFingerprints(scene), meshFingerprints(alone));
@@ -194,7 +228,7 @@ namespace RtxTool
             // And the survivors go on resolving through the identity map, which is the assertion the
             // compaction is really for: a third walk of the same room adds nothing at all.
             scene.clearPlacement();
-            const RtxBridge::ExtractionStats again = readCell(*world, *second, extractor);
+            const RtxBridge::ExtractionStats again = readCell(*world, *second, kept, extractor);
 
             EXPECT_EQ(again.mMeshesAdded, 0u) << "a survivor was not recognised after the tables moved under it";
             EXPECT_EQ(again.mMaterialsAdded, 0u);
@@ -232,21 +266,18 @@ namespace RtxTool
             // The sequence the game runs: a walk, a sweep, a walk of somewhere else, a sweep that
             // drops what the first walk had — and then the walk that puts the placements back,
             // because compacting takes them with it.
+            std::vector<osg::ref_ptr<osg::Group>> kept;
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
             CellLighting lighting;
-            {
-                std::set<std::string> loaded;
-                loadRegion(*world, *first, scene, extractor, loaded, "Clear", 12.0f, false);
-            }
+            loadAndMirror(*world, *first, kept, scene, extractor);
 
             ASSERT_TRUE(extractor.retire().empty());
 
             for (int pass = 0; pass < 2; ++pass)
             {
                 scene.clearPlacement();
-                std::set<std::string> loaded;
-                lighting = loadRegion(*world, *second, scene, extractor, loaded, "Clear", 12.0f, false).mLighting;
+                lighting = loadAndMirror(*world, *second, kept, scene, extractor);
 
                 if (pass == 0)
                 {
@@ -257,10 +288,7 @@ namespace RtxTool
             Rtx::SceneDesc alone;
             RtxBridge::SceneExtractor fresh(alone);
             CellLighting freshly;
-            {
-                std::set<std::string> loaded;
-                freshly = loadRegion(*world, *second, alone, fresh, loaded, "Clear", 12.0f, false).mLighting;
-            }
+            freshly = loadAndMirror(*world, *second, kept, alone, fresh);
 
             // The last walk put the second room back; this is the sweep that takes the first one's
             // placements with it, and without it the scene is still holding both.

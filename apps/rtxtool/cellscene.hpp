@@ -6,6 +6,7 @@
 #include <string_view>
 #include <vector>
 
+#include <osg/Group>
 #include <osg/Matrixf>
 #include <osg/Vec3f>
 
@@ -49,8 +50,6 @@ namespace RtxTool
     /// What reading a cell produced besides the scene itself.
     struct CellReport
     {
-        RtxBridge::ExtractionStats mStats;
-        RtxBridge::ExtractionStats mTerrain;
         World::SkippedObjects mSkipped;
 
         /// References whose model is named but will not load. Logged individually as they fail.
@@ -98,8 +97,8 @@ namespace RtxTool
     ///        geometry — the clone shares the drawables — so mirroring the template as well would
     ///        stand two candles in one place. A caller with nowhere to keep an instance passes false
     ///        and gets the still template, which is a candle with an authored spark on it.
-    CellReport readRegion(World& world, const ESM::Cell& centre, RtxBridge::SceneExtractor& extractor,
-        std::set<std::string>& loaded, bool liveProps);
+    CellReport readRegion(
+        World& world, const ESM::Cell& centre, osg::Group& root, std::set<std::string>& loaded, bool liveProps);
 
     /// The exterior cell a point stands in, as `--cell` spells it.
     ///
@@ -124,7 +123,6 @@ namespace RtxTool
         std::vector<CellProp> mProps;
     };
 
-    RegionLoad loadRegion(World& world, const ESM::Cell& centre, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, std::set<std::string>& loaded, std::string_view weather, float hour,
-        bool liveProps);
+    RegionLoad loadRegion(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
+        std::set<std::string>& loaded, std::string_view weather, float hour, bool liveProps);
 }

@@ -1,5 +1,7 @@
 #include "posedactors.hpp"
 
+#include <osg/MatrixTransform>
+
 #include <cmath>
 
 #include <components/debug/debuglog.hpp>
@@ -28,11 +30,12 @@ namespace RtxTool
         }
     }
 
-    PosedActors::PosedActors(
-        World& world, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor, const ActorRequest& request)
+    PosedActors::PosedActors(World& world, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor,
+        osg::Group& root, const ActorRequest& request)
         : mWorld(world)
         , mScene(scene)
         , mExtractor(extractor)
+        , mRoot(root)
         , mLit(scene.getLights().begin(), scene.getLights().end())
         , mSeconds(request.mSeconds)
         , mClothes(request.mClothes)
@@ -46,6 +49,12 @@ namespace RtxTool
     void PosedActors::add(ActorModel model, const osg::Matrixf& transform)
     {
         mActors.push_back(std::make_unique<Actor>(mWorld, std::move(model), transform));
+
+        // Into the graph, under its own transform, the way a cell's references go in. From here the
+        // walk that mirrors the world mirrors this too, and posing is all this class still does.
+        osg::ref_ptr<osg::MatrixTransform> where = new osg::MatrixTransform(osg::Matrixd(transform));
+        where->addChild(&mActors.back()->getRoot());
+        mRoot.addChild(where);
 
         // Nudged per actor as well as per position, so a row in front of a camera — spread along one
         // axis, which walks the offset in step — comes out scattered rather than in a wave.
@@ -126,10 +135,20 @@ namespace RtxTool
         if (mActors.empty())
             return false;
 
-        unplace();
         place(seconds);
         mExtractor.advance();
         return true;
+    }
+
+    RtxBridge::ExtractionStats PosedActors::mirror()
+    {
+        // The game's frame, and now this one: empty the lists a walk refills, put back the lights
+        // that belong to the world rather than to the graph, then walk the whole thing.
+        mScene.clearPlacement();
+        for (const Rtx::Light& light : mLit)
+            mScene.addLight(light);
+
+        return mExtractor.extract(mRoot, osg::Matrixf::identity(), 0);
     }
 
     void PosedActors::unplace()
@@ -167,12 +186,8 @@ namespace RtxTool
         posedAt(seconds, seconds - mLastSeconds);
         mLastSeconds = seconds;
 
-        RtxBridge::ExtractionStats stats;
-        for (const std::unique_ptr<Actor>& actor : mActors)
-            // Two actors of one model share a root node, so the actor and not the node is the anchor.
-            stats += mExtractor.extract(
-                actor->getRoot(), actor->getTransform(), reinterpret_cast<std::size_t>(actor.get()));
-
-        return stats;
+        // **Posed, and not placed.** They are in the graph, so the walk that mirrors everything else
+        // mirrors them where they now stand. What this returns is what that walk found.
+        return mirror();
     }
 }

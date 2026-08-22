@@ -1,5 +1,7 @@
 #include "cellscene.hpp"
 
+#include <osg/MatrixTransform>
+
 #include <components/misc/constants.hpp>
 
 #include <algorithm>
@@ -23,8 +25,7 @@ namespace RtxTool
 {
     namespace
     {
-        void readObjects(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor, CellReport& report,
-            bool liveProps);
+        void readObjects(World& world, const ESM::Cell& cell, osg::Group& root, CellReport& report, bool liveProps);
 
         /// Calls `visit` for every cell in the region that `loaded` does not already name, and adds
         /// each one to it.
@@ -102,8 +103,8 @@ namespace RtxTool
         return std::to_string(square(position.x())) + ',' + std::to_string(square(position.y()));
     }
 
-    CellReport readRegion(World& world, const ESM::Cell& centre, RtxBridge::SceneExtractor& extractor,
-        std::set<std::string>& loaded, bool liveProps)
+    CellReport readRegion(
+        World& world, const ESM::Cell& centre, osg::Group& root, std::set<std::string>& loaded, bool liveProps)
     {
         CellReport report;
 
@@ -118,9 +119,6 @@ namespace RtxTool
         // **Counted before anything loads, not after the first cell that did.** A cell with no land
         // record still returns the accumulating node and adds no chunk to it, so taking the count
         // from inside the loop would start one short and mirror a chunk that was already there.
-        const osg::Group* root = world.getTerrainRoot();
-        const unsigned int before = root != nullptr ? root->getNumChildren() : 0;
-
         osg::ref_ptr<osg::Group> terrain;
         forEachNewCell(world, centre, loaded, [&](const ESM::Cell& cell) {
             ++report.mCells;
@@ -128,13 +126,14 @@ namespace RtxTool
                 terrain = std::move(chunks);
         });
 
-        // Terrain before the objects, because it is what everything else stands on and its absence
-        // is the loudest thing about a screenshot that lacks it.
-        if (terrain != nullptr)
-            for (unsigned int at = before; at < terrain->getNumChildren(); ++at)
-                // Each chunk is its own node, so the chunk is its own anchor.
-                report.mTerrain += extractor.extract(*terrain->getChild(at), osg::Matrixf::identity(),
-                    reinterpret_cast<std::size_t>(terrain->getChild(at)));
+        // **Hung under the root once, and it accumulates from there.** `World::buildTerrain` keeps
+        // every chunk under one node and hands that same node back each call, so this is the same
+        // node every time — adding it again would put the whole worldspace under the root twice.
+        //
+        // Terrain is therefore not per cell the way the objects below are, which is the one thing
+        // in this graph that cannot yet be unloaded a cell at a time. See `docs/rtx/harness.md`.
+        if (terrain != nullptr && !root.containsNode(terrain))
+            root.addChild(terrain);
 
         // Interiors were authored against a renderer with no bounce, so the cell's own ambient
         // is most of what lights one. An exterior's `AMBI` is the weather system's business and
@@ -146,24 +145,21 @@ namespace RtxTool
         // has to be told about the cells it just took. Kept apart because the terrain has to be in
         // the graph and mirrored before the objects standing on it are.
         std::set<std::string> objects;
-        forEachNewCell(world, centre, objects,
-            [&](const ESM::Cell& cell) { readObjects(world, cell, extractor, report, liveProps); });
+        forEachNewCell(
+            world, centre, objects, [&](const ESM::Cell& cell) { readObjects(world, cell, root, report, liveProps); });
 
         return report;
     }
 
     namespace
     {
-        void readObjects(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor, CellReport& report,
-            bool liveProps)
+        void readObjects(World& world, const ESM::Cell& cell, osg::Group& root, CellReport& report, bool liveProps)
         {
-            // **What tells one placement of a model from another.** `getTemplate` hands out one node
-            // per model, so every reference to it walks the same path; the reference has no id of its
-            // own here, and a cell is read once, so a running count within the cell is enough to
-            // separate them. Mixed with the cell record's address so two cells cannot overlap.
-            std::size_t placed = 0;
-            const auto anchorFor
-                = [&cell, &placed] { return reinterpret_cast<std::size_t>(&cell) * 0x9e3779b97f4a7c15ull + placed++; };
+            // **One group per cell, so a cell can leave the way it arrived.** The game parents every
+            // reference under the cell it belongs to; taking that group off the root is what
+            // unloading will be, and a flat root would leave nothing to take.
+            osg::ref_ptr<osg::Group> group = new osg::Group;
+            group->setName(cell.mName.empty() ? "cell" : cell.mName);
 
             const World::SkippedObjects skipped = world.forEachObject(cell, [&](const World::Object& object) {
                 if (object.mPerson != nullptr)
@@ -177,10 +173,15 @@ namespace RtxTool
                         = RtxBridge::makeLight(*object.mLight, object.mTransform.getTrans()))
                         report.mLights.push_back(*light);
 
-                osg::ref_ptr<const osg::Node> node;
+                osg::ref_ptr<osg::Node> node;
                 try
                 {
-                    node = world.getSceneManager().getTemplate(object.mModel, false);
+                    // **An instance per reference, which is what the game makes.** A shared template
+                    // is one node walked under a hundred paths, so a hundred crates were one
+                    // placement between them until an anchor was invented to tell them apart. Give
+                    // each its own node and the node path identifies it again, exactly as it does
+                    // in the game — and the anchor stops being needed.
+                    node = world.getSceneManager().getInstance(object.mModel);
                 }
                 catch (const std::exception& e)
                 {
@@ -203,19 +204,23 @@ namespace RtxTool
                     return;
                 }
 
-                report.mStats += extractor.extract(*node, object.mTransform, anchorFor());
+                osg::ref_ptr<osg::MatrixTransform> where = new osg::MatrixTransform(osg::Matrixd(object.mTransform));
+                where->addChild(node);
+                group->addChild(where);
             });
+
+            if (group->getNumChildren() > 0)
+                root.addChild(group);
 
             report.mSkipped.mUnknownType += skipped.mUnknownType;
             report.mSkipped.mNoModel += skipped.mNoModel;
         }
     }
 
-    RegionLoad loadRegion(World& world, const ESM::Cell& centre, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, std::set<std::string>& loaded, std::string_view weather, float hour,
-        bool liveProps)
+    RegionLoad loadRegion(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
+        std::set<std::string>& loaded, std::string_view weather, float hour, bool liveProps)
     {
-        CellReport report = readRegion(world, centre, extractor, loaded, liveProps);
+        CellReport report = readRegion(world, centre, root, loaded, liveProps);
         for (const Rtx::Light& light : report.mLights)
             scene.addLight(light);
 

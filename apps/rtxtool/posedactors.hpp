@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include <osg/Group>
 #include <osg/Matrixf>
 
 #include <components/rtx/scenedesc.hpp>
@@ -70,8 +71,8 @@ namespace RtxTool
         /// **The snapshot before anyone is added, and `settle` after everyone is.** Adding builds a
         /// body without placing it; a snapshot taken with one already in it would put a second copy
         /// of that person in the scene on the very next frame.
-        PosedActors(
-            World& world, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor, const ActorRequest& request);
+        PosedActors(World& world, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor, osg::Group& root,
+            const ActorRequest& request);
         ~PosedActors();
 
         PosedActors(const PosedActors&) = delete;
@@ -112,6 +113,9 @@ namespace RtxTool
         /// twice.
         void unplace();
 
+        /// Empties the per-frame lists, restores the world's lights, and walks the graph.
+        RtxBridge::ExtractionStats mirror();
+
         /// Takes the lights as they now stand to be what a frame puts back. The other half of
         /// `unplace`, called once the cells that arrived between them are in.
         void restanding();
@@ -141,6 +145,14 @@ namespace RtxTool
         World& mWorld;
         Rtx::SceneDesc& mScene;
         RtxBridge::SceneExtractor& mExtractor;
+
+        /// Where an actor is hung, so the one walk that mirrors the world mirrors them too.
+        ///
+        /// **They used to be extracted separately, and that was the harness's whole divergence.**
+        /// A walk that covered only the movers is a walk that never pays for the world, so the
+        /// benchmark could not see the cost the game pays every frame. In the graph they are just
+        /// more of it.
+        osg::Group& mRoot;
 
         /// The world's own lights, which `clearPlacement` empties every frame and only this can
         /// put back — a light on the graph belongs to whatever is carrying it.

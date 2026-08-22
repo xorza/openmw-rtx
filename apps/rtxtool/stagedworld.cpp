@@ -12,9 +12,12 @@ namespace RtxTool
         : mExtractor(mScene)
     {
         const RegionLoad arrived
-            = loadRegion(world, cell, mScene, mExtractor, mLoaded, request.mWeather, request.mHour, actors.mProps);
+            = loadRegion(world, cell, *mRoot, mScene, mLoaded, request.mWeather, request.mHour, actors.mProps);
 
         mLighting = arrived.mLighting;
+
+        // The first walk. Everything after this is the same walk again, once a frame.
+        mirror(0);
 
         // **Before anyone goes in.** A row of actors stands relative to where the camera ends up, so
         // the camera cannot be derived from bounds that already contain them.
@@ -29,7 +32,7 @@ namespace RtxTool
         if (actors.empty() && residents.empty() && props.empty())
             return;
 
-        mPosed = std::make_unique<PosedActors>(world, mScene, mExtractor, actors);
+        mPosed = std::make_unique<PosedActors>(world, mScene, mExtractor, *mRoot, actors);
         mPosed->addResidents(residents);
         mPosed->addProps(props);
         mPosed->addRow(actors, mPlacement);
@@ -37,6 +40,11 @@ namespace RtxTool
     }
 
     StagedWorld::~StagedWorld() = default;
+
+    RtxBridge::ExtractionStats StagedWorld::mirror(std::size_t frame)
+    {
+        return mExtractor.extract(*mRoot, osg::Matrixf::identity(), 0, frame);
+    }
 
     std::size_t StagedWorld::getActorCount() const
     {

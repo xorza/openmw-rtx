@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include <osg/Group>
+
 #include <gtest/gtest.h>
 
 #include <boost/program_options/variables_map.hpp>
@@ -82,23 +84,27 @@ namespace RtxTool
             Rtx::SceneDesc seeded;
             RtxBridge::ExtractionStats seedStats;
             {
+                osg::ref_ptr<osg::Group> root = new osg::Group;
                 RtxBridge::SceneExtractor extractor(seeded);
                 std::set<std::string> loaded;
-                seedStats = readRegion(*world, *cell, extractor, loaded, /*liveProps=*/false).mStats;
+                readRegion(*world, *cell, *root, loaded, /*liveProps=*/false);
+                seedStats = extractor.extract(*root, osg::Matrixf::identity(), 0);
             }
 
             ASSERT_GT(seedStats.mEmitters, 0u) << "the room is full of candles";
 
             Rtx::SceneDesc live;
+            osg::ref_ptr<osg::Group> root = new osg::Group;
             RtxBridge::SceneExtractor extractor(live);
             std::set<std::string> loaded;
-            const CellReport report = readRegion(*world, *cell, extractor, loaded, /*liveProps=*/true);
+            const CellReport report = readRegion(*world, *cell, *root, loaded, /*liveProps=*/true);
+            const RtxBridge::ExtractionStats mirrored = extractor.extract(*root, osg::Matrixf::identity(), 0);
 
-            EXPECT_EQ(report.mStats.mEmitters, 0u) << "a reference that is going to be instanced is not mirrored too";
+            EXPECT_EQ(mirrored.mEmitters, 0u) << "a reference that is going to be instanced is not mirrored too";
             ASSERT_FALSE(report.mProps.empty());
 
             const ActorRequest request{ .mResidents = false, .mProps = true };
-            PosedActors posed(*world, live, extractor, request);
+            PosedActors posed(*world, live, extractor, *root, request);
             posed.addProps(report.mProps);
             const RtxBridge::ExtractionStats settled = posed.settle();
 
@@ -122,9 +128,11 @@ namespace RtxTool
             // makes the movement above the instancing rather than the extraction.
             Rtx::SceneDesc again;
             {
+                osg::ref_ptr<osg::Group> twiceRoot = new osg::Group;
                 RtxBridge::SceneExtractor twice(again);
                 std::set<std::string> once;
-                readRegion(*world, *cell, twice, once, /*liveProps=*/false);
+                readRegion(*world, *cell, *twiceRoot, once, /*liveProps=*/false);
+                twice.extract(*twiceRoot, osg::Matrixf::identity(), 0);
             }
 
             EXPECT_EQ(spritePositions(again), spritePositions(seeded));

@@ -7,6 +7,8 @@
 
 #include <osg/Vec3f>
 
+#include <osg/Group>
+
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 
@@ -72,6 +74,12 @@ namespace RtxTool
         /// it does not outlive this.
         Motion* getMotion() { return mPosed.get(); }
 
+        /// The graph the mirror walks. Borrowed for the same reason.
+        osg::Group& getRoot() { return *mRoot; }
+
+        /// Walks the graph into the scene, the way `Tracer` does every frame.
+        RtxBridge::ExtractionStats mirror(std::size_t frame);
+
         /// What the actors and props came to once they were walked in. All zero where there are
         /// none.
         const RtxBridge::ExtractionStats& getSettled() const { return mSettled; }
@@ -81,6 +89,14 @@ namespace RtxTool
         std::size_t getPropCount() const;
 
     private:
+        /// The graph the mirror walks, assembled the way the game assembles its own: a group per
+        /// cell, a reference under a transform inside it, the terrain hung alongside.
+        ///
+        /// **Held for as long as the scene is, because the mirror re-walks it every frame.** That
+        /// is the whole of what makes this harness measure what the game measures — the walk, the
+        /// sweep, and a cell arriving all cost here what they cost there.
+        osg::ref_ptr<osg::Group> mRoot = new osg::Group;
+
         Rtx::SceneDesc mScene;
         RtxBridge::SceneExtractor mExtractor;
 

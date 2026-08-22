@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include <osg/Group>
+
 #include <gtest/gtest.h>
 
 #include <boost/program_options/variables_map.hpp>
@@ -120,6 +122,7 @@ namespace RtxTool
             const ESM::Cell* cell = world->findCell("-3,-2");
             ASSERT_NE(cell, nullptr) << "the configured installation has no Balmora, so it is not Morrowind";
 
+            osg::ref_ptr<osg::Group> root = new osg::Group;
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
             // **One cell and not the region the harness now loads by default.** What this measures
@@ -127,7 +130,7 @@ namespace RtxTool
             // content; forty-nine cells would be a different fixture wearing the same number.
             std::set<std::string> loaded;
             const CellLighting lighting
-                = loadRegion(*world, *cell, scene, extractor, loaded, "Clear", 12.0f, false).mLighting;
+                = loadRegion(*world, *cell, *root, scene, loaded, "Clear", 12.0f, false).mLighting;
             ASSERT_FALSE(scene.getInstances().empty()) << "the cell placed no geometry";
 
             Rtx::RendererOptions options;

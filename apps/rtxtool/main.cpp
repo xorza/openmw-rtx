@@ -231,10 +231,12 @@ namespace RtxTool
             if (cell == nullptr)
                 return 1;
 
+            osg::ref_ptr<osg::Group> root = new osg::Group;
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
             std::set<std::string> loaded;
-            readRegion(world, *cell, extractor, loaded, false);
+            readRegion(world, *cell, *root, loaded, false);
+            extractor.extract(*root, osg::Matrixf::identity(), 0);
 
             const RtxBridge::SceneTextures described(scene, world.getImageManager());
             const ContactSheet sheet = writeContactSheet(described.getDescriptions(), output, strength);
@@ -261,23 +263,27 @@ namespace RtxTool
             if (cell == nullptr)
                 return 1;
 
+            osg::ref_ptr<osg::Group> root = new osg::Group;
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
             std::set<std::string> loaded;
-            const CellReport report = readRegion(world, *cell, extractor, loaded, false);
+            const CellReport report = readRegion(world, *cell, *root, loaded, false);
+
+            // **Reading a region builds the graph; walking it is what mirrors one.** The counts
+            // below are the walk's, not the load's, which is the same order the game does it in.
+            const RtxBridge::ExtractionStats stats = extractor.extract(*root, osg::Matrixf::identity(), 0);
 
             printCellHeading(*cell);
 
             out() << "\nplaced\n"
-                  << "  terrain chunks:       " << report.mTerrain.mInstances << '\n'
-                  << "  object instances:     " << report.mStats.mInstances << '\n'
+                  << "  instances:            " << stats.mInstances << '\n'
                   << "  meshes:               " << scene.getMeshes().size() << '\n'
                   << "  materials:            " << scene.getMaterials().size() << '\n'
                   << "  textures:             " << scene.getTextures().size() << '\n'
                   << "  triangles:            " << scene.getTriangleCount() << '\n'
                   << "  vertex+index bytes:   " << scene.getGeometryBytes() / 1024 << " KiB\n";
 
-            for (const auto& [format, count] : report.mStats.mTextureFormats)
+            for (const auto& [format, count] : stats.mTextureFormats)
                 out() << "  " << count << " x " << format << '\n';
 
             // Which materials traversal will have to stop and ask about, and which of those asked
@@ -296,8 +302,8 @@ namespace RtxTool
                   << "  emissive materials:   " << glowing << '\n'
                   << "  lights:               " << report.mLights.size() << " casting, ambient " << report.mAmbient.x()
                   << ", " << report.mAmbient.y() << ", " << report.mAmbient.z() << '\n'
-                  << "  deforming drawables:  " << report.mStats.mDeformed << '\n'
-                  << "  emitters:             " << report.mStats.mEmitters << " holding " << report.mStats.mSprites
+                  << "  deforming drawables:  " << stats.mDeformed << '\n'
+                  << "  emitters:             " << stats.mEmitters << " holding " << stats.mSprites
                   << " live particles\n"
                   << "  residents:            " << report.mPeople.size() << " to assemble\n";
 
@@ -305,20 +311,16 @@ namespace RtxTool
                   << "  record type unread:   " << report.mSkipped.mUnknownType << '\n'
                   << "  record has no model:  " << report.mSkipped.mNoModel << '\n'
                   << "  model would not load: " << report.mUnreadable << '\n'
-                  << "  unreadable drawables: " << report.mStats.mSkippedUnknown << '\n'
-                  << "  empty geometry:       " << report.mStats.mSkippedEmpty << '\n';
+                  << "  unreadable drawables: " << stats.mSkippedUnknown << '\n'
+                  << "  empty geometry:       " << stats.mSkippedEmpty << '\n';
 
             if (twice)
             {
-                // Terrain and objects together: the property is about the whole graph, and terrain
-                // is half the geometry in an exterior.
-                // The same cells again, which the loaded set would refuse — the property being
-                // measured is what a second walk over an unchanged graph adds, so it is asked with
-                // a set that has never heard of them.
-                std::set<std::string> again;
-                const CellReport second = readRegion(world, *cell, extractor, again, false);
-                RtxBridge::ExtractionStats total = second.mStats;
-                total += second.mTerrain;
+                // **Literally the same graph, walked again.** This used to read the region a second
+                // time with a set that had never heard of it, which rebuilt the nodes and measured a
+                // fresh graph rather than a second look at one. There is a graph to re-walk now, so
+                // the property can be asked the way the game asks it every frame.
+                const RtxBridge::ExtractionStats total = extractor.extract(*root, osg::Matrixf::identity(), 0);
 
                 out() << "\nsecond pass over the same graph\n"
                       << "  new meshes:           " << total.mMeshesAdded << " (should be 0)\n"

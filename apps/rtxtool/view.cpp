@@ -123,6 +123,9 @@ namespace RtxTool
         // **Kept across loads, which is the whole of what makes walking into a cell cheap.** The
         // extractor's identity maps resolve geometry met again to the mesh already in the scene, so
         // a ring of new cells adds its own models and reuses everything the region already had.
+        // The graph the mirror walks — one group per cell, the actors hung in it, terrain alongside.
+        osg::ref_ptr<osg::Group> root = new osg::Group;
+
         Rtx::SceneDesc scene;
         RtxBridge::SceneExtractor extractor(scene);
         std::set<std::string> loaded;
@@ -150,10 +153,14 @@ namespace RtxTool
         /// from it — a top level naming a mesh with no bottom level behind it is a fatal frame.
         const auto bring = [&](const ESM::Cell& around) {
             const Clock::time_point began = Clock::now();
-            const CellReport arrived = readRegion(world, around, extractor, loaded, actors.mProps);
+            const CellReport arrived = readRegion(world, around, *root, loaded, actors.mProps);
 
             if (arrived.mCells == 0)
                 return false;
+
+            // **Built, then walked.** Reading a region puts nodes under the root; nothing is
+            // mirrored until something walks them, which is the split the game has too.
+            extractor.extract(*root, osg::Matrixf::identity(), 0);
 
             for (const Rtx::Light& light : arrived.mLights)
                 scene.addLight(light);
@@ -168,7 +175,9 @@ namespace RtxTool
         };
 
         RegionLoad arrivedWith
-            = loadRegion(world, centre, scene, extractor, loaded, request.mWeather, request.mHour, actors.mProps);
+            = loadRegion(world, centre, *root, scene, loaded, request.mWeather, request.mHour, actors.mProps);
+
+        extractor.extract(*root, osg::Matrixf::identity(), 0);
         request.mLighting = arrivedWith.mLighting;
 
         if (scene.getPlacedCount() == 0)
@@ -196,7 +205,7 @@ namespace RtxTool
         std::unique_ptr<PosedActors> posed;
         if (!actors.empty() || !residents.empty() || !props.empty())
         {
-            posed = std::make_unique<PosedActors>(world, scene, extractor, actors);
+            posed = std::make_unique<PosedActors>(world, scene, extractor, *root, actors);
             posed->addResidents(residents);
             posed->addProps(props);
             posed->addRow(actors, start);
