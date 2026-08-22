@@ -112,7 +112,8 @@ namespace Rtx
             functions.mDestroyAccelerationStructure(mDevice.getHandle(), mTopLevel, nullptr);
 
         for (const VkAccelerationStructureKHR structure : mBottomLevel)
-            functions.mDestroyAccelerationStructure(mDevice.getHandle(), structure, nullptr);
+            if (structure != VK_NULL_HANDLE)
+                functions.mDestroyAccelerationStructure(mDevice.getHandle(), structure, nullptr);
     }
 
     void SceneAcceleration::buildBottomLevel(CommandPool& pool, const SceneDesc& scene)
@@ -157,7 +158,11 @@ namespace Rtx
                                   .vertexData = { .deviceAddress
                                       = positions + VkDeviceSize{ mesh.mVertexOffset } * sizeof(osg::Vec3f) },
                                   .vertexStride = sizeof(osg::Vec3f),
-                                  .maxVertex = mesh.mVertexCount - 1,
+                                  // **Guarded, because a freed slot has no vertices.** A slot the
+                                  // scene has taken back keeps its index and its room and holds a
+                                  // count of zero until something fits into it; subtracting one
+                                  // there wraps, and the driver is handed four billion vertices.
+                                  .maxVertex = mesh.mVertexCount > 0 ? mesh.mVertexCount - 1 : 0,
                                   .indexType = VK_INDEX_TYPE_UINT32,
                                   .indexData = { .deviceAddress
                                       = indices + VkDeviceSize{ mesh.mIndexOffset } * sizeof(std::uint32_t) },
@@ -181,6 +186,20 @@ namespace Rtx
             };
 
             const std::uint32_t triangles = mesh.getTriangleCount();
+
+            // **A freed slot gets no structure at all.** It keeps its index and its room and holds
+            // nothing until something fits into it, and a build over no primitives is not a small
+            // structure — it is a size the driver may answer zero for, which is not a size an
+            // acceleration structure can be created at.
+            if (triangles == 0)
+            {
+                structureSizes[i] = 0;
+                ranges[i] = VkAccelerationStructureBuildRangeInfoKHR{};
+                rangePointers[i] = &ranges[i];
+                mBuildScratch[i] = 0;
+                continue;
+            }
+
             VkAccelerationStructureBuildSizesInfoKHR sizes{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
             };
@@ -212,9 +231,18 @@ namespace Rtx
         const Buffer scratch(mDevice, scratchTotal, sScratchUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         const VkDeviceAddress scratchAddress = scratch.getDeviceAddress();
 
-        mBottomLevel.resize(count, VK_NULL_HANDLE);
+        // Which slots actually have a structure, so the build below is handed those and only those.
+        std::vector<VkAccelerationStructureBuildGeometryInfoKHR> live;
+        std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> liveRanges;
+        live.reserve(count);
+        liveRanges.reserve(count);
+
+        mBottomLevel.assign(count, VK_NULL_HANDLE);
         for (std::size_t i = 0; i < count; ++i)
         {
+            if (structureSizes[i] == 0)
+                continue;
+
             const VkAccelerationStructureCreateInfoKHR create{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
                 .buffer = mBottomLevelStorage.getHandle(),
@@ -227,15 +255,23 @@ namespace Rtx
 
             builds[i].dstAccelerationStructure = mBottomLevel[i];
             builds[i].scratchData.deviceAddress = scratchAddress + scratchOffsets[i];
+
+            live.push_back(builds[i]);
+            liveRanges.push_back(rangePointers[i]);
         }
 
         // **Asked once each, here, and never again.** These handles last until the next `setScene`
         // and their addresses with them, so the alternative is the same question per instance per
         // frame — fifty thousand driver round trips on a nine-by-nine exterior for fifty thousand
         // answers that cannot have changed.
-        mBottomLevelAddresses.resize(count);
+        // Zero for a slot with no structure, which nothing asks for: a placement only ever names a
+        // mesh that has one.
+        mBottomLevelAddresses.assign(count, 0);
         for (std::size_t i = 0; i < count; ++i)
         {
+            if (mBottomLevel[i] == VK_NULL_HANDLE)
+                continue;
+
             const VkAccelerationStructureDeviceAddressInfoKHR address{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
                 .accelerationStructure = mBottomLevel[i],
@@ -243,9 +279,12 @@ namespace Rtx
             mBottomLevelAddresses[i] = functions.mGetAccelerationStructureDeviceAddress(mDevice.getHandle(), &address);
         }
 
+        if (live.empty())
+            return;
+
         pool.submitAndWait([&](VkCommandBuffer commands) {
             functions.mCmdBuildAccelerationStructures(
-                commands, static_cast<std::uint32_t>(count), builds.data(), rangePointers.data());
+                commands, static_cast<std::uint32_t>(live.size()), live.data(), liveRanges.data());
             barrierAfterBuild(commands);
         });
     }
@@ -309,7 +348,11 @@ namespace Rtx
                                   .vertexData = { .deviceAddress
                                       = positions + VkDeviceSize{ mesh.mVertexOffset } * sizeof(osg::Vec3f) },
                                   .vertexStride = sizeof(osg::Vec3f),
-                                  .maxVertex = mesh.mVertexCount - 1,
+                                  // **Guarded, because a freed slot has no vertices.** A slot the
+                                  // scene has taken back keeps its index and its room and holds a
+                                  // count of zero until something fits into it; subtracting one
+                                  // there wraps, and the driver is handed four billion vertices.
+                                  .maxVertex = mesh.mVertexCount > 0 ? mesh.mVertexCount - 1 : 0,
                                   .indexType = VK_INDEX_TYPE_UINT32,
                                   .indexData = { .deviceAddress
                                       = indices + VkDeviceSize{ mesh.mIndexOffset } * sizeof(std::uint32_t) },

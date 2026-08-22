@@ -95,32 +95,34 @@ namespace RtxBridge
             EXPECT_FALSE(renderer.mAppendedToWrongEnd) << "the arrivals began somewhere other than the array's end";
 
             // The first model goes, in the order a sweep goes in: its placement first, then the
-            // tables, which closes a gap and renumbers every mesh and material behind it. Appending
-            // onto that would leave every instance naming the wrong geometry.
+            // tables. **Nothing is renumbered by that any more**, so it is not a rebuild — the frame
+            // after a cell leaves costs the top level and nothing else.
             scene.dropInstance(first.mSlot);
 
             const Rtx::Index keptMeshes[2] = { second.mMesh, third.mMesh };
             const Rtx::Index keptMaterials[2] = { second.mMaterial, third.mMaterial };
-            Rtx::Remap remap;
-            ASSERT_TRUE(scene.retain(keptMeshes, keptMaterials, {}, remap));
-            scene.carryPlacement(remap);
+            ASSERT_TRUE(scene.release(keptMeshes, keptMaterials, {}));
 
-            const SceneUpload renumbered = uploader.hand(renderer, scene, images, Rtx::SeaState{});
-            EXPECT_EQ(renumbered.mKind, SceneUpload::Kind::Rebuilt);
-
-            // **Three and not two, because the texture table is append-only.** A compaction moves
-            // meshes and materials and deliberately leaves the images alone — reclaiming the one the
-            // dead material wore would renumber the bindless array, which is the fifth of a second
-            // this whole decision exists to avoid. So the rebuild describes all three again.
-            EXPECT_EQ(renumbered.mDescribed, std::size_t{ 3 }) << "a rebuild describes the whole table";
-            EXPECT_EQ(renderer.mRebuilt, 2u);
+            EXPECT_EQ(uploader.hand(renderer, scene, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Placed)
+                << "a cell leaving cost a build";
+            EXPECT_EQ(renderer.mRebuilt, 1u);
             EXPECT_EQ(renderer.mExtended, 1u);
             EXPECT_EQ(renderer.mTextures, 3u);
+
+            // **And replacing the scene outright is what a rebuild is for.** Travel, not a boundary:
+            // `clear` starts every index again, so everything built from one has to be built again.
+            scene.clear();
+            addModel(scene, VFS::Path::NormalizedView("textures/four.dds"));
+
+            const SceneUpload travelled = uploader.hand(renderer, scene, images, Rtx::SeaState{});
+            EXPECT_EQ(travelled.mKind, SceneUpload::Kind::Rebuilt);
+            EXPECT_EQ(travelled.mDescribed, std::size_t{ 1 });
+            EXPECT_EQ(renderer.mRebuilt, 2u);
+            EXPECT_EQ(renderer.mTextures, 1u);
 
             // And back to the ordinary frame, so the rebuild above left the uploader agreeing with
             // the scene rather than one revision behind it.
             EXPECT_EQ(uploader.hand(renderer, scene, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Placed);
-            EXPECT_EQ(renderer.mPlaced, 2u);
         }
 
         /// Two uploaders over one scene do not share a decision, which is what makes one per renderer

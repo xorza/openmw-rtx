@@ -88,7 +88,11 @@ namespace Rtx
 
         /// How many meshes the acceleration structures were built for, so `extendScene` can tell a
         /// scene that only gained textures from one that gained geometry too.
-        std::size_t mBuiltMeshes = 0;
+        /// Which revision of the mesh table the structures were built from.
+        ///
+        /// Counted rather than sized, because a freed slot taken over by something else is a mesh
+        /// arriving at a table that did not grow.
+        std::uint64_t mBuiltMeshes = 0;
 
         std::filesystem::path mShaderDirectory;
 

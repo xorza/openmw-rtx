@@ -769,6 +769,9 @@ machine; GCC precompiled headers are a rebuild-everything hazard for a saving cc
 
 ## 9. Open questions
 
+- **~~What a table does when a cell leaves~~ — decided: it frees the slot and renumbers nothing.**
+  See "Slots, not compaction" below. What is still open is only how far down the stack that goes.
+
 - **What a table does when a cell leaves, and it is one question for three defects.** `SceneDesc`
   reclaims by *compacting*: `retain` closes the gaps and `carryPlacement` renumbers what pointed
   into them. That is correct and it is the reason a crossing costs a full `setScene` — measured over
@@ -804,3 +807,84 @@ machine; GCC precompiled headers are a rebuild-everything hazard for a saving cc
   nobody can answer yet.
 - **Distant land.** OpenMW's object paging and terrain LOD were tuned for a rasterizer's silhouette
   budget, not a BVH's.
+
+
+## 10. Slots, not compaction
+
+`SceneDesc` reclaimed by compacting: `retain` closed the gaps and `carryPlacement` renumbered what
+pointed into them. Correct, and the reason a cell boundary cost a full `setScene` — nineteen of
+nineteen crossings on a route across Vvardenfell, because a departing cell almost always takes a
+mesh or a material with it and renumbering invalidates every acceleration structure and the whole
+texture array.
+
+**Placements already knew better.** A slot index is what a hit reads back, so closing a gap would
+rename every placement above it; instead a dropped placement leaves its slot behind and the next
+arrival takes it. The rest of the tables now work the same way.
+
+### The rule
+
+**Nothing is renumbered while the world is being walked.** A mesh, a material or a texture that
+nothing wears is freed — its index goes on a free list and the entry stays where it is — and the
+next arrival that fits takes the slot. Reclamation without renumbering means a crossing appends,
+which is what `extendScene` was built for and could not reach.
+
+A slot that is reused holds different geometry than it did, so it counts as an arrival: the
+acceleration structure over it and the tables that describe it are rebuilt exactly as they would be
+for a slot at the end. Nothing downstream has to tell the two apart.
+
+**Travel is the exception, and it is the one the player already pays for.** Walking out of the world
+you were in — a door, a fast travel, a load — replaces the scene rather than growing it, and that is
+a full rebuild by design. `clear()` empties every table and the free lists with them.
+
+### What each table costs
+
+| table | a freed slot | reuse |
+|---|---|---|
+| placements | a gap in the instance table | any arrival, since a placement is fixed size |
+| materials | a fixed-size record, plus a layer run and its masks that leak until the scene is replaced | any arrival |
+| meshes | a **capacity** in the four shared vertex and index buffers | the best-fitting arrival, which is what keeps a large hole for a large mesh |
+| textures | one slot of a bindless array | not yet — see below |
+
+A mesh keeps the range it was given for as long as it exists, so a slot carries a capacity as well as
+a count and is reused only by a mesh that fits inside it. Best fit rather than first: the free list
+is what a departing ring left, which is short, and first fit spends a cathedral's hole on a crate.
+
+### What it came to
+
+The route in `bench --suite=streaming` flies the Bitter Coast to the Ashlands at 12,000 units a
+second — nineteen cell boundaries in ten seconds of world, fast enough that what a ring costs is what
+the run measures.
+
+| | compacting | slots |
+|---|---|---|
+| crossings that rebuilt everything | 19 of 19 | **0 of 19** |
+| worst frame | 2,808 ms | **547 ms** |
+| p99 frame | 2,483 ms | 457 ms |
+| crossings, total | 39.7 s | **7.3 s** |
+| — of that, building | 28.5 s | **0.9 s** |
+| — of that, reading content | 11.3 s | 6.4 s |
+| the whole run | 56.9 s | **16.6 s** |
+
+**Building a ring went from about 1,500 ms to about 47 ms**, and the renderer stopped being what a
+crossing costs: what is left is reading the content files and instancing the models, which the game
+hides behind `CellPreloader`'s threads and this harness deliberately does not.
+
+**One bug came with it and is worth remembering.** `VulkanRenderer` decided whether to rebuild its
+acceleration structures by comparing the mesh table's *size*, which cannot see a freed slot taken
+over by something else. A skinned body landing in one was refitted into a bottom-level structure
+that had never been made for it — a build into a null handle, reached after seventeen crossings. The
+table now carries a revision that counts arrivals rather than entries, and `RtxSceneDescTest` asserts
+that a reused slot bumps it.
+
+### Where it stops, for now
+
+**Textures are still append-only.** Reusing one means the renderer can no longer treat arrivals as a
+contiguous tail of the array, which is a change to `SceneTextures`, `extendScene` and `TextureArray`
+together. Until then the texture table is the one thing that only grows, and the 4,096 the array
+holds is the session's bound.
+
+**And a cell arriving still rebuilds every bottom-level structure.** The geometry those structures
+were built from lives in one device buffer sized to the scene, and appending to it moves it — every
+structure holds a device address into it. Appending properly needs that buffer to become blocks that
+are allocated once and never moved, which is the next step and the one that turns a crossing from
+"rebuild everything cheaply" into "build what arrived".

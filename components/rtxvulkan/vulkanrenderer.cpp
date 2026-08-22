@@ -234,7 +234,7 @@ namespace Rtx
         mBuffers
             = std::make_unique<SceneBuffers>(mDevice, mPool, scene, mRecordScratch, mAcceleration->getIndices(), sea);
         mTextures = std::make_unique<TextureArray>(mDevice, mPool, textures);
-        mBuiltMeshes = scene.getMeshes().size();
+        mBuiltMeshes = scene.getMeshRevision();
 
         // **Built once and kept, because building one compiles the shader — half a second a time,
         // measured.** Nothing about the pass depends on the scene: it needs the device and the shape
@@ -266,13 +266,17 @@ namespace Rtx
         // saves: 12 ms against 150. Building only the meshes that arrived is the next step and a
         // larger one — a bottom level lives in a storage buffer sized to the batch that built it,
         // so appending means a second buffer rather than a bigger one.
-        if (scene.getMeshes().size() != mBuiltMeshes)
+        // **The revision and not the count.** A slot a departing cell freed is taken over by the
+        // next mesh that fits, so the table can hold different geometry at the same size — and a
+        // guard on the size sends that to `placeScene`, which refits a skinned body into a
+        // bottom-level structure that was never made for it.
+        if (scene.getMeshRevision() != mBuiltMeshes)
         {
             makeInstanceRecords(scene, mRecordScratch);
             mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, scene, mRecordScratch);
             mBuffers = std::make_unique<SceneBuffers>(
                 mDevice, mPool, scene, mRecordScratch, mAcceleration->getIndices(), sea);
-            mBuiltMeshes = scene.getMeshes().size();
+            mBuiltMeshes = scene.getMeshRevision();
             mTimed = false;
         }
         else

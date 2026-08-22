@@ -313,7 +313,6 @@ namespace RtxBridge
         std::vector<Rtx::Index> mLiveMeshes;
         std::vector<Rtx::Index> mLiveMaterials;
         std::vector<Rtx::Index> mLiveTextures;
-        Rtx::Remap mRemap;
 
         // Refilled per drawable rather than reallocated, because a cell is tens of thousands of them.
         std::vector<std::uint32_t> mIndexScratch;

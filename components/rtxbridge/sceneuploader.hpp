@@ -90,7 +90,8 @@ namespace RtxBridge
         /// that has gone.
         std::uint64_t mBuilt = 0;
 
-        /// The compaction those were built against, so a renumbering is told from a growth.
-        std::uint64_t mCompacted = 0;
+        /// The reset those were built against, so a scene replaced outright is told from one that
+        /// grew.
+        std::uint64_t mReset = 0;
     };
 }

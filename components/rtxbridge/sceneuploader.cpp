@@ -25,11 +25,11 @@ namespace RtxBridge
         // instances the walk already knows.
         const bool arrived = !mine || scene.getStructureRevision() != mBuilt;
 
-        // **Grown, or renumbered?** A compaction moves every index, so everything built from them
-        // has to be built again; anything else is an append, and appending is what keeps a body
-        // texture nobody has worn yet from costing a fifth of a second. A renderer this has not
-        // built has nothing to append to, whatever it happens to be holding.
-        const bool renumbered = !mine || scene.getCompactionRevision() != mCompacted;
+        // **Grown, or replaced?** `clear` empties every table and starts the indices again, so
+        // everything built from them has to be built again; anything short of that is an append, and
+        // appending is what keeps a cell boundary from costing a fifth of a second. A renderer this
+        // has not built has nothing to append to, whatever it happens to be holding.
+        const bool reset = !mine || scene.getResetRevision() != mReset;
 
         if (!arrived)
         {
@@ -39,16 +39,16 @@ namespace RtxBridge
 
         // Held only across the call: `TextureData` carries spans into this, and both `extendScene`
         // and `setScene` have finished reading them when they return.
-        const SceneTextures textures(scene, images, renumbered ? 0 : held);
+        const SceneTextures textures(scene, images, reset ? 0 : held);
 
         SceneUpload done;
         done.mDescribed = textures.getDescriptions().size();
         done.mUnreadable = textures.getUnreadable();
 
-        if (renumbered)
+        if (reset)
         {
             renderer.setScene(scene, textures.getDescriptions(), sea);
-            mCompacted = scene.getCompactionRevision();
+            mReset = scene.getResetRevision();
             done.mKind = SceneUpload::Kind::Rebuilt;
         }
         else

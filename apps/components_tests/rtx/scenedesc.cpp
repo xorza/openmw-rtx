@@ -252,10 +252,17 @@ namespace Rtx
 
         /// Compaction closes the gaps in every table and says where everything went.
         ///
+        /// A freed mesh keeps its index and its room, and the next one that fits moves in.
+        ///
         /// Hand-counted throughout. Three meshes of 4, 3 and 4 vertices sit at vertex offsets 0, 4
-        /// and 7 and index offsets 0, 6 and 9; dropping the middle one leaves the first where it is
-        /// and brings the third to 4 and 6, for eight vertices and twelve indices in all.
-        TEST(RtxSceneDescTest, retainingClosesTheGapsAndSaysWhereEverythingWent)
+        /// and 7 and index offsets 0, 6 and 9. Freeing the middle one moves nothing: the third is
+        /// still index 2 at vertex 7, and the hole at vertex 4 is three vertices and six indices
+        /// wide — which is exactly a triangle, and exactly what the next triangle takes.
+        ///
+        /// **Not compacting is the whole point.** Closing the gap renames every mesh above it, and a
+        /// mesh index is what every bottom-level acceleration structure in the world is named by, so
+        /// a cell boundary cost a full rebuild (`docs/rtx/plan.md` §10).
+        TEST(RtxSceneDescTest, aFreedMeshKeepsItsSlotAndTheNextThatFitsTakesIt)
         {
             SceneDesc scene;
             const std::array quads{ quadAt(0.0f), quadAt(2.0f) };
@@ -265,44 +272,154 @@ namespace Rtx
 
             ASSERT_EQ(scene.getPositions().size(), 11u);
             ASSERT_EQ(scene.getIndices().size(), 15u);
-            EXPECT_EQ(scene.getMeshes()[last].mVertexOffset, 7u);
+            ASSERT_EQ(scene.getMeshes()[last].mVertexOffset, 7u);
 
             const std::uint64_t was = scene.getStructureRevision();
-
-            Remap remap;
             const std::array keep{ first, last };
             const std::array<Index, 0> noMaterials{};
-            ASSERT_TRUE(scene.retain(keep, noMaterials, {}, remap));
+            ASSERT_TRUE(scene.release(keep, noMaterials, {}));
 
-            EXPECT_EQ(remap.mMeshes[first], 0u);
-            EXPECT_EQ(remap.mMeshes[middle], sNoIndex);
-            EXPECT_EQ(remap.mMeshes[last], 1u);
+            // Nothing moved, nothing shrank, and every index still means what it meant.
+            EXPECT_EQ(scene.getMeshes().size(), 3u);
+            EXPECT_EQ(scene.getPositions().size(), 11u);
+            EXPECT_EQ(scene.getIndices().size(), 15u);
+            EXPECT_EQ(scene.getMeshes()[last].mVertexOffset, 7u);
+            EXPECT_EQ(scene.getMeshPositions(first)[0].z(), 0.0f);
+            EXPECT_EQ(scene.getMeshPositions(last)[0].z(), 2.0f);
 
-            ASSERT_EQ(scene.getMeshes().size(), 2u);
-            EXPECT_EQ(scene.getPositions().size(), 8u);
-            EXPECT_EQ(scene.getIndices().size(), 12u);
-            EXPECT_EQ(scene.getMeshes()[1].mVertexOffset, 4u);
-            EXPECT_EQ(scene.getMeshes()[1].mIndexOffset, 6u);
+            // The freed one describes nothing until something takes it, so a backend that walks the
+            // table builds a structure over no triangles rather than over somebody else's.
+            EXPECT_EQ(scene.getMeshes()[middle].mVertexCount, 0u);
+            EXPECT_EQ(scene.getMeshes()[middle].mIndexCount, 0u);
+            EXPECT_EQ(scene.getMeshes()[middle].mVertexCapacity, 3u) << "the room went with the contents";
 
-            // The contents and not only the offsets: a copy that moved the wrong range would leave
-            // the arithmetic looking right and the triangle in the quad's place.
-            EXPECT_EQ(scene.getMeshPositions(0)[0].z(), 0.0f);
-            EXPECT_EQ(scene.getMeshPositions(1)[0].z(), 2.0f);
-            EXPECT_EQ(scene.getMeshIndices(1)[5], 3u);
+            EXPECT_EQ(scene.getStructureRevision(), was)
+                << "nothing arrived, so nothing built from these indices is out of date";
 
-            EXPECT_GT(scene.getStructureRevision(), was)
-                << "the structures built from this describe a scene that has gone";
+            // A triangle fits the hole exactly and takes it back, at the index and the offset the
+            // old one had.
+            const Index moved = scene.addMesh(sTrianglePositions, {}, {}, sTriangleIndices);
+            EXPECT_EQ(moved, middle);
+            EXPECT_EQ(scene.getMeshes()[moved].mVertexOffset, 4u);
+            EXPECT_EQ(scene.getMeshes()[moved].mVertexCount, 3u);
+            EXPECT_EQ(scene.getPositions().size(), 11u) << "a reused slot appended";
+            EXPECT_GT(scene.getStructureRevision(), was) << "a slot taken over holds different geometry";
+
+            // And the last mesh is still where it was, which a compaction is what would break.
+            EXPECT_EQ(scene.getMeshPositions(last)[0].z(), 2.0f);
         }
 
-        /// Layers and masks belong to the material that owns them and go where it goes; a texture
-        /// lives while anything still names it.
+        /// A mesh arriving is told from a texture arriving, and a reused slot counts as an arrival.
+        ///
+        /// **The guard a backend builds on, and getting it wrong crashes.** `VulkanRenderer` rebuilds
+        /// its acceleration structures when a mesh arrives and not when a texture does, and it used
+        /// to ask the table's *size* — which cannot see a freed slot taken over by something else.
+        /// A skinned body landing in one was then refitted into a bottom-level structure that had
+        /// never been made for it, which is a build into a null handle.
+        TEST(RtxSceneDescTest, aMeshArrivingIsToldFromATextureArrivingAndAReusedSlotIsAnArrival)
+        {
+            SceneDesc scene;
+            const Index slot = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
+
+            const std::uint64_t meshes = scene.getMeshRevision();
+            const std::uint64_t structure = scene.getStructureRevision();
+
+            // A texture is an upload, not a structure to build.
+            scene.addTexture(VFS::Path::NormalizedView("textures/tx_stone.dds"));
+            EXPECT_EQ(scene.getMeshRevision(), meshes) << "a texture asked for the structures to be built again";
+            EXPECT_GT(scene.getStructureRevision(), structure);
+
+            // The slot comes back and is taken over. The table is the same size it was, and what is
+            // in it is not.
+            ASSERT_TRUE(scene.release({}, {}, {}));
+            EXPECT_EQ(scene.getMeshRevision(), meshes) << "a cell leaving asked for the structures to be built again";
+
+            EXPECT_EQ(scene.addMesh(sTrianglePositions, {}, {}, sTriangleIndices), slot);
+            EXPECT_EQ(scene.getMeshes().size(), 1u) << "the table grew, so a size test would have caught this anyway";
+            EXPECT_GT(scene.getMeshRevision(), meshes) << "a slot taken over went unnoticed";
+        }
+
+        /// Best fit, and a mesh too big for every hole appends rather than being refused.
+        ///
+        /// **First fit would spend a cathedral's hole on a crate.** The free list is what one
+        /// departing ring left, so it is short enough to search and long-lived enough that the
+        /// choice matters: a quad dropped into the four-vertex hole leaves the eight-vertex one for
+        /// the next thing that needs eight.
+        TEST(RtxSceneDescTest, aFreedSlotGoesToTheSmallestMeshThatFitsAndTheRestAppend)
+        {
+            SceneDesc scene;
+
+            // Eight vertices and twelve indices, which is two quads' worth in one mesh.
+            std::vector<osg::Vec3f> big;
+            std::vector<std::uint32_t> bigIndices;
+            for (int copy = 0; copy < 2; ++copy)
+            {
+                for (const osg::Vec3f& vertex : quadAt(static_cast<float>(copy)))
+                    big.push_back(vertex);
+
+                for (const std::uint32_t index : sQuadIndices)
+                    bigIndices.push_back(index + static_cast<std::uint32_t>(copy) * 4u);
+            }
+
+            const Index roomy = scene.addMesh(big, {}, {}, bigIndices);
+            const Index snug = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
+            const Index kept = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
+
+            ASSERT_EQ(scene.getMeshes()[roomy].mVertexCapacity, 8u);
+            ASSERT_EQ(scene.getMeshes()[snug].mVertexCapacity, 4u);
+
+            const std::array keep{ kept };
+            ASSERT_TRUE(scene.release(keep, {}, {}));
+
+            // A quad fits both holes and takes the tighter one.
+            EXPECT_EQ(scene.addMesh(sQuadPositions, {}, {}, sQuadIndices), snug)
+                << "the roomy hole was spent on something that fitted the snug one";
+
+            // The big one is still free, and something that size takes it rather than appending.
+            const std::size_t vertices = scene.getPositions().size();
+            EXPECT_EQ(scene.addMesh(big, {}, {}, bigIndices), roomy);
+            EXPECT_EQ(scene.getPositions().size(), vertices) << "a mesh that fitted a hole appended anyway";
+
+            // Nothing fits now, so this one goes on the end.
+            EXPECT_EQ(scene.addMesh(big, {}, {}, bigIndices), 3u);
+            EXPECT_GT(scene.getPositions().size(), vertices);
+        }
+
+        /// A slot taken over holds its own attributes and none of its predecessor's.
+        ///
+        /// **The one way a reused slot can be quietly wrong.** A mesh that brings no normals is
+        /// given zeroes on a fresh slot because the buffer was grown for it; on a reused one the
+        /// room already holds whatever the last tenant put there, and a surface lit by somebody
+        /// else's normals looks lit rather than looking broken.
+        TEST(RtxSceneDescTest, aReusedSlotDoesNotInheritTheAttributesOfWhatStoodInIt)
+        {
+            SceneDesc scene;
+
+            const std::array<osg::Vec3f, 4> normals{ osg::Vec3f(1.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f),
+                osg::Vec3f(1.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f) };
+            const std::array<osg::Vec2f, 4> uvs{ osg::Vec2f(0.5f, 0.5f), osg::Vec2f(0.5f, 0.5f), osg::Vec2f(0.5f, 0.5f),
+                osg::Vec2f(0.5f, 0.5f) };
+
+            const Index slot = scene.addMesh(sQuadPositions, normals, uvs, sQuadIndices);
+            ASSERT_EQ(scene.getNormals()[scene.getMeshes()[slot].mVertexOffset], osg::Vec3f(1.0f, 0.0f, 0.0f));
+
+            ASSERT_TRUE(scene.release({}, {}, {}));
+            EXPECT_EQ(scene.addMesh(sQuadPositions, {}, {}, sQuadIndices), slot);
+
+            EXPECT_EQ(scene.getNormals()[scene.getMeshes()[slot].mVertexOffset], osg::Vec3f())
+                << "the slot kept the last tenant's normals";
+            EXPECT_EQ(scene.getTexCoords()[0], osg::Vec2f());
+        }
+
+        /// A material frees its slot too, and its layers and masks stay behind.
         ///
         /// Hand-counted: three materials, of which the first and last are terrain with one and two
         /// layers. The layers sit at 0, 1 and 2 and their masks at 0 and 4, nine weights of the
-        /// second sitting behind four of the first. Dropping the first material takes its layer and
-        /// its four weights with it, so the two that survive come to layer 0 and the nine weights to
-        /// mask 0 — and the texture only that layer named goes with them.
-        TEST(RtxSceneDescTest, retainingCarriesALayersMasksAndKeepsEveryTexture)
+        /// second sitting behind four of the first. Freeing the first material leaves all of that
+        /// exactly where it is — **a known leak**, because a layer run is variable length and
+        /// reclaiming one needs the suballocator the meshes have and the layers do not. Travel is
+        /// what takes it back.
+        TEST(RtxSceneDescTest, releasingAMaterialFreesItsSlotAndLeavesItsLayersBehind)
         {
             SceneDesc scene;
             const Index ground = scene.addTexture(VFS::Path::NormalizedView("textures/tx_ground.dds"));
@@ -330,49 +447,40 @@ namespace Rtx
             ASSERT_EQ(scene.getLayers().size(), 3u);
             ASSERT_EQ(scene.getMasks().size(), 13u);
 
-            Remap remap;
             const std::array<Index, 0> noMeshes{};
             const std::array materials{ plain, kept };
-            ASSERT_TRUE(scene.retain(noMeshes, materials, {}, remap));
+            ASSERT_TRUE(scene.release(noMeshes, materials, {}));
 
-            EXPECT_EQ(remap.mMaterials[dropped], sNoIndex);
-            EXPECT_EQ(remap.mMaterials[plain], 0u);
-            EXPECT_EQ(remap.mMaterials[kept], 1u);
+            // Every survivor is at the index it was given, which is what nothing moving means.
+            EXPECT_EQ(scene.getMaterials().size(), 3u);
+            EXPECT_EQ(scene.getMaterials()[plain].mDiffuse, stone);
+            EXPECT_EQ(scene.getMaterials()[kept].mLayerOffset, 1u);
+            EXPECT_EQ(scene.getMaterials()[kept].mLayerCount, 2u);
 
-            ASSERT_EQ(scene.getLayers().size(), 2u);
-            EXPECT_EQ(scene.getMaterials()[1].mLayerOffset, 0u);
-            EXPECT_EQ(scene.getMaterials()[1].mLayerCount, 2u);
+            EXPECT_EQ(scene.getLayers().size(), 3u) << "a layer run was reclaimed, which nothing can do yet";
+            EXPECT_EQ(scene.getMasks().size(), 13u);
+            EXPECT_EQ(scene.getLayers()[1].mDiffuse, sand);
+            EXPECT_EQ(scene.getLayers()[2].mDiffuse, moss);
 
-            ASSERT_EQ(scene.getMasks().size(), 9u);
-            EXPECT_EQ(scene.getLayers()[0].mMaskOffset, 0u);
-            EXPECT_EQ(scene.getMasks()[0], 0.5f) << "the weights that moved are the ones that survived";
-            EXPECT_EQ(scene.getLayers()[1].mMaskWidth, 0u) << "a layer with no mask keeps none";
+            // The freed slot goes to the next material asked for, whatever size it is: a material is
+            // one size, so there is no fit to find.
+            const Index reused = scene.addMaterial(Material{ .mDiffuse = moss });
+            EXPECT_EQ(reused, dropped);
+            EXPECT_EQ(scene.getMaterials().size(), 3u);
 
-            // **`tx_ground` was named by the layer that went, and it stays anyway.** The table is
-            // append-only: a backend holds it as one bindless array a material indexes by position,
-            // so moving a texture renumbers every one of them and the array is made again. Nothing
-            // moves here, so every index a material or a layer holds is the index it had.
+            // **The texture table is the one that still only grows.** Nothing renumbers it, so every
+            // index a material or a layer holds is the index it had — and `tx_ground`, which only the
+            // dead material's layer named, is still findable rather than added a second time.
             ASSERT_EQ(scene.getTextures().size(), 4u);
-            EXPECT_EQ(remap.mTextures[ground], ground) << "a texture that nothing wears kept its slot";
             EXPECT_EQ(scene.getTextures()[ground], VFS::Path::NormalizedView("textures/tx_ground.dds"));
-
-            // Every index a survivor holds is the index it was given, because nothing above it moved.
-            EXPECT_EQ(scene.getMaterials()[0].mDiffuse, stone);
-            EXPECT_EQ(scene.getLayers()[0].mDiffuse, sand);
-            EXPECT_EQ(scene.getLayers()[1].mDiffuse, moss);
-
-            // The lookup that dedups a path still answers for every slot, or the next reference to a
-            // texture already here appends a second copy of it.
-            EXPECT_EQ(scene.addTexture(VFS::Path::NormalizedView("textures/tx_stone.dds")), stone);
-            EXPECT_EQ(scene.addTexture(VFS::Path::NormalizedView("textures/tx_ground.dds")), ground)
-                << "the one nothing wears is still findable, so it is not added twice";
+            EXPECT_EQ(scene.addTexture(VFS::Path::NormalizedView("textures/tx_ground.dds")), ground);
             EXPECT_EQ(scene.getTextures().size(), 4u);
         }
 
         /// **The split that keeps an animated state set from rebuilding the world.**
         ///
         /// A material appearing, and a sweep that takes one away again, is a few kilobytes of table.
-        /// A mesh or a texture appearing is every acceleration structure in the scene. The mirror
+        /// A mesh or a texture *appearing* is every acceleration structure in the scene. The mirror
         /// reports them apart so a reader can answer them apart — OpenMW's water cycles thirty-two
         /// materials a second, and reading that as a world arriving cost the game every frame it
         /// had.
@@ -393,104 +501,49 @@ namespace Rtx
             EXPECT_EQ(scene.getStructureRevision(), structure) << "a material asked for a rebuild";
             EXPECT_GT(scene.getShadingRevision(), shading);
 
-            // And taking one away again is the same kind of change, not a different one: the mesh
-            // table did not move, so nothing built from it has to be built again.
+            // And taking one away again is the same kind of change, not a different one.
             const std::uint64_t settled = scene.getShadingRevision();
-            Remap remap;
             const std::array meshes{ mesh };
             const std::array materials{ kept };
 
-            ASSERT_TRUE(scene.retain(meshes, materials, {}, remap));
-            EXPECT_EQ(scene.getMaterials().size(), 1u);
+            ASSERT_TRUE(scene.release(meshes, materials, {}));
             EXPECT_EQ(scene.getStructureRevision(), structure) << "a sweep of one material asked for a rebuild";
             EXPECT_GT(scene.getShadingRevision(), settled);
 
-            // A mesh going is the other answer, and has to stay the other answer.
+            // **And a mesh going is no longer the other answer either.** It was, while a sweep
+            // compacted: the table moved and everything built from it had to be built again. A slot
+            // that is freed in place invalidates nothing, so the frame after a cell leaves costs the
+            // top level and nothing else.
             const std::uint64_t before = scene.getStructureRevision();
-            Remap dropped;
-            ASSERT_TRUE(scene.retain({}, materials, {}, dropped));
-            EXPECT_GT(scene.getStructureRevision(), before);
+            ASSERT_TRUE(scene.release({}, materials, {}));
+            EXPECT_EQ(scene.getStructureRevision(), before) << "a cell leaving asked for a rebuild";
         }
 
-        /// A texture nothing else speaks for survives if the caller names it, and a scene that lost
-        /// nothing is left entirely alone.
-        TEST(RtxSceneDescTest, retainingKeepsANamedTextureAndDoesNothingWhenNothingWent)
+        /// A scene that lost nothing is left entirely alone, and a sprite's texture is the caller's
+        /// to speak for.
+        TEST(RtxSceneDescTest, releasingDoesNothingWhenNothingWent)
         {
             SceneDesc scene;
             const Index mesh = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
             const Index material = scene.addMaterial(Material{});
-            const Index sprite = scene.addTexture(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+            scene.addTexture(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
 
-            // Nothing went: every mesh and every material is named, so the tables are untouched and
-            // the caller's remap is not even written.
-            Remap remap;
             const std::array meshes{ mesh };
             const std::array materials{ material };
             const std::uint64_t was = scene.getStructureRevision();
             const std::uint64_t shading = scene.getShadingRevision();
 
-            EXPECT_FALSE(scene.retain(meshes, materials, {}, remap));
-            EXPECT_TRUE(remap.mMeshes.empty());
+            EXPECT_FALSE(scene.release(meshes, materials, {}));
             EXPECT_EQ(scene.getStructureRevision(), was);
             EXPECT_EQ(scene.getShadingRevision(), shading);
-            EXPECT_EQ(scene.getTextures().size(), 1u) << "a sprite's texture is on no material and must not go";
 
-            // And with the material gone the sprite's texture is still the caller's to keep — which
-            // is the whole reason the keep set has a third span.
+            // Asked again with everything already free, which is the frame after a cell left: the
+            // live count is what the keep set is compared against, not the table's size.
             const std::array<Index, 0> none{};
-            const std::array sprites{ sprite };
-            ASSERT_TRUE(scene.retain(meshes, none, sprites, remap));
+            ASSERT_TRUE(scene.release(none, none, {}));
+            EXPECT_FALSE(scene.release(none, none, {})) << "a table with nothing left in it went again";
 
-            EXPECT_TRUE(scene.getMaterials().empty());
-            ASSERT_EQ(scene.getTextures().size(), 1u);
-            EXPECT_EQ(remap.mTextures[sprite], 0u);
-            EXPECT_EQ(scene.getTextures()[0], VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
-        }
-
-        /// A texture that survives without moving keeps its path.
-        ///
-        /// **The case the other compaction tests cannot reach.** They all drop something early, so
-        /// every survivor slides down at least one slot and the copy is between two different
-        /// entries; the survivors *before* the first casualty are written to the slot they are
-        /// already in. A path long enough to be on the heap self-assigned that way is emptied rather
-        /// than left alone, and an emptied path is a texture nothing can load — which reaches the
-        /// screen as a world with no textures on it at all.
-        TEST(RtxSceneDescTest, aTextureThatSurvivesWhereItStoodKeepsItsPath)
-        {
-            SceneDesc scene;
-
-            // Long enough to be on the heap rather than inside the string, which is the whole
-            // condition: a short name survives a self-assignment that a real path does not.
-            const VFS::Path::NormalizedView first("textures/tx_ai_wickerbasket01.dds");
-            const VFS::Path::NormalizedView second("textures/tx_ai_ceramicbowl01.dds");
-            const VFS::Path::NormalizedView doomed("textures/tx_ai_lanternhandle.dds");
-            ASSERT_GT(first.value().size(), sizeof(std::string))
-                << "a path this short may live inside the string and never be moved";
-
-            const Index kept = scene.addMaterial(Material{ .mDiffuse = scene.addTexture(first) });
-            const Index also = scene.addMaterial(Material{ .mDiffuse = scene.addTexture(second) });
-            scene.addMaterial(Material{ .mDiffuse = scene.addTexture(doomed) });
-
-            Remap remap;
-            const std::array<Index, 0> noMeshes{};
-            const std::array materials{ kept, also };
-            ASSERT_TRUE(scene.retain(noMeshes, materials, {}, remap));
-
-            // Nothing moves — the table is append-only — so every path is exactly what it was and
-            // the one the dead material named is still standing in its own slot.
-            ASSERT_EQ(scene.getTextures().size(), 3u);
-            EXPECT_EQ(remap.mTextures[0], 0u);
-            EXPECT_EQ(remap.mTextures[1], 1u);
-            EXPECT_EQ(remap.mTextures[2], 2u);
-            EXPECT_EQ(scene.getTextures()[0], first);
-            EXPECT_EQ(scene.getTextures()[1], second);
-
-            // And the two materials still name them, which is what an emptied path takes away: the
-            // lookup would find nothing to load and the surface would come out untextured.
-            EXPECT_EQ(scene.getMaterials()[0].mDiffuse, 0u);
-            EXPECT_EQ(scene.getMaterials()[1].mDiffuse, 1u);
-            EXPECT_EQ(scene.addTexture(first), 0u) << "the path lookup lost track of a texture still here";
-            EXPECT_EQ(scene.getTextures().size(), 3u);
+            EXPECT_EQ(scene.getTextures().size(), 1u) << "a sprite's texture is on no material and must not go";
         }
 
         TEST(RtxSceneDescTest, clearingEmptiesEveryTable)

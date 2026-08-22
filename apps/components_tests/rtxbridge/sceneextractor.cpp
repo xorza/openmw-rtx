@@ -479,11 +479,14 @@ namespace RtxBridge
             const Retirement went = extractor.retire();
             EXPECT_EQ(went.mMeshes, 1u);
             EXPECT_EQ(went.mMaterials, 0u) << "an untextured quad has no state set and so no material";
-            ASSERT_EQ(scene.getMeshes().size(), 2u);
 
-            // The middle one went, so the third has moved down into its slot — and the identity map
-            // has to have moved with it, or the next walk resolves the survivor to a mesh that is
-            // now somebody else's.
+            // **The table is the same size and the survivors are where they were.** Freeing a slot
+            // in place is what lets a cell leave without renumbering every mesh in the world, and
+            // renumbering is what made a boundary cost a full rebuild.
+            ASSERT_EQ(scene.getMeshes().size(), 3u);
+            EXPECT_EQ(scene.getMeshes()[1].mVertexCount, 0u) << "the middle slot should be free";
+            EXPECT_EQ(scene.getMeshPositions(2)[0].z(), 7.0f) << "a survivor moved";
+
             scene.clearPlacement();
             const ExtractionStats after = extractor.extract(*less, osg::Matrixf::identity(), 0);
 
@@ -499,14 +502,26 @@ namespace RtxBridge
             for (std::size_t gap = 0; gap < 3; ++gap)
                 EXPECT_FALSE(scene.getInstances()[gap].isPlaced()) << "slot " << gap << " should be a gap";
 
-            // And `carryPlacement` renumbered what the survivors name: the third quad's mesh moved
-            // down into index one when the middle one was compacted out, and the placement standing
-            // on it has to have followed.
+            // And what those placements name is what they always named, because nothing was carried
+            // anywhere: the third quad is still mesh two, where it was put.
             ASSERT_TRUE(scene.getInstances()[3].isPlaced());
             ASSERT_TRUE(scene.getInstances()[4].isPlaced());
             EXPECT_EQ(scene.getInstances()[3].mMesh, 0u);
-            EXPECT_EQ(scene.getInstances()[4].mMesh, 1u);
-            EXPECT_EQ(scene.getMeshPositions(1)[0].z(), 7.0f) << "the survivor kept somebody else's vertices";
+            EXPECT_EQ(scene.getInstances()[4].mMesh, 2u);
+
+            // The freed slot goes to the next quad that turns up, which is the same size as the one
+            // that left it.
+            osg::ref_ptr<osg::Geometry> arrives = makeQuad();
+            osg::ref_ptr<osg::Group> more = new osg::Group;
+            more->addChild(stays);
+            more->addChild(alsoStays);
+            more->addChild(arrives);
+
+            scene.clearPlacement();
+            extractor.extract(*more, osg::Matrixf::identity(), 0);
+
+            EXPECT_EQ(scene.getMeshes().size(), 3u) << "the free slot was passed over and the table grew";
+            EXPECT_EQ(scene.getMeshes()[1].mVertexCount, 4u);
         }
 
         /// The sea is named by a node mask, and only the drawables that carry it become water.
@@ -599,9 +614,14 @@ namespace RtxBridge
             const Retirement went = extractor.retire();
             EXPECT_EQ(went.mMeshes, 1u);
             EXPECT_EQ(went.mMaterials, 1u);
-            EXPECT_TRUE(scene.getMeshes().empty());
-            EXPECT_TRUE(scene.getMaterials().empty());
-            EXPECT_TRUE(scene.getPositions().empty());
+
+            // **Freed, not removed.** The slots stay where they are so nothing above them is
+            // renumbered — there is nothing above them here, but the rule is what a cell boundary
+            // depends on — and what they held is gone.
+            ASSERT_EQ(scene.getMeshes().size(), 1u);
+            EXPECT_EQ(scene.getMeshes()[0].mVertexCount, 0u);
+            EXPECT_EQ(scene.getMaterials().size(), 1u);
+            EXPECT_EQ(scene.getMaterials()[0].mDiffuse, Rtx::sNoIndex);
 
             // **The texture stays, and that is deliberate.** It lives in a bindless array a material
             // indexes by position, so reclaiming one renumbers the rest and the array is built again

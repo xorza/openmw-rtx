@@ -33,6 +33,16 @@ namespace Rtx
         Index mIndexOffset = 0;
         Index mIndexCount = 0;
 
+        /// How much room the range was given, which is what a mesh taking this slot over has to fit
+        /// inside.
+        ///
+        /// **A slot keeps its range for as long as the scene lives.** Reclaiming by moving the
+        /// survivors down would renumber every mesh, and everything built from a mesh index — every
+        /// bottom-level acceleration structure in the world — would have to be built again. So a
+        /// freed slot keeps its room and waits for something that fits (`docs/rtx/plan.md` §10).
+        Index mVertexCapacity = 0;
+        Index mIndexCapacity = 0;
+
         Index getTriangleCount() const { return mIndexCount / 3; }
     };
 
@@ -251,18 +261,6 @@ namespace Rtx
         bool mAdditive = false;
     };
 
-    /// Where everything went when the scene was compacted.
-    ///
-    /// One entry per *old* index, holding the new one or `sNoIndex` where it was dropped. A caller
-    /// that kept an index across the call — which is what an identity map is — walks its own table
-    /// through this rather than looking anything up again.
-    struct Remap
-    {
-        std::vector<Index> mMeshes;
-        std::vector<Index> mMaterials;
-        std::vector<Index> mTextures;
-    };
-
     /// Everything the renderer needs to know about a world, with no Vulkan and no scene graph in it.
     ///
     /// Lights come from ESM `Light` records rather than from the graph: `NifOsg` never reads
@@ -352,29 +350,29 @@ namespace Rtx
 
         /// Drops everything not named and closes the gaps, reporting where the survivors went.
         ///
-        /// **The only way a scene loses anything, and it is a compaction rather than a free list.**
-        /// Nothing holds an index across a build — instances are rewritten by the walk that produced
-        /// them and every device-side table is made again from this one — so closing the gaps costs
-        /// a copy of what survived and saves an allocator, a fragmentation story, and slots that
-        /// have to stay valid while empty.
+        /// Frees every mesh, material and texture the caller did not name.
+        ///
+        /// **The only way a scene loses anything, and nothing is renumbered by it.** A freed entry
+        /// keeps its index and its room; the index goes on a free list and the next arrival that
+        /// fits takes the slot. Compacting instead — closing the gaps and renaming what pointed into
+        /// them — is what made a cell boundary cost a full rebuild: every bottom-level acceleration
+        /// structure in the world is named by a mesh index, and every material a hit reads is named
+        /// by another. `docs/rtx/plan.md` §10 has the argument.
         ///
         /// A texture survives if it is named here, or if a surviving material or layer still names
         /// it. Layers and masks have no keep set of their own: they belong to the material that owns
-        /// them and go with it.
+        /// them, and a freed material leaks its run until the scene is replaced outright.
         ///
-        /// **Placements do not go**, because a slot is a name that outlives a compaction. What they
-        /// name does move, and `carryPlacement` is what carries them through it; a placement whose
-        /// mesh or material was actually dropped is a caller that swept the two in the wrong order.
+        /// **Placements do not go**, and they no longer have to be carried anywhere either: a slot
+        /// is a name, and what it names has stopped moving.
         ///
         /// @param meshes every mesh to keep, each once, in any order.
         /// @param materials the same for materials.
         /// @param textures textures to keep whatever else names them — a particle emitter's sprite
         ///        is on no material, so nothing else would speak for it.
-        /// @param remap filled in only when something was dropped, and left alone otherwise.
-        /// @return whether anything went. False is the ordinary frame, and it costs three
+        /// @return whether anything was freed. False is the ordinary frame, and it costs three
         ///         comparisons: a scene that lost nothing has as many survivors as it had entries.
-        bool retain(std::span<const Index> meshes, std::span<const Index> materials, std::span<const Index> textures,
-            Remap& remap);
+        bool release(std::span<const Index> meshes, std::span<const Index> materials, std::span<const Index> textures);
 
         /// Empties every table while keeping the capacity, so rebuilding a scene does not go back to
         /// the allocator for buffers it already had.
@@ -391,17 +389,14 @@ namespace Rtx
         /// than reconciling it.
         void clearPlacement();
 
-        /// Renumbers what standing placements name, after `retain` has compacted the tables.
-        ///
-        /// **Placements outlive a compaction now that they are addressed by slot**, so the mesh and
-        /// material indices they hold have to be carried through it. Their own slots are untouched:
-        /// a slot is a name, and renaming placements is what having slots exists to avoid.
-        void carryPlacement(const Remap& remap);
-
         std::span<const osg::Vec3f> getPositions() const { return mPositions; }
         std::span<const osg::Vec3f> getNormals() const { return mNormals; }
         std::span<const osg::Vec2f> getTexCoords() const { return mTexCoords; }
         std::span<const std::uint32_t> getIndices() const { return mIndices; }
+
+        /// Every mesh slot, live or free. A freed one has a zero count and keeps its room, so a
+        /// backend that walks these builds a structure over nothing rather than over somebody else's
+        /// triangles — and the top level a frame rebuilds is what stops it being traced.
         std::span<const MeshRange> getMeshes() const { return mMeshes; }
 
         /// Which meshes changed shape since the last `clearPlacement`, each named once and in no
@@ -432,17 +427,25 @@ namespace Rtx
         /// the temporal history goes with them. Nothing else in the scene is worth that.
         ///
         /// **The only honest test for it**: comparing table sizes misses a cell that left as another
-        /// arrived, which is exactly what walking across a boundary does. Bumped by a mesh or a
-        /// texture appearing, by `clear`, and by a `retain` that moved either; never by a placement,
-        /// which is rewritten every frame by construction.
+        /// arrived, which is exactly what walking across a boundary does — and it misses a freed
+        /// slot taken over by something else entirely, which is what one does now. Bumped by a mesh
+        /// or a texture appearing, whether at the end of the table or into a slot something else
+        /// left, and by `clear`; never by a placement, which is rewritten every frame anyway.
         std::uint64_t getStructureRevision() const { return mStructureRevision; }
 
-        /// How many times the tables have been **renumbered** by a compaction.
+        /// How many times a **mesh** has appeared, which is the expensive half of the above.
         ///
-        /// Separate from the structure because the answers differ: a table that grew can be
-        /// appended to, and one whose indices moved cannot — everything built from it has to be
-        /// built again. `retain` is the only thing that moves them.
-        std::uint64_t getCompactionRevision() const { return mCompactionRevision; }
+        /// A texture arriving is an upload; a mesh arriving is a bottom-level acceleration structure
+        /// that does not exist yet. Told apart because a body texture nobody has worn yet must not
+        /// cost the structures of a whole cell.
+        std::uint64_t getMeshRevision() const { return mMeshRevision; }
+
+        /// How many times the scene has been **replaced outright** by `clear`.
+        ///
+        /// **The one thing that still renumbers, and it is travel.** Walking out of the world you
+        /// were in — a door, a fast travel, a load — is not a ring arriving, and rebuilding is both
+        /// correct and what the player is already waiting for. Everything short of that appends.
+        std::uint64_t getResetRevision() const { return mResetRevision; }
 
         /// How many times the scene's **shading tables** have changed: materials, layers and masks.
         ///
@@ -498,8 +501,23 @@ namespace Rtx
         std::vector<VFS::Path::Normalized> mTextures;
 
         std::uint64_t mStructureRevision = 0;
-        std::uint64_t mCompactionRevision = 0;
+        std::uint64_t mMeshRevision = 0;
+        std::uint64_t mResetRevision = 0;
         std::uint64_t mShadingRevision = 0;
+
+        /// Copies one mesh's arrays into the room `range` names. Zero-fills an attribute the mesh
+        /// did not bring, because a reused slot still holds its last tenant's.
+        void writeMesh(const MeshRange& range, std::span<const osg::Vec3f> positions,
+            std::span<const osg::Vec3f> normals, std::span<const osg::Vec2f> texCoords,
+            std::span<const std::uint32_t> indices);
+
+        /// Slots nothing stands in, waiting for something that fits.
+        ///
+        /// **A list and not a hole map**, because what goes on them is what one departing ring left
+        /// — tens of entries, not the table. `mFreeMeshes` is searched for the best fit and the
+        /// other two are taken from the back, since a material and a texture are one size.
+        std::vector<Index> mFreeMeshes;
+        std::vector<Index> mFreeMaterials;
 
         // The scan this replaces was O(materials x textures). A cell is a hundred of each and would
         // never have noticed; a worldspace is thousands of both, and load time is not the place to

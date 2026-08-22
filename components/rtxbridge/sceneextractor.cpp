@@ -381,18 +381,6 @@ namespace RtxBridge
 
             return dropped;
         }
-
-        /// Carries every surviving entry's index through the compaction.
-        template <class Map>
-        void carry(Map& known, const std::vector<Rtx::Index>& remap)
-        {
-            for (auto& [key, entry] : known)
-            {
-                assert(entry.mIndex < remap.size());
-                assert(remap[entry.mIndex] != Rtx::sNoIndex && "a kept entry was dropped anyway");
-                entry.mIndex = remap[entry.mIndex];
-            }
-        }
     }
 
     void SceneExtractor::hold(Rtx::Index mesh, Rtx::Index material)
@@ -428,38 +416,18 @@ namespace RtxBridge
         went.mMaterials = sweep(mMaterials, mEpoch, mLiveMaterials);
         sweep(mEmitterTextures, mEpoch, mLiveTextures);
 
-        // What no walk can speak for. Duplicates are fine here — `retain` takes a keep set, not a
+        // What no walk can speak for. Duplicates are fine here — `release` takes a keep set, not a
         // list of distinct survivors.
         mLiveMeshes.insert(mLiveMeshes.end(), mHeldMeshes.begin(), mHeldMeshes.end());
         mLiveMaterials.insert(mLiveMaterials.end(), mHeldMaterials.begin(), mHeldMaterials.end());
 
-        // **Compaction renumbers every table, so everything built from them is built again.** That
-        // is a spike, and a spike is a dropped frame however rarely it lands — see CLAUDE.md. The
-        // answer is not to ration it behind a threshold, which only makes the spike less frequent
-        // and no smaller; it is to stop needing it, by letting the tables recycle their slots the
-        // way the placements do. Until they can, this runs whenever something went.
-        const std::size_t before = mScene.getTextures().size();
-        if (mScene.retain(mLiveMeshes, mLiveMaterials, mLiveTextures, mRemap))
-        {
-            carry(mMeshes, mRemap.mMeshes);
-            carry(mMaterials, mRemap.mMaterials);
-            carry(mEmitterTextures, mRemap.mTextures);
-
-            // **Placements outlive the compaction now, so they have to be carried through it.**
-            // Every slot still standing names a mesh and a material by index, and `retain` has just
-            // renumbered both.
-            mScene.carryPlacement(mRemap);
-
-            // Held indices move with everything else, or the next sweep speaks for whatever landed
-            // where they used to be.
-            for (Rtx::Index& mesh : mHeldMeshes)
-                mesh = mRemap.mMeshes[mesh];
-
-            for (Rtx::Index& material : mHeldMaterials)
-                material = mRemap.mMaterials[material];
-
-            went.mTextures = static_cast<std::uint32_t>(before - mScene.getTextures().size());
-        }
+        // **Freed, not compacted, and that is what makes a cell boundary cheap.** Closing the gaps
+        // renumbered every mesh and every material, so everything built from an index — which is
+        // every bottom-level acceleration structure in the world — had to be built again: nineteen
+        // of nineteen crossings on a route across Vvardenfell were full rebuilds. A slot that is
+        // freed keeps its index and its room, and the next arrival that fits takes it over. Nothing
+        // downstream is told anything, because for it nothing moved (`docs/rtx/plan.md` §10).
+        mScene.release(mLiveMeshes, mLiveMaterials, mLiveTextures);
 
         // **After the sweep and not before it**, so that the walk which fills the next epoch is the
         // one this is measured against. Every entry that survived is still carrying the old stamp

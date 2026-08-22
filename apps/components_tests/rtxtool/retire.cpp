@@ -70,7 +70,8 @@ namespace RtxTool
             const osg::ref_ptr<osg::Group> root = keepRoot(kept);
 
             LoadedCells loaded;
-            const CellLighting lit = loadRegion(world, cell, *root, scene, extractor, loaded, "Clear", 12.0f, false).mLighting;
+            const CellLighting lit
+                = loadRegion(world, cell, *root, scene, extractor, loaded, "Clear", 12.0f, false).mLighting;
             extractor.extract(*root, osg::Matrixf::identity(), 0);
 
             return lit;
@@ -87,6 +88,11 @@ namespace RtxTool
             std::multiset<std::uint64_t> prints;
             for (Rtx::Index mesh = 0; mesh < scene.getMeshes().size(); ++mesh)
             {
+                // A freed slot describes nothing and is not a mesh to compare; it keeps its room
+                // until something fits into it.
+                if (scene.getMeshes()[mesh].mVertexCount == 0)
+                    continue;
+
                 std::uint64_t print = 0xcbf29ce484222325ull;
                 const auto fold = [&](std::uint32_t word) { print = (print ^ word) * 0x100000001b3ull; };
 
@@ -137,7 +143,6 @@ namespace RtxTool
             ASSERT_GT(one.mMeshesAdded, 0u);
 
             const std::size_t held = scene.getMeshes().size();
-            const std::size_t vertices = scene.getPositions().size();
             const std::uint64_t built = scene.getStructureRevision();
 
             // Nothing has gone: the walk that just happened is the epoch everything survives.
@@ -154,50 +159,46 @@ namespace RtxTool
             ASSERT_GT(two.mMeshesAdded, 0u);
             ASSERT_EQ(scene.getMeshes().size(), held + two.mMeshesAdded);
 
+            const std::size_t verticesBefore = scene.getPositions().size();
+
+            // Taken here and not before the second room arrived: that walk added meshes, which is a
+            // structure change and rightly one. What must not change is the *sweep*.
+            const std::uint64_t beforeSweep = scene.getStructureRevision();
             const RtxBridge::Retirement went = extractor.retire();
 
-            // What survived is what the second walk met, whether it was new or already here — so
-            // the two numbers have to add back up to what was in the scene before the sweep. The
-            // count of *distinct* shared models is not something the stats can say, since a reuse
-            // is a lookup and a room holds a dozen of the same barrel.
-            EXPECT_EQ(scene.getMeshes().size() + went.mMeshes, held + two.mMeshesAdded);
             EXPECT_GT(went.mMeshes, 0u) << "the room that was walked away from is still in the scene";
             EXPECT_LT(went.mMeshes, held) << "the models the two rooms share were dropped along with it";
-            EXPECT_NE(scene.getStructureRevision(), built);
 
-            // The buffers are exactly what the survivors need and not a vertex more, which is what
-            // says the gaps were closed rather than merely skipped.
-            std::size_t survivingVertices = 0;
-            std::size_t survivingIndices = 0;
+            // **The headline, and the whole reason the tables stopped compacting.** A cell leaving
+            // is not a structure change: nothing arrived and nothing moved, so every bottom-level
+            // acceleration structure in the scene is still correct and the frame after a boundary
+            // costs the top level and nothing else. This used to be the assertion that it *had*
+            // changed, and that was nineteen full rebuilds on a route across the island.
+            EXPECT_EQ(scene.getStructureRevision(), beforeSweep) << "a cell leaving asked for a rebuild";
+
+            // Nothing shrinks. The freed slots keep their room and wait for something that fits.
+            EXPECT_EQ(scene.getMeshes().size(), held + two.mMeshesAdded);
+            EXPECT_EQ(scene.getPositions().size(), verticesBefore);
+
+            std::size_t freed = 0;
             for (const Rtx::MeshRange& range : scene.getMeshes())
-            {
-                survivingVertices += range.mVertexCount;
-                survivingIndices += range.mIndexCount;
-            }
+                freed += range.mVertexCount == 0 ? 1 : 0;
 
-            EXPECT_EQ(scene.getPositions().size(), survivingVertices);
-            EXPECT_EQ(scene.getNormals().size(), survivingVertices);
-            EXPECT_EQ(scene.getTexCoords().size(), survivingVertices);
-            EXPECT_EQ(scene.getIndices().size(), survivingIndices);
-            EXPECT_LT(survivingVertices, vertices) << "the first room's geometry is still being carried";
+            EXPECT_EQ(freed, went.mMeshes) << "a slot was emptied without being reported, or the other way round";
 
-            // Every surviving offset has to still describe its own mesh, which is the whole of what
-            // the compaction can get wrong: a range that moved and an offset that did not is a mesh
-            // wearing its neighbour's triangles.
+            // Every surviving offset still describes its own mesh. This was the compaction's chance
+            // to get it wrong; now it is the chance a reused slot has, which is the same check.
             for (Rtx::Index mesh = 0; mesh < scene.getMeshes().size(); ++mesh)
             {
                 const Rtx::MeshRange& range = scene.getMeshes()[mesh];
                 ASSERT_LE(std::size_t{ range.mVertexOffset } + range.mVertexCount, scene.getPositions().size());
                 ASSERT_LE(std::size_t{ range.mIndexOffset } + range.mIndexCount, scene.getIndices().size());
+                ASSERT_LE(range.mVertexCount, range.mVertexCapacity);
 
                 for (const std::uint32_t index : scene.getMeshIndices(mesh))
                     ASSERT_LT(index, range.mVertexCount) << "mesh " << mesh << " indexes past its own vertices";
             }
 
-            // **Not one of them emptied.** A path is what the texture array is built from, and a
-            // survivor written to the slot it already occupied is where one gets lost — the unit
-            // tests reach that case deliberately and a cell reaches it whenever its first texture
-            // outlives the walk.
             for (const VFS::Path::Normalized& texture : scene.getTextures())
                 EXPECT_FALSE(texture.value().empty()) << "a surviving texture lost its path";
 
@@ -211,9 +212,9 @@ namespace RtxTool
                 EXPECT_LE(std::size_t{ material.mLayerOffset } + material.mLayerCount, scene.getLayers().size());
             }
 
-            // **The same geometry a scene that had never heard of the first room would hold.** This
-            // is the assertion the offsets above only approach: two scenes agreeing mesh for mesh on
-            // what is in them, whatever order they arrived in.
+            // **The same geometry a scene that had never heard of the first room would hold**, once
+            // the empty slots are passed over. Two scenes agreeing mesh for mesh on what is in them,
+            // whatever order they arrived in and whatever gaps one of them is carrying.
             Rtx::SceneDesc alone;
             {
                 RtxBridge::SceneExtractor fresh(alone);
@@ -221,19 +222,26 @@ namespace RtxTool
             }
 
             EXPECT_EQ(meshFingerprints(scene), meshFingerprints(alone));
-            EXPECT_EQ(scene.getMeshes().size(), alone.getMeshes().size());
-            EXPECT_EQ(scene.getPositions().size(), alone.getPositions().size());
-            EXPECT_EQ(scene.getIndices().size(), alone.getIndices().size());
 
-            // And the survivors go on resolving through the identity map, which is the assertion the
-            // compaction is really for: a third walk of the same room adds nothing at all.
+            // And the survivors go on resolving through the identity map: a third walk of the same
+            // room adds nothing at all, because nothing moved under it.
             scene.clearPlacement();
             const RtxBridge::ExtractionStats again = readCell(*world, *second, kept, extractor);
 
-            EXPECT_EQ(again.mMeshesAdded, 0u) << "a survivor was not recognised after the tables moved under it";
+            EXPECT_EQ(again.mMeshesAdded, 0u) << "a survivor was not recognised after the sweep";
             EXPECT_EQ(again.mMaterialsAdded, 0u);
             EXPECT_EQ(again.mMeshesReused, two.mMeshesReused + two.mMeshesAdded)
                 << "the same room, and every drawable in it resolving to something already here";
+
+            // **Walking back into the first room reuses what it left behind.** That is what a free
+            // list is for: the geometry buffers hold their high-water mark rather than the sum of
+            // every room ever entered.
+            extractor.retire();
+            scene.clearPlacement();
+            readCell(*world, *first, kept, extractor);
+
+            EXPECT_LE(scene.getPositions().size(), verticesBefore)
+                << "the room came back and the buffers grew instead of taking the room it left";
         }
 
         /// The renderer builds the same picture out of a compacted scene as out of one that never

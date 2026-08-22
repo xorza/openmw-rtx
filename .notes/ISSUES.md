@@ -1,15 +1,13 @@
 # Open issues
 
-- A cell arriving rebuilds every bottom-level acceleration structure. `extendScene` keeps the
-  texture array but still makes `SceneAcceleration` and `SceneBuffers` again when the mesh table
-  grows. Appending instead needs the shared position and index buffers to stay where they are, and
-  they are sized to the scene and reallocated when it grows — every existing structure holds a
-  device address into them.
+- A cell arriving rebuilds every bottom-level acceleration structure, not only the ones that
+  arrived. The geometry they were built from lives in one device buffer sized to the scene, and
+  appending to it moves it — every structure holds a device address into it. Appending needs that
+  buffer to become blocks that are allocated once and never moved.
 
-- Every crossing on a real route compacts, so `extendScene` is never reached: over nineteen
-  boundaries flown across Vvardenfell, nineteen were `setScene`. `SceneExtractor::retire` calls
-  `SceneDesc::retain` whenever a mesh or material goes, and a departing cell almost always takes one
-  with it.
+- A material freed by `SceneDesc::release` leaks its layer run and the masks behind it until the
+  scene is replaced. A run is variable length and reclaiming one needs the suballocator the meshes
+  have and the layers do not, so what accumulates is a blend map per terrain chunk walked past.
 
 - The texture table is append-only and nothing ever reclaims a slot, so a session that walks through
   enough of the world grows it until it reaches the 4096 the array holds and the renderer throws.

@@ -38,31 +38,82 @@ namespace Rtx
         assert(indices.size() % 3 == 0);
         assert(std::all_of(indices.begin(), indices.end(), [&](std::uint32_t i) { return i < positions.size(); }));
 
+        ++mStructureRevision;
+        ++mMeshRevision;
+
+        const auto vertices = static_cast<Index>(positions.size());
+        const auto elements = static_cast<Index>(indices.size());
+
+        // **Best fit and not first.** The free list is what one departing ring left, so it is tens of
+        // entries and walking it costs nothing; first fit would spend a cathedral's hole on a crate
+        // and leave the next cathedral to append. Fitness is measured on the vertices, which is what
+        // dominates the room a mesh takes.
+        auto best = mFreeMeshes.end();
+        for (auto slot = mFreeMeshes.begin(); slot != mFreeMeshes.end(); ++slot)
+        {
+            const MeshRange& hole = mMeshes[*slot];
+            if (hole.mVertexCapacity < vertices || hole.mIndexCapacity < elements)
+                continue;
+
+            if (best == mFreeMeshes.end() || hole.mVertexCapacity < mMeshes[*best].mVertexCapacity)
+                best = slot;
+        }
+
+        if (best != mFreeMeshes.end())
+        {
+            const Index index = *best;
+            mFreeMeshes.erase(best);
+
+            MeshRange& range = mMeshes[index];
+            range.mVertexCount = vertices;
+            range.mIndexCount = elements;
+
+            writeMesh(range, positions, normals, texCoords, indices);
+            return index;
+        }
+
         const MeshRange range{
             .mVertexOffset = static_cast<Index>(mPositions.size()),
-            .mVertexCount = static_cast<Index>(positions.size()),
+            .mVertexCount = vertices,
             .mIndexOffset = static_cast<Index>(mIndices.size()),
-            .mIndexCount = static_cast<Index>(indices.size()),
+            .mIndexCount = elements,
+            .mVertexCapacity = vertices,
+            .mIndexCapacity = elements,
         };
 
-        mPositions.insert(mPositions.end(), positions.begin(), positions.end());
-        mIndices.insert(mIndices.end(), indices.begin(), indices.end());
+        // Grown to the range's own size, so the write below lands in room that exists. The attribute
+        // buffers stay parallel to the position buffer whether or not the mesh brought the attribute,
+        // so a shader can index all of them with one vertex id.
+        mPositions.resize(mPositions.size() + vertices);
+        mNormals.resize(mPositions.size());
+        mTexCoords.resize(mPositions.size());
+        mIndices.resize(mIndices.size() + elements);
 
-        // The attribute buffers stay parallel to the position buffer whether or not the mesh brought
-        // the attribute, so a shader can index all of them with one vertex id.
-        if (normals.empty())
-            mNormals.resize(mPositions.size());
-        else
-            mNormals.insert(mNormals.end(), normals.begin(), normals.end());
+        writeMesh(range, positions, normals, texCoords, indices);
 
-        if (texCoords.empty())
-            mTexCoords.resize(mPositions.size());
-        else
-            mTexCoords.insert(mTexCoords.end(), texCoords.begin(), texCoords.end());
-
-        ++mStructureRevision;
         mMeshes.push_back(range);
         return static_cast<Index>(mMeshes.size() - 1);
+    }
+
+    void SceneDesc::writeMesh(const MeshRange& range, std::span<const osg::Vec3f> positions,
+        std::span<const osg::Vec3f> normals, std::span<const osg::Vec2f> texCoords,
+        std::span<const std::uint32_t> indices)
+    {
+        std::copy(positions.begin(), positions.end(), mPositions.begin() + range.mVertexOffset);
+        std::copy(indices.begin(), indices.end(), mIndices.begin() + range.mIndexOffset);
+
+        // **Zeroed where the mesh brought none**, rather than left holding whatever the slot's last
+        // tenant had. A reused slot is the only way that could happen and it would light a surface
+        // by somebody else's normals.
+        if (normals.empty())
+            std::fill_n(mNormals.begin() + range.mVertexOffset, range.mVertexCount, osg::Vec3f());
+        else
+            std::copy(normals.begin(), normals.end(), mNormals.begin() + range.mVertexOffset);
+
+        if (texCoords.empty())
+            std::fill_n(mTexCoords.begin() + range.mVertexOffset, range.mVertexCount, osg::Vec2f());
+        else
+            std::copy(texCoords.begin(), texCoords.end(), mTexCoords.begin() + range.mVertexOffset);
     }
 
     void SceneDesc::updateMesh(Index mesh, std::span<const osg::Vec3f> positions, std::span<const osg::Vec3f> normals)
@@ -87,6 +138,16 @@ namespace Rtx
     Index SceneDesc::addMaterial(const Material& material)
     {
         ++mShadingRevision;
+
+        // One size, so any freed slot will do and the back of the list is as good as any of them.
+        if (!mFreeMaterials.empty())
+        {
+            const Index index = mFreeMaterials.back();
+            mFreeMaterials.pop_back();
+            mMaterials[index] = material;
+            return index;
+        }
+
         mMaterials.push_back(material);
         return static_cast<Index>(mMaterials.size() - 1);
     }
@@ -225,26 +286,6 @@ namespace Rtx
         mEmitters.clear();
     }
 
-    void SceneDesc::carryPlacement(const Remap& remap)
-    {
-        for (MeshInstance& instance : mInstances)
-        {
-            if (!instance.isPlaced())
-                continue;
-
-            assert(instance.mMesh < remap.mMeshes.size());
-            assert(remap.mMeshes[instance.mMesh] != sNoIndex && "a standing placement lost its mesh");
-            instance.mMesh = remap.mMeshes[instance.mMesh];
-
-            if (instance.mMaterial == sNoIndex)
-                continue;
-
-            assert(instance.mMaterial < remap.mMaterials.size());
-            assert(remap.mMaterials[instance.mMaterial] != sNoIndex && "a standing placement lost its material");
-            instance.mMaterial = remap.mMaterials[instance.mMaterial];
-        }
-    }
-
     namespace
     {
         /// A byte per entry, set for everything `keep` names. Duplicates and any order are fine.
@@ -259,216 +300,107 @@ namespace Rtx
 
             return flags;
         }
-
-        /// Where `old` went, or itself where nothing moved.
-        Index through(const std::vector<Index>& remap, Index old)
-        {
-            return old == sNoIndex ? sNoIndex : remap[old];
-        }
     }
 
-    bool SceneDesc::retain(
-        std::span<const Index> meshes, std::span<const Index> materials, std::span<const Index> textures, Remap& remap)
+    bool SceneDesc::release(
+        std::span<const Index> meshes, std::span<const Index> materials, std::span<const Index> textures)
     {
         // **The ordinary frame, and it costs two comparisons.** Both keep sets come from an identity
-        // map keyed one-to-one on what produced the entry, so a set as large as the table is the
-        // whole table. The textures are not counted here: several emitters share one sprite, so that
-        // set has duplicates in it — and a texture can only be orphaned by a material or a mesh
-        // going, which is the case below.
+        // map keyed one-to-one on what produced the entry, so a set as large as the live table is
+        // the whole of it. The textures are not counted here: several emitters share one sprite, so
+        // that set has duplicates in it.
         assert(meshes.size() <= mMeshes.size());
         assert(materials.size() <= mMaterials.size());
-        if (meshes.size() == mMeshes.size() && materials.size() == mMaterials.size())
-            return false;
 
-        // Read before anything moves, so the tail can say which tier the compaction actually touched.
-        const std::size_t meshesBefore = mMeshes.size();
-        const std::size_t texturesBefore = mTextures.size();
-        const std::size_t materialsBefore = mMaterials.size();
+        const std::size_t liveMeshes = mMeshes.size() - mFreeMeshes.size();
+        const std::size_t liveMaterials = mMaterials.size() - mFreeMaterials.size();
+        if (meshes.size() == liveMeshes && materials.size() == liveMaterials)
+            return false;
 
         // Allocated here rather than kept, because this runs on the frame a cell left and on no
         // other. What it is not allowed to do is allocate on the frames in between, which is what
         // the test above is for.
-        const std::vector<char> keptMesh = keepFlags(mMeshes.size(), meshes);
-        const std::vector<char> keptMaterial = keepFlags(mMaterials.size(), materials);
+        std::vector<char> keptMesh = keepFlags(mMeshes.size(), meshes);
+        std::vector<char> keptMaterial = keepFlags(mMaterials.size(), materials);
 
-        // **Compacted in place, left to right.** The survivors keep their relative order, so what is
-        // being written to is always at or behind what is being read from — which is what makes a
-        // second copy of a worldspace's geometry unnecessary.
-        remap.mMeshes.assign(mMeshes.size(), sNoIndex);
-        Index meshWrite = 0;
-        Index vertexWrite = 0;
-        Index indexWrite = 0;
-        for (std::size_t old = 0; old < mMeshes.size(); ++old)
+        // A slot already free is not one to free again.
+        for (const Index slot : mFreeMeshes)
+            keptMesh[slot] = 1;
+
+        for (const Index slot : mFreeMaterials)
+            keptMaterial[slot] = 1;
+
+        std::size_t freedMeshes = 0;
+        for (Index index = 0; index < mMeshes.size(); ++index)
         {
-            if (keptMesh[old] == 0)
+            if (keptMesh[index] != 0)
                 continue;
 
-            MeshRange range = mMeshes[old];
-            std::copy_n(mPositions.begin() + range.mVertexOffset, range.mVertexCount, mPositions.begin() + vertexWrite);
-            std::copy_n(mNormals.begin() + range.mVertexOffset, range.mVertexCount, mNormals.begin() + vertexWrite);
-            std::copy_n(mTexCoords.begin() + range.mVertexOffset, range.mVertexCount, mTexCoords.begin() + vertexWrite);
-            std::copy_n(mIndices.begin() + range.mIndexOffset, range.mIndexCount, mIndices.begin() + indexWrite);
+            // **The room stays and only the contents go.** Nothing is moved down over it, so every
+            // index above this one still means what it meant — which is the whole point, because
+            // each of them names a bottom-level acceleration structure that would otherwise have to
+            // be built again.
+            MeshRange& range = mMeshes[index];
+            range.mVertexCount = 0;
+            range.mIndexCount = 0;
 
-            range.mVertexOffset = vertexWrite;
-            range.mIndexOffset = indexWrite;
-            vertexWrite += range.mVertexCount;
-            indexWrite += range.mIndexCount;
-
-            remap.mMeshes[old] = meshWrite;
-            mMeshes[meshWrite++] = range;
+            mFreeMeshes.push_back(index);
+            ++freedMeshes;
         }
 
-        mMeshes.resize(meshWrite);
-        mPositions.resize(vertexWrite);
-        mNormals.resize(vertexWrite);
-        mTexCoords.resize(vertexWrite);
-        mIndices.resize(indexWrite);
-
-        // **The layers and the masks before the materials that own them**, and while those materials
-        // are still where they were: a layer run is found through the material's own offset, and
-        // rewriting the material first would lose it. Layers were appended in material order and
-        // masks in layer order, so the same left-to-right argument holds for both.
-        Index layerWrite = 0;
-        Index maskWrite = 0;
-        for (std::size_t old = 0; old < mMaterials.size(); ++old)
+        std::size_t freedMaterials = 0;
+        for (Index index = 0; index < mMaterials.size(); ++index)
         {
-            if (keptMaterial[old] == 0)
+            if (keptMaterial[index] != 0)
                 continue;
 
-            Material& material = mMaterials[old];
-            const Index first = material.mLayerOffset;
-            material.mLayerOffset = layerWrite;
-
-            for (Index k = 0; k < material.mLayerCount; ++k)
-            {
-                MaterialLayer layer = mLayers[first + k];
-
-                // A chunk of a single ground type carries no mask, and there is nothing to move.
-                const Index weights = Index{ layer.mMaskWidth } * layer.mMaskHeight;
-                if (weights > 0)
-                {
-                    std::copy_n(mMasks.begin() + layer.mMaskOffset, weights, mMasks.begin() + maskWrite);
-                    layer.mMaskOffset = maskWrite;
-                    maskWrite += weights;
-                }
-
-                mLayers[layerWrite++] = layer;
-            }
+            // **Its layers and masks are not freed with it**, and that is a known leak: a run is
+            // variable length and reclaiming one means the same suballocator the meshes needed. A
+            // material that carries layers is a terrain chunk, so what leaks is a blend map per
+            // chunk walked past, and travel is what takes it back (`docs/rtx/plan.md` §10).
+            mMaterials[index] = Material{};
+            mFreeMaterials.push_back(index);
+            ++freedMaterials;
         }
 
-        mLayers.resize(layerWrite);
-        mMasks.resize(maskWrite);
-
-        // **The texture table is append-only, and a compaction does not touch it.**
+        // **The texture table is append-only, and a slot nothing wears is left standing.**
         //
-        // A backend holds these in one bindless array a material indexes by position, so moving one
-        // renumbers all of them and the array has to be made again — measured at 150 to 225 ms
-        // against 12 for every acceleration structure in the scene. Reclaiming the handful a dead
-        // material leaves behind is not worth a frame like that on any cadence, and CLAUDE.md is
-        // explicit that rationing a spike is not an answer to it either. They go when the scene
-        // does, and until then a texture nothing wears costs its bytes and nothing else.
+        // A backend holds these in one bindless array a material indexes by position. Freeing a slot
+        // is possible now that nothing renumbers — the array would be written at that element rather
+        // than appended to — but it needs the arrivals to stop being a contiguous tail, which is
+        // `SceneTextures`, `extendScene` and `TextureArray` together. Until then this is the one
+        // table that only grows, and the 4,096 the array holds is the session's bound.
         //
-        // The caller's set is therefore unused here. It stays in the signature because it says what
-        // a sprite's texture is — the one thing no material can speak for — and the day the array
-        // recycles slots rather than growing, that is what will keep it alive.
-        std::vector<char> keptTexture(mTextures.size(), 1);
-        const auto name = [&](Index texture) {
-            if (texture != sNoIndex)
-                keptTexture[texture] = 1;
-        };
+        // The caller's set is therefore unused. It stays in the signature because it says what a
+        // sprite's texture is — the one thing no material can speak for — and that is what will keep
+        // it alive when the slots do come back.
+        (void)textures;
 
-        for (std::size_t old = 0; old < mMaterials.size(); ++old)
-        {
-            if (keptMaterial[old] == 0)
-                continue;
-
-            name(mMaterials[old].mDiffuse);
-            name(mMaterials[old].mNormal);
-            name(mMaterials[old].mEmissive);
-        }
-
-        for (const MaterialLayer& layer : mLayers)
-            name(layer.mDiffuse);
-
-        remap.mTextures.assign(mTextures.size(), sNoIndex);
-        Index textureWrite = 0;
-        for (std::size_t old = 0; old < mTextures.size(); ++old)
-        {
-            if (keptTexture[old] == 0)
-                continue;
-
-            remap.mTextures[old] = textureWrite;
-
-            // **Only where it is actually moving.** Everything before the first casualty is written
-            // to the slot it is already in, and a path long enough to be on the heap does not
-            // survive being move-assigned to itself: the assignment takes the source's buffer and
-            // then sets the source's length to zero, and the source is the same object. An emptied
-            // path is a texture nothing can load, which reaches the screen as a world with no
-            // textures on it at all.
-            if (textureWrite != old)
-                mTextures[textureWrite] = std::move(mTextures[old]);
-
-            ++textureWrite;
-        }
-
-        mTextures.resize(textureWrite);
-
-        // Rebuilt rather than walked and patched: the map is keyed on the path, and every surviving
-        // path is still one of these.
-        mTextureIndex.clear();
-        for (Index at = 0; at < textureWrite; ++at)
-            mTextureIndex.emplace(mTextures[at], at);
-
-        for (MaterialLayer& layer : mLayers)
-            layer.mDiffuse = through(remap.mTextures, layer.mDiffuse);
-
-        remap.mMaterials.assign(mMaterials.size(), sNoIndex);
-        Index materialWrite = 0;
-        for (std::size_t old = 0; old < mMaterials.size(); ++old)
-        {
-            if (keptMaterial[old] == 0)
-                continue;
-
-            Material material = mMaterials[old];
-            material.mDiffuse = through(remap.mTextures, material.mDiffuse);
-            material.mNormal = through(remap.mTextures, material.mNormal);
-            material.mEmissive = through(remap.mTextures, material.mEmissive);
-
-            remap.mMaterials[old] = materialWrite;
-            mMaterials[materialWrite++] = material;
-        }
-
-        mMaterials.resize(materialWrite);
-
-        // Every one of these names an index that has just moved, and the walk that comes next is
-        // what puts them back.
+        // Every placement the walk did not meet has already been dropped by whoever swept it, and
+        // the per-frame lists are refilled by the walk that comes next.
         clearPlacement();
 
-        // **Only the tier that actually moved.** A sweep that dropped a material and nothing else
-        // has renumbered a table a frame can rewrite; one that dropped a mesh or a texture has
-        // invalidated every structure built from them. Reporting the second where the first
-        // happened is what made a cell's water animation rebuild the world once a frame.
-        // **Only what the structures and the array are built from counts as a renumbering.** A
-        // material moving is a table a frame rewrites anyway, and reporting it here would send every
-        // water animation back through a full rebuild — which is the whole thing this is here to
-        // avoid.
-        if (mMeshes.size() != meshesBefore || mTextures.size() != texturesBefore)
+        if (freedMeshes > 0)
         {
-            ++mStructureRevision;
-            ++mCompactionRevision;
+            // **Not a structure change.** Nothing arrived and nothing moved: the structures built
+            // from these indices are still correct, they simply describe geometry nothing stands on
+            // any more, and the top level a frame rebuilds anyway is what stops them being traced.
+            // Saying otherwise here is what made a cell boundary cost a full rebuild.
+            ++mShadingRevision;
         }
 
-        if (mMaterials.size() != materialsBefore || mTextures.size() != texturesBefore)
+        if (freedMaterials > 0)
             ++mShadingRevision;
 
-        return true;
+        return freedMeshes > 0 || freedMaterials > 0;
     }
 
     void SceneDesc::clear()
     {
         ++mStructureRevision;
         ++mShadingRevision;
-        ++mCompactionRevision;
+        ++mMeshRevision;
+        ++mResetRevision;
         mPositions.clear();
         mNormals.clear();
         mTexCoords.clear();
@@ -488,6 +420,8 @@ namespace Rtx
         mEmitters.clear();
         mTextures.clear();
         mTextureIndex.clear();
+        mFreeMeshes.clear();
+        mFreeMaterials.clear();
     }
 
     std::span<const osg::Vec3f> SceneDesc::getMeshPositions(Index mesh) const
