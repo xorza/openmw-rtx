@@ -1,12 +1,10 @@
 #include <cmath>
-#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
 
-#include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
 #include <components/files/configurationmanager.hpp>
@@ -17,10 +15,9 @@
 
 #include <apps/rtxtool/actor.hpp>
 #include <apps/rtxtool/npc.hpp>
-#include <apps/rtxtool/options.hpp>
 #include <apps/rtxtool/world.hpp>
 
-#include "../rtx/harness.hpp"
+#include "installation.hpp"
 
 namespace RtxTool
 {
@@ -32,27 +29,6 @@ namespace RtxTool
         /// `pose`'s first argument; the second only drives what integrates rather than samples, and
         /// nothing being posed here has an emitter on it.
         constexpr float sStep = 1.0f / 60.0f;
-
-        /// A Morrowind installation as the harness finds one, or null where there is none.
-        ///
-        /// The same route the tool takes: the configuration manager reads `openmw.cfg`, which says
-        /// where the game is installed. A machine without it is a legitimate skip; a machine with it
-        /// configured wrongly fails out of `World`'s own constructor.
-        std::unique_ptr<World> openWorld(Files::ConfigurationManager& config, bpo::variables_map& variables)
-        {
-            bpo::options_description options = makeOptionsDescription(false);
-            bpo::store(bpo::command_line_parser(std::vector<std::string>{}).options(options).run(), variables);
-            bpo::notify(variables);
-
-            config.processPaths(variables, std::filesystem::current_path());
-            config.readConfiguration(variables, options);
-
-            if (variables["content"].as<std::vector<std::string>>().empty())
-                return nullptr;
-
-            return std::make_unique<World>(
-                config, variables, Rtx::Testing::getShaderDirectory().parent_path().parent_path());
-        }
 
         /// A cliff racer, which is a skinned creature whose animation is a wing beat: the widest
         /// travel of any vertex in the game against the shortest track, so a pose apart in time is a

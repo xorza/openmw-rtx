@@ -60,6 +60,7 @@ namespace Rtx
         else
             mTexCoords.insert(mTexCoords.end(), texCoords.begin(), texCoords.end());
 
+        ++mRevision;
         mMeshes.push_back(range);
         return static_cast<Index>(mMeshes.size() - 1);
     }
@@ -85,12 +86,14 @@ namespace Rtx
 
     Index SceneDesc::addMaterial(const Material& material)
     {
+        ++mRevision;
         mMaterials.push_back(material);
         return static_cast<Index>(mMaterials.size() - 1);
     }
 
     Index SceneDesc::addMask(std::span<const float> weights)
     {
+        ++mRevision;
         const auto offset = static_cast<Index>(mMasks.size());
         mMasks.insert(mMasks.end(), weights.begin(), weights.end());
         return offset;
@@ -98,6 +101,7 @@ namespace Rtx
 
     void SceneDesc::addLayer(const MaterialLayer& layer)
     {
+        ++mRevision;
         mLayers.push_back(layer);
     }
 
@@ -145,6 +149,7 @@ namespace Rtx
         if (known != mTextureIndex.end())
             return known->second;
 
+        ++mRevision;
         const Index index = static_cast<Index>(mTextures.size());
         mTextures.emplace_back(path);
         mTextureIndex.emplace(path, index);
@@ -167,8 +172,187 @@ namespace Rtx
         mEmitters.clear();
     }
 
+    namespace
+    {
+        /// A byte per entry, set for everything `keep` names. Duplicates and any order are fine.
+        std::vector<char> keepFlags(std::size_t count, std::span<const Index> keep)
+        {
+            std::vector<char> flags(count, 0);
+            for (const Index index : keep)
+            {
+                assert(index < count);
+                flags[index] = 1;
+            }
+
+            return flags;
+        }
+
+        /// Where `old` went, or itself where nothing moved.
+        Index through(const std::vector<Index>& remap, Index old)
+        {
+            return old == sNoIndex ? sNoIndex : remap[old];
+        }
+    }
+
+    bool SceneDesc::retain(
+        std::span<const Index> meshes, std::span<const Index> materials, std::span<const Index> textures, Remap& remap)
+    {
+        // **The ordinary frame, and it costs two comparisons.** Both keep sets come from an identity
+        // map keyed one-to-one on what produced the entry, so a set as large as the table is the
+        // whole table. The textures are not counted here: several emitters share one sprite, so that
+        // set has duplicates in it — and a texture can only be orphaned by a material or a mesh
+        // going, which is the case below.
+        assert(meshes.size() <= mMeshes.size());
+        assert(materials.size() <= mMaterials.size());
+        if (meshes.size() == mMeshes.size() && materials.size() == mMaterials.size())
+            return false;
+
+        // Allocated here rather than kept, because this runs on the frame a cell left and on no
+        // other. What it is not allowed to do is allocate on the frames in between, which is what
+        // the test above is for.
+        const std::vector<char> keptMesh = keepFlags(mMeshes.size(), meshes);
+        const std::vector<char> keptMaterial = keepFlags(mMaterials.size(), materials);
+
+        // **Compacted in place, left to right.** The survivors keep their relative order, so what is
+        // being written to is always at or behind what is being read from — which is what makes a
+        // second copy of a worldspace's geometry unnecessary.
+        remap.mMeshes.assign(mMeshes.size(), sNoIndex);
+        Index meshWrite = 0;
+        Index vertexWrite = 0;
+        Index indexWrite = 0;
+        for (std::size_t old = 0; old < mMeshes.size(); ++old)
+        {
+            if (keptMesh[old] == 0)
+                continue;
+
+            MeshRange range = mMeshes[old];
+            std::copy_n(mPositions.begin() + range.mVertexOffset, range.mVertexCount, mPositions.begin() + vertexWrite);
+            std::copy_n(mNormals.begin() + range.mVertexOffset, range.mVertexCount, mNormals.begin() + vertexWrite);
+            std::copy_n(mTexCoords.begin() + range.mVertexOffset, range.mVertexCount, mTexCoords.begin() + vertexWrite);
+            std::copy_n(mIndices.begin() + range.mIndexOffset, range.mIndexCount, mIndices.begin() + indexWrite);
+
+            range.mVertexOffset = vertexWrite;
+            range.mIndexOffset = indexWrite;
+            vertexWrite += range.mVertexCount;
+            indexWrite += range.mIndexCount;
+
+            remap.mMeshes[old] = meshWrite;
+            mMeshes[meshWrite++] = range;
+        }
+
+        mMeshes.resize(meshWrite);
+        mPositions.resize(vertexWrite);
+        mNormals.resize(vertexWrite);
+        mTexCoords.resize(vertexWrite);
+        mIndices.resize(indexWrite);
+
+        // **The layers and the masks before the materials that own them**, and while those materials
+        // are still where they were: a layer run is found through the material's own offset, and
+        // rewriting the material first would lose it. Layers were appended in material order and
+        // masks in layer order, so the same left-to-right argument holds for both.
+        Index layerWrite = 0;
+        Index maskWrite = 0;
+        for (std::size_t old = 0; old < mMaterials.size(); ++old)
+        {
+            if (keptMaterial[old] == 0)
+                continue;
+
+            Material& material = mMaterials[old];
+            const Index first = material.mLayerOffset;
+            material.mLayerOffset = layerWrite;
+
+            for (Index k = 0; k < material.mLayerCount; ++k)
+            {
+                MaterialLayer layer = mLayers[first + k];
+
+                // A chunk of a single ground type carries no mask, and there is nothing to move.
+                const Index weights = Index{ layer.mMaskWidth } * layer.mMaskHeight;
+                if (weights > 0)
+                {
+                    std::copy_n(mMasks.begin() + layer.mMaskOffset, weights, mMasks.begin() + maskWrite);
+                    layer.mMaskOffset = maskWrite;
+                    maskWrite += weights;
+                }
+
+                mLayers[layerWrite++] = layer;
+            }
+        }
+
+        mLayers.resize(layerWrite);
+        mMasks.resize(maskWrite);
+
+        // A texture lives while anything still names it. The caller's set is what speaks for the
+        // ones nothing else can: a particle emitter's sprite hangs off no material at all.
+        std::vector<char> keptTexture = keepFlags(mTextures.size(), textures);
+        const auto name = [&](Index texture) {
+            if (texture != sNoIndex)
+                keptTexture[texture] = 1;
+        };
+
+        for (std::size_t old = 0; old < mMaterials.size(); ++old)
+        {
+            if (keptMaterial[old] == 0)
+                continue;
+
+            name(mMaterials[old].mDiffuse);
+            name(mMaterials[old].mNormal);
+            name(mMaterials[old].mEmissive);
+        }
+
+        for (const MaterialLayer& layer : mLayers)
+            name(layer.mDiffuse);
+
+        remap.mTextures.assign(mTextures.size(), sNoIndex);
+        Index textureWrite = 0;
+        for (std::size_t old = 0; old < mTextures.size(); ++old)
+        {
+            if (keptTexture[old] == 0)
+                continue;
+
+            remap.mTextures[old] = textureWrite;
+            mTextures[textureWrite++] = std::move(mTextures[old]);
+        }
+
+        mTextures.resize(textureWrite);
+
+        // Rebuilt rather than walked and patched: the map is keyed on the path, and every surviving
+        // path is still one of these.
+        mTextureIndex.clear();
+        for (Index at = 0; at < textureWrite; ++at)
+            mTextureIndex.emplace(mTextures[at], at);
+
+        for (MaterialLayer& layer : mLayers)
+            layer.mDiffuse = through(remap.mTextures, layer.mDiffuse);
+
+        remap.mMaterials.assign(mMaterials.size(), sNoIndex);
+        Index materialWrite = 0;
+        for (std::size_t old = 0; old < mMaterials.size(); ++old)
+        {
+            if (keptMaterial[old] == 0)
+                continue;
+
+            Material material = mMaterials[old];
+            material.mDiffuse = through(remap.mTextures, material.mDiffuse);
+            material.mNormal = through(remap.mTextures, material.mNormal);
+            material.mEmissive = through(remap.mTextures, material.mEmissive);
+
+            remap.mMaterials[old] = materialWrite;
+            mMaterials[materialWrite++] = material;
+        }
+
+        mMaterials.resize(materialWrite);
+
+        // Every one of these names an index that has just moved, and the walk that comes next is
+        // what puts them back.
+        clearPlacement();
+
+        ++mRevision;
+        return true;
+    }
+
     void SceneDesc::clear()
     {
+        ++mRevision;
         mPositions.clear();
         mNormals.clear();
         mTexCoords.clear();

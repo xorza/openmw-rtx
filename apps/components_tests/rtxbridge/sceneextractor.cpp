@@ -286,6 +286,97 @@ namespace RtxBridge
             EXPECT_TRUE(scene.getMeshes().empty());
         }
 
+        /// What the walk stopped finding leaves the scene, and what stayed keeps working.
+        ///
+        /// **The whole reason this exists is not memory but identity.** The mesh cache is keyed on
+        /// the `osg::Drawable*`, which is what makes a crate met in a second cell resolve to the
+        /// crate already uploaded — and an address the engine freed when a cell unloaded can be
+        /// handed straight back for something else. Sweeping is what stops the next thing allocated
+        /// there inheriting a mesh it has nothing to do with.
+        TEST(RtxSceneExtractorTest, aSweepDropsWhatTheWalkNoLongerFindsAndCarriesTheRest)
+        {
+            osg::ref_ptr<osg::Geometry> stays = makeQuad();
+            osg::ref_ptr<osg::Geometry> goes = makeQuad();
+            osg::ref_ptr<osg::Geometry> alsoStays = makeQuad();
+
+            // Told apart by their vertices, so the survivors can be checked by what came out of them
+            // rather than only by how many there are.
+            static_cast<osg::Vec3Array*>(alsoStays->getVertexArray())->at(0).z() = 7.0f;
+
+            osg::ref_ptr<osg::Group> whole = new osg::Group;
+            whole->addChild(stays);
+            whole->addChild(goes);
+            whole->addChild(alsoStays);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            extractor.extract(*whole, osg::Matrixf::identity());
+            ASSERT_EQ(scene.getMeshes().size(), 3u);
+
+            // Nothing has gone yet, so the sweep is a no-op — and the epoch it opens is what the
+            // next walk is measured against.
+            EXPECT_TRUE(extractor.retire().empty());
+            EXPECT_EQ(scene.getMeshes().size(), 3u);
+
+            osg::ref_ptr<osg::Group> less = new osg::Group;
+            less->addChild(stays);
+            less->addChild(alsoStays);
+
+            scene.clearPlacement();
+            extractor.extract(*less, osg::Matrixf::identity());
+
+            const Retirement went = extractor.retire();
+            EXPECT_EQ(went.mMeshes, 1u);
+            EXPECT_EQ(went.mMaterials, 0u) << "an untextured quad has no state set and so no material";
+            ASSERT_EQ(scene.getMeshes().size(), 2u);
+
+            // The middle one went, so the third has moved down into its slot — and the identity map
+            // has to have moved with it, or the next walk resolves the survivor to a mesh that is
+            // now somebody else's.
+            scene.clearPlacement();
+            const ExtractionStats after = extractor.extract(*less, osg::Matrixf::identity());
+
+            EXPECT_EQ(after.mMeshesAdded, 0u) << "a survivor was re-added rather than recognised";
+            EXPECT_EQ(after.mMeshesReused, 2u);
+            ASSERT_EQ(scene.getInstances().size(), 2u);
+            EXPECT_EQ(scene.getInstances()[0].mMesh, 0u);
+            EXPECT_EQ(scene.getInstances()[1].mMesh, 1u);
+            EXPECT_EQ(scene.getMeshPositions(1)[0].z(), 7.0f) << "the survivor kept somebody else's vertices";
+        }
+
+        /// A material and the texture behind it go when the last thing wearing them does.
+        TEST(RtxSceneExtractorTest, aSweepTakesTheMaterialsAndTexturesNothingWearsAnyMore)
+        {
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName("textures/tx_stone_01.dds");
+
+            osg::ref_ptr<osg::Geometry> stone = makeQuad();
+            stone->getOrCreateStateSet()->setTextureAttributeAndModes(
+                0, new osg::Texture2D(image), osg::StateAttribute::ON);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            extractor.extract(*stone, osg::Matrixf::identity());
+
+            ASSERT_EQ(scene.getMaterials().size(), 1u);
+            ASSERT_EQ(scene.getTextures().size(), 1u);
+            ASSERT_TRUE(extractor.retire().empty()) << "the walk that found it is the epoch it survives";
+
+            // A walk that finds nothing at all is still a walk, and it is what an emptied cell is.
+            osg::ref_ptr<osg::Group> nothing = new osg::Group;
+            scene.clearPlacement();
+            extractor.extract(*nothing, osg::Matrixf::identity());
+
+            const Retirement went = extractor.retire();
+            EXPECT_EQ(went.mMeshes, 1u);
+            EXPECT_EQ(went.mMaterials, 1u);
+            EXPECT_EQ(went.mTextures, 1u);
+            EXPECT_TRUE(scene.getMeshes().empty());
+            EXPECT_TRUE(scene.getMaterials().empty());
+            EXPECT_TRUE(scene.getTextures().empty());
+            EXPECT_TRUE(scene.getPositions().empty());
+        }
+
         /// A particle system under a transform that carries its texture and its blend, the way
         /// `NifOsg` builds one.
         ///
@@ -451,6 +542,49 @@ namespace RtxBridge
             SceneExtractor bareExtractor(bareScene);
             EXPECT_EQ(bareExtractor.extract(*bare, osg::Matrixf::identity()).mEmitters, 0u);
             EXPECT_TRUE(bareScene.getTextures().empty());
+        }
+
+        /// An emitter's sprite is on no material, so the sweep has to speak for it itself.
+        ///
+        /// The emitter outlives a textured quad here, and the texture the quad wore is what proves
+        /// the sweep is doing anything at all: a pass that kept every texture would keep both.
+        TEST(RtxSceneExtractorTest, aSweepKeepsTheTextureAnEmitterIsStillDrawingWith)
+        {
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName("textures/tx_stone_01.dds");
+
+            osg::ref_ptr<osg::Geometry> stone = makeQuad();
+            stone->getOrCreateStateSet()->setTextureAttributeAndModes(
+                0, new osg::Texture2D(image), osg::StateAttribute::ON);
+
+            const Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
+            emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+
+            osg::ref_ptr<osg::Group> both = new osg::Group;
+            both->addChild(stone);
+            both->addChild(plume.mRoot);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            extractor.extract(*both, osg::Matrixf::identity());
+            ASSERT_EQ(scene.getTextures().size(), 2u);
+            ASSERT_TRUE(extractor.retire().empty());
+
+            scene.clearPlacement();
+            extractor.extract(*plume.mRoot, osg::Matrixf::identity());
+
+            const Retirement went = extractor.retire();
+            EXPECT_EQ(went.mTextures, 1u);
+            ASSERT_EQ(scene.getTextures().size(), 1u);
+            EXPECT_EQ(scene.getTextures()[0], VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+
+            // And the emitter still draws with it after the compaction moved it down a slot.
+            scene.clearPlacement();
+            extractor.extract(*plume.mRoot, osg::Matrixf::identity());
+
+            ASSERT_EQ(scene.getEmitters().size(), 1u);
+            EXPECT_EQ(scene.getEmitters().front().mTexture, 0u);
+            EXPECT_EQ(scene.getTextures().size(), 1u) << "the sprite's path was added a second time";
         }
 
         /// Textures come from wherever they are bound; everything else comes from the drawable.

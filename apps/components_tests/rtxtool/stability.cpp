@@ -1,6 +1,5 @@
 #include <cmath>
 #include <cstdint>
-#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <set>
@@ -9,7 +8,6 @@
 
 #include <gtest/gtest.h>
 
-#include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
 #include <components/esm3/loadcell.hpp>
@@ -22,38 +20,16 @@
 
 #include <apps/rtxtool/cellscene.hpp>
 #include <apps/rtxtool/lighting.hpp>
-#include <apps/rtxtool/options.hpp>
 #include <apps/rtxtool/world.hpp>
 
 #include "../rtx/harness.hpp"
+#include "installation.hpp"
 
 namespace RtxTool
 {
     namespace
     {
         namespace bpo = boost::program_options;
-
-        /// A Morrowind installation as the harness finds one, or null where there is none.
-        ///
-        /// **The same route the tool takes and not a second one**: the configuration manager reads
-        /// `openmw.cfg`, which is what says where the game is installed and which content files to
-        /// merge. A machine without the game is a legitimate skip; a machine with it configured
-        /// wrongly is a failure, and that comes out of `World`'s own constructor.
-        std::unique_ptr<World> openWorld(Files::ConfigurationManager& config, bpo::variables_map& variables)
-        {
-            bpo::options_description options = makeOptionsDescription(false);
-            bpo::store(bpo::command_line_parser(std::vector<std::string>{}).options(options).run(), variables);
-            bpo::notify(variables);
-
-            config.processPaths(variables, std::filesystem::current_path());
-            config.readConfiguration(variables, options);
-
-            if (variables["content"].as<std::vector<std::string>>().empty())
-                return nullptr;
-
-            return std::make_unique<World>(
-                config, variables, Rtx::Testing::getShaderDirectory().parent_path().parent_path());
-        }
 
         /// How far a run of frames of one still camera spread around their own mean, as an RMS over
         /// `[0, 1]`.

@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cstdint>
-#include <filesystem>
 #include <iterator>
 #include <memory>
 #include <set>
@@ -9,7 +8,6 @@
 
 #include <gtest/gtest.h>
 
-#include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
 #include <components/esm3/loadcell.hpp>
@@ -18,11 +16,10 @@
 #include <components/rtxbridge/sceneextractor.hpp>
 
 #include <apps/rtxtool/cellscene.hpp>
-#include <apps/rtxtool/options.hpp>
 #include <apps/rtxtool/posedactors.hpp>
 #include <apps/rtxtool/world.hpp>
 
-#include "../rtx/harness.hpp"
+#include "installation.hpp"
 
 namespace RtxTool
 {
@@ -33,22 +30,6 @@ namespace RtxTool
         /// The fullest interior the shipped content has: fifty-five emitters in one room, which is
         /// where the reference implementation measured the cost of drawing them.
         constexpr std::string_view sCell = "Seyda Neen, Census and Excise Office";
-
-        std::unique_ptr<World> openWorld(Files::ConfigurationManager& config, bpo::variables_map& variables)
-        {
-            bpo::options_description options = makeOptionsDescription(false);
-            bpo::store(bpo::command_line_parser(std::vector<std::string>{}).options(options).run(), variables);
-            bpo::notify(variables);
-
-            config.processPaths(variables, std::filesystem::current_path());
-            config.readConfiguration(variables, options);
-
-            if (variables["content"].as<std::vector<std::string>>().empty())
-                return nullptr;
-
-            return std::make_unique<World>(
-                config, variables, Rtx::Testing::getShaderDirectory().parent_path().parent_path());
-        }
 
         std::vector<osg::Vec3f> spritePositions(const Rtx::SceneDesc& scene)
         {

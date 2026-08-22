@@ -393,6 +393,17 @@ Cell add/remove, object add/move/remove, player and actor animation, first/third
 menu and pause behaviour, screenshots, the local map. Settings that can change at runtime take effect
 through `processChangedSettings`.
 
+**Removal is done, and it is mark and sweep.** The mirror re-walks the whole graph every frame, so
+anything alive was met: `SceneExtractor::retire` drops every identity it did not find and
+`SceneDesc::retain` closes the gaps behind it, carrying the survivors' indices through. That is not
+only about memory — the identity maps are keyed on raw `osg` pointers, and an address the engine
+freed when a cell unloaded can be handed straight back for something else, so without the sweep the
+next thing allocated there inherits a mesh it has nothing to do with.
+
+What is left of the milestone's first clause is the *harness*, which still never unloads: it keeps a
+snapshot of the still world rather than re-walking it, and a sweep against that would retire the
+region the camera is standing in. Giving it cell graphs to own is what would close it.
+
 ### M12 — Performance
 
 SER, opacity micromaps for cutout foliage, BLAS refit for skinned actors against the double-buffered
@@ -410,12 +421,20 @@ fast*. Numbers are 1920×1080, no upscaling, validation off, best of thirty on t
 | | Balmora's guild of mages, 19 emitters | 7.34 → 7.47 ms |
 | | Balmora from the bridge | 6.87 → 6.92 ms |
 | the harness's live props, whole frame | Balmora in a window, 94 props | 49 → 37 fps |
+| a retirement | any frame a cell leaves | one full `setScene` |
 
 The trace is the cheap half and the sphere test is why: an emitter is a few units across and one
 rejection throws it away for almost every pixel. The window's six milliseconds are not the sprites —
 they are the 185 extra deforming drawables the instanced props bring, refit once a frame whether or
 not their skeletons moved. A prop's *emitters* change every frame; its geometry usually does not,
 and nothing tells the two apart yet.
+
+The retirement's own cost — a compaction, which is a copy of what survived — is not the number that
+matters about it. What matters is that it bumps the revision, and a changed revision is a full
+`setScene`: every bottom-level structure built again, every table uploaded again, every texture
+uploaded again. That is already what a cell *arriving* costs and removal does not make it worse, but
+it is the thing standing between this renderer and a walk across Vvardenfell, and making the build
+incremental is M12's.
 
 ---
 

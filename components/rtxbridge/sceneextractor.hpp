@@ -93,6 +93,16 @@ namespace RtxBridge
         ExtractionStats& operator+=(const ExtractionStats& other);
     };
 
+    /// What one sweep dropped.
+    struct Retirement
+    {
+        std::uint32_t mMeshes = 0;
+        std::uint32_t mMaterials = 0;
+        std::uint32_t mTextures = 0;
+
+        bool empty() const { return mMeshes == 0 && mMaterials == 0 && mTextures == 0; }
+    };
+
     /// Mirrors an OpenSceneGraph subtree into a `Rtx::SceneDesc`.
     ///
     /// The identity maps live across calls, so the same geometry met again — in another cell, under
@@ -126,6 +136,22 @@ namespace RtxBridge
         /// current one, which is exactly right for a scene that does not move — and a harness that
         /// loads a region and flies a camera round it wants that answer, not a stale one.
         void advance();
+
+        /// Drops everything the walks since the last call did not find, and compacts the scene.
+        ///
+        /// **Only where the walks were the whole world.** This is mark and sweep: what makes it
+        /// sound is that anything alive was met, so a caller that walks a region once and then
+        /// mirrors only the movers would retire the region it is standing in. The game re-walks its
+        /// whole graph every frame and can call this; the harness keeps a snapshot and does not.
+        ///
+        /// **It is a soundness fix and not only a memory one.** The identity maps are keyed on raw
+        /// `osg` pointers, which is what makes a crate met again resolve to the crate already
+        /// uploaded — and an address the engine has freed can be handed back for something else.
+        /// Without this the next thing allocated there inherits a mesh it has nothing to do with.
+        ///
+        /// Anything a caller kept across this — a snapshot of placements, an index of its own — is
+        /// stale afterwards, and `Rtx::SceneDesc::getRevision` is what says so.
+        Retirement retire();
 
         /// Places one light. **The graph and not the content files**, because that is where a light
         /// that moves with the thing carrying it exists: a torch in an NPC's hand is no cell
@@ -189,11 +215,37 @@ namespace RtxBridge
         std::unordered_map<std::size_t, osg::Matrixf> mStanding;
         std::unordered_map<std::size_t, osg::Matrixf> mStood;
 
+        /// An entry in one of the identity maps, and when it was last met.
+        ///
+        /// The epoch is what `retire` sweeps on: a walk stamps everything it resolves, so anything
+        /// still carrying an older stamp is something the graph no longer has.
+        struct Known
+        {
+            Rtx::Index mIndex = Rtx::sNoIndex;
+            std::uint64_t mEpoch = 0;
+        };
+
         // Keyed on pointer identity, which OpenMW's resource cache and its optimizer's
         // SHARE_DUPLICATE_STATE pass together make meaningful: the same model loaded twice is the
         // same object, and equivalent state sets are collapsed into one.
-        std::unordered_map<const osg::Drawable*, Rtx::Index> mMeshes;
-        std::unordered_map<const osg::StateSet*, Rtx::Index> mMaterials;
+        std::unordered_map<const osg::Drawable*, Known> mMeshes;
+        std::unordered_map<const osg::StateSet*, Known> mMaterials;
+
+        /// Which texture each particle system draws with.
+        ///
+        /// **Cached for its liveness rather than for its speed**, though it saves a path hash per
+        /// emitter per frame as well: a sprite's texture hangs off no material, so this map is the
+        /// only thing that can speak for it when the scene is swept.
+        std::unordered_map<const osg::Drawable*, Known> mEmitterTextures;
+
+        /// Which sweep is current. Everything a walk resolves is stamped with it.
+        std::uint64_t mEpoch = 0;
+
+        // Refilled per sweep: the survivors, as the scene wants them.
+        std::vector<Rtx::Index> mLiveMeshes;
+        std::vector<Rtx::Index> mLiveMaterials;
+        std::vector<Rtx::Index> mLiveTextures;
+        Rtx::Remap mRemap;
 
         // Refilled per drawable rather than reallocated, because a cell is tens of thousands of them.
         std::vector<std::uint32_t> mIndexScratch;

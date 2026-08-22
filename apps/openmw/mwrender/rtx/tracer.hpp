@@ -138,13 +138,13 @@ namespace MWRender::Rtx
         ::Rtx::SceneDesc mScene;
         std::unique_ptr<RtxBridge::SceneExtractor> mExtractor;
 
-        /// How many meshes the scene held after the last full build. A walk that finds more has met
-        /// geometry that has no acceleration structure yet.
-        std::size_t mBuilt = 0;
-
-        /// The same question for the texture array, which a particle system can grow on its own: a
-        /// spell effect brings a sprite and no geometry.
-        std::size_t mTextured = 0;
+        /// Which revision of the scene the structures and the texture array were built from.
+        ///
+        /// **A counter and not a set of table sizes**, because walking across a cell boundary loses
+        /// one cell as it gains another: a scene that ends the frame the same size it started is
+        /// exactly the case a size comparison misses, and the structures it kept describe geometry
+        /// that has gone.
+        std::uint64_t mBuilt = 0;
 
         /// A running average of what the trace costs, reported every `sReportEvery` frames.
         ///

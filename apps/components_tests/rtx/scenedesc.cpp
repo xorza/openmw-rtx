@@ -231,6 +231,168 @@ namespace Rtx
             EXPECT_EQ(scene.getTextures().size(), 1u);
         }
 
+        /// A triangle, so that a mesh beside the quads has a length of its own to be packed against.
+        const std::array sTrianglePositions{
+            osg::Vec3f(0.0f, 0.0f, 5.0f),
+            osg::Vec3f(1.0f, 0.0f, 5.0f),
+            osg::Vec3f(0.0f, 1.0f, 5.0f),
+        };
+
+        constexpr std::array<std::uint32_t, 3> sTriangleIndices{ 0, 1, 2 };
+
+        /// The same quad lifted to `z`, so a mesh can be told apart by what came back out of it.
+        std::array<osg::Vec3f, 4> quadAt(float z)
+        {
+            std::array<osg::Vec3f, 4> lifted = sQuadPositions;
+            for (osg::Vec3f& vertex : lifted)
+                vertex.z() = z;
+
+            return lifted;
+        }
+
+        /// Compaction closes the gaps in every table and says where everything went.
+        ///
+        /// Hand-counted throughout. Three meshes of 4, 3 and 4 vertices sit at vertex offsets 0, 4
+        /// and 7 and index offsets 0, 6 and 9; dropping the middle one leaves the first where it is
+        /// and brings the third to 4 and 6, for eight vertices and twelve indices in all.
+        TEST(RtxSceneDescTest, retainingClosesTheGapsAndSaysWhereEverythingWent)
+        {
+            SceneDesc scene;
+            const std::array quads{ quadAt(0.0f), quadAt(2.0f) };
+            const Index first = scene.addMesh(quads[0], {}, {}, sQuadIndices);
+            const Index middle = scene.addMesh(sTrianglePositions, {}, {}, sTriangleIndices);
+            const Index last = scene.addMesh(quads[1], {}, {}, sQuadIndices);
+
+            ASSERT_EQ(scene.getPositions().size(), 11u);
+            ASSERT_EQ(scene.getIndices().size(), 15u);
+            EXPECT_EQ(scene.getMeshes()[last].mVertexOffset, 7u);
+
+            const std::uint64_t was = scene.getRevision();
+
+            Remap remap;
+            const std::array keep{ first, last };
+            const std::array<Index, 0> noMaterials{};
+            ASSERT_TRUE(scene.retain(keep, noMaterials, {}, remap));
+
+            EXPECT_EQ(remap.mMeshes[first], 0u);
+            EXPECT_EQ(remap.mMeshes[middle], sNoIndex);
+            EXPECT_EQ(remap.mMeshes[last], 1u);
+
+            ASSERT_EQ(scene.getMeshes().size(), 2u);
+            EXPECT_EQ(scene.getPositions().size(), 8u);
+            EXPECT_EQ(scene.getIndices().size(), 12u);
+            EXPECT_EQ(scene.getMeshes()[1].mVertexOffset, 4u);
+            EXPECT_EQ(scene.getMeshes()[1].mIndexOffset, 6u);
+
+            // The contents and not only the offsets: a copy that moved the wrong range would leave
+            // the arithmetic looking right and the triangle in the quad's place.
+            EXPECT_EQ(scene.getMeshPositions(0)[0].z(), 0.0f);
+            EXPECT_EQ(scene.getMeshPositions(1)[0].z(), 2.0f);
+            EXPECT_EQ(scene.getMeshIndices(1)[5], 3u);
+
+            EXPECT_GT(scene.getRevision(), was) << "the structures built from this describe a scene that has gone";
+        }
+
+        /// Layers and masks belong to the material that owns them and go where it goes; a texture
+        /// lives while anything still names it.
+        ///
+        /// Hand-counted: three materials, of which the first and last are terrain with one and two
+        /// layers. The layers sit at 0, 1 and 2 and their masks at 0 and 4, nine weights of the
+        /// second sitting behind four of the first. Dropping the first material takes its layer and
+        /// its four weights with it, so the two that survive come to layer 0 and the nine weights to
+        /// mask 0 — and the texture only that layer named goes with them.
+        TEST(RtxSceneDescTest, retainingCarriesALayersMasksAndDropsTheTexturesNothingNames)
+        {
+            SceneDesc scene;
+            const Index ground = scene.addTexture(VFS::Path::NormalizedView("textures/tx_ground.dds"));
+            const Index stone = scene.addTexture(VFS::Path::NormalizedView("textures/tx_stone.dds"));
+            const Index sand = scene.addTexture(VFS::Path::NormalizedView("textures/tx_sand.dds"));
+            const Index moss = scene.addTexture(VFS::Path::NormalizedView("textures/tx_moss.dds"));
+            ASSERT_EQ(moss, 3u);
+
+            const std::array sGroundWeights{ 0.25f, 0.25f, 0.25f, 0.25f };
+            const std::array sSandWeights{ 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f };
+
+            scene.addLayer(MaterialLayer{
+                .mDiffuse = ground, .mMaskOffset = scene.addMask(sGroundWeights), .mMaskWidth = 2, .mMaskHeight = 2 });
+            const Index dropped
+                = scene.addMaterial(Material{ .mKind = MaterialKind::Terrain, .mLayerOffset = 0, .mLayerCount = 1 });
+
+            const Index plain = scene.addMaterial(Material{ .mDiffuse = stone });
+
+            scene.addLayer(MaterialLayer{
+                .mDiffuse = sand, .mMaskOffset = scene.addMask(sSandWeights), .mMaskWidth = 3, .mMaskHeight = 3 });
+            scene.addLayer(MaterialLayer{ .mDiffuse = moss });
+            const Index kept
+                = scene.addMaterial(Material{ .mKind = MaterialKind::Terrain, .mLayerOffset = 1, .mLayerCount = 2 });
+
+            ASSERT_EQ(scene.getLayers().size(), 3u);
+            ASSERT_EQ(scene.getMasks().size(), 13u);
+
+            Remap remap;
+            const std::array<Index, 0> noMeshes{};
+            const std::array materials{ plain, kept };
+            ASSERT_TRUE(scene.retain(noMeshes, materials, {}, remap));
+
+            EXPECT_EQ(remap.mMaterials[dropped], sNoIndex);
+            EXPECT_EQ(remap.mMaterials[plain], 0u);
+            EXPECT_EQ(remap.mMaterials[kept], 1u);
+
+            ASSERT_EQ(scene.getLayers().size(), 2u);
+            EXPECT_EQ(scene.getMaterials()[1].mLayerOffset, 0u);
+            EXPECT_EQ(scene.getMaterials()[1].mLayerCount, 2u);
+
+            ASSERT_EQ(scene.getMasks().size(), 9u);
+            EXPECT_EQ(scene.getLayers()[0].mMaskOffset, 0u);
+            EXPECT_EQ(scene.getMasks()[0], 0.5f) << "the weights that moved are the ones that survived";
+            EXPECT_EQ(scene.getLayers()[1].mMaskWidth, 0u) << "a layer with no mask keeps none";
+
+            // `tx_ground` was named by the layer that went and by nothing else.
+            ASSERT_EQ(scene.getTextures().size(), 3u);
+            EXPECT_EQ(remap.mTextures[ground], sNoIndex);
+            EXPECT_EQ(scene.getTextures()[0], VFS::Path::NormalizedView("textures/tx_stone.dds"));
+            EXPECT_EQ(scene.getMaterials()[0].mDiffuse, 0u);
+            EXPECT_EQ(scene.getLayers()[0].mDiffuse, 1u);
+            EXPECT_EQ(scene.getLayers()[1].mDiffuse, 2u);
+
+            // The lookup that dedups a path has to have moved with the table, or the next reference
+            // to a texture already here appends a second copy of it.
+            EXPECT_EQ(scene.addTexture(VFS::Path::NormalizedView("textures/tx_stone.dds")), 0u);
+            EXPECT_EQ(scene.getTextures().size(), 3u);
+        }
+
+        /// A texture nothing else speaks for survives if the caller names it, and a scene that lost
+        /// nothing is left entirely alone.
+        TEST(RtxSceneDescTest, retainingKeepsANamedTextureAndDoesNothingWhenNothingWent)
+        {
+            SceneDesc scene;
+            const Index mesh = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
+            const Index material = scene.addMaterial(Material{});
+            const Index sprite = scene.addTexture(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+
+            // Nothing went: every mesh and every material is named, so the tables are untouched and
+            // the caller's remap is not even written.
+            Remap remap;
+            const std::array meshes{ mesh };
+            const std::array materials{ material };
+            const std::uint64_t was = scene.getRevision();
+
+            EXPECT_FALSE(scene.retain(meshes, materials, {}, remap));
+            EXPECT_TRUE(remap.mMeshes.empty());
+            EXPECT_EQ(scene.getRevision(), was);
+            EXPECT_EQ(scene.getTextures().size(), 1u) << "a sprite's texture is on no material and must not go";
+
+            // And with the material gone the sprite's texture is still the caller's to keep — which
+            // is the whole reason the keep set has a third span.
+            const std::array<Index, 0> none{};
+            const std::array sprites{ sprite };
+            ASSERT_TRUE(scene.retain(meshes, none, sprites, remap));
+
+            EXPECT_TRUE(scene.getMaterials().empty());
+            ASSERT_EQ(scene.getTextures().size(), 1u);
+            EXPECT_EQ(remap.mTextures[sprite], 0u);
+        }
+
         TEST(RtxSceneDescTest, clearingEmptiesEveryTable)
         {
             SceneDesc scene;

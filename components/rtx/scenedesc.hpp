@@ -262,6 +262,18 @@ namespace Rtx
         bool mAdditive = false;
     };
 
+    /// Where everything went when the scene was compacted.
+    ///
+    /// One entry per *old* index, holding the new one or `sNoIndex` where it was dropped. A caller
+    /// that kept an index across the call — which is what an identity map is — walks its own table
+    /// through this rather than looking anything up again.
+    struct Remap
+    {
+        std::vector<Index> mMeshes;
+        std::vector<Index> mMaterials;
+        std::vector<Index> mTextures;
+    };
+
     /// Everything the renderer needs to know about a world, with no Vulkan and no scene graph in it.
     ///
     /// Lights come from ESM `Light` records rather than from the graph: `NifOsg` never reads
@@ -323,6 +335,32 @@ namespace Rtx
         /// an emitter with no live particles, which is most of them for most of a frame.
         void addEmitter(std::span<const Sprite> sprites, Index texture, bool additive);
 
+        /// Drops everything not named and closes the gaps, reporting where the survivors went.
+        ///
+        /// **The only way a scene loses anything, and it is a compaction rather than a free list.**
+        /// Nothing holds an index across a build — instances are rewritten by the walk that produced
+        /// them and every device-side table is made again from this one — so closing the gaps costs
+        /// a copy of what survived and saves an allocator, a fragmentation story, and slots that
+        /// have to stay valid while empty.
+        ///
+        /// A texture survives if it is named here, or if a surviving material or layer still names
+        /// it. Layers and masks have no keep set of their own: they belong to the material that owns
+        /// them and go with it.
+        ///
+        /// **Placements go too**, because they name indices that have just moved. That is the same
+        /// thing `clearPlacement` does and for the same reason; the walk that comes next is what
+        /// puts them back.
+        ///
+        /// @param meshes every mesh to keep, each once, in any order.
+        /// @param materials the same for materials.
+        /// @param textures textures to keep whatever else names them — a particle emitter's sprite
+        ///        is on no material, so nothing else would speak for it.
+        /// @param remap filled in only when something was dropped, and left alone otherwise.
+        /// @return whether anything went. False is the ordinary frame, and it costs three
+        ///         comparisons: a scene that lost nothing has as many survivors as it had entries.
+        bool retain(std::span<const Index> meshes, std::span<const Index> materials, std::span<const Index> textures,
+            Remap& remap);
+
         /// Empties every table while keeping the capacity, so rebuilding a scene does not go back to
         /// the allocator for buffers it already had.
         void clear();
@@ -351,6 +389,15 @@ namespace Rtx
         std::span<const Material> getMaterials() const { return mMaterials; }
         std::span<const MaterialLayer> getLayers() const { return mLayers; }
         std::span<const Light> getLights() const { return mLights; }
+        /// How many times what the scene is *made of* has changed.
+        ///
+        /// **What tells a frame that moved from a scene that arrived**, and the only honest test
+        /// for it: comparing table sizes misses a cell that left as another arrived, which is
+        /// exactly what walking across a boundary does. Bumped by a mesh, a material, a layer, a
+        /// mask or a texture appearing, and by `retain` and `clear`; never by a placement, which is
+        /// rewritten every frame by construction.
+        std::uint64_t getRevision() const { return mRevision; }
+
         std::span<const Sprite> getSprites() const { return mSprites; }
         std::span<const SpriteEmitter> getEmitters() const { return mEmitters; }
         std::span<const float> getMasks() const { return mMasks; }
@@ -387,6 +434,8 @@ namespace Rtx
         std::vector<SpriteEmitter> mEmitters;
         std::vector<float> mMasks;
         std::vector<VFS::Path::Normalized> mTextures;
+
+        std::uint64_t mRevision = 0;
 
         // The scan this replaces was O(materials x textures). A cell is a hundred of each and would
         // never have noticed; a worldspace is thousands of both, and load time is not the place to

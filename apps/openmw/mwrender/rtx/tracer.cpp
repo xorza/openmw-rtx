@@ -154,10 +154,7 @@ namespace MWRender::Rtx
         // Geometry the walk has not met before has no bottom-level structure and no uploaded
         // texture, so the whole scene is rebuilt rather than replaced. **Which is a cell change and
         // a load, not a frame** — a door opening moves instances the walk already knows.
-        // Textures as well as meshes, because a spell effect is a particle system and nothing else:
-        // it brings a sprite to sample and no geometry at all, and a frame that only re-placed what
-        // it already had would leave that sampler pointing past the array.
-        const bool arrived = mScene.getMeshes().size() != mBuilt || mScene.getTextures().size() != mTextured;
+        const bool arrived = mScene.getRevision() != mBuilt;
         if (arrived)
         {
             Log(Debug::Info) << "Ray tracing built " << mScene.getMeshes().size() << " meshes into " << found.mInstances
@@ -174,8 +171,7 @@ namespace MWRender::Rtx
                                        "never files";
 
             mRenderer->setScene(mScene, textures.getDescriptions(), ::Rtx::SeaState{});
-            mBuilt = mScene.getMeshes().size();
-            mTextured = mScene.getTextures().size();
+            mBuilt = mScene.getRevision();
         }
         else
         {
@@ -250,6 +246,17 @@ namespace MWRender::Rtx
         // the next one measures its motion against, and saying so any earlier would have this frame
         // comparing itself with itself.
         mExtractor->advance();
+
+        // **What the walk did not find has gone, and this is where the scene is told.** The graph
+        // above is the whole world every frame, which is what makes mark and sweep sound here — and
+        // it is not only about memory: the identity maps are keyed on `osg` pointers, and an address
+        // the engine has freed can come back holding something else entirely.
+        //
+        // Last, because it compacts: every index this frame placed moves, and the walk that comes
+        // next is what puts them back. The revision it bumps is what makes the next frame rebuild.
+        if (const RtxBridge::Retirement went = mExtractor->retire(); !went.empty())
+            Log(Debug::Info) << "Ray tracing dropped " << went.mMeshes << " meshes, " << went.mMaterials
+                             << " materials and " << went.mTextures << " textures the world no longer has";
 
         // **After the share and not before**, because reading the frame back moves it out of the
         // layout the composite blits from and the next frame's trace is what puts it back.

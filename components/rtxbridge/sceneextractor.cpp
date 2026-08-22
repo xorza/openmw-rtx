@@ -308,6 +308,81 @@ namespace RtxBridge
         mStanding.clear();
     }
 
+    namespace
+    {
+        /// Drops every entry not stamped with `epoch`, and collects what is left.
+        ///
+        /// The survivors go out unsorted and, for the emitter textures, with repeats — several
+        /// candles share one sprite. `Rtx::SceneDesc::retain` takes them that way.
+        template <class Map>
+        std::uint32_t sweep(Map& known, std::uint64_t epoch, std::vector<Rtx::Index>& live)
+        {
+            live.clear();
+            live.reserve(known.size());
+
+            std::uint32_t dropped = 0;
+            for (auto entry = known.begin(); entry != known.end();)
+            {
+                if (entry->second.mEpoch == epoch)
+                {
+                    live.push_back(entry->second.mIndex);
+                    ++entry;
+                    continue;
+                }
+
+                entry = known.erase(entry);
+                ++dropped;
+            }
+
+            return dropped;
+        }
+
+        /// Carries every surviving entry's index through the compaction.
+        template <class Map>
+        void carry(Map& known, const std::vector<Rtx::Index>& remap)
+        {
+            for (auto& [key, entry] : known)
+            {
+                assert(entry.mIndex < remap.size());
+                assert(remap[entry.mIndex] != Rtx::sNoIndex && "a kept entry was dropped anyway");
+                entry.mIndex = remap[entry.mIndex];
+            }
+        }
+    }
+
+    Retirement SceneExtractor::retire()
+    {
+        Retirement went;
+        went.mMeshes = sweep(mMeshes, mEpoch, mLiveMeshes);
+        went.mMaterials = sweep(mMaterials, mEpoch, mLiveMaterials);
+        sweep(mEmitterTextures, mEpoch, mLiveTextures);
+
+        const std::size_t before = mScene.getTextures().size();
+        if (mScene.retain(mLiveMeshes, mLiveMaterials, mLiveTextures, mRemap))
+        {
+            carry(mMeshes, mRemap.mMeshes);
+            carry(mMaterials, mRemap.mMaterials);
+            carry(mEmitterTextures, mRemap.mTextures);
+
+            went.mTextures = static_cast<std::uint32_t>(before - mScene.getTextures().size());
+        }
+
+        // **After the sweep and not before it**, so that the walk which fills the next epoch is the
+        // one this is measured against. Every entry that survived is still carrying the old stamp
+        // and would be dropped on the spot otherwise.
+        ++mEpoch;
+
+        // The placements went with the compaction, and so has whatever they stood at last frame: a
+        // motion vector against a scene that no longer exists is a smear, not a history.
+        if (!went.empty())
+        {
+            mStanding.clear();
+            mStood.clear();
+        }
+
+        return went;
+    }
+
     void SceneExtractor::addLight(const SceneUtil::LightSource& source, const osg::NodePath& path,
         const osg::Matrixf& root, std::size_t frame, ExtractionStats& stats)
     {
@@ -501,7 +576,15 @@ namespace RtxBridge
         // particle alive.** The texture array is uploaded when the scene is built; a flame that was
         // empty at load and lights up two hundred frames later would otherwise add a texture on a
         // frame that only re-places what is already there, and index past the array it is sampling.
-        const Rtx::Index texture = mScene.addTexture(VFS::Path::Normalized(sprite->getImage(0)->getFileName()));
+        //
+        // Kept in a map of its own because nothing else can speak for it when the scene is swept: a
+        // sprite's texture is on no material, and an emitter is not in the scene between frames.
+        auto [known, arrived] = mEmitterTextures.try_emplace(&particles);
+        if (arrived)
+            known->second.mIndex = mScene.addTexture(VFS::Path::Normalized(sprite->getImage(0)->getFileName()));
+
+        known->second.mEpoch = mEpoch;
+        const Rtx::Index texture = known->second.mIndex;
 
         const osg::Matrixf place = osg::Matrixf(osg::computeLocalToWorld(path)) * root;
         const float scale = scaleOf(place);
@@ -563,7 +646,8 @@ namespace RtxBridge
         if (known != mMaterials.end())
         {
             ++stats.mMaterialsReused;
-            return known->second;
+            known->second.mEpoch = mEpoch;
+            return known->second.mIndex;
         }
 
         Rtx::Material material;
@@ -601,7 +685,7 @@ namespace RtxBridge
             return Rtx::sNoIndex;
 
         const Rtx::Index index = mScene.addMaterial(material);
-        mMaterials.emplace(identity, index);
+        mMaterials.emplace(identity, Known{ .mIndex = index, .mEpoch = mEpoch });
         ++stats.mMaterialsAdded;
         return index;
     }
@@ -613,6 +697,7 @@ namespace RtxBridge
         if (known != mMeshes.end())
         {
             ++stats.mMeshesReused;
+            known->second.mEpoch = mEpoch;
 
             // Nothing else in the map is re-read: the whole point of it is that a crate met again is
             // the crate already uploaded. A pose is not, so this is the one path that goes back to
@@ -621,11 +706,11 @@ namespace RtxBridge
             if (deforming)
             {
                 const VertexArrays arrays = readVertices(geometry);
-                mScene.updateMesh(known->second, arrays.mPositions, arrays.mNormals);
+                mScene.updateMesh(known->second.mIndex, arrays.mPositions, arrays.mNormals);
                 ++stats.mDeformed;
             }
 
-            return known->second;
+            return known->second.mIndex;
         }
 
         const VertexArrays arrays = readVertices(geometry);
@@ -652,7 +737,7 @@ namespace RtxBridge
             texCoords = std::span(texCoordArray->asVector());
 
         const Rtx::Index mesh = mScene.addMesh(arrays.mPositions, arrays.mNormals, texCoords, mIndexScratch);
-        mMeshes.emplace(&drawable, mesh);
+        mMeshes.emplace(&drawable, Known{ .mIndex = mesh, .mEpoch = mEpoch });
         ++stats.mMeshesAdded;
         if (deforming)
             ++stats.mDeformed;
@@ -670,7 +755,8 @@ namespace RtxBridge
         if (known != mMaterials.end())
         {
             ++stats.mMaterialsReused;
-            return known->second;
+            known->second.mEpoch = mEpoch;
+            return known->second.mIndex;
         }
 
         Rtx::Material material;
@@ -721,7 +807,7 @@ namespace RtxBridge
         }
 
         const Rtx::Index index = mScene.addMaterial(material);
-        mMaterials.emplace(own, index);
+        mMaterials.emplace(own, Known{ .mIndex = index, .mEpoch = mEpoch });
         ++stats.mMaterialsAdded;
         return index;
     }
