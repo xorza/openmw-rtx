@@ -33,7 +33,6 @@ namespace RtxTool
         : mWorld(world)
         , mScene(scene)
         , mExtractor(extractor)
-        , mStanding(scene.getInstances().begin(), scene.getInstances().end())
         , mLit(scene.getLights().begin(), scene.getLights().end())
         , mSeconds(request.mSeconds)
         , mClothes(request.mClothes)
@@ -135,9 +134,11 @@ namespace RtxTool
 
     void PosedActors::unplace()
     {
+        // **The placements are not among what this puts back.** They are addressed by slot and the
+        // scene keeps them: a world that stands still stands still, and an actor walked in again
+        // finds the slot it had. What `clearPlacement` empties is the per-frame lists, and of those
+        // only the lights belong to the world rather than to the actors.
         mScene.clearPlacement();
-        for (const Rtx::MeshInstance& instance : mStanding)
-            mScene.addInstance(instance);
         for (const Rtx::Light& light : mLit)
             mScene.addLight(light);
     }
@@ -149,7 +150,6 @@ namespace RtxTool
 
     void PosedActors::restanding()
     {
-        mStanding.assign(mScene.getInstances().begin(), mScene.getInstances().end());
         mLit.assign(mScene.getLights().begin(), mScene.getLights().end());
     }
 
@@ -169,7 +169,9 @@ namespace RtxTool
 
         RtxBridge::ExtractionStats stats;
         for (const std::unique_ptr<Actor>& actor : mActors)
-            stats += mExtractor.extract(actor->getRoot(), actor->getTransform());
+            // Two actors of one model share a root node, so the actor and not the node is the anchor.
+            stats += mExtractor.extract(
+                actor->getRoot(), actor->getTransform(), reinterpret_cast<std::size_t>(actor.get()));
 
         return stats;
     }

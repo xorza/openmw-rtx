@@ -89,7 +89,7 @@ namespace Rtx
     SceneAcceleration::SceneAcceleration(const Device& device, CommandPool& pool, const SceneDesc& scene)
         : mDevice(device)
     {
-        assert(!scene.getInstances().empty());
+        assert(scene.getPlacedCount() > 0);
 
         mPositions = HostBuffer(device, scene.getPositions().size_bytes(), sBuildInputUsage);
         mPositions.write(scene.getPositions());
@@ -370,6 +370,13 @@ namespace Rtx
         for (std::uint32_t index = 0; index < mRecordScratch.size(); ++index)
         {
             const InstanceRecord& record = mRecordScratch[index];
+
+            // **A gap contributes no row rather than a masked one.** Its slot still names it — the
+            // custom index below is the slot and not the row — so skipping costs the build one
+            // primitive it would otherwise have to sort and never hit.
+            if (!record.mPlaced)
+                continue;
+
             const VkAccelerationStructureDeviceAddressInfoKHR address{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
                 .accelerationStructure = mBottomLevel[record.mMesh],

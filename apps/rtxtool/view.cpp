@@ -162,7 +162,7 @@ namespace RtxTool
             arrivedProps = arrived.mProps;
 
             out() << std::format("loaded {} cells in {:.2f} s, {} instances now placed\n", arrived.mCells,
-                std::chrono::duration<double>(Clock::now() - began).count(), scene.getInstances().size());
+                std::chrono::duration<double>(Clock::now() - began).count(), scene.getPlacedCount());
 
             return true;
         };
@@ -171,7 +171,7 @@ namespace RtxTool
             world, centre, radius, scene, extractor, loaded, request.mWeather, request.mHour, actors.mProps);
         request.mLighting = arrivedWith.mLighting;
 
-        if (scene.getInstances().empty())
+        if (scene.getPlacedCount() == 0)
         {
             out() << "Nothing to show: the region placed no geometry.\n";
             return 1;

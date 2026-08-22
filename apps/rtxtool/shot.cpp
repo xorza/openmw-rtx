@@ -37,7 +37,7 @@ namespace RtxTool
     {
         std::ostream& out = Debug::getRawStdout();
 
-        if (scene.getInstances().empty())
+        if (scene.getPlacedCount() == 0)
         {
             out << "Nothing to render: the cell placed no geometry.\n";
             return 1;

@@ -111,8 +111,39 @@ What falls out:
 - `makeInstanceRecords` stops comparing two matrices to ask what moved. The walk that moved it says
   so.
 
-Slots make holes when an anchor goes. Take the holes: a retired slot becomes `mask = 0`, costs the
-build one skipped instance, and compaction happens on a threshold rather than every frame.
+Slots make holes when an anchor goes. Take the holes — though not as `mask = 0` rows in the end: a
+gap contributes no top-level row at all, and the custom index is written as the *slot* rather than
+the row, so nothing downstream has to be renumbered.
+
+#### What it cost to land, and what it taught
+
+**Worth 1.7 ms.** The frame went from 29.55 ms to 27.81 ms across four runs each, and the spread
+tightened from 2.7% to 2.3%. `SceneDesc::addInstance` left the profile entirely — it was 2.7% of
+frame CPU copying 140-byte placements — `addDrawable` fell from 3.11% to 2.44%, and
+`makeInstanceRecords` from 6.54% to 5.91%.
+
+**Phase 1 could not be built without Phase 2's anchor, and this document was wrong to separate
+them.** A slot needs an identity, and the only one the extractor had was `identify(path)`, the
+hashed node path — which the header is explicit is good enough for *motion history*, where "a
+collision costs one object one frame of wrong motion". It is not an identity for a placement.
+`CellScene` fetches **one shared template node per model** and extracts it once per reference, so a
+hundred crates are a hundred walks down the same path: they collapsed into one slot and the scene
+lost more than half its placements, 1239 down to 573. `extract` now takes an anchor — what the
+caller is placing — and identity is the anchor and the path together.
+
+That bug had a twin already in the tree. Because placements sharing a path also shared their entry
+in `mStood`, an actor built from a shared root read *another actor's* previous transform. Stepped
+frames render differently now for that reason and no other: at `--repeat=1`, where the world does
+not move, all six views are bit-identical; with the world stepping, three of the six change. A test
+holds the mechanism — two placements of one template node under two anchors keep separate histories,
+and moving one leaves the other reporting nothing.
+
+**And profiling caught two regressions I wrote myself.** `records.resize()` on a cleared vector and
+`mInstanceScratch.assign()` both value-initialise the whole array before it is overwritten: eight
+megabytes a frame of stores immediately replaced. `makeInstanceRecords` went *up*, 6.54% to 9.63%,
+before that showed. Both are resized and written once now. A scratch buffer that keeps its size
+between frames must be resized, never cleared and refilled — which is what the house rule about
+persistent scratch already says, read properly.
 
 ### Phase 2 — walk only what can move
 

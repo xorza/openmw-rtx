@@ -156,20 +156,93 @@ namespace Rtx
         return index;
     }
 
-    void SceneDesc::addInstance(const MeshInstance& instance)
+    Index SceneDesc::addInstance(const MeshInstance& instance)
     {
         assert(instance.mMesh < mMeshes.size());
         assert(instance.mMaterial == sNoIndex || instance.mMaterial < mMaterials.size());
-        mInstances.push_back(instance);
+
+        Index slot;
+        if (mFreeSlots.empty())
+        {
+            slot = static_cast<Index>(mInstances.size());
+            mInstances.emplace_back();
+            mPrevious.emplace_back();
+        }
+        else
+        {
+            slot = mFreeSlots.back();
+            mFreeSlots.pop_back();
+        }
+
+        mInstances[slot] = instance;
+
+        // **Standing where it is, not arriving from wherever the last tenant left.** A reused slot
+        // would otherwise inherit a previous transform from something else entirely, and a motion
+        // vector built from that points across the frame.
+        mPrevious[slot] = instance.mTransform;
+
+        mMoved.push_back(slot);
+        ++mPlacedCount;
+        return slot;
+    }
+
+    bool SceneDesc::moveInstance(Index slot, const osg::Matrixf& transform)
+    {
+        assert(slot < mInstances.size());
+        assert(mInstances[slot].isPlaced() && "a slot nothing stands in");
+
+        if (mInstances[slot].mTransform == transform)
+            return false;
+
+        mInstances[slot].mTransform = transform;
+        mMoved.push_back(slot);
+        return true;
+    }
+
+    void SceneDesc::dropInstance(Index slot)
+    {
+        assert(slot < mInstances.size());
+        assert(mInstances[slot].isPlaced() && "a slot dropped twice, or one nothing stood in");
+
+        mInstances[slot] = MeshInstance{};
+        mFreeSlots.push_back(slot);
+        --mPlacedCount;
+    }
+
+    void SceneDesc::advancePlacement()
+    {
+        for (const Index slot : mMoved)
+            mPrevious[slot] = mInstances[slot].mTransform;
+
+        mMoved.clear();
     }
 
     void SceneDesc::clearPlacement()
     {
-        mInstances.clear();
         mLights.clear();
         mDeformed.clear();
         mSprites.clear();
         mEmitters.clear();
+    }
+
+    void SceneDesc::carryPlacement(const Remap& remap)
+    {
+        for (MeshInstance& instance : mInstances)
+        {
+            if (!instance.isPlaced())
+                continue;
+
+            assert(instance.mMesh < remap.mMeshes.size());
+            assert(remap.mMeshes[instance.mMesh] != sNoIndex && "a standing placement lost its mesh");
+            instance.mMesh = remap.mMeshes[instance.mMesh];
+
+            if (instance.mMaterial == sNoIndex)
+                continue;
+
+            assert(instance.mMaterial < remap.mMaterials.size());
+            assert(remap.mMaterials[instance.mMaterial] != sNoIndex && "a standing placement lost its material");
+            instance.mMaterial = remap.mMaterials[instance.mMaterial];
+        }
     }
 
     namespace
@@ -370,6 +443,10 @@ namespace Rtx
         mMeshes.clear();
         mDeformed.clear();
         mInstances.clear();
+        mPrevious.clear();
+        mMoved.clear();
+        mFreeSlots.clear();
+        mPlacedCount = 0;
         mMaterials.clear();
         mLayers.clear();
         mMasks.clear();
@@ -409,6 +486,9 @@ namespace Rtx
         osg::BoundingBoxf bounds;
         for (const MeshInstance& instance : mInstances)
         {
+            if (!instance.isPlaced())
+                continue;
+
             const osg::BoundingBoxf& box = local[instance.mMesh];
             if (!box.valid())
                 continue;

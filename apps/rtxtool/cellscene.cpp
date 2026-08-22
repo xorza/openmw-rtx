@@ -95,7 +95,9 @@ namespace RtxTool
         // is the loudest thing about a screenshot that lacks it.
         if (terrain != nullptr)
             for (unsigned int at = before; at < terrain->getNumChildren(); ++at)
-                report.mTerrain += extractor.extract(*terrain->getChild(at), osg::Matrixf::identity());
+                // Each chunk is its own node, so the chunk is its own anchor.
+                report.mTerrain += extractor.extract(*terrain->getChild(at), osg::Matrixf::identity(),
+                    reinterpret_cast<std::size_t>(terrain->getChild(at)));
 
         // Interiors were authored against a renderer with no bounce, so the cell's own ambient
         // is most of what lights one. An exterior's `AMBI` is the weather system's business and
@@ -118,6 +120,14 @@ namespace RtxTool
         void readObjects(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor, CellReport& report,
             bool liveProps)
         {
+            // **What tells one placement of a model from another.** `getTemplate` hands out one node
+            // per model, so every reference to it walks the same path; the reference has no id of its
+            // own here, and a cell is read once, so a running count within the cell is enough to
+            // separate them. Mixed with the cell record's address so two cells cannot overlap.
+            std::size_t placed = 0;
+            const auto anchorFor
+                = [&cell, &placed] { return reinterpret_cast<std::size_t>(&cell) * 0x9e3779b97f4a7c15ull + placed++; };
+
             const World::SkippedObjects skipped = world.forEachObject(cell, [&](const World::Object& object) {
                 if (object.mPerson != nullptr)
                 {
@@ -156,7 +166,7 @@ namespace RtxTool
                     return;
                 }
 
-                report.mStats += extractor.extract(*node, object.mTransform);
+                report.mStats += extractor.extract(*node, object.mTransform, anchorFor());
             });
 
             report.mSkipped.mUnknownType += skipped.mUnknownType;

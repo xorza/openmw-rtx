@@ -61,18 +61,26 @@ namespace Rtx
         /// Without it the geometry's own opaque flag stands, traversal commits the first triangle it
         /// meets, and a canopy stays the rectangle it was painted on.
         bool mCutout = false;
+
+        /// Whether the slot this record sits in holds a placement.
+        ///
+        /// **Records are addressed by slot and slots have gaps**, because a slot index is what a hit
+        /// reads back and closing a gap would rename every placement after it. A record that is not
+        /// placed describes nothing and must not reach an acceleration structure.
+        bool mPlaced = false;
     };
 
-    /// Fills `records` with one row per instance the scene places, in that order.
+    /// Fills `records` with one row per slot the scene holds, in slot order.
     ///
-    /// Two invariants a backend inherits and must not restate differently. A record's index is the
-    /// custom index the shader reads back at a hit, so the order here is the order the instance
-    /// buffer is built in. And **every instance is built with face culling disabled**: Morrowind
-    /// leans heavily on sheet geometry lit and hit from both faces, and a ray tracer has to be told,
-    /// because back-face culling is not free for it the way a rasterizer's is.
+    /// Two invariants a backend inherits and must not restate differently. A record's position is
+    /// the slot, which is the custom index the shader reads back at a hit — so a record with
+    /// `mPlaced` false is a gap to be skipped and never renumbered away. And **every instance is
+    /// built with face culling disabled**: Morrowind leans heavily on sheet geometry lit and hit
+    /// from both faces, and a ray tracer has to be told, because back-face culling is not free for
+    /// it the way a rasterizer's is.
     ///
-    /// An out-parameter refilled with `clear()`, because a cell is thousands of instances and a
-    /// rebuild must not go back to the allocator for a buffer it already had.
+    /// An out-parameter refilled in place, because a cell is thousands of instances and a rebuild
+    /// must not go back to the allocator for a buffer it already had.
     void makeInstanceRecords(const SceneDesc& scene, std::vector<InstanceRecord>& records);
 
     /// How many of `records` traversal has to stop and ask about.

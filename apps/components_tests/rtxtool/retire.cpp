@@ -262,7 +262,13 @@ namespace RtxTool
                 freshly = loadRegion(*world, *second, 0, alone, fresh, loaded, "Clear", 12.0f, false).mLighting;
             }
 
-            ASSERT_EQ(scene.getInstances().size(), alone.getInstances().size());
+            // The last walk put the second room back; this is the sweep that takes the first one's
+            // placements with it, and without it the scene is still holding both.
+            extractor.retire();
+
+            // By what is placed and not by how many slots exist: a compacted scene has gaps where a
+            // fresh one has none, and a gap is a name nothing is standing in rather than a placement.
+            ASSERT_EQ(scene.getPlacedCount(), alone.getPlacedCount());
 
             Rtx::RendererOptions options;
             options.mShaderDirectory = Rtx::Testing::getShaderDirectory();

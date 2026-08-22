@@ -83,7 +83,7 @@ namespace RtxTool
             {
                 RtxBridge::SceneExtractor extractor(first);
                 actor.pose(0.0f, sStep);
-                const RtxBridge::ExtractionStats stats = extractor.extract(actor.getRoot(), actor.getTransform());
+                const RtxBridge::ExtractionStats stats = extractor.extract(actor.getRoot(), actor.getTransform(), 0);
 
                 EXPECT_GT(stats.mDeformed, 0u) << "a creature is skinned geometry";
                 EXPECT_EQ(stats.mSkippedUnknown, 0u);
@@ -94,7 +94,7 @@ namespace RtxTool
             {
                 RtxBridge::SceneExtractor extractor(second);
                 actor.pose(actor.getDuration() * 0.25f, sStep);
-                extractor.extract(actor.getRoot(), actor.getTransform());
+                extractor.extract(actor.getRoot(), actor.getTransform(), 0);
             }
 
             ASSERT_EQ(first.getMeshes().size(), second.getMeshes().size());
@@ -115,7 +115,7 @@ namespace RtxTool
             {
                 RtxBridge::SceneExtractor extractor(again);
                 actor.pose(actor.getDuration(), sStep);
-                extractor.extract(actor.getRoot(), actor.getTransform());
+                extractor.extract(actor.getRoot(), actor.getTransform(), 0);
             }
 
             float drifted = 0.0f;
@@ -165,7 +165,7 @@ namespace RtxTool
                 Actor actor(*world, buildNpc(*world, *who, dressed), osg::Matrixf::identity());
                 actor.pose(0.0f, sStep);
 
-                const RtxBridge::ExtractionStats stats = extractor.extract(actor.getRoot(), actor.getTransform());
+                const RtxBridge::ExtractionStats stats = extractor.extract(actor.getRoot(), actor.getTransform(), 0);
                 return Assembled{ actor.getSkeleton(), stats.mInstances, stats.mDeformed, scene.getTriangleCount() };
             };
 

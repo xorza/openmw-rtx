@@ -120,24 +120,38 @@ namespace RtxBridge
         SceneExtractor(const SceneExtractor&) = delete;
         SceneExtractor& operator=(const SceneExtractor&) = delete;
 
-        /// Walks `node` and appends what it finds, placing it by `transform`.
+        /// Walks `node` and places what it finds by `transform`, under `anchor`.
         ///
         /// Takes a const reference because nothing here writes to the graph; OSG's visitor API is
         /// non-const throughout regardless, so the cast happens once, here.
+        ///
+        /// @param anchor what the caller is placing, stable for as long as it stands. **A node path
+        ///        does not identify a placement on its own**, because the same subtree is walked
+        ///        under many of them: OpenMW hands out one template node per model and a hundred
+        ///        crates are a hundred calls on that same node, all with the same path and all
+        ///        differing only in the `transform` given here. Anything the caller can keep is a
+        ///        good anchor — a reference id, an actor's address, a terrain chunk — and a caller
+        ///        that walks one whole graph, where every path is already distinct, can pass zero.
         /// @param frame which of a `SceneUtil::LightSource`'s two buffers to read. The game passes
         ///        the viewer's frame number, which is the one update has just finished writing;
         ///        anything with no `LightManager` in its graph can leave it.
-        ExtractionStats extract(const osg::Node& node, const osg::Matrixf& transform, std::size_t frame = 0);
+        ExtractionStats extract(
+            const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame = 0);
 
         /// Ends a frame: what was placed becomes what was placed before.
         ///
         /// **Called once per frame by whoever is mirroring a live graph, and never by anything that
-        /// walks a world once.** Until it is called, every instance's previous transform is its
+        /// walks a world once.** Until it is called, every placement's previous transform is its
         /// current one, which is exactly right for a scene that does not move — and a harness that
         /// loads a region and flies a camera round it wants that answer, not a stale one.
+        ///
+        /// Freeing the slots of placements that have gone is `retire`'s job and not this one, for
+        /// the reason written there: only a caller whose walks were the whole world can tell a
+        /// placement that has left the graph from one it simply did not visit.
         void advance();
 
-        /// Drops everything the walks since the last call did not find, and compacts the scene.
+        /// Drops everything the walks since the last call did not find — placements included — and
+        /// compacts the scene.
         ///
         /// **Only where the walks were the whole world.** This is mark and sweep: what makes it
         /// sound is that anything alive was met, so a caller that walks a region once and then
@@ -188,12 +202,15 @@ namespace RtxBridge
 
         /// What identifies one placement from one frame to the next.
         ///
-        /// **The node path, hashed.** A drawable alone is not an instance — a hundred crates share
-        /// one geometry — and the path down to it is what tells them apart. Hashed rather than kept,
-        /// because a path is a vector of pointers per instance and the map is walked every frame; a
-        /// collision costs one object one frame of wrong motion, and at sixty-four bits over tens of
-        /// thousands of instances it is not a thing that happens.
-        static std::size_t identify(const osg::NodePath& path);
+        /// **The anchor and the node path under it, hashed together.** Neither is enough alone: a
+        /// drawable is not an instance, because a hundred crates share one geometry, and a path is
+        /// not one either, because a hundred crates walked from a shared template node share the
+        /// path as well. What tells them apart is what the caller was placing.
+        ///
+        /// Hashed rather than kept, because a path is a vector of pointers per placement and the
+        /// map is walked every frame; at sixty-four bits over tens of thousands of placements a
+        /// collision is not a thing that happens.
+        static std::size_t identify(std::size_t anchor, const osg::NodePath& path);
 
         /// The mesh index for one drawable, adding it or re-reading it as its kind requires.
         ///
@@ -214,10 +231,6 @@ namespace RtxBridge
 
         Rtx::SceneDesc& mScene;
 
-        /// Where each placement stood, this frame and last. Swapped by `advance`.
-        std::unordered_map<std::size_t, osg::Matrixf> mStanding;
-        std::unordered_map<std::size_t, osg::Matrixf> mStood;
-
         /// An entry in one of the identity maps, and when it was last met.
         ///
         /// The epoch is what `retire` sweeps on: a walk stamps everything it resolves, so anything
@@ -227,6 +240,14 @@ namespace RtxBridge
             Rtx::Index mIndex = Rtx::sNoIndex;
             std::uint64_t mEpoch = 0;
         };
+
+        /// Which slot each placement holds, and when it was last met.
+        ///
+        /// **This is what a slot buys.** The two maps of matrices it replaces were rebuilt every
+        /// frame — a lookup, an insert and a heap node for each of fifty thousand placements, to
+        /// carry a transform from one frame to the next that the scene can simply keep. What
+        /// remains is one lookup, and Phase 2 is about not making that either.
+        std::unordered_map<std::size_t, Known> mPlacements;
 
         // Keyed on pointer identity, which OpenMW's resource cache and its optimizer's
         // SHARE_DUPLICATE_STATE pass together make meaningful: the same model loaded twice is the
@@ -241,7 +262,10 @@ namespace RtxBridge
         /// only thing that can speak for it when the scene is swept.
         std::unordered_map<const osg::Drawable*, Known> mEmitterTextures;
 
-        /// Which sweep is current. Everything a walk resolves is stamped with it.
+        /// What the walk in progress was told it is placing. See `extract`.
+        std::size_t mAnchor = 0;
+
+        /// Which sweep is current. Everything a walk resolves or places is stamped with it.
         std::uint64_t mEpoch = 0;
 
         // Refilled per sweep: the survivors, as the scene wants them.

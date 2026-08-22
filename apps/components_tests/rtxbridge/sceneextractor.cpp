@@ -60,7 +60,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            const ExtractionStats stats = extractor.extract(*root, osg::Matrixf::identity());
+            const ExtractionStats stats = extractor.extract(*root, osg::Matrixf::identity(), 0);
 
             EXPECT_EQ(stats.mMeshesAdded, 2u);
             EXPECT_EQ(stats.mMeshesReused, 0u);
@@ -87,7 +87,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            const ExtractionStats stats = extractor.extract(*root, osg::Matrixf::identity());
+            const ExtractionStats stats = extractor.extract(*root, osg::Matrixf::identity(), 0);
 
             EXPECT_EQ(stats.mMeshesAdded, 1u);
             EXPECT_EQ(stats.mMeshesReused, 1u);
@@ -106,7 +106,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            extractor.extract(*inner, osg::Matrixf::translate(0.0f, 0.0f, 5.0f));
+            extractor.extract(*inner, osg::Matrixf::translate(0.0f, 0.0f, 5.0f), 0);
 
             // The quad's (1,1,0) corner doubles to (2,2,0), then rises by five.
             ASSERT_EQ(scene.getInstances().size(), 1u);
@@ -129,7 +129,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            extractor.extract(*scale, osg::Matrixf::identity());
+            extractor.extract(*scale, osg::Matrixf::identity(), 0);
 
             ASSERT_EQ(scene.getInstances().size(), 1u);
             const osg::Matrixf& place = scene.getInstances()[0].mTransform;
@@ -173,7 +173,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            extractor.extract(*above, osg::Matrixf::identity());
+            extractor.extract(*above, osg::Matrixf::identity(), 0);
 
             ASSERT_EQ(scene.getInstances().size(), 2u);
             const osg::Vec3f origin(0.0f, 0.0f, 0.0f);
@@ -194,17 +194,57 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            extractor.extract(*root, osg::Matrixf::identity());
+            extractor.extract(*root, osg::Matrixf::identity(), 0);
 
-            const ExtractionStats second = extractor.extract(*root, osg::Matrixf::identity());
+            const ExtractionStats second = extractor.extract(*root, osg::Matrixf::identity(), 0);
 
             EXPECT_EQ(second.mMeshesAdded, 0u);
             EXPECT_EQ(second.mMeshesReused, 2u);
             EXPECT_EQ(scene.getMeshes().size(), 2u);
 
-            // Instances are not deduplicated, and must not be: the same mesh at two places is two
-            // rows of the acceleration structure. A second pass over the same graph places it again.
-            EXPECT_EQ(scene.getInstances().size(), 4u);
+            // **The property the incremental mirror rests on, in its strongest form.** The same mesh
+            // at two places is still two rows of the acceleration structure — placements are not
+            // deduplicated — but a second pass over an unchanged graph finds the slots those two
+            // already hold rather than making two more. Nothing was added, and nothing moved.
+            EXPECT_EQ(scene.getPlacedCount(), 2u);
+            EXPECT_EQ(scene.getInstances().size(), 2u);
+
+            scene.advancePlacement();
+            EXPECT_EQ(extractor.extract(*root, osg::Matrixf::identity(), 0).mInstances, 2u);
+            EXPECT_TRUE(scene.getMoved().empty()) << "an unchanged graph reported a placement moving";
+        }
+
+        /// **A node path does not identify a placement, and this is the case that proves it.**
+        /// `SceneManager::getTemplate` hands out one node per model, so every reference to that model
+        /// is walked from the same node down the same path. Without the anchor they share a slot,
+        /// and a hundred crates collapse into one.
+        TEST(RtxSceneExtractorTest, oneTemplateWalkedUnderTwoAnchorsIsTwoPlacements)
+        {
+            osg::ref_ptr<osg::Group> shared = new osg::Group;
+            shared->addChild(makeQuad());
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+
+            extractor.extract(*shared, osg::Matrixf::translate(10.0f, 0.0f, 0.0f), 1);
+            extractor.extract(*shared, osg::Matrixf::translate(0.0f, 20.0f, 0.0f), 2);
+
+            ASSERT_EQ(scene.getPlacedCount(), 2u);
+            EXPECT_EQ(scene.getMeshes().size(), 1u) << "one model is still one mesh";
+
+            const osg::Vec3f origin(0.0f, 0.0f, 0.0f);
+            EXPECT_EQ(origin * scene.getInstances()[0].mTransform, osg::Vec3f(10.0f, 0.0f, 0.0f));
+            EXPECT_EQ(origin * scene.getInstances()[1].mTransform, osg::Vec3f(0.0f, 20.0f, 0.0f));
+
+            // And they keep their own histories. Moving one must leave the other reporting nothing —
+            // sharing a slot would have the still one inherit the mover's previous transform and
+            // smear across the frame.
+            scene.advancePlacement();
+            extractor.extract(*shared, osg::Matrixf::translate(11.0f, 0.0f, 0.0f), 1);
+            extractor.extract(*shared, osg::Matrixf::translate(0.0f, 20.0f, 0.0f), 2);
+
+            ASSERT_EQ(scene.getMoved().size(), 1u);
+            EXPECT_EQ(scene.getMoved()[0], 0u);
         }
 
         /// Runs a deforming drawable's own cull path, which is where its vertices are computed.
@@ -247,7 +287,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            const ExtractionStats stats = extractor.extract(*root, osg::Matrixf::identity());
+            const ExtractionStats stats = extractor.extract(*root, osg::Matrixf::identity(), 0);
 
             EXPECT_EQ(stats.mSkippedUnknown, 0u) << "a drawable that is not an osg::Geometry is still geometry";
             EXPECT_EQ(stats.mMeshesAdded, 1u);
@@ -301,7 +341,7 @@ namespace RtxBridge
             cull.setTraversalNumber(1);
             root->accept(cull);
 
-            const ExtractionStats first = extractor.extract(*root, osg::Matrixf::identity());
+            const ExtractionStats first = extractor.extract(*root, osg::Matrixf::identity(), 0);
             EXPECT_EQ(first.mMeshesAdded, 2u);
             EXPECT_EQ(first.mDeformed, 1u);
             EXPECT_EQ(scene.getMeshPositions(sFace)[2], osg::Vec3f(1.0f, 1.0f, 1.0f)) << "base plus one of the target";
@@ -312,7 +352,7 @@ namespace RtxBridge
             cull.setTraversalNumber(2);
             root->accept(cull);
 
-            const ExtractionStats second = extractor.extract(*root, osg::Matrixf::identity());
+            const ExtractionStats second = extractor.extract(*root, osg::Matrixf::identity(), 0);
 
             EXPECT_EQ(second.mMeshesAdded, 0u);
             EXPECT_EQ(second.mMeshesReused, 2u);
@@ -339,7 +379,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            extractor.extract(*geometry, osg::Matrixf::identity());
+            extractor.extract(*geometry, osg::Matrixf::identity(), 0);
 
             EXPECT_EQ(scene.getTriangleCount(), 1u);
         }
@@ -351,7 +391,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            const ExtractionStats stats = extractor.extract(*geometry, osg::Matrixf::identity());
+            const ExtractionStats stats = extractor.extract(*geometry, osg::Matrixf::identity(), 0);
 
             EXPECT_EQ(stats.mSkippedEmpty, 1u);
             EXPECT_EQ(stats.mInstances, 0u);
@@ -382,7 +422,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            extractor.extract(*whole, osg::Matrixf::identity());
+            extractor.extract(*whole, osg::Matrixf::identity(), 0);
             ASSERT_EQ(scene.getMeshes().size(), 3u);
 
             // Nothing has gone yet, so the sweep is a no-op — and the epoch it opens is what the
@@ -395,7 +435,7 @@ namespace RtxBridge
             less->addChild(alsoStays);
 
             scene.clearPlacement();
-            extractor.extract(*less, osg::Matrixf::identity());
+            extractor.extract(*less, osg::Matrixf::identity(), 0);
 
             const Retirement went = extractor.retire();
             EXPECT_EQ(went.mMeshes, 1u);
@@ -406,13 +446,27 @@ namespace RtxBridge
             // has to have moved with it, or the next walk resolves the survivor to a mesh that is
             // now somebody else's.
             scene.clearPlacement();
-            const ExtractionStats after = extractor.extract(*less, osg::Matrixf::identity());
+            const ExtractionStats after = extractor.extract(*less, osg::Matrixf::identity(), 0);
 
             EXPECT_EQ(after.mMeshesAdded, 0u) << "a survivor was re-added rather than recognised";
             EXPECT_EQ(after.mMeshesReused, 2u);
-            ASSERT_EQ(scene.getInstances().size(), 2u);
-            EXPECT_EQ(scene.getInstances()[0].mMesh, 0u);
-            EXPECT_EQ(scene.getInstances()[1].mMesh, 1u);
+
+            // **Five slots and two standing in them.** The three walked under `whole` are gone —
+            // that graph is not walked any more, so the sweep took their placements — and the two
+            // walked under `less` are different placements of the same geometry, so they took slots
+            // of their own. A dropped placement leaves its slot behind rather than closing the gap.
+            ASSERT_EQ(scene.getPlacedCount(), 2u);
+            ASSERT_EQ(scene.getInstances().size(), 5u);
+            for (std::size_t gap = 0; gap < 3; ++gap)
+                EXPECT_FALSE(scene.getInstances()[gap].isPlaced()) << "slot " << gap << " should be a gap";
+
+            // And `carryPlacement` renumbered what the survivors name: the third quad's mesh moved
+            // down into index one when the middle one was compacted out, and the placement standing
+            // on it has to have followed.
+            ASSERT_TRUE(scene.getInstances()[3].isPlaced());
+            ASSERT_TRUE(scene.getInstances()[4].isPlaced());
+            EXPECT_EQ(scene.getInstances()[3].mMesh, 0u);
+            EXPECT_EQ(scene.getInstances()[4].mMesh, 1u);
             EXPECT_EQ(scene.getMeshPositions(1)[0].z(), 7.0f) << "the survivor kept somebody else's vertices";
         }
 
@@ -428,7 +482,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            extractor.extract(*stone, osg::Matrixf::identity());
+            extractor.extract(*stone, osg::Matrixf::identity(), 0);
 
             ASSERT_EQ(scene.getMaterials().size(), 1u);
             ASSERT_EQ(scene.getTextures().size(), 1u);
@@ -437,7 +491,7 @@ namespace RtxBridge
             // A walk that finds nothing at all is still a walk, and it is what an emptied cell is.
             osg::ref_ptr<osg::Group> nothing = new osg::Group;
             scene.clearPlacement();
-            extractor.extract(*nothing, osg::Matrixf::identity());
+            extractor.extract(*nothing, osg::Matrixf::identity(), 0);
 
             const Retirement went = extractor.retire();
             EXPECT_EQ(went.mMeshes, 1u);
@@ -521,7 +575,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            const ExtractionStats stats = extractor.extract(*plume.mRoot, osg::Matrixf::identity());
+            const ExtractionStats stats = extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
 
             EXPECT_EQ(stats.mEmitters, 1u);
             EXPECT_EQ(stats.mSprites, 2u);
@@ -569,7 +623,7 @@ namespace RtxBridge
 
                 Rtx::SceneDesc scene;
                 SceneExtractor extractor(scene);
-                extractor.extract(*plume.mRoot, osg::Matrixf::identity());
+                extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.getEmitters().size(), 1u);
                 return scene.getEmitters().front().mAdditive;
@@ -593,7 +647,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            const ExtractionStats stats = extractor.extract(*spent.mRoot, osg::Matrixf::identity());
+            const ExtractionStats stats = extractor.extract(*spent.mRoot, osg::Matrixf::identity(), 0);
 
             EXPECT_EQ(stats.mEmitters, 0u);
             EXPECT_EQ(stats.mSprites, 0u);
@@ -612,7 +666,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc bareScene;
             SceneExtractor bareExtractor(bareScene);
-            EXPECT_EQ(bareExtractor.extract(*bare, osg::Matrixf::identity()).mEmitters, 0u);
+            EXPECT_EQ(bareExtractor.extract(*bare, osg::Matrixf::identity(), 0).mEmitters, 0u);
             EXPECT_TRUE(bareScene.getTextures().empty());
         }
 
@@ -638,12 +692,12 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            extractor.extract(*both, osg::Matrixf::identity());
+            extractor.extract(*both, osg::Matrixf::identity(), 0);
             ASSERT_EQ(scene.getTextures().size(), 2u);
             ASSERT_TRUE(extractor.retire().empty());
 
             scene.clearPlacement();
-            extractor.extract(*plume.mRoot, osg::Matrixf::identity());
+            extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
 
             const Retirement went = extractor.retire();
             EXPECT_EQ(went.mTextures, 1u);
@@ -652,7 +706,7 @@ namespace RtxBridge
 
             // And the emitter still draws with it after the compaction moved it down a slot.
             scene.clearPlacement();
-            extractor.extract(*plume.mRoot, osg::Matrixf::identity());
+            extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
 
             ASSERT_EQ(scene.getEmitters().size(), 1u);
             EXPECT_EQ(scene.getEmitters().front().mTexture, 0u);
@@ -680,7 +734,7 @@ namespace RtxBridge
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            extractor.extract(*parent, osg::Matrixf::identity());
+            extractor.extract(*parent, osg::Matrixf::identity(), 0);
 
             ASSERT_EQ(scene.getMaterials().size(), 1u);
             ASSERT_EQ(scene.getTextures().size(), 1u);
@@ -708,7 +762,7 @@ namespace RtxBridge
 
                 Rtx::SceneDesc scene;
                 SceneExtractor extractor(scene);
-                extractor.extract(*quad, osg::Matrixf::identity());
+                extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.getMaterials().size(), 1u);
                 return scene.getMaterials().front();
@@ -739,7 +793,7 @@ namespace RtxBridge
 
                 Rtx::SceneDesc scene;
                 SceneExtractor extractor(scene);
-                extractor.extract(*quad, osg::Matrixf::identity());
+                extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.getMaterials().size(), 1u);
                 return scene.getMaterials().front().mEmissiveColour;
@@ -773,7 +827,7 @@ namespace RtxBridge
 
                 Rtx::SceneDesc scene;
                 SceneExtractor extractor(scene);
-                extractor.extract(*quad, osg::Matrixf::identity());
+                extractor.extract(*quad, osg::Matrixf::identity(), 0);
                 return scene.getMaterials().empty() ? true : scene.getMaterials()[0].mTwoSided;
             };
 

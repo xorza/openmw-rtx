@@ -105,14 +105,14 @@ namespace RtxTool
 
         bool step(std::uint32_t frame) override;
 
-        /// Takes the actors back out, leaving the world as it stood.
+        /// Empties the lists a frame refills, and puts the world's own lights back into them.
         ///
-        /// **What a window calls before it loads the next ring of cells.** Those are walked into
-        /// whatever the scene currently holds, and a scene still holding this frame's actors would
-        /// take them into the snapshot and place a second copy of each on the frame after.
+        /// Placements are not among those lists: the scene holds them in slots and an actor walked
+        /// in again finds the one it had, so nothing has to be taken out to stop it being placed
+        /// twice.
         void unplace();
 
-        /// Takes the world as it now stands to be what a frame puts back. The other half of
+        /// Takes the lights as they now stand to be what a frame puts back. The other half of
         /// `unplace`, called once the cells that arrived between them are in.
         void restanding();
 
@@ -142,8 +142,8 @@ namespace RtxTool
         Rtx::SceneDesc& mScene;
         RtxBridge::SceneExtractor& mExtractor;
 
-        /// The world as it stood before any actor went into it, so a frame can put it back.
-        std::vector<Rtx::MeshInstance> mStanding;
+        /// The world's own lights, which `clearPlacement` empties every frame and only this can
+        /// put back — a light on the graph belongs to whatever is carrying it.
         std::vector<Rtx::Light> mLit;
 
         std::vector<std::unique_ptr<Actor>> mActors;

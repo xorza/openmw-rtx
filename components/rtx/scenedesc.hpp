@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <functional>
-#include <optional>
 #include <span>
 #include <unordered_map>
 #include <vector>
@@ -197,22 +196,12 @@ namespace Rtx
         /// Object space to world space.
         osg::Matrixf mTransform;
 
-        /// Where the same object stood on the previous frame, or nothing where nobody knows.
-        ///
-        /// **What a temporal upscaler needs and camera reprojection cannot give.** A motion vector
-        /// built from the camera alone says every surface stood still, which was true while the
-        /// mirror ran once; the moment the world started moving it became a lie told to a resolve
-        /// that believes it, and the mover smears.
-        ///
-        /// **Absent and not "the same as `mTransform`", which is the whole reason it is an
-        /// optional.** A default-constructed matrix is the identity, so a caller that simply did not
-        /// fill this in — the water builder, every test that places a quad — would be saying the
-        /// object was at the world origin last frame and has since flown to where it is. That reads
-        /// as a plausible field and traces as a smear across the entire frame.
-        std::optional<osg::Matrixf> mPrevious;
-
         Index mMesh = sNoIndex;
         Index mMaterial = sNoIndex;
+
+        /// Whether this slot holds anything. A dropped placement leaves its slot behind rather than
+        /// closing the gap, because the slot index is what a hit reads back.
+        bool isPlaced() const { return mMesh != sNoIndex; }
     };
 
     /// One live particle, drawn as a disc facing the eye.
@@ -326,7 +315,33 @@ namespace Rtx
         /// Returns the index of `path`, adding it only if it is not already known.
         Index addTexture(VFS::Path::NormalizedView path);
 
-        void addInstance(const MeshInstance& instance);
+        /// Places `instance` in a slot and returns it.
+        ///
+        /// **The slot is the placement's name for as long as it stands.** It is the custom index a
+        /// hit reads back, the row a shader looks its material up in, and — because it outlives the
+        /// walk that made it — what lets a mirror move a placement instead of rebuilding the list
+        /// it was in. A slot freed by `dropInstance` is handed out again; one that is still standing
+        /// never is.
+        Index addInstance(const MeshInstance& instance);
+
+        /// Moves the placement in `slot`, and says whether that changed anything.
+        ///
+        /// A transform equal to the one already there is not a move: it writes nothing, records
+        /// nothing, and leaves the slot reporting no motion. That is the ordinary case — most of a
+        /// world stands still — and making it the cheap one is the point of addressing placements
+        /// by slot at all.
+        bool moveInstance(Index slot, const osg::Matrixf& transform);
+
+        /// Empties `slot`. Its index is not reused until the next `addInstance` asks for one.
+        void dropInstance(Index slot);
+
+        /// Ends a frame's placement: what moved becomes where things were.
+        ///
+        /// **Costs what moved and not what stands.** Only a slot that reported a move can have a
+        /// previous transform that differs from its current one, so only those have to be caught
+        /// up — which is what makes a world of fifty thousand placements and three hundred movers
+        /// cost three hundred.
+        void advancePlacement();
 
         /// Appends one particle system's live sprites, and the emitter that names them.
         ///
@@ -347,9 +362,9 @@ namespace Rtx
         /// it. Layers and masks have no keep set of their own: they belong to the material that owns
         /// them and go with it.
         ///
-        /// **Placements go too**, because they name indices that have just moved. That is the same
-        /// thing `clearPlacement` does and for the same reason; the walk that comes next is what
-        /// puts them back.
+        /// **Placements do not go**, because a slot is a name that outlives a compaction. What they
+        /// name does move, and `carryPlacement` is what carries them through it; a placement whose
+        /// mesh or material was actually dropped is a caller that swept the two in the wrong order.
         ///
         /// @param meshes every mesh to keep, each once, in any order.
         /// @param materials the same for materials.
@@ -365,16 +380,23 @@ namespace Rtx
         /// the allocator for buffers it already had.
         void clear();
 
-        /// Empties only where things are, keeping what they are made of.
+        /// Empties the per-frame lists a walk rebuilds wholesale: lights, deformed meshes, sprites
+        /// and emitters.
         ///
-        /// **The difference between a world that moves and one that is rebuilt.** Meshes, materials,
-        /// layers, masks and texture paths are what a bottom-level acceleration structure is built
-        /// from and what a texture array holds; instances and lights are a list of placements that a
-        /// top-level structure is rebuilt from every frame anyway. Clearing the second and keeping
-        /// the first is what lets a mirror re-walk a live scene graph without paying for the geometry
-        /// again — and it is only sound because the indices into the first are stable, which is what
-        /// `SceneExtractor`'s identity maps exist to make true.
+        /// **Placements are not among them.** They are addressed by slot and reconciled in place —
+        /// `addInstance` for one that has appeared, `moveInstance` for one that has shifted,
+        /// `dropInstance` for one that has gone — because a slot index is what a hit reads back and
+        /// because a world of fifty thousand placements of which three hundred move should cost
+        /// three hundred. Everything above is small enough per frame that rebuilding it is cheaper
+        /// than reconciling it.
         void clearPlacement();
+
+        /// Renumbers what standing placements name, after `retain` has compacted the tables.
+        ///
+        /// **Placements outlive a compaction now that they are addressed by slot**, so the mesh and
+        /// material indices they hold have to be carried through it. Their own slots are untouched:
+        /// a slot is a name, and renaming placements is what having slots exists to avoid.
+        void carryPlacement(const Remap& remap);
 
         std::span<const osg::Vec3f> getPositions() const { return mPositions; }
         std::span<const osg::Vec3f> getNormals() const { return mNormals; }
@@ -385,7 +407,20 @@ namespace Rtx
         /// Which meshes changed shape since the last `clearPlacement`, each named once and in no
         /// particular order. Empty for a world that only moves.
         std::span<const Index> getDeformed() const { return mDeformed; }
+        /// Every slot, standing or empty, in slot order. `MeshInstance::isPlaced` tells them apart.
         std::span<const MeshInstance> getInstances() const { return mInstances; }
+
+        /// How many slots hold a placement, which is what reaches an acceleration structure.
+        std::uint32_t getPlacedCount() const { return mPlacedCount; }
+
+        /// Where each slot stood before the last `advancePlacement`, indexed alongside the slots.
+        std::span<const osg::Matrixf> getPrevious() const { return mPrevious; }
+
+        /// The slots that have moved since the last `advancePlacement`, each once.
+        ///
+        /// A placement that has just been made is here too: a slot nothing has uploaded yet needs
+        /// writing for the same reason one that moved does.
+        std::span<const Index> getMoved() const { return mMoved; }
         std::span<const Material> getMaterials() const { return mMaterials; }
         std::span<const MaterialLayer> getLayers() const { return mLayers; }
         std::span<const Light> getLights() const { return mLights; }
@@ -426,7 +461,16 @@ namespace Rtx
         std::vector<std::uint32_t> mIndices;
         std::vector<MeshRange> mMeshes;
         std::vector<Index> mDeformed;
+
+        // Slot-addressed and parallel: the placement, and where it stood before the last advance.
+        // Two flat arrays rather than one struct, because the previous transform is read only for
+        // what moved and a frame walks the placements for other reasons.
         std::vector<MeshInstance> mInstances;
+        std::vector<osg::Matrixf> mPrevious;
+        std::vector<Index> mMoved;
+        std::vector<Index> mFreeSlots;
+        std::uint32_t mPlacedCount = 0;
+
         std::vector<Material> mMaterials;
         std::vector<MaterialLayer> mLayers;
         std::vector<Light> mLights;

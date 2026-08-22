@@ -139,16 +139,18 @@ namespace MWRender::Rtx
     {
         mFrame = frame;
 
-        // **Every frame, and the placements are all that is thrown away.** `clearPlacement` keeps
-        // the meshes, materials and texture paths — which is what the acceleration structures and
-        // the texture array were built from — so a re-walk over an unchanged graph produces the same
-        // geometry indices and a fresh list of where things are.
+        // **Every frame, and the placements are the one thing it does not throw away.** What goes
+        // is the lists a walk refills wholesale — lights, deformed meshes, sprites, emitters. The
+        // meshes, materials and texture paths stay because the acceleration structures and the
+        // texture array were built from them, and the placements stay because they are addressed by
+        // slot: a re-walk over an unchanged graph finds every one of them where it left it.
         mScene.clearPlacement();
 
         const RtxBridge::ExtractionStats found
-            = mExtractor->extract(const_cast<osg::Node&>(scene), osg::Matrixf::identity(), mFrame);
+            // One walk over the whole graph, where every path is already distinct.
+            = mExtractor->extract(const_cast<osg::Node&>(scene), osg::Matrixf::identity(), 0, mFrame);
 
-        if (mScene.getInstances().empty())
+        if (mScene.getPlacedCount() == 0)
             return;
 
         // Geometry the walk has not met before has no bottom-level structure and no uploaded
@@ -244,7 +246,7 @@ namespace MWRender::Rtx
         if (++mTimed == sReportEvery)
         {
             Log(Debug::Info) << "Ray tracing: " << mSpentMs / mTimed << " ms a frame over the last " << mTimed
-                             << ", tracing " << mScene.getInstances().size() << " instances at " << extents.mRenderWidth
+                             << ", tracing " << mScene.getPlacedCount() << " instances at " << extents.mRenderWidth
                              << "x" << extents.mRenderHeight;
             mSpentMs = 0.0;
             mTimed = 0;

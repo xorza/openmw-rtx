@@ -63,7 +63,7 @@ namespace RtxTool
         StagedWorld& operator=(const StagedWorld&) = delete;
 
         /// True where the region placed no geometry at all, which nothing can be traced from.
-        bool empty() const { return mScene.getInstances().empty(); }
+        bool empty() const { return mScene.getPlacedCount() == 0; }
 
         const Rtx::SceneDesc& getScene() const { return mScene; }
         const CellLighting& getLighting() const { return mLighting; }

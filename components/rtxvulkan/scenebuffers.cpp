@@ -168,22 +168,29 @@ namespace Rtx
         // The sentinel material sits one past the real ones, which is where the constructor put it.
         const auto sentinel = static_cast<std::uint32_t>(scene.getMaterials().size());
 
-        mInstanceScratch.clear();
-        mInstanceScratch.reserve(mRecordScratch.size());
-        for (const InstanceRecord& record : mRecordScratch)
+        // **Indexed by slot, gaps included.** A hit reads its slot back as the custom index and
+        // looks the row up here directly, so a table that closed its gaps would answer for the
+        // wrong placement.
+        //
+        // Resized rather than reassigned: a gap's row is never read, so filling the whole table
+        // with zeroes before writing the rows over them is a second pass across three megabytes a
+        // frame that nothing needs.
+        const std::span<const MeshInstance> placements = scene.getInstances();
+        mInstanceScratch.resize(mRecordScratch.size());
+
+        for (std::size_t slot = 0; slot < mRecordScratch.size(); ++slot)
         {
-            Shaders::GpuInstance row{
-                .mMesh = record.mMesh,
-                .mMaterial = scene.getInstances()[mInstanceScratch.size()].mMaterial == sNoIndex
-                    ? sentinel
-                    : scene.getInstances()[mInstanceScratch.size()].mMaterial,
-            };
+            const InstanceRecord& record = mRecordScratch[slot];
+            if (!record.mPlaced)
+                continue;
+
+            Shaders::GpuInstance& row = mInstanceScratch[slot];
+            row.mMesh = record.mMesh;
+            row.mMaterial = placements[slot].mMaterial == sNoIndex ? sentinel : placements[slot].mMaterial;
 
             for (int r = 0; r < 3; ++r)
                 row.mMotion[r] = osg::Vec4f(record.mMotion.mRows[r][0], record.mMotion.mRows[r][1],
                     record.mMotion.mRows[r][2], record.mMotion.mRows[r][3]);
-
-            mInstanceScratch.push_back(row);
         }
 
         mLightScratch.clear();

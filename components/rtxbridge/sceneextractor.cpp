@@ -1,5 +1,7 @@
 #include "sceneextractor.hpp"
 
+#include <unordered_map>
+
 #include "lightbuilder.hpp"
 
 #include <osg/BlendFunc>
@@ -310,9 +312,11 @@ namespace RtxBridge
         };
     }
 
-    ExtractionStats SceneExtractor::extract(const osg::Node& node, const osg::Matrixf& transform, std::size_t frame)
+    ExtractionStats SceneExtractor::extract(
+        const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame)
     {
         ExtractionStats stats;
+        mAnchor = anchor;
         ExtractionVisitor visitor(*this, transform, frame, stats);
 
         // OSG's visitor API is non-const even for a visitor that only reads, which this one does.
@@ -321,9 +325,12 @@ namespace RtxBridge
         return stats;
     }
 
-    std::size_t SceneExtractor::identify(const osg::NodePath& path)
+    std::size_t SceneExtractor::identify(std::size_t anchor, const osg::NodePath& path)
     {
         std::size_t key = 0xcbf29ce484222325ull;
+        key ^= anchor;
+        key *= 0x100000001b3ull;
+
         for (const osg::Node* node : path)
         {
             key ^= std::hash<const osg::Node*>{}(node);
@@ -335,10 +342,7 @@ namespace RtxBridge
 
     void SceneExtractor::advance()
     {
-        // Swapped rather than copied, and the new one cleared: this frame's placements are next
-        // frame's history, and anything that was here last frame and is not here now has gone.
-        mStood.swap(mStanding);
-        mStanding.clear();
+        mScene.advancePlacement();
     }
 
     namespace
@@ -386,6 +390,23 @@ namespace RtxBridge
     Retirement SceneExtractor::retire()
     {
         Retirement went;
+
+        // **Placements first, because dropping one is what makes its mesh droppable.** A slot the
+        // walks no longer reach names geometry nothing is standing on any more, and a sweep that
+        // ran the other way round would keep every mesh alive on the strength of a placement it was
+        // about to delete.
+        //
+        // Freed rather than compacted: a slot index is the custom index a hit reads back, so
+        // closing the gap would rename every placement above it. The gap is handed to the next
+        // thing placed.
+        std::erase_if(mPlacements, [this](const auto& entry) {
+            if (entry.second.mEpoch == mEpoch)
+                return false;
+
+            mScene.dropInstance(entry.second.mIndex);
+            return true;
+        });
+
         went.mMeshes = sweep(mMeshes, mEpoch, mLiveMeshes);
         went.mMaterials = sweep(mMaterials, mEpoch, mLiveMaterials);
         sweep(mEmitterTextures, mEpoch, mLiveTextures);
@@ -397,6 +418,11 @@ namespace RtxBridge
             carry(mMaterials, mRemap.mMaterials);
             carry(mEmitterTextures, mRemap.mTextures);
 
+            // **Placements outlive the compaction now, so they have to be carried through it.**
+            // Every slot still standing names a mesh and a material by index, and `retain` has just
+            // renumbered both.
+            mScene.carryPlacement(mRemap);
+
             went.mTextures = static_cast<std::uint32_t>(before - mScene.getTextures().size());
         }
 
@@ -404,14 +430,6 @@ namespace RtxBridge
         // one this is measured against. Every entry that survived is still carrying the old stamp
         // and would be dropped on the spot otherwise.
         ++mEpoch;
-
-        // The placements went with the compaction, and so has whatever they stood at last frame: a
-        // motion vector against a scene that no longer exists is a smear, not a history.
-        if (!went.empty())
-        {
-            mStanding.clear();
-            mStood.clear();
-        }
 
         return went;
     }
@@ -531,18 +549,27 @@ namespace RtxBridge
         const Rtx::Index material
             = terrain != nullptr ? resolveTerrainMaterial(*terrain, stats) : resolveMaterial(path, stats);
 
-        // Where it stood last frame, or here if nothing saw it move — a placement met for the first
-        // time has no history, and saying it moved from nowhere is worse than saying it stood still.
-        const std::size_t who = identify(path);
-        const auto stood = mStood.find(who);
-        mStanding.emplace(who, place);
+        // **The slot this placement has held since it first appeared**, so a world that stands
+        // still writes nothing: the scene already knows where everything is, and only a transform
+        // that differs from the one in the slot costs anything at all.
+        const std::size_t who = identify(mAnchor, path);
+        const auto held = mPlacements.find(who);
 
-        mScene.addInstance(Rtx::MeshInstance{
-            .mTransform = place,
-            .mPrevious = stood != mStood.end() ? std::optional<osg::Matrixf>(stood->second) : std::nullopt,
-            .mMesh = mesh,
-            .mMaterial = material,
-        });
+        if (held == mPlacements.end())
+        {
+            const Rtx::Index slot = mScene.addInstance(Rtx::MeshInstance{
+                .mTransform = place,
+                .mMesh = mesh,
+                .mMaterial = material,
+            });
+            mPlacements.emplace(who, Known{ .mIndex = slot, .mEpoch = mEpoch });
+        }
+        else
+        {
+            held->second.mEpoch = mEpoch;
+            mScene.moveInstance(held->second.mIndex, place);
+        }
+
         ++stats.mInstances;
     }
 

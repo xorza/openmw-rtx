@@ -30,3 +30,7 @@
 
 - `MeshInstance` carries its previous transform as `std::optional<osg::Matrixf>`, so every instance
   in the scene pays 72 bytes a frame to record whether it moved.
+
+- `PosedActors` snapshots the world's instances and lights when it is constructed but not its
+  sprites or emitters, so the static world's particle systems are gone from the frame after the
+  first `unplace`.
