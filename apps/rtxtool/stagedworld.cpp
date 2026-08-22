@@ -11,8 +11,8 @@ namespace RtxTool
         World& world, const ESM::Cell& cell, const StagingRequest& request, const ActorRequest& actors)
         : mExtractor(mScene)
     {
-        const RegionLoad arrived = loadRegion(
-            world, cell, request.mRadius, mScene, mExtractor, mLoaded, request.mWeather, request.mHour, actors.mProps);
+        const RegionLoad arrived
+            = loadRegion(world, cell, mScene, mExtractor, mLoaded, request.mWeather, request.mHour, actors.mProps);
 
         mLighting = arrived.mLighting;
 

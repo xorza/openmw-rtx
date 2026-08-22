@@ -87,7 +87,6 @@ namespace RtxTool
     /// same references point at, and leave here in the report.
     /// The same, over a square of exterior cells centred on `centre`.
     ///
-    /// @param radius cells out from the centre in each direction, so three is seven by seven.
     ///        Ignored for an interior, which has no neighbours. Cells the content files do not
     ///        define are open sea and are skipped rather than missing.
     /// @param loaded which cells are already in the scene. Cells named here are left alone and
@@ -99,7 +98,7 @@ namespace RtxTool
     ///        geometry — the clone shares the drawables — so mirroring the template as well would
     ///        stand two candles in one place. A caller with nowhere to keep an instance passes false
     ///        and gets the still template, which is a candle with an authored spark on it.
-    CellReport readRegion(World& world, const ESM::Cell& centre, int radius, RtxBridge::SceneExtractor& extractor,
+    CellReport readRegion(World& world, const ESM::Cell& centre, RtxBridge::SceneExtractor& extractor,
         std::set<std::string>& loaded, bool liveProps);
 
     /// The exterior cell a point stands in, as `--cell` spells it.
@@ -125,7 +124,7 @@ namespace RtxTool
         std::vector<CellProp> mProps;
     };
 
-    RegionLoad loadRegion(World& world, const ESM::Cell& centre, int radius, Rtx::SceneDesc& scene,
+    RegionLoad loadRegion(World& world, const ESM::Cell& centre, Rtx::SceneDesc& scene,
         RtxBridge::SceneExtractor& extractor, std::set<std::string>& loaded, std::string_view weather, float hour,
         bool liveProps);
 }

@@ -28,7 +28,6 @@ namespace RtxTool
     {
         /// How many cells out from the one asked for to read, so four is nine by nine. An interior
         /// ignores it.
-        int mRadius = 4;
 
         /// When and in what weather, for the exterior that has a sky.
         std::string mWeather = "Clear";

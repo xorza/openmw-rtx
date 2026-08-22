@@ -75,12 +75,6 @@ namespace RtxTool
         addOption("filter", bpo::value<bool>()->default_value(true)->implicit_value(true),
             "run the denoiser over the indirect light. Off shows the raw bounce, and is what a "
             "reference built with --accumulate has to be made with");
-        addOption("radius", bpo::value<std::uint32_t>()->default_value(4),
-            "how many cells out from the one asked for to load, so four is nine by nine. Zero is "
-            "the cell alone, floating in sky. An interior ignores it — a room has no neighbours. "
-            "Every cell costs its own geometry, so a wide region is a slow load and a large scene, "
-            "and `view` brings the next ring in as the camera crosses into it");
-
         // Defaulted to an empty list rather than left absent, because `readConfiguration` walks
         // every option in this description and casts it: a composing option with no value in the
         // map is a `bad_any_cast` on every run that did not name one.

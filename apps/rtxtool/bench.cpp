@@ -227,7 +227,7 @@ namespace RtxTool
 
             StagedWorld staged(world, *cell,
                 StagingRequest{
-                    .mRadius = request.mRadius,
+
                     .mWeather = request.mWeather,
                     .mHour = request.mHour,
                     .mFieldOfView = request.mFieldOfView,

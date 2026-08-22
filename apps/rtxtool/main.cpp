@@ -234,7 +234,7 @@ namespace RtxTool
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
             std::set<std::string> loaded;
-            readRegion(world, *cell, 0, extractor, loaded, false);
+            readRegion(world, *cell, extractor, loaded, false);
 
             const RtxBridge::SceneTextures described(scene, world.getImageManager());
             const ContactSheet sheet = writeContactSheet(described.getDescriptions(), output, strength);
@@ -255,7 +255,7 @@ namespace RtxTool
             return 0;
         }
 
-        int runScene(World& world, const std::string& cellSpec, int radius, bool twice)
+        int runScene(World& world, const std::string& cellSpec, bool twice)
         {
             const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
             if (cell == nullptr)
@@ -264,7 +264,7 @@ namespace RtxTool
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
             std::set<std::string> loaded;
-            const CellReport report = readRegion(world, *cell, radius, extractor, loaded, false);
+            const CellReport report = readRegion(world, *cell, extractor, loaded, false);
 
             printCellHeading(*cell);
 
@@ -316,7 +316,7 @@ namespace RtxTool
                 // measured is what a second walk over an unchanged graph adds, so it is asked with
                 // a set that has never heard of them.
                 std::set<std::string> again;
-                const CellReport second = readRegion(world, *cell, radius, extractor, again, false);
+                const CellReport second = readRegion(world, *cell, extractor, again, false);
                 RtxBridge::ExtractionStats total = second.mStats;
                 total += second.mTerrain;
 
@@ -333,7 +333,7 @@ namespace RtxTool
         ///
         /// An interior's illumination is its own lamps over its own `AMBI`; an exterior's is the sky
         /// and the weather, which the cell says nothing about and the clock decides.
-        int runShot(World& world, const std::string& cellSpec, int radius, const Rtx::ValidationOptions& validation,
+        int runShot(World& world, const std::string& cellSpec, const Rtx::ValidationOptions& validation,
             ShotRequest request, const ActorRequest& actors)
         {
             const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
@@ -344,7 +344,6 @@ namespace RtxTool
             // freed while the scene still names them is a dangling identity.
             StagedWorld staged(world, *cell,
                 StagingRequest{
-                    .mRadius = radius,
                     .mWeather = request.mWeather,
                     .mHour = request.mHour,
                     .mFieldOfView = request.mFieldOfView,
@@ -374,7 +373,7 @@ namespace RtxTool
             return renderShot(staged.getScene(), world.getImageManager(), validation, request);
         }
 
-        int runView(World& world, const std::string& cellSpec, int radius, const Rtx::ValidationOptions& validation,
+        int runView(World& world, const std::string& cellSpec, const Rtx::ValidationOptions& validation,
             ViewRequest request, const ActorRequest& actors)
         {
             const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
@@ -383,7 +382,7 @@ namespace RtxTool
 
             printCellHeading(*cell);
 
-            return runWindow(world, *cell, radius, validation, std::move(request), actors);
+            return runWindow(world, *cell, validation, std::move(request), actors);
         }
 
         /// Where the command line and the view file meet.
@@ -578,8 +577,7 @@ namespace RtxTool
                     return cell == nullptr ? 1 : runFind(world, *cell, needle);
                 }
 
-                return runScene(world, chosen.mCell, static_cast<int>(variables["radius"].as<std::uint32_t>()),
-                    variables["twice"].as<bool>());
+                return runScene(world, chosen.mCell, variables["twice"].as<bool>());
             }
 
             if (command == "bench")
@@ -596,7 +594,6 @@ namespace RtxTool
                 request.mWidth = width;
                 request.mHeight = height;
                 request.mFieldOfView = variables["fov"].as<float>();
-                request.mRadius = static_cast<int>(variables["radius"].as<std::uint32_t>());
                 request.mSeconds = variables["seconds"].as<float>();
                 request.mWarmup = variables["warmup"].as<float>();
                 request.mFrames = variables["frames"].as<std::uint32_t>();
@@ -675,8 +672,7 @@ namespace RtxTool
                     request.mWeather = variables["weather"].as<std::string>();
                     request.mHour = variables["hour"].as<float>();
 
-                    return runView(world, chosen.mCell, static_cast<int>(variables["radius"].as<std::uint32_t>()),
-                        validation, request, actors);
+                    return runView(world, chosen.mCell, validation, request, actors);
                 }
 
                 ShotRequest request;
@@ -707,8 +703,7 @@ namespace RtxTool
                 request.mRepeat = variables["repeat"].as<std::uint32_t>();
                 request.mAccumulate = variables["accumulate"].as<std::uint32_t>();
 
-                return runShot(world, chosen.mCell, static_cast<int>(variables["radius"].as<std::uint32_t>()),
-                    validation, request, actors);
+                return runShot(world, chosen.mCell, validation, request, actors);
             }
 
             out() << "Unknown command: " << command << "\n\n";

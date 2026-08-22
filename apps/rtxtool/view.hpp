@@ -93,7 +93,7 @@ namespace RtxTool
     /// caller whose camera goes somewhere: crossing into the next cell has to bring that cell's
     /// neighbours in and let the ones behind go, and nothing that took a finished scene could do
     /// that.
-    int runWindow(World& world, const ESM::Cell& centre, int radius, const Rtx::ValidationOptions& validation,
-        ViewRequest request, const ActorRequest& actors);
+    int runWindow(World& world, const ESM::Cell& centre, const Rtx::ValidationOptions& validation, ViewRequest request,
+        const ActorRequest& actors);
 
 }

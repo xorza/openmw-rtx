@@ -1,10 +1,15 @@
 #include "cellscene.hpp"
 
+#include <components/misc/constants.hpp>
+
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <limits>
 #include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -27,7 +32,43 @@ namespace RtxTool
         /// An interior is its own region: it has no neighbours to have. An exterior square that runs
         /// off the edge of the world, or over open sea, simply finds fewer cells — a coastline is
         /// not an error.
-        void forEachNewCell(World& world, const ESM::Cell& centre, int radius, std::set<std::string>& loaded,
+        /// The square of cells the game keeps active, and the order it fills it in.
+        ///
+        /// **Copied from `MWWorld::Scene`, deliberately, rather than shared.** The originals —
+        /// `iterateOverCellsAround` and `sortCellsToLoad` — sit in an anonymous namespace in
+        /// `apps/openmw/mwworld/scene.cpp`, so nothing outside that file can link to them, and
+        /// lifting them into `components/` costs three upstream files to share twenty lines of
+        /// arithmetic. Twenty lines is the cheaper copy.
+        ///
+        /// **What it has to keep is the order.** Nearest first, ties broken by distance to the
+        /// origin. The scanline fill this replaced put the cells in an order the game never uses,
+        /// which for a benchmark that times a camera crossing a boundary is the whole measurement.
+        /// If `Scene` ever changes how it sorts, this has to follow it, and nothing here will say
+        /// so — that is what the copy costs.
+        std::vector<std::pair<int, int>> squareAround(int centreX, int centreY)
+        {
+            const int range = Constants::CellGridRadius;
+            const auto side = static_cast<std::size_t>(2 * range + 1);
+
+            std::vector<std::pair<int, int>> square;
+            square.reserve(side * side);
+
+            for (int x = centreX - range; x <= centreX + range; ++x)
+                for (int y = centreY - range; y <= centreY + range; ++y)
+                    square.emplace_back(x, y);
+
+            const auto priority = [&](const std::pair<int, int>& cell) {
+                return std::make_pair(std::abs(cell.first - centreX) + std::abs(cell.second - centreY),
+                    std::abs(cell.first) + std::abs(cell.second));
+            };
+
+            std::sort(square.begin(), square.end(),
+                [&](const std::pair<int, int>& a, const std::pair<int, int>& b) { return priority(a) < priority(b); });
+
+            return square;
+        }
+
+        void forEachNewCell(World& world, const ESM::Cell& centre, std::set<std::string>& loaded,
             const std::function<void(const ESM::Cell&)>& visit)
         {
             if (!centre.isExterior())
@@ -38,22 +79,18 @@ namespace RtxTool
                 return;
             }
 
-            const int x = centre.getGridX();
-            const int y = centre.getGridY();
+            for (const auto& [x, y] : squareAround(centre.getGridX(), centre.getGridY()))
+            {
+                std::string spec = std::to_string(x) + ',' + std::to_string(y);
+                if (loaded.contains(spec))
+                    continue;
 
-            for (int dy = -radius; dy <= radius; ++dy)
-                for (int dx = -radius; dx <= radius; ++dx)
+                if (const ESM::Cell* cell = world.findCell(spec))
                 {
-                    std::string spec = std::to_string(x + dx) + ',' + std::to_string(y + dy);
-                    if (loaded.contains(spec))
-                        continue;
-
-                    if (const ESM::Cell* cell = world.findCell(spec))
-                    {
-                        loaded.insert(std::move(spec));
-                        visit(*cell);
-                    }
+                    loaded.insert(std::move(spec));
+                    visit(*cell);
                 }
+            }
         }
     }
 
@@ -65,7 +102,7 @@ namespace RtxTool
         return std::to_string(square(position.x())) + ',' + std::to_string(square(position.y()));
     }
 
-    CellReport readRegion(World& world, const ESM::Cell& centre, int radius, RtxBridge::SceneExtractor& extractor,
+    CellReport readRegion(World& world, const ESM::Cell& centre, RtxBridge::SceneExtractor& extractor,
         std::set<std::string>& loaded, bool liveProps)
     {
         CellReport report;
@@ -85,7 +122,7 @@ namespace RtxTool
         const unsigned int before = root != nullptr ? root->getNumChildren() : 0;
 
         osg::ref_ptr<osg::Group> terrain;
-        forEachNewCell(world, centre, radius, loaded, [&](const ESM::Cell& cell) {
+        forEachNewCell(world, centre, loaded, [&](const ESM::Cell& cell) {
             ++report.mCells;
             if (osg::ref_ptr<osg::Group> chunks = world.buildTerrain(cell))
                 terrain = std::move(chunks);
@@ -109,7 +146,7 @@ namespace RtxTool
         // has to be told about the cells it just took. Kept apart because the terrain has to be in
         // the graph and mirrored before the objects standing on it are.
         std::set<std::string> objects;
-        forEachNewCell(world, centre, radius, objects,
+        forEachNewCell(world, centre, objects,
             [&](const ESM::Cell& cell) { readObjects(world, cell, extractor, report, liveProps); });
 
         return report;
@@ -174,11 +211,11 @@ namespace RtxTool
         }
     }
 
-    RegionLoad loadRegion(World& world, const ESM::Cell& centre, int radius, Rtx::SceneDesc& scene,
+    RegionLoad loadRegion(World& world, const ESM::Cell& centre, Rtx::SceneDesc& scene,
         RtxBridge::SceneExtractor& extractor, std::set<std::string>& loaded, std::string_view weather, float hour,
         bool liveProps)
     {
-        CellReport report = readRegion(world, centre, radius, extractor, loaded, liveProps);
+        CellReport report = readRegion(world, centre, extractor, loaded, liveProps);
         for (const Rtx::Light& light : report.mLights)
             scene.addLight(light);
 

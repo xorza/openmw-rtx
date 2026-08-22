@@ -98,8 +98,8 @@ namespace RtxTool
         }
     }
 
-    int runWindow(World& world, const ESM::Cell& centre, int radius, const Rtx::ValidationOptions& validation,
-        ViewRequest request, const ActorRequest& actors)
+    int runWindow(World& world, const ESM::Cell& centre, const Rtx::ValidationOptions& validation, ViewRequest request,
+        const ActorRequest& actors)
     {
         Window window(request.mTitle, request.mWidth, request.mHeight);
 
@@ -150,7 +150,7 @@ namespace RtxTool
         /// from it — a top level naming a mesh with no bottom level behind it is a fatal frame.
         const auto bring = [&](const ESM::Cell& around) {
             const Clock::time_point began = Clock::now();
-            const CellReport arrived = readRegion(world, around, radius, extractor, loaded, actors.mProps);
+            const CellReport arrived = readRegion(world, around, extractor, loaded, actors.mProps);
 
             if (arrived.mCells == 0)
                 return false;
@@ -167,8 +167,8 @@ namespace RtxTool
             return true;
         };
 
-        RegionLoad arrivedWith = loadRegion(
-            world, centre, radius, scene, extractor, loaded, request.mWeather, request.mHour, actors.mProps);
+        RegionLoad arrivedWith
+            = loadRegion(world, centre, scene, extractor, loaded, request.mWeather, request.mHour, actors.mProps);
         request.mLighting = arrivedWith.mLighting;
 
         if (scene.getPlacedCount() == 0)

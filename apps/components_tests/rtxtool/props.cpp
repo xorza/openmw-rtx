@@ -84,7 +84,7 @@ namespace RtxTool
             {
                 RtxBridge::SceneExtractor extractor(seeded);
                 std::set<std::string> loaded;
-                seedStats = readRegion(*world, *cell, 0, extractor, loaded, /*liveProps=*/false).mStats;
+                seedStats = readRegion(*world, *cell, extractor, loaded, /*liveProps=*/false).mStats;
             }
 
             ASSERT_GT(seedStats.mEmitters, 0u) << "the room is full of candles";
@@ -92,7 +92,7 @@ namespace RtxTool
             Rtx::SceneDesc live;
             RtxBridge::SceneExtractor extractor(live);
             std::set<std::string> loaded;
-            const CellReport report = readRegion(*world, *cell, 0, extractor, loaded, /*liveProps=*/true);
+            const CellReport report = readRegion(*world, *cell, extractor, loaded, /*liveProps=*/true);
 
             EXPECT_EQ(report.mStats.mEmitters, 0u) << "a reference that is going to be instanced is not mirrored too";
             ASSERT_FALSE(report.mProps.empty());
@@ -124,7 +124,7 @@ namespace RtxTool
             {
                 RtxBridge::SceneExtractor twice(again);
                 std::set<std::string> once;
-                readRegion(*world, *cell, 0, twice, once, /*liveProps=*/false);
+                readRegion(*world, *cell, twice, once, /*liveProps=*/false);
             }
 
             EXPECT_EQ(spritePositions(again), spritePositions(seeded));

@@ -9,9 +9,9 @@
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/upscale.hpp>
 
-#include <components/rtx/frametimes.hpp>
 #include "posedactors.hpp"
 #include "views.hpp"
+#include <components/rtx/frametimes.hpp>
 
 namespace Rtx
 {
@@ -47,7 +47,6 @@ namespace RtxTool
         std::uint32_t mWidth = 1920;
         std::uint32_t mHeight = 1080;
         float mFieldOfView = 60.0f;
-        int mRadius = 4;
 
         /// How many seconds of *world* each place is run for.
         ///

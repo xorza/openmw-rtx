@@ -16,8 +16,8 @@ The harness already streams cells as the camera crosses a boundary — that part
 
 | | game | rtxtool |
 |---|---|---|
-| **active grid** | `Constants::CellGridRadius = 1` — 3x3 | `--radius`, default 4 — 9x9 |
-| **what triggers a load** | the player crosses a cell boundary | the camera crosses a cell boundary — the same shape |
+| **active grid** | `Constants::CellGridRadius` — 3x3 | ~~`--radius`, default 4~~ — **the same constant, §4** |
+| **what triggers a load** | the player crosses a cell boundary | the camera crosses a cell boundary — the same shape, and now the same fill order |
 | **unloading** | cells out of range are torn down | **never**; the `loaded` set only grows |
 | **preloading** | background threads, ahead of the player | none, synchronous on the frame that crossed |
 | **after a ring arrives** | `extendScene`, appending | `setScene`, rebuilding all of it |
@@ -82,20 +82,63 @@ means `extendScene`, renumbered means `setScene`.
 crossings land in the same places on every run, and the load spikes show up in the p99 where they
 can be seen. Uniform frame time is the target the spikes are measured against; see `CLAUDE.md`.
 
-## 4. The decision this needs
+## 4. The grid — done, and there is no longer a knob
 
-**Step 1 has to come with the radius, not after it.** `getInstance` per reference at `--radius 4` is
-47,828 real node instances where there are now a few thousand shared templates — memory and staging
-time for a scene the game would never hold. At the game's radius it is about 6,800, which is what
-the
-game holds.
+**`--radius` is gone.** Not defaulted to the game's value: removed, along with the parameter it was
+threaded through — `readRegion`, `loadRegion`, `runWindow` and the request fields that only carried
+it. The game has no such option and decides its grid from `Constants::CellGridRadius`; so does the
+harness now, and nothing can pass a different one.
 
-So: **`--radius` defaults to 1, and the wide views become opt-in.** Measurement then happens at the
-grid the game actually runs, and `shot` and `sheet` pass a larger radius explicitly when the point
-is
-a picture rather than a number.
+**And the same logic, not only the same number.** The harness filled its square in scanline order;
+the game sorts nearest-first, breaking ties by distance to the origin. A crossing timed here was
+filling the grid in an order the game never uses, which for a benchmark whose whole subject is a
+camera crossing a boundary is the measurement itself. `squareAround` now does what
+`Scene::iterateOverCellsAround` and `Scene::sortCellsToLoad` do between them.
 
-## 5. What stays different, deliberately
+**Copied rather than shared, and the copy says so.** The originals sit in an anonymous namespace in
+`scene.cpp`, so nothing outside that file can link to them; lifting them into `components/` was
+tried
+and cost three upstream files to share twenty lines of arithmetic. Twenty lines is the cheaper
+copy —
+**but it can drift, and nothing here will notice.** If `Scene` ever changes how it orders a load,
+this
+has to follow by hand. That is what the copy costs, and it is written where the copy is.
+
+At Seyda Neen the harness went from **47,828 placed instances to 6,445**, against the **6,835** the
+game holds standing in the same place; the rest is the actors and the paging the harness does not
+have yet. It was nine by nine and is three by three, which is what the game runs.
+
+What is lost is the wide vista for screenshots, and that is the right trade: a picture taken over a
+grid the game never loads was never a picture of the game.
+
+## 5. What else the two could share
+
+The grid was the obvious duplication. The survey of what is left:
+
+| in the game | the harness's version | worth sharing? |
+|---|---|---|
+| `iterateOverCellsAround`, `sortCellsToLoad` | its own square loop, in the wrong order | **copied**, not shared — they are private to `scene.cpp`, and a component to hold them cost three upstream files for twenty lines |
+| `Constants::CellGridRadius` | `--radius`, default 4 | **done** — the option is gone |
+| `MWWorld::Scene::changeCellGrid` — the arrival/departure diff | `forEachNewCell`, arrivals only | not directly: it is welded to the world model, physics and the loading screen. The *shape* is worth copying when unloading lands; the code is not. |
+| `MWRender::Objects` — a node per reference under a transform | `getTemplate` and a transform passed beside it | not shareable, but step 1 should end up doing what it does |
+| `CellPreloader` — background threads | nothing | no. The harness wants the load cost visible and on the frame, not hidden behind a thread. |
+| `SceneManager::getInstance` | already used, for actors only | already shared |
+| `Terrain::World` | already used | already shared |
+
+The pattern went the other way from the obvious guess: **almost none of it is worth sharing.**
+`Scene::changeCellGrid` reads as the thing to reuse and is the thing that cannot be — it needs
+`MWBase::Environment`, a `WorldModel`, a navigator, a loading listener and the script machinery,
+none
+of which a standalone tool has or should grow. And what *could* be shared is small enough that a
+marked copy beats a new upstream file: a header in `components/` conflicts on every merge, for
+twenty
+lines that have not changed in years.
+
+What is genuinely shared is what was already a component before either side wanted it —
+`Constants::CellGridRadius`, `SceneManager::getInstance`, `Terrain::World`, `components/esm3`.
+
+
+## 6. What stays different, deliberately
 
 **Determinism.** The harness steps a fixed sixtieth with no AI, no physics and no scripts, so two
 runs are the same six hundred frames and a picture can be compared byte for byte. The game has all

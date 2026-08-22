@@ -40,7 +40,7 @@ namespace RtxTool
         RtxBridge::ExtractionStats readCell(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor)
         {
             std::set<std::string> loaded;
-            return readRegion(world, cell, 0, extractor, loaded, /*liveProps=*/false).mStats;
+            return readRegion(world, cell, extractor, loaded, /*liveProps=*/false).mStats;
         }
 
         /// One number per mesh, over the vertices and the triangles it actually holds.
@@ -237,7 +237,7 @@ namespace RtxTool
             CellLighting lighting;
             {
                 std::set<std::string> loaded;
-                loadRegion(*world, *first, 0, scene, extractor, loaded, "Clear", 12.0f, false);
+                loadRegion(*world, *first, scene, extractor, loaded, "Clear", 12.0f, false);
             }
 
             ASSERT_TRUE(extractor.retire().empty());
@@ -246,7 +246,7 @@ namespace RtxTool
             {
                 scene.clearPlacement();
                 std::set<std::string> loaded;
-                lighting = loadRegion(*world, *second, 0, scene, extractor, loaded, "Clear", 12.0f, false).mLighting;
+                lighting = loadRegion(*world, *second, scene, extractor, loaded, "Clear", 12.0f, false).mLighting;
 
                 if (pass == 0)
                 {
@@ -259,7 +259,7 @@ namespace RtxTool
             CellLighting freshly;
             {
                 std::set<std::string> loaded;
-                freshly = loadRegion(*world, *second, 0, alone, fresh, loaded, "Clear", 12.0f, false).mLighting;
+                freshly = loadRegion(*world, *second, alone, fresh, loaded, "Clear", 12.0f, false).mLighting;
             }
 
             // The last walk put the second room back; this is the sweep that takes the first one's
