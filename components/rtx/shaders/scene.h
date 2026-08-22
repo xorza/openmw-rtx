@@ -252,6 +252,36 @@ namespace Rtx::Shaders
         vec4 mMaskTransform;
     };
 
+    /// One live particle, as a disc facing the eye.
+    ///
+    /// **The layer is composited rather than denoised**, for the reason a rain streak is: an
+    /// upscaler carries a transparency layer through its own path, coverage arrives as a fraction so
+    /// a sprite finer than a pixel dims instead of flickering in and out, and none of it costs a
+    /// bottom-level structure. `Rtx::Sprite` says what each field is.
+    struct GpuSprite
+    {
+        vec3 mPosition;
+        float mRadius;
+        vec3 mColour;
+        float mAlpha;
+    };
+
+    /// One particle system: a sphere a ray is rejected by, and the run of sprites behind it.
+    struct GpuEmitter
+    {
+        vec3 mCentre;
+        float mReach;
+        uint mFirst;
+        uint mCount;
+
+        /// The sprite texture. Never `NO_TEXTURE` — an emitter without one places no sprites at all,
+        /// since a particle's whole silhouette is that texture's alpha.
+        uint mTexture;
+
+        /// Non-zero for `SRC_ALPHA, ONE`. A flame adds and hides nothing; smoke covers and is lit.
+        uint mAdditive;
+    };
+
     struct GpuMaterial
     {
         /// One of the `KIND_` values.
@@ -300,6 +330,8 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 48, "GpuLayer must be scalar-packed on every side");
     static_assert(sizeof(GpuMaterial) == 52, "GpuMaterial must be scalar-packed on every side");
+    static_assert(sizeof(GpuSprite) == 32, "GpuSprite must be scalar-packed on every side");
+    static_assert(sizeof(GpuEmitter) == 32, "GpuEmitter must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

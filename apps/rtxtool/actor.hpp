@@ -12,6 +12,11 @@
 
 #include <components/vfs/pathutil.hpp>
 
+namespace osg
+{
+    class FrameStamp;
+}
+
 namespace osgUtil
 {
     class UpdateVisitor;
@@ -53,6 +58,15 @@ namespace RtxTool
     ///        what a `CREA` record holds.
     ActorModel loadCreature(World& world, VFS::Path::NormalizedView model);
 
+    /// A prop: one ordinary model, as an instance of its own rather than the shared template.
+    ///
+    /// **An instance, and that is the whole point of the call.** A template is one object handed to
+    /// every reference of the model, and its particle systems are one set of particles shared by
+    /// thirty candles — frozen, because nothing ever updates a template. `SceneManager::getInstance`
+    /// deep-copies the nodes and the particle systems and leaves the plain geometry shared, so each
+    /// candle gets a flame of its own and the mesh cache still sees one candle.
+    ActorModel loadProp(World& world, VFS::Path::NormalizedView model);
+
     /// One animated actor, loaded and posed with no game running and no window open.
     ///
     /// **A pose and not an animation system.** `MWRender::Animation` is two thousand lines about
@@ -82,7 +96,14 @@ namespace RtxTool
         ///
         /// Wrapped to the played group's own length, so every time is a valid time and a caller
         /// stepping a clock never has to know how long the animation is.
-        void pose(float seconds);
+        ///
+        /// @param elapsed how much time the world advanced since the last pose, which is what the
+        ///        update traversal's frame stamp carries. **Separate from `seconds` because the two
+        ///        clocks are different kinds of thing**: an animation is sampled at a time and can
+        ///        be scrubbed anywhere in its track, where a particle system integrates and can only
+        ///        go forwards. Feeding it the animation's wrapped time runs a plume backwards once
+        ///        per loop.
+        void pose(float seconds, float elapsed);
 
         /// How long the group being played runs, in seconds. Zero where there was none to find.
         float getDuration() const { return mStop - mStart; }
@@ -107,8 +128,23 @@ namespace RtxTool
         /// Held rather than made per pose, because the controllers hold a pointer to it.
         std::shared_ptr<Clock> mClock;
 
+        /// What every controller the *model* carries reads, as against the keyframe track hung on
+        /// its bones.
+        ///
+        /// **Two clocks because they measure different things.** A keyframe controller is driven by
+        /// which animation is playing and how far into it the actor is, which is `mClock` and is
+        /// wrapped to the group's length. Everything a `.nif` carries of its own — the particle
+        /// emitter's start and stop window, a scrolling texture, a flicker — is on the world's
+        /// clock and only goes forwards. `NifOsg` leaves those sourceless unless the model asked to
+        /// autoplay, and a sourceless `ParticleSystemController` freezes its own emitter.
+        std::shared_ptr<Clock> mWorldClock;
+
         std::unique_ptr<PoseCull> mCull;
         std::unique_ptr<osgUtil::UpdateVisitor> mUpdate;
+
+        /// What the update traversal tells anything that integrates rather than samples — which in
+        /// Morrowind's content means the particle emitters and nothing else.
+        osg::ref_ptr<osg::FrameStamp> mStamp;
 
         ActorModel mModel;
         osg::Matrixf mTransform;
@@ -127,6 +163,16 @@ namespace RtxTool
         /// is how OpenMW keeps a frame from skinning an actor once per camera. A pose is a frame as
         /// far as they are concerned, so it counts.
         unsigned int mTraversal = 0;
+
+        /// The particle clock: only ever forwards, whatever the animation's does.
+        double mIntegrated = 0.0;
+
+        /// The most an emitter may be asked to integrate in one pose, in seconds.
+        ///
+        /// A tenth is several frames at any rate worth looking at, and it is shorter than the
+        /// lifetime of anything the game emits — so a window that stalled resumes with its plumes
+        /// where it left them rather than with a frame's worth of every particle at once.
+        static constexpr float sLongestStep = 0.1f;
     };
 
     /// Where the `index`th of `count` actors stands in front of a camera, facing it.

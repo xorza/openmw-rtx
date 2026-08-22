@@ -178,6 +178,59 @@ namespace Rtx
             EXPECT_EQ(scene.getMeshes().size(), 2u) << "clearing where things are keeps what they are";
         }
 
+        /// An emitter's sphere is derived from the sprites rather than passed in, so the rejection
+        /// test a ray makes and the sprites it would then walk cannot disagree about where they are.
+        ///
+        /// **Off the box and not off the mean**, which the lopsided arrangement here is chosen to
+        /// prove: two sprites sit at the origin and one at four along x, so the mean is at 4/3 and
+        /// the box's centre at 2. From the box the reach is 2 + 1 = 3 either way; from the mean it
+        /// would have to be 8/3 + 1 = 3.67 to hold the far one, a sphere 22% wider for the same
+        /// three particles.
+        TEST(RtxSceneDescTest, anEmitterCarriesItsSpritesAndTheSphereThatHoldsThem)
+        {
+            SceneDesc scene;
+            const Index texture = scene.addTexture(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+
+            const std::array sPlume{
+                Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f), .mRadius = 1.0f },
+                Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f), .mRadius = 1.0f },
+                Sprite{ .mPosition = osg::Vec3f(4.0f, 0.0f, 0.0f), .mRadius = 1.0f },
+            };
+            scene.addEmitter(sPlume, texture, true);
+
+            ASSERT_EQ(scene.getEmitters().size(), 1u);
+            const SpriteEmitter& plume = scene.getEmitters().front();
+            EXPECT_EQ(plume.mCentre, osg::Vec3f(2.0f, 0.0f, 0.0f));
+            EXPECT_FLOAT_EQ(plume.mReach, 3.0f);
+            EXPECT_EQ(plume.mFirst, 0u);
+            EXPECT_EQ(plume.mCount, 3u);
+            EXPECT_EQ(plume.mTexture, texture);
+            EXPECT_TRUE(plume.mAdditive);
+
+            // An emitter with nothing alive in it is not an emitter, and the next one that has
+            // something starts where the first left off rather than where a placeholder would have.
+            scene.addEmitter({}, texture, false);
+            EXPECT_EQ(scene.getEmitters().size(), 1u);
+
+            const std::array sSmoke{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 10.0f), .mRadius = 2.0f } };
+            scene.addEmitter(sSmoke, texture, false);
+
+            ASSERT_EQ(scene.getEmitters().size(), 2u);
+            EXPECT_EQ(scene.getEmitters()[1].mFirst, 3u);
+            EXPECT_EQ(scene.getEmitters()[1].mCount, 1u);
+            EXPECT_FALSE(scene.getEmitters()[1].mAdditive)
+                << "the blend the file asked for is what tells the two apart";
+            EXPECT_EQ(scene.getSprites().size(), 4u);
+            EXPECT_EQ(scene.getSprites()[3].mPosition, osg::Vec3f(0.0f, 0.0f, 10.0f));
+
+            // A frame's worth, so they go when the frame's placements do — and the texture they name
+            // stays, because the array it indexes was uploaded when the scene was built.
+            scene.clearPlacement();
+            EXPECT_TRUE(scene.getEmitters().empty());
+            EXPECT_TRUE(scene.getSprites().empty());
+            EXPECT_EQ(scene.getTextures().size(), 1u);
+        }
+
         TEST(RtxSceneDescTest, clearingEmptiesEveryTable)
         {
             SceneDesc scene;
@@ -187,6 +240,7 @@ namespace Rtx
             scene.addInstance(
                 MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = material });
             scene.updateMesh(mesh, sQuadPositions, {});
+            scene.addEmitter(std::array{ Sprite{ .mRadius = 1.0f } }, 0, true);
 
             scene.clear();
 
@@ -196,6 +250,8 @@ namespace Rtx
             EXPECT_TRUE(scene.getTextures().empty());
             EXPECT_TRUE(scene.getPositions().empty());
             EXPECT_TRUE(scene.getDeformed().empty());
+            EXPECT_TRUE(scene.getSprites().empty());
+            EXPECT_TRUE(scene.getEmitters().empty());
             EXPECT_EQ(scene.getTriangleCount(), 0u);
         }
     }

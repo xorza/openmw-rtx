@@ -3,18 +3,19 @@
 #include <algorithm>
 #include <cmath>
 
+#include <osg/FrameStamp>
 #include <osg/Group>
 #include <osg/Viewport>
 #include <osgUtil/CullVisitor>
 #include <osgUtil/RenderStage>
 #include <osgUtil/UpdateVisitor>
 
-#include <components/debug/debuglog.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/resource/keyframemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/sceneutil/controller.hpp>
 #include <components/sceneutil/keyframe.hpp>
 #include <components/sceneutil/skeleton.hpp>
 #include <components/sceneutil/visitor.hpp>
@@ -105,6 +106,20 @@ namespace RtxTool
         return loaded;
     }
 
+    ActorModel loadProp(World& world, VFS::Path::NormalizedView model)
+    {
+        ActorModel loaded;
+        loaded.mSkeleton = VFS::Path::Normalized(model);
+
+        // Wrapped for the reason `loadCreature` wraps a model with no skinning in it: `Actor` poses
+        // a `SceneUtil::Skeleton`, and one with no bones simply passes the traversal through.
+        osg::ref_ptr<SceneUtil::Skeleton> wrapper = new SceneUtil::Skeleton;
+        wrapper->addChild(world.getResourceSystem().getSceneManager()->getInstance(loaded.mSkeleton));
+        loaded.mRoot = wrapper;
+
+        return loaded;
+    }
+
     namespace
     {
         /// Whether `key` is `group` followed by exactly `suffix`.
@@ -142,19 +157,36 @@ namespace RtxTool
 
     Actor::Actor(World& world, ActorModel model, const osg::Matrixf& transform, std::string_view group)
         : mClock(std::make_shared<Clock>())
+        , mWorldClock(std::make_shared<Clock>())
         , mCull(std::make_unique<PoseCull>())
         , mUpdate(std::make_unique<osgUtil::UpdateVisitor>())
+        , mStamp(new osg::FrameStamp)
         , mModel(std::move(model))
         , mTransform(transform)
     {
+        // **Both traversals, because a controller can hang off either.** A keyframe or an emitter
+        // is driven under update; `NifOsg`'s state-set controllers — a scrolling texture, a
+        // flicker — are applied under cull, and `SceneUtil::FrameTimeSource` reads the visitor's
+        // frame stamp without checking that it has one.
+        mUpdate->setFrameStamp(mStamp);
+        mCull->setFrameStamp(mStamp);
+
+        // **Before the keyframes go on, and it never overwrites one.** The game does this through
+        // `MWRender::Animation`; without it every controller `NifOsg` left sourceless does nothing,
+        // and a `ParticleSystemController` with no source does worse than nothing — it freezes the
+        // emitter it is attached to, so a candle keeps the handful of specks its file was saved
+        // with and never lights.
+        SceneUtil::AssignControllerSourcesVisitor sourced(mWorldClock);
+        mModel.mRoot->accept(sourced);
+
         Resource::ResourceSystem& resources = world.getResourceSystem();
 
+        // **Silent, because most of what comes through here has none.** A prop is posed by this too
+        // and no static in the game ships a keyframe file, so a line per model is a line per candle.
+        // What says a *creature* failed to find its animation is `getPosedBones` coming back zero.
         const VFS::Path::Normalized keyframes = keyframesFor(mModel.mSkeleton);
         if (!resources.getVFS()->exists(keyframes))
-        {
-            Log(Debug::Warning) << "No animation beside " << mModel.mSkeleton << ", so it stands still";
             return;
-        }
 
         osg::ref_ptr<const SceneUtil::KeyframeHolder> track = resources.getKeyframeManager()->get(keyframes);
         if (track == nullptr)
@@ -213,16 +245,26 @@ namespace RtxTool
         return transform;
     }
 
-    void Actor::pose(float seconds)
+    void Actor::pose(float seconds, float elapsed)
     {
         const float length = getDuration();
         mClock->mSeconds = length > 0.0f ? mStart + std::fmod(std::fmod(seconds, length) + length, length) : mStart;
+
+        // **Only ever forwards, and never by more than a frame or two.** An emitter integrates the
+        // difference between one frame stamp and the last, so a step of nothing simulates nothing
+        // and a step of a hundred seconds teleports every plume in the cell to its own ceiling —
+        // which is what a window paused on a breakpoint and resumed would otherwise hand it.
+        mIntegrated += static_cast<double>(std::clamp(elapsed, 0.0f, sLongestStep));
+        mStamp->setSimulationTime(mIntegrated);
+        mStamp->setReferenceTime(mIntegrated);
+        mWorldClock->mSeconds = static_cast<float>(mIntegrated);
 
         // **Update then cull, and never the same number twice.** The bones move under the update
         // traversal and the skin follows them under the cull; both keep the last number they saw and
         // return early on a repeat, which in the game stops a second camera skinning the same actor
         // again and here would silently stop a pose from happening at all.
         ++mTraversal;
+        mStamp->setFrameNumber(mTraversal);
 
         mUpdate->setTraversalNumber(mTraversal);
         mModel.mRoot->accept(*mUpdate);

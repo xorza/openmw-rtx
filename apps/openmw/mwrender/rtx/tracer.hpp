@@ -142,6 +142,10 @@ namespace MWRender::Rtx
         /// geometry that has no acceleration structure yet.
         std::size_t mBuilt = 0;
 
+        /// The same question for the texture array, which a particle system can grow on its own: a
+        /// spell effect brings a sprite and no geometry.
+        std::size_t mTextured = 0;
+
         /// A running average of what the trace costs, reported every `sReportEvery` frames.
         ///
         /// **The only instrument on this path.** The harness times a frame by tracing it thirty

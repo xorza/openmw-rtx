@@ -134,6 +134,19 @@ layout(set = 0, binding = 17, rgba32f) uniform writeonly image2D modulate;
 /// A ray that hit nothing writes a zero normal, which no surface can be mistaken for.
 layout(set = 0, binding = 18, rgba32f) uniform writeonly image2D guide;
 
+/// Every live particle in the scene, one emitter's run after another's.
+layout(set = 0, binding = 23, scalar) readonly buffer Sprites
+{
+    GpuSprite sprites[];
+};
+
+/// One sphere and one run of sprites per particle system. `camera.mEmitterCount` says how many are
+/// real: the buffer never shrinks, so its length outlives the cell that filled it.
+layout(set = 0, binding = 24, scalar) readonly buffer Emitters
+{
+    GpuEmitter emitters[];
+};
+
 layout(set = 1, binding = 0) uniform sampler2D textures[];
 
 layout(push_constant, scalar) uniform Push
@@ -1684,6 +1697,178 @@ vec3 bounceLight(Surface surface, uvec2 pixel)
     return shadeSurface(hit, pathEnd(hit.mPosition));
 }
 
+/// What a puff of smoke is lit by, per unit of albedo.
+///
+/// **As bright as a card of the same albedo held beside it, and that is not a fudge.** An opaque
+/// diffuse *sphere* would catch `pi r^2` of the beam and radiate over `4 pi r^2` — a quarter of the
+/// facing value — but a puff is neither opaque nor diffuse: it is a cloud of droplets that scatters
+/// strongly forward and again inside itself, so the sun reaches all of it rather than one
+/// hemisphere. The quarter, tried first in the reference implementation, put a plume back at the
+/// sky's own ambient, where it was invisible.
+///
+/// Unshadowed, and the data is what makes that safe: `mSunIrradiance` is zero for a cell with no
+/// sky, so a vent in a cave gets none of it without being asked.
+///
+/// The lamps arrive the way they arrive at the fog — as irradiance spread over the whole sphere —
+/// because a puff is the same kind of thing the fog is, only denser and in one place.
+vec3 puffLight(vec3 position)
+{
+    vec3 light = pathEnd(position) + camera.mSunIrradiance * (INV_PI * daylightReaching(position));
+
+    const uvec2 near = lampsReaching(position);
+    for (uint i = near.x; i < near.y; ++i)
+    {
+        const GpuLight lamp = lights[lightIndices[i]];
+
+        const float distance = length(lamp.mPosition - position);
+        if (distance >= lamp.mReach || distance <= 0.0)
+            continue;
+
+        light += INV_FOUR_PI * lamp.mIntensity * falloff(distance, lamp.mReach);
+    }
+
+    return light;
+}
+
+/// What the sprites between the eye and `limit` add to the frame, and what they leave of it.
+struct SpriteLayer
+{
+    /// Already fog-attenuated per sprite, so a caller composites this over a frame the fog has
+    /// finished with rather than putting it through the fog a second time.
+    vec3 mRadiance;
+
+    /// What survives the covering sprites. One for a frame with only flames in it: additive
+    /// blending hides nothing by definition.
+    float mTransmittance;
+};
+
+/// How much of the sprite's rim the mip chain has already eaten, as a factor to taper it by.
+///
+/// **A sprite a few pixels across is sampled several levels down its own chain**, by which point the
+/// blob the artist painted has been averaged into a nearly flat wash and the only shape left is the
+/// square the texture was cut to — so a spark at any distance reads as a little rectangle. The
+/// silhouette has to be put back geometrically, and only where it was lost: none at the top level,
+/// all of it two levels down, where a four-by-four block has already become one texel. Applied
+/// everywhere instead it tapers a sprite twice and the fire visibly dims.
+///
+/// It costs nothing that was painted — every particle texture the game ships is a blob on a
+/// transparent border, so the rim it removes held nothing.
+float spriteTaper(float radial, float lod)
+{
+    // Written the way round GLSL defines: `smoothstep` with its first edge above its second is
+    // undefined, however reliably it happens to produce the descending ramp.
+    return mix(1.0, 1.0 - smoothstep(0.6, 1.0, radial), clamp(0.5 * lod, 0.0, 1.0));
+}
+
+/// Every emitter's sprites the ray crosses, composited.
+///
+/// **No acceleration structure and one sphere per emitter.** A lamp is asked for by a shading
+/// *point*, which the uniform grid answers in a lookup; an emitter is asked for by a whole *ray*,
+/// which would have to walk that grid cell by cell. There are tens of emitters in a cell and each
+/// is small, so one rejection throws an emitter away for almost every pixel of the frame.
+///
+/// **Order-independent, because there is no order to be had.** `osgParticle` keeps its array in
+/// birth order and sorting tens of sprites per pixel is not affordable. So the two kinds are
+/// composited by what each actually means rather than by depth: an additive sprite adds light and
+/// hides nothing, which is order-free outright; the covering ones accumulate an exact total
+/// coverage `1 - prod(1 - a)` and fill it with their own coverage-weighted mean colour. That is
+/// exact for one sprite and for any number of sprites of one colour, which is what a single
+/// emitter's smoke is, and it degrades to a blend rather than to a fault when they differ.
+///
+/// What it does not model is a covering sprite in front of an adding one — a plume across a flame
+/// would dim it, and here it does not. The two are separate emitters in Morrowind's content and
+/// they are stacked rather than crossed.
+SpriteLayer spritesAlong(vec3 origin, vec3 direction, float limit)
+{
+    SpriteLayer layer;
+    layer.mRadiance = vec3(0.0);
+    layer.mTransmittance = 1.0;
+
+    vec3 covered = vec3(0.0);
+    float coverage = 0.0;
+
+    // The screen's own axes, for reading a sprite's texture the way the quad would have been cut.
+    // Hoisted because they are the camera's and not the sprite's.
+    const vec3 across = normalize(camera.mRight);
+    const vec3 upward = normalize(camera.mUp);
+
+    for (uint e = 0u; e < camera.mEmitterCount; ++e)
+    {
+        const GpuEmitter emitter = emitters[e];
+
+        const vec3 toCentre = emitter.mCentre - origin;
+        const float along = dot(toCentre, direction);
+        if (along + emitter.mReach <= 0.0 || along - emitter.mReach >= limit)
+            continue;
+
+        if (dot(toCentre, toCentre) - along * along > emitter.mReach * emitter.mReach)
+            continue;
+
+        // **One evaluation of the fog's field for the whole emitter**, taken halfway to it: that is
+        // the mean-value point of the path, and the field costs forty hashes out of doors. Every
+        // sprite behind this sphere is within `mReach` of the same air.
+        const float extinction = fogExtinctionAt(origin + direction * (0.5 * along), max(along, 1.0));
+
+        for (uint i = emitter.mFirst; i < emitter.mFirst + emitter.mCount; ++i)
+        {
+            const GpuSprite sprite = sprites[i];
+
+            const vec3 toSprite = sprite.mPosition - origin;
+            const float depth = dot(toSprite, direction);
+            if (depth <= 0.0 || depth >= limit)
+                continue;
+
+            // Perpendicular to the ray rather than to the camera's axis, so a sprite at the corner
+            // of the frame faces the eye and not the screen.
+            const vec3 offset = toSprite - direction * depth;
+            const float radial = length(offset);
+            if (radial >= sprite.mRadius)
+                continue;
+
+            // The sprite is `2 * mRadius` wide where the pixel's cone is `mSpreadAngle * depth`
+            // across, and the ratio of the two in texels is the level that resolves it.
+            const vec2 size = vec2(textureSize(textures[nonuniformEXT(emitter.mTexture)], 0));
+            const float lod
+                = max(0.0, log2(max(size.x, size.y) * camera.mSpreadAngle * depth / (2.0 * sprite.mRadius)));
+
+            // The quad `osgParticle` would have drawn: texture coordinate zero at `-right -up` and
+            // one at `+right +up`, about a centre at half.
+            const vec2 uv
+                = vec2(dot(offset, across), dot(offset, upward)) / (2.0 * sprite.mRadius) + 0.5;
+
+            const vec4 texel = textureLod(textures[nonuniformEXT(emitter.mTexture)], uv, lod);
+            const float alpha = texel.a * sprite.mAlpha * spriteTaper(radial / sprite.mRadius, lod);
+            if (!(alpha > 0.0))
+                continue;
+
+            const vec3 colour = texel.rgb * sprite.mColour;
+            const float reaching = exp(-extinction * depth);
+
+            if (emitter.mAdditive != 0u)
+            {
+                // **No gain, deliberately.** The blend the file asks for says exactly how much light
+                // the sprite adds; `EMISSIVE_INTENSITY` is only what carries the original's scale,
+                // where a fully lit surface reached one, onto this renderer's, where the sun is
+                // `DAYLIGHT`. A flame then comes out tens of times the mean of the room it stands in,
+                // because that is what a flame is, and the exposure downstream decides where it
+                // lands. A gain on top of it blows every flame to a white square and hides the shape
+                // that was already in the texture.
+                layer.mRadiance += colour * (alpha * reaching * EMISSIVE_INTENSITY);
+                continue;
+            }
+
+            covered += colour * puffLight(sprite.mPosition) * (alpha * reaching);
+            coverage += alpha;
+            layer.mTransmittance *= 1.0 - alpha;
+        }
+    }
+
+    if (coverage > 0.0)
+        layer.mRadiance += covered * ((1.0 - layer.mTransmittance) / coverage);
+
+    return layer;
+}
+
 /// Where a surface stood on the previous frame's screen, less where it stands on this one, in
 /// pixels.
 ///
@@ -1809,6 +1994,17 @@ void main()
     const vec4 fog = fogAlong(camera.mOrigin, direction, surface.mDistance, randomAt(pixel, STREAM_FOG));
     shaded = shaded * fog.w + fog.xyz;
     tint *= fog.w;
+
+    // The particles in front of all of it, each already dimmed by the air between it and the eye —
+    // which is why this composites over a frame the fog has finished with rather than before it.
+    //
+    // What a covering sprite hides is taken off the whole of `shaded`, the fog's own in-scattering
+    // included. Exactly right for what is behind the sprite and an over-darkening of the haze in
+    // front of it, which is the part of the ray a puff of smoke is nearly always at the end of.
+    const SpriteLayer particles = spritesAlong(camera.mOrigin, direction, surface.mDistance);
+
+    shaded = shaded * particles.mTransmittance + particles.mRadiance;
+    tint *= particles.mTransmittance;
 
     if (surface.mHit)
         atomicAdd(hits, 1);

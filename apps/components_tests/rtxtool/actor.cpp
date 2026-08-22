@@ -28,6 +28,11 @@ namespace RtxTool
     {
         namespace bpo = boost::program_options;
 
+        /// A frame's worth of elapsed time. These tests are about the animation clock, which is
+        /// `pose`'s first argument; the second only drives what integrates rather than samples, and
+        /// nothing being posed here has an emitter on it.
+        constexpr float sStep = 1.0f / 60.0f;
+
         /// A Morrowind installation as the harness finds one, or null where there is none.
         ///
         /// The same route the tool takes: the configuration manager reads `openmw.cfg`, which says
@@ -100,7 +105,7 @@ namespace RtxTool
             Rtx::SceneDesc first;
             {
                 RtxBridge::SceneExtractor extractor(first);
-                actor.pose(0.0f);
+                actor.pose(0.0f, sStep);
                 const RtxBridge::ExtractionStats stats = extractor.extract(actor.getRoot(), actor.getTransform());
 
                 EXPECT_GT(stats.mDeformed, 0u) << "a creature is skinned geometry";
@@ -111,7 +116,7 @@ namespace RtxTool
             Rtx::SceneDesc second;
             {
                 RtxBridge::SceneExtractor extractor(second);
-                actor.pose(actor.getDuration() * 0.25f);
+                actor.pose(actor.getDuration() * 0.25f, sStep);
                 extractor.extract(actor.getRoot(), actor.getTransform());
             }
 
@@ -132,7 +137,7 @@ namespace RtxTool
             Rtx::SceneDesc again;
             {
                 RtxBridge::SceneExtractor extractor(again);
-                actor.pose(actor.getDuration());
+                actor.pose(actor.getDuration(), sStep);
                 extractor.extract(actor.getRoot(), actor.getTransform());
             }
 
@@ -181,7 +186,7 @@ namespace RtxTool
                 RtxBridge::SceneExtractor extractor(scene);
 
                 Actor actor(*world, buildNpc(*world, *who, dressed), osg::Matrixf::identity());
-                actor.pose(0.0f);
+                actor.pose(0.0f, sStep);
 
                 const RtxBridge::ExtractionStats stats = extractor.extract(actor.getRoot(), actor.getTransform());
                 return Assembled{ actor.getSkeleton(), stats.mInstances, stats.mDeformed, scene.getTriangleCount() };

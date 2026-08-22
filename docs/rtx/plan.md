@@ -399,6 +399,24 @@ SER, opacity micromaps for cutout foliage, BLAS refit for skinned actors against
 `RigGeometry` output, BLAS compaction, cluster acceleration structures if they earn their place.
 Target: 1920×1080 internal → 3840×2160 at 60 fps.
 
+#### What the finished features cost
+
+Written down as each one lands rather than acted on — see `CLAUDE.md`, *Feature-complete first, then
+fast*. Numbers are 1920×1080, no upscaling, validation off, best of thirty on this box.
+
+| what | where | cost |
+|---|---|---|
+| the sprite layer, in the trace | Seyda Neen's ship, 165 emitters and 4,655 particles | 8.22 → 8.85 ms |
+| | Balmora's guild of mages, 19 emitters | 7.34 → 7.47 ms |
+| | Balmora from the bridge | 6.87 → 6.92 ms |
+| the harness's live props, whole frame | Balmora in a window, 94 props | 49 → 37 fps |
+
+The trace is the cheap half and the sphere test is why: an emitter is a few units across and one
+rejection throws it away for almost every pixel. The window's six milliseconds are not the sprites —
+they are the 185 extra deforming drawables the instanced props bring, refit once a frame whether or
+not their skeletons moved. A prop's *emitters* change every frame; its geometry usually does not,
+and nothing tells the two apart yet.
+
 ---
 
 ## 7. Development infrastructure
@@ -560,8 +578,9 @@ machine; GCC precompiled headers are a rebuild-everything hazard for a saving cc
 
 - **Interiors.** A room is not a valley (`design.md` §8.42) and interiors are half the game. Whether
   fog, sky light and bounce need a separate interior model is unanswered.
-- **Groundcover and particles.** Grass is alpha-cutout and enormous in instance count; particles are
-  camera-facing quads that ray tracing has no natural answer for.
+- **Groundcover.** Grass is alpha-cutout and enormous in instance count. Particles were the other
+  half of this question and are answered: a sprite goes in a table beside the lights and is marched
+  against the primary ray, never into an acceleration structure.
 - **The GUI's long-term home.** Interop is the way in. Whether it stays is a performance question
   nobody can answer yet.
 - **Distant land.** OpenMW's object paging and terrain LOD were tuned for a rasterizer's silhouette

@@ -106,6 +106,39 @@ namespace Rtx
         mLights.push_back(light);
     }
 
+    void SceneDesc::addEmitter(std::span<const Sprite> sprites, Index texture, bool additive)
+    {
+        if (sprites.empty())
+            return;
+
+        // The centre of the sprites' own bounding box rather than their mean, and the reach measured
+        // off it: a plume is a handful of parcels strung along one axis, and a mean sits where most
+        // of them happen to be at this instant rather than where the extent is.
+        osg::BoundingBoxf box;
+        for (const Sprite& sprite : sprites)
+        {
+            const osg::Vec3f rim(sprite.mRadius, sprite.mRadius, sprite.mRadius);
+            box.expandBy(sprite.mPosition - rim);
+            box.expandBy(sprite.mPosition + rim);
+        }
+
+        const osg::Vec3f centre = box.center();
+        float reach = 0.0f;
+        for (const Sprite& sprite : sprites)
+            reach = std::max(reach, (sprite.mPosition - centre).length() + sprite.mRadius);
+
+        mEmitters.push_back(SpriteEmitter{
+            .mCentre = centre,
+            .mReach = reach,
+            .mFirst = static_cast<Index>(mSprites.size()),
+            .mCount = static_cast<Index>(sprites.size()),
+            .mTexture = texture,
+            .mAdditive = additive,
+        });
+
+        mSprites.insert(mSprites.end(), sprites.begin(), sprites.end());
+    }
+
     Index SceneDesc::addTexture(VFS::Path::NormalizedView path)
     {
         const auto known = mTextureIndex.find(path);
@@ -130,6 +163,8 @@ namespace Rtx
         mInstances.clear();
         mLights.clear();
         mDeformed.clear();
+        mSprites.clear();
+        mEmitters.clear();
     }
 
     void SceneDesc::clear()
@@ -145,6 +180,8 @@ namespace Rtx
         mLayers.clear();
         mMasks.clear();
         mLights.clear();
+        mSprites.clear();
+        mEmitters.clear();
         mTextures.clear();
         mTextureIndex.clear();
     }

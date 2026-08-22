@@ -20,6 +20,11 @@ namespace osg
     class StateSet;
 }
 
+namespace osgParticle
+{
+    class ParticleSystem;
+}
+
 namespace SceneUtil
 {
     class LightSource;
@@ -55,14 +60,21 @@ namespace RtxBridge
         /// of an actor rather than a count of them.
         std::uint32_t mDeformed = 0;
 
-        /// Drawables this cannot read at all — neither an `osg::Geometry` nor either of the two
-        /// deforming kinds.
+        /// Particle systems met, and the live particles they were holding.
         ///
-        /// A cell's worth of these is its particle systems, whose geometry is a point set the
-        /// emitter rewrites and not triangles anybody can build a structure over; the odd one
-        /// beside them is OpenMW's own debug drawing. Both are things a ray tracer answers
-        /// differently rather than things missing here, so this is a canary and not a deficit —
-        /// what it would catch is a new kind of drawable arriving unnoticed.
+        /// **Sprites and not triangles**, so neither number is a mesh or an instance: an emitter is
+        /// a sphere and a run of discs the primary ray composites, and nothing about it reaches an
+        /// acceleration structure. An emitter whose particles have all died places nothing and is
+        /// not counted.
+        std::uint32_t mEmitters = 0;
+        std::uint32_t mSprites = 0;
+
+        /// Drawables this cannot read at all — neither an `osg::Geometry`, nor either of the two
+        /// deforming kinds, nor a particle system.
+        ///
+        /// What is left is OpenMW's own debug drawing, which a ray tracer answers differently
+        /// rather than misses. A canary and not a deficit: what it would catch is a new kind of
+        /// drawable arriving unnoticed.
         std::uint32_t mSkippedUnknown = 0;
 
         /// What the textures a scene reached for turned out to be.
@@ -135,6 +147,16 @@ namespace RtxBridge
             const osg::Drawable& drawable, const osg::NodePath& path, const osg::Matrixf& root, ExtractionStats& stats);
 
     private:
+        /// Places one particle system's live particles as a run of camera-facing discs.
+        ///
+        /// **The engine's own simulation, read where it stands.** OpenMW runs `osgParticle` under
+        /// the update traversal — emitters, colliders, gravity, colour and size ramps, the lot —
+        /// so by the time the mirror walks the graph a flame is a list of positions, sizes and
+        /// colours. Re-deriving that from the `NiParticleSystemController` would be a second
+        /// implementation of the same content, free to disagree with the one the game is running.
+        void addEmitter(const osgParticle::ParticleSystem& particles, const osg::NodePath& path,
+            const osg::Matrixf& root, ExtractionStats& stats);
+
         /// What identifies one placement from one frame to the next.
         ///
         /// **The node path, hashed.** A drawable alone is not an instance — a hundred crates share
@@ -178,5 +200,9 @@ namespace RtxBridge
         std::vector<osg::Vec3f> mNormalScratch;
         std::vector<osg::Vec2f> mTexCoordScratch;
         std::vector<float> mMaskScratch;
+
+        /// One emitter's sprites, refilled per particle system: the count is only known once the
+        /// dead ones have been passed over, and a cell holds tens of these every frame.
+        std::vector<Rtx::Sprite> mSpriteScratch;
     };
 }

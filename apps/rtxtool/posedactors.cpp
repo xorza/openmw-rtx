@@ -37,6 +37,7 @@ namespace RtxTool
         , mLit(scene.getLights().begin(), scene.getLights().end())
         , mSeconds(request.mSeconds)
         , mClothes(request.mClothes)
+        , mLastSeconds(request.mSeconds)
     {
     }
 
@@ -89,8 +90,34 @@ namespace RtxTool
                 add(buildNpc(mWorld, *person.mRecord, mClothes), person.mTransform);
     }
 
+    void PosedActors::addProps(std::span<const CellProp> props)
+    {
+        for (const CellProp& prop : props)
+        {
+            try
+            {
+                add(loadProp(mWorld, prop.mModel), prop.mTransform);
+            }
+            catch (const std::exception& failed)
+            {
+                Log(Debug::Warning) << "Cannot instance " << prop.mModel << ": " << failed.what();
+                continue;
+            }
+
+            ++mProps;
+        }
+    }
+
     const RtxBridge::ExtractionStats& PosedActors::settle()
     {
+        // **A frame's worth at a time, because that is the step the emitters were authored
+        // against**: a birth rate is particles per second, a collider bounces per step, and a
+        // lifetime quantised to one long stride would put every particle at the same age. The
+        // animation clock is held where it is throughout — a warm-up is about the emitters and
+        // nothing else, and turning it would leave every actor two seconds into its idle.
+        for (float at = sFrameSeconds; at <= sWarmSeconds; at += sFrameSeconds)
+            posedAt(mSeconds, sFrameSeconds);
+
         mPlaced = place(mSeconds);
         return mPlaced;
     }
@@ -126,15 +153,23 @@ namespace RtxTool
         mLit.assign(mScene.getLights().begin(), mScene.getLights().end());
     }
 
-    RtxBridge::ExtractionStats PosedActors::place(float seconds)
+    void PosedActors::posedAt(float seconds, float elapsed)
     {
-        RtxBridge::ExtractionStats stats;
         for (std::size_t at = 0; at < mActors.size(); ++at)
         {
             const std::unique_ptr<Actor>& actor = mActors[at];
-            actor->pose(seconds + mPhases[at] * actor->getDuration());
-            stats += mExtractor.extract(actor->getRoot(), actor->getTransform());
+            actor->pose(seconds + mPhases[at] * actor->getDuration(), elapsed);
         }
+    }
+
+    RtxBridge::ExtractionStats PosedActors::place(float seconds)
+    {
+        posedAt(seconds, seconds - mLastSeconds);
+        mLastSeconds = seconds;
+
+        RtxBridge::ExtractionStats stats;
+        for (const std::unique_ptr<Actor>& actor : mActors)
+            stats += mExtractor.extract(actor->getRoot(), actor->getTransform());
 
         return stats;
     }

@@ -99,6 +99,11 @@ namespace RtxTool
             "standing where the cell puts them. On, because a town with nobody in it is not the "
             "picture this renderer is being judged on; off is the A/B that says what they cost, and "
             "what a profiling run should hold still");
+        addOption("props", bpo::value<bool>()->default_value(true)->implicit_value(true),
+            "run the cell's particle emitters -- the candles, torches, braziers and fires. On, "
+            "because a template's emitters are frozen at the seed the file authored and a lit room "
+            "with no flames in it is not the picture; off leaves them as that seed, which is the "
+            "A/B that says what a cell's emitters cost");
         addOption("clothes", bpo::value<bool>()->default_value(true)->implicit_value(true),
             "dress people out of what their own record carries, which is what the game equips them "
             "with. Off leaves everyone in their skin -- which is worth looking at, because skin is "

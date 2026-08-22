@@ -135,6 +135,7 @@ namespace RtxTool
         /// the process is restarted. That is a harness being honest about its limits rather than a
         /// design; the game will need the other half.
         std::vector<CellPerson> arrivals;
+        std::vector<CellProp> arrivedProps;
 
         /// Hands the renderer everything now in the scene, structures and textures and all.
         const auto rebuild = [&] {
@@ -149,7 +150,7 @@ namespace RtxTool
         /// from it — a top level naming a mesh with no bottom level behind it is a fatal frame.
         const auto bring = [&](const ESM::Cell& around) {
             const Clock::time_point began = Clock::now();
-            const CellReport arrived = readRegion(world, around, radius, extractor, loaded);
+            const CellReport arrived = readRegion(world, around, radius, extractor, loaded, actors.mProps);
 
             if (arrived.mCells == 0)
                 return false;
@@ -158,6 +159,7 @@ namespace RtxTool
                 scene.addLight(light);
 
             arrivals = arrived.mPeople;
+            arrivedProps = arrived.mProps;
 
             out() << std::format("loaded {} cells in {:.2f} s, {} instances now placed\n", arrived.mCells,
                 std::chrono::duration<double>(Clock::now() - began).count(), scene.getInstances().size());
@@ -165,8 +167,8 @@ namespace RtxTool
             return true;
         };
 
-        RegionLoad arrivedWith
-            = loadRegion(world, centre, radius, scene, extractor, loaded, request.mWeather, request.mHour);
+        RegionLoad arrivedWith = loadRegion(
+            world, centre, radius, scene, extractor, loaded, request.mWeather, request.mHour, actors.mProps);
         request.mLighting = arrivedWith.mLighting;
 
         if (scene.getInstances().empty())
@@ -188,15 +190,23 @@ namespace RtxTool
         const std::span<const CellPerson> residents
             = actors.mResidents ? std::span<const CellPerson>(arrivedWith.mPeople) : std::span<const CellPerson>();
 
+        const std::span<const CellProp> props
+            = actors.mProps ? std::span<const CellProp>(arrivedWith.mProps) : std::span<const CellProp>();
+
         std::unique_ptr<PosedActors> posed;
-        if (!actors.empty() || !residents.empty())
+        if (!actors.empty() || !residents.empty() || !props.empty())
         {
             posed = std::make_unique<PosedActors>(world, scene, extractor, actors);
             posed->addResidents(residents);
+            posed->addProps(props);
             posed->addRow(actors, start);
 
+            const RtxBridge::ExtractionStats& settled = posed->settle();
             out() << std::format(
-                "{} actors placed, {} deforming drawables\n", posed->getCount(), posed->settle().mDeformed);
+                "{} actors and {} live props placed, {} deforming drawables, {} emitters holding "
+                "{} particles\n",
+                posed->getCount() - posed->getPropCount(), posed->getPropCount(), settled.mDeformed, settled.mEmitters,
+                settled.mSprites);
         }
 
         // **Once, and after everyone is in.** The bodies brought meshes of their own, so a build that
@@ -342,6 +352,7 @@ namespace RtxTool
                             posed->unplace();
 
                         arrivals.clear();
+                        arrivedProps.clear();
                         if (bring(*cell))
                         {
                             // The snapshot first, then the people who arrived with the ring: the
@@ -352,6 +363,8 @@ namespace RtxTool
                                 posed->restanding();
                                 if (actors.mResidents)
                                     posed->addResidents(arrivals);
+                                if (actors.mProps)
+                                    posed->addProps(arrivedProps);
 
                                 posed->settle();
                             }

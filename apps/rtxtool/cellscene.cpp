@@ -18,7 +18,8 @@ namespace RtxTool
 {
     namespace
     {
-        void readObjects(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor, CellReport& report);
+        void readObjects(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor, CellReport& report,
+            bool liveProps);
 
         /// Calls `visit` for every cell in the region that `loaded` does not already name, and adds
         /// each one to it.
@@ -65,7 +66,7 @@ namespace RtxTool
     }
 
     CellReport readRegion(World& world, const ESM::Cell& centre, int radius, RtxBridge::SceneExtractor& extractor,
-        std::set<std::string>& loaded)
+        std::set<std::string>& loaded, bool liveProps)
     {
         CellReport report;
 
@@ -107,14 +108,15 @@ namespace RtxTool
         // the graph and mirrored before the objects standing on it are.
         std::set<std::string> objects;
         forEachNewCell(world, centre, radius, objects,
-            [&](const ESM::Cell& cell) { readObjects(world, cell, extractor, report); });
+            [&](const ESM::Cell& cell) { readObjects(world, cell, extractor, report, liveProps); });
 
         return report;
     }
 
     namespace
     {
-        void readObjects(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor, CellReport& report)
+        void readObjects(World& world, const ESM::Cell& cell, RtxBridge::SceneExtractor& extractor, CellReport& report,
+            bool liveProps)
         {
             const World::SkippedObjects skipped = world.forEachObject(cell, [&](const World::Object& object) {
                 if (object.mPerson != nullptr)
@@ -140,6 +142,20 @@ namespace RtxTool
                     return;
                 }
 
+                // **The same test `SceneManager::getInstance` makes**, and for the same reason: a
+                // particle emitter is an update callback, so a graph with none of those has nothing
+                // that changes between frames. Everything else in a cell is still, and a template
+                // shared by every reference of the model is the cheaper thing to walk.
+                //
+                // Reported *instead of* mirrored, because the instance somebody makes of it shares
+                // these very drawables and would place the same candle a second time.
+                if (liveProps
+                    && (node->getUpdateCallback() != nullptr || node->getNumChildrenRequiringUpdateTraversal() > 0))
+                {
+                    report.mProps.push_back(CellProp{ .mModel = object.mModel, .mTransform = object.mTransform });
+                    return;
+                }
+
                 report.mStats += extractor.extract(*node, object.mTransform);
             });
 
@@ -149,9 +165,10 @@ namespace RtxTool
     }
 
     RegionLoad loadRegion(World& world, const ESM::Cell& centre, int radius, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, std::set<std::string>& loaded, std::string_view weather, float hour)
+        RtxBridge::SceneExtractor& extractor, std::set<std::string>& loaded, std::string_view weather, float hour,
+        bool liveProps)
     {
-        CellReport report = readRegion(world, centre, radius, extractor, loaded);
+        CellReport report = readRegion(world, centre, radius, extractor, loaded, liveProps);
         for (const Rtx::Light& light : report.mLights)
             scene.addLight(light);
 
@@ -169,13 +186,15 @@ namespace RtxTool
                                    .mWaterLevel = level,
                                    .mDaylight = {},
                                    .mFog = RtxBridge::interiorFog(centre) },
-                .mPeople = std::move(report.mPeople) };
+                .mPeople = std::move(report.mPeople),
+                .mProps = std::move(report.mProps) };
 
         const RtxBridge::Daylight daylight = RtxBridge::makeDaylight(weather, hour);
         return RegionLoad{ .mLighting = CellLighting{ .mAmbient = daylight.mAmbient,
                                .mWaterLevel = level,
                                .mDaylight = daylight,
                                .mFog = daylight.mFog },
-            .mPeople = std::move(report.mPeople) };
+            .mPeople = std::move(report.mPeople),
+            .mProps = std::move(report.mProps) };
     }
 }

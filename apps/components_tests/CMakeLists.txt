@@ -124,6 +124,7 @@ if (OPENMW_RTX)
         rtxbridge/waterbuilder.cpp
         rtxtool/actor.cpp
         rtxtool/contactsheet.cpp
+        rtxtool/props.cpp
         rtxtool/stability.cpp
         rtxtool/terrainstorage.cpp
         rtxtool/validationchoice.cpp

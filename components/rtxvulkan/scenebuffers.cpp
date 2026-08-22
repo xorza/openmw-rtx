@@ -50,6 +50,28 @@ namespace Rtx
             };
         }
 
+        Shaders::GpuSprite toGpu(const Sprite& sprite)
+        {
+            return Shaders::GpuSprite{
+                .mPosition = sprite.mPosition,
+                .mRadius = sprite.mRadius,
+                .mColour = sprite.mColour,
+                .mAlpha = sprite.mAlpha,
+            };
+        }
+
+        Shaders::GpuEmitter toGpu(const SpriteEmitter& emitter)
+        {
+            return Shaders::GpuEmitter{
+                .mCentre = emitter.mCentre,
+                .mReach = emitter.mReach,
+                .mFirst = emitter.mFirst,
+                .mCount = emitter.mCount,
+                .mTexture = emitter.mTexture,
+                .mAdditive = emitter.mAdditive ? 1u : 0u,
+            };
+        }
+
         Shaders::GpuLayer toGpu(const MaterialLayer& layer)
         {
             return Shaders::GpuLayer{
@@ -169,6 +191,18 @@ namespace Rtx
         for (const Light& light : scene.getLights())
             mLightScratch.push_back(toGpu(light));
 
+        mSpriteScratch.clear();
+        mSpriteScratch.reserve(scene.getSprites().size());
+        for (const Sprite& sprite : scene.getSprites())
+            mSpriteScratch.push_back(toGpu(sprite));
+
+        mEmitterScratch.clear();
+        mEmitterScratch.reserve(scene.getEmitters().size());
+        for (const SpriteEmitter& emitter : scene.getEmitters())
+            mEmitterScratch.push_back(toGpu(emitter));
+
+        mEmitterCount = static_cast<std::uint32_t>(mEmitterScratch.size());
+
         mLightGrid = LightGrid(scene.getLights());
 
         // Nothing may be bound to a descriptor a shader declares, so an empty table is one element.
@@ -181,6 +215,17 @@ namespace Rtx
             : std::span<const Shaders::GpuLight>(mLightScratch);
         const std::span<const std::uint32_t> indices
             = mLightGrid.getIndices().empty() ? std::span<const std::uint32_t>(&noIndex, 1) : mLightGrid.getIndices();
+
+        // A cell with no emitters in it still has to bind something, and the count is what stops the
+        // shader reading these placeholders.
+        const Shaders::GpuSprite noSprite{};
+        const Shaders::GpuEmitter noEmitter{};
+        const std::span<const Shaders::GpuSprite> sprites = mSpriteScratch.empty()
+            ? std::span<const Shaders::GpuSprite>(&noSprite, 1)
+            : std::span<const Shaders::GpuSprite>(mSpriteScratch);
+        const std::span<const Shaders::GpuEmitter> emitters = mEmitterScratch.empty()
+            ? std::span<const Shaders::GpuEmitter>(&noEmitter, 1)
+            : std::span<const Shaders::GpuEmitter>(mEmitterScratch);
 
         const Shaders::GpuLightGrid geometry{
             .mOrigin = mLightGrid.getOrigin(),
@@ -195,6 +240,8 @@ namespace Rtx
         reserve(mLightIndices, indices.size_bytes());
         reserve(mGrid, sizeof(geometry));
         reserve(mWaves, sizeof(waves));
+        reserve(mSprites, sprites.size_bytes());
+        reserve(mEmitters, emitters.size_bytes());
 
         mInstances.write(instances);
         mLights.write(lights);
@@ -202,6 +249,8 @@ namespace Rtx
         mLightIndices.write(indices);
         mGrid.write(std::span<const Shaders::GpuLightGrid>(&geometry, 1));
         mWaves.write(std::span<const Shaders::GpuWave>(waves));
+        mSprites.write(sprites);
+        mEmitters.write(emitters);
 
         // **Only what changed shape.** A cell's normals are the same normals from one frame to the
         // next; a skinned body's are new every frame, and `getDeformed` is the list of exactly those.
@@ -219,6 +268,6 @@ namespace Rtx
         // its own size.
         return mNormals.getSize() + mTexCoords.getSize() + mMeshes.getSize() + mInstances.getSize()
             + mMaterials.getSize() + mLayers.getSize() + mMasks.getSize() + mLights.getSize() + mLightOffsets.getSize()
-            + mLightIndices.getSize() + mGrid.getSize() + mWaves.getSize();
+            + mLightIndices.getSize() + mGrid.getSize() + mWaves.getSize() + mSprites.getSize() + mEmitters.getSize();
     }
 }

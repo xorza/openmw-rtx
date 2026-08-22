@@ -154,7 +154,10 @@ namespace MWRender::Rtx
         // Geometry the walk has not met before has no bottom-level structure and no uploaded
         // texture, so the whole scene is rebuilt rather than replaced. **Which is a cell change and
         // a load, not a frame** — a door opening moves instances the walk already knows.
-        const bool arrived = mScene.getMeshes().size() != mBuilt;
+        // Textures as well as meshes, because a spell effect is a particle system and nothing else:
+        // it brings a sprite to sample and no geometry at all, and a frame that only re-placed what
+        // it already had would leave that sampler pointing past the array.
+        const bool arrived = mScene.getMeshes().size() != mBuilt || mScene.getTextures().size() != mTextured;
         if (arrived)
         {
             Log(Debug::Info) << "Ray tracing built " << mScene.getMeshes().size() << " meshes into " << found.mInstances
@@ -172,6 +175,7 @@ namespace MWRender::Rtx
 
             mRenderer->setScene(mScene, textures.getDescriptions(), ::Rtx::SeaState{});
             mBuilt = mScene.getMeshes().size();
+            mTextured = mScene.getTextures().size();
         }
         else
         {

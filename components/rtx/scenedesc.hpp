@@ -215,6 +215,53 @@ namespace Rtx
         Index mMaterial = sNoIndex;
     };
 
+    /// One live particle, drawn as a disc facing the eye.
+    ///
+    /// **A particle system carries no triangles at all** — the sprites are the whole of the drawing —
+    /// so nothing here reaches an acceleration structure. The layer is marched against the primary
+    /// ray and composited instead, which is also what lets it blend in depth order without the
+    /// candidate loop an alpha-blended hit would cost traversal.
+    struct Sprite
+    {
+        osg::Vec3f mPosition;
+
+        /// Half the sprite's width in world units, which is what `osgParticle` means by a size: its
+        /// quad runs from `-size` to `+size` about the particle and its bounds are expanded by it.
+        float mRadius = 0.0f;
+
+        /// Linear, and already carrying wherever the particle's own colour ramp has reached.
+        osg::Vec3f mColour{ 1.0f, 1.0f, 1.0f };
+
+        /// What the particle's own fade left of it, multiplied into the texture's alpha at the hit.
+        float mAlpha = 1.0f;
+    };
+
+    /// One particle system: what its sprites are drawn with, and a sphere that holds all of them.
+    ///
+    /// **The sphere is the whole spatial structure and it is enough.** A light is asked for by a
+    /// shading *point*, which the uniform grid answers in a lookup; an emitter is asked for by a
+    /// whole *ray*, which would have to walk that grid cell by cell. There are tens of emitters in a
+    /// cell against hundreds of lamps and each is small, so one rejection throws an emitter away for
+    /// almost every pixel of the frame.
+    struct SpriteEmitter
+    {
+        osg::Vec3f mCentre;
+
+        /// Far enough from `mCentre` to contain every sprite in the range, rim included.
+        float mReach = 0.0f;
+
+        Index mFirst = 0;
+        Index mCount = 0;
+
+        /// The sprite texture, or `sNoIndex` where the emitter had none — which draws nothing, since
+        /// a particle's whole silhouette is in that texture's alpha.
+        Index mTexture = sNoIndex;
+
+        /// `SRC_ALPHA, ONE`: a flame, which adds light and hides nothing behind it. The rest blend
+        /// over, which is smoke and needs its colour ramp to fade it.
+        bool mAdditive = false;
+    };
+
     /// Everything the renderer needs to know about a world, with no Vulkan and no scene graph in it.
     ///
     /// Lights come from ESM `Light` records rather than from the graph: `NifOsg` never reads
@@ -269,6 +316,13 @@ namespace Rtx
 
         void addInstance(const MeshInstance& instance);
 
+        /// Appends one particle system's live sprites, and the emitter that names them.
+        ///
+        /// The sphere is derived here rather than passed in, so the rejection test a ray makes and
+        /// the sprites it would then walk cannot disagree about where they are. Nothing is added for
+        /// an emitter with no live particles, which is most of them for most of a frame.
+        void addEmitter(std::span<const Sprite> sprites, Index texture, bool additive);
+
         /// Empties every table while keeping the capacity, so rebuilding a scene does not go back to
         /// the allocator for buffers it already had.
         void clear();
@@ -297,6 +351,8 @@ namespace Rtx
         std::span<const Material> getMaterials() const { return mMaterials; }
         std::span<const MaterialLayer> getLayers() const { return mLayers; }
         std::span<const Light> getLights() const { return mLights; }
+        std::span<const Sprite> getSprites() const { return mSprites; }
+        std::span<const SpriteEmitter> getEmitters() const { return mEmitters; }
         std::span<const float> getMasks() const { return mMasks; }
         std::span<const VFS::Path::Normalized> getTextures() const { return mTextures; }
 
@@ -327,6 +383,8 @@ namespace Rtx
         std::vector<Material> mMaterials;
         std::vector<MaterialLayer> mLayers;
         std::vector<Light> mLights;
+        std::vector<Sprite> mSprites;
+        std::vector<SpriteEmitter> mEmitters;
         std::vector<float> mMasks;
         std::vector<VFS::Path::Normalized> mTextures;
 

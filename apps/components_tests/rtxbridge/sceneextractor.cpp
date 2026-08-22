@@ -10,6 +10,8 @@
 #include <osg/Material>
 #include <osg/MatrixTransform>
 #include <osg/Texture2D>
+#include <osgParticle/Particle>
+#include <osgParticle/ParticleSystem>
 
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
@@ -282,6 +284,173 @@ namespace RtxBridge
             EXPECT_EQ(stats.mSkippedEmpty, 1u);
             EXPECT_EQ(stats.mInstances, 0u);
             EXPECT_TRUE(scene.getMeshes().empty());
+        }
+
+        /// A particle system under a transform that carries its texture and its blend, the way
+        /// `NifOsg` builds one.
+        ///
+        /// The emitter's own state set sets neither, which is what makes this a test of the walk up
+        /// the path rather than of the drawable: a `ParticleSystem` really does carry an empty state
+        /// set of its own in the shipped content, and asking it for the blend answers "covers" for
+        /// every flame in the game.
+        struct Plume
+        {
+            osg::ref_ptr<osg::MatrixTransform> mRoot;
+            osg::ref_ptr<osgParticle::ParticleSystem> mParticles;
+        };
+
+        Plume makePlume(const osg::Matrix& place, bool additive)
+        {
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName("textures/tx_fire_00.dds");
+
+            Plume plume;
+            plume.mRoot = new osg::MatrixTransform(place);
+            plume.mRoot->getOrCreateStateSet()->setTextureAttributeAndModes(
+                0, new osg::Texture2D(image), osg::StateAttribute::ON);
+            plume.mRoot->getOrCreateStateSet()->setAttributeAndModes(
+                new osg::BlendFunc(
+                    osg::BlendFunc::SRC_ALPHA, additive ? osg::BlendFunc::ONE : osg::BlendFunc::ONE_MINUS_SRC_ALPHA),
+                osg::StateAttribute::ON);
+
+            plume.mParticles = new osgParticle::ParticleSystem;
+            plume.mParticles->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+            plume.mRoot->addChild(plume.mParticles);
+
+            return plume;
+        }
+
+        /// Adds one particle and brings its interpolated size, colour and alpha up to date.
+        ///
+        /// `getCurrentSize` and the two beside it are only meaningful after `Particle::update`, so
+        /// the zero-length step is not a formality: without it every sprite this test reads back
+        /// carries whatever the default template was constructed with.
+        osgParticle::Particle* emit(
+            osgParticle::ParticleSystem& particles, const osg::Vec3f& at, float size, const osg::Vec4f& colour)
+        {
+            osgParticle::Particle seed;
+            osgParticle::Particle* particle = particles.createParticle(&seed);
+            particle->setLifeTime(10.0f);
+            particle->setPosition(at);
+            particle->setVelocity(osg::Vec3f());
+            particle->setSizeRange(osgParticle::rangef(size, size));
+            particle->setColorRange(osgParticle::rangev4(colour, colour));
+            particle->setAlphaRange(osgParticle::rangef(colour.a(), colour.a()));
+            particle->update(0.0, false);
+            return particle;
+        }
+
+        /// A particle system is not geometry, and what comes out of it is a run of discs.
+        ///
+        /// Every number here is the file's own carried through one transform: the placement moves
+        /// each sprite and its uniform scale widens it, because `NifOsg` asks for particle sizes in
+        /// the emitter's own coordinates and the modelview is what the rasterizer would have scaled
+        /// them by.
+        TEST(RtxSceneExtractorTest, aParticleSystemPlacesSpritesAndNoMesh)
+        {
+            // Scaled by two and moved a hundred along x, so the radius and the position each prove a
+            // different half of the transform.
+            const Plume plume = makePlume(osg::Matrix::scale(2.0, 2.0, 2.0) * osg::Matrix::translate(100.0, 0.0, 0.0),
+                /*additive=*/true);
+
+            emit(*plume.mParticles, osg::Vec3f(0.0f, 0.0f, 5.0f), 3.0f, osg::Vec4f(1.0f, 0.5f, 0.25f, 0.5f));
+            emit(*plume.mParticles, osg::Vec3f(0.0f, 0.0f, 9.0f), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            const ExtractionStats stats = extractor.extract(*plume.mRoot, osg::Matrixf::identity());
+
+            EXPECT_EQ(stats.mEmitters, 1u);
+            EXPECT_EQ(stats.mSprites, 2u);
+            EXPECT_EQ(stats.mSkippedUnknown, 0u) << "a particle system is read, not passed over";
+            EXPECT_EQ(stats.mInstances, 0u) << "sprites are the drawing, so there is nothing to build over";
+            EXPECT_EQ(stats.mMeshesAdded, 0u);
+
+            ASSERT_EQ(scene.getSprites().size(), 2u);
+
+            // (0, 0, 5) scaled by two is (0, 0, 10), then moved to x = 100. The radius is the file's
+            // three by the same two.
+            const Rtx::Sprite& low = scene.getSprites()[0];
+            EXPECT_EQ(low.mPosition, osg::Vec3f(100.0f, 0.0f, 10.0f));
+            EXPECT_FLOAT_EQ(low.mRadius, 6.0f);
+            EXPECT_EQ(low.mColour, osg::Vec3f(1.0f, 0.5f, 0.25f));
+
+            // The colour ramp's alpha and the alpha ramp are separate and the rasterizer multiplies
+            // them; here both are a half, so a quarter is what proves the product rather than one of
+            // the two being read and the other dropped.
+            EXPECT_FLOAT_EQ(low.mAlpha, 0.25f);
+
+            EXPECT_EQ(scene.getSprites()[1].mPosition, osg::Vec3f(100.0f, 0.0f, 18.0f));
+            EXPECT_FLOAT_EQ(scene.getSprites()[1].mRadius, 2.0f);
+
+            // Two sprites four apart before the scale and eight after, each one wider than the
+            // other: the box runs z = 4 to 20, so the centre is 12 and the reach 8.
+            ASSERT_EQ(scene.getEmitters().size(), 1u);
+            EXPECT_EQ(scene.getEmitters().front().mCentre, osg::Vec3f(100.0f, 0.0f, 12.0f));
+            EXPECT_FLOAT_EQ(scene.getEmitters().front().mReach, 8.0f);
+            EXPECT_EQ(scene.getTextures().size(), 1u);
+            EXPECT_EQ(scene.getTextures()[0], VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+        }
+
+        /// `SRC_ALPHA, ONE` is a flame and anything else covers, and the difference is what decides
+        /// whether the sprite is light or an albedo to be lit.
+        ///
+        /// The blend sits on the transform above the emitter, where `NifOsg` puts it, and the
+        /// emitter carries a state set of its own that says nothing about blending — so an answer
+        /// read off the drawable is "covers" both times.
+        TEST(RtxSceneExtractorTest, theBlendTellsAFlameFromSmoke)
+        {
+            const auto extractOne = [](bool additive) {
+                const Plume plume = makePlume(osg::Matrix::identity(), additive);
+                emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+
+                Rtx::SceneDesc scene;
+                SceneExtractor extractor(scene);
+                extractor.extract(*plume.mRoot, osg::Matrixf::identity());
+
+                EXPECT_EQ(scene.getEmitters().size(), 1u);
+                return scene.getEmitters().front().mAdditive;
+            };
+
+            EXPECT_TRUE(extractOne(true));
+            EXPECT_FALSE(extractOne(false));
+        }
+
+        /// A dead slot keeps the position its last particle expired at, and an emitter with nothing
+        /// alive places nothing at all — not a sphere with an empty run behind it, which every ray
+        /// crossing that part of the cell would then be rejected by one test later than it needs.
+        TEST(RtxSceneExtractorTest, deadParticlesAndUntexturedEmittersPlaceNothing)
+        {
+            const Plume spent = makePlume(osg::Matrix::identity(), true);
+            osgParticle::Particle* particle
+                = emit(*spent.mParticles, osg::Vec3f(0.0f, 0.0f, 5.0f), 3.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+            particle->kill();
+            particle->update(0.0, false);
+            ASSERT_FALSE(particle->isAlive());
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            const ExtractionStats stats = extractor.extract(*spent.mRoot, osg::Matrixf::identity());
+
+            EXPECT_EQ(stats.mEmitters, 0u);
+            EXPECT_EQ(stats.mSprites, 0u);
+            EXPECT_TRUE(scene.getEmitters().empty());
+
+            // The texture is registered the moment the emitter is met, alive or not: it is what the
+            // array is built from, and one that turns up two hundred frames later has nowhere to go.
+            EXPECT_EQ(scene.getTextures().size(), 1u);
+
+            // A particle's whole silhouette is that texture's alpha, so an emitter with none draws
+            // nothing rather than a white disc.
+            osg::ref_ptr<osg::Group> bare = new osg::Group;
+            osg::ref_ptr<osgParticle::ParticleSystem> particles = new osgParticle::ParticleSystem;
+            bare->addChild(particles);
+            emit(*particles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+
+            Rtx::SceneDesc bareScene;
+            SceneExtractor bareExtractor(bareScene);
+            EXPECT_EQ(bareExtractor.extract(*bare, osg::Matrixf::identity()).mEmitters, 0u);
+            EXPECT_TRUE(bareScene.getTextures().empty());
         }
 
         /// Textures come from wherever they are bound; everything else comes from the drawable.

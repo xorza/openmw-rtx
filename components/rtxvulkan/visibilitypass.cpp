@@ -28,7 +28,7 @@ namespace Rtx
         /// shader declares them. The channels are at one, fifteen, seventeen and eighteen because
         /// they grew onto the end of a layout that already existed rather than renumbering the
         /// tables under them.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 23> sBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 25> sBindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 1, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 2, sStorage, 1, sCompute },
@@ -52,6 +52,8 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 20, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 21, sStorage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 22, sImage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 23, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 24, sStorage, 1, sCompute },
         };
     }
 
@@ -103,8 +105,10 @@ namespace Rtx
         const VkDescriptorBufferInfo noiseWrite{ mBlueNoise.getHandle(), 0, VK_WHOLE_SIZE };
         const VkDescriptorBufferInfo shadingWrite{ inputs.mShading, 0, VK_WHOLE_SIZE };
         const VkDescriptorBufferInfo gridWrite{ inputs.mBuffers->getGrid(), 0, VK_WHOLE_SIZE };
+        const VkDescriptorBufferInfo spriteWrite{ inputs.mBuffers->getSprites(), 0, VK_WHOLE_SIZE };
+        const VkDescriptorBufferInfo emitterWrite{ inputs.mBuffers->getEmitters(), 0, VK_WHOLE_SIZE };
 
-        std::array<VkWriteDescriptorSet, 23> writes{};
+        std::array<VkWriteDescriptorSet, 25> writes{};
         writes[0] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = &sceneWrite,
@@ -149,14 +153,33 @@ namespace Rtx
             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             .pBufferInfo = &gridWrite,
         };
+        writes[23] = VkWriteDescriptorSet{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstBinding = 23,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            .pBufferInfo = &spriteWrite,
+        };
+        writes[24] = VkWriteDescriptorSet{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstBinding = 24,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            .pBufferInfo = &emitterWrite,
+        };
 
         vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getHandle());
         vkCmdPushDescriptorSet(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getLayout(), 0,
             static_cast<std::uint32_t>(writes.size()), writes.data());
         vkCmdBindDescriptorSets(
             commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getLayout(), 1, 1, &inputs.mTextures, 0, nullptr);
-        vkCmdPushConstants(
-            commands, mPipeline.getLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(constants), &constants);
+        // **How many emitters there are is the scene's answer and not the camera's.** The table
+        // never shrinks, so its length says nothing about this frame; taking the count off the
+        // buffers here is what keeps a caller from having to know the table exists at all.
+        Shaders::VisibilityConstants pushed = constants;
+        pushed.mEmitterCount = inputs.mBuffers->getEmitterCount();
+
+        vkCmdPushConstants(commands, mPipeline.getLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pushed), &pushed);
         vkCmdDispatch(commands, groupsFor(constants.mWidth), groupsFor(constants.mHeight), 1);
     }
 

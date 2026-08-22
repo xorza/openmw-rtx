@@ -17,6 +17,7 @@ namespace RtxTool
 {
     struct ActorModel;
     struct CellPerson;
+    struct CellProp;
     struct Placement;
     class Actor;
     class World;
@@ -35,6 +36,13 @@ namespace RtxTool
 
         /// Whether the region's own residents stand in it as well.
         bool mResidents = true;
+
+        /// Whether the cell's live props — the candles, torches, braziers and fireplaces whose
+        /// emitters have to be *run* to hold anything — are instanced and stepped.
+        ///
+        /// Off leaves them as the shared templates every other reference uses, which is cheaper and
+        /// which draws each emitter's authored seed particles rather than a flame.
+        bool mProps = true;
 
         /// Whether people wear what their record carries. Off leaves everyone in their skin.
         bool mClothes = true;
@@ -75,7 +83,21 @@ namespace RtxTool
         /// Everyone a cell placed, each where the cell put them.
         void addResidents(std::span<const CellPerson> people);
 
-        /// Walks everyone in for the first time, and reports what they came to.
+        /// The cell's live props, each as an instance of its own model.
+        ///
+        /// **An instance per reference, and it costs no geometry.** A template's particle systems
+        /// are shared and never updated, so thirty candles would share one frozen flame; cloning
+        /// deep-copies the nodes and the emitters and leaves the plain geometry shared, so the mesh
+        /// cache still resolves all thirty candles to one mesh.
+        void addProps(std::span<const CellProp> props);
+
+        /// Runs the emitters up to a steady state and walks everyone in, reporting what they came to.
+        ///
+        /// **The warm-up is what makes a still frame worth looking at.** A particle system loads
+        /// holding the seed the file authored — a handful of specks a fifth of a unit across — and
+        /// only reaches the flame it is meant to be once its emitter has run for a lifetime or two.
+        /// A single frame stepped from nothing integrates nothing, so a shot of a lit room would
+        /// show fifty-five candles with no flames on them.
         const RtxBridge::ExtractionStats& settle();
 
         /// Advances to `seconds` and walks everyone back in. False where there is nobody.
@@ -97,11 +119,24 @@ namespace RtxTool
         /// What the actors added the first time they were walked in.
         const RtxBridge::ExtractionStats& getPlaced() const { return mPlaced; }
 
+        /// Everything being posed, props included.
         std::size_t getCount() const { return mActors.size(); }
+
+        /// How many of those are props rather than people or creatures.
+        std::size_t getPropCount() const { return mProps; }
 
     private:
         void add(ActorModel model, const osg::Matrixf& transform);
         RtxBridge::ExtractionStats place(float seconds);
+
+        /// Poses everyone at `seconds`, having advanced the world by `elapsed`, without walking
+        /// them into the scene.
+        ///
+        /// **Two clocks and not one.** A keyframe track is *sampled* at a time and wrapped to its
+        /// own length; an emitter *integrates* and can only go forwards. The warm-up holds the first
+        /// still and turns the second, and a window turns both — so the caller says which is which
+        /// rather than one being derived from the other.
+        void posedAt(float seconds, float elapsed);
 
         World& mWorld;
         Rtx::SceneDesc& mScene;
@@ -123,9 +158,25 @@ namespace RtxTool
         float mSeconds = 0.0f;
         bool mClothes = true;
 
+        /// The animation time the last frame ran at, so the next can say how much time has passed.
+        float mLastSeconds = 0.0f;
+
+        /// How many of `mActors` are props. They are posed exactly as an actor is — the emitters
+        /// hang off update callbacks, which is what the traversal is for — so they are not kept
+        /// apart, only counted.
+        std::size_t mProps = 0;
+
         /// How far a repeated frame carries the animation. Sixty a second, because that is what the
         /// frame budget is written against and an actor should move the same amount per frame here
         /// as it does in the game.
         static constexpr float sFrameSeconds = 1.0f / 60.0f;
+
+        /// How long the emitters are run before the first frame is drawn.
+        ///
+        /// **Two seconds, which is longer than anything the game emits lives.** The median lifetime
+        /// across the shipped emitters is under a second, so by here every seed particle the file
+        /// authored has died and been replaced by the emitter's own — which is the steady state a
+        /// frame is supposed to show.
+        static constexpr float sWarmSeconds = 2.0f;
     };
 }

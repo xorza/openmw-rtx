@@ -66,6 +66,13 @@ namespace Rtx
         VkBuffer getLights() const { return mLights.getHandle(); }
         VkBuffer getLightOffsets() const { return mLightOffsets.getHandle(); }
         VkBuffer getLightIndices() const { return mLightIndices.getHandle(); }
+        VkBuffer getSprites() const { return mSprites.getHandle(); }
+        VkBuffer getEmitters() const { return mEmitters.getHandle(); }
+
+        /// How many emitters the last `place` wrote, which is what the shader's loop runs to. The
+        /// buffer's own length cannot say: it never shrinks, and a table that stood at forty
+        /// emitters would keep drawing them in the cell after.
+        std::uint32_t getEmitterCount() const { return mEmitterCount; }
 
         /// Where the lamps were binned, for the constants the pass pushes.
         const LightGrid& getLightGrid() const { return mLightGrid; }
@@ -108,12 +115,19 @@ namespace Rtx
         HostBuffer mGrid;
         HostBuffer mLightIndices;
         HostBuffer mWaves;
+        HostBuffer mSprites;
+        HostBuffer mEmitters;
 
         // Refilled per placement rather than reallocated: a scene is tens of thousands of instances
         // and this is the frame path.
         std::vector<Shaders::GpuInstance> mInstanceScratch;
         std::vector<InstanceRecord> mRecordScratch;
         std::vector<Shaders::GpuLight> mLightScratch;
+
+        std::vector<Shaders::GpuSprite> mSpriteScratch;
+        std::vector<Shaders::GpuEmitter> mEmitterScratch;
+
+        std::uint32_t mEmitterCount = 0;
 
         /// Kept because the pass needs its geometry, which no buffer carries.
         LightGrid mLightGrid;

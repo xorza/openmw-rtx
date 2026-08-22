@@ -230,7 +230,7 @@ namespace RtxTool
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
             std::set<std::string> loaded;
-            readRegion(world, *cell, 0, extractor, loaded);
+            readRegion(world, *cell, 0, extractor, loaded, false);
 
             const RtxBridge::SceneTextures described(scene, world.getImageManager());
             const ContactSheet sheet = writeContactSheet(described.getDescriptions(), output, strength);
@@ -260,7 +260,7 @@ namespace RtxTool
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
             std::set<std::string> loaded;
-            const CellReport report = readRegion(world, *cell, radius, extractor, loaded);
+            const CellReport report = readRegion(world, *cell, radius, extractor, loaded, false);
 
             printCellHeading(*cell);
 
@@ -293,6 +293,8 @@ namespace RtxTool
                   << "  lights:               " << report.mLights.size() << " casting, ambient " << report.mAmbient.x()
                   << ", " << report.mAmbient.y() << ", " << report.mAmbient.z() << '\n'
                   << "  deforming drawables:  " << report.mStats.mDeformed << '\n'
+                  << "  emitters:             " << report.mStats.mEmitters << " holding " << report.mStats.mSprites
+                  << " live particles\n"
                   << "  residents:            " << report.mPeople.size() << " to assemble\n";
 
             out() << "\nnot placed\n"
@@ -310,7 +312,7 @@ namespace RtxTool
                 // measured is what a second walk over an unchanged graph adds, so it is asked with
                 // a set that has never heard of them.
                 std::set<std::string> again;
-                const CellReport second = readRegion(world, *cell, radius, extractor, again);
+                const CellReport second = readRegion(world, *cell, radius, extractor, again, false);
                 RtxBridge::ExtractionStats total = second.mStats;
                 total += second.mTerrain;
 
@@ -337,8 +339,8 @@ namespace RtxTool
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
             std::set<std::string> loaded;
-            const RegionLoad lighting
-                = loadRegion(world, *cell, radius, scene, extractor, loaded, request.mWeather, request.mHour);
+            const RegionLoad lighting = loadRegion(
+                world, *cell, radius, scene, extractor, loaded, request.mWeather, request.mHour, actors.mProps);
             request.mLighting = lighting.mLighting;
 
             printCellHeading(*cell);
@@ -349,7 +351,10 @@ namespace RtxTool
             const std::span<const CellPerson> residents
                 = actors.mResidents ? std::span<const CellPerson>(lighting.mPeople) : std::span<const CellPerson>();
 
-            if (!actors.empty() || !residents.empty())
+            const std::span<const CellProp> props
+                = actors.mProps ? std::span<const CellProp>(lighting.mProps) : std::span<const CellProp>();
+
+            if (!actors.empty() || !residents.empty() || !props.empty())
             {
                 // **Pinned before anyone goes in, and from the world's own bounds.** A row is placed
                 // relative to where the camera ends up, so the camera cannot be derived from a scene
@@ -362,11 +367,15 @@ namespace RtxTool
 
                 posed = std::make_unique<PosedActors>(world, scene, extractor, actors);
                 posed->addResidents(residents);
+                posed->addProps(props);
                 posed->addRow(actors, placement);
                 request.mMotion = posed.get();
 
-                out() << "actors:     " << posed->getCount() << " placed, " << posed->settle().mDeformed
-                      << " deforming drawables\n";
+                const RtxBridge::ExtractionStats& settled = posed->settle();
+                out() << "actors:     " << posed->getCount() - posed->getPropCount() << " placed, " << settled.mDeformed
+                      << " deforming drawables\n"
+                      << "props:      " << posed->getPropCount() << " live, " << settled.mEmitters
+                      << " emitters holding " << settled.mSprites << " particles\n";
             }
 
             out() << '\n';
@@ -544,6 +553,7 @@ namespace RtxTool
                     .mPeople = variables["npc"].as<std::vector<std::string>>(),
                     .mSeconds = variables["actor-time"].as<float>(),
                     .mResidents = variables["people"].as<bool>(),
+                    .mProps = variables["props"].as<bool>(),
                     .mClothes = variables["clothes"].as<bool>(),
                 };
 

@@ -35,6 +35,17 @@ namespace RtxTool
         osg::Matrixf mTransform;
     };
 
+    /// One reference a cell places whose model is not still, and where it stands.
+    ///
+    /// **Reported rather than instanced, for the reason a resident is.** An instance is a graph the
+    /// extractor keys its meshes on, so whoever owns it has to own it for as long as the scene names
+    /// it — and reading a region twice must not light the same candle twice.
+    struct CellProp
+    {
+        VFS::Path::Normalized mModel;
+        osg::Matrixf mTransform;
+    };
+
     /// What reading a cell produced besides the scene itself.
     struct CellReport
     {
@@ -47,6 +58,11 @@ namespace RtxTool
 
         /// Everyone the region places. Empty is a wilderness cell, not a failure.
         std::vector<CellPerson> mPeople;
+
+        /// The references whose template carries an update callback, which in Morrowind's content
+        /// means a particle emitter and nothing else. Their still geometry is already in the scene;
+        /// what is not is the flame, and that needs an instance of its own to run in.
+        std::vector<CellProp> mProps;
 
         /// How many cells the region actually found. Fewer than asked for at a coastline.
         std::uint32_t mCells = 0;
@@ -77,8 +93,14 @@ namespace RtxTool
     /// @param loaded which cells are already in the scene. Cells named here are left alone and
     ///        every cell this places is added to it, so a caller that keeps one across calls walks
     ///        into a region rather than reloading it.
+    /// @param liveProps whether a reference whose model carries an update callback is *left out* of
+    ///        the scene and reported in `mProps` instead. **Because it has to be one or the other.**
+    ///        A prop that is going to be instanced and stepped brings its own copy of the same
+    ///        geometry — the clone shares the drawables — so mirroring the template as well would
+    ///        stand two candles in one place. A caller with nowhere to keep an instance passes false
+    ///        and gets the still template, which is a candle with an authored spark on it.
     CellReport readRegion(World& world, const ESM::Cell& centre, int radius, RtxBridge::SceneExtractor& extractor,
-        std::set<std::string>& loaded);
+        std::set<std::string>& loaded, bool liveProps);
 
     /// The exterior cell a point stands in, as `--cell` spells it.
     ///
@@ -100,8 +122,10 @@ namespace RtxTool
     {
         CellLighting mLighting;
         std::vector<CellPerson> mPeople;
+        std::vector<CellProp> mProps;
     };
 
     RegionLoad loadRegion(World& world, const ESM::Cell& centre, int radius, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, std::set<std::string>& loaded, std::string_view weather, float hour);
+        RtxBridge::SceneExtractor& extractor, std::set<std::string>& loaded, std::string_view weather, float hour,
+        bool liveProps);
 }

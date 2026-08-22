@@ -10,6 +10,8 @@
 #include <osg/NodeVisitor>
 #include <osg/Texture2D>
 #include <osg/TriangleIndexFunctor>
+#include <osgParticle/Particle>
+#include <osgParticle/ParticleSystem>
 
 #include <array>
 #include <cassert>
@@ -229,6 +231,8 @@ namespace RtxBridge
         mMaterialsReused += other.mMaterialsReused;
         mInstances += other.mInstances;
         mDeformed += other.mDeformed;
+        mEmitters += other.mEmitters;
+        mSprites += other.mSprites;
         mSkippedUnknown += other.mSkippedUnknown;
         mSkippedEmpty += other.mSkippedEmpty;
         return *this;
@@ -393,6 +397,15 @@ namespace RtxBridge
     void SceneExtractor::addDrawable(
         const osg::Drawable& drawable, const osg::NodePath& path, const osg::Matrixf& root, ExtractionStats& stats)
     {
+        // Asked before the geometry, because a particle system is an `osg::Drawable` with no
+        // triangles in it at all: its sprites *are* the drawing, and they leave here as a run of
+        // discs rather than as a mesh anything could build a structure over.
+        if (const auto* particles = dynamic_cast<const osgParticle::ParticleSystem*>(&drawable))
+        {
+            addEmitter(*particles, path, root, stats);
+            return;
+        }
+
         const DrawableGeometry read = readDrawable(drawable);
         if (read.mGeometry == nullptr)
         {
@@ -426,6 +439,115 @@ namespace RtxBridge
             .mMaterial = material,
         });
         ++stats.mInstances;
+    }
+
+    namespace
+    {
+        /// Whether the nearest pass on the path adds to the frame rather than covering it.
+        ///
+        /// **The nearest state set that has a blend function, not simply the nearest one.** A
+        /// particle system carries a state set of its own that sets neither blending nor texture —
+        /// `NifOsg` puts both on the transform above it — so asking the drawable's own would answer
+        /// "covers" for every flame in the game.
+        ///
+        /// The split is the whole of what tells a flame from a puff of smoke, and 474 of the game's
+        /// 678 emitters are on the adding side. One that blends over is an albedo and has to be lit;
+        /// one that adds *is* light and must not be.
+        bool addsLight(const osg::NodePath& path)
+        {
+            for (auto it = path.rbegin(); it != path.rend(); ++it)
+            {
+                const osg::StateSet* stateSet = (*it)->getStateSet();
+                if (stateSet == nullptr)
+                    continue;
+
+                const auto* blend
+                    = dynamic_cast<const osg::BlendFunc*>(stateSet->getAttribute(osg::StateAttribute::BLENDFUNC));
+                if (blend == nullptr)
+                    continue;
+
+                return blend->getSource() == osg::BlendFunc::SRC_ALPHA
+                    && blend->getDestination() == osg::BlendFunc::ONE;
+            }
+
+            return false;
+        }
+
+        /// The uniform scale a placement carries, as the length of its first basis row.
+        ///
+        /// A sprite's size is in the particle system's own coordinates — `LOCAL_COORDINATES` is what
+        /// `NifOsg` sets — so the quad the rasterizer would draw is scaled by the modelview along
+        /// with everything else. Morrowind scales references uniformly, so one number says it.
+        float scaleOf(const osg::Matrixf& place)
+        {
+            return osg::Vec3f(place(0, 0), place(0, 1), place(0, 2)).length();
+        }
+    }
+
+    void SceneExtractor::addEmitter(const osgParticle::ParticleSystem& particles, const osg::NodePath& path,
+        const osg::Matrixf& root, ExtractionStats& stats)
+    {
+        // A particle's whole silhouette is its texture's alpha, so an emitter with no texture has
+        // nothing to draw — not a white disc, which is what sampling nothing would give it.
+        const osg::StateSet* textured = findTexturedStateSet(path);
+        if (textured == nullptr)
+            return;
+
+        const osg::Texture2D* sprite = getTexture(*textured, 0);
+        if (sprite == nullptr || sprite->getImage(0) == nullptr || sprite->getImage(0)->getFileName().empty())
+            return;
+
+        // **Registered the first time the emitter is seen, and not the first time it has a
+        // particle alive.** The texture array is uploaded when the scene is built; a flame that was
+        // empty at load and lights up two hundred frames later would otherwise add a texture on a
+        // frame that only re-places what is already there, and index past the array it is sampling.
+        const Rtx::Index texture = mScene.addTexture(VFS::Path::Normalized(sprite->getImage(0)->getFileName()));
+
+        const osg::Matrixf place = osg::Matrixf(osg::computeLocalToWorld(path)) * root;
+        const float scale = scaleOf(place);
+
+        mSpriteScratch.clear();
+        const int held = particles.numParticles();
+        for (int at = 0; at < held; ++at)
+        {
+            const osgParticle::Particle* particle = particles.getParticle(at);
+
+            // A dead slot keeps its last position and is waiting to be born again. Drawing one is a
+            // spark frozen where the previous one expired.
+            if (!particle->isAlive())
+                continue;
+
+            const float radius = particle->getCurrentSize() * scale;
+            if (!(radius > 0.0f))
+                continue;
+
+            // `getCurrentColor`'s alpha and `getCurrentAlpha` are two separate ramps and the
+            // rasterizer multiplies them. OpenMW's `ParticleColorAffector` writes the record's
+            // colour ramp into the first with its alpha forced to one and the alpha into the
+            // second, so in this content the product is the second — and multiplying both is what
+            // keeps that a fact about the data rather than an assumption in the reader.
+            const osg::Vec4f colour = particle->getCurrentColor();
+            const float alpha = colour.a() * particle->getCurrentAlpha();
+            if (!(alpha > 0.0f))
+                continue;
+
+            mSpriteScratch.push_back(Rtx::Sprite{
+                .mPosition = particle->getPosition() * place,
+                .mRadius = radius,
+                .mColour = osg::Vec3f(colour.r(), colour.g(), colour.b()),
+                .mAlpha = alpha,
+            });
+        }
+
+        if (mSpriteScratch.empty())
+            return;
+
+        ++stats.mTextureFormats[describeFormat(*sprite->getImage(0))];
+
+        mScene.addEmitter(mSpriteScratch, texture, addsLight(path));
+
+        ++stats.mEmitters;
+        stats.mSprites += static_cast<std::uint32_t>(mSpriteScratch.size());
     }
 
     Rtx::Index SceneExtractor::resolveTerrainMaterial(const Terrain::TerrainDrawable& terrain, ExtractionStats& stats)
