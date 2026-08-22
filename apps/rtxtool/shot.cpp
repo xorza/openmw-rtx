@@ -8,6 +8,7 @@
 #include <chrono>
 #include <memory>
 #include <ostream>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -104,6 +105,11 @@ namespace RtxTool
         std::vector<double> traces;
         traces.reserve(frames);
 
+        // **Across the repeats and not from the last frame.** The whole reason a shot traces more
+        // than once is that one submit times the GPU's clock rather than the shader, and a
+        // breakdown taken from a single frame would carry exactly that noise into every row.
+        GpuBreakdown gpu;
+
         std::uint32_t hits = 0;
 
         // **A `do` and not a `for`, for the reason `summarise` takes its argument by reference.** The
@@ -129,6 +135,7 @@ namespace RtxTool
                     .mFilter = request.mFilter,
                     .mExposure = request.mExposure });
             traces.push_back(result.mTraceMs);
+            gpu.add(result.mGpu);
             hits = result.mHits;
             ++frame;
         } while (frame < frames);
@@ -184,6 +191,17 @@ namespace RtxTool
             out << ", with the validation layers on";
 
         out << '\n';
+
+        // **What the device says about the same submit**, which is the only way to tell a slow trace
+        // from a slow everything-else: the figure above is one wait around eight pieces of work.
+        if (const std::span<const GpuZone> zones = gpu.summariseZones(); !zones.empty())
+        {
+            out << "gpu:       ";
+            for (const GpuZone& zone : zones)
+                out << ' ' << zone.mName << ' ' << zone.mTimes.mMedian;
+
+            out << "  (median ms each)\n";
+        }
 
         return 0;
     }

@@ -6,6 +6,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "shaders/visibility.h"
@@ -176,6 +177,18 @@ namespace Rtx
     };
 
     /// What one traced frame came to.
+    /// One stretch of a frame, measured by the device's own clock.
+    ///
+    /// **What a wall clock around a submit cannot tell you.** A frame is a handful of dispatches and
+    /// two structure builds, and the CPU sees one number for all of them; these are what each of
+    /// them cost, timed by the GPU between the commands that bracket it.
+    struct GpuSpan
+    {
+        /// A literal owned by the backend. Valid as long as the span it came in is.
+        std::string_view mName;
+        double mMs = 0.0;
+    };
+
     struct FrameResult
     {
         /// Primary rays that hit something, which is what tells "the cell rendered" from "the camera
@@ -185,6 +198,14 @@ namespace Rtx
         /// The submit and the wait for it. Timed by the backend because only it knows where that
         /// boundary is.
         double mTraceMs = 0.0;
+
+        /// Where the device spent this frame, in the order the work was recorded — the structure
+        /// builds this frame asked for, then the passes that drew it. Empty where the device cannot
+        /// write timestamps.
+        ///
+        /// **Borrowed from the renderer and valid until the next frame**, because a frame path that
+        /// allocated a vector to report its own cost would be measuring itself.
+        std::span<const GpuSpan> mGpu;
     };
 
     /// One traced image, whichever API produced it.

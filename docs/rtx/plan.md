@@ -415,16 +415,28 @@ Target: 1920×1080 internal → 3840×2160 at 60 fps.
 `openmw-rtxtool bench`, the `[default]` suite: 1920×1080 out of 1280×720 at DLSS quality, layers off,
 600 frames of world at 60 Hz after a warm-up second, median of each row.
 
-| place | frame | trace | place | left over | fps |
+| place | frame | trace submit | place submits | left over | fps |
 |---|---|---|---|---|---|
-| Seyda Neen's ship, 51,742 instances | 29.27 ms | 7.11 | 11.47 | 10.69 | 34.2 (28.0 at the 1% low) |
-| Balmora's guild of mages, 1,239 | 6.93 ms | 4.71 | 1.69 | 0.53 | 144.4 (111.3) |
+| Seyda Neen's ship, 51,742 instances | 30.26 ms | 6.94 | 11.60 | 11.72 | 33.0 (25.0 at the 1% low) |
+| Balmora's guild of mages, 1,239 | 7.61 ms | 4.84 | 1.74 | 1.03 | 131.5 (80.5) |
 
-**The trace is a quarter of the exterior frame.** The other three quarters are the world being placed
-again — `placeScene` rebuilds the top level over fifty-one thousand instances and refits every
-skinned mesh — and the harness posing the actors and walking the graph again behind it. The second of
-those is the harness standing in for a game that re-walks its own graph anyway; the first is the
-renderer's, and it is the number M12 is about.
+And the same frames as the device's own clock reports them, which is a different story:
+
+| place | trace | upscale | refit | tlas | exposure | composite | tone | **GPU total** |
+|---|---|---|---|---|---|---|---|---|
+| Seyda Neen's ship | 3.55 | 2.55 | 2.08 | 0.43 | 0.06 | 0.04 | 0.03 | **8.74 ms** |
+| Balmora's guild | 2.04 | 2.04 | 0.27 | 0.17 | 0.05 | 0.03 | 0.02 | **4.62 ms** |
+
+**The GPU is idle for two thirds of the exterior frame.** Eight and three quarter milliseconds of
+device work sit inside a thirty millisecond frame, and the gap is CPU: eleven milliseconds of
+`placeScene` against two and a half of building anything, and eleven more of the harness posing
+actors and walking the graph. Three submits, each fenced before the next begins, so none of it
+overlaps anything.
+
+That reframes M12. The trace is 3.55 ms and the budget is 16.7; what stands between this renderer and
+that number is not the shader. It is packing fifty-one thousand instance records twice a frame,
+handing them over in two submits nobody overlaps with, and a harness that re-poses a town every
+frame — and only the last of those is the harness's rather than the renderer's.
 
 #### What the finished features cost
 
@@ -504,6 +516,25 @@ Three distributions per place rather than one figure, because they are three dif
 Each carries median, mean, p95, p99, best and worst, by nearest rank, so every figure is a frame that
 actually happened. A warm-up second is drawn and thrown away first: this box's GPU idles at 315 MHz
 and ramps under load, and a scene's first frames pay for its residency as well.
+
+Under those, a `gpu ms` row of what the **device's own clock** says each stretch cost — `refit`,
+`tlas`, `trace`, `filter`, `composite`, `upscale`, `exposure`, `tone` — medians only, most expensive
+first. That row against the three above it is what separates a slow shader from a slow everything
+else, and on an exterior the answer turned out to be neither the shader nor the GPU at all.
+
+#### Timestamps and labels
+
+`Rtx::GpuTimer` writes a pair of timestamps around each of those zones and resolves them after the
+frame's last fence. Both ends are taken at `ALL_COMMANDS`, so a zone begins when the work before it
+has finished and ends when its own has: the spans cannot overlap, which would distort a renderer
+whose passes overlap and does not distort this one, since there is a full barrier between every pass
+already. Zones span all three of a frame's submits — the two structure builds and the draw — because
+each reserves and resets only the pair of queries it writes.
+
+The same bracket opens a `VK_EXT_debug_utils` label, so a Nsight or RenderDoc capture shows the frame
+as named regions rather than as a run of dispatches. That is where the counters a timestamp cannot
+give you live. Labels follow `OPENMW_RTX_DEBUG_NAMES` and so are absent from a Release build;
+timestamps are not gated, because Release is where a measurement is taken.
 
 - **A cell argument is addressed the way Morrowind does**: a pair of integers is an exterior,
   anything else is an interior's name.

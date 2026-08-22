@@ -71,9 +71,22 @@ namespace RtxTool
                   << std::format("  {:<9}{:>9}{:>10}{:>10}{:>10}{:>10}{:>10}\n", "", "median", "mean", "p95", "p99",
                          "best", "worst")
                   << describeTimes("frame ms", place.mFrame) << describeTimes("trace ms", place.mTrace)
-                  << describeTimes("place ms", place.mPlace)
-                  << std::format("  {} frames in {:.2f} s — {:.1f} fps, {:.1f} at the 1% low\n", place.mFrames,
-                         place.mWallSeconds, place.mFrame.getRate(), place.mFrame.getLowRate());
+                  << describeTimes("place ms", place.mPlace);
+
+            // **The device's own account of the same frame, medians only.** Six distributions would
+            // be a wall; what this row answers is "which of them is the expensive one", and the row
+            // above already says how much the whole frame varies.
+            if (!place.mGpu.empty())
+            {
+                out() << "  gpu ms  ";
+                for (const GpuZone& zone : place.mGpu)
+                    out() << std::format("  {} {:.2f}", zone.mName, zone.mTimes.mMedian);
+
+                out() << '\n';
+            }
+
+            out() << std::format("  {} frames in {:.2f} s — {:.1f} fps, {:.1f} at the 1% low\n", place.mFrames,
+                place.mWallSeconds, place.mFrame.getRate(), place.mFrame.getLowRate());
         }
 
         std::string asJson(const FrameTimes& times)
@@ -110,8 +123,13 @@ namespace RtxTool
                      << std::format(R"("frames": {}, "wallSeconds": {:.4f}, "hitPercent": {:.2f}, )", place.mFrames,
                             place.mWallSeconds, place.mHitPercent)
                      << R"("frameMs": )" << asJson(place.mFrame) << R"(, "traceMs": )" << asJson(place.mTrace)
-                     << R"(, "placeMs": )" << asJson(place.mPlace) << '}' << (at + 1 < places.size() ? "," : "")
-                     << '\n';
+                     << R"(, "placeMs": )" << asJson(place.mPlace) << R"(, "gpuMs": {)";
+
+                for (std::size_t zone = 0; zone < place.mGpu.size(); ++zone)
+                    file << std::format(R"({}"{}": {})", zone == 0 ? "" : ", ", place.mGpu[zone].mName,
+                        asJson(place.mGpu[zone].mTimes));
+
+                file << "}}" << (at + 1 < places.size() ? "," : "") << '\n';
             }
 
             file << "  ]\n}\n";
@@ -252,6 +270,10 @@ namespace RtxTool
             traceTimes.clear();
             placeTimes.clear();
 
+            // Per place, because the zones a place has are the zones its content asked for: an
+            // interior with nothing moving in it never places and never reports one.
+            GpuBreakdown gpu;
+
             std::uint32_t hits = 0;
             const Clock::time_point runStart = Clock::now();
 
@@ -304,6 +326,7 @@ namespace RtxTool
                     frameTimes.push_back(frameMs);
                     traceTimes.push_back(result.mTraceMs);
                     placeTimes.push_back(placeMs);
+                    gpu.add(result.mGpu);
                     hits = result.mHits;
                 }
             }
@@ -313,6 +336,10 @@ namespace RtxTool
 
             const Rtx::FrameExtents traced = renderer->getExtents();
             const double pixels = static_cast<double>(traced.mRenderWidth) * traced.mRenderHeight;
+
+            // Once: summarising sorts the rows in place, so a second call would be re-sorting what
+            // the first one's iterators point at.
+            const std::span<const GpuZone> zones = gpu.summariseZones();
 
             places.push_back(BenchPlace{
                 .mView = view.mName,
@@ -324,6 +351,7 @@ namespace RtxTool
                 .mFrame = summarise(frameTimes),
                 .mTrace = summarise(traceTimes),
                 .mPlace = summarise(placeTimes),
+                .mGpu = std::vector<GpuZone>(zones.begin(), zones.end()),
                 .mHitPercent = static_cast<double>(hits) / pixels * 100.0,
                 .mScene = renderer->getSceneStats(),
             });

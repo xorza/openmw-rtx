@@ -99,6 +99,8 @@ set(RTX_VULKAN_FILES
     exposurepass.hpp
     gbuffer.cpp
     gbuffer.hpp
+    gputimer.cpp
+    gputimer.hpp
     hostbuffer.cpp
     hostbuffer.hpp
     image.cpp

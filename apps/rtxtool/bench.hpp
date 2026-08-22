@@ -109,6 +109,10 @@ namespace RtxTool
         FrameTimes mTrace;
         FrameTimes mPlace;
 
+        /// What the device itself says each stretch of the frame cost, most expensive first. Empty
+        /// where the device cannot write timestamps.
+        std::vector<GpuZone> mGpu;
+
         /// What fraction of primary rays hit something, as a percentage. A place profiled facing a
         /// wall is fast and means nothing, and this is what says so without opening a window.
         double mHitPercent = 0.0;

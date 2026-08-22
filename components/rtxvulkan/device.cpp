@@ -105,8 +105,14 @@ namespace Rtx
             load(mHandle, mFunctions.mCmdBuildMicromaps, "vkCmdBuildMicromapsEXT");
 
             if (instance.hasDebugUtils())
+            {
                 mSetObjectName = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(
                     vkGetDeviceProcAddr(mHandle, "vkSetDebugUtilsObjectNameEXT"));
+                mBeginLabel = reinterpret_cast<PFN_vkCmdBeginDebugUtilsLabelEXT>(
+                    vkGetDeviceProcAddr(mHandle, "vkCmdBeginDebugUtilsLabelEXT"));
+                mEndLabel = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(
+                    vkGetDeviceProcAddr(mHandle, "vkCmdEndDebugUtilsLabelEXT"));
+            }
 
             mPipelineCache
                 = std::make_unique<PipelineCache>(mHandle, mPhysicalDevice.getProperties().mProperties2.properties);
@@ -160,5 +166,19 @@ namespace Rtx
         // working, and the only documented failure is host memory exhaustion, which will announce
         // itself elsewhere within microseconds.
         mSetObjectName(mHandle, &info);
+    }
+
+    void Device::beginLabelImpl(VkCommandBuffer commands, const char* name) const
+    {
+        const VkDebugUtilsLabelEXT label{
+            .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+            .pNext = nullptr,
+            .pLabelName = name,
+            // Left black, which every tool reads as "no colour was chosen" and picks its own. A
+            // palette here would be one this fork maintains against tools that already have one.
+            .color = { 0.0f, 0.0f, 0.0f, 0.0f },
+        };
+
+        mBeginLabel(commands, &label);
     }
 }

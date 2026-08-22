@@ -15,6 +15,7 @@
 #include "compositepass.hpp"
 #include "device.hpp"
 #include "exposurepass.hpp"
+#include "gputimer.hpp"
 #include "instance.hpp"
 #include "tonepass.hpp"
 
@@ -69,6 +70,18 @@ namespace Rtx
         Instance mInstance;
         Device mDevice;
         CommandPool mPool;
+
+        /// Where the device spent the frame, written by the command stream itself.
+        ///
+        /// **One timer across all three submits.** A frame that moved places its structures in two
+        /// submits of its own before the one that draws it, and all three are the same frame's cost;
+        /// the timer is opened once at the top of `placeScene` — or of `renderFrame`, where nothing
+        /// moved — and read at the end of the frame.
+        GpuTimer mTimer;
+
+        /// Whether `placeScene` has already opened this frame's timer, so `renderFrame` adds to that
+        /// report rather than starting a second one and throwing the builds away.
+        bool mTimed = false;
 
         std::filesystem::path mShaderDirectory;
 

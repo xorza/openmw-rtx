@@ -1,6 +1,10 @@
 #pragma once
 
+#include <span>
+#include <string>
 #include <vector>
+
+#include <components/rtx/renderer.hpp>
 
 namespace RtxTool
 {
@@ -40,4 +44,39 @@ namespace RtxTool
     /// cannot be had: taking one loses the compiler its proof that the caller's loop pushed at
     /// least once, and indexing a vector it can no longer see into is a hard warning.
     FrameTimes summarise(std::vector<double>& times);
+
+    /// One stretch of the device's frame, over a run of frames.
+    struct GpuZone
+    {
+        std::string mName;
+        FrameTimes mTimes;
+    };
+
+    /// Per-zone device times, gathered a frame at a time.
+    ///
+    /// **Kept in the order the zones first appeared**, which is the order the work was recorded:
+    /// place the world, then trace it, then resolve it. A frame that skipped a pass — nothing moved,
+    /// so nothing was placed — leaves that zone one sample short rather than shifting every zone
+    /// after it into the wrong row.
+    class GpuBreakdown
+    {
+    public:
+        /// Takes one frame's zones. The names are the backend's literals and are copied on first
+        /// sight only, so a long run pushes a double per zone and nothing else.
+        void add(std::span<const Rtx::GpuSpan> spans);
+
+        /// Summarises what was gathered, most expensive first — which is the order the question
+        /// "where did the frame go" wants read. Empty where no frame reported a zone.
+        std::span<const GpuZone> summariseZones();
+
+        bool empty() const { return mNames.empty(); }
+
+    private:
+        std::vector<std::string> mNames;
+
+        /// One row of samples per name, indexed alongside `mNames`.
+        std::vector<std::vector<double>> mTimes;
+
+        std::vector<GpuZone> mZones;
+    };
 }

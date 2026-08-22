@@ -107,6 +107,7 @@ if (OPENMW_RTX)
         rtx/computepipeline.cpp
         rtx/device.cpp
         rtx/dlss.cpp
+        rtx/gputimer.cpp
         rtx/harness.cpp
         rtx/interop.cpp
         rtx/harness.hpp

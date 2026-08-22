@@ -216,6 +216,22 @@ namespace Rtx
             << "queue family:      " << mQueueFamily << '\n'
             << "subgroup size:     " << mProperties->mVulkan11.subgroupSize << '\n';
 
+        // **Whether a frame can say where its own device time went.** Every per-pass figure this
+        // renderer reports is a pair of timestamps scaled by this, so a device that cannot write
+        // them reports nothing rather than something wrong — and this is where that shows.
+        std::uint32_t families = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(mHandle, &families, nullptr);
+
+        std::vector<VkQueueFamilyProperties> queues(families);
+        vkGetPhysicalDeviceQueueFamilyProperties(mHandle, &families, queues.data());
+
+        const std::uint32_t bits = mQueueFamily < families ? queues[mQueueFamily].timestampValidBits : 0;
+        out << "timestamps:        ";
+        if (bits == 0)
+            out << "not on this queue\n";
+        else
+            out << bits << " bits at " << base.limits.timestampPeriod << " ns a tick\n";
+
         out << "\nray tracing\n"
             << "  shader group handle size:     " << rt.shaderGroupHandleSize << " bytes\n"
             << "  shader group base alignment:  " << rt.shaderGroupBaseAlignment << " bytes\n"

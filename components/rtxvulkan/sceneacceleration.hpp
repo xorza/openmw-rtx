@@ -13,6 +13,7 @@
 namespace Rtx
 {
     class CommandPool;
+    class GpuTimer;
     class Device;
     class SceneDesc;
 
@@ -51,7 +52,7 @@ namespace Rtx
         /// animate, which is M12's measurement to take and not an assumption to build on.
         ///
         /// Does nothing where nothing deformed, which is every frame of a world with no actor in it.
-        void refitMeshes(CommandPool& pool, const SceneDesc& scene);
+        void refitMeshes(CommandPool& pool, const SceneDesc& scene, GpuTimer* timer);
 
         /// Rebuilds the top level over `scene`'s instances, keeping every bottom-level structure.
         ///
@@ -61,7 +62,7 @@ namespace Rtx
         ///
         /// `scene` must name the same meshes in the same order — the instances index into the
         /// structures this already holds.
-        void placeInstances(CommandPool& pool, const SceneDesc& scene);
+        void placeInstances(CommandPool& pool, const SceneDesc& scene, GpuTimer* timer);
 
         VkAccelerationStructureKHR getTopLevel() const { return mTopLevel; }
 
@@ -85,7 +86,7 @@ namespace Rtx
 
     private:
         void buildBottomLevel(CommandPool& pool, const SceneDesc& scene);
-        void buildTopLevel(CommandPool& pool, const SceneDesc& scene);
+        void buildTopLevel(CommandPool& pool, const SceneDesc& scene, GpuTimer* timer);
 
         const Device& mDevice;
 

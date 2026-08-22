@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <numeric>
+#include <string_view>
 
 namespace RtxTool
 {
@@ -45,5 +46,41 @@ namespace RtxTool
             .mBest = times.front(),
             .mWorst = times.back(),
         };
+    }
+}
+
+namespace RtxTool
+{
+    void GpuBreakdown::add(std::span<const Rtx::GpuSpan> spans)
+    {
+        for (const Rtx::GpuSpan& span : spans)
+        {
+            // The index and not the iterator: adding a name invalidates whatever `find` returned,
+            // and the row about to be pushed to is the one that name is at.
+            const auto at
+                = static_cast<std::size_t>(std::find(mNames.begin(), mNames.end(), span.mName) - mNames.begin());
+
+            if (at == mNames.size())
+            {
+                mNames.emplace_back(span.mName);
+                mTimes.emplace_back();
+            }
+
+            mTimes[at].push_back(span.mMs);
+        }
+    }
+
+    std::span<const GpuZone> GpuBreakdown::summariseZones()
+    {
+        mZones.clear();
+        mZones.reserve(mNames.size());
+
+        for (std::size_t at = 0; at < mNames.size(); ++at)
+            mZones.push_back(GpuZone{ .mName = mNames[at], .mTimes = summarise(mTimes[at]) });
+
+        std::sort(mZones.begin(), mZones.end(),
+            [](const GpuZone& a, const GpuZone& b) { return a.mTimes.mMedian > b.mTimes.mMedian; });
+
+        return mZones;
     }
 }

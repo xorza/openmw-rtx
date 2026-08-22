@@ -51,6 +51,7 @@ namespace Rtx
         : mInstance(instanceOptionsFor(options))
         , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()), deviceExtensionsFor(options))
         , mPool(mDevice)
+        , mTimer(mDevice)
         , mShaderDirectory(options.mShaderDirectory)
         , mUpscale(options.mUpscale)
         , mFilter(mDevice, options.mShaderDirectory)
@@ -222,6 +223,9 @@ namespace Rtx
         mHistory.reset();
         mPreviousCamera = Shaders::VisibilityConstants{};
 
+        // Whatever a previous frame's placement recorded belongs to a scene that no longer exists.
+        mTimed = false;
+
         mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, scene);
         mBuffers = std::make_unique<SceneBuffers>(mDevice, mPool, scene, mAcceleration->getIndices(), sea);
         mTextures = std::make_unique<TextureArray>(mDevice, mPool, textures);
@@ -250,9 +254,15 @@ namespace Rtx
     {
         assert(mAcceleration != nullptr && "placeScene before setScene");
 
+        // **The frame's report starts here and not at the trace.** Placing the world is two submits
+        // and, on a nine-by-nine exterior, most of the frame; a report that began at `renderFrame`
+        // would leave the largest part of it out.
+        mTimer.beginFrame();
+        mTimed = true;
+
         // Before the top level, which is built over structures this may be about to replace.
-        mAcceleration->refitMeshes(mPool, scene);
-        mAcceleration->placeInstances(mPool, scene);
+        mAcceleration->refitMeshes(mPool, scene, &mTimer);
+        mAcceleration->placeInstances(mPool, scene, &mTimer);
 
         // **Only what a moving world changed**, which is the instance rows, the lights and the
         // vertices of anything skinned. Rebuilding all of it was measured at twenty to twenty-seven
@@ -357,6 +367,12 @@ namespace Rtx
             mHistory = std::make_unique<Image>(mDevice, mRenderWidth, mRenderHeight, VK_FORMAT_R32G32B32A32_SFLOAT,
                 VK_IMAGE_USAGE_STORAGE_BIT, "history");
 
+        // A frame nothing moved for opens its own report; one that placed the world is adding to
+        // the report `placeScene` started.
+        if (!mTimed)
+            mTimer.beginFrame();
+        mTimed = false;
+
         const auto start = std::chrono::steady_clock::now();
 
         mPool.submitAndWait([&](VkCommandBuffer commands) {
@@ -384,21 +400,31 @@ namespace Rtx
                     VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
 
             mChannels->begin(commands);
+            mTimer.open(commands, "trace");
             mPass->record(commands, inputs, *mChannels, mHitCount, sampled);
+            mTimer.close(commands);
             mChannels->handOver(commands);
 
             // Where the bounce ended up: the filter's last level, or the channel the trace wrote
             // when nothing filtered it. **Ray Reconstruction is itself the denoiser**, and handing
             // it a frame the wavelet already blurred is asking it to recover what was thrown away.
-            const Image& indirect = options.mFilter && !upscaling ? mFilter.record(commands, *mChannels, sampled)
-                                                                  : mChannels->getIndirect();
+            const bool filtering = options.mFilter && !upscaling;
+            if (filtering)
+                mTimer.open(commands, "filter");
 
+            const Image& indirect
+                = filtering ? mFilter.record(commands, *mChannels, sampled) : mChannels->getIndirect();
+            if (filtering)
+                mTimer.close(commands);
+
+            mTimer.open(commands, "composite");
             mComposite.record(commands, *mChannels, indirect, mHistory.get(), *mColour,
                 Shaders::CompositeConstants{
                     .mWidth = mRenderWidth,
                     .mHeight = mRenderHeight,
                     .mAccumulate = options.mAccumulate,
                 });
+            mTimer.close(commands);
 
             // Whatever comes next reads what the composite just wrote.
             mColour->transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
@@ -410,6 +436,7 @@ namespace Rtx
 #ifdef OPENMW_RTX_DLSS
             if (mUpscaler != nullptr)
             {
+                mTimer.open(commands, "upscale");
                 mUpscaler->record(commands,
                     DlssInputs{
                         .mColour = *mColour,
@@ -434,6 +461,7 @@ namespace Rtx
                     VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_MEMORY_WRITE_BIT,
                     VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
 
+                mTimer.close(commands);
                 shown = mUpscaled.get();
             }
 #endif
@@ -441,12 +469,16 @@ namespace Rtx
             // **Measured off the image the curve is about to map**, which is the upscaled one
             // wherever something upscales — see `histogram.comp` for what measuring the other one
             // costs. One `shown` feeds both, so the two cannot come apart.
+            mTimer.open(commands, "exposure");
             if (options.mExposure.has_value())
                 mExposure.recordFixed(commands, *options.mExposure);
             else
                 mExposure.record(commands, *shown);
+            mTimer.close(commands);
 
+            mTimer.open(commands, "tone");
             mTone.record(commands, *shown, mExposure.getExposure(), *mTarget);
+            mTimer.close(commands);
         });
 
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
@@ -458,7 +490,9 @@ namespace Rtx
         const std::uint32_t hits = *static_cast<const std::uint32_t*>(mHitCount.map());
         mHitCount.unmap();
 
-        return FrameResult{ .mHits = hits, .mTraceMs = ms };
+        // Read after the last of the frame's submits has been waited on, which every one of them
+        // has: the pool fences each before it returns.
+        return FrameResult{ .mHits = hits, .mTraceMs = ms, .mGpu = mTimer.resolve() };
     }
 
     void VulkanRenderer::readPixels(std::vector<std::uint8_t>& pixels)

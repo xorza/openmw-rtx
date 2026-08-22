@@ -4,6 +4,7 @@
 #include <cstring>
 #include <span>
 #include <string>
+#include <string_view>
 
 #include <components/rtx/error.hpp>
 #include <components/rtx/scenedesc.hpp>
@@ -11,12 +12,30 @@
 
 #include "commands.hpp"
 #include "device.hpp"
+#include "gputimer.hpp"
 #include "result.hpp"
 
 namespace Rtx
 {
     namespace
     {
+        /// Brackets a build where there is a timer to bracket it with.
+        ///
+        /// **The load path has none.** Building every structure from scratch is a cell arriving and
+        /// not a frame, and its cost is already reported as a build time; giving it zones would put
+        /// them in whichever frame report came next.
+        void openZone(GpuTimer* timer, VkCommandBuffer commands, std::string_view name)
+        {
+            if (timer != nullptr)
+                timer->open(commands, name);
+        }
+
+        void closeZone(GpuTimer* timer, VkCommandBuffer commands)
+        {
+            if (timer != nullptr)
+                timer->close(commands);
+        }
+
         /// `VkAccelerationStructureCreateInfoKHR::offset` must be a multiple of this.
         constexpr VkDeviceSize sStructureAlignment = 256;
 
@@ -80,7 +99,7 @@ namespace Rtx
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mIndices.getHandle()), "indices");
 
         buildBottomLevel(pool, scene);
-        buildTopLevel(pool, scene);
+        buildTopLevel(pool, scene, nullptr);
     }
 
     SceneAcceleration::~SceneAcceleration()
@@ -215,7 +234,7 @@ namespace Rtx
         });
     }
 
-    void SceneAcceleration::refitMeshes(CommandPool& pool, const SceneDesc& scene)
+    void SceneAcceleration::refitMeshes(CommandPool& pool, const SceneDesc& scene, GpuTimer* timer)
     {
         const std::span<const Index> deformed = scene.getDeformed();
         if (deformed.empty())
@@ -308,12 +327,14 @@ namespace Rtx
         }
 
         pool.submitAndWait([&](VkCommandBuffer commands) {
+            openZone(timer, commands, "refit");
             functions.mCmdBuildAccelerationStructures(commands, count, mRefitBuilds.data(), mRefitRangePointers.data());
             barrierAfterBuild(commands);
+            closeZone(timer, commands);
         });
     }
 
-    void SceneAcceleration::placeInstances(CommandPool& pool, const SceneDesc& scene)
+    void SceneAcceleration::placeInstances(CommandPool& pool, const SceneDesc& scene, GpuTimer* timer)
     {
         // The old one is what the last frame traced against, and the fence in `submitAndWait` is
         // what says nothing is still reading it.
@@ -323,10 +344,10 @@ namespace Rtx
             mTopLevel = VK_NULL_HANDLE;
         }
 
-        buildTopLevel(pool, scene);
+        buildTopLevel(pool, scene, timer);
     }
 
-    void SceneAcceleration::buildTopLevel(CommandPool& pool, const SceneDesc& scene)
+    void SceneAcceleration::buildTopLevel(CommandPool& pool, const SceneDesc& scene, GpuTimer* timer)
     {
         const DeviceFunctions& functions = mDevice.getFunctions();
 
@@ -428,8 +449,10 @@ namespace Rtx
         const VkAccelerationStructureBuildRangeInfoKHR* ranges = &range;
 
         pool.submitAndWait([&](VkCommandBuffer commands) {
+            openZone(timer, commands, "tlas");
             functions.mCmdBuildAccelerationStructures(commands, 1, &build, &ranges);
             barrierAfterBuild(commands);
+            closeZone(timer, commands);
         });
     }
 }

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <string_view>
 
 #include <vulkan/vulkan_core.h>
@@ -80,18 +81,43 @@ namespace Rtx
 #endif
         }
 
+        /// Opens a named region in `commands`, so a capture shows what each stretch of the frame is.
+        ///
+        /// **The half of a performance picture a timestamp cannot give you.** A number says the
+        /// trace cost six milliseconds; an external profiler says which of its rays missed cache,
+        /// and it can only say so about a region somebody named. Compiled to nothing in release, for
+        /// the reason `setName` gives.
+        void beginLabel([[maybe_unused]] VkCommandBuffer commands, [[maybe_unused]] std::string_view name) const
+        {
+#ifdef OPENMW_RTX_DEBUG_NAMES
+            if (mBeginLabel != nullptr)
+                beginLabelImpl(commands, std::string(name).c_str());
+#endif
+        }
+
+        void endLabel([[maybe_unused]] VkCommandBuffer commands) const
+        {
+#ifdef OPENMW_RTX_DEBUG_NAMES
+            if (mEndLabel != nullptr)
+                mEndLabel(commands);
+#endif
+        }
+
         /// Blocks until the queue has finished everything. For tearing down and for resizing, not
         /// for pacing a frame.
         void waitIdle() const;
 
     private:
         void setNameImpl(VkObjectType type, std::uint64_t handle, const char* name) const;
+        void beginLabelImpl(VkCommandBuffer commands, const char* name) const;
 
         PhysicalDevice mPhysicalDevice;
         VkDevice mHandle = VK_NULL_HANDLE;
         VkQueue mQueue = VK_NULL_HANDLE;
         DeviceFunctions mFunctions;
         PFN_vkSetDebugUtilsObjectNameEXT mSetObjectName = nullptr;
+        PFN_vkCmdBeginDebugUtilsLabelEXT mBeginLabel = nullptr;
+        PFN_vkCmdEndDebugUtilsLabelEXT mEndLabel = nullptr;
 
         // Last, so that it is torn down first: saving it reads from the device, which the members
         // above are still holding open at that point.
