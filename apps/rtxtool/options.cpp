@@ -144,7 +144,35 @@ namespace RtxTool
             "by its own lamps and does not care");
 
         addOption("frames", bpo::value<std::uint32_t>()->default_value(0),
-            "with `view`, close after this many frames instead of waiting to be closed");
+            "with `view`, close after this many frames instead of waiting to be closed. With "
+            "`bench`, measure this many frames at each place instead of deriving them from "
+            "--seconds");
+
+        addOption("suite", bpo::value<std::string>()->default_value("default"),
+            "with `bench`, which list of places in resources/rtx/benches.cfg to profile. Overridden "
+            "by --views");
+
+        addOption("views", bpo::value<std::string>()->default_value(""),
+            "with `bench`, profile these views.cfg ids instead of a suite, comma separated and run "
+            "in the order written. --views=all runs every view there is");
+
+        addOption("seconds", bpo::value<float>()->default_value(10.0f),
+            "with `bench`, how many seconds of world to run at each place. World and not wall: the "
+            "world steps a sixtieth of a second per frame however long the frame took, so this is "
+            "six hundred frames either way and two builds render the same six hundred");
+
+        addOption("warmup", bpo::value<float>()->default_value(1.0f),
+            "with `bench`, how many seconds of world to draw and throw away before measuring. This "
+            "machine's GPU idles at 315 MHz and ramps under load, and a scene's first frames pay "
+            "for its residency as well");
+
+        addOption("window", bpo::value<bool>()->default_value(true)->implicit_value(true),
+            "with `bench`, show the run while it happens. The swapchain is mailbox, so it does not "
+            "pace the loop; --window=false is one fewer thing between the trace and the number");
+
+        addOption("json", bpo::value<std::string>()->default_value(""),
+            "with `bench`, also write the run to this file as one record, for comparing against the "
+            "same run on another commit");
 
         addOption("repeat", bpo::value<std::uint32_t>()->default_value(8),
             "with `shot`, trace the frame this many times and report the best. One submit times "

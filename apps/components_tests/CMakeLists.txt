@@ -123,7 +123,9 @@ if (OPENMW_RTX)
         rtxbridge/texturebuilder.cpp
         rtxbridge/waterbuilder.cpp
         rtxtool/actor.cpp
+        rtxtool/benchsuite.cpp
         rtxtool/contactsheet.cpp
+        rtxtool/frametimes.cpp
         rtxtool/installation.cpp
         rtxtool/props.cpp
         rtxtool/retire.cpp

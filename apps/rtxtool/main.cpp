@@ -30,12 +30,15 @@
 #include <limits>
 
 #include "actor.hpp"
+#include "bench.hpp"
+#include "benchsuite.hpp"
 #include "cellscene.hpp"
 #include "contactsheet.hpp"
 #include "options.hpp"
 #include "placement.hpp"
 #include "posedactors.hpp"
 #include "shot.hpp"
+#include "stagedworld.hpp"
 #include "validationchoice.hpp"
 #include "view.hpp"
 #include "views.hpp"
@@ -147,6 +150,7 @@ namespace RtxTool
                      "  scene    read a cell and report what the renderer would be handed\n"
                      "  shot     render a cell and write a PNG, with no window\n"
                      "  view     open a window on a cell and fly around it\n"
+                     "  bench    time a run of frames at each of a list of places\n"
                      "  textures every texture a cell uses, vanilla beside de-lit, as one sheet\n\n"
                      "With no arguments at all: a window on the ship at Seyda Neen, where the game starts.\n\n"
                   << options;
@@ -336,51 +340,38 @@ namespace RtxTool
             if (cell == nullptr)
                 return 1;
 
-            Rtx::SceneDesc scene;
-            RtxBridge::SceneExtractor extractor(scene);
-            std::set<std::string> loaded;
-            const RegionLoad lighting = loadRegion(
-                world, *cell, radius, scene, extractor, loaded, request.mWeather, request.mHour, actors.mProps);
-            request.mLighting = lighting.mLighting;
+            // Held for the whole render: the extractor keys its meshes on node pointers, and actors
+            // freed while the scene still names them is a dangling identity.
+            StagedWorld staged(world, *cell,
+                StagingRequest{
+                    .mRadius = radius,
+                    .mWeather = request.mWeather,
+                    .mHour = request.mHour,
+                    .mFieldOfView = request.mFieldOfView,
+                    .mOrigin = request.mOrigin,
+                    .mTarget = request.mTarget,
+                },
+                actors);
+
+            request.mLighting = staged.getLighting();
+            request.mOrigin = staged.getPlacement().mOrigin;
+            request.mTarget = staged.getPlacement().mTarget;
+            request.mMotion = staged.getMotion();
 
             printCellHeading(*cell);
 
-            // Declared out here so it outlives the render: the extractor keys its meshes on node
-            // pointers, and actors freed while the scene still names them is a dangling identity.
-            std::unique_ptr<PosedActors> posed;
-            const std::span<const CellPerson> residents
-                = actors.mResidents ? std::span<const CellPerson>(lighting.mPeople) : std::span<const CellPerson>();
-
-            const std::span<const CellProp> props
-                = actors.mProps ? std::span<const CellProp>(lighting.mProps) : std::span<const CellProp>();
-
-            if (!actors.empty() || !residents.empty() || !props.empty())
+            if (staged.getActorCount() > 0 || staged.getPropCount() > 0)
             {
-                // **Pinned before anyone goes in, and from the world's own bounds.** A row is placed
-                // relative to where the camera ends up, so the camera cannot be derived from a scene
-                // that already contains it — and pinning it here is what stops `renderShot` deriving
-                // a second, different one from the wider bounds.
-                const Placement placement
-                    = placeCamera(scene.getBounds(), request.mFieldOfView, request.mOrigin, request.mTarget);
-                request.mOrigin = placement.mOrigin;
-                request.mTarget = placement.mTarget;
-
-                posed = std::make_unique<PosedActors>(world, scene, extractor, actors);
-                posed->addResidents(residents);
-                posed->addProps(props);
-                posed->addRow(actors, placement);
-                request.mMotion = posed.get();
-
-                const RtxBridge::ExtractionStats& settled = posed->settle();
-                out() << "actors:     " << posed->getCount() - posed->getPropCount() << " placed, " << settled.mDeformed
+                const RtxBridge::ExtractionStats& settled = staged.getSettled();
+                out() << "actors:     " << staged.getActorCount() << " placed, " << settled.mDeformed
                       << " deforming drawables\n"
-                      << "props:      " << posed->getPropCount() << " live, " << settled.mEmitters
+                      << "props:      " << staged.getPropCount() << " live, " << settled.mEmitters
                       << " emitters holding " << settled.mSprites << " particles\n";
             }
 
             out() << '\n';
 
-            return renderShot(scene, world.getImageManager(), validation, request);
+            return renderShot(staged.getScene(), world.getImageManager(), validation, request);
         }
 
         int runView(World& world, const std::string& cellSpec, int radius, const Rtx::ValidationOptions& validation,
@@ -453,6 +444,59 @@ namespace RtxTool
                 chosen.mOrigin = view->mOrigin;
             if (!chosen.mTarget)
                 chosen.mTarget = view->mTarget;
+
+            return chosen;
+        }
+
+        /// The places a profiling run visits, in the order it visits them.
+        ///
+        /// **`--views` beats `--suite`, and both name entries in `views.cfg`.** A suite is a list
+        /// written down so a run can be repeated without remembering it; a list on the command line
+        /// is the same thing for one run. Neither carries coordinates: those live with the view, so
+        /// the frame a picture is taken of and the frame a number is measured on stay one frame.
+        std::vector<View> chooseBenchViews(
+            const bpo::variables_map& variables, const std::filesystem::path& resources, std::string& suiteName)
+        {
+            const std::vector<View> views = loadViews(resources / "rtx" / "views.cfg");
+            const std::string named = variables["views"].as<std::string>();
+
+            if (named == "all")
+                return views;
+
+            std::vector<std::string> wanted;
+            if (named.empty())
+            {
+                suiteName = variables["suite"].as<std::string>();
+
+                const std::vector<BenchSuite> suites = loadSuites(resources / "rtx" / "benches.cfg");
+                const BenchSuite* suite = findSuite(suites, suiteName);
+                if (suite == nullptr)
+                {
+                    std::string known;
+                    for (const BenchSuite& candidate : suites)
+                        known += "\n  " + candidate.mName + "   " + candidate.mNote;
+
+                    throw std::runtime_error("no suite is called \"" + suiteName + "\". These are:" + known);
+                }
+
+                wanted = suite->mViews;
+            }
+            else
+                wanted = splitNames(named);
+
+            std::vector<View> chosen;
+            chosen.reserve(wanted.size());
+            for (const std::string& name : wanted)
+            {
+                const View* view = findView(views, name);
+                if (view == nullptr)
+                    throw std::runtime_error("no view is called \"" + name + "\"; --list-views prints them");
+
+                chosen.push_back(*view);
+            }
+
+            if (chosen.empty())
+                throw std::runtime_error("nothing to profile: no view was named");
 
             return chosen;
         }
@@ -536,6 +580,54 @@ namespace RtxTool
 
                 return runScene(world, chosen.mCell, static_cast<int>(variables["radius"].as<std::uint32_t>()),
                     variables["twice"].as<bool>());
+            }
+
+            if (command == "bench")
+            {
+                const auto [width, height] = parseSize(variables["size"].as<std::string>());
+
+                std::string suite;
+                BenchRequest request;
+                request.mViews = chooseBenchViews(variables, resources, suite);
+                request.mSuite = suite;
+                request.mShaderDirectory = resources / "rtx" / "shaders";
+                request.mJson = variables["json"].as<std::string>();
+                request.mWidth = width;
+                request.mHeight = height;
+                request.mFieldOfView = variables["fov"].as<float>();
+                request.mRadius = static_cast<int>(variables["radius"].as<std::uint32_t>());
+                request.mSeconds = variables["seconds"].as<float>();
+                request.mWarmup = variables["warmup"].as<float>();
+                request.mFrames = variables["frames"].as<std::uint32_t>();
+                request.mWindow = variables["window"].as<bool>();
+                request.mUpscale = parseUpscale(variables["upscale"].as<std::string>());
+                request.mDelight = variables["delight"].as<float>();
+                request.mFilter = variables["filter"].as<bool>();
+                request.mExposure = parseExposure(variables["exposure"].as<std::string>());
+                request.mWeather = variables["weather"].as<std::string>();
+                request.mHour = variables["hour"].as<float>();
+                request.mActors = ActorRequest{
+                    .mCreatures = variables["actor"].as<std::vector<std::string>>(),
+                    .mPeople = variables["npc"].as<std::vector<std::string>>(),
+                    .mSeconds = variables["actor-time"].as<float>(),
+                    .mResidents = variables["people"].as<bool>(),
+                    .mProps = variables["props"].as<bool>(),
+                    .mClothes = variables["clothes"].as<bool>(),
+                };
+
+                // **Off unless somebody asked, whatever the build default is.** The layers cost
+                // between a tenth and half the frame rate, and a profiling run that quietly
+                // measured one under instrumentation is worse than no run at all: it produces a
+                // number, and the number is wrong.
+                const bool asked = !variables["validation"].defaulted() || !variables["sync-validation"].defaulted()
+                    || !variables["gpu-validation"].defaulted();
+
+                const Rtx::ValidationOptions validation
+                    = asked ? validationFrom(variables, request.mWindow) : Rtx::ValidationOptions{};
+
+                World world(config, variables, resources);
+
+                return runBench(world, validation, request);
             }
 
             if (command == "shot" || command == "view")

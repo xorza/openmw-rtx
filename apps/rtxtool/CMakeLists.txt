@@ -1,14 +1,22 @@
 set(RTXTOOL_FILES
     actor.cpp
     actor.hpp
+    bench.cpp
+    bench.hpp
+    benchsuite.cpp
+    benchsuite.hpp
     cellscene.cpp
     cellscene.hpp
     contactsheet.cpp
     contactsheet.hpp
+    frametimes.cpp
+    frametimes.hpp
     placement.cpp
     placement.hpp
     shot.cpp
     shot.hpp
+    stagedworld.cpp
+    stagedworld.hpp
     terrainstorage.cpp
     terrainstorage.hpp
     lighting.cpp
@@ -61,6 +69,9 @@ set_source_files_properties(options.cpp PROPERTIES COMPILE_OPTIONS -Wno-null-der
 # Named viewpoints. Copied here because this is the only thing that reads them, and beside the
 # backend's shaders under resources/rtx so one --resources finds both.
 copy_resource_file("${OpenMW_SOURCE_DIR}/files/rtx/views.cfg" "${RTX_RESOURCES_ROOT}" "resources/rtx/views.cfg")
+
+# Which of those a profiling run visits, and in what order.
+copy_resource_file("${OpenMW_SOURCE_DIR}/files/rtx/benches.cfg" "${RTX_RESOURCES_ROOT}" "resources/rtx/benches.cfg")
 
 openmw_add_executable(openmw-rtxtool main.cpp)
 

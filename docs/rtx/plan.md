@@ -410,6 +410,22 @@ SER, opacity micromaps for cutout foliage, BLAS refit for skinned actors against
 `RigGeometry` output, BLAS compaction, cluster acceleration structures if they earn their place.
 Target: 1920×1080 internal → 3840×2160 at 60 fps.
 
+#### Where it stands
+
+`openmw-rtxtool bench`, the `[default]` suite: 1920×1080 out of 1280×720 at DLSS quality, layers off,
+600 frames of world at 60 Hz after a warm-up second, median of each row.
+
+| place | frame | trace | place | left over | fps |
+|---|---|---|---|---|---|
+| Seyda Neen's ship, 51,742 instances | 29.27 ms | 7.11 | 11.47 | 10.69 | 34.2 (28.0 at the 1% low) |
+| Balmora's guild of mages, 1,239 | 6.93 ms | 4.71 | 1.69 | 0.53 | 144.4 (111.3) |
+
+**The trace is a quarter of the exterior frame.** The other three quarters are the world being placed
+again — `placeScene` rebuilds the top level over fifty-one thousand instances and refits every
+skinned mesh — and the harness posing the actors and walking the graph again behind it. The second of
+those is the harness standing in for a game that re-walks its own graph anyway; the first is the
+renderer's, and it is the number M12 is about.
+
 #### What the finished features cost
 
 Written down as each one lands rather than acted on — see `CLAUDE.md`, *Feature-complete first, then
@@ -456,11 +472,38 @@ openmw-rtxtool view   --view vivec --size 2560x1440   a window to fly around in
 openmw-rtxtool view   --view balmora --frames 600     the same, for something that cannot click
 openmw-rtxtool sheet  out.png --views all             contact sheet, for judging a look change
 openmw-rtxtool golden --views all                     compare against files/rtx/golden, write diffs
-openmw-rtxtool bench  --views all --frames 300 --json
+openmw-rtxtool bench                                  time the [default] suite of files/rtx/benches.cfg
+openmw-rtxtool bench  --views all --json=bench.json   the same over every named viewpoint
 openmw-rtxtool watch  --view seyda-neen-shore         re-render on shader change
 ```
 
-The first four verbs exist. `sheet`, `golden`, `bench` and `watch` do not yet.
+`sheet`, `golden` and `watch` do not exist yet.
+
+#### `bench`
+
+**Ten seconds of *world* per place, not ten seconds of wall clock.** The world steps a sixtieth of a
+second per frame however long that frame took — which is `PosedActors`' own step and not a second
+opinion about it — so `--seconds=10` is six hundred frames, and two builds render the same six
+hundred: the same particles in the same places, the same sample in each pixel. A run against the
+clock would animate further on the faster build and be measuring a different scene.
+
+Where it goes is a **suite**: a list of `views.cfg` ids in `files/rtx/benches.cfg`, so a place worth
+measuring and the same place worth looking at cannot drift apart. `--views=a,b` is the same thing for
+one run and `--views=all` is every viewpoint there is. The layers are **off unless asked for**,
+whatever the build default is — a run that quietly measured one under instrumentation is worse than
+no run at all, because it produces a number.
+
+Three distributions per place rather than one figure, because they are three different problems:
+
+| row | what it is |
+|---|---|
+| `trace ms` | the renderer drawing — one submit, including the wait |
+| `place ms` | the renderer being told what moved: the top level rebuilt, every skinned mesh refitted |
+| `frame ms` | the whole loop, so what is left over is the harness posing actors and re-walking the graph |
+
+Each carries median, mean, p95, p99, best and worst, by nearest rank, so every figure is a frame that
+actually happened. A warm-up second is drawn and thrown away first: this box's GPU idles at 315 MHz
+and ramps under load, and a scene's first frames pay for its residency as well.
 
 - **A cell argument is addressed the way Morrowind does**: a pair of integers is an exterior,
   anything else is an interior's name.

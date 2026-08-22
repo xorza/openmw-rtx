@@ -32,6 +32,29 @@ namespace Rtx
         Dlaa,
     };
 
+    /// How `upscale` is spelled on a command line and in a setting file.
+    ///
+    /// The other half of `upscaleNamed`, and the one a report needs: a run is only comparable
+    /// against another if what it says it did can be read back.
+    inline std::string_view upscaleName(Upscale upscale)
+    {
+        switch (upscale)
+        {
+            case Upscale::Off:
+                return "off";
+            case Upscale::Performance:
+                return "performance";
+            case Upscale::Balanced:
+                return "balanced";
+            case Upscale::Quality:
+                return "quality";
+            case Upscale::Dlaa:
+                return "dlaa";
+        }
+
+        return "off";
+    }
+
     /// The mode `name` spells, or nothing where it spells none of them.
     ///
     /// **Nothing rather than a default.** A setting file and a command line both reach this, and

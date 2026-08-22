@@ -1,10 +1,10 @@
 #include "shot.hpp"
 
+#include "frametimes.hpp"
 #include "lighting.hpp"
 #include "placement.hpp"
 #include <components/rtxbridge/png.hpp>
 
-#include <algorithm>
 #include <chrono>
 #include <memory>
 #include <ostream>
@@ -29,33 +29,6 @@ namespace RtxTool
             return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
         }
 
-        /// What a run of traces of the same frame came to.
-        struct TraceTimes
-        {
-            double mBest;
-            double mMedian;
-            double mWorst;
-        };
-
-        /// The three figures a run of traces is worth quoting by.
-        ///
-        /// **The best is the answer and the spread is whether to believe it.** A minimum over enough
-        /// runs is the least-contended one and the most repeatable; a median an order away from it
-        /// says the machine was doing something else, and the number should not be quoted.
-        ///
-        /// **By reference, and it sorts in place.** A copy would read better at the call site and
-        /// cannot be had: taking one loses the compiler its proof that the loop below pushed at
-        /// least once, and `front()` on a vector it can no longer see into is a hard warning. The
-        /// alternative is a defensive branch for a case the caller cannot produce.
-        TraceTimes summarise(std::vector<double>& times)
-        {
-            std::sort(times.begin(), times.end());
-            return TraceTimes{
-                .mBest = times.front(),
-                .mMedian = times[times.size() / 2],
-                .mWorst = times.back(),
-            };
-        }
     }
 
     int renderShot(const Rtx::SceneDesc& scene, Resource::ImageManager& images,
@@ -135,8 +108,8 @@ namespace RtxTool
 
         // **A `do` and not a `for`, for the reason `summarise` takes its argument by reference.** The
         // bound below is `max(..., 1)` and a `for` over it still leaves the compiler unable to prove
-        // the body ran, so `front()` on what it filled becomes a hard warning. Looping this way says
-        // it structurally.
+        // the body ran, so indexing what it filled becomes a hard warning. Looping this way says it
+        // structurally.
         std::uint32_t frame = 0;
         do
         {
@@ -160,7 +133,7 @@ namespace RtxTool
             ++frame;
         } while (frame < frames);
 
-        const TraceTimes trace = summarise(traces);
+        const FrameTimes trace = summarise(traces);
 
         std::vector<std::uint8_t> pixels;
         renderer->readPixels(pixels);
