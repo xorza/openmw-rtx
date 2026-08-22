@@ -3,7 +3,8 @@
 # own build directory, so it does not fight debug.sh over one set of objects. Extra arguments are
 # passed to the tool: `./release.sh --view=balmora`.
 #
-# `./release.sh game` builds and runs OpenMW itself on the quicksave instead.
+# `./release.sh game` builds and runs OpenMW itself on the quicksave instead, and
+# `./release.sh bench` profiles — which is what an optimised build with no layers in it is for.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,5 +35,14 @@ fi
 
 cmake --build "$build" -j32 --target openmw-rtxtool
 
+# **The verb stays first.** `dispatch` reads it off argv[1] and takes a leading dash to mean nobody
+# named one, so appending it after the switches below silently ran `view` instead — `./release.sh
+# bench` opened a window and profiled nothing.
+verb=()
+if [ $# -gt 0 ] && [[ "${1}" != -* ]]; then
+    verb=("$1")
+    shift
+fi
+
 cd "$build"
-exec ./openmw-rtxtool --validation=false "$@"
+exec ./openmw-rtxtool "${verb[@]}" --validation=false "$@"

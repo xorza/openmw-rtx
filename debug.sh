@@ -2,7 +2,8 @@
 # Builds with debug info and opens the harness on the ship at Seyda Neen, under the validation
 # layers. Extra arguments are passed to the tool: `./debug.sh --view=balmora`.
 #
-# `./debug.sh game` builds and runs OpenMW itself on the quicksave instead.
+# `./debug.sh game` builds and runs OpenMW itself on the quicksave instead. Profiling belongs in
+# release.sh: the layers cost between a tenth and half the frame rate, and `bench` will say so.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -35,6 +36,15 @@ fi
 
 cmake --build "$build" -j32 --target openmw-rtxtool
 
+# **The verb stays first.** `dispatch` reads it off argv[1] and takes a leading dash to mean nobody
+# named one, so appending it after the switches below silently ran `view` instead — `./release.sh
+# bench` opened a window and profiled nothing.
+verb=()
+if [ $# -gt 0 ] && [[ "${1}" != -* ]]; then
+    verb=("$1")
+    shift
+fi
+
 # From the build directory, because --resources defaults to ./resources.
 cd "$build"
-exec ./openmw-rtxtool --validation --sync-validation "$@"
+exec ./openmw-rtxtool "${verb[@]}" --validation --sync-validation "$@"
