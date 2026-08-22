@@ -17,16 +17,15 @@
 # waits in, and whether a wait passes through this fork's own code at all. Read the by-library
 # table; the total above it is dominated by driver worker threads parked for the length of the run.
 #
-# **The third build directory, and the reason is the stack.** A profile is only as good as its call
-# graph, and a Release build has neither line numbers nor frame pointers, so a report off one is a
-# list of exported symbols with no path back to the frame they were reached from. `-g
-# -fno-omit-frame-pointer` on top of Release costs about a percent of speed and buys every caller —
-# and Arch already builds every library in this process the same way, so the chain runs out through
-# libstdc++, OSG and SDL without paying for DWARF unwinding.
+# **It profiles the build `release.sh` measures, and does not have one of its own.** A profile is
+# only as good as its call graph, and a stock Release build has neither line numbers nor frame
+# pointers — so `release.sh` carries `-g1 -fno-omit-frame-pointer` instead, measured at 0.2%. A
+# second build directory would have cost nothing less and explained a frame nobody timed.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-build="$root/build-profile"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+build="$root/build-release"
 out="$build/perf"
 
 mode=cpu
@@ -70,25 +69,12 @@ fi
 
 if [ "$tui" = true ]; then
     [ -f "$data" ] || { echo "no recording at $data — run profile.sh without --tui first" >&2; exit 1; }
-    exec perf report -i "$data" --inline
+    exec perf report -i "$data" --no-inline
 fi
 
-if [ ! -f "$build/CMakeCache.txt" ]; then
-    cmake -S "$root" -B "$build" -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_C_FLAGS="-g -fno-omit-frame-pointer" \
-        -DCMAKE_CXX_FLAGS="-g -fno-omit-frame-pointer" \
-        -DOPENMW_RTX=ON \
-        -DOPENMW_DLSS_SDK=/home/xxorza/Projects/rtxmw/.refs/dlss \
-        -DBUILD_COMPONENTS_TESTS=OFF -DBUILD_OPENMW_TESTS=OFF \
-        -DBUILD_OPENCS=OFF -DBUILD_WIZARD=OFF -DBUILD_ESSIMPORTER=OFF \
-        -DBUILD_MWINIIMPORTER=OFF -DBUILD_OPENCS_TESTS=OFF \
-        -DOPENMW_USE_SYSTEM_RECASTNAVIGATION=ON -DOPENMW_USE_SYSTEM_GOOGLETEST=ON \
-        -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-        -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=mold
-fi
-
-cmake --build "$build" -j32 --target openmw-rtxtool
+# Configured and built by `release.sh`, which owns the flags this needs, so the binary perf reads is
+# the one `release.sh bench` reported on.
+"$here/release.sh" build
 
 # perf's control fifo. `--delay=-1` starts the counters off and `bench` turns them on around the
 # frames it measures, so the recording is those frames: not the engine starting, not two seconds of
@@ -111,7 +97,7 @@ if [ "$mode" = offcpu ]; then
     #
     # A millisecond, against a default of five hundred: half a second is thirty frames, so the
     # default would not see a single one of the waits this renderer is made of.
-    record+=(-e dummy --off-cpu --off-cpu-thresh 1 --call-graph "$unwind")
+    record+=(-e dummy --off-cpu --off-cpu-thresh 1 --call-graph fp)
 elif [ "$unwind" = dwarf ]; then
     # The default 8 KiB of stack per sample truncates OpenMW's deeper traversals, and a truncated
     # DWARF unwind is worse than a frame-pointer one: it looks complete and stops in the middle.
@@ -186,6 +172,11 @@ perf report "${common[@]}" --children -g none --sort symbol --percent-limit 0.5 
 perf report "${common[@]}" --no-children -g graph,2,caller --percent-limit 1 \
     > "$out/$slug-callers.txt" 2>/dev/null
 
+# What `-g1` is in the release build for. A line resolves what a symbol cannot: the hottest entry
+# after `Group::traverse` is an address in libc until the line tables say `memmove-vec-unaligned`.
+perf report "${common[@]}" --no-children -g none --sort srcline --percent-limit 0.5 \
+    > "$out/$slug-lines.txt" 2>/dev/null
+
 # A flame graph if something on this box can fold a stack, and a line saying what to install if not.
 # Nothing here depends on one: the four reports above are the same data, and the callers file is the
 # same shape read the other way up.
@@ -244,12 +235,16 @@ awk '/^ +[0-9]/ && shown++ < 12 {
      }' "$out/$slug-self.txt" | narrow
 
 echo
+echo "  by source line:"
+awk '/^ +[0-9]/ && shown++ < 8 { printf "    %7s  %s\n", $1, $2 }' "$out/$slug-lines.txt"
+
+echo
 echo "  by library — of the whole stack, and of the leaf:"
 awk '/^ +[0-9]/ && shown++ < 10 { printf "    %7s %7s  %s\n", $1, $2, $3 }' "$out/$slug-libraries.txt"
 
 echo
 for file in "$out/$slug"*.txt "$out/$slug.svg" "$out/bench.txt"; do
-    [ -e "$file" ] && echo "  ${file#"$root"/}"
+    [ -e "$file" ] && echo "  ${file#"$root"/}" || true
 done
 [ -e "$out/$slug.svg" ] || echo "  (no flame graph: pacman -S inferno)"
 echo "  apps/rtxtool/profile.sh --tui   to walk the call graph"

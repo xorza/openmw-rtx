@@ -644,12 +644,19 @@ Three choices that this machine forces:
 | `--call-graph fp` | Arch builds every package with `-fno-omit-frame-pointer`, so the chain runs out through libstdc++, OSG and SDL for free. `--dwarf` is there for the graphics driver, which has `.eh_frame` and no frame pointers, and costs about five times as much. |
 | `--no-inline` | perf resolves the inline stack at a *return* address, which at `-O3` lands in whatever was inlined after the call — a chain through `placeScene` comes back as `~basic_string`, `_M_dispose`, `_M_is_local`. |
 
-Its own build directory, `build-profile`: Release plus `-g -fno-omit-frame-pointer`, because a
-report off a stock Release build is a list of exported symbols with no path back to the frame.
+**It profiles the build the numbers come from and does not have one of its own.** A stock Release
+build has neither line numbers nor frame pointers, so a report off one is a list of exported symbols
+with no path back to the frame — but the answer to that is `-g1 -fno-omit-frame-pointer` on
+`release.sh`, not a second binary beside it. `-g1` is line tables and nothing else, free at runtime,
+33 MiB against 7 stripped and 140 at full `-g`; frame pointers measured at **0.2%** on a 29 ms frame,
+against a run-to-run spread of 2.7%. A profiling build would have cost no less and would have
+explained a frame the benchmark never timed.
 
 The summary is **cores busy** — the recording's task-clock nanoseconds over the window `bench` says
-it measured — and then the same samples three ways: by total time with pass-through frames
-collapsed, by self time, and by library. `--offcpu` swaps the sampler for perf's BPF off-CPU
+it measured — and then the same samples four ways: by total time with pass-through frames collapsed,
+by self time, by source line, and by library. The line view is what `-g1` buys: the second-hottest
+entry in an exterior frame is an unresolved address in libc until the line tables call it
+`memmove-vec-unaligned-erms.S:660`. `--offcpu` swaps the sampler for perf's BPF off-CPU
 profiler, which needs root; it can say which library the process waits in and cannot say which
 frame asked, because a BPF-collected stack is unwound by frame pointer and the driver has none.
 

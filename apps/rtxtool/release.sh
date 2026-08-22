@@ -3,17 +3,29 @@
 # own build directory, so it does not fight debug.sh over one set of objects. Extra arguments are
 # passed to the tool: `release.sh --view=balmora`.
 #
-# `release.sh game` builds and runs OpenMW itself on the quicksave instead, and `release.sh bench`
-# measures — which is what an optimised build with no layers in it is for. `profile.sh` is where the
-# measurement turns into an explanation.
+# `release.sh game` builds and runs OpenMW itself on the quicksave instead, `release.sh build` only
+# builds, and `release.sh bench` measures — which is what an optimised build with no layers in it is
+# for. `profile.sh` is where the measurement turns into an explanation.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 build="$root/build-release"
 
+# **Light debug data and frame pointers, in the build the numbers are quoted from.** `-g1` is line
+# tables and nothing else — no locals, no types — so it costs nothing at runtime and a profile can
+# name a line rather than an offset. `-fno-omit-frame-pointer` measured at 0.2% here, against a
+# run-to-run spread of 2.7%, and it is what lets perf walk a stack for the price of reading it.
+#
+# Both are on the measured build rather than on a profiling build beside it, because two binaries
+# means the profile explains a frame the benchmark did not time. Arch builds every library in this
+# process with the same two flags, so the chain already runs out through libstdc++, OSG and SDL.
+profiling="-g1 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
+
 if [ ! -f "$build/CMakeCache.txt" ]; then
     cmake -S "$root" -B "$build" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_C_FLAGS="$profiling" \
+        -DCMAKE_CXX_FLAGS="$profiling" \
         -DOPENMW_RTX=ON \
         -DOPENMW_DLSS_SDK=/home/xxorza/Projects/rtxmw/.refs/dlss \
         -DBUILD_COMPONENTS_TESTS=OFF -DBUILD_OPENMW_TESTS=OFF \
@@ -32,6 +44,13 @@ if [ "${1-}" = game ]; then
     cmake --build "$build" -j32 --target openmw
     cd "$build"
     exec ./openmw --skip-menu --load-savegame "$HOME/.local/share/openmw/saves/asd/Quicksave.omwsave" "$@"
+fi
+
+# `release.sh build` stops there. That is what profile.sh calls: the flags above and the configure
+# line under them are this script's, and perf has to read the binary they produced rather than one
+# built beside it.
+if [ "${1-}" = build ]; then
+    exec cmake --build "$build" -j32 --target openmw-rtxtool
 fi
 
 cmake --build "$build" -j32 --target openmw-rtxtool
