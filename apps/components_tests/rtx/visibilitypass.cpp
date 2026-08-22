@@ -956,8 +956,9 @@ namespace Rtx
             constexpr std::array<std::uint8_t, 4> redTexel{ 255, 0, 0, 255 };
             constexpr std::array<std::uint8_t, 4> blueTexel{ 0, 0, 255, 255 };
             constexpr MipLevel one{ 0, 1, 1 };
-            const auto describe = [&one](std::span<const std::uint8_t> texel) {
+            const auto describe = [&one](std::span<const std::uint8_t> texel, std::uint32_t slot) {
                 return TextureData{
+                    .mSlot = slot,
                     .mFormat = TextureFormat::Rgba8Unorm,
                     .mWidth = 1,
                     .mHeight = 1,
@@ -973,7 +974,7 @@ namespace Rtx
             scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = red });
 
             mRenderer->resize(size, size);
-            const TextureData first = describe(redTexel);
+            const TextureData first = describe(redTexel, 0);
             mRenderer->setScene(scene, std::span(&first, 1), SeaState{});
             mRenderer->renderFrame(camera, FrameOptions{ .mExposure = 1.0f });
 
@@ -990,7 +991,9 @@ namespace Rtx
             scene.addInstance(MeshInstance{
                 .mTransform = osg::Matrixf::translate(0.0f, -50.0f, 0.0f), .mMesh = mesh, .mMaterial = blue });
 
-            const TextureData second = describe(blueTexel);
+            // **The slot the scene gave it**, which is what an arrival now carries: a texture is
+            // written where it belongs rather than after whatever is already there.
+            const TextureData second = describe(blueTexel, scene.getMaterials()[blue].mDiffuse);
             mRenderer->extendScene(scene, std::span(&second, 1), SeaState{});
             EXPECT_EQ(mRenderer->getTextureCount(), 2u);
 

@@ -31,8 +31,8 @@ namespace RtxTool
 
     }
 
-    int renderShot(const Rtx::SceneDesc& scene, Resource::ImageManager& images,
-        const Rtx::ValidationOptions& validation, const ShotRequest& request)
+    int renderShot(Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::ValidationOptions& validation,
+        const ShotRequest& request)
     {
         std::ostream& out = Debug::getRawStdout();
 

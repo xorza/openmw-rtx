@@ -58,8 +58,10 @@ namespace RtxBridge
         ///
         /// `scene` must have been walked this frame — placements cleared and re-extracted — because
         /// what the three branches differ over is what to do *besides* placing.
-        SceneUpload hand(Rtx::Renderer& renderer, const Rtx::SceneDesc& scene, Resource::ImageManager& images,
-            const Rtx::SeaState& sea);
+        /// Takes the scene by mutable reference because it consumes its arrivals: what a walk added
+        /// is uploaded here and forgotten here, so a caller cannot upload it twice or lose it.
+        SceneUpload hand(
+            Rtx::Renderer& renderer, Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::SeaState& sea);
 
     private:
         /// **Whether the pair in front of it is the pair it last built, and appending is only

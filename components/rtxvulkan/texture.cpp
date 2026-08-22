@@ -244,20 +244,25 @@ namespace Rtx
         /// how the reference implementation came to divide every untextured surface by two.
         constexpr std::size_t sShadingCells = std::size_t{ Shaders::SHADING_EXTENT } * Shaders::SHADING_EXTENT;
 
-        /// Appends each description's shading map to `values`, a stand-in where it has none.
-        void gatherShading(std::span<const TextureData> textures, std::vector<float>& values)
+        /// Writes each description's shading map into `values` at the slot it names, a stand-in
+        /// where it has none.
+        void gatherShadingAt(std::span<const TextureData> textures, std::vector<float>& values)
         {
             for (const TextureData& texture : textures)
             {
+                const std::size_t at = std::size_t{ texture.mSlot } * sShadingCells;
+                if (values.size() < at + sShadingCells)
+                    values.resize(at + sShadingCells, 1.0f);
+
                 const std::span<const float> map = texture.mShading;
                 if (map.empty())
                 {
-                    values.insert(values.end(), sShadingCells, 1.0f);
+                    std::fill_n(values.begin() + static_cast<std::ptrdiff_t>(at), sShadingCells, 1.0f);
                     continue;
                 }
 
                 assert(map.size() == sShadingCells);
-                values.insert(values.end(), map.begin(), map.end());
+                std::copy(map.begin(), map.end(), values.begin() + static_cast<std::ptrdiff_t>(at));
             }
         }
     }
@@ -318,57 +323,100 @@ namespace Rtx
         };
         checkVk(vkAllocateDescriptorSets(device.getHandle(), &allocate, &mSet), "vkAllocateDescriptorSets");
 
-        gatherShading(textures, mShadingValues);
-        reshade(0);
-        describeFrom(0);
+        // **Position is the slot here**, because an array built from nothing is built in the scene's
+        // own order and a material's index is where its description sat. `write` is the one that has
+        // to be told, and it is the same code either way: the shading buffer is empty at this point,
+        // so the grow path inside it writes the whole thing.
+        std::vector<TextureData> placed(textures.begin(), textures.end());
+        for (std::size_t at = 0; at < placed.size(); ++at)
+            placed[at].mSlot = static_cast<std::uint32_t>(at);
+
+        write(pool, placed);
+
+        // **A scene with no textures still binds the shading buffer**, and `write` has nothing to do
+        // for one — so the neutral map that stands in for an empty array is made here rather than
+        // inside a path that returns before it.
+        growShading();
     }
 
-    void TextureArray::extend(CommandPool& pool, std::span<const TextureData> arrived)
+    void TextureArray::reserveSlot(std::uint32_t slot)
+    {
+        if (slot >= sMaxTextures)
+            throw Error("a scene wanting texture slot " + std::to_string(slot) + " is past the "
+                + std::to_string(sMaxTextures) + " this array holds");
+
+        // Slots only ever appear at the end or inside, never past it: the scene hands out the next
+        // index when it has no free one, so a batch of arrivals appends in order.
+        assert(slot <= mTextures.size() && "a texture slot past the end of the array");
+        if (slot == mTextures.size())
+            mTextures.emplace_back();
+    }
+
+    void TextureArray::write(CommandPool& pool, std::span<const TextureData> arrived)
     {
         if (arrived.empty())
             return;
 
-        const std::size_t from = mTextures.size();
-        if (from + arrived.size() > sMaxTextures)
-            throw Error("a scene with " + std::to_string(from + arrived.size()) + " textures is past the "
-                + std::to_string(sMaxTextures) + " this array holds");
+        for (const TextureData& texture : arrived)
+        {
+            reserveSlot(texture.mSlot);
 
-        mTextures.reserve(from + arrived.size());
-        for (std::size_t at = 0; at < arrived.size(); ++at)
-            mTextures.emplace_back(mDevice, pool, arrived[at], "texture " + std::to_string(from + at));
+            // Assigned rather than emplaced, so whatever the slot held is destroyed here — after its
+            // descriptor has stopped being the one bound and before the new one replaces it.
+            mTextures[texture.mSlot] = Texture(mDevice, pool, texture, "texture " + std::to_string(texture.mSlot));
+        }
 
-        gatherShading(arrived, mShadingValues);
-        reshade(from);
-        describeFrom(from);
+        gatherShadingAt(arrived, mShadingValues);
+        reshade(arrived);
+        describe(arrived);
     }
 
-    void TextureArray::describeFrom(std::size_t from)
+    void TextureArray::describe(std::span<const TextureData> arrived)
     {
-        if (from >= mTextures.size())
+        if (arrived.empty())
             return;
 
+        // One write per slot rather than one over a range: the arrivals are wherever the scene's
+        // free list put them, and a run is no longer what they are.
         std::vector<VkDescriptorImageInfo> images;
-        images.reserve(mTextures.size() - from);
-        for (std::size_t at = from; at < mTextures.size(); ++at)
+        std::vector<VkWriteDescriptorSet> writes;
+        images.reserve(arrived.size());
+        writes.reserve(arrived.size());
+
+        for (const TextureData& texture : arrived)
             images.push_back(VkDescriptorImageInfo{
                 .sampler = mSampler,
-                .imageView = mTextures[at].getView(),
+                .imageView = mTextures[texture.mSlot].getView(),
                 .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             });
 
-        const VkWriteDescriptorSet write{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = mSet,
-            .dstBinding = 0,
-            .dstArrayElement = static_cast<std::uint32_t>(from),
-            .descriptorCount = static_cast<std::uint32_t>(images.size()),
-            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .pImageInfo = images.data(),
-        };
-        vkUpdateDescriptorSets(mDevice.getHandle(), 1, &write, 0, nullptr);
+        for (std::size_t at = 0; at < arrived.size(); ++at)
+            writes.push_back(VkWriteDescriptorSet{
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = mSet,
+                .dstBinding = 0,
+                .dstArrayElement = arrived[at].mSlot,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .pImageInfo = &images[at],
+            });
+
+        vkUpdateDescriptorSets(
+            mDevice.getHandle(), static_cast<std::uint32_t>(writes.size()), writes.data(), 0, nullptr);
     }
 
-    void TextureArray::reshade(std::size_t from)
+    void TextureArray::reshade(std::span<const TextureData> arrived)
+    {
+        if (growShading())
+            return;
+
+        for (const TextureData& texture : arrived)
+            mShading.writeAt(std::size_t{ texture.mSlot } * sShadingCells * sizeof(float),
+                std::span<const float>(mShadingValues)
+                    .subspan(std::size_t{ texture.mSlot } * sShadingCells, sShadingCells));
+    }
+
+    bool TextureArray::growShading()
     {
         // One texture's worth even for a scene with none: a buffer of nothing is not a legal thing
         // to make, and the descriptor is bound either way.
@@ -379,18 +427,16 @@ namespace Rtx
 
         // **Grown in blocks, and only then rewritten whole.** A buffer sized exactly to the scene
         // would be made again for every texture that arrives, which is the spike this exists to
-        // remove; a block of slack turns that into one write of the tail, most of the time.
-        if (mShading.getSize() < values.size_bytes())
-        {
-            constexpr std::size_t slack = 128 * sShadingCells;
-            const std::size_t room = ((values.size() + slack - 1) / slack) * slack;
+        // remove; a block of slack turns that into one write per arrival, most of the time.
+        if (mShading.getSize() >= values.size_bytes())
+            return false;
 
-            mShading = HostBuffer(mDevice, room * sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-            mShading.write(values);
-            return;
-        }
+        constexpr std::size_t slack = 128 * sShadingCells;
+        const std::size_t room = ((values.size() + slack - 1) / slack) * slack;
 
-        mShading.writeAt(from * sShadingCells * sizeof(float), values.subspan(from * sShadingCells));
+        mShading = HostBuffer(mDevice, room * sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        mShading.write(values);
+        return true;
     }
 
     TextureArray::~TextureArray()

@@ -22,6 +22,9 @@ namespace Rtx
     class Texture
     {
     public:
+        /// A slot with nothing in it yet, which is what the array holds while it is being filled.
+        Texture() = default;
+
         Texture(const Device& device, CommandPool& pool, const TextureData& data, std::string_view name);
         ~Texture();
 
@@ -57,14 +60,18 @@ namespace Rtx
         TextureArray(const Device& device, CommandPool& pool, std::span<const TextureData> textures);
         ~TextureArray();
 
-        /// Adds `arrived` after what is already here, leaving every texture it holds where it is.
+        /// Writes each of `arrived` into the slot it names, leaving every other texture alone.
         ///
         /// **This is why the set is allocated at the maximum rather than at the scene's count.**
         /// A cell arriving, or an actor walking into view with a body texture nobody has worn yet,
         /// used to mean the whole array made again — 327 images re-uploaded, measured at 150 to 225
-        /// milliseconds, against 12 for every acceleration structure in the scene. Appending writes
-        /// the descriptors for the new range and touches nothing else.
-        void extend(CommandPool& pool, std::span<const TextureData> arrived);
+        /// milliseconds, against 12 for every acceleration structure in the scene.
+        ///
+        /// **By slot and not by appending**, because a slot a departing cell freed is taken over
+        /// wherever it sits. A slot at the end grows the array; one inside it replaces what was
+        /// there, and the image that was there goes when it is replaced and not when it was freed —
+        /// so no descriptor ever names an image that has been destroyed.
+        void write(CommandPool& pool, std::span<const TextureData> arrived);
 
         TextureArray(const TextureArray&) = delete;
         TextureArray& operator=(const TextureArray&) = delete;
@@ -83,13 +90,23 @@ namespace Rtx
         VkDeviceSize getBytes() const;
 
     private:
-        /// Writes the descriptors for textures `[from, mTextures.size())`.
-        void describeFrom(std::size_t from);
+        /// Writes the descriptors for the slots `arrived` names.
+        void describe(std::span<const TextureData> arrived);
 
-        /// Grows the shading buffer to hold `mShadingValues` and writes what is new into it.
-        void reshade(std::size_t from);
+        /// Writes the shading of the slots `arrived` names, growing the buffer first if it must.
+        void reshade(std::span<const TextureData> arrived);
+
+        /// Grows the shading buffer to hold `mShadingValues`, rewriting it whole. True where it did,
+        /// which is what tells a caller its own write has already happened.
+        bool growShading();
+
+        /// Makes room for a slot at the end of the array, and refuses one past what it holds.
+        void reserveSlot(std::uint32_t slot);
 
         const Device& mDevice;
+
+        /// Indexed by slot. A slot the scene has freed keeps the image it had until something takes
+        /// it over, which is what keeps its descriptor pointing at something that exists.
         std::vector<Texture> mTextures;
 
         /// Every texture's shading map, host side, so growing the buffer does not have to ask the

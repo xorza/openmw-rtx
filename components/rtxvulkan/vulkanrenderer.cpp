@@ -260,7 +260,7 @@ namespace Rtx
     {
         assert(mAcceleration != nullptr && "extendScene before setScene");
 
-        mTextures->extend(mPool, arrived);
+        mTextures->write(mPool, arrived);
 
         // **The structures are made again and the array is not**, which is the whole of what this
         // saves: 12 ms against 150. Building only the meshes that arrived is the next step and a

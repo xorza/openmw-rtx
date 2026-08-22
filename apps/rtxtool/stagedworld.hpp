@@ -82,6 +82,9 @@ namespace RtxTool
         bool empty() const { return mScene.getPlacedCount() == 0; }
 
         const Rtx::SceneDesc& getScene() const { return mScene; }
+
+        /// Mutable for whoever hands it to a backend, which consumes the arrivals it holds.
+        Rtx::SceneDesc& getScene() { return mScene; }
         const CellLighting& getLighting() const { return mLighting; }
         const Placement& getPlacement() const { return mPlacement; }
 

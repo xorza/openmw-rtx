@@ -433,6 +433,21 @@ namespace Rtx
         /// left, and by `clear`; never by a placement, which is rewritten every frame anyway.
         std::uint64_t getStructureRevision() const { return mStructureRevision; }
 
+        /// Forgets which slots have arrived, for a caller that has uploaded them.
+        ///
+        /// **Whoever hands the scene to a backend owns this**, not the frame: an arrival lives from
+        /// the walk that made it until something has taken it, and a walk that is never handed over
+        /// must not lose what it added.
+        void clearArrivals() { mArrivedTextures.clear(); }
+
+        /// Which texture slots have been written since the last `clearArrivals`.
+        ///
+        /// **A list and not a count, because a slot is taken over wherever it sits.** A backend used
+        /// to be handed the tail of the table and told to append; reclaiming a slot means an arrival
+        /// can be anywhere, so the arrivals say where each one goes and the backend writes those and
+        /// nothing else.
+        std::span<const Index> getArrivedTextures() const { return mArrivedTextures; }
+
         /// How many times a **mesh** has appeared, which is the expensive half of the above.
         ///
         /// A texture arriving is an upload; a mesh arriving is a bottom-level acceleration structure
@@ -518,6 +533,10 @@ namespace Rtx
         /// other two are taken from the back, since a material and a texture are one size.
         std::vector<Index> mFreeMeshes;
         std::vector<Index> mFreeMaterials;
+        std::vector<Index> mFreeTextures;
+
+        /// Texture slots written since the last `clearArrivals`, which is what a backend uploads.
+        std::vector<Index> mArrivedTextures;
 
         // The scan this replaces was O(materials x textures). A cell is a hundred of each and would
         // never have noticed; a worldspace is thousands of both, and load time is not the place to

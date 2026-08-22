@@ -106,13 +106,29 @@ namespace RtxBridge
         };
     }
 
-    SceneTextures::SceneTextures(const Rtx::SceneDesc& scene, Resource::ImageManager& images, std::size_t from)
+    SceneTextures::SceneTextures(const Rtx::SceneDesc& scene, Resource::ImageManager& images)
     {
-        const std::span<const VFS::Path::Normalized> paths = scene.getTextures().subspan(from);
+        std::vector<Rtx::Index> everything(scene.getTextures().size());
+        for (Rtx::Index slot = 0; slot < everything.size(); ++slot)
+            everything[slot] = slot;
 
-        mImages.reserve(paths.size());
-        for (const VFS::Path::Normalized& path : paths)
+        describe(scene, images, everything);
+    }
+
+    SceneTextures::SceneTextures(
+        const Rtx::SceneDesc& scene, Resource::ImageManager& images, std::span<const Rtx::Index> slots)
+    {
+        describe(scene, images, slots);
+    }
+
+    void SceneTextures::describe(
+        const Rtx::SceneDesc& scene, Resource::ImageManager& images, std::span<const Rtx::Index> slots)
+    {
+        mImages.reserve(slots.size());
+        for (const Rtx::Index slot : slots)
         {
+            const VFS::Path::Normalized& path = scene.getTextures()[slot];
+
             // Already decoded and still resident where it is a file at all: the scene manager keeps
             // image data on the CPU after apply, so this is a cache hit and a memcpy rather than a
             // second decode.
@@ -142,8 +158,10 @@ namespace RtxBridge
         mLevels.reserve(levels);
 
         mDescriptions.reserve(mImages.size());
-        for (const osg::ref_ptr<const osg::Image>& image : mImages)
+        for (std::size_t at = 0; at < mImages.size(); ++at)
         {
+            const osg::ref_ptr<const osg::Image>& image = mImages[at];
+
             std::optional<Rtx::TextureData> described;
             if (image != nullptr)
             {
@@ -163,6 +181,7 @@ namespace RtxBridge
                 described = standIn(mLevels);
             }
 
+            described->mSlot = slots[at];
             mDescriptions.push_back(*described);
         }
 

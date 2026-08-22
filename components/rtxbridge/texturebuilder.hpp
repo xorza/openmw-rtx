@@ -5,16 +5,12 @@
 
 #include <osg/Image>
 
+#include <components/rtx/scenedesc.hpp>
 #include <components/rtx/texturedata.hpp>
 
 namespace Resource
 {
     class ImageManager;
-}
-
-namespace Rtx
-{
-    class SceneDesc;
 }
 
 namespace RtxBridge
@@ -43,21 +39,30 @@ namespace RtxBridge
     class SceneTextures
     {
     public:
-        /// Resolves and describes the textures `scene` names from `from` onwards.
+        /// Resolves and describes every texture `scene` names, in its own order.
         ///
-        /// **`from` is what stops a texture being decoded twice.** Describing reads the image and
-        /// estimating its shading reads every texel of it, and a renderer that already holds the
-        /// first three hundred needs neither done again for them — that repeated work is the 5% of
-        /// the game's CPU that showed up as `ShadingMap` and `ColourBlock::read`.
-        explicit SceneTextures(const Rtx::SceneDesc& scene, Resource::ImageManager& images, std::size_t from = 0);
+        /// For a backend building an array from nothing. A slot nothing stands in is described as
+        /// the stand-in, so what comes out is indexed by the scene's own texture index throughout.
+        SceneTextures(const Rtx::SceneDesc& scene, Resource::ImageManager& images);
+
+        /// The same, for `slots` and nothing else.
+        ///
+        /// **This is what stops a texture being decoded twice.** Describing reads the image and
+        /// estimating its shading reads every texel of it, and a renderer that already holds three
+        /// hundred needs neither done again for them — that repeated work is the 5% of the game's
+        /// CPU that showed up as `ShadingMap` and `ColourBlock::read`.
+        ///
+        /// **A list and not an offset**, because a slot a departing cell freed is taken over
+        /// wherever it sits: what arrived is no longer the end of the table. Each description
+        /// carries the slot it belongs to.
+        SceneTextures(const Rtx::SceneDesc& scene, Resource::ImageManager& images, std::span<const Rtx::Index> slots);
 
         SceneTextures(const SceneTextures&) = delete;
         SceneTextures& operator=(const SceneTextures&) = delete;
         SceneTextures(SceneTextures&&) = default;
         SceneTextures& operator=(SceneTextures&&) = default;
 
-        /// Indexed from `from`, so a whole-scene description is indexed by the scene's texture index
-        /// and a partial one by its offset from where the renderer's array already ends.
+        /// What was described, each carrying the slot it goes to in `TextureData::mSlot`.
         std::span<const Rtx::TextureData> getDescriptions() const { return mDescriptions; }
 
         /// How many of them could not be read and got the stand-in instead.
@@ -69,6 +74,8 @@ namespace RtxBridge
         std::uint32_t getUnreadable() const { return mUnreadable; }
 
     private:
+        void describe(const Rtx::SceneDesc& scene, Resource::ImageManager& images, std::span<const Rtx::Index> slots);
+
         std::vector<osg::ref_ptr<const osg::Image>> mImages;
 
         /// Every texture's estimated lighting, back to back and `SHADING_EXTENT` squared apiece.

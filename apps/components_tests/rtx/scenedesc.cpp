@@ -468,13 +468,22 @@ namespace Rtx
             EXPECT_EQ(reused, dropped);
             EXPECT_EQ(scene.getMaterials().size(), 3u);
 
-            // **The texture table is the one that still only grows.** Nothing renumbers it, so every
-            // index a material or a layer holds is the index it had — and `tx_ground`, which only the
-            // dead material's layer named, is still findable rather than added a second time.
-            ASSERT_EQ(scene.getTextures().size(), 4u);
-            EXPECT_EQ(scene.getTextures()[ground], VFS::Path::NormalizedView("textures/tx_ground.dds"));
+            // **`tx_ground` goes with the layer that named it, and its slot comes back.** Only the
+            // dead material's run wore it, and an orphaned run is deliberately not allowed to speak
+            // for a texture — or the image would leak alongside the layers.
+            ASSERT_EQ(scene.getTextures().size(), 4u) << "the table shrank, so something was renumbered";
+            EXPECT_TRUE(scene.getTextures()[ground].value().empty()) << "a texture nothing wears was kept";
+
+            // The three the survivors wear are untouched, at the indices they were given.
+            EXPECT_EQ(scene.getTextures()[stone], VFS::Path::NormalizedView("textures/tx_stone.dds"));
+            EXPECT_EQ(scene.getTextures()[sand], VFS::Path::NormalizedView("textures/tx_sand.dds"));
+            EXPECT_EQ(scene.getTextures()[moss], VFS::Path::NormalizedView("textures/tx_moss.dds"));
+
+            // The freed slot is what the next texture takes, and the path lookup went with it: asking
+            // for `tx_ground` again is a new arrival rather than a hit on a slot nothing stands in.
             EXPECT_EQ(scene.addTexture(VFS::Path::NormalizedView("textures/tx_ground.dds")), ground);
-            EXPECT_EQ(scene.getTextures().size(), 4u);
+            EXPECT_EQ(scene.getTextures().size(), 4u) << "the table grew past a free slot";
+            EXPECT_EQ(scene.getArrivedTextures().back(), ground) << "a slot taken over was not reported as arriving";
         }
 
         /// **The split that keeps an animated state set from rebuilding the world.**

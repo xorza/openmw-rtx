@@ -888,3 +888,83 @@ were built from lives in one device buffer sized to the scene, and appending to 
 structure holds a device address into it. Appending properly needs that buffer to become blocks that
 are allocated once and never moved, which is the next step and the one that turns a crossing from
 "rebuild everything cheaply" into "build what arrived".
+
+
+## 11. What is left, and it is three roots rather than five defects
+
+`.notes/ISSUES.md` listed five. Traced back, they are three, and each has one answer that closes
+more than one of them.
+
+| defect | root |
+|---|---|
+| a cell arriving rebuilds every bottom-level structure | **A** and **C** |
+| a freed material leaks its layer run and masks | **A** |
+| the texture table only grows, and 4,096 is the session's bound | **C** |
+| animated textures are frozen on the frame the mirror first met | **B** |
+| shader water reaches the mirror with no material | **B** |
+
+### A. Variable-length runs in shared buffers have no allocator
+
+A mesh owns a range in four buffers, a material owns a run of layers, a layer owns a run of mask
+weights — and every one of them is a variable-length span in a buffer shared by thousands. §10 solved
+that for meshes with a capacity and a best-fit free list, and solved it *ad hoc*, in `addMesh`.
+
+The same shape is what the layer runs need, and it is what the **device** geometry needs: those
+buffers are sized to the scene and move when they grow, which is why every structure has to be built
+again when one mesh arrives — each holds a device address into them. Give the allocator a block size
+and the rule that a span never straddles a block, and the device side becomes blocks that are
+allocated once and never moved.
+
+One `SpanAllocator`, four users: CPU mesh ranges (replacing what §10 wrote by hand), layer runs,
+masks, device geometry blocks.
+
+### B. The mirror reads outside cull, and some state only exists during cull
+
+`SceneUtil::StateSetUpdater` — which every one of OpenMW's texture, UV, alpha and material-colour
+animations is — behaves two ways. As an **update** callback it swaps the node's own state set between
+two copies of its own, and the mirror sees both. As a **cull** callback it pushes a state set onto the
+cull visitor and never touches the node, so a mirror running outside cull sees the original for ever.
+
+`NifOsg` picks the second for anything the model marks `AnimFlag_AutoPlay`, which is what a fire or a
+lava flow is; `MWRender::Water` picks it for shader water, which is why that surface arrives with no
+material at all. Both defects are this one fact.
+
+**The answer is that the mirror runs the animators itself**: walk the path for
+`SceneUtil::StateSetUpdater`s, `apply` them into a scratch state set, and read the material from
+that. Mirroring *during* cull would be the other answer and is refused — a ray tracer must not
+depend on cull deciding what exists.
+
+### C. "What arrived" is a count, not a set — done for textures
+
+`extendScene` takes the textures that arrived as a contiguous tail, and `SceneAcceleration` rebuilds
+every structure because it has no way to be told which meshes are new. Both assume arrivals are the
+end of a table.
+
+They stopped being that in §10: a slot a departing cell freed is taken over by the next arrival that
+fits, wherever it sits. So the scene has to report arrivals as a **list of slots** — which is what
+lets a texture slot be reclaimed at all, and what lets the bottom-level build be handed the meshes
+that are actually new.
+
+**Landed for the texture table.** `TextureData` carries the slot it belongs to, `SceneDesc` keeps a
+free list and a list of the slots a walk wrote, `SceneTextures` describes a set rather than a tail,
+and `TextureArray::write` puts each arrival at its own element. A texture nothing wears is freed —
+counted as worn by a material's own slots and by the layer runs a *live* material owns, so an
+orphaned run is deliberately not allowed to speak for one, or the image would leak with the layers.
+
+The array holds a freed slot's image until something takes the slot over, which is what keeps every
+descriptor pointing at something that exists.
+
+Flying the island route, the table now **settles at 685 textures** — 669 by the third crossing, 685
+by the seventh and 685 at the end — where it used to climb past 989 and keep going. The 4,096 the
+array holds has stopped being the session's bound, and texture memory settles around 11 MiB rather
+than 18.
+
+**Not yet done for meshes.** The other half of C is handing the bottom-level build the meshes that
+arrived instead of all of them, and that is blocked on **A**: the geometry those structures read
+lives in a device buffer that moves when it grows.
+
+### Order
+
+~~**C** first~~ — done for textures. **A** next: it is what a cell arriving still costs, and it
+carries the layer leak and the rest of C with it. **B** last and independently: it changes what the
+picture looks like rather than what it costs, and it wants a frame to look at.

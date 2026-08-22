@@ -117,6 +117,6 @@ namespace RtxTool
     ///
     /// Reports the fraction of primary rays that hit something, which is what tells "the cell
     /// rendered" from "the camera faced away from it" without anyone opening the file.
-    int renderShot(const Rtx::SceneDesc& scene, Resource::ImageManager& images,
-        const Rtx::ValidationOptions& validation, const ShotRequest& request);
+    int renderShot(Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::ValidationOptions& validation,
+        const ShotRequest& request);
 }

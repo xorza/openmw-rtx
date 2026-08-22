@@ -211,9 +211,24 @@ namespace Rtx
             return known->second;
 
         ++mStructureRevision;
-        const Index index = static_cast<Index>(mTextures.size());
-        mTextures.emplace_back(path);
+
+        // One size, so any freed slot will do — the array element it names is written over wherever
+        // it sits, which is what the arrivals list is for.
+        Index index;
+        if (mFreeTextures.empty())
+        {
+            index = static_cast<Index>(mTextures.size());
+            mTextures.emplace_back(path);
+        }
+        else
+        {
+            index = mFreeTextures.back();
+            mFreeTextures.pop_back();
+            mTextures[index] = path;
+        }
+
         mTextureIndex.emplace(path, index);
+        mArrivedTextures.push_back(index);
         return index;
     }
 
@@ -363,18 +378,47 @@ namespace Rtx
             ++freedMaterials;
         }
 
-        // **The texture table is append-only, and a slot nothing wears is left standing.**
-        //
-        // A backend holds these in one bindless array a material indexes by position. Freeing a slot
-        // is possible now that nothing renumbers — the array would be written at that element rather
-        // than appended to — but it needs the arrivals to stop being a contiguous tail, which is
-        // `SceneTextures`, `extendScene` and `TextureArray` together. Until then this is the one
-        // table that only grows, and the 4,096 the array holds is the session's bound.
-        //
-        // The caller's set is therefore unused. It stays in the signature because it says what a
-        // sprite's texture is — the one thing no material can speak for — and that is what will keep
-        // it alive when the slots do come back.
-        (void)textures;
+        // **A texture survives if anything still names it.** The caller speaks for what no material
+        // can — a particle emitter's sprite — and the live materials speak for the rest, through
+        // their own slots and through the layer runs they own. Orphaned layers are passed over
+        // deliberately: a freed material leaks its run, and letting that run go on speaking for a
+        // texture would leak the image too.
+        std::vector<char> keptTexture = keepFlags(mTextures.size(), textures);
+        for (const Index slot : mFreeTextures)
+            keptTexture[slot] = 1;
+
+        const auto name = [&](Index texture) {
+            if (texture != sNoIndex)
+                keptTexture[texture] = 1;
+        };
+
+        for (Index index = 0; index < mMaterials.size(); ++index)
+        {
+            if (keptMaterial[index] == 0)
+                continue;
+
+            const Material& material = mMaterials[index];
+            name(material.mDiffuse);
+            name(material.mNormal);
+            name(material.mEmissive);
+
+            for (Index layer = 0; layer < material.mLayerCount; ++layer)
+                name(mLayers[material.mLayerOffset + layer].mDiffuse);
+        }
+
+        std::size_t freedTextures = 0;
+        for (Index index = 0; index < mTextures.size(); ++index)
+        {
+            if (keptTexture[index] != 0)
+                continue;
+
+            // The path leaves the lookup with the slot, or the next reference to it resolves to a
+            // slot nothing is standing in.
+            mTextureIndex.erase(mTextures[index]);
+            mTextures[index] = VFS::Path::Normalized();
+            mFreeTextures.push_back(index);
+            ++freedTextures;
+        }
 
         // Every placement the walk did not meet has already been dropped by whoever swept it, and
         // the per-frame lists are refilled by the walk that comes next.
@@ -392,7 +436,11 @@ namespace Rtx
         if (freedMaterials > 0)
             ++mShadingRevision;
 
-        return freedMeshes > 0 || freedMaterials > 0;
+        // **A texture going is not a shading change.** What the shading revision drives is the
+        // upload of the materials, the layers and the masks, and none of them moved: the slot keeps
+        // its index, nothing that names it survived, and the array holds its image until something
+        // takes the slot over. Saying otherwise re-uploads those tables on every crossing.
+        return freedMeshes > 0 || freedMaterials > 0 || freedTextures > 0;
     }
 
     void SceneDesc::clear()
@@ -422,6 +470,8 @@ namespace Rtx
         mTextureIndex.clear();
         mFreeMeshes.clear();
         mFreeMaterials.clear();
+        mFreeTextures.clear();
+        mArrivedTextures.clear();
     }
 
     std::span<const osg::Vec3f> SceneDesc::getMeshPositions(Index mesh) const

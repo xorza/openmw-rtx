@@ -15,10 +15,9 @@ namespace RtxBridge
     }
 
     SceneUpload SceneUploader::hand(
-        Rtx::Renderer& renderer, const Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::SeaState& sea)
+        Rtx::Renderer& renderer, Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::SeaState& sea)
     {
-        const std::uint32_t held = renderer.getTextureCount();
-        const bool mine = recognises(renderer, scene, held);
+        const bool mine = recognises(renderer, scene, renderer.getTextureCount());
 
         // Geometry the walk has not met before has no bottom-level structure and no uploaded
         // texture. **Which is a cell change and a load, not a frame** — a door opening moves
@@ -39,7 +38,12 @@ namespace RtxBridge
 
         // Held only across the call: `TextureData` carries spans into this, and both `extendScene`
         // and `setScene` have finished reading them when they return.
-        const SceneTextures textures(scene, images, reset ? 0 : held);
+        //
+        // **Everything on a reset and the arrivals otherwise.** A reset builds the array from
+        // nothing, so what it wants is the table in its own order; a frame that grew wants the slots
+        // that were written and no others, wherever in the table they sit.
+        const SceneTextures textures
+            = reset ? SceneTextures(scene, images) : SceneTextures(scene, images, scene.getArrivedTextures());
 
         SceneUpload done;
         done.mDescribed = textures.getDescriptions().size();
@@ -56,6 +60,8 @@ namespace RtxBridge
             renderer.extendScene(scene, textures.getDescriptions(), sea);
             done.mKind = SceneUpload::Kind::Extended;
         }
+
+        scene.clearArrivals();
 
         mRenderer = &renderer;
         mScene = &scene;

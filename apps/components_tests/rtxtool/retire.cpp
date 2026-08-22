@@ -199,8 +199,17 @@ namespace RtxTool
                     ASSERT_LT(index, range.mVertexCount) << "mesh " << mesh << " indexes past its own vertices";
             }
 
-            for (const VFS::Path::Normalized& texture : scene.getTextures())
-                EXPECT_FALSE(texture.value().empty()) << "a surviving texture lost its path";
+            // **A path is empty exactly where the slot is free**, and the two have to agree: a live
+            // texture that lost its path is a surface with nothing on it, and a freed one that kept
+            // its path is a lookup that hands out a slot nothing stands in.
+            for (Rtx::Index slot = 0; slot < scene.getTextures().size(); ++slot)
+            {
+                const VFS::Path::Normalized& path = scene.getTextures()[slot];
+                if (path.value().empty())
+                    continue;
+
+                EXPECT_EQ(scene.addTexture(path), slot) << "a live texture is not findable by its own path";
+            }
 
             for (const Rtx::Material& material : scene.getMaterials())
             {
