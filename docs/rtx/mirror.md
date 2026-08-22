@@ -92,7 +92,7 @@ not have one.
 *backwards* and returns the first state set it meets, which is almost always the drawable's own —
 O(1) in practice, not O(depth). There was nothing there to win.
 
-### Phase 1 — an instance keeps its slot
+### Phase 1 — an instance keeps its slot — **done**
 
 Today "nothing holds an index across a build" is an invariant the design leans on: instances are
 rewritten by the walk that produced them, so `retire` can compact and everything downstream is
@@ -145,7 +145,19 @@ before that showed. Both are resized and written once now. A scratch buffer that
 between frames must be resized, never cleared and refilled — which is what the house rule about
 persistent scratch already says, read properly.
 
-### Phase 2 — walk only what can move
+### Phase 2 — walk only what can move — **not started**
+
+**Its anchor arrived early, because Phase 1 could not be built without it** — `extract` already
+takes one, and identity is the anchor and the path together. What is missing is the rest: the
+`addAnchor` / `removeAnchor` lifecycle, the classification, and the per-frame question that lets a
+static anchor be skipped.
+
+**And the benchmark cannot see this one.** `PosedActors::unplace` used to clear the placements and
+copy a static snapshot back in, then walk only the actors — a hand-rolled version of exactly this,
+which Phase 1 deleted. So the harness never walked the whole graph, and the cost Phase 2 removes is
+only paid by the game. Measuring it needs the game path or a harness that mirrors the way the game
+does.
+
 
 The mirror stops tracking drawables and starts tracking **anchors**: the subtree root the engine
 attaches a reference under. There are thousands of those where there are tens of thousands of
@@ -174,9 +186,15 @@ removal *declared* rather than inferred, an anchor holds the meshes, materials a
 reached for, and dropping it decrements them. That is a soundness improvement, not only a cheaper
 one.
 
-### Phase 3 — write only the slots that changed
+### Phase 3 — write only the slots that changed — **not started**
 
-With a changed-set in hand, the two device-side instance arrays stop being rebuilt. The `GpuInstance`
+`SceneDesc::getMoved` exists and feeds the motion vectors, so the changed-set Phase 1 promised is
+there. Nothing uploads against it yet: `SceneBuffers::place` still writes every `GpuInstance` and
+`SceneAcceleration::buildTopLevel` still writes every top-level row.
+
+
+With a changed-set in hand, the two device-side instance arrays stop being rebuilt. The
+`GpuInstance`
 table and the `VkAccelerationStructureInstanceKHR` array are allocated once at their high-water mark
 and written sparsely — the 6.2 MB memcpy becomes a few kilobytes.
 
@@ -201,7 +219,38 @@ its 3.2 ms is driver-side build setup and a fenced submit. It is the next proble
 These are predictions from measured costs, not measurements. Each phase lands with a `profile.sh`
 run against the same view, and the number goes in `plan.md` §7.6 beside the one it replaced.
 
-## 5. Rejected
+## 5. What the investigation found that the plan did not
+
+Three defects came out of profiling and running the game that are not phases of this plan, and two
+of them mattered more than the phases did.
+
+**The revision conflated three rates of change — fixed.** `SceneDesc` had one counter, bumped by a
+mesh, a texture, a material, a layer or a mask alike, and `Tracer` answered any bump by rebuilding
+every acceleration structure and the whole texture array — throwing the temporal history away with
+them. OpenMW hands the water a new `osg::StateSet` every frame as it cycles
+`textures/water/waterNN.dds`, so the mirror saw two new materials a frame and the game rebuilt
+itself **at 2.8 frames a second**. It is now two counters: `getStructureRevision` for meshes and
+textures, which earns a rebuild, and `getShadingRevision` for materials, layers and masks, which
+earns a 28 KB table write. The game traces at 24–31 ms.
+
+**The mirror ran before the cull — fixed.** `traceFrame` sat between `updateTraversal` and
+`renderingTraversals`, so it read node transforms from this frame and skinned vertices, terrain
+detail and object paging from the last one: `RigGeometry::getDeformedGeometry` is
+`getGeometry(mLastFrameNumber)`, and the cull that writes the current pose had not run. A
+character's
+bone-attached parts arrived a frame ahead of the arms they hang off. It runs after the traversal now,
+which is also where §2 has it ending up.
+
+**The sky was mirrored — fixed.** It hangs off a `CameraRelativeTransform`, which zeroes its
+translation against the eye, so mirroring it into a world-space top level put a dome around the
+origin that followed the player. The extractor takes an `osg` traversal mask and the game excludes
+`Mask_Sky | Mask_Sun`.
+
+**Still open**, and written up in `.notes/ISSUES.md`: a cell arriving still rebuilds from scratch;
+the game's water is the rasterizer's geometry mirrored as an ordinary surface, so it is never
+`MaterialKind::Water`; and materials are still keyed on a state-set address that OpenMW recreates.
+
+## 6. Rejected
 
 **Extract during cull.** The obvious idea: OpenMW's cull traversal already walks the graph and
 already maintains a transform stack, so ride it and delete our traversal. No — cull culls. It
@@ -216,7 +265,7 @@ to a number that grows with view distance, and the thing being computed is still
 **Refit the top level instead of rebuilding it.** Measured free on the device by both this renderer
 and the reference; refitting trades tree quality for a build cost that is not the cost.
 
-## 6. How it is kept honest
+## 7. How it is kept honest
 
 The existing property — a second pass over an unchanged graph adds no meshes and no materials, which
 `scene --twice` prints and a test asserts — generalises to the one this design rests on:
