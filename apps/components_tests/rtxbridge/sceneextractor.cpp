@@ -150,6 +150,42 @@ namespace RtxBridge
             EXPECT_NEAR(origin.z(), 0.0f, 1e-4f);
         }
 
+        /// A transform that reads the visitor it is handed, the way `MWRender::CameraRelativeTransform`
+        /// does to catch the eye point off a cull — and, like it, without checking for null first.
+        ///
+        /// **The sky is one of these, and it is why the walk hands its visitor over.**
+        /// `osg::computeLocalToWorld` passes null, which is safe only because it never reaches a
+        /// transform with no drawable below it; a visitor accumulating on the way down enters every
+        /// one, and this crashed the game on the frame the sky first came into view.
+        class VisitorReadingTransform : public osg::MatrixTransform
+        {
+        public:
+            bool computeLocalToWorldMatrix(osg::Matrix& matrix, osg::NodeVisitor* nv) const override
+            {
+                mSaw = nv->getVisitorType();
+                return osg::MatrixTransform::computeLocalToWorldMatrix(matrix, nv);
+            }
+
+            mutable osg::NodeVisitor::VisitorType mSaw = osg::NodeVisitor::UPDATE_VISITOR;
+        };
+
+        TEST(RtxSceneExtractorTest, aTransformThatReadsTheVisitorIsGivenOne)
+        {
+            osg::ref_ptr<VisitorReadingTransform> reads = new VisitorReadingTransform;
+            reads->setMatrix(osg::Matrix::translate(0.0, 0.0, 4.0));
+            reads->addChild(makeQuad());
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            extractor.extract(*reads, osg::Matrixf::identity(), 0);
+
+            EXPECT_EQ(reads->mSaw, osg::NodeVisitor::NODE_VISITOR) << "the transform was handed a null visitor";
+
+            // And it still placed what was under it, at the transform it asked for.
+            ASSERT_EQ(scene.getPlacedCount(), 1u);
+            EXPECT_EQ(osg::Vec3f(0.0f, 0.0f, 0.0f) * scene.getInstances()[0].mTransform, osg::Vec3f(0.0f, 0.0f, 4.0f));
+        }
+
         /// An absolute reference frame replaces what is above it rather than adding to it, which is
         /// a branch inside `computeLocalToWorldMatrix` and the one thing an accumulating visitor
         /// could quietly get wrong by adding where it should overwrite.

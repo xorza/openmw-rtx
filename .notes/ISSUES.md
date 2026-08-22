@@ -34,3 +34,8 @@
 - `PosedActors` snapshots the world's instances and lights when it is constructed but not its
   sprites or emitters, so the static world's particle systems are gone from the frame after the
   first `unplace`.
+
+- In the game, `SceneExtractor::retire` drops a few materials and textures on most frames, which
+  bumps the scene's revision, so `Tracer` takes the `setScene` branch and rebuilds every
+  acceleration structure and the whole texture array. A minute on the Seyda Neen quicksave rebuilt
+  165 times.

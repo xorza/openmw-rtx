@@ -276,13 +276,20 @@ namespace RtxBridge
             /// chain walks a frame and about a tenth as many matrix multiplies.
             ///
             /// `computeLocalToWorldMatrix` is what `computeLocalToWorld` calls on each transform it
-            /// meets, and it is called here with the same null visitor, so nothing about the answer
-            /// changes: an absolute reference frame still replaces the accumulation instead of
-            /// adding to it, because that is the branch inside it that does so.
+            /// meets, so the answer is the same one: an absolute reference frame still replaces the
+            /// accumulation instead of adding to it, because that is the branch inside it that does
+            /// so.
+            ///
+            /// **The visitor goes with it, and not the null pointer `computeLocalToWorld` passes.**
+            /// That function only ever reaches a transform with a drawable somewhere below it; this
+            /// one enters every transform it walks, and the sky's `MWRender::CameraRelativeTransform`
+            /// dereferences the visitor without checking it, to catch the eye point off a cull. A
+            /// visitor that is not a cull visitor takes exactly the branch a null one would have —
+            /// here and in `osg::AutoTransform`, the other one that looks — so nothing moves.
             void apply(osg::Transform& node) override
             {
                 const osg::Matrix above = mHere;
-                node.computeLocalToWorldMatrix(mHere, nullptr);
+                node.computeLocalToWorldMatrix(mHere, this);
 
                 apply(static_cast<osg::Node&>(node));
 
