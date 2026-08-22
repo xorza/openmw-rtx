@@ -10,6 +10,7 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
+#include <components/sceneutil/visitor.hpp>
 
 #include <components/esm3/loadnpc.hpp>
 
@@ -195,6 +196,76 @@ namespace RtxTool
             EXPECT_NE(man.mSkeleton, woman.mSkeleton) << "a woman is not built on a man's skeleton";
             EXPECT_NE(cat.mSkeleton, man.mSkeleton) << "and a Khajiit is built on neither";
             EXPECT_NE(cat.mSkeleton, woman.mSkeleton);
+        }
+
+        /// A weapon goes in the hand, and its kind decides the stance the hand is in.
+        ///
+        /// **A weapon is not a body part and does not go through the paper doll.** It is the item's
+        /// own model hung on "Weapon Bone", and the bone is only *placed* by the idle that goes with
+        /// the weapon — the empty-handed one is the idle with nothing in that hand, and a sword hung
+        /// there comes out lying across its owner. So what is asserted is both: something arrived on
+        /// the bone, and the person is standing in the right way to be holding it.
+        ///
+        /// A shield needs none of this and is not tested here: all sixty-five of the shipped shields
+        /// name a `PRT_Shield` body part, so one goes on with the rest of the wardrobe.
+        TEST(RtxNpcTest, aWeaponHangsInTheHandAndItsKindSetsTheStance)
+        {
+            Files::ConfigurationManager config;
+            bpo::variables_map variables;
+            const std::unique_ptr<World> world = openWorld(config, variables);
+            if (world == nullptr)
+                GTEST_SKIP() << "no Morrowind installation configured";
+
+            /// What hangs on the weapon bone, and what stance was chosen to hold it in.
+            struct Armed
+            {
+                unsigned int mHeld = 0;
+                std::string mIdle;
+                std::string mFallback;
+            };
+
+            const auto arm = [&](const char* id, bool dressed) {
+                const ESM::NPC* who = findNpc(*world, id);
+                EXPECT_NE(who, nullptr) << id;
+                if (who == nullptr)
+                    return Armed{};
+
+                const ActorModel built = buildNpc(*world, *who, dressed);
+
+                SceneUtil::NodeMap bones;
+                SceneUtil::NodeMapVisitor collect(bones);
+                built.mRoot->accept(collect);
+
+                const auto found = bones.find("Weapon Bone");
+                EXPECT_NE(found, bones.end()) << "the base animation has no weapon bone";
+                return Armed{ found == bones.end() ? 0u : found->second->getNumChildren(), built.mIdle,
+                    built.mIdleFallback };
+            };
+
+            // With nothing equipped the bone is as the skeleton shipped it — one child, the "Weapon"
+            // bone under it — and there is nothing to stand in but the plain idle.
+            const Armed bare = arm("Afer Flaccus_guard", false);
+            EXPECT_EQ(bare.mIdle, "idle");
+            EXPECT_EQ(bare.mFallback, "idle");
+
+            // A guard with a long blade and an archer with a bow. Both hang on the same bone —
+            // the game's table sends a bow to a left-hand one and vanilla's skeleton has not got it
+            // — and what tells the two apart is what they are standing in.
+            const Armed blade = arm("Afer Flaccus_guard", true);
+            const Armed bow = arm("alveleg", true);
+
+            EXPECT_EQ(blade.mHeld, bare.mHeld + 1) << "the sword is not in his hand";
+            EXPECT_EQ(bow.mHeld, bare.mHeld + 1) << "the bow is not in her hand";
+
+            EXPECT_EQ(blade.mIdle, "idle1h");
+            EXPECT_EQ(blade.mFallback, "idle1h");
+
+            EXPECT_EQ(bow.mIdle, "idlebow");
+            EXPECT_NE(bow.mIdle, blade.mIdle) << "a bow is held the way a sword is";
+
+            // Vanilla's base animation has no bow idle, and the game's own rule sends a two-handed
+            // *ranged* weapon to the one-handed stance rather than the two-handed one.
+            EXPECT_EQ(bow.mFallback, "idle1h");
         }
     }
 }

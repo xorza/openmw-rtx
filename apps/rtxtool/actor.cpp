@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 
 #include <osg/FrameStamp>
 #include <osg/Group>
@@ -70,6 +71,9 @@ namespace RtxTool
 
     namespace
     {
+        /// The group everything falls back to: somebody standing still with nothing in their hands.
+        constexpr std::string_view sPlainIdle = "idle";
+
         /// Where the animation for `model` lives, by Morrowind's own convention.
         ///
         /// `correctActorModelPath` has already turned `cliffracer.nif` into `xcliffracer.nif`; the
@@ -128,13 +132,12 @@ namespace RtxTool
             return key.size() == group.size() + suffix.size() && key.starts_with(group) && key.ends_with(suffix);
         }
 
-        /// The slice of the track that `group` occupies, or the whole of it where there is no such
-        /// group.
+        /// The slice of the track that `group` occupies, or nothing where there is no such group.
         ///
         /// **The last start and the last stop**, which is the game's own choice and not an oversight:
         /// Morrowind ships keyframe files with a group marked twice, and the later marker is the one
         /// its own playback uses.
-        Span playedRange(const SceneUtil::TextKeyMap& keys, std::string_view group, float whole)
+        std::optional<Span> playedRange(const SceneUtil::TextKeyMap& keys, std::string_view group, float whole)
         {
             Span played{ .mStart = 0.0f, .mStop = whole };
             bool found = false;
@@ -151,11 +154,11 @@ namespace RtxTool
                     played.mStop = when;
             }
 
-            return found ? played : Span{ .mStart = 0.0f, .mStop = whole };
+            return found ? std::optional<Span>(played) : std::nullopt;
         }
     }
 
-    Actor::Actor(World& world, ActorModel model, const osg::Matrixf& transform, std::string_view group)
+    Actor::Actor(World& world, ActorModel model, const osg::Matrixf& transform)
         : mClock(std::make_shared<Clock>())
         , mWorldClock(std::make_shared<Clock>())
         , mCull(std::make_unique<PoseCull>())
@@ -217,9 +220,22 @@ namespace RtxTool
             ++mPosedBones;
         }
 
-        const Span played = playedRange(track->mTextKeys, group, whole);
-        mStart = played.mStart;
-        mStop = played.mStop;
+        // **The stance, then what stands in for it, then somebody standing there.** Vanilla's base
+        // animation has four of the twelve weapon idles in it, so the second of these is the
+        // ordinary answer and not a rescue. The last resort is the whole file, which is every
+        // animation the actor owns laid end to end — right for a creature with one continuous
+        // track and wrong for anything with text keys, which is why it is last.
+        std::optional<Span> played;
+        for (const std::string_view stance :
+            { std::string_view(mModel.mIdle), std::string_view(mModel.mIdleFallback), sPlainIdle })
+        {
+            played = playedRange(track->mTextKeys, stance, whole);
+            if (played.has_value())
+                break;
+        }
+
+        mStart = played.has_value() ? played->mStart : 0.0f;
+        mStop = played.has_value() ? played->mStop : whole;
     }
 
     // Out of line because the members it destroys are only forward declared in the header.

@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <memory>
 #include <string>
-#include <string_view>
 
 // Complete rather than forward declared, because `getRoot` hands out a `Group` and every caller
 // then wants it as the `osg::Node&` an extractor takes.
@@ -41,6 +40,17 @@ namespace RtxTool
         /// skeleton beside a creature's model, or the base animation a person's parts hang on. The
         /// keyframes are the same path with a different extension.
         VFS::Path::Normalized mSkeleton;
+
+        /// Which animation group to stand in, and what to stand in instead where the track has
+        /// never heard of it.
+        ///
+        /// **A person holding a weapon stands differently, and the weapon's bone is only placed by
+        /// the idle that goes with it** — hung in the empty-handed idle a sword comes out lying
+        /// across its owner. Everything else — a creature, a prop, somebody unarmed — leaves both at
+        /// the plain idle. `Actor` tries them in order and then the plain idle, which is the chain
+        /// the game walks in `fallbackShortWeaponGroup`.
+        std::string mIdle = "idle";
+        std::string mIdleFallback = "idle";
     };
 
     /// A slice of a keyframe track, in the track's own seconds.
@@ -81,12 +91,10 @@ namespace RtxTool
     class Actor
     {
     public:
-        /// @param model what to pose, from `loadCreature` or `buildNpc`.
+        /// @param model what to pose, from `loadCreature`, `loadProp` or `buildNpc`. It says which
+        ///        animation group to stand in as well as what to stand there with.
         /// @param transform where in the world it stands.
-        /// @param group which animation to play, by the name its text keys give it. Falls back to the
-        ///        whole track where the actor has no group by that name, which is what a creature
-        ///        with one continuous animation wants.
-        Actor(World& world, ActorModel model, const osg::Matrixf& transform, std::string_view group = "idle");
+        Actor(World& world, ActorModel model, const osg::Matrixf& transform);
         ~Actor();
 
         Actor(const Actor&) = delete;

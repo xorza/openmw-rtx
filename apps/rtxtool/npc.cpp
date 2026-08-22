@@ -1,5 +1,6 @@
 #include "npc.hpp"
 
+#include <algorithm>
 #include <array>
 #include <optional>
 
@@ -10,6 +11,7 @@
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadclot.hpp>
 #include <components/esm3/loadnpc.hpp>
+#include <components/esm3/loadweap.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
@@ -31,6 +33,13 @@ namespace RtxTool
         /// slot is one bone with one thing on it. The table is the game's own. A hairstyle is the one
         /// entry whose filter differs from its bone — hair and skull hang on the same bone and would
         /// take each other's triangles otherwise.
+        ///
+        /// **The weapon slot is one bone here where the game's table has two.** A bow attaches to
+        /// "Weapon Bone Left" there, because the right hand draws the string — and then the game
+        /// looks that bone up and falls back to this one when the skeleton has not got it, which
+        /// vanilla's has not: `xbase_anim.nif` carries "Weapon Bone", "Weapon", "Shield Bone" and
+        /// "Shield", and no left-hand weapon bone at all. So on the content this fork renders the
+        /// exception never fires, and a lookup that can only ever fail is not carried.
         constexpr std::array<std::string_view, ESM::PRT_Count> sBones{
             "Head",
             "Head", // PRT_Hair, filtered by "hair" instead
@@ -60,6 +69,110 @@ namespace RtxTool
             "Weapon Bone",
             "Tail",
         };
+
+        bool isAmmunition(int type)
+        {
+            return type == ESM::Weapon::Arrow || type == ESM::Weapon::Bolt;
+        }
+
+        /// The idle a weapon is held in, and what stands in for it where nobody animated one.
+        struct WeaponIdle
+        {
+            std::string_view mStance;
+            std::string_view mFallback;
+        };
+
+        /// One entry per kind of weapon somebody can hold, in `ESM::Weapon::Type` order.
+        ///
+        /// **A weapon is drawn into a stance and not into a hand.** "Weapon Bone" is wherever the
+        /// animation being played leaves it, and the plain `idle` is the one with nothing in that
+        /// hand — so a sword hung there comes out lying across its owner rather than held beside
+        /// them.
+        ///
+        /// **The fallback is the ordinary answer and not a rescue**, which is why it is a column
+        /// here rather than a special case somewhere: vanilla's `xbase_anim.kf` carries `idle1h`,
+        /// `idle2c`, `idle2w` and `idlecrossbow` and none of the other eight, so a short blade, an
+        /// axe, a mace, a bow and a thrown weapon all reach it. The rule is the game's own —
+        /// two-handed *melee* stands in the two-handed close idle and everything else in the
+        /// one-handed one, so a bow, which is two-handed and ranged, goes with the swords.
+        ///
+        /// Ammunition is not here: an arrow is carried, not held.
+        constexpr std::array<WeaponIdle, ESM::Weapon::MarksmanThrown + 1> sWeaponIdles{
+            WeaponIdle{ "idle1s", "idle1h" }, // ShortBladeOneHand
+            WeaponIdle{ "idle1h", "idle1h" }, // LongBladeOneHand
+            WeaponIdle{ "idle2c", "idle2c" }, // LongBladeTwoHand
+            WeaponIdle{ "idle1b", "idle1h" }, // BluntOneHand
+            WeaponIdle{ "idle2b", "idle2c" }, // BluntTwoClose
+            WeaponIdle{ "idle2w", "idle2c" }, // BluntTwoWide
+            WeaponIdle{ "idle2w", "idle2c" }, // SpearTwoWide
+            WeaponIdle{ "idle1b", "idle1h" }, // AxeOneHand
+            WeaponIdle{ "idle2b", "idle2c" }, // AxeTwoHand
+            WeaponIdle{ "idlebow", "idle1h" }, // MarksmanBow
+            WeaponIdle{ "idlecrossbow", "idle1h" }, // MarksmanCrossbow
+            WeaponIdle{ "idle1t", "idle1h" }, // MarksmanThrown
+        };
+
+        /// The hardest single blow a weapon can land, over all three attacks.
+        ///
+        /// The maximum of each range and not its mean, which is the comparison the game makes: what
+        /// it asks of a weapon is what it is capable of, not what it usually does.
+        int hardestBlow(const ESM::Weapon& weapon)
+        {
+            return std::max({ weapon.mData.mChop[1], weapon.mData.mSlash[1], weapon.mData.mThrust[1] });
+        }
+
+        /// Whether the inventory holds anything this weapon could fire.
+        ///
+        /// **The game's own refusal**: a bow with no arrows and a crossbow with no bolts stay in the
+        /// pack, so an archer out of ammunition is somebody standing empty-handed rather than
+        /// somebody miming.
+        bool hasAmmunitionFor(const World& world, const ESM::NPC& npc, int type)
+        {
+            const int wanted = type == ESM::Weapon::MarksmanBow ? ESM::Weapon::Arrow
+                : type == ESM::Weapon::MarksmanCrossbow         ? ESM::Weapon::Bolt
+                                                                : ESM::Weapon::None;
+            if (wanted == ESM::Weapon::None)
+                return true;
+
+            for (const ESM::ContItem& carried : npc.mInventory.mList)
+                if (const ESM::Weapon* ammunition = world.findRecord<ESM::Weapon>(carried.mItem))
+                    if (ammunition->mData.mType == wanted)
+                        return true;
+
+            return false;
+        }
+
+        /// What somebody would have drawn out of their own inventory, or null where they are unarmed.
+        ///
+        /// **The game's comparison with its outer loop taken off.** `InventoryStore::autoEquipWeapon`
+        /// first finds the weapon skill the wearer is best at and only then takes the hardest-hitting
+        /// weapon of that class; a skill is an autocalculated stat the harness has no route to, so
+        /// the damage comparison stands on its own — the same substitution `dress` makes for armour.
+        /// It decides one armed person in nine: 1,513 of Morrowind's 3,041 NPC records carry a
+        /// weapon and 169 of those carry two.
+        const ESM::Weapon* drawnWeapon(const World& world, const ESM::NPC& npc)
+        {
+            const ESM::Weapon* best = nullptr;
+            int hardest = -1;
+
+            for (const ESM::ContItem& carried : npc.mInventory.mList)
+            {
+                const ESM::Weapon* weapon = world.findRecord<ESM::Weapon>(carried.mItem);
+                if (weapon == nullptr || isAmmunition(weapon->mData.mType) || weapon->mModel.empty())
+                    continue;
+
+                if (!hasAmmunitionFor(world, npc, weapon->mData.mType))
+                    continue;
+
+                if (const int blow = hardestBlow(*weapon); blow > hardest)
+                {
+                    hardest = blow;
+                    best = weapon;
+                }
+            }
+
+            return best;
+        }
 
         /// Which part slot one kind of skin fills. A paired limb is one record and two slots.
         struct SkinSlot
@@ -504,6 +617,23 @@ namespace RtxTool
                 if (const ESM::BodyPart* skin = findSkin(world, npc.mRace, slot.mPart, female))
                     outfit.claim(slot.mSlot, 1, Misc::ResourceHelpers::correctMeshPath(skin->mModel.getNormalized()));
 
+        // **Held rather than worn, so it comes off the record and not off a part list.** A shield is
+        // a body part — all sixty-five of the shipped ones name one — and goes through the wardrobe
+        // above with everything else; a weapon is the item's own model hung on a bone, and nothing
+        // in the paper doll speaks for it.
+        //
+        // **Drawn, which the game would not do.** Morrowind holsters an undrawn weapon out of sight
+        // and only `showWeapons` puts it in a hand; a harness that hid it would be hiding the thing
+        // it exists to look at. `--clothes=false` is what takes it off along with everything else.
+        const ESM::Weapon* weapon = dressed ? drawnWeapon(world, npc) : nullptr;
+        if (weapon != nullptr)
+        {
+            outfit.claim(ESM::PRT_Weapon, 1, Misc::ResourceHelpers::correctMeshPath(weapon->mModel.getNormalized()));
+            const WeaponIdle& stance = sWeaponIdles[static_cast<std::size_t>(weapon->mData.mType)];
+            built.mIdle = stance.mStance;
+            built.mIdleFallback = stance.mFallback;
+        }
+
         SceneUtil::NodeMap bones;
         SceneUtil::NodeMapVisitor collect(bones);
         built.mRoot->accept(collect);
@@ -511,11 +641,11 @@ namespace RtxTool
         for (int slot = 0; slot < ESM::PRT_Count; ++slot)
         {
             const auto part = static_cast<ESM::PartReferenceType>(slot);
-
-            // A weapon is held rather than worn, and which bone holds it depends on what it is.
-            if (part == ESM::PRT_Weapon || outfit.getModel(part).empty())
+            if (outfit.getModel(part).empty())
                 continue;
 
+            // Hair is the one slot whose filter is not its bone: it shares the skull's, and the two
+            // would take each other's triangles.
             const std::string_view filter = part == ESM::PRT_Hair ? std::string_view("hair") : sBones[slot];
             hang(world, *built.mRoot, bones, outfit.getModel(part), sBones[slot], filter);
         }

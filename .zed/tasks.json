@@ -11,6 +11,17 @@
     ]
   },
   {
+    "label": "RTX: the game, on the quicksave (release)",
+    "command": "./release.sh game",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
     "label": "RTX: where the game starts",
     "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool",
     "cwd": "$ZED_WORKTREE_ROOT/build",

@@ -105,8 +105,9 @@ namespace RtxTool
             "with no flames in it is not the picture; off leaves them as that seed, which is the "
             "A/B that says what a cell's emitters cost");
         addOption("clothes", bpo::value<bool>()->default_value(true)->implicit_value(true),
-            "dress people out of what their own record carries, which is what the game equips them "
-            "with. Off leaves everyone in their skin -- which is worth looking at, because skin is "
+            "dress and arm people out of what their own record carries, which is what the game "
+            "equips them with -- clothes, armour, a shield, and a weapon in the hand. Off leaves "
+            "everyone in their skin and empty-handed, which is worth looking at, because skin is "
             "the hardest surface in the game to get right and the one the shipped textures have the "
             "most light painted into");
         addOption("actor-time", bpo::value<float>()->default_value(0.0f),

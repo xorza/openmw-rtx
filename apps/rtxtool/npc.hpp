@@ -27,10 +27,17 @@ namespace RtxTool
     ///
     /// What they have on comes out of the record's own inventory list, which is what the game equips
     /// the first time it builds one. A garment claims the body slots it covers and hides the ones it
-    /// merely reaches over, so a robe leaves no shins showing and a cuirass leaves no chest.
+    /// merely reaches over, so a robe leaves no shins showing and a cuirass leaves no chest. A shield
+    /// is a garment like any other — every one the game ships is authored as a body part — and a
+    /// weapon is not: it is the item's own model put in a hand, and the person is posed in the idle
+    /// that goes with it.
     ///
-    /// @param dressed false to leave them in their skin, which is what a renderer wants to look at:
-    ///        skin is the hardest surface in the game to get right and the one the shipped textures
-    ///        have the most light painted into.
+    /// **The weapon is drawn, which the game would not do.** Morrowind keeps an undrawn weapon out
+    /// of sight and only puts one in a hand when its owner means to use it; a harness that hid it
+    /// would be hiding the thing it exists to look at.
+    ///
+    /// @param dressed false to leave them in their skin and empty-handed, which is what a renderer
+    ///        wants to look at: skin is the hardest surface in the game to get right and the one the
+    ///        shipped textures have the most light painted into.
     ActorModel buildNpc(World& world, const ESM::NPC& npc, bool dressed = true);
 }
