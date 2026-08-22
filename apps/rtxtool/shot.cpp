@@ -1,6 +1,6 @@
 #include "shot.hpp"
 
-#include "lighting.hpp"
+#include "framing.hpp"
 #include "placement.hpp"
 #include <components/rtx/frametimes.hpp>
 #include <components/rtxbridge/png.hpp>
@@ -14,7 +14,6 @@
 
 #include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
-#include <components/rtx/camera.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/sceneuploader.hpp>
@@ -77,14 +76,16 @@ namespace RtxTool
         const double buildMs = millisecondsSince(buildStart);
         const Rtx::SceneStats& stats = renderer->getSceneStats();
 
+        Framing framing = Framing::lookingFrom(placement);
+        framing.mFieldOfView = request.mFieldOfView;
+
         // Far enough to cross any cell: the largest exterior view in the game is a few tens of
-        // thousands of units, and a primary ray that reaches this has left the world.
-        const float far = bounds.radius() * 8.0f;
-        Rtx::Shaders::VisibilityConstants camera = Rtx::makeCamera(placement.mOrigin, placement.mTarget,
-            request.mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, far);
-        camera.mShowAlbedo = request.mShowAlbedo ? 1u : 0u;
-        camera.mDelight = request.mDelight;
-        applyLighting(request.mLighting, camera);
+        // thousands of units, and a primary ray that reaches this has left the world. No floor under
+        // it here, unlike `bench` and `view` — see `Framing::mFar`.
+        framing.mFar = bounds.radius() * 8.0f;
+        framing.mLighting = request.mLighting;
+        framing.mDelight = request.mDelight;
+        framing.mShowAlbedo = request.mShowAlbedo;
 
         // **Accumulating replaces repeating rather than joining it.** A run of `--accumulate=4` that
         // also honoured the repeat default would quietly average eight frames and report four — and
@@ -127,9 +128,9 @@ namespace RtxTool
 
             // A plain timing run holds it still, so that what the spread shows is the machine and
             // not two frames that happened to sample different geometry.
-            camera.mFrame = sequenced ? frame : 0;
+            framing.mFrame = sequenced ? frame : 0;
 
-            const Rtx::FrameResult result = renderer->renderFrame(camera,
+            const Rtx::FrameResult result = renderer->renderFrame(makeFrameConstants(framing, extents),
                 Rtx::FrameOptions{ .mAccumulate = averaging ? frame + 1 : 0,
                     .mJitter = request.mJitter,
                     .mFilter = request.mFilter,

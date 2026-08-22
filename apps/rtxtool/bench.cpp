@@ -15,14 +15,12 @@
 #include <components/debug/debugging.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/files/conversion.hpp>
-#include <components/rtx/camera.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtx/wavespectrum.hpp>
 #include <components/rtxbridge/sceneuploader.hpp>
 
-#include "lighting.hpp"
+#include "framing.hpp"
 #include "perfcontrol.hpp"
-#include "placement.hpp"
 #include "stagedworld.hpp"
 #include "window.hpp"
 #include "world.hpp"
@@ -357,21 +355,21 @@ namespace RtxTool
                     placeMs = std::chrono::duration<double, std::milli>(Clock::now() - placeStart).count();
                 }
 
-                const Rtx::FrameExtents shown = renderer->getExtents();
-                Rtx::Shaders::VisibilityConstants constants = Rtx::makeCamera(standing.mOrigin, standing.mTarget,
-                    request.mFieldOfView, shown.mRenderWidth, shown.mRenderHeight, far);
-                constants.mDelight = request.mDelight;
+                Framing framing = Framing::lookingFrom(standing);
+                framing.mFieldOfView = request.mFieldOfView;
+                framing.mFar = far;
+                framing.mDelight = request.mDelight;
 
-                CellLighting lighting = staged.getLighting();
-                lighting.mSeconds = static_cast<float>(frame) / sStepRate;
-                applyLighting(lighting, constants);
+                framing.mLighting = staged.getLighting();
+                framing.mLighting.mSeconds = static_cast<float>(frame) / sStepRate;
 
                 // What the upscaler's sample sequence and every random draw in the shader are walked
                 // by. Held to the frame index so the same run draws the same samples twice over.
-                constants.mFrame = frame;
+                framing.mFrame = frame;
 
-                const Rtx::FrameResult result = renderer->renderFrame(
-                    constants, Rtx::FrameOptions{ .mFilter = request.mFilter, .mExposure = request.mExposure });
+                const Rtx::FrameResult result
+                    = renderer->renderFrame(makeFrameConstants(framing, renderer->getExtents()),
+                        Rtx::FrameOptions{ .mFilter = request.mFilter, .mExposure = request.mExposure });
 
                 if (window != nullptr && !renderer->presentFrame())
                     renderer->resize(window->getWidth(), window->getHeight());

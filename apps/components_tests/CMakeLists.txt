@@ -129,6 +129,7 @@ if (OPENMW_RTX)
         rtxtool/benchsuite.cpp
         rtxtool/contactsheet.cpp
         rtxtool/crossing.cpp
+        rtxtool/framing.cpp
         rtxtool/installation.cpp
         rtxtool/perfcontrol.cpp
         rtxtool/props.cpp

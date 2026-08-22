@@ -247,10 +247,16 @@ exists).
 - `main.cpp` is 742 lines and holds `runScene`, `runFind` and `runTextures` inline beside the
   subcommand dispatch. `runScene` also builds its own root, scene and extractor rather than staging
   one.
-- `shot`, `bench` and `view` each assemble the same `VisibilityConstants` block, and it has already
-  drifted: `shot` and `view` honour `--albedo`, `bench` does not; `bench` and `view` advance the sea
-  and `shot` deliberately does not. One of those three differences is a decision and the other two
-  are omissions, and nothing says which is which.
+- ~~`shot`, `bench` and `view` each assemble the same `VisibilityConstants` block~~ — **done**, and
+  the survey undercounted the drift. There were three disagreements, not two: `shot` and `view`
+  honoured `--albedo` and `bench` did not; `bench` and `view` advanced the sea and `shot` did not;
+  and `shot`'s far plane had no floor under it where the other two held one at ten thousand units.
+  All three are now fields of `Framing` with the disagreement written on them, filled in at one place
+  per command. **No frame changed** — `shot` renders the same PNG byte for byte, which also proves
+  the equivalence the consolidation rests on, that `makeCamera(o, t)` is `makeCameraAlong(o, t - o)`.
+  `RtxFramingTest` asserts that equivalence and that every switch reaches the constants, so a field
+  that stops being copied is a failing test rather than a command quietly rendering something else.
+  Which of the three differences is the rule is still undecided, and is now a one-line edit each.
 
 None of that is a reuse question, and none of it is large. It is listed here so the next person to
 ask "can the harness be smaller" finds the measurement rather than repeating it.

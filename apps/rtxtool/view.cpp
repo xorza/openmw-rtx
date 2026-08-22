@@ -11,14 +11,12 @@
 #include <components/debug/debugging.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/files/conversion.hpp>
-#include <components/rtx/camera.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/png.hpp>
 #include <components/rtxbridge/sceneuploader.hpp>
 
-#include "lighting.hpp"
-#include "placement.hpp"
+#include "framing.hpp"
 #include "stagedworld.hpp"
 #include "viewpoint.hpp"
 #include "window.hpp"
@@ -323,29 +321,30 @@ namespace RtxTool
             if (staged.advanceTo(static_cast<float>(std::chrono::duration<double>(now - began).count())))
                 hand();
 
-            const Rtx::FrameExtents extents = renderer->getExtents();
             // The direction rather than `getTarget`, which exists so a person can read `look` in
             // `views.cfg` and tell where it points. Recovering it back out of two world points is
             // rounding, and a flying camera is where that shows.
-            Rtx::Shaders::VisibilityConstants constants = Rtx::makeCameraAlong(camera.getOrigin(), camera.getForward(),
-                request.mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, far);
-            constants.mShowAlbedo = request.mShowAlbedo ? 1u : 0u;
-            constants.mDelight = request.mDelight;
+            Framing framing;
+            framing.mOrigin = camera.getOrigin();
+            framing.mForward = camera.getForward();
+            framing.mFieldOfView = request.mFieldOfView;
+            framing.mFar = far;
+            framing.mDelight = request.mDelight;
+            framing.mShowAlbedo = request.mShowAlbedo;
 
             // The window is the only path with a clock. A screenshot leaves the sea still, so two
             // runs of one build agree pixel for pixel.
-            CellLighting lighting = request.mLighting;
-            lighting.mSeconds = static_cast<float>(std::chrono::duration<double>(now - began).count());
-            applyLighting(lighting, constants);
+            framing.mLighting = request.mLighting;
+            framing.mLighting.mSeconds = static_cast<float>(std::chrono::duration<double>(now - began).count());
 
             // What the fog's step jitter varies by, and what the upscaler's sample sequence is
             // walked by. A screenshot leaves it at zero and gets the same frame twice; here it has
             // to move, or twenty-four shells stand still in front of the camera and the jitter hides
             // nothing.
-            constants.mFrame = drawn;
+            framing.mFrame = drawn;
 
-            renderer->renderFrame(
-                constants, Rtx::FrameOptions{ .mFilter = request.mFilter, .mExposure = request.mExposure });
+            renderer->renderFrame(makeFrameConstants(framing, renderer->getExtents()),
+                Rtx::FrameOptions{ .mFilter = request.mFilter, .mExposure = request.mExposure });
 
             if (!renderer->presentFrame())
                 resized = true;
