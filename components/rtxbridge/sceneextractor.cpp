@@ -325,6 +325,7 @@ namespace RtxBridge
         ExtractionStats stats;
         mAnchor = anchor;
         ExtractionVisitor visitor(*this, transform, frame, stats);
+        visitor.setTraversalMask(mTraversalMask);
 
         // OSG's visitor API is non-const even for a visitor that only reads, which this one does.
         const_cast<osg::Node&>(node).accept(visitor);

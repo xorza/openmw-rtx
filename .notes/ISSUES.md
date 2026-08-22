@@ -35,7 +35,9 @@
   sprites or emitters, so the static world's particle systems are gone from the frame after the
   first `unplace`.
 
-- In the game, `SceneExtractor::retire` drops a few materials and textures on most frames, which
-  bumps the scene's revision, so `Tracer` takes the `setScene` branch and rebuilds every
-  acceleration structure and the whole texture array. A minute on the Seyda Neen quicksave rebuilt
-  165 times.
+- In the game, `MWRender::Water` gives `Water Geometry` and `Simple Water Geometry` a new
+  `osg::StateSet` every frame as it cycles `textures/water/waterNN.dds`. `SceneExtractor` keys
+  materials on the state set's address, so those two are new materials every frame and the two they
+  replace are swept. Each appearance bumps the scene's revision, `Tracer` then takes the `setScene`
+  branch, and every acceleration structure and the whole texture array is rebuilt. Forty-five
+  seconds on the Seyda Neen quicksave rebuilt 85 times.

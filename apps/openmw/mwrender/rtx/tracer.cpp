@@ -13,6 +13,8 @@
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/png.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
+
+#include "../vismask.hpp"
 #include <components/rtxbridge/texturebuilder.hpp>
 #include <components/settings/values.hpp>
 
@@ -78,6 +80,13 @@ namespace MWRender::Rtx
         , mWidth(width)
         , mHeight(height)
     {
+        // **The sky is not mirrored.** It is the one subtree the engine rebuilds every frame —
+        // state sets and all — so walking it churns the identity maps, and a sweep that drops four
+        // materials a frame bumps the revision and makes every frame a full rebuild. Nothing is
+        // lost by leaving it out: a ray that reaches the sky has missed everything, and what it
+        // gets then is this renderer's own sky rather than the dome the rasterizer draws.
+        mExtractor->setTraversalMask(~static_cast<osg::Node::NodeMask>(Mask_Sky | Mask_Sun));
+
         if (const char* where = std::getenv("OPENMW_RTX_SHOT"); where != nullptr && *where != '\0')
         {
             mKeepAt = where;

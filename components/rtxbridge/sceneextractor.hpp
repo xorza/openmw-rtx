@@ -120,6 +120,13 @@ namespace RtxBridge
         SceneExtractor(const SceneExtractor&) = delete;
         SceneExtractor& operator=(const SceneExtractor&) = delete;
 
+        /// Which nodes the walks may descend into, as an `osg` traversal mask.
+        ///
+        /// **What keeps the mirror out of subtrees the ray tracer answers for itself.** The engine
+        /// already marks them — OpenMW's sky is `Mask_Sky` — and a mask is how OSG is asked to skip
+        /// one, so nothing here has to know what a sky is. Everything by default.
+        void setTraversalMask(osg::Node::NodeMask mask) { mTraversalMask = mask; }
+
         /// Walks `node` and places what it finds by `transform`, under `anchor`.
         ///
         /// Takes a const reference because nothing here writes to the graph; OSG's visitor API is
@@ -261,6 +268,8 @@ namespace RtxBridge
         /// emitter per frame as well: a sprite's texture hangs off no material, so this map is the
         /// only thing that can speak for it when the scene is swept.
         std::unordered_map<const osg::Drawable*, Known> mEmitterTextures;
+
+        osg::Node::NodeMask mTraversalMask = ~0u;
 
         /// What the walk in progress was told it is placing. See `extract`.
         std::size_t mAnchor = 0;
