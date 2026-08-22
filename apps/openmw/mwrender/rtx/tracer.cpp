@@ -1,5 +1,7 @@
 #include "tracer.hpp"
 
+#include <chrono>
+
 #include <cstdlib>
 #include <format>
 
@@ -264,6 +266,16 @@ namespace MWRender::Rtx
         // hundredths and reads as black.
         const ::Rtx::FrameResult result
             = mRenderer->renderFrame(constants, ::Rtx::FrameOptions{ .mExposure = std::nullopt });
+
+        // **The whole frame, measured between one trace and the next.** Everything the game does
+        // in between is in it — update, cull, the rasterizer, this — which is what a player feels
+        // and what `result.mTraceMs` on its own cannot say.
+        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        if (mEnteredOnce)
+            mBench.frame(result, std::chrono::duration<double, std::milli>(now - mEntered).count());
+
+        mEntered = now;
+        mEnteredOnce = true;
 
         mSpentMs += result.mTraceMs;
         if (++mTimed == sReportEvery)

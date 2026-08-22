@@ -1,5 +1,7 @@
 #include "frametimes.hpp"
 
+#include <format>
+
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -7,7 +9,7 @@
 #include <numeric>
 #include <string_view>
 
-namespace RtxTool
+namespace Rtx
 {
     namespace
     {
@@ -49,7 +51,7 @@ namespace RtxTool
     }
 }
 
-namespace RtxTool
+namespace Rtx
 {
     void GpuBreakdown::add(std::span<const Rtx::GpuSpan> spans)
     {
@@ -82,5 +84,29 @@ namespace RtxTool
             [](const GpuZone& a, const GpuZone& b) { return a.mTimes.mMedian > b.mTimes.mMedian; });
 
         return mZones;
+    }
+
+    std::string describeHeadings()
+    {
+        return std::format(
+            "  {:<9}{:>9}{:>10}{:>10}{:>10}{:>10}{:>10}\n", "", "median", "mean", "p95", "p99", "best", "worst");
+    }
+
+    std::string describeTimes(std::string_view heading, const FrameTimes& times)
+    {
+        return std::format("  {:<9}{:9.2f}{:10.2f}{:10.2f}{:10.2f}{:10.2f}{:10.2f}\n", heading, times.mMedian,
+            times.mMean, times.mP95, times.mP99, times.mBest, times.mWorst);
+    }
+
+    std::string describeZones(std::span<const GpuZone> zones)
+    {
+        if (zones.empty())
+            return {};
+
+        std::string row = "  gpu ms  ";
+        for (const GpuZone& zone : zones)
+            row += std::format("  {} {:.2f}", zone.mName, zone.mTimes.mMedian);
+
+        return row + "\n";
     }
 }

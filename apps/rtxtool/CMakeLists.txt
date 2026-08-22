@@ -9,8 +9,6 @@ set(RTXTOOL_FILES
     cellscene.hpp
     contactsheet.cpp
     contactsheet.hpp
-    frametimes.cpp
-    frametimes.hpp
     placement.cpp
     placement.hpp
     shot.cpp

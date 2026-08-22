@@ -13,6 +13,8 @@ set(RTX_FILES
     colourblock.cpp
     colourblock.hpp
     error.hpp
+    frametimes.cpp
+    frametimes.hpp
     instancerecord.cpp
     instancerecord.hpp
     lightgrid.cpp

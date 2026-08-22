@@ -525,6 +525,48 @@ Under those, a `gpu ms` row of what the **device's own clock** says each stretch
 first. That row against the three above it is what separates a slow shader from a slow everything
 else, and on an exterior the answer turned out to be neither the shader nor the GPU at all.
 
+#### The same run, inside the game
+
+`openmw-rtxtool bench` is deterministic and the game is not — but the game is the only thing that
+carries the real workload, and every renderer defect this fork found in the M12 stretch was invisible
+to the harness and obvious the moment the game was measured: the harness stages a world once and
+re-walks only its actors, so it never pays for the whole-graph walk, the sweep, or a cell arriving.
+
+```sh
+apps/rtxtool/bench.sh                       # ten seconds at every bench_*.omwsave, newest first
+apps/rtxtool/bench.sh --seconds=30 --note="after the appendable texture array"
+
+OPENMW_RTX_BENCH=10s:2s openmw --load-savegame <a save>    # one place, by hand
+OPENMW_RTX_BENCH=600:120 openmw --load-savegame <a save>   # or a frame count
+```
+
+The same three rows and the same `gpu ms`, then the game quits — it prints what `bench` prints
+because both call the same `Rtx::describeTimes`. `bench.sh` runs every save whose name begins
+`bench_`, and **prepends** what it measured to `.notes/bench.txt` with the commit it was measured at,
+because the question a results file gets asked is "did that help" and the answer is the top two
+blocks.
+
+**Compiled in by asking, not by build type.** `-DOPENMW_RTX_BENCH=ON`, which `release.sh` passes and
+a shipping build does not. Gating it on "not Release" would have been the obvious thing and the wrong
+one: the build worth measuring is the optimised one, so that puts the benchmark in every build except
+the only one whose numbers mean anything.
+
+**Where to stand is a savegame's job.** `--load-savegame` restores the player, the camera and the
+world exactly; a pair of coordinates restores only the first, and leaves the weather, the actors and
+the animation wherever that run happened to put them.
+
+**Determinism is not on offer here and is not chased.** The game has AI, physics and scripts, so two
+runs differ — what makes the numbers comparable is a fixed camera, enough frames, and reading the
+tail rather than the mean. Measured against itself the median held to a tenth of a millisecond across
+consecutive runs, which is finer than any change worth making.
+
+**It touches nothing outside this fork's own code.** `MWRender::Rtx::Bench` reads one environment
+variable, is fed each frame by `Tracer`, and ends the run through `StateManager::requestQuit` the way
+the quit key does — no command line, no engine loop, no rendering manager. Where `OPENMW_RTX_BENCH`
+is undefined the class has no members and no body, so the frame path carries nothing and a Release
+build contains none of it. The only upstream file involved is `apps/openmw/CMakeLists.txt`, inside
+the `if (OPENMW_RTX)` blocks this fork already added.
+
 #### Timestamps and labels
 
 `Rtx::GpuTimer` writes a pair of timestamps around each of those zones and resolves them after the

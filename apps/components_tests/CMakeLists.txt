@@ -107,6 +107,7 @@ if (OPENMW_RTX)
         rtx/computepipeline.cpp
         rtx/device.cpp
         rtx/dlss.cpp
+        rtx/frametimes.cpp
         rtx/gputimer.cpp
         rtx/harness.cpp
         rtx/interop.cpp
@@ -126,7 +127,6 @@ if (OPENMW_RTX)
         rtxtool/actor.cpp
         rtxtool/benchsuite.cpp
         rtxtool/contactsheet.cpp
-        rtxtool/frametimes.cpp
         rtxtool/installation.cpp
         rtxtool/perfcontrol.cpp
         rtxtool/props.cpp

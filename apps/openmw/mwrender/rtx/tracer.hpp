@@ -1,6 +1,7 @@
 #ifndef GAME_RENDER_RTX_TRACER_H
 #define GAME_RENDER_RTX_TRACER_H
 
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -12,6 +13,8 @@
 
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtx/upscale.hpp>
+
+#include "bench.hpp"
 
 namespace osg
 {
@@ -172,6 +175,14 @@ namespace MWRender::Rtx
         /// this is playable.
         double mSpentMs = 0.0;
         std::uint32_t mTimed = 0;
+
+        /// Times a run of frames when asked to, and is not compiled at all when it cannot be.
+        Bench mBench;
+
+        /// When the last frame was handed over, so what `Bench` measures is the whole frame and not
+        /// this renderer's slice of it.
+        std::chrono::steady_clock::time_point mEntered;
+        bool mEnteredOnce = false;
 
         std::size_t mFrame = 0;
         bool mComplained = false;

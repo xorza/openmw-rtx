@@ -9,7 +9,7 @@
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/upscale.hpp>
 
-#include "frametimes.hpp"
+#include <components/rtx/frametimes.hpp>
 #include "posedactors.hpp"
 #include "views.hpp"
 
@@ -112,13 +112,13 @@ namespace RtxTool
         /// the top level rebuilt and every skinned mesh's structure refitted. What is left over is
         /// the harness standing in for the game: posing the actors, running the emitters and walking
         /// the graph again. Lumping the three would hide which of them a place is slow because of.
-        FrameTimes mFrame;
-        FrameTimes mTrace;
-        FrameTimes mPlace;
+        Rtx::FrameTimes mFrame;
+        Rtx::FrameTimes mTrace;
+        Rtx::FrameTimes mPlace;
 
         /// What the device itself says each stretch of the frame cost, most expensive first. Empty
         /// where the device cannot write timestamps.
-        std::vector<GpuZone> mGpu;
+        std::vector<Rtx::GpuZone> mGpu;
 
         /// What fraction of primary rays hit something, as a percentage. A place profiled facing a
         /// wall is fast and means nothing, and this is what says so without opening a window.

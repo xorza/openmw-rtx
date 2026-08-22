@@ -27,6 +27,7 @@ if [ ! -f "$build/CMakeCache.txt" ]; then
         -DCMAKE_C_FLAGS="$profiling" \
         -DCMAKE_CXX_FLAGS="$profiling" \
         -DOPENMW_RTX=ON \
+        -DOPENMW_RTX_BENCH=ON \
         -DOPENMW_DLSS_SDK=/home/xxorza/Projects/rtxmw/.refs/dlss \
         -DBUILD_COMPONENTS_TESTS=OFF -DBUILD_OPENMW_TESTS=OFF \
         -DBUILD_OPENCS=OFF -DBUILD_WIZARD=OFF -DBUILD_ESSIMPORTER=OFF \

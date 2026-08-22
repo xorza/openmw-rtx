@@ -2,11 +2,12 @@
 
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <components/rtx/renderer.hpp>
 
-namespace RtxTool
+namespace Rtx
 {
     /// What a run of frame times came to, in milliseconds.
     ///
@@ -79,4 +80,16 @@ namespace RtxTool
 
         std::vector<GpuZone> mZones;
     };
+
+    /// The column headings the rows below line up under.
+    std::string describeHeadings();
+
+    /// One row of six figures under `heading`, in the order `describeHeadings` names them.
+    std::string describeTimes(std::string_view heading, const FrameTimes& times);
+
+    /// The device's own account of the frame, medians only and most expensive first.
+    ///
+    /// **Six distributions would be a wall**; what this row answers is which stretch of the frame is
+    /// the expensive one, and the rows above it already say how much the whole frame varies.
+    std::string describeZones(std::span<const GpuZone> zones);
 }

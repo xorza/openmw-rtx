@@ -3,9 +3,9 @@
 
 #include <gtest/gtest.h>
 
-#include <apps/rtxtool/frametimes.hpp>
+#include <components/rtx/frametimes.hpp>
 
-namespace RtxTool
+namespace Rtx
 {
     namespace
     {

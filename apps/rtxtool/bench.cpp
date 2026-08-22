@@ -48,13 +48,6 @@ namespace RtxTool
             return static_cast<double>(bytes) / (1024.0 * 1024.0);
         }
 
-        /// One line of six figures under the header `heading`.
-        std::string describeTimes(std::string_view heading, const FrameTimes& times)
-        {
-            return std::format("  {:<9}{:9.2f}{:10.2f}{:10.2f}{:10.2f}{:10.2f}{:10.2f}\n", heading, times.mMedian,
-                times.mMean, times.mP95, times.mP99, times.mBest, times.mWorst);
-        }
-
         void report(const BenchPlace& place)
         {
             out() << '\n' << place.mView;
@@ -69,28 +62,19 @@ namespace RtxTool
                          megabytes(place.mScene.mStructureBytes), place.mScene.mTextureCount,
                          megabytes(place.mScene.mTextureBytes))
                   << std::format("  build {:.0f} ms   {:.1f}% of primary rays hit\n", place.mBuildMs, place.mHitPercent)
-                  << std::format("  {:<9}{:>9}{:>10}{:>10}{:>10}{:>10}{:>10}\n", "", "median", "mean", "p95", "p99",
-                         "best", "worst")
-                  << describeTimes("frame ms", place.mFrame) << describeTimes("trace ms", place.mTrace)
-                  << describeTimes("place ms", place.mPlace);
+                  << Rtx::describeHeadings() << Rtx::describeTimes("frame ms", place.mFrame)
+                  << Rtx::describeTimes("trace ms", place.mTrace) << Rtx::describeTimes("place ms", place.mPlace);
 
             // **The device's own account of the same frame, medians only.** Six distributions would
             // be a wall; what this row answers is "which of them is the expensive one", and the row
             // above already says how much the whole frame varies.
-            if (!place.mGpu.empty())
-            {
-                out() << "  gpu ms  ";
-                for (const GpuZone& zone : place.mGpu)
-                    out() << std::format("  {} {:.2f}", zone.mName, zone.mTimes.mMedian);
-
-                out() << '\n';
-            }
+            out() << Rtx::describeZones(place.mGpu);
 
             out() << std::format("  {} frames in {:.2f} s — {:.1f} fps, {:.1f} at the 1% low\n", place.mFrames,
                 place.mWallSeconds, place.mFrame.getRate(), place.mFrame.getLowRate());
         }
 
-        std::string asJson(const FrameTimes& times)
+        std::string asJson(const Rtx::FrameTimes& times)
         {
             return std::format(
                 R"({{"median": {:.4f}, "mean": {:.4f}, "p95": {:.4f}, "p99": {:.4f}, "best": {:.4f}, "worst": {:.4f}}})",
@@ -275,7 +259,7 @@ namespace RtxTool
 
             // Per place, because the zones a place has are the zones its content asked for: an
             // interior with nothing moving in it never places and never reports one.
-            GpuBreakdown gpu;
+            Rtx::GpuBreakdown gpu;
 
             std::uint32_t hits = 0;
 
@@ -355,7 +339,7 @@ namespace RtxTool
 
             // Once: summarising sorts the rows in place, so a second call would be re-sorting what
             // the first one's iterators point at.
-            const std::span<const GpuZone> zones = gpu.summariseZones();
+            const std::span<const Rtx::GpuZone> zones = gpu.summariseZones();
 
             places.push_back(BenchPlace{
                 .mView = view.mName,
@@ -364,10 +348,10 @@ namespace RtxTool
                 .mBuildMs = buildMs,
                 .mFrames = static_cast<std::uint32_t>(frameTimes.size()),
                 .mWallSeconds = std::chrono::duration<double>(runEnd - runStart).count(),
-                .mFrame = summarise(frameTimes),
-                .mTrace = summarise(traceTimes),
-                .mPlace = summarise(placeTimes),
-                .mGpu = std::vector<GpuZone>(zones.begin(), zones.end()),
+                .mFrame = Rtx::summarise(frameTimes),
+                .mTrace = Rtx::summarise(traceTimes),
+                .mPlace = Rtx::summarise(placeTimes),
+                .mGpu = std::vector<Rtx::GpuZone>(zones.begin(), zones.end()),
                 .mHitPercent = static_cast<double>(hits) / pixels * 100.0,
                 .mScene = renderer->getSceneStats(),
             });

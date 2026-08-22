@@ -1,6 +1,6 @@
 #include "shot.hpp"
 
-#include "frametimes.hpp"
+#include <components/rtx/frametimes.hpp>
 #include "lighting.hpp"
 #include "placement.hpp"
 #include <components/rtxbridge/png.hpp>
@@ -108,7 +108,7 @@ namespace RtxTool
         // **Across the repeats and not from the last frame.** The whole reason a shot traces more
         // than once is that one submit times the GPU's clock rather than the shader, and a
         // breakdown taken from a single frame would carry exactly that noise into every row.
-        GpuBreakdown gpu;
+        Rtx::GpuBreakdown gpu;
 
         std::uint32_t hits = 0;
 
@@ -140,7 +140,7 @@ namespace RtxTool
             ++frame;
         } while (frame < frames);
 
-        const FrameTimes trace = summarise(traces);
+        const Rtx::FrameTimes trace = Rtx::summarise(traces);
 
         std::vector<std::uint8_t> pixels;
         renderer->readPixels(pixels);
@@ -194,10 +194,10 @@ namespace RtxTool
 
         // **What the device says about the same submit**, which is the only way to tell a slow trace
         // from a slow everything-else: the figure above is one wait around eight pieces of work.
-        if (const std::span<const GpuZone> zones = gpu.summariseZones(); !zones.empty())
+        if (const std::span<const Rtx::GpuZone> zones = gpu.summariseZones(); !zones.empty())
         {
             out << "gpu:       ";
-            for (const GpuZone& zone : zones)
+            for (const Rtx::GpuZone& zone : zones)
                 out << ' ' << zone.mName << ' ' << zone.mTimes.mMedian;
 
             out << "  (median ms each)\n";
