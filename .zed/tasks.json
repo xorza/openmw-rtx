@@ -187,9 +187,9 @@
     ]
   },
   {
-    "label": "RTX: profile the default suite",
-    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool bench",
-    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "label": "RTX: profile the default suite (release)",
+    "command": "./release.sh bench",
+    "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
     "reveal": "always",
@@ -198,9 +198,9 @@
     ]
   },
   {
-    "label": "RTX: profile every view",
-    "command": "cmake --build . -j32 --target openmw-rtxtool && ./openmw-rtxtool bench --views=all --json=bench.json",
-    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "label": "RTX: profile every view (release)",
+    "command": "./release.sh bench --views=all --json=bench.json",
+    "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
     "reveal": "always",
