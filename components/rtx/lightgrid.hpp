@@ -37,8 +37,21 @@ namespace Rtx
     class LightGrid
     {
     public:
-        /// Bins `lights`, choosing a cell size that fits both budgets.
-        explicit LightGrid(std::span<const Light> lights);
+        /// An unfilled grid, for an owner that binds its lamps in a later step.
+        ///
+        /// **Not the same as a grid built from no lamps**, which has one cell and two offsets in it.
+        /// This has none, so `rebuild` has to run before anything looks a position up.
+        LightGrid() = default;
+
+        /// Bins `lights`, for a caller that has them at construction.
+        explicit LightGrid(std::span<const Light> lights) { rebuild(lights); }
+
+        /// Bins `lights` into the buffers this already has.
+        ///
+        /// **What a frame uses, and the constructor above is not.** Rebinding must not go back to
+        /// the allocator: assigning a freshly built grid over this one threw away three vectors and
+        /// made three more, on every frame that moved.
+        void rebuild(std::span<const Light> lights);
 
         /// The corner cell zero starts at, and how many cells the grid is across.
         const osg::Vec3f& getOrigin() const { return mOrigin; }
@@ -60,5 +73,9 @@ namespace Rtx
         float mInverseCell = 1.0f;
         std::vector<std::uint32_t> mOffsets;
         std::vector<std::uint32_t> mIndices;
+
+        /// Where each cell's next entry goes while the runs are being filled. A member for the
+        /// reason the two above are refilled rather than replaced.
+        std::vector<std::uint32_t> mCursor;
     };
 }

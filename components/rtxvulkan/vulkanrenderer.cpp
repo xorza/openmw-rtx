@@ -226,8 +226,13 @@ namespace Rtx
         // Whatever a previous frame's placement recorded belongs to a scene that no longer exists.
         mTimed = false;
 
-        mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, scene);
-        mBuffers = std::make_unique<SceneBuffers>(mDevice, mPool, scene, mAcceleration->getIndices(), sea);
+        // Made here for the same reason a frame's are: both of the two below want them, and this is
+        // the only place that knows both.
+        makeInstanceRecords(scene, mRecordScratch);
+
+        mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, scene, mRecordScratch);
+        mBuffers
+            = std::make_unique<SceneBuffers>(mDevice, mPool, scene, mRecordScratch, mAcceleration->getIndices(), sea);
         mTextures = std::make_unique<TextureArray>(mDevice, mPool, textures);
         mBuiltMeshes = scene.getMeshes().size();
 
@@ -263,8 +268,10 @@ namespace Rtx
         // so appending means a second buffer rather than a bigger one.
         if (scene.getMeshes().size() != mBuiltMeshes)
         {
-            mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, scene);
-            mBuffers = std::make_unique<SceneBuffers>(mDevice, mPool, scene, mAcceleration->getIndices(), sea);
+            makeInstanceRecords(scene, mRecordScratch);
+            mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, scene, mRecordScratch);
+            mBuffers = std::make_unique<SceneBuffers>(
+                mDevice, mPool, scene, mRecordScratch, mAcceleration->getIndices(), sea);
             mBuiltMeshes = scene.getMeshes().size();
             mTimed = false;
         }
@@ -301,14 +308,17 @@ namespace Rtx
         mTimer.beginFrame();
         mTimed = true;
 
-        // Before the top level, which is built over structures this may be about to replace.
-        mAcceleration->refitMeshes(mPool, scene, &mTimer);
-        mAcceleration->placeInstances(mPool, scene, &mTimer);
+        // **Once, and both halves read it.** The rows carry a matrix inverse apiece and a
+        // nine-by-nine exterior is fifty thousand of them; the acceleration structure and the
+        // instance table were each building the whole set for themselves.
+        makeInstanceRecords(scene, mRecordScratch);
+
+        mAcceleration->place(mPool, scene, mRecordScratch, &mTimer);
 
         // **Only what a moving world changed**, which is the instance rows, the lights and the
         // vertices of anything skinned. Rebuilding all of it was measured at twenty to twenty-seven
         // milliseconds on a nine-by-nine region and was the largest single cost in the frame.
-        mBuffers->place(scene, sea);
+        mBuffers->place(scene, mRecordScratch, sea);
 
         mStats.mInstances = mAcceleration->getInstanceCount();
         mStats.mCutoutInstances = mAcceleration->getCutoutInstanceCount();

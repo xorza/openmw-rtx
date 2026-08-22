@@ -87,14 +87,4 @@ namespace Rtx
             records[slot].mMotion = toTransform3x4(osg::Matrixf::inverse(instance.mTransform) * previous[slot]);
         }
     }
-
-    std::uint32_t countCutouts(std::span<const InstanceRecord> records)
-    {
-        std::uint32_t count = 0;
-        for (const InstanceRecord& record : records)
-            if (record.mPlaced && record.mCutout)
-                ++count;
-
-        return count;
-    }
 }

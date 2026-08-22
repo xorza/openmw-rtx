@@ -72,7 +72,9 @@ namespace Rtx
         /// An empty scene is a grid nothing can be found in, and asking is still legal.
         TEST(RtxLightGridTest, noLampsIsOneEmptyCell)
         {
-            const LightGrid grid({});
+            // Spelled out because `{}` would also name the unfilled grid, which is a different
+            // thing: this is the one lamps were binned into and there were none.
+            const LightGrid grid{ std::span<const Light>{} };
 
             EXPECT_EQ(grid.getSize(), osg::Vec3ui(1u, 1u, 1u));
             EXPECT_TRUE(grid.getIndices().empty());

@@ -124,6 +124,18 @@ namespace RtxTool
                 << "the emitters are frozen: " << later.size() << " sprites and " << moved(first, later)
                 << " of them somewhere new";
 
+            // **And they survive the crossing that takes everyone out of the scene.** `unplace`
+            // empties the lists a walk refills — sprites and emitters among them — and only the
+            // lights are put back by hand; everything else has to come from the walk. That was a
+            // defect while the harness mirrored only its actors, and mirroring the whole graph is
+            // what fixed it, so this is the assertion that says so rather than a comment claiming it.
+            posed.unplace();
+            EXPECT_EQ(live.getEmitters().size(), std::size_t{ 0 }) << "unplace is meant to empty them";
+
+            const RtxBridge::ExtractionStats remirrored = posed.mirror();
+            EXPECT_EQ(remirrored.mEmitters, settled.mEmitters) << "the room lost its candles across a crossing";
+            EXPECT_FALSE(spritePositions(live).empty());
+
             // And the control: a template walked twice is the same sprites twice over, which is what
             // makes the movement above the instancing rather than the extraction.
             Rtx::SceneDesc again;

@@ -85,11 +85,10 @@ namespace Rtx
         }
     }
 
-    SceneBuffers::SceneBuffers(
-        const Device& device, CommandPool& pool, const SceneDesc& scene, VkBuffer indices, const SeaState& sea)
+    SceneBuffers::SceneBuffers(const Device& device, CommandPool& pool, const SceneDesc& scene,
+        std::span<const InstanceRecord> records, VkBuffer indices, const SeaState& sea)
         : mDevice(&device)
         , mIndices(indices)
-        , mLightGrid(scene.getLights())
     {
         std::vector<Shaders::GpuMesh> meshes;
         meshes.reserve(scene.getMeshes().size());
@@ -108,7 +107,7 @@ namespace Rtx
         // The shading tables come from `place`, which is also where they are rewritten when a
         // material changes. Forced here because nothing has been written at revision zero.
         mShaded = scene.getShadingRevision() - 1;
-        place(scene, sea);
+        place(scene, records, sea);
 
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mMaterials.getHandle()), "materials");
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mTexCoords.getHandle()), "uvs");
@@ -177,14 +176,9 @@ namespace Rtx
         mMasks.write(masks);
     }
 
-    void SceneBuffers::place(const SceneDesc& scene, const SeaState& sea)
+    void SceneBuffers::place(const SceneDesc& scene, std::span<const InstanceRecord> records, const SeaState& sea)
     {
         shade(scene);
-
-        // **Built from the records rather than from the instances**, so the motion transform the
-        // shader reads and the one the acceleration structure was placed with come out of the same
-        // arithmetic. Two places computing an inverse is two places to get it wrong.
-        makeInstanceRecords(scene, mRecordScratch);
 
         // The sentinel material sits one past the real ones, which is where the constructor put it.
         const auto sentinel = static_cast<std::uint32_t>(scene.getMaterials().size());
@@ -197,11 +191,11 @@ namespace Rtx
         // with zeroes before writing the rows over them is a second pass across three megabytes a
         // frame that nothing needs.
         const std::span<const MeshInstance> placements = scene.getInstances();
-        mInstanceScratch.resize(mRecordScratch.size());
+        mInstanceScratch.resize(records.size());
 
-        for (std::size_t slot = 0; slot < mRecordScratch.size(); ++slot)
+        for (std::size_t slot = 0; slot < records.size(); ++slot)
         {
-            const InstanceRecord& record = mRecordScratch[slot];
+            const InstanceRecord& record = records[slot];
             if (!record.mPlaced)
                 continue;
 
@@ -231,7 +225,7 @@ namespace Rtx
 
         mEmitterCount = static_cast<std::uint32_t>(mEmitterScratch.size());
 
-        mLightGrid = LightGrid(scene.getLights());
+        mLightGrid.rebuild(scene.getLights());
 
         // Nothing may be bound to a descriptor a shader declares, so an empty table is one element.
         const Shaders::GpuLight noLight{};

@@ -86,7 +86,8 @@ namespace Rtx
         return result;
     }
 
-    SceneAcceleration::SceneAcceleration(const Device& device, CommandPool& pool, const SceneDesc& scene)
+    SceneAcceleration::SceneAcceleration(
+        const Device& device, CommandPool& pool, const SceneDesc& scene, std::span<const InstanceRecord> records)
         : mDevice(device)
     {
         assert(scene.getPlacedCount() > 0);
@@ -99,7 +100,8 @@ namespace Rtx
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mIndices.getHandle()), "indices");
 
         buildBottomLevel(pool, scene);
-        buildTopLevel(pool, scene, nullptr);
+        prepareTopLevel(scene, records);
+        pool.submitAndWait([&](VkCommandBuffer commands) { recordTopLevel(commands, nullptr); });
     }
 
     SceneAcceleration::~SceneAcceleration()
@@ -200,7 +202,7 @@ namespace Rtx
             rangePointers[i] = &ranges[i];
         }
 
-        mStructureBytes = structureTotal;
+        mBottomLevelBytes = structureTotal;
         mBottomLevelStorage = Buffer(mDevice, structureTotal, sStorageUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         mDevice.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mBottomLevelStorage.getHandle()),
             "bottom level structures");
@@ -227,6 +229,20 @@ namespace Rtx
             builds[i].scratchData.deviceAddress = scratchAddress + scratchOffsets[i];
         }
 
+        // **Asked once each, here, and never again.** These handles last until the next `setScene`
+        // and their addresses with them, so the alternative is the same question per instance per
+        // frame — fifty thousand driver round trips on a nine-by-nine exterior for fifty thousand
+        // answers that cannot have changed.
+        mBottomLevelAddresses.resize(count);
+        for (std::size_t i = 0; i < count; ++i)
+        {
+            const VkAccelerationStructureDeviceAddressInfoKHR address{
+                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
+                .accelerationStructure = mBottomLevel[i],
+            };
+            mBottomLevelAddresses[i] = functions.mGetAccelerationStructureDeviceAddress(mDevice.getHandle(), &address);
+        }
+
         pool.submitAndWait([&](VkCommandBuffer commands) {
             functions.mCmdBuildAccelerationStructures(
                 commands, static_cast<std::uint32_t>(count), builds.data(), rangePointers.data());
@@ -234,13 +250,18 @@ namespace Rtx
         });
     }
 
-    void SceneAcceleration::refitMeshes(CommandPool& pool, const SceneDesc& scene, GpuTimer* timer)
+    void SceneAcceleration::prepareRefit(const SceneDesc& scene)
     {
         const std::span<const Index> deformed = scene.getDeformed();
         if (deformed.empty())
+        {
+            // **Emptied and not left alone.** These still hold the last frame's rebuilds, and a
+            // frame whose actors have all gone would otherwise leave a vector whose size claims work
+            // that is not there.
+            mRefitBuilds.clear();
             return;
+        }
 
-        const DeviceFunctions& functions = mDevice.getFunctions();
         const auto count = static_cast<std::uint32_t>(deformed.size());
 
         const VkDeviceSize scratchAlignment
@@ -325,29 +346,35 @@ namespace Rtx
 
             scratchAt = alignUp(scratchAt + mBuildScratch[index], scratchAlignment);
         }
+    }
 
+    void SceneAcceleration::recordRefit(VkCommandBuffer commands, GpuTimer* timer)
+    {
+        openZone(timer, commands, "refit");
+        mDevice.getFunctions().mCmdBuildAccelerationStructures(
+            commands, static_cast<std::uint32_t>(mRefitBuilds.size()), mRefitBuilds.data(), mRefitRangePointers.data());
+        barrierAfterBuild(commands);
+        closeZone(timer, commands);
+    }
+
+    void SceneAcceleration::place(
+        CommandPool& pool, const SceneDesc& scene, std::span<const InstanceRecord> records, GpuTimer* timer)
+    {
+        prepareRefit(scene);
+        prepareTopLevel(scene, records);
+
+        // **One submit, and the barrier between them is what the fence used to be.** The top level
+        // is built over structures the refit has just rewritten, which is a dependency inside a
+        // command buffer rather than a reason to go round the driver twice.
         pool.submitAndWait([&](VkCommandBuffer commands) {
-            openZone(timer, commands, "refit");
-            functions.mCmdBuildAccelerationStructures(commands, count, mRefitBuilds.data(), mRefitRangePointers.data());
-            barrierAfterBuild(commands);
-            closeZone(timer, commands);
+            if (!mRefitBuilds.empty())
+                recordRefit(commands, timer);
+
+            recordTopLevel(commands, timer);
         });
     }
 
-    void SceneAcceleration::placeInstances(CommandPool& pool, const SceneDesc& scene, GpuTimer* timer)
-    {
-        // The old one is what the last frame traced against, and the fence in `submitAndWait` is
-        // what says nothing is still reading it.
-        if (mTopLevel != VK_NULL_HANDLE)
-        {
-            mDevice.getFunctions().mDestroyAccelerationStructure(mDevice.getHandle(), mTopLevel, nullptr);
-            mTopLevel = VK_NULL_HANDLE;
-        }
-
-        buildTopLevel(pool, scene, timer);
-    }
-
-    void SceneAcceleration::buildTopLevel(CommandPool& pool, const SceneDesc& scene, GpuTimer* timer)
+    void SceneAcceleration::prepareTopLevel(const SceneDesc& scene, std::span<const InstanceRecord> records)
     {
         const DeviceFunctions& functions = mDevice.getFunctions();
 
@@ -361,15 +388,13 @@ namespace Rtx
                 + std::to_string(scene.getMeshes().size())
                 + " without being built again; placeScene can only move what setScene made");
 
-        makeInstanceRecords(scene, mRecordScratch);
-        mCutoutInstanceCount = countCutouts(mRecordScratch);
-
+        mCutoutInstanceCount = 0;
         mRowScratch.clear();
-        mRowScratch.reserve(mRecordScratch.size());
+        mRowScratch.reserve(records.size());
 
-        for (std::uint32_t index = 0; index < mRecordScratch.size(); ++index)
+        for (std::uint32_t index = 0; index < records.size(); ++index)
         {
-            const InstanceRecord& record = mRecordScratch[index];
+            const InstanceRecord& record = records[index];
 
             // **A gap contributes no row rather than a masked one.** Its slot still names it — the
             // custom index below is the slot and not the row — so skipping costs the build one
@@ -377,15 +402,16 @@ namespace Rtx
             if (!record.mPlaced)
                 continue;
 
-            const VkAccelerationStructureDeviceAddressInfoKHR address{
-                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
-                .accelerationStructure = mBottomLevel[record.mMesh],
-            };
-
             // Morrowind's sheet geometry is lit and hit from both faces, so nothing is culled.
             VkGeometryInstanceFlagsKHR flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
             if (record.mCutout)
+            {
                 flags |= VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR;
+
+                // Counted here rather than in a pass of its own: this loop already visits every
+                // record and skips the same gaps, and a scene is tens of thousands of them.
+                ++mCutoutInstanceCount;
+            }
 
             mRowScratch.push_back(VkAccelerationStructureInstanceKHR{
                 .transform = toVulkanTransform(record.mTransform),
@@ -393,8 +419,7 @@ namespace Rtx
                 .instanceCustomIndex = index & 0xFFFFFFu,
                 .mask = record.mMask,
                 .flags = flags,
-                .accelerationStructureReference
-                = functions.mGetAccelerationStructureDeviceAddress(mDevice.getHandle(), &address),
+                .accelerationStructureReference = mBottomLevelAddresses[record.mMesh],
             });
         }
 
@@ -408,7 +433,7 @@ namespace Rtx
 
         mInstances.write(rows);
 
-        const VkAccelerationStructureGeometryKHR geometry{
+        mTopLevelGeometry = VkAccelerationStructureGeometryKHR{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
             .geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR,
             .geometry = { .instances = {
@@ -418,24 +443,41 @@ namespace Rtx
             .flags = VK_GEOMETRY_OPAQUE_BIT_KHR,
         };
 
-        VkAccelerationStructureBuildGeometryInfoKHR build{
+        mTopLevelBuild = VkAccelerationStructureBuildGeometryInfoKHR{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
             .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
             .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
             .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
             .geometryCount = 1,
-            .pGeometries = &geometry,
+            .pGeometries = &mTopLevelGeometry,
         };
 
         VkAccelerationStructureBuildSizesInfoKHR sizes{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
         };
-        functions.mGetAccelerationStructureBuildSizes(
-            mDevice.getHandle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &build, &mInstanceCount, &sizes);
+        functions.mGetAccelerationStructureBuildSizes(mDevice.getHandle(),
+            VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &mTopLevelBuild, &mInstanceCount, &sizes);
 
-        mStructureBytes += sizes.accelerationStructureSize;
-        mTopLevelStorage
-            = Buffer(mDevice, sizes.accelerationStructureSize, sStorageUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        // **The old structure goes before the new one is made over the same buffer.** Nothing is
+        // reading it: every submit on this path waits, and so does the trace, so by the time a frame
+        // is placing the world again the last one has finished with it.
+        if (mTopLevel != VK_NULL_HANDLE)
+        {
+            functions.mDestroyAccelerationStructure(mDevice.getHandle(), mTopLevel, nullptr);
+            mTopLevel = VK_NULL_HANDLE;
+        }
+
+        mTopLevelBytes = sizes.accelerationStructureSize;
+
+        // Grown to the high-water mark and kept, both of them. A structure is created at offset zero
+        // of whatever this holds and asks only that it be large enough.
+        if (mTopLevelStorage.getSize() < sizes.accelerationStructureSize)
+            mTopLevelStorage
+                = Buffer(mDevice, sizes.accelerationStructureSize, sStorageUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        if (mTopLevelScratch.getSize() < sizes.buildScratchSize)
+            mTopLevelScratch
+                = Buffer(mDevice, sizes.buildScratchSize, sScratchUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
         const VkAccelerationStructureCreateInfoKHR create{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
@@ -448,18 +490,18 @@ namespace Rtx
         mDevice.setName(VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR, reinterpret_cast<std::uint64_t>(mTopLevel), "scene");
         mDevice.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mInstances.getHandle()), "instances");
 
-        const Buffer scratch(mDevice, sizes.buildScratchSize, sScratchUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        build.dstAccelerationStructure = mTopLevel;
-        build.scratchData.deviceAddress = scratch.getDeviceAddress();
+        mTopLevelBuild.dstAccelerationStructure = mTopLevel;
+        mTopLevelBuild.scratchData.deviceAddress = mTopLevelScratch.getDeviceAddress();
+    }
 
+    void SceneAcceleration::recordTopLevel(VkCommandBuffer commands, GpuTimer* timer)
+    {
         const VkAccelerationStructureBuildRangeInfoKHR range{ .primitiveCount = mInstanceCount };
         const VkAccelerationStructureBuildRangeInfoKHR* ranges = &range;
 
-        pool.submitAndWait([&](VkCommandBuffer commands) {
-            openZone(timer, commands, "tlas");
-            functions.mCmdBuildAccelerationStructures(commands, 1, &build, &ranges);
-            barrierAfterBuild(commands);
-            closeZone(timer, commands);
-        });
+        openZone(timer, commands, "tlas");
+        mDevice.getFunctions().mCmdBuildAccelerationStructures(commands, 1, &mTopLevelBuild, &ranges);
+        barrierAfterBuild(commands);
+        closeZone(timer, commands);
     }
 }

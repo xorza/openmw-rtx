@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include <components/rtx/instancerecord.hpp>
 #include <components/rtx/renderer.hpp>
 
 #include "atrouspass.hpp"
@@ -136,6 +137,15 @@ namespace Rtx
         std::unique_ptr<TextureArray> mTextures;
         std::unique_ptr<VisibilityPass> mPass;
         SceneStats mStats;
+
+        /// One row per placement slot, remade whenever the world is built or moved, and read by both
+        /// halves of it.
+        ///
+        /// **Here rather than in either of them**, because both need the same rows and each used to
+        /// build its own: the acceleration structure for the transforms it places, the instance table
+        /// for the motion the shader reads. A row carries a matrix inverse, and a nine-by-nine
+        /// exterior is fifty thousand rows. Refilled in place; a frame path does not allocate.
+        std::vector<InstanceRecord> mRecordScratch;
 
         /// Held by value rather than built with the scene, because they depend on neither the
         /// scene nor the size of the image: what they read is pushed at record time. The filter is

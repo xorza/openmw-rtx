@@ -72,7 +72,7 @@ namespace
 
 namespace Rtx
 {
-    LightGrid::LightGrid(std::span<const Light> lights)
+    void LightGrid::rebuild(std::span<const Light> lights)
     {
         osg::BoundingBoxf bounds;
         for (const Light& light : lights)
@@ -122,12 +122,12 @@ namespace Rtx
             mOffsets[cell + 1] += mOffsets[cell];
 
         mIndices.resize(mOffsets.back());
-        std::vector<std::uint32_t> cursor(mOffsets.begin(), mOffsets.end() - 1);
+        mCursor.assign(mOffsets.begin(), mOffsets.end() - 1);
         for (std::size_t index = 0; index < lights.size(); ++index)
         {
             const Light& light = lights[index];
             forEachCell(boxAround(light.mPosition, light.mReach, mOrigin, mInverseCell, mSize), mSize,
-                [&](std::size_t cell) { mIndices[cursor[cell]++] = static_cast<std::uint32_t>(index); });
+                [&](std::size_t cell) { mIndices[mCursor[cell]++] = static_cast<std::uint32_t>(index); });
         }
     }
 }

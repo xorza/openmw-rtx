@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -34,35 +35,36 @@ namespace Rtx
     {
     public:
         /// `scene` must place at least one instance: a top-level structure over nothing has no
-        /// instance buffer to be built from.
-        SceneAcceleration(const Device& device, CommandPool& pool, const SceneDesc& scene);
+        /// instance buffer to be built from. `records` are `scene`'s rows, made by the caller for
+        /// the reason `place` gives.
+        SceneAcceleration(
+            const Device& device, CommandPool& pool, const SceneDesc& scene, std::span<const InstanceRecord> records);
         ~SceneAcceleration();
 
         SceneAcceleration(const SceneAcceleration&) = delete;
         SceneAcceleration& operator=(const SceneAcceleration&) = delete;
 
-        /// Rebuilds the bottom-level structure of every mesh `scene.getDeformed()` names, and
-        /// re-uploads the vertices they were built from.
+        /// Rebuilds what a moved world changed: every deformed mesh's structure, then the top level.
         ///
-        /// **What a skinned body is.** Its triangles never change and its vertices change every
-        /// frame, so the mesh keeps its slice of the shared position buffer and only the contents
-        /// of that slice — and the structure over it — are made again. A rebuild rather than a
-        /// refit: `VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR` costs every static mesh in
-        /// the cell a larger structure and a slower trace to make a few dozen actors cheaper to
-        /// animate, which is M12's measurement to take and not an assumption to build on.
+        /// **One submit for both, because the device is idle across a fence.** These were two
+        /// `submitAndWait` calls, and the second could not begin recording until the first had
+        /// finished on the queue — a round trip through the driver in the middle of the frame for a
+        /// dependency a pipeline barrier already expresses. They go in one command buffer with that
+        /// barrier between them.
         ///
-        /// Does nothing where nothing deformed, which is every frame of a world with no actor in it.
-        void refitMeshes(CommandPool& pool, const SceneDesc& scene, GpuTimer* timer);
-
-        /// Rebuilds the top level over `scene`'s instances, keeping every bottom-level structure.
+        /// The deformed half is what a skinned body is: its triangles never change and its vertices
+        /// change every frame, so the mesh keeps its slice of the shared position buffer and only
+        /// the contents of that slice — and the structure over it — are made again. A rebuild rather
+        /// than a refit: `VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR` costs every static
+        /// mesh in the cell a larger structure and a slower trace to make a few dozen actors cheaper
+        /// to animate, which is M12's measurement to take and not an assumption to build on. It is
+        /// skipped outright where nothing deformed, which is every frame of a world with no actor.
         ///
-        /// **What a frame does when the world has moved.** A crate's geometry does not change when
-        /// the crate does, and its bottom-level structure is the expensive half; the top level is a
-        /// list of transforms and is rebuilt per frame in every renderer that does this.
-        ///
-        /// `scene` must name the same meshes in the same order — the instances index into the
-        /// structures this already holds.
-        void placeInstances(CommandPool& pool, const SceneDesc& scene, GpuTimer* timer);
+        /// **`records` is handed in rather than made here**, because `SceneBuffers` needs the same
+        /// rows and building them twice was thousands of matrix inversions a frame done again for
+        /// the same answer. `scene` must name the same meshes in the same order — the instances
+        /// index into the structures this already holds.
+        void place(CommandPool& pool, const SceneDesc& scene, std::span<const InstanceRecord> records, GpuTimer* timer);
 
         VkAccelerationStructureKHR getTopLevel() const { return mTopLevel; }
 
@@ -82,11 +84,24 @@ namespace Rtx
         std::uint32_t getCutoutInstanceCount() const { return mCutoutInstanceCount; }
 
         /// Bytes held by the structures themselves, not counting the geometry they were built from.
-        VkDeviceSize getStructureBytes() const { return mStructureBytes; }
+        VkDeviceSize getStructureBytes() const { return mBottomLevelBytes + mTopLevelBytes; }
 
     private:
         void buildBottomLevel(CommandPool& pool, const SceneDesc& scene);
-        void buildTopLevel(CommandPool& pool, const SceneDesc& scene, GpuTimer* timer);
+
+        /// Fills the refit build infos and sizes the scratch.
+        ///
+        /// Leaves `mRefitBuilds` holding exactly this frame's rebuilds and nothing else, which is
+        /// what both the caller and `recordRefit` read: a count returned beside a vector that still
+        /// held the last frame's entries would be two answers to one question.
+        void prepareRefit(const SceneDesc& scene);
+
+        /// Everything the top-level build needs before a command buffer exists: the instance rows,
+        /// the buffer they are written to, the structure itself and the scratch to build it in.
+        void prepareTopLevel(const SceneDesc& scene, std::span<const InstanceRecord> records);
+
+        void recordRefit(VkCommandBuffer commands, GpuTimer* timer);
+        void recordTopLevel(VkCommandBuffer commands, GpuTimer* timer);
 
         const Device& mDevice;
 
@@ -103,6 +118,14 @@ namespace Rtx
         HostBuffer mInstances;
 
         std::vector<VkAccelerationStructureKHR> mBottomLevel;
+
+        /// Each of those structures' device address, asked for once when it was made.
+        ///
+        /// **Not once per instance per frame, which is what this replaced.** A handle lasts from one
+        /// `setScene` to the next and its address with it, so a nine-by-nine exterior was making
+        /// fifty thousand driver calls a frame to be told the same fifty thousand numbers.
+        std::vector<VkDeviceAddress> mBottomLevelAddresses;
+
         VkAccelerationStructureKHR mTopLevel = VK_NULL_HANDLE;
 
         /// What each mesh's build asked for, so a rebuild does not have to ask the driver again.
@@ -113,6 +136,21 @@ namespace Rtx
         /// shrinks, which is what makes it settle at all.
         Buffer mRefitScratch;
 
+        /// The top level's build scratch, which was made and freed on every frame that moved.
+        ///
+        /// **`vkAllocateMemory` twice on every frame that moves** — this and the storage buffer
+        /// beside it — where the driver's allocator is exactly the thing a frame budget cannot see
+        /// into. Both grow to the high-water mark and stay.
+        Buffer mTopLevelScratch;
+
+        /// The top-level build, prepared before a command buffer exists and recorded into one after.
+        ///
+        /// Members rather than locals because `pGeometries` is a pointer the build info keeps: the
+        /// geometry has to outlive the preparation that named it. The build range does not — it is
+        /// `mInstanceCount` and nothing else, so `recordTopLevel` makes its own.
+        VkAccelerationStructureGeometryKHR mTopLevelGeometry{};
+        VkAccelerationStructureBuildGeometryInfoKHR mTopLevelBuild{};
+
         // Refilled per refit. The build reads `pGeometries` through a pointer, so the geometries are
         // sized before any build info names one.
         std::vector<VkAccelerationStructureGeometryKHR> mRefitGeometries;
@@ -121,11 +159,15 @@ namespace Rtx
         std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> mRefitRangePointers;
 
         // Refilled per placement rather than reallocated: a scene is tens of thousands of these.
-        std::vector<InstanceRecord> mRecordScratch;
         std::vector<VkAccelerationStructureInstanceKHR> mRowScratch;
 
         std::uint32_t mInstanceCount = 0;
         std::uint32_t mCutoutInstanceCount = 0;
-        VkDeviceSize mStructureBytes = 0;
+
+        /// **Two totals, each assigned, because one accumulated.** The bottom levels are made once
+        /// and the top level again every frame that moves, so adding both to one figure reported a
+        /// scene that grew by its own top level sixty times a second.
+        VkDeviceSize mBottomLevelBytes = 0;
+        VkDeviceSize mTopLevelBytes = 0;
     };
 }

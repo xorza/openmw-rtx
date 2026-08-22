@@ -82,11 +82,4 @@ namespace Rtx
     /// An out-parameter refilled in place, because a cell is thousands of instances and a rebuild
     /// must not go back to the allocator for a buffer it already had.
     void makeInstanceRecords(const SceneDesc& scene, std::vector<InstanceRecord>& records);
-
-    /// How many of `records` traversal has to stop and ask about.
-    ///
-    /// The cost of the cutout, as a number: every one is a candidate loop and a texture fetch where
-    /// an opaque instance is a hit. Reported so a material change that marks half a cell non-opaque
-    /// shows up as a number before it shows up as a frame time.
-    std::uint32_t countCutouts(std::span<const InstanceRecord> records);
 }

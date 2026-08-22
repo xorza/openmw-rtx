@@ -1,10 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
+#include <vector>
 
 #include <vulkan/vulkan_core.h>
-
-#include <vector>
 
 #include <components/rtx/instancerecord.hpp>
 #include <components/rtx/lightgrid.hpp>
@@ -34,8 +34,8 @@ namespace Rtx
         ///        world, animated by the time in the frame's constants rather than rebuilt. A state
         ///        with no height in it is a flat sea, which is what a test asserting an exact
         ///        transmittance needs.
-        SceneBuffers(const Device& device, CommandPool& pool, const SceneDesc& scene, VkBuffer indices,
-            const SeaState& sea = SeaState{});
+        SceneBuffers(const Device& device, CommandPool& pool, const SceneDesc& scene,
+            std::span<const InstanceRecord> records, VkBuffer indices, const SeaState& sea = SeaState{});
 
         /// Rewrites what a moving world changes, leaving what it is made of alone.
         ///
@@ -49,8 +49,12 @@ namespace Rtx
         /// Those live in memory the host writes straight into, so this is a `memcpy` and not a
         /// staging buffer, a copy command, a submit and a wait on the queue.
         ///
-        /// `scene` must be the one the constructor was given.
-        void place(const SceneDesc& scene, const SeaState& sea);
+        /// `scene` must be the one the constructor was given. `records` are the rows the
+        /// acceleration structure was placed with, handed in rather than made again: the motion
+        /// transform a shader reads and the one an instance was placed with have to come out of the
+        /// same arithmetic, and two places computing an inverse is two places to get it wrong — as
+        /// well as thousands of inversions a frame done twice for one answer.
+        void place(const SceneDesc& scene, std::span<const InstanceRecord> records, const SeaState& sea);
 
         SceneBuffers(const SceneBuffers&) = delete;
         SceneBuffers& operator=(const SceneBuffers&) = delete;
@@ -137,7 +141,6 @@ namespace Rtx
         // Refilled per placement rather than reallocated: a scene is tens of thousands of instances
         // and this is the frame path.
         std::vector<Shaders::GpuInstance> mInstanceScratch;
-        std::vector<InstanceRecord> mRecordScratch;
         std::vector<Shaders::GpuLight> mLightScratch;
 
         std::vector<Shaders::GpuSprite> mSpriteScratch;

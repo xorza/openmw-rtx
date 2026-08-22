@@ -2879,8 +2879,10 @@ namespace Rtx
 
             Device& device = *mHarness->mDevice;
             CommandPool pool(device);
-            const SceneAcceleration acceleration(device, pool, scene);
-            const SceneBuffers buffers(device, pool, scene, acceleration.getIndices());
+            std::vector<InstanceRecord> records;
+            makeInstanceRecords(scene, records);
+            const SceneAcceleration acceleration(device, pool, scene, records);
+            const SceneBuffers buffers(device, pool, scene, records, acceleration.getIndices());
 
             const TextureArray textures(device, pool, {});
             const VisibilityPass pass(device, pool, Testing::getShaderDirectory(), textures.getLayout());
