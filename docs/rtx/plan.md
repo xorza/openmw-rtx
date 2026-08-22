@@ -494,6 +494,11 @@ openmw-rtxtool watch  --view seyda-neen-shore         re-render on shader change
 
 `sheet`, `golden` and `watch` do not exist yet.
 
+**What the harness cannot see, and what to do about it**, is `docs/rtx/harness.md`: it feeds the
+renderer by a different route from the game — no scene graph, no unloading, no sweep — and every
+renderer defect found in the M12 stretch was invisible here and obvious the moment the game was
+measured.
+
 #### `bench`
 
 **Ten seconds of *world* per place, not ten seconds of wall clock.** The world steps a sixtieth of a
