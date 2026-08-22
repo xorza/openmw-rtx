@@ -145,7 +145,12 @@ before that showed. Both are resized and written once now. A scratch buffer that
 between frames must be resized, never cleared and refilled — which is what the house rule about
 persistent scratch already says, read properly.
 
-### Phase 2 — walk only what can move — **not started**
+### Phase 2 — walk only what can move — **not started, and not next**
+
+**The game's own profile says it is not worth building yet.** Recorded over fourteen seconds on the
+Seyda Neen quicksave, 67% of the process's CPU is `ioctl` into the graphics driver and 5% is CPU
+texture decoding — both of them inside `setScene`. `SceneExtractor::extract`, which this phase
+targets, does not reach 1.2%. Rebuilding is the cost; walking is not.
 
 **Its anchor arrived early, because Phase 1 could not be built without it** — `extract` already
 takes one, and identity is the anchor and the path together. What is missing is the rest: the
@@ -200,10 +205,12 @@ and written sparsely — the 6.2 MB memcpy becomes a few kilobytes.
 
 The top level still **rebuilds** every frame rather than refitting. `rtxmw` measured both and found
 the rebuild free; ours costs 0.43 ms of device time; and a refit over instances that teleport
-degrades the tree that every ray then walks. The build reads a buffer we barely touched, which is the
+degrades the tree that every ray then walks. The build reads a buffer we barely touched, which is
+the
 whole point.
 
-This phase also retires the duplicated `makeInstanceRecords` on its own: there is one changed-set and
+This phase also retires the duplicated `makeInstanceRecords` on its own: there is one changed-set
+and
 one pass over it, feeding both consumers.
 
 ## 4. What it is predicted to save
@@ -240,7 +247,8 @@ earns a 28 KB table write. The game traces at 24–31 ms.
 detail and object paging from the last one: `RigGeometry::getDeformedGeometry` is
 `getGeometry(mLastFrameNumber)`, and the cull that writes the current pose had not run. A
 character's
-bone-attached parts arrived a frame ahead of the arms they hang off. It runs after the traversal now,
+bone-attached parts arrived a frame ahead of the arms they hang off. It runs after the traversal
+now,
 which is also where §2 has it ending up.
 
 **The sky was mirrored — fixed.** It hangs off a `CameraRelativeTransform`, which zeroes its
@@ -248,11 +256,41 @@ translation against the eye, so mirroring it into a world-space top level put a 
 origin that followed the player. The extractor takes an `osg` traversal mask and the game excludes
 `Mask_Sky | Mask_Sun`.
 
-**Still open**, and written up in `.notes/ISSUES.md`: a cell arriving still rebuilds from scratch;
+## 6. Where the rebuild actually goes, and what to do about it
+
+Timed inside `setScene` on the quicksave, per rebuild:
+
+| | |
+|---|---|
+| every bottom-level structure, 1460 meshes | **12 ms** |
+| the geometry and shading buffers | **4 ms** |
+| the texture array, 327 images | **150–225 ms** |
+
+**The acceleration structures were never the problem.** Nine tenths of a rebuild is the texture
+array being made again from nothing, and it is made again because one body texture appeared — the
+count climbs by one per rebuild as actors stream in. On top of that the bridge re-describes and
+re-computes a `ShadingMap` for all 327 every time, which is the 5% of CPU the game profile shows in
+`ShadingMap` and `ColourBlock::read`.
+
+So the next work is **an appendable texture array**, not incremental geometry:
+
+1. `TextureArray` gains the ability to take new images without disturbing the ones it holds.
+2. `SceneTextures` describes only what has arrived, so no texture is decoded or shaded twice.
+3. `Renderer` gains the entry point that uses them, and `Tracer` calls it when the tables only grew.
+
+A full rebuild stays for the case where `retain` compacted, because that renumbers everything.
+
+**And compaction itself has to go**, for the reason in `CLAUDE.md`: it renumbers every table, so it
+is a spike, and rationing a spike behind a threshold only makes it rarer, not smaller. The tables
+should recycle their slots the way Phase 1's placements do — a dead mesh's slot taken by the next
+mesh, a dead texture's by the next texture — and then nothing is ever renumbered and nothing is ever
+rebuilt for it. That is the end state; the appendable array is the first half of it.
+
+**Still open**, and written up in `.notes/ISSUES.md`:
 the game's water is the rasterizer's geometry mirrored as an ordinary surface, so it is never
 `MaterialKind::Water`; and materials are still keyed on a state-set address that OpenMW recreates.
 
-## 6. Rejected
+## 7. Rejected
 
 **Extract during cull.** The obvious idea: OpenMW's cull traversal already walks the graph and
 already maintains a transform stack, so ride it and delete our traversal. No — cull culls. It
@@ -267,7 +305,7 @@ to a number that grows with view distance, and the thing being computed is still
 **Refit the top level instead of rebuilding it.** Measured free on the device by both this renderer
 and the reference; refitting trades tree quality for a build cost that is not the cost.
 
-## 7. How it is kept honest
+## 8. How it is kept honest
 
 The existing property — a second pass over an unchanged graph adds no meshes and no materials, which
 `scene --twice` prints and a test asserts — generalises to the one this design rests on:

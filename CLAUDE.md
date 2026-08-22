@@ -211,6 +211,14 @@ the posture behind them does.
   changing. Sweeping files you are not otherwise in is a separate task.
 - **No backward compatibility.** Rename, change signatures, rewrite callers, delete what stopped
   earning its place. No shims, no compat wrappers.
+- **Frame times are uniform, and an average that hides a spike is not an answer.** A cost that is
+  cheap on most frames and enormous on one is worse than the same total spread evenly: the spike is
+  a dropped frame and a visible hitch, and no amount of amortising makes it not one. So work is made
+  *incremental*, never *batched behind a threshold* — a table grows and recycles its slots rather
+  than being compacted when enough of it has died, and a resource is appended rather than rebuilt
+  when it changes. If an operation cannot be made cheap, it belongs off the frame path entirely, not
+  on a rota. Report the p99 and the worst frame beside the median, because those are the ones a
+  player feels.
 - **Allocation is a metric on the frame path.** Persistent scratch buffers refilled with `clear()`,
   results into an out-parameter, nothing that constructs a `std::string` or a `std::function` per
   frame, logging that compiles out. There is a test that enforces this (`docs/rtx/plan.md` §7.3).

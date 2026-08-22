@@ -419,6 +419,11 @@ namespace RtxBridge
         went.mMaterials = sweep(mMaterials, mEpoch, mLiveMaterials);
         sweep(mEmitterTextures, mEpoch, mLiveTextures);
 
+        // **Compaction renumbers every table, so everything built from them is built again.** That
+        // is a spike, and a spike is a dropped frame however rarely it lands — see CLAUDE.md. The
+        // answer is not to ration it behind a threshold, which only makes the spike less frequent
+        // and no smaller; it is to stop needing it, by letting the tables recycle their slots the
+        // way the placements do. Until they can, this runs whenever something went.
         const std::size_t before = mScene.getTextures().size();
         if (mScene.retain(mLiveMeshes, mLiveMaterials, mLiveTextures, mRemap))
         {
