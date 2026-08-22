@@ -225,6 +225,12 @@ namespace MWRender::Rtx
         constants.mAmbient = lighting.mAmbient;
         constants.mWaterLevel = lighting.mWaterLevel;
 
+        // **What the sea is animated by, and leaving it at zero is a frozen ocean.** The harness
+        // passes this through `applyLighting`; the game assembles its own constants and simply did
+        // not, so every wave stood still. Real elapsed seconds rather than the frame count: a sea
+        // that ran at the frame rate would slow down whenever the frame did.
+        constants.mTime = std::chrono::duration<float>(std::chrono::steady_clock::now() - mBegan).count();
+
         // The horizon is the fog and the zenith is the sky's own, which is the pair Morrowind
         // records: one colour for the air, and one for the dome it fades into overhead.
         constants.mSkyHorizon = lighting.mFog;

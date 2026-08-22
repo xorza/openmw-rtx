@@ -172,6 +172,9 @@ namespace MWRender::Rtx
         /// Times a run of frames when asked to, and is not compiled at all when it cannot be.
         Bench mBench;
 
+        /// When this renderer started, which is what the sea's clock is measured from.
+        std::chrono::steady_clock::time_point mBegan = std::chrono::steady_clock::now();
+
         /// When the last frame was handed over, so what `Bench` measures is the whole frame and not
         /// this renderer's slice of it.
         std::chrono::steady_clock::time_point mEntered;

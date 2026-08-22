@@ -17,3 +17,6 @@
   never touches the node's own, and `NifOsg` attaches it that way for anything marked
   `AnimFlag_AutoPlay`. So a fire or a lava flow is frozen on the frame the mirror first met, and
   `MWRender::Water`'s shader water arrives with no material at all.
+
+- The game's sea is animated off `steady_clock` since the tracer started rather than off the world's
+  own clock, so it goes on moving while the game is paused and does not follow time of day.

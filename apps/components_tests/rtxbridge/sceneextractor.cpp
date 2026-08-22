@@ -554,6 +554,13 @@ namespace RtxBridge
             root->addChild(quadWith(sWater));
             root->addChild(quadWith(sOther));
 
+            // **A drawable that never set a mask, which is nearly every one in the game.** OSG
+            // defaults a node mask to all ones, so a test that asks whether the water's bit is
+            // *among* a drawable's bits says yes to all of them — and the whole world came out
+            // shaded as sea, refracting like jelly. What names the water is that no other pass may
+            // see it.
+            root->addChild(quadWith(~osg::Node::NodeMask{ 0 }));
+
             // Nothing said, so nothing is water — which is the harness, and every caller that places
             // an analytic sea of its own instead.
             {
@@ -561,7 +568,7 @@ namespace RtxBridge
                 SceneExtractor silent(scene);
                 silent.extract(*root, osg::Matrixf::identity(), 0);
 
-                ASSERT_EQ(scene.getMaterials().size(), 2u);
+                ASSERT_EQ(scene.getMaterials().size(), 3u);
                 for (const Rtx::Material& material : scene.getMaterials())
                     EXPECT_EQ(material.mKind, Rtx::MaterialKind::Surface);
             }
@@ -571,10 +578,12 @@ namespace RtxBridge
             extractor.setWaterMask(sWater);
             extractor.extract(*root, osg::Matrixf::identity(), 0);
 
-            ASSERT_EQ(scene.getMaterials().size(), 2u);
+            ASSERT_EQ(scene.getMaterials().size(), 3u);
             EXPECT_EQ(scene.getMaterials()[0].mKind, Rtx::MaterialKind::Water);
             EXPECT_EQ(scene.getMaterials()[1].mKind, Rtx::MaterialKind::Surface)
                 << "a mask the caller did not name made a surface into a sea";
+            EXPECT_EQ(scene.getMaterials()[2].mKind, Rtx::MaterialKind::Surface)
+                << "a drawable with the default mask was called water, which is every drawable";
 
             // **What being water is actually for.** A shadow ray has to pass through the surface, or
             // every shallow in the game is lit as though the sea were a wall; the mask is where the
@@ -582,9 +591,10 @@ namespace RtxBridge
             std::vector<Rtx::InstanceRecord> records;
             Rtx::makeInstanceRecords(scene, records);
 
-            ASSERT_EQ(records.size(), 2u);
+            ASSERT_EQ(records.size(), 3u);
             EXPECT_EQ(records[0].mMask, Rtx::Shaders::MASK_WATER);
             EXPECT_EQ(records[1].mMask, Rtx::Shaders::MASK_SOLID);
+            EXPECT_EQ(records[2].mMask, Rtx::Shaders::MASK_SOLID);
             EXPECT_NE(records[0].mMask, records[1].mMask);
         }
 

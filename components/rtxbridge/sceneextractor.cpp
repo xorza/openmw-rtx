@@ -498,13 +498,15 @@ namespace RtxBridge
         {
             std::span<const osg::Vec3f> mPositions;
 
-            /// Empty where the geometry has none, or binds one per primitive rather than per vertex.
-            /// A per-vertex array is the only binding worth carrying: anything coarser describes the
-            /// whole drawable, and a ray tracer shading a hit point wants a value it can interpolate.
+            /// Empty only where the geometry names no normal at all. A per-vertex array is taken as
+            /// it stands and a single overall one is spread across the vertices, which is the same
+            /// answer at every point of a flat surface.
             std::span<const osg::Vec3f> mNormals;
         };
 
-        VertexArrays readVertices(const osg::Geometry& geometry)
+        /// @param flat scratch for an overall normal spread across the vertices. Refilled here and
+        ///        borrowed by the returned span, so it has to outlive the read.
+        VertexArrays readVertices(const osg::Geometry& geometry, std::vector<osg::Vec3f>& flat)
         {
             VertexArrays arrays;
 
@@ -515,9 +517,25 @@ namespace RtxBridge
             arrays.mPositions = std::span(positions->asVector());
 
             const auto* normals = dynamic_cast<const osg::Vec3Array*>(geometry.getNormalArray());
-            if (normals != nullptr && normals->size() == positions->size())
-                arrays.mNormals = std::span(normals->asVector());
+            if (normals == nullptr || normals->empty())
+                return arrays;
 
+            if (normals->size() == positions->size())
+            {
+                arrays.mNormals = std::span(normals->asVector());
+                return arrays;
+            }
+
+            // **One normal for the whole drawable is a normal, and dropping it made the sea flat
+            // black.** `SceneUtil::createWaterGeometry` binds exactly this — a thousand vertices and
+            // one `(0, 0, 1)` — so the game's water mirrored with no normal at all, and shading a
+            // surface by a zero vector produces radiance that the frame's own exposure then reads.
+            // Everything else in the picture goes with it.
+            if (normals->getBinding() != osg::Array::BIND_OVERALL)
+                return arrays;
+
+            flat.assign(positions->size(), normals->at(0));
+            arrays.mNormals = std::span(flat);
             return arrays;
         }
     }
@@ -551,7 +569,7 @@ namespace RtxBridge
         const auto* terrain = dynamic_cast<const Terrain::TerrainDrawable*>(&geometry);
         // **Asked of the drawable and not of the path.** OpenMW marks the water geometry itself, and
         // the node above it is a plain transform shared with anything else hanging there.
-        const bool water = (drawable.getNodeMask() & mWaterMask) != 0;
+        const bool water = isWater(drawable.getNodeMask());
 
         const Rtx::Index material
             = terrain != nullptr ? resolveTerrainMaterial(*terrain, stats) : resolveMaterial(path, water, stats);
@@ -768,7 +786,7 @@ namespace RtxBridge
             // only for what is actually moving.
             if (deforming)
             {
-                const VertexArrays arrays = readVertices(geometry);
+                const VertexArrays arrays = readVertices(geometry, mFlatNormalScratch);
                 mScene.updateMesh(known->second.mIndex, arrays.mPositions, arrays.mNormals);
                 ++stats.mDeformed;
             }
@@ -776,7 +794,7 @@ namespace RtxBridge
             return known->second.mIndex;
         }
 
-        const VertexArrays arrays = readVertices(geometry);
+        const VertexArrays arrays = readVertices(geometry, mFlatNormalScratch);
         if (arrays.mPositions.empty())
         {
             ++stats.mSkippedEmpty;
@@ -806,6 +824,15 @@ namespace RtxBridge
             ++stats.mDeformed;
 
         return mesh;
+    }
+
+    bool SceneExtractor::isWater(osg::Node::NodeMask mask) const
+    {
+        // **Every bit outside the water's, and not merely one inside it.** A node mask is a filter
+        // over passes and its default is all ones, so `mask & water` is true for every drawable that
+        // never set one — which in this engine is nearly all of them, and it shaded the whole world
+        // as sea. What names the water is that no *other* pass may see it.
+        return mWaterMask != 0 && (mask & ~mWaterMask) == 0;
     }
 
     Rtx::Index SceneExtractor::resolveMaterial(const osg::NodePath& path, bool water, ExtractionStats& stats)

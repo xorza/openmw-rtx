@@ -135,8 +135,10 @@ namespace RtxBridge
         /// `MASK_WATER`, so a shadow ray stops at the surface and every shallow in the game goes
         /// black; and no waves, refraction or caustics, which are what the renderer has for it.
         ///
-        /// A drawable whose own mask intersects this gets `MaterialKind::Water`. The harness names
-        /// nothing here because it places an analytic sea of its own (`RtxBridge::addWater`).
+        /// A drawable is water when its own mask carries **no bit outside** this one — not merely a
+        /// bit inside it. A node mask defaults to all ones, so an intersection test calls every
+        /// drawable that never set one the sea. The harness names nothing here because it places an
+        /// analytic sea of its own (`RtxBridge::addWater`).
         void setWaterMask(osg::Node::NodeMask mask) { mWaterMask = mask; }
 
         /// Walks `node` and places what it finds by `transform`, under `anchor`.
@@ -250,6 +252,9 @@ namespace RtxBridge
         /// poses of every actor in the scene and flicker between them.
         Rtx::Index resolveMesh(
             const osg::Drawable& drawable, const osg::Geometry& geometry, bool deforming, ExtractionStats& stats);
+        /// Whether a drawable carrying `mask` is the world's water.
+        bool isWater(osg::Node::NodeMask mask) const;
+
         Rtx::Index resolveMaterial(const osg::NodePath& path, bool water, ExtractionStats& stats);
 
         /// The layered material of a terrain chunk, whose shading is not on the graph at all.
@@ -317,6 +322,9 @@ namespace RtxBridge
         // Refilled per drawable rather than reallocated, because a cell is tens of thousands of them.
         std::vector<std::uint32_t> mIndexScratch;
         std::vector<osg::Vec3f> mNormalScratch;
+
+        /// An overall normal spread across a drawable's vertices, for the geometry that binds one.
+        std::vector<osg::Vec3f> mFlatNormalScratch;
         std::vector<osg::Vec2f> mTexCoordScratch;
         std::vector<float> mMaskScratch;
 
