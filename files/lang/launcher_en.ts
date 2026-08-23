@@ -258,14 +258,6 @@
         <source>Experimental Ray Tracing</source>
         <translation></translation>
     </message>
-    <message>
-        <source>Loads the Vulkan validation layers and stops the process on any error they report. Developers only.</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>Vulkan Validation Layers</source>
-        <translation></translation>
-    </message>
 </context>
 <context>
     <name>ImportPage</name>

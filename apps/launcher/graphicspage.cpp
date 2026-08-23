@@ -2,6 +2,7 @@
 
 #include "sdlinit.hpp"
 
+#include <components/features/features.hpp>
 #include <components/misc/display.hpp>
 #include <components/settings/values.hpp>
 
@@ -94,19 +95,16 @@ bool Launcher::GraphicsPage::loadSettings()
 
     if (Settings::rtx().mEnabled)
         rayTracingCheckBox->setCheckState(Qt::Checked);
-    if (Settings::rtx().mValidation)
-        rayTracingValidationCheckBox->setCheckState(Qt::Checked);
 
     // The setting exists in every build so a config file survives moving between them; the switch
     // is shown dead rather than hidden, because a control that silently does nothing is worse than
-    // one that says why.
-#ifndef OPENMW_RTX
-    rayTracingCheckBox->setEnabled(false);
-    rayTracingValidationCheckBox->setEnabled(false);
-    const QString unavailable = tr("This build was made without the ray tracing renderer.");
-    rayTracingCheckBox->setToolTip(unavailable);
-    rayTracingValidationCheckBox->setToolTip(unavailable);
-#endif
+    // one that says why. Asked of the build rather than of the preprocessor — see
+    // `Features::hasRayTracing`.
+    if (!Features::hasRayTracing())
+    {
+        rayTracingCheckBox->setEnabled(false);
+        rayTracingCheckBox->setToolTip(tr("This build was made without the ray tracing renderer."));
+    }
 
     // aaValue is the actual value (0, 1, 2, 4, 8, 16)
     const int aaValue = Settings::video().mAntialiasing;
@@ -154,7 +152,6 @@ void Launcher::GraphicsPage::saveSettings()
     Settings::video().mAntialiasing.set(antiAliasingComboBox->currentText().toInt());
 
     Settings::rtx().mEnabled.set(rayTracingCheckBox->checkState() == Qt::Checked);
-    Settings::rtx().mValidation.set(rayTracingValidationCheckBox->checkState() == Qt::Checked);
 
     int cWidth = 0;
     int cHeight = 0;

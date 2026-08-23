@@ -191,14 +191,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Loads the Vulkan validation layers and stops the process on any error they report. Developers only.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Vulkan Validation Layers</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Custom:</source>
         <translation type="unfinished"></translation>
     </message>

@@ -348,7 +348,7 @@ elsewhere fails loudly rather than inheriting a parent's blend mode.
 
 ## D. Performance
 
-### D1. Four submit-and-wait fences per frame on the Vulkan GUI path — high
+### D1. The GUI's submits — **measured, and far smaller than I claimed** — low
 
 | Site | When |
 | --- | --- |
@@ -357,20 +357,33 @@ elsewhere fails loudly rather than inheriting a parent's blend mode.
 | `GuiTextures::add` (`guitextures.cpp:28`) | every texture created |
 | `Image::read` via `GuiTextures::read` | every `keepCopy` redraw |
 
-`submitAndWait` is a queue submit *and a fence wait*. `drawGui`'s comment calls it "one more queue
-submit"; it is a full CPU/GPU round trip, and it happens on every frame the interface is visible —
-which is most of them, since the HUD counts.
+`submitAndWait` allocates a command buffer, submits, waits on a fence and frees it, and
+`CommandPool`'s own doc says it is "Setup only. Recording a frame means reusing a buffer against a
+fence … and nothing here is shaped for that." So the shape is wrong for the frame path. What it
+costs is not.
 
-`GuiTextures::write` is worse, because MyGUI's interface hands back the whole texture on every
-`unlock`. A playing video calls it once per frame (`VideoWidget::commitFrame` → `Picture::set` →
-`Texture::unlock` → `write`), stalling the pipeline once per video frame; a font rebuild on resize,
-a save thumbnail and every fog-of-war update do the same.
+Measured in the game, standing in an exterior with the HUD up:
 
-**Fix:** one staging ring and one command buffer. Collect the frame's uploads into a scratch region,
-record the copies at the head of the frame's own command buffer, and let `drawGui` record into that
-same buffer instead of opening its own. `GuiTextures::drop`'s comment ("Nothing is in flight to hold
-it: every submit here waits") is the thing that has to change with it — a slot handed back needs a
-frame of deferral once the waits go.
+| | in steady play | per call |
+| --- | --- | --- |
+| `GuiTextures::write` | **0 per frame** | 0.03–0.42 ms; 144 calls over an entire startup |
+| `GuiTextures::add` | **0 per frame** | — |
+| `VulkanRenderer::drawGui` — record, pass, submit, fence | every frame | **0.21–0.34 ms** |
+
+Against a 6.2–7.0 ms trace and a 16.7 ms budget that is about 1.3% of the frame. **I called this
+"the largest single performance item" from the shape of the code, and the measurement says it is
+not.** The texture uploads are a load-and-event cost — a menu opening, a save thumbnail, a video —
+and nothing writes a GUI texture during play at all.
+
+The waits are also load-bearing: `GuiTextures::drop` says a slot can be given back because "every
+submit here waits, and so does the one that drew with it". Removing them needs deferred-drop
+machinery, which is real complexity bought with 0.2 ms, on a frame that is about to change shape
+anyway. `CLAUDE.md` names this trade exactly: write the number down rather than act on it.
+
+**Do it when something makes it matter** — a video path that has to hold frame rate, or the frame
+being restructured for another reason. The shape to move to is unchanged: one staging ring, the
+copies recorded at the head of the frame's own command buffer, `drawGui` recording into that buffer
+instead of opening its own, and `drop` deferred by a frame.
 
 ### D2. Local-map framebuffers now accumulate for the session — high (OpenGL path)
 
@@ -611,9 +624,11 @@ and each has a caller wanting its own answer. `tsky` no longer moves the `isInte
 `PostProcessor::setExteriorFlag` still comes from `mwworld/scene.cpp` reaching into the shader chain
 directly. That is the A3 leak and belongs to step 9, not here.
 
-### 4. The GUI submit storm *(D1)*
+### 4. The GUI submit storm *(D1)* — **done: measured, and not worth doing yet**
 
-The largest single performance item and self-contained inside `components/rtxvulkan`.
+0.21–0.34 ms a frame for `drawGui`, zero GUI texture writes per frame in play — 1.3% of the budget,
+against machinery whose waits `GuiTextures::drop` relies on for correctness. Numbers and the shape
+to move to when it does matter are in D1. The original plan, for when that day comes:
 
 1. Give `GuiTextures` a staging ring and a `flush(VkCommandBuffer)`; `write` records into it instead
    of submitting.
@@ -643,10 +658,22 @@ Reuse `mLockedImage` and the `osg::Texture2D` when the size and format have not 
 already-logged ISSUES entry; landing it fixes the video regression and removes an allocation from
 every `Picture::set` on both renderers.
 
-### 8. The remaining `#ifdef` *(A2)*
+### 8. The remaining `#ifdef` *(A2)* — **done**
 
-`MWRender::rendererAvailable(std::string_view)` in `renderer.cpp`; rewrite `settingswindow.cpp` and
-`graphicspage.cpp` to call it. Small, and it is the thing the review asked for.
+`Features::hasRayTracing()` in `components/features/features.cpp` is the one place the build option
+becomes a value, and `components` now carries the definition so both binaries can ask. The settings
+page and the launcher call it, and the launcher's own `OPENMW_RTX` compile definition is gone.
+`components/features/` rather than `components/version/`, because a version is what release this
+is and this is what was compiled into it — and not `components/build/`, which `.gitignore`'s
+unanchored `build*/` swallows at any depth.
+
+Not `MWRender::rendererAvailable` as sketched here: the launcher does not link `openmw-lib`, so the
+answer had to live somewhere both binaries already link.
+
+**The floor is two spellings, not one, and the second cannot be helped.**
+`MWRender::createRenderer` has to name a type that does not exist in a build without the option, so
+its `#ifdef` guards an include and a construction — one decision, one file. Every other use of the
+macro in C++ is gone: three sites became one question asked in two places.
 
 ### 9. `PostProcessor` and the sky *(A3, A4)*
 

@@ -385,6 +385,10 @@ add_component_dir (version
     version
     )
 
+add_component_dir (features
+    features
+    )
+
 add_component_dir (fallback
     fallback validate
     )
@@ -590,6 +594,13 @@ if (OPENMW_USE_SYSTEM_SQLITE3)
 endif()
 
 add_library(components STATIC ${COMPONENT_FILES})
+
+# **So that `Features::hasRayTracing` can answer without anything else asking.** The option is a fact
+# about the binary and every program in this tree links this library; spelling it here is what keeps
+# the launcher and the settings page from each repeating the macro.
+if (OPENMW_RTX)
+    target_compile_definitions(components PUBLIC OPENMW_RTX)
+endif()
 
 if (ANDROID)
     set_property(TARGET components PROPERTY POSITION_INDEPENDENT_CODE ON)

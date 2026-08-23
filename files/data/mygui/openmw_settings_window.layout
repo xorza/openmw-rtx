@@ -822,20 +822,6 @@
                                 <Widget type="Spacer"/>
                             </Widget>
 
-                            <Widget type="HBox" align="Stretch">
-                                <UserString key="HStretch" value="true"/>
-                                <UserString key="VStretch" value="false"/>
-                                <Widget type="AutoSizedButton" skin="MW_Button" name="RayTracingValidationButton">
-                                    <UserString key="SettingCategory" value="RTX"/>
-                                    <UserString key="SettingName" value="validation"/>
-                                    <UserString key="SettingType" value="CheckButton"/>
-                                </Widget>
-                                <Widget type="AutoSizedTextBox" skin="SandText">
-                                    <Property key="Caption" value="#{OMWEngine:RayTracingValidation}"/>
-                                </Widget>
-                                <Widget type="Spacer"/>
-                            </Widget>
-
                             <Widget type="Widget" position="0 0 0 8" align="Top HStretch">
                                 <UserString key="HStretch" value="true"/>
                             </Widget>

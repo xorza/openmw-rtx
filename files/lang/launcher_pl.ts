@@ -260,11 +260,11 @@
     </message>
     <message>
         <source>Loads the Vulkan validation layers and stops the process on any error they report. Developers only.</source>
-        <translation>Ładuje warstwy walidacyjne Vulkana i zatrzymuje proces przy każdym zgłoszonym przez nie błędzie. Tylko dla programistów.</translation>
+        <translation type="vanished">Ładuje warstwy walidacyjne Vulkana i zatrzymuje proces przy każdym zgłoszonym przez nie błędzie. Tylko dla programistów.</translation>
     </message>
     <message>
         <source>Vulkan Validation Layers</source>
-        <translation>Warstwy walidacyjne Vulkana</translation>
+        <translation type="vanished">Warstwy walidacyjne Vulkana</translation>
     </message>
 </context>
 <context>

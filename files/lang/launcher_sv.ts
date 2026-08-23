@@ -192,11 +192,11 @@
     </message>
     <message>
         <source>Loads the Vulkan validation layers and stops the process on any error they report. Developers only.</source>
-        <translation>Läser in Vulkans valideringslager och stoppar processen vid varje fel de rapporterar. Endast för utvecklare.</translation>
+        <translation type="vanished">Läser in Vulkans valideringslager och stoppar processen vid varje fel de rapporterar. Endast för utvecklare.</translation>
     </message>
     <message>
         <source>Vulkan Validation Layers</source>
-        <translation>Vulkan-valideringslager</translation>
+        <translation type="vanished">Vulkan-valideringslager</translation>
     </message>
     <message>
         <source>Custom:</source>

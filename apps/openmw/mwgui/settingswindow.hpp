@@ -64,7 +64,6 @@ namespace MWGui
         MyGUI::Widget* mWindowModeHint;
 
         MyGUI::Button* mRayTracingButton;
-        MyGUI::Button* mRayTracingValidationButton;
         MyGUI::Widget* mRayTracingRestartHint;
         MyGUI::Widget* mRayTracingUnavailableHint;
 

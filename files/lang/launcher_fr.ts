@@ -192,11 +192,11 @@
     </message>
     <message>
         <source>Loads the Vulkan validation layers and stops the process on any error they report. Developers only.</source>
-        <translation>Charge les couches de validation Vulkan et arrête le processus à la moindre erreur signalée. Réservé aux développeurs.</translation>
+        <translation type="vanished">Charge les couches de validation Vulkan et arrête le processus à la moindre erreur signalée. Réservé aux développeurs.</translation>
     </message>
     <message>
         <source>Vulkan Validation Layers</source>
-        <translation>Couches de validation Vulkan</translation>
+        <translation type="vanished">Couches de validation Vulkan</translation>
     </message>
     <message>
         <source>Custom:</source>

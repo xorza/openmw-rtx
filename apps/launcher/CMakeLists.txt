@@ -72,11 +72,6 @@ target_link_libraries(openmw-launcher
     components_qt
 )
 
-if (OPENMW_RTX)
-    # The launcher never links the renderer; it only needs to know whether the switch it offers
-    # leads anywhere.
-    target_compile_definitions(openmw-launcher PRIVATE OPENMW_RTX)
-endif()
 
 target_link_libraries(openmw-launcher Qt::Widgets Qt::Core Qt::Svg)
 
