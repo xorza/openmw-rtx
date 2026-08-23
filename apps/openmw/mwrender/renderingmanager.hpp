@@ -42,6 +42,11 @@ namespace ESM
     using RefNum = FormId;
 }
 
+namespace Fx
+{
+    class StateUpdater;
+}
+
 namespace Terrain
 {
     class World;
@@ -353,6 +358,14 @@ namespace MWRender
         std::unique_ptr<EffectManager> mEffectManager;
         std::unique_ptr<SceneUtil::ShadowManager> mShadowManager;
         osg::ref_ptr<PostProcessor> mPostProcessor;
+
+        /// The uniform block the world writes its light, its fog and its water into.
+        ///
+        /// **The post-processing chain's where there is one, and a standalone one where there is
+        /// not.** Every write here is the world saying what it is doing; whether a shader chain
+        /// samples it afterwards is the renderer's business, and asking that question at each of a
+        /// dozen setters would put the renderer's internals in all of them.
+        osg::ref_ptr<Fx::StateUpdater> mSharedFxState;
         osg::ref_ptr<NpcAnimation> mPlayerAnimation;
         osg::ref_ptr<SceneUtil::PositionAttitudeTransform> mPlayerNode;
         std::unique_ptr<Camera> mCamera;

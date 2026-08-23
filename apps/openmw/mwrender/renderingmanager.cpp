@@ -38,6 +38,7 @@
 
 #include <components/settings/values.hpp>
 
+#include <components/fx/stateupdater.hpp>
 #include <components/sceneutil/cullsafeboundsvisitor.hpp>
 #include <components/sceneutil/depth.hpp>
 #include <components/sceneutil/lightmanager.hpp>
@@ -333,6 +334,10 @@ namespace MWRender
                 Shader::ShaderManager::Slot::OpaqueDepthTexture));
         rootNode->addCullCallback(mPerViewUniformStateUpdater);
 
+        // The world, as the renderer will traverse it. The rasterizer wraps this in its
+        // post-processing group below and hands the wrapper back through the same call.
+        mRenderer.setSceneRoot(*mRootNode);
+
         // **The rasterizer's frame graph, and only where there is a rasterizer.** Its constructor
         // reads `GLExtensions` off the camera's graphics context, so under a renderer that owns its
         // own surface this is not a feature to switch off — it is a null dereference.
@@ -343,10 +348,13 @@ namespace MWRender
                 mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 0),
                 mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 1));
             resourceSystem->getSceneManager()->setSupportsNormalsRT(mPostProcessor->getSupportsNormalsRT());
+            mSharedFxState = mPostProcessor->getStateUpdater();
         }
         else
         {
-            mRenderer.setSceneRoot(*mRootNode);
+            // Written to and sampled by nothing. Uniform buffers are the chain's own optimisation,
+            // so a block with no chain behind it is plain memory.
+            mSharedFxState = new Fx::StateUpdater(false);
         }
         resourceSystem->getSceneManager()->setWeatherParticleOcclusion(Settings::shaders().mWeatherParticleOcclusion);
 
@@ -565,11 +573,8 @@ namespace MWRender
         // This is total nonsense but it's what Morrowind uses
         static const osg::Vec4f interiorSunPos
             = osg::Vec4f(-1.f, osg::DegreesToRadians(45.f), osg::DegreesToRadians(45.f), 0.f);
-        if (mPostProcessor != nullptr)
-        {
-            mPostProcessor->getStateUpdater()->setSunPos(interiorSunPos, false);
-            mPostProcessor->getStateUpdater()->setSunVec(-interiorSunPos);
-        }
+        mSharedFxState->setSunPos(interiorSunPos, false);
+        mSharedFxState->setSunVec(-interiorSunPos);
         mSunLight->setPosition(interiorSunPos);
     }
 
@@ -579,11 +584,8 @@ namespace MWRender
         mSunLight->setDiffuse(diffuse);
         mSunLight->setSpecular(osg::Vec4f(specular.x(), specular.y(), specular.z(), specular.w() * sunVis));
 
-        if (mPostProcessor != nullptr)
-        {
-            mPostProcessor->getStateUpdater()->setSunColor(diffuse);
-            mPostProcessor->getStateUpdater()->setSunVis(sunVis);
-        }
+        mSharedFxState->setSunColor(diffuse);
+        mSharedFxState->setSunVis(sunVis);
     }
 
     const osg::Vec4f& RenderingManager::getSunLightPosition() const
@@ -605,11 +607,8 @@ namespace MWRender
 
         mSky->setSunDirection(position);
 
-        if (mPostProcessor != nullptr)
-        {
-            mPostProcessor->getStateUpdater()->setSunPos(osg::Vec4f(position, 0.f), mNight);
-            mPostProcessor->getStateUpdater()->setSunVec(osg::Vec4f(-sunlightPos, 0.f));
-        }
+        mSharedFxState->setSunPos(osg::Vec4f(position, 0.f), mNight);
+        mSharedFxState->setSunVec(osg::Vec4f(-sunlightPos, 0.f));
     }
 
     void RenderingManager::addCell(const MWWorld::CellStore* store)
@@ -664,8 +663,7 @@ namespace MWRender
             mShadowManager->enableOutdoorMode();
         else
             mShadowManager->enableIndoorMode(Settings::shadows());
-        if (mPostProcessor != nullptr)
-            mPostProcessor->getStateUpdater()->setIsInterior(!enabled);
+        mSharedFxState->setIsInterior(!enabled);
     }
 
     bool RenderingManager::toggleBorders()
@@ -775,23 +773,22 @@ namespace MWRender
         mStateUpdater->setFogEnd(fogEnd);
         setFogColor(fogColor);
 
-        if (mPostProcessor != nullptr)
-        {
-            auto world = MWBase::Environment::get().getWorld();
-            const auto& stateUpdater = mPostProcessor->getStateUpdater();
+        auto world = MWBase::Environment::get().getWorld();
 
-            stateUpdater->setFogRange(fogStart, fogEnd);
-            stateUpdater->setNearFar(mNearClip, mViewDistance);
-            stateUpdater->setIsUnderwater(isUnderwater);
-            stateUpdater->setFogColor(fogColor);
-            stateUpdater->setGameHour(world->getTimeStamp().getHour());
-            stateUpdater->setWeatherId(world->getCurrentWeatherScriptId());
-            stateUpdater->setNextWeatherId(world->getNextWeatherScriptId());
-            stateUpdater->setWeatherTransition(world->getWeatherTransition());
-            stateUpdater->setWindSpeed(world->getWindSpeed());
-            stateUpdater->setSkyColor(mSky->getSkyColor());
+        mSharedFxState->setFogRange(fogStart, fogEnd);
+        mSharedFxState->setNearFar(mNearClip, mViewDistance);
+        mSharedFxState->setIsUnderwater(isUnderwater);
+        mSharedFxState->setFogColor(fogColor);
+        mSharedFxState->setGameHour(world->getTimeStamp().getHour());
+        mSharedFxState->setWeatherId(world->getCurrentWeatherScriptId());
+        mSharedFxState->setNextWeatherId(world->getNextWeatherScriptId());
+        mSharedFxState->setWeatherTransition(world->getWeatherTransition());
+        mSharedFxState->setWindSpeed(world->getWindSpeed());
+        mSharedFxState->setSkyColor(mSky->getSkyColor());
+
+        // Which techniques the chain runs underwater, which is the chain's own question.
+        if (mPostProcessor != nullptr)
             mPostProcessor->setUnderwaterFlag(isUnderwater);
-        }
     }
 
     Lighting RenderingManager::describeLighting() const
@@ -921,8 +918,7 @@ namespace MWRender
         mWater->setEnabled(enabled);
         mSky->setWaterEnabled(enabled);
 
-        if (mPostProcessor != nullptr)
-            mPostProcessor->getStateUpdater()->setIsWaterEnabled(enabled);
+        mSharedFxState->setIsWaterEnabled(enabled);
     }
 
     void RenderingManager::setWaterHeight(float height)
@@ -935,8 +931,7 @@ namespace MWRender
         mWater->setHeight(height);
         mSky->setWaterHeight(height);
 
-        if (mPostProcessor != nullptr)
-            mPostProcessor->getStateUpdater()->setWaterHeight(height);
+        mSharedFxState->setWaterHeight(height);
     }
 
     void RenderingManager::screenshot(osg::Image* image, int w, int h)
@@ -1341,11 +1336,8 @@ namespace MWRender
         float distanceMult = std::cos(osg::DegreesToRadians(std::min(fov, 140.f)) / 2.f);
         mTerrain->setViewDistance(mViewDistance * (distanceMult ? 1.f / distanceMult : 1.f));
 
-        if (mPostProcessor)
-        {
-            mPostProcessor->getStateUpdater()->setProjectionMatrix(mPerViewUniformStateUpdater->getProjectionMatrix());
-            mPostProcessor->getStateUpdater()->setFov(fov);
-        }
+        mSharedFxState->setProjectionMatrix(mPerViewUniformStateUpdater->getProjectionMatrix());
+        mSharedFxState->setFov(fov);
     }
 
     void RenderingManager::setScreenRes(int width, int height)
@@ -1376,8 +1368,7 @@ namespace MWRender
 
         mSunLight->setAmbient(color);
 
-        if (mPostProcessor != nullptr)
-            mPostProcessor->getStateUpdater()->setAmbientColor(color);
+        mSharedFxState->setAmbientColor(color);
         mStateUpdater->setAmbientColor(color);
     }
 
