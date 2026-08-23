@@ -119,7 +119,7 @@ namespace MWRender
         mStage.getCamera().setFinalDrawCallback(mDrawCompleteCallback);
         mRenderer.eventTraversal();
         mRenderer.updateTraversal();
-        mRenderer.renderFrame();
+        mRenderer.renderGui();
         mDrawCompleteCallback->waitTillDone();
 
         // now that we've "used up" the current frame, get a fresh frame number for the next frame() following after the

@@ -260,22 +260,10 @@ bool OMW::Engine::frame(unsigned frameNumber, float frametime)
     // if there is a separate Lua thread, it starts the update now
     mLuaWorker->allowUpdate(frameStart, frameNumber, *stats);
 
-    mRenderer->renderFrame();
-
-#ifdef OPENMW_RTX
-    // **The seam, and it is after the cull rather than before it.** `docs/rtx/plan.md` §2 has the
-    // ray tracing renderer eventually displacing the draw inside the call above; for now it runs
-    // beside it and composites over the result, which is what separates "can Vulkan reach the
-    // screen" from "can the graph be mirrored every frame".
-    //
-    // **Before the cull it mirrored two different frames at once.** Node transforms come from the
-    // update traversal, which has run; skinned vertices, terrain detail and which objects are paged
-    // in are all decided by the cull, which had not — so a walk here read this frame's bones with
-    // last frame's pose, and a character's hands arrived a frame behind the arms they hang off.
-    // Everything the mirror reads is settled by the time the traversal returns.
-    if (MWRender::RenderingManager* rendering = mWorld->getRenderingManager())
-        rendering->traceFrame();
-#endif
+    // **The world describes its own frame.** What is lit and where the eye is has met in
+    // `RenderingManager` by now; a renderer that culls ignores all of it and a renderer that does
+    // not needs every field.
+    mWorld->getRenderingManager()->renderFrame();
 
     mLuaWorker->finishUpdate(frameStart, frameNumber, *stats);
 

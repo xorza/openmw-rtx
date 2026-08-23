@@ -4,6 +4,7 @@
 #include "objects.hpp"
 #include "renderinginterface.hpp"
 #include "rendermode.hpp"
+#include "sceneframe.hpp"
 
 #include <components/settings/settings.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -212,17 +213,10 @@ namespace MWRender
 
         void update(float dt, bool paused);
 
-#ifdef OPENMW_RTX
-        /// Traces one frame and leaves it where the composite can draw it.
-        ///
-        /// **After `updateTraversal` and before `renderingTraversals`**, which is the one place the
-        /// scene graph is settled and nothing has drawn yet — and the call `docs/rtx/plan.md` says
-        /// the ray tracing renderer eventually displaces. It does not displace it yet: this slice
-        /// composites over the rasterizer rather than replacing it.
-        ///
-        /// Does nothing where the renderer is off or could not start.
-        void traceFrame();
-#endif
+        /// Describes this frame — the world, the eye, the clock and the light on it — and asks the
+        /// renderer for it. Every frame the main loop runs; the four places that draw a GUI over no
+        /// world call `Renderer::renderGui` instead.
+        void renderFrame();
 
         Animation* getAnimation(const MWWorld::Ptr& ptr);
         const Animation* getAnimation(const MWWorld::ConstPtr& ptr) const;
@@ -302,6 +296,10 @@ namespace MWRender
         osg::Vec2f getProjectionOffset() const { return mProjectionOffset; }
 
     private:
+        /// The world's light, as `RenderingManager` has already settled it. Default in a build with
+        /// no renderer that reads it — see the definition.
+        Lighting describeLighting() const;
+
         void updateTextureFiltering();
         void updateAmbient();
         void setFogColor(const osg::Vec4f& color);

@@ -93,6 +93,7 @@
 #include "pathgrid.hpp"
 #include "recastmesh.hpp"
 #include "renderer.hpp"
+#include "sceneframe.hpp"
 #include "stage.hpp"
 #include "terrainstorage.hpp"
 #include "util.hpp"
@@ -805,15 +806,9 @@ namespace MWRender
         mPostProcessor->setUnderwaterFlag(isUnderwater);
     }
 
-#ifdef OPENMW_RTX
-    void RenderingManager::traceFrame()
+    Lighting RenderingManager::describeLighting() const
     {
-        if (mTracer == nullptr)
-            return;
-
-        const osg::Viewport* viewport = mStage.getCamera().getViewport();
-        mTracer->resize(static_cast<std::uint32_t>(viewport->width()), static_cast<std::uint32_t>(viewport->height()));
-
+#ifdef OPENMW_RTX
         // **`mSunLight` is where every route to the lighting has already met.** The weather system,
         // the cell's `AMBI`, the night-eye effect and an interior's minimum brightness all end at
         // `updateAmbient` and `setSunColour`, so what is on the light is what the rasterizer is
@@ -829,7 +824,7 @@ namespace MWRender
 
         // **Decoded, because none of these has been.** Every one is a content file's three bytes
         // over 255 and no transfer function — `SceneUtil::colourFromRGB` and `Fallback::Map::getColour`
-        // both stop there — and the transport downstream is linear. `Rtx::Lighting` says so at
+        // both stop there — and the transport downstream is linear. `MWRender::Lighting` says so at
         // length; the harness runs the same decode on the same numbers.
         const osg::Vec3f diffuse = RtxBridge::decodeColour(mSunLight->getDiffuse());
         const osg::Vec3f ambient = RtxBridge::decodeColour(mSunLight->getAmbient());
@@ -849,19 +844,51 @@ namespace MWRender
         // a recorded depth, reached instead from the distances the game has already computed.
         const float half = 0.5f * (mFog->getFogStart(false) + mFog->getFogEnd(false));
 
-        mTracer->trace(*mSceneRoot, mStage.getCamera(),
-            Rtx::Lighting{
-                .mSunDirection = sun,
-                .mSunIrradiance = diffuse * ::Rtx::Shaders::DAYLIGHT,
-                .mAmbient = ambient,
-                .mFog = haze,
-                .mSkyZenith = zenith,
-                .mFogExtinction = half > 0.0f ? std::numbers::ln2_v<float> / half : 0.0f,
-                .mWaterLevel = mTracedWaterLevel,
-            },
-            mStage.getFrameStamp(), *mResourceSystem->getImageManager());
-    }
+        return Lighting{
+            .mSunDirection = sun,
+            .mSunIrradiance = diffuse * ::Rtx::Shaders::DAYLIGHT,
+            .mAmbient = ambient,
+            .mFog = haze,
+            .mSkyZenith = zenith,
+            .mFogExtinction = half > 0.0f ? std::numbers::ln2_v<float> / half : 0.0f,
+            .mWaterLevel = mTracedWaterLevel,
+        };
+#else
+        // Nothing in this build reads it. The rasterizer draws the world from the graph and its own
+        // state, and `RtxBridge::decodeColour` — which every field above goes through — is not
+        // compiled without a renderer that needs it.
+        return {};
 #endif
+    }
+
+    void RenderingManager::renderFrame()
+    {
+        const Lighting lighting = describeLighting();
+
+        const SceneFrame frame{
+            .mScene = *mSceneRoot,
+            .mCamera = mStage.getCamera(),
+            .mWhen = mStage.getFrameStamp(),
+            .mLighting = lighting,
+            .mImages = *mResourceSystem->getImageManager(),
+        };
+
+        mRenderer.renderFrame(frame);
+
+#ifdef OPENMW_RTX
+        // **After the draw, because the composite that shows it was drawn inside it.** The traced
+        // image reaches the screen through the rasterizer's HUD camera for as long as OpenGL owns
+        // the window, so the frame on screen is always the one before this — `docs/rtx/plan.md` §12,
+        // and what step 4 of `docs/rtx/renderers.md` removes by owning the window instead.
+        if (mTracer != nullptr)
+        {
+            const osg::Viewport& viewport = *mStage.getCamera().getViewport();
+            mTracer->resize(
+                static_cast<std::uint32_t>(viewport.width()), static_cast<std::uint32_t>(viewport.height()));
+            mTracer->trace(frame);
+        }
+#endif
+    }
 
     void RenderingManager::updatePlayerPtr(const MWWorld::Ptr& ptr)
     {

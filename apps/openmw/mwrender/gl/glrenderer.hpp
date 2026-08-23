@@ -58,7 +58,8 @@ namespace MWRender
         void advance(double simulationTime) override;
         void eventTraversal() override;
         void updateTraversal() override;
-        void renderFrame() override;
+        void renderFrame(const SceneFrame& frame) override;
+        void renderGui() override;
         bool done() const override;
 
         void capture(osg::Image& image, int width, int height) override;

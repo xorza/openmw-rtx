@@ -206,9 +206,9 @@ namespace MWRender
 
         /// Sun direction and irradiance, ambient, fog colour and extinction, sky zenith, water
         /// level — assembled by `RenderingManager` from where every route to them has already met.
-        /// `MWRender::Rtx::Lighting` today, moved up and renamed, because it describes the world
-        /// rather than the renderer.
-        const Environment& mEnvironment;
+        /// `MWRender::Lighting`, moved up out of the tracer because it describes the world rather
+        /// than the renderer. Not `Environment`, which `MWBase` already has.
+        const Lighting& mLighting;
     };
 
     /// One image of the world, whichever renderer makes it.
@@ -566,7 +566,7 @@ Neen from `--skip-menu --new-game`, loads, traces and runs clean; and a second t
 Not verified beyond compiling: the settings pages and the Lua bindings, which reach the same
 `RenderingManager::getPostProcessor()` they always did.
 
-### Step 4 — `RtxRenderer` presents the world
+### Step 4 — `RtxRenderer` presents the world — **the frame is plumbed; the renderer is not built**
 
 The SDL Vulkan window; `renderFrame` is mirror → trace → present. No GUI yet: the menu and the
 loading screen draw nothing, and the game is started with `--skip-menu --new-game`. Terrain by view
@@ -574,10 +574,45 @@ point (§5) lands here, because without it there is no ground. `components/rtxgl
 `MWRender::Rtx::Composite` and the composite's place on the post-processor's HUD camera are deleted
 in the same commit — the ray tracer was the only thing that ever used them.
 
-*Verified by*: `--skip-menu --new-game` reaches Seyda Neen and matches `openmw-rtxtool shot` from the
-same camera; the benchmark corpus runs; `plan.md` §12's frame of latency is gone, which is measurable
-— the traced frame and the presented frame now carry the same number. And the negative test, cheap
-enough to assert on every run: `SDL_GL_GetCurrentContext()` is null.
+**Landed: what the renderer is handed.** `MWRender::SceneFrame` — the world, the eye, the clock, the
+light on it and where a texture is read from — and `Renderer::renderFrame(const SceneFrame&)` in
+place of the argument-less one, beside a `renderGui()` for the four places that get a frame onto the
+screen from inside another one and have no world to describe: the loading screen, a modal message
+box, a video and the screenshot. Two methods rather than a nullable frame, because a renderer that
+culls cannot tell those two apart and one that mirrors the graph very much can.
+
+`MWRender::Lighting` moved up out of `MWRender::Rtx::Tracer` into `sceneframe.hpp`, because it
+describes the world rather than the renderer; it is not called `Environment`, which `MWBase` already
+has. `RenderingManager::traceFrame` became `RenderingManager::renderFrame`, which assembles the frame
+once and hands it over — so the lighting is read in one place for every renderer rather than on the
+tracer's own path, through a `describeLighting()` that is gated whole because
+`RtxBridge::decodeColour` is not compiled without a renderer that reads it. `Tracer::trace` already
+takes a `SceneFrame`, which is the interface `RtxRenderer` implements.
+
+**Not landed, and each is a piece of work rather than a line:**
+
+1. **`RtxRenderer` itself** — the SDL window with no GL attribute set, `Rtx::Renderer` constructed
+   with `mWindow` so the backend makes its own surface, and `renderFrame` ending in `presentFrame()`
+   rather than an export. `Rtx::Presenter` already does the swapchain, the per-image semaphores and
+   the blit, and `openmw-rtxtool view` already drives it, so this is transformation rather than
+   invention.
+2. **Driving the frame with no viewer** — `advance`, `eventTraversal` and `updateTraversal` are
+   `osgViewer::Viewer`'s, and a renderer that owns its own surface has to stamp the frame, drain what
+   SDL queued and run the update visitor itself. About eighty lines: OpenMW registers no update
+   operations, sets no camera manipulator and never gives `osgDB::Registry` a shared-state manager,
+   so none of what `osgViewer::Scene::updateSceneGraph` does around the visitor applies.
+3. **A MyGUI backend that draws nothing** — `MyGUI::Gui::initialise` needs a `RenderManager`, so
+   "the menu and the loading screen draw nothing" is not the absence of a backend but a backend
+   whose `doRender` returns. Until step 6 replaces it with the Vulkan one, `Renderer::createGuiPlatform`
+   has nothing to return under this renderer.
+4. **Terrain by view point** (§5), without which an exterior has no ground.
+
+*Verified by*: five golden images byte-identical, both test binaries, and the game still tracing
+through the composite path on the new frame. *To be verified when the rest lands*:
+`--skip-menu --new-game` reaches Seyda Neen and matches `openmw-rtxtool shot` from the same camera;
+the benchmark corpus runs; `plan.md` §12's frame of latency is gone, which is measurable — the traced
+frame and the presented frame now carry the same number. And the negative test, cheap enough to
+assert on every run: `SDL_GL_GetCurrentContext()` is null.
 
 ### Step 5 — the material becomes the only authored form
 

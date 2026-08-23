@@ -51,6 +51,7 @@ namespace VFS
 
 namespace MWRender
 {
+    struct SceneFrame;
     class Stage;
 
     /// What this renderer can do, so nothing above it has to assume.
@@ -120,10 +121,16 @@ namespace MWRender
         virtual void eventTraversal() = 0;
         virtual void updateTraversal() = 0;
 
-        /// Draws it. Called by the main loop, and again by the four places that get a frame onto
-        /// the screen from inside one — the loading screen, a modal message box, a video and the
-        /// screenshot.
-        virtual void renderFrame() = 0;
+        /// The world, and the GUI over it. Once per frame, from the main loop.
+        virtual void renderFrame(const SceneFrame& frame) = 0;
+
+        /// The GUI, with no world behind it.
+        ///
+        /// **The four places that get a frame onto the screen from inside another one** — the
+        /// loading screen, a modal message box, a video and the screenshot — and none of them has a
+        /// world to describe. A renderer that culls cannot tell the two apart and answers both the
+        /// same way; one that mirrors the graph and traces it very much can.
+        virtual void renderGui() = 0;
 
         /// Whether the window has been closed.
         virtual bool done() const = 0;

@@ -442,7 +442,16 @@ namespace MWRender
         mViewer->updateTraversal();
     }
 
-    void GlRenderer::renderFrame()
+    // The world is already in the graph and the cull is what finds it, so the rasterizer has
+    // nothing to read off the frame it is handed, and nothing to leave out when there is none. Both
+    // of these are one traversal, and which of the two it was is a question only a renderer that
+    // mirrors the graph has to answer.
+    void GlRenderer::renderFrame(const SceneFrame&)
+    {
+        mViewer->renderingTraversals();
+    }
+
+    void GlRenderer::renderGui()
     {
         mViewer->renderingTraversals();
     }

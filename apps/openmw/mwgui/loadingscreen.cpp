@@ -359,7 +359,7 @@ namespace MWGui
         // refer to the advance() and frame() order in Engine::go()
         mRenderer.eventTraversal();
         mRenderer.updateTraversal();
-        mRenderer.renderFrame();
+        mRenderer.renderGui();
         mRenderer.advance(mStage.getFrameStamp().getSimulationTime());
 
         mLastRenderTime = mTimer.time_m();

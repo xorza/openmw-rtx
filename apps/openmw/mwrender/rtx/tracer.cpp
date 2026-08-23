@@ -154,9 +154,12 @@ namespace MWRender::Rtx
         mShared = true;
     }
 
-    void Tracer::trace(const osg::Node& scene, const osg::Camera& camera, const Lighting& lighting,
-        const osg::FrameStamp& when, Resource::ImageManager& images)
+    void Tracer::trace(const SceneFrame& frame)
     {
+        const osg::FrameStamp& when = frame.mWhen;
+        const osg::Camera& camera = frame.mCamera;
+        const Lighting& lighting = frame.mLighting;
+
         mFrame = when.getFrameNumber();
 
         // **The world's clock and not this renderer's.** Everything the graph animates under its own
@@ -174,14 +177,14 @@ namespace MWRender::Rtx
 
         const RtxBridge::ExtractionStats found
             // One walk over the whole graph, where every path is already distinct.
-            = mExtractor->extract(const_cast<osg::Node&>(scene), osg::Matrixf::identity(), 0, mFrame);
+            = mExtractor->extract(frame.mScene, osg::Matrixf::identity(), 0, mFrame);
 
         if (mScene.getPlacedCount() == 0)
             return;
 
         // Placed, appended or rebuilt — the decision, and the describing a rebuild needs, are the
         // harness's too and are written once (`RtxBridge::SceneUploader`).
-        const RtxBridge::SceneUpload handed = mUploader.hand(*mRenderer, mScene, images, ::Rtx::SeaState{});
+        const RtxBridge::SceneUpload handed = mUploader.hand(*mRenderer, mScene, frame.mImages, ::Rtx::SeaState{});
 
         if (handed.mKind == RtxBridge::SceneUpload::Kind::Rebuilt)
             Log(Debug::Info) << "Ray tracing built " << mScene.getMeshes().size() << " meshes into " << found.mInstances
