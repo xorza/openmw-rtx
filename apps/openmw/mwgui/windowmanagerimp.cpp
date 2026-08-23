@@ -335,7 +335,7 @@ namespace MWGui
         mGuiModeStates[GM_MainMenu] = GuiModeState(menu.get());
         mWindows.push_back(std::move(menu));
 
-        mLocalMapRender = std::make_unique<MWRender::LocalMap>(&mStage.getSceneRoot());
+        mLocalMapRender = std::make_unique<MWRender::LocalMap>(mRenderer, mStage.getSceneRoot());
         auto map = std::make_unique<MapWindow>(mCustomMarkers, mDragAndDrop.get(), mLocalMapRender.get(), mWorkQueue);
         mMap = map.get();
         mWindows.push_back(std::move(map));
@@ -1054,9 +1054,6 @@ namespace MWGui
             mMessageBoxManager->onFrame(frameDuration);
 
         mToolTips->onFrame(frameDuration);
-
-        if (mLocalMapRender)
-            mLocalMapRender->cleanupCameras();
 
         mDebugWindow->onFrame(frameDuration);
 

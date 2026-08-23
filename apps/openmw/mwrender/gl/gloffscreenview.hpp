@@ -12,6 +12,11 @@ namespace MyGUIPlatform
     class OSGTexture;
 }
 
+namespace osg
+{
+    class Image;
+}
+
 namespace Resource
 {
     class ResourceSystem;
@@ -41,6 +46,8 @@ namespace MWRender
         void setExtent(int width, int height) override;
         void sceneChanged() override;
         void redraw() override;
+        void keepCopy() override;
+        const osg::Image* getCopy() const override;
         bool pick(float x, float y, osg::NodePath& hit) const override;
         MyGUI::ITexture& getTexture() const override;
 
@@ -48,8 +55,13 @@ namespace MWRender
         osg::ref_ptr<osg::Group> mParent;
         osg::ref_ptr<OffscreenRTTNode> mNode;
         osg::ref_ptr<OffscreenDrawOnceCallback> mDrawOnce;
-        osg::ref_ptr<osg::Group> mScene;
+        osg::ref_ptr<osg::Node> mScene;
+        osg::ref_ptr<osg::Image> mCopy;
         std::unique_ptr<MyGUIPlatform::OSGTexture> mTexture;
+
+        /// The picture is composited over what is behind it rather than filling its widget, which
+        /// is what makes the blend function below it this view's problem and not the widget's.
+        bool mTransparent;
     };
 }
 

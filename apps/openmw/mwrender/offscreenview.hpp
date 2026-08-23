@@ -1,6 +1,8 @@
 #ifndef GAME_RENDER_OFFSCREENVIEW_H
 #define GAME_RENDER_OFFSCREENVIEW_H
 
+#include <variant>
+
 #include <osg/Matrixf>
 #include <osg/Node>
 #include <osg/Vec3f>
@@ -13,7 +15,7 @@ namespace MyGUI
 
 namespace osg
 {
-    class Group;
+    class Image;
 }
 
 namespace MWRender
@@ -27,15 +29,25 @@ namespace MWRender
     /// asked for rather than passed down through it. A ray tracer answers the same request with
     /// rays, and none of those words mean anything to it.
     ///
-    /// **It describes what the two character previews want and no more.** The local map wants an
-    /// orthographic picture of a piece of the world that is already lit, which is a second unlike
-    /// caller and a reason to grow this — when that caller exists. See `docs/rtx/gui.md` §4.
     struct OffscreenViewSpec
     {
+        /// A vertical field of view, in degrees.
+        struct Perspective
+        {
+            float mFieldOfView = 0.f;
+        };
+
+        /// A box this many world units across, centred on the view direction.
+        struct Orthographic
+        {
+            float mWidth = 0.f;
+            float mHeight = 0.f;
+        };
+
         /// The subtree to draw. Every `redraw()` updates it and then draws it, so an update
         /// callback here is where a view that follows something inside it works out where to look
         /// from — the only moment at which it can.
-        osg::Group& mScene;
+        osg::Node& mScene;
 
         /// The image, in pixels. `setExtent` may go on to fill less of it than this.
         int mWidth = 0;
@@ -44,8 +56,7 @@ namespace MWRender
         /// Only the nodes these bits select; `vismask.hpp`.
         unsigned int mMask = ~0u;
 
-        /// Vertical, in degrees.
-        float mFieldOfView = 0.f;
+        std::variant<Perspective, Orthographic> mProjection;
         float mNear = 1.f;
         float mFar = 10000.f;
 
@@ -57,6 +68,12 @@ namespace MWRender
         osg::Vec3f mSunDirection;
         osg::Vec4f mSunDiffuse;
         osg::Vec4f mSunAmbient;
+
+        /// Whether `mScene` is a piece of the world or a group the game assembled for this picture
+        /// alone. The world arrives already lit, already placed relative to the eye and already
+        /// brought up to date this frame; a bare subtree has none of that and is given all of it
+        /// here.
+        bool mFromWorld = false;
     };
 
     /// One such picture, alive for as long as the GUI shows it.
@@ -80,8 +97,17 @@ namespace MWRender
         virtual void sceneChanged() = 0;
 
         /// Update the subtree and draw it again. Not per frame: a doll is redrawn when the player
-        /// puts something on.
+        /// puts something on, and a map tile when its cell is first entered.
         virtual void redraw() = 0;
+
+        /// Also keep the picture in main memory from now on. Costs a transfer off the device every
+        /// time it is drawn, so it is asked for rather than always done.
+        virtual void keepCopy() = 0;
+
+        /// That copy, or null while the most recent `redraw()` has not reached it — the drawing has
+        /// not happened when `redraw()` returns, and the copy comes back after that again. Null
+        /// forever where nothing asked for one.
+        virtual const osg::Image* getCopy() const = 0;
 
         /// What is at this point of the picture, in normalised device coordinates, as the path
         /// through the subtree to whatever was hit.

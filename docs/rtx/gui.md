@@ -121,14 +121,18 @@ three-and-one with a render command encoder. Neither knows what a widget is.
 /// A picture of part of the world, taken somewhere other than the eye.
 struct OffscreenViewSpec
 {
-    osg::Group& mScene;          //< the subtree, which the game built and poses
+    struct Perspective { float mFieldOfView; };      //< vertical, degrees
+    struct Orthographic { float mWidth, mHeight; };  //< world units across
+
+    osg::Node& mScene;           //< the subtree, which the game built and poses
     int mWidth, mHeight;
     unsigned int mMask;          //< vismask.hpp
-    float mFieldOfView;          //< vertical, degrees
+    std::variant<Perspective, Orthographic> mProjection;
     float mNear, mFar;
     osg::Vec4f mClearColour;
     osg::Vec3f mSunDirection;    //< the only light
     osg::Vec4f mSunDiffuse, mSunAmbient;
+    bool mFromWorld;             //< a piece of the world, or a group built for this picture alone
 };
 
 class OffscreenView
@@ -147,6 +151,10 @@ public:
     /// player puts something on, and a map tile when the cell is first entered.
     virtual void redraw() = 0;
 
+    /// Also keep the picture in main memory, and that copy — null until the last redraw reaches it.
+    virtual void keepCopy() = 0;
+    virtual const osg::Image* getCopy() const = 0;
+
     /// What is at this point of the drawn picture — a ray cast, wearing the rasterizer's clothes.
     virtual bool pick(float x, float y, osg::NodePath& hit) const = 0;
 
@@ -161,10 +169,9 @@ the `osg::Camera` render-to-texture it already has and wraps the result in an `O
 tracer answers with a trace into an image and a GUI texture. **The rendered sites in §1 stop naming a
 texture class at all.**
 
-**The spec grows with its callers and not ahead of them.** What is above is what the two character
-previews want; the local map wants an orthographic projection and a subtree the world already lights,
-and those arrive in 6.2 with it. A field no caller sets is a branch no renderer's implementation of
-this can be judged on.
+**The spec grew with its callers and not ahead of them.** The projection variant, `mFromWorld` and
+the copy all arrived in 6.2 with the local map, which is the caller that needed them; in 6.1 they
+would have been three branches nothing reached.
 
 ### 3.3 The three shapes, answered
 
@@ -221,14 +228,36 @@ step early would be a design with one example and two unreachable branches.
 *Verified by*: the game under OpenGL, with the doll and the race preview unchanged;
 `MyGUIPlatform::OSGTexture` no longer named by either.
 
-### Step 6.2 — the two maps
+### Step 6.2 — the two maps — **done**
 
-`LocalMap` over `OffscreenView` — which grows the spec an orthographic projection and a subtree the
-world already lights — and `GlobalMap` over the picture that comes out, rather than over the
-`osg::Texture2D` behind it. Together, for the reason in §1.
+`LocalMap` over `OffscreenView`, which grew the spec an orthographic projection, `mFromWorld` and a
+main-memory copy. `GlobalMap` over that copy: **the overlay is composed in main memory and nothing
+about it is rendered any more.** The render-to-texture it used to go through existed to do one
+downscale on the device, and paid for that with a camera per explored cell, a shader pair, a second
+copy of the image and a read back to keep the two in step — all of which is gone, along with
+`cleanupCameras` on both classes. A box filter over the whole tile is cheaper than that and better
+than what it replaced: the device sampled four texels of a picture it was shrinking fourteen-fold.
 
-*Verified by*: a local map that fills in as cells are entered, a global map that fills in behind it,
-and both surviving a save and a reload.
+The one cost added is a read of each exterior tile off the device, on the frame it is drawn. It buys
+the removal of the per-cell round trip that used to follow it, and the paint lands two frames after
+the cell is entered instead of in the same frame — which nothing was waiting on.
+
+**The map camera also stopped being fitted to the loaded scene.** It hangs at a fixed height and
+looks through a fixed slab, so a tile no longer changes because a neighbouring cell arrived, and a
+segment keeps one picture and redraws it instead of building a new one. That is what makes the tile
+the global map reads a stable thing, and it fixes a standing bug where a re-rendered exterior tile
+never reached the widget that was already showing the old one.
+
+**One bug found on the way, and it was not in this code.** `MyGUIPlatform::OSGTexture::lock` sized
+its buffer from the texture's *current* dimensions, and `osg::Texture2D::apply` rewrites those to the
+nearest power of two unless told not to. Any manually created texture that is not a power of two and
+is locked more than once therefore had every upload after the first fill part of a larger buffer and
+leave the rest undefined — for a 954×864 overlay, the top 21% blank and the rest skewed. Nothing
+upstream locks such a texture twice, so it had never shown. Fixed in `components/myguiplatform`.
+
+*Verified by*: the game under OpenGL, with the local map drawing Balmora as before and the world map
+showing both the land and the explored cells over it, loaded from a savegame and added to on the
+cell the player entered.
 
 ### Step 6.3 — the game stops filling textures through OSG
 

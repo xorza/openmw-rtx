@@ -66,6 +66,10 @@ namespace MyGUIPlatform
         mTexture->setTextureSize(width, height);
         mTexture->setSourceFormat(glfmt);
         mTexture->setSourceType(GL_UNSIGNED_BYTE);
+        // Otherwise `apply` rewrites the texture's own dimensions to the nearest power of two and
+        // rescales the image to match, which `lock` would then hand out as the buffer size — every
+        // upload after the first would fill part of a bigger buffer and leave the rest undefined.
+        mTexture->setResizeNonPowerOfTwoHint(false);
 
         mWidth = width;
         mHeight = height;
@@ -123,8 +127,11 @@ namespace MyGUIPlatform
             throw std::runtime_error("Texture already locked");
 
         mLockedImage = new osg::Image();
-        mLockedImage->allocateImage(mTexture->getTextureWidth(), mTexture->getTextureHeight(),
-            mTexture->getTextureDepth(), mTexture->getSourceFormat(), mTexture->getSourceType());
+        // The size this texture was asked for, not the one the texture is carrying: OpenSceneGraph
+        // is free to change the latter when it applies the texture, and a buffer sized to that is
+        // not the buffer the caller is about to fill.
+        mLockedImage->allocateImage(
+            mWidth, mHeight, mTexture->getTextureDepth(), mTexture->getSourceFormat(), mTexture->getSourceType());
 
         return mLockedImage->data();
     }
@@ -143,6 +150,7 @@ namespace MyGUIPlatform
         newTexture->setFilter(osg::Texture::MAG_FILTER, mTexture->getFilter(osg::Texture::MAG_FILTER));
         newTexture->setWrap(osg::Texture::WRAP_S, mTexture->getWrap(osg::Texture::WRAP_S));
         newTexture->setWrap(osg::Texture::WRAP_T, mTexture->getWrap(osg::Texture::WRAP_T));
+        newTexture->setResizeNonPowerOfTwoHint(false);
         newTexture->setImage(mLockedImage.get());
         // Tell the texture it can get rid of the image for static textures (since
         // they aren't expected to update much at all).

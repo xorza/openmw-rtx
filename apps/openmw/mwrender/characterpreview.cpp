@@ -66,7 +66,7 @@ namespace MWRender
         // Everything: the one bit left out is the one that tells an update traversal apart from a
         // cull, and nothing in the subtree carries it.
         spec.mMask = ~Mask_UpdateVisitor;
-        spec.mFieldOfView = 12.3f;
+        spec.mProjection = OffscreenViewSpec::Perspective{ .mFieldOfView = 12.3f };
         spec.mNear = 4.f;
         spec.mFar = 10000.f;
         // Transparent: the figure is composited over the window behind it.

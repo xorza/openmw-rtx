@@ -139,7 +139,11 @@ namespace MWGui
 
             MyGUI::ImageBox* mMapWidget;
             MyGUI::ImageBox* mFogWidget;
-            std::unique_ptr<MyGUI::ITexture> mMapTexture;
+
+            /// The local map's, not this entry's: a segment owns its picture for as long as the
+            /// cell is loaded, and the widget is only shown it.
+            MyGUI::ITexture* mMapTexture = nullptr;
+
             std::unique_ptr<MyGUI::ITexture> mFogTexture;
             int mCellX;
             int mCellY;
@@ -247,6 +251,9 @@ namespace MWGui
         // reveals this cell's map on the global map
         void cellExplored(int x, int y);
 
+        /// Hands the world map whatever explored cells now have a picture to paint from.
+        void paintExplored();
+
         void setGlobalMapPlayerPosition(float worldX, float worldY);
         void setGlobalMapPlayerDir(const float x, const float y);
 
@@ -296,8 +303,13 @@ namespace MWGui
         MyGUI::Widget* createMarker(const std::string& name, float x, float y, float agregatedWeight);
 
         MyGUI::ScrollView* mGlobalMap;
-        std::unique_ptr<MyGUI::ITexture> mGlobalMapTexture;
-        std::unique_ptr<MyGUI::ITexture> mGlobalMapOverlayTexture;
+        MyGUI::ITexture* mGlobalMapTexture = nullptr;
+        MyGUI::ITexture* mGlobalMapOverlayTexture = nullptr;
+
+        /// Cells the player has walked into whose picture has not come back off the device yet.
+        /// Drained every frame; never more than a handful long, because a cell is only entered so
+        /// fast.
+        std::vector<std::pair<int, int>> mExploredPending;
         MyGUI::ImageBox* mGlobalMapImage;
         MyGUI::ImageBox* mGlobalMapOverlay;
         MyGUI::ImageBox* mPlayerArrowLocal;

@@ -6,7 +6,9 @@
 #include <osg/Camera>
 #include <osg/FrameStamp>
 #include <osg/Group>
+#include <osg/Image>
 #include <osg/Material>
+#include <osg/PolygonMode>
 #include <osg/Texture2D>
 #include <osg/Viewport>
 #include <osgUtil/IntersectionVisitor>
@@ -34,6 +36,8 @@ namespace MWRender
     class OffscreenDrawOnceCallback : public SceneUtil::NodeCallback<OffscreenDrawOnceCallback>
     {
     public:
+        /// @param subgraph what to bring up to date before the draw, or null where the subtree is
+        ///        the world's and the frame's own update traversal has already been through it.
         explicit OffscreenDrawOnceCallback(osg::Node* subgraph)
             : mSubgraph(subgraph)
         {
@@ -41,6 +45,10 @@ namespace MWRender
 
         void operator()(osg::Node* node, osg::NodeVisitor* nv)
         {
+            // The stage's frame stamp, not a copy of it: held so that anything reading back from
+            // this view can tell how long ago the draw it is waiting for was asked for.
+            mFrameStamp = nv->getFrameStamp();
+
             if (!mPending)
             {
                 node->setNodeMask(0);
@@ -48,7 +56,13 @@ namespace MWRender
             }
 
             mPending = false;
-            mLastDrawnFrame = nv->getTraversalNumber();
+            mDrawnFrame = nv->getTraversalNumber();
+
+            if (mSubgraph == nullptr)
+            {
+                traverse(node, nv);
+                return;
+            }
 
             // RTTNode does not carry the update traversal into its camera, and a subtree the game
             // built for one picture hangs nowhere else, so its keyframe controllers are updated
@@ -66,12 +80,25 @@ namespace MWRender
 
         void redrawNextFrame() { mPending = true; }
 
-        unsigned int getLastDrawnFrame() const { return mLastDrawnFrame; }
+        unsigned int getDrawnFrame() const { return mDrawnFrame; }
+
+        /// Whether the last redraw has been drawn *and* the thread that drew it has moved on, which
+        /// is when anything the draw wrote back into main memory can be read.
+        bool isDrawDone() const
+        {
+            if (mPending || mDrawnFrame == 0 || mFrameStamp == nullptr)
+                return false;
+
+            // One frame for the draw the cull queued, and one more because the draw thread runs a
+            // frame behind the traversal that queued it.
+            return mFrameStamp->getFrameNumber() > mDrawnFrame + 1;
+        }
 
     private:
         osg::ref_ptr<osg::Node> mSubgraph;
+        osg::ref_ptr<const osg::FrameStamp> mFrameStamp;
         bool mPending = true;
-        unsigned int mLastDrawnFrame = 0;
+        unsigned int mDrawnFrame = 0;
     };
 
     /// Rewrites the subtree's blend functions so that what lands in the picture is premultiplied.
@@ -135,20 +162,22 @@ namespace MWRender
 
     /// The camera, and everything the rasterizer needs above the subtree for it to come out right.
     ///
-    /// The subtree arrives bare — the game assembled it for this picture and it hangs nowhere else
-    /// in the graph — so the light rig, the absolute reference frame and the loose uniforms the
-    /// object shaders read are all put on here rather than inherited from the world.
+    /// **`mFromWorld` decides most of what differs between two of these.** A piece of the world
+    /// arrives already lit, already placed relative to the eye and already brought up to date by the
+    /// frame's own update traversal; a group the game assembled for one picture arrives with none of
+    /// that, and is given a light rig, an absolute frame and an update of its own.
     class OffscreenRTTNode : public SceneUtil::RTTNode
     {
     public:
         OffscreenRTTNode(const OffscreenViewSpec& spec, Resource::ResourceSystem& resources)
-            : RTTNode(spec.mWidth, spec.mHeight, Settings::video().mAntialiasing, false, 0,
+            : RTTNode(spec.mWidth, spec.mHeight, spec.mFromWorld ? 0 : Settings::video().mAntialiasing, false, 0,
                 StereoAwareness::Unaware_MultiViewShaders, shouldAddMSAAIntermediateTarget())
             , mMask(spec.mMask)
             , mClearColour(spec.mClearColour)
+            , mFromWorld(spec.mFromWorld)
         {
             setNodeMask(Mask_RenderToTexture);
-            setColorBufferInternalFormat(GL_RGBA);
+            setColorBufferInternalFormat(spec.mClearColour.a() < 1.f ? GL_RGBA : GL_RGB);
             setDepthBufferInternalFormat(GL_DEPTH24_STENCIL8);
 
             buildProjection(spec);
@@ -158,7 +187,8 @@ namespace MWRender
         void setDefaults(osg::Camera* camera) override
         {
             camera->setName("OffscreenView");
-            camera->setReferenceFrame(osg::Camera::ABSOLUTE_RF);
+            camera->setReferenceFrame(
+                mFromWorld ? osg::Camera::ABSOLUTE_RF_INHERIT_VIEWPOINT : osg::Camera::ABSOLUTE_RF);
             camera->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT, osg::Camera::PIXEL_BUFFER_RTT);
             camera->setClearColor(mClearColour);
             camera->setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -170,10 +200,19 @@ namespace MWRender
             camera->setCullMaskRight(mMask);
             camera->setComputeNearFarMode(osg::Camera::DO_NOT_COMPUTE_NEAR_FAR);
 
+            if (mFromWorld)
+                // A chart of a whole cell is mostly small features, and the heuristic that drops
+                // them was tuned for an eye that moves through the world rather than hangs over it.
+                camera->setCullingMode((osg::Camera::DEFAULT_CULLING | osg::Camera::FAR_PLANE_CULLING)
+                    & ~osg::Camera::SMALL_FEATURE_CULLING);
+
             SceneUtil::setCameraClearDepth(camera);
 
             camera->setNodeMask(Mask_RenderToTexture);
             camera->addChild(mGroup);
+
+            if (mCopy)
+                camera->attach(osg::Camera::COLOR_BUFFER, mCopy);
         }
 
         void apply(osg::Camera* camera) override
@@ -192,6 +231,15 @@ namespace MWRender
 
         void setExtentStateSet(osg::StateSet* stateset) { mExtentStateSet = stateset; }
 
+        /// OpenSceneGraph reads the colour buffer into an attached image after rendering it, which
+        /// is the whole of what keeping a copy costs here.
+        void copyInto(osg::Image& image)
+        {
+            mCopy = &image;
+            if (osg::Camera* camera = getCamera(nullptr))
+                camera->attach(osg::Camera::COLOR_BUFFER, mCopy);
+        }
+
     private:
         /// **The camera and the shaders are given different matrices on purpose.** `AutoDepth` wants
         /// a reversed-Z projection and the shaders read it out of the `projectionMatrix` uniform,
@@ -201,13 +249,29 @@ namespace MWRender
         /// not care which it gets.
         void buildProjection(const OffscreenViewSpec& spec)
         {
-            const double aspect = static_cast<double>(spec.mWidth) / static_cast<double>(spec.mHeight);
+            const bool reversed = SceneUtil::AutoDepth::isReversed();
 
-            mCameraProjection = osg::Matrixf::perspective(spec.mFieldOfView, aspect, spec.mNear, spec.mFar);
-            mShaderProjection = SceneUtil::AutoDepth::isReversed()
-                ? static_cast<osg::Matrixf>(SceneUtil::getReversedZProjectionMatrixAsPerspective(
-                    spec.mFieldOfView, aspect, spec.mNear, spec.mFar))
-                : mCameraProjection;
+            if (const auto* perspective = std::get_if<OffscreenViewSpec::Perspective>(&spec.mProjection))
+            {
+                const double aspect = static_cast<double>(spec.mWidth) / static_cast<double>(spec.mHeight);
+
+                mCameraProjection = osg::Matrixf::perspective(perspective->mFieldOfView, aspect, spec.mNear, spec.mFar);
+                mShaderProjection = reversed
+                    ? static_cast<osg::Matrixf>(SceneUtil::getReversedZProjectionMatrixAsPerspective(
+                        perspective->mFieldOfView, aspect, spec.mNear, spec.mFar))
+                    : mCameraProjection;
+            }
+            else
+            {
+                const auto& box = std::get<OffscreenViewSpec::Orthographic>(spec.mProjection);
+                const double halfWidth = box.mWidth / 2.0;
+                const double halfHeight = box.mHeight / 2.0;
+
+                mCameraProjection.makeOrtho(-halfWidth, halfWidth, -halfHeight, halfHeight, spec.mNear, spec.mFar);
+                mShaderProjection = reversed ? static_cast<osg::Matrixf>(SceneUtil::getReversedZProjectionMatrixAsOrtho(
+                                        -halfWidth, halfWidth, -halfHeight, halfHeight, spec.mNear, spec.mFar))
+                                             : mCameraProjection;
+            }
         }
 
         void buildState(const OffscreenViewSpec& spec, Resource::ResourceSystem& resources)
@@ -234,6 +298,20 @@ namespace MWRender
             sun->setConstantAttenuation(1.f);
             sun->setLinearAttenuation(0.f);
             sun->setQuadraticAttenuation(0.f);
+
+            if (mFromWorld)
+            {
+                // Wireframe is a debug view of the world, not of a chart of it.
+                stateset->setAttribute(new osg::PolygonMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::FILL),
+                    osg::StateAttribute::OVERRIDE);
+
+                // The world brought its own light manager; this replaces the sun in it rather than
+                // adding a second rig underneath.
+                SceneUtil::configureStateSetSunOverride(sun, stateset);
+
+                mGroup->addChild(&spec.mScene);
+                return;
+            }
 
             osg::ref_ptr<SceneUtil::LightManager> lights = new SceneUtil::LightManager(
                 SceneUtil::LightSettings{
@@ -281,27 +359,34 @@ namespace MWRender
 
         osg::ref_ptr<osg::Group> mGroup = new osg::Group;
         osg::ref_ptr<osg::StateSet> mExtentStateSet;
+        osg::ref_ptr<osg::Image> mCopy;
         osg::Matrixf mCameraProjection;
         osg::Matrixf mShaderProjection;
         osg::Matrixf mViewMatrix = osg::Matrixf::identity();
         unsigned int mMask;
         osg::Vec4f mClearColour;
+        bool mFromWorld;
     };
 
     GlOffscreenView::GlOffscreenView(
         const OffscreenViewSpec& spec, osg::Group& parent, Resource::ResourceSystem& resources)
         : mParent(&parent)
         , mScene(&spec.mScene)
+        , mTransparent(spec.mClearColour.a() < 1.f)
     {
         mNode = new OffscreenRTTNode(spec, resources);
-        mDrawOnce = new OffscreenDrawOnceCallback(mNode->getContents());
+        mDrawOnce = new OffscreenDrawOnceCallback(spec.mFromWorld ? nullptr : mNode->getContents());
         mNode->addUpdateCallback(mDrawOnce);
         mParent->addChild(mNode);
 
-        // The picture is premultiplied — see SetUpBlendVisitor — so the source factor is one rather
-        // than the widget's usual source alpha.
-        osg::ref_ptr<osg::StateSet> premultiplied = new osg::StateSet;
-        premultiplied->setAttribute(new osg::BlendFunc(osg::BlendFunc::ONE, osg::BlendFunc::ONE_MINUS_SRC_ALPHA));
+        osg::ref_ptr<osg::StateSet> premultiplied;
+        if (mTransparent)
+        {
+            // The picture is premultiplied — see SetUpBlendVisitor — so the source factor is one
+            // rather than the widget's usual source alpha.
+            premultiplied = new osg::StateSet;
+            premultiplied->setAttribute(new osg::BlendFunc(osg::BlendFunc::ONE, osg::BlendFunc::ONE_MINUS_SRC_ALPHA));
+        }
 
         mTexture = std::make_unique<MyGUIPlatform::OSGTexture>(
             static_cast<osg::Texture2D*>(mNode->getColorTexture(nullptr)), premultiplied);
@@ -338,6 +423,9 @@ namespace MWRender
 
     void GlOffscreenView::sceneChanged()
     {
+        if (!mTransparent)
+            return;
+
         SetUpBlendVisitor visitor;
         mScene->accept(visitor);
     }
@@ -346,6 +434,25 @@ namespace MWRender
     {
         mNode->setNodeMask(Mask_RenderToTexture);
         mDrawOnce->redrawNextFrame();
+    }
+
+    void GlOffscreenView::keepCopy()
+    {
+        if (mCopy)
+            return;
+
+        mCopy = new osg::Image;
+        mCopy->setPixelFormat(GL_RGBA);
+        mCopy->setDataType(GL_UNSIGNED_BYTE);
+        mNode->copyInto(*mCopy);
+    }
+
+    const osg::Image* GlOffscreenView::getCopy() const
+    {
+        if (!mCopy || !mCopy->valid() || !mDrawOnce->isDrawDone())
+            return nullptr;
+
+        return mCopy;
     }
 
     bool GlOffscreenView::pick(float x, float y, osg::NodePath& hit) const
@@ -362,7 +469,7 @@ namespace MWRender
         visitor.setTraversalMode(osg::NodeVisitor::TRAVERSE_ACTIVE_CHILDREN);
         // Set the traversal number from the last draw, so that the frame switch used for RigGeometry double buffering
         // works correctly
-        visitor.setTraversalNumber(mDrawOnce->getLastDrawnFrame());
+        visitor.setTraversalNumber(mDrawOnce->getDrawnFrame());
 
         osg::Camera* camera = mNode->getCamera(nullptr);
         const osg::Node::NodeMask mask = camera->getNodeMask();

@@ -736,8 +736,12 @@ three different problems wearing one type. `gui.md` has the count, the design an
 and the race preview asking for one instead of building an `osg::Camera` and handing the GUI the
 texture behind it. The light rig, the sample count, the reversed-Z convention, the premultiplied
 alpha and the pick are all the renderer's now; `CharacterPreview` went from 577 lines to 326 and
-names no OpenGL at all. The maps did not come with it — `GlobalMap::exploreCell` reads the
-`osg::Texture2D` of a local map tile, so they move together in 6.2.
+names no OpenGL at all.
+
+**6.2 is done** as well: the local map over `OffscreenView`, and the world map's explored overlay
+composed in main memory rather than by a camera per cell and a shader pair, both of which are gone.
+Four of the eleven sites in `gui.md` §1 are closed and `mwgui` no longer names a texture class for
+any picture a renderer makes.
 
 ## 8. What breaks, and the decision for each
 

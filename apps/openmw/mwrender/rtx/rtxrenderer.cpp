@@ -412,6 +412,21 @@ namespace MWRender::Rtx
             void setExtent(int width, int height) override {}
             void sceneChanged() override {}
             void redraw() override {}
+
+            /// The copy is the picture, and the picture is already in main memory: there is no
+            /// device-side image to bring back until 6.7 makes one.
+            void keepCopy() override
+            {
+                if (mCopy)
+                    return;
+
+                mCopy = new osg::Image;
+                mCopy->allocateImage(mTexture.getWidth(), mTexture.getHeight(), 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                for (int i = 0; i < mTexture.getWidth() * mTexture.getHeight(); ++i)
+                    std::memcpy(mCopy->data() + i * 4, mColour, sizeof(mColour));
+            }
+
+            const osg::Image* getCopy() const override { return mCopy; }
             bool pick(float x, float y, osg::NodePath& hit) const override { return false; }
             MyGUI::ITexture& getTexture() const override { return mTexture; }
 
@@ -419,6 +434,8 @@ namespace MWRender::Rtx
             static inline unsigned int sNextName = 0;
 
             MyGUI::ITexture& mTexture;
+            osg::ref_ptr<osg::Image> mCopy;
+            std::uint8_t mColour[4] = {};
         };
     }
 
