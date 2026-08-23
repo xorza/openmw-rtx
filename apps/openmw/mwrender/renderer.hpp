@@ -58,30 +58,22 @@ namespace MWRender
 
     /// What this renderer can do, so nothing above it has to assume.
     ///
-    /// **Capabilities rather than null returns.** A renderer that is not the rasterizer will not
-    /// have some of what the rasterizer has, and the difference has to be answerable *before* a
-    /// settings page offers a slider for it or a Lua script calls into it. A ray tracer answering
-    /// "no shadow maps" is not reporting a gap: it has shadows and no maps, and that is the correct
-    /// answer.
+    /// **Capabilities rather than null returns, where a null return will not do.** A renderer that
+    /// is not the rasterizer will not have some of what the rasterizer has, and the difference has
+    /// to be answerable *before* a settings page offers a slider for it. A ray tracer answering "no
+    /// shadow maps" is not reporting a gap: it has shadows and no maps, and that is the answer.
     ///
-    /// One field so far, because a gate whose false branch no renderer takes is code nothing can
-    /// test. The rest of `docs/rtx/renderers.md` §8 arrives with the renderer that answers false.
+    /// **But asking a renderer what it has is a worse question than asking it for the thing.** Every
+    /// gate that lived here turned out to be a null check wearing a hat — `getPostProcessor()`
+    /// returning nothing says the same as a `mPostProcessing` that is false, and says it without
+    /// putting the shape of one renderer's insides in the caller. One field is left, and it is the
+    /// one nothing can be asked for: a number.
     struct Capabilities
     {
         /// How many textures one shader may sample. `Shader::ShaderManager` reserves its global
         /// units out of this, and content that wants one more than there are has to be told rather
         /// than find out at link time.
         int mTextureUnits = 0;
-
-        /// Whether this renderer will ever have a shader chain over the frame.
-        ///
-        /// **Asked only by what runs before there is one.** `getPostProcessor()` is the answer
-        /// everywhere else, and null is a reply the Lua bindings, the settings page and the HUD all
-        /// already understand — but the GUI is built before the world is, so whether to make the
-        /// post-processing HUD at all cannot be answered by asking for a chain that does not exist
-        /// yet. A renderer with none is not missing one: light and water reach its picture by a
-        /// different route entirely.
-        bool mPostProcessing = false;
     };
 
     /// What every renderer needs to exist, whatever it draws with.

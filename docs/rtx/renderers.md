@@ -636,9 +636,13 @@ where the sun is drawn, and how visible it is — became members, which is what 
 The measure of it: `renderingmanager.cpp` and its header now contain no `#ifdef OPENMW_RTX` at all.
 The god-object does not know the ray tracer exists.
 
-`Capabilities::mPostProcessing` survives with one consumer and a narrower job: the GUI is built
-before the world, so whether to make the post-processing HUD cannot be answered by asking for a chain
-that does not exist yet.
+`Capabilities::mPostProcessing` did not survive either. The one consumer left was the GUI deciding
+whether to build the post-processing HUD, and the GUI is built before the world — so it could not ask
+for a chain that did not exist yet. But the HUD reaches for one only when it is opened, and its
+constructor is widgets and nothing else: build it always, and let `togglePostProcessorHud` find null
+and decline. Every gate that lived on `Capabilities` turned out to be a null check wearing a hat.
+What is left of the struct is the one thing nothing can be asked for — the texture-unit count, which
+is a number rather than a thing.
 Outside `mwrender`: the two `setExteriorFlag` calls on every cell change, the HUD and its key, the
 Lua bindings — which raise a clear error rather than dereferencing null — and `Stereo::Manager`,
 whose singleton two places reached for whether or not stereo was on. Three device queries that ran

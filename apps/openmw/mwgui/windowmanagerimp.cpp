@@ -515,15 +515,12 @@ namespace MWGui
         mWindows.push_back(std::move(debugWindow));
         trackWindow(mDebugWindow, makeDebugWindowSettingValues());
 
-        // No shader chain, nothing for the HUD to list. The key that opens it is bound either
-        // way; `togglePostProcessorHud` is where it stops.
-        if (mRenderer.getCapabilities().mPostProcessing)
-        {
-            auto postProcessorHud = std::make_unique<PostProcessorHud>(mCfgMgr);
-            mPostProcessorHud = postProcessorHud.get();
-            mWindows.push_back(std::move(postProcessorHud));
-            trackWindow(mPostProcessorHud, makePostprocessorWindowSettingValues());
-        }
+        // Built whatever the renderer turns out to be: nothing in it reaches for a shader chain
+        // until it is opened, and `togglePostProcessorHud` is what decides whether it can be.
+        auto postProcessorHud = std::make_unique<PostProcessorHud>(mCfgMgr);
+        mPostProcessorHud = postProcessorHud.get();
+        mWindows.push_back(std::move(postProcessorHud));
+        trackWindow(mPostProcessorHud, makePostprocessorWindowSettingValues());
 
         auto controllerButtonsOverlay = std::make_unique<ControllerButtonsOverlay>();
         mControllerButtonsOverlay = controllerButtonsOverlay.get();
@@ -1117,8 +1114,7 @@ namespace MWGui
 
         mHud->onFrame(frameDuration);
 
-        if (mPostProcessorHud != nullptr)
-            mPostProcessorHud->onFrame(frameDuration);
+        mPostProcessorHud->onFrame(frameDuration);
 
         if (mCharGen)
             mCharGen->onFrame(frameDuration);
@@ -1761,7 +1757,7 @@ namespace MWGui
 
     bool WindowManager::isPostProcessorHudVisible() const
     {
-        return mPostProcessorHud && mPostProcessorHud->isVisible();
+        return mPostProcessorHud->isVisible();
     }
 
     bool WindowManager::isSettingsWindowVisible() const
@@ -2393,10 +2389,13 @@ namespace MWGui
 
     void WindowManager::togglePostProcessorHud()
     {
-        if (mPostProcessorHud == nullptr)
+        // Null under a renderer with no shader chain, which is the same answer as a chain switched
+        // off: there is nothing here to list.
+        const MWRender::PostProcessor* processor = MWBase::Environment::get().getWorld()->getPostProcessor();
+        if (processor == nullptr)
             return;
 
-        if (!MWBase::Environment::get().getWorld()->getPostProcessor()->isEnabled())
+        if (!processor->isEnabled())
         {
             messageBox("#{OMWEngine:PostProcessingIsNotEnabled}");
             return;
