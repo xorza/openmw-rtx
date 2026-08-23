@@ -46,6 +46,15 @@ namespace Rtx::Shaders
         vec3 mRight;
         vec3 mUp;
 
+        /// Non-zero for a parallel projection rather than a pinhole one.
+        ///
+        /// **What a map is, and what a viewpoint straight down needs.** With this set, `mRight` and
+        /// `mUp` carry the half-extents of a box in world units rather than of the image plane at
+        /// unit distance; a pixel's ray starts at `mOrigin + mRight * x - mUp * y` and every one of
+        /// them travels along `mForward`. The eye is then a plane and not a point, which is why the
+        /// motion vector has no answer under it.
+        uint mOrthographic;
+
         uint mWidth;
         uint mHeight;
 
@@ -86,6 +95,16 @@ namespace Rtx::Shaders
         /// Non-zero to write the albedo straight out, with no shading over it. What a test asserting
         /// "this pixel is that texel" needs, and what makes a texture problem visible as itself.
         uint mShowAlbedo;
+
+        /// Non-zero where there is no sky behind the subject: a ray that hits nothing comes back
+        /// with no radiance **and no coverage**, so the pixel is transparent rather than the
+        /// horizon's colour.
+        ///
+        /// **What a picture inside the interface is.** The inventory doll and a map tile are
+        /// composited over the window behind them rather than filling it, so what they do not cover
+        /// has to be nothing at all. Zero is a frame that fills a window, where the sky is the
+        /// answer and every pixel is opaque.
+        uint mTransparentBackground;
 
         /// Where the sun's light travels, and how much of it arrives on a surface square to it.
         ///
@@ -199,7 +218,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
-    static_assert(sizeof(VisibilityConstants) == 228, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 236, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

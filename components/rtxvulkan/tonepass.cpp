@@ -1,6 +1,7 @@
 #include "tonepass.hpp"
 
 #include <array>
+#include <cassert>
 
 #include "image.hpp"
 
@@ -26,8 +27,11 @@ namespace Rtx
     {
     }
 
-    void TonePass::record(VkCommandBuffer commands, const Image& colour, VkBuffer exposure, const Image& target) const
+    void TonePass::record(VkCommandBuffer commands, const Image& colour, VkBuffer exposure, const Image& target,
+        std::uint32_t width, std::uint32_t height) const
     {
+        assert(width <= target.getWidth() && height <= target.getHeight());
+
         const std::array<VkDescriptorImageInfo, 2> images{
             VkDescriptorImageInfo{ VK_NULL_HANDLE, colour.getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, target.getView(), VK_IMAGE_LAYOUT_GENERAL },
@@ -52,12 +56,9 @@ namespace Rtx
             .pBufferInfo = &scale,
         };
 
-        // **The target's size and not the colour's**, because with an upscaler between them the two
-        // differ — and a dispatch sized to the smaller one encodes a corner of the frame and leaves
-        // the rest of the image as it was found.
         const Shaders::ToneConstants constants{
-            .mWidth = target.getWidth(),
-            .mHeight = target.getHeight(),
+            .mWidth = width,
+            .mHeight = height,
         };
 
         vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getHandle());

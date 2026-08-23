@@ -189,6 +189,13 @@ namespace Rtx
             };
             vkCmdCopyImageToBuffer(
                 commands, mHandle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, staging.getHandle(), 1, &region);
+
+            // **Back where it was found.** Reading an image is not a change to it, and a caller that
+            // has to know a read moved it is one that will forget: the GUI's own table is sampled
+            // straight after the global map takes a copy of a tile out of it.
+            transition(commands, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, layout, VK_PIPELINE_STAGE_2_COPY_BIT,
+                VK_ACCESS_2_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT);
         });
 
         pixels.resize(bytes);

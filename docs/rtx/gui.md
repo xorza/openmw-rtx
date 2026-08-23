@@ -360,7 +360,63 @@ says the pass rebinds when the mode changes instead of using whichever pipeline 
 
 A trace into an image, at the doll's size, from the doll's viewpoint. The last of §1's eleven.
 
-*Verified by*: the inventory doll and a local map tile, traced.
+`MWRender::Rtx::TracedView` answers the whole of `OffscreenView` with rays, and it goes **straight
+into the table the GUI draws from**: `Renderer::traceGuiTexture` writes a slot rather than a frame,
+so a picture the interface shows is never a framebuffer and never in main memory. `readGuiTexture`
+exists for the one caller that needs a copy — the global map, compositing what the local map drew —
+and pays for it there.
+
+**Four things the trace did not have, and each is the same shape of answer.**
+
+- **A parallel projection.** A map looks straight down, which is the one direction
+  `makeCameraAlong` refuses — it recovers roll from the world's up and there is none. Two things
+  follow: `makeCameraFromView` takes the basis out of a view matrix, which anything holding a
+  viewpoint already has; and `VisibilityConstants::mOrthographic` makes `mRight` and `mUp` the
+  half-extents of a **box in world units** rather than of an image plane, so a ray starts where the
+  pixel sits and every one of them travels the same way. Its footprint does not widen with distance
+  and is not nothing either — it is one pixel of that box, which the shader takes off `mRight`
+  rather than carry twice.
+- **Somewhere for the picture to stop.** `mTransparentBackground` makes a ray that hits nothing come
+  back with no radiance *and no coverage*. That coverage rides in the direct channel's alpha and
+  every pass after it carries it through untouched, so it is one everywhere for a frame that fills a
+  window and zero where a doll ends.
+- **A chain that is not the frame's.** Nothing upscales, nothing averages, the exposure is fixed at
+  one — a doll is a still picture of a subject and not a frame in a sequence, and an exposure that
+  drifted with what the character was wearing would make the same armour two brightnesses in two
+  windows. The images behind it grow to the largest picture asked for and are never shrunk: there
+  are three or four sizes in the whole game, and every pass takes the extent it is dispatched over.
+- **A scene that is not the world.** A map tile is a piece of the world and traces against what the
+  renderer already holds. A doll is not: nothing in it stands in a cell, and a ray the frame sends
+  must not be able to find it. `addViewScene` gives it acceleration structures of its own, rebuilt
+  when the character puts something on. **Three objects and not four** — `VisibilityPass` is shared,
+  because every texture array declares the same bindless layout and identically defined layouts are
+  compatible.
+
+**Two things the rasterizer got from being in the graph and this has to do for itself.** A doll is
+posed by the viewer's update traversal reaching the subtree under an offscreen camera; there is no
+such graph here, so `RtxRenderer::updateSubtree` runs one over a subtree that is in no graph at all.
+And a map tile is asked for as its cell loads, which is the frame *before* the one that first
+mirrors it — so a view that asks with no world yet is drawn on the next frame that has one, rather
+than left blank until the local map happens to ask again.
+
+**The pick stayed on the processor.** What `InventoryWindow` wants back from a click is the node
+path it landed on, so it can ask the animation which equipment slot that was; a ray query answers
+with an instance index in a mirror, which is the wrong side of the question. The ray is built from
+the same basis the trace uses, so what a click finds is what the picture shows.
+
+*Verified by*: the game on the ray tracing path — the local map showing Balmora from above, its
+river, bridge, roads and rooftops, with the fog of war over the rest and the door markers where the
+doors are; the same tiles composited into the world map's explored overlay, which is the copy path
+rather than the texture one; and the inventory doll, posed, lit by the game's own rig and
+transparent where it stops.
+
+*And by* five headless GPU tests and two over the camera arithmetic. The exact ones are the
+parallel projection — a sheet fifty units
+across under an eye two hundred up covers **256** pixels of sixty-four square through a box two
+hundred wide and **64** through a ninety-degree pinhole, both counted by hand and different, which
+is what says the rays are parallel rather than plausibly fanned — and the scene split: the world
+fills the box and the doll covers a quarter of it, drawn through the same texture one after the
+other, with the world still the world afterwards.
 
 ## 5. What this is not
 

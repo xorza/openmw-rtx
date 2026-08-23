@@ -754,6 +754,13 @@ above the renderers that knew which one it was — `AdditiveLayer`, casting the 
 OpenGL manager and writing at its field offsets — is a `setAdditiveBlend` on the neutral base now,
 answered by a state set on one backend and a second `GuiPass` pipeline on the other.
 
+**6.7 is done**, and with it the last of `gui.md` §1's eleven: `MWRender::Rtx::TracedView` traces a
+picture straight into the table the GUI draws from. It took a parallel projection and a camera built
+from a view matrix — a map looks straight down, which is the one direction `makeCameraAlong` has no
+roll for — a coverage channel so a picture can say where it stops, a pass chain that neither
+upscales nor averages, and acceleration structures of their own for the subjects that are not in the
+world. The local map, the world map's explored overlay and the inventory doll are all traced.
+
 **6.3 with it**: the video frame, the save thumbnail and the fog of war go in through MyGUI's own
 factory — one `MyGUIPlatform::Picture` does it for all of them — and the loading screen asks the
 renderer for the frame it froze instead of installing a callback on the camera. All eleven sites in

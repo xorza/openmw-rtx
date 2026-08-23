@@ -41,6 +41,9 @@
   every `unlock`, and uploads the whole texture either way. A picture written once a frame — the
   video widget — therefore allocates twice a frame and re-sends every pixel of the frame.
 
+- The inventory doll's mirrored scene names one texture with an empty path, which resolves to
+  nothing and is drawn with the grey stand-in. The world's scene names none.
+
 - The ray tracing renderer has no screenshot key: `RtxRenderer::saveScreenshot` logs and does
   nothing. `OPENMW_RTX_SHOT` still writes frames.
 

@@ -17,6 +17,11 @@
 
 #include "bench.hpp"
 
+namespace Resource
+{
+    class ResourceSystem;
+}
+
 namespace osg
 {
     class Camera;
@@ -65,6 +70,8 @@ namespace MWRender::Rtx
     /// everywhere, so a frustum has nothing to say about what must be reachable — which is also
     /// why the frame is not one late the way `docs/rtx/plan.md` §12 describes. The mirror runs
     /// after the update traversal and the present runs after the mirror, all inside one frame.
+    class TracedView;
+
     class RtxRenderer final : public MWRender::Renderer
     {
     public:
@@ -129,6 +136,35 @@ namespace MWRender::Rtx
 
         osg::Timer_t getStartTick() const override { return mStartTick; }
 
+        /*internal:*/
+
+        /// Whether the world has reached the backend yet, so a picture traced against it would be a
+        /// picture of something.
+        bool hasScene() const { return mHasScene; }
+
+        /// Draws `view` on the next frame that has a world in it.
+        ///
+        /// **A cell asks for its map tile as it loads**, which is the frame before the one that
+        /// first mirrors it. Without this the tile the player starts on stays blank until a
+        /// neighbour arriving makes the local map ask for it again.
+        void deferRedraw(TracedView& view);
+
+        /// Takes a view off that list, because it is going away.
+        void forgetView(TracedView& view);
+
+        /// Where a picture of its own subject gets its textures from. Null before there is a world.
+        Resource::ResourceSystem* getResources() const { return mResources; }
+
+        /// Runs one update traversal over a subtree that is not in the graph.
+        ///
+        /// **Nothing else will.** The rasterizer hangs an offscreen view's camera off the scene
+        /// graph, so the viewer's own update traversal reaches the subtree under it and poses the
+        /// character; there is no such graph here, and a doll that is never updated is a doll in the
+        /// bind pose with a camera that never found its head.
+        /// @return the traversal number it posed at, which is the frame a double-buffered pose
+        ///         was written into and so the one an intersection test has to read.
+        unsigned int updateSubtree(osg::Node& node);
+
         /// The OSG stats overlay is the rasterizer's instrumentation and the rasterizer draws it.
         /// What this renderer has instead is its own frame times and `OPENMW_RTX_BENCH`.
         void installStatsOverlay(const VFS::Manager& vfs, bool toFile) override {}
@@ -149,8 +185,26 @@ namespace MWRender::Rtx
         /// Hands MyGUI's triangles to the renderer, where there is a GUI up at all.
         void drawGui();
 
+        /// Draws whatever asked before there was a world to draw it against.
+        void drawDeferredViews();
+
         Stage& mStage;
         Capabilities mCapabilities;
+
+        /// Whether the world has been handed to the backend at least once.
+        bool mHasScene = false;
+
+        /// The world's, for a picture that has to resolve textures of its own. Null until
+        /// `attachWorld`.
+        Resource::ResourceSystem* mResources = nullptr;
+
+        /// Pictures that asked to be drawn before it had. Raw pointers because the caller owns
+        /// every view; `forgetView` is what keeps that sound.
+        std::vector<TracedView*> mDeferred;
+
+        /// The list a flush walks, swapped out of `mDeferred` so a redraw cannot grow what is being
+        /// iterated. Kept rather than made, because this sits on the frame path.
+        std::vector<TracedView*> mDrawing;
 
         MyGUIPlatform::Picture mFrozenFrame{ "frozen frame" };
 

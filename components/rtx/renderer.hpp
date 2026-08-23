@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -111,6 +112,30 @@ namespace Rtx
         std::uint32_t mFirstVertex = 0;
         std::uint32_t mVertexCount = 0;
         GuiBlend mBlend = GuiBlend::Over;
+    };
+
+    /// What a picture inside the interface is asked for, beyond where its camera stands.
+    struct GuiTraceOptions
+    {
+        /// How much of the texture to fill, from its top-left corner, and what the camera must have
+        /// been built for. The rest of the texture is left at `mClear`.
+        ///
+        /// **Less than the whole of it, routinely.** The inventory doll's window resizes and the
+        /// texture behind it does not, so the trace covers a corner of a picture the widget then
+        /// shows a corner of.
+        std::uint32_t mWidth = 0;
+        std::uint32_t mHeight = 0;
+
+        /// What the rest of the texture holds, red first. Transparent black for a picture the GUI
+        /// composites over what is behind it, which is every caller there is so far.
+        std::array<float, 4> mClear{};
+
+        /// The world, rather than a scene the picture brought with it.
+        static constexpr std::uint32_t sWorld = ~0u;
+
+        /// What to trace against: a slot `addViewScene` gave out, or `sWorld` for the one the frame
+        /// is drawn from. A map tile is a picture of the world; a doll is not.
+        std::uint32_t mScene = sWorld;
     };
 
     /// What a backend reports about the scene it took. The harness's summary line, as a struct.
@@ -382,6 +407,47 @@ namespace Rtx
         /// Vertices are in clip space with +Y up, which is what MyGUI produces; a backend whose own
         /// clip space disagrees answers that for itself.
         virtual void drawGui(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches) = 0;
+
+        /// Traces the scene from `camera` into a GUI texture rather than into the frame.
+        ///
+        /// **The pictures inside the interface**: a map tile, the inventory doll, the race preview.
+        /// They go straight into the table the GUI draws from, so a picture the interface shows
+        /// never comes back to main memory — `readGuiTexture` is there for the one caller that
+        /// needs a copy, and pays for it.
+        ///
+        /// **Not the frame's chain.** Nothing upscales, nothing averages and the exposure is fixed
+        /// at one: a doll is a still picture of a subject rather than a frame in a sequence, and
+        /// there is no previous one to reconstruct it from. `camera.mTransparentBackground` is what
+        /// says the picture stops where nothing was hit.
+        virtual void traceGuiTexture(
+            std::uint32_t texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options) = 0;
+
+        /// A scene of its own for a picture inside the interface to be traced against.
+        ///
+        /// **Not the world, and not reachable from it.** The inventory doll and the race preview are
+        /// groups the game assembled for one picture: nothing in them stands in a cell, they are lit
+        /// by a rig of their own, and a ray the frame sends must not be able to find them. Each gets
+        /// acceleration structures of its own.
+        ///
+        /// Slots a scene gave back are taken over before the table grows, as the texture table does.
+        virtual std::uint32_t addViewScene() = 0;
+
+        /// Replaces what that scene holds.
+        ///
+        /// **Costs a rebuild, so it is called when the subject changes** — a doll putting something
+        /// on — rather than every time the picture is drawn. There is no `extend` and no `place`
+        /// beside it: a doll is one character, and the three-way decision those exist for is about a
+        /// cell arriving next to a world already built.
+        virtual void setViewScene(std::uint32_t scene, const SceneDesc& desc, std::span<const TextureData> textures)
+            = 0;
+
+        virtual void dropViewScene(std::uint32_t scene) = 0;
+
+        /// The whole of a GUI texture, four bytes a pixel, tightly packed, row zero first.
+        ///
+        /// **Off the device and so asked for rather than always done.** The global map compositing
+        /// what the local map drew is the only caller, and it wants the tile once per cell.
+        virtual void readGuiTexture(std::uint32_t texture, std::vector<std::uint8_t>& pixels) = 0;
 
         /// Copies the traced image into `pixels`, four bytes per pixel, tightly packed.
         /// Not const: it submits a copy and waits for it.

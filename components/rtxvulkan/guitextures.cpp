@@ -19,7 +19,8 @@ namespace Rtx
     std::uint32_t GuiTextures::add(std::uint32_t width, std::uint32_t height)
     {
         auto image = std::make_unique<Image>(mDevice, width, height, VK_FORMAT_R8G8B8A8_UNORM,
-            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, "gui texture");
+            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+            "gui texture");
 
         // **Cleared rather than left undefined.** A slot is sampleable from the moment it exists, so
         // a batch drawn before the first write shows nothing instead of whatever the memory held —
@@ -88,6 +89,21 @@ namespace Rtx
         // with it.
         mImages[slot].reset();
         mFree.push_back(slot);
+    }
+
+    const Image* GuiTextures::getImage(std::uint32_t slot) const
+    {
+        if (slot >= mImages.size())
+            return nullptr;
+
+        return mImages[slot].get();
+    }
+
+    void GuiTextures::read(std::uint32_t slot, std::vector<std::uint8_t>& pixels) const
+    {
+        assert(slot < mImages.size() && mImages[slot] != nullptr && "a read of a slot nothing holds");
+
+        mImages[slot]->read(mPool, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, pixels);
     }
 
     VkImageView GuiTextures::getView(std::uint32_t slot) const

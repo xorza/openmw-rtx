@@ -28,6 +28,93 @@ namespace Rtx
 
             return result;
         }
+
+        /// A viewpoint's axes in world coordinates, which is what a view matrix holds the inverse
+        /// of.
+        struct ViewBasis
+        {
+            osg::Vec3f mOrigin;
+            osg::Vec3f mForward;
+            osg::Vec3f mRight;
+            osg::Vec3f mUp;
+        };
+
+        ViewBasis basisOf(const osg::Matrixf& view)
+        {
+            osg::Matrixf world;
+            if (!world.invert(view))
+                throw Error("the view matrix cannot be inverted, so it names no viewpoint");
+
+            // OpenSceneGraph's eye space is OpenGL's: +X right, +Y up and the view down -Z. The
+            // rows of the inverse are those axes written in world coordinates, and its translation
+            // is where the eye stands.
+            ViewBasis basis{
+                .mOrigin = osg::Vec3f(world(3, 0), world(3, 1), world(3, 2)),
+                .mForward = -osg::Vec3f(world(2, 0), world(2, 1), world(2, 2)),
+                .mRight = osg::Vec3f(world(0, 0), world(0, 1), world(0, 2)),
+                .mUp = osg::Vec3f(world(1, 0), world(1, 1), world(1, 2)),
+            };
+
+            // Normalised rather than assumed: a view matrix with a scale in it is a legal one, and
+            // the basis below is scaled again by the frame's own extents.
+            if (basis.mForward.normalize() <= 0.f || basis.mRight.normalize() <= 0.f || basis.mUp.normalize() <= 0.f)
+                throw Error("the view matrix has no basis to look along");
+
+            return basis;
+        }
+    }
+
+    Shaders::VisibilityConstants makeCameraFromView(const osg::Matrixf& view, float verticalFovDegrees,
+        std::uint32_t width, std::uint32_t height, float near, float far)
+    {
+        assert(width > 0 && height > 0);
+
+        const ViewBasis basis = basisOf(view);
+
+        const float halfHeight = std::tan(osg::DegreesToRadians(verticalFovDegrees) * 0.5f);
+        const float halfWidth = halfHeight * static_cast<float>(width) / static_cast<float>(height);
+
+        return Shaders::VisibilityConstants{
+            .mOrigin = basis.mOrigin,
+            .mForward = basis.mForward,
+            .mRight = basis.mRight * halfWidth,
+            .mUp = basis.mUp * halfHeight,
+            .mOrthographic = 0,
+            .mWidth = width,
+            .mHeight = height,
+            .mNear = near,
+            .mFar = far,
+            .mSpreadAngle = std::atan(2.0f * halfHeight / static_cast<float>(height)),
+            .mWaterLevel = -std::numeric_limits<float>::infinity(),
+        };
+    }
+
+    Shaders::VisibilityConstants makeOrthographicCameraFromView(const osg::Matrixf& view, float worldWidth,
+        float worldHeight, std::uint32_t width, std::uint32_t height, float near, float far)
+    {
+        assert(width > 0 && height > 0);
+
+        if (!(worldWidth > 0.f) || !(worldHeight > 0.f))
+            throw Error("an orthographic camera with no extent sees nothing");
+
+        const ViewBasis basis = basisOf(view);
+
+        return Shaders::VisibilityConstants{
+            .mOrigin = basis.mOrigin,
+            .mForward = basis.mForward,
+            .mRight = basis.mRight * (worldWidth * 0.5f),
+            .mUp = basis.mUp * (worldHeight * 0.5f),
+            .mOrthographic = 1,
+            .mWidth = width,
+            .mHeight = height,
+            .mNear = near,
+            .mFar = far,
+            // **Zero, and not for want of an answer.** A parallel ray's cone does not widen with
+            // distance; what it has instead is a footprint one pixel of the box wide for its whole
+            // length, which the shader works out from `mRight` rather than carry twice.
+            .mSpreadAngle = 0.f,
+            .mWaterLevel = -std::numeric_limits<float>::infinity(),
+        };
     }
 
     osg::Vec2f haltonJitter(std::uint32_t index)
@@ -81,6 +168,7 @@ namespace Rtx
             .mForward = forward,
             .mRight = right * halfWidth,
             .mUp = up * halfHeight,
+            .mOrthographic = 0,
             .mWidth = width,
             .mHeight = height,
             // A quarter of a Morrowind foot. Nothing is clipped against it — see `mNear` — so it

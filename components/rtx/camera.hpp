@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include <osg/Matrixf>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
@@ -28,6 +29,23 @@ namespace Rtx
     /// file, where it is exact because it never moves.
     Shaders::VisibilityConstants makeCamera(const osg::Vec3f& origin, const osg::Vec3f& target,
         float verticalFovDegrees, std::uint32_t width, std::uint32_t height, float far);
+
+    /// A camera from a view matrix — the world-to-eye transform anything holding a viewpoint
+    /// already has, in OpenSceneGraph's convention: row vectors, and an eye space looking down its
+    /// own -Z.
+    ///
+    /// **The basis comes out of the matrix rather than from the world's up.** `makeCameraAlong` has
+    /// no roll to work from and so takes it from the world, which leaves it with no answer at all
+    /// for a camera looking straight down — and straight down is what a map is. Throws `Error` for
+    /// a matrix that cannot be inverted or whose basis has collapsed.
+    Shaders::VisibilityConstants makeCameraFromView(const osg::Matrixf& view, float verticalFovDegrees,
+        std::uint32_t width, std::uint32_t height, float near, float far);
+
+    /// The same viewpoint with no perspective in it: every ray travels the view direction, and
+    /// which one a pixel sends comes from where it sits on a box `worldWidth` by `worldHeight`
+    /// centred on the eye.
+    Shaders::VisibilityConstants makeOrthographicCameraFromView(const osg::Matrixf& view, float worldWidth,
+        float worldHeight, std::uint32_t width, std::uint32_t height, float near, float far);
 
     /// Where inside its pixel frame `index` should sample, in pixels and centred on zero.
     ///

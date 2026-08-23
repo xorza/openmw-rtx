@@ -106,6 +106,60 @@ namespace Rtx
                 makeCamera(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, 64, 64, 1.0f), Error);
         }
 
+        /// `makeCameraFromView` reads the basis out of the matrix; `makeCamera` rebuilds it from
+        /// the world's up. Where both can express the viewpoint they have to agree exactly, because
+        /// one of them is about to be used for viewpoints the other refuses.
+        TEST(RtxCameraTest, aViewMatrixNamesTheSameCameraTheTwoWorldPointsDid)
+        {
+            const osg::Vec3f eye(120.0f, -45.0f, 30.0f);
+            const osg::Vec3f at(-10.0f, 70.0f, 12.0f);
+
+            const Shaders::VisibilityConstants aimed = makeCamera(eye, at, 47.0f, 320, 200, 5000.0f);
+            const Shaders::VisibilityConstants viewed = makeCameraFromView(
+                osg::Matrixf::lookAt(eye, at, osg::Vec3f(0.0f, 0.0f, 1.0f)), 47.0f, 320, 200, 1.0f, 5000.0f);
+
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                EXPECT_NEAR(viewed.mOrigin[axis], aimed.mOrigin[axis], 1e-3f) << "origin " << axis;
+                EXPECT_NEAR(viewed.mForward[axis], aimed.mForward[axis], 1e-5f) << "forward " << axis;
+                EXPECT_NEAR(viewed.mRight[axis], aimed.mRight[axis], 1e-5f) << "right " << axis;
+                EXPECT_NEAR(viewed.mUp[axis], aimed.mUp[axis], 1e-5f) << "up " << axis;
+            }
+
+            EXPECT_EQ(viewed.mOrthographic, 0u);
+            EXPECT_NEAR(viewed.mSpreadAngle, aimed.mSpreadAngle, 1e-7f);
+        }
+
+        /// Straight down, which is the viewpoint `makeCamera` has no roll for and refuses — and it
+        /// is the only viewpoint a map ever has.
+        ///
+        /// The extents are the box in world units and not an angle: half of two hundred across and
+        /// half of a hundred down, on the axes `lookAt` puts them.
+        TEST(RtxCameraTest, anOrthographicCameraCarriesItsBoxRatherThanAFieldOfView)
+        {
+            const osg::Matrixf view
+                = osg::Matrixf::lookAt(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(), osg::Vec3f(0.0f, 1.0f, 0.0f));
+
+            const Shaders::VisibilityConstants camera
+                = makeOrthographicCameraFromView(view, 200.0f, 100.0f, 64, 32, 5.0f, 400.0f);
+
+            EXPECT_EQ(camera.mOrthographic, 1u);
+
+            EXPECT_NEAR(camera.mOrigin.z(), 100.0f, 1e-4f);
+            EXPECT_NEAR(camera.mForward.z(), -1.0f, 1e-5f);
+            EXPECT_NEAR(camera.mRight.x(), 100.0f, 1e-4f);
+            EXPECT_NEAR(camera.mUp.y(), 50.0f, 1e-4f);
+
+            // No angle, because a parallel ray's cone does not widen; the shader takes the pixel's
+            // constant footprint off `mRight` instead.
+            EXPECT_EQ(camera.mSpreadAngle, 0.0f);
+
+            // What `makeCamera` says to the same viewpoint, and why this function exists.
+            EXPECT_THROW(makeCamera(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(), 60.0f, 64, 32, 400.0f), Error);
+
+            EXPECT_THROW(makeOrthographicCameraFromView(view, 0.0f, 100.0f, 64, 32, 5.0f, 400.0f), Error);
+        }
+
         /// Two triangles of a quad, wound so its face points the way its corners were listed.
         constexpr std::array<std::uint32_t, 6> sQuadIndices{ 0, 1, 2, 0, 2, 3 };
 
@@ -455,6 +509,45 @@ namespace Rtx
                 EXPECT_GE(at.y(), -0.5f);
                 EXPECT_LT(at.y(), 0.5f);
             }
+        }
+
+        /// Parallel rays, and the whole difference between them and a pinhole's.
+        ///
+        /// **The count is exact, so the arithmetic is the assertion.** A sheet fifty units across
+        /// lies two hundred units under an eye looking straight down. The orthographic camera's box
+        /// is two hundred across, so the sheet covers a quarter of each axis: pixel `p` of
+        /// sixty-four samples the world at `100 * ((p + 0.5) / 32 - 1)`, which is inside twenty-five
+        /// for `p` in 24..39 — sixteen columns, sixteen rows, **256 hits**, and no pixel near enough
+        /// the boundary for rounding to argue.
+        ///
+        /// The same viewpoint as a pinhole with a ninety-degree field of view spans four hundred
+        /// units at that distance rather than two hundred, so the sheet covers an eighth of each
+        /// axis: `p` in 28..35, **64 hits**. That the two differ is the point — a parallel ray that
+        /// quietly fanned out would still fill a plausible-looking image.
+        TEST_F(RtxVisibilityTest, anOrthographicCameraSendsItsRaysParallelRatherThanThroughAnEye)
+        {
+            constexpr std::uint32_t size = 64;
+
+            SceneDesc scene;
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                .mMesh = scene.addMesh(makeSheet(25.0f, -100.0f), {}, {}, sQuadIndices) });
+
+            // Straight down from a hundred units up, so the sheet is two hundred below the eye.
+            // `lookAt` needs an up vector that is not the view direction; +Y is the map's own.
+            const osg::Matrixf view
+                = osg::Matrixf::lookAt(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(), osg::Vec3f(0.0f, 1.0f, 0.0f));
+
+            std::vector<std::uint8_t> pixels;
+
+            const std::uint32_t parallel = countHits(scene, {},
+                makeOrthographicCameraFromView(view, 200.0f, 200.0f, size, size, 1.0f, 10000.0f), size, pixels);
+
+            const std::uint32_t pinhole
+                = countHits(scene, {}, makeCameraFromView(view, 90.0f, size, size, 1.0f, 10000.0f), size, pixels);
+
+            EXPECT_EQ(parallel, 16u * 16u);
+            EXPECT_EQ(pinhole, 8u * 8u);
+            EXPECT_NE(parallel, pinhole);
         }
 
         /// Which way the jitter moves the picture, which is the half of this that looks fine wrong.

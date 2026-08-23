@@ -43,7 +43,8 @@ void main()
         return;
 
     const ivec2 at = ivec2(pixel);
-    vec3 resolved = imageLoad(direct, at).rgb + imageLoad(modulate, at).rgb * imageLoad(indirect, at).rgb;
+    const vec4 lit = imageLoad(direct, at);
+    vec3 resolved = lit.rgb + imageLoad(modulate, at).rgb * imageLoad(indirect, at).rgb;
 
     // In linear, which is what everything downstream of here now works in. Summing an encoded frame
     // would add up rounded numbers and clip every sample past the display's range to the same value
@@ -55,5 +56,7 @@ void main()
         resolved = total / float(frame.mAccumulate);
     }
 
-    imageStore(colour, at, vec4(resolved, 1.0));
+    // The trace's own coverage, carried rather than decided here: one for a frame that fills a
+    // window, zero where a picture inside the interface stops.
+    imageStore(colour, at, vec4(resolved, lit.a));
 }

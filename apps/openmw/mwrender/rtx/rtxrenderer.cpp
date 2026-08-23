@@ -46,7 +46,12 @@
 #include "../offscreenview.hpp"
 #include "../sceneframe.hpp"
 #include "../stage.hpp"
+#include <components/resource/resourcesystem.hpp>
+
+#include "../renderingmanager.hpp"
 #include "../vismask.hpp"
+
+#include "tracedview.hpp"
 
 namespace MWRender::Rtx
 {
@@ -249,10 +254,27 @@ namespace MWRender::Rtx
         SDL_SetWindowIcon(mWindow, surface.get());
     }
 
-    void RtxRenderer::attachWorld(RenderingManager&, osg::Group& worldRoot)
+    void RtxRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot)
     {
+        // Only for the pictures inside the interface: a doll resolves its own textures, and this is
+        // where they come from. Nothing about the frame needs it — the mirror is handed an image
+        // manager by whoever drives it.
+        mResources = world.getResourceSystem();
+
         // Nothing goes between the world and the screen: what the trace writes is the picture.
         setSceneRoot(worldRoot);
+    }
+
+    unsigned int RtxRenderer::updateSubtree(osg::Node& node)
+    {
+        const unsigned int at = static_cast<unsigned int>(mFrameStamp->getFrameNumber());
+
+        mUpdateVisitor->reset();
+        mUpdateVisitor->setFrameStamp(mFrameStamp);
+        mUpdateVisitor->setTraversalNumber(at);
+        node.accept(*mUpdateVisitor);
+
+        return at;
     }
 
     void RtxRenderer::setSceneRoot(osg::Group& root)
@@ -344,6 +366,36 @@ namespace MWRender::Rtx
             gui->collectDrawCalls();
     }
 
+    void RtxRenderer::deferRedraw(TracedView& view)
+    {
+        if (std::find(mDeferred.begin(), mDeferred.end(), &view) == mDeferred.end())
+            mDeferred.push_back(&view);
+    }
+
+    void RtxRenderer::forgetView(TracedView& view)
+    {
+        std::erase(mDeferred, &view);
+
+        // Nulled rather than erased: a flush may be walking this, and a view that went away from
+        // inside one must not move the elements after it.
+        std::replace(mDrawing.begin(), mDrawing.end(), &view, static_cast<TracedView*>(nullptr));
+    }
+
+    void RtxRenderer::drawDeferredViews()
+    {
+        if (mDeferred.empty())
+            return;
+
+        mDrawing.swap(mDeferred);
+        mDeferred.clear();
+
+        for (TracedView* view : mDrawing)
+            if (view != nullptr)
+                view->redraw();
+
+        mDrawing.clear();
+    }
+
     void RtxRenderer::renderGui()
     {
         // **The GUI over whatever the target holds**, which is the last frame traced, or black
@@ -398,70 +450,9 @@ namespace MWRender::Rtx
         Log(Debug::Warning) << "Ray tracing has no screenshot key yet";
     }
 
-    namespace
-    {
-        /// An offscreen view with no trace behind it yet: the right size, filled with the colour the
-        /// picture would have been cleared to, and redrawn by doing nothing.
-        ///
-        /// The texture comes from MyGUI's own factory rather than from a backend, which is what
-        /// makes this outlive the GUI backend swap in step 6.5 and be replaced only by 6.6.
-        class UntracedView final : public OffscreenView
-        {
-        public:
-            explicit UntracedView(const OffscreenViewSpec& spec)
-                : mTexture(*MyGUI::RenderManager::getInstance().createTexture(
-                    std::format("rtx offscreen view {}", sNextName++)))
-            {
-                mTexture.createManual(spec.mWidth, spec.mHeight,
-                    MyGUI::TextureUsage::Static | MyGUI::TextureUsage::Write, MyGUI::PixelFormat::R8G8B8A8);
-
-                const auto channel
-                    = [](float value) { return static_cast<std::uint8_t>(std::clamp(value, 0.f, 1.f) * 255.f + 0.5f); };
-                const std::uint8_t colour[4] = { channel(spec.mClearColour.r()), channel(spec.mClearColour.g()),
-                    channel(spec.mClearColour.b()), channel(spec.mClearColour.a()) };
-
-                auto* pixels = static_cast<std::uint8_t*>(mTexture.lock(MyGUI::TextureUsage::Write));
-                for (int i = 0; i < spec.mWidth * spec.mHeight; ++i)
-                    std::memcpy(pixels + i * 4, colour, sizeof(colour));
-                mTexture.unlock();
-            }
-
-            ~UntracedView() override { MyGUI::RenderManager::getInstance().destroyTexture(&mTexture); }
-
-            void setView(const osg::Matrixf& view) override {}
-            void setExtent(int width, int height) override {}
-            void sceneChanged() override {}
-            void redraw() override {}
-
-            /// The copy is the picture, and the picture is already in main memory: there is no
-            /// device-side image to bring back until 6.7 makes one.
-            void keepCopy() override
-            {
-                if (mCopy)
-                    return;
-
-                mCopy = new osg::Image;
-                mCopy->allocateImage(mTexture.getWidth(), mTexture.getHeight(), 1, GL_RGBA, GL_UNSIGNED_BYTE);
-                for (int i = 0; i < mTexture.getWidth() * mTexture.getHeight(); ++i)
-                    std::memcpy(mCopy->data() + i * 4, mColour, sizeof(mColour));
-            }
-
-            const osg::Image* getCopy() const override { return mCopy; }
-            bool pick(float x, float y, osg::NodePath& hit) const override { return false; }
-            MyGUI::ITexture& getTexture() const override { return mTexture; }
-
-        private:
-            static inline unsigned int sNextName = 0;
-
-            MyGUI::ITexture& mTexture;
-            osg::ref_ptr<osg::Image> mCopy;
-            std::uint8_t mColour[4] = {};
-        };
-    }
-
     std::unique_ptr<OffscreenView> RtxRenderer::createOffscreenView(const OffscreenViewSpec& spec)
     {
-        return std::make_unique<UntracedView>(spec);
+        return std::make_unique<TracedView>(spec, *this, *mRenderer);
     }
 
     MyGUI::ITexture& RtxRenderer::freezeFrame()
@@ -545,6 +536,8 @@ namespace MWRender::Rtx
         // harness's too and are written once (`RtxBridge::SceneUploader`).
         const RtxBridge::SceneUpload handed = mUploader.hand(*mRenderer, mScene, frame.mImages, ::Rtx::SeaState{});
 
+        mHasScene = true;
+
         if (handed.mKind == RtxBridge::SceneUpload::Kind::Rebuilt)
             Log(Debug::Info) << "Ray tracing built " << mScene.getMeshes().size() << " meshes into " << found.mInstances
                              << " instances with " << found.mLights << " lights, " << found.mDeformed
@@ -585,6 +578,10 @@ namespace MWRender::Rtx
             }
             return;
         }
+
+        // **Before the frame and after the scene**, which is the only moment both are true: a
+        // picture inside the interface traces against the world this walk has just handed over.
+        drawDeferredViews();
 
         const ::Rtx::FrameExtents extents = mRenderer->getExtents();
         ::Rtx::Shaders::VisibilityConstants constants = ::Rtx::makeCameraAlong(

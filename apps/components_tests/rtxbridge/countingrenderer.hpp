@@ -68,10 +68,19 @@ namespace RtxBridge::Testing
         void writeGuiTexture(std::uint32_t, std::span<const std::uint8_t>) override {}
         void dropGuiTexture(std::uint32_t) override {}
         void drawGui(std::span<const Rtx::GuiVertex>, std::span<const Rtx::GuiBatch>) override {}
+        void traceGuiTexture(
+            std::uint32_t, const Rtx::Shaders::VisibilityConstants&, const Rtx::GuiTraceOptions&) override
+        {
+        }
+        std::uint32_t addViewScene() override { return mViewScenes++; }
+        void setViewScene(std::uint32_t, const Rtx::SceneDesc&, std::span<const Rtx::TextureData>) override {}
+        void dropViewScene(std::uint32_t) override {}
+        void readGuiTexture(std::uint32_t, std::vector<std::uint8_t>&) override {}
         void readPixels(std::vector<std::uint8_t>&) override {}
         void readChannel(Rtx::Channel, std::vector<float>&) override {}
         void takeValidationErrors(std::vector<std::string>&) override {}
 
+        std::uint32_t mViewScenes = 0;
         std::uint32_t mPlaced = 0;
         std::uint32_t mExtended = 0;
         std::uint32_t mRebuilt = 0;

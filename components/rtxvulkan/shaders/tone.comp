@@ -53,5 +53,8 @@ void main()
         return;
 
     const ivec2 at = ivec2(pixel);
-    imageStore(target, at, vec4(encodeSrgb(imageLoad(colour, at).rgb * exposure), 1.0));
+    const vec4 lit = imageLoad(colour, at);
+
+    // The curve maps radiance to a display; coverage is not radiance and passes through it.
+    imageStore(target, at, vec4(encodeSrgb(lit.rgb * exposure), lit.a));
 }

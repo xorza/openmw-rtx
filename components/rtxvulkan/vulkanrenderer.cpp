@@ -1,5 +1,6 @@
 #include "vulkanrenderer.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cstring>
@@ -47,6 +48,14 @@ namespace Rtx
         }
     }
 
+    /// Everything a picture that is not of the world needs to be traced against.
+    struct ViewScene
+    {
+        std::unique_ptr<SceneAcceleration> mAcceleration;
+        std::unique_ptr<SceneBuffers> mBuffers;
+        std::unique_ptr<TextureArray> mTextures;
+    };
+
     VulkanRenderer::VulkanRenderer(const RendererOptions& options)
         : mInstance(instanceOptionsFor(options))
         , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()), deviceExtensionsFor(options))
@@ -55,6 +64,7 @@ namespace Rtx
         , mShaderDirectory(options.mShaderDirectory)
         , mUpscale(options.mUpscale)
         , mFilter(mDevice, options.mShaderDirectory)
+        , mViewFilter(mDevice, options.mShaderDirectory)
         , mComposite(mDevice, mPool, options.mShaderDirectory)
         , mExposure(mDevice, options.mShaderDirectory)
         , mTone(mDevice, options.mShaderDirectory)
@@ -616,7 +626,7 @@ namespace Rtx
             mTimer.close(commands);
 
             mTimer.open(commands, "tone");
-            mTone.record(commands, *shown, mExposure.getExposure(), *mTarget);
+            mTone.record(commands, *shown, mExposure.getExposure(), *mTarget, mOutputWidth, mOutputHeight);
             mTimer.close(commands);
         });
 
@@ -632,6 +642,182 @@ namespace Rtx
         // Read after the last of the frame's submits has been waited on, which every one of them
         // has: the pool fences each before it returns.
         return FrameResult{ .mHits = hits, .mTraceMs = ms, .mGpu = mTimer.resolve() };
+    }
+
+    std::uint32_t VulkanRenderer::addViewScene()
+    {
+        if (!mFreeViewScenes.empty())
+        {
+            const std::uint32_t slot = mFreeViewScenes.back();
+            mFreeViewScenes.pop_back();
+            mViewScenes[slot] = std::make_unique<ViewScene>();
+            return slot;
+        }
+
+        mViewScenes.push_back(std::make_unique<ViewScene>());
+        return static_cast<std::uint32_t>(mViewScenes.size() - 1);
+    }
+
+    void VulkanRenderer::setViewScene(std::uint32_t scene, const SceneDesc& desc, std::span<const TextureData> textures)
+    {
+        assert(scene < mViewScenes.size() && mViewScenes[scene] != nullptr && "a scene nothing holds");
+
+        ViewScene& held = *mViewScenes[scene];
+
+        // Torn down before anything is built, for the reason `setScene` gives: holding two of
+        // everything at once is what a rebuild is trying not to cost.
+        held.mTextures.reset();
+        held.mBuffers.reset();
+        held.mAcceleration.reset();
+
+        makeInstanceRecords(desc, mRecordScratch);
+
+        held.mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, desc, mRecordScratch);
+        held.mBuffers = std::make_unique<SceneBuffers>(
+            mDevice, mPool, desc, mRecordScratch, held.mAcceleration->getIndices(), SeaState{});
+        held.mTextures = std::make_unique<TextureArray>(mDevice, mPool, textures);
+
+        // A doll can be the first thing this renderer ever builds — a race preview stands in front
+        // of a game that has no world yet — and the pass belongs to neither scene.
+        if (mPass == nullptr)
+            mPass = std::make_unique<VisibilityPass>(mDevice, mPool, mShaderDirectory, held.mTextures->getLayout());
+    }
+
+    void VulkanRenderer::dropViewScene(std::uint32_t scene)
+    {
+        assert(scene < mViewScenes.size() && mViewScenes[scene] != nullptr && "a scene given back twice");
+
+        mViewScenes[scene].reset();
+        mFreeViewScenes.push_back(scene);
+    }
+
+    void VulkanRenderer::growViewTargets(std::uint32_t width, std::uint32_t height)
+    {
+        if (mViewTarget != nullptr && width <= mViewWidth && height <= mViewHeight)
+            return;
+
+        // Each axis to the larger of what was there and what is wanted, so a wide picture after a
+        // tall one does not throw the tall one's height away and build it again next time.
+        mViewWidth = std::max(mViewWidth, width);
+        mViewHeight = std::max(mViewHeight, height);
+
+        mViewColour = std::make_unique<Image>(
+            mDevice, mViewWidth, mViewHeight, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT, "view colour");
+
+        mViewTarget = std::make_unique<Image>(mDevice, mViewWidth, mViewHeight, sTargetFormat,
+            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "view target");
+
+        mViewChannels = std::make_unique<GBuffer>(mDevice, mViewWidth, mViewHeight);
+        mViewFilter.resize(mViewWidth, mViewHeight);
+    }
+
+    void VulkanRenderer::traceGuiTexture(
+        std::uint32_t texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options)
+    {
+        assert(mPass != nullptr && "traceGuiTexture before any scene was built");
+        assert(camera.mWidth == options.mWidth && camera.mHeight == options.mHeight
+            && "the camera has to be built for the part of the texture it fills");
+
+        const bool ofTheWorld = options.mScene == GuiTraceOptions::sWorld;
+        assert((ofTheWorld || (options.mScene < mViewScenes.size() && mViewScenes[options.mScene] != nullptr))
+            && "a trace against a scene nothing holds");
+
+        const Image* into = mGuiTextures.getImage(texture);
+        assert(into != nullptr && "a trace into a slot nothing holds");
+        assert(options.mWidth <= into->getWidth() && options.mHeight <= into->getHeight());
+
+        if (into == nullptr || options.mWidth == 0 || options.mHeight == 0)
+            return;
+
+        growViewTargets(options.mWidth, options.mHeight);
+
+        const SceneAcceleration& acceleration
+            = ofTheWorld ? *mAcceleration : *mViewScenes[options.mScene]->mAcceleration;
+        const SceneBuffers* buffers = ofTheWorld ? mBuffers.get() : mViewScenes[options.mScene]->mBuffers.get();
+        const TextureArray& array = ofTheWorld ? *mTextures : *mViewScenes[options.mScene]->mTextures;
+
+        const VisibilityInputs inputs{
+            .mScene = acceleration.getTopLevel(),
+            .mBuffers = buffers,
+            .mTextures = array.getSet(),
+            .mShading = array.getShading(),
+        };
+
+        // **Not counted, and not timed.** The hit count and the frame report are the frame's; a
+        // picture drawn between two of them would overwrite both. The buffer is still bound because
+        // the shader writes it whatever anyone does with the number.
+        mPool.submitAndWait([&](VkCommandBuffer commands) {
+            for (const Image* image : { mViewColour.get(), mViewTarget.get() })
+                image->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                    VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+
+            mViewChannels->begin(commands);
+            mPass->record(commands, inputs, *mViewChannels, mHitCount, camera);
+            mViewChannels->handOver(commands);
+
+            const Image& indirect = mViewFilter.record(commands, *mViewChannels, camera);
+
+            mComposite.record(commands, *mViewChannels, indirect, nullptr, *mViewColour,
+                Shaders::CompositeConstants{
+                    .mWidth = options.mWidth,
+                    .mHeight = options.mHeight,
+                });
+
+            mViewColour->transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+
+            // **One, and measured off nothing.** A picture inside the interface is looked at beside
+            // the widgets around it, and an exposure that drifted with what the doll was wearing
+            // would make the same armour a different brightness in two windows.
+            mExposure.recordFixed(commands, 1.0f);
+            mTone.record(
+                commands, *mViewColour, mExposure.getExposure(), *mViewTarget, options.mWidth, options.mHeight);
+
+            mViewTarget->transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
+
+            into->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, 0, VK_PIPELINE_STAGE_2_CLEAR_BIT,
+                VK_ACCESS_2_TRANSFER_WRITE_BIT);
+
+            // **Cleared whole and then covered in part**, and only where the picture does not cover
+            // it all: what the trace fills is as much of the texture as the widget is currently
+            // wide, and the rest has to be the clear colour rather than what a wider picture left
+            // there the last time this was drawn.
+            if (options.mWidth < into->getWidth() || options.mHeight < into->getHeight())
+            {
+                const VkClearColorValue clear{ .float32
+                    = { options.mClear[0], options.mClear[1], options.mClear[2], options.mClear[3] } };
+                const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+                vkCmdClearColorImage(
+                    commands, into->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear, 1, &whole);
+
+                // Both are transfer writes to the same image and nothing orders two of those.
+                into->transition(commands, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    VK_PIPELINE_STAGE_2_CLEAR_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COPY_BIT,
+                    VK_ACCESS_2_TRANSFER_WRITE_BIT);
+            }
+
+            const VkImageCopy region{
+                .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+                .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+                .extent = { options.mWidth, options.mHeight, 1 },
+            };
+            vkCmdCopyImage(commands, mViewTarget->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, into->getHandle(),
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+            into->transition(commands, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+                VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        });
+    }
+
+    void VulkanRenderer::readGuiTexture(std::uint32_t texture, std::vector<std::uint8_t>& pixels)
+    {
+        mGuiTextures.read(texture, pixels);
     }
 
     void VulkanRenderer::readPixels(std::vector<std::uint8_t>& pixels)

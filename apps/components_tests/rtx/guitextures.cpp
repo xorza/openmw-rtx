@@ -90,6 +90,17 @@ namespace Rtx
                 mRenderer->drawGui(quad, batches);
             }
 
+            /// The four bytes at a pixel of a GUI texture, row zero at the top.
+            std::array<std::uint8_t, 4> inTexture(
+                std::uint32_t texture, std::uint32_t extent, std::uint32_t x, std::uint32_t y)
+            {
+                mRenderer->readGuiTexture(texture, mPixels);
+                EXPECT_EQ(mPixels.size(), std::size_t{ extent } * extent * 4);
+
+                const std::size_t offset = (static_cast<std::size_t>(y) * extent + x) * 4;
+                return { mPixels[offset], mPixels[offset + 1], mPixels[offset + 2], mPixels[offset + 3] };
+            }
+
             /// The four bytes at a pixel of the presented frame, row zero at the top.
             std::array<std::uint8_t, 4> at(std::uint32_t x, std::uint32_t y)
             {
@@ -222,6 +233,193 @@ namespace Rtx
 
             EXPECT_EQ(at(1, 4), (std::array<std::uint8_t, 4>{ 17, 34, 51, 255 })) << "where the GUI drew";
             EXPECT_EQ(at(sExtent - 2, 4), traced) << "where it did not";
+        }
+
+        /// A level sheet of `extent` about the origin at z = 0, facing up.
+        SceneDesc makeSheet(float extent)
+        {
+            constexpr std::array<std::uint32_t, 6> indices{ 0, 1, 2, 0, 2, 3 };
+            const std::array<osg::Vec3f, 4> corners{
+                osg::Vec3f(-extent, -extent, 0.0f),
+                osg::Vec3f(extent, -extent, 0.0f),
+                osg::Vec3f(extent, extent, 0.0f),
+                osg::Vec3f(-extent, extent, 0.0f),
+            };
+
+            SceneDesc scene;
+            scene.addInstance(MeshInstance{
+                .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(corners, {}, {}, indices) });
+
+            return scene;
+        }
+
+        /// Straight down at a sheet from a hundred units up, over a box two hundred across.
+        Shaders::VisibilityConstants makeMapCamera(std::uint32_t extent)
+        {
+            Shaders::VisibilityConstants camera = makeOrthographicCameraFromView(
+                osg::Matrixf::lookAt(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(), osg::Vec3f(0.0f, 1.0f, 0.0f)),
+                200.0f, 200.0f, extent, extent, 1.0f, 10000.0f);
+
+            // Travelling straight down onto a sheet that faces up, so it is lit square on and the
+            // picture is something rather than a coverage mask with nothing in it.
+            camera.mSunDirection = osg::Vec3f(0.0f, 0.0f, -1.0f);
+            camera.mSunIrradiance = osg::Vec3f(1.0f, 1.0f, 1.0f);
+
+            return camera;
+        }
+
+        /// A picture traced into the table the GUI draws from, and where it stops.
+        ///
+        /// **The shape is the assertion and it is counted by hand.** The sheet is fifty units across
+        /// inside a box two hundred across, so it covers a quarter of each axis: pixel `p` of sixteen
+        /// samples the world at `100 * ((p + 0.5) / 8 - 1)`, which is inside twenty-five for `p` in
+        /// 6..9. Four columns, four rows, and nothing on the boundary for rounding to argue over.
+        ///
+        /// What the two legs differ in is the one field that says so: with a sky behind it every
+        /// pixel is opaque, and without one the picture says where it stops.
+        TEST_F(RtxGuiDrawTest, aTracedPictureFillsAGuiTextureAndSaysWhereItStops)
+        {
+            constexpr std::uint32_t extent = 16;
+
+            mRenderer->setScene(makeSheet(25.0f), {}, SeaState{});
+
+            const std::uint32_t texture = mRenderer->addGuiTexture(extent, extent);
+            mHeld.push_back(texture);
+
+            Shaders::VisibilityConstants camera = makeMapCamera(extent);
+            camera.mTransparentBackground = 1;
+
+            mRenderer->traceGuiTexture(texture, camera, GuiTraceOptions{ .mWidth = extent, .mHeight = extent });
+
+            for (std::uint32_t p : { 6u, 9u })
+            {
+                EXPECT_EQ(inTexture(texture, extent, p, 8)[3], 255) << "covered, column " << p;
+                EXPECT_EQ(inTexture(texture, extent, 8, p)[3], 255) << "covered, row " << p;
+            }
+
+            for (std::uint32_t p : { 5u, 10u })
+            {
+                EXPECT_EQ(inTexture(texture, extent, p, 8), (std::array<std::uint8_t, 4>{ 0, 0, 0, 0 }))
+                    << "past the sheet, column " << p;
+                EXPECT_EQ(inTexture(texture, extent, 8, p), (std::array<std::uint8_t, 4>{ 0, 0, 0, 0 }))
+                    << "past the sheet, row " << p;
+            }
+
+            // **Lit, and to the byte**, so the whole chain ran rather than only the coverage the
+            // alpha above would have had either way. A default albedo of a half, Lambertian, square
+            // to a sun of one: `0.5 * 1.0 / pi = 0.159155` linear, which the display curve encodes
+            // as 111 of 255.
+            EXPECT_EQ(inTexture(texture, extent, 8, 8), (std::array<std::uint8_t, 4>{ 111, 111, 111, 255 }))
+                << "the sheet, lit";
+
+            // The same picture with a sky behind it, which is what a frame filling a window has:
+            // every pixel opaque, the corner included.
+            camera.mTransparentBackground = 0;
+            mRenderer->traceGuiTexture(texture, camera, GuiTraceOptions{ .mWidth = extent, .mHeight = extent });
+
+            EXPECT_EQ(inTexture(texture, extent, 5, 8), (std::array<std::uint8_t, 4>{ 0, 0, 0, 255 }))
+                << "past the sheet, and opaque";
+        }
+
+        /// A picture smaller than the texture behind it, which is the inventory doll: its window
+        /// resizes and the texture does not.
+        ///
+        /// **The clear colour is exact.** It is written into an eight-bit unorm image, so one is
+        /// 255 and not 254 — there is no encoding between the float and the byte.
+        TEST_F(RtxGuiDrawTest, aPictureShorterThanItsTextureLeavesTheRestAtTheClearColour)
+        {
+            constexpr std::uint32_t extent = 16;
+            constexpr std::uint32_t filled = 8;
+
+            mRenderer->setScene(makeSheet(25.0f), {}, SeaState{});
+
+            const std::uint32_t texture = mRenderer->addGuiTexture(extent, extent);
+            mHeld.push_back(texture);
+
+            Shaders::VisibilityConstants camera = makeMapCamera(filled);
+            camera.mTransparentBackground = 1;
+
+            mRenderer->traceGuiTexture(texture, camera,
+                GuiTraceOptions{ .mWidth = filled, .mHeight = filled, .mClear = { 1.0f, 0.0f, 0.0f, 1.0f } });
+
+            // The sheet now covers a quarter of eight pixels — `p` in 3..4 — so the middle of the
+            // filled corner is on it and the corner past `filled` was never traced at all.
+            EXPECT_EQ(inTexture(texture, extent, 4, 4)[3], 255) << "inside the picture";
+            EXPECT_EQ(inTexture(texture, extent, filled, filled), (std::array<std::uint8_t, 4>{ 255, 0, 0, 255 }))
+                << "just past it";
+            EXPECT_EQ(
+                inTexture(texture, extent, extent - 1, extent - 1), (std::array<std::uint8_t, 4>{ 255, 0, 0, 255 }))
+                << "the far corner";
+        }
+
+        /// A picture of something that is not in the world at all: the inventory doll.
+        ///
+        /// **The two scenes are told apart by their shape and the count is exact.** The world holds
+        /// a sheet that fills the box; the view scene holds one covering a quarter of each axis. Of
+        /// sixteen pixels across, the first gives sixteen covered and the second four — `p` in 6..9,
+        /// as above. Nothing about a doll may reach the world's geometry, and nothing about the
+        /// frame may reach the doll's.
+        TEST_F(RtxGuiDrawTest, aPictureCanBeOfASceneTheWorldDoesNotHold)
+        {
+            constexpr std::uint32_t extent = 16;
+
+            // Two hundred across is the whole box, so the world's sheet covers every pixel.
+            mRenderer->setScene(makeSheet(100.0f), {}, SeaState{});
+
+            const std::uint32_t doll = mRenderer->addViewScene();
+            mRenderer->setViewScene(doll, makeSheet(25.0f), {});
+
+            const std::uint32_t texture = mRenderer->addGuiTexture(extent, extent);
+            mHeld.push_back(texture);
+
+            Shaders::VisibilityConstants camera = makeMapCamera(extent);
+            camera.mTransparentBackground = 1;
+
+            const auto covered = [&](std::uint32_t scene) {
+                mRenderer->traceGuiTexture(
+                    texture, camera, GuiTraceOptions{ .mWidth = extent, .mHeight = extent, .mScene = scene });
+
+                std::uint32_t across = 0;
+                for (std::uint32_t x = 0; x < extent; ++x)
+                    if (inTexture(texture, extent, x, 8)[3] != 0)
+                        ++across;
+
+                return across;
+            };
+
+            EXPECT_EQ(covered(GuiTraceOptions::sWorld), extent) << "the world fills the box";
+            EXPECT_EQ(covered(doll), 4u) << "and the doll is a quarter of it";
+
+            // The world is still the world afterwards: building one scene did not replace the other.
+            EXPECT_EQ(covered(GuiTraceOptions::sWorld), extent) << "the world, still there";
+
+            mRenderer->dropViewScene(doll);
+        }
+
+        /// The picture the trace made is the picture the GUI draws with, which is the whole point of
+        /// it going into a slot rather than coming back to main memory.
+        TEST_F(RtxGuiDrawTest, theGuiDrawsWithAPictureTheTraceMade)
+        {
+            constexpr std::uint32_t extent = 16;
+
+            mRenderer->setScene(makeSheet(25.0f), {}, SeaState{});
+
+            const std::uint32_t texture = mRenderer->addGuiTexture(extent, extent);
+            mHeld.push_back(texture);
+
+            Shaders::VisibilityConstants camera = makeMapCamera(extent);
+            camera.mTransparentBackground = 1;
+            mRenderer->traceGuiTexture(texture, camera, GuiTraceOptions{ .mWidth = extent, .mHeight = extent });
+
+            // Blue underneath, then the traced picture over the whole frame. The middle samples the
+            // sheet, which is opaque and covers the blue; the corner samples where the trace stopped,
+            // which is transparent and leaves it.
+            const std::uint32_t white = makeTexel({ 255, 255, 255, 255 });
+            drawQuad(white, -1.0f, 1.0f, 1.0f, -1.0f, packColour(0, 0, 255, 255));
+            drawQuad(texture, -1.0f, 1.0f, 1.0f, -1.0f, packColour(255, 255, 255, 255));
+
+            EXPECT_NE(at(4, 4), (std::array<std::uint8_t, 4>{ 0, 0, 255, 255 })) << "where the picture covers";
+            EXPECT_EQ(at(0, 0), (std::array<std::uint8_t, 4>{ 0, 0, 255, 255 })) << "where it does not";
         }
 
         /// Nothing to draw is not an error and does not touch the frame.

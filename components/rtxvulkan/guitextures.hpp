@@ -47,6 +47,14 @@ namespace Rtx
         /// What the pass samples, or null where nothing holds that slot.
         VkImageView getView(std::uint32_t slot) const;
 
+        /// The image itself, for a caller that draws into it rather than handing over pixels, or
+        /// null where nothing holds that slot. Kept in `VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`,
+        /// which is where anything that borrows it has to put it back.
+        const Image* getImage(std::uint32_t slot) const;
+
+        /// The whole texture in main memory, four bytes a pixel. Costs a transfer off the device.
+        void read(std::uint32_t slot, std::vector<std::uint8_t>& pixels) const;
+
     private:
         const Device& mDevice;
         CommandPool& mPool;

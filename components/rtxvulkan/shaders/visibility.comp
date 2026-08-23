@@ -1897,9 +1897,15 @@ vec3 movedBy(uint index, vec3 position)
 /// centre instead returns the jitter for a world that did not move, and an upscaler handed that
 /// fetches its history a fraction of a pixel out, by a different fraction every frame. That is a
 /// still image that shakes.
-vec2 motionOf(uvec2 pixel, vec3 direction, float distance, uint instance)
+vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint instance)
 {
-    const vec3 point = camera.mOrigin + direction * distance;
+    // **No answer under a parallel projection.** The inverse below divides by the distance along
+    // the view axis, which is the perspective divide and not this camera's projection. Nothing that
+    // traces one reprojects: a map tile is one frame with no frame before it.
+    if (camera.mOrthographic != 0u)
+        return vec2(0.0);
+
+    const vec3 point = origin + direction * distance;
     const vec3 was = direction * distance + camera.mCameraMotion + movedBy(instance, point);
 
     // Behind the previous eye there is no answer, and the divide below would fold such a point back
@@ -1936,6 +1942,12 @@ const float SURFACE_ROUGHNESS = 1.0;
 float clipDepth(vec3 direction, float along)
 {
     const float z = dot(direction, camera.mForward) * along;
+
+    // A parallel projection's depth is linear in that distance; it is the perspective divide that
+    // makes the expression below the shape it is.
+    if (camera.mOrthographic != 0u)
+        return clamp((z - camera.mNear) / (camera.mFar - camera.mNear), 0.0, 1.0);
+
     if (!(z > camera.mNear))
         return 0.0;
 
@@ -1952,9 +1964,22 @@ void main()
     // added to the index rather than to the direction so it cannot disagree with which way is down.
     const vec2 uv
         = (vec2(pixel) + 0.5 + camera.mJitter) / vec2(camera.mWidth, camera.mHeight) * 2.0 - 1.0;
-    const vec3 direction = normalize(camera.mForward + camera.mRight * uv.x - camera.mUp * uv.y);
 
-    const Surface surface = trace(camera.mOrigin, direction, 0.0, 0.0, camera.mSpreadAngle, MASK_SOLID | MASK_WATER);
+    // **Where the ray starts is what tells the two projections apart, not where it points.** A
+    // pinhole fans every ray out of one point; a parallel one sends them all the same way from
+    // wherever on the box the pixel sits.
+    const bool parallel = camera.mOrthographic != 0u;
+    const vec3 origin = parallel ? camera.mOrigin + camera.mRight * uv.x - camera.mUp * uv.y : camera.mOrigin;
+    const vec3 direction
+        = normalize(parallel ? camera.mForward : camera.mForward + camera.mRight * uv.x - camera.mUp * uv.y);
+
+    // A parallel ray's cone never widens, and it is not a point either: it is one pixel of the box
+    // wide for its whole length, which is what `mRight` carries half of. Without that every texture
+    // in a map tile would be read at level zero.
+    const float footprint = parallel ? 2.0 * length(camera.mRight) / float(camera.mWidth) : 0.0;
+    const float spread = parallel ? 0.0 : camera.mSpreadAngle;
+
+    const Surface surface = trace(origin, direction, 0.0, footprint, spread, MASK_SOLID | MASK_WATER);
 
     // Three channels rather than a colour: what is finished, what a filter may still work on, and
     // what puts the two back together. Only an ordinary lit surface has a second of them — the sky
@@ -1965,7 +1990,7 @@ void main()
     vec3 tint = vec3(0.0);
 
     if (!surface.mHit)
-        shaded = skyRadiance(direction, pixelBlur());
+        shaded = camera.mTransparentBackground != 0u ? vec3(0.0) : skyRadiance(direction, pixelBlur());
     else if (surface.mWater)
         shaded = shadeWater(surface, direction);
     else if (camera.mShowAlbedo != 0u)
@@ -1983,7 +2008,7 @@ void main()
     //
     // Applied to the whole colour rather than to the albedo alone — what the depth took is a
     // property of the path, so it belongs to the modulation and not to the material.
-    if (camera.mOrigin.z < camera.mWaterLevel && !(surface.mHit && surface.mWater))
+    if (origin.z < camera.mWaterLevel && !(surface.mHit && surface.mWater))
     {
         tint *= waterTransmittance(surface.mDistance);
         shaded = absorbedByWater(shaded, surface.mDistance);
@@ -1993,7 +2018,7 @@ void main()
     // stands between the eye and — the water's own absorption included, which is a different medium
     // over a different part of the path. A ray that hit nothing carries `mFar`, which the march
     // clamps to the distance past which air stops mattering.
-    const vec4 fog = fogAlong(camera.mOrigin, direction, surface.mDistance, randomAt(pixel, STREAM_FOG));
+    const vec4 fog = fogAlong(origin, direction, surface.mDistance, randomAt(pixel, STREAM_FOG));
     shaded = shaded * fog.w + fog.xyz;
     tint *= fog.w;
 
@@ -2003,7 +2028,7 @@ void main()
     // What a covering sprite hides is taken off the whole of `shaded`, the fog's own in-scattering
     // included. Exactly right for what is behind the sprite and an over-darkening of the haze in
     // front of it, which is the part of the ray a puff of smoke is nearly always at the end of.
-    const SpriteLayer particles = spritesAlong(camera.mOrigin, direction, surface.mDistance);
+    const SpriteLayer particles = spritesAlong(origin, direction, surface.mDistance);
 
     shaded = shaded * particles.mTransmittance + particles.mRadiance;
     tint *= particles.mTransmittance;
@@ -2012,7 +2037,11 @@ void main()
         atomicAdd(hits, 1);
 
     const ivec2 at = ivec2(pixel);
-    imageStore(direct, at, vec4(shaded, 1.0));
+
+    // **Coverage rides in the direct channel's alpha**, which every pass after this carries
+    // through untouched: it is one everywhere but in a picture that has to say where it stops.
+    const float coverage = (camera.mTransparentBackground != 0u && !surface.mHit) ? 0.0 : 1.0;
+    imageStore(direct, at, vec4(shaded, coverage));
     imageStore(indirect, at, vec4(bounced, 1.0));
     imageStore(modulate, at, vec4(tint, 1.0));
     imageStore(guide, at, vec4(surface.mHit ? surface.mNormal : vec3(0.0), SURFACE_ROUGHNESS));
@@ -2020,7 +2049,7 @@ void main()
     // A miss stores nothing, which a temporal filter reads as "this pixel did not move" — and for
     // the sky that is true.
     imageStore(motion, at,
-        vec4(surface.mHit ? motionOf(pixel, direction, surface.mDistance, surface.mInstance) : vec2(0.0), 0.0, 0.0));
+        vec4(surface.mHit ? motionOf(pixel, origin, direction, surface.mDistance, surface.mInstance) : vec2(0.0), 0.0, 0.0));
 
     // A miss is as far away as anything can be, and `mDistance` already carries `mFar` for it.
     imageStore(depth, at,

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 
 #include <vulkan/vulkan_core.h>
@@ -29,10 +30,13 @@ namespace Rtx
         /// @param colour the finished frame in linear radiance, in `VK_IMAGE_LAYOUT_GENERAL`.
         /// @param exposure one float, what to scale it by. `ExposurePass` writes it, measured off
         ///        this same image or fixed, and this pass never learns which.
-        /// @param target the displayable image, in `VK_IMAGE_LAYOUT_GENERAL`. Its size is what the
-        ///        curve is dispatched over, so this is where an upscaled frame gets its extra
-        ///        pixels encoded rather than a corner of them.
-        void record(VkCommandBuffer commands, const Image& colour, VkBuffer exposure, const Image& target) const;
+        /// @param target the displayable image, in `VK_IMAGE_LAYOUT_GENERAL`.
+        /// @param width, height how much of it to encode, from the top-left corner. The whole of it
+        ///        for a frame — which is the **target's** size and not the colour's, because with an
+        ///        upscaler between them the two differ — and a corner of it for a picture inside the
+        ///        interface, which fills as much of a texture as its widget is currently wide.
+        void record(VkCommandBuffer commands, const Image& colour, VkBuffer exposure, const Image& target,
+            std::uint32_t width, std::uint32_t height) const;
 
     private:
         ComputePipeline mPipeline;
