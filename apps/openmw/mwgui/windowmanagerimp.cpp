@@ -515,10 +515,15 @@ namespace MWGui
         mWindows.push_back(std::move(debugWindow));
         trackWindow(mDebugWindow, makeDebugWindowSettingValues());
 
-        auto postProcessorHud = std::make_unique<PostProcessorHud>(mCfgMgr);
-        mPostProcessorHud = postProcessorHud.get();
-        mWindows.push_back(std::move(postProcessorHud));
-        trackWindow(mPostProcessorHud, makePostprocessorWindowSettingValues());
+        // No shader chain, nothing for the HUD to list. The key that opens it is bound either
+        // way; `togglePostProcessorHud` is where it stops.
+        if (mRenderer.getCapabilities().mPostProcessing)
+        {
+            auto postProcessorHud = std::make_unique<PostProcessorHud>(mCfgMgr);
+            mPostProcessorHud = postProcessorHud.get();
+            mWindows.push_back(std::move(postProcessorHud));
+            trackWindow(mPostProcessorHud, makePostprocessorWindowSettingValues());
+        }
 
         auto controllerButtonsOverlay = std::make_unique<ControllerButtonsOverlay>();
         mControllerButtonsOverlay = controllerButtonsOverlay.get();
@@ -1112,7 +1117,8 @@ namespace MWGui
 
         mHud->onFrame(frameDuration);
 
-        mPostProcessorHud->onFrame(frameDuration);
+        if (mPostProcessorHud != nullptr)
+            mPostProcessorHud->onFrame(frameDuration);
 
         if (mCharGen)
             mCharGen->onFrame(frameDuration);
@@ -2387,6 +2393,9 @@ namespace MWGui
 
     void WindowManager::togglePostProcessorHud()
     {
+        if (mPostProcessorHud == nullptr)
+            return;
+
         if (!MWBase::Environment::get().getWorld()->getPostProcessor()->isEnabled())
         {
             messageBox("#{OMWEngine:PostProcessingIsNotEnabled}");

@@ -104,13 +104,6 @@ namespace MWRender
     class Renderer;
     class Stage;
 
-#ifdef OPENMW_RTX
-    namespace Rtx
-    {
-        class Tracer;
-    }
-#endif
-
     class RenderingManager : public MWRender::RenderingInterface
     {
     public:
@@ -353,12 +346,8 @@ namespace MWRender
         std::unique_ptr<FogManager> mFog;
 
 #ifdef OPENMW_RTX
-        /// Null when `Settings::rtx().mEnabled` is off, and when it is on and the renderer would not
-        /// start — which is reported once and then left alone, because the game is still playable.
-        std::unique_ptr<Rtx::Tracer> mTracer;
-
-        /// What `setWaterHeight` was last told. Kept because `Water` has no getter and the trace
-        /// needs the level to know what is under the surface.
+        /// What `setWaterHeight` was last told. Kept because `Water` has no getter and a renderer
+        /// that traces needs the level to know what is under the surface.
         float mTracedWaterLevel = -std::numeric_limits<float>::infinity();
 #endif
         std::unique_ptr<EffectManager> mEffectManager;

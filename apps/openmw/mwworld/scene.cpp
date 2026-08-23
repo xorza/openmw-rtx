@@ -991,7 +991,8 @@ namespace MWWorld
 
         MWBase::Environment::get().getWindowManager()->changeCell(mCurrentCell);
 
-        MWBase::Environment::get().getWorld()->getPostProcessor()->setExteriorFlag(cell.getCell()->isQuasiExterior());
+        if (MWRender::PostProcessor* post = MWBase::Environment::get().getWorld()->getPostProcessor())
+            post->setExteriorFlag(cell.getCell()->isQuasiExterior());
     }
 
     void Scene::changeToExteriorCell(
@@ -1012,7 +1013,8 @@ namespace MWWorld
         if (changeEvent)
             MWBase::Environment::get().getWindowManager()->fadeScreenIn(0.5);
 
-        MWBase::Environment::get().getWorld()->getPostProcessor()->setExteriorFlag(true);
+        if (MWRender::PostProcessor* post = MWBase::Environment::get().getWorld()->getPostProcessor())
+            post->setExteriorFlag(true);
     }
 
     CellStore* Scene::getCurrentCell()

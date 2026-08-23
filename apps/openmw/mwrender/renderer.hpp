@@ -70,6 +70,14 @@ namespace MWRender
         /// units out of this, and content that wants one more than there are has to be told rather
         /// than find out at link time.
         int mTextureUnits = 0;
+
+        /// Whether there is a shader chain over the frame at all.
+        ///
+        /// Everything that reads `RenderingManager::getPostProcessor()` — the Lua bindings, the HUD
+        /// and the shared uniform block the world writes its sun and its water level into — gates on
+        /// this. A renderer with no such chain is not missing one: light and water reach its picture
+        /// by a different route entirely.
+        bool mPostProcessing = false;
     };
 
     /// What every renderer needs to exist, whatever it draws with.

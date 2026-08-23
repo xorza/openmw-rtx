@@ -15,11 +15,6 @@ namespace Shader
     class ShaderManager;
 }
 
-namespace osgViewer
-{
-    class Viewer;
-}
-
 namespace osg
 {
     class Group;
@@ -36,10 +31,13 @@ namespace MyGUIPlatform
 
     class RenderManager : public MyGUI::RenderManager, public MyGUI::IRenderTarget
     {
-        osg::ref_ptr<osgViewer::Viewer> mViewer;
         osg::ref_ptr<osg::Group> mSceneRoot;
         osg::ref_ptr<Drawable> mDrawable;
         Resource::ImageManager* mImageManager;
+
+        /// The viewport the eye had when this was made. `initialise` is what applies it, and
+        /// every resize after that arrives through `setViewSize`.
+        MyGUI::IntSize mInitialViewSize;
 
         MyGUI::IntSize mViewSize;
         bool mUpdate;
@@ -57,8 +55,10 @@ namespace MyGUIPlatform
         osg::StateSet* mInjectState;
 
     public:
-        RenderManager(osgViewer::Viewer* viewer, osg::Group* sceneroot, Resource::ImageManager* imageManager,
-            float scalingFactor);
+        /// @param eye only for the viewport the GUI is first sized to. Every resize after that
+        ///        arrives through `setViewSize`, so nothing here holds it.
+        RenderManager(
+            const osg::Camera& eye, osg::Group* sceneroot, Resource::ImageManager* imageManager, float scalingFactor);
         virtual ~RenderManager();
 
         void initialise();

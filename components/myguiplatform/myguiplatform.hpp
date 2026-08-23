@@ -7,12 +7,9 @@
 
 #include <components/vfs/pathutil.hpp>
 
-namespace osgViewer
-{
-    class Viewer;
-}
 namespace osg
 {
+    class Camera;
     class Group;
 }
 namespace Resource
@@ -38,7 +35,7 @@ namespace MyGUIPlatform
     class Platform
     {
     public:
-        Platform(osgViewer::Viewer* viewer, osg::Group* guiRoot, Resource::ImageManager* imageManager,
+        Platform(const osg::Camera& eye, osg::Group* guiRoot, Resource::ImageManager* imageManager,
             const VFS::Manager* vfs, float uiScalingFactor, VFS::Path::NormalizedView resourcePath,
             const std::filesystem::path& logName = "MyGUI.log");
 

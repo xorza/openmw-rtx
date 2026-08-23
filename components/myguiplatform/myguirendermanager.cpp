@@ -5,8 +5,6 @@
 #include <osg/Drawable>
 #include <osg/Texture2D>
 
-#include <osgViewer/Viewer>
-
 #include <osgGA/GUIEventHandler>
 
 #include <components/resource/imagemanager.hpp>
@@ -344,15 +342,17 @@ namespace MyGUIPlatform
     // ---------------------------------------------------------------------------
 
     RenderManager::RenderManager(
-        osgViewer::Viewer* viewer, osg::Group* sceneroot, Resource::ImageManager* imageManager, float scalingFactor)
-        : mViewer(viewer)
-        , mSceneRoot(sceneroot)
+        const osg::Camera& eye, osg::Group* sceneroot, Resource::ImageManager* imageManager, float scalingFactor)
+        : mSceneRoot(sceneroot)
         , mImageManager(imageManager)
         , mUpdate(false)
         , mIsInitialise(false)
         , mInvScalingFactor(1.f)
         , mInjectState(nullptr)
     {
+        const osg::Viewport& viewport = *eye.getViewport();
+        mInitialViewSize.set(static_cast<int>(viewport.width()), static_cast<int>(viewport.height()));
+
         if (scalingFactor != 0.f)
             mInvScalingFactor = 1.f / scalingFactor;
     }
@@ -365,7 +365,6 @@ namespace MyGUIPlatform
             mSceneRoot->removeChild(mGuiRoot.get());
         mGuiRoot = nullptr;
         mSceneRoot = nullptr;
-        mViewer = nullptr;
 
         MYGUI_PLATFORM_LOG(Info, getClassTypeName() << " successfully shutdown");
         mIsInitialise = false;
@@ -395,8 +394,7 @@ namespace MyGUIPlatform
         mGuiRoot = camera;
         mSceneRoot->addChild(mGuiRoot.get());
 
-        osg::ref_ptr<osg::Viewport> vp = mViewer->getCamera()->getViewport();
-        setViewSize(static_cast<int>(vp->width()), static_cast<int>(vp->height()));
+        setViewSize(mInitialViewSize.width, mInitialViewSize.height);
 
         MYGUI_PLATFORM_LOG(Info, getClassTypeName() << " successfully initialized");
         mIsInitialise = true;

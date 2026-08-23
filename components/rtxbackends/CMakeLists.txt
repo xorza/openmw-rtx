@@ -12,7 +12,7 @@ source_group(components\\rtxbackends FILES ${RTXBACKENDS_FILES})
 
 add_library(openmw-rtx-backends STATIC ${RTXBACKENDS_FILES})
 
-target_link_libraries(openmw-rtx-backends PUBLIC openmw-rtx)
+target_link_libraries(openmw-rtx-backends PUBLIC openmw-rtx PRIVATE SDL2::SDL2)
 
 target_compile_options(openmw-rtx-backends PRIVATE ${OPENMW_RTX_COMPILE_OPTIONS})
 

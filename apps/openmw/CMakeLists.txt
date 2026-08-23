@@ -35,7 +35,7 @@ add_openmw_dir (mwrender/gl
 # Gated, because these are the only files in the game that name a graphics API other than OpenGL.
 if (OPENMW_RTX)
     add_openmw_dir (mwrender/rtx
-        bench composite tracer
+        bench rtxrenderer
         )
 endif()
 
@@ -179,7 +179,7 @@ if (OPENMW_RTX)
     if (OPENMW_RTX_BENCH)
         target_compile_definitions(openmw-lib PUBLIC OPENMW_RTX_BENCH)
     endif()
-    target_link_libraries(openmw-lib openmw-rtx openmw-rtx-backends openmw-rtx-bridge openmw-rtx-gl)
+    target_link_libraries(openmw-lib openmw-rtx openmw-rtx-backends openmw-rtx-bridge)
 endif()
 
     # Workaround necessary to ensure osgAnimation::MatrixLinearSampler dynamic casts work under Clang

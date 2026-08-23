@@ -4,11 +4,11 @@
 #include <cmath>
 
 #include <SDL.h>
-#include <SDL_vulkan.h>
 
 #include <osg/Math>
 
 #include <components/rtx/error.hpp>
+#include <components/rtx/renderer.hpp>
 
 namespace RtxTool
 {
@@ -95,10 +95,10 @@ namespace RtxTool
 
         mHandle
             = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, static_cast<int>(width),
-                static_cast<int>(height), SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+                static_cast<int>(height), Rtx::surfaceWindowFlag() | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
         if (mHandle == nullptr)
-            throw Rtx::Error(std::string("cannot open a Vulkan window: ") + SDL_GetError());
+            throw Rtx::Error(std::string("cannot open a window the backend can draw in: ") + SDL_GetError());
     }
 
     Window::~Window()
@@ -118,7 +118,7 @@ namespace RtxTool
     {
         int width = 0;
         int height = 0;
-        SDL_Vulkan_GetDrawableSize(mHandle, &width, &height);
+        SDL_GetWindowSizeInPixels(mHandle, &width, &height);
         return static_cast<std::uint32_t>(std::max(width, 1));
     }
 
@@ -126,7 +126,7 @@ namespace RtxTool
     {
         int width = 0;
         int height = 0;
-        SDL_Vulkan_GetDrawableSize(mHandle, &width, &height);
+        SDL_GetWindowSizeInPixels(mHandle, &width, &height);
         return static_cast<std::uint32_t>(std::max(height, 1));
     }
 }

@@ -393,6 +393,14 @@ namespace MWRender
 
         mViewer->realize();
         mCapabilities.mTextureUnits = identifyOp->getMaxTextureImageUnits();
+        mCapabilities.mPostProcessing = true;
+
+#if OSG_VERSION_LESS_THAN(3, 6, 6)
+        // hack fix for https://github.com/openscenegraph/OpenSceneGraph/issues/1028
+        osg::GLExtensions& exts = SceneUtil::getGLExtensions();
+        if (!osg::isGLExtensionSupported(exts.contextID, "NV_framebuffer_multisample_coverage"))
+            exts.glRenderbufferStorageMultisampleCoverageNV = nullptr;
+#endif
 
         mStage.getEvents().getCurrentEventState()->setWindowRectangle(
             0, 0, graphicsWindow->getTraits()->width, graphicsWindow->getTraits()->height);
@@ -517,7 +525,7 @@ namespace MWRender
         VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath)
     {
         return std::make_unique<MyGUIPlatform::Platform>(
-            mViewer, &guiRoot, &images, &vfs, scalingFactor, resourcePath, logPath);
+            mStage.getCamera(), &guiRoot, &images, &vfs, scalingFactor, resourcePath, logPath);
     }
 
     osg::Timer_t GlRenderer::getStartTick() const
@@ -544,13 +552,5 @@ namespace MWRender
         mViewer->getCameras(cameras);
         for (osg::Camera* camera : cameras)
             camera->getStats()->report(stream, frameNumber);
-    }
-
-    std::unique_ptr<Renderer> createRenderer(std::string_view name, const RendererSpec& spec)
-    {
-        if (name == "opengl")
-            return std::make_unique<GlRenderer>(spec);
-
-        throw std::runtime_error("No renderer named \"" + std::string(name) + "\"");
     }
 }

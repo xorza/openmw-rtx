@@ -6,11 +6,7 @@
 #include <numbers>
 
 #include <components/rtx/shaders/scene.h>
-#include <components/rtx/upscale.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
-
-#include "rtx/composite.hpp"
-#include "rtx/tracer.hpp"
 #endif
 
 #include <osg/Camera>
@@ -297,8 +293,11 @@ namespace MWRender
 
         if (getenv("OPENMW_DONT_PRECOMPILE") == nullptr)
         {
+            // Offered rather than installed: a renderer with no OpenGL objects to build has nothing
+            // to spread over several frames and keeps none of it.
             mRenderer.setCompileOperation(new osgUtil::IncrementalCompileOperation);
-            mRenderer.getCompileOperation()->setTargetFrameRate(Settings::cells().mTargetFramerate);
+            if (osgUtil::IncrementalCompileOperation* ico = mRenderer.getCompileOperation())
+                ico->setTargetFrameRate(Settings::cells().mTargetFramerate);
         }
 
         mDebugDraw = new Debug::DebugDrawer(mResourceSystem->getSceneManager()->getShaderManager());
@@ -334,11 +333,21 @@ namespace MWRender
                 Shader::ShaderManager::Slot::OpaqueDepthTexture));
         rootNode->addCullCallback(mPerViewUniformStateUpdater);
 
-        mPostProcessor = new PostProcessor(*this, mRenderer, mStage, mRootNode, resourceSystem->getVFS());
-        resourceSystem->getSceneManager()->setOpaqueDepthTex(
-            mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 0),
-            mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 1));
-        resourceSystem->getSceneManager()->setSupportsNormalsRT(mPostProcessor->getSupportsNormalsRT());
+        // **The rasterizer's frame graph, and only where there is a rasterizer.** Its constructor
+        // reads `GLExtensions` off the camera's graphics context, so under a renderer that owns its
+        // own surface this is not a feature to switch off — it is a null dereference.
+        if (mRenderer.getCapabilities().mPostProcessing)
+        {
+            mPostProcessor = new PostProcessor(*this, mRenderer, mStage, mRootNode, resourceSystem->getVFS());
+            resourceSystem->getSceneManager()->setOpaqueDepthTex(
+                mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 0),
+                mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 1));
+            resourceSystem->getSceneManager()->setSupportsNormalsRT(mPostProcessor->getSupportsNormalsRT());
+        }
+        else
+        {
+            mRenderer.setSceneRoot(*mRootNode);
+        }
         resourceSystem->getSceneManager()->setWeatherParticleOcclusion(Settings::shaders().mWeatherParticleOcclusion);
 
         // water goes after terrain for correct waterculling order
@@ -425,40 +434,6 @@ namespace MWRender
         updateProjectionMatrix();
 
         mStage.getCamera().setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-#ifdef OPENMW_RTX
-        if (Settings::rtx().mEnabled)
-        {
-            const osg::Viewport* viewport = mStage.getCamera().getViewport();
-            const std::string wanted = Settings::rtx().mUpscale;
-
-            // **Refused rather than defaulted**, for the reason `Rtx::upscaleNamed` gives: a typo
-            // that quietly renders at another mode is a measurement of the wrong thing.
-            const std::optional<::Rtx::Upscale> upscale = ::Rtx::upscaleNamed(wanted);
-
-            std::string reason;
-            if (!upscale.has_value())
-                reason = '"' + wanted + "\" is not one of off, performance, balanced, quality or dlaa";
-            else
-                mTracer = Rtx::Tracer::tryCreate(static_cast<std::uint32_t>(viewport->width()),
-                    static_cast<std::uint32_t>(viewport->height()),
-                    resourceSystem->getSceneManager()->getShaderManager().getShaderPath().parent_path() / "rtx"
-                        / "shaders",
-                    *upscale, reason);
-
-            if (mTracer == nullptr)
-            {
-                // **Reported and survivable.** The rasterizer is untouched and the game is playable;
-                // a machine that cannot ray trace should say so once and carry on.
-                Log(Debug::Warning) << "Ray tracing is on and cannot start: " << reason;
-            }
-            else
-            {
-                mPostProcessor->getHUDCamera()->addChild(&mTracer->getComposite());
-                Log(Debug::Info) << "Ray tracing is on, compositing over the rasterizer";
-            }
-        }
-#endif
     }
 
     RenderingManager::~RenderingManager()
@@ -590,8 +565,11 @@ namespace MWRender
         // This is total nonsense but it's what Morrowind uses
         static const osg::Vec4f interiorSunPos
             = osg::Vec4f(-1.f, osg::DegreesToRadians(45.f), osg::DegreesToRadians(45.f), 0.f);
-        mPostProcessor->getStateUpdater()->setSunPos(interiorSunPos, false);
-        mPostProcessor->getStateUpdater()->setSunVec(-interiorSunPos);
+        if (mPostProcessor != nullptr)
+        {
+            mPostProcessor->getStateUpdater()->setSunPos(interiorSunPos, false);
+            mPostProcessor->getStateUpdater()->setSunVec(-interiorSunPos);
+        }
         mSunLight->setPosition(interiorSunPos);
     }
 
@@ -601,8 +579,11 @@ namespace MWRender
         mSunLight->setDiffuse(diffuse);
         mSunLight->setSpecular(osg::Vec4f(specular.x(), specular.y(), specular.z(), specular.w() * sunVis));
 
-        mPostProcessor->getStateUpdater()->setSunColor(diffuse);
-        mPostProcessor->getStateUpdater()->setSunVis(sunVis);
+        if (mPostProcessor != nullptr)
+        {
+            mPostProcessor->getStateUpdater()->setSunColor(diffuse);
+            mPostProcessor->getStateUpdater()->setSunVis(sunVis);
+        }
     }
 
     const osg::Vec4f& RenderingManager::getSunLightPosition() const
@@ -624,8 +605,11 @@ namespace MWRender
 
         mSky->setSunDirection(position);
 
-        mPostProcessor->getStateUpdater()->setSunPos(osg::Vec4f(position, 0.f), mNight);
-        mPostProcessor->getStateUpdater()->setSunVec(osg::Vec4f(-sunlightPos, 0.f));
+        if (mPostProcessor != nullptr)
+        {
+            mPostProcessor->getStateUpdater()->setSunPos(osg::Vec4f(position, 0.f), mNight);
+            mPostProcessor->getStateUpdater()->setSunVec(osg::Vec4f(-sunlightPos, 0.f));
+        }
     }
 
     void RenderingManager::addCell(const MWWorld::CellStore* store)
@@ -680,7 +664,8 @@ namespace MWRender
             mShadowManager->enableOutdoorMode();
         else
             mShadowManager->enableIndoorMode(Settings::shadows());
-        mPostProcessor->getStateUpdater()->setIsInterior(!enabled);
+        if (mPostProcessor != nullptr)
+            mPostProcessor->getStateUpdater()->setIsInterior(!enabled);
     }
 
     bool RenderingManager::toggleBorders()
@@ -790,20 +775,23 @@ namespace MWRender
         mStateUpdater->setFogEnd(fogEnd);
         setFogColor(fogColor);
 
-        auto world = MWBase::Environment::get().getWorld();
-        const auto& stateUpdater = mPostProcessor->getStateUpdater();
+        if (mPostProcessor != nullptr)
+        {
+            auto world = MWBase::Environment::get().getWorld();
+            const auto& stateUpdater = mPostProcessor->getStateUpdater();
 
-        stateUpdater->setFogRange(fogStart, fogEnd);
-        stateUpdater->setNearFar(mNearClip, mViewDistance);
-        stateUpdater->setIsUnderwater(isUnderwater);
-        stateUpdater->setFogColor(fogColor);
-        stateUpdater->setGameHour(world->getTimeStamp().getHour());
-        stateUpdater->setWeatherId(world->getCurrentWeatherScriptId());
-        stateUpdater->setNextWeatherId(world->getNextWeatherScriptId());
-        stateUpdater->setWeatherTransition(world->getWeatherTransition());
-        stateUpdater->setWindSpeed(world->getWindSpeed());
-        stateUpdater->setSkyColor(mSky->getSkyColor());
-        mPostProcessor->setUnderwaterFlag(isUnderwater);
+            stateUpdater->setFogRange(fogStart, fogEnd);
+            stateUpdater->setNearFar(mNearClip, mViewDistance);
+            stateUpdater->setIsUnderwater(isUnderwater);
+            stateUpdater->setFogColor(fogColor);
+            stateUpdater->setGameHour(world->getTimeStamp().getHour());
+            stateUpdater->setWeatherId(world->getCurrentWeatherScriptId());
+            stateUpdater->setNextWeatherId(world->getNextWeatherScriptId());
+            stateUpdater->setWeatherTransition(world->getWeatherTransition());
+            stateUpdater->setWindSpeed(world->getWindSpeed());
+            stateUpdater->setSkyColor(mSky->getSkyColor());
+            mPostProcessor->setUnderwaterFlag(isUnderwater);
+        }
     }
 
     Lighting RenderingManager::describeLighting() const
@@ -874,20 +862,6 @@ namespace MWRender
         };
 
         mRenderer.renderFrame(frame);
-
-#ifdef OPENMW_RTX
-        // **After the draw, because the composite that shows it was drawn inside it.** The traced
-        // image reaches the screen through the rasterizer's HUD camera for as long as OpenGL owns
-        // the window, so the frame on screen is always the one before this — `docs/rtx/plan.md` §12,
-        // and what step 4 of `docs/rtx/renderers.md` removes by owning the window instead.
-        if (mTracer != nullptr)
-        {
-            const osg::Viewport& viewport = *mStage.getCamera().getViewport();
-            mTracer->resize(
-                static_cast<std::uint32_t>(viewport.width()), static_cast<std::uint32_t>(viewport.height()));
-            mTracer->trace(frame);
-        }
-#endif
     }
 
     void RenderingManager::updatePlayerPtr(const MWWorld::Ptr& ptr)
@@ -947,7 +921,8 @@ namespace MWRender
         mWater->setEnabled(enabled);
         mSky->setWaterEnabled(enabled);
 
-        mPostProcessor->getStateUpdater()->setIsWaterEnabled(enabled);
+        if (mPostProcessor != nullptr)
+            mPostProcessor->getStateUpdater()->setIsWaterEnabled(enabled);
     }
 
     void RenderingManager::setWaterHeight(float height)
@@ -960,7 +935,8 @@ namespace MWRender
         mWater->setHeight(height);
         mSky->setWaterHeight(height);
 
-        mPostProcessor->getStateUpdater()->setWaterHeight(height);
+        if (mPostProcessor != nullptr)
+            mPostProcessor->getStateUpdater()->setWaterHeight(height);
     }
 
     void RenderingManager::screenshot(osg::Image* image, int w, int h)
@@ -1400,7 +1376,8 @@ namespace MWRender
 
         mSunLight->setAmbient(color);
 
-        mPostProcessor->getStateUpdater()->setAmbientColor(color);
+        if (mPostProcessor != nullptr)
+            mPostProcessor->getStateUpdater()->setAmbientColor(color);
         mStateUpdater->setAmbientColor(color);
     }
 
@@ -1559,7 +1536,7 @@ namespace MWRender
                 if (!lightManagersUpdated)
                     mStage.getSceneRoot().accept(visitor);
             }
-            else if (it->first == "Post Processing" && it->second == "enabled")
+            else if (it->first == "Post Processing" && it->second == "enabled" && mPostProcessor != nullptr)
             {
                 if (Settings::postProcessing().mEnabled)
                     mPostProcessor->enable();

@@ -649,8 +649,10 @@ namespace Shader
             if (mAdjustCoverageForAlphaTest && !reqs.mAlphaBlend)
                 defineMap["adjustCoverage"] = "1";
 
-            // Preventing alpha tested stuff shrinking as lower mip levels are used requires knowing the texture size
-            if (SceneUtil::getGLExtensions().isGpuShader4Supported)
+            // Preventing alpha tested stuff shrinking as lower mip levels are used requires knowing the texture
+            // size. Asked only where there is a device to ask: a renderer with no OpenGL under it never links this
+            // program, and the fallback the comment below names is what a build without the extension gets anyway.
+            if (SceneUtil::glExtensionsReady() && SceneUtil::getGLExtensions().isGpuShader4Supported)
                 defineMap["useGPUShader4"] = "1";
             // We could fall back to a texture size uniform if EXT_gpu_shader4 is missing
         }

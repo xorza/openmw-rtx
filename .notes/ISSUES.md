@@ -35,3 +35,16 @@
   `components/rtxvulkan/compositepass.cpp`, `components/rtxvulkan/exposurepass.cpp`. Under
   clang-format 22 a different set differs, `apps/openmw/mwworld/worldimp.cpp` among them, so the two
   versions cannot both be satisfied.
+
+- `[RTX] upscale` anything but `off` takes the game down on the first traced frame:
+  `NGX_VULKAN_EVALUATE_DLSSD_EXT` returns `NVSDK_NGX_Result_FAIL_NotInitialized`. NGX starts, reports
+  Ray Reconstruction available and builds the feature without complaint, and the render and output
+  extents are the ones the composite path used. `openmw-rtxtool view --upscale=quality` at the same
+  extent on the same device is fine, and so was the game before it owned its window, so it is neither
+  the size nor DLSS itself. The validation layers say nothing.
+
+- The ray tracing renderer has no screenshot key: `RtxRenderer::saveScreenshot` logs and does
+  nothing. `OPENMW_RTX_SHOT` still writes frames.
+
+- With the ray tracing renderer an exterior has no ground and no paged objects, for the reason the
+  `distant terrain` entry above gives — it never culls, so `Terrain::QuadTreeWorld` is never asked.

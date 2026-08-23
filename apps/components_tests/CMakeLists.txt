@@ -112,7 +112,6 @@ if (OPENMW_RTX)
         rtx/frametimes.cpp
         rtx/gputimer.cpp
         rtx/harness.cpp
-        rtx/interop.cpp
         rtx/harness.hpp
         rtx/lightgrid.cpp
         rtx/pipelinecache.cpp
@@ -156,7 +155,7 @@ target_link_libraries(components-tests
 
 if (OPENMW_RTX)
     target_link_libraries(components-tests openmw-rtx openmw-rtx-backends openmw-rtx-vulkan openmw-rtx-bridge
-                          openmw-rtx-gl openmw-rtxtool-lib)
+                          openmw-rtxtool-lib)
 
     # Per file rather than per target: this binary holds upstream's tests as well as this fork's, and
     # only the latter are ours to keep warning-free.

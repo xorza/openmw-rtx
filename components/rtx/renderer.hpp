@@ -327,6 +327,17 @@ namespace Rtx
         Renderer() = default;
     };
 
+    /// The SDL window flag a window must be created with for this build's backend to make a
+    /// surface on it — `SDL_WINDOW_VULKAN` or `SDL_WINDOW_METAL`, as an SDL flag rather than an
+    /// enum of our own, because ORing it into `SDL_CreateWindow` is the only thing anyone does
+    /// with it.
+    ///
+    /// **Asked rather than assumed.** The two are not interchangeable and a window made with the
+    /// wrong one cannot be given a surface at all. `RendererOptions::mWindow` says nothing above
+    /// this line has to know which API it is; without this, opening the window was the one place
+    /// that did.
+    std::uint32_t surfaceWindowFlag();
+
     /// Builds a renderer, or nothing where this machine cannot run the backend asked for.
     ///
     /// **Null and a reason rather than a throw.** Bring-up failure is the one failure a caller always

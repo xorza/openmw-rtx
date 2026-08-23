@@ -25,7 +25,6 @@
 
 #include <components/stereo/stereomanager.hpp>
 
-#include <components/sceneutil/glextensions.hpp>
 #include <components/sceneutil/workqueue.hpp>
 
 #include <components/files/configurationmanager.hpp>
@@ -246,7 +245,8 @@ bool OMW::Engine::frame(unsigned frameNumber, float frametime)
         stats->setAttribute(frameNumber, "StringRefId Count", static_cast<double>(ESM::StringRefId::totalCount()));
     }
 
-    Stereo::Manager::instance().updateSettings(Settings::camera().mNearClip, Settings::camera().mViewingDistance);
+    if (Stereo::Manager* stereo = Stereo::Manager::instancePtr())
+        stereo->updateSettings(Settings::camera().mNearClip, Settings::camera().mViewingDistance);
 
     mRenderer->eventTraversal();
     mRenderer->updateTraversal();
@@ -455,17 +455,11 @@ void OMW::Engine::prepareEngine()
     // gui needs our shaders path before everything else
     mResourceSystem->getSceneManager()->setShaderPath(mResDir / "shaders");
 
-#if OSG_VERSION_LESS_THAN(3, 6, 6)
-    // hack fix for https://github.com/openscenegraph/OpenSceneGraph/issues/1028
-    osg::GLExtensions& exts = SceneUtil::getGLExtensions();
-    if (!osg::isGLExtensionSupported(exts.contextID, "NV_framebuffer_multisample_coverage"))
-        exts.glRenderbufferStorageMultisampleCoverageNV = nullptr;
-#endif
-
     osg::ref_ptr<osg::Group> guiRoot = new osg::Group;
     guiRoot->setName("GUI Root");
     guiRoot->setNodeMask(MWRender::Mask_GUI);
-    Stereo::Manager::instance().disableStereoForNode(guiRoot);
+    if (Stereo::Manager* stereo = Stereo::Manager::instancePtr())
+        stereo->disableStereoForNode(guiRoot);
     rootNode->addChild(guiRoot);
 
     mWindowManager = std::make_unique<MWGui::WindowManager>(*mRenderer, *mStage, guiRoot, mResourceSystem.get(),
@@ -599,7 +593,12 @@ void OMW::Engine::go()
 
     mStage = std::make_unique<MWRender::Stage>();
     mWorkQueue = new SceneUtil::WorkQueue(Settings::cells().mPreloadNumThreads);
-    mRenderer = MWRender::createRenderer("opengl",
+    // **Decided once, before the window exists, and never revisited.** `-DOPENMW_RTX=ON` decides
+    // whether the ray tracer is built; this decides whether it runs.
+    const std::string_view wanted = Settings::rtx().mEnabled ? "raytrace" : "opengl";
+    Log(Debug::Info) << "Renderer: " << wanted;
+
+    mRenderer = MWRender::createRenderer(wanted,
         MWRender::RendererSpec{
             .mStage = *mStage,
             .mWorkQueue = *mWorkQueue,

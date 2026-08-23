@@ -7,13 +7,13 @@
 namespace MyGUIPlatform
 {
 
-    Platform::Platform(osgViewer::Viewer* viewer, osg::Group* guiRoot, Resource::ImageManager* imageManager,
+    Platform::Platform(const osg::Camera& eye, osg::Group* guiRoot, Resource::ImageManager* imageManager,
         const VFS::Manager* vfs, float uiScalingFactor, VFS::Path::NormalizedView resourcePath,
         const std::filesystem::path& logName)
         : mLogFacility(logName.empty() ? nullptr : std::make_unique<LogFacility>(logName, false))
         , mLogManager(std::make_unique<MyGUI::LogManager>())
         , mDataManager(std::make_unique<DataManager>(resourcePath, vfs))
-        , mRenderManager(std::make_unique<RenderManager>(viewer, guiRoot, imageManager, uiScalingFactor))
+        , mRenderManager(std::make_unique<RenderManager>(eye, guiRoot, imageManager, uiScalingFactor))
     {
         if (mLogFacility != nullptr)
             mLogManager->addLogSource(mLogFacility->getSource());
