@@ -577,7 +577,7 @@ Neen from `--skip-menu --new-game`, loads, traces and runs clean; and a second t
 Not verified beyond compiling: the settings pages and the Lua bindings, which reach the same
 `RenderingManager::getPostProcessor()` they always did.
 
-### Step 4 — `RtxRenderer` presents the world — **the game runs on it; two things are not done**
+### Step 4 — `RtxRenderer` presents the world — **done**
 
 `MWRender::Rtx::RtxRenderer` is a `Renderer` like any other: an SDL window created with
 `SDL_WINDOW_VULKAN` and not one GL attribute set, a `Rtx::Renderer` handed that window so the backend
@@ -650,18 +650,29 @@ with no context had to ask `SceneUtil::glExtensionsReady()` first, the way `imag
 did; the `OSG < 3.6.6` framebuffer workaround moved out of `Engine` into `GlRenderer`, where the
 context it needs exists.
 
-**Not done.** Terrain by view point (§5): this renderer never culls, so `Terrain::QuadTreeWorld` is
-never asked and an exterior has no ground. And DLSS Ray Reconstruction fails on this path with
-`NVSDK_NGX_Result_FAIL_NotInitialized` on the first evaluate, though it works in the harness at the
-same extent on the same device and worked in the game before it owned its window — both in
-`.notes/ISSUES.md`. `RtxRenderer::saveScreenshot` is a stub; `OPENMW_RTX_SHOT` still writes frames.
+**Terrain by view point did not turn out to be needed here.** §5 is right that a plain visitor sees
+nothing of `Terrain::QuadTreeWorld`, but that is the `distant terrain` path, and it is off by default
+— `TerrainGrid` attaches real children and the mirror walks them like anything else. An exterior
+draws: 10,676 instances from 1,031 meshes in the Ascadian Isles, with terrain, trees, buildings and
+water in the frame. §5 stays on the list for the day distant terrain is turned on, which is where it
+always belonged.
 
-*Verified by*: `--skip-menu --new-game` with `[RTX] enabled` and `upscale = off` reaching the Imperial
-Prison Ship and tracing 817 instances at 1994×1366, steady at 13.5 ms a frame with the mirror finding
-the same 207 meshes every frame and retiring nothing; the OpenGL path unchanged, with five golden
-images byte-identical and both test binaries passing; and `-DOPENMW_RTX=OFF` still building and
-linking. *Not verified*: that the picture is right — nobody has looked at it yet, and an interior is
-the only place worth looking until terrain lands.
+**Still open**, both in `.notes/ISSUES.md`: DLSS Ray Reconstruction fails on this path with
+`NVSDK_NGX_Result_FAIL_NotInitialized` on the first evaluate — it works in the harness at the same
+extent on the same device and worked in the game before it owned its window — so `upscale` has to be
+`off`. And `RtxRenderer::saveScreenshot` is a stub; `OPENMW_RTX_SHOT` still writes frames.
+
+*Verified by*: **the picture** — a loaded save in the Ascadian Isles, written out through
+`OPENMW_RTX_SHOT`, showing terrain, trees, a jetty, translucent water over a visible riverbed, a lit
+torch and distance fog; the world, traced, presented from the swapchain. Steady at 13.2 ms a frame
+over 10,676 instances at 1994×1366, with the mirror finding the same meshes every frame and retiring
+nothing. **The negative test**, asserted at startup on every run: `SDL_GL_GetCurrentContext()` is
+null, so nothing under this renderer made a GL context. And the OpenGL path unchanged — five golden
+images byte-identical, both test binaries passing, `-DOPENMW_RTX=OFF` still building and linking.
+
+*Not measured*: `plan.md` §12's frame of latency is structurally gone — the present is inside
+`renderFrame`, after the trace that made the image — but nobody has put a number on it. The benchmark
+corpus needs `-DOPENMW_RTX_BENCH=ON`, which this build does not have.
 
 ### Step 5 — the material becomes the only authored form
 

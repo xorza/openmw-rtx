@@ -46,5 +46,3 @@
 - The ray tracing renderer has no screenshot key: `RtxRenderer::saveScreenshot` logs and does
   nothing. `OPENMW_RTX_SHOT` still writes frames.
 
-- With the ray tracing renderer an exterior has no ground and no paged objects, for the reason the
-  `distant terrain` entry above gives — it never culls, so `Terrain::QuadTreeWorld` is never asked.

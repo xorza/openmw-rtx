@@ -153,6 +153,12 @@ namespace MWRender::Rtx
         // What is left of the two is the world's own water, and it is the sea.
         mExtractor->setWaterMask(Mask_Water);
 
+        // **The negative test, and it is the whole claim of this path in one line.** Nothing above
+        // here may have made a GL context: not the window, not a realize operation, not an
+        // `osgViewer` that slipped back in. A context that exists is one something is paying for.
+        if (SDL_GL_GetCurrentContext() != nullptr)
+            throw std::runtime_error("something initialised OpenGL under the ray tracing renderer");
+
         if (const char* where = std::getenv("OPENMW_RTX_SHOT"); where != nullptr && *where != '\0')
         {
             mKeepAt = where;
