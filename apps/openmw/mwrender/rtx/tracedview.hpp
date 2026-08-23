@@ -100,6 +100,14 @@ namespace MWRender::Rtx
 
         osg::ref_ptr<osg::Image> mCopy;
 
+        /// Whether `mCopy` holds the picture the most recent `redraw()` asked for.
+        ///
+        /// **Because `OffscreenView::getCopy` promises null until it does**, and a black image is
+        /// not a picture that has not arrived — it is a picture of nothing. The global map paints
+        /// the tile it is handed and marks the cell done, so answering early paints that cell black
+        /// for the rest of the session.
+        bool mCopyIsCurrent = false;
+
         /// What a read lands in before it is handed to the copy. Kept rather than made per redraw:
         /// the local map draws a tile a cell, and a cell arriving is already the busiest frame there
         /// is.

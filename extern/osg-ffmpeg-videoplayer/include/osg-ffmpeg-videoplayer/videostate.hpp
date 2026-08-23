@@ -15,7 +15,6 @@
 namespace osg
 {
     class Image;
-    class Image;
 }
 
 #if defined(_MSC_VER)

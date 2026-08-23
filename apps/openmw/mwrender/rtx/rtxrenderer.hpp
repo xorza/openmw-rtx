@@ -262,8 +262,8 @@ namespace MWRender::Rtx
         std::chrono::steady_clock::time_point mEntered;
         bool mEnteredOnce = false;
 
-        /// Whether anything has been traced yet, so `renderGui` knows there is something to show.
-
+        /// The frame number the walk and the trace are both stamped with, so what the upscaler
+        /// jitters and what the sampler walks are the same sequence the world is counting.
         std::size_t mFrame = 0;
         bool mComplained = false;
 

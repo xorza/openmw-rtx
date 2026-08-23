@@ -81,8 +81,8 @@ namespace RtxBridge
         /// drawable arriving unnoticed.
         std::uint32_t mSkippedUnknown = 0;
 
-        /// Surfaces the content pipeline never described, so what they are had to be recovered by
-        /// reading OpenGL state back out.
+        /// Surfaces the content pipeline never described, which are drawn as whatever a default
+        /// `Rtx::Material` is — untextured, opaque and one-sided.
         ///
         /// **A canary, and it should be zero.** `NifOsg` and `Terrain` author a `Surface::Material`
         /// for everything they build; a drawable arriving without one means a state set was made

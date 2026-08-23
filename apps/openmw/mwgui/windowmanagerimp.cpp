@@ -1753,7 +1753,8 @@ namespace MWGui
 
     bool WindowManager::isPostProcessorHudVisible() const
     {
-        return mPostProcessorHud->isVisible();
+        // Null until `initUI`, and the clock asks whether the game is paused before then.
+        return mPostProcessorHud != nullptr && mPostProcessorHud->isVisible();
     }
 
     bool WindowManager::isSettingsWindowVisible() const

@@ -186,6 +186,9 @@ namespace MWRender::Rtx
 
     void TracedView::redraw()
     {
+        // Whatever is in the copy is a picture of the last redraw, and this is a new one.
+        mCopyIsCurrent = false;
+
         if (!mFromWorld)
         {
             rebuildSubject();
@@ -216,6 +219,8 @@ namespace MWRender::Rtx
         // interface comes back to main memory, which is why it is asked for rather than always done.
         mRenderer.readGuiTexture(mSlot, mPixels);
         std::memcpy(mCopy->data(), mPixels.data(), std::min<std::size_t>(mPixels.size(), mCopy->getTotalSizeInBytes()));
+
+        mCopyIsCurrent = true;
     }
 
     void TracedView::keepCopy()
@@ -231,7 +236,7 @@ namespace MWRender::Rtx
 
     const osg::Image* TracedView::getCopy() const
     {
-        return mCopy;
+        return mCopyIsCurrent ? mCopy.get() : nullptr;
     }
 
     bool TracedView::pick(float x, float y, osg::NodePath& hit) const

@@ -168,8 +168,6 @@ namespace MWRender
 
         void setExteriorFlag(bool exterior) { mExteriorFlag = exterior; }
 
-        void setUnderwaterFlag(bool underwater) { mUnderwater = underwater; }
-
         /// This frame's world, in the spelling the chain's shaders sample.
         ///
         /// **A copy and not a cache.** Every value is settled somewhere in the world already, so

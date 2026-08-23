@@ -632,8 +632,12 @@ namespace MWRender::Rtx
         }
 
         const ::Rtx::FrameExtents extents = mRenderer->getExtents();
+
+        // **The frame's field of view and not the setting's.** `WorldState` carries the one the
+        // world settled on, which is the override wherever something asked for one — a zoom, a
+        // cutscene, a script — and the setting only where nothing did.
         ::Rtx::Shaders::VisibilityConstants constants = ::Rtx::makeCameraAlong(
-            eye, forward, Settings::camera().mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, sFar);
+            eye, forward, world.mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, sFar);
         // **Decoded here, because the world does not know what a transport is.** Every colour on
         // the frame is a content file's three bytes over 255 and no transfer function; the
         // rasterizer samples them as they are and this light transport is linear, so the conversion

@@ -72,7 +72,7 @@ namespace MyGUIRtx
         mFormat = format;
         mUsage = usage;
         mNumElemBytes = elements;
-        mPixels.assign(static_cast<std::size_t>(width) * height * elements + 0, 0);
+        mPixels.assign(static_cast<std::size_t>(width) * height * elements, 0);
         mSlot = mRenderer.addGuiTexture(static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height));
     }
 

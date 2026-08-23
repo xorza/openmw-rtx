@@ -37,8 +37,9 @@ namespace Rtx::Shaders
     /// The camera, as a ray generator.
     ///
     /// `mRight` and `mUp` are already scaled by the half-extents of the image plane at unit distance,
-    /// so a ray is `mForward + mRight * x + mUp * y` for `x` and `y` in [-1, 1] and no trigonometry
-    /// in the shader.
+    /// so a ray is `mForward + mRight * x - mUp * y` for `x` and `y` in [-1, 1] and no trigonometry
+    /// in the shader. **`y` runs down the image**, because it is the pixel index the jitter is added
+    /// to, which is why it is subtracted: `mUp` points the other way.
     struct VisibilityConstants
     {
         vec3 mOrigin;

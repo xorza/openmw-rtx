@@ -114,8 +114,7 @@ namespace MyGUIRtx
             return it->second.get();
         }
 
-        return mTextures.emplace(name, std::make_unique<Texture>(name, mRenderer, mImageManager))
-            .first->second.get();
+        return mTextures.emplace(name, std::make_unique<Texture>(name, mRenderer, mImageManager)).first->second.get();
     }
 
     void RenderManager::destroyTexture(MyGUI::ITexture* texture)
@@ -224,9 +223,11 @@ namespace MyGUIRtx
         mUpdate = true;
     }
 
-    void RenderManager::registerShader(
-        const std::string& shaderName, const std::string& /*vertexProgramFile*/, const std::string& /*fragmentProgramFile*/)
+    void RenderManager::registerShader(const std::string& shaderName, const std::string& /*vertexProgramFile*/,
+        const std::string& /*fragmentProgramFile*/)
     {
-        Log(Debug::Warning) << "A GUI shader was asked for and this backend has one: " << shaderName;
+        // The other backend compiles one and draws widgets with it; this one has two pipelines
+        // built at startup and no way to take a third.
+        Log(Debug::Warning) << "A GUI shader was asked for and this backend has none: " << shaderName;
     }
 }
