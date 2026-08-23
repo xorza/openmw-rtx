@@ -434,6 +434,78 @@ namespace RtxBridge
             EXPECT_EQ(again.mDeformed, 1u);
             EXPECT_EQ(scene.getMeshes().size(), 1u) << "the other half of the double buffer is the same mesh";
             EXPECT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 7.0f));
+
+            // **And the number is what makes it happen, which is the trap worth writing down.** A
+            // deforming drawable skins once per traversal number and hands back what it already has
+            // for one it has seen, so a caller that walks with the same number twice gets the pose
+            // it got the first time however far the bones have moved since. The offscreen views are
+            // where that bites: they are drawn when the character changes rather than when the
+            // frame does, so their clock is theirs to advance.
+            rigged.mBone->setMatrix(osg::Matrix::translate(0.0, 0.0, 99.0));
+            rigged.update(3);
+
+            scene.clearPlacement();
+            extractor.extract(*rigged.mSkeleton, osg::Matrixf::identity(), 0, 1);
+
+            EXPECT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 7.0f))
+                << "the same traversal number twice leaves the pose where the first walk put it";
+        }
+
+        /// A drawable whose geometry is not the geometry the mirror met under that address is
+        /// mirrored again rather than written over the slot the first one took.
+        ///
+        /// **Because the map is keyed on an address and the engine reuses them.** A body part taken
+        /// off and another put on lands where the first was, so the walk that meets it finds an
+        /// entry describing something else. The slot is a run inside one shared vertex buffer:
+        /// writing a longer mesh into it runs over the meshes that follow, which is not a wrong
+        /// pose but a torn model — and in a release build the count is not asserted, so nothing
+        /// says so. Changing the source geometry under one rig is the same fact without needing the
+        /// allocator to hand back an address.
+        TEST(RtxSceneExtractorTest, aDeformingDrawableThatChangedShapeIsMirroredAgainRatherThanWrittenOver)
+        {
+            RiggedQuad rigged;
+            rigged.update(1);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+
+            osg::ref_ptr<osg::Geometry> neighbour = makeQuad();
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            root->addChild(rigged.mSkeleton);
+            root->addChild(neighbour);
+
+            extractor.extract(*root, osg::Matrixf::identity(), 0);
+            ASSERT_EQ(scene.getMeshes().size(), 2u);
+            ASSERT_EQ(scene.getMeshPositions(0).size(), 4u);
+
+            // The quad standing next to the rig, whose vertices the overrun would land in.
+            const std::vector<osg::Vec3f> before(scene.getMeshPositions(1).begin(), scene.getMeshPositions(1).end());
+
+            // Six vertices where the slot holds four, under the same drawable.
+            osg::ref_ptr<osg::Geometry> longer = new osg::Geometry;
+            longer->setVertexArray(makePositions({
+                osg::Vec3f(0.0f, 0.0f, 0.0f),
+                osg::Vec3f(2.0f, 0.0f, 0.0f),
+                osg::Vec3f(2.0f, 2.0f, 0.0f),
+                osg::Vec3f(0.0f, 2.0f, 0.0f),
+                osg::Vec3f(3.0f, 0.0f, 0.0f),
+                osg::Vec3f(3.0f, 3.0f, 0.0f),
+            }));
+            longer->addPrimitiveSet(makeTriangles({ 0, 1, 2, 0, 2, 3, 1, 4, 5 }));
+
+            rigged.mRig->setInfluences(std::vector<SceneUtil::RigGeometry::BoneWeights>(
+                6, SceneUtil::RigGeometry::BoneWeights{ { 0, 1.0f } }));
+            rigged.mRig->setSourceGeometry(longer);
+            rigged.update(2);
+
+            scene.clearPlacement();
+            const ExtractionStats again = extractor.extract(*root, osg::Matrixf::identity(), 0, 1);
+
+            EXPECT_EQ(again.mMeshesAdded, 1u) << "the rig is met as something the mirror has not seen";
+            EXPECT_EQ(scene.getMeshes().size(), 3u) << "and takes a slot of its own rather than the old one";
+
+            const std::vector<osg::Vec3f> after(scene.getMeshPositions(1).begin(), scene.getMeshPositions(1).end());
+            EXPECT_EQ(after, before) << "the mesh after the rig's old slot is untouched";
         }
 
         /// A pose is the one thing the mesh cache does not answer: met again, it is read again — and

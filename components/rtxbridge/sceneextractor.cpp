@@ -888,24 +888,42 @@ namespace RtxBridge
     Rtx::Index SceneExtractor::resolveMesh(
         const osg::Drawable& drawable, const osg::Geometry& geometry, bool deforming, ExtractionStats& stats)
     {
-        const auto known = mMeshes.find(&drawable);
-        if (known != mMeshes.end())
+        if (const auto known = mMeshes.find(&drawable); known != mMeshes.end())
         {
-            ++stats.mMeshesReused;
-            known->second.mEpoch = mEpoch;
-
             // Nothing else in the map is re-read: the whole point of it is that a crate met again is
             // the crate already uploaded. A pose is not, so this is the one path that goes back to
             // the vertex arrays on a hit — and it is why the mirror stays cheap for a cell and pays
             // only for what is actually moving.
-            if (deforming)
+            if (!deforming)
             {
-                const VertexArrays arrays = readVertices(geometry, mFlatNormalScratch);
-                mScene.updateMesh(known->second.mIndex, arrays.mPositions, arrays.mNormals);
-                ++stats.mDeformed;
+                ++stats.mMeshesReused;
+                known->second.mEpoch = mEpoch;
+                return known->second.mIndex;
             }
 
-            return known->second.mIndex;
+            const VertexArrays fresh = readVertices(geometry, mFlatNormalScratch);
+
+            // **The vertex count is what says this is still the same drawable, and it has to be
+            // asked.** This map is keyed on an `osg` address and the engine hands addresses back:
+            // a body part taken off and another put on lands where the first one was, and the walk
+            // that meets it finds the entry the first one left. Writing a pose into that slot is
+            // not a wrong pose — the slot is a run inside one shared vertex buffer, so a longer
+            // mesh runs off the end of it and over the meshes that follow, which is a model torn
+            // into triangles reaching across itself.
+            //
+            // Where the count differs the entry is wrong rather than stale, so it goes and the
+            // geometry is mirrored afresh. The slot it abandons keeps the epoch it had and the
+            // next sweep takes it.
+            if (fresh.mPositions.size() == mScene.getMeshes()[known->second.mIndex].mVertexCount)
+            {
+                ++stats.mMeshesReused;
+                known->second.mEpoch = mEpoch;
+                mScene.updateMesh(known->second.mIndex, fresh.mPositions, fresh.mNormals);
+                ++stats.mDeformed;
+                return known->second.mIndex;
+            }
+
+            mMeshes.erase(known);
         }
 
         const VertexArrays arrays = readVertices(geometry, mFlatNormalScratch);

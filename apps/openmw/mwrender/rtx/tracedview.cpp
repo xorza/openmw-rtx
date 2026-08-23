@@ -168,12 +168,29 @@ namespace MWRender::Rtx
         // subtree is what finds the head to look at, and it runs in an update traversal.
         mPosedFrame = mOwner.updateSubtree(const_cast<osg::Node&>(*mSubject));
 
-        // Mark and sweep over a walk that was the whole scene, which is what makes it sound here:
-        // armour taken off is geometry no walk will meet again, and without the sweep the doll's
-        // tables would grow for the rest of the session.
-        mScene->clearPlacement();
-        mExtractor->extract(*mSubject, osg::Matrixf::identity(), 0, 0);
-        mExtractor->retire();
+        // **From nothing, every time, and that is the point rather than the cost.** A mirror that
+        // is kept answers "have I met this drawable before" with an `osg` address, and between one
+        // redraw and the next this subject is taken apart: `NpcAnimation::updateParts` frees the
+        // body parts that changed and builds their replacements, which the allocator is free to put
+        // exactly where the old ones were. A walk that carried its tables across that finds the
+        // retired part's entry under the new part's address and mirrors the wrong geometry — the
+        // torn figure a change of clothes produced. There is no window here for that: the tables
+        // start empty, so nothing can be mistaken for anything.
+        //
+        // What it costs is re-reading a character's meshes, which is tens of them, on a path that
+        // already rebuilds every acceleration structure and the whole texture array below.
+        // The extractor first: it holds a reference to the scene it walks into.
+        mExtractor.reset();
+        mScene = std::make_unique<::Rtx::SceneDesc>();
+        mExtractor = std::make_unique<RtxBridge::SceneExtractor>(*mScene);
+        mExtractor->setTraversalMask(mSubjectMask);
+
+        // **A clock that reads differently every time, and it outlives the tables above.** The walk
+        // poses the subject by running a cull traversal over it, and `SceneUtil::Skeleton` and both
+        // deforming geometries — which are the game's and survive every rebuild — refuse to move
+        // for a traversal number they have already seen. A walk that said zero every time skinned
+        // the doll when the inventory first opened and never again.
+        mExtractor->extract(*mSubject, osg::Matrixf::identity(), 0, mRedraws++);
 
         // Described whole rather than by arrivals: this is a rebuild, and there is nothing to append
         // to. A character is tens of textures, not the hundreds a cell carries.
