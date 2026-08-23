@@ -22,7 +22,7 @@ add_openmw_dir (mwrender
     creatureanimation effectmanager util renderinginterface pathgrid rendermode weaponanimation
     bulletdebugdraw globalmap characterpreview camera localmap terrainstorage
     renderbin actoranimation landmanager navmesh actorspaths recastmesh fogmanager objectpaging groundcover
-    actorutil animationpriority bonegroup blendmask animblendcontroller stage renderer
+    actorutil animationpriority bonegroup blendmask animblendcontroller stage renderer windowsetup
     )
 
 # The OpenGL renderer. A link boundary rather than a naming convention: what is in here is the

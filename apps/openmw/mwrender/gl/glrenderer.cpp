@@ -54,6 +54,7 @@
 #include "../renderingmanager.hpp"
 #include "../sceneframe.hpp"
 #include "../stage.hpp"
+#include "../windowsetup.hpp"
 
 #include "gloffscreenview.hpp"
 
@@ -204,37 +205,14 @@ namespace MWRender
 
     void GlRenderer::createWindow(const std::filesystem::path& resourceDir)
     {
-        const int screen = Settings::video().mScreen;
-        const int width = Settings::video().mResolutionX;
-        const int height = Settings::video().mResolutionY;
-        const Settings::WindowMode windowMode = Settings::video().mWindowMode;
-        const bool windowBorder = Settings::video().mWindowBorder;
         const SDLUtil::VSyncMode vsync = Settings::video().mVsyncMode;
         unsigned antialiasing = static_cast<unsigned>(Settings::video().mAntialiasing);
 
-        int posX = SDL_WINDOWPOS_CENTERED_DISPLAY(screen);
-        int posY = SDL_WINDOWPOS_CENTERED_DISPLAY(screen);
-
-        if (windowMode == Settings::WindowMode::Fullscreen || windowMode == Settings::WindowMode::WindowedFullscreen)
-        {
-            posX = SDL_WINDOWPOS_UNDEFINED_DISPLAY(screen);
-            posY = SDL_WINDOWPOS_UNDEFINED_DISPLAY(screen);
-        }
-
-        Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-        if (windowMode == Settings::WindowMode::Fullscreen)
-            flags |= SDL_WINDOW_FULLSCREEN;
-        else if (windowMode == Settings::WindowMode::WindowedFullscreen)
-            flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-
-        // Allows for Windows snapping features to properly work in borderless window
-        SDL_SetHint("SDL_BORDERLESS_WINDOWED_STYLE", "1");
-        SDL_SetHint("SDL_BORDERLESS_RESIZABLE_STYLE", "1");
-
-        if (!windowBorder)
-            flags |= SDL_WINDOW_BORDERLESS;
-
-        SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, Settings::video().mMinimizeOnFocusLoss ? "1" : "0");
+        // Everything about where the window goes and what it is; the one flag naming what will be
+        // drawn into it is this renderer's, and the GL attributes below it are too.
+        const WindowPlacement placement = describeWindow(SDL_WINDOW_OPENGL);
+        const int width = placement.mWidth;
+        const int height = placement.mHeight;
 
         checkSDLError(SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8));
         checkSDLError(SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8));
@@ -255,7 +233,7 @@ namespace MWRender
         {
             while (!mWindow)
             {
-                mWindow = SDL_CreateWindow("OpenMW", posX, posY, width, height, flags);
+                mWindow = SDL_CreateWindow("OpenMW", placement.mX, placement.mY, width, height, placement.mFlags);
                 if (!mWindow)
                 {
                     // Try with a lower AA
@@ -288,7 +266,7 @@ namespace MWRender
                 SDL_SetWindowSize(mWindow, width / (dw / w), height / (dh / h));
             }
 
-            setWindowIcon(resourceDir);
+            MWRender::setWindowIcon(*mWindow, resourceDir);
 
             osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
             SDL_GetWindowPosition(mWindow, &traits->x, &traits->y);
@@ -415,30 +393,6 @@ namespace MWRender
 
         mStage.getEvents().getCurrentEventState()->setWindowRectangle(
             0, 0, graphicsWindow->getTraits()->width, graphicsWindow->getTraits()->height);
-    }
-    void GlRenderer::setWindowIcon(const std::filesystem::path& resourceDir)
-    {
-        std::ifstream windowIconStream;
-        const auto windowIcon = resourceDir / "openmw.png";
-        windowIconStream.open(windowIcon, std::ios_base::in | std::ios_base::binary);
-        if (windowIconStream.fail())
-            Log(Debug::Error) << "Error: Failed to open " << windowIcon;
-        osgDB::ReaderWriter* reader = osgDB::Registry::instance()->getReaderWriterForExtension("png");
-        if (!reader)
-        {
-            Log(Debug::Error) << "Error: Failed to read window icon, no png readerwriter found";
-            return;
-        }
-        osgDB::ReaderWriter::ReadResult result = reader->readImage(windowIconStream);
-        if (!result.success())
-            Log(Debug::Error) << "Error: Failed to read " << windowIcon << ": " << result.message() << " code "
-                              << result.status();
-        else
-        {
-            osg::ref_ptr<osg::Image> image = result.getImage();
-            auto surface = SDLUtil::imageToSurface(image, true);
-            SDL_SetWindowIcon(mWindow, surface.get());
-        }
     }
     void GlRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot)
     {

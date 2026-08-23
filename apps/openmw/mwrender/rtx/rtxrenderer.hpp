@@ -174,7 +174,6 @@ namespace MWRender::Rtx
         /// Makes the SDL window the backend builds its surface on. No GL attribute is set and no GL
         /// flag is passed, which is what `SDL_GL_GetCurrentContext() == nullptr` then proves.
         void createWindow(const std::filesystem::path& resourceDir);
-        void setWindowIcon(const std::filesystem::path& resourceDir);
 
         /// Resizes the trace to the window where the window has changed under it.
         void fitToWindow();

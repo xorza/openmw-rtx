@@ -46,6 +46,7 @@
 #include "../offscreenview.hpp"
 #include "../sceneframe.hpp"
 #include "../stage.hpp"
+#include "../windowsetup.hpp"
 #include <components/resource/resourcesystem.hpp>
 
 #include "../renderingmanager.hpp"
@@ -189,69 +190,18 @@ namespace MWRender::Rtx
 
     void RtxRenderer::createWindow(const std::filesystem::path& resourceDir)
     {
-        const Settings::WindowMode windowMode = Settings::video().mWindowMode;
-        const int screen = Settings::video().mScreen;
-
-        int posX = SDL_WINDOWPOS_CENTERED_DISPLAY(screen);
-        int posY = SDL_WINDOWPOS_CENTERED_DISPLAY(screen);
-        if (windowMode == Settings::WindowMode::Fullscreen || windowMode == Settings::WindowMode::WindowedFullscreen)
-        {
-            posX = SDL_WINDOWPOS_UNDEFINED_DISPLAY(screen);
-            posY = SDL_WINDOWPOS_UNDEFINED_DISPLAY(screen);
-        }
-
         // **The backend's own flag, and no `SDL_GL_SetAttribute` anywhere near it.** Which one it
         // is — Vulkan here, Metal on Apple silicon — is the one thing about the API this file would
         // otherwise have had to know, and `Rtx::surfaceWindowFlag` is where that is settled. No GL
         // context is ever made, which is the point of the whole path.
-        Uint32 flags = ::Rtx::surfaceWindowFlag() | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-        if (windowMode == Settings::WindowMode::Fullscreen)
-            flags |= SDL_WINDOW_FULLSCREEN;
-        else if (windowMode == Settings::WindowMode::WindowedFullscreen)
-            flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-        if (!Settings::video().mWindowBorder)
-            flags |= SDL_WINDOW_BORDERLESS;
-
-        SDL_SetHint("SDL_BORDERLESS_WINDOWED_STYLE", "1");
-        SDL_SetHint("SDL_BORDERLESS_RESIZABLE_STYLE", "1");
-        SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, Settings::video().mMinimizeOnFocusLoss ? "1" : "0");
+        const WindowPlacement placement = describeWindow(::Rtx::surfaceWindowFlag());
 
         mWindow = SDL_CreateWindow(
-            "OpenMW", posX, posY, Settings::video().mResolutionX, Settings::video().mResolutionY, flags);
+            "OpenMW", placement.mX, placement.mY, placement.mWidth, placement.mHeight, placement.mFlags);
         if (mWindow == nullptr)
             throw std::runtime_error(std::string("failed to create SDL window: ") + SDL_GetError());
 
-        setWindowIcon(resourceDir);
-    }
-
-    void RtxRenderer::setWindowIcon(const std::filesystem::path& resourceDir)
-    {
-        const std::filesystem::path windowIcon = resourceDir / "openmw.png";
-
-        std::ifstream stream(windowIcon, std::ios_base::in | std::ios_base::binary);
-        if (stream.fail())
-        {
-            Log(Debug::Error) << "Error: Failed to open " << windowIcon;
-            return;
-        }
-
-        osgDB::ReaderWriter* reader = osgDB::Registry::instance()->getReaderWriterForExtension("png");
-        if (reader == nullptr)
-        {
-            Log(Debug::Error) << "Error: Failed to read window icon, no png readerwriter found";
-            return;
-        }
-
-        const osgDB::ReaderWriter::ReadResult result = reader->readImage(stream);
-        if (!result.success())
-        {
-            Log(Debug::Error) << "Error: Failed to read " << windowIcon << ": " << result.message();
-            return;
-        }
-
-        osg::ref_ptr<osg::Image> image = const_cast<osgDB::ReaderWriter::ReadResult&>(result).getImage();
-        const auto surface = SDLUtil::imageToSurface(image, true);
-        SDL_SetWindowIcon(mWindow, surface.get());
+        MWRender::setWindowIcon(*mWindow, resourceDir);
     }
 
     void RtxRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot)

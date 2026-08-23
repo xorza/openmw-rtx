@@ -791,7 +791,37 @@ constructs it.
 2. Move `PostProcessor`'s declaration to `mwrender/postprocessor.hpp` (option A3(a)), leaving the
    implementation in `gl/`. Nine files change one include line each.
 
-### 10. Consolidation, once the above is quiet *(E1–E5)*
+### 10. Consolidation, once the above is quiet *(E1–E5)* — **done: three landed, two assessed**
 
-`makeWindow`/`setWindowIcon`; the one image converter; the `components/mygui*` layout; `todo.txt`
-into `ISSUES.md`; the `CLAUDE.md` architecture paragraph.
+**E1, the two `createWindow`s — done.** `apps/openmw/mwrender/windowsetup.{hpp,cpp}` holds
+`describeWindow(surfaceFlag)` returning a `WindowPlacement`, and the `setWindowIcon` that was
+duplicated verbatim in both renderers. What is left in each is the part that is actually its own: the
+rasterizer's GL attributes and its antialiasing retry loop, and the ray tracer's one call to
+`Rtx::surfaceWindowFlag`. The SDL hints are set inside `describeWindow` because that is the last
+moment they can be — `SDL_CreateWindow` reads them.
+
+**E4, the two image converters — done.** `components/myguiplatform/pixels.{hpp,cpp}` holds
+`directFormat`, `bytesPerPixel` and `writeRgba`. `Picture::set` and `MyGUIRtx::Texture::loadFromFile`
+now share them, which also gives the ray tracer's texture loader the `memcpy` fast path it never had:
+it read a `Vec4f` per pixel for every skin, font page and icon.
+
+**E5, housekeeping — done.** `.notes/rtx/todo.txt` folded into `.notes/ISSUES.md` and deleted.
+`CLAUDE.md`'s "Architecture, in one screen" rewritten: it still said the seam was
+`renderingTraversals()` and that the ray tracer reached the screen through GL/Vulkan interop, both of
+which this branch made false, and it named `components/rtx/` as the Vulkan backend when it is now the
+API-neutral core.
+
+**E2, the `components/mygui*` layout — assessed, not done.** The directory does hold both the neutral
+pieces and the OpenGL backend, and the name says neither. But nine of its nineteen files are
+upstream's, unchanged by this fork, and moving them would be modifying the rasterizer for tidiness —
+against the posture that keeps it comparable. The cost is 13 files, 18 includes and 33 namespace
+uses; the benefit is that a directory name stops being vague. `myguiplatform` does not claim to be
+OpenGL, so nothing is *wrong*, only unhelpful. Worth doing in a pass that is already touching those
+files.
+
+**E3, a single entry point for `Surface::Material` — assessed, and the assert would have been
+wrong.** The suggestion was a `setMaterial` overload that debug-asserts a diffuse role is filled. It
+would fire on surfaces that legitimately have none — a vertex-coloured shape with no texture at all.
+The invariant that actually mattered — a pose never written into a slot sized for something else —
+is enforced now in `SceneExtractor::resolveMesh`, with `ExtractionStats::mUndescribedMaterials` as
+the canary for a state set nobody described.

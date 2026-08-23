@@ -50,3 +50,6 @@
 - `MWRender::Rtx::TracedView`'s constructor initialises its members in an order the declarations do
   not match, so every translation unit that includes `tracedview.hpp` and builds the constructor
   warns under `-Wreorder`.
+
+- The world map's overlay is composed on the processor: entering a cell box-filters that cell's whole
+  local-map tile and uploads the entire overlay texture again, on the frame the cell arrives.

@@ -6,6 +6,7 @@
 #include <osg/Image>
 
 #include <components/debug/debuglog.hpp>
+#include <components/myguiplatform/pixels.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -89,16 +90,9 @@ namespace MyGUIRtx
 
         createManual(image->s(), image->t(), MyGUI::TextureUsage::Static, MyGUI::PixelFormat::R8G8B8A8);
 
-        auto* pixels = mPixels.data();
-        for (int y = 0; y < image->t(); ++y)
-            for (int x = 0; x < image->s(); ++x, pixels += 4)
-            {
-                const osg::Vec4f colour = image->getColor(x, y);
-                pixels[0] = static_cast<std::uint8_t>(colour.r() * 255.0f + 0.5f);
-                pixels[1] = static_cast<std::uint8_t>(colour.g() * 255.0f + 0.5f);
-                pixels[2] = static_cast<std::uint8_t>(colour.b() * 255.0f + 0.5f);
-                pixels[3] = static_cast<std::uint8_t>(colour.a() * 255.0f + 0.5f);
-            }
+        // Widened by the same code the other backend widens with, which knows to `memcpy` the case
+        // that is most of them rather than read a `Vec4f` per pixel.
+        MyGUIPlatform::writeRgba(*image, mPixels.data());
 
         upload();
     }

@@ -170,24 +170,33 @@ command line. A file of those lines is a profiling corpus: each one renders that
 
 ## Architecture, in one screen
 
-OpenMW is OpenSceneGraph 3.6 on OpenGL. `Engine::frame` (`apps/openmw/engine.cpp:191`) runs
-simulation, then `updateTraversal()`, then `renderingTraversals()` — and **that last call is the only
-thing the RT renderer displaces**. Cull still runs: CPU skinning, terrain LOD and object paging are
-all cull-time decisions (`.notes/rtx/openmw.md` §3.4).
+OpenMW is OpenSceneGraph 3.6 on OpenGL. `Engine::frame` (`apps/openmw/engine.cpp:93`) runs
+simulation, then `mRenderer->updateTraversal()`, then `RenderingManager::renderFrame()`.
 
-`MWRender::RenderingManager` (`apps/openmw/mwrender/renderingmanager.hpp`) is the rendering
-god-object, owned by `MWWorld::World`. There is one abstract interface in the whole rendering layer
-and it has one method, so **the seam has to be cut, not found**.
+**The seam is `MWRender::Renderer`** (`apps/openmw/mwrender/renderer.hpp`): one image of the world on
+the screen and the window it goes in, chosen once by name before the window exists. `GlRenderer`
+(`mwrender/gl/`) is upstream's viewer, gathered rather than modified; `Rtx::RtxRenderer`
+(`mwrender/rtx/`) owns an SDL surface with no GL context anywhere under it. Beside it sit
+`MWRender::Stage` — the frame stamp, camera, event queue and stats that `osgViewer::Viewer` used to
+bundle with a graphics context — and `SceneFrame`/`WorldState`, which is what the world says it is
+doing this frame, in its own numbers, handed down once.
 
-The RT renderer takes its scene by **mirroring the live OSG scene graph**, because by cull time the
-world is already CPU-resident triangles with world transforms, resolved texture roles and — for
-actors — already-skinned vertex positions. It reaches the screen through **GL/Vulkan interop**, not a
-Vulkan window, so the GUI, the inventory doll, the local map and video playback keep working. Both
-decisions and their alternatives are in `.notes/rtx/plan.md` §2–3.
+`MWRender::RenderingManager` (`mwrender/renderingmanager.hpp`) is still the rendering god-object,
+owned by `MWWorld::World`, and it is now what describes the frame rather than what draws it.
 
-Code lives in `components/rtx/` (Vulkan, knows no OSG scene graph and no game headers),
-`components/rtxbridge/` (`osg::Node` → scene description), `apps/openmw/mwrender/rtx/` (the game-side
-owner) and `apps/rtxtool/` (the headless harness).
+The RT renderer takes its scene by **mirroring the live OSG scene graph**, because the world is
+already CPU-resident triangles with world transforms, resolved texture roles and — for actors —
+skinned vertex positions. There is no cull under it: rays go everywhere, so the mirror walks the
+whole graph and poses what it finds itself. It reaches the screen through **its own swapchain, not
+interop** — the GUI is drawn by the backend, and the inventory doll and the maps are traces rather
+than render-to-texture passes. `.notes/rtx/plan.md` §2–3 has the alternatives.
+
+Code lives in `components/rtx/` (the API-neutral core: no OSG, no game headers),
+`components/rtxvulkan/` and `components/rtxmetal/` (the two backends, picked by
+`components/rtxbackends/`), `components/rtxbridge/` (`osg::Node` → scene description),
+`components/myguirtx/` (MyGUI's backend for it), `apps/openmw/mwrender/rtx/` (the game-side owner)
+and `apps/rtxtool/` (the headless harness). `components/surface/` is renderer-neutral and holds what
+the content says a surface is, which both renderers read.
 
 ## Conventions
 

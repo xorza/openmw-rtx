@@ -11,52 +11,7 @@
 
 #include <osg/Image>
 
-namespace
-{
-
-    /// What MyGUI can be handed a row at a time, or nothing where the image has to be read pixel by
-    /// pixel first. The common cases — a decoded frame, a screenshot, a map — are all in here.
-    std::optional<MyGUI::PixelFormat> directFormat(const osg::Image& image)
-    {
-        if (image.getDataType() != GL_UNSIGNED_BYTE || !image.isDataContiguous())
-            return {};
-
-        switch (image.getPixelFormat())
-        {
-            case GL_LUMINANCE:
-                return MyGUI::PixelFormat::L8;
-            case GL_LUMINANCE_ALPHA:
-                return MyGUI::PixelFormat::L8A8;
-            case GL_RGB:
-                return MyGUI::PixelFormat::R8G8B8;
-            case GL_RGBA:
-                return MyGUI::PixelFormat::R8G8B8A8;
-            default:
-                return {};
-        }
-    }
-
-    std::size_t bytesPerPixel(MyGUI::PixelFormat format)
-    {
-        switch (format.getValue())
-        {
-            case MyGUI::PixelFormat::L8:
-                return 1;
-            case MyGUI::PixelFormat::L8A8:
-                return 2;
-            case MyGUI::PixelFormat::R8G8B8:
-                return 3;
-            default:
-                return 4;
-        }
-    }
-
-    std::uint8_t channel(float value)
-    {
-        return static_cast<std::uint8_t>(std::clamp(value, 0.f, 1.f) * 255.f + 0.5f);
-    }
-
-}
+#include "pixels.hpp"
 
 namespace MyGUIPlatform
 {
@@ -124,15 +79,7 @@ namespace MyGUIPlatform
         if (wholeRows)
             std::memcpy(pixels, image.data(), image.getTotalSizeInBytes());
         else
-            for (int y = 0; y < mHeight; ++y)
-                for (int x = 0; x < mWidth; ++x, pixels += 4)
-                {
-                    const osg::Vec4f colour = image.getColor(x, y);
-                    pixels[0] = channel(colour.r());
-                    pixels[1] = channel(colour.g());
-                    pixels[2] = channel(colour.b());
-                    pixels[3] = channel(colour.a());
-                }
+            writeRgba(image, pixels);
 
         mTexture->unlock();
     }

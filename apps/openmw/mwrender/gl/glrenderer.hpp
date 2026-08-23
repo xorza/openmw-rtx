@@ -113,7 +113,6 @@ namespace MWRender
         /// Makes the SDL window and the OpenGL context in it, retrying at half the antialiasing
         /// each time the driver refuses. Upstream's loop, unchanged.
         void createWindow(const std::filesystem::path& resourceDir);
-        void setWindowIcon(const std::filesystem::path& resourceDir);
 
         /// Takes the framebuffer copy back out of the frame once it has run. Left in, it would copy
         /// the whole screen into a texture on every frame from the first loading screen onwards.
