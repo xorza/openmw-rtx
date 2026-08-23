@@ -234,6 +234,12 @@ namespace MWRender::Rtx
         SDL_SetWindowIcon(mWindow, surface.get());
     }
 
+    void RtxRenderer::attachWorld(RenderingManager&, osg::Group& worldRoot)
+    {
+        // Nothing goes between the world and the screen: what the trace writes is the picture.
+        setSceneRoot(worldRoot);
+    }
+
     void RtxRenderer::setSceneRoot(osg::Group& root)
     {
         mSceneRoot = &root;

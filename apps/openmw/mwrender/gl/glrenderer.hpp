@@ -36,6 +36,7 @@ namespace Stereo
 
 namespace MWRender
 {
+    class PostProcessor;
     class ScreenshotManager;
 
     /// The picture as OpenSceneGraph draws it: a GL window, a viewer and upstream's frame loop.
@@ -53,7 +54,10 @@ namespace MWRender
         const Capabilities& getCapabilities() const override { return mCapabilities; }
         SDL_Window* getWindow() const override { return mWindow; }
 
+        void attachWorld(RenderingManager& world, osg::Group& worldRoot) override;
         void setSceneRoot(osg::Group& root) override;
+
+        PostProcessor* getPostProcessor() override { return mPostProcessor.get(); }
 
         void advance(double simulationTime) override;
         void eventTraversal() override;
@@ -110,6 +114,12 @@ namespace MWRender
         osg::ref_ptr<SceneUtil::AsyncScreenCaptureOperation> mScreenCaptureOperation;
         osg::ref_ptr<osgViewer::ScreenCaptureHandler> mScreenCaptureHandler;
         std::unique_ptr<ScreenshotManager> mScreenshotManager;
+
+        /// The world, from `attachWorld`, so the chain can be told what this frame's world is.
+        RenderingManager* mWorld = nullptr;
+
+        /// This renderer's frame graph. Everything between the scene and the screen.
+        osg::ref_ptr<PostProcessor> mPostProcessor;
     };
 }
 

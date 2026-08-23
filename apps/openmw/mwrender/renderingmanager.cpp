@@ -334,21 +334,11 @@ namespace MWRender
                 Shader::ShaderManager::Slot::OpaqueDepthTexture));
         rootNode->addCullCallback(mPerViewUniformStateUpdater);
 
-        // The world, as the renderer will traverse it. The rasterizer wraps this in its
-        // post-processing group below and hands the wrapper back through the same call.
-        mRenderer.setSceneRoot(*mRootNode);
+        // **The world exists now, so the renderer can build what goes in front of it.** Whether
+        // that is a shader chain, nothing at all, or something a third renderer thinks of is not a
+        // question asked here.
+        mRenderer.attachWorld(*this, *mRootNode);
 
-        // **The rasterizer's frame graph, and only where there is a rasterizer.** Its constructor
-        // reads `GLExtensions` off the camera's graphics context, so under a renderer that owns its
-        // own surface this is not a feature to switch off — it is a null dereference.
-        if (mRenderer.getCapabilities().mPostProcessing)
-        {
-            mPostProcessor = new PostProcessor(*this, mRenderer, mStage, mRootNode, resourceSystem->getVFS());
-            resourceSystem->getSceneManager()->setOpaqueDepthTex(
-                mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 0),
-                mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 1));
-            resourceSystem->getSceneManager()->setSupportsNormalsRT(mPostProcessor->getSupportsNormalsRT());
-        }
         resourceSystem->getSceneManager()->setWeatherParticleOcclusion(Settings::shaders().mWeatherParticleOcclusion);
 
         // water goes after terrain for correct waterculling order
@@ -822,9 +812,9 @@ namespace MWRender
 #endif
     }
 
-    void RenderingManager::describeToPostProcessor()
+    void RenderingManager::describeTo(PostProcessor& chain) const
     {
-        Fx::StateUpdater& block = *mPostProcessor->getStateUpdater();
+        Fx::StateUpdater& block = *chain.getStateUpdater();
         const MWBase::World& world = *MWBase::Environment::get().getWorld();
 
         const bool underwater = mWater->isUnderwater(mCamera->getPosition());
@@ -855,14 +845,11 @@ namespace MWRender
         block.setWindSpeed(world.getWindSpeed());
 
         // Which techniques run underwater, which is the chain's own question rather than the block's.
-        mPostProcessor->setUnderwaterFlag(underwater);
+        chain.setUnderwaterFlag(underwater);
     }
 
     void RenderingManager::renderFrame()
     {
-        if (mPostProcessor != nullptr)
-            describeToPostProcessor();
-
         const Lighting lighting = describeLighting();
 
         const SceneFrame frame{
@@ -1222,7 +1209,7 @@ namespace MWRender
 
     PostProcessor* RenderingManager::getPostProcessor()
     {
-        return mPostProcessor;
+        return mRenderer.getPostProcessor();
     }
 
     void RenderingManager::setupPlayer(const MWWorld::Ptr& player)
@@ -1527,13 +1514,14 @@ namespace MWRender
                 if (!lightManagersUpdated)
                     mStage.getSceneRoot().accept(visitor);
             }
-            else if (it->first == "Post Processing" && it->second == "enabled" && mPostProcessor != nullptr)
+            else if (it->first == "Post Processing" && it->second == "enabled"
+                && mRenderer.getPostProcessor() != nullptr)
             {
                 if (Settings::postProcessing().mEnabled)
-                    mPostProcessor->enable();
+                    mRenderer.getPostProcessor()->enable();
                 else
                 {
-                    mPostProcessor->disable();
+                    mRenderer.getPostProcessor()->disable();
                     if (auto* hud = MWBase::Environment::get().getWindowManager()->getPostProcessorHud())
                         hud->setVisible(false);
                 }

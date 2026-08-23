@@ -221,6 +221,14 @@ namespace MWRender
 
         PostProcessor* getPostProcessor();
 
+        /// This frame's world state, in the spelling a shader chain samples.
+        ///
+        /// **The world says what it is; the chain is the renderer's.** Every value here is already
+        /// settled on something else — the sun light, the fog, the sky, the water — so this is a
+        /// copy rather than a cache, and the only thing it needs to know about the renderer is the
+        /// format. Called by whichever renderer has such a chain, once a frame.
+        void describeTo(PostProcessor& chain) const;
+
         void addWaterRippleEmitter(const MWWorld::Ptr& ptr);
         void removeWaterRippleEmitter(const MWWorld::Ptr& ptr);
         void emitWaterRipple(const osg::Vec3f& pos);
@@ -298,14 +306,6 @@ namespace MWRender
         /// no renderer that reads it — see the definition.
         Lighting describeLighting() const;
 
-        /// This frame's world state, in the spelling the rasterizer's shader chain samples.
-        ///
-        /// **One place, once a frame, and only where there is a chain.** Every value here is
-        /// already settled on something else — the sun light, the fog, the sky, the water — so
-        /// writing them from where they are is a copy rather than a cache, and the twelve `if`s that
-        /// asked "is there a chain" at each setter become the one that asks before the copy.
-        void describeToPostProcessor();
-
         void updateTextureFiltering();
         void updateAmbient();
         void setFogColor(const osg::Vec4f& color);
@@ -360,7 +360,6 @@ namespace MWRender
 
         std::unique_ptr<EffectManager> mEffectManager;
         std::unique_ptr<SceneUtil::ShadowManager> mShadowManager;
-        osg::ref_ptr<PostProcessor> mPostProcessor;
 
         /// Where the sun is, as the world last decided.
         ///

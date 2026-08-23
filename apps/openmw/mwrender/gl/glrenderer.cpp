@@ -27,6 +27,7 @@
 #include <components/debug/gldebug.hpp>
 #include <components/l10n/manager.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
+#include <components/resource/scenemanager.hpp>
 #include <components/resource/stats.hpp>
 #include <components/sceneutil/color.hpp>
 #include <components/sceneutil/depth.hpp>
@@ -45,7 +46,10 @@
 
 #include "../../profile.hpp"
 
+#include "../renderingmanager.hpp"
 #include "../stage.hpp"
+
+#include "postprocessor.hpp"
 #include "screenshotmanager.hpp"
 
 namespace
@@ -429,6 +433,22 @@ namespace MWRender
             SDL_SetWindowIcon(mWindow, surface.get());
         }
     }
+    void GlRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot)
+    {
+        mWorld = &world;
+
+        // **The chain goes above the world and becomes what is traversed.** Its constructor reads
+        // `GLExtensions` off the camera's graphics context, which is why no renderer without one can
+        // have it and why nothing above this line decides whether to build it.
+        mPostProcessor = new PostProcessor(world, *this, mStage, &worldRoot, world.getResourceSystem()->getVFS());
+        setSceneRoot(*mPostProcessor);
+
+        Resource::SceneManager& scene = *world.getResourceSystem()->getSceneManager();
+        scene.setOpaqueDepthTex(mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 0),
+            mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 1));
+        scene.setSupportsNormalsRT(mPostProcessor->getSupportsNormalsRT());
+    }
+
     void GlRenderer::setSceneRoot(osg::Group& root)
     {
         mStage.setSceneRoot(root);
@@ -456,6 +476,10 @@ namespace MWRender
     // mirrors the graph has to answer.
     void GlRenderer::renderFrame(const SceneFrame&)
     {
+        // The world in the spelling the chain samples. `SceneFrame` carries the same facts for a
+        // renderer that reads them directly; this one reads them out of a uniform block.
+        mWorld->describeTo(*mPostProcessor);
+
         mViewer->renderingTraversals();
     }
 

@@ -76,6 +76,7 @@ namespace MWRender::Rtx
         const Capabilities& getCapabilities() const override { return mCapabilities; }
         SDL_Window* getWindow() const override { return mWindow; }
 
+        void attachWorld(RenderingManager& world, osg::Group& worldRoot) override;
         void setSceneRoot(osg::Group& root) override;
 
         void advance(double simulationTime) override;

@@ -51,6 +51,8 @@ namespace VFS
 
 namespace MWRender
 {
+    class PostProcessor;
+    class RenderingManager;
     struct SceneFrame;
     class Stage;
 
@@ -71,12 +73,14 @@ namespace MWRender
         /// than find out at link time.
         int mTextureUnits = 0;
 
-        /// Whether there is a shader chain over the frame at all.
+        /// Whether this renderer will ever have a shader chain over the frame.
         ///
-        /// Everything that reads `RenderingManager::getPostProcessor()` — the Lua bindings, the HUD
-        /// and the shared uniform block the world writes its sun and its water level into — gates on
-        /// this. A renderer with no such chain is not missing one: light and water reach its picture
-        /// by a different route entirely.
+        /// **Asked only by what runs before there is one.** `getPostProcessor()` is the answer
+        /// everywhere else, and null is a reply the Lua bindings, the settings page and the HUD all
+        /// already understand — but the GUI is built before the world is, so whether to make the
+        /// post-processing HUD at all cannot be answered by asking for a chain that does not exist
+        /// yet. A renderer with none is not missing one: light and water reach its picture by a
+        /// different route entirely.
         bool mPostProcessing = false;
     };
 
@@ -118,9 +122,28 @@ namespace MWRender
         /// business and read it; what is bound to it is not theirs to know.
         virtual SDL_Window* getWindow() const = 0;
 
+        /// The world exists; build whatever goes between it and the screen.
+        ///
+        /// **A second phase because it cannot be a first one.** The renderer is made before there is
+        /// a world — the window has to exist before anything can be loaded into it — and what the
+        /// rasterizer puts in front of the world needs the world to talk to. So the frame graph is
+        /// built here, along with whatever else a renderer wants above the scene, and this is also
+        /// where the stage is told what is topmost.
+        ///
+        /// Called once, from `RenderingManager`'s constructor.
+        virtual void attachWorld(RenderingManager& world, osg::Group& worldRoot) = 0;
+
         /// Whatever the renderer wants culled and drawn. Not always the node the world was built
         /// under: the rasterizer wraps it in its post-processing group and hands back the wrapper.
         virtual void setSceneRoot(osg::Group& root) = 0;
+
+        /// The shader chain over the frame, or null where this renderer has none.
+        ///
+        /// **Owned here and not by the world.** It is a renderer's answer to "what happens between
+        /// the scene and the screen", which is the whole of what a renderer is for; a world that
+        /// held one would have to know whether the renderer it was given wanted it. Eleven Lua
+        /// bindings, the HUD and the settings page read this and already treat null as "no chain".
+        virtual PostProcessor* getPostProcessor() { return nullptr; }
 
         /// Stamps the next frame. Simulation time stops when the game is paused; reference time
         /// does not.

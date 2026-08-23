@@ -608,15 +608,30 @@ renderers. `components/myguiplatform` names no `osgViewer` at all.
 switch off but a null dereference — hence `Capabilities::mPostProcessing` and `RenderingManager`
 building the chain only where there is one.
 
-Its **shared uniform block** took three attempts to place. Guarding each of a dozen setters put the
-renderer's internals in every one of them; a standalone block for the renderer with no chain was an
-object written to and sampled by nothing. What is there now is one `describeToPostProcessor` called
-once a frame behind one `if`: every value in it is already settled on something else — the sun light,
-the fog manager, the sky, the water — so writing them from where they are is a copy rather than a
-cache, and the two the world kept nowhere but the block (where the sun is drawn, and how visible it
-is) became members, which is what they always were. The end state is those values as fields of
-`SceneFrame` and the copy inside `gl/`; that waits on the `PostProcessor`–`RenderingManager` untangle
-step 3 deferred, because until the chain is the renderer's the copy has nowhere better to live.
+**The chain belongs to the renderer, and getting there took three wrong turns.** Guarding each of a
+dozen uniform-block setters put the renderer's internals in every one of them; a standalone block for
+the renderer with no chain was an object written to and sampled by nothing; gathering the writes into
+one guarded call was better but still had `RenderingManager` deciding whether a shader chain should
+exist. It does not decide. `GlRenderer` owns the `PostProcessor`, `Renderer::getPostProcessor()`
+answers null where there is none — which is what §3 sketched all along — and
+`Renderer::attachWorld` is the second phase where a renderer builds whatever it puts between the
+world and the screen. `RenderingManager` has no `mPostProcessor` and no capability conditional left.
+
+The coupling that made this look impossible at step 3 turned out not to exist: everything
+`PostProcessor` wants from `RenderingManager` — the resource system, the sky, the light root, the
+projection and screen-resolution callbacks — is already a public accessor. It needed a
+`RenderingManager&`, never an owner. The only real constraint was ordering, and that is what
+`attachWorld` is for: the renderer is made before there is a world, so what needs the world is built
+when there is one.
+
+What the world still says is `RenderingManager::describeTo(PostProcessor&)` — this frame's state in
+the spelling a chain samples, called by whichever renderer has one. Every value in it is settled on
+something else already, so it is a copy rather than a cache; the two the world kept nowhere but the
+block (where the sun is drawn, and how visible it is) became members, which is what they always were.
+
+`Capabilities::mPostProcessing` survives with one consumer and a narrower job: the GUI is built
+before the world, so whether to make the post-processing HUD cannot be answered by asking for a chain
+that does not exist yet.
 Outside `mwrender`: the two `setExteriorFlag` calls on every cell change, the HUD and its key, the
 Lua bindings — which raise a clear error rather than dereferencing null — and `Stereo::Manager`,
 whose singleton two places reached for whether or not stereo was on. Three device queries that ran

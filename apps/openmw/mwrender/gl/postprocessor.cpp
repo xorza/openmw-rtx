@@ -215,7 +215,6 @@ namespace MWRender
         addChild(mHUDCamera);
         addChild(mRootNode);
 
-        mRenderer.setSceneRoot(*this);
         mStage.getCamera().setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
         mStage.getCamera().getGraphicsContext()->setResizedCallback(new ResizedCallback(this));
         mStage.getCamera().setUserData(this);
