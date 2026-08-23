@@ -1,8 +1,6 @@
 #ifndef OPENMW_COMPONENTS_SDLUTIL_SDLVIDEOWRAPPER_H
 #define OPENMW_COMPONENTS_SDLUTIL_SDLVIDEOWRAPPER_H
 
-#include <osg/ref_ptr>
-
 #include <SDL_types.h>
 
 #include "vsyncmode.hpp"
@@ -25,7 +23,7 @@ namespace SDLUtil
     class VideoWrapper
     {
     public:
-        VideoWrapper(SDL_Window* window, osg::ref_ptr<osgViewer::Viewer> viewer);
+        VideoWrapper(SDL_Window* window, osgViewer::Viewer& viewer);
         ~VideoWrapper();
 
         void setSyncToVBlank(VSyncMode vsyncMode);
@@ -38,7 +36,7 @@ namespace SDLUtil
 
     private:
         SDL_Window* mWindow;
-        osg::ref_ptr<osgViewer::Viewer> mViewer;
+        osgViewer::Viewer& mViewer;
 
         float mGamma;
         float mContrast;

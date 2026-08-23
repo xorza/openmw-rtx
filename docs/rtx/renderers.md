@@ -335,26 +335,48 @@ and the update traversal — none of which touches OpenGL.
 
 ```cpp
 /// The frame, the eye and the input queue — the parts of a viewer that are not graphics.
-///
-/// `osgViewer::Viewer` bundles these with a graphics context, a threading model and a draw
-/// dispatcher. Seven places in this tree want only the first half, and importing `osgViewer` to
-/// reach it is a good part of why the renderer looked unswappable.
 class Stage
 {
 public:
-    osg::FrameStamp& getFrameStamp();
-    osg::Camera& getCamera();          //< view, projection, viewport. No graphics context.
-    osgGA::EventQueue& getEvents();
+    osg::Camera& getCamera() const;
+    osg::FrameStamp& getFrameStamp() const;
+    osgGA::EventQueue& getEvents() const;
+    osgUtil::UpdateVisitor& getUpdateVisitor() const;
+    osg::Stats& getStats() const;
+    osg::Group& getSceneRoot() const;
+    void setSceneRoot(osg::Node& root);
 
     void advance(double simulationTime);
-    void updateTraversal();            //< osgUtil::UpdateVisitor over the scene data
+    void eventTraversal();
+    void updateTraversal();
 };
 ```
 
 `GlRenderer` constructs an `osgViewer::Viewer`, calls `setCamera(&stage.getCamera())` and
 `setSceneData(root)`, and keeps every one of upstream's threading, realize and traversal decisions
-untouched inside itself. Roughly 120 lines of new code, and seven constructor signatures change in
-one mechanical pass. That is what not taking the shortcut costs here, and it is small.
+untouched inside itself. Step 2 came to 227 lines of new code and eight changed signatures — three
+of them classes listed above as `GlRenderer`'s, because taking a `Stage&` is the smallest change
+that gets the include out and costs nothing at the step that moves them. That is what not taking
+the shortcut costs here, and it is small.
+
+**Two things step 2 measured that this sketch had wrong.**
+
+*The stage cannot own those objects yet, only name them.* Substituting a camera the viewer did not
+make loses the defaults `osgViewer::View`'s constructor gives it — `GL_BACK` as both draw and read
+buffer, which is what the screen capture reads — and `Viewer::advance` writes frame duration and
+frame rate into the viewer's own stats as it stamps the frame. So `Stage` reads all six through the
+viewer it was handed, and ownership goes the other way at step 3, when the renderer is the thing
+being constructed around a stage that already exists. `getSceneRoot()` asks rather than remembers
+for a related reason: `PostProcessor` inserts itself above the world as the scene data, and the GUI's
+render-to-texture cameras have to hang off whatever is topmost.
+
+*Four operations on it are the renderer's, and they had nowhere else to go.* `renderTraversals`,
+`suspendDraw`/`resumeDraw`, the incremental compile operation and `captureNextFrame` are
+`MWRender::Renderer` methods that step 3 has not created yet; they sit on `Stage`, grouped and
+labelled, and move together. So does `getViewer()`, which exists for the three *component* classes
+that still take a viewer — MyGUI's render manager, the video wrapper's vsync and the shader
+hot-reloader. That is the whole of what step 2 could not finish, and it is visible in one file
+rather than spread over thirteen.
 
 ## 4. Every place OpenGL is reached
 
@@ -464,12 +486,29 @@ sweeping an exterior and the densest interior and asserting that every surface i
 every description agrees with the pipeline state beside it — which is the equivalence test step 5
 inverts.
 
-### Step 2 — `MWRender::Stage`, and `osgViewer` becomes one renderer's business
+### Step 2 — `MWRender::Stage`, and `osgViewer` becomes one renderer's business — **done**
 
-Seven constructor signatures change from `osgViewer::Viewer*` to `Stage&`; `ActionManager` loses it
-altogether. Mechanical.
+Eight signatures change from `osgViewer::Viewer*` to `Stage&` — `RenderingManager`, `PostProcessor`,
+`ScreenshotManager`, `LoadingScreen`, `WindowManager`, `InputManager`, `ActionManager` and
+`World::init` — and `ActionManager` loses the screen-capture handler with it. `SDLUtil::InputWrapper`
+narrows to the two objects it actually reads, an `osg::Camera&` and an `osgGA::EventQueue&`, because
+a component should not learn a game-side type to stop importing `osgViewer`.
 
-*Verified by*: byte-identical screenshots; the game plays identically.
+Six things hold or take an `osgViewer::Viewer` now rather than thirteen: `Engine`, which makes it;
+`Stage`, which is the seam; and the four in `components` that are the OpenGL renderer's —
+`MyGUIPlatform::RenderManager`, `SDLUtil::VideoWrapper`, `Stereo::Manager` and
+`ShaderManager::update`. `mwgui`, `mwinput`, `mwworld` and every file in `mwrender` but `stage.cpp`
+stopped naming it at all.
+
+Two lines moved rather than changed: `setLightingMode(NO_LIGHT)` from `RenderingManager`'s
+constructor to beside the viewer's other configuration in `Engine`, and the screen-capture handler
+from an `Engine` member to `Stage`, which is where `Renderer::capture` will find it.
+
+*Verified by*: five golden images byte-identical; both test binaries pass; the game reaches Seyda
+Neen from `--skip-menu --new-game`, loads, traces, and quits clean with nothing new in the log —
+which exercises the loading screen's own frame loop, the GUI, the input wrapper and the stage's
+traversals, none of which any test binary reaches. The screenshot key and the stats overlay are
+rewired but only a key press runs them; both are one forwarded call.
 
 ### Step 3 — `MWRender::Renderer`, with only `GlRenderer` behind it
 

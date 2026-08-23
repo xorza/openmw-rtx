@@ -2,6 +2,8 @@
 
 #include <osg/FrameBufferObject>
 
+#include <osgUtil/RenderStage>
+
 #include "postprocessor.hpp"
 
 namespace MWRender

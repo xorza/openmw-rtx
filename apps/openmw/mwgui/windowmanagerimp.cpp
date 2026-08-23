@@ -6,7 +6,10 @@
 #include <filesystem>
 #include <thread>
 
-#include <osgViewer/Viewer>
+#include <osg/Camera>
+#include <osg/FrameStamp>
+
+#include <osgUtil/UpdateVisitor>
 
 #include <MyGUI_ClipboardManager.h>
 #include <MyGUI_FactoryManager.h>
@@ -63,6 +66,7 @@
 #include "../mwbase/statemanager.hpp"
 #include "../mwbase/world.hpp"
 
+#include "../mwrender/stage.hpp"
 #include "../mwrender/vismask.hpp"
 
 #include "../mwworld/cellstore.hpp"
@@ -147,7 +151,7 @@ namespace MWGui
         }
     }
 
-    WindowManager::WindowManager(SDL_Window* window, osgViewer::Viewer* viewer, osg::Group* guiRoot,
+    WindowManager::WindowManager(SDL_Window* window, MWRender::Stage& stage, osg::Group* guiRoot,
         Resource::ResourceSystem* resourceSystem, SceneUtil::WorkQueue* workQueue, const std::filesystem::path& logpath,
         bool consoleOnlyScripts, Translation::Storage& translationDataStorage, ToUTF8::FromType encoding,
         bool exportFonts, const std::string& versionDescription, Files::ConfigurationManager& cfgMgr)
@@ -156,7 +160,7 @@ namespace MWGui
         , mStore(nullptr)
         , mResourceSystem(resourceSystem)
         , mWorkQueue(workQueue)
-        , mViewer(viewer)
+        , mStage(stage)
         , mConsoleOnlyScripts(consoleOnlyScripts)
         , mCurrentModals()
         , mHud(nullptr)
@@ -211,8 +215,9 @@ namespace MWGui
 
         mScalingFactor = Settings::gui().mScalingFactor * (dw / w);
         constexpr VFS::Path::NormalizedView resourcePath("mygui");
-        mGuiPlatform = std::make_unique<MyGUIPlatform::Platform>(viewer, guiRoot, resourceSystem->getImageManager(),
-            resourceSystem->getVFS(), mScalingFactor, resourcePath, logpath / "MyGUI.log");
+        mGuiPlatform
+            = std::make_unique<MyGUIPlatform::Platform>(&mStage.getViewer(), guiRoot, resourceSystem->getImageManager(),
+                resourceSystem->getVFS(), mScalingFactor, resourcePath, logpath / "MyGUI.log");
 
         mGui = std::make_unique<MyGUI::Gui>();
         mGui->initialise({});
@@ -259,7 +264,7 @@ namespace MWGui
         mKeyboardNavigation->setEnabled(keyboardNav);
         Gui::ImageButton::setDefaultNeedKeyFocus(keyboardNav);
 
-        auto loadingScreen = std::make_unique<LoadingScreen>(mResourceSystem, mViewer);
+        auto loadingScreen = std::make_unique<LoadingScreen>(mResourceSystem, mStage);
         mLoadingScreen = loadingScreen.get();
         mWindows.push_back(std::move(loadingScreen));
 
@@ -301,7 +306,7 @@ namespace MWGui
         MyGUI::ClipboardManager::getInstance().eventClipboardRequested
             += MyGUI::newDelegate(this, &WindowManager::onClipboardRequested);
 
-        mVideoWrapper = std::make_unique<SDLUtil::VideoWrapper>(window, viewer);
+        mVideoWrapper = std::make_unique<SDLUtil::VideoWrapper>(window, mStage.getViewer());
         mVideoWrapper->setGammaContrast(Settings::video().mGamma, Settings::video().mContrast);
 
         mGuiPlatform->getRenderManagerPtr()->enableShaders(mResourceSystem->getSceneManager()->getShaderManager());
@@ -328,7 +333,7 @@ namespace MWGui
         mGuiModeStates[GM_MainMenu] = GuiModeState(menu.get());
         mWindows.push_back(std::move(menu));
 
-        mLocalMapRender = std::make_unique<MWRender::LocalMap>(mViewer->getSceneData()->asGroup());
+        mLocalMapRender = std::make_unique<MWRender::LocalMap>(&mStage.getSceneRoot());
         auto map = std::make_unique<MapWindow>(mCustomMarkers, mDragAndDrop.get(), mLocalMapRender.get(), mWorkQueue);
         mMap = map.get();
         mWindows.push_back(std::move(map));
@@ -340,8 +345,8 @@ namespace MWGui
         mWindows.push_back(std::move(statsWindow));
         trackWindow(mStatsWindow, makeStatsWindowSettingValues());
 
-        auto inventoryWindow = std::make_unique<InventoryWindow>(
-            *mDragAndDrop, *mItemTransfer, mViewer->getSceneData()->asGroup(), mResourceSystem);
+        auto inventoryWindow
+            = std::make_unique<InventoryWindow>(*mDragAndDrop, *mItemTransfer, &mStage.getSceneRoot(), mResourceSystem);
         mInventoryWindow = inventoryWindow.get();
         mWindows.push_back(std::move(inventoryWindow));
 
@@ -529,7 +534,7 @@ namespace MWGui
 
         mHud->setVisible(true);
 
-        mCharGen = std::make_unique<CharacterCreation>(mViewer->getSceneData()->asGroup(), mResourceSystem);
+        mCharGen = std::make_unique<CharacterCreation>(&mStage.getSceneRoot(), mResourceSystem);
 
         updatePinnedWindows();
 
@@ -555,7 +560,7 @@ namespace MWGui
             disallowAll();
 
             mStatsWatcher->removeListener(mCharGen.get());
-            mCharGen = std::make_unique<CharacterCreation>(mViewer->getSceneData()->asGroup(), mResourceSystem);
+            mCharGen = std::make_unique<CharacterCreation>(&mStage.getSceneRoot(), mResourceSystem);
             mStatsWatcher->addListener(mCharGen.get());
         }
         else
@@ -616,14 +621,14 @@ namespace MWGui
         unsigned int disablemask = MWRender::Mask_GUI | MWRender::Mask_PreCompile;
         if (!enable && getCullMask() != disablemask)
         {
-            mOldUpdateMask = mViewer->getUpdateVisitor()->getTraversalMask();
+            mOldUpdateMask = mStage.getUpdateVisitor().getTraversalMask();
             mOldCullMask = getCullMask();
-            mViewer->getUpdateVisitor()->setTraversalMask(disablemask);
+            mStage.getUpdateVisitor().setTraversalMask(disablemask);
             setCullMask(disablemask);
         }
         else if (enable && getCullMask() == disablemask)
         {
-            mViewer->getUpdateVisitor()->setTraversalMask(mOldUpdateMask);
+            mStage.getUpdateVisitor().setTraversalMask(mOldUpdateMask);
             setCullMask(mOldCullMask);
         }
     }
@@ -805,14 +810,14 @@ namespace MWGui
                     std::this_thread::sleep_for(std::chrono::milliseconds(5));
                 else
                 {
-                    mViewer->eventTraversal();
-                    mViewer->updateTraversal();
-                    mViewer->renderingTraversals();
+                    mStage.eventTraversal();
+                    mStage.updateTraversal();
+                    mStage.renderTraversals();
                 }
                 // at the time this function is called we are in the middle of a frame,
                 // so out of order calls are necessary to get a correct frameNumber for the next frame.
                 // refer to the advance() and frame() order in Engine::go()
-                mViewer->advance(mViewer->getFrameStamp()->getSimulationTime());
+                mStage.advance(mStage.getFrameStamp().getSimulationTime());
 
                 frameRateLimiter.limit();
             }
@@ -1461,17 +1466,17 @@ namespace MWGui
 
     void WindowManager::setCullMask(uint32_t mask)
     {
-        mViewer->getCamera()->setCullMask(mask);
+        mStage.getCamera().setCullMask(mask);
 
         // We could check whether stereo is enabled here, but these methods are
         // trivial and have no effect in mono or multiview so just call them regardless.
-        mViewer->getCamera()->setCullMaskLeft(mask);
-        mViewer->getCamera()->setCullMaskRight(mask);
+        mStage.getCamera().setCullMaskLeft(mask);
+        mStage.getCamera().setCullMaskRight(mask);
     }
 
     uint32_t WindowManager::getCullMask()
     {
-        return mViewer->getCamera()->getCullMask();
+        return mStage.getCamera().getCullMask();
     }
 
     void WindowManager::popGuiMode(bool forceExit)
@@ -2149,14 +2154,14 @@ namespace MWGui
 
                 mVideoWidget->commitFrame();
 
-                mViewer->eventTraversal();
-                mViewer->updateTraversal();
-                mViewer->renderingTraversals();
+                mStage.eventTraversal();
+                mStage.updateTraversal();
+                mStage.renderTraversals();
             }
             // at the time this function is called we are in the middle of a frame,
             // so out of order calls are necessary to get a correct frameNumber for the next frame.
             // refer to the advance() and frame() order in Engine::go()
-            mViewer->advance(mViewer->getFrameStamp()->getSimulationTime());
+            mStage.advance(mStage.getFrameStamp().getSimulationTime());
 
             frameRateLimiter.limit();
         }

@@ -5,6 +5,7 @@
 #include <chrono>
 #include <thread>
 
+#include <osg/FrameStamp>
 #include <osg/Texture1D>
 #include <osg/Texture2D>
 #include <osg/Texture2DArray>
@@ -36,6 +37,7 @@
 #include "renderbin.hpp"
 #include "renderingmanager.hpp"
 #include "sky.hpp"
+#include "stage.hpp"
 #include "transparentpass.hpp"
 #include "vismask.hpp"
 
@@ -114,12 +116,12 @@ namespace
 namespace MWRender
 {
     PostProcessor::PostProcessor(
-        RenderingManager& rendering, osgViewer::Viewer* viewer, osg::Group* rootNode, const VFS::Manager* vfs)
+        RenderingManager& rendering, Stage& stage, osg::Group* rootNode, const VFS::Manager* vfs)
         : osg::Group()
         , mRootNode(rootNode)
         , mHUDCamera(new osg::Camera)
         , mRendering(rendering)
-        , mViewer(viewer)
+        , mStage(stage)
         , mVFS(vfs)
         , mUsePostProcessing(Settings::postProcessing().mEnabled)
         , mSamples(Settings::video().mAntialiasing)
@@ -145,7 +147,7 @@ namespace MWRender
         mHUDCamera->addChild(mCanvases[0]);
         mHUDCamera->addChild(mCanvases[1]);
         mHUDCamera->setCullCallback(new HUDCullCallback);
-        mViewer->getCamera()->addCullCallback(mPingPongCull);
+        mStage.getCamera().addCullCallback(mPingPongCull);
 
         // resolves the multisampled depth buffer and optionally draws an additional depth postpass
         mTransparentDepthPostPass
@@ -186,7 +188,7 @@ namespace MWRender
         distortion->setLocked(true);
         mInternalTechniques.push_back(std::move(distortion));
 
-        osg::GraphicsContext* gc = viewer->getCamera()->getGraphicsContext();
+        osg::GraphicsContext* gc = mStage.getCamera().getGraphicsContext();
         osg::GLExtensions* ext = gc->getState()->get<osg::GLExtensions>();
 
         mWidth = gc->getTraits()->width;
@@ -211,10 +213,10 @@ namespace MWRender
         addChild(mHUDCamera);
         addChild(mRootNode);
 
-        mViewer->setSceneData(this);
-        mViewer->getCamera()->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
-        mViewer->getCamera()->getGraphicsContext()->setResizedCallback(new ResizedCallback(this));
-        mViewer->getCamera()->setUserData(this);
+        mStage.setSceneRoot(*this);
+        mStage.getCamera().setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
+        mStage.getCamera().getGraphicsContext()->setResizedCallback(new ResizedCallback(this));
+        mStage.getCamera().setUserData(this);
 
         setCullCallback(mStateUpdater);
 
@@ -228,10 +230,15 @@ namespace MWRender
             bin->setDrawCallback(nullptr);
     }
 
+    size_t PostProcessor::frame() const
+    {
+        return mStage.getFrameStamp().getFrameNumber();
+    }
+
     void PostProcessor::resize()
     {
         mHUDCamera->resize(mWidth, mHeight);
-        mViewer->getCamera()->resize(mWidth, mHeight);
+        mStage.getCamera().resize(mWidth, mHeight);
         if (Stereo::getStereo())
             Stereo::Manager::instance().screenResolutionChanged();
 
@@ -408,7 +415,7 @@ namespace MWRender
             mPrevNormals = mNormals;
             mPrevPassLights = mPassLights;
 
-            mViewer->stopThreading();
+            mStage.suspendDraw();
 
             if (mNormalsSupported)
             {
@@ -423,7 +430,7 @@ namespace MWRender
             mStateUpdater->bindPointLights(mPassLights ? mRendering.getLightRoot()->getPPLightsBuffer() : nullptr);
             mStateUpdater->reset();
 
-            mViewer->startThreading();
+            mStage.resumeDraw();
 
             createObjectsForFrame(frameId);
 

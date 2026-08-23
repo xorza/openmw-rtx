@@ -11,7 +11,6 @@
 #include <components/translation/translation.hpp>
 
 #include <osgViewer/Viewer>
-#include <osgViewer/ViewerEventHandlers>
 
 #include "mwbase/environment.hpp"
 
@@ -53,11 +52,6 @@ namespace Files
     struct ConfigurationManager;
 }
 
-namespace osgViewer
-{
-    class ScreenCaptureHandler;
-}
-
 namespace SceneUtil
 {
     class SelectDepthFormatOperation;
@@ -76,6 +70,11 @@ namespace MWState
 namespace MWGui
 {
     class WindowManager;
+}
+
+namespace MWRender
+{
+    class Stage;
 }
 
 namespace MWInput
@@ -149,7 +148,11 @@ namespace OMW
         std::vector<std::string> mArchives;
         std::filesystem::path mResDir;
         osg::ref_ptr<osgViewer::Viewer> mViewer;
-        osg::ref_ptr<osgViewer::ScreenCaptureHandler> mScreenCaptureHandler;
+
+        /// The frame, the eye and the input queue, so that nothing but the engine and the renderer
+        /// has to name a viewer. Outlives everything handed a reference to it.
+        std::unique_ptr<MWRender::Stage> mStage;
+
         osg::ref_ptr<SceneUtil::AsyncScreenCaptureOperation> mScreenCaptureOperation;
         osg::ref_ptr<SceneUtil::SelectDepthFormatOperation> mSelectDepthFormatOperation;
         osg::ref_ptr<SceneUtil::Color::SelectColorFormatOperation> mSelectColorFormatOperation;

@@ -2,9 +2,13 @@
 
 #include <array>
 
-#include <osgViewer/Viewer>
-
+#include <osg/Camera>
+#include <osg/FrameStamp>
+#include <osg/Group>
+#include <osg/Stats>
 #include <osg/Texture2D>
+
+#include <osgUtil/IncrementalCompileOperation>
 
 #include <MyGUI_Gui.h>
 #include <MyGUI_ScrollBar.h>
@@ -25,15 +29,17 @@
 #include "../mwbase/statemanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 
+#include "../mwrender/stage.hpp"
+
 #include "backgroundimage.hpp"
 
 namespace MWGui
 {
 
-    LoadingScreen::LoadingScreen(Resource::ResourceSystem* resourceSystem, osgViewer::Viewer* viewer)
+    LoadingScreen::LoadingScreen(Resource::ResourceSystem* resourceSystem, MWRender::Stage& stage)
         : WindowBase("openmw_loading_screen.layout")
         , mResourceSystem(resourceSystem)
-        , mViewer(viewer)
+        , mStage(stage)
         , mTargetFrameRate(120.0)
         , mLastWallpaperChangeTime(0.0)
         , mLastRenderTime(0.0)
@@ -152,9 +158,9 @@ namespace MWGui
         // Assign dummy bounding sphere callback to avoid the bounding sphere of the entire scene being recomputed after
         // each frame of loading We are already using node masks to avoid the scene from being updated/rendered, but
         // node masks don't work for computeBound()
-        mViewer->getSceneData()->setComputeBoundingSphereCallback(new DontComputeBoundCallback);
+        mStage.getSceneRoot().setComputeBoundingSphereCallback(new DontComputeBoundCallback);
 
-        if (const osgUtil::IncrementalCompileOperation* ico = mViewer->getIncrementalCompileOperation())
+        if (const osgUtil::IncrementalCompileOperation* ico = mStage.getCompileOperation())
         {
             mOldIcoMin = ico->getMinimumTimeAvailableForGLCompileAndDeletePerFrame();
             mOldIcoMax = ico->getMaximumNumOfObjectsToCompilePerFrame();
@@ -190,12 +196,12 @@ namespace MWGui
         else
             mImportantLabel = false; // label was already shown on loading screen
 
-        mViewer->getSceneData()->setComputeBoundingSphereCallback(nullptr);
-        mViewer->getSceneData()->dirtyBound();
+        mStage.getSceneRoot().setComputeBoundingSphereCallback(nullptr);
+        mStage.getSceneRoot().dirtyBound();
 
         setVisible(false);
 
-        if (osgUtil::IncrementalCompileOperation* ico = mViewer->getIncrementalCompileOperation())
+        if (osgUtil::IncrementalCompileOperation* ico = mStage.getCompileOperation())
         {
             ico->setMinimumTimeAvailableForGLCompileAndDeletePerFrame(mOldIcoMin);
             ico->setMaximumNumOfObjectsToCompilePerFrame(mOldIcoMax);
@@ -302,8 +308,8 @@ namespace MWGui
             mCopyFramebufferToTextureCallback = new CopyFramebufferToTextureCallback(mTexture);
         }
 
-        mViewer->getCamera()->removeInitialDrawCallback(mCopyFramebufferToTextureCallback);
-        mViewer->getCamera()->addInitialDrawCallback(mCopyFramebufferToTextureCallback);
+        mStage.getCamera().removeInitialDrawCallback(mCopyFramebufferToTextureCallback);
+        mStage.getCamera().addInitialDrawCallback(mCopyFramebufferToTextureCallback);
         mCopyFramebufferToTextureCallback->reset();
 
         mSplashImage->setBackgroundImage({});
@@ -333,13 +339,13 @@ namespace MWGui
 
         MWBase::Environment::get().getInputManager()->update(0, true, true);
 
-        osg::Stats* const stats = mViewer->getViewerStats();
-        const unsigned frameNumber = mViewer->getFrameStamp()->getFrameNumber();
+        osg::Stats& stats = mStage.getStats();
+        const unsigned frameNumber = mStage.getFrameStamp().getFrameNumber();
 
-        stats->setAttribute(frameNumber, "Loading", 1);
+        stats.setAttribute(frameNumber, "Loading", 1);
 
-        mResourceSystem->reportStats(frameNumber, stats);
-        if (osgUtil::IncrementalCompileOperation* ico = mViewer->getIncrementalCompileOperation())
+        mResourceSystem->reportStats(frameNumber, &stats);
+        if (osgUtil::IncrementalCompileOperation* ico = mStage.getCompileOperation())
         {
             ico->setMinimumTimeAvailableForGLCompileAndDeletePerFrame(1.f / getTargetFrameRate());
             ico->setMaximumNumOfObjectsToCompilePerFrame(1000);
@@ -348,10 +354,10 @@ namespace MWGui
         // at the time this function is called we are in the middle of a frame,
         // so out of order calls are necessary to get a correct frameNumber for the next frame.
         // refer to the advance() and frame() order in Engine::go()
-        mViewer->eventTraversal();
-        mViewer->updateTraversal();
-        mViewer->renderingTraversals();
-        mViewer->advance(mViewer->getFrameStamp()->getSimulationTime());
+        mStage.eventTraversal();
+        mStage.updateTraversal();
+        mStage.renderTraversals();
+        mStage.advance(mStage.getFrameStamp().getSimulationTime());
 
         mLastRenderTime = mTimer.time_m();
     }

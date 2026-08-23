@@ -10,14 +10,14 @@
 
 #include <components/loadinglistener/loadinglistener.hpp>
 
-namespace osgViewer
-{
-    class Viewer;
-}
-
 namespace osg
 {
     class Texture2D;
+}
+
+namespace MWRender
+{
+    class Stage;
 }
 
 namespace Resource
@@ -33,7 +33,7 @@ namespace MWGui
     class LoadingScreen : public WindowBase, public Loading::Listener
     {
     public:
-        LoadingScreen(Resource::ResourceSystem* resourceSystem, osgViewer::Viewer* viewer);
+        LoadingScreen(Resource::ResourceSystem* resourceSystem, MWRender::Stage& stage);
         virtual ~LoadingScreen();
 
         /// Overridden from Loading::Listener, see the Loading::Listener documentation for usage details
@@ -55,7 +55,7 @@ namespace MWGui
         void setupCopyFramebufferToTextureCallback();
 
         Resource::ResourceSystem* mResourceSystem;
-        osg::ref_ptr<osgViewer::Viewer> mViewer;
+        MWRender::Stage& mStage;
 
         double mTargetFrameRate;
 

@@ -3,14 +3,17 @@
 #include <components/debug/debuglog.hpp>
 #include <components/settings/values.hpp>
 
-#include <osgViewer/Viewer>
+#include <osg/Camera>
+
+#include <osgGA/EventQueue>
 
 namespace SDLUtil
 {
 
-    InputWrapper::InputWrapper(SDL_Window* window, osg::ref_ptr<osgViewer::Viewer> viewer, bool grab)
+    InputWrapper::InputWrapper(SDL_Window* window, osg::Camera& camera, osgGA::EventQueue& events, bool grab)
         : mSDLWindow(window)
-        , mViewer(std::move(viewer))
+        , mCamera(camera)
+        , mEvents(events)
         , mMouseListener(nullptr)
         , mSensorListener(nullptr)
         , mKeyboardListener(nullptr)
@@ -54,7 +57,7 @@ namespace SDLUtil
 
     void InputWrapper::capture(bool windowEventsOnly)
     {
-        mViewer->getEventQueue()->frame(0.f);
+        mEvents.frame(0.f);
 
         SDL_PumpEvents();
 
@@ -122,8 +125,7 @@ namespace SDLUtil
 
                     if (!isModifierHeld(KMOD_ALT) && evt.key.keysym.sym >= SDLK_F1 && evt.key.keysym.sym <= SDLK_F12)
                     {
-                        mViewer->getEventQueue()->keyPress(
-                            osgGA::GUIEventAdapter::KEY_F1 + (evt.key.keysym.sym - SDLK_F1));
+                        mEvents.keyPress(osgGA::GUIEventAdapter::KEY_F1 + (evt.key.keysym.sym - SDLK_F1));
                     }
 
                     break;
@@ -134,8 +136,7 @@ namespace SDLUtil
 
                         if (!isModifierHeld(KMOD_ALT) && evt.key.keysym.sym >= SDLK_F1
                             && evt.key.keysym.sym <= SDLK_F12)
-                            mViewer->getEventQueue()->keyRelease(
-                                osgGA::GUIEventAdapter::KEY_F1 + (evt.key.keysym.sym - SDLK_F1));
+                            mEvents.keyRelease(osgGA::GUIEventAdapter::KEY_F1 + (evt.key.keysym.sym - SDLK_F1));
                     }
 
                     break;
@@ -270,10 +271,10 @@ namespace SDLUtil
 
                 // Null under a renderer that owns its own surface: the camera is then a matrix
                 // holder and there is no OSG graphics context behind it to resize.
-                if (osg::GraphicsContext* context = mViewer->getCamera()->getGraphicsContext())
+                if (osg::GraphicsContext* context = mCamera.getGraphicsContext())
                     context->resized(x, y, w, h);
 
-                mViewer->getEventQueue()->windowResize(x, y, w, h);
+                mEvents.windowResize(x, y, w, h);
 
                 if (mWindowListener)
                     mWindowListener->windowResized(w, h);

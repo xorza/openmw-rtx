@@ -27,3 +27,11 @@
   `Terrain::RootNode::accept` forwards to `Terrain::QuadTreeWorld::accept`, which returns
   immediately for any visitor that is not a cull or an intersection visitor, and the chunks it
   would have produced are never children of anything the mirror walks.
+
+- `CI/check_clang_format.sh` fails on the tree at the version it names. Under clang-format 14 seven
+  files differ: `apps/components_tests/rtx/requirements.cpp`,
+  `apps/components_tests/rtx/visibilitypass.cpp`, `apps/launcher/graphicspage.cpp`,
+  `apps/openmw/mwrender/renderingmanager.hpp`, `components/nifosg/controller.cpp`,
+  `components/rtxvulkan/compositepass.cpp`, `components/rtxvulkan/exposurepass.cpp`. Under
+  clang-format 22 a different set differs, `apps/openmw/mwworld/worldimp.cpp` among them, so the two
+  versions cannot both be satisfied.

@@ -3,6 +3,10 @@
 #include <condition_variable>
 #include <mutex>
 
+#include <osg/Camera>
+#include <osg/FrameStamp>
+#include <osg/Image>
+
 #include <components/stereo/multiview.hpp>
 #include <components/stereo/stereomanager.hpp>
 
@@ -10,6 +14,7 @@
 #include "../mwbase/world.hpp"
 
 #include "postprocessor.hpp"
+#include "stage.hpp"
 
 namespace MWRender
 {
@@ -89,8 +94,8 @@ namespace MWRender
         osg::ref_ptr<osg::Image> mImage;
     };
 
-    ScreenshotManager::ScreenshotManager(osgViewer::Viewer* viewer)
-        : mViewer(viewer)
+    ScreenshotManager::ScreenshotManager(Stage& stage)
+        : mStage(stage)
         , mDrawCompleteCallback(new NotifyDrawCompletedCallback)
     {
     }
@@ -108,16 +113,16 @@ namespace MWRender
         camera->addChild(tempDrw);
 
         // Ref https://gitlab.com/OpenMW/openmw/-/issues/6013
-        mDrawCompleteCallback->reset(mViewer->getFrameStamp()->getFrameNumber());
-        mViewer->getCamera()->setFinalDrawCallback(mDrawCompleteCallback);
-        mViewer->eventTraversal();
-        mViewer->updateTraversal();
-        mViewer->renderingTraversals();
+        mDrawCompleteCallback->reset(mStage.getFrameStamp().getFrameNumber());
+        mStage.getCamera().setFinalDrawCallback(mDrawCompleteCallback);
+        mStage.eventTraversal();
+        mStage.updateTraversal();
+        mStage.renderTraversals();
         mDrawCompleteCallback->waitTillDone();
 
         // now that we've "used up" the current frame, get a fresh frame number for the next frame() following after the
         // screenshot is completed
-        mViewer->advance(mViewer->getFrameStamp()->getSimulationTime());
+        mStage.advance(mStage.getFrameStamp().getSimulationTime());
         camera->removeChild(tempDrw);
     }
 }

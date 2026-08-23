@@ -34,11 +34,6 @@ namespace Resource
     class ResourceSystem;
 }
 
-namespace osgViewer
-{
-    class Viewer;
-}
-
 namespace ESM
 {
     struct Cell;
@@ -106,6 +101,7 @@ namespace MWRender
     class ObjectPaging;
     class Groundcover;
     class PostProcessor;
+    class Stage;
 
 #ifdef OPENMW_RTX
     namespace Rtx
@@ -117,10 +113,9 @@ namespace MWRender
     class RenderingManager : public MWRender::RenderingInterface
     {
     public:
-        RenderingManager(osgViewer::Viewer* viewer, osg::ref_ptr<osg::Group> rootNode,
-            Resource::ResourceSystem* resourceSystem, SceneUtil::WorkQueue* workQueue,
-            DetourNavigator::Navigator& navigator, const MWWorld::GroundcoverStore& groundcoverStore,
-            SceneUtil::UnrefQueue& unrefQueue);
+        RenderingManager(Stage& stage, osg::ref_ptr<osg::Group> rootNode, Resource::ResourceSystem* resourceSystem,
+            SceneUtil::WorkQueue* workQueue, DetourNavigator::Navigator& navigator,
+            const MWWorld::GroundcoverStore& groundcoverStore, SceneUtil::UnrefQueue& unrefQueue);
         ~RenderingManager();
 
         osgUtil::IncrementalCompileOperation* getIncrementalCompileOperation();
@@ -332,7 +327,7 @@ namespace MWRender
 
         osg::ref_ptr<IntersectionVisitorWithIgnoreList> mIntersectionVisitor;
 
-        osg::ref_ptr<osgViewer::Viewer> mViewer;
+        Stage& mStage;
         osg::ref_ptr<osg::Group> mRootNode;
         osg::ref_ptr<SceneUtil::LightManager> mSceneRoot;
         Resource::ResourceSystem* mResourceSystem;

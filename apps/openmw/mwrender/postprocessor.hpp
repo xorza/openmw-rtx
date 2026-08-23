@@ -13,8 +13,6 @@
 #include <osg/Group>
 #include <osg/Texture2D>
 
-#include <osgViewer/Viewer>
-
 #include <components/debug/debuglog.hpp>
 #include <components/fx/stateupdater.hpp>
 #include <components/fx/technique.hpp>
@@ -24,11 +22,6 @@
 #include "transparentpass.hpp"
 
 #include <memory>
-
-namespace osgViewer
-{
-    class Viewer;
-}
 
 namespace Stereo
 {
@@ -52,6 +45,7 @@ namespace MWRender
     class PingPongCanvas;
     class TransparentDepthBinCallback;
     class DistortionCallback;
+    class Stage;
 
     class PostProcessor : public osg::Group
     {
@@ -98,8 +92,7 @@ namespace MWRender
             Status_Unchanged
         };
 
-        PostProcessor(
-            RenderingManager& rendering, osgViewer::Viewer* viewer, osg::Group* rootNode, const VFS::Manager* vfs);
+        PostProcessor(RenderingManager& rendering, Stage& stage, osg::Group* rootNode, const VFS::Manager* vfs);
 
         ~PostProcessor();
 
@@ -208,7 +201,7 @@ namespace MWRender
     private:
         void populateTechniqueFiles();
 
-        size_t frame() const { return mViewer->getFrameStamp()->getFrameNumber(); }
+        size_t frame() const;
 
         void createObjectsForFrame(size_t frameId);
 
@@ -236,7 +229,7 @@ namespace MWRender
         std::unordered_set<VFS::Path::Normalized, VFS::Path::Hash, std::equal_to<>> mTechniqueFiles;
 
         RenderingManager& mRendering;
-        osgViewer::Viewer* mViewer;
+        Stage& mStage;
         const VFS::Manager* mVFS;
 
         size_t mDirtyFrameId = 0;

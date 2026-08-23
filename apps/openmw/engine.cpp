@@ -73,6 +73,7 @@
 #include "mwworld/worldimp.hpp"
 
 #include "mwrender/renderingmanager.hpp"
+#include "mwrender/stage.hpp"
 #include "mwrender/vismask.hpp"
 
 #include "mwclass/classes.hpp"
@@ -193,7 +194,7 @@ bool OMW::Engine::frame(unsigned frameNumber, float frametime)
 {
     const osg::Timer_t frameStart = mViewer->getStartTick();
     const osg::Timer* const timer = osg::Timer::instance();
-    osg::Stats* const stats = mViewer->getViewerStats();
+    osg::Stats* const stats = &mStage->getStats();
 
     mEnvironment.setFrameDuration(frametime);
 
@@ -346,8 +347,8 @@ bool OMW::Engine::frame(unsigned frameNumber, float frametime)
 
     mStereoManager->updateSettings(Settings::camera().mNearClip, Settings::camera().mViewingDistance);
 
-    mViewer->eventTraversal();
-    mViewer->updateTraversal();
+    mStage->eventTraversal();
+    mStage->updateTraversal();
 
     // update focus object for GUI
     {
@@ -358,7 +359,7 @@ bool OMW::Engine::frame(unsigned frameNumber, float frametime)
     // if there is a separate Lua thread, it starts the update now
     mLuaWorker->allowUpdate(frameStart, frameNumber, *stats);
 
-    mViewer->renderingTraversals();
+    mStage->renderTraversals();
 
 #ifdef OPENMW_RTX
     // **The seam, and it is after the cull rather than before it.** `docs/rtx/plan.md` §2 has the
@@ -429,7 +430,6 @@ OMW::Engine::~Engine()
         mScreenCaptureOperation->stop();
         mScreenCaptureOperation = nullptr;
     }
-    mScreenCaptureHandler = nullptr;
 
     mMechanicsManager = nullptr;
     mDialogueManager = nullptr;
@@ -450,6 +450,7 @@ OMW::Engine::~Engine()
     mUnrefQueue = nullptr;
     mWorkQueue = nullptr;
 
+    mStage = nullptr;
     mViewer = nullptr;
 
     mResourceSystem.reset();
@@ -639,9 +640,9 @@ void OMW::Engine::createWindow()
         traits->alpha = 0; // set to 0 to stop ScreenCaptureHandler reading the alpha channel
     }
 
-    osg::ref_ptr<osg::Camera> camera = mViewer->getCamera();
-    camera->setGraphicsContext(graphicsWindow);
-    camera->setViewport(0, 0, graphicsWindow->getTraits()->width, graphicsWindow->getTraits()->height);
+    osg::Camera& camera = mStage->getCamera();
+    camera.setGraphicsContext(graphicsWindow);
+    camera.setViewport(0, 0, graphicsWindow->getTraits()->width, graphicsWindow->getTraits()->height);
 
     osg::ref_ptr<SceneUtil::OperationSequence> realizeOperations = new SceneUtil::OperationSequence(false);
     mViewer->setRealizeOperation(realizeOperations);
@@ -717,7 +718,7 @@ void OMW::Engine::createWindow()
     mViewer->realize();
     mGlMaxTextureImageUnits = identifyOp->getMaxTextureImageUnits();
 
-    mViewer->getEventQueue()->getCurrentEventState()->setWindowRectangle(
+    mStage->getEvents().getCurrentEventState()->setWindowRectangle(
         0, 0, graphicsWindow->getTraits()->width, graphicsWindow->getTraits()->height);
 }
 
@@ -756,7 +757,7 @@ void OMW::Engine::prepareEngine()
         mViewer, stereoEnabled, Settings::camera().mNearClip, Settings::camera().mViewingDistance);
 
     osg::ref_ptr<osg::Group> rootNode(new osg::Group);
-    mViewer->setSceneData(rootNode);
+    mStage->setSceneRoot(*rootNode);
 
     createWindow();
 
@@ -783,9 +784,9 @@ void OMW::Engine::prepareEngine()
             Settings::general().mNotifyOnSavedScreenshot ? std::function<void(std::string)>(ScreenCaptureMessageBox{})
                                                          : std::function<void(std::string)>(IgnoreString{})));
 
-    mScreenCaptureHandler = new osgViewer::ScreenCaptureHandler(mScreenCaptureOperation);
-
-    mViewer->addEventHandler(mScreenCaptureHandler);
+    osg::ref_ptr<osgViewer::ScreenCaptureHandler> screenCapture
+        = new osgViewer::ScreenCaptureHandler(mScreenCaptureOperation);
+    mStage->setScreenCapture(*screenCapture);
 
     mL10nManager = std::make_unique<L10n::Manager>(mVFS.get());
     mL10nManager->setPreferredLocales(Settings::general().mPreferredLocales, Settings::general().mGmstOverridesL10n);
@@ -845,13 +846,13 @@ void OMW::Engine::prepareEngine()
     mStereoManager->disableStereoForNode(guiRoot);
     rootNode->addChild(guiRoot);
 
-    mWindowManager = std::make_unique<MWGui::WindowManager>(mWindow, mViewer, guiRoot, mResourceSystem.get(),
+    mWindowManager = std::make_unique<MWGui::WindowManager>(mWindow, *mStage, guiRoot, mResourceSystem.get(),
         mWorkQueue.get(), mCfgMgr.getLogPath(), mScriptConsoleMode, mTranslationDataStorage, mEncoding, mExportFonts,
         Version::getOpenmwVersionDescription(), mCfgMgr);
     mEnvironment.setWindowManager(*mWindowManager);
 
-    mInputManager = std::make_unique<MWInput::InputManager>(mWindow, mViewer, mScreenCaptureHandler, keybinderUser,
-        keybinderUserExists, userGameControllerdb, gameControllerdb, mGrab);
+    mInputManager = std::make_unique<MWInput::InputManager>(
+        mWindow, *mStage, keybinderUser, keybinderUserExists, userGameControllerdb, gameControllerdb, mGrab);
     mEnvironment.setInputManager(*mInputManager);
 
     // Create sound system
@@ -927,7 +928,7 @@ void OMW::Engine::prepareEngine()
     }
     listener->loadingOff();
 
-    mWorld->init(mMaxRecastLogLevel, mViewer, std::move(rootNode), mWorkQueue.get(), *mUnrefQueue);
+    mWorld->init(mMaxRecastLogLevel, *mStage, std::move(rootNode), mWorkQueue.get(), *mUnrefQueue);
     mEnvironment.setWorldScene(mWorld->getWorldScene());
     mWorld->setupPlayer();
     mWorld->setRandomSeed(mRandomSeed);
@@ -978,9 +979,12 @@ void OMW::Engine::go()
     mViewer = new osgViewer::Viewer;
     SceneUtil::disableFFPLightModelForRenderer(static_cast<osgViewer::Renderer*>(mViewer->getCamera()->getRenderer()));
     mViewer->setReleaseContextAtEndOfFrameHint(false);
+    mViewer->setLightingMode(osgViewer::View::NO_LIGHT);
 
     // Do not try to outsmart the OS thread scheduler (see bug #4785).
     mViewer->setUseConfigureAffinity(false);
+
+    mStage = std::make_unique<MWRender::Stage>(*mViewer);
 
     mEnvironment.setFrameRateLimit(Settings::video().mFramerateLimit);
 
@@ -1060,9 +1064,9 @@ void OMW::Engine::go()
                               .count()
             * timeManager.getSimulationTimeScale();
 
-        mViewer->advance(timeManager.getRenderingSimulationTime());
+        mStage->advance(timeManager.getRenderingSimulationTime());
 
-        const unsigned frameNumber = mViewer->getFrameStamp()->getFrameNumber();
+        const unsigned frameNumber = mStage->getFrameStamp().getFrameNumber();
 
         if (!frame(frameNumber, static_cast<float>(dt)))
         {
@@ -1085,7 +1089,7 @@ void OMW::Engine::go()
             {
                 // Viewer frame number can be different from frameNumber because of loading screens which render new
                 // frames inside a simulation frame.
-                const unsigned currentFrameNumber = mViewer->getFrameStamp()->getFrameNumber();
+                const unsigned currentFrameNumber = mStage->getFrameStamp().getFrameNumber();
                 for (unsigned i = frameNumber; i <= currentFrameNumber; ++i)
                     reportStats(i - statsReportDelay, *mViewer, stats);
             }

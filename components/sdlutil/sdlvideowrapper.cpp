@@ -11,9 +11,9 @@
 namespace SDLUtil
 {
 
-    VideoWrapper::VideoWrapper(SDL_Window* window, osg::ref_ptr<osgViewer::Viewer> viewer)
+    VideoWrapper::VideoWrapper(SDL_Window* window, osgViewer::Viewer& viewer)
         : mWindow(window)
-        , mViewer(std::move(viewer))
+        , mViewer(viewer)
         , mGamma(1.f)
         , mContrast(1.f)
         , mHasSetGammaContrast(false)
@@ -33,8 +33,8 @@ namespace SDLUtil
     void VideoWrapper::setSyncToVBlank(VSyncMode vsyncMode)
     {
         osgViewer::Viewer::Windows windows;
-        mViewer->getWindows(windows);
-        mViewer->stopThreading();
+        mViewer.getWindows(windows);
+        mViewer.stopThreading();
         for (osgViewer::Viewer::Windows::iterator it = windows.begin(); it != windows.end(); ++it)
         {
             osgViewer::GraphicsWindow* win = *it;
@@ -43,7 +43,7 @@ namespace SDLUtil
             else
                 win->setSyncToVBlank(vsyncMode != VSyncMode::Disabled);
         }
-        mViewer->startThreading();
+        mViewer.startThreading();
     }
 
     void VideoWrapper::setGammaContrast(float gamma, float contrast)
