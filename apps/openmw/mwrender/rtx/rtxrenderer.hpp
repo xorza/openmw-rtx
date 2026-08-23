@@ -9,6 +9,7 @@
 
 #include <osg/ref_ptr>
 
+#include <components/myguiplatform/picture.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/sceneuploader.hpp>
 
@@ -91,6 +92,12 @@ namespace MWRender::Rtx
         /// purpose rather than by accident.
         std::unique_ptr<OffscreenView> createOffscreenView(const OffscreenViewSpec& spec) override;
 
+        /// **Flat black, and the loading screen puts it up as the backdrop.** Blitting the image
+        /// just presented into a GUI texture waits on `components/myguirtx` having one to blit into
+        /// — step 6.6 — and until then this is what was behind a loading screen on this path
+        /// anyway, said on purpose rather than left to whatever the texture happened to hold.
+        MyGUI::ITexture& freezeFrame() override;
+
         void renderGui() override;
 
         bool done() const override { return false; }
@@ -141,6 +148,8 @@ namespace MWRender::Rtx
 
         Stage& mStage;
         Capabilities mCapabilities;
+
+        MyGUIPlatform::Picture mFrozenFrame{ "frozen frame" };
 
         SDL_Window* mWindow = nullptr;
 

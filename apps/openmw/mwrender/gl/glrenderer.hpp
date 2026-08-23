@@ -18,6 +18,16 @@ namespace Resource
     class ResourceSystem;
 }
 
+namespace MyGUIPlatform
+{
+    class OSGTexture;
+}
+
+namespace osg
+{
+    class Texture2D;
+}
+
 namespace SDLUtil
 {
     class GraphicsWindowSDL2;
@@ -41,6 +51,7 @@ namespace Stereo
 
 namespace MWRender
 {
+    class CopyFramebufferToTextureCallback;
     class PostProcessor;
     class ScreenshotManager;
 
@@ -70,6 +81,8 @@ namespace MWRender
         void renderFrame(const SceneFrame& frame) override;
 
         std::unique_ptr<OffscreenView> createOffscreenView(const OffscreenViewSpec& spec) override;
+
+        MyGUI::ITexture& freezeFrame() override;
 
         void renderGui() override;
         bool done() const override;
@@ -102,6 +115,10 @@ namespace MWRender
         void createWindow(const std::filesystem::path& resourceDir);
         void setWindowIcon(const std::filesystem::path& resourceDir);
 
+        /// Takes the framebuffer copy back out of the frame once it has run. Left in, it would copy
+        /// the whole screen into a texture on every frame from the first loading screen onwards.
+        void retireFreezeFrame();
+
         Stage& mStage;
         Capabilities mCapabilities;
 
@@ -129,6 +146,13 @@ namespace MWRender
 
         /// This renderer's frame graph. Everything between the scene and the screen.
         osg::ref_ptr<PostProcessor> mPostProcessor;
+
+        /// The last frame, copied off the framebuffer where it stands. Made the first time the
+        /// loading screen asks for one and re-armed every time after.
+        osg::ref_ptr<osg::Texture2D> mFrozenFrame;
+        osg::ref_ptr<CopyFramebufferToTextureCallback> mFreezeFrame;
+        std::unique_ptr<MyGUIPlatform::OSGTexture> mFrozenFrameTexture;
+        bool mFreezing = false;
     };
 }
 

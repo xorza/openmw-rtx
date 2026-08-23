@@ -740,8 +740,12 @@ names no OpenGL at all.
 
 **6.2 is done** as well: the local map over `OffscreenView`, and the world map's explored overlay
 composed in main memory rather than by a camera per cell and a shader pair, both of which are gone.
-Four of the eleven sites in `gui.md` §1 are closed and `mwgui` no longer names a texture class for
-any picture a renderer makes.
+
+**6.3 with it**: the video frame, the save thumbnail and the fog of war go in through MyGUI's own
+factory — one `MyGUIPlatform::Picture` does it for all of them — and the loading screen asks the
+renderer for the frame it froze instead of installing a callback on the camera. All eleven sites in
+`gui.md` §1 are closed; `MyGUIPlatform::OSGTexture` is not named anywhere outside `mwrender/gl/`,
+and the game has no way left to reach a renderer's textures.
 
 ## 8. What breaks, and the decision for each
 

@@ -180,10 +180,13 @@ would have been three branches nothing reached.
   MyGUI's own API and already works on any backend. The video decoder hands pixels instead of an
   `osg::Texture2D`; the save screenshot and the fog of war are already byte buffers wearing an
   `osg::Texture2D`.
-- **The last frame** — `Renderer::freezeInto(MyGUI::ITexture&)`. **Both renderers can do this**, which
-  is why it is not a capability: the rasterizer copies its framebuffer the way it does today, and a
-  renderer that owns its swapchain blits from the image it just presented. `renderers.md` §8 offers
-  "a flat colour where a renderer cannot supply one" — no renderer here cannot.
+- **The last frame** — `Renderer::freezeFrame()`, which hands back a picture rather than being handed
+  one to fill. **Both renderers can do this**, which is why it is not a capability: the rasterizer
+  copies its framebuffer where it stands, and a renderer that owns its swapchain blits from the image
+  it just presented. Filling a texture the GUI made would mean reading either back to main memory and
+  handing over pixels — the same picture at several times the price, on the frame a load begins.
+  `renderers.md` §8 offers "a flat colour where a renderer cannot supply one" — no renderer here
+  cannot.
 
 ### 3.4 Where the `if`s would have been
 

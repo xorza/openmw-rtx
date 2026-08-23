@@ -1,5 +1,6 @@
 #include "glrenderer.hpp"
 
+#include <atomic>
 #include <fstream>
 #include <ostream>
 #include <sstream>
@@ -7,10 +8,12 @@
 
 #include <SDL.h>
 
+#include <osg/Camera>
 #include <osg/DisplaySettings>
 #include <osg/GraphicsContext>
 #include <osg/Image>
 #include <osg/Stats>
+#include <osg/Texture2D>
 
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
@@ -27,6 +30,7 @@
 #include <components/debug/gldebug.hpp>
 #include <components/l10n/manager.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
+#include <components/myguiplatform/myguitexture.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/resource/stats.hpp>
 #include <components/sceneutil/color.hpp>
@@ -478,9 +482,77 @@ namespace MWRender
     // mirrors the graph has to answer.
     void GlRenderer::renderFrame(const SceneFrame& frame)
     {
+        retireFreezeFrame();
+
         mPostProcessor->describe(frame.mWorld);
 
         mViewer->renderingTraversals();
+    }
+
+    /// Copies the framebuffer into a texture. Installed as an *initial* draw callback, so what it
+    /// copies is the frame before the one about to be drawn — which is the one the player was
+    /// looking at when the load began.
+    class CopyFramebufferToTextureCallback : public osg::Camera::DrawCallback
+    {
+    public:
+        explicit CopyFramebufferToTextureCallback(osg::Texture2D* texture)
+            : mTexture(texture)
+        {
+        }
+
+        void operator()(osg::RenderInfo& renderInfo) const override
+        {
+            const osg::Viewport* viewPort = renderInfo.getCurrentCamera()->getViewport();
+            const int w = static_cast<int>(viewPort->width());
+            const int h = static_cast<int>(viewPort->height());
+            mTexture->copyTexImage2D(*renderInfo.getState(), 0, 0, w, h);
+
+            mCopied.store(true, std::memory_order_release);
+        }
+
+        /// Whether it has run, read from the frame loop so that the callback can be taken out again.
+        /// A full-screen copy is not something to keep paying for once the frame is frozen.
+        bool copied() const { return mCopied.load(std::memory_order_acquire); }
+
+        void arm() { mCopied.store(false, std::memory_order_release); }
+
+    private:
+        osg::ref_ptr<osg::Texture2D> mTexture;
+        mutable std::atomic<bool> mCopied{ false };
+    };
+
+    MyGUI::ITexture& GlRenderer::freezeFrame()
+    {
+        if (!mFrozenFrame)
+        {
+            mFrozenFrame = new osg::Texture2D;
+            mFrozenFrame->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
+            mFrozenFrame->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
+            mFrozenFrame->setInternalFormat(GL_RGB);
+            mFrozenFrame->setResizeNonPowerOfTwoHint(false);
+
+            mFreezeFrame = new CopyFramebufferToTextureCallback(mFrozenFrame);
+            mFrozenFrameTexture = std::make_unique<MyGUIPlatform::OSGTexture>(mFrozenFrame);
+        }
+
+        // Removed and added rather than left in place: the callback is what makes the copy happen,
+        // and a loading screen wants the frame that was on the screen when it started, not the one
+        // that was there when the last load did.
+        mFreezeFrame->arm();
+        mStage.getCamera().removeInitialDrawCallback(mFreezeFrame);
+        mStage.getCamera().addInitialDrawCallback(mFreezeFrame);
+        mFreezing = true;
+
+        return *mFrozenFrameTexture;
+    }
+
+    void GlRenderer::retireFreezeFrame()
+    {
+        if (!mFreezing || !mFreezeFrame->copied())
+            return;
+
+        mStage.getCamera().removeInitialDrawCallback(mFreezeFrame);
+        mFreezing = false;
     }
 
     std::unique_ptr<OffscreenView> GlRenderer::createOffscreenView(const OffscreenViewSpec& spec)
@@ -492,6 +564,8 @@ namespace MWRender
 
     void GlRenderer::renderGui()
     {
+        retireFreezeFrame();
+
         mViewer->renderingTraversals();
     }
 

@@ -16,7 +16,6 @@
 
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/globalmap.hpp>
-#include <components/myguiplatform/myguitexture.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -243,7 +242,8 @@ namespace MWGui
             for (auto& entry : mMaps)
             {
                 entry.mFogWidget->setImageTexture({});
-                entry.mFogTexture.reset();
+                entry.mFogTexture = nullptr;
+                entry.mFogAsked = false;
             }
         }
 
@@ -461,7 +461,8 @@ namespace MWGui
             entry.mMapWidget->setRenderItemTexture(nullptr);
             entry.mFogWidget->setRenderItemTexture(nullptr);
             entry.mMapTexture = nullptr;
-            entry.mFogTexture.reset();
+            entry.mFogTexture = nullptr;
+            entry.mFogAsked = false;
         };
 
         std::size_t usedEntries = 0;
@@ -633,21 +634,20 @@ namespace MWGui
                     needRedraw = true;
                 }
             }
-            if (!entry.mFogTexture && mFogOfWarToggled && mFogOfWarEnabled)
+            if (!entry.mFogAsked && mFogOfWarToggled && mFogOfWarEnabled)
             {
-                osg::ref_ptr<osg::Texture2D> tex = mLocalMapRender->getFogOfWarTexture(entry.mCellX, entry.mCellY);
-                if (tex)
+                entry.mFogAsked = true;
+
+                if (MyGUI::ITexture* fog = mLocalMapRender->getFogOfWarTexture(entry.mCellX, entry.mCellY))
                 {
-                    entry.mFogTexture = std::make_unique<MyGUIPlatform::OSGTexture>(tex);
-                    entry.mFogWidget->setRenderItemTexture(entry.mFogTexture.get());
+                    entry.mFogTexture = fog;
+                    entry.mFogWidget->setRenderItemTexture(fog);
                     // For inexplicable historical reasons the fog texture is Y-down so this UV is *not* inverted
                     entry.mFogWidget->getSubWidgetMain()->_setUVSet(MyGUI::FloatRect(0.f, 0.f, 1.f, 1.f));
                 }
                 else
-                {
                     entry.mFogWidget->setImageTexture("black");
-                    entry.mFogTexture = std::make_unique<MyGUIPlatform::OSGTexture>(std::string(), nullptr);
-                }
+
                 needRedraw = true;
                 // Newly uncovered chunk, make sure to draw door markers right away instead of waiting for a cell
                 // transition

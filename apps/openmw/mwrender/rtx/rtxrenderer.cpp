@@ -444,6 +444,19 @@ namespace MWRender::Rtx
         return std::make_unique<UntracedView>(spec);
     }
 
+    MyGUI::ITexture& RtxRenderer::freezeFrame()
+    {
+        if (mFrozenFrame.getTexture() == nullptr)
+        {
+            osg::ref_ptr<osg::Image> black = new osg::Image;
+            black->allocateImage(1, 1, 1, GL_RGB, GL_UNSIGNED_BYTE);
+            std::memset(black->data(), 0, black->getTotalSizeInBytes());
+            mFrozenFrame.set(*black);
+        }
+
+        return *mFrozenFrame.getTexture();
+    }
+
     std::unique_ptr<MyGUIPlatform::Platform> RtxRenderer::createGuiPlatform(osg::Group& guiRoot,
         Resource::ImageManager& images, const VFS::Manager& vfs, float scalingFactor,
         VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath)

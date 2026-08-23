@@ -24,6 +24,11 @@ namespace osgUtil
     class IncrementalCompileOperation;
 }
 
+namespace MyGUI
+{
+    class ITexture;
+}
+
 namespace MyGUIPlatform
 {
     class Platform;
@@ -157,6 +162,15 @@ namespace MWRender
         /// in the picture is the game's and arrives in the spec; how it is drawn is not described
         /// there at all.
         virtual std::unique_ptr<OffscreenView> createOffscreenView(const OffscreenViewSpec& spec) = 0;
+
+        /// The frame the player was last looking at, held still, as a picture for the GUI to show.
+        /// Taken again from the next frame drawn, every time this is called.
+        ///
+        /// **Whatever the renderer already has, rather than a copy the GUI makes.** The rasterizer
+        /// copies its own framebuffer where it stands; a renderer that owns its swapchain has the
+        /// image it just presented. Reading either back to main memory and handing it over as pixels
+        /// would be the same picture at several times the price, on the frame a load begins.
+        virtual MyGUI::ITexture& freezeFrame() = 0;
 
         /// The GUI, with no world behind it.
         ///

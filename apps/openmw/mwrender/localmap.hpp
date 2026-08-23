@@ -12,6 +12,8 @@
 #include <osg/Quat>
 #include <osg/ref_ptr>
 
+#include <components/myguiplatform/picture.hpp>
+
 namespace MWWorld
 {
     class CellStore;
@@ -29,9 +31,8 @@ namespace ESM
 
 namespace osg
 {
-    class Texture2D;
-    class Image;
     class Group;
+    class Image;
     class Node;
 }
 
@@ -76,7 +77,8 @@ namespace MWRender
         /// nothing else asked for a copy, and a copy is not free.
         const osg::Image* getMapImage(int x, int y) const;
 
-        osg::ref_ptr<osg::Texture2D> getFogOfWarTexture(int x, int y);
+        /// What the widget over a tile darkens it with, or null where the cell has no fog state.
+        MyGUI::ITexture* getFogOfWarTexture(int x, int y);
 
         /**
          * Set the position & direction of the player, and returns the position in map space through the reference
@@ -128,7 +130,10 @@ namespace MWRender
             void initFogOfWar();
             void loadFogOfWar(const ESM::FogTexture& fog);
             void saveFogOfWar(ESM::FogTexture& fog) const;
-            void createFogOfWarTexture();
+
+            /// The fog image is written a texel at a time as the player walks; this is what puts the
+            /// result in front of the GUI, and it is called only on the frames that changed it.
+            void showFogOfWar();
 
             std::uint8_t mLastRenderNeighbourFlags = 0;
             bool mHasFogState = false;
@@ -137,7 +142,7 @@ namespace MWRender
             /// again when a neighbour arriving makes a better one possible.
             std::unique_ptr<OffscreenView> mView;
 
-            osg::ref_ptr<osg::Texture2D> mFogOfWarTexture;
+            MyGUIPlatform::Picture mFogOfWar{ "fog of war" };
             osg::ref_ptr<osg::Image> mFogOfWarImage;
         };
 

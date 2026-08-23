@@ -6,7 +6,6 @@
 #include <osg/FrameStamp>
 #include <osg/Group>
 #include <osg/Stats>
-#include <osg/Texture2D>
 
 #include <osgUtil/IncrementalCompileOperation>
 
@@ -18,7 +17,6 @@
 #include <components/debug/debuglog.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/rng.hpp>
-#include <components/myguiplatform/myguitexture.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
@@ -117,32 +115,6 @@ namespace MWGui
         else
             return mTargetFrameRate;
     }
-
-    class CopyFramebufferToTextureCallback : public osg::Camera::DrawCallback
-    {
-    public:
-        CopyFramebufferToTextureCallback(osg::Texture2D* texture)
-            : mOneshot(true)
-            , mTexture(texture)
-        {
-        }
-
-        void operator()(osg::RenderInfo& renderInfo) const override
-        {
-            const osg::Viewport* viewPort = renderInfo.getCurrentCamera()->getViewport();
-            int w = static_cast<int>(viewPort->width());
-            int h = static_cast<int>(viewPort->height());
-            mTexture->copyTexImage2D(*renderInfo.getState(), 0, 0, w, h);
-
-            mOneshot = false;
-        }
-
-        void reset() { mOneshot = true; }
-
-    private:
-        mutable bool mOneshot;
-        osg::ref_ptr<osg::Texture2D> mTexture;
-    };
 
     class DontComputeBoundCallback : public osg::Node::ComputeBoundingSphereCallback
     {
@@ -286,40 +258,16 @@ namespace MWGui
         return true;
     }
 
-    void LoadingScreen::setupCopyFramebufferToTextureCallback()
+    void LoadingScreen::showFrozenFrame()
     {
-        // Copy the current framebuffer onto a texture and display that texture as the background image
-        // Note, we could also set the camera to disable clearing and have the background image transparent,
-        // but then we get shaking effects on buffer swaps.
-
-        if (!mTexture)
-        {
-            mTexture = new osg::Texture2D;
-            mTexture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
-            mTexture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
-            mTexture->setInternalFormat(GL_RGB);
-            mTexture->setResizeNonPowerOfTwoHint(false);
-        }
-
-        if (!mGuiTexture.get())
-        {
-            mGuiTexture = std::make_unique<MyGUIPlatform::OSGTexture>(mTexture);
-        }
-
-        if (!mCopyFramebufferToTextureCallback)
-        {
-            mCopyFramebufferToTextureCallback = new CopyFramebufferToTextureCallback(mTexture);
-        }
-
-        mStage.getCamera().removeInitialDrawCallback(mCopyFramebufferToTextureCallback);
-        mStage.getCamera().addInitialDrawCallback(mCopyFramebufferToTextureCallback);
-        mCopyFramebufferToTextureCallback->reset();
+        // The frame the player was looking at, held up behind the loading screen. The alternative —
+        // clearing to nothing and letting the world show through — shakes on every buffer swap.
 
         mSplashImage->setBackgroundImage({});
         mSplashImage->setVisible(false);
 
-        mSceneImage->setRenderItemTexture(mGuiTexture.get());
-        // The widget is Y-down, the RTT image is Y-up, so this UV is inverted
+        mSceneImage->setRenderItemTexture(&mRenderer.freezeFrame());
+        // The widget is Y-down, the frozen frame is Y-up, so this UV is inverted
         mSceneImage->getSubWidgetMain()->_setUVSet(MyGUI::FloatRect(0.f, 1.f, 1.f, 0.f));
         mSceneImage->setVisible(true);
     }
@@ -337,7 +285,7 @@ namespace MWGui
 
         if (!mShowWallpaper && mLastRenderTime < mLoadingOnTime)
         {
-            setupCopyFramebufferToTextureCallback();
+            showFrozenFrame();
         }
 
         MWBase::Environment::get().getInputManager()->update(0, true, true);

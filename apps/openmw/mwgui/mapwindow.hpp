@@ -143,8 +143,11 @@ namespace MWGui
             /// The local map's, not this entry's: a segment owns its picture for as long as the
             /// cell is loaded, and the widget is only shown it.
             MyGUI::ITexture* mMapTexture = nullptr;
+            MyGUI::ITexture* mFogTexture = nullptr;
 
-            std::unique_ptr<MyGUI::ITexture> mFogTexture;
+            /// Whether this entry has already asked for a fog texture and been told there is none.
+            /// Without it the answer would be asked for, and acted on, every frame.
+            bool mFogAsked = false;
             int mCellX;
             int mCellY;
         };

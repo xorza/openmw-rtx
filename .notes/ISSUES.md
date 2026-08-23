@@ -37,6 +37,10 @@
   extent on the same device is fine, and so was the game before it owned its window, so it is neither
   the size nor DLSS itself. The validation layers say nothing.
 
+- `MyGUIPlatform::OSGTexture` allocates an `osg::Image` on every `lock` and an `osg::Texture2D` on
+  every `unlock`, and uploads the whole texture either way. A picture written once a frame — the
+  video widget — therefore allocates twice a frame and re-sends every pixel of the frame.
+
 - The ray tracing renderer has no screenshot key: `RtxRenderer::saveScreenshot` logs and does
   nothing. `OPENMW_RTX_SHOT` still writes frames.
 
