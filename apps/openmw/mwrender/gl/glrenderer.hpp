@@ -115,9 +115,6 @@ namespace MWRender
         osg::ref_ptr<osgViewer::ScreenCaptureHandler> mScreenCaptureHandler;
         std::unique_ptr<ScreenshotManager> mScreenshotManager;
 
-        /// The world, from `attachWorld`, so the chain can be told what this frame's world is.
-        RenderingManager* mWorld = nullptr;
-
         /// This renderer's frame graph. Everything between the scene and the screen.
         osg::ref_ptr<PostProcessor> mPostProcessor;
     };

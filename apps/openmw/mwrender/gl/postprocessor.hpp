@@ -47,6 +47,7 @@ namespace MWRender
     class DistortionCallback;
     class Renderer;
     class Stage;
+    struct WorldState;
 
     class PostProcessor : public osg::Group
     {
@@ -168,6 +169,12 @@ namespace MWRender
         void setExteriorFlag(bool exterior) { mExteriorFlag = exterior; }
 
         void setUnderwaterFlag(bool underwater) { mUnderwater = underwater; }
+
+        /// This frame's world, in the spelling the chain's shaders sample.
+        ///
+        /// **A copy and not a cache.** Every value is settled somewhere in the world already, so
+        /// the only thing said here is how a shader chain spells it.
+        void describe(const WorldState& world);
 
         void toggleMode();
 

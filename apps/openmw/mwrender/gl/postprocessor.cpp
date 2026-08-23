@@ -231,6 +231,36 @@ namespace MWRender
             bin->setDrawCallback(nullptr);
     }
 
+    void PostProcessor::describe(const WorldState& world)
+    {
+        mStateUpdater->setSunPos(world.mSunPosition, world.mSunAtNight);
+        mStateUpdater->setSunVec(world.mSunVector);
+        mStateUpdater->setSunColor(world.mSunColour);
+        mStateUpdater->setSunVis(world.mSunVisibility);
+        mStateUpdater->setAmbientColor(world.mAmbientColour);
+        mStateUpdater->setSkyColor(world.mSkyColour);
+        mStateUpdater->setIsInterior(!world.mSkyVisible);
+
+        mStateUpdater->setIsWaterEnabled(world.mWaterEnabled);
+        mStateUpdater->setWaterHeight(world.mWaterHeight);
+        mStateUpdater->setIsUnderwater(world.mUnderwater);
+
+        mStateUpdater->setFogColor(world.mFog.mColour);
+        mStateUpdater->setFogRange(world.mFog.mStart, world.mFog.mEnd);
+        mStateUpdater->setNearFar(world.mNearClip, world.mViewDistance);
+        mStateUpdater->setProjectionMatrix(world.mProjectionMatrix);
+        mStateUpdater->setFov(world.mFieldOfView);
+
+        mStateUpdater->setGameHour(world.mGameHour);
+        mStateUpdater->setWeatherId(world.mWeatherId);
+        mStateUpdater->setNextWeatherId(world.mNextWeatherId);
+        mStateUpdater->setWeatherTransition(world.mWeatherTransition);
+        mStateUpdater->setWindSpeed(world.mWindSpeed);
+
+        // Which techniques run at all, which is this chain's own question rather than the block's.
+        mUnderwater = world.mUnderwater;
+    }
+
     size_t PostProcessor::frame() const
     {
         return mStage.getFrameStamp().getFrameNumber();

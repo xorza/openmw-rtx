@@ -221,14 +221,6 @@ namespace MWRender
 
         PostProcessor* getPostProcessor();
 
-        /// This frame's world state, in the spelling a shader chain samples.
-        ///
-        /// **The world says what it is; the chain is the renderer's.** Every value here is already
-        /// settled on something else — the sun light, the fog, the sky, the water — so this is a
-        /// copy rather than a cache, and the only thing it needs to know about the renderer is the
-        /// format. Called by whichever renderer has such a chain, once a frame.
-        void describeTo(PostProcessor& chain) const;
-
         void addWaterRippleEmitter(const MWWorld::Ptr& ptr);
         void removeWaterRippleEmitter(const MWWorld::Ptr& ptr);
         void emitWaterRipple(const osg::Vec3f& pos);
@@ -302,9 +294,13 @@ namespace MWRender
         osg::Vec2f getProjectionOffset() const { return mProjectionOffset; }
 
     private:
-        /// The world's light, as `RenderingManager` has already settled it. Default in a build with
-        /// no renderer that reads it — see the definition.
-        Lighting describeLighting() const;
+        /// What the world is doing this frame, gathered from where each part of it settled.
+        ///
+        /// **Once, and in the world's own numbers.** Two renderers wanted the same twenty facts in
+        /// two different spellings, and answering them separately meant asking the sun, the fog and
+        /// the sky twice a frame through two channels pointing opposite ways. There is one channel
+        /// and it points down.
+        WorldState describeWorld() const;
 
         void updateTextureFiltering();
         void updateAmbient();

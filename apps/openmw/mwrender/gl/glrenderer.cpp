@@ -47,6 +47,7 @@
 #include "../../profile.hpp"
 
 #include "../renderingmanager.hpp"
+#include "../sceneframe.hpp"
 #include "../stage.hpp"
 
 #include "postprocessor.hpp"
@@ -435,8 +436,6 @@ namespace MWRender
     }
     void GlRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot)
     {
-        mWorld = &world;
-
         // **The chain goes above the world and becomes what is traversed.** Its constructor reads
         // `GLExtensions` off the camera's graphics context, which is why no renderer without one can
         // have it and why nothing above this line decides whether to build it.
@@ -474,11 +473,9 @@ namespace MWRender
     // nothing to read off the frame it is handed, and nothing to leave out when there is none. Both
     // of these are one traversal, and which of the two it was is a question only a renderer that
     // mirrors the graph has to answer.
-    void GlRenderer::renderFrame(const SceneFrame&)
+    void GlRenderer::renderFrame(const SceneFrame& frame)
     {
-        // The world in the spelling the chain samples. `SceneFrame` carries the same facts for a
-        // renderer that reads them directly; this one reads them out of a uniform block.
-        mWorld->describeTo(*mPostProcessor);
+        mPostProcessor->describe(frame.mWorld);
 
         mViewer->renderingTraversals();
     }

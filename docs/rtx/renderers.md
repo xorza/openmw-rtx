@@ -624,10 +624,17 @@ projection and screen-resolution callbacks — is already a public accessor. It 
 `attachWorld` is for: the renderer is made before there is a world, so what needs the world is built
 when there is one.
 
-What the world still says is `RenderingManager::describeTo(PostProcessor&)` — this frame's state in
-the spelling a chain samples, called by whichever renderer has one. Every value in it is settled on
-something else already, so it is a copy rather than a cache; the two the world kept nowhere but the
-block (where the sun is drawn, and how visible it is) became members, which is what they always were.
+**And then there was one channel.** Moving the chain exposed what the conditional had been hiding:
+`RenderingManager` was answering the same twenty questions twice a frame in two directions — pushing
+a `Lighting` down inside `SceneFrame` for the ray tracer, and being called back up by the rasterizer
+to fill a uniform block. Same sun, same fog, same water, asked through two channels pointing opposite
+ways. `SceneFrame` now carries one `WorldState` in the world's own undecoded numbers;
+`PostProcessor::describe` spells it the way its shaders sample it, and `RtxRenderer` decodes it for a
+linear transport. Nothing calls upward per frame, and the two the world kept nowhere but the block —
+where the sun is drawn, and how visible it is — became members, which is what they always were.
+
+The measure of it: `renderingmanager.cpp` and its header now contain no `#ifdef OPENMW_RTX` at all.
+The god-object does not know the ray tracer exists.
 
 `Capabilities::mPostProcessing` survives with one consumer and a narrower job: the GUI is built
 before the world, so whether to make the post-processing HUD cannot be answered by asking for a chain

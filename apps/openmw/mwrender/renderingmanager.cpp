@@ -2,13 +2,6 @@
 
 #include <cstdlib>
 
-#ifdef OPENMW_RTX
-#include <numbers>
-
-#include <components/rtx/shaders/scene.h>
-#include <components/rtxbridge/lightbuilder.hpp>
-#endif
-
 #include <osg/Camera>
 #include <osg/ClipControl>
 #include <osg/ComputeBoundsVisitor>
@@ -757,106 +750,46 @@ namespace MWRender
         setFogColor(fogColor);
     }
 
-    Lighting RenderingManager::describeLighting() const
+    WorldState RenderingManager::describeWorld() const
     {
-#ifdef OPENMW_RTX
-        // **`mSunLight` is where every route to the lighting has already met.** The weather system,
-        // the cell's `AMBI`, the night-eye effect and an interior's minimum brightness all end at
-        // `updateAmbient` and `setSunColour`, so what is on the light is what the rasterizer is
-        // about to draw with — and reading it cannot drift from that the way catching four setters
-        // and redoing the arithmetic between them could.
-        //
-        // Its *position* is the negative of the direction light travels, which is the convention
-        // OpenGL's fixed-function lighting wanted and the opposite of what the tracer takes.
-        const osg::Vec4f place = mSunLight->getPosition();
-        osg::Vec3f sun(-place.x(), -place.y(), -place.z());
-        if (sun.length2() > 0.0f)
-            sun.normalize();
-
-        // **Decoded, because none of these has been.** Every one is a content file's three bytes
-        // over 255 and no transfer function — `SceneUtil::colourFromRGB` and `Fallback::Map::getColour`
-        // both stop there — and the transport downstream is linear. `MWRender::Lighting` says so at
-        // length; the harness runs the same decode on the same numbers.
-        const osg::Vec3f diffuse = RtxBridge::decodeColour(mSunLight->getDiffuse());
-        const osg::Vec3f ambient = RtxBridge::decodeColour(mSunLight->getAmbient());
-        const osg::Vec3f haze = RtxBridge::decodeColour(mFog->getFogColor(false));
-
-        // **The sky's own colour, which reaches nothing else.** A weather's sky never settles into
-        // `RenderingManager` the way its sun and its fog do: `SkyManager` takes it and paints the
-        // dome with it, so this is the one light in the frame that has to be read from where it
-        // lives. An interior draws no dome, and what the sky is still holding there is wherever the
-        // player was last outdoors — so the air's own colour stands in, which is what a room's sky
-        // is anyway.
-        const osg::Vec3f zenith = mSky->isEnabled() ? RtxBridge::decodeColour(mSky->getSkyColor()) : haze;
-
-        // **The fog is a linear ramp here and a medium there**, so what is matched is where each is
-        // half gone. The rasterizer's ramp is half gone at the midpoint of `start` and `end`, and an
-        // exponential at `ln(2) / sigma` — the same derivation `RtxBridge::fogExtinction` makes from
-        // a recorded depth, reached instead from the distances the game has already computed.
-        const float half = 0.5f * (mFog->getFogStart(false) + mFog->getFogEnd(false));
-
-        return Lighting{
-            .mSunDirection = sun,
-            .mSunIrradiance = diffuse * ::Rtx::Shaders::DAYLIGHT,
-            .mAmbient = ambient,
-            .mFog = haze,
-            .mSkyZenith = zenith,
-            .mFogExtinction = half > 0.0f ? std::numbers::ln2_v<float> / half : 0.0f,
-            .mWaterLevel = mWaterEnabled ? mWaterHeight : -std::numeric_limits<float>::infinity(),
-        };
-#else
-        // Nothing in this build reads it. The rasterizer draws the world from the graph and its own
-        // state, and `RtxBridge::decodeColour` — which every field above goes through — is not
-        // compiled without a renderer that needs it.
-        return {};
-#endif
-    }
-
-    void RenderingManager::describeTo(PostProcessor& chain) const
-    {
-        Fx::StateUpdater& block = *chain.getStateUpdater();
         const MWBase::World& world = *MWBase::Environment::get().getWorld();
-
         const bool underwater = mWater->isUnderwater(mCamera->getPosition());
-        const float fov = mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView;
 
-        block.setSunPos(mSunPosition, mSunAtNight);
-        block.setSunVec(mSunVector);
-        block.setSunColor(mSunLight->getDiffuse());
-        block.setSunVis(mSunVisibility);
-        block.setAmbientColor(mSunLight->getAmbient());
-        block.setSkyColor(mSky->getSkyColor());
-        block.setIsInterior(!mSky->isEnabled());
-
-        block.setIsWaterEnabled(mWaterEnabled);
-        block.setWaterHeight(mWaterHeight);
-        block.setIsUnderwater(underwater);
-
-        block.setFogColor(mFog->getFogColor(underwater));
-        block.setFogRange(mFog->getFogStart(underwater), mFog->getFogEnd(underwater));
-        block.setNearFar(mNearClip, mViewDistance);
-        block.setProjectionMatrix(mPerViewUniformStateUpdater->getProjectionMatrix());
-        block.setFov(fov);
-
-        block.setGameHour(world.getTimeStamp().getHour());
-        block.setWeatherId(world.getCurrentWeatherScriptId());
-        block.setNextWeatherId(world.getNextWeatherScriptId());
-        block.setWeatherTransition(world.getWeatherTransition());
-        block.setWindSpeed(world.getWindSpeed());
-
-        // Which techniques run underwater, which is the chain's own question rather than the block's.
-        chain.setUnderwaterFlag(underwater);
+        return WorldState{
+            .mSunPosition = mSunPosition,
+            .mSunVector = mSunVector,
+            .mSunAtNight = mSunAtNight,
+            .mSunColour = mSunLight->getDiffuse(),
+            .mSunVisibility = mSunVisibility,
+            .mAmbientColour = mSunLight->getAmbient(),
+            .mSkyColour = mSky->getSkyColor(),
+            .mSkyVisible = mSky->isEnabled(),
+            .mWaterEnabled = mWaterEnabled,
+            .mWaterHeight = mWaterHeight,
+            .mUnderwater = underwater,
+            .mFog = { mFog->getFogColor(underwater), mFog->getFogStart(underwater), mFog->getFogEnd(underwater) },
+            .mAir = { mFog->getFogColor(false), mFog->getFogStart(false), mFog->getFogEnd(false) },
+            .mNearClip = mNearClip,
+            .mViewDistance = mViewDistance,
+            .mProjectionMatrix = mPerViewUniformStateUpdater->getProjectionMatrix(),
+            .mFieldOfView = mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView,
+            .mGameHour = world.getTimeStamp().getHour(),
+            .mWeatherId = world.getCurrentWeatherScriptId(),
+            .mNextWeatherId = world.getNextWeatherScriptId(),
+            .mWeatherTransition = world.getWeatherTransition(),
+            .mWindSpeed = world.getWindSpeed(),
+        };
     }
 
     void RenderingManager::renderFrame()
     {
-        const Lighting lighting = describeLighting();
+        const WorldState world = describeWorld();
 
         const SceneFrame frame{
             .mScene = *mSceneRoot,
             .mCamera = mStage.getCamera(),
             .mWhen = mStage.getFrameStamp(),
-            .mLighting = lighting,
+            .mWorld = world,
             .mImages = *mResourceSystem->getImageManager(),
         };
 
