@@ -46,6 +46,7 @@ namespace Rtx
 
 namespace RtxBridge
 {
+    struct ExtractionStats;
     class SceneExtractor;
 }
 
@@ -177,6 +178,15 @@ namespace MWRender::Rtx
 
         /// Resizes the trace to the window where the window has changed under it.
         void fitToWindow();
+
+        /// Traces the world the walk has just mirrored, from the eye the frame arrived with.
+        ///
+        /// **Its refusals are not the frame's.** A world with nothing in it and a camera with no
+        /// roll are both reasons not to trace and neither is a reason not to present, so they end
+        /// here rather than in `renderFrame` — see the comment on the call.
+        ///
+        /// @return whether anything was written into the target.
+        bool traceWorld(const SceneFrame& frame, const RtxBridge::ExtractionStats& found);
 
         /// Writes the traced frame to a numbered PNG, where `OPENMW_RTX_SHOT` asked for it.
         void keep();

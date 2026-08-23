@@ -54,3 +54,6 @@
 - The ray tracing renderer has no screenshot key: `RtxRenderer::saveScreenshot` logs and does
   nothing. `OPENMW_RTX_SHOT` still writes frames.
 
+- `MWRender::Rtx::TracedView`'s constructor initialises its members in an order the declarations do
+  not match, so every translation unit that includes `tracedview.hpp` and builds the constructor
+  warns under `-Wreorder`.

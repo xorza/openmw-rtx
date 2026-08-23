@@ -507,8 +507,6 @@ namespace MWRender::Rtx
     void RtxRenderer::renderFrame(const SceneFrame& frame)
     {
         const osg::FrameStamp& when = frame.mWhen;
-        const osg::Camera& camera = frame.mCamera;
-        const WorldState& world = frame.mWorld;
 
         mFrame = when.getFrameNumber();
 
@@ -529,8 +527,55 @@ namespace MWRender::Rtx
             // One walk over the whole graph, where every path is already distinct.
             = mExtractor->extract(frame.mScene, osg::Matrixf::identity(), 0, mFrame);
 
+        // **Traced or not, the frame is presented.** A walk that placed nothing and an eye with no
+        // roll are both reasons to leave the target holding whatever it last held; neither is a
+        // reason to stop feeding the surface. Skipping the present would freeze the window on every
+        // frame with no world in it — which is every frame of the main menu — and a window that
+        // stops answering is one the compositor eventually says so about.
+        const bool traced = traceWorld(frame, found);
+
+        // **The frame the trace made, on the screen, before this call returns.** No composite, no
+        // interop and no rasterized frame underneath — which is what takes `.notes/rtx/plan.md` §12's
+        // frame of latency out: the image presented is the one just traced.
+        drawGui();
+
+        if (!mRenderer->presentFrame())
+            fitToWindow();
+
+        // **After the frame and not before the walk.** Where everything stood this frame is what
+        // the next one measures its motion against, and saying so any earlier would have this frame
+        // comparing itself with itself.
+        //
+        // On the frames the trace refused as well: the walk still ran, so its epoch is still the
+        // one the next walk has to be measured against.
+        mExtractor->advance();
+
+        // **What the walk did not find has gone, and this is where the scene is told.** The graph
+        // above is the whole world every frame, which is what makes mark and sweep sound here — and
+        // it is not only about memory: the identity maps are keyed on `osg` pointers, and an address
+        // the engine has freed can come back holding something else entirely.
+        //
+        // Last, because it bumps the epoch the next walk is measured against: everything that
+        // survived is still carrying the old stamp until it does.
+        if (const RtxBridge::Retirement went = mExtractor->retire(); !went.empty())
+            Log(Debug::Info) << "Ray tracing dropped " << went.mMeshes << " meshes, " << went.mMaterials
+                             << " materials and " << went.mTextures << " textures the world no longer has";
+
+        // Only what a trace wrote, because the cap is a count of pictures and not of frames: a run
+        // that spent its first sixteen at the main menu would write the same black texel sixteen
+        // times and have nothing left for the world.
+        if (traced)
+            keep();
+    }
+
+    bool RtxRenderer::traceWorld(const SceneFrame& frame, const RtxBridge::ExtractionStats& found)
+    {
+        const osg::FrameStamp& when = frame.mWhen;
+        const osg::Camera& camera = frame.mCamera;
+        const WorldState& world = frame.mWorld;
+
         if (mScene.getPlacedCount() == 0)
-            return;
+            return false;
 
         // Placed, appended or rebuilt — the decision, and the describing a rebuild needs, are the
         // harness's too and are written once (`RtxBridge::SceneUploader`).
@@ -546,6 +591,13 @@ namespace MWRender::Rtx
         if (handed.mUnreadable > 0)
             Log(Debug::Warning) << "Ray tracing could not read " << handed.mUnreadable << " of " << handed.mDescribed
                                 << " textures and drew them grey — a live graph holds textures that were never files";
+
+        // **Before the frame and after the scene**, which is the only moment both are true: a
+        // picture inside the interface traces against the world this walk has just handed over.
+        //
+        // Above the eye, because a picture inside the interface brought its own: an eye the trace
+        // cannot look along is no reason to leave a map tile blank.
+        drawDeferredViews();
 
         // **In double, and the direction reduced to one before either is narrowed.** OSG hands back
         // a point one unit ahead of the eye, and Morrowind's cells are far enough out that a float
@@ -576,12 +628,8 @@ namespace MWRender::Rtx
                                     << ", " << eye.z() << " looks along " << forward.x() << ", " << forward.y() << ", "
                                     << forward.z();
             }
-            return;
+            return false;
         }
-
-        // **Before the frame and after the scene**, which is the only moment both are true: a
-        // picture inside the interface traces against the world this walk has just handed over.
-        drawDeferredViews();
 
         const ::Rtx::FrameExtents extents = mRenderer->getExtents();
         ::Rtx::Shaders::VisibilityConstants constants = ::Rtx::makeCameraAlong(
@@ -666,30 +714,6 @@ namespace MWRender::Rtx
             mTimed = 0;
         }
 
-        // **The frame the trace made, on the screen, before this call returns.** No composite, no
-        // interop and no rasterized frame underneath — which is what takes `.notes/rtx/plan.md` §12's
-        // frame of latency out: the image presented is the one just traced.
-        drawGui();
-
-        if (!mRenderer->presentFrame())
-            fitToWindow();
-
-        // **After the frame and not before the walk.** Where everything stood this frame is what
-        // the next one measures its motion against, and saying so any earlier would have this frame
-        // comparing itself with itself.
-        mExtractor->advance();
-
-        // **What the walk did not find has gone, and this is where the scene is told.** The graph
-        // above is the whole world every frame, which is what makes mark and sweep sound here — and
-        // it is not only about memory: the identity maps are keyed on `osg` pointers, and an address
-        // the engine has freed can come back holding something else entirely.
-        //
-        // Last, because it bumps the epoch the next walk is measured against: everything that
-        // survived is still carrying the old stamp until it does.
-        if (const RtxBridge::Retirement went = mExtractor->retire(); !went.empty())
-            Log(Debug::Info) << "Ray tracing dropped " << went.mMeshes << " meshes, " << went.mMaterials
-                             << " materials and " << went.mTextures << " textures the world no longer has";
-
-        keep();
+        return true;
     }
 }
