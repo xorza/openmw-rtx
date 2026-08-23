@@ -674,12 +674,38 @@ images byte-identical, both test binaries passing, `-DOPENMW_RTX=OFF` still buil
 `renderFrame`, after the trace that made the image — but nobody has put a number on it. The benchmark
 corpus needs `-DOPENMW_RTX_BENCH=ON`, which this build does not have.
 
-### Step 5 — the material becomes the only authored form
+### Step 5 — the material becomes the only authored form — **withdrawn, and here is the count**
 
-`GlRenderer` compiles state sets from `Surface::Material` and the loaders stop building them. The
-equivalence sweep from step 1 is what makes this safe, and it deletes along with the old path. The
-fields the description does not carry yet — sampler wrap and filter modes, the bump-map matrix, the
-environment map's luma bias — arrive here, where something reads them.
+The plan was: `GlRenderer` compiles state sets from `Surface::Material`, the loaders stop building
+them, and the equivalence sweep from step 1 makes the swap safe. Counting what a state set actually
+holds says otherwise.
+
+`NifOsg` makes **34** distinct writes into a state set — thirteen uniforms, eight attributes, ten
+modes, three render-bin selections, two texture attributes. `Shader::ShaderVisitor` adds **24** more,
+plus every define and the program itself. `Surface::Material` has **15** fields.
+
+The gap is not detail the description is missing. It is `osg::Depth` and `GL_DEPTH_TEST`,
+`osg::PolygonOffset`, three different `setRenderBinDetails`, `osg::FrontFace`'s winding,
+`osg::Stencil`'s eight, `osg::PolygonMode` for wireframe, `SceneUtil::TextureType` per unit, the
+vertex-colour mode, and uniforms named `useTreeAnim`, `useFalloff`, `falloffParams`, `specStrength`,
+`envMapColor`. **Every one of those is rasterizer state and no renderer that traces will ever read
+it.** Absorbing them would make `Surface::Material` a state set with different spelling — which its
+own comment forbids ("what a surface is, as the content said and before any renderer has an
+opinion") and which §9 warns about one layer up.
+
+What is genuinely authored twice is the subset the description already covers: textures by role, the
+alpha mode and its threshold, two-sidedness, the four colours. Seven writes out of fifty-eight. And
+the drift that duplication risks is the thing step 1's sweep already tests on every run — it walks an
+exterior and the densest interior and asserts that every description agrees with the pipeline state
+beside it. So the step buys the deletion of a seventh of one duplication that is already guarded,
+and pays for it by rewriting how every NIF's rasterizer state is built.
+
+**What was hiding inside this step and is worth doing** is the other half of its last sentence: the
+fields the description carries that the *trace* does not read. `Surface::Material` records the UV
+transform and `NifOsg::UVController` animates it, and `Rtx::Material` has no field for it, so 432
+surfaces in Vivec scroll for the rasterizer and stand still for the ray tracer
+(`.notes/ISSUES.md`). That is a visible defect against the first priority in `CLAUDE.md`, and it is
+reached by growing the renderer's material rather than by inverting the loader.
 
 ### Step 6 — the GUI, then the offscreen views
 
@@ -701,8 +727,8 @@ interface rather than a new abstraction. Then the doll, the race preview and the
 
 ## 9. What this is not
 
-**Not a hardware abstraction layer.** `Renderer` has nine methods and none is called more than once
-per frame. The moment a buffer, an image, a command list or a pipeline appears in `renderer.hpp`,
+**Not a hardware abstraction layer.** `Renderer` has nineteen methods and none of them is called
+more than a few times a frame. The moment a buffer, an image, a command list or a pipeline appears in `renderer.hpp`,
 this has become a mini-GL that Vulkan does not fit and Metal fits worse.
 
 **Not a rewrite of the rasterizer.** Steps 2 and 3 move about 14,500 lines and change none of them.
