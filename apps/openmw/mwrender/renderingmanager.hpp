@@ -86,7 +86,6 @@ namespace MWRender
     class IntersectionVisitorWithIgnoreList;
 
     class EffectManager;
-    class ScreenshotManager;
     class FogManager;
     class SkyManager;
     class NpcAnimation;
@@ -101,6 +100,7 @@ namespace MWRender
     class ObjectPaging;
     class Groundcover;
     class PostProcessor;
+    class Renderer;
     class Stage;
 
 #ifdef OPENMW_RTX
@@ -113,9 +113,10 @@ namespace MWRender
     class RenderingManager : public MWRender::RenderingInterface
     {
     public:
-        RenderingManager(Stage& stage, osg::ref_ptr<osg::Group> rootNode, Resource::ResourceSystem* resourceSystem,
-            SceneUtil::WorkQueue* workQueue, DetourNavigator::Navigator& navigator,
-            const MWWorld::GroundcoverStore& groundcoverStore, SceneUtil::UnrefQueue& unrefQueue);
+        RenderingManager(Renderer& renderer, Stage& stage, osg::ref_ptr<osg::Group> rootNode,
+            Resource::ResourceSystem* resourceSystem, SceneUtil::WorkQueue* workQueue,
+            DetourNavigator::Navigator& navigator, const MWWorld::GroundcoverStore& groundcoverStore,
+            SceneUtil::UnrefQueue& unrefQueue);
         ~RenderingManager();
 
         osgUtil::IncrementalCompileOperation* getIncrementalCompileOperation();
@@ -327,6 +328,7 @@ namespace MWRender
 
         osg::ref_ptr<IntersectionVisitorWithIgnoreList> mIntersectionVisitor;
 
+        Renderer& mRenderer;
         Stage& mStage;
         osg::ref_ptr<osg::Group> mRootNode;
         osg::ref_ptr<SceneUtil::LightManager> mSceneRoot;
@@ -351,7 +353,6 @@ namespace MWRender
         Groundcover* mGroundcover;
         std::unique_ptr<SkyManager> mSky;
         std::unique_ptr<FogManager> mFog;
-        std::unique_ptr<ScreenshotManager> mScreenshotManager;
 
 #ifdef OPENMW_RTX
         /// Null when `Settings::rtx().mEnabled` is off, and when it is on and the renderer would not

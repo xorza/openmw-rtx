@@ -29,6 +29,7 @@
 #include "../mwbase/statemanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 
+#include "../mwrender/renderer.hpp"
 #include "../mwrender/stage.hpp"
 
 #include "backgroundimage.hpp"
@@ -36,9 +37,11 @@
 namespace MWGui
 {
 
-    LoadingScreen::LoadingScreen(Resource::ResourceSystem* resourceSystem, MWRender::Stage& stage)
+    LoadingScreen::LoadingScreen(
+        Resource::ResourceSystem* resourceSystem, MWRender::Renderer& renderer, MWRender::Stage& stage)
         : WindowBase("openmw_loading_screen.layout")
         , mResourceSystem(resourceSystem)
+        , mRenderer(renderer)
         , mStage(stage)
         , mTargetFrameRate(120.0)
         , mLastWallpaperChangeTime(0.0)
@@ -160,7 +163,7 @@ namespace MWGui
         // node masks don't work for computeBound()
         mStage.getSceneRoot().setComputeBoundingSphereCallback(new DontComputeBoundCallback);
 
-        if (const osgUtil::IncrementalCompileOperation* ico = mStage.getCompileOperation())
+        if (const osgUtil::IncrementalCompileOperation* ico = mRenderer.getCompileOperation())
         {
             mOldIcoMin = ico->getMinimumTimeAvailableForGLCompileAndDeletePerFrame();
             mOldIcoMax = ico->getMaximumNumOfObjectsToCompilePerFrame();
@@ -201,7 +204,7 @@ namespace MWGui
 
         setVisible(false);
 
-        if (osgUtil::IncrementalCompileOperation* ico = mStage.getCompileOperation())
+        if (osgUtil::IncrementalCompileOperation* ico = mRenderer.getCompileOperation())
         {
             ico->setMinimumTimeAvailableForGLCompileAndDeletePerFrame(mOldIcoMin);
             ico->setMaximumNumOfObjectsToCompilePerFrame(mOldIcoMax);
@@ -345,7 +348,7 @@ namespace MWGui
         stats.setAttribute(frameNumber, "Loading", 1);
 
         mResourceSystem->reportStats(frameNumber, &stats);
-        if (osgUtil::IncrementalCompileOperation* ico = mStage.getCompileOperation())
+        if (osgUtil::IncrementalCompileOperation* ico = mRenderer.getCompileOperation())
         {
             ico->setMinimumTimeAvailableForGLCompileAndDeletePerFrame(1.f / getTargetFrameRate());
             ico->setMaximumNumOfObjectsToCompilePerFrame(1000);
@@ -354,10 +357,10 @@ namespace MWGui
         // at the time this function is called we are in the middle of a frame,
         // so out of order calls are necessary to get a correct frameNumber for the next frame.
         // refer to the advance() and frame() order in Engine::go()
-        mStage.eventTraversal();
-        mStage.updateTraversal();
-        mStage.renderTraversals();
-        mStage.advance(mStage.getFrameStamp().getSimulationTime());
+        mRenderer.eventTraversal();
+        mRenderer.updateTraversal();
+        mRenderer.renderFrame();
+        mRenderer.advance(mStage.getFrameStamp().getSimulationTime());
 
         mLastRenderTime = mTimer.time_m();
     }

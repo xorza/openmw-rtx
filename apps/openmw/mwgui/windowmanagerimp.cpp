@@ -66,6 +66,7 @@
 #include "../mwbase/statemanager.hpp"
 #include "../mwbase/world.hpp"
 
+#include "../mwrender/renderer.hpp"
 #include "../mwrender/stage.hpp"
 #include "../mwrender/vismask.hpp"
 
@@ -78,7 +79,7 @@
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwmechanics/npcstats.hpp"
 
-#include "../mwrender/postprocessor.hpp"
+#include "../mwrender/gl/postprocessor.hpp"
 
 #include "alchemywindow.hpp"
 #include "backgroundimage.hpp"
@@ -151,7 +152,7 @@ namespace MWGui
         }
     }
 
-    WindowManager::WindowManager(SDL_Window* window, MWRender::Stage& stage, osg::Group* guiRoot,
+    WindowManager::WindowManager(MWRender::Renderer& renderer, MWRender::Stage& stage, osg::Group* guiRoot,
         Resource::ResourceSystem* resourceSystem, SceneUtil::WorkQueue* workQueue, const std::filesystem::path& logpath,
         bool consoleOnlyScripts, Translation::Storage& translationDataStorage, ToUTF8::FromType encoding,
         bool exportFonts, const std::string& versionDescription, Files::ConfigurationManager& cfgMgr)
@@ -160,6 +161,7 @@ namespace MWGui
         , mStore(nullptr)
         , mResourceSystem(resourceSystem)
         , mWorkQueue(workQueue)
+        , mRenderer(renderer)
         , mStage(stage)
         , mConsoleOnlyScripts(consoleOnlyScripts)
         , mCurrentModals()
@@ -208,6 +210,7 @@ namespace MWGui
         , mWindowVisible(true)
         , mCfgMgr(cfgMgr)
     {
+        SDL_Window* const window = mRenderer.getWindow();
         int w, h;
         SDL_GetWindowSize(window, &w, &h);
         int dw, dh;
@@ -215,9 +218,8 @@ namespace MWGui
 
         mScalingFactor = Settings::gui().mScalingFactor * (dw / w);
         constexpr VFS::Path::NormalizedView resourcePath("mygui");
-        mGuiPlatform
-            = std::make_unique<MyGUIPlatform::Platform>(&mStage.getViewer(), guiRoot, resourceSystem->getImageManager(),
-                resourceSystem->getVFS(), mScalingFactor, resourcePath, logpath / "MyGUI.log");
+        mGuiPlatform = mRenderer.createGuiPlatform(*guiRoot, *resourceSystem->getImageManager(),
+            *resourceSystem->getVFS(), mScalingFactor, resourcePath, logpath / "MyGUI.log");
 
         mGui = std::make_unique<MyGUI::Gui>();
         mGui->initialise({});
@@ -264,7 +266,7 @@ namespace MWGui
         mKeyboardNavigation->setEnabled(keyboardNav);
         Gui::ImageButton::setDefaultNeedKeyFocus(keyboardNav);
 
-        auto loadingScreen = std::make_unique<LoadingScreen>(mResourceSystem, mStage);
+        auto loadingScreen = std::make_unique<LoadingScreen>(mResourceSystem, mRenderer, mStage);
         mLoadingScreen = loadingScreen.get();
         mWindows.push_back(std::move(loadingScreen));
 
@@ -306,7 +308,7 @@ namespace MWGui
         MyGUI::ClipboardManager::getInstance().eventClipboardRequested
             += MyGUI::newDelegate(this, &WindowManager::onClipboardRequested);
 
-        mVideoWrapper = std::make_unique<SDLUtil::VideoWrapper>(window, mStage.getViewer());
+        mVideoWrapper = std::make_unique<SDLUtil::VideoWrapper>(window);
         mVideoWrapper->setGammaContrast(Settings::video().mGamma, Settings::video().mContrast);
 
         mGuiPlatform->getRenderManagerPtr()->enableShaders(mResourceSystem->getSceneManager()->getShaderManager());
@@ -810,14 +812,14 @@ namespace MWGui
                     std::this_thread::sleep_for(std::chrono::milliseconds(5));
                 else
                 {
-                    mStage.eventTraversal();
-                    mStage.updateTraversal();
-                    mStage.renderTraversals();
+                    mRenderer.eventTraversal();
+                    mRenderer.updateTraversal();
+                    mRenderer.renderFrame();
                 }
                 // at the time this function is called we are in the middle of a frame,
                 // so out of order calls are necessary to get a correct frameNumber for the next frame.
                 // refer to the advance() and frame() order in Engine::go()
-                mStage.advance(mStage.getFrameStamp().getSimulationTime());
+                mRenderer.advance(mStage.getFrameStamp().getSimulationTime());
 
                 frameRateLimiter.limit();
             }
@@ -1311,7 +1313,7 @@ namespace MWGui
                 changeRes = true;
 
             else if (setting.first == "Video" && setting.second == "vsync mode")
-                mVideoWrapper->setSyncToVBlank(Settings::video().mVsyncMode);
+                mRenderer.setVSync(Settings::video().mVsyncMode);
             else if (setting.first == "Video" && (setting.second == "gamma" || setting.second == "contrast"))
                 mVideoWrapper->setGammaContrast(Settings::video().mGamma, Settings::video().mContrast);
         }
@@ -2154,14 +2156,14 @@ namespace MWGui
 
                 mVideoWidget->commitFrame();
 
-                mStage.eventTraversal();
-                mStage.updateTraversal();
-                mStage.renderTraversals();
+                mRenderer.eventTraversal();
+                mRenderer.updateTraversal();
+                mRenderer.renderFrame();
             }
             // at the time this function is called we are in the middle of a frame,
             // so out of order calls are necessary to get a correct frameNumber for the next frame.
             // refer to the advance() and frame() order in Engine::go()
-            mStage.advance(mStage.getFrameStamp().getSimulationTime());
+            mRenderer.advance(mStage.getFrameStamp().getSimulationTime());
 
             frameRateLimiter.limit();
         }

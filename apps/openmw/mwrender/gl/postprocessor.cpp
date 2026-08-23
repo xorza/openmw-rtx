@@ -27,19 +27,20 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
+#include "../../mwbase/environment.hpp"
+#include "../../mwbase/windowmanager.hpp"
 
-#include "../mwgui/postprocessorhud.hpp"
+#include "../../mwgui/postprocessorhud.hpp"
 
+#include "../renderbin.hpp"
+#include "../renderer.hpp"
+#include "../renderingmanager.hpp"
+#include "../stage.hpp"
+#include "../vismask.hpp"
 #include "distortion.hpp"
 #include "pingpongcull.hpp"
-#include "renderbin.hpp"
-#include "renderingmanager.hpp"
 #include "sky.hpp"
-#include "stage.hpp"
 #include "transparentpass.hpp"
-#include "vismask.hpp"
 
 namespace
 {
@@ -116,11 +117,12 @@ namespace
 namespace MWRender
 {
     PostProcessor::PostProcessor(
-        RenderingManager& rendering, Stage& stage, osg::Group* rootNode, const VFS::Manager* vfs)
+        RenderingManager& rendering, Renderer& renderer, Stage& stage, osg::Group* rootNode, const VFS::Manager* vfs)
         : osg::Group()
         , mRootNode(rootNode)
         , mHUDCamera(new osg::Camera)
         , mRendering(rendering)
+        , mRenderer(renderer)
         , mStage(stage)
         , mVFS(vfs)
         , mUsePostProcessing(Settings::postProcessing().mEnabled)
@@ -213,7 +215,7 @@ namespace MWRender
         addChild(mHUDCamera);
         addChild(mRootNode);
 
-        mStage.setSceneRoot(*this);
+        mRenderer.setSceneRoot(*this);
         mStage.getCamera().setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
         mStage.getCamera().getGraphicsContext()->setResizedCallback(new ResizedCallback(this));
         mStage.getCamera().setUserData(this);
@@ -415,7 +417,7 @@ namespace MWRender
             mPrevNormals = mNormals;
             mPrevPassLights = mPassLights;
 
-            mStage.suspendDraw();
+            mRenderer.suspendDraw();
 
             if (mNormalsSupported)
             {
@@ -430,7 +432,7 @@ namespace MWRender
             mStateUpdater->bindPointLights(mPassLights ? mRendering.getLightRoot()->getPPLightsBuffer() : nullptr);
             mStateUpdater->reset();
 
-            mStage.resumeDraw();
+            mRenderer.resumeDraw();
 
             createObjectsForFrame(frameId);
 

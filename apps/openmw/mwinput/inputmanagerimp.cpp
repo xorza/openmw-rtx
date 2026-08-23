@@ -11,6 +11,7 @@
 
 #include "../mwworld/esmstore.hpp"
 
+#include "../mwrender/renderer.hpp"
 #include "../mwrender/stage.hpp"
 
 #include "actionmanager.hpp"
@@ -24,14 +25,15 @@
 
 namespace MWInput
 {
-    InputManager::InputManager(SDL_Window* window, MWRender::Stage& stage, const std::filesystem::path& userFile,
-        bool userFileExists, const std::filesystem::path& userControllerBindingsFile,
-        const std::filesystem::path& controllerBindingsFile, bool grab)
+    InputManager::InputManager(SDL_Window* window, MWRender::Renderer& renderer, MWRender::Stage& stage,
+        const std::filesystem::path& userFile, bool userFileExists,
+        const std::filesystem::path& userControllerBindingsFile, const std::filesystem::path& controllerBindingsFile,
+        bool grab)
         : mControlsDisabled(false)
         , mInputWrapper(std::make_unique<SDLUtil::InputWrapper>(window, stage.getCamera(), stage.getEvents(), grab))
         , mBindingsManager(std::make_unique<BindingsManager>(userFile, userFileExists))
         , mControlSwitch(std::make_unique<ControlSwitch>())
-        , mActionManager(std::make_unique<ActionManager>(mBindingsManager.get(), stage))
+        , mActionManager(std::make_unique<ActionManager>(mBindingsManager.get(), renderer))
         , mKeyboardManager(std::make_unique<KeyboardManager>(mBindingsManager.get()))
         , mMouseManager(std::make_unique<MouseManager>(mBindingsManager.get(), mInputWrapper.get(), window))
         , mControllerManager(std::make_unique<ControllerManager>(

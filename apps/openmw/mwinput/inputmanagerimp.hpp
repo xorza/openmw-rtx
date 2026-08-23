@@ -23,6 +23,7 @@ namespace MWBase
 
 namespace MWRender
 {
+    class Renderer;
     class Stage;
 }
 
@@ -50,8 +51,9 @@ namespace MWInput
     class InputManager final : public MWBase::InputManager
     {
     public:
-        InputManager(SDL_Window* window, MWRender::Stage& stage, const std::filesystem::path& userFile,
-            bool userFileExists, const std::filesystem::path& userControllerBindingsFile,
+        InputManager(SDL_Window* window, MWRender::Renderer& renderer, MWRender::Stage& stage,
+            const std::filesystem::path& userFile, bool userFileExists,
+            const std::filesystem::path& userControllerBindingsFile,
             const std::filesystem::path& controllerBindingsFile, bool grab);
 
         ~InputManager() final;

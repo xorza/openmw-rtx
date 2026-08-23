@@ -3,7 +3,7 @@
 
 namespace MWRender
 {
-    class Stage;
+    class Renderer;
 }
 
 namespace MWInput
@@ -13,7 +13,7 @@ namespace MWInput
     class ActionManager
     {
     public:
-        ActionManager(BindingsManager* bindingsManager, MWRender::Stage& stage);
+        ActionManager(BindingsManager* bindingsManager, MWRender::Renderer& renderer);
 
         void update(float dt);
 
@@ -40,7 +40,7 @@ namespace MWInput
         void handleGuiArrowKey(int action);
 
         BindingsManager* mBindingsManager;
-        MWRender::Stage& mStage;
+        MWRender::Renderer& mRenderer;
 
         float mTimeIdle;
     };

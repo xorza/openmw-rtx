@@ -3,14 +3,14 @@
 
 #include <filesystem>
 
+#include <osg/ref_ptr>
+
 #include <components/compiler/extensions.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
 #include <components/files/collections.hpp>
 #include <components/settings/settings.hpp>
 #include <components/translation/translation.hpp>
-
-#include <osgViewer/Viewer>
 
 #include "mwbase/environment.hpp"
 
@@ -22,7 +22,6 @@ namespace Resource
 namespace SceneUtil
 {
     class WorkQueue;
-    class AsyncScreenCaptureOperation;
     class UnrefQueue;
 }
 
@@ -42,24 +41,9 @@ namespace MWLua
     class Worker;
 }
 
-namespace Stereo
-{
-    class Manager;
-}
-
 namespace Files
 {
     struct ConfigurationManager;
-}
-
-namespace SceneUtil
-{
-    class SelectDepthFormatOperation;
-
-    namespace Color
-    {
-        class SelectColorFormatOperation;
-    }
 }
 
 namespace MWState
@@ -74,6 +58,7 @@ namespace MWGui
 
 namespace MWRender
 {
+    class Renderer;
     class Stage;
 }
 
@@ -124,7 +109,6 @@ namespace OMW
     /// \brief Main engine class, that brings together all the components of OpenMW
     class Engine
     {
-        SDL_Window* mWindow;
         std::unique_ptr<VFS::Manager> mVFS;
         std::unique_ptr<Resource::ResourceSystem> mResourceSystem;
         osg::ref_ptr<SceneUtil::WorkQueue> mWorkQueue;
@@ -147,20 +131,15 @@ namespace OMW
         Files::PathContainer mDataDirs;
         std::vector<std::string> mArchives;
         std::filesystem::path mResDir;
-        osg::ref_ptr<osgViewer::Viewer> mViewer;
-
-        /// The frame, the eye and the input queue, so that nothing but the engine and the renderer
-        /// has to name a viewer. Outlives everything handed a reference to it.
+        /// The frame, the eye and the input queue. Made before any renderer and outliving it.
         std::unique_ptr<MWRender::Stage> mStage;
 
-        osg::ref_ptr<SceneUtil::AsyncScreenCaptureOperation> mScreenCaptureOperation;
-        osg::ref_ptr<SceneUtil::SelectDepthFormatOperation> mSelectDepthFormatOperation;
-        osg::ref_ptr<SceneUtil::Color::SelectColorFormatOperation> mSelectColorFormatOperation;
+        /// The picture, and the window it goes in. Chosen once, by name, before there is anything
+        /// to draw.
+        std::unique_ptr<MWRender::Renderer> mRenderer;
         std::string mCellName;
         std::vector<std::string> mContentFiles;
         std::vector<std::string> mGroundcoverFiles;
-
-        std::unique_ptr<Stereo::Manager> mStereoManager;
 
         bool mSkipMenu;
         bool mUseSound;
@@ -187,7 +166,6 @@ namespace OMW
         bool mNewGame;
 
         Files::ConfigurationManager& mCfgMgr;
-        int mGlMaxTextureImageUnits;
 
         // not implemented
         Engine(const Engine&);
@@ -199,9 +177,6 @@ namespace OMW
 
         /// Prepare engine for game play
         void prepareEngine();
-
-        void createWindow();
-        void setWindowIcon();
 
     public:
         Engine(Files::ConfigurationManager& configurationManager);

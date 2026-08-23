@@ -439,13 +439,24 @@ Directories, because a library is a link boundary and a subdirectory is a conven
 components/surface/         what a surface is: Material, TextureRole, AlphaMode. Links no
                             graphics API. NifOsg, Terrain and the shader visitor author it.
                             Light and Environment join it as their steps land.
-components/sceneutil/       content and graph machinery only, once the 7,568 GL lines leave
+components/sceneutil/       content, graph machinery, and the GL half that other libraries and
+                            OpenCS also link — see below
 apps/openmw/mwrender/       game-facing: animation, objects, camera, paging, effects, fog,
                             RenderingManager, Stage, and renderer.hpp
-apps/openmw/mwrender/gl/    the OpenGL renderer: sky, water, post-processing, shadows, ripples,
-                            the ping-pong chain, osgViewer, the MyGUI backend, RTT
+apps/openmw/mwrender/gl/    the OpenGL renderer: sky, water, post-processing, ripples, the
+                            ping-pong chain, osgViewer, the MyGUI backend, the screenshot
 apps/openmw/mwrender/rtx/   the ray tracer, over components/rtx + rtxbackends + rtxbridge
 ```
+
+**`components/sceneutil`'s GL half cannot follow, and §1's line count was the wrong measurement.**
+Counting the lines said 7,568 belong to the rasterizer; counting the *consumers* says they cannot
+leave. `apps/opencs` links `shadow`, `stateupdater` and `lightmanager`; `components/terrain` links
+`lightmanager` and `depth`; `components/fx` links `depth`, `color` and `lightmanager`;
+`components/stereo` links `mwshadowtechnique`; `components/resource`, `components/nifosg`,
+`apps/rtxtool` and `apps/components_tests` each link some of it. Moving them under
+`apps/openmw/mwrender/gl/` would break the editor and three component libraries. So they stay a
+shared library, and the link boundary step 3 draws is the `mwrender` half — which is the half the
+game reaches through `Renderer` anyway.
 
 `components/surface` is the load-bearing one. It is what makes a fourth renderer a new directory
 rather than a new decoder, and it is where `Rtx::Material` and the bridge's `readMaterial` converge:
@@ -510,18 +521,50 @@ which exercises the loading screen's own frame loop, the GUI, the input wrapper 
 traversals, none of which any test binary reaches. The screenshot key and the stats overlay are
 rewired but only a key press runs them; both are one forwarded call.
 
-### Step 3 — `MWRender::Renderer`, with only `GlRenderer` behind it
+### Step 3 — `MWRender::Renderer`, with only `GlRenderer` behind it — **done**
 
-The interface, the capability struct, `OffscreenView`, `GuiRenderer`. Everything in the 6,985 + 7,568
-line inventory moves to `mwrender/gl/`. `RenderingManager` delegates its fifteen picture-facing
-methods. `Engine` owns the renderer.
+`MWRender::Renderer` is nineteen methods and none is called more than a few times a frame:
+`setSceneRoot`, the four that make a frame, `done`, the two captures, the draw suspension, the
+compile operation, vsync, the shader hot-reload, the MyGUI platform, and this renderer's own
+instrumentation. `GlRenderer` is the only implementation and `Engine` asks for it by name —
+`createRenderer("opengl", spec)`, throwing where there is no such renderer rather than falling back
+to one that would answer "why does it look like that" with silence.
 
-This is the largest diff and it is a pure move: no line of GL changes, it changes address. A content
-diff in `postprocessor.cpp`, `water.cpp`, `sky.cpp` or `mwshadowtechnique.cpp` means something was
-done that was not asked for.
+`GlRenderer` now owns what `Engine` used to: the SDL window and its GL attributes, the antialiasing
+retry loop, `GraphicsWindowSDL2`, every realize operation, `Stereo::Manager`, `realize()`, the
+screen-capture chain, `ScreenshotManager`, and the stats overlay. **`Engine` names no OpenGL and no
+`osgViewer` at all**, and neither does `mwgui`, `mwinput`, `mwworld` or anything in `mwrender`
+outside `gl/`. The thirteen classes that held a viewer at the start of step 2 are down to one.
 
-*Verified by*: byte-identical screenshots in both `OPENMW_RTX=ON` and `OFF` builds; the settings
-pages, the post-processing HUD and the Lua bindings still work through the capability gate.
+`Stage` stopped being a facade. It holds the camera, frame stamp, event queue, update visitor and
+stats, and the renderer says which objects those are as it is constructed — `Stage::adopt`. That is
+what step 2 could not do: substituting objects the viewer did not make loses its wiring, because the
+update and event visitors hold the frame stamp. Taking what the renderer already made costs a
+renderer built on `osgViewer` nothing and costs one that owns its surface a constructor call.
+
+Thirteen files moved to `mwrender/gl/` — `postprocessor`, `sky`, `skyutil`, `water`, `ripples`,
+`ripplesimulation`, `precipitationocclusion`, `transparentpass`, `distortion`, `pingpongcanvas`,
+`pingpongcull`, `luminancecalculator`, `screenshotmanager` — with no line of GL changed, only
+addresses and the four signatures that took a `Renderer&`.
+
+**Two things this step measured that the plan above had wrong.** `components/sceneutil`'s GL half
+cannot move (§6). And **`PostProcessor` cannot change owner here**: it holds `RenderingManager&` and
+calls back into it in nine places while `RenderingManager` reaches into its `StateUpdater` in twenty,
+and `RenderingManager` is built long after the window. Its address moved; who constructs it did not,
+and untangling that is content work rather than a move.
+
+**What is deferred, and why.** `Capabilities` carries one field — the texture-unit count, which the
+shader manager reserves out of. The four booleans of §8 and the twenty-two null checks they gate are
+not here: with one renderer behind the interface no consumer can take the false branch, so it would
+be code nothing can run. They arrive with the renderer that answers false. `OffscreenView` likewise
+waits for step 6, which is the step that has a second implementation of it; the GUI's route through
+the renderer exists today as `createGuiPlatform`, which is enough to get `osgViewer` out of `mwgui`.
+
+*Verified by*: five golden images byte-identical; both test binaries pass; the game reaches Seyda
+Neen from `--skip-menu --new-game`, loads, traces and runs clean; and a second tree configured
+`-DOPENMW_RTX=OFF` builds and links, which is the guarantee that the path not taken is still there.
+Not verified beyond compiling: the settings pages and the Lua bindings, which reach the same
+`RenderingManager::getPostProcessor()` they always did.
 
 ### Step 4 — `RtxRenderer` presents the world
 

@@ -18,12 +18,18 @@ set(OPENMW_HEADERS
 source_group(apps/openmw FILES main.cpp androidmain.cpp ${OPENMW_SOURCES} ${OPENMW_HEADERS} ${OPENMW_RESOURCES})
 
 add_openmw_dir (mwrender
-    actors objects renderingmanager animation rotatecontroller sky skyutil npcanimation esm4npcanimation vismask
-    creatureanimation effectmanager util renderinginterface pathgrid rendermode weaponanimation screenshotmanager
-    bulletdebugdraw globalmap characterpreview camera localmap water terrainstorage ripplesimulation
+    actors objects renderingmanager animation rotatecontroller npcanimation esm4npcanimation vismask
+    creatureanimation effectmanager util renderinginterface pathgrid rendermode weaponanimation
+    bulletdebugdraw globalmap characterpreview camera localmap terrainstorage
     renderbin actoranimation landmanager navmesh actorspaths recastmesh fogmanager objectpaging groundcover
-    postprocessor pingpongcull luminancecalculator pingpongcanvas transparentpass precipitationocclusion ripples
-    actorutil distortion animationpriority bonegroup blendmask animblendcontroller stage
+    actorutil animationpriority bonegroup blendmask animblendcontroller stage renderer
+    )
+
+# The OpenGL renderer. A link boundary rather than a naming convention: what is in here is the
+# picture as OpenSceneGraph draws it, and nothing above `mwrender` reaches into it.
+add_openmw_dir (mwrender/gl
+    glrenderer postprocessor sky skyutil water ripples ripplesimulation precipitationocclusion
+    transparentpass distortion pingpongcanvas pingpongcull luminancecalculator screenshotmanager
     )
 
 # Gated, because these are the only files in the game that name a graphics API other than OpenGL.

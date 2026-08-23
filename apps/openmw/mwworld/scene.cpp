@@ -32,8 +32,8 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
+#include "../mwrender/gl/postprocessor.hpp"
 #include "../mwrender/landmanager.hpp"
-#include "../mwrender/postprocessor.hpp"
 #include "../mwrender/renderingmanager.hpp"
 
 #include "../mwphysics/actor.hpp"

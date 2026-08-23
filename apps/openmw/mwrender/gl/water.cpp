@@ -38,13 +38,13 @@
 
 #include <components/settings/values.hpp>
 
-#include "../mwworld/cellstore.hpp"
+#include "../../mwworld/cellstore.hpp"
 
-#include "renderbin.hpp"
+#include "../renderbin.hpp"
+#include "../util.hpp"
+#include "../vismask.hpp"
 #include "ripples.hpp"
 #include "ripplesimulation.hpp"
-#include "util.hpp"
-#include "vismask.hpp"
 
 namespace MWRender
 {

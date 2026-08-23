@@ -17,6 +17,7 @@ namespace osg
 
 namespace MWRender
 {
+    class Renderer;
     class Stage;
 }
 
@@ -33,7 +34,7 @@ namespace MWGui
     class LoadingScreen : public WindowBase, public Loading::Listener
     {
     public:
-        LoadingScreen(Resource::ResourceSystem* resourceSystem, MWRender::Stage& stage);
+        LoadingScreen(Resource::ResourceSystem* resourceSystem, MWRender::Renderer& renderer, MWRender::Stage& stage);
         virtual ~LoadingScreen();
 
         /// Overridden from Loading::Listener, see the Loading::Listener documentation for usage details
@@ -55,6 +56,7 @@ namespace MWGui
         void setupCopyFramebufferToTextureCallback();
 
         Resource::ResourceSystem* mResourceSystem;
+        MWRender::Renderer& mRenderer;
         MWRender::Stage& mStage;
 
         double mTargetFrameRate;

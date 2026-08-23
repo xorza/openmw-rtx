@@ -21,7 +21,7 @@
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwmechanics/npcstats.hpp"
 
-#include "../mwrender/stage.hpp"
+#include "../mwrender/renderer.hpp"
 
 #include "actions.hpp"
 #include "bindingsmanager.hpp"
@@ -29,9 +29,9 @@
 namespace MWInput
 {
 
-    ActionManager::ActionManager(BindingsManager* bindingsManager, MWRender::Stage& stage)
+    ActionManager::ActionManager(BindingsManager* bindingsManager, MWRender::Renderer& renderer)
         : mBindingsManager(bindingsManager)
-        , mStage(stage)
+        , mRenderer(renderer)
         , mTimeIdle(0.f)
     {
     }
@@ -168,7 +168,7 @@ namespace MWInput
 
     void ActionManager::screenshot()
     {
-        mStage.captureNextFrame();
+        mRenderer.saveScreenshot();
     }
 
     void ActionManager::toggleMainMenu()

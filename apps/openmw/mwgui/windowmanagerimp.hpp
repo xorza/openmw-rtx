@@ -80,6 +80,7 @@ namespace SceneUtil
 
 namespace MWRender
 {
+    class Renderer;
     class Stage;
 }
 
@@ -128,7 +129,7 @@ namespace MWGui
         typedef std::pair<std::string, int> Faction;
         typedef std::vector<Faction> FactionList;
 
-        WindowManager(SDL_Window* window, MWRender::Stage& stage, osg::Group* guiRoot,
+        WindowManager(MWRender::Renderer& renderer, MWRender::Stage& stage, osg::Group* guiRoot,
             Resource::ResourceSystem* resourceSystem, SceneUtil::WorkQueue* workQueue,
             const std::filesystem::path& logpath, bool consoleOnlyScripts, Translation::Storage& translationDataStorage,
             ToUTF8::FromType encoding, bool exportFonts, const std::string& versionDescription,
@@ -421,6 +422,7 @@ namespace MWGui
         osg::ref_ptr<SceneUtil::WorkQueue> mWorkQueue;
 
         std::unique_ptr<MyGUIPlatform::Platform> mGuiPlatform;
+        MWRender::Renderer& mRenderer;
         MWRender::Stage& mStage;
 
         std::unique_ptr<Gui::FontLoader> mFontLoader;

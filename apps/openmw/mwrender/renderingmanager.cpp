@@ -83,20 +83,20 @@
 #include "camera.hpp"
 #include "effectmanager.hpp"
 #include "fogmanager.hpp"
+#include "gl/postprocessor.hpp"
+#include "gl/sky.hpp"
+#include "gl/water.hpp"
 #include "groundcover.hpp"
 #include "navmesh.hpp"
 #include "npcanimation.hpp"
 #include "objectpaging.hpp"
 #include "pathgrid.hpp"
-#include "postprocessor.hpp"
 #include "recastmesh.hpp"
-#include "screenshotmanager.hpp"
-#include "sky.hpp"
+#include "renderer.hpp"
 #include "stage.hpp"
 #include "terrainstorage.hpp"
 #include "util.hpp"
 #include "vismask.hpp"
-#include "water.hpp"
 
 namespace
 {
@@ -182,11 +182,12 @@ namespace MWRender
         Resource::ResourceSystem* mResourceSystem;
     };
 
-    RenderingManager::RenderingManager(Stage& stage, osg::ref_ptr<osg::Group> rootNode,
+    RenderingManager::RenderingManager(Renderer& renderer, Stage& stage, osg::ref_ptr<osg::Group> rootNode,
         Resource::ResourceSystem* resourceSystem, SceneUtil::WorkQueue* workQueue,
         DetourNavigator::Navigator& navigator, const MWWorld::GroundcoverStore& groundcoverStore,
         SceneUtil::UnrefQueue& unrefQueue)
         : mSkyBlending(Settings::fog().mSkyBlending)
+        , mRenderer(renderer)
         , mStage(stage)
         , mRootNode(rootNode)
         , mResourceSystem(resourceSystem)
@@ -295,15 +296,15 @@ namespace MWRender
 
         if (getenv("OPENMW_DONT_PRECOMPILE") == nullptr)
         {
-            mStage.setCompileOperation(new osgUtil::IncrementalCompileOperation);
-            mStage.getCompileOperation()->setTargetFrameRate(Settings::cells().mTargetFramerate);
+            mRenderer.setCompileOperation(new osgUtil::IncrementalCompileOperation);
+            mRenderer.getCompileOperation()->setTargetFrameRate(Settings::cells().mTargetFramerate);
         }
 
         mDebugDraw = new Debug::DebugDrawer(mResourceSystem->getSceneManager()->getShaderManager());
         mDebugDraw->setNodeMask(Mask_Debug);
         sceneRoot->addChild(mDebugDraw);
 
-        mResourceSystem->getSceneManager()->setIncrementalCompileOperation(mStage.getCompileOperation());
+        mResourceSystem->getSceneManager()->setIncrementalCompileOperation(mRenderer.getCompileOperation());
 
         mEffectManager = std::make_unique<EffectManager>(sceneRoot, mResourceSystem);
 
@@ -332,7 +333,7 @@ namespace MWRender
                 Shader::ShaderManager::Slot::OpaqueDepthTexture));
         rootNode->addCullCallback(mPerViewUniformStateUpdater);
 
-        mPostProcessor = new PostProcessor(*this, mStage, mRootNode, resourceSystem->getVFS());
+        mPostProcessor = new PostProcessor(*this, mRenderer, mStage, mRootNode, resourceSystem->getVFS());
         resourceSystem->getSceneManager()->setOpaqueDepthTex(
             mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 0),
             mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 1));
@@ -341,11 +342,9 @@ namespace MWRender
 
         // water goes after terrain for correct waterculling order
         mWater = std::make_unique<Water>(
-            sceneRoot->getParent(0), sceneRoot, mResourceSystem, mStage.getCompileOperation());
+            sceneRoot->getParent(0), sceneRoot, mResourceSystem, mRenderer.getCompileOperation());
 
         mCamera = std::make_unique<Camera>(&mStage.getCamera());
-
-        mScreenshotManager = std::make_unique<ScreenshotManager>(mStage);
 
         mSunLight = new SceneUtil::Light;
         mSunLight->setDiffuse(osg::Vec4f(0, 0, 0, 1));
@@ -469,7 +468,7 @@ namespace MWRender
 
     osgUtil::IncrementalCompileOperation* RenderingManager::getIncrementalCompileOperation()
     {
-        return mStage.getCompileOperation();
+        return mRenderer.getCompileOperation();
     }
 
     MWRender::Objects& RenderingManager::getObjects()
@@ -752,7 +751,7 @@ namespace MWRender
     {
         reportStats();
 
-        mResourceSystem->getSceneManager()->getShaderManager().update(mStage.getViewer());
+        mRenderer.reloadChangedShaders(mResourceSystem->getSceneManager()->getShaderManager());
 
         mWater->setRainIntensity(mSky->getRainRipplesEnabled() ? mSky->getPrecipitationAlpha() : 0.f);
 
@@ -939,7 +938,7 @@ namespace MWRender
 
     void RenderingManager::screenshot(osg::Image* image, int w, int h)
     {
-        mScreenshotManager->screenshot(image, w, h);
+        mRenderer.capture(*image, w, h);
     }
 
     osg::Vec2f RenderingManager::getScreenCoords(const osg::BoundingBox& bb)
@@ -1353,7 +1352,7 @@ namespace MWRender
 
     void RenderingManager::updateTextureFiltering()
     {
-        mStage.suspendDraw();
+        mRenderer.suspendDraw();
 
         mResourceSystem->getSceneManager()->setFilterSettings(Settings::general().mTextureMagFilter,
             Settings::general().mTextureMinFilter, Settings::general().mTextureMipmap,
@@ -1362,7 +1361,7 @@ namespace MWRender
         mTerrain->updateTextureFiltering();
         mWater->processChangedSettings({});
 
-        mStage.resumeDraw();
+        mRenderer.resumeDraw();
     }
 
     void RenderingManager::updateAmbient()
@@ -1486,7 +1485,7 @@ namespace MWRender
                 && (it->second == "force per pixel lighting" || it->second == "classic falloff"
                     || it->second == "clamp lighting"))
             {
-                mStage.suspendDraw();
+                mRenderer.suspendDraw();
 
                 auto defines = mResourceSystem->getSceneManager()->getShaderManager().getGlobalDefines();
                 defines["forcePPL"] = Settings::shaders().mForcePerPixelLighting ? "1" : "0";
@@ -1497,7 +1496,7 @@ namespace MWRender
                 if (MWMechanics::getPlayer().isInCell() && it->second == "classic falloff")
                     configureAmbient(*MWMechanics::getPlayer().getCell()->getCell());
 
-                mStage.resumeDraw();
+                mRenderer.resumeDraw();
             }
             else if (it->first == "Shaders"
                 && (it->second == "light radius multiplier" || it->second == "maximum light distance"
@@ -1513,7 +1512,7 @@ namespace MWRender
                 if (it->second == "max lights" || it->second == "clustered lighting"
                     || it->second == "particle point lighting")
                 {
-                    mStage.suspendDraw();
+                    mRenderer.suspendDraw();
 
                     visitor.setDoThreadUnsafeOps(true);
                     mStage.getSceneRoot().accept(visitor);
@@ -1527,7 +1526,7 @@ namespace MWRender
 
                     mStateUpdater->reset();
 
-                    mStage.resumeDraw();
+                    mRenderer.resumeDraw();
                 }
 
                 if (!lightManagersUpdated)

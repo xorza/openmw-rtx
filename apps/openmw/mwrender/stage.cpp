@@ -1,109 +1,62 @@
 #include "stage.hpp"
 
 #include <osg/Camera>
+#include <osg/FrameStamp>
 #include <osg/Group>
+#include <osg/Stats>
 
 #include <osgGA/EventQueue>
 
-#include <osgUtil/IncrementalCompileOperation>
 #include <osgUtil/UpdateVisitor>
-
-#include <osgViewer/Viewer>
-#include <osgViewer/ViewerEventHandlers>
 
 namespace MWRender
 {
-    Stage::Stage(osgViewer::Viewer& viewer)
-        : mViewer(viewer)
-    {
-    }
+    Stage::Stage() = default;
 
     Stage::~Stage() = default;
 
+    void Stage::adopt(osg::Camera& camera, osg::FrameStamp& frameStamp, osgGA::EventQueue& events,
+        osgUtil::UpdateVisitor& updateVisitor, osg::Stats& stats)
+    {
+        mCamera = &camera;
+        mFrameStamp = &frameStamp;
+        mEvents = &events;
+        mUpdateVisitor = &updateVisitor;
+        mStats = &stats;
+    }
+
     osg::Camera& Stage::getCamera() const
     {
-        return *mViewer.getCamera();
+        return *mCamera;
     }
 
     osg::FrameStamp& Stage::getFrameStamp() const
     {
-        return *mViewer.getFrameStamp();
+        return *mFrameStamp;
     }
 
     osgGA::EventQueue& Stage::getEvents() const
     {
-        return *mViewer.getEventQueue();
+        return *mEvents;
     }
 
     osgUtil::UpdateVisitor& Stage::getUpdateVisitor() const
     {
-        return *mViewer.getUpdateVisitor();
+        return *mUpdateVisitor;
     }
 
     osg::Stats& Stage::getStats() const
     {
-        return *mViewer.getViewerStats();
+        return *mStats;
     }
 
     osg::Group& Stage::getSceneRoot() const
     {
-        return *mViewer.getSceneData()->asGroup();
+        return *mSceneRoot;
     }
 
     void Stage::setSceneRoot(osg::Group& root)
     {
-        mViewer.setSceneData(&root);
-    }
-
-    void Stage::advance(double simulationTime)
-    {
-        mViewer.advance(simulationTime);
-    }
-
-    void Stage::eventTraversal()
-    {
-        mViewer.eventTraversal();
-    }
-
-    void Stage::updateTraversal()
-    {
-        mViewer.updateTraversal();
-    }
-
-    void Stage::renderTraversals()
-    {
-        mViewer.renderingTraversals();
-    }
-
-    void Stage::suspendDraw()
-    {
-        mViewer.stopThreading();
-    }
-
-    void Stage::resumeDraw()
-    {
-        mViewer.startThreading();
-    }
-
-    osgUtil::IncrementalCompileOperation* Stage::getCompileOperation() const
-    {
-        return mViewer.getIncrementalCompileOperation();
-    }
-
-    void Stage::setCompileOperation(osgUtil::IncrementalCompileOperation* operation)
-    {
-        mViewer.setIncrementalCompileOperation(operation);
-    }
-
-    void Stage::setScreenCapture(osgViewer::ScreenCaptureHandler& handler)
-    {
-        mScreenCapture = &handler;
-        mViewer.addEventHandler(&handler);
-    }
-
-    void Stage::captureNextFrame()
-    {
-        mScreenCapture->setFramesToCapture(1);
-        mScreenCapture->captureNextFrame(mViewer);
+        mSceneRoot = &root;
     }
 }

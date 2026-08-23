@@ -27,16 +27,16 @@
 
 #include <components/nifosg/particle.hpp>
 
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/weather.hpp"
+#include "../../mwworld/datetimemanager.hpp"
+#include "../../mwworld/weather.hpp"
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
+#include "../../mwbase/environment.hpp"
+#include "../../mwbase/world.hpp"
 
-#include "renderbin.hpp"
+#include "../renderbin.hpp"
+#include "../util.hpp"
+#include "../vismask.hpp"
 #include "skyutil.hpp"
-#include "util.hpp"
-#include "vismask.hpp"
 
 namespace
 {

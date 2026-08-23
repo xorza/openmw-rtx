@@ -45,6 +45,7 @@ namespace MWRender
     class PingPongCanvas;
     class TransparentDepthBinCallback;
     class DistortionCallback;
+    class Renderer;
     class Stage;
 
     class PostProcessor : public osg::Group
@@ -92,7 +93,8 @@ namespace MWRender
             Status_Unchanged
         };
 
-        PostProcessor(RenderingManager& rendering, Stage& stage, osg::Group* rootNode, const VFS::Manager* vfs);
+        PostProcessor(RenderingManager& rendering, Renderer& renderer, Stage& stage, osg::Group* rootNode,
+            const VFS::Manager* vfs);
 
         ~PostProcessor();
 
@@ -229,6 +231,7 @@ namespace MWRender
         std::unordered_set<VFS::Path::Normalized, VFS::Path::Hash, std::equal_to<>> mTechniqueFiles;
 
         RenderingManager& mRendering;
+        Renderer& mRenderer;
         Stage& mStage;
         const VFS::Manager* mVFS;
 

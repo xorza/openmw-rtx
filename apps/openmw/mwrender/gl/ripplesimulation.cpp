@@ -19,12 +19,12 @@
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/depth.hpp>
 
-#include "vismask.hpp"
+#include "../vismask.hpp"
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
+#include "../../mwbase/environment.hpp"
+#include "../../mwbase/world.hpp"
 
-#include "../mwmechanics/actorutil.hpp"
+#include "../../mwmechanics/actorutil.hpp"
 
 namespace
 {
