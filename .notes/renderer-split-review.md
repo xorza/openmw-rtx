@@ -453,21 +453,28 @@ Per explored cell, on the main thread, inside the frame:
 `mWorkQueue`-shaped work — `CreateMapWorkItem` is right there — and the upload wants a MyGUI-side
 sub-rectangle or a second, cell-sized texture composited by the widget.
 
-### D5. `Surface::getMaterial` builds a `std::string` per lookup — medium
+### D5. `Surface::getMaterial` builds a `std::string` per lookup — **measured free, and one character from not being** — low
 
 ```cpp
 const osg::Object* found = container->getUserObject(std::string(sUserObjectName));
 ```
 
 `SceneExtractor::findDescription` calls this once per state set in the shading chain, per drawable,
-per frame. The string is 14 characters so it stays inside SSO and does not allocate, but it is still
-a construction plus OSG's linear scan doing `std::string` comparisons against every user object in
-the container — on the frame path, in a codebase whose own rules say *"nothing that constructs a
-`std::string` … per frame"*.
+per frame — tens of thousands of times on an exterior.
 
-**Fix, in order of effort:** `static const std::string` for the key (one line); or scan the
-container yourself comparing `getName()` against the `string_view`; or give `Holder` a
-`className()`/`libraryName()` check and skip names entirely.
+Measured: the whole extraction walk is **2.0 ms a frame**, and scanning the container by hand instead
+of building the name leaves it at 2.0 ms. Thirteen 300-frame averages either side — 1.98 ms before,
+2.04 ms after. It is free, because `"SurfaceMaterial"` is fifteen characters and libstdc++ holds
+fifteen inside the string.
+
+**Changed anyway, and the reason is the fifteen.** That is exactly the limit — checked, not assumed —
+so the name is one character away from putting an allocation on the frame path tens of thousands of
+times a frame, with nothing anywhere to say it had started. The scan is the loop `getUserObject`
+would have run regardless, over a container that almost always holds one object, and renaming a
+string cannot push it over that edge.
+
+**The 2.0 ms is the finding here.** The walk is the largest CPU item on the frame — a third of what
+the trace costs — and nothing in this review had measured it. Whatever is in it, it is not this.
 
 ### D6. Video playback regressed on the rasterizer — medium
 
@@ -675,10 +682,15 @@ resolution I had guessed at. Numbers in D2 and D3 above. The original plan:
 
 **Verify:** walk five exterior cells and watch process RSS / VRAM; confirm the map still fills in.
 
-### 6. `Surface::getMaterial`'s key *(D5)*
+### 6. `Surface::getMaterial`'s key *(D5)* — **done: measured free, changed for the boundary**
 
-One line to start (`static const std::string`), measured on `openmw-rtxtool scene --view=balmora
---twice`. Go further only if it shows.
+1.98 ms before, 2.04 ms after, thirteen samples each side — no difference. Kept because
+`"SurfaceMaterial"` is fifteen characters against libstdc++'s fifteen-character limit, so the
+allocation is one rename away. Details in D5.
+
+The measurement's real result is that **the extraction walk costs 2.0 ms a frame** — the largest CPU
+item on the frame path, and unaccounted for. That deserves a look of its own before any more of
+these.
 
 ### 7. `OSGTexture::lock`/`unlock` reuse *(D6, and half of D1)*
 

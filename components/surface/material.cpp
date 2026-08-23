@@ -25,6 +25,35 @@ namespace Surface
         /// pointer, which belongs to whoever else wants it.
         constexpr std::string_view sUserObjectName = "SurfaceMaterial";
 
+        /// No such object in this container.
+        constexpr unsigned int sNowhere = ~0u;
+
+        /// Where the material sits in `container`, or `sNowhere`.
+        ///
+        /// **Scanned here rather than asked for by name, and not because it is faster.**
+        /// `osg::UserDataContainer::getUserObject` takes a `std::string`, so looking a material up
+        /// by name builds one — once per state set in force, per drawable, per frame, which on an
+        /// exterior is tens of thousands of times. Measured, that costs nothing: the walk is 2.0 ms
+        /// a frame either way, because the name is fifteen characters and a `std::string` holds
+        /// fifteen without reaching for the allocator.
+        ///
+        /// **Fifteen is exactly the limit**, so the name is one character from putting an
+        /// allocation on the frame path with nothing to say it had. The loop below is the one that
+        /// call would make anyway, over a container that almost always holds this and nothing
+        /// else, and it cannot be pushed over that edge by renaming a string.
+        unsigned int findMaterial(const osg::UserDataContainer& container)
+        {
+            const unsigned int count = container.getNumUserObjects();
+            for (unsigned int at = 0; at < count; ++at)
+            {
+                const osg::Object* object = container.getUserObject(at);
+                if (object != nullptr && object->getName() == sUserObjectName)
+                    return at;
+            }
+
+            return sNowhere;
+        }
+
         /// The material as something `osg::UserDataContainer` will hold.
         class Holder : public osg::Object
         {
@@ -88,11 +117,11 @@ namespace Surface
         if (container == nullptr)
             return nullptr;
 
-        const osg::Object* found = container->getUserObject(std::string(sUserObjectName));
-        if (found == nullptr)
+        const unsigned int at = findMaterial(*container);
+        if (at == sNowhere)
             return nullptr;
 
-        return &static_cast<const Holder*>(found)->mMaterial;
+        return &static_cast<const Holder*>(container->getUserObject(at))->mMaterial;
     }
 
     Material* getWritableMaterial(osg::StateSet& stateSet)
@@ -114,8 +143,8 @@ namespace Surface
             container = mine;
         }
 
-        const unsigned int at = container->getUserObjectIndex(std::string(sUserObjectName));
-        if (at >= container->getNumUserObjects())
+        const unsigned int at = findMaterial(*container);
+        if (at == sNowhere)
             return nullptr;
 
         Holder* holder = static_cast<Holder*>(container->getUserObject(at));
