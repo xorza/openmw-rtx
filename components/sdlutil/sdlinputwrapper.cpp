@@ -268,7 +268,10 @@ namespace SDLUtil
                 if (w == 0 && h == 0)
                     return;
 
-                mViewer->getCamera()->getGraphicsContext()->resized(x, y, w, h);
+                // Null under a renderer that owns its own surface: the camera is then a matrix
+                // holder and there is no OSG graphics context behind it to resize.
+                if (osg::GraphicsContext* context = mViewer->getCamera()->getGraphicsContext())
+                    context->resized(x, y, w, h);
 
                 mViewer->getEventQueue()->windowResize(x, y, w, h);
 

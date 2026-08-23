@@ -832,10 +832,9 @@ void OMW::Engine::prepareEngine()
     // gui needs our shaders path before everything else
     mResourceSystem->getSceneManager()->setShaderPath(mResDir / "shaders");
 
-    osg::GLExtensions& exts = SceneUtil::getGLExtensions();
-
 #if OSG_VERSION_LESS_THAN(3, 6, 6)
     // hack fix for https://github.com/openscenegraph/OpenSceneGraph/issues/1028
+    osg::GLExtensions& exts = SceneUtil::getGLExtensions();
     if (!osg::isGLExtensionSupported(exts.contextID, "NV_framebuffer_multisample_coverage"))
         exts.glRenderbufferStorageMultisampleCoverageNV = nullptr;
 #endif
