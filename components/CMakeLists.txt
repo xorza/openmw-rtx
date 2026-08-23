@@ -144,6 +144,10 @@ add_component_dir (sceneutil
     cullsafeboundsvisitor keyframe nodecallback textkeymap glextensions fog texmat
     )
 
+add_component_dir (surface
+    material
+    )
+
 add_component_dir (nif
     base controller data effect extra niffile nifkey nifstream niftypes node parent particle physics property record recordptr texture
     )

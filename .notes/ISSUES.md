@@ -9,10 +9,11 @@
   address into it. `SceneAcceleration` and `SceneBuffers` would have to hold a list of blocks
   instead, with the scene's vertex allocator given the same block size.
 
-- A material carries no texture transform, so a surface whose shading animates by scrolling its UVs
-  stands still. `NifOsg::UVController` puts an `osg::TexMat` on the state set and the mirror now
-  applies it and reads the state set it lands in, but there is nowhere in `Rtx::Material` for it to
-  go. It is the only state-set controller the harness's views reach — 432 of them in Vivec.
+- A surface whose shading animates by scrolling its UVs stands still under the ray tracer.
+  `Surface::Material` now carries the scale and offset and `NifOsg::UVController` writes them every
+  frame it is applied, but `Rtx::Material` has no field for them and the shaders sample at the
+  unmodified coordinate. It is the only state-set controller the harness's views reach — 432 of them
+  in Vivec.
 
 - The rasterizer's cull and the mirror both pose every deforming drawable they reach, at traversal
   numbers of their own, so each frame skins twice and the two write different halves of a double

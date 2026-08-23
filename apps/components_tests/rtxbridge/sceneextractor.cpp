@@ -23,6 +23,7 @@
 #include <components/sceneutil/riggeometry.hpp>
 #include <components/sceneutil/skeleton.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
+#include <components/surface/material.hpp>
 
 namespace RtxBridge
 {
@@ -42,6 +43,31 @@ namespace RtxBridge
             for (const unsigned int index : indices)
                 triangles->push_back(index);
             return triangles;
+        }
+
+        /// The description on a state set, created empty where nothing has authored one yet.
+        ///
+        /// Every fixture here stands in for something `NifOsg` or `Terrain` built, and those author
+        /// a `Surface::Material` for everything they build — so a fixture that binds a texture or
+        /// sets a colour and describes neither is testing a state the content path cannot produce.
+        Surface::Material& describe(osg::StateSet& state)
+        {
+            if (Surface::getMaterial(state) == nullptr)
+                Surface::setMaterial(state, Surface::Material{});
+
+            return *Surface::getWritableMaterial(state);
+        }
+
+        /// Binds a texture the way a loader does: the unit for the OpenGL renderer's shaders, and
+        /// the role for everyone else.
+        void paint(
+            osg::StateSet& state, std::string_view file, Surface::TextureRole role = Surface::TextureRole::Diffuse)
+        {
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName(std::string(file));
+
+            state.setTextureAttributeAndModes(0, new osg::Texture2D(image), osg::StateAttribute::ON);
+            describe(state).setTexture(role, image);
         }
 
         /// A unit quad in the xy plane: four vertices, two triangles.
@@ -489,12 +515,15 @@ namespace RtxBridge
             void setDefaults(osg::StateSet* stateset) override
             {
                 stateset->setAttribute(new osg::Material, osg::StateAttribute::ON);
+                Surface::setMaterial(*stateset, Surface::Material{});
             }
 
             void apply(osg::StateSet* stateset, osg::NodeVisitor*) override
             {
+                const osg::Vec4f colour(mRed, 0.0f, 0.0f, 1.0f);
                 auto* colours = static_cast<osg::Material*>(stateset->getAttribute(osg::StateAttribute::MATERIAL));
-                colours->setDiffuse(osg::Material::FRONT_AND_BACK, osg::Vec4f(mRed, 0.0f, 0.0f, 1.0f));
+                colours->setDiffuse(osg::Material::FRONT_AND_BACK, colour);
+                Surface::getWritableMaterial(*stateset)->mDiffuseColour = colour;
             }
         };
 
@@ -714,17 +743,13 @@ namespace RtxBridge
             constexpr osg::Node::NodeMask sWater = 1u << 6;
             constexpr osg::Node::NodeMask sOther = 1u << 3;
 
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setFileName("textures/water/water00.dds");
-
             const auto quadWith = [&](osg::Node::NodeMask mask) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 quad->setNodeMask(mask);
 
                 // A state set of its own, because a material is keyed on one and two quads sharing
                 // one would be one material between them.
-                quad->getOrCreateStateSet()->setTextureAttributeAndModes(
-                    0, new osg::Texture2D(image), osg::StateAttribute::ON);
+                paint(*quad->getOrCreateStateSet(), "textures/water/water00.dds");
 
                 return quad;
             };
@@ -780,12 +805,8 @@ namespace RtxBridge
         /// A material and the texture behind it go when the last thing wearing them does.
         TEST(RtxSceneExtractorTest, aSweepTakesTheMaterialsNothingWearsAndLeavesTheirTextures)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setFileName("textures/tx_stone_01.dds");
-
             osg::ref_ptr<osg::Geometry> stone = makeQuad();
-            stone->getOrCreateStateSet()->setTextureAttributeAndModes(
-                0, new osg::Texture2D(image), osg::StateAttribute::ON);
+            paint(*stone->getOrCreateStateSet(), "textures/tx_stone_01.dds");
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
@@ -834,17 +855,15 @@ namespace RtxBridge
 
         Plume makePlume(const osg::Matrix& place, bool additive)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setFileName("textures/tx_fire_00.dds");
-
             Plume plume;
             plume.mRoot = new osg::MatrixTransform(place);
-            plume.mRoot->getOrCreateStateSet()->setTextureAttributeAndModes(
-                0, new osg::Texture2D(image), osg::StateAttribute::ON);
-            plume.mRoot->getOrCreateStateSet()->setAttributeAndModes(
-                new osg::BlendFunc(
-                    osg::BlendFunc::SRC_ALPHA, additive ? osg::BlendFunc::ONE : osg::BlendFunc::ONE_MINUS_SRC_ALPHA),
+
+            osg::StateSet& state = *plume.mRoot->getOrCreateStateSet();
+            paint(state, "textures/tx_fire_00.dds");
+            state.setAttributeAndModes(new osg::BlendFunc(osg::BlendFunc::SRC_ALPHA,
+                                           additive ? osg::BlendFunc::ONE : osg::BlendFunc::ONE_MINUS_SRC_ALPHA),
                 osg::StateAttribute::ON);
+            describe(state).mAlphaMode = Surface::AlphaMode::Blend;
 
             plume.mParticles = new osgParticle::ParticleSystem;
             plume.mParticles->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
@@ -992,12 +1011,8 @@ namespace RtxBridge
         /// the sweep is doing anything at all: a pass that kept every texture would keep both.
         TEST(RtxSceneExtractorTest, aSweepKeepsTheTextureAnEmitterIsStillDrawingWith)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setFileName("textures/tx_stone_01.dds");
-
             osg::ref_ptr<osg::Geometry> stone = makeQuad();
-            stone->getOrCreateStateSet()->setTextureAttributeAndModes(
-                0, new osg::Texture2D(image), osg::StateAttribute::ON);
+            paint(*stone->getOrCreateStateSet(), "textures/tx_stone_01.dds");
 
             const Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
             emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
@@ -1033,19 +1048,17 @@ namespace RtxBridge
             EXPECT_EQ(scene.getTextures().size(), 2u) << "the sprite's path was added a second time";
         }
 
-        /// Textures come from wherever they are bound; everything else comes from the drawable.
+        /// A drawable that describes nothing inherits the nearest description above it.
         ///
-        /// `NifOsg` puts a model's textures on its geometry, but a drawable can carry a state set of
-        /// its own that sets only culling. Taking the whole material from whichever state set held
-        /// the textures hands that drawable a parent's two-sidedness.
-        TEST(RtxSceneExtractorTest, aDrawableKeepsItsOwnStateWhileInheritingATexture)
+        /// **Nearest, and whole.** A NIF property on a node applies to every shape below it until
+        /// another replaces it, so `NifOsg` resolves each shape against everything above and stamps
+        /// one complete answer. Walking back up for the first description found reproduces that,
+        /// and a drawable carrying a state set for some unrelated reason — a `CullFace` and nothing
+        /// else, which is common — does not lose the surface it inherits by having one.
+        TEST(RtxSceneExtractorTest, aDrawableWithNoDescriptionInheritsTheNearestOneAbove)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setFileName("textures/tx_stone_01.dds");
-
             osg::ref_ptr<osg::Group> parent = new osg::Group;
-            parent->getOrCreateStateSet()->setTextureAttributeAndModes(
-                0, new osg::Texture2D(image), osg::StateAttribute::ON);
+            paint(*parent->getOrCreateStateSet(), "textures/tx_stone_01.dds");
 
             osg::ref_ptr<osg::Geometry> quad = makeQuad();
             quad->getOrCreateStateSet()->setAttributeAndModes(
@@ -1071,14 +1084,14 @@ namespace RtxBridge
         TEST(RtxSceneExtractorTest, aBlendedSurfaceIsTracedAsACutoutAndAPlainOneIsNot)
         {
             const auto extractOne = [](bool blend) {
-                osg::ref_ptr<osg::Image> image = new osg::Image;
-                image->setFileName("textures/tx_leaves.dds");
-
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 osg::StateSet& state = *quad->getOrCreateStateSet();
-                state.setTextureAttributeAndModes(0, new osg::Texture2D(image), osg::StateAttribute::ON);
+                paint(state, "textures/tx_leaves.dds");
                 if (blend)
+                {
                     state.setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
+                    describe(state).mAlphaMode = Surface::AlphaMode::Blend;
+                }
 
                 Rtx::SceneDesc scene;
                 SceneExtractor extractor(scene);
@@ -1101,15 +1114,13 @@ namespace RtxBridge
         /// game's own shader ever uses.
         TEST(RtxSceneExtractorTest, anEmissiveMultiplierIsFoldedIntoTheColourItScales)
         {
-            const auto extractOne = [](float multiplier, bool attach) {
-                osg::ref_ptr<osg::Material> colours = new osg::Material;
-                colours->setEmission(osg::Material::FRONT, osg::Vec4f(0.5f, 0.25f, 0.0f, 1.0f));
-
+            const auto extractOne = [](float multiplier) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 osg::StateSet& state = *quad->getOrCreateStateSet();
-                state.setAttributeAndModes(colours, osg::StateAttribute::ON);
-                if (attach)
-                    state.addUniform(new osg::Uniform("emissiveMult", multiplier));
+
+                Surface::Material& surface = describe(state);
+                surface.mEmissiveColour = osg::Vec3f(0.5f, 0.25f, 0.0f);
+                surface.mEmissiveMult = multiplier;
 
                 Rtx::SceneDesc scene;
                 SceneExtractor extractor(scene);
@@ -1119,40 +1130,57 @@ namespace RtxBridge
                 return scene.getMaterials().front().mEmissiveColour;
             };
 
-            EXPECT_EQ(extractOne(2.0f, true), osg::Vec3f(1.0f, 0.5f, 0.0f));
-            EXPECT_EQ(extractOne(0.5f, true), osg::Vec3f(0.25f, 0.125f, 0.0f));
+            EXPECT_EQ(extractOne(2.0f), osg::Vec3f(1.0f, 0.5f, 0.0f));
+            EXPECT_EQ(extractOne(0.5f), osg::Vec3f(0.25f, 0.125f, 0.0f));
 
-            // `NifOsg` only attaches the uniform where a model asked for something other than one,
-            // so its absence is the default rather than a value nobody wrote.
-            EXPECT_EQ(extractOne(0.0f, false), osg::Vec3f(0.5f, 0.25f, 0.0f));
+            // The default is one, so a model that asked for nothing keeps the colour it authored.
+            EXPECT_EQ(extractOne(1.0f), osg::Vec3f(0.5f, 0.25f, 0.0f));
         }
 
-        /// OpenGL culls nothing unless told to, and `NifOsg` only adds a `CullFace` where the model
-        /// asked for one — so an absent attribute means two-sided. Reading it the other way lights
-        /// every sheet of vanilla geometry from one face only.
-        TEST(RtxSceneExtractorTest, cullFaceDecidesWhetherASurfaceIsTwoSided)
+        /// Two-sidedness is what the content said, not what the pipeline state happens to be.
+        ///
+        /// **This is the fact that used to be guessed.** OpenGL culls nothing unless told to and
+        /// `NifOsg` only emitted a `CullFace` where a `NiStencilProperty` asked for one, so an
+        /// absent attribute had to be read as two-sided — which is right for a sheet of vanilla
+        /// foliage and wrong for everything under a scene root that turns culling on globally. The
+        /// description says which, and says it whether or not any state set mentions culling.
+        TEST(RtxSceneExtractorTest, aSurfaceIsTwoSidedWhenTheContentSaidSo)
         {
-            const auto extractOne = [](bool cull) {
+            const auto extractOne = [](bool twoSided) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
-                osg::StateSet* stateSet = quad->getOrCreateStateSet();
-                if (cull)
-                {
-                    stateSet->setAttributeAndModes(new osg::CullFace(osg::CullFace::BACK), osg::StateAttribute::ON);
-                }
-                else
-                {
-                    // Something in the state set, so it is found at all, but no CullFace.
-                    stateSet->setMode(GL_BLEND, osg::StateAttribute::OFF);
-                }
+                describe(*quad->getOrCreateStateSet()).mTwoSided = twoSided;
 
                 Rtx::SceneDesc scene;
                 SceneExtractor extractor(scene);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
-                return scene.getMaterials().empty() ? true : scene.getMaterials()[0].mTwoSided;
+
+                EXPECT_EQ(scene.getMaterials().size(), 1u);
+                return scene.getMaterials()[0].mTwoSided;
             };
 
-            EXPECT_FALSE(extractOne(true));
-            EXPECT_TRUE(extractOne(false));
+            EXPECT_TRUE(extractOne(true));
+            EXPECT_FALSE(extractOne(false));
+        }
+
+        /// A surface nothing described is a canary rather than a guess.
+        ///
+        /// Every state set the content pipeline produces carries a description; one that does not
+        /// was built somewhere else, or was rebuilt by something that copied the pipeline state and
+        /// dropped the description with it. The extractor says so and does not try to recover it.
+        TEST(RtxSceneExtractorTest, anUndescribedSurfaceIsCountedRatherThanGuessedAt)
+        {
+            osg::ref_ptr<osg::Geometry> quad = makeQuad();
+            quad->getOrCreateStateSet()->setAttributeAndModes(
+                new osg::CullFace(osg::CullFace::BACK), osg::StateAttribute::ON);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            const ExtractionStats stats = extractor.extract(*quad, osg::Matrixf::identity(), 0);
+
+            EXPECT_EQ(stats.mUndescribedMaterials, 1u);
+            EXPECT_EQ(stats.mInstances, 1u) << "the geometry is still placed; only its shading is unknown";
+            ASSERT_EQ(scene.getMaterials().size(), 1u);
+            EXPECT_EQ(scene.getMaterials()[0].mDiffuse, Rtx::sNoIndex);
         }
     }
 }

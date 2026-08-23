@@ -267,7 +267,7 @@ that the measurements did not move.
 This is the new work, and it is the majority of it.
 
 ```cpp
-// components/scenedesc/material.hpp
+// components/surface/material.hpp
 
 enum class TextureRole { Diffuse, Normal, NormalHeight, Emissive, Specular,
                          Dark, Detail, Decal, Gloss, Bump, Environment };
@@ -277,24 +277,28 @@ enum class AlphaMode { Opaque, Cutout, Blend };
 /// What a surface is, as the content said and before any renderer has an opinion.
 struct Material
 {
-    /// One texture per role, absent where the content has none.
-    std::array<TextureIndex, sTextureRoleCount> mTextures;
+    /// One texture per role, null where the content has none.
+    ///
+    /// The `osg::Image` and not an `osg::Texture2D`: after load, `osgDB::SharedStateManager`
+    /// canonicalises equal textures across every model in the cache, so the object the loader
+    /// bound is replaced by one it never saw. The image survives that and carries the file name.
+    std::array<osg::ref_ptr<osg::Image>, sTextureRoleCount> mTextures;
 
     AlphaMode mAlphaMode = AlphaMode::Opaque;
     float mAlphaRef = 0.0f;
     bool mTwoSided = false;
 
     osg::Vec4f mDiffuseColour{ 1, 1, 1, 1 };
+    osg::Vec3f mAmbientColour{ 1, 1, 1 };
     osg::Vec3f mEmissiveColour{ 0, 0, 0 };
+    osg::Vec3f mSpecularColour{ 0, 0, 0 };
+    float mGlossiness = 0.0f;
     float mEmissiveMult = 1.0f;
-    float mSpecularStrength = 1.0f;
 
-    /// What `NifOsg::UVController` animates, and what there is currently nowhere to put.
+    /// Scaled about the middle of the texture, then offset. `NifOsg::UVController` rewrites both
+    /// every frame it is applied, exactly as it rewrites the `osg::TexMat` the rasterizer reads.
     osg::Vec2f mTextureScale{ 1, 1 };
     osg::Vec2f mTextureOffset;
-
-    osg::Vec4f mBumpMapMatrix;
-    float mEnvMapLumaBias = 0.0f;
 };
 ```
 
@@ -410,8 +414,9 @@ not cull asks by distance instead. Object paging and groundcover come free — b
 Directories, because a library is a link boundary and a subdirectory is a convention.
 
 ```
-components/scenedesc/       what a scene is: Material, Light, Environment, TextureRole.
-                            Links no graphics API. NifOsg, Terrain and the loaders author it.
+components/surface/         what a surface is: Material, TextureRole, AlphaMode. Links no
+                            graphics API. NifOsg, Terrain and the shader visitor author it.
+                            Light and Environment join it as their steps land.
 components/sceneutil/       content and graph machinery only, once the 7,568 GL lines leave
 apps/openmw/mwrender/       game-facing: animation, objects, camera, paging, effects, fog,
                             RenderingManager, Stage, and renderer.hpp
@@ -420,7 +425,7 @@ apps/openmw/mwrender/gl/    the OpenGL renderer: sky, water, post-processing, sh
 apps/openmw/mwrender/rtx/   the ray tracer, over components/rtx + rtxbackends + rtxbridge
 ```
 
-`components/scenedesc` is the load-bearing one. It is what makes a fourth renderer a new directory
+`components/surface` is the load-bearing one. It is what makes a fourth renderer a new directory
 rather than a new decoder, and it is where `Rtx::Material` and the bridge's `readMaterial` converge:
 the bridge stops reverse-engineering and starts copying.
 
@@ -430,23 +435,34 @@ Ordered so each lands, builds and is checkable, and so the OpenGL path is moved 
 **Steps 0–3 and 5 are worth doing whether or not a ray tracer ever ships**: they are what makes the
 renderer a component instead of the engine.
 
-### Step 0 — guards and dead code
+### Step 0 — guards and dead code — **done**
 
 Move `engine.cpp:835`'s `getGLExtensions()` inside its `#if`. Null-guard `sdlinputwrapper.cpp:271`.
 
 *Verified by*: the game plays identically; both test binaries pass.
 
-### Step 1 — `MWRender::Material`, authored alongside
+### Step 1 — `Surface::Material`, authored alongside — **done**
 
-`components/scenedesc` with the material, light and environment types. `NifOsg`, `Terrain` and the
-ESM4 loader author a material beside the state set they already build; the shader visitor's map
-discovery moves in. `SceneExtractor::readMaterial` deletes and reads the material instead. The
-texture transform `UVController` produces gets a field, which closes the open issue about
-UV-scrolling surfaces standing still.
+`components/surface` with `TextureRole`, `AlphaMode` and `Material`. `NifOsg` authors one for every
+shape it builds, inheriting it down its own node recursion the way a NIF property inherits;
+`Terrain` authors one per layer pass; `Shader::ShaderVisitor` adds the maps it discovers by
+filename. `NifOsg`'s three state-set controllers — colour, alpha and flip — animate the description
+alongside the `osg::Material` and the texture unit they already animated, so a surface that changes
+still changes for a renderer that reads the description.
 
-*Verified by*: the harness's golden images unchanged, and a new sweep over the VFS asserting the
-authored material matches what the decoder used to produce — the same equivalence test that later
-justifies step 5.
+`SceneExtractor::readMaterial` and its five decode helpers deleted; the extractor counts surfaces
+nothing described instead of guessing at them, and that count is zero across every view.
+
+Two things the sweep found that no amount of reading would have: `osgDB::SharedStateManager`
+canonicalises texture objects across models after load, so the description holds the `osg::Image`
+rather than the `osg::Texture2D` it was bound as; and a shallow-copied state set shares its whole
+user-data container, so a controller writing a material would have written it into the node it was
+copied from.
+
+*Verified by*: five golden images byte-identical; `apps/components_tests/rtxtool/material.cpp`
+sweeping an exterior and the densest interior and asserting that every surface is described and
+every description agrees with the pipeline state beside it — which is the equivalence test step 5
+inverts.
 
 ### Step 2 — `MWRender::Stage`, and `osgViewer` becomes one renderer's business
 
@@ -483,8 +499,10 @@ enough to assert on every run: `SDL_GL_GetCurrentContext()` is null.
 
 ### Step 5 — the material becomes the only authored form
 
-`GlRenderer` compiles state sets from `MWRender::Material` and the loaders stop building them. The
-equivalence sweep from step 1 is what makes this safe, and it deletes along with the old path.
+`GlRenderer` compiles state sets from `Surface::Material` and the loaders stop building them. The
+equivalence sweep from step 1 is what makes this safe, and it deletes along with the old path. The
+fields the description does not carry yet — sampler wrap and filter modes, the bump-map matrix, the
+environment map's luma bias — arrive here, where something reads them.
 
 ### Step 6 — the GUI, then the offscreen views
 

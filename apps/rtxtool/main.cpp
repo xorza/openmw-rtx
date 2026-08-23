@@ -312,7 +312,8 @@ namespace RtxTool
                   << "  record has no model:  " << report.mSkipped.mNoModel << '\n'
                   << "  model would not load: " << report.mUnreadable << '\n'
                   << "  unreadable drawables: " << stats.mSkippedUnknown << '\n'
-                  << "  empty geometry:       " << stats.mSkippedEmpty << '\n';
+                  << "  empty geometry:       " << stats.mSkippedEmpty << '\n'
+                  << "  undescribed surfaces: " << stats.mUndescribedMaterials << '\n';
 
             if (twice)
             {

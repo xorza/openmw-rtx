@@ -6,11 +6,9 @@
 #include "posecull.hpp"
 
 #include <osg/BlendFunc>
-#include <osg/CullFace>
 #include <osg/FrameStamp>
 #include <osg/Geometry>
 #include <osg/Image>
-#include <osg/Material>
 #include <osg/NodeVisitor>
 #include <osg/Texture2D>
 #include <osg/TriangleIndexFunctor>
@@ -26,7 +24,7 @@
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/riggeometry.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
-#include <components/sceneutil/texturetype.hpp>
+#include <components/surface/material.hpp>
 // `terraindrawable.hpp` holds `osg::ref_ptr`s to composite-map types it only forward-declares, so it
 // does not compile on its own. This is what completes them.
 #include <components/terrain/compositemaprenderer.hpp>
@@ -56,17 +54,17 @@ namespace RtxBridge
             }
         };
 
-        /// The state set nearest the drawable that binds any texture.
+        /// What the content said this surface is, taken from the nearest ancestor that said it.
         ///
-        /// Separate from the nearest one outright because the two can differ: `NifOsg` puts a
-        /// model's textures on the geometry, but a drawable can carry a state set of its own that
-        /// only sets culling or blending. Taking the whole material from whichever state set
-        /// happened to hold the textures would then hand it a parent's two-sidedness.
-        const osg::StateSet* findTexturedStateSet(std::span<const Shading> shading)
+        /// **Nearest wins, which is what a NIF property does.** `NifOsg` stamps a complete material
+        /// on the state set it resolves each shape against, so the first one found walking back up
+        /// is already the whole answer; an ancestor's is what a shape that carries no state set of
+        /// its own inherits.
+        const Surface::Material* findDescription(std::span<const Shading> shading)
         {
             for (auto it = shading.rbegin(); it != shading.rend(); ++it)
-                if (!it->mStateSet->getTextureAttributeList().empty())
-                    return it->mStateSet;
+                if (const Surface::Material* found = Surface::getMaterial(*it->mStateSet))
+                    return found;
 
             return nullptr;
         }
@@ -76,38 +74,6 @@ namespace RtxBridge
         {
             return dynamic_cast<const osg::Texture2D*>(
                 stateSet.getTextureAttribute(unit, osg::StateAttribute::TEXTURE));
-        }
-
-        /// The role OpenMW's shader visitor assigned to `unit` — "diffuseMap", "normalMap" and the
-        /// rest — or empty when it did not run or did not recognise the slot.
-        std::string_view getTextureRole(const osg::StateSet& stateSet, unsigned int unit)
-        {
-            const osg::StateAttribute* attribute
-                = stateSet.getTextureAttribute(unit, SceneUtil::TextureType::AttributeType);
-            if (attribute == nullptr)
-                return {};
-
-            return attribute->getName();
-        }
-
-        bool isBlended(const osg::StateSet& stateSet)
-        {
-            return (stateSet.getMode(GL_BLEND) & osg::StateAttribute::ON) != 0
-                && stateSet.getAttribute(osg::StateAttribute::BLENDFUNC) != nullptr;
-        }
-
-        /// Whether back faces are drawn.
-        ///
-        /// OpenGL culls nothing unless told to, and `NifOsg` adds a `CullFace` only where the model's
-        /// stencil property asked for it — so the absence of the attribute means two-sided, not
-        /// one-sided. Getting this backwards lights every sheet in the game from one side only.
-        bool isTwoSided(const osg::StateSet& stateSet)
-        {
-            const osg::StateAttribute* attribute = stateSet.getAttribute(osg::StateAttribute::CULLFACE);
-            if (attribute == nullptr)
-                return true;
-
-            return (stateSet.getMode(GL_CULL_FACE) & osg::StateAttribute::ON) == 0;
         }
 
         /// The image's format, as a name a person can act on.
@@ -181,31 +147,6 @@ namespace RtxBridge
                     weights.push_back(image.getColor(column, row).a());
         }
 
-        /// How much a material's emissive colour is worth, which a model can scale.
-        ///
-        /// `NifOsg` only attaches the uniform where the model asked for something other than one, so
-        /// its absence is the default rather than a missing value.
-        float getEmissiveMult(const osg::StateSet& stateSet)
-        {
-            const osg::Uniform* uniform = stateSet.getUniform("emissiveMult");
-            float value = 1.0f;
-            if (uniform != nullptr && uniform->get(value))
-                return value;
-
-            return 1.0f;
-        }
-
-        float getAlphaRef(const osg::StateSet& stateSet)
-        {
-            // The shader visitor turns the fixed-function alpha test into this uniform and removes
-            // the attribute, so the uniform is the surviving record of a cutout.
-            const osg::Uniform* uniform = stateSet.getUniform("alphaRef");
-            float value = 0.0f;
-            if (uniform != nullptr && uniform->get(value))
-                return value;
-
-            return 0.0f;
-        }
     }
 
     ExtractionStats& ExtractionStats::operator+=(const ExtractionStats& other)
@@ -223,6 +164,7 @@ namespace RtxBridge
         mEmitters += other.mEmitters;
         mSprites += other.mSprites;
         mSkippedUnknown += other.mSkippedUnknown;
+        mUndescribedMaterials += other.mUndescribedMaterials;
         mSkippedEmpty += other.mSkippedEmpty;
         return *this;
     }
@@ -801,12 +743,15 @@ namespace RtxBridge
     {
         // A particle's whole silhouette is its texture's alpha, so an emitter with no texture has
         // nothing to draw — not a white disc, which is what sampling nothing would give it.
-        const osg::StateSet* textured = findTexturedStateSet(shading);
-        if (textured == nullptr)
+        const Surface::Material* described = findDescription(shading);
+        if (described == nullptr)
+        {
+            ++stats.mUndescribedMaterials;
             return;
+        }
 
-        const osg::Texture2D* sprite = getTexture(*textured, 0);
-        if (sprite == nullptr || sprite->getImage(0) == nullptr || sprite->getImage(0)->getFileName().empty())
+        const osg::Image* sprite = described->getTexture(Surface::TextureRole::Diffuse);
+        if (sprite == nullptr || sprite->getFileName().empty())
             return;
 
         // **Registered the first time the emitter is seen, and not the first time it has a
@@ -818,7 +763,7 @@ namespace RtxBridge
         // sprite's texture is on no material, and an emitter is not in the scene between frames.
         auto [known, arrived] = mEmitterTextures.try_emplace(&particles);
         if (arrived)
-            known->second.mIndex = mScene.addTexture(VFS::Path::Normalized(sprite->getImage(0)->getFileName()));
+            known->second.mIndex = mScene.addTexture(VFS::Path::Normalized(sprite->getFileName()));
 
         known->second.mEpoch = mEpoch;
         const Rtx::Index texture = known->second.mIndex;
@@ -861,7 +806,7 @@ namespace RtxBridge
         if (mSpriteScratch.empty())
             return;
 
-        ++stats.mTextureFormats[describeFormat(*sprite->getImage(0))];
+        ++stats.mTextureFormats[describeFormat(*sprite)];
 
         mScene.addEmitter(mSpriteScratch, texture, addsLight(shading));
 
@@ -893,14 +838,19 @@ namespace RtxBridge
 
         for (const osg::ref_ptr<osg::StateSet>& pass : passes)
         {
-            const osg::Texture2D* diffuse = getTexture(*pass, 0);
-            if (diffuse == nullptr || diffuse->getImage(0) == nullptr || diffuse->getImage(0)->getFileName().empty())
+            const Surface::Material* described = Surface::getMaterial(*pass);
+            if (described == nullptr)
+            {
+                ++stats.mUndescribedMaterials;
                 continue;
+            }
 
             Rtx::MaterialLayer layer;
-            layer.mDiffuse = mScene.addTexture(VFS::Path::Normalized(diffuse->getImage(0)->getFileName()));
+            layer.mDiffuse = takeTexture(described->getTexture(Surface::TextureRole::Diffuse), stats);
+            if (layer.mDiffuse == Rtx::sNoIndex)
+                continue;
+
             layer.mDiffuseTransform = getTextureTransform(*pass, 0);
-            ++stats.mTextureFormats[describeFormat(*diffuse->getImage(0))];
 
             // A chunk of a single ground type is given no blend map at all, and stays at full weight.
             const osg::Texture2D* mask = getTexture(*pass, 1);
@@ -1055,56 +1005,53 @@ namespace RtxBridge
         return index;
     }
 
+    Rtx::Index SceneExtractor::takeTexture(const osg::Image* image, ExtractionStats& stats)
+    {
+        if (image == nullptr || image->getFileName().empty())
+            return Rtx::sNoIndex;
+
+        ++stats.mTextureFormats[describeFormat(*image)];
+        return mScene.addTexture(VFS::Path::Normalized(image->getFileName()));
+    }
+
     Rtx::Material SceneExtractor::readMaterial(std::span<const Shading> shading, ExtractionStats& stats)
     {
-        const osg::StateSet& own = *shading.back().mStateSet;
-
         Rtx::Material material;
 
-        if (const osg::StateSet* textured = findTexturedStateSet(shading))
+        const Surface::Material* described = findDescription(shading);
+        if (described == nullptr)
         {
-            for (unsigned int unit = 0; unit < textured->getTextureAttributeList().size(); ++unit)
-            {
-                const osg::Texture2D* texture = getTexture(*textured, unit);
-                if (texture == nullptr || texture->getImage(0) == nullptr)
-                    continue;
-
-                const std::string& file = texture->getImage(0)->getFileName();
-                if (file.empty())
-                    continue;
-
-                const Rtx::Index index = mScene.addTexture(VFS::Path::Normalized(file));
-                ++stats.mTextureFormats[describeFormat(*texture->getImage(0))];
-                const std::string_view role = getTextureRole(*textured, unit);
-
-                // Unit 0 without a role is the diffuse slot: that is where `NifOsg` puts the base map
-                // when the shader visitor has not run to label it.
-                if (role == "diffuseMap" || (role.empty() && unit == 0))
-                    material.mDiffuse = index;
-                else if (role == "normalMap" || role == "normalHeightMap")
-                    material.mNormal = index;
-                else if (role == "emissiveMap")
-                    material.mEmissive = index;
-            }
+            ++stats.mUndescribedMaterials;
+            return material;
         }
 
-        material.mAlphaRef = getAlphaRef(own);
-        if (isBlended(own))
-            material.mAlphaMode = Rtx::AlphaMode::Blend;
-        else if (material.mAlphaRef > 0.0f)
-            material.mAlphaMode = Rtx::AlphaMode::Cutout;
+        material.mDiffuse = takeTexture(described->getTexture(Surface::TextureRole::Diffuse), stats);
+        material.mEmissive = takeTexture(described->getTexture(Surface::TextureRole::Emissive), stats);
 
-        material.mTwoSided = isTwoSided(own);
+        // The two normal roles differ in what the alpha channel holds, and parallax is a rasterizer
+        // feature this renderer does not have: to a ray tracer they are the same texture.
+        material.mNormal = takeTexture(described->getTexture(Surface::TextureRole::Normal), stats);
+        if (material.mNormal == Rtx::sNoIndex)
+            material.mNormal = takeTexture(described->getTexture(Surface::TextureRole::NormalHeight), stats);
 
-        const auto* colours = dynamic_cast<const osg::Material*>(own.getAttribute(osg::StateAttribute::MATERIAL));
-        if (colours != nullptr)
+        material.mAlphaRef = described->mAlphaRef;
+        switch (described->mAlphaMode)
         {
-            material.mDiffuseColour = colours->getDiffuse(osg::Material::FRONT);
-
-            // Folded together here because the game's own shader only ever uses their product.
-            const osg::Vec4f emissive = colours->getEmission(osg::Material::FRONT) * getEmissiveMult(own);
-            material.mEmissiveColour = osg::Vec3f(emissive.x(), emissive.y(), emissive.z());
+            case Surface::AlphaMode::Blend:
+                material.mAlphaMode = Rtx::AlphaMode::Blend;
+                break;
+            case Surface::AlphaMode::Cutout:
+                material.mAlphaMode = Rtx::AlphaMode::Cutout;
+                break;
+            case Surface::AlphaMode::Opaque:
+                break;
         }
+
+        material.mTwoSided = described->mTwoSided;
+        material.mDiffuseColour = described->mDiffuseColour;
+
+        // Folded together because the game's own shader only ever uses their product.
+        material.mEmissiveColour = described->mEmissiveColour * described->mEmissiveMult;
 
         return material;
     }

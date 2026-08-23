@@ -19,6 +19,7 @@ namespace osg
 {
     class Drawable;
     class Geometry;
+    class Image;
     class StateSet;
 }
 
@@ -79,6 +80,15 @@ namespace RtxBridge
         /// rather than misses. A canary and not a deficit: what it would catch is a new kind of
         /// drawable arriving unnoticed.
         std::uint32_t mSkippedUnknown = 0;
+
+        /// Surfaces the content pipeline never described, so what they are had to be recovered by
+        /// reading OpenGL state back out.
+        ///
+        /// **A canary, and it should be zero.** `NifOsg` and `Terrain` author a `Surface::Material`
+        /// for everything they build; a drawable arriving without one means a state set was made
+        /// somewhere else, or remade by something that copied the pipeline state and dropped the
+        /// description with it.
+        std::uint32_t mUndescribedMaterials = 0;
 
         /// What the textures a scene reached for turned out to be.
         ///
@@ -302,7 +312,10 @@ namespace RtxBridge
 
         Rtx::Index resolveMaterial(std::span<const Shading> shading, ExtractionStats& stats);
 
-        /// Reads a material out of the state sets in force, without asking whether one is known.
+        /// Adds a described texture to the scene, or nothing where the role is unfilled.
+        Rtx::Index takeTexture(const osg::Image* image, ExtractionStats& stats);
+
+        /// Reads a material off the description in force, without asking whether one is known.
         Rtx::Material readMaterial(std::span<const Shading> shading, ExtractionStats& stats);
 
         /// The layered material of a terrain chunk, whose shading is not on the graph at all.

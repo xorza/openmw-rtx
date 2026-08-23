@@ -90,6 +90,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     sceneutil/osgacontroller.cpp
 
+    surface/material.cpp
+
     bsa/testbsafile.cpp
     bsa/testcompressedbsafile.cpp
 
@@ -132,6 +134,7 @@ if (OPENMW_RTX)
         rtxtool/crossing.cpp
         rtxtool/framing.cpp
         rtxtool/installation.cpp
+        rtxtool/material.cpp
         rtxtool/perfcontrol.cpp
         rtxtool/props.cpp
         rtxtool/retire.cpp
