@@ -44,6 +44,7 @@ namespace MyGUIRtx
 
         void initialise() override;
         void shutdown() override;
+        void setAdditiveBlend(bool additive) override;
 
         static RenderManager& getInstance() { return *getInstancePtr(); }
         static RenderManager* getInstancePtr()
@@ -100,6 +101,11 @@ namespace MyGUIRtx
         std::vector<Rtx::GuiBatch> mBatches;
 
         float mInvScalingFactor = 1.0f;
+
+        /// What every batch gathered from here on is marked with. `AdditiveLayer` moves it either
+        /// way around the one layer that wants it.
+        Rtx::GuiBlend mBlend = Rtx::GuiBlend::Over;
+
         bool mUpdate = false;
         bool mIsInitialise = false;
     };

@@ -11,6 +11,20 @@ namespace Rtx
 {
     class Device;
 
+    /// How what a pipeline draws reaches what is already in the attachment.
+    enum class Blend
+    {
+        /// Straight through: what is written replaces what is there.
+        None,
+
+        /// Source alpha over what is there, and the source's own alpha accumulated the way a
+        /// premultiplied composite wants it.
+        Over,
+
+        /// Added to what is there, scaled by its own alpha.
+        Additive,
+    };
+
     /// What a raster pipeline is made of that a compute one has no equivalent for.
     ///
     /// **No span outlives the call.** Every one is read into Vulkan's own copies inside the
@@ -34,9 +48,7 @@ namespace Rtx
         /// the difference between an object per target size and one for the run.
         VkFormat mColourFormat = VK_FORMAT_UNDEFINED;
 
-        /// Source alpha over what is already there, and the source's own alpha accumulated the way
-        /// a premultiplied composite wants it. False writes straight through.
-        bool mBlend = false;
+        Blend mBlend = Blend::None;
 
         std::filesystem::path mVertexModule;
         std::filesystem::path mFragmentModule;

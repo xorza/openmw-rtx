@@ -421,7 +421,8 @@ namespace Rtx
             // A slot nothing holds would be a null descriptor, which is undefined rather than
             // blank. The assert above is where a caller finds out; a release build drops the batch.
             if (view != VK_NULL_HANDLE)
-                mGuiDraws.push_back(GuiDraw{ view, batch.mFirstVertex, batch.mVertexCount });
+                mGuiDraws.push_back(GuiDraw{ view, batch.mFirstVertex, batch.mVertexCount,
+                    batch.mBlend == GuiBlend::Additive ? Blend::Additive : Blend::Over });
         }
 
         // **Its own submit, after the frame's.** The GUI is collected once the world has been drawn

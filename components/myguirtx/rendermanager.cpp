@@ -73,6 +73,11 @@ namespace MyGUIRtx
         // take this back out of.
     }
 
+    void RenderManager::setAdditiveBlend(bool additive)
+    {
+        mBlend = additive ? Rtx::GuiBlend::Additive : Rtx::GuiBlend::Over;
+    }
+
     bool RenderManager::checkTexture(MyGUI::ITexture* /*texture*/)
     {
         // We support external textures that aren't registered via this manager, so can't implement
@@ -167,6 +172,7 @@ namespace MyGUIRtx
             .mTexture = texel->getSlot(),
             .mFirstVertex = first,
             .mVertexCount = static_cast<std::uint32_t>(vertices.size()),
+            .mBlend = mBlend,
         });
     }
 

@@ -2,7 +2,9 @@
 
 #include <MyGUI_Timer.h>
 
+#include <osg/BlendFunc>
 #include <osg/Drawable>
+#include <osg/StateSet>
 #include <osg/Texture2D>
 
 #include <osgGA/GUIEventHandler>
@@ -348,8 +350,10 @@ namespace MyGUIPlatform
         , mUpdate(false)
         , mIsInitialise(false)
         , mInvScalingFactor(1.f)
-        , mInjectState(nullptr)
     {
+        mAdditiveState = new osg::StateSet;
+        mAdditiveState->setAttributeAndModes(new osg::BlendFunc(osg::BlendFunc::SRC_ALPHA, osg::BlendFunc::ONE));
+
         const osg::Viewport& viewport = *eye.getViewport();
         mInitialViewSize.set(static_cast<int>(viewport.width()), static_cast<int>(viewport.height()));
 
@@ -444,18 +448,18 @@ namespace MyGUIPlatform
             batch.mTexture = osgtexture->getTexture();
             if (batch.mTexture->getDataVariance() == osg::Object::DYNAMIC)
                 mDrawable->setDataVariance(osg::Object::DYNAMIC); // only for this frame, reset in begin()
-            if (!mInjectState && osgtexture->getInjectState())
+            if (!mAdditive && osgtexture->getInjectState())
                 batch.mStateSet = osgtexture->getInjectState();
         }
-        if (mInjectState)
-            batch.mStateSet = mInjectState;
+        if (mAdditive)
+            batch.mStateSet = mAdditiveState;
 
         mDrawable->addBatch(batch);
     }
 
-    void RenderManager::setInjectState(osg::StateSet* stateSet)
+    void RenderManager::setAdditiveBlend(bool additive)
     {
-        mInjectState = stateSet;
+        mAdditive = additive;
     }
 
     void RenderManager::end() {}

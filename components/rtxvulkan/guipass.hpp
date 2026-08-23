@@ -22,6 +22,11 @@ namespace Rtx
         VkImageView mTexture = VK_NULL_HANDLE;
         std::uint32_t mFirstVertex = 0;
         std::uint32_t mVertexCount = 0;
+
+        /// Which of the pass's two pipelines draws it. Runs are recorded in the order given and the
+        /// pipeline is bound again only where it changes, so a caller that keeps like with like
+        /// pays for one bind.
+        Blend mBlend = Blend::Over;
     };
 
     /// The GUI, over the finished picture.
@@ -55,7 +60,13 @@ namespace Rtx
 
     private:
         const Device& mDevice;
-        GraphicsPipeline mPipeline;
+
+        /// **Two, because a blend mode is baked into a pipeline.** The alternative is
+        /// `VK_EXT_extended_dynamic_state3`, which is a device feature to require and a driver
+        /// path to trust for something that is two objects compiled once at startup.
+        GraphicsPipeline mOver;
+        GraphicsPipeline mAdditive;
+
         VkSampler mSampler = VK_NULL_HANDLE;
     };
 }

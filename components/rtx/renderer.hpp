@@ -89,6 +89,17 @@ namespace Rtx
     static_assert(sizeof(GuiVertex) == 24, "a GUI vertex is what MyGUI writes, and the buffer is read as its own");
     static_assert(std::is_trivial_v<GuiVertex>);
 
+    /// How a run of GUI reaches what is already on the screen.
+    enum class GuiBlend : std::uint32_t
+    {
+        /// Source alpha over the destination, which is every widget there is.
+        Over,
+
+        /// Added to the destination. One layer asks for this — the flash when the player is hit —
+        /// and over it the same red reads as a tint on the world rather than light in front of it.
+        Additive,
+    };
+
     /// One run of vertices drawn with one texture.
     ///
     /// **A run and not an index range**, because MyGUI hands over triangle lists and no indices: a
@@ -99,6 +110,7 @@ namespace Rtx
         std::uint32_t mTexture = 0;
         std::uint32_t mFirstVertex = 0;
         std::uint32_t mVertexCount = 0;
+        GuiBlend mBlend = GuiBlend::Over;
     };
 
     /// What a backend reports about the scene it took. The harness's summary line, as a struct.

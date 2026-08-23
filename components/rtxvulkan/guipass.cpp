@@ -34,26 +34,28 @@ namespace Rtx
             VkVertexInputAttributeDescription{ 2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(GuiVertex, mU) },
         };
 
-        GraphicsPipelineOptions describePipeline(const std::filesystem::path& shaderDirectory, VkFormat targetFormat)
+        GraphicsPipelineOptions describePipeline(
+            const std::filesystem::path& shaderDirectory, VkFormat targetFormat, Blend blend)
         {
             GraphicsPipelineOptions options;
             options.mBindings = sBindings;
             options.mVertexBindings = sVertexBindings;
             options.mVertexAttributes = sVertexAttributes;
             options.mColourFormat = targetFormat;
-            options.mBlend = true;
+            options.mBlend = blend;
             options.mVertexModule = shaderDirectory / "gui.vert.spv";
             options.mFragmentModule = shaderDirectory / "gui.frag.spv";
-            options.mName = "gui";
+            options.mName = blend == Blend::Additive ? "gui additive" : "gui";
             return options;
         }
     }
 
     GuiPass::GuiPass(const Device& device, const std::filesystem::path& shaderDirectory, VkFormat targetFormat)
         : mDevice(device)
-        , mPipeline(device, describePipeline(shaderDirectory, targetFormat))
+        , mOver(device, describePipeline(shaderDirectory, targetFormat, Blend::Over))
+        , mAdditive(device, describePipeline(shaderDirectory, targetFormat, Blend::Additive))
     {
-        // After the pipeline, not before: a member that throws while being constructed leaves the
+        // After the pipelines, not before: a member that throws while being constructed leaves the
         // ones already built to their own destructors, and a handle made in this body would have
         // none. Nothing after this can throw.
         const VkSamplerCreateInfo sampler{
@@ -118,13 +120,21 @@ namespace Rtx
 
         vkCmdSetViewport(commands, 0, 1, &viewport);
         vkCmdSetScissor(commands, 0, 1, &scissor);
-        vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline.getHandle());
 
         const VkDeviceSize offset = 0;
         vkCmdBindVertexBuffers(commands, 0, 1, &vertices, &offset);
 
+        const GraphicsPipeline* bound = nullptr;
+
         for (const GuiDraw& draw : draws)
         {
+            const GraphicsPipeline& pipeline = draw.mBlend == Blend::Additive ? mAdditive : mOver;
+            if (&pipeline != bound)
+            {
+                vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.getHandle());
+                bound = &pipeline;
+            }
+
             const VkDescriptorImageInfo texture{ mSampler, draw.mTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
             const VkWriteDescriptorSet write{
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -134,7 +144,9 @@ namespace Rtx
                 .pImageInfo = &texture,
             };
 
-            vkCmdPushDescriptorSet(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline.getLayout(), 0, 1, &write);
+            // Against the layout of the pipeline that is bound: the two are identical, but a push
+            // is only defined against the one in force.
+            vkCmdPushDescriptorSet(commands, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.getLayout(), 0, 1, &write);
             vkCmdDraw(commands, draw.mVertexCount, 1, draw.mFirstVertex, 0);
         }
 

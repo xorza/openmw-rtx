@@ -319,7 +319,7 @@ an empty GUI touches nothing. And the last of them traces a wall, draws over hal
 that the other half is byte-for-byte what the trace left — the first time the two halves of this
 renderer meet.
 
-### Step 6.6 — `components/myguirtx` — **drawn, and one defect short of done**
+### Step 6.6 — `components/myguirtx`
 
 MyGUI's four interfaces over `Rtx::Renderer`, written once for every backend as §2 argued they
 should be. `MyGUIPlatform::Platform` became backend-neutral to carry it: the log and the data
@@ -329,6 +329,16 @@ does not declare. Nothing above the renderers names a concrete backend any more,
 `enableShaders` — which is only the rasterizer's — moved out of `WindowManager` and into
 `GlRenderer::createGuiPlatform`.
 
+**`AdditiveLayer` was the one thing above the renderers that still knew which one it was.** It cast
+the MyGUI singleton to `MyGUIPlatform::RenderManager` and set an `osg::StateSet` on it; with the ray
+tracer's manager behind that singleton the cast wrote a `ref_ptr` at the OpenGL class's field offset,
+which landed inside a `std::vector`'s capacity — in bounds of a live allocation, so neither the
+validation layers nor AddressSanitizer's own checks flagged the write, only the free that came after
+it. The blend mode is now `GuiRenderManager::setAdditiveBlend`, the layer knows no backend and no
+OSG, and each manager answers it in its own terms: a state set on one, a second pipeline in `GuiPass`
+on the other. It is not decoration — the layer is `HitOverlay`, and over the world the same red
+reads as a tint rather than light in front of it.
+
 **Nothing here is driven by a scene graph.** The other backend hangs its frame event on an OSG update
 callback and its draw on a cull callback; this one is called by the renderer's own frame — widget
 animation from `updateTraversal`, the triangles from `renderFrame` and `renderGui`. That second call
@@ -337,12 +347,14 @@ is what puts a GUI on a frame nothing traced.
 *Verified by*: the game on the ray tracing path with a savegame — the inventory window, its skin,
 tabs, item icons, text and encumbrance bar, the map window, the HUD bars and the crosshair, all over
 a traced Balmora, right way up and correctly composited, with the validation layers quiet. The
-inventory doll is blank, which is what 6.7 is for.
+inventory doll is blank, which is what 6.7 is for. And the main menu on both paths under
+AddressSanitizer, forty-five seconds each, silent — which is the assertion that the cast above is
+gone, because nothing else in this renderer ever noticed it.
 
-**Not done, because starting at the main menu crashes.** The ray tracing path takes the process down
-on the fifth or sixth frame with a MyGUI widget overwritten by heap corruption. It is recorded in
-`.notes/ISSUES.md` with what has been ruled out; the interface it draws is right, and where the
-corruption comes from is not yet known.
+*And by* a fifth headless GPU test: the same half-transparent quad drawn additively and drawn over,
+side by side in one recording, asserted byte-for-byte. The two differ only in what they keep of the
+frame under them — all of it against `255 * 127/255` of it — and drawing both in one call is what
+says the pass rebinds when the mode changes instead of using whichever pipeline came first.
 
 ### Step 6.7 — `RtxRenderer::createOffscreenView`
 

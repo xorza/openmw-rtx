@@ -92,13 +92,18 @@ namespace Rtx
                 .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
             };
 
+            // Additive keeps what is under it whole and adds to it; `Over` takes that much of it
+            // away first. The two differ in this one factor and nothing else.
+            const VkBlendFactor destination
+                = options.mBlend == Blend::Additive ? VK_BLEND_FACTOR_ONE : VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+
             const VkPipelineColorBlendAttachmentState attachment{
-                .blendEnable = options.mBlend ? VK_TRUE : VK_FALSE,
+                .blendEnable = options.mBlend != Blend::None ? VK_TRUE : VK_FALSE,
                 .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
-                .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                .dstColorBlendFactor = destination,
                 .colorBlendOp = VK_BLEND_OP_ADD,
                 .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-                .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                .dstAlphaBlendFactor = destination,
                 .alphaBlendOp = VK_BLEND_OP_ADD,
                 .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
                     | VK_COLOR_COMPONENT_A_BIT,

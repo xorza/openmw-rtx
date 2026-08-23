@@ -21,6 +21,14 @@ namespace MyGUIPlatform
         /// Called while whatever the backend attached itself to is still alive, which is why it is
         /// not the destructor.
         virtual void shutdown() = 0;
+
+        /// Whether what is drawn from now on is added to what is under it rather than blended over
+        /// it. `AdditiveLayer` turns it on around the one layer that wants it and off again.
+        ///
+        /// **Here rather than on the layer**, because the layer is handed an `IRenderTarget` and a
+        /// scaled layer hands it a proxy standing in front of the real one; the blend mode belongs
+        /// to whatever is finally drawing, which is this.
+        virtual void setAdditiveBlend(bool additive) = 0;
     };
 
 }

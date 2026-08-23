@@ -261,6 +261,43 @@ namespace Rtx
             EXPECT_EQ(at(pixels, sExtent - 2, 4), (std::array<std::uint8_t, 4>{ 0, 255, 0, 255 })) << "second batch";
         }
 
+        /// The same quad drawn additively and drawn over, side by side in one recording.
+        ///
+        /// **Both halves in one call on purpose**: it is the only assertion that the pass rebinds
+        /// when the mode changes rather than drawing everything with whichever pipeline came first.
+        ///
+        /// Half-transparent red over opaque blue, so the arithmetic is exact either way. The source
+        /// contributes `255 * 128/255 = 128` red in both. What separates them is the blue already
+        /// there: `Over` keeps `255 * 127/255 = 127` of it, `Additive` keeps all 255. That gap is
+        /// the whole difference between a hit flash reading as light and reading as a tint.
+        TEST_F(RtxGuiPassTest, anAdditiveBatchAddsToTheFrameWhereAnOverOneReplacesIt)
+        {
+            const FlatTexture white(1, sWhiteTexel);
+            const Texture texture(*mHarness->mDevice, *mPool, white.mData, "white");
+
+            const std::array<GuiVertex, 6> left = makeQuad(-1.0f, 1.0f, 0.0f, -1.0f, packColour(255, 0, 0, 128));
+            const std::array<GuiVertex, 6> right = makeQuad(0.0f, 1.0f, 1.0f, -1.0f, packColour(255, 0, 0, 128));
+
+            std::array<GuiVertex, 12> vertices{};
+            std::copy(left.begin(), left.end(), vertices.begin());
+            std::copy(right.begin(), right.end(), vertices.begin() + left.size());
+
+            const std::array<GuiDraw, 2> draws{
+                GuiDraw{ texture.getView(), 0, left.size(), Blend::Additive },
+                GuiDraw{ texture.getView(), left.size(), right.size(), Blend::Over },
+            };
+
+            std::vector<std::uint8_t> pixels;
+            ASSERT_NO_FATAL_FAILURE(drawAndRead(vertices, draws, pixels));
+
+            for (std::uint32_t y = 0; y < sExtent; ++y)
+            {
+                EXPECT_EQ(at(pixels, 1, y), (std::array<std::uint8_t, 4>{ 128, 0, 255, 255 })) << "additive, row " << y;
+                EXPECT_EQ(at(pixels, sExtent - 2, y), (std::array<std::uint8_t, 4>{ 128, 0, 127, 255 }))
+                    << "over, row " << y;
+            }
+        }
+
         /// Nothing to draw records nothing at all, rather than an empty render pass over the frame.
         TEST_F(RtxGuiPassTest, aFrameWithNoBatchesLeavesTheTargetAlone)
         {

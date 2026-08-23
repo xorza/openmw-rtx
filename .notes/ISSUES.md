@@ -41,16 +41,6 @@
   every `unlock`, and uploads the whole texture either way. A picture written once a frame — the
   video widget — therefore allocates twice a frame and re-sends every pixel of the frame.
 
-- Starting the ray tracing renderer at the main menu takes the process down on the fifth or sixth
-  frame, in `MWGui::WindowManager::update` reading a window whose main widget has been overwritten.
-  It is heap corruption rather than a dangling widget: the value written is the tail of a
-  `Rtx::GuiBatch`, so `MyGUIRtx::RenderManager`'s own batch vector has ended up sharing memory with a
-  live MyGUI widget. Emptying `MyGUIRtx::RenderManager::doRender` does not stop it and neither does
-  skipping `Rtx::Renderer::drawGui`, so the write is not the one that corrupts; padding each
-  `MyGUI::IVertexBuffer` by eight vertices makes it go away without any canary in that padding ever
-  being touched, which says the padding only moves the heap. `--skip-menu` into a savegame is not
-  affected and draws the whole interface correctly.
-
 - The ray tracing renderer has no screenshot key: `RtxRenderer::saveScreenshot` logs and does
   nothing. `OPENMW_RTX_SHOT` still writes frames.
 

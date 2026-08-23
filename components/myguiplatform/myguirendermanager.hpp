@@ -52,7 +52,9 @@ namespace MyGUIPlatform
 
         float mInvScalingFactor;
 
-        osg::StateSet* mInjectState;
+        /// `SRC_ALPHA, ONE`, made once and handed to every batch while `setAdditiveBlend` is on.
+        osg::ref_ptr<osg::StateSet> mAdditiveState;
+        bool mAdditive = false;
 
     public:
         /// @param eye only for the viewport the GUI is first sized to. Every resize after that
@@ -106,9 +108,7 @@ namespace MyGUIPlatform
         /** @see IRenderTarget::doRender */
         void doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, size_t count) override;
 
-        /** specify a StateSet to inject for rendering. The StateSet will be used by future doRender calls until you
-         * reset it to nullptr again. */
-        void setInjectState(osg::StateSet* stateSet);
+        void setAdditiveBlend(bool additive) override;
 
         /** @see IRenderTarget::getInfo */
         const MyGUI::RenderTargetInfo& getInfo() const override { return mInfo; }

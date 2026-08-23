@@ -748,10 +748,11 @@ is dispatched, and stays that way. **6.5** put the four neutral calls of `gui.md
 — with eleven headless GPU tests between them, the last of which draws over a traced wall and
 asserts the rest of the frame is untouched.
 
-**6.6** is written and draws: `components/myguirtx` is MyGUI's four interfaces over
-`Rtx::Renderer`, one backend for both APIs, and the game's whole interface reaches the screen over a
-traced frame. It is not finished — starting at the main menu on that path crashes with a corrupted
-widget, which `.notes/ISSUES.md` records.
+**6.6** is done: `components/myguirtx` is MyGUI's four interfaces over `Rtx::Renderer`, one backend
+for both APIs, and the game's whole interface reaches the screen over a traced frame. The last thing
+above the renderers that knew which one it was — `AdditiveLayer`, casting the MyGUI singleton to the
+OpenGL manager and writing at its field offsets — is a `setAdditiveBlend` on the neutral base now,
+answered by a state set on one backend and a second `GuiPass` pipeline on the other.
 
 **6.3 with it**: the video frame, the save thumbnail and the fog of war go in through MyGUI's own
 factory — one `MyGUIPlatform::Picture` does it for all of them — and the loading screen asks the
