@@ -1053,6 +1053,15 @@ namespace RtxBridge
         // Folded together because the game's own shader only ever uses their product.
         material.mEmissiveColour = described->mEmissiveColour * described->mEmissiveMult;
 
+        // **Scaled about the middle of the texture, then offset**, which is what `NifOsg` builds its
+        // texture matrix from — so `(uv - 0.5) * scale + 0.5 + offset`, resolved here into the
+        // `uv * xy + zw` the sampler takes. Doing the arithmetic once on the host keeps two
+        // multiplies and an add out of every texture fetch in the frame.
+        const osg::Vec2f scale = described->mTextureScale;
+        const osg::Vec2f offset = described->mTextureOffset;
+        material.mTextureTransform = osg::Vec4f(
+            scale.x(), scale.y(), 0.5f * (1.0f - scale.x()) + offset.x(), 0.5f * (1.0f - scale.y()) + offset.y());
+
         return material;
     }
 }

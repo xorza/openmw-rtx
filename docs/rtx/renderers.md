@@ -700,12 +700,24 @@ exterior and the densest interior and asserts that every description agrees with
 beside it. So the step buys the deletion of a seventh of one duplication that is already guarded,
 and pays for it by rewriting how every NIF's rasterizer state is built.
 
-**What was hiding inside this step and is worth doing** is the other half of its last sentence: the
-fields the description carries that the *trace* does not read. `Surface::Material` records the UV
-transform and `NifOsg::UVController` animates it, and `Rtx::Material` has no field for it, so 432
-surfaces in Vivec scroll for the rasterizer and stand still for the ray tracer
-(`.notes/ISSUES.md`). That is a visible defect against the first priority in `CLAUDE.md`, and it is
-reached by growing the renderer's material rather than by inverting the loader.
+**What was hiding inside this step, and was done instead.** The other half of its last sentence: the
+fields the description carries that the *trace* does not read. `Surface::Material` recorded the UV
+transform and `NifOsg::UVController` animated it, and `Rtx::Material` had no field for it — so 432
+surfaces in Vivec scrolled for the rasterizer and stood still for the ray tracer. Lava, waterfalls,
+banners and smoke, all frozen.
+
+`Rtx::Material` carries an `mTextureTransform` now, in the `uv * xy + zw` form the terrain layers
+already used, so one sampler helper serves both and the shader gained no branch. The
+scale-about-the-middle is resolved on the host — `(uv - 0.5) * scale + 0.5 + offset` becomes
+`a = scale, b = 0.5(1 - scale) + offset` — which keeps two multiplies and an add out of every texture
+fetch in the frame. It sits on the material rather than the instance because that is what changes:
+the same mesh under two controllers is two materials and one geometry, and `SceneDesc::setMaterial`
+already existed for shading that moves. Three `UV_IDENTITY` uses in the shader went with it, and the
+constant with them.
+
+*Verified by*: two hand-computed tests in the extractor suite, one for a scrolling surface and one
+for the identity every other surface has to keep; and the golden images, of which exactly one moved
+— Vivec, which is where the 432 are.
 
 ### Step 6 — the GUI, then the offscreen views
 

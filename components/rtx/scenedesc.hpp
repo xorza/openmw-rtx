@@ -98,6 +98,17 @@ namespace Rtx
         /// tracer has to be told, because back-face culling is not free the way a rasterizer's is.
         bool mTwoSided = false;
 
+        /// Mesh texture coordinates to this material's, as `uv * xy + zw` — the same form the
+        /// terrain layers use, so one sampler helper serves both.
+        ///
+        /// **A surface whose shading animates by scrolling.** Morrowind moves lava, waterfalls,
+        /// banners and smoke by rewriting a texture matrix rather than by moving geometry, and
+        /// `NifOsg::UVController` rewrites it every frame — 432 surfaces in Vivec alone. Held on the
+        /// material rather than the instance because that is what changes: the same mesh under two
+        /// controllers is two materials and one geometry, and `setMaterial` is built for shading
+        /// that moves.
+        osg::Vec4f mTextureTransform{ 1.0f, 1.0f, 0.0f, 0.0f };
+
         /// Where this material's terrain layers sit in the scene's layer table.
         ///
         /// Empty for everything that is not terrain, which is all but a handful of materials in a

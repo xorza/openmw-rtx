@@ -38,6 +38,7 @@ namespace Rtx
                 .mEmissive = material.mEmissive,
                 .mDiffuseColour = material.mDiffuseColour,
                 .mEmissiveColour = material.mEmissiveColour,
+                .mTextureTransform = material.mTextureTransform,
             };
         }
 
@@ -147,6 +148,7 @@ namespace Rtx
             .mEmissive = Shaders::NO_TEXTURE,
             .mDiffuseColour = osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f),
             .mEmissiveColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
+            .mTextureTransform = osg::Vec4f(1.0f, 1.0f, 0.0f, 0.0f),
         });
 
         mLayerScratch.clear();

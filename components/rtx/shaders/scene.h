@@ -316,6 +316,10 @@ namespace Rtx::Shaders
         /// carrying half against its stalk's nothing glows *with its texture in it*. Added past the
         /// albedo instead, the cap comes out flat white.
         vec3 mEmissiveColour;
+
+        /// Mesh texture coordinates to this material's, as `uv * xy + zw`. The identity for
+        /// everything that does not scroll, which is nearly everything.
+        vec4 mTextureTransform;
     };
 
     // **The two C++-shaped sides have to agree byte for byte**, because one writes these buffers and
@@ -329,7 +333,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuLight) == 28, "GpuLight must be scalar-packed on every side");
     static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 48, "GpuLayer must be scalar-packed on every side");
-    static_assert(sizeof(GpuMaterial) == 52, "GpuMaterial must be scalar-packed on every side");
+    static_assert(sizeof(GpuMaterial) == 68, "GpuMaterial must be scalar-packed on every side");
     static_assert(sizeof(GpuSprite) == 32, "GpuSprite must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitter) == 32, "GpuEmitter must be scalar-packed on every side");
 #endif

@@ -158,9 +158,6 @@ layout(push_constant, scalar) uniform Push
 /// than as shadow.
 const vec3 NO_TEXTURE_ALBEDO = vec3(0.5);
 
-/// A texture that maps straight onto the mesh's own coordinates, which is everything but terrain.
-const vec4 UV_IDENTITY = vec4(1.0, 1.0, 0.0, 0.0);
-
 /// How far off a surface a shadow ray starts, in world units.
 ///
 /// A Morrowind unit is about 1.4 cm, and a float at the far side of a worldspace resolves to a
@@ -751,7 +748,8 @@ bool alphaPasses(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed, ve
     vec2 uv[3];
     triangleUvs(triangleCorners(meshes[instance.mMesh], primitive), uv);
 
-    const vec4 texel = sampleDiffuse(nonuniformEXT(material.mDiffuse), uv, cornerWeights(bary), UV_IDENTITY, crossed,
+    const vec4 texel = sampleDiffuse(nonuniformEXT(material.mDiffuse), uv, cornerWeights(bary),
+        material.mTextureTransform, crossed,
         direction, coneWidth);
 
     return texel.a >= material.mAlphaCutoff;
@@ -1462,15 +1460,15 @@ Surface trace(vec3 origin, vec3 direction, float tmin, float footprint, float sp
     }
     else if (material.mDiffuse != NO_TEXTURE)
     {
-        albedo = sampleAlbedo(
-            nonuniformEXT(material.mDiffuse), uv, weight, UV_IDENTITY, crossed, direction, surface.mFootprint);
+        albedo = sampleAlbedo(nonuniformEXT(material.mDiffuse), uv, weight, material.mTextureTransform, crossed,
+            direction, surface.mFootprint);
     }
     surface.mAlbedo = albedo * material.mDiffuseColour.rgb;
 
     if (material.mEmissive != NO_TEXTURE)
         surface.mEmitted = EMISSIVE_INTENSITY
-            * sampleDiffuse(
-                nonuniformEXT(material.mEmissive), uv, weight, UV_IDENTITY, crossed, direction, surface.mFootprint)
+            * sampleDiffuse(nonuniformEXT(material.mEmissive), uv, weight, material.mTextureTransform, crossed,
+                direction, surface.mFootprint)
                   .rgb;
 
     return surface;

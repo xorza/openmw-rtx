@@ -578,6 +578,51 @@ namespace RtxBridge
         /// itself, one per traversal parity, so a mirror keying a material on that address adds one
         /// and sweeps one every frame for a surface that has not moved — and every placement
         /// standing on it has to be repointed each time.
+        /// Morrowind scrolls lava, waterfalls and banners by moving a texture matrix rather than
+        /// geometry, and the description records the two numbers that matrix was built from. The
+        /// sampler takes `uv * xy + zw`, so the scale-about-the-middle has to be resolved on the way
+        /// through — a surface scaled by two with no offset samples `uv * 2 - 0.5`, which is the
+        /// middle of the texture staying put while its edges move outward.
+        TEST(RtxSceneExtractorTest, aScrollingSurfaceCarriesItsUvTransformResolvedForTheSampler)
+        {
+            osg::ref_ptr<osg::Geometry> quad = makeQuad();
+            paint(*quad->getOrCreateStateSet(), "lava.dds");
+
+            Surface::Material& described = describe(*quad->getOrCreateStateSet());
+            described.mTextureScale = osg::Vec2f(2.0f, 4.0f);
+            described.mTextureOffset = osg::Vec2f(0.25f, -0.5f);
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            root->addChild(quad);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            extractor.extract(*root, osg::Matrixf::identity(), 0);
+
+            ASSERT_EQ(scene.getMaterials().size(), 1u);
+
+            // 0.5 * (1 - 2) + 0.25 = -0.25, and 0.5 * (1 - 4) - 0.5 = -2.
+            EXPECT_EQ(scene.getMaterials()[0].mTextureTransform, osg::Vec4f(2.0f, 4.0f, -0.25f, -2.0f));
+        }
+
+        /// The identity, and not by accident: every surface that does not scroll shares one sampler
+        /// path with the ones that do, so the transform has to be a no-op rather than a branch.
+        TEST(RtxSceneExtractorTest, aSurfaceThatDoesNotScrollCarriesTheIdentityTransform)
+        {
+            osg::ref_ptr<osg::Geometry> quad = makeQuad();
+            paint(*quad->getOrCreateStateSet(), "stone.dds");
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            root->addChild(quad);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            extractor.extract(*root, osg::Matrixf::identity(), 0);
+
+            ASSERT_EQ(scene.getMaterials().size(), 1u);
+            EXPECT_EQ(scene.getMaterials()[0].mTextureTransform, osg::Vec4f(1.0f, 1.0f, 0.0f, 0.0f));
+        }
+
         TEST(RtxSceneExtractorTest, aMaterialKeepsItsSlotWhileTheNodesOwnStateSetAlternates)
         {
             osg::ref_ptr<ColourController> controller = new ColourController;
