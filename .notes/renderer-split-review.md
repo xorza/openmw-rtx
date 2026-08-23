@@ -15,10 +15,10 @@ that does not know what draws. `RenderingManager::describeWorld()` replacing twe
 setX()` calls with one settled struct is the single best change in the branch — it removes a
 two-way channel and replaces it with one that points down.
 
-Three things fall short of the brief, and one of them looks like it breaks the main menu:
+Three things fall short of the brief:
 
-1. **`RtxRenderer::renderFrame` has two early returns that skip `drawGui()` and `presentFrame()`.**
-   One of them fires whenever the world has nothing placed — which is every frame at the main menu.
+1. **`RtxRenderer::renderFrame` has two early returns that skip `drawGui()` and `presentFrame()`**,
+   and skip the extractor's epoch bookkeeping with them.
 2. **`#ifdef OPENMW_RTX` appears in three places, not one.** Two are pre-existing and are asking a
    different question ("was it built"), but the question has an answer that does not need a macro.
 3. **`PostProcessor`, `SkyManager` and `Water` live in `mwrender/gl/` and are named by nine files
@@ -195,7 +195,7 @@ fix the prose, not the code.
 
 ## C. Bugs
 
-### C1. **RTX presents nothing at the main menu** — high
+### C1. **RTX skips the present on the frames it refuses to trace** — medium
 
 `RtxRenderer::renderFrame` (`rtxrenderer.cpp:530` and `:576`):
 
@@ -214,23 +214,23 @@ if (!canLookAlong(forward))
 `RtxRenderer::renderGui()` — the path that *does* present with no world — is only reached from the
 loading screen, the video player and the modal message-box loop.
 
-So on any frame where the mirror places nothing, the swapchain is not presented and MyGUI's
-triangles are never collected. **The idle main menu is exactly that frame**: the world exists, no
-cell is loaded, the sky and simple water are masked out of the walk, `getPlacedCount()` is zero. The
-window stops updating as soon as the intro video ends. `renderGui`'s own comment states the rule
-this violates: *"The surface has to be fed either way or the compositor decides the window has
-stopped answering."*
+So on any frame the trace refuses, the swapchain is not presented and MyGUI's triangles are never
+collected. `renderGui`'s own comment states the rule this violates: *"The surface has to be fed
+either way or the compositor decides the window has stopped answering."* Both returns also skip
+`mExtractor->advance()` and `mExtractor->retire()`, so the following frame's motion vectors are
+measured against an epoch two frames old and nothing retires.
 
-The `canLookAlong` return has the same shape: a cutscene looking straight down freezes the window
-until it stops.
+**Not the main menu, which I first said it was.** Measured with a counter on the untraced branch:
+across four seconds of menu it never fired once, so `getPlacedCount()` is *not* zero there — the
+scene root carries enough (the water plane among it) that the mirror always places something, and
+the menu draws and responds. What is left is the `canLookAlong` return — a camera with no roll,
+which the game hands over during a cutscene that looks straight down — and any frame that does
+genuinely place nothing.
 
-Both also skip `mExtractor->advance()` and `mExtractor->retire()`, so the next frame's motion
-vectors are measured against an epoch two frames old and nothing retires.
-
-**Fix:** neither condition is a reason not to present. Restructure so the tail —
-`drawGui(); presentFrame(); mExtractor->advance(); retire(); keep();` — runs on every path, and the
-two early returns only skip the *trace*. **(verify: run `openmw --skip-menu=0` on the RTX path and
-watch the menu.)**
+**Fix (landed):** neither condition is a reason not to present. The trace moved into a private
+`traceWorld` returning whether it wrote anything, and the tail — `drawGui(); presentFrame();
+advance(); retire();` — now runs on every path. `keep()` stays conditional, because
+`OPENMW_RTX_SHOT`'s cap counts pictures rather than frames.
 
 ### C2. RTX ignores the field-of-view override — medium
 
@@ -530,6 +530,12 @@ the right behaviour and a surprising signature; the header explains it, the call
 ## Plan
 
 Ordered so that each step is independently landable and each one's verification is cheap.
+
+**Landed since this was written:** steps 1 and 2, plus the DLSS crash that was blocking any of it
+from being run at all — `VulkanRenderer::describeDevice` built a second `Dlss` to ask whether Ray
+Reconstruction was available, and NGX keeps one runtime per process with an unconditional shutdown,
+so that throwaway ended the live one the moment it left scope. `Dlss` now has no public constructor
+and `Dlss::open` hands out shares of the one runtime.
 
 ### 1. Present on every path — `RtxRenderer::renderFrame` *(C1)*
 

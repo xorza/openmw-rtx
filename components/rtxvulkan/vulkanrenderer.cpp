@@ -79,7 +79,7 @@ namespace Rtx
         if (mUpscale != Upscale::Off)
         {
 #ifdef OPENMW_RTX_DLSS
-            mNgx = std::make_unique<Dlss>(mDevice, mInstance.getHandle());
+            mNgx = Dlss::open(mDevice, mInstance.getHandle());
             if (!mNgx->isAvailable())
                 throw Error("DLSS Ray Reconstruction was asked for and " + mNgx->getObstacle());
 #else
@@ -216,8 +216,14 @@ namespace Rtx
         report += "\nDLSS Ray Reconstruction: ";
         try
         {
-            const Dlss ngx(mDevice, mInstance.getHandle());
-            report += ngx.isAvailable() ? "available\n" : "unavailable, " + ngx.getObstacle() + "\n";
+            // **A share of whatever is up, which under a renderer that upscales is its own.** This
+            // used to build a `Dlss` of its own to ask with and let it go again; NGX keeps one
+            // runtime per process and its shutdown is unconditional, so that second one ended the
+            // first the moment it left scope — and what that looked like was this renderer's
+            // upscaler refusing a frame a cell load later with `FAIL_NotInitialized`, pointing at
+            // nothing. `Dlss::open` is why the same line is now safe.
+            const std::shared_ptr<const Dlss> ngx = Dlss::open(mDevice, mInstance.getHandle());
+            report += ngx->isAvailable() ? "available\n" : "unavailable, " + ngx->getObstacle() + "\n";
         }
         catch (const Error& error)
         {

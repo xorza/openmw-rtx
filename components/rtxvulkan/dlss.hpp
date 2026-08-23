@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <span>
 #include <string>
 
@@ -22,9 +23,15 @@ namespace Rtx
     /// normals, depth and motion the G-buffer already carries, across several frames, where the
     /// à-trous pass has one frame and one channel to work with.
     ///
-    /// **One per device and one per process.** NGX keeps its state globally, keyed by the `VkDevice`
-    /// it was brought up on, so this owns that lifetime: constructing it initialises and destroying
-    /// it shuts down. Two of these alive on one device is not something the SDK promises to survive.
+    /// **One per process, and the type is what makes that true.** NGX keeps its state globally and
+    /// `NVSDK_NGX_VULKAN_Shutdown` is unconditional — the second of these to be destroyed does not
+    /// put the first one's state back, it ends it. So there is no public constructor: `open` hands
+    /// out a share of the one runtime and the last handle to go is what shuts it down.
+    ///
+    /// **That is not a style preference, it is the bug this shape exists to prevent.** A second one
+    /// built to answer "is Ray Reconstruction available" and let go again leaves the first holding a
+    /// feature it can no longer evaluate, and what that looks like is `FAIL_NotInitialized` from a
+    /// frame several seconds later with nothing pointing back at the question.
     ///
     /// Built only with `-DOPENMW_RTX_DLSS=ON`, which needs the SDK; the whole class is absent
     /// otherwise, so nothing has to ask at runtime whether it was compiled in.
@@ -39,8 +46,17 @@ namespace Rtx
         static std::span<const char* const> getInstanceExtensions();
         static std::span<const char* const> getDeviceExtensions();
 
-        /// Starts NGX on this device. Throws `Error` where the runtime will not come up.
-        Dlss(const Device& device, VkInstance instance);
+        /// The process's NGX runtime, started if nothing is holding one already.
+        ///
+        /// **A share and not an instance.** Everything that wants to ask NGX something holds one of
+        /// these for as long as it is asking, and the runtime comes down when the last one goes.
+        /// Callers on one thread, which every caller is: a renderer is built before there is
+        /// anything else to build one from.
+        ///
+        /// Throws `Error` where the runtime will not come up, and where a second device asks for it
+        /// — there is one runtime and it belongs to the device that started it.
+        static std::shared_ptr<const Dlss> open(const Device& device, VkInstance instance);
+
         ~Dlss();
 
         Dlss(const Dlss&) = delete;
@@ -69,6 +85,12 @@ namespace Rtx
         NVSDK_NGX_Parameter* getCapabilities() const { return mCapabilities; }
 
     private:
+        Dlss(const Device& device, VkInstance instance);
+
+        /// Whoever is holding the runtime, or nothing where it is down. Not owning: the handles
+        /// `open` hands out are what keep it up, so the last one to go is what shuts it down.
+        static inline std::weak_ptr<Dlss> sOpen;
+
         VkDevice mDevice = VK_NULL_HANDLE;
         NVSDK_NGX_Parameter* mCapabilities = nullptr;
         bool mAvailable = false;

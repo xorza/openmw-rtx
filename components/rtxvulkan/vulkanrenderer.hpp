@@ -236,9 +236,10 @@ namespace Rtx
         std::unique_ptr<Presenter> mPresenter;
 
 #ifdef OPENMW_RTX_DLSS
-        /// NGX, brought up only where something asked to be upscaled — it is global to the process
-        /// and keyed by device, so it is owned rather than made and dropped per question.
-        std::unique_ptr<Dlss> mNgx;
+        /// A share of the process's NGX runtime, held for as long as this renderer upscales, and
+        /// null where it does not. `describeDevice` takes a share of its own to answer with, which
+        /// is this same object wherever this one is holding it.
+        std::shared_ptr<const Dlss> mNgx;
 
         /// Ray Reconstruction, built for one pair of resolutions and so rebuilt by every resize.
         std::unique_ptr<DlssPass> mUpscaler;

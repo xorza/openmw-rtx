@@ -92,6 +92,24 @@ namespace Rtx
         return std::span<const char* const>(device, deviceCount);
     }
 
+    std::shared_ptr<const Dlss> Dlss::open(const Device& device, VkInstance instance)
+    {
+        if (const std::shared_ptr<Dlss> already = sOpen.lock())
+        {
+            if (already->mDevice != device.getHandle())
+                throw Error("NGX is already up on another device, and it keeps one runtime per process");
+
+            return already;
+        }
+
+        // `make_shared` cannot reach a private constructor, and the alternative to a passkey type is
+        // the one `new` in the one function allowed to make one.
+        const std::shared_ptr<Dlss> started(new Dlss(device, instance));
+        sOpen = started;
+
+        return started;
+    }
+
     Dlss::Dlss(const Device& device, VkInstance instance)
         : mDevice(device.getHandle())
     {
@@ -119,7 +137,12 @@ namespace Rtx
 
         const NVSDK_NGX_Result asked = NVSDK_NGX_VULKAN_GetCapabilityParameters(&mCapabilities);
         if (NVSDK_NGX_FAILED(asked) || mCapabilities == nullptr)
+        {
+            // A constructor that throws gets no destructor, and NGX is up: leaving it that way
+            // would refuse every later attempt for a reason that is no longer true.
+            NVSDK_NGX_VULKAN_Shutdown1(mDevice);
             throw Error("NGX started and would not say what it can do: " + describeNgxResult(asked));
+        }
 
         int available = 0;
         mCapabilities->Get(NVSDK_NGX_Parameter_SuperSamplingDenoising_Available, &available);
@@ -164,7 +187,6 @@ namespace Rtx
     Dlss::~Dlss()
     {
         // The capability map is NGX's own and goes with it; nothing releases it separately.
-        if (mDevice != VK_NULL_HANDLE)
-            NVSDK_NGX_VULKAN_Shutdown1(mDevice);
+        NVSDK_NGX_VULKAN_Shutdown1(mDevice);
     }
 }
