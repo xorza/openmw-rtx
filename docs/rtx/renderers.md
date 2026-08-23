@@ -730,7 +730,14 @@ why. Writing the backend over Vulkan writes it again over Metal, and most of a M
 bookkeeping no API has an opinion about — so it is written once, over `Rtx::Renderer`, and the
 API-specific surface underneath is four functions and two structs. The harder half the paragraph
 hides is the eleven places in `mwgui` that construct `MyGUIPlatform::OSGTexture` directly, which are
-three different problems wearing one type. `gui.md` has the count, the design and six steps.
+three different problems wearing one type. `gui.md` has the count, the design and seven steps.
+
+**6.1 is done**: `MWRender::OffscreenView`, `Renderer::createOffscreenView`, and the inventory doll
+and the race preview asking for one instead of building an `osg::Camera` and handing the GUI the
+texture behind it. The light rig, the sample count, the reversed-Z convention, the premultiplied
+alpha and the pick are all the renderer's now; `CharacterPreview` went from 577 lines to 326 and
+names no OpenGL at all. The maps did not come with it — `GlobalMap::exploreCell` reads the
+`osg::Texture2D` of a local map tile, so they move together in 6.2.
 
 ## 8. What breaks, and the decision for each
 

@@ -43,9 +43,16 @@ reaching past MyGUI's own factory into one renderer's implementation of it. They
 | `loadingscreen.cpp:306` | a copy of the last frame the rasterizer drew |
 
 Three shapes hide in that list: **something the renderer drew** (the doll, the previews, the map
-tiles), **something the game filled with bytes** (video frames, a saved screenshot, the fog of war),
-and **the last frame** (the loading screen's frozen backdrop). Each wants a different answer and only
-the first is what step 6's second sentence is about.
+tiles), **something the game filled with bytes** (video frames, a saved screenshot, the fog of war,
+and the global map's base image, which is painted from land data on a work queue), and **the last
+frame** (the loading screen's frozen backdrop). Each wants a different answer and only the first is
+what step 6's second sentence is about.
+
+**The two maps are one problem, not two.** `GlobalMap::exploreCell` takes the *`osg::Texture2D` of a
+local map tile* and blits it into its overlay with a quad and a camera, so a tile that stops being an
+`osg::Texture2D` is a tile the global map cannot read. Whatever re-expresses the local map has to
+re-express the composite above it in the same step; doing one alone moves the leak from `mwgui` into
+`mwrender` rather than closing it.
 
 **`windowmanagerimp.cpp` already does it correctly three times** — `MyGUI::RenderManager::getInstance()
 .createTexture("white")` and two siblings. The neutral path exists and is in use; it is the eleven
@@ -111,14 +118,17 @@ three-and-one with a render command encoder. Neither knows what a widget is.
 ```cpp
 // apps/openmw/mwrender/offscreenview.hpp
 
-/// A picture of part of the world, made somewhere other than the eye.
+/// A picture of part of the world, taken somewhere other than the eye.
 struct OffscreenViewSpec
 {
-    osg::Group& mScene;          //< the subtree, which the game built and posed
+    osg::Group& mScene;          //< the subtree, which the game built and poses
     int mWidth, mHeight;
-    osg::Vec3f mEye, mLookAt;
-    float mFieldOfView;
-    osg::Vec4f mClearColour;     //< transparent for the doll, black for a map tile
+    unsigned int mMask;          //< vismask.hpp
+    float mFieldOfView;          //< vertical, degrees
+    float mNear, mFar;
+    osg::Vec4f mClearColour;
+    osg::Vec3f mSunDirection;    //< the only light
+    osg::Vec4f mSunDiffuse, mSunAmbient;
 };
 
 class OffscreenView
@@ -126,20 +136,35 @@ class OffscreenView
 public:
     virtual ~OffscreenView() = default;
 
+    /// Where the picture is taken from, and how much of the image it fills.
+    virtual void setView(const osg::Matrixf& view) = 0;
+    virtual void setExtent(int width, int height) = 0;
+
+    /// The subtree is not the subtree it was — geometry added or replaced, rather than moved.
+    virtual void sceneChanged() = 0;
+
     /// Draws it again, because what it shows changed. Not per frame: a doll is redrawn when the
     /// player puts something on, and a map tile when the cell is first entered.
     virtual void redraw() = 0;
 
+    /// What is at this point of the drawn picture — a ray cast, wearing the rasterizer's clothes.
+    virtual bool pick(float x, float y, osg::NodePath& hit) const = 0;
+
     /// What the GUI shows. Owned here, and a `MyGUI::ITexture` rather than anything of OSG's,
     /// which is the whole point.
-    virtual MyGUI::ITexture& getTexture() = 0;
+    virtual MyGUI::ITexture& getTexture() const = 0;
 };
 ```
 
 `Renderer::createOffscreenView(const OffscreenViewSpec&)` is the factory. The rasterizer answers with
 the `osg::Camera` render-to-texture it already has and wraps the result in an `OSGTexture`. The ray
-tracer answers with a trace into an image and a GUI texture. **The eight rendered sites in §1 stop
-naming a texture class at all.**
+tracer answers with a trace into an image and a GUI texture. **The rendered sites in §1 stop naming a
+texture class at all.**
+
+**The spec grows with its callers and not ahead of them.** What is above is what the two character
+previews want; the local map wants an orthographic projection and a subtree the world already lights,
+and those arrive in 6.2 with it. A field no caller sets is a branch no renderer's implementation of
+this can be judged on.
 
 ### 3.3 The three shapes, answered
 
@@ -185,14 +210,27 @@ Ordered so each lands, builds and is checkable, and so the rasterizer keeps work
 
 ### Step 6.1 — `OffscreenView`, with only the rasterizer behind it
 
-The interface, `GlRenderer::createOffscreenView` wrapping what `CharacterPreview`, `LocalMap` and
-`GlobalMap` already do, and the eight sites in §1 rewritten to ask for one. No Vulkan yet, no
-behaviour change.
+The interface, `GlRenderer::createOffscreenView` wrapping what `CharacterPreview` already does, and
+the inventory doll and the race preview rewritten to ask for one. No Vulkan yet, no behaviour change.
 
-*Verified by*: the game under OpenGL, with the doll, both maps and the race preview unchanged;
-`MyGUIPlatform::OSGTexture` no longer named anywhere in `apps/openmw`.
+**The spec carries what those two want and no more** — a perspective, a bare subtree, one directional
+light, a transparent clear. An orthographic projection and a subtree that is already part of the
+world are the local map's, and they arrive in 6.2 with the caller that needs them; writing them a
+step early would be a design with one example and two unreachable branches.
 
-### Step 6.2 — the game stops filling textures through OSG
+*Verified by*: the game under OpenGL, with the doll and the race preview unchanged;
+`MyGUIPlatform::OSGTexture` no longer named by either.
+
+### Step 6.2 — the two maps
+
+`LocalMap` over `OffscreenView` — which grows the spec an orthographic projection and a subtree the
+world already lights — and `GlobalMap` over the picture that comes out, rather than over the
+`osg::Texture2D` behind it. Together, for the reason in §1.
+
+*Verified by*: a local map that fills in as cells are entered, a global map that fills in behind it,
+and both surviving a save and a reload.
+
+### Step 6.3 — the game stops filling textures through OSG
 
 The video widget, the save screenshot and the fog of war move to
 `MyGUI::RenderManager::createTexture` and `lock`/`unlock`. `Renderer::freezeInto` replaces the
@@ -201,7 +239,7 @@ loading screen's framebuffer callback.
 *Verified by*: a video plays, a save shows its thumbnail, the fog of war reveals, the loading screen
 still freezes the frame behind it — all under OpenGL, where every one of them works today.
 
-### Step 6.3 — the first graphics pipeline
+### Step 6.4 — the first graphics pipeline
 
 `Rtx::GraphicsPipeline` beside `ComputePipeline`, and a `GuiPass` that draws a textured, blended
 triangle list into the displayable image. No MyGUI yet.
@@ -210,14 +248,14 @@ triangle list into the displayable image. No MyGUI yet.
 and reads the pixels back — which is how `visibilitypass.cpp` already tests the trace, and which
 needs no window.
 
-### Step 6.4 — the GUI textures
+### Step 6.5 — the GUI textures
 
 `addGuiTexture`, `writeGuiTexture`, `dropGuiTexture` in the Vulkan backend, and the sampler and
 descriptor handling behind them.
 
 *Verified by*: the same suite, uploading a known image and drawing it.
 
-### Step 6.5 — `components/myguirtx`
+### Step 6.6 — `components/myguirtx`
 
 MyGUI's four interfaces over `Rtx::Renderer`. `RtxRenderer::createGuiPlatform` returns a platform
 built on it instead of the OSG one.
@@ -225,7 +263,7 @@ built on it instead of the OSG one.
 *Verified by*: the menu, the HUD and a message box on the ray tracing path — the first thing on that
 path that has to be looked at rather than measured.
 
-### Step 6.6 — `RtxRenderer::createOffscreenView`
+### Step 6.7 — `RtxRenderer::createOffscreenView`
 
 A trace into an image, at the doll's size, from the doll's viewpoint. The last of §1's eleven.
 

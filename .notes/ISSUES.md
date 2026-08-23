@@ -37,6 +37,11 @@
   extent on the same device is fine, and so was the game before it owned its window, so it is neither
   the size nor DLSS itself. The validation layers say nothing.
 
+- An exterior local map segment that is rendered a second time — its neighbour flags changed, so
+  `LocalMap::requestMap` asks again — gets a brand new render-to-texture node and a brand new colour
+  texture. `MapWindow` wrapped the previous one and only wraps a texture when it has none, so the
+  widget goes on showing the first render.
+
 - The ray tracing renderer has no screenshot key: `RtxRenderer::saveScreenshot` logs and does
   nothing. `OPENMW_RTX_SHOT` still writes frames.
 

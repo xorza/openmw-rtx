@@ -84,6 +84,13 @@ namespace MWRender::Rtx
         void updateTraversal() override;
 
         void renderFrame(const SceneFrame& frame) override;
+
+        /// **A picture of the right size, in the clear colour, and nothing in it.** Tracing one is
+        /// step 6.7 of `docs/rtx/gui.md`; until then the doll and the race preview are as empty on
+        /// this path as they were before there was an interface to ask through, and empty on
+        /// purpose rather than by accident.
+        std::unique_ptr<OffscreenView> createOffscreenView(const OffscreenViewSpec& spec) override;
+
         void renderGui() override;
 
         bool done() const override { return false; }

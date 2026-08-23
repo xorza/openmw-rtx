@@ -25,6 +25,9 @@
 
 #include <osgUtil/UpdateVisitor>
 
+#include <MyGUI_ITexture.h>
+#include <MyGUI_RenderManager.h>
+
 #include <components/debug/debuglog.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/rtx/camera.hpp>
@@ -39,6 +42,7 @@
 #include <components/sdlutil/imagetosurface.hpp>
 #include <components/settings/values.hpp>
 
+#include "../offscreenview.hpp"
 #include "../sceneframe.hpp"
 #include "../stage.hpp"
 #include "../vismask.hpp"
@@ -372,6 +376,55 @@ namespace MWRender::Rtx
         // Reuses `OPENMW_RTX_SHOT`'s writer rather than the rasterizer's asynchronous one, which is
         // an `osgViewer::ScreenCaptureHandler` reading a frame buffer that does not exist here.
         Log(Debug::Warning) << "Ray tracing has no screenshot key yet";
+    }
+
+    namespace
+    {
+        /// An offscreen view with no trace behind it yet: the right size, filled with the colour the
+        /// picture would have been cleared to, and redrawn by doing nothing.
+        ///
+        /// The texture comes from MyGUI's own factory rather than from a backend, which is what
+        /// makes this outlive the GUI backend swap in step 6.5 and be replaced only by 6.6.
+        class UntracedView final : public OffscreenView
+        {
+        public:
+            explicit UntracedView(const OffscreenViewSpec& spec)
+                : mTexture(*MyGUI::RenderManager::getInstance().createTexture(
+                    std::format("rtx offscreen view {}", sNextName++)))
+            {
+                mTexture.createManual(spec.mWidth, spec.mHeight,
+                    MyGUI::TextureUsage::Static | MyGUI::TextureUsage::Write, MyGUI::PixelFormat::R8G8B8A8);
+
+                const auto channel
+                    = [](float value) { return static_cast<std::uint8_t>(std::clamp(value, 0.f, 1.f) * 255.f + 0.5f); };
+                const std::uint8_t colour[4] = { channel(spec.mClearColour.r()), channel(spec.mClearColour.g()),
+                    channel(spec.mClearColour.b()), channel(spec.mClearColour.a()) };
+
+                auto* pixels = static_cast<std::uint8_t*>(mTexture.lock(MyGUI::TextureUsage::Write));
+                for (int i = 0; i < spec.mWidth * spec.mHeight; ++i)
+                    std::memcpy(pixels + i * 4, colour, sizeof(colour));
+                mTexture.unlock();
+            }
+
+            ~UntracedView() override { MyGUI::RenderManager::getInstance().destroyTexture(&mTexture); }
+
+            void setView(const osg::Matrixf& view) override {}
+            void setExtent(int width, int height) override {}
+            void sceneChanged() override {}
+            void redraw() override {}
+            bool pick(float x, float y, osg::NodePath& hit) const override { return false; }
+            MyGUI::ITexture& getTexture() const override { return mTexture; }
+
+        private:
+            static inline unsigned int sNextName = 0;
+
+            MyGUI::ITexture& mTexture;
+        };
+    }
+
+    std::unique_ptr<OffscreenView> RtxRenderer::createOffscreenView(const OffscreenViewSpec& spec)
+    {
+        return std::make_unique<UntracedView>(spec);
     }
 
     std::unique_ptr<MyGUIPlatform::Platform> RtxRenderer::createGuiPlatform(osg::Group& guiRoot,

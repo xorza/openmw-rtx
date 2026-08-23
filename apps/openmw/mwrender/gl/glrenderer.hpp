@@ -13,6 +13,11 @@ namespace osgViewer
     class Viewer;
 }
 
+namespace Resource
+{
+    class ResourceSystem;
+}
+
 namespace SDLUtil
 {
     class GraphicsWindowSDL2;
@@ -63,6 +68,9 @@ namespace MWRender
         void eventTraversal() override;
         void updateTraversal() override;
         void renderFrame(const SceneFrame& frame) override;
+
+        std::unique_ptr<OffscreenView> createOffscreenView(const OffscreenViewSpec& spec) override;
+
         void renderGui() override;
         bool done() const override;
 
@@ -96,6 +104,10 @@ namespace MWRender
 
         Stage& mStage;
         Capabilities mCapabilities;
+
+        /// What an offscreen view's light rig is built out of. Known from `attachWorld` onwards,
+        /// which is well before the GUI asks for the first view.
+        Resource::ResourceSystem* mResources = nullptr;
 
         SDL_Window* mWindow = nullptr;
 

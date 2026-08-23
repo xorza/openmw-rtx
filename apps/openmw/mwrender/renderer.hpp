@@ -51,6 +51,8 @@ namespace VFS
 
 namespace MWRender
 {
+    class OffscreenView;
+    struct OffscreenViewSpec;
     class PostProcessor;
     class RenderingManager;
     struct SceneFrame;
@@ -146,6 +148,15 @@ namespace MWRender
 
         /// The world, and the GUI over it. Once per frame, from the main loop.
         virtual void renderFrame(const SceneFrame& frame) = 0;
+
+        /// A picture of part of the world made somewhere other than the eye, for the GUI to show:
+        /// the inventory doll, the race preview, a local map tile.
+        ///
+        /// **The renderer makes it because the renderer is what will draw it**, and it hands back a
+        /// `MyGUI::ITexture` so that nothing above this line has to know which one it got. What goes
+        /// in the picture is the game's and arrives in the spec; how it is drawn is not described
+        /// there at all.
+        virtual std::unique_ptr<OffscreenView> createOffscreenView(const OffscreenViewSpec& spec) = 0;
 
         /// The GUI, with no world behind it.
         ///

@@ -50,6 +50,8 @@
 #include "../sceneframe.hpp"
 #include "../stage.hpp"
 
+#include "gloffscreenview.hpp"
+
 #include "postprocessor.hpp"
 #include "screenshotmanager.hpp"
 
@@ -435,10 +437,12 @@ namespace MWRender
     }
     void GlRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot)
     {
+        mResources = world.getResourceSystem();
+
         // **The chain goes above the world and becomes what is traversed.** Its constructor reads
         // `GLExtensions` off the camera's graphics context, which is why no renderer without one can
         // have it and why nothing above this line decides whether to build it.
-        mPostProcessor = new PostProcessor(world, *this, mStage, &worldRoot, world.getResourceSystem()->getVFS());
+        mPostProcessor = new PostProcessor(world, *this, mStage, &worldRoot, mResources->getVFS());
         setSceneRoot(*mPostProcessor);
 
         Resource::SceneManager& scene = *world.getResourceSystem()->getSceneManager();
@@ -477,6 +481,13 @@ namespace MWRender
         mPostProcessor->describe(frame.mWorld);
 
         mViewer->renderingTraversals();
+    }
+
+    std::unique_ptr<OffscreenView> GlRenderer::createOffscreenView(const OffscreenViewSpec& spec)
+    {
+        // Above the post-processing chain rather than inside it: a pre-render camera has to be
+        // reached before the frame it feeds, and what it draws is not part of that frame.
+        return std::make_unique<GlOffscreenView>(spec, mStage.getSceneRoot(), *mResources);
     }
 
     void GlRenderer::renderGui()

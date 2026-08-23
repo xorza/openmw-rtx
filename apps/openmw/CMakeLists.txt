@@ -28,7 +28,7 @@ add_openmw_dir (mwrender
 # The OpenGL renderer. A link boundary rather than a naming convention: what is in here is the
 # picture as OpenSceneGraph draws it, and nothing above `mwrender` reaches into it.
 add_openmw_dir (mwrender/gl
-    glrenderer postprocessor sky skyutil water ripples ripplesimulation precipitationocclusion
+    glrenderer gloffscreenview postprocessor sky skyutil water ripples ripplesimulation precipitationocclusion
     transparentpass distortion pingpongcanvas pingpongcull luminancecalculator screenshotmanager
     )
 
