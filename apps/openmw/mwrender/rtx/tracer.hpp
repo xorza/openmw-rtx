@@ -20,6 +20,7 @@
 namespace osg
 {
     class Camera;
+    class FrameStamp;
     class Node;
 }
 
@@ -125,10 +126,12 @@ namespace MWRender::Rtx
         ///
         /// Called after `updateTraversal` and before `renderingTraversals`, which is where the graph
         /// is settled and nothing has drawn yet.
-        /// @param frame the viewer's frame number, which says which of a light source's two
-        ///        buffers update has just finished writing.
-        void trace(const osg::Node& scene, const osg::Camera& camera, const Lighting& lighting, std::size_t frame,
-            Resource::ImageManager& images);
+        /// @param when the viewer's frame stamp. Its frame number says which of a light source's
+        ///        two buffers update has just finished writing; its simulation time is the world's
+        ///        clock, which drives the sea and everything the graph animates — and which stops
+        ///        when the game is paused, as both should.
+        void trace(const osg::Node& scene, const osg::Camera& camera, const Lighting& lighting,
+            const osg::FrameStamp& when, Resource::ImageManager& images);
 
         /// Resizes to the window. The next trace exports a new allocation for the composite.
         void resize(std::uint32_t width, std::uint32_t height);
@@ -171,9 +174,6 @@ namespace MWRender::Rtx
 
         /// Times a run of frames when asked to, and is not compiled at all when it cannot be.
         Bench mBench;
-
-        /// When this renderer started, which is what the sea's clock is measured from.
-        std::chrono::steady_clock::time_point mBegan = std::chrono::steady_clock::now();
 
         /// When the last frame was handed over, so what `Bench` measures is the whole frame and not
         /// this renderer's slice of it.

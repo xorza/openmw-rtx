@@ -250,13 +250,11 @@ namespace Rtx
             return lifted;
         }
 
-        /// Compaction closes the gaps in every table and says where everything went.
-        ///
-        /// A freed mesh keeps its index and its room, and the next one that fits moves in.
+        /// A freed mesh keeps its index, and the room it held goes back for the next mesh to take.
         ///
         /// Hand-counted throughout. Three meshes of 4, 3 and 4 vertices sit at vertex offsets 0, 4
         /// and 7 and index offsets 0, 6 and 9. Freeing the middle one moves nothing: the third is
-        /// still index 2 at vertex 7, and the hole at vertex 4 is three vertices and six indices
+        /// still index 2 at vertex 7, and the hole at vertex 4 is three vertices and three indices
         /// wide — which is exactly a triangle, and exactly what the next triangle takes.
         ///
         /// **Not compacting is the whole point.** Closing the gap renames every mesh above it, and a
@@ -291,7 +289,6 @@ namespace Rtx
             // table builds a structure over no triangles rather than over somebody else's.
             EXPECT_EQ(scene.getMeshes()[middle].mVertexCount, 0u);
             EXPECT_EQ(scene.getMeshes()[middle].mIndexCount, 0u);
-            EXPECT_EQ(scene.getMeshes()[middle].mVertexCapacity, 3u) << "the room went with the contents";
 
             EXPECT_EQ(scene.getStructureRevision(), was)
                 << "nothing arrived, so nothing built from these indices is out of date";
@@ -339,13 +336,19 @@ namespace Rtx
             EXPECT_GT(scene.getMeshRevision(), meshes) << "a slot taken over went unnoticed";
         }
 
-        /// Best fit, and a mesh too big for every hole appends rather than being refused.
+        /// Room given back is reused, and a mesh with nowhere to fit appends rather than being
+        /// refused.
         ///
-        /// **First fit would spend a cathedral's hole on a crate.** The free list is what one
-        /// departing ring left, so it is short enough to search and long-lived enough that the
-        /// choice matters: a quad dropped into the four-vertex hole leaves the eight-vertex one for
-        /// the next thing that needs eight.
-        TEST(RtxSceneDescTest, aFreedSlotGoesToTheSmallestMeshThatFitsAndTheRestAppend)
+        /// **Two meshes freed side by side are one hole and not two.** A twelve-vertex mesh arrived,
+        /// then a four; both go, and what is left is a single run of twelve vertices at zero rather
+        /// than a pair that between them can hold nothing bigger than the larger. That is what a
+        /// cell boundary is — thousands of runs laid end to end, released together — and it is why
+        /// the geometry buffers stop growing once a player has travelled a while.
+        ///
+        /// Hand-counted: 8, 4 and 4 vertices at offsets 0, 8 and 12, and 12, 6 and 6 indices at 0,
+        /// 12 and 18. Keeping only the last leaves one vertex hole of twelve at zero and one index
+        /// hole of eighteen at zero.
+        TEST(RtxSceneDescTest, roomGivenBackIsMergedAndReused)
         {
             SceneDesc scene;
 
@@ -365,20 +368,29 @@ namespace Rtx
             const Index snug = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
             const Index kept = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
 
-            ASSERT_EQ(scene.getMeshes()[roomy].mVertexCapacity, 8u);
-            ASSERT_EQ(scene.getMeshes()[snug].mVertexCapacity, 4u);
+            ASSERT_EQ(scene.getMeshes()[roomy].mVertexOffset, 0u);
+            ASSERT_EQ(scene.getMeshes()[snug].mVertexOffset, 8u);
+            ASSERT_EQ(scene.getMeshes()[kept].mVertexOffset, 12u);
 
             const std::array keep{ kept };
             ASSERT_TRUE(scene.release(keep, {}, {}));
 
-            // A quad fits both holes and takes the tighter one.
-            EXPECT_EQ(scene.addMesh(sQuadPositions, {}, {}, sQuadIndices), snug)
-                << "the roomy hole was spent on something that fitted the snug one";
-
-            // The big one is still free, and something that size takes it rather than appending.
             const std::size_t vertices = scene.getPositions().size();
-            EXPECT_EQ(scene.addMesh(big, {}, {}, bigIndices), roomy);
+            ASSERT_EQ(vertices, 16u);
+
+            // The quad takes the front of the merged hole and leaves eight vertices behind it.
+            const Index quad = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
+            EXPECT_EQ(scene.getMeshes()[quad].mVertexOffset, 0u);
+
+            // **Which is what the eight-vertex mesh then fits into.** Unmerged, the two holes were
+            // eight and four and the four had just been spent, so this would have appended.
+            const Index again = scene.addMesh(big, {}, {}, bigIndices);
+            EXPECT_EQ(scene.getMeshes()[again].mVertexOffset, 4u);
             EXPECT_EQ(scene.getPositions().size(), vertices) << "a mesh that fitted a hole appended anyway";
+
+            // Both freed slots have been taken, in the order they were given back.
+            EXPECT_EQ(quad, snug);
+            EXPECT_EQ(again, roomy);
 
             // Nothing fits now, so this one goes on the end.
             EXPECT_EQ(scene.addMesh(big, {}, {}, bigIndices), 3u);
@@ -411,15 +423,15 @@ namespace Rtx
             EXPECT_EQ(scene.getTexCoords()[0], osg::Vec2f());
         }
 
-        /// A material frees its slot too, and its layers and masks stay behind.
+        /// A material frees its slot, and the layer run and masks behind it come back too.
         ///
         /// Hand-counted: three materials, of which the first and last are terrain with one and two
         /// layers. The layers sit at 0, 1 and 2 and their masks at 0 and 4, nine weights of the
-        /// second sitting behind four of the first. Freeing the first material leaves all of that
-        /// exactly where it is — **a known leak**, because a layer run is variable length and
-        /// reclaiming one needs the suballocator the meshes have and the layers do not. Travel is
-        /// what takes it back.
-        TEST(RtxSceneDescTest, releasingAMaterialFreesItsSlotAndLeavesItsLayersBehind)
+        /// second sitting behind four of the first. Freeing the first leaves a one-long hole in the
+        /// layer table and a four-long one in the masks, and the next chunk of the same shape lands
+        /// in both — which is the difference between travelling and accumulating a blend map per
+        /// chunk walked past.
+        TEST(RtxSceneDescTest, releasingAMaterialGivesBackItsLayersAndMasks)
         {
             SceneDesc scene;
             const Index ground = scene.addTexture(VFS::Path::NormalizedView("textures/tx_ground.dds"));
@@ -431,18 +443,22 @@ namespace Rtx
             const std::array sGroundWeights{ 0.25f, 0.25f, 0.25f, 0.25f };
             const std::array sSandWeights{ 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f };
 
-            scene.addLayer(MaterialLayer{
-                .mDiffuse = ground, .mMaskOffset = scene.addMask(sGroundWeights), .mMaskWidth = 2, .mMaskHeight = 2 });
-            const Index dropped
-                = scene.addMaterial(Material{ .mKind = MaterialKind::Terrain, .mLayerOffset = 0, .mLayerCount = 1 });
+            const std::array droppedLayers{ MaterialLayer{
+                .mDiffuse = ground, .mMaskOffset = scene.addMask(sGroundWeights), .mMaskWidth = 2, .mMaskHeight = 2 } };
+            const Span droppedRun = scene.addLayers(droppedLayers);
+            const Index dropped = scene.addMaterial(Material{
+                .mKind = MaterialKind::Terrain, .mLayerOffset = droppedRun.mOffset, .mLayerCount = droppedRun.mCount });
 
             const Index plain = scene.addMaterial(Material{ .mDiffuse = stone });
 
-            scene.addLayer(MaterialLayer{
-                .mDiffuse = sand, .mMaskOffset = scene.addMask(sSandWeights), .mMaskWidth = 3, .mMaskHeight = 3 });
-            scene.addLayer(MaterialLayer{ .mDiffuse = moss });
-            const Index kept
-                = scene.addMaterial(Material{ .mKind = MaterialKind::Terrain, .mLayerOffset = 1, .mLayerCount = 2 });
+            const std::array keptLayers{
+                MaterialLayer{
+                    .mDiffuse = sand, .mMaskOffset = scene.addMask(sSandWeights), .mMaskWidth = 3, .mMaskHeight = 3 },
+                MaterialLayer{ .mDiffuse = moss }
+            };
+            const Span keptRun = scene.addLayers(keptLayers);
+            const Index kept = scene.addMaterial(Material{
+                .mKind = MaterialKind::Terrain, .mLayerOffset = keptRun.mOffset, .mLayerCount = keptRun.mCount });
 
             ASSERT_EQ(scene.getLayers().size(), 3u);
             ASSERT_EQ(scene.getMasks().size(), 13u);
@@ -457,10 +473,22 @@ namespace Rtx
             EXPECT_EQ(scene.getMaterials()[kept].mLayerOffset, 1u);
             EXPECT_EQ(scene.getMaterials()[kept].mLayerCount, 2u);
 
-            EXPECT_EQ(scene.getLayers().size(), 3u) << "a layer run was reclaimed, which nothing can do yet";
+            EXPECT_EQ(scene.getLayers().size(), 3u) << "the tables never shrink, they are reused in place";
             EXPECT_EQ(scene.getMasks().size(), 13u);
             EXPECT_EQ(scene.getLayers()[1].mDiffuse, sand);
             EXPECT_EQ(scene.getLayers()[2].mDiffuse, moss);
+
+            // **The next chunk of the same shape lands in the hole the first one left.** One layer
+            // and four weights, which is exactly what went: both come back at zero and neither table
+            // is any longer than it was.
+            const std::array arrivingLayers{ MaterialLayer{
+                .mDiffuse = moss, .mMaskOffset = scene.addMask(sGroundWeights), .mMaskWidth = 2, .mMaskHeight = 2 } };
+            const Span arrivingRun = scene.addLayers(arrivingLayers);
+
+            EXPECT_EQ(arrivingLayers[0].mMaskOffset, 0u) << "the freed mask run";
+            EXPECT_EQ(arrivingRun, (Span{ .mOffset = 0, .mCount = 1 })) << "the freed layer run";
+            EXPECT_EQ(scene.getLayers().size(), 3u) << "the layer table grew past a hole that fitted";
+            EXPECT_EQ(scene.getMasks().size(), 13u) << "the mask table grew past a hole that fitted";
 
             // The freed slot goes to the next material asked for, whatever size it is: a material is
             // one size, so there is no fit to find.

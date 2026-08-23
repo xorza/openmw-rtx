@@ -1271,23 +1271,27 @@ namespace Rtx
                 scene.addTexture(VFS::Path::NormalizedView("green.dds"));
                 scene.addTexture(VFS::Path::NormalizedView("strip.dds"));
 
+                const std::array layers{
+                    MaterialLayer{
+                        .mDiffuse = 0,
+                        .mMaskOffset = scene.addMask(firstMask),
+                        .mMaskWidth = 2,
+                        .mMaskHeight = 1,
+                    },
+                    MaterialLayer{
+                        .mDiffuse = second,
+                        .mMaskOffset = scene.addMask(secondMask),
+                        .mMaskWidth = 2,
+                        .mMaskHeight = 1,
+                        .mDiffuseTransform = secondTransform,
+                    },
+                };
+                const Span run = scene.addLayers(layers);
+
                 Material material;
                 material.mKind = MaterialKind::Terrain;
-                material.mLayerOffset = 0;
-                material.mLayerCount = 2;
-                scene.addLayer(MaterialLayer{
-                    .mDiffuse = 0,
-                    .mMaskOffset = scene.addMask(firstMask),
-                    .mMaskWidth = 2,
-                    .mMaskHeight = 1,
-                });
-                scene.addLayer(MaterialLayer{
-                    .mDiffuse = second,
-                    .mMaskOffset = scene.addMask(secondMask),
-                    .mMaskWidth = 2,
-                    .mMaskHeight = 1,
-                    .mDiffuseTransform = secondTransform,
-                });
+                material.mLayerOffset = run.mOffset;
+                material.mLayerCount = run.mCount;
 
                 scene.addInstance(MeshInstance{
                     .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = scene.addMaterial(material) });

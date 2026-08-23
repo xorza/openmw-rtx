@@ -11,6 +11,11 @@
 
 #include <components/vfs/pathutil.hpp>
 
+namespace RtxBridge
+{
+    class PoseCull;
+}
+
 namespace osg
 {
     class FrameStamp;
@@ -131,7 +136,6 @@ namespace RtxTool
 
     private:
         class Clock;
-        class PoseCull;
 
         /// Held rather than made per pose, because the controllers hold a pointer to it.
         std::shared_ptr<Clock> mClock;
@@ -147,7 +151,9 @@ namespace RtxTool
         /// autoplay, and a sourceless `ParticleSystemController` freezes its own emitter.
         std::shared_ptr<Clock> mWorldClock;
 
-        std::unique_ptr<PoseCull> mCull;
+        /// **A real cull traversal, because that is the only kind a skinned body poses for.** See
+        /// `RtxBridge::PoseCull`; the mirror carries one too, for the actors nothing else reached.
+        std::unique_ptr<RtxBridge::PoseCull> mCull;
         std::unique_ptr<osgUtil::UpdateVisitor> mUpdate;
 
         /// What the update traversal tells anything that integrates rather than samples — which in

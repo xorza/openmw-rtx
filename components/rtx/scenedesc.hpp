@@ -14,6 +14,8 @@
 
 #include <components/vfs/pathutil.hpp>
 
+#include "spanallocator.hpp"
+
 namespace Rtx
 {
     /// An index into one of `SceneDesc`'s tables, or `sNoIndex` for "none".
@@ -32,16 +34,6 @@ namespace Rtx
         Index mVertexCount = 0;
         Index mIndexOffset = 0;
         Index mIndexCount = 0;
-
-        /// How much room the range was given, which is what a mesh taking this slot over has to fit
-        /// inside.
-        ///
-        /// **A slot keeps its range for as long as the scene lives.** Reclaiming by moving the
-        /// survivors down would renumber every mesh, and everything built from a mesh index — every
-        /// bottom-level acceleration structure in the world — would have to be built again. So a
-        /// freed slot keeps its room and waits for something that fits (`docs/rtx/plan.md` §10).
-        Index mVertexCapacity = 0;
-        Index mIndexCapacity = 0;
 
         Index getTriangleCount() const { return mIndexCount / 3; }
     };
@@ -112,6 +104,13 @@ namespace Rtx
         /// cell — so the layered path costs the rest of them one comparison and no indirection.
         Index mLayerOffset = 0;
         Index mLayerCount = 0;
+
+        /// Two materials are the same when every field is.
+        ///
+        /// **For telling a rewrite from a no-op.** A state set with a controller on it is re-read
+        /// every frame and usually says exactly what it said last time; treating that as a change
+        /// would copy the whole material, layer and mask table to the device for nothing.
+        bool operator==(const Material& other) const = default;
 
         /// The alpha below which a texel is a hole, or zero where the surface has none.
         ///
@@ -297,16 +296,35 @@ namespace Rtx
 
         Index addMaterial(const Material& material);
 
+        /// Rewrites a material in place, keeping its slot and everything standing on it.
+        ///
+        /// **For shading that animates rather than for a mistake.** A `NifOsg` flipbook, UV, alpha
+        /// or material-colour controller rewrites its state set every frame and the surface wearing
+        /// it is the same surface: adding a material and dropping the old one would churn a slot a
+        /// frame and leave every placement pointing at it to be found and repointed.
+        ///
+        /// Writing back what is already there costs nothing — the shading revision only moves when
+        /// something actually changed, so a paused game re-reads its fires and uploads none of them.
+        void setMaterial(Index material, const Material& what);
+
         /// Copies `weights` into the shared mask table and returns where they landed.
         ///
         /// One float per weight rather than the byte the source holds: a mask is a few hundred
         /// texels and a whole cell's worth is tens of kilobytes, which is not worth requiring
         /// 8-bit storage of the device for.
+        ///
+        /// How long the run is is not stored beside the offset: a mask is a grid, and the layer
+        /// that names this carries the two sides of it. `release` reconstructs the length from
+        /// them, so a caller whose weights are not `mMaskWidth * mMaskHeight` long leaks the
+        /// difference.
         Index addMask(std::span<const float> weights);
 
-        /// Appends one layer. A material's layers must be added in order and read back as a range,
-        /// so there is no index to hand out.
-        void addLayer(const MaterialLayer& layer);
+        /// Copies a material's layers into the shared layer table and returns where they landed.
+        ///
+        /// **All of them at once, because a run is allocated as a run.** They were appended one at
+        /// a time when the table only ever grew and a material took whatever length the table
+        /// happened to be at; a run that can be given back has to be asked for by length.
+        Span addLayers(std::span<const MaterialLayer> layers);
 
         void addLight(const Light& light);
 
@@ -526,14 +544,33 @@ namespace Rtx
             std::span<const osg::Vec3f> normals, std::span<const osg::Vec2f> texCoords,
             std::span<const std::uint32_t> indices);
 
-        /// Slots nothing stands in, waiting for something that fits.
+        /// Slots nothing stands in. **Any of them will do**, whichever table it is: a slot is one
+        /// row and every row is the same size, and what varies is the run of geometry, layers or
+        /// weights behind it — which `mVertexRuns` and the rest hand out separately. Taken from the
+        /// back, because there is no fit to find.
         ///
         /// **A list and not a hole map**, because what goes on them is what one departing ring left
-        /// — tens of entries, not the table. `mFreeMeshes` is searched for the best fit and the
-        /// other two are taken from the back, since a material and a texture are one size.
+        /// — tens of entries, not the table. Nothing is ever moved, so a slot that is taken over
+        /// keeps its index and every placement standing on it stays where it is
+        /// (`docs/rtx/plan.md` §10).
         std::vector<Index> mFreeMeshes;
         std::vector<Index> mFreeMaterials;
         std::vector<Index> mFreeTextures;
+
+        /// Where a mesh's vertices and indices, a material's layers and a layer's weights live.
+        ///
+        /// **Runs and not slots**, which is why these are allocators and the three lists above are
+        /// not: a material is one material's worth of room and a mesh slot is one row of a table,
+        /// but the geometry behind a mesh is as long as the model, a terrain chunk's layer run is as
+        /// long as the ground types under it, and its masks are as big as the blend maps. A list of
+        /// slots cannot give a variable length back.
+        ///
+        /// One for the vertices because the position, normal and texture-coordinate buffers are
+        /// parallel and a vertex id indexes all three.
+        SpanAllocator mVertexRuns;
+        SpanAllocator mIndexRuns;
+        SpanAllocator mLayerRuns;
+        SpanAllocator mMaskRuns;
 
         /// Texture slots written since the last `clearArrivals`, which is what a backend uploads.
         std::vector<Index> mArrivedTextures;

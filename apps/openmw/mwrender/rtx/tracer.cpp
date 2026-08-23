@@ -6,6 +6,7 @@
 #include <format>
 
 #include <osg/Camera>
+#include <osg/FrameStamp>
 #include <osg/Matrixf>
 #include <osg/Node>
 
@@ -153,10 +154,16 @@ namespace MWRender::Rtx
         mShared = true;
     }
 
-    void Tracer::trace(const osg::Node& scene, const osg::Camera& camera, const Lighting& lighting, std::size_t frame,
-        Resource::ImageManager& images)
+    void Tracer::trace(const osg::Node& scene, const osg::Camera& camera, const Lighting& lighting,
+        const osg::FrameStamp& when, Resource::ImageManager& images)
     {
-        mFrame = frame;
+        mFrame = when.getFrameNumber();
+
+        // **The world's clock and not this renderer's.** Everything the graph animates under its own
+        // controller reads it off the walk's frame stamp, and the sea off the frame's constants; a
+        // clock of our own would run both while the game was paused and neither in step with the
+        // time of day.
+        mExtractor->setSimulationTime(when.getSimulationTime());
 
         // **Every frame, and the placements are the one thing it does not throw away.** What goes
         // is the lists a walk refills wholesale — lights, deformed meshes, sprites, emitters. The
@@ -229,7 +236,7 @@ namespace MWRender::Rtx
         // passes this through `applyLighting`; the game assembles its own constants and simply did
         // not, so every wave stood still. Real elapsed seconds rather than the frame count: a sea
         // that ran at the frame rate would slow down whenever the frame did.
-        constants.mTime = std::chrono::duration<float>(std::chrono::steady_clock::now() - mBegan).count();
+        constants.mTime = static_cast<float>(when.getSimulationTime());
 
         // The horizon is the fog and the zenith is the sky's own, which is the pair Morrowind
         // records: one colour for the air, and one for the dome it fades into overhead.
@@ -244,7 +251,7 @@ namespace MWRender::Rtx
         // upscaler, which jitters whatever it is told, is handed the same sub-pixel offset every
         // frame and reconstructs from one sample taken repeatedly. The harness had exactly this, and
         // it cost a picture that looked plausible and carried none of the detail it was paying for.
-        constants.mFrame = static_cast<std::uint32_t>(frame);
+        constants.mFrame = static_cast<std::uint32_t>(mFrame);
 
         // **Measured, not held at one.** A picture wants the exposure the frame asks for; holding
         // it is what a reference and a pixel test want, and the default is theirs. Without this an

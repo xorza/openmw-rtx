@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <map>
+#include <memory>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -28,6 +30,7 @@ namespace osgParticle
 namespace SceneUtil
 {
     class LightSource;
+    class StateSetUpdater;
 }
 
 namespace Terrain
@@ -103,6 +106,24 @@ namespace RtxBridge
         bool empty() const { return mMeshes == 0 && mMaterials == 0 && mTextures == 0; }
     };
 
+    class MirrorTraversal;
+
+    /// One state set in the chain that shades a drawable, nearest it last.
+    ///
+    /// **Not simply a node's own state set.** OpenMW animates shading by handing a
+    /// `SceneUtil::StateSetUpdater` a state set that belongs to the traversal rather than to the
+    /// graph — that is how a fire flips through its frames and how lava scrolls — so the state set
+    /// in force at a drawable is something a walk builds and not something a node holds.
+    struct Shading
+    {
+        const osg::StateSet* mStateSet = nullptr;
+
+        /// Whether a controller rewrote this since the last frame, so the material read from it is
+        /// not the material it will be next frame. What tells `resolveMaterial` to read a known
+        /// state set again instead of handing back the slot it already has.
+        bool mAnimated = false;
+    };
+
     /// Mirrors an OpenSceneGraph subtree into a `Rtx::SceneDesc`.
     ///
     /// The identity maps live across calls, so the same geometry met again — in another cell, under
@@ -112,10 +133,10 @@ namespace RtxBridge
     class SceneExtractor
     {
     public:
-        explicit SceneExtractor(Rtx::SceneDesc& scene)
-            : mScene(scene)
-        {
-        }
+        explicit SceneExtractor(Rtx::SceneDesc& scene);
+
+        /// Out of line because `MirrorTraversal` is only forward declared here.
+        ~SceneExtractor();
 
         SceneExtractor(const SceneExtractor&) = delete;
         SceneExtractor& operator=(const SceneExtractor&) = delete;
@@ -140,6 +161,14 @@ namespace RtxBridge
         /// drawable that never set one the sea. The harness names nothing here because it places an
         /// analytic sea of its own (`RtxBridge::addWater`).
         void setWaterMask(osg::Node::NodeMask mask) { mWaterMask = mask; }
+
+        /// The world's clock, in seconds, which everything the graph animates is driven by.
+        ///
+        /// **The world's and not the walk's.** `SceneUtil::FrameTimeSource` — what `NifOsg` gives
+        /// every controller it finds no other source for — reads the simulation time straight off
+        /// the visitor's frame stamp, so a mirror with a clock of its own would run the game's
+        /// fires at its own frame rate and go on running them while the game is paused.
+        void setSimulationTime(double seconds);
 
         /// Walks `node` and places what it finds by `transform`, under `anchor`.
         ///
@@ -203,8 +232,8 @@ namespace RtxBridge
         /// Places one light. **The graph and not the content files**, because that is where a light
         /// that moves with the thing carrying it exists: a torch in an NPC's hand is no cell
         /// record, and neither is a lamp something picked up and put down.
-        void addLight(const SceneUtil::LightSource& source, const osg::NodePath& path, const osg::Matrixf& place,
-            std::size_t frame, ExtractionStats& stats);
+        void addLight(
+            const SceneUtil::LightSource& source, const osg::Matrixf& place, std::size_t frame, ExtractionStats& stats);
 
         /// Resolves one drawable and places it. The visitor's whole contract with this class.
         ///
@@ -219,8 +248,21 @@ namespace RtxBridge
         /// just computed into whichever of them was not last drawn. Which of the kinds this is
         /// belongs here rather than to a caller — the visitor would only be asking the same
         /// question with less to answer it from.
-        void addDrawable(const osg::Drawable& drawable, const osg::NodePath& path, const osg::Matrixf& place,
-            ExtractionStats& stats);
+        void addDrawable(const osg::Drawable& drawable, const osg::NodePath& path, std::span<const Shading> shading,
+            const osg::Matrixf& place, ExtractionStats& stats);
+
+        /// The state set a node's controllers write, or null where it has none.
+        ///
+        /// **Applied here rather than left to a callback.** A `SceneUtil::StateSetUpdater` set as a
+        /// cull callback writes into a state set it keys on the visitor and pushes onto that
+        /// visitor's stack, so what it produces exists only inside a cull traversal and a mirror
+        /// running outside one sees the frame it first met, for ever. Set as an *update* callback it
+        /// alternates the node's own state set between two copies of itself, so a material keyed on
+        /// that address is added and swept once a frame for a surface that has not moved.
+        ///
+        /// One state set per node, made once and rewritten in place, answers both: the address is
+        /// stable, so the material keeps its slot, and the values are this frame's.
+        const osg::StateSet* animate(osg::Node& node);
 
     private:
         /// Places one particle system's live particles as a run of camera-facing discs.
@@ -230,7 +272,7 @@ namespace RtxBridge
         /// so by the time the mirror walks the graph a flame is a list of positions, sizes and
         /// colours. Re-deriving that from the `NiParticleSystemController` would be a second
         /// implementation of the same content, free to disagree with the one the game is running.
-        void addEmitter(const osgParticle::ParticleSystem& particles, const osg::NodePath& path,
+        void addEmitter(const osgParticle::ParticleSystem& particles, std::span<const Shading> shading,
             const osg::Matrixf& place, ExtractionStats& stats);
 
         /// What identifies one placement from one frame to the next.
@@ -258,7 +300,10 @@ namespace RtxBridge
         /// The one material every water drawable wears, made on demand.
         Rtx::Index resolveWaterMaterial(ExtractionStats& stats);
 
-        Rtx::Index resolveMaterial(const osg::NodePath& path, ExtractionStats& stats);
+        Rtx::Index resolveMaterial(std::span<const Shading> shading, ExtractionStats& stats);
+
+        /// Reads a material out of the state sets in force, without asking whether one is known.
+        Rtx::Material readMaterial(std::span<const Shading> shading, ExtractionStats& stats);
 
         /// The layered material of a terrain chunk, whose shading is not on the graph at all.
         ///
@@ -301,6 +346,24 @@ namespace RtxBridge
         /// only thing that can speak for it when the scene is swept.
         std::unordered_map<const osg::Drawable*, Known> mEmitterTextures;
 
+        /// A node's controllers and the state set they write into, kept so the address is the same
+        /// one next frame. See `animate`.
+        struct Animated
+        {
+            osg::ref_ptr<osg::StateSet> mStateSet;
+            std::uint64_t mEpoch = 0;
+        };
+
+        std::unordered_map<const osg::Node*, Animated> mAnimated;
+
+        /// The walk itself, made once rather than per call.
+        ///
+        /// It carries the pose traversal, whose state graph, render stage, viewport and matrices are
+        /// set up in its constructor, and the chain of state sets it refills as it descends. Both
+        /// are per-frame allocations if the walk is a local, and a cell is tens of thousands of
+        /// drawables deep.
+        std::unique_ptr<MirrorTraversal> mWalk;
+
         osg::Node::NodeMask mTraversalMask = ~0u;
 
         /// Which drawables are the sea. Zero means none of them, which is every caller that has not
@@ -335,6 +398,10 @@ namespace RtxBridge
         std::vector<osg::Vec3f> mFlatNormalScratch;
         std::vector<osg::Vec2f> mTexCoordScratch;
         std::vector<float> mMaskScratch;
+
+        /// One terrain material's layers, refilled per chunk: a run is allocated by length and the
+        /// length is only known once the passes with no texture on them have been passed over.
+        std::vector<Rtx::MaterialLayer> mLayerScratch;
 
         /// One emitter's sprites, refilled per particle system: the count is only known once the
         /// dead ones have been passed over, and a cell holds tens of these every frame.

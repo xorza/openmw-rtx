@@ -607,13 +607,16 @@ a full rebuild by design. `clear()` empties every table and the free lists with 
 | table | a freed slot | reuse |
 |---|---|---|
 | placements | a gap in the instance table | any arrival, since a placement is fixed size |
-| materials | a fixed-size record, plus a layer run and its masks that leak until the scene is replaced | any arrival |
-| meshes | a **capacity** in the four shared vertex and index buffers | the best-fitting arrival, which is what keeps a large hole for a large mesh |
+| materials | a fixed-size record, and its layer run and masks back to the allocator | any arrival |
+| meshes | a row of the mesh table, and its vertex and index runs back to the allocator | any arrival |
 | textures | one slot of a bindless array | not yet — see below |
 
-A mesh keeps the range it was given for as long as it exists, so a slot carries a capacity as well as
-a count and is reused only by a mesh that fits inside it. Best fit rather than first: the free list
-is what a departing ring left, which is short, and first fit spends a cathedral's hole on a crate.
+**A slot and the room behind it are two different things.** A slot is one row of a table and every
+row is the same size, so any arrival takes any free slot; what varies is the run of vertices, indices,
+layers or mask weights the row points at, and that is handed out by `Rtx::SpanAllocator` (§11 A).
+Best fit rather than first — the free list is what a departing ring left, which is short, and first
+fit spends a cathedral's hole on a crate — and freed runs that touch are merged, which is what turns
+a cell's thousands of releases back into the one hole it arrived as.
 
 ### What it came to
 
@@ -669,20 +672,26 @@ more than one of them.
 | animated textures are frozen on the frame the mirror first met | **B** |
 | shader water reaches the mirror with no material | **B** |
 
+A and B are done bar the device half of A, which is described at the end of A below.
+
 ### A. Variable-length runs in shared buffers have no allocator
 
 A mesh owns a range in four buffers, a material owns a run of layers, a layer owns a run of mask
 weights — and every one of them is a variable-length span in a buffer shared by thousands. §10 solved
 that for meshes with a capacity and a best-fit free list, and solved it *ad hoc*, in `addMesh`.
 
-The same shape is what the layer runs need, and it is what the **device** geometry needs: those
-buffers are sized to the scene and move when they grow, which is why every structure has to be built
-again when one mesh arrives — each holds a device address into them. Give the allocator a block size
-and the rule that a span never straddles a block, and the device side becomes blocks that are
-allocated once and never moved.
+`Rtx::SpanAllocator` is that, once: best fit, merging what it is given back, and shortening the
+buffer when a hole reaches the end of it. Three of its four users are wired — mesh vertex runs, mesh
+index runs, layer runs and their masks — which closes the leak of a blend map per terrain chunk
+walked past, and lets two meshes freed side by side serve one larger arrival instead of neither.
 
-One `SpanAllocator`, four users: CPU mesh ranges (replacing what §10 wrote by hand), layer runs,
-masks, device geometry blocks.
+**The fourth is the device geometry, and it is the one that pays.** Those buffers are sized to the
+scene and move when they grow, so `extendScene` cannot append a bottom-level structure — it rebuilds
+every one of them, because every one holds a device address into a buffer that has just moved.
+Measured at 47 ms a crossing on the streaming route. The allocator already takes a block size and
+keeps a run inside one block; what is left is for `SceneAcceleration` and `SceneBuffers` to hold a
+list of blocks rather than one buffer, and for the scene's vertex allocator to be given the same
+block size so the two agree about where a run may start.
 
 ### B. The mirror reads outside cull, and some state only exists during cull
 
@@ -692,12 +701,28 @@ two copies of its own; as a **cull** callback it pushes one onto the cull visito
 the node, so a mirror running outside cull sees the original for ever. `NifOsg` picks the second for
 anything marked `AnimFlag_AutoPlay`, which is what a fire or a lava flow is.
 
-Water is out of this now — it is identified by node mask and given a material keyed on nothing, which
-is also what fixed the churn and the shader-water case. Everything else autoplayed is still frozen.
+Water is out of this by another route — it is identified by node mask and given a material keyed on
+nothing, which is also what fixed the churn and the shader-water case.
 
-**The answer is that the mirror runs the animators itself**: walk the path for the updaters, `apply`
-them into a scratch state set, read the material from that. Mirroring *during* cull is the other
-answer and is refused — §12.
+**The mirror runs the animators itself.** `SceneExtractor::animate` finds the updater on either
+callback chain, keeps one state set per node — a shallow copy of what the node wears, so the base
+material is in it — and re-applies it every walk. The address is stable, so the material keeps its
+slot and is rewritten in place rather than added and swept once a frame; `SceneDesc::setMaterial`
+moves the shading revision only when a value actually changed, so a paused game re-reads its fires
+and uploads none of them. The clock is the world's, off the viewer's frame stamp, which also took the
+sea off a `steady_clock` of its own.
+
+Mirroring *during* cull is the other answer and is refused — §12. Posing is the exception and it is
+narrow: `RigGeometry` and `MorphGeometry` skin only for an `osgUtil::CullVisitor`, so the mirror
+carries one that culls nothing and hands it those two drawables and nothing else. A cull traversal
+over the whole graph is what is refused, and terrain is why it has to be: `TerrainDrawable::cull`
+puts the chunk in a render bin and never applies it, so the ground would simply disappear.
+
+**What is left of B is a material field and not a mirror problem.** The only state-set controller
+the harness's views reach is `NifOsg::UVController` — 432 of them in Vivec — which writes an
+`osg::TexMat`, and `Rtx::Material` has nowhere for a texture transform to go. The mirror applies it
+and reads the state set it lands in; the surface still stands still. Flipbooks, alpha and
+material-colour controllers land in fields the material has and animate today.
 
 ### C. "What arrived" is a count, not a set — done for textures
 

@@ -3,9 +3,11 @@
 #include <unordered_map>
 
 #include "lightbuilder.hpp"
+#include "posecull.hpp"
 
 #include <osg/BlendFunc>
 #include <osg/CullFace>
+#include <osg/FrameStamp>
 #include <osg/Geometry>
 #include <osg/Image>
 #include <osg/Material>
@@ -23,6 +25,7 @@
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/riggeometry.hpp>
+#include <components/sceneutil/statesetupdater.hpp>
 #include <components/sceneutil/texturetype.hpp>
 // `terraindrawable.hpp` holds `osg::ref_ptr`s to composite-map types it only forward-declares, so it
 // does not compile on its own. This is what completes them.
@@ -53,33 +56,17 @@ namespace RtxBridge
             }
         };
 
-        /// The state set nearest the drawable, or null when nothing on the path has one.
-        ///
-        /// This is the material's identity. Two drawables that share it share their shading: OpenMW's
-        /// optimizer collapses equivalent state sets into one object, so sharing the pointer means
-        /// sharing the values, and what the parents above contribute in this graph is light and
-        /// render-bin state rather than material.
-        const osg::StateSet* findOwnStateSet(const osg::NodePath& path)
-        {
-            for (auto it = path.rbegin(); it != path.rend(); ++it)
-                if (const osg::StateSet* stateSet = (*it)->getStateSet())
-                    return stateSet;
-
-            return nullptr;
-        }
-
         /// The state set nearest the drawable that binds any texture.
         ///
-        /// Separate from `findOwnStateSet` because the two can differ: `NifOsg` puts a model's
-        /// textures on the geometry, but a drawable can carry a state set of its own that only sets
-        /// culling or blending. Taking the whole material from whichever state set happened to hold
-        /// the textures would then hand it a parent's two-sidedness.
-        const osg::StateSet* findTexturedStateSet(const osg::NodePath& path)
+        /// Separate from the nearest one outright because the two can differ: `NifOsg` puts a
+        /// model's textures on the geometry, but a drawable can carry a state set of its own that
+        /// only sets culling or blending. Taking the whole material from whichever state set
+        /// happened to hold the textures would then hand it a parent's two-sidedness.
+        const osg::StateSet* findTexturedStateSet(std::span<const Shading> shading)
         {
-            for (auto it = path.rbegin(); it != path.rend(); ++it)
-                if (const osg::StateSet* stateSet = (*it)->getStateSet())
-                    if (!stateSet->getTextureAttributeList().empty())
-                        return stateSet;
+            for (auto it = shading.rbegin(); it != shading.rend(); ++it)
+                if (!it->mStateSet->getTextureAttributeList().empty())
+                    return it->mStateSet;
 
             return nullptr;
         }
@@ -240,83 +227,164 @@ namespace RtxBridge
         return *this;
     }
 
-    namespace
+    /// Walks the graph and hands every geometry it meets to the extractor.
+    class MirrorTraversal : public osg::NodeVisitor
     {
-        /// Walks the graph and hands every geometry it meets to the extractor.
-        class ExtractionVisitor : public osg::NodeVisitor
-        {
-        public:
-            ExtractionVisitor(
-                SceneExtractor& extractor, const osg::Matrixf& root, std::size_t frame, ExtractionStats& stats)
-                : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
-                , mExtractor(extractor)
-                , mRoot(root)
-                , mFrame(frame)
-                , mStats(stats)
-            {
-            }
+    public:
+        explicit MirrorTraversal(SceneExtractor& extractor);
 
-            /// **The only node type this looks at rather than through.** Everything else it wants is
-            /// a drawable; a light is a node with no geometry, so nothing below would ever see it.
-            void apply(osg::Node& node) override
-            {
-                if (auto* source = dynamic_cast<SceneUtil::LightSource*>(&node))
-                    mExtractor.addLight(*source, getNodePath(), placed(), mFrame, mStats);
+        /// Points the walk at a root, at where it stands, and at the frame it is mirroring.
+        void begin(const osg::Matrixf& root, std::size_t frame, ExtractionStats& stats);
 
-                traverse(node);
-            }
+        osg::FrameStamp& getStamp() { return *mStamp; }
 
-            /// **Accumulated on the way down rather than recomputed on the way up.**
-            ///
-            /// `osg::computeLocalToWorld` walks a drawable's whole path back to the root and
-            /// multiplies the chain again, so a product every sibling under a transform shares is
-            /// rebuilt once per sibling — O(depth) per drawable, in a visitor already standing at
-            /// that depth. One multiply per transform *entered* is the same answer for a fraction
-            /// of the work, and on a nine-by-nine exterior it is the difference between 47,828
-            /// chain walks a frame and about a tenth as many matrix multiplies.
-            ///
-            /// `computeLocalToWorldMatrix` is what `computeLocalToWorld` calls on each transform it
-            /// meets, so the answer is the same one: an absolute reference frame still replaces the
-            /// accumulation instead of adding to it, because that is the branch inside it that does
-            /// so.
-            ///
-            /// **The visitor goes with it, and not the null pointer `computeLocalToWorld` passes.**
-            /// That function only ever reaches a transform with a drawable somewhere below it; this
-            /// one enters every transform it walks, and the sky's `MWRender::CameraRelativeTransform`
-            /// dereferences the visitor without checking it, to catch the eye point off a cull. A
-            /// visitor that is not a cull visitor takes exactly the branch a null one would have —
-            /// here and in `osg::AutoTransform`, the other one that looks — so nothing moves.
-            void apply(osg::Transform& node) override
-            {
-                const osg::Matrix above = mHere;
-                node.computeLocalToWorldMatrix(mHere, this);
+        /// The traversal that poses a deforming drawable, handed one at a time. **Narrowed to what
+        /// `accept` takes**, so nothing outside this file has to know what kind of visitor it is.
+        osg::NodeVisitor& getPose() { return mPose; }
 
-                apply(static_cast<osg::Node&>(node));
+        void apply(osg::Node& node) override;
+        void apply(osg::Transform& node) override;
+        void apply(osg::Drawable& drawable) override;
 
-                mHere = above;
-            }
+    private:
+        /// Where the node being visited stands in the world.
+        ///
+        /// Narrowed to single precision here and not before: `mHere` accumulates in the width
+        /// `computeLocalToWorld` returned, so a placement lands on the bits it landed on when every
+        /// drawable worked the chain out for itself.
+        osg::Matrixf placed() const { return osg::Matrixf(mHere) * mRoot; }
 
-            void apply(osg::Drawable& drawable) override
-            {
-                mExtractor.addDrawable(drawable, getNodePath(), placed(), mStats);
-            }
+        SceneExtractor& mExtractor;
 
-        private:
-            /// Where the node being visited stands in the world.
-            ///
-            /// Narrowed to single precision here and not before: `mHere` accumulates in the width
-            /// `computeLocalToWorld` returned, so a placement lands on the bits it landed on when
-            /// every drawable worked the chain out for itself.
-            osg::Matrixf placed() const { return osg::Matrixf(mHere) * mRoot; }
+        /// The clock every controller under this walk reads. Its simulation time is the world's;
+        /// its frame number is the walk's own, for the reason `begin` gives.
+        osg::ref_ptr<osg::FrameStamp> mStamp = new osg::FrameStamp;
 
-            SceneExtractor& mExtractor;
-            const osg::Matrixf mRoot;
-            const std::size_t mFrame;
-            ExtractionStats& mStats;
+        /// Set up once and never rebuilt, which is most of why the walk is a member rather than a
+        /// local: a state graph, a render stage, a viewport and two matrices per frame is an
+        /// allocation apiece for a traversal that is the same one every time.
+        PoseCull mPose;
 
-            /// The local-to-world of the node being visited, above `mRoot`.
-            osg::Matrix mHere;
-        };
+        osg::Matrixf mRoot;
+        std::size_t mFrame = 0;
+        ExtractionStats* mStats = nullptr;
+
+        /// The local-to-world of the node being visited, above `mRoot`.
+        osg::Matrix mHere;
+
+        /// The state sets in force where the walk is standing, nearest it last. Kept across walks
+        /// and refilled, because a cell is tens of thousands of drawables and this is the frame
+        /// path.
+        std::vector<Shading> mShading;
+    };
+
+    MirrorTraversal::MirrorTraversal(SceneExtractor& extractor)
+        : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
+        , mExtractor(extractor)
+    {
+        setFrameStamp(mStamp);
+        mPose.setFrameStamp(mStamp);
+    }
+
+    void MirrorTraversal::begin(const osg::Matrixf& root, std::size_t frame, ExtractionStats& stats)
+    {
+        mRoot = root;
+        mFrame = frame;
+        mStats = &stats;
+        mHere = osg::Matrix();
+        mShading.clear();
+
+        // **One past the game's own, so that it is never the game's own.** `SceneUtil::Skeleton` and
+        // both deforming geometries refuse to move for a traversal number they have already seen —
+        // which is what stops a second camera skinning an actor twice, and would otherwise make the
+        // mirror read back whatever pose the rasterizer's cull happened to choose. A number of its
+        // own is what makes the mirror's pose the mirror's, on screen or off it.
+        //
+        // It is also why the two must not both be running: they alternate the buffer a deforming
+        // drawable writes, and the draw thread of the frame before is reading one of them
+        // (`docs/rtx/plan.md` §12). The frame that comes of it is discarded, and the answer is to
+        // stop drawing it at all rather than to interleave the numbers.
+        const auto number = static_cast<unsigned int>(frame) + 1;
+        setTraversalNumber(number);
+        mPose.setTraversalNumber(number);
+        mStamp->setFrameNumber(number);
+    }
+
+    void MirrorTraversal::apply(osg::Node& node)
+    {
+        // **The only node type this looks at rather than through.** Everything else it wants is a
+        // drawable; a light is a node with no geometry, so nothing below would ever see it.
+        if (auto* source = dynamic_cast<SceneUtil::LightSource*>(&node))
+            mExtractor.addLight(*source, placed(), mFrame, *mStats);
+
+        const std::size_t held = mShading.size();
+
+        if (const osg::StateSet* own = node.getStateSet())
+            mShading.push_back(Shading{ .mStateSet = own });
+
+        // Above the node's own, which is where a rasterizing cull would push it too: what a
+        // controller decided this frame overrides what the model was authored with.
+        if (const osg::StateSet* animated = mExtractor.animate(node))
+            mShading.push_back(Shading{ .mStateSet = animated, .mAnimated = true });
+
+        traverse(node);
+
+        mShading.resize(held);
+    }
+
+    /// **Accumulated on the way down rather than recomputed on the way up.**
+    ///
+    /// `osg::computeLocalToWorld` walks a drawable's whole path back to the root and multiplies the
+    /// chain again, so a product every sibling under a transform shares is rebuilt once per sibling
+    /// — O(depth) per drawable, in a visitor already standing at that depth. One multiply per
+    /// transform *entered* is the same answer for a fraction of the work, and on a nine-by-nine
+    /// exterior it is the difference between 47,828 chain walks a frame and about a tenth as many
+    /// matrix multiplies.
+    ///
+    /// `computeLocalToWorldMatrix` is what `computeLocalToWorld` calls on each transform it meets,
+    /// so the answer is the same one: an absolute reference frame still replaces the accumulation
+    /// instead of adding to it, because that is the branch inside it that does so.
+    ///
+    /// **The visitor goes with it, and not the null pointer `computeLocalToWorld` passes.** That
+    /// function only ever reaches a transform with a drawable somewhere below it; this one enters
+    /// every transform it walks, and the sky's `MWRender::CameraRelativeTransform` dereferences the
+    /// visitor without checking it, to catch the eye point off a cull. A visitor that is not a cull
+    /// visitor takes exactly the branch a null one would have — here and in `osg::AutoTransform`,
+    /// the other one that looks — so nothing moves.
+    void MirrorTraversal::apply(osg::Transform& node)
+    {
+        const osg::Matrix above = mHere;
+        node.computeLocalToWorldMatrix(mHere, this);
+
+        apply(static_cast<osg::Node&>(node));
+
+        mHere = above;
+    }
+
+    void MirrorTraversal::apply(osg::Drawable& drawable)
+    {
+        const std::size_t held = mShading.size();
+        if (const osg::StateSet* own = drawable.getStateSet())
+            mShading.push_back(Shading{ .mStateSet = own });
+
+        mExtractor.addDrawable(drawable, getNodePath(), mShading, placed(), *mStats);
+
+        mShading.resize(held);
+    }
+
+    SceneExtractor::SceneExtractor(Rtx::SceneDesc& scene)
+        : mScene(scene)
+        , mWalk(std::make_unique<MirrorTraversal>(*this))
+    {
+    }
+
+    SceneExtractor::~SceneExtractor() = default;
+
+    void SceneExtractor::setSimulationTime(double seconds)
+    {
+        osg::FrameStamp& stamp = mWalk->getStamp();
+        stamp.setSimulationTime(seconds);
+        stamp.setReferenceTime(seconds);
     }
 
     ExtractionStats SceneExtractor::extract(
@@ -324,11 +392,14 @@ namespace RtxBridge
     {
         ExtractionStats stats;
         mAnchor = anchor;
-        ExtractionVisitor visitor(*this, transform, frame, stats);
-        visitor.setTraversalMask(mTraversalMask);
 
-        // OSG's visitor API is non-const even for a visitor that only reads, which this one does.
-        const_cast<osg::Node&>(node).accept(visitor);
+        mWalk->begin(transform, frame, stats);
+        mWalk->setTraversalMask(mTraversalMask);
+
+        // **Non-const because the walk writes.** It poses every actor it reaches and it runs every
+        // state-set controller it finds, which is what makes an actor behind the camera posed and a
+        // fire lit; OSG's visitor API is non-const regardless, so the cast happens once, here.
+        const_cast<osg::Node&>(node).accept(*mWalk);
 
         return stats;
     }
@@ -430,6 +501,10 @@ namespace RtxBridge
 
         sweep(mEmitterTextures, mEpoch, mLiveTextures);
 
+        // What `animate` keeps. Swept with everything else because it is keyed on a node the graph
+        // can drop, and because a state set held past its node holds the textures in it alive too.
+        std::erase_if(mAnimated, [this](const auto& entry) { return entry.second.mEpoch != mEpoch; });
+
         // What no walk can speak for. Duplicates are fine here — `release` takes a keep set, not a
         // list of distinct survivors.
         mLiveMeshes.insert(mLiveMeshes.end(), mHeldMeshes.begin(), mHeldMeshes.end());
@@ -451,8 +526,62 @@ namespace RtxBridge
         return went;
     }
 
-    void SceneExtractor::addLight(const SceneUtil::LightSource& source, const osg::NodePath& path,
-        const osg::Matrixf& place, std::size_t frame, ExtractionStats& stats)
+    namespace
+    {
+        /// The state-set controller on `node`, from whichever callback chain carries it.
+        ///
+        /// **Both chains, because `NifOsg` picks between them by a flag on the content.** Anything
+        /// marked `AnimFlag_AutoPlay` is hung from a cull callback and everything else from an
+        /// update callback; what they animate — a flipbook, a scrolling UV, an alpha, a material
+        /// colour — is the same either way.
+        SceneUtil::StateSetUpdater* findUpdater(osg::Node& node)
+        {
+            for (osg::Callback* chain : { node.getCullCallback(), node.getUpdateCallback() })
+                for (osg::Callback* callback = chain; callback != nullptr; callback = callback->getNestedCallback())
+                    if (auto* updater = dynamic_cast<SceneUtil::StateSetUpdater*>(callback))
+                        return updater;
+
+            return nullptr;
+        }
+    }
+
+    const osg::StateSet* SceneExtractor::animate(osg::Node& node)
+    {
+        // Asked of every node in the graph every frame, and nearly all of a cell hangs off no
+        // callback at all.
+        if (node.getCullCallback() == nullptr && node.getUpdateCallback() == nullptr)
+            return nullptr;
+
+        SceneUtil::StateSetUpdater* updater = findUpdater(node);
+        if (updater == nullptr)
+            return nullptr;
+
+        auto [entry, arrived] = mAnimated.try_emplace(&node);
+        if (arrived)
+        {
+            // **A copy of what the node already wears, and a shallow one.** `applyCull` starts from
+            // an empty state set and lets the rasterizer's state stack supply everything it does
+            // not itself write — which a mirror reading one state set per surface cannot do, so a
+            // fire would lose its material along with its animation. Shallow because an updater
+            // that means to write an attribute makes itself a private copy in `setDefaults`, which
+            // is the contract `applyUpdate` already rests on.
+            //
+            // The node's own is read rather than created: `getOrCreateStateSet` would leave an
+            // empty one behind on a node that had none, and the walk above would then push it over
+            // the material a parent was contributing.
+            const osg::StateSet* base = node.getStateSet();
+            entry->second.mStateSet
+                = base != nullptr ? new osg::StateSet(*base, osg::CopyOp::SHALLOW_COPY) : new osg::StateSet;
+            updater->setDefaults(entry->second.mStateSet);
+        }
+
+        entry->second.mEpoch = mEpoch;
+        updater->apply(entry->second.mStateSet, mWalk.get());
+        return entry->second.mStateSet;
+    }
+
+    void SceneExtractor::addLight(
+        const SceneUtil::LightSource& source, const osg::Matrixf& place, std::size_t frame, ExtractionStats& stats)
     {
         // A source the game has switched off contributes nothing and is not a light.
         if (source.getEmpty())
@@ -493,16 +622,27 @@ namespace RtxBridge
         /// geometries and writing the pose the last cull traversal computed into whichever of them
         /// was not being drawn. So the geometry to read is behind an accessor, it is one frame
         /// behind anything running before cull, and it is a different object every other frame.
-        DrawableGeometry readDrawable(const osg::Drawable& drawable)
+        /// @param pose the traversal that skins and morphs. **Run here rather than relied upon**:
+        ///        the pose a deforming drawable hands back is the one some cull traversal computed,
+        ///        and the only one that had run before this was the rasterizer's — which reaches
+        ///        what a camera can see and leaves everyone else in the pose they walked out of
+        ///        shot in.
+        DrawableGeometry readDrawable(const osg::Drawable& drawable, osg::NodeVisitor& pose)
         {
             if (const osg::Geometry* geometry = drawable.asGeometry())
                 return DrawableGeometry{ .mGeometry = geometry, .mDeforming = false };
 
             if (const auto* rig = dynamic_cast<const SceneUtil::RigGeometry*>(&drawable))
+            {
+                const_cast<SceneUtil::RigGeometry&>(*rig).accept(pose);
                 return DrawableGeometry{ .mGeometry = rig->getDeformedGeometry(), .mDeforming = true };
+            }
 
             if (const auto* morph = dynamic_cast<const SceneUtil::MorphGeometry*>(&drawable))
+            {
+                const_cast<SceneUtil::MorphGeometry&>(*morph).accept(pose);
                 return DrawableGeometry{ .mGeometry = morph->getDeformedGeometry(), .mDeforming = true };
+            }
 
             return DrawableGeometry{};
         }
@@ -554,19 +694,19 @@ namespace RtxBridge
         }
     }
 
-    void SceneExtractor::addDrawable(
-        const osg::Drawable& drawable, const osg::NodePath& path, const osg::Matrixf& place, ExtractionStats& stats)
+    void SceneExtractor::addDrawable(const osg::Drawable& drawable, const osg::NodePath& path,
+        std::span<const Shading> shading, const osg::Matrixf& place, ExtractionStats& stats)
     {
         // Asked before the geometry, because a particle system is an `osg::Drawable` with no
         // triangles in it at all: its sprites *are* the drawing, and they leave here as a run of
         // discs rather than as a mesh anything could build a structure over.
         if (const auto* particles = dynamic_cast<const osgParticle::ParticleSystem*>(&drawable))
         {
-            addEmitter(*particles, path, place, stats);
+            addEmitter(*particles, shading, place, stats);
             return;
         }
 
-        const DrawableGeometry read = readDrawable(drawable);
+        const DrawableGeometry read = readDrawable(drawable, mWalk->getPose());
         if (read.mGeometry == nullptr)
         {
             ++stats.mSkippedUnknown;
@@ -591,7 +731,7 @@ namespace RtxBridge
         else if (terrain != nullptr)
             material = resolveTerrainMaterial(*terrain, stats);
         else
-            material = resolveMaterial(path, stats);
+            material = resolveMaterial(shading, stats);
 
         // **The slot this placement has held since it first appeared**, so a world that stands
         // still writes nothing: the scene already knows where everything is, and only a transform
@@ -629,16 +769,12 @@ namespace RtxBridge
         /// The split is the whole of what tells a flame from a puff of smoke, and 474 of the game's
         /// 678 emitters are on the adding side. One that blends over is an albedo and has to be lit;
         /// one that adds *is* light and must not be.
-        bool addsLight(const osg::NodePath& path)
+        bool addsLight(std::span<const Shading> shading)
         {
-            for (auto it = path.rbegin(); it != path.rend(); ++it)
+            for (auto it = shading.rbegin(); it != shading.rend(); ++it)
             {
-                const osg::StateSet* stateSet = (*it)->getStateSet();
-                if (stateSet == nullptr)
-                    continue;
-
                 const auto* blend
-                    = dynamic_cast<const osg::BlendFunc*>(stateSet->getAttribute(osg::StateAttribute::BLENDFUNC));
+                    = dynamic_cast<const osg::BlendFunc*>(it->mStateSet->getAttribute(osg::StateAttribute::BLENDFUNC));
                 if (blend == nullptr)
                     continue;
 
@@ -660,12 +796,12 @@ namespace RtxBridge
         }
     }
 
-    void SceneExtractor::addEmitter(const osgParticle::ParticleSystem& particles, const osg::NodePath& path,
+    void SceneExtractor::addEmitter(const osgParticle::ParticleSystem& particles, std::span<const Shading> shading,
         const osg::Matrixf& place, ExtractionStats& stats)
     {
         // A particle's whole silhouette is its texture's alpha, so an emitter with no texture has
         // nothing to draw — not a white disc, which is what sampling nothing would give it.
-        const osg::StateSet* textured = findTexturedStateSet(path);
+        const osg::StateSet* textured = findTexturedStateSet(shading);
         if (textured == nullptr)
             return;
 
@@ -727,7 +863,7 @@ namespace RtxBridge
 
         ++stats.mTextureFormats[describeFormat(*sprite->getImage(0))];
 
-        mScene.addEmitter(mSpriteScratch, texture, addsLight(path));
+        mScene.addEmitter(mSpriteScratch, texture, addsLight(shading));
 
         ++stats.mEmitters;
         stats.mSprites += static_cast<std::uint32_t>(mSpriteScratch.size());
@@ -752,7 +888,8 @@ namespace RtxBridge
 
         Rtx::Material material;
         material.mKind = Rtx::MaterialKind::Terrain;
-        material.mLayerOffset = static_cast<Rtx::Index>(mScene.getLayers().size());
+
+        mLayerScratch.clear();
 
         for (const osg::ref_ptr<osg::StateSet>& pass : passes)
         {
@@ -771,18 +908,26 @@ namespace RtxBridge
             {
                 const osg::Image& image = *mask->getImage(0);
                 readMask(image, mMaskScratch);
+
+                // The two sides are what `SceneDesc::release` reconstructs the run's length from,
+                // so a mask that is not as long as its own grid leaks the difference.
+                assert(mMaskScratch.size() == static_cast<std::size_t>(image.s()) * image.t());
+
                 layer.mMaskOffset = mScene.addMask(mMaskScratch);
                 layer.mMaskWidth = static_cast<std::uint16_t>(image.s());
                 layer.mMaskHeight = static_cast<std::uint16_t>(image.t());
                 layer.mMaskTransform = getTextureTransform(*pass, 1);
             }
 
-            mScene.addLayer(layer);
-            ++material.mLayerCount;
+            mLayerScratch.push_back(layer);
         }
 
-        if (material.mLayerCount == 0)
+        if (mLayerScratch.empty())
             return Rtx::sNoIndex;
+
+        const Rtx::Span run = mScene.addLayers(mLayerScratch);
+        material.mLayerOffset = run.mOffset;
+        material.mLayerCount = run.mCount;
 
         const Rtx::Index index = mScene.addMaterial(material);
         mMaterials.emplace(identity, Known{ .mIndex = index, .mEpoch = mEpoch });
@@ -878,23 +1023,45 @@ namespace RtxBridge
         return mWaterMaterial;
     }
 
-    Rtx::Index SceneExtractor::resolveMaterial(const osg::NodePath& path, ExtractionStats& stats)
+    Rtx::Index SceneExtractor::resolveMaterial(std::span<const Shading> shading, ExtractionStats& stats)
     {
-        const osg::StateSet* own = findOwnStateSet(path);
-        if (own == nullptr)
+        if (shading.empty())
             return Rtx::sNoIndex;
 
-        const auto known = mMaterials.find(own);
+        // The material's identity is the state set nearest the drawable. Two drawables that share
+        // it share their shading: OpenMW's optimizer collapses equivalent state sets into one
+        // object, so sharing the pointer means sharing the values, and what the parents above
+        // contribute in this graph is light and render-bin state rather than material.
+        const Shading& own = shading.back();
+
+        const auto known = mMaterials.find(own.mStateSet);
         if (known != mMaterials.end())
         {
             ++stats.mMaterialsReused;
             known->second.mEpoch = mEpoch;
+
+            // **Read again, because a controller rewrote it since the last frame.** The state set
+            // is the same object — that is what lets the material keep its slot and every placement
+            // standing on it stay where it is — and everything inside it is this frame's.
+            if (own.mAnimated)
+                mScene.setMaterial(known->second.mIndex, readMaterial(shading, stats));
+
             return known->second.mIndex;
         }
 
+        const Rtx::Index index = mScene.addMaterial(readMaterial(shading, stats));
+        mMaterials.emplace(own.mStateSet, Known{ .mIndex = index, .mEpoch = mEpoch });
+        ++stats.mMaterialsAdded;
+        return index;
+    }
+
+    Rtx::Material SceneExtractor::readMaterial(std::span<const Shading> shading, ExtractionStats& stats)
+    {
+        const osg::StateSet& own = *shading.back().mStateSet;
+
         Rtx::Material material;
 
-        if (const osg::StateSet* textured = findTexturedStateSet(path))
+        if (const osg::StateSet* textured = findTexturedStateSet(shading))
         {
             for (unsigned int unit = 0; unit < textured->getTextureAttributeList().size(); ++unit)
             {
@@ -921,27 +1088,24 @@ namespace RtxBridge
             }
         }
 
-        material.mAlphaRef = getAlphaRef(*own);
-        if (isBlended(*own))
+        material.mAlphaRef = getAlphaRef(own);
+        if (isBlended(own))
             material.mAlphaMode = Rtx::AlphaMode::Blend;
         else if (material.mAlphaRef > 0.0f)
             material.mAlphaMode = Rtx::AlphaMode::Cutout;
 
-        material.mTwoSided = isTwoSided(*own);
+        material.mTwoSided = isTwoSided(own);
 
-        const auto* colours = dynamic_cast<const osg::Material*>(own->getAttribute(osg::StateAttribute::MATERIAL));
+        const auto* colours = dynamic_cast<const osg::Material*>(own.getAttribute(osg::StateAttribute::MATERIAL));
         if (colours != nullptr)
         {
             material.mDiffuseColour = colours->getDiffuse(osg::Material::FRONT);
 
             // Folded together here because the game's own shader only ever uses their product.
-            const osg::Vec4f emissive = colours->getEmission(osg::Material::FRONT) * getEmissiveMult(*own);
+            const osg::Vec4f emissive = colours->getEmission(osg::Material::FRONT) * getEmissiveMult(own);
             material.mEmissiveColour = osg::Vec3f(emissive.x(), emissive.y(), emissive.z());
         }
 
-        const Rtx::Index index = mScene.addMaterial(material);
-        mMaterials.emplace(own, Known{ .mIndex = index, .mEpoch = mEpoch });
-        ++stats.mMaterialsAdded;
-        return index;
+        return material;
     }
 }

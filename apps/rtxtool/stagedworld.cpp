@@ -21,6 +21,12 @@ namespace RtxTool
 
         mLighting = arrived.mLighting;
 
+        // **Before the first walk, because the walk runs the animators.** The graph's own
+        // controllers — a brazier's flipbook, a lava flow — read the clock off the traversal, and a
+        // shot is only repeatable if it is told which second it is showing rather than measuring
+        // one of its own.
+        setSeconds(actors.mSeconds);
+
         // Absent for an interior, and that is what `moveTo` reads as "this never streams".
         if (cell.isExterior())
             mStanding = CellSquare{ .mX = cell.getGridX(), .mY = cell.getGridY() };
@@ -118,7 +124,14 @@ namespace RtxTool
 
     bool StagedWorld::advanceTo(float seconds)
     {
+        setSeconds(seconds);
         return mPosed != nullptr && mPosed->advanceTo(seconds);
+    }
+
+    void StagedWorld::setSeconds(float seconds)
+    {
+        mSeconds = seconds;
+        mExtractor.setSimulationTime(mSeconds);
     }
 
     std::size_t StagedWorld::getActorCount() const

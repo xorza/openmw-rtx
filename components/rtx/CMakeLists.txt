@@ -24,6 +24,8 @@ set(RTX_FILES
     scenedesc.hpp
     shadingmap.cpp
     shadingmap.hpp
+    spanallocator.cpp
+    spanallocator.hpp
     texturedata.hpp
     wavespectrum.cpp
     wavespectrum.hpp

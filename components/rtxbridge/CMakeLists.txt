@@ -9,6 +9,7 @@ set(RTXBRIDGE_FILES
     lightbuilder.hpp
     png.cpp
     png.hpp
+    posecull.hpp
     sceneextractor.cpp
     sceneextractor.hpp
     sceneuploader.cpp

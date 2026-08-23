@@ -859,7 +859,7 @@ namespace MWRender
                 .mFogExtinction = half > 0.0f ? std::numbers::ln2_v<float> / half : 0.0f,
                 .mWaterLevel = mTracedWaterLevel,
             },
-            mViewer->getFrameStamp()->getFrameNumber(), *mResourceSystem->getImageManager());
+            *mViewer->getFrameStamp(), *mResourceSystem->getImageManager());
     }
 #endif
 

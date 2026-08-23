@@ -13,6 +13,7 @@
 #include <osg/Texture2D>
 #include <osgParticle/Particle>
 #include <osgParticle/ParticleSystem>
+#include <osgUtil/UpdateVisitor>
 
 #include <components/rtx/instancerecord.hpp>
 #include <components/rtx/scenedesc.hpp>
@@ -20,6 +21,8 @@
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/riggeometry.hpp>
+#include <components/sceneutil/skeleton.hpp>
+#include <components/sceneutil/statesetupdater.hpp>
 
 namespace RtxBridge
 {
@@ -302,31 +305,72 @@ namespace RtxBridge
             }
         };
 
-        /// A skinned body is mirrored, and from the pose rather than from the bind geometry.
+        /// A skeleton with one bone, and a rig bound rigidly to it.
         ///
-        /// The discriminator is replacing the source's vertex array after `setSourceGeometry` has
-        /// taken its deep copy: a mirror reading `getSourceGeometry` shows the replacement, and one
-        /// reading the pose shows what was copied. Without that the two are the same numbers and the
-        /// test could not fail.
-        TEST(RtxSceneExtractorTest, aSkinnedBodyIsMirroredFromItsPoseAndNotItsBindGeometry)
+        /// Every weight on one bone with an identity bind matrix makes the skinning arithmetic the
+        /// bone's own transform and nothing else, so what a test expects is what it moved the bone
+        /// by — rather than a fit against whatever a weighted sum happened to produce.
+        struct RiggedQuad
         {
-            osg::ref_ptr<osg::Geometry> source = makeQuad();
-            osg::ref_ptr<SceneUtil::RigGeometry> rig = new SceneUtil::RigGeometry;
-            rig->setSourceGeometry(source);
+            osg::ref_ptr<SceneUtil::Skeleton> mSkeleton = new SceneUtil::Skeleton;
+            osg::ref_ptr<osg::MatrixTransform> mBone = new osg::MatrixTransform;
+            osg::ref_ptr<SceneUtil::RigGeometry> mRig = new SceneUtil::RigGeometry;
+            osg::ref_ptr<osg::Geometry> mSource = makeQuad();
 
-            source->setVertexArray(makePositions({
-                osg::Vec3f(100.0f, 100.0f, 100.0f),
-                osg::Vec3f(101.0f, 100.0f, 100.0f),
-                osg::Vec3f(101.0f, 101.0f, 100.0f),
-                osg::Vec3f(100.0f, 101.0f, 100.0f),
-            }));
+            RiggedQuad()
+            {
+                mBone->setName("bone");
+                mSkeleton->addChild(mBone);
 
-            osg::ref_ptr<osg::Group> root = new osg::Group;
-            root->addChild(rig);
+                mRig->setName("shape");
+                mRig->setBoneInfo({ SceneUtil::RigGeometry::BoneInfo{
+                    .mName = "bone", .mBoundSphere = {}, .mInvBindMatrix = osg::Matrixf::identity() } });
+                mRig->setInfluences(std::vector<SceneUtil::RigGeometry::BoneWeights>(
+                    4, SceneUtil::RigGeometry::BoneWeights{ { 0, 1.0f } }));
+                mRig->setSourceGeometry(mSource);
+
+                // **A named shape one level below the skeleton, which is the shape NIF content
+                // has.** `RigGeometry::updateSkinToSkelMatrix` reads the node path backwards from
+                // the trishape's own transform, and a rig hung straight off the skeleton walks off
+                // the front of it.
+                osg::ref_ptr<osg::Group> holder = new osg::Group;
+                holder->addChild(mRig);
+                mSkeleton->addChild(holder);
+            }
+
+            /// The update traversal the game runs before it mirrors anything.
+            ///
+            /// **`RigGeometry` finds its skeleton here and nowhere else.** It walks the node path
+            /// for one, and the pose traversal the mirror uses is handed the drawable on its own —
+            /// so a rig that had never been through an update would have nothing to skin against.
+            void update(unsigned int traversal)
+            {
+                osgUtil::UpdateVisitor visitor;
+                visitor.setTraversalNumber(traversal);
+                mSkeleton->accept(visitor);
+            }
+        };
+
+        /// A skinned body is mirrored from the pose the walk itself computed.
+        ///
+        /// **Nothing else culls this graph**, which is the whole assertion: the pose exists only
+        /// because the mirror's own traversal is a cull traversal and skinned it. Under a plain
+        /// visitor `RigGeometry::accept` skins nothing and hands back whatever the last cull left,
+        /// so an actor nobody had drawn yet would arrive in its bind pose and one who had walked
+        /// off screen would stay in the pose they were last seen in.
+        ///
+        /// The bone is moved off the origin so that the two possible answers are two different
+        /// numbers: an unskinned buffer holds the bind pose the quad was authored at, and the pose
+        /// holds it moved by five.
+        TEST(RtxSceneExtractorTest, aSkinnedBodyIsMirroredFromThePoseTheWalkSkinned)
+        {
+            RiggedQuad rigged;
+            rigged.mBone->setMatrix(osg::Matrix::translate(0.0, 0.0, 5.0));
+            rigged.update(1);
 
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
-            const ExtractionStats stats = extractor.extract(*root, osg::Matrixf::identity(), 0);
+            const ExtractionStats stats = extractor.extract(*rigged.mSkeleton, osg::Matrixf::identity(), 0);
 
             EXPECT_EQ(stats.mSkippedUnknown, 0u) << "a drawable that is not an osg::Geometry is still geometry";
             EXPECT_EQ(stats.mMeshesAdded, 1u);
@@ -334,7 +378,36 @@ namespace RtxBridge
             EXPECT_EQ(stats.mInstances, 1u);
             EXPECT_EQ(scene.getTriangleCount(), 2u);
 
-            EXPECT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 0.0f)) << "the bind pose, not the source";
+            EXPECT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 5.0f))
+                << "the bind pose moved by the bone, and not an unskinned buffer";
+        }
+
+        /// A bone that moves between frames moves the body, and it is the same body.
+        ///
+        /// The mesh is keyed on the drawable and not on the geometry, so the pose landing in the
+        /// other half of the double buffer must not read as a second mesh.
+        TEST(RtxSceneExtractorTest, aBoneThatMovesMovesTheMirroredPoseWithoutAddingAMesh)
+        {
+            RiggedQuad rigged;
+            rigged.update(1);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+
+            extractor.extract(*rigged.mSkeleton, osg::Matrixf::identity(), 0);
+            EXPECT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 0.0f));
+
+            rigged.mBone->setMatrix(osg::Matrix::translate(0.0, 0.0, 7.0));
+            rigged.update(2);
+
+            scene.clearPlacement();
+            const ExtractionStats again = extractor.extract(*rigged.mSkeleton, osg::Matrixf::identity(), 0, 1);
+
+            EXPECT_EQ(again.mMeshesAdded, 0u);
+            EXPECT_EQ(again.mMeshesReused, 1u);
+            EXPECT_EQ(again.mDeformed, 1u);
+            EXPECT_EQ(scene.getMeshes().size(), 1u) << "the other half of the double buffer is the same mesh";
+            EXPECT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 7.0f));
         }
 
         /// A pose is the one thing the mesh cache does not answer: met again, it is read again — and
@@ -403,6 +476,112 @@ namespace RtxBridge
 
             EXPECT_EQ(scene.getMeshPositions(sFace)[2], osg::Vec3f(1.0f, 1.0f, 3.0f)) << "base plus three";
             EXPECT_EQ(scene.getMeshPositions(sStill)[2], osg::Vec3f(1.0f, 1.0f, 0.0f)) << "and the neighbour is intact";
+        }
+
+        /// A state-set controller of the shape `NifOsg` builds out of a `NiMaterialColorController`:
+        /// it rewrites one attribute every time it is applied, and it hangs from whichever callback
+        /// chain the content asked for.
+        class ColourController : public SceneUtil::StateSetUpdater
+        {
+        public:
+            float mRed = 0.0f;
+
+            void setDefaults(osg::StateSet* stateset) override
+            {
+                stateset->setAttribute(new osg::Material, osg::StateAttribute::ON);
+            }
+
+            void apply(osg::StateSet* stateset, osg::NodeVisitor*) override
+            {
+                auto* colours = static_cast<osg::Material*>(stateset->getAttribute(osg::StateAttribute::MATERIAL));
+                colours->setDiffuse(osg::Material::FRONT_AND_BACK, osg::Vec4f(mRed, 0.0f, 0.0f, 1.0f));
+            }
+        };
+
+        /// Shading that exists only inside a cull traversal is applied by the walk and read from it.
+        ///
+        /// **This is what a fire is.** `NifOsg` hangs the controllers of anything marked
+        /// `AnimFlag_AutoPlay` from a cull callback, and `SceneUtil::StateSetUpdater` as a cull
+        /// callback writes into a state set it keys on the visitor and pushes onto that visitor's
+        /// stack — never onto the node. A mirror that walked outside a cull would find the node
+        /// bare and draw the frame it first met for ever.
+        ///
+        /// The slot is the second half of it: the surface has not moved and its material must not
+        /// be dropped and added again to say so.
+        TEST(RtxSceneExtractorTest, shadingOnlyACullTraversalSeesIsAppliedAndReadAgainEachFrame)
+        {
+            osg::ref_ptr<ColourController> controller = new ColourController;
+            controller->mRed = 0.25f;
+
+            osg::ref_ptr<osg::Group> node = new osg::Group;
+            node->addChild(makeQuad());
+            node->addCullCallback(controller);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+
+            const ExtractionStats first = extractor.extract(*node, osg::Matrixf::identity(), 0);
+            ASSERT_EQ(first.mMaterialsAdded, 1u) << "the controller's state set is the only one on the path";
+            ASSERT_EQ(scene.getMaterials().size(), 1u);
+            EXPECT_EQ(scene.getMaterials()[0].mDiffuseColour, osg::Vec4f(0.25f, 0.0f, 0.0f, 1.0f));
+
+            controller->mRed = 0.75f;
+            scene.clearPlacement();
+            const ExtractionStats second = extractor.extract(*node, osg::Matrixf::identity(), 0, 1);
+
+            EXPECT_EQ(second.mMaterialsAdded, 0u) << "the surface did not change, only what it is wearing";
+            EXPECT_EQ(second.mMaterialsReused, 1u);
+            ASSERT_EQ(scene.getMaterials().size(), 1u);
+            EXPECT_EQ(scene.getMaterials()[0].mDiffuseColour, osg::Vec4f(0.75f, 0.0f, 0.0f, 1.0f));
+
+            // And a frame the controller said nothing new on writes nothing to the device: the
+            // whole material, layer and mask table goes over when the revision moves.
+            const std::uint64_t settled = scene.getShadingRevision();
+            scene.clearPlacement();
+            extractor.extract(*node, osg::Matrixf::identity(), 0, 2);
+            EXPECT_EQ(scene.getShadingRevision(), settled) << "re-reading an unchanged state set is not a change";
+        }
+
+        /// The same controller as an update callback, which is how `NifOsg` hangs everything the
+        /// content did not mark auto-play.
+        ///
+        /// `StateSetUpdater::applyUpdate` alternates the node's own state set between two copies of
+        /// itself, one per traversal parity, so a mirror keying a material on that address adds one
+        /// and sweeps one every frame for a surface that has not moved — and every placement
+        /// standing on it has to be repointed each time.
+        TEST(RtxSceneExtractorTest, aMaterialKeepsItsSlotWhileTheNodesOwnStateSetAlternates)
+        {
+            osg::ref_ptr<ColourController> controller = new ColourController;
+
+            osg::ref_ptr<osg::Group> node = new osg::Group;
+            node->addChild(makeQuad());
+            node->addUpdateCallback(controller);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+
+            osgUtil::UpdateVisitor update;
+
+            for (unsigned int pass = 1; pass <= 4; ++pass)
+            {
+                update.setTraversalNumber(pass);
+                node->accept(update);
+
+                scene.clearPlacement();
+                const ExtractionStats found = extractor.extract(*node, osg::Matrixf::identity(), 0, pass);
+                const Retirement went = extractor.retire();
+
+                // The first pass is where everything arrives; what is asserted is that no later one
+                // is, and the parity has turned over twice by the last.
+                if (pass == 1)
+                    continue;
+
+                EXPECT_EQ(found.mMaterialsAdded, 0u) << "pass " << pass;
+                EXPECT_EQ(found.mMaterialsReused, 1u) << "pass " << pass;
+                EXPECT_EQ(went.mMaterials, 0u) << "pass " << pass << ": swept is added again next frame";
+            }
+
+            EXPECT_EQ(scene.getMaterials().size(), 1u);
         }
 
         TEST(RtxSceneExtractorTest, degenerateTrianglesAreDropped)

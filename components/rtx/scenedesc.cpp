@@ -41,55 +41,42 @@ namespace Rtx
         ++mStructureRevision;
         ++mMeshRevision;
 
-        const auto vertices = static_cast<Index>(positions.size());
-        const auto elements = static_cast<Index>(indices.size());
+        const Span vertices = mVertexRuns.allocate(static_cast<Index>(positions.size()));
+        const Span elements = mIndexRuns.allocate(static_cast<Index>(indices.size()));
 
-        // **Best fit and not first.** The free list is what one departing ring left, so it is tens of
-        // entries and walking it costs nothing; first fit would spend a cathedral's hole on a crate
-        // and leave the next cathedral to append. Fitness is measured on the vertices, which is what
-        // dominates the room a mesh takes.
-        auto best = mFreeMeshes.end();
-        for (auto slot = mFreeMeshes.begin(); slot != mFreeMeshes.end(); ++slot)
+        // Grown to what the allocators now reach, so the write below lands in room that exists, and
+        // never shrunk: a run given back at the end goes to the allocator and the next mesh lands in
+        // it rather than in a buffer that had to be resized twice. The attribute buffers stay
+        // parallel to the position buffer whether or not the mesh brought the attribute, so a shader
+        // can index all of them with one vertex id.
+        if (mPositions.size() < mVertexRuns.getEnd())
         {
-            const MeshRange& hole = mMeshes[*slot];
-            if (hole.mVertexCapacity < vertices || hole.mIndexCapacity < elements)
-                continue;
-
-            if (best == mFreeMeshes.end() || hole.mVertexCapacity < mMeshes[*best].mVertexCapacity)
-                best = slot;
+            mPositions.resize(mVertexRuns.getEnd());
+            mNormals.resize(mPositions.size());
+            mTexCoords.resize(mPositions.size());
         }
 
-        if (best != mFreeMeshes.end())
-        {
-            const Index index = *best;
-            mFreeMeshes.erase(best);
-
-            MeshRange& range = mMeshes[index];
-            range.mVertexCount = vertices;
-            range.mIndexCount = elements;
-
-            writeMesh(range, positions, normals, texCoords, indices);
-            return index;
-        }
+        if (mIndices.size() < mIndexRuns.getEnd())
+            mIndices.resize(mIndexRuns.getEnd());
 
         const MeshRange range{
-            .mVertexOffset = static_cast<Index>(mPositions.size()),
-            .mVertexCount = vertices,
-            .mIndexOffset = static_cast<Index>(mIndices.size()),
-            .mIndexCount = elements,
-            .mVertexCapacity = vertices,
-            .mIndexCapacity = elements,
+            .mVertexOffset = vertices.mOffset,
+            .mVertexCount = vertices.mCount,
+            .mIndexOffset = elements.mOffset,
+            .mIndexCount = elements.mCount,
         };
 
-        // Grown to the range's own size, so the write below lands in room that exists. The attribute
-        // buffers stay parallel to the position buffer whether or not the mesh brought the attribute,
-        // so a shader can index all of them with one vertex id.
-        mPositions.resize(mPositions.size() + vertices);
-        mNormals.resize(mPositions.size());
-        mTexCoords.resize(mPositions.size());
-        mIndices.resize(mIndices.size() + elements);
-
         writeMesh(range, positions, normals, texCoords, indices);
+
+        // **Any free slot will do.** What had to fit is the geometry, and the allocators have already
+        // placed it; a slot is one row of a table and every row is the same size.
+        if (!mFreeMeshes.empty())
+        {
+            const Index index = mFreeMeshes.back();
+            mFreeMeshes.pop_back();
+            mMeshes[index] = range;
+            return index;
+        }
 
         mMeshes.push_back(range);
         return static_cast<Index>(mMeshes.size() - 1);
@@ -152,18 +139,47 @@ namespace Rtx
         return static_cast<Index>(mMaterials.size() - 1);
     }
 
-    Index SceneDesc::addMask(std::span<const float> weights)
+    void SceneDesc::setMaterial(Index material, const Material& what)
     {
+        assert(material < mMaterials.size());
+
+        if (mMaterials[material] == what)
+            return;
+
+        mMaterials[material] = what;
         ++mShadingRevision;
-        const auto offset = static_cast<Index>(mMasks.size());
-        mMasks.insert(mMasks.end(), weights.begin(), weights.end());
-        return offset;
     }
 
-    void SceneDesc::addLayer(const MaterialLayer& layer)
+    Index SceneDesc::addMask(std::span<const float> weights)
     {
+        assert(!weights.empty());
+
         ++mShadingRevision;
-        mLayers.push_back(layer);
+
+        const Span run = mMaskRuns.allocate(static_cast<std::uint32_t>(weights.size()));
+
+        // Grown and never shrunk: a hole at the end gives its room back to the allocator, and the
+        // next chunk to arrive lands in it rather than in a table that had to be resized twice.
+        if (mMasks.size() < mMaskRuns.getEnd())
+            mMasks.resize(mMaskRuns.getEnd());
+
+        std::copy(weights.begin(), weights.end(), mMasks.begin() + run.mOffset);
+        return run.mOffset;
+    }
+
+    Span SceneDesc::addLayers(std::span<const MaterialLayer> layers)
+    {
+        assert(!layers.empty());
+
+        ++mShadingRevision;
+
+        const Span run = mLayerRuns.allocate(static_cast<std::uint32_t>(layers.size()));
+
+        if (mLayers.size() < mLayerRuns.getEnd())
+            mLayers.resize(mLayerRuns.getEnd());
+
+        std::copy(layers.begin(), layers.end(), mLayers.begin() + run.mOffset);
+        return run;
     }
 
     void SceneDesc::addLight(const Light& light)
@@ -351,11 +367,16 @@ namespace Rtx
             if (keptMesh[index] != 0)
                 continue;
 
-            // **The room stays and only the contents go.** Nothing is moved down over it, so every
-            // index above this one still means what it meant — which is the whole point, because
-            // each of them names a bottom-level acceleration structure that would otherwise have to
-            // be built again.
+            // **The slot stays where it is and only its geometry goes back.** Nothing is moved down
+            // over it, so every index above this one still means what it meant — which is the whole
+            // point, because each of them names a bottom-level acceleration structure that would
+            // otherwise have to be built again. The room the geometry occupied returns to the
+            // allocators, which merge it with whatever it touches: a cell arrived as thousands of
+            // runs laid end to end and it leaves as the one hole it came as.
             MeshRange& range = mMeshes[index];
+            mVertexRuns.release(Span{ .mOffset = range.mVertexOffset, .mCount = range.mVertexCount });
+            mIndexRuns.release(Span{ .mOffset = range.mIndexOffset, .mCount = range.mIndexCount });
+
             range.mVertexCount = 0;
             range.mIndexCount = 0;
 
@@ -369,10 +390,21 @@ namespace Rtx
             if (keptMaterial[index] != 0)
                 continue;
 
-            // **Its layers and masks are not freed with it**, and that is a known leak: a run is
-            // variable length and reclaiming one means the same suballocator the meshes needed. A
-            // material that carries layers is a terrain chunk, so what leaks is a blend map per
-            // chunk walked past, and travel is what takes it back (`docs/rtx/plan.md` §10).
+            // **Its layers and the masks behind them go with it.** A material that carries layers is
+            // a terrain chunk, so without this what accumulates is a blend map per chunk walked
+            // past; the runs are variable length, which is why they are given back to an allocator
+            // rather than to a list of slots (`docs/rtx/plan.md` §10).
+            const Material& going = mMaterials[index];
+            for (Index at = 0; at < going.mLayerCount; ++at)
+            {
+                const MaterialLayer& layer = mLayers[going.mLayerOffset + at];
+                mMaskRuns.release(Span{ .mOffset = layer.mMaskOffset,
+                    .mCount = static_cast<std::uint32_t>(layer.mMaskWidth) * layer.mMaskHeight });
+            }
+
+            if (going.mLayerCount > 0)
+                mLayerRuns.release(Span{ .mOffset = going.mLayerOffset, .mCount = going.mLayerCount });
+
             mMaterials[index] = Material{};
             mFreeMaterials.push_back(index);
             ++freedMaterials;
@@ -380,9 +412,9 @@ namespace Rtx
 
         // **A texture survives if anything still names it.** The caller speaks for what no material
         // can — a particle emitter's sprite — and the live materials speak for the rest, through
-        // their own slots and through the layer runs they own. Orphaned layers are passed over
-        // deliberately: a freed material leaks its run, and letting that run go on speaking for a
-        // texture would leak the image too.
+        // their own slots and through the layer runs they own. Only live materials are asked: a run
+        // freed above is room the next chunk will write over, and letting what is still lying in it
+        // speak for a texture would keep the image alive for ever.
         std::vector<char> keptTexture = keepFlags(mTextures.size(), textures);
         for (const Index slot : mFreeTextures)
             keptTexture[slot] = 1;
@@ -471,6 +503,10 @@ namespace Rtx
         mFreeMeshes.clear();
         mFreeMaterials.clear();
         mFreeTextures.clear();
+        mVertexRuns.clear();
+        mIndexRuns.clear();
+        mLayerRuns.clear();
+        mMaskRuns.clear();
         mArrivedTextures.clear();
     }
 

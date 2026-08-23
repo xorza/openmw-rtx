@@ -132,6 +132,9 @@ namespace RtxTool
         /// necessary.
         RtxBridge::ExtractionStats mirror(std::size_t frame);
 
+        /// Moves the world's clock, which is what everything the graph animates is driven by.
+        void setSeconds(float seconds);
+
         /// The graph the mirror walks, assembled the way the game assembles its own: a group per
         /// cell, a reference under a transform inside it, the terrain hung alongside.
         ///
@@ -161,5 +164,9 @@ namespace RtxTool
         /// Which square the camera stood in when the region was last brought in. Absent for an
         /// interior, which is the same test as "this never streams".
         std::optional<CellSquare> mStanding;
+
+        /// Where the world's clock stands, in seconds. One clock for the whole staged world: an
+        /// actor's idle and the flipbook on the brazier beside them are the same second of it.
+        float mSeconds = 0.0f;
     };
 }

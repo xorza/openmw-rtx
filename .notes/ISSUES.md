@@ -1,31 +1,23 @@
 # Open issues
 
-- An actor outside the camera frustum is mirrored in a stale pose. `RigGeometry::accept` skins only
-  when a `CullVisitor` reaches it and `getDeformedGeometry` returns what the last cull produced, so
-  anyone off screen is frozen in whatever pose they had when last visible — wrong in every water
-  reflection and every shadow they cast.
-
 - A freed texture slot keeps the image that was in it until something takes the slot over, so a
   region walked away from goes on costing its texture memory until an equal number arrive.
 
 - A cell arriving rebuilds every bottom-level acceleration structure, not only the ones that
-  arrived. The geometry they were built from lives in one device buffer sized to the scene, and
-  appending to it moves it — every structure holds a device address into it. Appending needs that
-  buffer to become blocks that are allocated once and never moved.
+  arrived — 47 ms a crossing on the streaming route. The geometry they were built from lives in one
+  device buffer sized to the scene, and appending to it moves it; every structure holds a device
+  address into it. `SceneAcceleration` and `SceneBuffers` would have to hold a list of blocks
+  instead, with the scene's vertex allocator given the same block size.
 
-- A material freed by `SceneDesc::release` leaks its layer run and the masks behind it until the
-  scene is replaced. A run is variable length and reclaiming one needs the suballocator the meshes
-  have and the layers do not, so what accumulates is a blend map per terrain chunk walked past.
+- A material carries no texture transform, so a surface whose shading animates by scrolling its UVs
+  stands still. `NifOsg::UVController` puts an `osg::TexMat` on the state set and the mirror now
+  applies it and reads the state set it lands in, but there is nowhere in `Rtx::Material` for it to
+  go. It is the only state-set controller the harness's views reach — 432 of them in Vivec.
 
-- A state set that only exists during cull is invisible to the mirror, which runs outside it.
-  `SceneUtil::StateSetUpdater` as a cull callback pushes its state set onto the cull visitor and
-  never touches the node's own, and `NifOsg` attaches it that way for anything marked
-  `AnimFlag_AutoPlay`. So a fire or a lava flow is frozen on the frame the mirror first met.
+- The rasterizer's cull and the mirror both pose every deforming drawable they reach, at traversal
+  numbers of their own, so each frame skins twice and the two write different halves of a double
+  buffer the previous frame's draw thread is reading.
 
-- The same updater as an *update* callback swaps the node's state set between two copies of its own
-  every frame, so a material keyed on that address is added and swept once a frame for a surface
-  that has not changed. The water no longer goes through it; every other `NifOsg` UV, alpha and
-  material-colour controller still does.
-
-- The game's sea is animated off `steady_clock` since the tracer started rather than off the world's
-  own clock, so it goes on moving while the game is paused and does not follow time of day.
+- `MWRender::Animation` marks a skeleton `Inactive` or `SemiActive` by what the rasterizer thinks is
+  worth animating, and `SceneUtil::Skeleton` then refuses to move its bones however it is asked. The
+  mirror poses everyone it reaches, but not past that flag.

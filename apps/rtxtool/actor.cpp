@@ -6,9 +6,7 @@
 
 #include <osg/FrameStamp>
 #include <osg/Group>
-#include <osg/Viewport>
 #include <osgUtil/CullVisitor>
-#include <osgUtil/RenderStage>
 #include <osgUtil/UpdateVisitor>
 
 #include <components/misc/resourcehelpers.hpp>
@@ -16,6 +14,7 @@
 #include <components/resource/keyframemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/rtxbridge/posecull.hpp>
 #include <components/sceneutil/controller.hpp>
 #include <components/sceneutil/keyframe.hpp>
 #include <components/sceneutil/skeleton.hpp>
@@ -33,40 +32,6 @@ namespace RtxTool
         float mSeconds = 0.0f;
 
         float getValue(osg::NodeVisitor*) override { return mSeconds; }
-    };
-
-    /// A cull traversal that culls nothing and draws nothing.
-    ///
-    /// **A real `osgUtil::CullVisitor` rather than something claiming to be one.** Skinning happens
-    /// in `RigGeometry::cull`, and `RigGeometry::accept` reaches it by casting the visitor to a
-    /// `CullVisitor` and pushing the drawable's own state set onto it — which every body part has.
-    /// A plain `osg::NodeVisitor` with its type set to `CULL_VISITOR` is that cast being wrong, and
-    /// wrong in the way that runs correctly on an untextured test quad.
-    ///
-    /// What it is not is a *rendering* cull: the drawables it reaches are dropped rather than
-    /// binned, and culling is off because posing an actor has no frustum to cull against.
-    ///
-    /// It is still given a render stage, though nothing will ever be drawn out of it. A state set
-    /// that names a render bin sends the visitor to `_currentRenderBin` on the way past, and a good
-    /// deal of Morrowind's content names one — the error marker a missing model resolves to among
-    /// them, so the first thing this crashed on was a typo in a model path.
-    class Actor::PoseCull : public osgUtil::CullVisitor
-    {
-    public:
-        PoseCull()
-        {
-            setStateGraph(new osgUtil::StateGraph);
-            setRenderStage(new osgUtil::RenderStage);
-            setCullingMode(osg::CullSettings::NO_CULLING);
-
-            // `CullStack` reads the back of each of these without checking, so they are pushed once
-            // and never popped: an empty stack is not a permissive one, it is a crash.
-            pushViewport(new osg::Viewport(0, 0, 1, 1));
-            pushProjectionMatrix(new osg::RefMatrix);
-            pushModelViewMatrix(new osg::RefMatrix, osg::Transform::ABSOLUTE_RF);
-        }
-
-        void apply(osg::Drawable&) override {}
     };
 
     namespace
@@ -161,7 +126,7 @@ namespace RtxTool
     Actor::Actor(World& world, ActorModel model, const osg::Matrixf& transform)
         : mClock(std::make_shared<Clock>())
         , mWorldClock(std::make_shared<Clock>())
-        , mCull(std::make_unique<PoseCull>())
+        , mCull(std::make_unique<RtxBridge::PoseCull>())
         , mUpdate(std::make_unique<osgUtil::UpdateVisitor>())
         , mStamp(new osg::FrameStamp)
         , mModel(std::move(model))
