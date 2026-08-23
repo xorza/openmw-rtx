@@ -21,3 +21,8 @@
 - `MWRender::Animation` marks a skeleton `Inactive` or `SemiActive` by what the rasterizer thinks is
   worth animating, and `SceneUtil::Skeleton` then refuses to move its bones however it is asked. The
   mirror poses everyone it reaches, but not past that flag.
+
+- With `distant terrain` on, the in-game mirror sees no ground and no paged objects.
+  `Terrain::RootNode::accept` forwards to `Terrain::QuadTreeWorld::accept`, which returns
+  immediately for any visitor that is not a cull or an intersection visitor, and the chunks it
+  would have produced are never children of anything the mirror walks.

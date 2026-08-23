@@ -100,6 +100,10 @@ The payoff is not the blit. It is that §12 stops being a problem to solve rathe
 no interop, no frame of latency, no world drawn twice, no cull traversal, and frame pacing owned
 rather than inherited.
 
+**`renderers.md` is how the second path is reached**: where the seam between the two renderers goes,
+every place in the tree that touches OpenGL, what upstream has to stop knowing before a third
+renderer is possible at all, and the steps in the order they can land.
+
 ## 4. Layout
 
 ```
