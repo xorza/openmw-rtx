@@ -18,6 +18,21 @@ namespace Resource
 
 namespace MWRender
 {
+    /// What kind of place the player is standing in, as the cell record says.
+    ///
+    /// **Three and not two, because the two consumers split the middle one differently.** A
+    /// quasi-exterior — Vivec's cantons, the Ministry of Truth — is an interior cell that draws a
+    /// sky and has weather. The `isInterior` uniform counts it as inside, because that is what the
+    /// cell is; the shader chain's exterior mask counts it as outside, because that is what it
+    /// looks like. A single boolean could only have been right for one of them, and reading either
+    /// off whether a dome happens to be drawn is a third answer again.
+    enum class Location
+    {
+        Interior,
+        QuasiExterior,
+        Exterior,
+    };
+
     /// A distance fog, as the game describes one: a colour and the linear ramp it fills.
     struct FogBand
     {
@@ -57,23 +72,16 @@ namespace MWRender
         /// Includes the night-eye effect, because that is where it has already been added.
         osg::Vec4f mAmbientColour;
 
+        /// Meaningless in an `Interior`, where the weather system stops writing it and it keeps
+        /// whatever it held wherever the player was last outdoors. `mLocation` is what says so.
         osg::Vec4f mSkyColour;
 
-        /// False in an interior, where no dome is drawn and `mSkyColour` is whatever the sky was
-        /// still holding from wherever the player was last outdoors.
-        ///
-        /// **Not the same question as `mInterior`.** A quasi-exterior — Vivec's cantons, the
-        /// Ministry of Truth — is an interior cell that draws a sky, so the two disagree there and
-        /// each has a caller that wants its own answer.
-        bool mSkyVisible = false;
-
-        /// Whether the cell the player stands in is an interior, which is what the cell record
-        /// says and nothing else.
+        /// Where the player is standing, as the cell record says.
         ///
         /// **Asked of the world rather than worked out from what is drawn.** Reading it off the
-        /// sky makes every quasi-exterior an exterior, and reading it off whether terrain is
-        /// enabled makes it a fact about the renderer's own bookkeeping.
-        bool mInterior = false;
+        /// dome makes every quasi-exterior an exterior and hands `tsky` a say in it; reading it off
+        /// whether terrain is enabled makes it a fact about the renderer's own bookkeeping.
+        Location mLocation = Location::Interior;
 
         bool mWaterEnabled = false;
         float mWaterHeight = 0.0f;
@@ -97,6 +105,21 @@ namespace MWRender
         int mNextWeatherId = 0;
         float mWeatherTransition = 0.0f;
         float mWindSpeed = 0.0f;
+
+        /// Whether the cell record calls this an interior.
+        ///
+        /// **A quasi-exterior answers yes to this and to `isOutdoors` both**, which is the whole
+        /// reason `Location` has three values and neither of these is the other's negation. This is
+        /// the one the `isInterior` shader uniform has always meant: what the cell *is*.
+        bool isInteriorCell() const { return mLocation != Location::Exterior; }
+
+        /// Whether this counts as being outside — a sky overhead and weather in it.
+        ///
+        /// **A quasi-exterior answers yes to this and to `isInteriorCell` both.** It is the
+        /// condition `World::updateWeather` gates on, so it is exactly when `mSkyColour` is being
+        /// written and means something, and it is what a technique marked `Disable_Exteriors` is
+        /// asking about.
+        bool isOutdoors() const { return mLocation != Location::Interior; }
     };
 
     /// What there is to draw, and what the world is doing while it is drawn.

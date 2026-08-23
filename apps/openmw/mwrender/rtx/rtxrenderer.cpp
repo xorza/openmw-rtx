@@ -670,10 +670,11 @@ namespace MWRender::Rtx
         // records: one colour for the air, and one for the dome it fades into overhead.
         constants.mSkyHorizon = haze;
 
-        // **The sky's own colour, and an interior has none.** No dome is drawn there, and what the
-        // sky is still holding belongs to wherever the player was last outdoors — so the air's own
-        // colour stands in, which is what a room's sky is anyway.
-        constants.mSkyZenith = world.mSkyVisible ? RtxBridge::decodeColour(world.mSkyColour) : haze;
+        // **The sky's own colour, and an interior has none.** The weather system stops writing it
+        // the moment the player steps inside, so what the sky is still holding belongs to wherever
+        // they were last outdoors — and the air's own colour stands in, which is what a room's sky
+        // is anyway. A quasi-exterior is on the outdoor side of that: it has weather.
+        constants.mSkyZenith = world.isOutdoors() ? RtxBridge::decodeColour(world.mSkyColour) : haze;
 
         constants.mFogColour = haze;
 

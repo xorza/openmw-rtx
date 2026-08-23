@@ -239,7 +239,7 @@ namespace MWRender
         mStateUpdater->setSunVis(world.mSunVisibility);
         mStateUpdater->setAmbientColor(world.mAmbientColour);
         mStateUpdater->setSkyColor(world.mSkyColour);
-        mStateUpdater->setIsInterior(world.mInterior);
+        mStateUpdater->setIsInterior(world.isInteriorCell());
 
         mStateUpdater->setIsWaterEnabled(world.mWaterEnabled);
         mStateUpdater->setWaterHeight(world.mWaterHeight);
@@ -260,12 +260,12 @@ namespace MWRender
         // Which techniques run at all, which is this chain's own question rather than the block's.
         mUnderwater = world.mUnderwater;
 
-        // **The same fact `setExteriorFlag` used to be told from `MWWorld::Scene`, arriving down the
-        // one channel instead.** It was a cell record read on every cell change and pushed straight
-        // into this object, which is what made the world simulation name a renderer's header. The
-        // one difference is `tsky`, which now stops the exterior techniques along with the dome —
-        // which is what a debug switch that turns the sky off ought to do.
-        mExteriorFlag = world.mSkyVisible;
+        // **The same fact `setExteriorFlag` used to be told from `MWWorld::Scene`, arriving down
+        // the one channel instead.** It was a cell record read on every cell change and pushed
+        // straight into this object, which is what made the world simulation name a renderer's
+        // header. A quasi-exterior counts as outside here and as inside two lines above, which is
+        // why `WorldState` answers the two questions separately rather than handing over a flag.
+        mExteriorFlag = world.isOutdoors();
     }
 
     size_t PostProcessor::frame() const

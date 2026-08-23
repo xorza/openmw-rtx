@@ -124,6 +124,23 @@ renderer-neutral.
 resolved colour state (everyone's). The dome is rebuilt every frame under the ray tracer for nothing
 — the extractor explicitly masks it out — and the second half is what `WorldState` actually wants.
 
+**A note on what came out of this.** Routing `setExteriorFlag` down the frame channel first fed it
+`mSkyVisible`, which was wrong twice over: the name no longer described what it held, and "is a dome
+drawn" is not "does this cell count as outdoors" — `tsky` separates them. `WorldState` now carries a
+three-valued `Location` instead, because the two consumers split the middle value in opposite
+directions: the `isInterior` uniform counts a quasi-exterior as inside, since that is what the cell
+record says, and the shader chain's exterior mask counts it as outside, since it has weather and a
+sky. One boolean could only ever have been right for one of them.
+
+`WorldState` answers both by name — `isInteriorCell()` and `isOutdoors()` — because a
+quasi-exterior says yes to both and a reader who met them as `mLocation != Location::Exterior` and
+`mLocation != Location::Interior` would reasonably assume they were opposites.
+
+`mSkyVisible` went with it. Its only reader was the ray tracer's sky zenith, and what that wanted was
+"has the weather system been writing this colour", which `World::updateWeather` gates on exactly
+`isCellExterior() || isCellQuasiExterior()` — the cell fact, not the dome. Keeping both was one fact
+stored twice, and it had quietly given `tsky` a say in the traced sky's colour.
+
 **Fixed.** `WeatherResult` and `MoonState` are plain data — strings, colours, floats, an enum —
 authored by `MWWorld::WeatherManager` and read by the dome, and they lived in the dome's header. So
 every file that wanted to describe the weather pulled in `osgParticle` shooters and state-set
