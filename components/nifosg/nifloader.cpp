@@ -2374,11 +2374,10 @@ namespace NifOsg
                     stateset->addUniform(new osg::Uniform("falloffParams", bgem->mFalloffParams));
             }
 
+            // Only ever off: a material file can ask for both faces and has no way to ask for one,
+            // which is why the description says nothing here and its default stands.
             if (material->mTwoSided)
-            {
                 stateset->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
-                surface.mTwoSided = true;
-            }
             handleDepthFlags(stateset, material->mDepthTest, material->mDepthWrite);
         }
 
@@ -2720,11 +2719,9 @@ namespace NifOsg
                         handleTextureSet(texprop->mTextureSet.getPtr(), texprop->wrapS(), texprop->wrapT(),
                             node->getName(), stateset, boundTextures, material);
                     handleTextureControllers(texprop, composite, stateset, animflags);
+                    // Only ever off, as `handleShaderMaterialNodeProperties` says.
                     if (texprop->doubleSided())
-                    {
                         stateset->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
-                        material.mTwoSided = true;
-                    }
                     if (texprop->treeAnim())
                         stateset->addUniform(new osg::Uniform("useTreeAnim", true));
                     handleDepthFlags(stateset, texprop->depthTest(), texprop->depthWrite());
@@ -2774,11 +2771,9 @@ namespace NifOsg
                     if (useFalloff)
                         stateset->addUniform(new osg::Uniform("falloffParams", texprop->mFalloffParams));
                     handleTextureControllers(texprop, composite, stateset, animflags);
+                    // Only ever off, as `handleShaderMaterialNodeProperties` says.
                     if (texprop->doubleSided())
-                    {
                         stateset->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
-                        material.mTwoSided = true;
-                    }
                     handleDepthFlags(stateset, texprop->depthTest(), texprop->depthWrite());
                     break;
                 }

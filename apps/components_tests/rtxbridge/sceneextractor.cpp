@@ -1236,7 +1236,12 @@ namespace RtxBridge
             ASSERT_EQ(scene.getTextures().size(), 1u);
             EXPECT_EQ(scene.getTextures()[0], VFS::Path::NormalizedView("textures/tx_stone_01.dds"));
             EXPECT_EQ(scene.getMaterials()[0].mDiffuse, 0u);
-            EXPECT_FALSE(scene.getMaterials()[0].mTwoSided);
+
+            // **The description's answer and not the drawable's pipeline state.** The quad carries
+            // a `CullFace(BACK)` and the description above it says nothing about faces, so it is
+            // two-sided — which is what the description was introduced to make true. Reading the
+            // attribute back off the state set, as the mirror used to, would answer the other way.
+            EXPECT_TRUE(scene.getMaterials()[0].mTwoSided);
         }
 
         /// A blend is what marks a cutout in this data, and it has to survive into the material.

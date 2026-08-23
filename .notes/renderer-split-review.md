@@ -531,13 +531,27 @@ the right behaviour and a surprising signature; the header explains it, the call
 
 Ordered so that each step is independently landable and each one's verification is cheap.
 
-**Landed since this was written:** steps 1 and 2, plus the DLSS crash that was blocking any of it
-from being run at all — `VulkanRenderer::describeDevice` built a second `Dlss` to ask whether Ray
-Reconstruction was available, and NGX keeps one runtime per process with an unconditional shutdown,
-so that throwaway ended the live one the moment it left scope. `Dlss` now has no public constructor
-and `Dlss::open` hands out shares of the one runtime.
+**Steps 1, 2 and 3 are done.** Three things not in this review were found while running it and are
+done too:
 
-### 1. Present on every path — `RtxRenderer::renderFrame` *(C1)*
+- **The DLSS crash that blocked running any of it.** `VulkanRenderer::describeDevice` built a second
+  `Dlss` to ask whether Ray Reconstruction was available; NGX keeps one runtime per process and its
+  shutdown is unconditional, so that throwaway ended the live one the moment it left scope. `Dlss`
+  now has no public constructor and `Dlss::open` hands out shares of the one runtime.
+- **The inventory doll tearing apart on a change of clothes.** `SceneExtractor::mMeshes` is keyed on
+  an `osg` address; `updateParts` frees body parts and the allocator hands the addresses straight
+  back, so a walk found the retired part's entry under the new part's address and wrote the new
+  vertices into the old slot — a run inside one shared buffer, so it overran into the meshes after
+  it. A view's rebuild now starts from empty tables, and `resolveMesh` refuses to write a pose into
+  a slot whose vertex count differs.
+- **Every NPC frozen in the pose it had three frames after loading.** The game marks every actor but
+  the player `Skeleton::SemiActive`, which skips the update traversal — and so stops moving bones —
+  once nothing has reached the skeleton for three traversals. Under a rasterizer its cull keeps
+  saying so; the mirror never walked a skeleton with a cull visitor. `Skeleton::markReached` is now
+  the one way to answer that, and the mirror is a caller. Measured 19 of 210 deforming meshes moving
+  before, 192 of 210 after.
+
+### 1. Present on every path — `RtxRenderer::renderFrame` *(C1)* — **done**
 
 Restructure so the tail always runs:
 
@@ -562,7 +576,7 @@ void RtxRenderer::renderFrame(const SceneFrame& frame)
 **Verify:** `openmw` on the RTX path, no `--skip-menu` — the menu must animate and respond.
 Then `openmw-rtxtool shot --view=balmora` to confirm the traced path is unchanged.
 
-### 2. Three one-line correctness fixes *(C2, C3, C7)*
+### 2. Three one-line correctness fixes *(C2, C3, C7)* — **done**
 
 - `RtxRenderer::renderFrame`: `Settings::camera().mFieldOfView` → `world.mFieldOfView`.
 - `TracedView`: a `bool mCopyIsCurrent`, set in `redraw()` after the read, checked in `getCopy()`.
@@ -573,17 +587,29 @@ Then `openmw-rtxtool shot --view=balmora` to confirm the traced path is unchange
 
 **Verify:** `./build/components-tests --gtest_filter='*Surface*:*NifOsg*:*Gui*'`, then a shot.
 
-### 3. Decide C4 and C5, then land them together
+### 3. Decide C4 and C5, then land them together — **done**
 
-Both are "the picture changed inside a refactor". Take a `shot` of three views on `master` and on
-this branch (an interior, a quasi-exterior canton, a foliage-heavy exterior) and compare before
-choosing:
+Neither needed the shots, for opposite reasons.
 
-- **C4** — if quasi-exteriors should read as exteriors, say so in `WorldState` with its own field
-  rather than inferring it from the dome; if not, carry `mInterior` from `enableTerrain`.
-- **C5** — flip `mTwoSided`'s default to `true` (matching what the rasterizer draws) unless the
-  shots say the culled version is better, in which case keep it and update
-  `testnifloader.cpp`'s comment to say it is a deliberate divergence from the rasterizer.
+**C5 was not a picture change at all.** `Rtx::Material::mTwoSided` is written by the extractor and
+read by nothing: `SceneBuffers::toGpu` does not carry it, and the top level disables culling on every
+instance anyway. So there was nothing to compare — only a field to make truthful before something
+starts reading it. `Surface::Material::mTwoSided` now defaults to **true**, which is what the content
+means: OpenGL culls nothing until told to, and the only NIF record that tells it to is a
+`NiStencilProperty` with a draw mode other than `Both`. A shader property's "double sided" flag and a
+material file's can turn culling off and never on, so their three `= true` assignments were saying
+what the default already said and are gone. `testnifloader.cpp` gained the case that makes the old
+assertion mean something — a stencil property drawing one face, asserted single-sided — because with
+the default true, asserting `Both` gives two-sided proves nothing on its own.
+
+**C4 was a real regression and is fixed by carrying the fact.** `WorldState` gains `mInterior`, read
+straight off `MWBase::World::isCellExterior()` in `describeWorld`, and `PostProcessor::describe` uses
+it instead of `!mSkyVisible`. The two questions are now both present and documented as different: a
+quasi-exterior is an interior cell that draws a sky, so `mInterior` and `mSkyVisible` disagree there
+and each has a caller wanting its own answer. `tsky` no longer moves the `isInterior` uniform.
+
+`PostProcessor::setExteriorFlag` still comes from `mwworld/scene.cpp` reaching into the shader chain
+directly. That is the A3 leak and belongs to step 9, not here.
 
 ### 4. The GUI submit storm *(D1)*
 

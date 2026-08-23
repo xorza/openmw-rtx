@@ -764,6 +764,7 @@ namespace MWRender
             .mAmbientColour = mSunLight->getAmbient(),
             .mSkyColour = mSky->getSkyColor(),
             .mSkyVisible = mSky->isEnabled(),
+            .mInterior = !world.isCellExterior(),
             .mWaterEnabled = mWaterEnabled,
             .mWaterHeight = mWaterHeight,
             .mUnderwater = underwater,

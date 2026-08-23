@@ -152,7 +152,8 @@ namespace
         EXPECT_EQ(find.mFound->mAlphaMode, Surface::AlphaMode::Cutout);
         EXPECT_FLOAT_EQ(find.mFound->mAlphaRef, 128.0f / 255.0f);
 
-        // `DrawMode::Both` is the only thing in a NIF that means two-sided.
+        // Two-sided, which is what `DrawMode::Both` asks for — and, on its own, also what a surface
+        // nothing spoke about would have said. The test below is what makes this one mean something.
         EXPECT_TRUE(find.mFound->mTwoSided);
 
         // The material's alpha rides in the diffuse colour, which is where the NIF keeps it.
@@ -165,6 +166,46 @@ namespace
         // the record happens to hold.
         EXPECT_EQ(find.mFound->mSpecularColour, osg::Vec3f(0.0f, 0.0f, 0.0f));
         EXPECT_FLOAT_EQ(find.mFound->mGlossiness, 0.0f);
+    }
+
+    /// A stencil property is the one record that makes a surface single-sided.
+    ///
+    /// **The direction that has to be tested, because the other one is the default.** OpenGL culls
+    /// nothing until told to and no other NIF record turns culling on, so `mTwoSided` is true for
+    /// almost everything and an assertion that it is true proves nothing on its own. This is the
+    /// same shape as the test above with the draw mode changed, so the difference in the answer can
+    /// only be the draw mode.
+    TEST_F(NifOsgLoaderTest, aStencilPropertyThatDrawsOneFaceDescribesASingleSidedSurface)
+    {
+        Nif::NiTriShapeData data;
+        data.mRecordType = Nif::RC_NiTriShapeData;
+        data.mVertices = { osg::Vec3f(0, 0, 0), osg::Vec3f(1, 0, 0), osg::Vec3f(1, 1, 0) };
+        data.mNumVertices = 3;
+        data.mTriangles = { 0, 1, 2 };
+
+        Nif::NiStencilProperty stencil;
+        init(static_cast<Nif::NiObjectNET&>(stencil));
+        stencil.mRecordType = Nif::RC_NiStencilProperty;
+        stencil.mDrawMode = Nif::NiStencilProperty::DrawMode::CounterClockwise;
+        stencil.mTestFunction = Nif::NiStencilProperty::TestFunc::Always;
+        stencil.mFailAction = Nif::NiStencilProperty::Action::Keep;
+        stencil.mZFailAction = Nif::NiStencilProperty::Action::Keep;
+        stencil.mPassAction = Nif::NiStencilProperty::Action::Keep;
+
+        Nif::NiTriShape shape;
+        init(shape);
+        shape.mData = Nif::NiGeometryDataPtr(&data);
+        shape.mProperties.push_back(Nif::RecordPtrT<Nif::NiProperty>(&stencil));
+
+        Nif::NIFFile file(testNif);
+        file.mRoots.push_back(&shape);
+        osg::ref_ptr<osg::Node> result = Loader::load(file, &mImageManager, &mMaterialManager);
+
+        FindMaterial find;
+        result->accept(find);
+        ASSERT_NE(find.mFound, nullptr);
+
+        EXPECT_FALSE(find.mFound->mTwoSided);
     }
 
     /// A source that always says the same thing, so a controller's output is what it computed and

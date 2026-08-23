@@ -105,7 +105,15 @@ namespace Surface
         /// includes surfaces that also blend.
         float mAlphaRef = 0.0f;
 
-        bool mTwoSided = false;
+        /// Whether both faces of this surface are drawn and lit.
+        ///
+        /// **True unless something says otherwise, because that is what the content means.**
+        /// OpenGL culls nothing until it is told to, and the only record in a NIF that tells it to
+        /// is a `NiStencilProperty` with a draw mode other than `Both` — a shader property's
+        /// "double sided" flag and a material file's can turn culling off and never on. So a
+        /// surface nothing has spoken about is two-sided, which Morrowind leans on heavily: every
+        /// leaf, banner and sheet in the game is one quad meant to be seen from behind.
+        bool mTwoSided = true;
 
         /// Alpha included: `NiMaterialProperty` keeps the surface's opacity here and nowhere else.
         osg::Vec4f mDiffuseColour{ 1.0f, 1.0f, 1.0f, 1.0f };

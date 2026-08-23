@@ -239,7 +239,7 @@ namespace MWRender
         mStateUpdater->setSunVis(world.mSunVisibility);
         mStateUpdater->setAmbientColor(world.mAmbientColour);
         mStateUpdater->setSkyColor(world.mSkyColour);
-        mStateUpdater->setIsInterior(!world.mSkyVisible);
+        mStateUpdater->setIsInterior(world.mInterior);
 
         mStateUpdater->setIsWaterEnabled(world.mWaterEnabled);
         mStateUpdater->setWaterHeight(world.mWaterHeight);

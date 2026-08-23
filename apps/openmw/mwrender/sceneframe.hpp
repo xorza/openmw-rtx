@@ -61,7 +61,19 @@ namespace MWRender
 
         /// False in an interior, where no dome is drawn and `mSkyColour` is whatever the sky was
         /// still holding from wherever the player was last outdoors.
+        ///
+        /// **Not the same question as `mInterior`.** A quasi-exterior — Vivec's cantons, the
+        /// Ministry of Truth — is an interior cell that draws a sky, so the two disagree there and
+        /// each has a caller that wants its own answer.
         bool mSkyVisible = false;
+
+        /// Whether the cell the player stands in is an interior, which is what the cell record
+        /// says and nothing else.
+        ///
+        /// **Asked of the world rather than worked out from what is drawn.** Reading it off the
+        /// sky makes every quasi-exterior an exterior, and reading it off whether terrain is
+        /// enabled makes it a fact about the renderer's own bookkeeping.
+        bool mInterior = false;
 
         bool mWaterEnabled = false;
         float mWaterHeight = 0.0f;
