@@ -384,7 +384,7 @@ only about memory — the identity maps are keyed on raw `osg` pointers, and an 
 freed when a cell unloaded can be handed straight back for something else, so without the sweep the
 next thing allocated there inherits a mesh it has nothing to do with.
 
-The harness unloads too now (`harness.md` §3.2), so the milestone's first clause is closed.
+The harness unloads too now, so the milestone's first clause is closed.
 
 **What is left is the seam with the rasterizer**, and it is §12: the traced frame reaches the screen
 one frame late, the whole world is rasterized every frame and discarded, and — the part that is a
@@ -409,7 +409,7 @@ Target: 1920×1080 internal → 3840×2160 at 60 fps.
 
 **The instance counts moved as much as the times did.** Seyda Neen was 51,742 because the harness
 loaded a nine-by-nine grid the game never loads; it is three-by-three now and holds what the game
-holds (`harness.md` §4). The frame went from 30.26 ms to 8.67 over the same stretch of work: the
+holds. The frame went from 30.26 ms to 8.67 over the same stretch of work: the
 revision split, the mirror moving after the cull, the appendable texture array, one submit instead of
 three for a moving frame, the instance rows built once instead of twice, and slots instead of
 compaction (§10).
@@ -459,8 +459,7 @@ This is not overhead; it is what decides how fast the milestones above go.
 
 ### 7.1 `openmw-rtxtool`
 
-The verbs and how to run them are in `CLAUDE.md`; what the harness *is* and where it still differs
-from the game is `.notes/rtx/harness.md`. Three decisions are worth keeping here.
+The verbs and how to run them are in `CLAUDE.md`. Three decisions are worth keeping here.
 
 **Headless is the primary surface.** A window costs tens of seconds of somebody's attention and
 confirms almost nothing a PNG does not. `shot` renders the real renderer in about a second and prints
@@ -811,4 +810,4 @@ trace moves to the end of the update traversal and presents in the same frame. T
 become a stepping stone at most, and possibly nothing worth building.
 
 **The harness is the existence proof.** It has no cull, poses its actors by hand, and renders the
-same content correctly (`harness.md` §6).
+same content correctly.

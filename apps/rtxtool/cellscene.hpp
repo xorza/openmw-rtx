@@ -149,8 +149,12 @@ namespace RtxTool
     struct RegionLoad
     {
         CellLighting mLighting;
-        std::vector<CellPerson> mPeople;
-        std::vector<CellProp> mProps;
+
+        /// What reading the region found, whole. **Carried rather than picked over**, because a
+        /// caller that only wanted the people used to be the only caller: `scene` reports the
+        /// skipped counts and the lights off the same load the renderer is handed, and it can only
+        /// do that if the load hands them over.
+        CellReport mReport;
     };
 
     RegionLoad loadRegion(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,

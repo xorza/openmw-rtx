@@ -32,13 +32,16 @@
 #include "actor.hpp"
 #include "bench.hpp"
 #include "benchsuite.hpp"
+#include "cellchoice.hpp"
 #include "cellscene.hpp"
-#include "contactsheet.hpp"
+#include "find.hpp"
 #include "options.hpp"
 #include "placement.hpp"
 #include "posedactors.hpp"
+#include "scene.hpp"
 #include "shot.hpp"
 #include "stagedworld.hpp"
+#include "textures.hpp"
 #include "validationchoice.hpp"
 #include "view.hpp"
 #include "views.hpp"
@@ -156,6 +159,34 @@ namespace RtxTool
                   << options;
         }
 
+        /// Who stands in the region, from the command line. **One reading of it**, because a
+        /// report that described a differently populated cell than the one `shot` renders is the
+        /// drift this tool exists to catch.
+        ActorRequest actorsFrom(const bpo::variables_map& variables)
+        {
+            return ActorRequest{
+                .mCreatures = variables["actor"].as<StringsVector>(),
+                .mPeople = variables["npc"].as<StringsVector>(),
+                .mSeconds = variables["actor-time"].as<float>(),
+                .mResidents = variables["people"].as<bool>(),
+                .mProps = variables["props"].as<bool>(),
+                .mClothes = variables["clothes"].as<bool>(),
+            };
+        }
+
+        /// When and in what weather the region stands, likewise.
+        StagingRequest stagingFrom(const bpo::variables_map& variables)
+        {
+            StagingRequest request;
+            request.mWeather = variables["weather"].as<std::string>();
+            request.mHour = variables["hour"].as<float>();
+            request.mFieldOfView = variables["fov"].as<float>();
+
+            // Where to stand is left out: a report is not taken from anywhere, and the two commands
+            // that read one derive the camera from the region's own bounds.
+            return request;
+        }
+
         int runInfo(const std::filesystem::path& shaderDirectory, const Rtx::ValidationOptions& validation)
         {
             // A one-pixel target: this reports on a device rather than drawing with it, and the
@@ -176,159 +207,6 @@ namespace RtxTool
             }
 
             out() << renderer->describeDevice();
-            return 0;
-        }
-
-        void printCellHeading(const ESM::Cell& cell)
-        {
-            out() << "cell:        " << (cell.isExterior() ? "exterior " : "interior ") << '"' << cell.mName << '"';
-            if (cell.isExterior())
-                out() << " at " << cell.getGridX() << ',' << cell.getGridY();
-            out() << "\nwater:       " << (cell.hasWater() ? "yes, at z = " + std::to_string(cell.mWater) : "no")
-                  << '\n';
-
-            // Only interiors carry an `AMBI`; an exterior's air comes off the weather and the clock,
-            // which the cell says nothing about.
-            if (!cell.isExterior())
-                out() << "fog:         depth " << cell.mAmbi.mFogDensity << ", extinction "
-                      << RtxBridge::interiorFog(cell).mExtinction << " per unit\n";
-        }
-
-        /// The named cell, or null with the complaint already printed.
-        const ESM::Cell* findCellOrComplain(World& world, const std::string& cellSpec)
-        {
-            const ESM::Cell* cell = world.findCell(cellSpec);
-            if (cell == nullptr)
-                out() << "No cell is called \"" << cellSpec << "\".\n";
-
-            return cell;
-        }
-
-        /// Prints where every object whose model path contains `needle` stands.
-        ///
-        /// A cell is thousands of references and a view wants to point at one of them. Grepping the
-        /// content files gives a model name; this gives the place it was put.
-        int runFind(World& world, const ESM::Cell& cell, const std::string& needle)
-        {
-            std::uint32_t found = 0;
-            world.forEachObject(cell, [&](const World::Object& object) {
-                if (object.mModel.value().find(needle) == std::string::npos)
-                    return;
-
-                const osg::Vec3f at = object.mTransform.getTrans();
-                out() << "  " << at.x() << ", " << at.y() << ", " << at.z() << "   " << object.mModel << '\n';
-                ++found;
-            });
-
-            out() << found << " objects match \"" << needle << "\"\n";
-            return 0;
-        }
-
-        /// Every texture a cell uses, vanilla beside de-lit, and the names to read it by.
-        int runTextures(World& world, const std::string& cellSpec, const std::filesystem::path& output, float strength)
-        {
-            const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
-            if (cell == nullptr)
-                return 1;
-
-            osg::ref_ptr<osg::Group> root = new osg::Group;
-            Rtx::SceneDesc scene;
-            RtxBridge::SceneExtractor extractor(scene);
-            LoadedCells loaded;
-            readRegion(world, *cell, *root, loaded, false);
-            extractor.extract(*root, osg::Matrixf::identity(), 0);
-
-            const RtxBridge::SceneTextures described(scene, world.getImageManager());
-            const ContactSheet sheet = writeContactSheet(described.getDescriptions(), output, strength);
-            if (sheet.mCount == 0)
-            {
-                out() << "The cell uses no textures.\n";
-                return 1;
-            }
-
-            // The sheet carries no lettering, so the order is printed instead: left to right, top to
-            // bottom, the way it was drawn.
-            const std::span<const VFS::Path::Normalized> paths = scene.getTextures();
-            for (std::size_t i = 0; i < paths.size(); ++i)
-                out() << "  " << i << "  " << paths[i] << '\n';
-
-            out() << "wrote " << Files::pathToUnicodeString(output) << ", " << sheet.mCount
-                  << " textures at --delight=" << strength << '\n';
-            return 0;
-        }
-
-        int runScene(World& world, const std::string& cellSpec, bool twice)
-        {
-            const ESM::Cell* cell = findCellOrComplain(world, cellSpec);
-            if (cell == nullptr)
-                return 1;
-
-            osg::ref_ptr<osg::Group> root = new osg::Group;
-            Rtx::SceneDesc scene;
-            RtxBridge::SceneExtractor extractor(scene);
-            LoadedCells loaded;
-            const CellReport report = readRegion(world, *cell, *root, loaded, false);
-
-            // **Reading a region builds the graph; walking it is what mirrors one.** The counts
-            // below are the walk's, not the load's, which is the same order the game does it in.
-            const RtxBridge::ExtractionStats stats = extractor.extract(*root, osg::Matrixf::identity(), 0);
-
-            printCellHeading(*cell);
-
-            out() << "\nplaced\n"
-                  << "  instances:            " << stats.mInstances << '\n'
-                  << "  meshes:               " << scene.getMeshes().size() << '\n'
-                  << "  materials:            " << scene.getMaterials().size() << '\n'
-                  << "  textures:             " << scene.getTextures().size() << '\n'
-                  << "  triangles:            " << scene.getTriangleCount() << '\n'
-                  << "  vertex+index bytes:   " << scene.getGeometryBytes() / 1024 << " KiB\n";
-
-            for (const auto& [format, count] : stats.mTextureFormats)
-                out() << "  " << count << " x " << format << '\n';
-
-            // Which materials traversal will have to stop and ask about, and which of those asked
-            // for it outright. The second number being the small one is the point: Morrowind keeps
-            // its foliage under `NiAlphaProperty` rather than under an alpha test.
-            std::uint32_t cutouts = 0;
-            std::uint32_t tested = 0;
-            std::uint32_t glowing = 0;
-            for (const Rtx::Material& material : scene.getMaterials())
-            {
-                cutouts += material.isCutout() ? 1 : 0;
-                tested += material.mAlphaMode == Rtx::AlphaMode::Cutout ? 1 : 0;
-                glowing += material.mEmissiveColour.length2() > 0.0f || material.mEmissive != Rtx::sNoIndex ? 1 : 0;
-            }
-            out() << "  cutout materials:     " << cutouts << ", " << tested << " of them alpha-tested outright\n"
-                  << "  emissive materials:   " << glowing << '\n'
-                  << "  lights:               " << report.mLights.size() << " casting, ambient " << report.mAmbient.x()
-                  << ", " << report.mAmbient.y() << ", " << report.mAmbient.z() << '\n'
-                  << "  deforming drawables:  " << stats.mDeformed << '\n'
-                  << "  emitters:             " << stats.mEmitters << " holding " << stats.mSprites
-                  << " live particles\n"
-                  << "  residents:            " << report.mPeople.size() << " to assemble\n";
-
-            out() << "\nnot placed\n"
-                  << "  record type unread:   " << report.mSkipped.mUnknownType << '\n'
-                  << "  record has no model:  " << report.mSkipped.mNoModel << '\n'
-                  << "  model would not load: " << report.mUnreadable << '\n'
-                  << "  unreadable drawables: " << stats.mSkippedUnknown << '\n'
-                  << "  empty geometry:       " << stats.mSkippedEmpty << '\n'
-                  << "  undescribed surfaces: " << stats.mUndescribedMaterials << '\n';
-
-            if (twice)
-            {
-                // **Literally the same graph, walked again.** This used to read the region a second
-                // time with a set that had never heard of it, which rebuilt the nodes and measured a
-                // fresh graph rather than a second look at one. There is a graph to re-walk now, so
-                // the property can be asked the way the game asks it every frame.
-                const RtxBridge::ExtractionStats total = extractor.extract(*root, osg::Matrixf::identity(), 0);
-
-                out() << "\nsecond pass over the same graph\n"
-                      << "  new meshes:           " << total.mMeshesAdded << " (should be 0)\n"
-                      << "  new materials:        " << total.mMaterialsAdded << " (should be 0)\n"
-                      << "  drawables resolved:   " << total.mMeshesReused << " to a known mesh\n";
-            }
-
             return 0;
         }
 
@@ -564,8 +442,12 @@ namespace RtxTool
                 const Chosen chosen = chooseView(variables, resources);
                 World world(config, variables, resources);
 
-                return runTextures(
-                    world, chosen.mCell, variables["out"].as<std::string>(), variables["delight"].as<float>());
+                const ESM::Cell* cell = findCellOrComplain(world, chosen.mCell);
+                if (cell == nullptr)
+                    return 1;
+
+                return runTextures(world, *cell, stagingFrom(variables), actorsFrom(variables),
+                    variables["out"].as<std::string>(), variables["delight"].as<float>());
             }
 
             if (command == "scene")
@@ -573,14 +455,16 @@ namespace RtxTool
                 const Chosen chosen = chooseView(variables, resources);
                 World world(config, variables, resources);
 
+                const ESM::Cell* cell = findCellOrComplain(world, chosen.mCell);
+                if (cell == nullptr)
+                    return 1;
+
                 const std::string needle = variables["find"].as<std::string>();
                 if (!needle.empty())
-                {
-                    const ESM::Cell* cell = findCellOrComplain(world, chosen.mCell);
-                    return cell == nullptr ? 1 : runFind(world, *cell, needle);
-                }
+                    return runFind(world, *cell, needle);
 
-                return runScene(world, chosen.mCell, variables["twice"].as<bool>());
+                return runScene(
+                    world, *cell, stagingFrom(variables), actorsFrom(variables), variables["twice"].as<bool>());
             }
 
             if (command == "bench")
@@ -641,14 +525,7 @@ namespace RtxTool
 
                 const Rtx::ValidationOptions validation = validationFrom(variables, command == "view");
 
-                const ActorRequest actors{
-                    .mCreatures = variables["actor"].as<std::vector<std::string>>(),
-                    .mPeople = variables["npc"].as<std::vector<std::string>>(),
-                    .mSeconds = variables["actor-time"].as<float>(),
-                    .mResidents = variables["people"].as<bool>(),
-                    .mProps = variables["props"].as<bool>(),
-                    .mClothes = variables["clothes"].as<bool>(),
-                };
+                const ActorRequest actors = actorsFrom(variables);
 
                 World world(config, variables, resources);
 

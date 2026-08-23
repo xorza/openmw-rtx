@@ -20,6 +20,7 @@ namespace RtxTool
             world, cell, *mRoot, mScene, mExtractor, mLoaded, request.mWeather, request.mHour, actors.mProps);
 
         mLighting = arrived.mLighting;
+        mReport = std::move(arrived.mReport);
 
         // **Before the first walk, because the walk runs the animators.** The graph's own
         // controllers — a brazier's flipbook, a lava flow — read the clock off the traversal, and a
@@ -32,17 +33,17 @@ namespace RtxTool
             mStanding = CellSquare{ .mX = cell.getGridX(), .mY = cell.getGridY() };
 
         // The first walk. Everything after this is the same walk again, once a frame.
-        mirror(0);
+        mStaged = mirror(0);
 
         // **Before anyone goes in.** A row of actors stands relative to where the camera ends up, so
         // the camera cannot be derived from bounds that already contain them.
         mPlacement = placeCamera(mScene.getBounds(), request.mFieldOfView, request.mOrigin, request.mTarget);
 
         const std::span<const CellPerson> residents
-            = actors.mResidents ? std::span<const CellPerson>(arrived.mPeople) : std::span<const CellPerson>();
+            = actors.mResidents ? std::span<const CellPerson>(mReport.mPeople) : std::span<const CellPerson>();
 
         const std::span<const CellProp> props
-            = actors.mProps ? std::span<const CellProp>(arrived.mProps) : std::span<const CellProp>();
+            = actors.mProps ? std::span<const CellProp>(mReport.mProps) : std::span<const CellProp>();
 
         if (actors.empty() && residents.empty() && props.empty())
             return;

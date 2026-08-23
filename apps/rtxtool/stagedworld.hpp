@@ -120,6 +120,20 @@ namespace RtxTool
         /// none.
         const RtxBridge::ExtractionStats& getSettled() const { return mSettled; }
 
+        /// What the staging walk found: the still world, before anyone was posed into it.
+        const RtxBridge::ExtractionStats& getStaged() const { return mStaged; }
+
+        /// What reading the region found, including everything it could not place. Kept because a
+        /// report of what the renderer is handed has to come off the same load the renderer got.
+        const CellReport& getReport() const { return mReport; }
+
+        /// Walks the same graph again and says what that added.
+        ///
+        /// **A diagnostic and not a frame.** Nothing changes between the two, so every count it
+        /// returns for new geometry should be zero — which is the property the incremental mirror
+        /// rests on, and the only way to ask it is to ask twice.
+        RtxBridge::ExtractionStats mirrorAgain() { return mirror(0); }
+
         /// People and creatures, which is everyone posed less the props.
         std::size_t getActorCount() const;
         std::size_t getPropCount() const;
@@ -151,6 +165,10 @@ namespace RtxTool
 
         CellLighting mLighting;
         Placement mPlacement;
+
+        /// What the staging load and the staging walk came to, kept for whoever reports on them.
+        CellReport mReport;
+        RtxBridge::ExtractionStats mStaged;
 
         /// Held rather than borrowed: the extractor keys its meshes on node pointers, so actors
         /// freed while the scene still names them is a dangling identity.

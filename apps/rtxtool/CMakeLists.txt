@@ -5,20 +5,28 @@ set(RTXTOOL_FILES
     bench.hpp
     benchsuite.cpp
     benchsuite.hpp
+    cellchoice.cpp
+    cellchoice.hpp
     cellscene.cpp
     cellscene.hpp
     contactsheet.cpp
     contactsheet.hpp
+    find.cpp
+    find.hpp
     framing.cpp
     framing.hpp
     placement.cpp
     placement.hpp
+    scene.cpp
+    scene.hpp
     shot.cpp
     shot.hpp
     stagedworld.cpp
     stagedworld.hpp
     terrainstorage.cpp
     terrainstorage.hpp
+    textures.cpp
+    textures.hpp
     lighting.cpp
     lighting.hpp
     motion.hpp

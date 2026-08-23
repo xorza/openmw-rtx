@@ -178,8 +178,8 @@ namespace RtxTool
         // every chunk under one node and hands that same node back each call, so this is the same
         // node every time — adding it again would put the whole worldspace under the root twice.
         //
-        // Terrain is therefore not per cell the way the objects below are, which is the one thing
-        // in this graph that cannot yet be unloaded a cell at a time. See `.notes/rtx/harness.md`.
+        // Terrain is therefore not per cell the way the objects below are, and what a departing
+        // cell takes with it comes off through `World::unloadTerrain` instead.
         if (terrain != nullptr && !root.containsNode(terrain))
             root.addChild(terrain);
 
@@ -290,15 +290,13 @@ namespace RtxTool
                                    .mWaterLevel = level,
                                    .mDaylight = {},
                                    .mFog = RtxBridge::interiorFog(centre) },
-                .mPeople = std::move(report.mPeople),
-                .mProps = std::move(report.mProps) };
+                .mReport = std::move(report) };
 
         const RtxBridge::Daylight daylight = RtxBridge::makeDaylight(weather, hour);
         return RegionLoad{ .mLighting = CellLighting{ .mAmbient = daylight.mAmbient,
                                .mWaterLevel = level,
                                .mDaylight = daylight,
                                .mFog = daylight.mFog },
-            .mPeople = std::move(report.mPeople),
-            .mProps = std::move(report.mProps) };
+            .mReport = std::move(report) };
     }
 }
