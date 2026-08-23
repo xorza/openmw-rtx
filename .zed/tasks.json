@@ -1,5 +1,16 @@
 [
   {
+    "label": "RTX: the game, from the main menu",
+    "command": "cmake --build . -j32 --target openmw && ./openmw",
+    "cwd": "$ZED_WORKTREE_ROOT/build",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": [
+      "rtx-view"
+    ]
+  },
+  {
     "label": "RTX: the game, on the quicksave",
     "command": "cmake --build . -j32 --target openmw && ./openmw --skip-menu --load-savegame $HOME/.local/share/openmw/saves/asd/Quicksave.omwsave",
     "cwd": "$ZED_WORKTREE_ROOT/build",
