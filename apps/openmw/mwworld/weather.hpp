@@ -15,7 +15,7 @@
 
 #include "../mwbase/soundmanager.hpp"
 
-#include "../mwrender/gl/skyutil.hpp"
+#include "../mwrender/weatherresult.hpp"
 
 namespace ESM
 {

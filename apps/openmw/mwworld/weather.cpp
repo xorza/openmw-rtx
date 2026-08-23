@@ -18,7 +18,6 @@
 
 #include "../mwsound/sound.hpp"
 
-#include "../mwrender/gl/sky.hpp"
 #include "../mwrender/renderingmanager.hpp"
 
 #include "cellstore.hpp"
@@ -861,13 +860,10 @@ namespace MWWorld
             && mResult.mParticleEffect != Settings::models().mWeatherashcloud.get();
 
         mStormDirection = calculateStormDirection(mResult.mParticleEffect);
-        mRendering.getSkyManager()->setStormParticleDirection(mStormDirection);
+        mRendering.setStormParticleDirection(mStormDirection);
 
         // disable sun during night
-        if (time.getHour() >= mTimeSettings.mNightStart || time.getHour() <= mSunriseTime)
-            mRendering.getSkyManager()->sunDisable();
-        else
-            mRendering.getSkyManager()->sunEnable();
+        mRendering.setSunVisible(time.getHour() < mTimeSettings.mNightStart && time.getHour() > mSunriseTime);
 
         // Update the sun direction.  Run it east to west at a fixed angle from overhead.
         // The sun's speed at day and night may differ, since mSunriseTime and mNightStart
@@ -914,17 +910,16 @@ namespace MWWorld
         else
             glareFade = 1.f - (time.getHour() - peakHour) / (mTimeSettings.mNightStart - peakHour);
 
-        mRendering.getSkyManager()->setGlareTimeOfDayFade(glareFade);
+        mRendering.setGlareTimeOfDayFade(glareFade);
 
-        mRendering.getSkyManager()->setMasserState(mMasser.calculateState(time));
-        mRendering.getSkyManager()->setSecundaState(mSecunda.calculateState(time));
+        mRendering.setMoonStates(mMasser.calculateState(time), mSecunda.calculateState(time));
 
         mRendering.configureFog(
             mResult.mFogDepth, underwaterFog, mResult.mDLFogFactor, mResult.mDLFogOffset / 100.0f, mResult.mFogColor);
         mRendering.setAmbientColour(mResult.mAmbientColor);
         mRendering.setSunColour(mResult.mSunColor, mResult.mSunColor, mResult.mGlareView * glareFade);
 
-        mRendering.getSkyManager()->setWeather(mResult);
+        mRendering.setWeather(mResult);
 
         // Play sounds
         if (mPlayingAmbientSoundID != mResult.mAmbientLoopSoundID)

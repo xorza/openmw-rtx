@@ -5,6 +5,7 @@
 #include "renderinginterface.hpp"
 #include "rendermode.hpp"
 #include "sceneframe.hpp"
+#include "weatherresult.hpp"
 
 #include <components/settings/settings.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -192,6 +193,18 @@ namespace MWRender
         osg::Vec2f getScreenCoords(const osg::BoundingBox& bb);
 
         void setSkyEnabled(bool enabled);
+
+        /// What the weather system has just worked out, for whatever draws the sky.
+        ///
+        /// **Forwarded rather than reached through.** `MWWorld::WeatherManager` already tells this
+        /// object about the fog, the ambient and the sun; these are the rest of the same sentence,
+        /// and routing them here is what keeps `SkyManager` — which is one renderer's — from being
+        /// named outside `mwrender`.
+        void setWeather(const WeatherResult& weather);
+        void setStormParticleDirection(const osg::Vec3f& direction);
+        void setSunVisible(bool visible);
+        void setGlareTimeOfDayFade(float fade);
+        void setMoonStates(const MoonState& masser, const MoonState& secunda);
 
         bool toggleRenderMode(RenderMode mode);
 

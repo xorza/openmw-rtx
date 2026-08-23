@@ -32,7 +32,6 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
-#include "../mwrender/gl/postprocessor.hpp"
 #include "../mwrender/landmanager.hpp"
 #include "../mwrender/renderingmanager.hpp"
 
@@ -990,9 +989,6 @@ namespace MWWorld
             MWBase::Environment::get().getWindowManager()->fadeScreenIn(0.5);
 
         MWBase::Environment::get().getWindowManager()->changeCell(mCurrentCell);
-
-        if (MWRender::PostProcessor* post = MWBase::Environment::get().getWorld()->getPostProcessor())
-            post->setExteriorFlag(cell.getCell()->isQuasiExterior());
     }
 
     void Scene::changeToExteriorCell(
@@ -1012,9 +1008,6 @@ namespace MWWorld
 
         if (changeEvent)
             MWBase::Environment::get().getWindowManager()->fadeScreenIn(0.5);
-
-        if (MWRender::PostProcessor* post = MWBase::Environment::get().getWorld()->getPostProcessor())
-            post->setExteriorFlag(true);
     }
 
     CellStore* Scene::getCurrentCell()
@@ -1121,7 +1114,7 @@ namespace MWWorld
     {
         const VFS::Path::Normalized meshPath = useAnim
             ? Misc::ResourceHelpers::correctActorModelPath(
-                VFS::Path::toNormalized(mesh), mRendering.getResourceSystem()->getVFS())
+                  VFS::Path::toNormalized(mesh), mRendering.getResourceSystem()->getVFS())
             : VFS::Path::toNormalized(mesh);
 
         if (mRendering.getResourceSystem()->getSceneManager()->checkLoaded(meshPath, mRendering.getReferenceTime()))

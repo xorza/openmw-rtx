@@ -633,6 +633,35 @@ namespace MWRender
         mTerrain->enable(enable);
     }
 
+    void RenderingManager::setWeather(const WeatherResult& weather)
+    {
+        mSky->setWeather(weather);
+    }
+
+    void RenderingManager::setStormParticleDirection(const osg::Vec3f& direction)
+    {
+        mSky->setStormParticleDirection(direction);
+    }
+
+    void RenderingManager::setSunVisible(bool visible)
+    {
+        if (visible)
+            mSky->sunEnable();
+        else
+            mSky->sunDisable();
+    }
+
+    void RenderingManager::setGlareTimeOfDayFade(float fade)
+    {
+        mSky->setGlareTimeOfDayFade(fade);
+    }
+
+    void RenderingManager::setMoonStates(const MoonState& masser, const MoonState& secunda)
+    {
+        mSky->setMasserState(masser);
+        mSky->setSecundaState(secunda);
+    }
+
     void RenderingManager::setSkyEnabled(bool enabled)
     {
         mSky->setEnabled(enabled);

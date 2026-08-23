@@ -74,7 +74,7 @@ Both sites become `if (!MWRender::rendererAvailable("raytrace"))`. The launcher 
 header — either way the `#ifdef` count drops to one, in `renderer.cpp`, where the review asked for
 it.
 
-### A3. `PostProcessor` is the abstraction's one real leak
+### A3. `PostProcessor` — **narrowed to where it is defensible**
 
 `Renderer::getPostProcessor()` returns a neutral-looking pointer, but its *type* lives at
 `apps/openmw/mwrender/gl/postprocessor.hpp`, and nine files outside the renderer include it by that
@@ -91,18 +91,28 @@ apps/openmw/mwlua/luamanagerimp.cpp           apps/openmw/mwworld/scene.cpp
 Every one of those now states in its include list which renderer it expects. The null check is the
 honest part; the path is not.
 
-**Options, in order of preference:**
+**Nine files became five, and the five are the defensible ones.**
 
-- **(a)** Move `PostProcessor`'s declaration back to `apps/openmw/mwrender/postprocessor.hpp` as the
-  *interface* the game talks to, and keep the OpenGL implementation in `gl/`. The eleven Lua
-  bindings, the HUD and the settings page then name a renderer-neutral header and a renderer-neutral
-  type, and the `nullptr` return is the whole of what a second renderer has to answer.
-- **(b)** Leave the type where it is but rename it to what it actually is — `MWRender::ShaderChain` —
-  and put it in `mwrender/`. Same effect, a clearer name, a larger diff.
-- **(c)** Accept it and write down in `renderer.hpp` that the shader chain is the rasterizer's and
-  its header is where it is. Cheapest; leaves the leak.
+Counting what the outside actually uses: about twelve methods, a templated `setUniform` over five
+types, and two enums. An abstract interface over that is a large refactor with no second implementer
+— the ray tracer answers this question with `nullptr` and always will. So the line drawn instead is
+about *who* may know:
 
-### A4. The weather is compiled against the OpenGL sky
+- **`mwworld` must not**, and no longer does. `scene.cpp` reached in on every cell change to push
+  `setExteriorFlag`, which is the same fact `WorldState::mSkyVisible` already carries down the frame
+  channel; `PostProcessor::describe` now reads it there and the setter is gone. `worldimp.cpp`'s
+  include was unnecessary — it returns a pointer through a forward declaration.
+- **`mwgui` and `mwlua` may.** Post-processing is a documented, versioned user-facing feature —
+  `openmw.postprocessing`, with its own API revision — and those five files are the interface and
+  the script bindings *for that feature*. A window that lists shader techniques naming the object
+  that holds them is not a renderer leaking upwards; it is the feature's own UI.
+
+`mwrender/npcanimation.cpp` also names `gl/postprocessor.hpp`, for a `RenderBin::DrawCallback` doing
+raw `glClear` and FBO binds — rasterizer code in a neutral directory. Moving it to `gl/` would only
+swap one `gl/` include for another, because `NpcAnimation::setRenderBin` is what installs it and
+that has to stay with the animation. Left alone, noted here.
+
+### A4. The weather was compiled against the OpenGL sky — **fixed**
 
 `mwworld/weather.hpp` includes `../mwrender/gl/skyutil.hpp`; `weather.cpp` includes
 `../mwrender/gl/sky.hpp`. `RenderingManager` — the neutral, shared object — owns `SkyManager` and
@@ -114,9 +124,20 @@ renderer-neutral.
 resolved colour state (everyone's). The dome is rebuilt every frame under the ray tracer for nothing
 — the extractor explicitly masks it out — and the second half is what `WorldState` actually wants.
 
-**Fix:** extract the colour/phase state into a neutral `MWRender::SkyState` (or push it into
-`FogManager`, which is already neutral and already answers half of it), leave the dome in `gl/`, and
-`mwworld/weather` stops naming the backend. This also fixes C4 below for free.
+**Fixed.** `WeatherResult` and `MoonState` are plain data — strings, colours, floats, an enum —
+authored by `MWWorld::WeatherManager` and read by the dome, and they lived in the dome's header. So
+every file that wanted to describe the weather pulled in `osgParticle` shooters and state-set
+updaters, and the world's weather system named a renderer to do it. They now live in
+`mwrender/weatherresult.hpp`, which `gl/skyutil.hpp` includes.
+
+The six `getSkyManager()->…` calls in `weather.cpp` became forwarders on `RenderingManager`
+alongside the ones already there for the fog, the ambient and the sun — `setWeather`,
+`setStormParticleDirection`, `setSunVisible`, `setGlareTimeOfDayFade`, `setMoonStates`. **Nothing in
+`mwworld` names a renderer any more.**
+
+What is *not* fixed is the other half: `RenderingManager` still constructs and drives `SkyManager`
+and `Water` under the ray tracer, which masks both out of the mirror and draws neither. That is a
+larger change — the world would have to stop owning them — and it is not an include problem.
 
 ### A5. Smaller
 
@@ -736,7 +757,13 @@ answer had to live somewhere both binaries already link.
 its `#ifdef` guards an include and a construction — one decision, one file. Every other use of the
 macro in C++ is gone: three sites became one question asked in two places.
 
-### 9. `PostProcessor` and the sky *(A3, A4)*
+### 9. `PostProcessor` and the sky *(A3, A4)* — **done**
+
+A4 fixed outright: `mwworld` names no renderer at all now. A3 narrowed from nine files to five, and
+the five are the post-processing feature's own UI and script bindings rather than the world. Details
+in A3 and A4 above; the interface extraction is recorded there as deliberately not done and why.
+
+The original plan:
 
 The two structural items, and the two largest. Do them in this order — the sky split is what makes
 `describeWorld()` honest, and `PostProcessor`'s move is mechanical once nothing but the renderer

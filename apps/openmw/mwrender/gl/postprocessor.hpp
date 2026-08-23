@@ -166,8 +166,6 @@ namespace MWRender
 
         bool isTechniqueEnabled(const std::shared_ptr<Fx::Technique>& technique) const;
 
-        void setExteriorFlag(bool exterior) { mExteriorFlag = exterior; }
-
         /// This frame's world, in the spelling the chain's shaders sample.
         ///
         /// **A copy and not a cache.** Every value is settled somewhere in the world already, so
