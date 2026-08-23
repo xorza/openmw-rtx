@@ -219,7 +219,8 @@ namespace MWGui
         mScalingFactor = Settings::gui().mScalingFactor * (dw / w);
         constexpr VFS::Path::NormalizedView resourcePath("mygui");
         mGuiPlatform = mRenderer.createGuiPlatform(*guiRoot, *resourceSystem->getImageManager(),
-            *resourceSystem->getVFS(), mScalingFactor, resourcePath, logpath / "MyGUI.log");
+            resourceSystem->getSceneManager()->getShaderManager(), *resourceSystem->getVFS(), mScalingFactor,
+            resourcePath, logpath / "MyGUI.log");
 
         mGui = std::make_unique<MyGUI::Gui>();
         mGui->initialise({});
@@ -310,8 +311,6 @@ namespace MWGui
 
         mVideoWrapper = std::make_unique<SDLUtil::VideoWrapper>(window);
         mVideoWrapper->setGammaContrast(Settings::video().mGamma, Settings::video().mContrast);
-
-        mGuiPlatform->getRenderManagerPtr()->enableShaders(mResourceSystem->getSceneManager()->getShaderManager());
 
         mStatsWatcher = std::make_unique<StatsWatcher>();
     }
@@ -1340,7 +1339,7 @@ namespace MWGui
 
         Settings::Manager::resetPendingChanges(filter);
 
-        mGuiPlatform->getRenderManagerPtr()->setViewSize(x, y);
+        MyGUI::RenderManager::getInstance().setViewSize(x, y);
 
         // scaled size
         const MyGUI::IntSize& viewSize = MyGUI::RenderManager::getInstance().getViewSize();

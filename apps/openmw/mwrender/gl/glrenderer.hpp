@@ -101,8 +101,8 @@ namespace MWRender
         void reloadChangedShaders(Shader::ShaderManager& shaders) override;
 
         std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(osg::Group& guiRoot, Resource::ImageManager& images,
-            const VFS::Manager& vfs, float scalingFactor, VFS::Path::NormalizedView resourcePath,
-            const std::filesystem::path& logPath) override;
+            Shader::ShaderManager& shaders, const VFS::Manager& vfs, float scalingFactor,
+            VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath) override;
 
         osg::Timer_t getStartTick() const override;
 

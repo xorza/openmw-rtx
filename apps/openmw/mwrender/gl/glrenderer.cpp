@@ -30,6 +30,7 @@
 #include <components/debug/gldebug.hpp>
 #include <components/l10n/manager.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
+#include <components/myguiplatform/myguirendermanager.hpp>
 #include <components/myguiplatform/myguitexture.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/resource/stats.hpp>
@@ -626,11 +627,21 @@ namespace MWRender
     }
 
     std::unique_ptr<MyGUIPlatform::Platform> GlRenderer::createGuiPlatform(osg::Group& guiRoot,
-        Resource::ImageManager& images, const VFS::Manager& vfs, float scalingFactor,
+        Resource::ImageManager& images, Shader::ShaderManager& shaders, const VFS::Manager& vfs, float scalingFactor,
         VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath)
     {
-        return std::make_unique<MyGUIPlatform::Platform>(
-            mStage.getCamera(), &guiRoot, &images, &vfs, scalingFactor, resourcePath, logPath);
+        auto manager
+            = std::make_unique<MyGUIPlatform::RenderManager>(mStage.getCamera(), &guiRoot, &images, scalingFactor);
+        MyGUIPlatform::RenderManager& gui = *manager;
+
+        auto platform = std::make_unique<MyGUIPlatform::Platform>(std::move(manager), &vfs, resourcePath, logPath);
+
+        // **Which program the GUI is drawn with is this renderer's business**, and it is settled
+        // after the platform rather than before it: the drawable the program goes on is made by the
+        // `initialise` the platform's constructor calls.
+        gui.enableShaders(shaders);
+
+        return platform;
     }
 
     osg::Timer_t GlRenderer::getStartTick() const

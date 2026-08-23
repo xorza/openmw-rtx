@@ -30,6 +30,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
+#include <components/myguirtx/rendermanager.hpp>
 #include <components/rtx/camera.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
@@ -292,6 +293,12 @@ namespace MWRender::Rtx
 
     void RtxRenderer::updateTraversal()
     {
+        // **Before the early return, because a main menu has no scene root.** MyGUI's widget
+        // animation, its key repeat and its tooltip timers all hang off this one call, and the other
+        // backend gets it from an update callback on a node that is always in the graph.
+        if (MyGUIRtx::RenderManager* gui = MyGUIRtx::RenderManager::getInstancePtr())
+            gui->update();
+
         if (mSceneRoot == nullptr)
             return;
 
@@ -328,11 +335,24 @@ namespace MWRender::Rtx
         mCamera->setViewport(0, 0, static_cast<int>(extents.mOutputWidth), static_cast<int>(extents.mOutputHeight));
     }
 
+    void RtxRenderer::drawGui()
+    {
+        // **Between the frame and the present**, because the GUI goes over the finished picture and
+        // its colours are display-referred — they were picked looking at a monitor, and a tone curve
+        // meant for radiance is how a menu comes out grey.
+        if (MyGUIRtx::RenderManager* gui = MyGUIRtx::RenderManager::getInstancePtr())
+            gui->collectDrawCalls();
+    }
+
     void RtxRenderer::renderGui()
     {
-        // Nothing to trace and nothing new to show, but the surface still has to be fed or the
-        // compositor decides the window has stopped answering.
-        if (mDrawnOnce && !mRenderer->presentFrame())
+        // **The GUI over whatever the target holds**, which is the last frame traced, or black
+        // where nothing has been — a main menu, or the moment before the first cell finishes
+        // loading. The surface has to be fed either way or the compositor decides the window has
+        // stopped answering.
+        drawGui();
+
+        if (!mRenderer->presentFrame())
             fitToWindow();
     }
 
@@ -458,15 +478,16 @@ namespace MWRender::Rtx
     }
 
     std::unique_ptr<MyGUIPlatform::Platform> RtxRenderer::createGuiPlatform(osg::Group& guiRoot,
-        Resource::ImageManager& images, const VFS::Manager& vfs, float scalingFactor,
+        Resource::ImageManager& images, Shader::ShaderManager& shaders, const VFS::Manager& vfs, float scalingFactor,
         VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath)
     {
-        // **The same backend the rasterizer uses, and it draws nothing.** MyGUI's frame events come
-        // off an update callback and its draw calls off a cull callback; this renderer runs the
-        // first traversal and not the second, so the GUI lays out, animates and answers input while
-        // never reaching a draw. Step 6 is where it gets one.
-        return std::make_unique<MyGUIPlatform::Platform>(
-            *mCamera, &guiRoot, &images, &vfs, scalingFactor, resourcePath, logPath);
+        // **MyGUI over the ray tracer, and nothing of OpenSceneGraph in it.** `guiRoot` is where the
+        // rasterizer hangs its GUI camera; there is no graph to hang anything off here, and the
+        // backend is called by this renderer's own frame instead — `updateTraversal` for the widget
+        // animation and `renderFrame` for the triangles.
+        auto manager = std::make_unique<MyGUIRtx::RenderManager>(*mRenderer, &images, scalingFactor);
+
+        return std::make_unique<MyGUIPlatform::Platform>(std::move(manager), &vfs, resourcePath, logPath);
     }
 
     void RtxRenderer::keep()
@@ -651,7 +672,8 @@ namespace MWRender::Rtx
         // **The frame the trace made, on the screen, before this call returns.** No composite, no
         // interop and no rasterized frame underneath — which is what takes `docs/rtx/plan.md` §12's
         // frame of latency out: the image presented is the one just traced.
-        mDrawnOnce = true;
+        drawGui();
+
         if (!mRenderer->presentFrame())
             fitToWindow();
 

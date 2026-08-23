@@ -1,9 +1,9 @@
 #ifndef OPENMW_COMPONENTS_MYGUIPLATFORM_MYGUIRENDERMANAGER_H
 #define OPENMW_COMPONENTS_MYGUIPLATFORM_MYGUIRENDERMANAGER_H
 
-#include <MyGUI_RenderManager.h>
-
 #include <osg/ref_ptr>
+
+#include "guirendermanager.hpp"
 
 namespace Resource
 {
@@ -29,7 +29,7 @@ namespace MyGUIPlatform
     class Drawable;
     class OSGTexture;
 
-    class RenderManager : public MyGUI::RenderManager, public MyGUI::IRenderTarget
+    class RenderManager : public GuiRenderManager, public MyGUI::IRenderTarget
     {
         osg::ref_ptr<osg::Group> mSceneRoot;
         osg::ref_ptr<Drawable> mDrawable;
@@ -61,8 +61,8 @@ namespace MyGUIPlatform
             const osg::Camera& eye, osg::Group* sceneroot, Resource::ImageManager* imageManager, float scalingFactor);
         virtual ~RenderManager();
 
-        void initialise();
-        void shutdown();
+        void initialise() override;
+        void shutdown() override;
 
         void enableShaders(Shader::ShaderManager& shaderManager);
 

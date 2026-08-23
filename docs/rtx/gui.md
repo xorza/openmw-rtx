@@ -319,13 +319,30 @@ an empty GUI touches nothing. And the last of them traces a wall, draws over hal
 that the other half is byte-for-byte what the trace left — the first time the two halves of this
 renderer meet.
 
-### Step 6.6 — `components/myguirtx`
+### Step 6.6 — `components/myguirtx` — **drawn, and one defect short of done**
 
-MyGUI's four interfaces over `Rtx::Renderer`. `RtxRenderer::createGuiPlatform` returns a platform
-built on it instead of the OSG one.
+MyGUI's four interfaces over `Rtx::Renderer`, written once for every backend as §2 argued they
+should be. `MyGUIPlatform::Platform` became backend-neutral to carry it: the log and the data
+manager are the same whatever draws, so a backend now hands its render manager in already made,
+behind a two-method base (`GuiRenderManager`) that adds the `initialise` and `shutdown` MyGUI itself
+does not declare. Nothing above the renderers names a concrete backend any more, and
+`enableShaders` — which is only the rasterizer's — moved out of `WindowManager` and into
+`GlRenderer::createGuiPlatform`.
 
-*Verified by*: the menu, the HUD and a message box on the ray tracing path — the first thing on that
-path that has to be looked at rather than measured.
+**Nothing here is driven by a scene graph.** The other backend hangs its frame event on an OSG update
+callback and its draw on a cull callback; this one is called by the renderer's own frame — widget
+animation from `updateTraversal`, the triangles from `renderFrame` and `renderGui`. That second call
+is what puts a GUI on a frame nothing traced.
+
+*Verified by*: the game on the ray tracing path with a savegame — the inventory window, its skin,
+tabs, item icons, text and encumbrance bar, the map window, the HUD bars and the crosshair, all over
+a traced Balmora, right way up and correctly composited, with the validation layers quiet. The
+inventory doll is blank, which is what 6.7 is for.
+
+**Not done, because starting at the main menu crashes.** The ray tracing path takes the process down
+on the fifth or sixth frame with a MyGUI widget overwritten by heap corruption. It is recorded in
+`.notes/ISSUES.md` with what has been ruled out; the interface it draws is right, and where the
+corruption comes from is not yet known.
 
 ### Step 6.7 — `RtxRenderer::createOffscreenView`
 

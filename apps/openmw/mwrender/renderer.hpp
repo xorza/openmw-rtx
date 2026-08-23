@@ -218,9 +218,13 @@ namespace MWRender
 
         /// MyGUI's backend. `MyGUI::RenderManager` is MyGUI's own interface, so a second one of
         /// these is a second implementation of an existing interface rather than a new abstraction.
+        ///
+        /// @param shaders where the rasterizer finds the program it draws widgets with. Passed in
+        ///        rather than reached for: this is called at the main menu, where there is no world
+        ///        and so nothing a renderer could have been handed one through.
         virtual std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(osg::Group& guiRoot,
-            Resource::ImageManager& images, const VFS::Manager& vfs, float scalingFactor,
-            VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath)
+            Resource::ImageManager& images, Shader::ShaderManager& shaders, const VFS::Manager& vfs,
+            float scalingFactor, VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath)
             = 0;
 
     protected:

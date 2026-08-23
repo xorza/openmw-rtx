@@ -734,6 +734,7 @@ if (OPENMW_RTX)
         add_subdirectory (components/rtxmetal)
     endif()
 
+    add_subdirectory (components/myguirtx)
     add_subdirectory (components/rtxbackends)
     add_subdirectory (components/rtxbridge)
     add_subdirectory (apps/rtxtool)

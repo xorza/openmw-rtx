@@ -7,6 +7,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 #include "shaders/visibility.h"
@@ -72,18 +73,21 @@ namespace Rtx
     /// widget pixels by the view size for itself.
     struct GuiVertex
     {
-        float mX = 0.0f;
-        float mY = 0.0f;
-        float mZ = 0.0f;
+        float mX;
+        float mY;
+        float mZ;
 
         /// Red in the low byte, alpha in the high one — MyGUI's `ColourABGR`.
-        std::uint32_t mColour = 0;
+        std::uint32_t mColour;
 
-        float mU = 0.0f;
-        float mV = 0.0f;
+        float mU;
+        float mV;
     };
 
+    /// **Trivial and twenty-four bytes**, because a frame of GUI is copied out of the buffer MyGUI
+    /// filled rather than walked. Default member initialisers would cost that copy its memcpy.
     static_assert(sizeof(GuiVertex) == 24, "a GUI vertex is what MyGUI writes, and the buffer is read as its own");
+    static_assert(std::is_trivial_v<GuiVertex>);
 
     /// One run of vertices drawn with one texture.
     ///

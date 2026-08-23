@@ -124,8 +124,8 @@ namespace MWRender::Rtx
         void reloadChangedShaders(Shader::ShaderManager& shaders) override {}
 
         std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(osg::Group& guiRoot, Resource::ImageManager& images,
-            const VFS::Manager& vfs, float scalingFactor, VFS::Path::NormalizedView resourcePath,
-            const std::filesystem::path& logPath) override;
+            Shader::ShaderManager& shaders, const VFS::Manager& vfs, float scalingFactor,
+            VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath) override;
 
         osg::Timer_t getStartTick() const override { return mStartTick; }
 
@@ -145,6 +145,9 @@ namespace MWRender::Rtx
 
         /// Writes the traced frame to a numbered PNG, where `OPENMW_RTX_SHOT` asked for it.
         void keep();
+
+        /// Hands MyGUI's triangles to the renderer, where there is a GUI up at all.
+        void drawGui();
 
         Stage& mStage;
         Capabilities mCapabilities;
@@ -197,7 +200,6 @@ namespace MWRender::Rtx
         bool mEnteredOnce = false;
 
         /// Whether anything has been traced yet, so `renderGui` knows there is something to show.
-        bool mDrawnOnce = false;
 
         std::size_t mFrame = 0;
         bool mComplained = false;
