@@ -605,8 +605,18 @@ renderers. `components/myguiplatform` names no `osgViewer` at all.
 
 **What had to be gated, and it was not speculative after all.** `PostProcessor`'s constructor reads
 `GLExtensions` off the camera's graphics context, so under this renderer it is not a feature to
-switch off but a null dereference — hence `Capabilities::mPostProcessing`, `RenderingManager` building
-the chain only where there is one, and the twenty-odd writes into its shared uniform block guarded.
+switch off but a null dereference — hence `Capabilities::mPostProcessing` and `RenderingManager`
+building the chain only where there is one.
+
+Its **shared uniform block** took three attempts to place. Guarding each of a dozen setters put the
+renderer's internals in every one of them; a standalone block for the renderer with no chain was an
+object written to and sampled by nothing. What is there now is one `describeToPostProcessor` called
+once a frame behind one `if`: every value in it is already settled on something else — the sun light,
+the fog manager, the sky, the water — so writing them from where they are is a copy rather than a
+cache, and the two the world kept nowhere but the block (where the sun is drawn, and how visible it
+is) became members, which is what they always were. The end state is those values as fields of
+`SceneFrame` and the copy inside `gl/`; that waits on the `PostProcessor`–`RenderingManager` untangle
+step 3 deferred, because until the chain is the renderer's the copy has nowhere better to live.
 Outside `mwrender`: the two `setExteriorFlag` calls on every cell change, the HUD and its key, the
 Lua bindings — which raise a clear error rather than dereferencing null — and `Stereo::Manager`,
 whose singleton two places reached for whether or not stereo was on. Three device queries that ran

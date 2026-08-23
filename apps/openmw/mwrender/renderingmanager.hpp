@@ -298,6 +298,14 @@ namespace MWRender
         /// no renderer that reads it — see the definition.
         Lighting describeLighting() const;
 
+        /// This frame's world state, in the spelling the rasterizer's shader chain samples.
+        ///
+        /// **One place, once a frame, and only where there is a chain.** Every value here is
+        /// already settled on something else — the sun light, the fog, the sky, the water — so
+        /// writing them from where they are is a copy rather than a cache, and the twelve `if`s that
+        /// asked "is there a chain" at each setter become the one that asks before the copy.
+        void describeToPostProcessor();
+
         void updateTextureFiltering();
         void updateAmbient();
         void setFogColor(const osg::Vec4f& color);
@@ -350,22 +358,23 @@ namespace MWRender
         std::unique_ptr<SkyManager> mSky;
         std::unique_ptr<FogManager> mFog;
 
-#ifdef OPENMW_RTX
-        /// What `setWaterHeight` was last told. Kept because `Water` has no getter and a renderer
-        /// that traces needs the level to know what is under the surface.
-        float mTracedWaterLevel = -std::numeric_limits<float>::infinity();
-#endif
         std::unique_ptr<EffectManager> mEffectManager;
         std::unique_ptr<SceneUtil::ShadowManager> mShadowManager;
         osg::ref_ptr<PostProcessor> mPostProcessor;
 
-        /// The uniform block the world writes its light, its fog and its water into.
+        /// Where the sun is, as the world last decided.
         ///
-        /// **The post-processing chain's where there is one, and a standalone one where there is
-        /// not.** Every write here is the world saying what it is doing; whether a shader chain
-        /// samples it afterwards is the renderer's business, and asking that question at each of a
-        /// dozen setters would put the renderer's internals in all of them.
-        osg::ref_ptr<Fx::StateUpdater> mSharedFxState;
+        /// **Held rather than pushed.** Two paths set it — an exterior's orbit and an interior's
+        /// fixed nonsense angle — and the direction the light travels is not the direction the sun
+        /// is drawn at whenever `match sunlight to sun` is off, so `mSunLight` is not a record of
+        /// it. Nothing but this remembers.
+        osg::Vec4f mSunPosition;
+        osg::Vec4f mSunVector;
+        bool mSunAtNight = false;
+        float mSunVisibility = 0.f;
+
+        bool mWaterEnabled = false;
+        float mWaterHeight = 0.f;
         osg::ref_ptr<NpcAnimation> mPlayerAnimation;
         osg::ref_ptr<SceneUtil::PositionAttitudeTransform> mPlayerNode;
         std::unique_ptr<Camera> mCamera;

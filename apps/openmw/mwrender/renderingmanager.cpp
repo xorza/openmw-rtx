@@ -348,13 +348,6 @@ namespace MWRender
                 mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 0),
                 mPostProcessor->getTexture(PostProcessor::Tex_OpaqueDepth, 1));
             resourceSystem->getSceneManager()->setSupportsNormalsRT(mPostProcessor->getSupportsNormalsRT());
-            mSharedFxState = mPostProcessor->getStateUpdater();
-        }
-        else
-        {
-            // Written to and sampled by nothing. Uniform buffers are the chain's own optimisation,
-            // so a block with no chain behind it is plain memory.
-            mSharedFxState = new Fx::StateUpdater(false);
         }
         resourceSystem->getSceneManager()->setWeatherParticleOcclusion(Settings::shaders().mWeatherParticleOcclusion);
 
@@ -573,8 +566,9 @@ namespace MWRender
         // This is total nonsense but it's what Morrowind uses
         static const osg::Vec4f interiorSunPos
             = osg::Vec4f(-1.f, osg::DegreesToRadians(45.f), osg::DegreesToRadians(45.f), 0.f);
-        mSharedFxState->setSunPos(interiorSunPos, false);
-        mSharedFxState->setSunVec(-interiorSunPos);
+        mSunPosition = interiorSunPos;
+        mSunVector = -interiorSunPos;
+        mSunAtNight = false;
         mSunLight->setPosition(interiorSunPos);
     }
 
@@ -584,8 +578,7 @@ namespace MWRender
         mSunLight->setDiffuse(diffuse);
         mSunLight->setSpecular(osg::Vec4f(specular.x(), specular.y(), specular.z(), specular.w() * sunVis));
 
-        mSharedFxState->setSunColor(diffuse);
-        mSharedFxState->setSunVis(sunVis);
+        mSunVisibility = sunVis;
     }
 
     const osg::Vec4f& RenderingManager::getSunLightPosition() const
@@ -607,8 +600,9 @@ namespace MWRender
 
         mSky->setSunDirection(position);
 
-        mSharedFxState->setSunPos(osg::Vec4f(position, 0.f), mNight);
-        mSharedFxState->setSunVec(osg::Vec4f(-sunlightPos, 0.f));
+        mSunPosition = osg::Vec4f(position, 0.f);
+        mSunVector = osg::Vec4f(-sunlightPos, 0.f);
+        mSunAtNight = mNight;
     }
 
     void RenderingManager::addCell(const MWWorld::CellStore* store)
@@ -663,7 +657,6 @@ namespace MWRender
             mShadowManager->enableOutdoorMode();
         else
             mShadowManager->enableIndoorMode(Settings::shadows());
-        mSharedFxState->setIsInterior(!enabled);
     }
 
     bool RenderingManager::toggleBorders()
@@ -772,23 +765,6 @@ namespace MWRender
         mStateUpdater->setFogStart(fogStart);
         mStateUpdater->setFogEnd(fogEnd);
         setFogColor(fogColor);
-
-        auto world = MWBase::Environment::get().getWorld();
-
-        mSharedFxState->setFogRange(fogStart, fogEnd);
-        mSharedFxState->setNearFar(mNearClip, mViewDistance);
-        mSharedFxState->setIsUnderwater(isUnderwater);
-        mSharedFxState->setFogColor(fogColor);
-        mSharedFxState->setGameHour(world->getTimeStamp().getHour());
-        mSharedFxState->setWeatherId(world->getCurrentWeatherScriptId());
-        mSharedFxState->setNextWeatherId(world->getNextWeatherScriptId());
-        mSharedFxState->setWeatherTransition(world->getWeatherTransition());
-        mSharedFxState->setWindSpeed(world->getWindSpeed());
-        mSharedFxState->setSkyColor(mSky->getSkyColor());
-
-        // Which techniques the chain runs underwater, which is the chain's own question.
-        if (mPostProcessor != nullptr)
-            mPostProcessor->setUnderwaterFlag(isUnderwater);
     }
 
     Lighting RenderingManager::describeLighting() const
@@ -836,7 +812,7 @@ namespace MWRender
             .mFog = haze,
             .mSkyZenith = zenith,
             .mFogExtinction = half > 0.0f ? std::numbers::ln2_v<float> / half : 0.0f,
-            .mWaterLevel = mTracedWaterLevel,
+            .mWaterLevel = mWaterEnabled ? mWaterHeight : -std::numeric_limits<float>::infinity(),
         };
 #else
         // Nothing in this build reads it. The rasterizer draws the world from the graph and its own
@@ -846,8 +822,47 @@ namespace MWRender
 #endif
     }
 
+    void RenderingManager::describeToPostProcessor()
+    {
+        Fx::StateUpdater& block = *mPostProcessor->getStateUpdater();
+        const MWBase::World& world = *MWBase::Environment::get().getWorld();
+
+        const bool underwater = mWater->isUnderwater(mCamera->getPosition());
+        const float fov = mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView;
+
+        block.setSunPos(mSunPosition, mSunAtNight);
+        block.setSunVec(mSunVector);
+        block.setSunColor(mSunLight->getDiffuse());
+        block.setSunVis(mSunVisibility);
+        block.setAmbientColor(mSunLight->getAmbient());
+        block.setSkyColor(mSky->getSkyColor());
+        block.setIsInterior(!mSky->isEnabled());
+
+        block.setIsWaterEnabled(mWaterEnabled);
+        block.setWaterHeight(mWaterHeight);
+        block.setIsUnderwater(underwater);
+
+        block.setFogColor(mFog->getFogColor(underwater));
+        block.setFogRange(mFog->getFogStart(underwater), mFog->getFogEnd(underwater));
+        block.setNearFar(mNearClip, mViewDistance);
+        block.setProjectionMatrix(mPerViewUniformStateUpdater->getProjectionMatrix());
+        block.setFov(fov);
+
+        block.setGameHour(world.getTimeStamp().getHour());
+        block.setWeatherId(world.getCurrentWeatherScriptId());
+        block.setNextWeatherId(world.getNextWeatherScriptId());
+        block.setWeatherTransition(world.getWeatherTransition());
+        block.setWindSpeed(world.getWindSpeed());
+
+        // Which techniques run underwater, which is the chain's own question rather than the block's.
+        mPostProcessor->setUnderwaterFlag(underwater);
+    }
+
     void RenderingManager::renderFrame()
     {
+        if (mPostProcessor != nullptr)
+            describeToPostProcessor();
+
         const Lighting lighting = describeLighting();
 
         const SceneFrame frame{
@@ -908,30 +923,19 @@ namespace MWRender
 
     void RenderingManager::setWaterEnabled(bool enabled)
     {
-#ifdef OPENMW_RTX
-        // Negative infinity and not zero: zero is sea level, and a cell with no water has to answer
-        // "how deep is this point" with never.
-        if (!enabled)
-            mTracedWaterLevel = -std::numeric_limits<float>::infinity();
-#endif
+        mWaterEnabled = enabled;
 
         mWater->setEnabled(enabled);
         mSky->setWaterEnabled(enabled);
-
-        mSharedFxState->setIsWaterEnabled(enabled);
     }
 
     void RenderingManager::setWaterHeight(float height)
     {
-#ifdef OPENMW_RTX
-        mTracedWaterLevel = height;
-#endif
+        mWaterHeight = height;
 
         mWater->setCullCallback(mTerrain->getHeightCullCallback(height, Mask_Water));
         mWater->setHeight(height);
         mSky->setWaterHeight(height);
-
-        mSharedFxState->setWaterHeight(height);
     }
 
     void RenderingManager::screenshot(osg::Image* image, int w, int h)
@@ -1335,9 +1339,6 @@ namespace MWRender
         // disappear. Limit FOV here just for sure, otherwise viewing distance can be too high.
         float distanceMult = std::cos(osg::DegreesToRadians(std::min(fov, 140.f)) / 2.f);
         mTerrain->setViewDistance(mViewDistance * (distanceMult ? 1.f / distanceMult : 1.f));
-
-        mSharedFxState->setProjectionMatrix(mPerViewUniformStateUpdater->getProjectionMatrix());
-        mSharedFxState->setFov(fov);
     }
 
     void RenderingManager::setScreenRes(int width, int height)
@@ -1368,7 +1369,6 @@ namespace MWRender
 
         mSunLight->setAmbient(color);
 
-        mSharedFxState->setAmbientColor(color);
         mStateUpdater->setAmbientColor(color);
     }
 
