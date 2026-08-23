@@ -271,21 +271,40 @@ loading screen's framebuffer callback.
 *Verified by*: a video plays, a save shows its thumbnail, the fog of war reveals, the loading screen
 still freezes the frame behind it — all under OpenGL, where every one of them works today.
 
-### Step 6.4 — the first graphics pipeline
+### Step 6.4 — the first graphics pipeline — **done**
 
-`Rtx::GraphicsPipeline` beside `ComputePipeline`, and a `GuiPass` that draws a textured, blended
-triangle list into the displayable image. No MyGUI yet.
+`Rtx::GraphicsPipeline` beside `ComputePipeline`, built the same way and for the same reason — three
+handles that fail as one — with what a raster pipeline needs and a compute one does not: two stages,
+a vertex layout, a blend, a dynamic viewport, and the format of the image it will draw into.
+**No render pass and no framebuffer object**: it is told the format and the recording says which
+image, so a resize does not rebuild it.
 
-*Verified by*: a GPU test in `apps/components_tests/rtx/` that draws a known quad over a known image
-and reads the pixels back — which is how `visibilitypass.cpp` already tests the trace, and which
-needs no window.
+`GuiPass` over that: a textured, blended triangle list, a push descriptor per batch, loaded over
+whatever was in the target rather than clearing it. **The vertex shader is a pass-through** — MyGUI
+multiplies widget pixels by the view size itself, so its vertices arrive in clip space, and the one
+thing that differs between its clip space and Vulkan's is answered by a flipped viewport.
 
-### Step 6.5 — the GUI textures
+Two things the writing of it turned up. `GuiVertex` is 24 bytes and not 20 — MyGUI's own layout,
+which a backend takes as it finds. And the device had never asked for `dynamicRendering`: this
+driver allowed it anyway and the layers said so, which is the whole argument for running the suite
+validated.
 
-`addGuiTexture`, `writeGuiTexture`, `dropGuiTexture` in the Vulkan backend, and the sampler and
-descriptor handling behind them.
+*Verified by*: four GPU tests in `apps/components_tests/rtx/guipass.cpp`, no window and no MyGUI. A
+half-transparent quad over an opaque background lands on exact bytes — an alpha of 128/255 makes the
+source's contribution `255 × 128/255 = 128` and what it leaves of the destination `255 × 127/255 =
+127`, so there is no rounding to argue about; a two-by-two texture proves which row reaches the top
+of the frame, which is what catches a flipped V; two batches prove each is drawn with its own
+texture; and an empty frame records nothing. Validation errors fail the tests rather than print.
 
-*Verified by*: the same suite, uploading a known image and drawing it.
+### Step 6.5 — the GUI textures, and `drawGui`
+
+The four calls of §3.1 on `Rtx::Renderer`: `addGuiTexture`, `writeGuiTexture`, `dropGuiTexture` and
+`drawGui`, and the table behind them — which is what `components/myguirtx` will hold its textures in
+and hand its batches to. The pass and its sampler already exist; this is the neutral surface over
+them, and the wiring that puts the pass after tone mapping in a real frame.
+
+*Verified by*: the same suite, adding and rewriting a texture through the renderer and drawing with
+it; and the traced frame with a quad over it, which is the first time the two halves meet.
 
 ### Step 6.6 — `components/myguirtx`
 

@@ -741,6 +741,10 @@ names no OpenGL at all.
 **6.2 is done** as well: the local map over `OffscreenView`, and the world map's explored overlay
 composed in main memory rather than by a camera per cell and a shader pair, both of which are gone.
 
+**6.4** is the first `vkCmdDraw` this backend has ever recorded: `Rtx::GraphicsPipeline` and a
+`GuiPass` that draws a textured, blended triangle list over a finished frame, with four headless GPU
+tests behind it. Everything else here is dispatched, and stays that way.
+
 **6.3 with it**: the video frame, the save thumbnail and the fog of war go in through MyGUI's own
 factory — one `MyGUIPlatform::Picture` does it for all of them — and the loading screen asks the
 renderer for the frame it froze instead of installing a callback on the camera. All eleven sites in

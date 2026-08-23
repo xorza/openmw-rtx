@@ -44,6 +44,8 @@ set(RTX_SHADERS
     shaders/atrous.comp
     shaders/composite.comp
     shaders/exposure.comp
+    shaders/gui.frag
+    shaders/gui.vert
     shaders/histogram.comp
     shaders/tone.comp
     shaders/visibility.comp
@@ -99,6 +101,10 @@ set(RTX_VULKAN_FILES
     exposurepass.hpp
     gbuffer.cpp
     gbuffer.hpp
+    graphicspipeline.cpp
+    graphicspipeline.hpp
+    guipass.cpp
+    guipass.hpp
     gputimer.cpp
     gputimer.hpp
     hostbuffer.cpp

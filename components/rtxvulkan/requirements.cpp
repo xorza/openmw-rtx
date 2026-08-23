@@ -69,6 +69,10 @@ namespace Rtx
             RequiredFeature{
                 "synchronization2", +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan13.synchronization2; } },
             RequiredFeature{ "maintenance4", +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan13.maintenance4; } },
+            // The GUI is the only thing here that rasterises, and it does so without a render pass
+            // or a framebuffer object: `docs/rtx/gui.md` §4.
+            RequiredFeature{
+                "dynamicRendering", +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan13.dynamicRendering; } },
 
             RequiredFeature{ "maintenance5", +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan14.maintenance5; } },
             RequiredFeature{

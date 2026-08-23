@@ -111,6 +111,7 @@ if (OPENMW_RTX)
         rtx/dlss.cpp
         rtx/frametimes.cpp
         rtx/gputimer.cpp
+        rtx/guipass.cpp
         rtx/harness.cpp
         rtx/harness.hpp
         rtx/lightgrid.cpp

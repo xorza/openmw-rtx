@@ -63,6 +63,28 @@ namespace Rtx
         ValidationOptions mValidation;
     };
 
+    /// One vertex of the GUI: a position already in clip space, a colour packed a byte a channel,
+    /// and a texture coordinate.
+    ///
+    /// **MyGUI's own layout rather than one chosen here.** It fills these itself, by the thousand
+    /// every frame the interface is up, and a backend that wanted them any other way would have to
+    /// walk every batch and rewrite it. The position arrives in clip space because MyGUI multiplies
+    /// widget pixels by the view size for itself.
+    struct GuiVertex
+    {
+        float mX = 0.0f;
+        float mY = 0.0f;
+        float mZ = 0.0f;
+
+        /// Red in the low byte, alpha in the high one — MyGUI's `ColourABGR`.
+        std::uint32_t mColour = 0;
+
+        float mU = 0.0f;
+        float mV = 0.0f;
+    };
+
+    static_assert(sizeof(GuiVertex) == 24, "a GUI vertex is what MyGUI writes, and the buffer is read as its own");
+
     /// What a backend reports about the scene it took. The harness's summary line, as a struct.
     struct SceneStats
     {
