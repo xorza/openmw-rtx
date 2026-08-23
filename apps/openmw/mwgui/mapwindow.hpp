@@ -255,6 +255,11 @@ namespace MWGui
         void cellExplored(int x, int y);
 
         /// Hands the world map whatever explored cells now have a picture to paint from.
+        ///
+        /// **Called every frame the game runs, and not from `onFrame`.** A window's `onFrame` runs
+        /// only while its mode is up or it is pinned, and the world map is painted from cells the
+        /// player walks into with the map closed. The first ask for a cell's picture starts a copy
+        /// and comes back with nothing; this is what asks again.
         void paintExplored();
 
         void setGlobalMapPlayerPosition(float worldX, float worldY);

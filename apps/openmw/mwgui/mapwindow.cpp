@@ -1179,9 +1179,6 @@ namespace MWGui
     {
         LocalMapBase::onFrame(dt);
         NoDrop::onFrame(dt);
-
-        if (!mExploredPending.empty())
-            paintExplored();
     }
 
     void MapWindow::setGlobalMapMarkerTooltip(MyGUI::Widget* markerWidget, int x, int y)

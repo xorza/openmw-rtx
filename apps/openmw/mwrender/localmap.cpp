@@ -166,11 +166,6 @@ namespace MWRender
             spec.mFromWorld = true;
 
             segment.mView = mRenderer.createOffscreenView(spec);
-
-            // Only exteriors: the global map composites its overlay out of them, and interiors are
-            // not on it.
-            if (!mInterior)
-                segment.mView->keepCopy();
         }
 
         segment.mView->setView(osg::Matrixf::lookAt(
@@ -228,13 +223,26 @@ namespace MWRender
         return &found->second.mView->getTexture();
     }
 
-    const osg::Image* LocalMap::getMapImage(int x, int y) const
+    const osg::Image* LocalMap::getMapImage(int x, int y)
     {
-        SegmentMap::const_iterator found = mExteriorSegments.find(std::make_pair(x, y));
+        SegmentMap::iterator found = mExteriorSegments.find(std::make_pair(x, y));
         if (found == mExteriorSegments.end() || !found->second.mView)
             return nullptr;
 
-        return found->second.mView->getCopy();
+        MapSegment& segment = found->second;
+
+        // **Once, and the answer arrives later.** A view keeps no copy until something asks, and
+        // filling one takes a draw — so the first ask starts it and comes back with nothing, and
+        // the caller asks again. Asking again must not redraw: the rasterizer's copy takes a
+        // couple of frames to land and a redraw every frame would keep resetting the wait.
+        if (!segment.mCopyAsked)
+        {
+            segment.mCopyAsked = true;
+            segment.mView->keepCopy();
+            segment.mView->redraw();
+        }
+
+        return segment.mView->getCopy();
     }
 
     MyGUI::ITexture* LocalMap::getFogOfWarTexture(int x, int y)

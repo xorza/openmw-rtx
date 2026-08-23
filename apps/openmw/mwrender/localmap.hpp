@@ -73,9 +73,14 @@ namespace MWRender
         MyGUI::ITexture* getMapTexture(int x, int y);
 
         /// The same picture in main memory, for the global map to composite into its overlay, or
-        /// null while the render has not come back off the device yet. Exterior segments only:
-        /// nothing else asked for a copy, and a copy is not free.
-        const osg::Image* getMapImage(int x, int y) const;
+        /// null while the render has not come back off the device yet — ask again next frame.
+        ///
+        /// **Asking is what starts it, which is why this is not `const`.** A copy costs a read back
+        /// off the device, and the world map wants one for the cell the player walked into: one of
+        /// the nine an arrival draws. Keeping one for every tile drawn spent that read eight times
+        /// over on pictures nothing ever looked at — measured at 1.2 ms each, on the frame a cell
+        /// arrives, which is the frame with the least room for it.
+        const osg::Image* getMapImage(int x, int y);
 
         /// What the widget over a tile darkens it with, or null where the cell has no fog state.
         MyGUI::ITexture* getFogOfWarTexture(int x, int y);
@@ -137,6 +142,10 @@ namespace MWRender
 
             std::uint8_t mLastRenderNeighbourFlags = 0;
             bool mHasFogState = false;
+
+            /// Whether anything has asked this segment for a copy in main memory. Only the world
+            /// map does, and only for the cell the player walked into.
+            bool mCopyAsked = false;
 
             /// The picture of this piece of the world, drawn once when the cell is entered and
             /// again when a neighbour arriving makes a better one possible.

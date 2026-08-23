@@ -385,7 +385,7 @@ being restructured for another reason. The shape to move to is unchanged: one st
 copies recorded at the head of the frame's own command buffer, `drawGui` recording into that buffer
 instead of opening its own, and `drop` deferred by a frame.
 
-### D2. Local-map framebuffers now accumulate for the session — high (OpenGL path)
+### D2. Local-map segments are never released — **measured, smaller than this said** — low
 
 `LocalMap::cleanupCameras()` is gone, and with it the only thing that took a map RTT back out of the
 graph. Each `MapSegment` now owns a `GlOffscreenView` that stays a child of the scene root for as
@@ -396,14 +396,22 @@ Before: the RTT node was removed the frame after it drew; only the colour textur
 After: colour **plus** the depth/stencil attachment (`GL_DEPTH24_STENCIL8`) and the FBO survive, per
 visited exterior cell, for the session.
 
-At `map resolution` × the GUI scaling factor — 1024² on this machine — that is ~4 MB colour + ~4 MB
-depth per cell, retained. Walking Vvardenfell is hundreds of cells.
+Measured, standing in an exterior with nine segments live: `local map resolution` is **256**, not the
+1024 I assumed, so a segment is 256 KiB of colour and 256 KiB of depth — **4.5 MiB for the nine**.
+Hundreds of cells over a session is tens of megabytes, not hundreds.
 
-**Fix:** either drop the depth attachment after the draw (an `OffscreenView::release()` that keeps
-the colour texture), or keep the old lifecycle — build the view on demand, redraw, and let it go —
-now that the texture is a `MyGUI::ITexture` that outlives it.
+And the delta is smaller again than that: the colour texture was *already* kept for the life of the
+segment before this branch (`segment.mMapTexture`), on both paths. What the branch added is the
+depth attachment and the FBO, so ~256 KiB a cell, on the renderer this fork is not aiming at.
 
-### D3. Every exterior map tile is now read back to main memory — medium
+D3's fix takes a further 256 KiB a cell off both paths, because eight of every nine segments no
+longer allocate the host-side copy either.
+
+**Worth doing when the rasterizer's memory matters**, and the shape is unchanged: either drop the
+depth attachment after the draw — an `OffscreenView::release()` that keeps the colour texture — or
+restore the old lifecycle now that the texture is a `MyGUI::ITexture` that outlives the node.
+
+### D3. Every exterior map tile was read back to main memory — **fixed**
 
 `LocalMap::draw` calls `segment.mView->keepCopy()` on every non-interior segment. On the GL path
 that attaches an `osg::Image` to the camera's colour buffer, so OSG reads the whole tile back in the
@@ -411,8 +419,24 @@ draw traversal — a synchronous `glReadPixels` of 1024²×4 on the frame a cell
 already the busiest frame there is. On the RTX path it is `readGuiTexture`, which is a
 device-to-host copy behind a fence.
 
-The global map only needs the copy for cells the player actually explores. Ask for it there
-(`MapWindow::cellExplored`) rather than for every drawn segment.
+Measured: the read back costs **1.2 ms a tile**, against **0.23 ms** to trace the tile itself — it is
+almost entirely submit-and-fence latency, not the 256 KiB of pixels.
+
+And almost none of it was wanted. `WindowManager::changeCell` calls `cellExplored` for the cell the
+player walked into and no other, so of the nine tiles an arrival draws, **one** is ever painted into
+the world map. The other eight were read off the device and never looked at: ~9.6 ms of fence
+latency on the frame a cell arrives, which is the frame with the least room for it.
+
+**Fixed** by asking for the copy where it is wanted. `LocalMap::draw` no longer calls `keepCopy`;
+`LocalMap::getMapImage` starts one on the first ask — which is why it is no longer `const` — and
+`GlobalMap::exploreCell` already treats a null tile as "ask again later".
+
+The retry then had to be driven from somewhere that always runs: `MapWindow::onFrame` only runs
+while the map's mode is up or it is pinned, and cells are walked into with the map closed, so
+draining there left the world map unpainted. It now drains from `WindowManager::updateMap`, which
+runs every frame the game does. Verified by checksumming the tile that reaches `exploreCell`:
+identical to the pre-change tile to three parts in a million, and now the same on every run where
+it used to race.
 
 ### D4. `GlobalMap::exploreCell` is a frame spike — medium (already half-noted)
 
@@ -638,7 +662,11 @@ to move to when it does matter are in D1. The original plan, for when that day c
 **Verify:** `openmw-rtxtool view --frames=600` under the validation layers, then `OPENMW_RTX_BENCH`
 with the HUD up, before and after — and write the number down.
 
-### 5. The local map's lifecycle *(D2, D3)*
+### 5. The local map's lifecycle *(D2, D3)* — **done: D3 fixed, D2 measured and deferred**
+
+D3 was real and is fixed — 1.2 ms a tile, eight tiles in nine wasted, ~9.6 ms off a cell arrival.
+D2 turned out to be 256 KiB a cell on the rasterizer, not the megabytes I estimated from a map
+resolution I had guessed at. Numbers in D2 and D3 above. The original plan:
 
 1. `keepCopy()` only where the global map will actually ask — move it from `LocalMap::draw` to the
    point a cell is explored.

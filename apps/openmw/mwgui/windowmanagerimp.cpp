@@ -897,6 +897,11 @@ namespace MWGui
         mMap->setPlayerPos(x, y, u, v);
         mHud->setPlayerDir(playerdirection.x(), playerdirection.y());
         mHud->setPlayerPos(x, y, u, v);
+
+        // Whatever the world map is still waiting for a picture of. Here rather than in
+        // `MapWindow::onFrame`, which only runs while the map is up — and a cell is walked into
+        // with it closed.
+        mMap->paintExplored();
     }
 
     WindowBase* WindowManager::getActiveControllerWindow()
