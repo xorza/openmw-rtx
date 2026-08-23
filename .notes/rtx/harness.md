@@ -63,7 +63,7 @@ the rest falls out of it.
 
 ## 3. The order to do it in
 
-**1. Build a real graph.** `CellScene` makes one `osg::Group` per cell: every reference
+**1. Build a real graph — done.** `CellScene` makes one `osg::Group` per cell: every reference
 `getInstance`'d under a `MatrixTransform` carrying its transform, terrain chunks alongside.
 `StagedWorld` holds the root. The frame loop becomes the game's, line for line —
 `clearPlacement()`, `extract(root)`, the `setScene`/`extendScene`/`placeScene` decision,
@@ -242,8 +242,10 @@ exists).
 
 ### What can still come out, and it is internal rather than shared
 
-- `StagedWorld::mirror` and `StagedWorld::getRoot` are public with **no callers** — the streaming
-  moved inside and nothing outside walks the graph any more.
+- ~~`StagedWorld::mirror` and `StagedWorld::getRoot` are public with no callers~~ — **done**.
+  `getRoot` is gone outright and `mirror` is private: staging walks once and streaming walks again
+  per ring, and the per-frame walk belongs to `PosedActors`, which owns the pose that made it
+  necessary.
 - `main.cpp` is 742 lines and holds `runScene`, `runFind` and `runTextures` inline beside the
   subcommand dispatch. `runScene` also builds its own root, scene and extractor rather than staging
   one.

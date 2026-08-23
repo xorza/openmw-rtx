@@ -259,7 +259,7 @@ namespace Rtx
         ///
         /// **Not compacting is the whole point.** Closing the gap renames every mesh above it, and a
         /// mesh index is what every bottom-level acceleration structure in the world is named by, so
-        /// a cell boundary cost a full rebuild (`docs/rtx/plan.md` §10).
+        /// a cell boundary cost a full rebuild (`.notes/rtx/plan.md` §10).
         TEST(RtxSceneDescTest, aFreedMeshKeepsItsSlotAndTheNextThatFitsTakesIt)
         {
             SceneDesc scene;

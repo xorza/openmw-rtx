@@ -22,7 +22,7 @@ namespace Rtx
         /// Allocated so another API can import it, and importable from another one's export.
         ///
         /// **The in-game path hands its frame to OpenGL rather than to a swapchain**
-        /// (`docs/rtx/plan.md` §3), because the character doll, the local map, the global map and
+        /// (`.notes/rtx/plan.md` §3), because the character doll, the local map, the global map and
         /// video playback are all OSG render-to-texture users and a Vulkan window would mean
         /// reimplementing every one of them before the game was playable again.
         Exportable,

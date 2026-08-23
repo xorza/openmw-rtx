@@ -1,7 +1,7 @@
 # Implementation plan
 
 An experimental ray-traced renderer inside this OpenMW fork. The posture and the priority order live
-in `CLAUDE.md`; the host engine's structure and the seams named below are in `docs/rtx/openmw.md`. This file
+in `CLAUDE.md`; the host engine's structure and the seams named below are in `.notes/rtx/openmw.md`. This file
 is the route.
 
 **Decisions and what they came to, not a changelog.** §2–§5 are the choices everything else rests on;
@@ -32,7 +32,7 @@ Three ways to feed a ray tracer from this codebase.
 | **B. Mirror the OSG scene graph** | Keep OpenMW's whole content pipeline; traverse the live graph each frame and maintain a Vulkan mirror of it | **Yes.** |
 | **C. Replace OSG's draw backend** | A Vulkan `osg::GraphicsContext` implementation | No. OSG's drawing model is fixed-function-shaped state assignment; ray tracing is not a draw call. |
 
-**B, because of §3.3 and §3.5 of `docs/rtx/openmw.md`**: by cull time the world is already CPU-resident
+**B, because of §3.3 and §3.5 of `.notes/rtx/openmw.md`**: by cull time the world is already CPU-resident
 triangles with world transforms, resolved texture roles, and — for actors — *already skinned*
 positions in `RigGeometry::getGeometry(frame)`. Terrain LOD, object paging and groundcover have all
 already made their decisions. The mirror is a traversal and a diff, not a content pipeline.
@@ -47,7 +47,7 @@ Consequences to accept:
   which the traversal has no reason to run and the draw goes with it.
 - The mirror must be incremental. A full rebuild per frame is the naive version and it will not hold
   a frame budget; instance transforms change every frame, geometry rarely, materials almost never.
-  Geometry and materials met that from M1; placements did not, and `docs/rtx/mirror.md` is the
+  Geometry and materials met that from M1; placements did not, and `.notes/rtx/mirror.md` is the
   measurement of what that costs and the shape that replaces it.
 - Some things OpenMW hands the graph are draw-order tricks rather than geometry — `RenderBin`
   ordering, the transparent-pass hack, the distortion pass, `pingpongcull`. Those are rasterizer
@@ -99,10 +99,6 @@ harness has proved since M0 that it needs no GL context to be either.
 The payoff is not the blit. It is that §12 stops being a problem to solve rather than being solved:
 no interop, no frame of latency, no world drawn twice, no cull traversal, and frame pacing owned
 rather than inherited.
-
-**`renderers.md` is how the second path is reached**: where the seam between the two renderers goes,
-every place in the tree that touches OpenGL, what upstream has to stop knowing before a third
-renderer is possible at all, and the steps in the order they can land.
 
 ## 4. Layout
 
@@ -464,7 +460,7 @@ This is not overhead; it is what decides how fast the milestones above go.
 ### 7.1 `openmw-rtxtool`
 
 The verbs and how to run them are in `CLAUDE.md`; what the harness *is* and where it still differs
-from the game is `docs/rtx/harness.md`. Three decisions are worth keeping here.
+from the game is `.notes/rtx/harness.md`. Three decisions are worth keeping here.
 
 **Headless is the primary surface.** A window costs tens of seconds of somebody's attention and
 confirms almost nothing a PNG does not. `shot` renders the real renderer in about a second and prints

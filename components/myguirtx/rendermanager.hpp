@@ -27,7 +27,7 @@ namespace MyGUIRtx
     /// thirty functions and most of them are bookkeeping no API has an opinion about: a name-to-
     /// texture map, a view size, a lock and unlock contract, the batching. What is left is a table
     /// of textures and one call that draws a list of triangles, and those are the four things
-    /// `Rtx::Renderer` offers (`docs/rtx/gui.md` §2).
+    /// `Rtx::Renderer` offers.
     ///
     /// **Nothing here is driven by a scene graph.** The other backend hangs its update on an OSG
     /// update callback and its draw on a cull callback; this one is called by the renderer's frame

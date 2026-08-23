@@ -3,7 +3,7 @@
 # **This library links no graphics API, and that is the point.** What belongs here is what is true
 # of Morrowind's content, of light transport, or of what the scene *is* — written once and read by
 # every backend. The linker is what keeps it that way: nothing here can include a Vulkan or Metal
-# header, because neither is on the include path. See docs/rtx/backends.md.
+# header, because neither is on the include path. See .notes/rtx/backends.md.
 
 set(RTX_FILES
     bluenoise.cpp

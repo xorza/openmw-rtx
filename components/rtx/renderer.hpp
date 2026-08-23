@@ -366,7 +366,7 @@ namespace Rtx
         /// the SDL window stays OpenGL's, and Vulkan renders offscreen into an image OpenGL imports
         /// and draws under the GUI. The character doll, both maps and video playback are all OSG
         /// render-to-texture users, and a Vulkan window would mean reimplementing every one of them
-        /// before the game was playable again (`docs/rtx/plan.md` §3).
+        /// before the game was playable again (`.notes/rtx/plan.md` §3).
         ///
         /// A new descriptor every call, so this is asked once per resize rather than per frame.
         virtual SharedFrame shareFrame() = 0;

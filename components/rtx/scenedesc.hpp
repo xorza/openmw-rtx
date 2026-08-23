@@ -386,7 +386,7 @@ namespace Rtx
         /// fits takes the slot. Compacting instead — closing the gaps and renaming what pointed into
         /// them — is what made a cell boundary cost a full rebuild: every bottom-level acceleration
         /// structure in the world is named by a mesh index, and every material a hit reads is named
-        /// by another. `docs/rtx/plan.md` §10 has the argument.
+        /// by another. `.notes/rtx/plan.md` §10 has the argument.
         ///
         /// A texture survives if it is named here, or if a surviving material or layer still names
         /// it. Layers and masks have no keep set of their own: they belong to the material that owns
@@ -563,7 +563,7 @@ namespace Rtx
         /// **A list and not a hole map**, because what goes on them is what one departing ring left
         /// — tens of entries, not the table. Nothing is ever moved, so a slot that is taken over
         /// keeps its index and every placement standing on it stays where it is
-        /// (`docs/rtx/plan.md` §10).
+        /// (`.notes/rtx/plan.md` §10).
         std::vector<Index> mFreeMeshes;
         std::vector<Index> mFreeMaterials;
         std::vector<Index> mFreeTextures;

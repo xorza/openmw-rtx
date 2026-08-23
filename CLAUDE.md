@@ -10,10 +10,10 @@ that. What it stops owning is the picture.
 
 Three documents, and they do not overlap:
 
-- **`docs/rtx/openmw.md`** — how the host engine is built and where the seams are. Read before touching
+- **`.notes/rtx/openmw.md`** — how the host engine is built and where the seams are. Read before touching
   anything in `apps/openmw/mwrender/`, `components/sceneutil/`, `components/resource/` or the
   settings plumbing.
-- **`docs/rtx/plan.md`** — the route: the scene-mirroring decision, the milestones, the tooling.
+- **`.notes/rtx/plan.md`** — the route: the scene-mirroring decision, the milestones, the tooling.
 - **this file** — goals and working rules. Status goes in commits, never here.
 
 The reference implementation is **`/home/xxorza/Projects/rtxmw/`** — a Rust Morrowind ray tracer
@@ -33,7 +33,7 @@ micromaps, SER. Vanilla content, new light transport.
 Priorities, in order:
 
 1. **How it looks.** Trading image quality for simplicity or convenience is the wrong trade.
-2. **Performance.** 1920×1080 internal → 3840×2160 at 60 fps (`docs/rtx/plan.md` §5).
+2. **Performance.** 1920×1080 internal → 3840×2160 at 60 fps (`.notes/rtx/plan.md` §5).
 
 Nothing else ranks: no mod compatibility, no configurability for its own sake, no portability layer,
 no abstraction over hardware this does not target.
@@ -80,7 +80,7 @@ Upstream's constraints are not ours. Where they conflict, ours win.
 ### Two renderers
 
 The picture is reached twice — **Vulkan on Ada-class NVIDIA, Metal on Apple silicon** — as two
-backends behind one API-neutral core, not a portability layer over either (`docs/rtx/backends.md`).
+backends behind one API-neutral core, not a portability layer over either (`.notes/rtx/backends.md`).
 
 Content, light transport and what the scene *is* live in the core, written once. What is true of an
 API lives in its backend, written twice, and that cost is paid rather than abstracted away.
@@ -173,7 +173,7 @@ command line. A file of those lines is a profiling corpus: each one renders that
 OpenMW is OpenSceneGraph 3.6 on OpenGL. `Engine::frame` (`apps/openmw/engine.cpp:191`) runs
 simulation, then `updateTraversal()`, then `renderingTraversals()` — and **that last call is the only
 thing the RT renderer displaces**. Cull still runs: CPU skinning, terrain LOD and object paging are
-all cull-time decisions (`docs/rtx/openmw.md` §3.4).
+all cull-time decisions (`.notes/rtx/openmw.md` §3.4).
 
 `MWRender::RenderingManager` (`apps/openmw/mwrender/renderingmanager.hpp`) is the rendering
 god-object, owned by `MWWorld::World`. There is one abstract interface in the whole rendering layer
@@ -183,7 +183,7 @@ The RT renderer takes its scene by **mirroring the live OSG scene graph**, becau
 world is already CPU-resident triangles with world transforms, resolved texture roles and — for
 actors — already-skinned vertex positions. It reaches the screen through **GL/Vulkan interop**, not a
 Vulkan window, so the GUI, the inventory doll, the local map and video playback keep working. Both
-decisions and their alternatives are in `docs/rtx/plan.md` §2–3.
+decisions and their alternatives are in `.notes/rtx/plan.md` §2–3.
 
 Code lives in `components/rtx/` (Vulkan, knows no OSG scene graph and no game headers),
 `components/rtxbridge/` (`osg::Node` → scene description), `apps/openmw/mwrender/rtx/` (the game-side
@@ -210,6 +210,6 @@ the posture behind them does.
   player feels.
 - **Allocation is a metric on the frame path.** Persistent scratch buffers refilled with `clear()`,
   results into an out-parameter, nothing that constructs a `std::string` or a `std::function` per
-  frame, logging that compiles out. There is a test that enforces this (`docs/rtx/plan.md` §7.3).
+  frame, logging that compiles out. There is a test that enforces this (`.notes/rtx/plan.md` §7.3).
 - **Asserts** guard contracts the code must keep, not data the world might supply. Hot paths use the
   debug-only form; untrusted input is never an assert.

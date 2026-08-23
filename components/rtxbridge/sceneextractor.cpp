@@ -244,7 +244,7 @@ namespace RtxBridge
         //
         // It is also why the two must not both be running: they alternate the buffer a deforming
         // drawable writes, and the draw thread of the frame before is reading one of them
-        // (`docs/rtx/plan.md` §12). The frame that comes of it is discarded, and the answer is to
+        // (`.notes/rtx/plan.md` §12). The frame that comes of it is discarded, and the answer is to
         // stop drawing it at all rather than to interleave the numbers.
         const auto number = static_cast<unsigned int>(frame) + 1;
         setTraversalNumber(number);
@@ -457,7 +457,7 @@ namespace RtxBridge
         // every bottom-level acceleration structure in the world — had to be built again: nineteen
         // of nineteen crossings on a route across Vvardenfell were full rebuilds. A slot that is
         // freed keeps its index and its room, and the next arrival that fits takes it over. Nothing
-        // downstream is told anything, because for it nothing moved (`docs/rtx/plan.md` §10).
+        // downstream is told anything, because for it nothing moved (`.notes/rtx/plan.md` §10).
         mScene.release(mLiveMeshes, mLiveMaterials, mLiveTextures);
 
         // **After the sweep and not before it**, so that the walk which fills the next epoch is the

@@ -15,7 +15,7 @@ using namespace raytracing;
 ///
 /// Metal has no program-scope resources, so a kernel's inputs arrive as arguments and anything that
 /// reads them takes this. The Vulkan shader is being brought to the same shape for the same reason
-/// (docs/rtx/backends.md §4).
+/// (.notes/rtx/backends.md §4).
 struct Scene
 {
     device const GpuInstance* mInstances;

@@ -437,7 +437,7 @@ namespace Rtx
 
         // **Its own submit, after the frame's.** The GUI is collected once the world has been drawn
         // and there is nothing to gain by holding the frame open for it; what it costs is one more
-        // queue submit on the frames the interface is up, and `docs/rtx/plan.md` §12 is where that
+        // queue submit on the frames the interface is up, and `.notes/rtx/plan.md` §12 is where that
         // number goes once there is a frame to measure it in.
         mPool.submitAndWait([&](VkCommandBuffer commands) {
             mTarget->transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,

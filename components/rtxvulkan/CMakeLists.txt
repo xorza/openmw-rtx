@@ -2,7 +2,7 @@
 #
 # Everything here is Vulkan's: the device, its allocations, its acceleration structures and its
 # passes. What is true of the content rather than of the API lives in `openmw-rtx`, which this links
-# and which links no graphics API at all. See docs/rtx/backends.md.
+# and which links no graphics API at all. See .notes/rtx/backends.md.
 
 # Ninja needs the NEW behaviour to consume glslc's depfile; the root project's minimum predates it.
 if (POLICY CMP0116)

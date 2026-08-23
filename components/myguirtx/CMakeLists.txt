@@ -2,7 +2,7 @@
 #
 # **One backend for both of them.** Most of MyGUI's interface is bookkeeping no API has an opinion
 # about; what is left is a table of textures and a list of triangles, which is what `components/rtx`
-# offers and each of its backends implements. See docs/rtx/gui.md §2.
+# offers and each of its backends implements.
 
 set(MYGUIRTX_FILES
     rendermanager.cpp

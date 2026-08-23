@@ -27,7 +27,7 @@ namespace Rtx
         };
 
         constexpr std::array sOptionalDeviceExtensions{
-            // The in-game path hands its image to OpenGL rather than to a swapchain (docs/rtx/plan.md §3).
+            // The in-game path hands its image to OpenGL rather than to a swapchain (.notes/rtx/plan.md §3).
             VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
             VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME,
             // Turns a device loss from "the driver said no" into a list of what had not completed.
@@ -70,7 +70,7 @@ namespace Rtx
                 "synchronization2", +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan13.synchronization2; } },
             RequiredFeature{ "maintenance4", +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan13.maintenance4; } },
             // The GUI is the only thing here that rasterises, and it does so without a render pass
-            // or a framebuffer object: `docs/rtx/gui.md` §4.
+            // or a framebuffer object.
             RequiredFeature{
                 "dynamicRendering", +[](DeviceFeatures& f) -> VkBool32& { return f.mVulkan13.dynamicRendering; } },
 

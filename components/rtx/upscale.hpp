@@ -21,7 +21,7 @@ namespace Rtx
         Off,
 
         /// Half the output's width and height, so a quarter of its pixels. What the frame budget in
-        /// `docs/rtx/plan.md` §5.3 is written against — 1920×1080 internal to 3840×2160.
+        /// `.notes/rtx/plan.md` §5.3 is written against — 1920×1080 internal to 3840×2160.
         Performance,
         Balanced,
         Quality,

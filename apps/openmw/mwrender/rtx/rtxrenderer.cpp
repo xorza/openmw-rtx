@@ -667,7 +667,7 @@ namespace MWRender::Rtx
         }
 
         // **The frame the trace made, on the screen, before this call returns.** No composite, no
-        // interop and no rasterized frame underneath — which is what takes `docs/rtx/plan.md` §12's
+        // interop and no rasterized frame underneath — which is what takes `.notes/rtx/plan.md` §12's
         // frame of latency out: the image presented is the one just traced.
         drawGui();
 

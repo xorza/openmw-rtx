@@ -60,7 +60,7 @@ namespace MWRender
     /// **The rasterizer is not modified, wrapped or conditionally compiled around — it is gathered.**
     /// Every threading, realize and traversal decision here is upstream's, moved rather than
     /// rewritten, which is what makes "does the other renderer do this correctly" answerable by
-    /// comparison (`CLAUDE.md`, and `docs/rtx/renderers.md` §7 step 3).
+    /// comparison (`CLAUDE.md`).
     class GlRenderer final : public Renderer
     {
     public:

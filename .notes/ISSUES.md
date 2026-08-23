@@ -41,8 +41,15 @@
   every `unlock`, and uploads the whole texture either way. A picture written once a frame — the
   video widget — therefore allocates twice a frame and re-sends every pixel of the frame.
 
+- Every `redraw` of an inventory doll or a race preview rebuilds the whole of its scene — the
+  bottom-level acceleration structures and the texture array — and a race-creation slider drag
+  redraws it on every frame.
+
 - The inventory doll's mirrored scene names one texture with an empty path, which resolves to
   nothing and is drawn with the grey stand-in. The world's scene names none.
+
+- `RtxRenderer::freezeFrame` hands the loading screen one black texel rather than the frame that was
+  just presented, so a load on the ray tracing path fades from black instead of from the world.
 
 - The ray tracing renderer has no screenshot key: `RtxRenderer::saveScreenshot` logs and does
   nothing. `OPENMW_RTX_SHOT` still writes frames.

@@ -105,7 +105,7 @@ namespace MWRender
     /// **Nothing below this line is abstracted.** Contexts, swapchains, command buffers,
     /// framebuffers, render bins, descriptor sets and acceleration structures belong to a renderer
     /// outright — an interface over those would be a mini-GL that Vulkan does not fit, which is the
-    /// argument `docs/rtx/backends.md` §3 makes one level further down for the same reason. What is
+    /// argument `.notes/rtx/backends.md` §3 makes one level further down for the same reason. What is
     /// here is what the game asks for, and none of it is called more than a few times a frame.
     class Renderer
     {
@@ -224,8 +224,7 @@ namespace MWRender
         ///        and so nothing a renderer could have been handed one through.
         virtual std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(osg::Group& guiRoot,
             Resource::ImageManager& images, Shader::ShaderManager& shaders, const VFS::Manager& vfs,
-            float scalingFactor, VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath)
-            = 0;
+            float scalingFactor, VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath) = 0;
 
     protected:
         Renderer() = default;

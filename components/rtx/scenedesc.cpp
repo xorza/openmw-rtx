@@ -393,7 +393,7 @@ namespace Rtx
             // **Its layers and the masks behind them go with it.** A material that carries layers is
             // a terrain chunk, so without this what accumulates is a blend map per chunk walked
             // past; the runs are variable length, which is why they are given back to an allocator
-            // rather than to a list of slots (`docs/rtx/plan.md` §10).
+            // rather than to a list of slots (`.notes/rtx/plan.md` §10).
             const Material& going = mMaterials[index];
             for (Index at = 0; at < going.mLayerCount; ++at)
             {

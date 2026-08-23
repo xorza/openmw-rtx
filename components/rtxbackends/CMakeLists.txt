@@ -2,7 +2,7 @@
 #
 # It exists so nothing else needs an `#ifdef` to ask: the core declares `createRenderer` and cannot
 # link a backend without a cycle, and every consumer — the harness, the tests, the game — wants a
-# renderer rather than a choice. See docs/rtx/backends.md §5.7.
+# renderer rather than a choice. See .notes/rtx/backends.md §5.7.
 
 set(RTXBACKENDS_FILES
     renderer.cpp

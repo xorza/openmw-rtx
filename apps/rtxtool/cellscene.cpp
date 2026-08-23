@@ -179,7 +179,7 @@ namespace RtxTool
         // node every time — adding it again would put the whole worldspace under the root twice.
         //
         // Terrain is therefore not per cell the way the objects below are, which is the one thing
-        // in this graph that cannot yet be unloaded a cell at a time. See `docs/rtx/harness.md`.
+        // in this graph that cannot yet be unloaded a cell at a time. See `.notes/rtx/harness.md`.
         if (terrain != nullptr && !root.containsNode(terrain))
             root.addChild(terrain);
 

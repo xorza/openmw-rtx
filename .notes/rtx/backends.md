@@ -4,7 +4,7 @@ A proposal for restructuring `components/rtx` so that a Metal renderer and the V
 same renderer reaching two APIs, rather than two renderers that happen to draw the same game.
 
 This is phase one only: **the redesign, with no Metal in it.** What a Metal backend then has to
-implement is §7, and its plan is a separate document. On acceptance this collapses into `docs/rtx/plan.md`
+implement is §7, and its plan is a separate document. On acceptance this collapses into `.notes/rtx/plan.md`
 §4 and a milestone, and the three-document rule is restored.
 
 ## 1. What the code is today
@@ -55,11 +55,11 @@ components/rtxmetal/     openmw-rtx-metal     links Metal, QuartzCore
 components/rtxbridge/    openmw-rtx-bridge    links no graphics API
 ```
 
-`docs/rtx/plan.md` §4 rejected grouping this component into subdirectories, and that argument still holds: a
+`.notes/rtx/plan.md` §4 rejected grouping this component into subdirectories, and that argument still holds: a
 subdirectory would make every include read `rtx/vulkan/device.hpp` for no gain. But the reason to
 split here is not tidiness. **A subdirectory is not a link boundary and a library is.** Three targets
 means `openmw-rtx` physically cannot include `vulkan_core.h` — the linker enforces the seam that
-`docs/rtx/plan.md` §4 already calls the one that matters, instead of a convention enforced by whoever is
+`.notes/rtx/plan.md` §4 already calls the one that matters, instead of a convention enforced by whoever is
 reading the diff. It is the same reason `rtxbridge` is already a component of its own rather than a
 folder.
 
@@ -371,7 +371,7 @@ the reason it cannot run. So there is no `--backend=` and no `Backend` in `Rende
 backend a machine develops is settled by what the machine is, exactly as §7 of `CLAUDE.md` has it.
 Comparing the two is diffing images from two machines, not a flag on one.
 
-A build with no backend at all is a hard failure naming it, in the spirit of `docs/rtx/plan.md` §5:
+A build with no backend at all is a hard failure naming it, in the spirit of `.notes/rtx/plan.md` §5:
 there is no fallback path, there is a different renderer.
 
 ## 6. What this costs, honestly
@@ -380,7 +380,7 @@ there is no fallback path, there is a different renderer.
   submission, the swapchain. Irreducible, and no abstraction would reduce it — it would only move it.
 - **The window and present path is irreducible and differs in kind.** Vulkan has a swapchain; macOS
   has a `CAMetalLayer`, and the in-game path there cannot use the `VK_KHR_external_memory_fd` design
-  in `docs/rtx/plan.md` §3 at all, because macOS has never had those GL extensions. That is phase two's
+  in `.notes/rtx/plan.md` §3 at all, because macOS has never had those GL extensions. That is phase two's
   problem and it is the largest one in it.
 - **The shader shell is ~200 lines per backend**, plus whatever the spike in §4 finds.
 - **Two float paths can disagree.** The pixel tests are what catches it, and this is closer to a
@@ -425,6 +425,6 @@ Morrowind's foliage makes a large number. **No shader execution reordering**, wh
 not before. **No `ray_tracing_position_fetch`**, answered from the position pointer the neutral
 `Scene` struct carries.
 
-And the target is not the same target. `docs/rtx/plan.md` §5.3 wants 1920x1080 internal to 3840x2160 at 60 on
+And the target is not the same target. `.notes/rtx/plan.md` §5.3 wants 1920x1080 internal to 3840x2160 at 60 on
 an Ada-class card; a ten-core M5 is a different budget and phase two should name its own before it
 measures anything.

@@ -43,7 +43,7 @@ namespace Rtx
         // Everything this backend needs is here and none of it is used yet. There is deliberately no
         // `Renderer` behind this: one that aborted on `setScene` would crash every caller that
         // believed the interface, starting with the pixel suite, and a reason is what the factory
-        // exists to give instead. See docs/rtx/backends.md §7.
+        // exists to give instead. See .notes/rtx/backends.md §7.
         reason = "the Metal backend cannot trace yet";
         return nullptr;
     }

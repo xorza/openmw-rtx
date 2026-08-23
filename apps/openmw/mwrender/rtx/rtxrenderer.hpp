@@ -57,7 +57,7 @@ namespace MWRender::Rtx
     /// a layer down — `Rtx::createRenderer` picks `components/rtxvulkan` or `components/rtxmetal` by
     /// what the build is for — so everything here is written once for both: the mirror, the frame,
     /// the extents, the capabilities. A second copy of this directory is exactly the duplication
-    /// `docs/rtx/backends.md` exists to prevent. `mwrender/gl/` is asymmetric with it for a reason:
+    /// `.notes/rtx/backends.md` exists to prevent. `mwrender/gl/` is asymmetric with it for a reason:
     /// that renderer *is* an API, down to its sky and its water.
     ///
     /// **No OpenGL is initialised anywhere under this.** No GL context, no `osgViewer` graphics
@@ -68,7 +68,7 @@ namespace MWRender::Rtx
     /// `osgViewer::Viewer`'s, and each is scene-graph work with a graphics context bolted to the
     /// side; what is here is the first half of each and nothing else. There is no cull: rays go
     /// everywhere, so a frustum has nothing to say about what must be reachable — which is also
-    /// why the frame is not one late the way `docs/rtx/plan.md` §12 describes. The mirror runs
+    /// why the frame is not one late the way `.notes/rtx/plan.md` §12 describes. The mirror runs
     /// after the update traversal and the present runs after the mirror, all inside one frame.
     class TracedView;
 
@@ -93,16 +93,15 @@ namespace MWRender::Rtx
 
         void renderFrame(const SceneFrame& frame) override;
 
-        /// **A picture of the right size, in the clear colour, and nothing in it.** Tracing one is
-        /// step 6.7 of `docs/rtx/gui.md`; until then the doll and the race preview are as empty on
-        /// this path as they were before there was an interface to ask through, and empty on
-        /// purpose rather than by accident.
+        /// **A trace into a texture the GUI already draws from**, at the size asked for and from
+        /// the viewpoint handed over: the inventory doll, the race preview, a map tile. A picture of
+        /// the world traces against the scene this renderer already holds; a picture of a subject
+        /// that stands in no cell is mirrored into a scene of its own.
         std::unique_ptr<OffscreenView> createOffscreenView(const OffscreenViewSpec& spec) override;
 
-        /// **Flat black, and the loading screen puts it up as the backdrop.** Blitting the image
-        /// just presented into a GUI texture waits on `components/myguirtx` having one to blit into
-        /// — step 6.6 — and until then this is what was behind a loading screen on this path
-        /// anyway, said on purpose rather than left to whatever the texture happened to hold.
+        /// **Flat black, and the loading screen puts it up as the backdrop.** What this owes is the
+        /// frame just presented, blitted into a GUI texture; what it gives is one black texel, said
+        /// on purpose rather than left to whatever the texture happened to hold.
         MyGUI::ITexture& freezeFrame() override;
 
         void renderGui() override;

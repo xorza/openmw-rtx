@@ -10,7 +10,7 @@
 // several frames of it.
 //
 // Exposure is a multiply and not a curve. There is no tone-mapping operator here yet, so what the
-// sun does above one is still clipped rather than rolled off — see `docs/rtx/plan.md`.
+// sun does above one is still clipped rather than rolled off — see `.notes/rtx/plan.md`.
 
 #include "tone.h"
 

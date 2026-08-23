@@ -1,7 +1,7 @@
 # OpenMW as a host engine
 
 Structure notes for the experimental ray-traced renderer. This describes the tree **as it is**, and
-marks the seams the new renderer attaches to. It is not a plan — that is `docs/rtx/plan.md` — and not a
+marks the seams the new renderer attaches to. It is not a plan — that is `.notes/rtx/plan.md` — and not a
 statement of intent — that is `CLAUDE.md`.
 
 OpenMW 0.52.0, C++20, ~24 k lines of world simulation and ~23 k lines of rendering. The renderer is
@@ -77,7 +77,7 @@ What `RenderingManager` actually owns, and what each part means for us:
 | `mObjectPaging` | `mwrender/objectpaging.cpp` | 1.1 k | keep; merged statics are ideal BLAS input |
 | `mGroundcover` | `mwrender/groundcover.cpp` | | keep |
 | `mSky` (`SkyManager`) | `mwrender/sky.cpp` + `skyutil.cpp` | 2.0 k | **replace** — sky becomes an analytic/traced dome |
-| `mWater` | `mwrender/water.cpp` | 873 | **replace** — see `docs/rtx/plan.md` M6 |
+| `mWater` | `mwrender/water.cpp` | 873 | **replace** — see `.notes/rtx/plan.md` M6 |
 | `mFog` (`FogManager`) | `mwrender/fogmanager.cpp` | | replace; keep it as the *data* source |
 | `mPostProcessor` | `mwrender/postprocessor.cpp` | 880 | **bypass** — the RT path owns tonemapping |
 | `mShadowManager` | `sceneutil/mwshadowtechnique.cpp` | 3.4 k | **delete from the RT path** — rays cast shadows |
@@ -262,7 +262,7 @@ Two front-ends:
 MyGUI is bound to OSG by `components/myguiplatform/` (1.5 k lines): `myguirendermanager.cpp` is the
 whole GL-side contract — create texture, create vertex buffer, `doRender(buffer, texture, count)`.
 A Vulkan MyGUI backend would be a sibling file of the same size. **Not needed** if the RT image is
-composited under the existing GL GUI (`docs/rtx/plan.md` §3).
+composited under the existing GL GUI (`.notes/rtx/plan.md` §3).
 
 Other consumers of the GL renderer, all rendering into textures rather than to the screen:
 
@@ -275,7 +275,7 @@ Other consumers of the GL renderer, all rendering into textures rather than to t
 | loading screen | `mwgui/loadingscreen.cpp` | drives the viewer directly |
 
 Each is small, none is on the main view path, and all keep working unchanged as long as a GL context
-still exists. That is the single strongest argument for the interop route in `docs/rtx/plan.md` §3.
+still exists. That is the single strongest argument for the interop route in `.notes/rtx/plan.md` §3.
 
 ---
 

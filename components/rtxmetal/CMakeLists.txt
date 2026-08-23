@@ -2,7 +2,7 @@
 #
 # Everything Metal is Objective-C++ and stays inside the implementation: the one header here is
 # plain C++ so the dispatcher can include it without the rest of the tree learning what an `id<>` is.
-# See docs/rtx/backends.md §7.
+# See .notes/rtx/backends.md §7.
 
 enable_language(OBJCXX)
 

@@ -68,7 +68,7 @@ namespace Rtx
     /// **The first thing in this backend that is not compute.** Everything that makes the picture is
     /// dispatched — the trace, the denoiser, exposure, the curve, the composite. This exists because
     /// a GUI is triangles over a finished frame and there is nothing to be gained by tracing a font
-    /// atlas (`docs/rtx/gui.md` §4).
+    /// atlas.
     class GraphicsPipeline
     {
     public:
