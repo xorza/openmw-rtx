@@ -476,7 +476,7 @@ string cannot push it over that edge.
 **The 2.0 ms is the finding here.** The walk is the largest CPU item on the frame — a third of what
 the trace costs — and nothing in this review had measured it. Whatever is in it, it is not this.
 
-### D6. Video playback regressed on the rasterizer — medium
+### D6. Video playback on the rasterizer — **measured: microseconds, and the fix I proposed was a race** — low
 
 `VideoWidget` used to hold an `osg::Texture2D` that `VideoState` fed with `setImage` and a
 `PixelBufferObject`. It now goes through `Picture::set` → `MyGUIPlatform::OSGTexture::lock` →
@@ -485,9 +485,29 @@ the trace costs — and nothing in this review had measured it. Whatever is in i
 one full-frame `memcpy`, one texture-object allocation, and a full re-upload of a texture the driver
 has never seen before (no PBO, no reuse).
 
-The ISSUES entry covers the `OSGTexture` half; the video-specific consequence is new to this branch
-and worth recording with it. Fixing `OSGTexture::lock`/`unlock` to reuse the image and the texture
-when the size and format are unchanged fixes both, and also fixes half of D1's `write` cost.
+Measured on the rasterizer, timing only the allocations rather than the caller's fill:
+
+| | cost |
+| --- | --- |
+| `lock`'s `new osg::Image` | **2–15 µs** |
+| `unlock`'s `new osg::Texture2D` | **0.5–3 µs** |
+| calls in a whole session | **11** — three 8×8 solids, six font atlases, two global-map textures |
+
+So the shape is as described and the cost is not. Even a video at thirty frames a second would spend
+0.3 ms a second on the two allocations.
+
+**The video case itself could not be exercised here**: `Movies_Morrowind_Logo` is absent from this
+install's fallback list, so `Engine::go` never calls `playVideo` and no video ran in any
+configuration reachable without clicking. The per-call number above is what bounds it.
+
+**And the fix this review proposed would have been a data race.** `unlock` makes a new texture
+because of the line directly above it — *"mTexture might be in use by the draw thread, so create a
+new texture instead and use that"* — and the image it hands over goes with it. Reusing either while
+the draw thread is a frame behind is writing what is being read. The correct shape is
+double-buffering, two images and two textures alternated, which is what
+`MyGUIPlatform::Drawable` already does with its vertex arrays for exactly this reason. That is real
+machinery for ten microseconds, so it waits for something that makes it matter — a cutscene that
+has to hold frame rate.
 
 ### D7. `MyGUIRtx::Texture::loadFromFile` decodes pixel-by-pixel — low
 
@@ -692,11 +712,12 @@ The measurement's real result is that **the extraction walk costs 2.0 ms a frame
 item on the frame path, and unaccounted for. That deserves a look of its own before any more of
 these.
 
-### 7. `OSGTexture::lock`/`unlock` reuse *(D6, and half of D1)*
+### 7. `OSGTexture::lock`/`unlock` reuse *(D6, and half of D1)* — **done: measured, and the plan was wrong**
 
-Reuse `mLockedImage` and the `osg::Texture2D` when the size and format have not changed. This is the
-already-logged ISSUES entry; landing it fixes the video regression and removes an allocation from
-every `Picture::set` on both renderers.
+Two allocations totalling under 20 µs, eleven times in a session; the video path is not reachable on
+this install. And "reuse when the size and format are unchanged" — what this step said to do — would
+have raced the draw thread, which is the reason the allocation is there. Details and the correct
+shape (double-buffering, when something makes it matter) are in D6.
 
 ### 8. The remaining `#ifdef` *(A2)* — **done**
 
