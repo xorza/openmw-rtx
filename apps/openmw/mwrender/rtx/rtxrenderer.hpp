@@ -82,7 +82,7 @@ namespace MWRender::Rtx
         explicit RtxRenderer(const RendererSpec& spec);
         ~RtxRenderer() override;
 
-        const Capabilities& getCapabilities() const override { return mCapabilities; }
+        int getMaxTextureUnits() const override { return mMaxTextureUnits; }
         SDL_Window* getWindow() const override { return mWindow; }
 
         void attachWorld(RenderingManager& world, osg::Group& worldRoot) override;
@@ -136,6 +136,11 @@ namespace MWRender::Rtx
 
         osg::Timer_t getStartTick() const override { return mStartTick; }
 
+        /// The OSG stats overlay is the rasterizer's instrumentation and the rasterizer draws it.
+        /// What this renderer has instead is its own frame times and `OPENMW_RTX_BENCH`.
+        void installStatsOverlay(const VFS::Manager& vfs, bool toFile) override {}
+        void reportStats(unsigned frameNumber, std::ostream& stream) const override {}
+
         /*internal:*/
 
         /// Whether the world has reached the backend yet, so a picture traced against it would be a
@@ -165,11 +170,6 @@ namespace MWRender::Rtx
         ///         was written into and so the one an intersection test has to read.
         unsigned int updateSubtree(osg::Node& node);
 
-        /// The OSG stats overlay is the rasterizer's instrumentation and the rasterizer draws it.
-        /// What this renderer has instead is its own frame times and `OPENMW_RTX_BENCH`.
-        void installStatsOverlay(const VFS::Manager& vfs, bool toFile) override {}
-        void reportStats(unsigned frameNumber, std::ostream& stream) const override {}
-
     private:
         /// Makes the SDL window the backend builds its surface on. No GL attribute is set and no GL
         /// flag is passed, which is what `SDL_GL_GetCurrentContext() == nullptr` then proves.
@@ -197,7 +197,7 @@ namespace MWRender::Rtx
         void drawDeferredViews();
 
         Stage& mStage;
-        Capabilities mCapabilities;
+        int mMaxTextureUnits = 0;
 
         /// Whether the world has been handed to the backend at least once.
         bool mHasScene = false;

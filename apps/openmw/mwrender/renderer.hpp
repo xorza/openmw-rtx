@@ -63,26 +63,6 @@ namespace MWRender
     struct SceneFrame;
     class Stage;
 
-    /// What this renderer can do, so nothing above it has to assume.
-    ///
-    /// **Capabilities rather than null returns, where a null return will not do.** A renderer that
-    /// is not the rasterizer will not have some of what the rasterizer has, and the difference has
-    /// to be answerable *before* a settings page offers a slider for it. A ray tracer answering "no
-    /// shadow maps" is not reporting a gap: it has shadows and no maps, and that is the answer.
-    ///
-    /// **But asking a renderer what it has is a worse question than asking it for the thing.** Every
-    /// gate that lived here turned out to be a null check wearing a hat — `getPostProcessor()`
-    /// returning nothing says the same as a `mPostProcessing` that is false, and says it without
-    /// putting the shape of one renderer's insides in the caller. One field is left, and it is the
-    /// one nothing can be asked for: a number.
-    struct Capabilities
-    {
-        /// How many textures one shader may sample. `Shader::ShaderManager` reserves its global
-        /// units out of this, and content that wants one more than there are has to be told rather
-        /// than find out at link time.
-        int mTextureUnits = 0;
-    };
-
     /// What every renderer needs to exist, whatever it draws with.
     struct RendererSpec
     {
@@ -115,7 +95,17 @@ namespace MWRender
         Renderer(const Renderer&) = delete;
         Renderer& operator=(const Renderer&) = delete;
 
-        virtual const Capabilities& getCapabilities() const = 0;
+        /// How many textures one shader may sample. `Shader::ShaderManager` reserves its global
+        /// units out of this, and content that wants one more than there are has to be told rather
+        /// than find out at link time.
+        ///
+        /// **The only thing a renderer is asked what it has, and it is a number.** There was a
+        /// `Capabilities` struct here and every other field in it turned out to be a null check
+        /// wearing a hat: `getPostProcessor()` returning nothing says the same as a
+        /// `mPostProcessing` that is false, and says it without putting the shape of one renderer's
+        /// insides in the caller. Asking a renderer for the thing is a better question than asking
+        /// it what it has — except where the answer is not a thing.
+        virtual int getMaxTextureUnits() const = 0;
 
         /// The window the renderer made. Input, the GUI's scale and the gamma ramp are SDL's
         /// business and read it; what is bound to it is not theirs to know.

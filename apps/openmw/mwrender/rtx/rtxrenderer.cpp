@@ -103,7 +103,7 @@ namespace MWRender::Rtx
         // ask. The value only decides how many slots it is willing to use — the roles it labels
         // them with, which is all this renderer reads, are the same either way. The harness has
         // assumed the same number since M0.
-        mCapabilities.mTextureUnits = 32;
+        mMaxTextureUnits = 32;
 
         mFrameStamp->setFrameNumber(0);
         mFrameStamp->setReferenceTime(0.0);

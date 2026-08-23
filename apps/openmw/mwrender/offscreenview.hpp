@@ -90,6 +90,12 @@ namespace MWRender
 
         /// Fill only this much of the image and leave the rest at the clear colour. The inventory
         /// doll, whose window resizes while the texture behind it does not.
+        ///
+        /// **A description and not a command**, like `setView`: it says what the next `redraw()`
+        /// should fill and does not itself draw. One renderer used to redraw here and the other did
+        /// not, so a resize repainted the doll under the rasterizer and left it stale under the ray
+        /// tracer — the kind of difference a caller cannot see and would have had to ask which
+        /// renderer it got to predict.
         virtual void setExtent(int width, int height) = 0;
 
         /// The subtree is not the same subtree any more — geometry added, removed or replaced,

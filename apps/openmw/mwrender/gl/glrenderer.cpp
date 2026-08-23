@@ -382,7 +382,7 @@ namespace MWRender
         }
 
         mViewer->realize();
-        mCapabilities.mTextureUnits = identifyOp->getMaxTextureImageUnits();
+        mMaxTextureUnits = identifyOp->getMaxTextureImageUnits();
 
 #if OSG_VERSION_LESS_THAN(3, 6, 6)
         // hack fix for https://github.com/openscenegraph/OpenSceneGraph/issues/1028

@@ -67,7 +67,7 @@ namespace MWRender
         explicit GlRenderer(const RendererSpec& spec);
         ~GlRenderer() override;
 
-        const Capabilities& getCapabilities() const override { return mCapabilities; }
+        int getMaxTextureUnits() const override { return mMaxTextureUnits; }
         SDL_Window* getWindow() const override { return mWindow; }
 
         void attachWorld(RenderingManager& world, osg::Group& worldRoot) override;
@@ -119,7 +119,7 @@ namespace MWRender
         void retireFreezeFrame();
 
         Stage& mStage;
-        Capabilities mCapabilities;
+        int mMaxTextureUnits = 0;
 
         /// What an offscreen view's light rig is built out of. Known from `attachWorld` onwards,
         /// which is well before the GUI asks for the first view.

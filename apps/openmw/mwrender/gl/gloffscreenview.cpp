@@ -171,7 +171,7 @@ namespace MWRender
     public:
         OffscreenRTTNode(const OffscreenViewSpec& spec, Resource::ResourceSystem& resources)
             : RTTNode(spec.mWidth, spec.mHeight, spec.mFromWorld ? 0 : Settings::video().mAntialiasing, false, 0,
-                StereoAwareness::Unaware_MultiViewShaders, shouldAddMSAAIntermediateTarget())
+                  StereoAwareness::Unaware_MultiViewShaders, shouldAddMSAAIntermediateTarget())
             , mMask(spec.mMask)
             , mClearColour(spec.mClearColour)
             , mFromWorld(spec.mFromWorld)
@@ -258,7 +258,7 @@ namespace MWRender
                 mCameraProjection = osg::Matrixf::perspective(perspective->mFieldOfView, aspect, spec.mNear, spec.mFar);
                 mShaderProjection = reversed
                     ? static_cast<osg::Matrixf>(SceneUtil::getReversedZProjectionMatrixAsPerspective(
-                        perspective->mFieldOfView, aspect, spec.mNear, spec.mFar))
+                          perspective->mFieldOfView, aspect, spec.mNear, spec.mFar))
                     : mCameraProjection;
             }
             else
@@ -268,9 +268,10 @@ namespace MWRender
                 const double halfHeight = box.mHeight / 2.0;
 
                 mCameraProjection.makeOrtho(-halfWidth, halfWidth, -halfHeight, halfHeight, spec.mNear, spec.mFar);
-                mShaderProjection = reversed ? static_cast<osg::Matrixf>(SceneUtil::getReversedZProjectionMatrixAsOrtho(
-                                        -halfWidth, halfWidth, -halfHeight, halfHeight, spec.mNear, spec.mFar))
-                                             : mCameraProjection;
+                mShaderProjection = reversed
+                    ? static_cast<osg::Matrixf>(SceneUtil::getReversedZProjectionMatrixAsOrtho(
+                          -halfWidth, halfWidth, -halfHeight, halfHeight, spec.mNear, spec.mFar))
+                    : mCameraProjection;
             }
         }
 
@@ -417,8 +418,6 @@ namespace MWRender
         // This expects Y-down convention; historically the origin was (0, mSizeY - sizeY)
         stateset->setAttributeAndModes(new osg::Viewport(0, 0, filledX, filledY));
         mNode->setExtentStateSet(stateset);
-
-        redraw();
     }
 
     void GlOffscreenView::sceneChanged()

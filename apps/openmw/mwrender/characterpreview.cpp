@@ -136,6 +136,9 @@ namespace MWRender
         mExtentY = std::clamp(sizeY, 0, mSizeY);
 
         mView->setExtent(mExtentX, mExtentY);
+
+        // The extent is a description; asking for the picture again is this caller's to do.
+        mView->redraw();
     }
 
     void InventoryPreview::update()
@@ -240,7 +243,7 @@ namespace MWRender
 
     RaceSelectionPreview::RaceSelectionPreview(Renderer& renderer, Resource::ResourceSystem* resourceSystem)
         : CharacterPreview(
-            renderer, resourceSystem, MWMechanics::getPlayer(), 512, 512, osg::Vec3f(0, 125, 8), osg::Vec3f(0, 0, 8))
+              renderer, resourceSystem, MWMechanics::getPlayer(), 512, 512, osg::Vec3f(0, 125, 8), osg::Vec3f(0, 0, 8))
         , mBase(*mCharacter.get<ESM::NPC>()->mBase)
         , mRef(ESM::makeBlankCellRef(), &mBase)
         , mPitchRadians(osg::DegreesToRadians(6.f))
