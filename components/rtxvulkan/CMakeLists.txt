@@ -105,6 +105,8 @@ set(RTX_VULKAN_FILES
     graphicspipeline.hpp
     guipass.cpp
     guipass.hpp
+    guitextures.cpp
+    guitextures.hpp
     gputimer.cpp
     gputimer.hpp
     hostbuffer.cpp

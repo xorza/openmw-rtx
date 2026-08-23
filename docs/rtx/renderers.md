@@ -742,8 +742,11 @@ names no OpenGL at all.
 composed in main memory rather than by a camera per cell and a shader pair, both of which are gone.
 
 **6.4** is the first `vkCmdDraw` this backend has ever recorded: `Rtx::GraphicsPipeline` and a
-`GuiPass` that draws a textured, blended triangle list over a finished frame, with four headless GPU
-tests behind it. Everything else here is dispatched, and stays that way.
+`GuiPass` that draws a textured, blended triangle list over a finished frame. Everything else here
+is dispatched, and stays that way. **6.5** put the four neutral calls of `gui.md` §3.1 on
+`Rtx::Renderer` over it — a slot table for GUI textures, and one call a frame that draws every batch
+— with eleven headless GPU tests between them, the last of which draws over a traced wall and
+asserts the rest of the frame is untouched.
 
 **6.3 with it**: the video frame, the save thumbnail and the fog of war go in through MyGUI's own
 factory — one `MyGUIPlatform::Picture` does it for all of them — and the loading screen asks the

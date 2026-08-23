@@ -62,6 +62,12 @@ namespace RtxBridge::Testing
         }
         Rtx::SharedFrame shareFrame() override { return {}; }
         bool presentFrame() override { return true; }
+
+        /// The GUI is not what this counts. Slots go up and nothing is drawn.
+        std::uint32_t addGuiTexture(std::uint32_t, std::uint32_t) override { return mGuiTextures++; }
+        void writeGuiTexture(std::uint32_t, std::span<const std::uint8_t>) override {}
+        void dropGuiTexture(std::uint32_t) override {}
+        void drawGui(std::span<const Rtx::GuiVertex>, std::span<const Rtx::GuiBatch>) override {}
         void readPixels(std::vector<std::uint8_t>&) override {}
         void readChannel(Rtx::Channel, std::vector<float>&) override {}
         void takeValidationErrors(std::vector<std::string>&) override {}
@@ -79,5 +85,6 @@ namespace RtxBridge::Testing
 
     private:
         Rtx::SceneStats mStats;
+        std::uint32_t mGuiTextures = 0;
     };
 }

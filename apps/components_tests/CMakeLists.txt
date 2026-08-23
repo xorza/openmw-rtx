@@ -112,6 +112,7 @@ if (OPENMW_RTX)
         rtx/frametimes.cpp
         rtx/gputimer.cpp
         rtx/guipass.cpp
+        rtx/guitextures.cpp
         rtx/harness.cpp
         rtx/harness.hpp
         rtx/lightgrid.cpp

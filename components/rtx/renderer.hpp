@@ -85,6 +85,18 @@ namespace Rtx
 
     static_assert(sizeof(GuiVertex) == 24, "a GUI vertex is what MyGUI writes, and the buffer is read as its own");
 
+    /// One run of vertices drawn with one texture.
+    ///
+    /// **A run and not an index range**, because MyGUI hands over triangle lists and no indices: a
+    /// batch is a stretch of the vertex buffer and a texture to read while drawing it.
+    struct GuiBatch
+    {
+        /// A slot from `addGuiTexture`.
+        std::uint32_t mTexture = 0;
+        std::uint32_t mFirstVertex = 0;
+        std::uint32_t mVertexCount = 0;
+    };
+
     /// What a backend reports about the scene it took. The harness's summary line, as a struct.
     struct SceneStats
     {
@@ -327,6 +339,33 @@ namespace Rtx
         /// **A contract and so an assert**: a renderer built without a window has nothing to
         /// present into, and asking it to is a caller's mistake rather than a condition.
         virtual bool presentFrame() = 0;
+
+        /// A texture the GUI draws with, sized once and written whenever it changes.
+        ///
+        /// **Its own table, separate from the scene's.** That one is indexed by material, sized to
+        /// the world and appended to when a cell arrives; a font atlas has nothing to do with either
+        /// and outlives every scene the renderer is given.
+        ///
+        /// Slots a texture gave back are taken over before the table grows.
+        virtual std::uint32_t addGuiTexture(std::uint32_t width, std::uint32_t height) = 0;
+
+        /// The whole texture, four bytes a pixel, tightly packed, row zero first.
+        ///
+        /// **All of it, because MyGUI's interface has no way to say less**: it hands out a buffer to
+        /// fill and takes it back filled, and there is no rectangle in that.
+        virtual void writeGuiTexture(std::uint32_t texture, std::span<const std::uint8_t> rgba) = 0;
+
+        virtual void dropGuiTexture(std::uint32_t texture) = 0;
+
+        /// Everything the GUI asked to draw, over the finished picture, in one call.
+        ///
+        /// **After the frame and before it is presented or read.** The GUI's colours are
+        /// display-referred — they were picked and drawn against a monitor — so they go on after the
+        /// tone curve; putting them through a curve meant for radiance is how a menu comes out grey.
+        ///
+        /// Vertices are in clip space with +Y up, which is what MyGUI produces; a backend whose own
+        /// clip space disagrees answers that for itself.
+        virtual void drawGui(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches) = 0;
 
         /// Copies the traced image into `pixels`, four bytes per pixel, tightly packed.
         /// Not const: it submits a copy and waits for it.

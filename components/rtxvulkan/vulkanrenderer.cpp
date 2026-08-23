@@ -58,6 +58,8 @@ namespace Rtx
         , mComposite(mDevice, mPool, options.mShaderDirectory)
         , mExposure(mDevice, options.mShaderDirectory)
         , mTone(mDevice, options.mShaderDirectory)
+        , mGuiPass(mDevice, options.mShaderDirectory, sTargetFormat)
+        , mGuiTextures(mDevice, mPool)
     {
         mHitCount = Buffer(mDevice, sizeof(std::uint32_t),
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -119,8 +121,29 @@ namespace Rtx
         // 6.19 ms shareable against 6.10 to 6.26 across four runs before it, and the picture is
         // byte-identical. The alternative is an option every caller has to know to set before the
         // frame it wants can leave the device.
-        mTarget = std::make_unique<Image>(mDevice, mOutputWidth, mOutputHeight, VK_FORMAT_R8G8B8A8_UNORM,
-            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "target", Sharing::Exportable);
+        mTarget = std::make_unique<Image>(mDevice, mOutputWidth, mOutputHeight, sTargetFormat,
+            // Drawn into as well as written: the tone curve writes it as a storage image and the GUI
+            // rasterises over what that left.
+            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            "target", Sharing::Exportable);
+
+        // **Black and in `GENERAL` from the moment it exists.** Everything that reads the target
+        // expects that layout, and the GUI is drawn over the target whether or not a frame has been
+        // traced into it — a main menu and a loading screen have no world behind them.
+        mPool.submitAndWait([&](VkCommandBuffer commands) {
+            mTarget->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_CLEAR_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+
+            const VkClearColorValue black{ .float32 = { 0.0f, 0.0f, 0.0f, 1.0f } };
+            const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+            vkCmdClearColorImage(
+                commands, mTarget->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &black, 1, &whole);
+
+            mTarget->transition(commands, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
+                VK_PIPELINE_STAGE_2_CLEAR_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT);
+        });
 
         mChannels = std::make_unique<GBuffer>(mDevice, mRenderWidth, mRenderHeight);
         mFilter.resize(mRenderWidth, mRenderHeight);
@@ -359,6 +382,66 @@ namespace Rtx
         assert(mTarget != nullptr);
 
         return SharedFrame{ .mMemory = mTarget->exportMemory(), .mBytes = mTarget->getMemoryBytes() };
+    }
+
+    std::uint32_t VulkanRenderer::addGuiTexture(std::uint32_t width, std::uint32_t height)
+    {
+        return mGuiTextures.add(width, height);
+    }
+
+    void VulkanRenderer::writeGuiTexture(std::uint32_t texture, std::span<const std::uint8_t> rgba)
+    {
+        mGuiTextures.write(texture, rgba);
+    }
+
+    void VulkanRenderer::dropGuiTexture(std::uint32_t texture)
+    {
+        mGuiTextures.drop(texture);
+    }
+
+    void VulkanRenderer::drawGui(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches)
+    {
+        assert(mTarget != nullptr);
+
+        if (vertices.empty() || batches.empty())
+            return;
+
+        if (mGuiVertices.getSize() < vertices.size_bytes())
+            mGuiVertices = HostBuffer(mDevice, vertices.size_bytes(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+
+        mGuiVertices.write(vertices);
+
+        mGuiDraws.clear();
+        mGuiDraws.reserve(batches.size());
+        for (const GuiBatch& batch : batches)
+        {
+            const VkImageView view = mGuiTextures.getView(batch.mTexture);
+            assert(view != VK_NULL_HANDLE && "a batch names a texture this renderer does not hold");
+
+            // A slot nothing holds would be a null descriptor, which is undefined rather than
+            // blank. The assert above is where a caller finds out; a release build drops the batch.
+            if (view != VK_NULL_HANDLE)
+                mGuiDraws.push_back(GuiDraw{ view, batch.mFirstVertex, batch.mVertexCount });
+        }
+
+        // **Its own submit, after the frame's.** The GUI is collected once the world has been drawn
+        // and there is nothing to gain by holding the frame open for it; what it costs is one more
+        // queue submit on the frames the interface is up, and `docs/rtx/plan.md` §12 is where that
+        // number goes once there is a frame to measure it in.
+        mPool.submitAndWait([&](VkCommandBuffer commands) {
+            mTarget->transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+
+            mGuiPass.record(commands, *mTarget, mGuiVertices.getHandle(), mGuiDraws);
+
+            // Back where everything else expects it: the presenter blits out of `GENERAL` and so
+            // does a read back.
+            mTarget->transition(commands, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
+                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_MEMORY_READ_BIT);
+        });
     }
 
     bool VulkanRenderer::presentFrame()

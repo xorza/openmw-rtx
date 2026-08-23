@@ -296,15 +296,28 @@ source's contribution `255 × 128/255 = 128` and what it leaves of the destinati
 of the frame, which is what catches a flipped V; two batches prove each is drawn with its own
 texture; and an empty frame records nothing. Validation errors fail the tests rather than print.
 
-### Step 6.5 — the GUI textures, and `drawGui`
+### Step 6.5 — the GUI textures, and `drawGui` — **done**
 
-The four calls of §3.1 on `Rtx::Renderer`: `addGuiTexture`, `writeGuiTexture`, `dropGuiTexture` and
-`drawGui`, and the table behind them — which is what `components/myguirtx` will hold its textures in
-and hand its batches to. The pass and its sampler already exist; this is the neutral surface over
-them, and the wiring that puts the pass after tone mapping in a real frame.
+The four calls of §3.1 are on `Rtx::Renderer`, with `Rtx::GuiTextures` behind them: a table of
+images addressed by slot, where **a slot a texture gave back is taken over before the table grows**,
+because a session opens and closes menus for hours and a table that only grew would be a slow leak
+with a number on it. A texture is cleared when its slot is made, so it is sampleable from the moment
+it exists and the pass never has to ask whether one is ready.
 
-*Verified by*: the same suite, adding and rewriting a texture through the renderer and drawing with
-it; and the traced frame with a quad over it, which is the first time the two halves meet.
+`drawGui` is **its own submit, after the frame's**. The GUI is collected once the world has been
+drawn and there is nothing to gain by holding the frame open for it; what it costs is one more queue
+submit on the frames the interface is up, which is a number for M12 rather than a reason to fold the
+two together now. The target gained `COLOR_ATTACHMENT` usage and is cleared to black in `GENERAL`
+when it is sized — **a main menu and a loading screen draw a GUI with no world behind them**, and
+before this there was no defined thing for them to draw over.
+
+*Verified by*: seven more GPU tests, none of which needs a window. A batch shows its texture times
+its vertex colour; a second call lands over the first, which is what makes a GUI out of one call a
+frame; rewriting a texture changes what is drawn with it, which is the whole of what a video frame
+needs; a freed slot is reused; an unwritten texture is blank rather than whatever the memory held;
+an empty GUI touches nothing. And the last of them traces a wall, draws over half of it, and asserts
+that the other half is byte-for-byte what the trace left — the first time the two halves of this
+renderer meet.
 
 ### Step 6.6 — `components/myguirtx`
 

@@ -17,6 +17,8 @@
 #include "device.hpp"
 #include "exposurepass.hpp"
 #include "gputimer.hpp"
+#include "guipass.hpp"
+#include "guitextures.hpp"
 #include "instance.hpp"
 #include "tonepass.hpp"
 
@@ -59,6 +61,11 @@ namespace Rtx
         FrameResult renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) override;
         SharedFrame shareFrame() override;
         bool presentFrame() override;
+
+        std::uint32_t addGuiTexture(std::uint32_t width, std::uint32_t height) override;
+        void writeGuiTexture(std::uint32_t texture, std::span<const std::uint8_t> rgba) override;
+        void dropGuiTexture(std::uint32_t texture) override;
+        void drawGui(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches) override;
         void readPixels(std::vector<std::uint8_t>& pixels) override;
         void readChannel(Channel channel, std::vector<float>& values) override;
         void takeValidationErrors(std::vector<std::string>& errors) override;
@@ -71,6 +78,11 @@ namespace Rtx
         // Declaration order is destruction order reversed, and everything below the device is built
         // on it.
         Instance mInstance;
+        /// What the finished picture is encoded into, and so what the GUI pass is compiled against.
+        /// Four bytes a pixel and not display-encoded by the hardware: the tone curve has already
+        /// run by the time anything is written here.
+        static constexpr VkFormat sTargetFormat = VK_FORMAT_R8G8B8A8_UNORM;
+
         Device mDevice;
         CommandPool mPool;
 
@@ -158,6 +170,17 @@ namespace Rtx
         CompositePass mComposite;
         ExposurePass mExposure;
         TonePass mTone;
+        GuiPass mGuiPass;
+        GuiTextures mGuiTextures;
+
+        /// What the GUI is drawn out of, rewritten every frame it has anything in it and grown to
+        /// the busiest frame so far. Host-visible device memory, so writing it is a memcpy and
+        /// there is no staging copy and no transfer to record.
+        HostBuffer mGuiVertices;
+
+        /// The batches, resolved from slots to what the pass wants. Kept so that a frame of GUI
+        /// allocates nothing.
+        std::vector<GuiDraw> mGuiDraws;
 
         /// Null where nothing asked for a window.
         ///
