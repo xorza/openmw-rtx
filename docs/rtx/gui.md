@@ -1,0 +1,245 @@
+# The GUI, and the pictures inside it
+
+`docs/rtx/renderers.md` §7 step 6 is one paragraph: *"A `MyGUI::RenderManager` over Vulkan — about
+1,500 lines, and a second implementation of MyGUI's own interface rather than a new abstraction. Then
+the doll, the race preview and the map tiles as `OffscreenView`s, which for a ray tracer is a trace
+into an image."*
+
+That paragraph is right about the destination and wrong about the shape, and it hides the harder
+half. This document is the investigation and the design that follows from it. It does not overlap
+`renderers.md`, which is the seam between the game and a renderer, or `backends.md`, which is Vulkan
+against Metal below that seam.
+
+---
+
+## 1. What is actually there
+
+**MyGUI's backend surface is small.** Four interfaces, thirty pure virtual functions between them:
+`RenderManager` (8), `ITexture` (14), `IVertexBuffer` (4), `IRenderTarget` (4). The OpenGL
+implementation of all of it is `components/myguiplatform`, 1,529 lines — and **most of that is not
+about OpenGL.** The name-to-texture map, the view size and its scaling factor, the render-target
+info, the vertex buffer's lock/unlock contract, the batching in `doRender`: none of it names a
+graphics API. What does is one `osg::Geometry` per buffer, one `osg::Texture2D` per texture, and a
+`Drawable` whose `drawImplementation` issues the draw.
+
+**`ITexture::getRenderTarget` returns null and always has.** MyGUI can render a widget tree into a
+texture and this backend has never let it, so nothing in OpenMW depends on it. A second backend
+inherits that and needs no render pass of its own for layers.
+
+**The Vulkan backend has no graphics pipeline at all.** Everything in `components/rtxvulkan` is
+compute — the trace, the denoiser, exposure, tone mapping, the composite. There is no render pass, no
+vertex input state, no rasterizer state, no `vkCmdDraw`. A GUI is the first thing that will need one.
+
+**Eleven places in `mwgui` construct `MyGUIPlatform::OSGTexture` directly**, which is the game
+reaching past MyGUI's own factory into one renderer's implementation of it. They are not one problem:
+
+| where | what it is |
+|---|---|
+| `inventorywindow.cpp:100`, `race.cpp:164` | the inventory doll and the race preview — a subtree rendered from a fixed viewpoint |
+| `mapwindow.cpp:630,644` | a local map tile and its fog of war, per cell |
+| `mapwindow.cpp:1342,1347` | the global map's base and its overlay |
+| `videowidget.cpp:53` | frames a video decoder wrote |
+| `savegamedialog.cpp:526` | a screenshot read out of a save file |
+| `loadingscreen.cpp:306` | a copy of the last frame the rasterizer drew |
+
+Three shapes hide in that list: **something the renderer drew** (the doll, the previews, the map
+tiles), **something the game filled with bytes** (video frames, a saved screenshot, the fog of war),
+and **the last frame** (the loading screen's frozen backdrop). Each wants a different answer and only
+the first is what step 6's second sentence is about.
+
+**`windowmanagerimp.cpp` already does it correctly three times** — `MyGUI::RenderManager::getInstance()
+.createTexture("white")` and two siblings. The neutral path exists and is in use; it is the eleven
+that went around it.
+
+**The render-to-texture features are 2,445 lines** — `characterpreview`, `localmap`, `globalmap` —
+and `renderers.md` §1 already files them as *"game features built as render-to-texture"* rather than
+as renderer. What a doll is, how it is posed, which light is on it and what the map paints on top are
+the game's. Only *"draw this subtree from here into an image that size"* is not.
+
+## 2. The mistake in the one-paragraph plan
+
+"A `MyGUI::RenderManager` over Vulkan" writes the backend **twice** — once for Vulkan, once for Metal
+— and 1,500 lines is the estimate for one of them. But the split in §1 says most of a MyGUI backend
+is bookkeeping that no API has an opinion about. Writing it per API would copy the bookkeeping and
+then let the copies drift, which is the thing `backends.md` exists to prevent: *"Content, light
+transport and what the scene is live in the core, written once. What is true of an API lives in its
+backend, written twice, and that cost is paid rather than abstracted away."*
+
+A GUI is content. Only two operations under it are true of an API.
+
+## 3. The design
+
+### 3.1 One MyGUI backend, over the renderer rather than over an API
+
+`components/myguirtx` implements MyGUI's four interfaces against `Rtx::Renderer`. It is written once
+and both backends run it. What it needs from below is two things and no more:
+
+```cpp
+// components/rtx/renderer.hpp — the whole API-specific surface of a GUI.
+
+/// A quad-list vertex, in the layout MyGUI hands over: screen position, packed colour, uv.
+struct GuiVertex { float mX, mY, mZ; std::uint32_t mColour; float mU, mV; };
+
+/// One run of vertices drawn with one texture.
+struct GuiBatch { Index mTexture; std::uint32_t mFirst; std::uint32_t mCount; };
+
+class Renderer
+{
+    /// A texture the GUI draws with, sized once and written whenever it changes.
+    ///
+    /// Separate from the scene's bindless array: that one is indexed by material and rebuilt when
+    /// the world changes, and a font atlas has nothing to do with either.
+    virtual Index addGuiTexture(std::uint32_t width, std::uint32_t height) = 0;
+    virtual void writeGuiTexture(Index texture, std::span<const std::uint8_t> rgba) = 0;
+    virtual void dropGuiTexture(Index texture) = 0;
+
+    /// Everything MyGUI asked to draw this frame, over the finished picture, in one call.
+    ///
+    /// **After tone mapping and before present.** The GUI's colours are display-referred — MyGUI
+    /// picked them looking at a monitor — so putting them through a curve meant for radiance is how
+    /// a menu comes out grey.
+    virtual void drawGui(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches) = 0;
+};
+```
+
+Vulkan implements those with its first graphics pipeline: dynamic rendering into the displayable
+image, one vertex buffer, alpha blending, a push descriptor per batch. Metal implements the same
+three-and-one with a render command encoder. Neither knows what a widget is.
+
+### 3.2 `MWRender::OffscreenView` for the pictures inside the GUI
+
+```cpp
+// apps/openmw/mwrender/offscreenview.hpp
+
+/// A picture of part of the world, made somewhere other than the eye.
+struct OffscreenViewSpec
+{
+    osg::Group& mScene;          //< the subtree, which the game built and posed
+    int mWidth, mHeight;
+    osg::Vec3f mEye, mLookAt;
+    float mFieldOfView;
+    osg::Vec4f mClearColour;     //< transparent for the doll, black for a map tile
+};
+
+class OffscreenView
+{
+public:
+    virtual ~OffscreenView() = default;
+
+    /// Draws it again, because what it shows changed. Not per frame: a doll is redrawn when the
+    /// player puts something on, and a map tile when the cell is first entered.
+    virtual void redraw() = 0;
+
+    /// What the GUI shows. Owned here, and a `MyGUI::ITexture` rather than anything of OSG's,
+    /// which is the whole point.
+    virtual MyGUI::ITexture& getTexture() = 0;
+};
+```
+
+`Renderer::createOffscreenView(const OffscreenViewSpec&)` is the factory. The rasterizer answers with
+the `osg::Camera` render-to-texture it already has and wraps the result in an `OSGTexture`. The ray
+tracer answers with a trace into an image and a GUI texture. **The eight rendered sites in §1 stop
+naming a texture class at all.**
+
+### 3.3 The three shapes, answered
+
+- **Something the renderer drew** — `OffscreenView::getTexture()`. Eight sites.
+- **Something the game filled** — `MyGUI::RenderManager::createTexture` and `lock`/`unlock`, which is
+  MyGUI's own API and already works on any backend. The video decoder hands pixels instead of an
+  `osg::Texture2D`; the save screenshot and the fog of war are already byte buffers wearing an
+  `osg::Texture2D`.
+- **The last frame** — `Renderer::freezeInto(MyGUI::ITexture&)`. **Both renderers can do this**, which
+  is why it is not a capability: the rasterizer copies its framebuffer the way it does today, and a
+  renderer that owns its swapchain blits from the image it just presented. `renderers.md` §8 offers
+  "a flat colour where a renderer cannot supply one" — no renderer here cannot.
+
+### 3.4 Where the `if`s would have been
+
+Every branch this could have grown, and why it does not exist:
+
+| the branch | why there is none |
+|---|---|
+| which `ITexture` class to construct | MyGUI's own factory makes it; the backend behind it is the renderer's |
+| which render-to-texture mechanism | `OffscreenView`, made by the renderer that will draw it |
+| whether the loading screen can freeze the frame | both can, so nothing asks |
+| whether the GUI can be drawn at all | a renderer with no GUI is not a thing this design admits — the one that has none today is a step, not a shape |
+| Vulkan or Metal, anywhere above `components/rtx` | the backend split is already below that line and stays there |
+
+The one capability that survives from step 4 is `mTextureUnits`, and this adds none. `#ifdef
+OPENMW_RTX` appears in `components/myguirtx`'s own build and nowhere in `apps/openmw`.
+
+### 3.5 What each side owns
+
+```
+components/myguiplatform/   MyGUI over OSG. Unchanged; it is the rasterizer's.
+components/myguirtx/        MyGUI over Rtx::Renderer. Written once, run by both backends.
+components/rtx/             + GuiVertex, GuiBatch, and the four calls in 3.1
+components/rtxvulkan/       + GraphicsPipeline, + GuiPass
+components/rtxmetal/        + the same two, in Metal
+apps/openmw/mwrender/       + offscreenview.hpp, and the RTT features re-expressed over it
+```
+
+## 4. Implementation steps
+
+Ordered so each lands, builds and is checkable, and so the rasterizer keeps working throughout.
+
+### Step 6.1 — `OffscreenView`, with only the rasterizer behind it
+
+The interface, `GlRenderer::createOffscreenView` wrapping what `CharacterPreview`, `LocalMap` and
+`GlobalMap` already do, and the eight sites in §1 rewritten to ask for one. No Vulkan yet, no
+behaviour change.
+
+*Verified by*: the game under OpenGL, with the doll, both maps and the race preview unchanged;
+`MyGUIPlatform::OSGTexture` no longer named anywhere in `apps/openmw`.
+
+### Step 6.2 — the game stops filling textures through OSG
+
+The video widget, the save screenshot and the fog of war move to
+`MyGUI::RenderManager::createTexture` and `lock`/`unlock`. `Renderer::freezeInto` replaces the
+loading screen's framebuffer callback.
+
+*Verified by*: a video plays, a save shows its thumbnail, the fog of war reveals, the loading screen
+still freezes the frame behind it — all under OpenGL, where every one of them works today.
+
+### Step 6.3 — the first graphics pipeline
+
+`Rtx::GraphicsPipeline` beside `ComputePipeline`, and a `GuiPass` that draws a textured, blended
+triangle list into the displayable image. No MyGUI yet.
+
+*Verified by*: a GPU test in `apps/components_tests/rtx/` that draws a known quad over a known image
+and reads the pixels back — which is how `visibilitypass.cpp` already tests the trace, and which
+needs no window.
+
+### Step 6.4 — the GUI textures
+
+`addGuiTexture`, `writeGuiTexture`, `dropGuiTexture` in the Vulkan backend, and the sampler and
+descriptor handling behind them.
+
+*Verified by*: the same suite, uploading a known image and drawing it.
+
+### Step 6.5 — `components/myguirtx`
+
+MyGUI's four interfaces over `Rtx::Renderer`. `RtxRenderer::createGuiPlatform` returns a platform
+built on it instead of the OSG one.
+
+*Verified by*: the menu, the HUD and a message box on the ray tracing path — the first thing on that
+path that has to be looked at rather than measured.
+
+### Step 6.6 — `RtxRenderer::createOffscreenView`
+
+A trace into an image, at the doll's size, from the doll's viewpoint. The last of §1's eleven.
+
+*Verified by*: the inventory doll and a local map tile, traced.
+
+## 5. What this is not
+
+**Not a GUI abstraction.** MyGUI is the abstraction; there are two implementations of *its*
+interface, and the second one is shared by every backend. Nothing in this design invents a widget, a
+layout or a draw call of its own.
+
+**Not a portability layer over Vulkan and Metal.** Four functions and two structs cross that line,
+and none of them names a buffer, an image, a pipeline or a command list.
+
+**Not a reason to touch the rasterizer's GUI.** `components/myguiplatform` is 1,529 lines that work,
+and they stay exactly as they are — the reference implementation, for the same reason `CLAUDE.md`
+gives everywhere else.

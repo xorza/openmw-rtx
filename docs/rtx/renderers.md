@@ -719,11 +719,18 @@ constant with them.
 for the identity every other surface has to keep; and the golden images, of which exactly one moved
 — Vivec, which is where the 432 are.
 
-### Step 6 — the GUI, then the offscreen views
+### Step 6 — the GUI, then the offscreen views — **designed in `gui.md`**
 
 A `MyGUI::RenderManager` over Vulkan — about 1,500 lines, and a second implementation of MyGUI's own
 interface rather than a new abstraction. Then the doll, the race preview and the map tiles as
 `OffscreenView`s, which for a ray tracer is a trace into an image.
+
+**That paragraph is right about the destination and wrong about the shape**, and `docs/rtx/gui.md` is
+why. Writing the backend over Vulkan writes it again over Metal, and most of a MyGUI backend is
+bookkeeping no API has an opinion about — so it is written once, over `Rtx::Renderer`, and the
+API-specific surface underneath is four functions and two structs. The harder half the paragraph
+hides is the eleven places in `mwgui` that construct `MyGUIPlatform::OSGTexture` directly, which are
+three different problems wearing one type. `gui.md` has the count, the design and six steps.
 
 ## 8. What breaks, and the decision for each
 
