@@ -58,6 +58,16 @@ namespace SceneUtil
 
         void traverse(osg::NodeVisitor& nv) override;
 
+        /// Says that something which draws this reached it on this traversal.
+        ///
+        /// **What `SemiActive` is actually asking, with the rasterizer taken out of the question.**
+        /// A semi-active skeleton stops updating — and so stops animating — once several
+        /// traversals have passed with nothing reaching it, on the reasoning that a renderer only
+        /// reaches what it is about to draw. A cull is one way of reaching; it is not the only one,
+        /// and a renderer that traces has no off screen to be on the wrong side of. So the answer
+        /// is asked for rather than inferred, and `traverse` below is one of its callers.
+        void markReached(unsigned int traversalNumber) { mLastReachedFrameNumber = traversalNumber; }
+
         void markDirty();
 
         void childInserted(unsigned int) override;
@@ -77,7 +87,8 @@ namespace SceneUtil
         ActiveType mActive;
 
         unsigned int mLastFrameNumber;
-        unsigned int mLastCullFrameNumber;
+        /// When something that draws this last reached it. See `markReached`.
+        unsigned int mLastReachedFrameNumber;
     };
 
 }

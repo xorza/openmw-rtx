@@ -23,6 +23,7 @@
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/riggeometry.hpp>
+#include <components/sceneutil/skeleton.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
 #include <components/surface/material.hpp>
 // `terraindrawable.hpp` holds `osg::ref_ptr`s to composite-map types it only forward-declares, so it
@@ -254,9 +255,20 @@ namespace RtxBridge
 
     void MirrorTraversal::apply(osg::Node& node)
     {
-        // **The only node type this looks at rather than through.** Everything else it wants is a
-        // drawable; a light is a node with no geometry, so nothing below would ever see it.
-        if (auto* source = dynamic_cast<SceneUtil::LightSource*>(&node))
+        // **The two node types this looks at rather than through**, split on `asGroup` so that
+        // neither pays for the other's cast: a light is an `osg::Node` and a skeleton is an
+        // `osg::Group`, so one question answers which of the two a node could be.
+        if (osg::Group* group = node.asGroup())
+        {
+            // **Told it was reached, because nothing else here will tell it.** A semi-active
+            // skeleton — which is every actor but the player — skips its update traversal, and so
+            // stops moving its bones, once three traversals have passed with nothing reaching it.
+            // Under a renderer that culls, the cull is what keeps saying so. This walk is what
+            // reaches an actor here, so this walk is what says so.
+            if (auto* skeleton = dynamic_cast<SceneUtil::Skeleton*>(group))
+                skeleton->markReached(getTraversalNumber());
+        }
+        else if (auto* source = dynamic_cast<SceneUtil::LightSource*>(&node))
             mExtractor.addLight(*source, placed(), mFrame, *mStats);
 
         const std::size_t held = mShading.size();

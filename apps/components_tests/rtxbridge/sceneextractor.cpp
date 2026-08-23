@@ -508,6 +508,52 @@ namespace RtxBridge
             EXPECT_EQ(after, before) << "the mesh after the rig's old slot is untouched";
         }
 
+        /// An actor the game has marked semi-active goes on animating under a walk that reaches it.
+        ///
+        /// **Every actor but the player is semi-active** — `MWMechanics::Actors` hands the player
+        /// `Active` and everyone else `SemiActive` — and a semi-active skeleton skips its update
+        /// traversal, and so stops moving its bones, once several traversals have passed with
+        /// nothing reaching it. Under a renderer that culls, its cull is what keeps saying so. This
+        /// walk is what says so here, and without it a street of people slides about in the pose
+        /// they were in three frames after they loaded.
+        TEST(RtxSceneExtractorTest, aSemiActiveSkeletonGoesOnAnimatingUnderAWalkThatReachesIt)
+        {
+            /// Moves the bone from inside the update traversal, which is where a keyframe
+            /// controller lives.
+            ///
+            /// **Setting the matrix from outside would prove nothing**: the bone would move whether
+            /// or not the traversal ran, and the traversal running is the entire question.
+            struct BoneClock : osg::NodeCallback
+            {
+                void operator()(osg::Node* node, osg::NodeVisitor* nv) override
+                {
+                    static_cast<osg::MatrixTransform*>(node)->setMatrix(
+                        osg::Matrix::translate(0.0, 0.0, static_cast<double>(nv->getTraversalNumber())));
+                    traverse(node, nv);
+                }
+            };
+
+            RiggedQuad rigged;
+            rigged.mBone->addUpdateCallback(new BoneClock);
+            rigged.mSkeleton->setActive(SceneUtil::Skeleton::SemiActive);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+
+            // Four, because the gate needs three traversals to pass before it can trip: a run of
+            // two would pass with the walk saying nothing at all.
+            for (unsigned int frame = 1; frame <= 4; ++frame)
+            {
+                rigged.update(frame);
+
+                scene.clearPlacement();
+                extractor.extract(*rigged.mSkeleton, osg::Matrixf::identity(), 0, frame - 1);
+
+                EXPECT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, static_cast<float>(frame)))
+                    << "the bone moved to " << frame << " and the mirrored pose did not follow";
+            }
+        }
+
         /// A pose is the one thing the mesh cache does not answer: met again, it is read again — and
         /// a static drawable met again is not.
         ///

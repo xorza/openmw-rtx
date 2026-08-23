@@ -50,9 +50,3 @@
 - `MWRender::Rtx::TracedView`'s constructor initialises its members in an order the declarations do
   not match, so every translation unit that includes `tracedview.hpp` and builds the constructor
   warns under `-Wreorder`.
-
-- NPCs in the world are reported animating without their limbs moving. The mirror's own pose is
-  live — 210 deforming meshes whose vertex checksum changes every frame — every frame takes the
-  `placeScene` path, and that path rewrites the deformed positions into the build buffer, refits
-  each bottom-level structure and rewrites the deformed normals. So whatever is frozen is frozen
-  after all of that.
