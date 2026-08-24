@@ -645,9 +645,12 @@ namespace MWRender::Rtx
         // the frame is a content file's three bytes over 255 and no transfer function; the
         // rasterizer samples them as they are and this light transport is linear, so the conversion
         // belongs to whichever renderer needs it.
-        osg::Vec3f sun(world.mSunVector.x(), world.mSunVector.y(), world.mSunVector.z());
-        if (sun.length2() > 0.0f)
-            sun.normalize();
+        // **Where the sun *is*, and the light comes back along it.** The world also reports
+        // `mSunVector`, which is where the rasterizer's light travels and is not the negation of
+        // this — `Sky::sunAt` says why, and why nothing that traces can hold both.
+        osg::Vec3f discAt(world.mSunPosition.x(), world.mSunPosition.y(), world.mSunPosition.z());
+        if (discAt.length2() > 0.0f)
+            discAt.normalize();
 
         // The horizon is the fog and the zenith is the sky's own, which is the pair Morrowind
         // records: one colour for the air, and one for the dome it fades into overhead.
@@ -659,14 +662,21 @@ namespace MWRender::Rtx
         // instead from the distances the game has already computed.
         const float half = 0.5f * (world.mAir.mStart + world.mAir.mEnd);
 
-        RtxBridge::FrameWorld described{
-            .mSunDirection = sun,
-
-            // Scaled by the same ratio of sun to sky the harness uses. Sharing the constant is what
-            // keeps a screenshot and the game the same picture.
-            .mSunIrradiance = RtxBridge::decodeColour(world.mSunColour) * ::Rtx::Shaders::DAYLIGHT,
-            .mSunVisible = world.mSunVisible,
+        // **The sun is not assembled here.** Everything the world says about it goes to the one
+        // builder that decides what a sun may be — which is what keeps the game and the harness
+        // under the same sky, and what makes a sun that lights an empty night impossible to write.
+        const RtxBridge::Skylight sky = RtxBridge::makeSkylight(RtxBridge::SkyReading{
+            .mSunPosition = discAt,
+            .mSunShare = world.mSunDiscColour.a(),
+            .mSunColour = RtxBridge::decodeColour(world.mSunColour),
             .mAmbient = RtxBridge::decodeColour(world.mAmbientColour),
+            .mDiscColour = RtxBridge::decodeColour(world.mSunDiscColour),
+            .mGlare = world.mSunGlare,
+        });
+
+        RtxBridge::FrameWorld described{
+            .mSun = sky.mSun,
+            .mAmbient = sky.mAmbient,
             .mSkyHorizon = haze,
 
             // **The sky's own colour, and an interior has none.** The weather system stops writing

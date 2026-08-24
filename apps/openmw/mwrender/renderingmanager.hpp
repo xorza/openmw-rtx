@@ -387,13 +387,19 @@ namespace MWRender
         osg::Vec4f mSunVector;
         bool mSunAtNight = false;
 
-        /// Whether the sun's disc is enabled, which is what `setSunVisible` switches.
-        ///
-        /// **Kept because `WorldState` has to report it**, and because it is not the same question as
-        /// whether the sun is lighting anything: `WeatherManager` leaves a dim blue sun on all night
-        /// and turns only the disc off.
-        bool mSunVisible = false;
         float mSunVisibility = 0.f;
+
+        /// What the disc is painted with, and how much of the sun is over the horizon in `w`.
+        ///
+        /// **The other sun colour, and the one that is about the sun.** `mSunLight`'s diffuse is
+        /// what the world receives — sun and sky together, blue at night because that is the sky —
+        /// while this is white through the day and warms only as it goes down. `Sky::sunDiscAt`
+        /// builds the colour and `Sky::sunShareAt` the share; this is the copy `WorldState` reports,
+        /// so a renderer that draws its own disc is not left inferring one from the light.
+        osg::Vec4f mSunDiscColour{ 1.0f, 1.0f, 1.0f, 0.0f };
+
+        /// How much of the sun the weather lets through, which dims a disc under an overcast.
+        float mSunGlare = 1.f;
 
         bool mWaterEnabled = false;
         float mWaterHeight = 0.f;

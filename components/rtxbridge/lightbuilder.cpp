@@ -10,6 +10,7 @@
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/sky/sun.hpp>
 #include <components/sky/timeofday.hpp>
 
 namespace RtxBridge
@@ -41,14 +42,6 @@ namespace RtxBridge
         constexpr float sReachScale = 2.0f;
         constexpr float sReachBonus = 128.0f;
 
-        /// Morrowind's own sun, out of `apps/openmw/mwworld/weather.cpp:901`'s
-        /// `(-400 * orbit, 75, -100)` — how far it swings east to west, how far north it sits, and
-        /// how far down it looks at noon. The vector is where the light *goes*, so the negative z is
-        /// the sun being above the world rather than below it.
-        constexpr float sSwing = 400.0f;
-        constexpr float sNorthing = 75.0f;
-        constexpr float sClimb = 100.0f;
-
         /// Morrowind's ten weathers, in `MWWorld::WeatherManager`'s registration order — which is
         /// what a script id counts along and what a `Weather_<name>_*` key spells. The shader names
         /// the same order as `WEATHER_*`; this is the only place the spellings live.
@@ -77,36 +70,6 @@ namespace RtxBridge
 
     }
 
-    SkyPhase phaseAt(float hour, float sunrise, float nightStart)
-    {
-        // How long either end of the day counts as its own phase. The game ramps across a window
-        // this wide from its own settings; this steps in the middle of one, which is the single
-        // stand-in here and the reason an hour inside a transition is the only hour that differs.
-        constexpr float sTransition = 1.0f;
-
-        if (hour < sunrise - sTransition || hour > nightStart + sTransition)
-            return SkyPhase::Night;
-        if (hour <= sunrise + sTransition)
-            return SkyPhase::Sunrise;
-        if (hour >= nightStart - sTransition)
-            return SkyPhase::Sunset;
-
-        return SkyPhase::Day;
-    }
-
-    osg::Vec3f sunDirection(float hour, float sunrise, float nightStart)
-    {
-        const bool night = phaseAt(hour, sunrise, nightStart) == SkyPhase::Night;
-        const float duration = night ? 24.0f - (nightStart - sunrise) : nightStart - sunrise;
-        const float since = night ? std::fmod(hour - nightStart + 24.0f, 24.0f) : hour - sunrise;
-        const float travelled = duration > 0.0f ? since / duration : 0.0f;
-        const float orbit = night ? 2.0f * travelled - 1.0f : 1.0f - 2.0f * travelled;
-
-        osg::Vec3f direction(-sSwing * orbit, sNorthing, -sClimb);
-        direction.normalize();
-        return direction;
-    }
-
     namespace
     {
         /// One weather's numbers at one hour, before any of them is converted.
@@ -117,10 +80,21 @@ namespace RtxBridge
         /// different curve.
         struct Reading
         {
-            osg::Vec3f mHaze;
-            osg::Vec3f mSky;
-            osg::Vec3f mAmbient;
-            osg::Vec3f mSun;
+            osg::Vec4f mHaze;
+            osg::Vec4f mSky;
+            osg::Vec4f mAmbient;
+            osg::Vec4f mSun;
+
+            /// The disc's own colour, in the space the file records it in. Built here rather than
+            /// in `settle` because the formula reads the ambient in that same space, and because a
+            /// transition blends what each weather's disc came to rather than the numbers behind it
+            /// — which is what `calculateTransitionResult` does. How much of the disc there is is
+            /// not a weather's business and is `Sky::sunShareAt`.
+            osg::Vec3f mSunDisc;
+
+            /// How much of the sun a weather lets through, which dims the disc under an overcast.
+            float mGlare = 1.0f;
+
             float mFogDepth = 0.0f;
         };
 
@@ -139,9 +113,9 @@ namespace RtxBridge
                         "Weather_" + name + "_" + prefix + "_" + std::string(phase) + "_Color");
                 };
 
-                return decodeColour(Sky::TimeOfDayInterpolator<osg::Vec4f>(
+                return Sky::TimeOfDayInterpolator<osg::Vec4f>(
                     colour("Sunrise"), colour("Day"), colour("Sunset"), colour("Night"))
-                        .getValue(hour, times, prefix));
+                    .getValue(hour, times, prefix);
             };
 
             // **A content file records a day depth and a night one and nothing between**, so the
@@ -151,33 +125,66 @@ namespace RtxBridge
             const float day = Fallback::Map::getFloat("Weather_" + name + "_Land_Fog_Day_Depth");
             const float night = Fallback::Map::getFloat("Weather_" + name + "_Land_Fog_Night_Depth");
 
+            const osg::Vec4f ambient = ramp("Ambient");
+
             return Reading{
                 .mHaze = ramp("Fog"),
                 .mSky = ramp("Sky"),
-                .mAmbient = ramp("Ambient"),
+                .mAmbient = ambient,
                 .mSun = ramp("Sun"),
+                .mSunDisc = Sky::sunDiscAt(
+                    hour, times, Fallback::Map::getColour("Weather_" + name + "_Sun_Disc_Sunset_Color"), ambient),
+                .mGlare = Fallback::Map::getFloat("Weather_" + name + "_Glare_View"),
                 .mFogDepth = Sky::TimeOfDayInterpolator<float>(day, day, day, night).getValue(hour, times, "Fog"),
             };
         }
 
         Daylight settle(const Reading& read, const Sky::TimeOfDaySettings& times, float hour)
         {
+            const Sky::SunPlacement sun = Sky::sunAt(hour, times);
+            const osg::Vec3f haze = decodeColour(read.mHaze);
+
+            // **The sun is not assembled here**, and the game does not assemble one either: both
+            // hand what their weather says to the one builder that knows what a sun may be.
+            const Skylight sky = makeSkylight(SkyReading{
+                .mSunPosition = sun.mPosition,
+                .mSunShare = sun.mShare,
+                .mSunColour = decodeColour(read.mSun),
+                .mAmbient = decodeColour(read.mAmbient),
+                .mDiscColour = decodeColour(read.mSunDisc),
+                .mGlare = read.mGlare,
+            });
+
             return Daylight{
-                .mSun = { .mDirection = sunDirection(hour, times.mNightEnd, times.mNightStart),
-
-                    // **Not switched off at night, because the game does not switch it off either.**
-                    // `WeatherManager::calculateResult` takes the sun's colour straight off this
-                    // ramp, and its night value is a dim blue rather than nothing.
-                    .mIrradiance = read.mSun * Rtx::Shaders::DAYLIGHT },
-
-                // The disc is the other question and the engine answers it by the hour.
-                .mSunVisible = hour > times.mNightEnd && hour < times.mNightStart,
-                .mSkyHorizon = read.mHaze,
-                .mSkyZenith = read.mSky,
-                .mAmbient = read.mAmbient,
-                .mFog = { .mColour = read.mHaze, .mExtinction = fogExtinction(read.mFogDepth) },
+                .mSun = sky.mSun,
+                .mSkyHorizon = haze,
+                .mSkyZenith = decodeColour(read.mSky),
+                .mAmbient = sky.mAmbient,
+                .mFog = { .mColour = haze, .mExtinction = fogExtinction(read.mFogDepth) },
             };
         }
+    }
+
+    Skylight makeSkylight(const SkyReading& sky)
+    {
+        // A quarter of the irradiance over pi: what a directional source comes to once its direction
+        // is taken away. The header carries the derivation and the reason.
+        const float fill = 0.25f * Rtx::Shaders::INV_PI;
+
+        const osg::Vec3f irradiance = sky.mSunColour * Rtx::Shaders::DAYLIGHT;
+        const float share = std::clamp(sky.mSunShare, 0.0f, 1.0f);
+
+        return Skylight{
+            .mSun = { .mPosition = sky.mSunPosition,
+                .mIrradiance = irradiance * share,
+
+                // **The glare arrives here rather than being folded into the colour earlier**, and
+                // that is not tidiness: it is a blend factor the rasterizer applies to a sprite in
+                // the file's own space, and dimming radiance is a linear multiply. Applied before
+                // the decode it would come out a different colour, not merely a darker one.
+                .mDiscColour = sky.mDiscColour * sky.mGlare },
+            .mAmbient = sky.mAmbient + irradiance * ((1.0f - share) * fill),
+        };
     }
 
     Daylight makeDaylight(std::string_view weather, float hour)
@@ -202,6 +209,8 @@ namespace RtxBridge
                 .mSky = mix(a.mSky, b.mSky),
                 .mAmbient = mix(a.mAmbient, b.mAmbient),
                 .mSun = mix(a.mSun, b.mSun),
+                .mSunDisc = mix(a.mSunDisc, b.mSunDisc),
+                .mGlare = mix(a.mGlare, b.mGlare),
                 .mFogDepth = mix(a.mFogDepth, b.mFogDepth),
             },
             times, hour);
@@ -265,6 +274,11 @@ namespace RtxBridge
     osg::Vec3f decodeColour(const osg::Vec4f& encoded)
     {
         return osg::Vec3f(channelToLinear(encoded.x()), channelToLinear(encoded.y()), channelToLinear(encoded.z()));
+    }
+
+    osg::Vec3f decodeColour(const osg::Vec3f& encoded)
+    {
+        return decodeColour(osg::Vec4f(encoded, 1.0f));
     }
 
     osg::Vec3f decodeColour(std::uint32_t packed)

@@ -177,23 +177,36 @@ namespace Rtx::Shaders
         /// answer and every pixel is opaque.
         uint mTransparentBackground;
 
-        /// Where the sun's light travels, and how much of it arrives on a surface square to it.
+        /// Where the sun stands, unit, and how much of its light arrives on a surface square to it.
         ///
         /// One directional light, handled apart from the point lights because it has no position and
         /// no falloff: it is the same everywhere and its shadow ray runs to the end of the world.
-        /// A zero irradiance is how an interior and a night are both said, and the direction must
-        /// be a unit vector: it is used as a ray and as a cosine without being normalised again.
-        vec3 mSunDirection;
+        ///
+        /// **One vector and not two**, so `-mSunPosition` is where the light travels. The game gives
+        /// its light a fixed climb and its disc a height of `swing - |east|`; a rasterizer can hold
+        /// both, and a tracer answering to each in turn gets a different sun in the shadows, the
+        /// water and the haze.
+        ///
+        /// **And one test for whether there is a sun at all: `mSunIrradiance` is zero.** An
+        /// interior, a night, and either end of the day once the disc has gone into the horizon all
+        /// say it that way, and every use of the sun below is gated on it — the shadow ray, the
+        /// caustics, the shafts and the disc. There is deliberately no second field saying whether
+        /// the disc is drawn; `RtxBridge::makeSkylight` is where that is kept true and why.
+        ///
+        /// The position stays meaningful through the night even so, because a moon's crescent points
+        /// at where the sun would be. Where it is and whether it is there are separate questions.
+        vec3 mSunPosition;
         vec3 mSunIrradiance;
 
-        /// Non-zero where the sun's disc is in the sky to be seen.
+        /// What the disc is painted with, linear.
         ///
-        /// **Separate from the irradiance, because the game keeps them separate.** A night is lit by
-        /// a dim blue sun — `WeatherManager` reads that straight off its ramp and never switches the
-        /// light off — while the disc itself is enabled and disabled by the hour. Drawing the disc
-        /// from the irradiance alone put a blazing point in the middle of every night sky: a small
-        /// irradiance over the sun's tiny solid angle is an enormous radiance.
-        uint mSunVisible;
+        /// **The hue is not the sunlight's.** What a weather gives its sunlight is the sky's colour
+        /// as much as the sun's — `Sun_Night_Color` is a blue no sun ever was — and the ramp is
+        /// still crossing to it through the whole of dawn, so a disc tinted by the light comes up
+        /// blue. Morrowind records the disc's own colour and it is white until the sun starts down.
+        /// How much of it there is is not here: the irradiance already carries that, which is what
+        /// makes a drawn disc and a cast shadow the same fact.
+        vec3 mSunDiscColour;
 
         /// What a ray that hits nothing comes back with, at the horizon and overhead.
         ///
@@ -327,7 +340,7 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
     static_assert(sizeof(MoonDisc) == 64, "MoonDisc must be scalar-packed on every side");
-    static_assert(sizeof(VisibilityConstants) == 396, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 404, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

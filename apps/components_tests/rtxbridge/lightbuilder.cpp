@@ -93,59 +93,6 @@ namespace RtxBridge
         ///
         /// `(-400 * orbit, 75, -100)` with `orbit` running from one at sunrise to minus one at
         /// nightfall — so the vector is where the light *goes*, west at dawn and east at dusk, and
-        /// the two are mirror images. Its length is 125 at the midpoint, which makes that one exact.
-        TEST(RtxLightBuilderTest, theSunCrossesTheSkyTheWayTheEngineSaysItDoes)
-        {
-            constexpr float sunrise = 6.0f;
-            constexpr float nightStart = 20.0f;
-
-            // Halfway through a fourteen-hour day is hour 13, where the orbit is zero and the vector
-            // is (0, 75, -100) — length exactly 125, so the direction is exactly (0, 0.6, -0.8).
-            const osg::Vec3f noon = sunDirection(13.0f, sunrise, nightStart);
-            EXPECT_NEAR(noon.x(), 0.0f, 1e-6f);
-            EXPECT_NEAR(noon.y(), 0.6f, 1e-6f);
-            EXPECT_NEAR(noon.z(), -0.8f, 1e-6f);
-
-            // At either end the swing is full: (-+400, 75, -100), whose length is 419.077.
-            const osg::Vec3f dawn = sunDirection(sunrise, sunrise, nightStart);
-            const osg::Vec3f dusk = sunDirection(nightStart, sunrise, nightStart);
-
-            EXPECT_NEAR(dawn.x(), -400.0f / 419.077f, 1e-4f) << "light travels west at dawn";
-            EXPECT_NEAR(dusk.x(), 400.0f / 419.077f, 1e-4f) << "and east at dusk";
-            EXPECT_NEAR(dawn.x(), -dusk.x(), 1e-6f) << "the two ends mirror";
-
-            // Only the swing changes: the northing and the climb are fixed, so their ratio is the
-            // same at every hour of the day and of the night alike. The engine's is too — a night is
-            // dark because the sun stops shining, not because it drops below the world.
-            for (const float hour : { 0.0f, 6.0f, 13.0f, 20.0f, 23.0f })
-            {
-                const osg::Vec3f at = sunDirection(hour, sunrise, nightStart);
-                EXPECT_NEAR(at.z() / at.y(), -100.0f / 75.0f, 1e-5f) << "at hour " << hour;
-                EXPECT_LT(at.z(), 0.0f) << "the light always travels downward, at hour " << hour;
-            }
-        }
-
-        /// The four phases, and where their boundaries fall.
-        TEST(RtxLightBuilderTest, anHourReadsThePhaseItFallsIn)
-        {
-            constexpr float sunrise = 6.0f;
-            constexpr float nightStart = 20.0f;
-
-            EXPECT_EQ(phaseAt(13.0f, sunrise, nightStart), SkyPhase::Day);
-            EXPECT_EQ(phaseAt(6.0f, sunrise, nightStart), SkyPhase::Sunrise);
-            EXPECT_EQ(phaseAt(20.0f, sunrise, nightStart), SkyPhase::Sunset);
-            EXPECT_EQ(phaseAt(2.0f, sunrise, nightStart), SkyPhase::Night);
-            EXPECT_EQ(phaseAt(23.0f, sunrise, nightStart), SkyPhase::Night);
-
-            // An hour either side of each boundary, which is the window the game ramps across and
-            // this one steps in the middle of.
-            EXPECT_EQ(phaseAt(4.9f, sunrise, nightStart), SkyPhase::Night);
-            EXPECT_EQ(phaseAt(5.1f, sunrise, nightStart), SkyPhase::Sunrise);
-            EXPECT_EQ(phaseAt(7.1f, sunrise, nightStart), SkyPhase::Day);
-            EXPECT_EQ(phaseAt(18.9f, sunrise, nightStart), SkyPhase::Day);
-            EXPECT_EQ(phaseAt(21.1f, sunrise, nightStart), SkyPhase::Night);
-        }
-
         /// Every quarter hour of the day, asked for.
         ///
         /// **A fallback key the game does not define throws rather than reading zero**, so this is a
@@ -154,9 +101,10 @@ namespace RtxBridge
         /// for a third that was never written, which took the whole tool down.
         ///
         /// The times are seeded here because the phase boundaries come out of the same map, and an
-        /// unseeded one puts sunrise and sunset on top of each other at midnight. **This is the only
-        /// test in the binary that touches it**, and `Fallback::Map::init` keeps the first value it
-        /// is given for a key, so a second seeder would be ignored rather than obeyed.
+        /// unseeded one puts sunrise and sunset on top of each other at midnight. `Fallback::Map`
+        /// keeps the first value it is given for a key and a test elsewhere in this binary opens the
+        /// real installation, so which values these reads got depends on the order the suite ran in
+        /// — which is why what is pinned below is what is true of either.
         TEST(RtxLightBuilderTest, everyHourAsksOnlyForSettingsTheGameDefines)
         {
             Fallback::Map::init({
@@ -167,6 +115,16 @@ namespace RtxBridge
                 { "Weather_Clear_Land_Fog_Night_Depth", "0.8" },
                 { "Weather_Clear_Wind_Speed", "0.3" },
                 { "Weather_Ashstorm_Wind_Speed", "0.8" },
+                { "Weather_Clear_Sun_Disc_Sunset_Color", "255,189,157" },
+                { "Weather_Clear_Glare_View", "1" },
+
+                // The sun's own ramp, seeded with the shipped numbers so that the two ways this
+                // test can be run — against these or against a real installation — agree. The night
+                // value being the blue one is what the disc is here to not be painted with.
+                { "Weather_Clear_Sun_Sunrise_Color", "242,159,119" },
+                { "Weather_Clear_Sun_Day_Color", "255,252,238" },
+                { "Weather_Clear_Sun_Sunset_Color", "255,114,079" },
+                { "Weather_Clear_Sun_Night_Color", "059,097,176" },
             });
 
             for (float hour = 0.0f; hour < 24.0f; hour += 0.25f)
@@ -188,19 +146,31 @@ namespace RtxBridge
             EXPECT_GT(dusk, day);
             EXPECT_LT(dusk, night);
 
-            // **The sun's disc goes out at night and its light does not.** The engine reads the
-            // colour straight off the ramp all night — a dim blue rather than nothing — and
-            // switches only the disc, between sunrise and the start of night
-            // (`apps/openmw/mwworld/weather.cpp:651`). Drawing the disc from the irradiance alone
-            // put a blazing point in the middle of every night sky, because a small irradiance over
-            // the sun's half-degree solid angle is an enormous radiance.
-            EXPECT_TRUE(makeDaylight("Clear", 12.0f).mSunVisible) << "noon";
-            EXPECT_FALSE(makeDaylight("Clear", 0.0f).mSunVisible) << "midnight";
-            EXPECT_FALSE(makeDaylight("Clear", 22.0f).mSunVisible) << "night begins at twenty";
-            EXPECT_TRUE(makeDaylight("Clear", 7.0f).mSunVisible) << "and it is up again after six";
+            // **A night has no sun in it at all**, which is one fact rather than the engine's two.
+            // Morrowind never switches its sunlight off — `WeatherManager` reads a colour off the
+            // same ramp all night and turns off only the sprite — and a tracer that kept that light
+            // cast hard shadows swinging back across the ground until dawn, from a disc nothing was
+            // drawing. There is no second field left to say otherwise.
+            EXPECT_NE(makeDaylight("Clear", 12.0f).mSun.mIrradiance, osg::Vec3f()) << "noon";
+            EXPECT_EQ(makeDaylight("Clear", 0.0f).mSun.mIrradiance, osg::Vec3f()) << "midnight";
+            EXPECT_EQ(makeDaylight("Clear", 22.0f).mSun.mIrradiance, osg::Vec3f()) << "night begins at twenty";
+            EXPECT_NE(makeDaylight("Clear", 7.0f).mSun.mIrradiance, osg::Vec3f()) << "and it is back after six";
 
-            EXPECT_NE(makeDaylight("Clear", 0.0f).mSun.mIrradiance, osg::Vec3f())
-                << "the light is not switched off with the disc";
+            // **And what the file left in that slot is not lost, only turned into what it is.** A
+            // Morrowind night is still lit; it is lit by something with no direction, so nothing in
+            // it casts a shadow at a sun that is not there.
+            EXPECT_GT(makeDaylight("Clear", 0.0f).mAmbient.z(), makeDaylight("Clear", 12.0f).mAmbient.z())
+                << "the night's blue sun went into the ambient, and it is bluer than the day's";
+
+            // The disc is white for every hour the sun is up and only warms on the way down, which
+            // is the one thing the light never does.
+            for (const float hour : { 6.5f, 9.0f, 12.0f, 15.0f })
+                EXPECT_EQ(makeDaylight("Clear", hour).mSun.mDiscColour, osg::Vec3f(1.0f, 1.0f, 1.0f))
+                    << "at hour " << hour;
+
+            const Daylight down = makeDaylight("Clear", 18.0f);
+            EXPECT_FLOAT_EQ(down.mSun.mDiscColour.x(), 1.0f);
+            EXPECT_LT(down.mSun.mDiscColour.z(), down.mSun.mDiscColour.x()) << "warm on the way down, never blue";
 
             // The wind comes off the same file and a key per weather, so a storm reading harder
             // than fair weather is what says the name reached the lookup rather than a constant
@@ -217,6 +187,66 @@ namespace RtxBridge
             // `weatherIndex` is the thing to ask first.
             EXPECT_THROW(windSpeed("Drizzle"), std::logic_error);
             EXPECT_THROW(makeDaylight("Drizzle", 12.0f), std::logic_error);
+        }
+
+        /// A sun below the horizon is not a sun, and its light is not lost either.
+        ///
+        /// **This is the one rule, and it is here so that a renderer cannot be written without it.**
+        /// Every sun bug this file has seen was the same shape — the engine keeps five independent
+        /// dials for one sun and its rasterizer never had to make two of them agree, so a tracer
+        /// that carried them across got a light coming from one place, a disc drawn in another, and
+        /// a shadow cast at an hour when nothing was drawn at all. `makeSkylight` is the only way to
+        /// build one, and there is nothing it can be handed that says the incoherent thing.
+        TEST(RtxSkylightTest, aSunBelowTheHorizonLightsNothingAndItsLightBecomesTheAmbient)
+        {
+            const osg::Vec3f up(0.0f, 0.0f, 1.0f);
+            const osg::Vec3f blue(0.05f, 0.12f, 0.44f); ///< what `Sun_Night_Color` decodes to
+            const osg::Vec3f room(0.01f, 0.011f, 0.013f);
+
+            const auto at = [&](float share) {
+                return makeSkylight(
+                    SkyReading{ .mSunPosition = up, .mSunShare = share, .mSunColour = blue, .mAmbient = room });
+            };
+
+            // **Nothing at all when there is no sun**, and it is the irradiance that says so, since
+            // that is the one thing every use of the sun downstream is gated on.
+            EXPECT_EQ(at(0.0f).mSun.mIrradiance, osg::Vec3f());
+
+            // The whole of it when there is, on the shared sun-to-sky scale.
+            EXPECT_EQ(at(1.0f).mSun.mIrradiance, blue * Rtx::Shaders::DAYLIGHT);
+
+            // **And the night is still lit.** What the file left in the sun's slot goes where light
+            // with no direction belongs, so a night loses its shadows rather than its brightness:
+            // a quarter of the irradiance over pi, which is a directional averaged over every
+            // orientation a surface could take.
+            const osg::Vec3f fill = blue * Rtx::Shaders::DAYLIGHT * (0.25f / Rtx::Shaders::PI);
+            EXPECT_EQ(at(0.0f).mAmbient, room + fill);
+            EXPECT_EQ(at(1.0f).mAmbient, room) << "and a day's ambient is untouched";
+
+            // **The two halves are complements**, so the light in the scene does not step when the
+            // sun goes out at the end of dusk: what leaves the direction arrives in the fill.
+            for (const float share : { 0.0f, 0.25f, 0.5f, 0.75f, 1.0f })
+            {
+                const Skylight sky = at(share);
+                const osg::Vec3f total = sky.mSun.mIrradiance * (0.25f / Rtx::Shaders::PI) + sky.mAmbient;
+                for (int channel = 0; channel < 3; ++channel)
+                    EXPECT_NEAR(total[channel], (room + fill)[channel], 1e-6f) << "at share " << share;
+            }
+
+            // The position stays whatever it was, because a moon's crescent points at where the sun
+            // would be and that is a different question from whether it is there.
+            EXPECT_EQ(at(0.0f).mSun.mPosition, up);
+
+            // A weather that hides the sun paints a paler disc, and says nothing about whether there
+            // is one: the glare reaches only the colour.
+            const Skylight overcast = makeSkylight(SkyReading{ .mSunPosition = up,
+                .mSunShare = 1.0f,
+                .mSunColour = blue,
+                .mAmbient = room,
+                .mDiscColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                .mGlare = 0.25f });
+            EXPECT_EQ(overcast.mSun.mDiscColour, osg::Vec3f(0.25f, 0.25f, 0.25f));
+            EXPECT_EQ(overcast.mSun.mIrradiance, blue * Rtx::Shaders::DAYLIGHT) << "and lights the same";
         }
 
         /// The ten names, in the order a script id counts along.

@@ -59,7 +59,7 @@ namespace MWRender::Rtx
         , mExtentY(spec.mHeight)
         , mNear(spec.mNear)
         , mFar(spec.mFar)
-        , mSunDirection(-spec.mSunDirection)
+        , mSunPosition(spec.mSunDirection)
         , mSunIrradiance(irradianceOf(spec.mSunDiffuse))
         , mAmbient(irradianceOf(spec.mSunAmbient))
         , mTransparent(spec.mClearColour.a() < 1.f)
@@ -73,8 +73,8 @@ namespace MWRender::Rtx
             mViewScene = renderer.addViewScene();
         }
 
-        if (mSunDirection.length2() > 0.f)
-            mSunDirection.normalize();
+        if (mSunPosition.length2() > 0.f)
+            mSunPosition.normalize();
 
         if (const auto* perspective = std::get_if<OffscreenViewSpec::Perspective>(&spec.mProjection))
             mFieldOfView = perspective->mFieldOfView;
@@ -150,7 +150,7 @@ namespace MWRender::Rtx
         // Flipping the camera's up vector costs nothing and puts the rows where they are expected.
         camera.mUp = -camera.mUp;
 
-        camera.mSunDirection = mSunDirection;
+        camera.mSunPosition = mSunPosition;
         camera.mSunIrradiance = mSunIrradiance;
         camera.mAmbient = mAmbient;
         camera.mTransparentBackground = mTransparent ? 1 : 0;

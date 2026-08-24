@@ -11,9 +11,9 @@ namespace RtxBridge
         FrameWorld distinct()
         {
             FrameWorld world{
-                .mSunDirection = osg::Vec3f(0.0f, 0.6f, -0.8f),
-                .mSunIrradiance = osg::Vec3f(1.5f, 1.25f, 1.0f),
-                .mSunVisible = true,
+                .mSun = { .mPosition = osg::Vec3f(0.0f, -0.6f, 0.8f),
+                    .mIrradiance = osg::Vec3f(1.5f, 1.25f, 1.0f),
+                    .mDiscColour = osg::Vec3f(1.0f, 0.8f, 0.65f) },
                 .mAmbient = osg::Vec3f(0.11f, 0.12f, 0.13f),
                 .mSkyHorizon = osg::Vec3f(0.21f, 0.22f, 0.23f),
                 .mSkyZenith = osg::Vec3f(0.31f, 0.32f, 0.33f),
@@ -67,9 +67,9 @@ namespace RtxBridge
             Rtx::Shaders::VisibilityConstants constants{};
             applyWorld(world, constants);
 
-            EXPECT_EQ(constants.mSunDirection, world.mSunDirection);
-            EXPECT_EQ(constants.mSunIrradiance, world.mSunIrradiance);
-            EXPECT_EQ(constants.mSunVisible, 1u);
+            EXPECT_EQ(constants.mSunPosition, world.mSun.mPosition);
+            EXPECT_EQ(constants.mSunIrradiance, world.mSun.mIrradiance);
+            EXPECT_EQ(constants.mSunDiscColour, world.mSun.mDiscColour);
             EXPECT_EQ(constants.mAmbient, world.mAmbient);
             EXPECT_EQ(constants.mSkyHorizon, world.mSkyHorizon);
             EXPECT_EQ(constants.mSkyZenith, world.mSkyZenith);
@@ -156,8 +156,10 @@ namespace RtxBridge
             Rtx::Shaders::VisibilityConstants constants{};
             applyWorld(FrameWorld{}, constants);
 
-            EXPECT_EQ(constants.mSunIrradiance, osg::Vec3f()) << "no sun";
-            EXPECT_EQ(constants.mSunVisible, 0u) << "and no disc of one either";
+            // **One statement of "no sun", and the disc reads it too.** There is no second field to
+            // leave set: a frame with no irradiance draws no disc, casts nothing and lights no haze.
+            EXPECT_EQ(constants.mSunIrradiance, osg::Vec3f()) << "no sun, and so no disc of one";
+            EXPECT_EQ(constants.mSunDiscColour, osg::Vec3f(1.0f, 1.0f, 1.0f)) << "a plain white one when there is";
             EXPECT_EQ(constants.mMoons[0].mAlpha, 0.0f) << "and no moons";
             EXPECT_EQ(constants.mMoons[0].mFace, Rtx::Shaders::NO_MOON_FACE) << "and no portrait to draw";
             EXPECT_EQ(constants.mMoons[1].mAlpha, 0.0f);

@@ -217,10 +217,11 @@ namespace Rtx
         /// describing the shader.
         constexpr float sSunOverWater = 2.0f;
 
-        /// The sun's direction of travel, from how far it stands off the vertical.
-        osg::Vec3f sunAt(float zenith)
+        /// Where the sun stands, from how far it is off the vertical. Its light travels back along
+        /// this, which is the only sun vector the shader has.
+        osg::Vec3f sunStandingAt(float zenith)
         {
-            return osg::Vec3f(0.0f, std::sin(zenith), -std::cos(zenith));
+            return osg::Vec3f(0.0f, -std::sin(zenith), std::cos(zenith));
         }
 
         /// Where the sun stands over the tests that measure through water — and it must not be
@@ -241,7 +242,7 @@ namespace Rtx
         /// tests name an exact value.
         void litThroughWater(Shaders::VisibilityConstants& camera, float zenith = sNearlyOverhead)
         {
-            camera.mSunDirection = sunAt(zenith);
+            camera.mSunPosition = sunStandingAt(zenith);
             camera.mSunIrradiance = osg::Vec3f(sSunOverWater, sSunOverWater, sSunOverWater);
             camera.mSkyHorizon = osg::Vec3f();
             camera.mSkyZenith = osg::Vec3f();
@@ -1262,7 +1263,7 @@ namespace Rtx
             // **Lit, and lit from the side.** An unlit wall is the same black whatever its normals
             // and its texture came to, which is a test that cannot fail. The sun crosses the face
             // rather than facing it, so the tilt below is the whole of what decides each pixel.
-            camera.mSunDirection = osg::Vec3f(1.0f, 0.2f, 0.0f);
+            camera.mSunPosition = osg::Vec3f(-1.0f, -0.2f, 0.0f);
             camera.mSunIrradiance = osg::Vec3f(3.0f, 3.0f, 3.0f);
 
             // **Four different texels, so a texture coordinate read out of the wrong block shows.**
@@ -1643,7 +1644,7 @@ namespace Rtx
                         .mMesh = scene.addMesh(occluder, {}, {}, sQuadIndices) });
 
                 Shaders::VisibilityConstants camera = base;
-                camera.mSunDirection = direction;
+                camera.mSunPosition = -direction;
                 camera.mSunIrradiance = irradiance;
                 camera.mSkyHorizon = sky;
                 camera.mSkyZenith = sky;
@@ -2171,10 +2172,10 @@ namespace Rtx
                 // at x = 50, and the pane reaches 20. Or straight at the pane, to see it at all.
                 Shaders::VisibilityConstants camera = lookAtIt
                     ? makeCamera(
-                          osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -50.0f, 0.0f), 60.0f, size, size, 10000.0f)
+                        osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -50.0f, 0.0f), 60.0f, size, size, 10000.0f)
                     : makeCamera(
-                          osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
-                camera.mSunDirection = osg::Vec3f(0.0f, 1.0f, 0.0f);
+                        osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                camera.mSunPosition = osg::Vec3f(0.0f, -1.0f, 0.0f);
                 camera.mSunIrradiance = osg::Vec3f(2.0f, 2.0f, 2.0f);
 
                 std::vector<std::uint8_t> pixels;
@@ -2550,13 +2551,12 @@ namespace Rtx
             const auto lookAtTheSun = [&](float fov) {
                 Shaders::VisibilityConstants camera = makeCamera(
                     osg::Vec3f(0.0f, -500.0f, 0.0f), osg::Vec3f(0.0f, -501.0f, 1.0f), fov, size, size, 10000.0f);
-                camera.mSunDirection = sunAt(osg::DegreesToRadians(45.0f));
+                camera.mSunPosition = sunStandingAt(osg::DegreesToRadians(45.0f));
                 camera.mSunIrradiance = osg::Vec3f(irradiance, irradiance, irradiance);
 
-                // **The disc is a separate fact from the light**, because the game switches it off
-                // at night and leaves a dim sun burning. A fixture that wants to look at the sun has
-                // to say the sun is there to look at.
-                camera.mSunVisible = 1u;
+                // **The disc is drawn because there is light, which is one fact and not two.** What
+                // it is painted with is still its own colour, and white is the plain noon of it.
+                camera.mSunDiscColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
 
                 const SceneDesc scene = makeWall();
                 std::vector<std::uint8_t> pixels;
@@ -2640,9 +2640,9 @@ namespace Rtx
                 // the disc in the water are never in the same picture.
                 osg::Vec3f view = at - eye;
                 view.normalize();
-                camera.mSunDirection = osg::Vec3f(-view.x(), -view.y(), view.z());
+                camera.mSunPosition = osg::Vec3f(view.x(), view.y(), -view.z());
                 camera.mSunIrradiance = osg::Vec3f(irradiance, irradiance, irradiance);
-                camera.mSunVisible = 1u;
+                camera.mSunDiscColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
                 camera.mWaterLevel = 0.0f;
 
                 const SceneDesc scene = makeOpenWater(20000.0f);
@@ -3013,7 +3013,7 @@ namespace Rtx
                 // same climb, so `fogSunDepth` is the same for each and cancels.
                 osg::Vec3f towards(0.0f, towardsY, 0.5f);
                 towards.normalize();
-                camera.mSunDirection = -towards;
+                camera.mSunPosition = towards;
                 camera.mSunIrradiance = osg::Vec3f(irradiance, irradiance, irradiance);
                 camera.mFogExtinction = 3.0e-4f;
                 camera.mFogUniform = 1.0f;
@@ -3097,7 +3097,7 @@ namespace Rtx
                 // forward and every shadow ray still climbs into the lid.
                 osg::Vec3f travelling(0.0f, -0.6f, -0.8f);
                 travelling.normalize();
-                camera.mSunDirection = travelling;
+                camera.mSunPosition = -travelling;
                 camera.mSunIrradiance = lit ? osg::Vec3f(irradiance, irradiance, irradiance) : osg::Vec3f();
 
                 // Even air with a colour of its own, so the frame is never empty and the two sunless

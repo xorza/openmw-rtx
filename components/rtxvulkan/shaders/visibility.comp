@@ -747,7 +747,7 @@ vec3 sunThroughWater(vec3 position, float footprint)
 
     // Refracted at a *flat* surface: what the waves do to the sun's direction averages out over the
     // path, and what they do to its distribution is the caustic.
-    const vec3 downward = refract(camera.mSunDirection, vec3(0.0, 0.0, 1.0), 1.0 / WATER_IOR);
+    const vec3 downward = refract(-camera.mSunPosition, vec3(0.0, 0.0, 1.0), 1.0 / WATER_IOR);
     const float path = depth / max(-downward.z, 0.05);
 
     return exp(-WATER_EXTINCTION * path) * caustic(position.xy, depth, camera.mTime, footprint);
@@ -1117,7 +1117,7 @@ float fogPhase(float cosine)
 float fogSunDepth(float extinction)
 {
     // A sun on the horizon lights an infinite column of fog; the floor is what keeps that finite.
-    return extinction * FOG_HEIGHT / max(-camera.mSunDirection.z, 1.0e-3);
+    return extinction * FOG_HEIGHT / max(camera.mSunPosition.z, 1.0e-3);
 }
 
 /// What the air at a point sends toward the eye, per unit of light it takes out of the beam.
@@ -1188,9 +1188,14 @@ vec4 fogAlong(vec3 origin, vec3 direction, float distance, float offset)
     // **Asked once whether there is a sun at all**, the same question `gather` asks before it spends
     // a shadow ray. An interior and a night both answer no, and what they would otherwise pay is an
     // `exp` for the sun's own column at every one of the steps below.
+    //
+    // **And there is no beam without a sun, which is the same test.** A shaft is the sun seen
+    // through air; one with nothing at the end of it lights up the night sky around a sun that is
+    // not there. Nothing here has to know what hour it is — `mSunIrradiance` is zero exactly when
+    // there is no sun, and it fades to that across dusk rather than stepping.
     const bool sunlit = camera.mSunIrradiance != vec3(0.0);
     const vec3 sunward
-        = sunlit ? camera.mSunIrradiance * fogPhase(dot(direction, -camera.mSunDirection)) : vec3(0.0);
+        = sunlit ? camera.mSunIrradiance * fogPhase(dot(direction, camera.mSunPosition)) : vec3(0.0);
 
     // **Only where a shaft could be seen.** The gate is what keeps the rays off every interior and
     // off everything but the sunward part of an exterior, which is most of a frame.
@@ -1211,7 +1216,7 @@ vec4 fogAlong(vec3 origin, vec3 direction, float distance, float offset)
             const float reach = fogDepth(float((stretch + 1u) * FOG_STEPS_PER_RAY) / float(FOG_STEPS)) * span;
             const vec3 probe = origin + direction * mix(behind, reach, offset);
 
-            visible = occluded(probe, -camera.mSunDirection, camera.mFar) ? 0.0 : 1.0;
+            visible = occluded(probe, camera.mSunPosition, camera.mFar) ? 0.0 : 1.0;
         }
 
         for (uint k = 0u; k < FOG_STEPS_PER_RAY; ++k)
@@ -1273,9 +1278,9 @@ vec3 gather(vec3 position, vec3 normal, float footprint)
     // mostly lights: refraction at a level surface moves no flux across a horizontal patch, so the
     // irradiance on one below is the irradiance above times whatever the path took. A tilted
     // underwater surface would want the refracted direction and gets this one.
-    const float sunCosine = dot(normal, -camera.mSunDirection);
+    const float sunCosine = dot(normal, camera.mSunPosition);
     if (sunCosine > 0.0 && camera.mSunIrradiance != vec3(0.0)
-        && !occluded(position, -camera.mSunDirection, camera.mFar))
+        && !occluded(position, camera.mSunPosition, camera.mFar))
         radiance += camera.mSunIrradiance * sunThroughWater(position, footprint) * (sunCosine * INV_PI);
 
     // A lamp loses nothing to the water, where the sun and the sky both lose the column above the
@@ -1374,7 +1379,7 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
     const vec2 face = at / max(across, 1.0);
     const vec3 normal = vec3(face, sqrt(max(1.0 - dot(face, face), 0.0)));
 
-    const vec2 toward = vec2(dot(-camera.mSunDirection, moon.mRight), dot(-camera.mSunDirection, moon.mUp));
+    const vec2 toward = vec2(dot(camera.mSunPosition, moon.mRight), dot(camera.mSunPosition, moon.mUp));
     const float turn = dot(toward, toward) > 0.0 ? atan(toward.y, toward.x) : 0.0;
     const vec3 light
         = vec3(sin(moon.mPhaseAngle) * cos(turn), sin(moon.mPhaseAngle) * sin(turn), cos(moon.mPhaseAngle));
@@ -1455,17 +1460,32 @@ vec3 skyRadiance(vec3 direction, float blur)
     // inside it", and at half a degree the cosine is 0.999988 — five of a float's seven digits spent
     // before the question is asked. `|a - b|` is `2 sin(theta / 2)` for unit vectors, which loses
     // nothing, and it is the same quantity the cap's solid angle is built from: `pi * chord^2`.
+    //
+    // **Drawn on exactly the frames the sun lights anything**, because they are one fact: the
+    // irradiance is nought whenever the sun is not over the horizon, and fades to it across dusk. A
+    // second field saying whether to draw the disc is what once let a sun shadow out of an empty
+    // sky, and there is no longer one to disagree with.
     const float edge = 2.0 * sin(0.5 * (SUN_ANGULAR_RADIUS + blur));
-    if (camera.mSunVisible != 0u && length(direction + camera.mSunDirection) < edge)
+    if (camera.mSunIrradiance != vec3(0.0) && length(direction - camera.mSunPosition) < edge)
     {
         // **The sun's radiance is five orders of magnitude above the sky's** and this does not
         // pretend otherwise, so it saturates until there is an exposure stage to bring it down.
         // That is a fact about the sun rather than a choice made here: a photograph exposed for a
         // landscape shows a white disc, and a glitter road really is a field of blown-out sparks.
+        // **How bright from the light, what colour from the disc**, which is why the brightest
+        // channel and not the whole vector. The two are one quantity in the world and two in the
+        // content files, and the disc's is the one that is about the sun: taking the hue off the
+        // irradiance draws a blue sun through every dawn, because that ramp is still crossing to a
+        // night colour that belongs to the sky rather than to anything the sun did. Reading the
+        // peak leaves a white disc at white and lets a weather's sunset tint both redden and dim
+        // it, which is what air does to a sun on the horizon — it takes the blue out rather than
+        // putting red in.
+        const float radiance = brightest(camera.mSunIrradiance) / (0.5 * TAU * edge * edge);
+
         // **Dimmed by whatever stands in front of it, which is the whole of an eclipse.** Masser is
         // nineteen degrees across against the sun's half a degree, so on the rare crossing it is
         // total, and it costs one multiply on the frames it is not.
-        colour += (1.0 - hidden) * camera.mSunIrradiance / (0.5 * TAU * edge * edge);
+        colour += ((1.0 - hidden) * radiance) * camera.mSunDiscColour;
     }
 
     return colour;

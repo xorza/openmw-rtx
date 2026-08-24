@@ -129,6 +129,8 @@ if (OPENMW_RTX)
         rtx/visibilitypass.cpp
         rtx/wavespectrum.cpp
         rtxbridge/fogbuilder.cpp
+        sky/sun.cpp
+
         rtxbridge/frameimage.cpp
         rtxbridge/frameworld.cpp
         rtxbridge/lightbuilder.cpp

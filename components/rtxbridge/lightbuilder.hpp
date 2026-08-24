@@ -36,29 +36,82 @@ namespace RtxBridge
     /// @param radius the recorded one. Null where it is not a size a light can have.
     std::optional<Rtx::Light> makeLight(const osg::Vec3f& colour, float radius, const osg::Vec3f& position);
 
-    /// The sun and the sky at one hour, as the content files describe them.
+    /// What a weather says about the sky at one hour, in the renderer's own units.
     ///
-    /// Every colour here is a fallback setting the game reads for itself, and the sun's path is the
-    /// arithmetic at `apps/openmw/mwworld/weather.cpp:901`. What is missing is the cross-fade
-    /// `MWWorld::Weather` runs through sunrise and sunset: this steps between the four phases where
-    /// the game ramps, which is exact at every hour outside a transition window and is as much as
-    /// something with no weather simulation can honestly claim. The ramp arrives with the engine.
-    struct Daylight
+    /// Both renderers reach these six numbers by their own route — one reports what a live weather
+    /// system settled on, the other derives them from the content files at an hour it was told — and
+    /// then hand them to `makeSkylight` rather than assembling a sun themselves.
+    struct SkyReading
+    {
+        /// Where the disc stands, unit. `Sky::sunAt`.
+        osg::Vec3f mSunPosition = osg::Vec3f(0.0f, 0.0f, 1.0f);
+
+        /// How much of the sun is over the horizon. `Sky::sunShareAt`.
+        float mSunShare = 0.0f;
+
+        /// The weather's `Sun_*_Color` at this hour, linear — Morrowind's own, night blue and all.
+        osg::Vec3f mSunColour;
+
+        /// The weather's `Ambient_*_Color` at this hour, linear.
+        osg::Vec3f mAmbient;
+
+        /// What the disc is painted with, linear. `Sky::sunDiscAt`.
+        osg::Vec3f mDiscColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
+
+        /// The weather's `Glare_View`: how much of the sun it lets through.
+        float mGlare = 1.0f;
+    };
+
+    /// The sky's light, in the two forms a tracer can use it: one that comes from somewhere, and one
+    /// that does not.
+    struct Skylight
     {
         Rtx::Sun mSun;
 
-        /// Whether the sun's disc is up to be seen.
-        ///
-        /// **Not the same as whether it lights anything.** Its night colour is a dim blue and the
-        /// engine reads that straight off the ramp, so the light never goes out; what goes out is
-        /// the disc, between sunset and sunrise (`apps/openmw/mwworld/weather.cpp:651`).
-        bool mSunVisible = false;
+        /// What a path is terminated with, which is the weather's own ambient plus whatever of the
+        /// sun is not over the horizon. `makeSkylight` says why.
+        osg::Vec3f mAmbient;
+    };
+
+    /// The sky's light, out of what a weather says — and the one place a sun is allowed to be built.
+    ///
+    /// **A sun below the horizon is not a sun, and this is where that becomes impossible to say.**
+    /// Morrowind never switches its sunlight off: `WeatherManager` reads a colour off the same ramp
+    /// all night — `Sun_Night_Color` is `59, 97, 176` and is brighter in blue than most of the day —
+    /// and turns off only the *sprite*. Its renderer could afford that, because a directional light
+    /// with no visible source looks like nothing in particular in a rasterized frame. Traced, it is
+    /// a sun: it casts hard shadows that swing back across the ground all night, off a disc that
+    /// retraces its own arc while nothing is drawn at the end of it.
+    ///
+    /// So what the file calls the night's sun is put where light with no direction belongs — the
+    /// ambient — and the sun keeps only what is over the horizon. **The two halves are complements**,
+    /// so the total is continuous through dusk rather than stepping when the sun goes out: the share
+    /// that is still up lights as a direction, and the share that is not lights as a fill. That is
+    /// also what twilight is.
+    ///
+    /// The fill is a quarter of the irradiance over pi. A directional source delivers, averaged over
+    /// every orientation a surface could take, a quarter of its irradiance — the mean of `max(0,
+    /// cos)` over the sphere — and a uniform hemisphere of radiance `L` delivers `pi L` to all of
+    /// them, so `E / 4pi` is the same light with the direction taken out of it. Nothing is invented
+    /// and nothing is lost; a night simply stops having a sun in it.
+    Skylight makeSkylight(const SkyReading& sky);
+
+    /// The sun and the sky at one hour, as the content files describe them.
+    ///
+    /// Every colour here is a fallback setting the game reads for itself, and the sun's arc, its
+    /// four-point ramps and its disc all come from `components/sky` — the same arithmetic the
+    /// weather manager runs, so a harness frame and a game frame stand under one sky rather than
+    /// under two that were written to agree.
+    struct Daylight
+    {
+        Rtx::Sun mSun;
 
         /// Sky radiance, linear, at the horizon and overhead.
         osg::Vec3f mSkyHorizon;
         osg::Vec3f mSkyZenith;
 
-        /// What an exterior gets in place of a cell's `AMBI`, which only interiors carry.
+        /// What an exterior gets in place of a cell's `AMBI`, which only interiors carry — and, at
+        /// night, whatever the weather put in the sun's slot while the sun was not there.
         osg::Vec3f mAmbient;
 
         /// The weather's own air.
@@ -69,26 +122,6 @@ namespace RtxBridge
         /// of air have to arrive at the same answer.
         Fog mFog;
     };
-
-    /// Which of the four sets of colours a weather is read at.
-    enum class SkyPhase
-    {
-        Night,
-        Sunrise,
-        Day,
-        Sunset,
-    };
-
-    /// The phase `hour` falls in, between the hours the day runs from and to.
-    SkyPhase phaseAt(float hour, float sunrise, float nightStart);
-
-    /// The unit vector the sun's light travels *along* at `hour`.
-    ///
-    /// `apps/openmw/mwworld/weather.cpp:901`'s own arithmetic: the sun crosses from one horizon to
-    /// the other over the day and back under the world over the night, along a fixed arc. Its height
-    /// does not change between the two, and neither does the engine's — a night is dark because the
-    /// sun stops shining, not because it goes below the ground.
-    osg::Vec3f sunDirection(float hour, float sunrise, float nightStart);
 
     /// A weather's index, as `MWWorld::WeatherManager` registers them and the shader's `WEATHER_*`
     /// name them, or nothing for a name that is none of the ten.
@@ -161,4 +194,7 @@ namespace RtxBridge
     /// as wrong there as it would be reading the record itself. The alpha is dropped: nothing
     /// downstream has a use for it.
     osg::Vec3f decodeColour(const osg::Vec4f& encoded);
+
+    /// The same decode again, for a colour that never had an alpha — `Sky::sunDiscAt`'s is one.
+    osg::Vec3f decodeColour(const osg::Vec3f& encoded);
 }

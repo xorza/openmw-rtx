@@ -73,15 +73,32 @@ namespace MWRender
         osg::Vec4f mSunPosition;
 
         /// The way the light travels, so a ray pointing back along it is pointing at the sun.
+        ///
+        /// **The rasterizer's, and a ray tracer takes `-mSunPosition` instead.** Where the two part
+        /// company nothing in a rasterized frame shows it; trace the frame and it shows in the
+        /// shadows, the glitter and the haze at once, each around a different sun.
         osg::Vec4f mSunVector;
 
         bool mSunAtNight = false;
         osg::Vec4f mSunColour;
         float mSunVisibility = 0.0f;
 
-        /// Whether the sun's disc is drawn at all, which `MWWorld::WeatherManager` switches by the
-        /// hour. Not `mSunVisibility`, which is how much glare it throws while it is up.
-        bool mSunVisible = false;
+        /// What the disc is painted with, and how much of the sun is over the horizon in `w`.
+        ///
+        /// **Not `mSunColour`, which is what the world receives.** That one carries the sky in it —
+        /// its night value is a blue that belongs to the dome and not to any sun — so a disc drawn
+        /// with it turns blue through every dawn and dusk. This is the game's own disc colour:
+        /// white until the sun starts down, then the weather's sunset tint.
+        ///
+        /// **And the alpha is the whole of "is there a sun".** It is nought all night and at the two
+        /// hours the sun is level with the horizon, ramping across dawn and dusk, and it is what a
+        /// ray tracer scales its *sunlight* by rather than only its disc — `RtxBridge::makeSkylight`
+        /// says why a renderer that scaled only the disc had shadows swinging across a dark sky.
+        osg::Vec4f mSunDiscColour{ 1.0f, 1.0f, 1.0f, 0.0f };
+
+        /// How much of the sun this weather lets through, which dims a disc under an overcast but
+        /// says nothing about whether there is one.
+        float mSunGlare = 1.0f;
 
         /// Includes the night-eye effect, because that is where it has already been added.
         osg::Vec4f mAmbientColour;

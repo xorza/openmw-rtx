@@ -573,41 +573,16 @@ namespace MWWorld
         mStormDirection = calculateStormDirection(mResult.mParticleEffect);
         mRendering.setStormParticleDirection(mStormDirection);
 
-        // disable sun during night
-        mRendering.setSunVisible(time.getHour() < mTimeSettings.mNightStart && time.getHour() > mSunriseTime);
-
-        // Update the sun direction.  Run it east to west at a fixed angle from overhead.
-        // The sun's speed at day and night may differ, since mSunriseTime and mNightStart
-        // mark when the sun is level with the horizon.
+        // Where the sun is, where its light goes, and how much of it there is — one reading, because
+        // they are one parameter and `Sky::sunAt` is what keeps them from parting.
         {
-            // Shift times into a 24-hour window beginning at mSunriseTime...
-            float adjustedHour = time.getHour();
-            float adjustedNightStart = mTimeSettings.mNightStart;
-            if (time.getHour() < mSunriseTime)
-                adjustedHour += 24.f;
-            if (mTimeSettings.mNightStart < mSunriseTime)
-                adjustedNightStart += 24.f;
+            const Sky::SunPlacement sun = Sky::sunAt(time.getHour(), mTimeSettings);
 
-            const bool isNight = adjustedHour >= adjustedNightStart;
-            const float dayDuration = adjustedNightStart - mSunriseTime;
-            const float nightDuration = 24.f - dayDuration;
-
-            float orbit;
-            if (!isNight)
-            {
-                float t = (adjustedHour - mSunriseTime) / dayDuration;
-                orbit = 1.f - 2.f * t;
-            }
-            else
-            {
-                float t = (adjustedHour - adjustedNightStart) / nightDuration;
-                orbit = 2.f * t - 1.f;
-            }
-
-            // Hardcoded constant from Morrowind
-            const osg::Vec3f sunDir(-400.f * orbit, 75.f, -100.f);
-            mRendering.setSunDirection(sunDir);
-            mRendering.setNight(isNight);
+            // The disc is switched rather than faded here because that is what a sprite takes; the
+            // share it is switched on is the same number the ray tracer scales its sunlight by.
+            mRendering.setSunVisible(sun.mShare > 0.f);
+            mRendering.setSunDirection(sun.mDirection);
+            mRendering.setNight(sun.mNight);
         }
 
         float underwaterFog = mUnderwaterFog.getValue(time.getHour(), mTimeSettings, "Fog");
@@ -1025,44 +1000,12 @@ namespace MWWorld
         mResult.mDLFogFactor = current.mDL.FogFactor;
         mResult.mDLFogOffset = current.mDL.FogOffset;
 
-        Sky::WeatherSetting setting = mTimeSettings.getSetting("Sun");
-        float preSunsetTime = setting.mPreSunsetTime;
-
-        if (gameHour >= mTimeSettings.mDayEnd - preSunsetTime)
-        {
-            float factor = 1.f;
-            if (preSunsetTime > 0)
-                factor = (gameHour - (mTimeSettings.mDayEnd - preSunsetTime)) / preSunsetTime;
-            factor = std::min(1.f, factor);
-            mResult.mSunDiscColor = lerp(osg::Vec4f(1, 1, 1, 1), current.mSunDiscSunsetColor, factor);
-            // The SunDiscSunsetColor in the INI isn't exactly the resulting color on screen, most likely because
-            // MW applied the color to the ambient term as well. After the ambient and emissive terms are added
-            // together, the fixed pipeline would then clamp the total lighting to (1,1,1). A noticeable change in color
-            // tone can be observed when only one of the color components gets clamped. Unfortunately that means we
-            // can't use the INI color as is, have to replicate the above nonsense.
-            mResult.mSunDiscColor
-                = mResult.mSunDiscColor + osg::componentMultiply(mResult.mSunDiscColor, mResult.mAmbientColor);
-            for (int i = 0; i < 3; ++i)
-                mResult.mSunDiscColor[i] = std::min(1.f, mResult.mSunDiscColor[i]);
-        }
-        else
-            mResult.mSunDiscColor = osg::Vec4f(1, 1, 1, 1);
-
-        if (gameHour >= mTimeSettings.mDayEnd)
-        {
-            // sunset
-            float fade = std::min(
-                1.f, (gameHour - mTimeSettings.mDayEnd) / (mTimeSettings.mNightStart - mTimeSettings.mDayEnd));
-            fade = fade * fade;
-            mResult.mSunDiscColor.a() = 1.f - fade;
-        }
-        else if (gameHour >= mTimeSettings.mNightEnd && gameHour <= mTimeSettings.mNightEnd + mSunriseDuration / 2.f)
-        {
-            // sunrise
-            mResult.mSunDiscColor.a() = gameHour - mTimeSettings.mNightEnd;
-        }
-        else
-            mResult.mSunDiscColor.a() = 1;
+        // What the disc is painted with, which is not `mSunColor`, and how much of the sun there is
+        // to paint. `components/sky` holds both, so the ray tracer reads the same arithmetic without
+        // a weather manager to ask.
+        mResult.mSunDiscColor
+            = osg::Vec4f(Sky::sunDiscAt(gameHour, mTimeSettings, current.mSunDiscSunsetColor, mResult.mAmbientColor),
+                Sky::sunShareAt(gameHour, mTimeSettings));
 
         mResult.mStormDirection = calculateStormDirection(mResult.mParticleEffect);
     }

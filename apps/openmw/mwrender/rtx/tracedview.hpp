@@ -141,7 +141,9 @@ namespace MWRender::Rtx
         float mNear = 1.f;
         float mFar = 10000.f;
 
-        osg::Vec3f mSunDirection;
+        /// Where the light stands, unit — which is what the trace takes, and so already the
+        /// sense `OffscreenViewSpec` states it in.
+        osg::Vec3f mSunPosition;
         osg::Vec3f mSunIrradiance;
         osg::Vec3f mAmbient;
 

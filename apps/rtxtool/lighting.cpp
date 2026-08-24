@@ -50,9 +50,7 @@ namespace RtxTool
     void applyLighting(const CellLighting& lighting, Rtx::Shaders::VisibilityConstants& constants)
     {
         RtxBridge::FrameWorld world{
-            .mSunDirection = lighting.mDaylight.mSun.mDirection,
-            .mSunIrradiance = lighting.mDaylight.mSun.mIrradiance,
-            .mSunVisible = lighting.mDaylight.mSunVisible,
+            .mSun = lighting.mDaylight.mSun,
             .mAmbient = lighting.mAmbient,
             .mSkyHorizon = lighting.mDaylight.mSkyHorizon,
             .mSkyZenith = lighting.mDaylight.mSkyZenith,

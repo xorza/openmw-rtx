@@ -262,7 +262,7 @@ namespace Rtx
             // both renderers trace at — the upscaler only changes what happens after.
             Shaders::VisibilityConstants camera = makeCamera(osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(), 60.0f,
                 extents.mRenderWidth, extents.mRenderHeight, 10000.0f);
-            camera.mSunDirection = osg::Vec3f(0.0f, 0.6f, 0.8f);
+            camera.mSunPosition = osg::Vec3f(0.0f, -0.6f, -0.8f);
             camera.mSunIrradiance = osg::Vec3f(2.0f, 2.0f, 2.0f);
             camera.mSkyHorizon = osg::Vec3f();
             camera.mSkyZenith = osg::Vec3f();

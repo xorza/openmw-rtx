@@ -553,6 +553,13 @@ namespace MWRender
         mSunVector = -interiorSunPos;
         mSunAtNight = false;
         mSunLight->setPosition(interiorSunPos);
+
+        // **A room's sun is all there, and saying so is what stops it being the last outdoor
+        // hour's.** The weather system stops running the moment the player steps inside, so nothing
+        // else would write these again until they step out — and a renderer that scales its sunlight
+        // by the share would light an interior with whatever fraction of a sunset it walked in on.
+        mSunDiscColour = osg::Vec4f(1.f, 1.f, 1.f, 1.f);
+        mSunGlare = 1.f;
     }
 
     void RenderingManager::setSunColour(const osg::Vec4f& diffuse, const osg::Vec4f& specular, float sunVis)
@@ -573,7 +580,9 @@ namespace MWRender
     {
         osg::Vec3f position = -direction;
 
-        // This is based on the exterior sun orbit and won't make sense for interiors, see WeatherManager::update
+        // This is based on the exterior sun orbit and won't make sense for interiors, see
+        // `Sky::sunAt`, which is where the same line lives for everything that asks the arithmetic
+        // directly rather than being handed a direction.
         position.z() = 400.f - std::abs(position.x());
 
         // The sun is not always synchronized with the sunlight because reasons
@@ -636,6 +645,12 @@ namespace MWRender
     void RenderingManager::setWeather(const WeatherResult& weather)
     {
         mSky->setWeather(weather);
+
+        // Kept apart rather than multiplied together: the alpha is how much of the sun is over the
+        // horizon and the glare is how much of it this weather lets through, and only the first of
+        // them says whether there is a sun to light anything at all.
+        mSunDiscColour = weather.mSunDiscColor;
+        mSunGlare = weather.mGlareView;
     }
 
     void RenderingManager::setStormParticleDirection(const osg::Vec3f& direction)
@@ -646,8 +661,6 @@ namespace MWRender
 
     void RenderingManager::setSunVisible(bool visible)
     {
-        mSunVisible = visible;
-
         if (visible)
             mSky->sunEnable();
         else
@@ -800,7 +813,8 @@ namespace MWRender
             .mSunAtNight = mSunAtNight,
             .mSunColour = mSunLight->getDiffuse(),
             .mSunVisibility = mSunVisibility,
-            .mSunVisible = mSunVisible,
+            .mSunDiscColour = mSunDiscColour,
+            .mSunGlare = mSunGlare,
             .mAmbientColour = mSunLight->getAmbient(),
             .mSkyColour = mSky->getSkyColor(),
             .mLocation = world.isCellExterior() ? Location::Exterior

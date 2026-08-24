@@ -1,8 +1,10 @@
+#include <algorithm>
 #include <cmath>
 
 #include <gtest/gtest.h>
 
 #include <osg/Vec3f>
+#include <osg/Vec4f>
 
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/camera.hpp>
@@ -194,12 +196,30 @@ namespace RtxTool
             EXPECT_EQ(turning.mNextWeather, Rtx::Shaders::WEATHER_OVERCAST);
             EXPECT_FLOAT_EQ(turning.mWeatherBlend, 0.5f);
 
+            // **Halfway in the space the file records, not in the one the renderer works in**, which
+            // is where the engine mixes: `calculateTransitionResult` lerps colours it never decodes,
+            // and the decode happens once at the end. Averaging the two decoded colours instead
+            // lands somewhere else entirely — sRGB is furthest from linear in exactly the middle,
+            // which is where a fifty per cent blend sits — so the midpoint here is re-encoded before
+            // it is compared. The inverse transfer is spelled out rather than shared: a test that
+            // called the same helper the code does would pass however wrong that helper was.
+            const auto encode = [](float linear) {
+                return linear <= 0.0031308f ? linear * 12.92f : 1.055f * std::pow(linear, 1.0f / 2.4f) - 0.055f;
+            };
+
             const osg::Vec3f clear = RtxBridge::makeDaylight("Clear", 12.0f).mSkyZenith;
             const osg::Vec3f overcast = RtxBridge::makeDaylight("Overcast", 12.0f).mSkyZenith;
             for (int channel = 0; channel < 3; ++channel)
             {
-                const float half = 0.5f * (clear[channel] + overcast[channel]);
-                EXPECT_NEAR(turning.mDaylight.mSkyZenith[channel], half, 1e-5f) << "channel " << channel;
+                const osg::Vec4f half(0.5f * (encode(clear[channel]) + encode(overcast[channel])), 0.0f, 0.0f, 0.0f);
+                EXPECT_NEAR(turning.mDaylight.mSkyZenith[channel], RtxBridge::decodeColour(half).x(), 1e-5f)
+                    << "channel " << channel;
+
+                // And it really is between them, which the re-encoding above could otherwise hide.
+                EXPECT_GT(turning.mDaylight.mSkyZenith[channel], std::min(clear[channel], overcast[channel]))
+                    << "channel " << channel;
+                EXPECT_LT(turning.mDaylight.mSkyZenith[channel], std::max(clear[channel], overcast[channel]))
+                    << "channel " << channel;
             }
 
             // Either end of the mix is the weather at that end, exactly.

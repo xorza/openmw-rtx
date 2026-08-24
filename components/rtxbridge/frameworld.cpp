@@ -4,9 +4,9 @@ namespace RtxBridge
 {
     void applyWorld(const FrameWorld& world, Rtx::Shaders::VisibilityConstants& constants)
     {
-        constants.mSunDirection = world.mSunDirection;
-        constants.mSunIrradiance = world.mSunIrradiance;
-        constants.mSunVisible = world.mSunVisible ? 1u : 0u;
+        constants.mSunPosition = world.mSun.mPosition;
+        constants.mSunIrradiance = world.mSun.mIrradiance;
+        constants.mSunDiscColour = world.mSun.mDiscColour;
         constants.mAmbient = world.mAmbient;
 
         constants.mSkyHorizon = world.mSkyHorizon;

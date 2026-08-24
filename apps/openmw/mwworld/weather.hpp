@@ -13,6 +13,7 @@
 #include <components/esm/refid.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/sky/moonmodel.hpp>
+#include <components/sky/sun.hpp>
 #include <components/sky/timeofday.hpp>
 
 #include "../mwbase/soundmanager.hpp"
@@ -216,7 +217,7 @@ namespace MWWorld
         MoonModel(float fadeInStart, float fadeInFinish, float fadeOutStart, float fadeOutFinish, float axisOffset,
             float speed, float dailyIncrement, float fadeStartAngle, float fadeEndAngle, float moonShadowEarlyFadeAngle)
             : mModel(fadeInStart, fadeInFinish, fadeOutStart, fadeOutFinish, axisOffset, speed, dailyIncrement,
-                  fadeStartAngle, fadeEndAngle, moonShadowEarlyFadeAngle)
+                fadeStartAngle, fadeEndAngle, moonShadowEarlyFadeAngle)
         {
         }
 

@@ -56,7 +56,7 @@ namespace RtxTool
         const auto side = static_cast<float>(Constants::CellSizeInUnits);
 
         mNode->setPosition(cell.isExterior() ? osg::Vec3f((static_cast<float>(cell.getGridX()) + 0.5f) * side,
-                                                   (static_cast<float>(cell.getGridY()) + 0.5f) * side, level)
+                               (static_cast<float>(cell.getGridY()) + 0.5f) * side, level)
                                              : osg::Vec3f(0.0f, 0.0f, level));
 
         return level;

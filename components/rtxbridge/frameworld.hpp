@@ -6,6 +6,7 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
 
 #include "fogbuilder.hpp"
@@ -33,21 +34,18 @@ namespace RtxBridge
     /// side does to get here is its own business; what happens after is not.
     struct FrameWorld
     {
-        /// Where the sun's light travels, unit — so a ray pointing back along it points at the sun.
+        /// The sun, and it is a sun or it is nothing.
         ///
-        /// A zero irradiance is how a night and an interior are both said; the direction still has
-        /// to be a unit vector, because it is used as a ray and as a cosine without being
-        /// normalised again.
-        osg::Vec3f mSunDirection;
-        osg::Vec3f mSunIrradiance;
-
-        /// Whether the sun's disc is in the sky to be seen, which is not the same question as
-        /// whether it is lighting anything: the game leaves a dim blue sun on all night and enables
-        /// the disc by the hour.
-        bool mSunVisible = false;
+        /// **Built by `makeSkylight` and never assembled field by field.** Its irradiance is zero
+        /// exactly when there is no sun to see, so everything the sun does downstream hangs off one
+        /// test — which is what stops a shadow being cast out of a sky with no sun drawn in it.
+        Rtx::Sun mSun;
 
         /// The cell's own ambient, linear. What a path is terminated with rather than what is added
         /// on top of it — `visibility.h` says why.
+        ///
+        /// **A night's carries the sun**, because Morrowind's night sun is not one: `makeSkylight`
+        /// puts what the file left in that slot here, where light with no direction belongs.
         osg::Vec3f mAmbient;
 
         /// What a ray that hit nothing comes back with, at the horizon and overhead. The game
