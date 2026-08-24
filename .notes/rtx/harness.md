@@ -91,13 +91,10 @@ keys, and `RtxBridge::makeMoon` re-derives the moons from the `Moons_*` ones.
 Both are honest about what they are — `makeDaylight`'s own comment says it steps between the four
 phases where the game ramps — but the consequences compound:
 
-- **A sunrise hour renders differently** in `shot` and in the game, so a frame taken at 06:30 is not
-  the frame the game draws at 06:30.
-- **`MWWorld::MoonModel` (`apps/openmw/mwworld/weather.cpp:363`) and `RtxBridge::makeMoon` are two
-  copies of one reverse-engineered arithmetic**, kept in step by nothing but the tests written
-  against the port.
 - **The harness never runs a transition at all**, so the blend between two weathers — the field the
-  shader now carries — is exercised only in the game, which is the surface nobody iterates on.
+  shader now carries — is exercised only in the game, which is the surface nobody iterates on. This
+  is what is left of §2.4; the sun's ramp and the moons' clock are shared now (step 2), so an hour
+  renders the same in both and there is one copy of each arithmetic.
 
 ### 2.5 The harness walks the graph only when the ring moves
 
@@ -151,26 +148,25 @@ It also finished the moons: the game reports the two `MoonState`s it was already
 (`WorldState::mMoons`) and `RtxBridge::placeMoon` turns them into the same placements the harness
 derives, so both surfaces draw the same moons from one piece of geometry code.
 
-### Step 2 — The weather arithmetic into a component — **the moons done, the sun's ramp not**
+### Step 2 — The weather arithmetic into a component — **done**
 
-`components/weather/moonmodel.hpp` is one moon's clock, and both sides ask it: `MWWorld::MoonModel`
-is now an adapter that turns a `Weather::MoonMoment` into the `MWRender::MoonState` the sky was
-already being handed, and `RtxBridge::makeMoon` asks the same component directly because the harness
-has no weather system to go through. The second copy is deleted rather than tested against.
+`components/sky/` holds a moon's clock (`moonmodel`) and the day's own ramp (`timeofday`), and both
+renderers ask it. `MWWorld::MoonModel` is an adapter that turns a `Sky::MoonMoment` into the
+`MWRender::MoonState` the sky was already being handed; `RtxBridge::makeMoon` asks the same clock
+directly, because the harness has no weather system to go through.
 
-**Careful of the name.** `MWWorld::Weather` is a class, so inside `MWWorld` an unqualified
-`Weather::` finds it rather than the component's namespace; the adapter writes `::Weather::`.
+**`makeDaylight` reads the engine's four-point ramp now**, not whichever of four phases an hour fell
+in. Each quantity crosses dawn over a window of its own — the sun can be up before the sky has
+finished turning — so the step was wrong for most of sunrise and most of dusk, and it was wrong in
+the direction of jumping. Two things went with it: the four-phase colour read, and the harness's rule
+that the sun is off at night. **The engine does not switch its sun off** — `calculateResult` takes
+the colour straight off the ramp and its night value is a dim blue — so the harness had been lighting
+its nights differently from the game it exists to predict.
 
-**What is left is the sun's ramp.** `TimeOfDayInterpolator`, `TimeOfDaySettings` and `WeatherSetting`
-(`apps/openmw/mwworld/weather.hpp:63-136`) are self-contained — four values and an hour, no world to
-ask — and moving them is mechanical. What is not mechanical is the half that pays for it: the
-harness's `makeDaylight` picks one of four colours by phase and would have to be rebuilt around the
-interpolator, including assembling a `TimeOfDaySettings` out of the `Weather_*` timing keys. Until
-that is done there is no second caller, so moving the interpolator alone would be churn in game code
-for nothing. Do both together or neither.
+**The component is `Sky` and not `Weather`, and the reason is a trap worth remembering.**
+`MWWorld::Weather` is a class, so inside `MWWorld` an unqualified `Weather::` finds *it* rather than
+a namespace of that name, and the error message says only that `MoonModel` does not name a type.
 
-- *Still buys:* a sunrise hour that renders the same in `shot` and in the game, which §2.4 says it
-  does not today.
 - *Note:* an earlier objection to this step was wrong. Putting engine arithmetic in `components/`
   does **not** violate "not one line of the ray tracer is compiled with the option off" — it is not
   ray-tracer code, and the picture the rasterizer draws is unchanged.

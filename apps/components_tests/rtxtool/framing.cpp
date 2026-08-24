@@ -156,10 +156,15 @@ namespace RtxTool
             EXPECT_EQ(outdoors.mDaylight.mSkyZenith, RtxBridge::makeDaylight("Clear", 12.0f).mSkyZenith);
             EXPECT_GT(outdoors.mDaylight.mSun.mIrradiance.x(), 0.0f) << "noon has a sun";
 
-            // Midnight is the same weather with the sun switched off — a night is dark because the
-            // sun stops shining, not because it has gone under the ground.
+            const osg::Vec3f noon = outdoors.mDaylight.mSun.mIrradiance;
+
+            // **Midnight is the same weather at another hour, and its sun is dimmer rather than
+            // absent.** A content file records a night colour for the sun and the engine reads it
+            // straight off the ramp, so a harness that switched the sun off at midnight lit its
+            // nights differently from the game.
             relight(outdoors, "Clear", 0, 0.0f);
-            EXPECT_EQ(outdoors.mDaylight.mSun.mIrradiance, osg::Vec3f());
+            EXPECT_EQ(outdoors.mDaylight.mSun.mIrradiance, RtxBridge::makeDaylight("Clear", 0.0f).mSun.mIrradiance);
+            EXPECT_NE(outdoors.mDaylight.mSun.mIrradiance, noon) << "midnight is not noon";
             EXPECT_EQ(outdoors.mWeather, Rtx::Shaders::WEATHER_CLEAR) << "the hour is not the weather";
 
             // And another weather is another sky, at the same hour.

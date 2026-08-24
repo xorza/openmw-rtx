@@ -172,13 +172,21 @@ namespace RtxBridge
             for (float hour = 0.0f; hour < 24.0f; hour += 0.25f)
                 EXPECT_NO_THROW(makeDaylight("Clear", hour)) << "at hour " << hour;
 
-            // Sunrise, noon and sunset read the one depth the file records for daylight, and only
-            // night reads the other. Deeper fog is thicker air, so the night value being the larger
-            // of the two is what makes these two comparisons say different things.
+            // A file records one depth for daylight and one for night, and the ramp hands the day
+            // value to three of its four points. Deeper fog is thicker air, so the night value being
+            // the larger of the two is what makes these comparisons say different things.
             const float day = makeDaylight("Clear", 12.0f).mFog.mExtinction;
-            EXPECT_EQ(makeDaylight("Clear", 6.0f).mFog.mExtinction, day) << "sunrise";
-            EXPECT_EQ(makeDaylight("Clear", 20.0f).mFog.mExtinction, day) << "sunset";
-            EXPECT_GT(makeDaylight("Clear", 0.0f).mFog.mExtinction, day) << "night";
+            const float night = makeDaylight("Clear", 0.0f).mFog.mExtinction;
+            EXPECT_GT(night, day);
+            EXPECT_EQ(makeDaylight("Clear", 6.0f).mFog.mExtinction, day) << "sunrise reads the day depth";
+            EXPECT_EQ(makeDaylight("Clear", 20.0f).mFog.mExtinction, night) << "and night begins at twenty";
+
+            // **Dusk is between the two rather than one of them**, which is the whole of what the
+            // engine's own ramp buys over reading whichever phase an hour falls in: the seeded
+            // sunset runs from eighteen to twenty, so half past seven is halfway across it.
+            const float dusk = makeDaylight("Clear", 19.5f).mFog.mExtinction;
+            EXPECT_GT(dusk, day);
+            EXPECT_LT(dusk, night);
 
             // The wind comes off the same file and a key per weather, so a storm reading harder
             // than fair weather is what says the name reached the lookup rather than a constant

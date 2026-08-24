@@ -10,6 +10,7 @@
 #include <components/misc/finitevalues.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/sky/timeofday.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
@@ -77,7 +78,7 @@ namespace
     void createFloatInterpolator(sol::state_view lua)
     {
         using Misc::FiniteFloat;
-        using T = MWWorld::TimeOfDayInterpolator<float>;
+        using T = Sky::TimeOfDayInterpolator<float>;
 
         auto interT = lua.new_usertype<T>("TimeOfDayInterpolatorFloat");
 
@@ -94,7 +95,7 @@ namespace
     void createColorInterpolator(sol::state_view lua)
     {
         using Misc::Color;
-        using T = MWWorld::TimeOfDayInterpolator<osg::Vec4f>;
+        using T = Sky::TimeOfDayInterpolator<osg::Vec4f>;
 
         auto interT = lua.new_usertype<T>("TimeOfDayInterpolatorColor");
 
@@ -112,11 +113,11 @@ namespace
 namespace sol
 {
     template <>
-    struct is_automagical<MWWorld::TimeOfDayInterpolator<float>> : std::false_type
+    struct is_automagical<Sky::TimeOfDayInterpolator<float>> : std::false_type
     {
     };
     template <>
-    struct is_automagical<MWWorld::TimeOfDayInterpolator<osg::Vec4f>> : std::false_type
+    struct is_automagical<Sky::TimeOfDayInterpolator<osg::Vec4f>> : std::false_type
     {
     };
     template <>

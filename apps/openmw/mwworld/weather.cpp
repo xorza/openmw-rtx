@@ -33,12 +33,14 @@ namespace MWWorld
     {
         static const int invalidWeatherID = -1;
 
-        // linear interpolate between x and y based on factor.
+        // Linear interpolation between x and y. Still here because the weather's own transition
+        // between two skies uses it; the time-of-day ramp that used to share them has moved to
+        // `Sky::TimeOfDayInterpolator` and carries its own.
         float lerp(float x, float y, float factor)
         {
             return x * (1 - factor) + y * factor;
         }
-        // linear interpolate between x and y based on factor.
+
         osg::Vec4f lerp(const osg::Vec4f& x, const osg::Vec4f& y, float factor)
         {
             return x * (1 - factor) + y * factor;
@@ -59,81 +61,6 @@ namespace MWWorld
             return stormDirection;
         }
     }
-
-    template <typename T>
-    T TimeOfDayInterpolator<T>::getValue(
-        const float gameHour, const TimeOfDaySettings& timeSettings, const std::string& prefix) const
-    {
-        WeatherSetting setting = timeSettings.getSetting(prefix);
-        float preSunriseTime = setting.mPreSunriseTime;
-        float postSunriseTime = setting.mPostSunriseTime;
-        float preSunsetTime = setting.mPreSunsetTime;
-        float postSunsetTime = setting.mPostSunsetTime;
-
-        // night
-        if (gameHour < timeSettings.mNightEnd - preSunriseTime || gameHour > timeSettings.mNightStart + postSunsetTime)
-            return mNightValue;
-        // sunrise
-        else if (gameHour >= timeSettings.mNightEnd - preSunriseTime
-            && gameHour <= timeSettings.mDayStart + postSunriseTime)
-        {
-            float duration = timeSettings.mDayStart + postSunriseTime - timeSettings.mNightEnd + preSunriseTime;
-            float middle = timeSettings.mNightEnd - preSunriseTime + duration / 2.f;
-
-            if (gameHour <= middle)
-            {
-                // fade in
-                float advance = middle - gameHour;
-                float factor = 0.f;
-                if (duration > 0)
-                    factor = advance / duration * 2;
-                return lerp(mSunriseValue, mNightValue, factor);
-            }
-            else
-            {
-                // fade out
-                float advance = gameHour - middle;
-                float factor = 1.f;
-                if (duration > 0)
-                    factor = advance / duration * 2;
-                return lerp(mSunriseValue, mDayValue, factor);
-            }
-        }
-        // day
-        else if (gameHour > timeSettings.mDayStart + postSunriseTime && gameHour < timeSettings.mDayEnd - preSunsetTime)
-            return mDayValue;
-        // sunset
-        else if (gameHour >= timeSettings.mDayEnd - preSunsetTime
-            && gameHour <= timeSettings.mNightStart + postSunsetTime)
-        {
-            float duration = timeSettings.mNightStart + postSunsetTime - timeSettings.mDayEnd + preSunsetTime;
-            float middle = timeSettings.mDayEnd - preSunsetTime + duration / 2.f;
-
-            if (gameHour <= middle)
-            {
-                // fade in
-                float advance = middle - gameHour;
-                float factor = 0.f;
-                if (duration > 0)
-                    factor = advance / duration * 2;
-                return lerp(mSunsetValue, mDayValue, factor);
-            }
-            else
-            {
-                // fade out
-                float advance = gameHour - middle;
-                float factor = 1.f;
-                if (duration > 0)
-                    factor = advance / duration * 2;
-                return lerp(mSunsetValue, mNightValue, factor);
-            }
-        }
-        // shut up compiler
-        return T();
-    }
-
-    template class MWWorld::TimeOfDayInterpolator<float>;
-    template class MWWorld::TimeOfDayInterpolator<osg::Vec4f>;
 
     osg::Vec3f Weather::defaultDirection()
     {
@@ -362,15 +289,14 @@ namespace MWWorld
 
     MWRender::MoonState MoonModel::calculateState(const TimeStamp& gameTime) const
     {
-        const ::Weather::MoonMoment moment = mModel.at(gameTime.getDay(), gameTime.getHour());
+        const Sky::MoonMoment moment = mModel.at(gameTime.getDay(), gameTime.getHour());
 
         // **The two orders have to agree and neither owns the other**, so this pins them rather than
         // trusting them: the phases are eight even steps counted from full, which is what makes the
         // index an angle for whoever wants one.
-        static_assert(
-            static_cast<int>(::Weather::MoonPhase::Full) == static_cast<int>(MWRender::MoonState::Phase::Full));
-        static_assert(static_cast<int>(::Weather::MoonPhase::New) == static_cast<int>(MWRender::MoonState::Phase::New));
-        static_assert(static_cast<int>(::Weather::MoonPhase::WaxingGibbous)
+        static_assert(static_cast<int>(Sky::MoonPhase::Full) == static_cast<int>(MWRender::MoonState::Phase::Full));
+        static_assert(static_cast<int>(Sky::MoonPhase::New) == static_cast<int>(MWRender::MoonState::Phase::New));
+        static_assert(static_cast<int>(Sky::MoonPhase::WaxingGibbous)
             == static_cast<int>(MWRender::MoonState::Phase::WaxingGibbous));
 
         return MWRender::MoonState{
@@ -444,7 +370,7 @@ namespace MWWorld
         mTimeSettings.mStarsPreSunriseFinish = Fallback::Map::getFloat("Weather_Stars_Pre-Sunrise_Finish");
         mTimeSettings.mStarsFadingDuration = Fallback::Map::getFloat("Weather_Stars_Fading_Duration");
 
-        WeatherSetting starSetting = { mTimeSettings.mStarsPreSunriseFinish,
+        Sky::WeatherSetting starSetting = { mTimeSettings.mStarsPreSunriseFinish,
             mTimeSettings.mStarsFadingDuration - mTimeSettings.mStarsPreSunriseFinish,
             mTimeSettings.mStarsPostSunsetStart,
             mTimeSettings.mStarsFadingDuration - mTimeSettings.mStarsPostSunsetStart };
@@ -1099,7 +1025,7 @@ namespace MWWorld
         mResult.mDLFogFactor = current.mDL.FogFactor;
         mResult.mDLFogOffset = current.mDL.FogOffset;
 
-        WeatherSetting setting = mTimeSettings.getSetting("Sun");
+        Sky::WeatherSetting setting = mTimeSettings.getSetting("Sun");
         float preSunsetTime = setting.mPreSunsetTime;
 
         if (gameHour >= mTimeSettings.mDayEnd - preSunsetTime)

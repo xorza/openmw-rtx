@@ -393,8 +393,8 @@ add_component_dir (fallback
     fallback validate
     )
 
-add_component_dir (weather
-    moonmodel
+add_component_dir (sky
+    moonmodel timeofday
     )
 
 add_component_dir (lua_ui

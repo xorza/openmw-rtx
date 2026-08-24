@@ -10,6 +10,7 @@
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/sky/timeofday.hpp>
 
 namespace RtxBridge
 {
@@ -74,47 +75,6 @@ namespace RtxBridge
             return encoded <= 0.04045f ? encoded / 12.92f : std::pow((encoded + 0.055f) / 1.055f, 2.4f);
         }
 
-        /// A weather's colour for one time of day, decoded.
-        ///
-        /// **A key the fallback map does not recognise throws**, and one it recognises but never
-        /// received reads as middle grey — `Fallback::Map::getColour`'s own two answers, and the
-        /// reason `weatherIndex` exists to be asked first. The whitelist names the ten weathers one
-        /// by one, so a misspelt name is the throwing case rather than the grey one.
-        osg::Vec3f weatherColour(std::string_view weather, std::string_view field, std::string_view phase)
-        {
-            return decodeColour(Fallback::Map::getColour(
-                "Weather_" + std::string(weather) + "_" + std::string(field) + "_" + std::string(phase) + "_Color"));
-        }
-
-        /// Which of the two land-fog depths a phase reads.
-        ///
-        /// **The colours come in four and the fog depth in two.** A content file records
-        /// `Land Fog Day Depth` and `Land Fog Night Depth` and nothing between them, which is why
-        /// the host's own interpolator takes the day value three times over
-        /// (`apps/openmw/mwworld/weather.cpp`). Asking for a sunrise depth is not a key that reads
-        /// zero — the fallback map does not know it at all and throws — so every hour inside either
-        /// transition took the tool down with it.
-        std::string_view fogDepthPhase(SkyPhase phase)
-        {
-            return phase == SkyPhase::Night ? "Night" : "Day";
-        }
-
-        std::string_view nameOf(SkyPhase phase)
-        {
-            switch (phase)
-            {
-                case SkyPhase::Night:
-                    return "Night";
-                case SkyPhase::Sunrise:
-                    return "Sunrise";
-                case SkyPhase::Day:
-                    return "Day";
-                case SkyPhase::Sunset:
-                    return "Sunset";
-            }
-
-            return "Night";
-        }
     }
 
     SkyPhase phaseAt(float hour, float sunrise, float nightStart)
@@ -149,31 +109,49 @@ namespace RtxBridge
 
     Daylight makeDaylight(std::string_view weather, float hour)
     {
-        const float sunrise = Fallback::Map::getFloat("Weather_Sunrise_Time");
-        const float nightStart
-            = Fallback::Map::getFloat("Weather_Sunset_Time") + Fallback::Map::getFloat("Weather_Sunset_Duration");
+        const Sky::TimeOfDaySettings times = Sky::TimeOfDaySettings::fromFallback();
+        const std::string name(weather);
 
-        const SkyPhase phase = phaseAt(hour, sunrise, nightStart);
-        const std::string_view name = nameOf(phase);
+        // **The game's own four-point ramp rather than a step between four phases.** Each quantity
+        // crosses dawn over a window of its own — the sun can be up before the sky has finished
+        // turning — so reading whichever phase an hour fell in got every hour inside a transition
+        // wrong, which is most of sunrise and most of dusk.
+        const auto ramp = [&name, &times, hour](std::string_view field) {
+            const std::string prefix(field);
+            const auto colour = [&name, &prefix](std::string_view phase) {
+                return Fallback::Map::getColour("Weather_" + name + "_" + prefix + "_" + std::string(phase) + "_Color");
+            };
+
+            return decodeColour(Sky::TimeOfDayInterpolator<osg::Vec4f>(
+                colour("Sunrise"), colour("Day"), colour("Sunset"), colour("Night"))
+                    .getValue(hour, times, prefix));
+        };
 
         // One read, two uses: the horizon is fog seen from far enough away, which is why the game
         // records a single colour for both.
-        const osg::Vec3f haze = weatherColour(weather, "Fog", name);
+        const osg::Vec3f haze = ramp("Fog");
 
-        Daylight daylight{
-            .mSun = { .mDirection = sunDirection(hour, sunrise, nightStart) },
+        // **A content file records a day depth and a night one and nothing between**, so the game
+        // hands the day value to three of the ramp's four points and lets it cross to night at dusk.
+        // Asking for a sunrise depth is not a key that reads zero — the fallback map does not know
+        // it at all and throws.
+        const float day = Fallback::Map::getFloat("Weather_" + name + "_Land_Fog_Day_Depth");
+        const float night = Fallback::Map::getFloat("Weather_" + name + "_Land_Fog_Night_Depth");
+        const float depth = Sky::TimeOfDayInterpolator<float>(day, day, day, night).getValue(hour, times, "Fog");
+
+        return Daylight{
+            .mSun = { .mDirection = sunDirection(hour, times.mNightEnd, times.mNightStart),
+
+                // **Not switched off at night, because the game does not switch it off either.**
+                // `WeatherManager::calculateResult` takes the sun's colour straight off this ramp,
+                // and its night value is a dim blue rather than nothing — so a harness that zeroed
+                // it lit its nights differently from the game it exists to predict.
+                .mIrradiance = ramp("Sun") * Rtx::Shaders::DAYLIGHT },
             .mSkyHorizon = haze,
-            .mSkyZenith = weatherColour(weather, "Sky", name),
-            .mAmbient = weatherColour(weather, "Ambient", name),
-            .mFog = { .mColour = haze,
-                .mExtinction = fogExtinction(Fallback::Map::getFloat(
-                    "Weather_" + std::string(weather) + "_Land_Fog_" + std::string(fogDepthPhase(phase)) + "_Depth")) },
+            .mSkyZenith = ramp("Sky"),
+            .mAmbient = ramp("Ambient"),
+            .mFog = { .mColour = haze, .mExtinction = fogExtinction(depth) },
         };
-
-        if (phase != SkyPhase::Night)
-            daylight.mSun.mIrradiance = weatherColour(weather, "Sun", name) * Rtx::Shaders::DAYLIGHT;
-
-        return daylight;
     }
 
     std::optional<std::uint32_t> weatherIndex(std::string_view weather)

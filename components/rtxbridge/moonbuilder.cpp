@@ -8,7 +8,7 @@
 
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/shaders/scene.h>
-#include <components/weather/moonmodel.hpp>
+#include <components/sky/moonmodel.hpp>
 
 namespace RtxBridge
 {
@@ -70,7 +70,7 @@ namespace RtxBridge
 
     MoonPlacement makeMoon(Moon moon, int day, float hour)
     {
-        const Weather::MoonMoment moment = Weather::MoonModel(nameOf(moon)).at(day, hour);
+        const Sky::MoonMoment moment = Sky::MoonModel(nameOf(moon)).at(day, hour);
 
         return placeMoon(moon, moment.mAlongArc, moment.mAxisOffset, static_cast<int>(moment.mPhase), moment.mAlpha);
     }

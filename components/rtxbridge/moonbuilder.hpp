@@ -58,7 +58,7 @@ namespace RtxBridge
 
     /// Where a moon stands on `day` at `hour`, out of the `Moons_*` settings.
     ///
-    /// **`Weather::MoonModel`'s clock, reached from an hour rather than from a weather system.** The
+    /// **`Sky::MoonModel`'s clock, reached from an hour rather than from a weather system.** The
     /// game asks that same component through `MWWorld::MoonModel` and hands the answer down as a
     /// `MoonState`; this asks it directly, because the harness has no weather system to ask. One
     /// arithmetic, two routes to it.

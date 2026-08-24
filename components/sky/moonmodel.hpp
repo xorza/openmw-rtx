@@ -2,7 +2,7 @@
 
 #include <string_view>
 
-namespace Weather
+namespace Sky
 {
     /// The eight phases a moon is painted in, counted from full.
     ///

@@ -6,7 +6,7 @@
 
 #include <components/fallback/fallback.hpp>
 
-namespace Weather
+namespace Sky
 {
     namespace
     {
