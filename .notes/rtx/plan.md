@@ -134,11 +134,11 @@ them left behind is in §8.
 - **M4 — direct lighting and shadows. Done.** *Binds:* water is excluded from shadow rays **by a mask
   bit rather than a cutout test** — the any-hit version halves the frame rate; and everything about a
   lamp is derived, because a `LIGH` record carries a colour and a radius and no intensity.
-- **M5 — sky, sun, moons. Sun and sky light done; the dome is not** (§8). Driven by `MWWorld::Weather`
-  and `DateTimeManager` rather than re-derived from the ini. *Binds:* **sky is a light source, not a
-  backdrop**, and the sun is a disc a ray that hit nothing finds — so anything reflective gets it for
-  nothing and its size lives in one place.
-- **M6 — water. Done**, bar foam and sun shafts (§8). TMA spectrum under Donelan–Banner spread, 32
+- **M5 — sky, sun, moons. Sun and sky light done; the dome and the weather in it are not** (§8).
+  Driven by `MWWorld::Weather` and `DateTimeManager` rather than re-derived from the ini. *Binds:*
+  **sky is a light source, not a backdrop**, and the sun is a disc a ray that hit nothing finds — so
+  anything reflective gets it for nothing and its size lives in one place.
+- **M6 — water. Done**, bar foam (§8). TMA spectrum under Donelan–Banner spread, 32
   components, shortest wave 32 units; ripples carried on the swell; Schlick Fresnel with one
   reflection and one refraction ray **at the pixel's own cone spread, not the bounce spread**;
   Beer–Lambert with Jerlov coastal extinction; caustics from `1/|det J|` with the second-order
@@ -246,7 +246,20 @@ every count; and a control fifo bounding the recording to the measured frames.
   disc; there is nothing else in it.
 - **Shoreline foam** (M6). The **sign** of `det J` is where a surface folds, which is where whitecaps
   belong — so the term is already computed.
-- **Underwater sun shafts** (M6).
+- **Weather effects** (M5's other half): rain, snow, ash and blight storms, blizzards, and a
+  thunderstorm's lightning. `WorldState` carries `mWeatherId`, `mWeatherTransition` and `mWindSpeed`
+  and nothing on this side reads one of them — what reaches the picture is only what `MWWorld::Weather`
+  had already folded into the sun, the ambient and the fog band. Four of the ten weathers hang a NIF
+  particle system off the sky and rain builds its own in `SkyManager::createRain`, all of it under a
+  node the trace never sees. **Three answers, not one.** The particles are the sprite layer's case and
+  it was written for them — `shaders/scene.h` names a rain streak as the reason that layer is
+  composited rather than denoised — except that `GpuSprite` is an eye-facing disc where rain is
+  `FIXED`-aligned along `(0,0,-1)`, so the layer wants an oriented sprite before it wants anything
+  else. A storm is mostly a **medium**: ash and blight are a change of extinction and phase function
+  in M7's fog, with sprites as the near-field detail on top, and treating them as a curtain of quads
+  is how one ends up a grey wall. And **lightning is a light** — in the light table for the frames it
+  lasts, throwing shadows and reflecting, not `mFlashBrightness` added to the screen. Where it lands
+  is M6's: `Weather_Rain_Ripples` gates `Water::emitRipple`, and ripples already ride the swell.
 
 **Performance — M12, and none of it is started**
 
