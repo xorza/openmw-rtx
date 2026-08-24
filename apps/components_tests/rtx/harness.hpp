@@ -174,6 +174,12 @@ namespace Rtx::Testing
             // Tests provoke errors deliberately and assert on them; aborting would take the suite
             // down with the first one.
             options.mValidation.mAbortOnError = false;
+            // **On, because a missing barrier is what this suite is worst at seeing.** Every test
+            // here submits and waits, so the ordering a frame relies on is supplied by the harness
+            // rather than by the code under test, and a hazard shows as nothing at all — a traced
+            // view wrote its picture with no dependency on the write before it for as long as there
+            // have been traced views. It costs no measurable time in this suite.
+            options.mValidation.mSynchronization = true;
 
             return createRenderer(options, reason);
         }

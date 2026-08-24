@@ -11,6 +11,11 @@ allocation on the frame path, bandwidth on a picture that changed in one corner,
 trip per texture on a load — all three of which this fork has already declared it does not pay
 (`CLAUDE.md`, "Conventions").
 
+Two more came out of doing the work and are §5 and §6. They are the same mistake from the other
+side: **a texture is owned by something that has to remember it**, rather than by whatever names it
+— a slot swept by a walk that is told when to look, and a layout invariant kept by hand at a call
+site rather than by the class that states it.
+
 ## 1. What was found
 
 ### 1.1 `MyGUIPlatform::OSGTexture` rebuilds itself on every write
@@ -89,6 +94,58 @@ frame for its write.
 `GuiTextures::write` cannot simply be batched as it stands: it keeps one `mStaging` buffer grown to
 the largest region ever written, so a second queued write would overwrite the first's staging before
 the copy ran.
+
+### 1.4 A texture nothing names is only noticed when a mesh or a material dies
+
+`SceneDesc::release` answers the ordinary frame with two comparisons — the live mesh count and the
+live material count against the keep sets it was handed — and returns before it looks at a texture
+at all (`scenedesc.cpp:395`). That is a proxy for "did anything die", and a texture is not the only
+thing that can.
+
+Two ways one stops being named while every mesh and material survives:
+
+- **An emitter's sprite.** The extractor keys `mEmitterTextures` on the particle system and sweeps
+  it (`sceneextractor.cpp:472`), but a particle system is a placement rather than a mesh or a
+  material: losing one moves neither count.
+- **An animated material.** `SceneExtractor::resolveMaterial` re-reads a material whose state set a
+  controller rewrote and hands the result to `setMaterial`. The material keeps its slot — that is
+  the point of it — and the texture it stopped naming keeps its.
+
+The slot and its uploaded image then last the session. It is bounded rather than unbounded, because
+`addTexture` keys on the path and a flame cycling through four frames settles at four slots; what it
+is, is memory nothing can reach behind a descriptor nothing samples.
+
+**The early-out cannot simply count textures as well.** The keep set the caller passes has duplicates
+in it — several emitters share one sprite — so its size is not a live count, which is what
+`release`'s own comment says. Deduplicating it is a sort or a set per frame, on the frame path.
+
+### 1.5 The GUI texture's layout invariant is kept by hand at its one call site
+
+`VulkanRenderer::traceGuiTexture` writes a GUI texture with transfer commands: it transitions the
+texture in, clears it whole *if the picture will not cover it*, copies the traced picture over it,
+and transitions it back (`vulkanrenderer.cpp:825-857`).
+
+The transition in names `VK_PIPELINE_STAGE_2_CLEAR_BIT` as its destination scope — the stage of the
+clear, which is the optional half. Where the picture covers the whole texture the clear is skipped,
+and then nothing orders that transition's own write against the copy, which runs at
+`VK_PIPELINE_STAGE_2_COPY_BIT`. Synchronization validation says exactly that: *the current
+synchronization allows `TRANSFER_WRITE` at `CLEAR`, but to prevent this hazard it must allow these
+accesses at `COPY`.*
+
+The failure set matches to the test: `aPictureShorterThanItsTextureLeavesTheRestAtTheClearColour` —
+the one case where the clear runs and its trailing barrier happens to cover the copy — passes, and
+the three where the picture fills its texture fail.
+
+**The transition in also starts from `VK_IMAGE_LAYOUT_UNDEFINED`**, while `GuiTextures` documents the
+resting layout as `SHADER_READ_ONLY_OPTIMAL` and says that is "where anything that borrows it has to
+put it back". Discarding is legal and deliberate here — the texture is fully overwritten either way
+— but it is also what makes the invariant unenforceable: the class states a contract that its only
+borrower contradicts, in a barrier whose scope has to agree with commands recorded forty lines
+further down.
+
+**The suite is green because the harness does not ask.** `Testing::buildRenderer` loads the
+validation layers without `mValidation.mSynchronization`. Turned on, the whole 242-test suite has
+these three failures and no others, and the run time does not move — 6.0s against 6.1s.
 
 ## 2. `OSGTexture`: persistent storage, a dirty rectangle, one promotion
 
@@ -239,12 +296,95 @@ the doll-versus-world separation:
 
 To measure when it lands: submits per interface load, and submits per frame with a video playing.
 
-## 5. Order
+## 5. A texture is freed when it stops being named
 
-§4 first: it is self-contained, it is the smallest, and it is the one whose test fixture already
-exists. §3 second, because the trap in step 2 wants to be fixed while the reasoning is fresh and
-nothing else depends on it. §2 last and on its own — it is the largest, it is the only one that
-touches concurrency, and it is the only one whose failure mode is a race rather than a number.
+The shape to reach: **ownership is counted where it changes, rather than recomputed by a sweep that
+has to be told when to run.**
+
+A texture is named by a material — three roles, plus a diffuse per layer — and by an emitter for as
+long as the walk keeps meeting it. `SceneDesc` owns the first outright. The second is why `release`
+takes a texture keep set at all: the reference lives in the extractor's map, so the scene cannot see
+it and has to be handed a list of it every sweep. That is the whole of the problem, and counting is
+what removes it.
+
+1. `SceneDesc` counts references per texture slot. `addMaterial` claims what the material names,
+   releasing a material gives those back, and `setMaterial` claims the new set **before** it gives
+   back the old.
+2. The emitter's reference becomes explicit — `holdTexture` and `dropTexture`, called by the
+   extractor when it first meets an emitter and when its sweep loses one. The `textures` argument to
+   `release` goes, and the duplicates that made it uncountable go with it.
+3. A slot is freed the moment its count reaches zero, wherever that happens: mid-walk out of
+   `setMaterial`, or in the sweep out of a material release. `SceneDesc::note` already handles a slot
+   freed and taken over again inside one window, which stops being a theoretical path.
+4. `release` keeps its early-out, which is what it was measured for, and no longer has a texture
+   sweep to skip.
+5. §3's free slot becomes "no reference" rather than "empty path" — the same statement, made where it
+   is decided instead of inferred from a side effect of it.
+
+**The order in step 1 is the trap.** Decrement first and an animated material rewritten with a
+texture it already had frees the slot and takes it again — a slot that changed identity under every
+material naming it, on a frame where nothing was supposed to move.
+
+Tests — extend `apps/components_tests/rtx/scenedesc.cpp`, which already builds scenes and releases
+them. Each of these fails today:
+
+- An emitter's sprite is freed by the sweep that loses the emitter, while every mesh and material
+  survives — which is the case the early-out returns before reaching.
+- A material rewritten to another texture frees the one it stopped naming and keeps the one it still
+  names.
+- A texture two materials name survives one of them going, and goes with the second.
+- A material rewritten with the texture it already had keeps it, at the same slot.
+
+To measure when it lands: the texture table's length and the array's bytes after a long walk across
+the island, against what they are today.
+
+## 6. The borrow belongs to `GuiTextures`
+
+The shape to reach: **the class that states the layout invariant is the one that keeps it.**
+
+1. `GuiTextures` gains one templated call that lends a texture to a caller writing it with transfer
+   commands: it flushes, as every accessor does, transitions out of the resting layout, runs what the
+   caller records, and transitions back. Its destination scope is `VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT`
+   with `VK_ACCESS_2_TRANSFER_WRITE_BIT` — what *a caller writing with transfer commands* means,
+   rather than what one particular caller happens to record. That substitution is the fix: the scope
+   stops having to agree with code somewhere else, which is the agreement that was missing.
+2. It lends from `SHADER_READ_ONLY_OPTIMAL` and not from `UNDEFINED`. What discarding bought — not
+   decompressing contents about to be overwritten — is a doll redrawn when the player changes clothes
+   and a map tile per cell; what it cost was an invariant no one could state.
+3. `traceGuiTexture` names no layout for the GUI texture and keeps only the barrier between its own
+   clear and its own copy, which is its business: two transfer writes to one image, and nothing else
+   orders those.
+4. **Synchronization validation goes on in `Testing::buildRenderer`.** This is the part that keeps it
+   fixed rather than fixes it, and it is why this section is small enough to do first: three tests
+   already cover the broken path and fail on it the moment the layers are asked.
+
+`getImage` goes with it. Everything the trace needed it for either moves inside what it records — the
+extent, and so the decision to clear — or becomes `holds`, a predicate that hands nothing out. After
+this, nothing outside `GuiTextures` can name a GUI texture's layout.
+
+Tests: the three that fail are the test, once the layers are asked. Add the one case still hidden
+after that — a traced view redrawn twice at the full extent, so the second borrow starts from a
+texture the first left in the resting layout rather than from a fresh one.
+
+**Confirmed, both ways.** The whole suite passes with synchronization validation on, at 6.3s against
+6.0s. Narrowing the lend's scope back to `CLEAR` alone — the shape of the original bug, in its new
+home — fails exactly the three traced-view tests again, so the check is live rather than merely on.
+
+## 7. Order
+
+§4 was first: self-contained, smallest, and its test fixture already existed.
+
+**§6 next**, and next because of its step 4 rather than its step 1. Turning synchronization
+validation on in the harness is a check every section after it runs under, and the section that
+turns it on is the one that has to leave the suite green — doing it later means fixing this hazard
+and whatever else has accumulated in one go.
+
+**§5 and §3 together**, in that order. They are the same area, and §3's free slot is §5's reference
+count seen from the outside: doing §3 first means writing a test for "the path is empty" that §5 then
+rewrites.
+
+**§2 last and on its own** — it is the largest, it is the only one that touches concurrency, and it
+is the only one whose failure mode is a race rather than a number.
 
 Verification for each, per `CLAUDE.md`: build the targets touched, run the covering test binary with
 a filter, then `clang-format`. §2 and §4 both reach the game rather than the harness, so each ends

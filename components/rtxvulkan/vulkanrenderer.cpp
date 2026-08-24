@@ -765,11 +765,10 @@ namespace Rtx
         assert((ofTheWorld || (options.mScene < mViewScenes.size() && mViewScenes[options.mScene] != nullptr))
             && "a trace against a scene nothing holds");
 
-        const Image* into = mGuiTextures.getImage(texture);
-        assert(into != nullptr && "a trace into a slot nothing holds");
-        assert(options.mWidth <= into->getWidth() && options.mHeight <= into->getHeight());
+        const bool held = mGuiTextures.holds(texture);
+        assert(held && "a trace into a slot nothing holds");
 
-        if (into == nullptr || options.mWidth == 0 || options.mHeight == 0)
+        if (!held || options.mWidth == 0 || options.mHeight == 0)
             return;
 
         growViewTargets(options.mWidth, options.mHeight);
@@ -823,39 +822,36 @@ namespace Rtx
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                 VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
 
-            into->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, 0, VK_PIPELINE_STAGE_2_CLEAR_BIT,
-                VK_ACCESS_2_TRANSFER_WRITE_BIT);
+            // **Borrowed rather than transitioned.** Where a GUI texture rests between writes is
+            // `GuiTextures`' to say, and a caller that said it here had to keep a barrier's scope in
+            // step with the commands below — which it did not.
+            mGuiTextures.writeWith(texture, commands, [&](const Image& into, VkImageLayout layout) {
+                assert(options.mWidth <= into.getWidth() && options.mHeight <= into.getHeight());
 
-            // **Cleared whole and then covered in part**, and only where the picture does not cover
-            // it all: what the trace fills is as much of the texture as the widget is currently
-            // wide, and the rest has to be the clear colour rather than what a wider picture left
-            // there the last time this was drawn.
-            if (options.mWidth < into->getWidth() || options.mHeight < into->getHeight())
-            {
-                const VkClearColorValue clear{ .float32
-                    = { options.mClear[0], options.mClear[1], options.mClear[2], options.mClear[3] } };
-                const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-                vkCmdClearColorImage(
-                    commands, into->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear, 1, &whole);
+                // **Cleared whole and then covered in part**, and only where the picture does not
+                // cover it all: what the trace fills is as much of the texture as the widget is
+                // currently wide, and the rest has to be the clear colour rather than what a wider
+                // picture left there the last time this was drawn.
+                if (options.mWidth < into.getWidth() || options.mHeight < into.getHeight())
+                {
+                    const VkClearColorValue clear{ .float32
+                        = { options.mClear[0], options.mClear[1], options.mClear[2], options.mClear[3] } };
+                    const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+                    vkCmdClearColorImage(commands, into.getHandle(), layout, &clear, 1, &whole);
 
-                // Both are transfer writes to the same image and nothing orders two of those.
-                into->transition(commands, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    VK_PIPELINE_STAGE_2_CLEAR_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COPY_BIT,
-                    VK_ACCESS_2_TRANSFER_WRITE_BIT);
-            }
+                    // Both are transfer writes to the same image and nothing orders two of those.
+                    into.transition(commands, layout, layout, VK_PIPELINE_STAGE_2_CLEAR_BIT,
+                        VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+                }
 
-            const VkImageCopy region{
-                .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-                .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-                .extent = { options.mWidth, options.mHeight, 1 },
-            };
-            vkCmdCopyImage(commands, mViewTarget->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, into->getHandle(),
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-            into->transition(commands, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-                VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+                const VkImageCopy region{
+                    .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+                    .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+                    .extent = { options.mWidth, options.mHeight, 1 },
+                };
+                vkCmdCopyImage(commands, mViewTarget->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    into.getHandle(), layout, 1, &region);
+            });
         });
     }
 

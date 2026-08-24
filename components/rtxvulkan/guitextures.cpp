@@ -147,16 +147,6 @@ namespace Rtx
         mFree.push_back(slot);
     }
 
-    const Image* GuiTextures::getImage(std::uint32_t slot)
-    {
-        flush();
-
-        if (slot >= mImages.size())
-            return nullptr;
-
-        return mImages[slot].get();
-    }
-
     void GuiTextures::read(std::uint32_t slot, std::vector<std::uint8_t>& pixels)
     {
         assert(slot < mImages.size() && mImages[slot] != nullptr && "a read of a slot nothing holds");

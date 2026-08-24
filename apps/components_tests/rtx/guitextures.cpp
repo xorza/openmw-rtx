@@ -436,8 +436,15 @@ namespace Rtx
 
             // The same picture with a sky behind it, which is what a frame filling a window has:
             // every pixel opaque, the corner included.
+            //
+            // **Twice, with nothing between.** A picture that fills its texture never clears it, so
+            // this is the only path where the copy is the first thing to write it — and the second
+            // of the two starts from a texture the first left where it found it rather than from
+            // one nothing has touched. What it is really asking is whether the two are ordered at
+            // all, which is a question only the synchronization layers answer.
             camera.mTransparentBackground = 0;
-            mRenderer->traceGuiTexture(texture, camera, GuiTraceOptions{ .mWidth = extent, .mHeight = extent });
+            for (int again = 0; again < 2; ++again)
+                mRenderer->traceGuiTexture(texture, camera, GuiTraceOptions{ .mWidth = extent, .mHeight = extent });
 
             EXPECT_EQ(inTexture(texture, extent, 5, 8), (std::array<std::uint8_t, 4>{ 0, 0, 0, 255 }))
                 << "past the sheet, and opaque";

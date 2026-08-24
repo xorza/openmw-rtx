@@ -8,16 +8,12 @@
 - The inventory doll's mirrored scene names one texture with an empty path, which resolves to
   nothing and is drawn with the grey stand-in. The world's scene names none.
 
-- `Rtx::GuiTextures::add` clears each new texture through a submit it then waits on, so every texture
-  the interface creates — one per picture widget, per font atlas, per traced view — costs a queue
-  round trip.
-
 - `Rtx::SceneDesc::release` returns before it looks at a texture whenever the live mesh and material
   counts match the table's, so a texture that stops being named while every mesh and material
   survives — an emitter whose sprite went, an animated material that switched to another image —
   keeps its slot and its uploaded image for the rest of the session.
 
-- `VulkanRenderer::traceGuiTexture` copies the traced picture into a GUI texture without a
-  dependency on the write that put the texture in `VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`.
-  Synchronization validation reports `SYNC-HAZARD-WRITE-AFTER-WRITE` on `vkCmdCopyImage` for every
-  traced view — the harness loads the layers without it, so the suite is green.
+- `Rtx::Image::read`'s documentation says it "leaves the image in
+  `VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL` rather than putting it back" and that a caller wanting it
+  back must transition it again. The implementation transitions it back to the layout it was handed,
+  and says so in a comment beside the barrier that does it.
