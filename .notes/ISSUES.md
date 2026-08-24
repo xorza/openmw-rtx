@@ -1,8 +1,5 @@
 # Open issues
 
-- A freed texture slot keeps the image that was in it until something takes the slot over, so a
-  region walked away from goes on costing its texture memory until an equal number arrive.
-
 - A cell arriving rebuilds every bottom-level acceleration structure, not only the ones that
   arrived — 47 ms a crossing on the streaming route. The geometry they were built from lives in one
   device buffer sized to the scene, and appending to it moves it; every structure holds a device

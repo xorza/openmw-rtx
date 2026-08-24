@@ -53,6 +53,16 @@ namespace RtxBridge::Testing
 
         std::uint32_t getTextureCount() const override { return mTextures; }
 
+        /// The slots the scene gave back, in the order it named them, across every call.
+        ///
+        /// **The array does not shrink**, which is what `mTextures` staying put records: a slot goes
+        /// on being where an append begins from whether or not it holds an image.
+        void dropTextures(std::span<const std::uint32_t> slots) override
+        {
+            ++mDropCalls;
+            mDropped.insert(mDropped.end(), slots.begin(), slots.end());
+        }
+
         const Rtx::SceneStats& getSceneStats() const override { return mStats; }
         void resize(std::uint32_t, std::uint32_t) override {}
         Rtx::FrameExtents getExtents() const override { return {}; }
@@ -91,6 +101,10 @@ namespace RtxBridge::Testing
 
         std::uint32_t mTextures = 0;
         bool mAppendedToWrongEnd = false;
+
+        /// Every texture slot given back, across every call, in the order it was named.
+        std::vector<std::uint32_t> mDropped;
+        std::uint32_t mDropCalls = 0;
 
     private:
         Rtx::SceneStats mStats;

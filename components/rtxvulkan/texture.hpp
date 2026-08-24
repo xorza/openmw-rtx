@@ -73,6 +73,18 @@ namespace Rtx
         /// so no descriptor ever names an image that has been destroyed.
         void write(CommandPool& pool, std::span<const TextureData> arrived);
 
+        /// Destroys the images of `slots`, leaving the slots themselves where they are.
+        ///
+        /// **The descriptors are left naming what has gone**, which the binding's
+        /// `VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT` makes legal: a descriptor that is not
+        /// dynamically used need not be valid, and no live material names a freed slot. Writing a
+        /// stand-in over each would cost a descriptor write per slot to change nothing a shader can
+        /// observe.
+        ///
+        /// The array does not shrink even where the slots are its last: `getCount` is where an
+        /// append begins and the scene's table has not shrunk either.
+        void drop(std::span<const std::uint32_t> slots);
+
         TextureArray(const TextureArray&) = delete;
         TextureArray& operator=(const TextureArray&) = delete;
 

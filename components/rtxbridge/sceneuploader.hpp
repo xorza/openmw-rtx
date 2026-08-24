@@ -38,6 +38,13 @@ namespace RtxBridge
 
         /// How many of those could not be read and got the stand-in. See `SceneTextures`.
         std::uint32_t mUnreadable = 0;
+
+        /// How many texture slots the scene gave back, whose images the renderer was told to drop.
+        ///
+        /// **Not zero on a `Placed`**, which is the point of counting it: leaving a region is a frame
+        /// where nothing arrives, and waiting for the next arrival to give the memory back is what
+        /// made the island route settle at what it had visited.
+        std::size_t mDropped = 0;
     };
 
     /// Takes, once a frame, the cheapest of the three ways to hand a mirrored scene over.

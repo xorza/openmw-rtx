@@ -371,6 +371,20 @@ namespace Rtx
         describe(arrived);
     }
 
+    void TextureArray::drop(std::span<const std::uint32_t> slots)
+    {
+        for (const std::uint32_t slot : slots)
+        {
+            // A slot this array never held: a scene can add a texture and sweep it in the same
+            // window, before anything was handed over to upload it.
+            if (slot >= mTextures.size())
+                continue;
+
+            // Assigned rather than erased, so the image is destroyed and the slot stays where it is.
+            mTextures[slot] = Texture();
+        }
+    }
+
     void TextureArray::describe(std::span<const TextureData> arrived)
     {
         if (arrived.empty())

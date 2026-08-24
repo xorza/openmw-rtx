@@ -449,6 +449,23 @@ each.
 `SceneUploader`. Small, self-contained, and it is the proof that A1's lists are right. Measure the
 island route's texture bytes at the same seven crossings the 685-texture figure came from.
 
+   **Done. The island route ends at 9.6 MiB against 10.7**, `openmw-rtxtool bench --suite=streaming`,
+   same 685 slots and still no rebuilds. The descriptors are left naming what has gone and the
+   validation layers do not object, which is what `VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT` was
+   already there for.
+
+   **The settling point falls by less than this section implied, and the reason is worth keeping.**
+   What the drop reclaims is the slots that are free *at that moment*, not everything the departed
+   cells held: on a route that keeps moving the next ring takes the slots over within a crossing or
+   two, so most of a departure's memory was going to be reused rather than held. The saving is
+   therefore the transient, and it is larger the longer a region stays gone — which is the standing
+   player and the interior, not the flight across the island. The bench reports the end of the route
+   only; per-crossing texture bytes would need an instrument that does not exist yet.
+
+   `SceneUpload::mDropped` counts it, and it is **not zero on a `Placed`**: leaving a region is a
+   frame where nothing arrives, and that branch returned before it did anything besides place. It now
+   drops and clears there too, which is where a future step 7d's mesh departures belong as well.
+
 **6 — A5, sound identity, and the traced views with it.** `osg::ref_ptr` keys in `SceneExtractor`,
 then `TracedView::rebuildSubject` becomes an incremental re-walk. Verify with the existing
 `components-tests --gtest_filter=*SceneExtractor*` plus a case that frees a drawable and allocates

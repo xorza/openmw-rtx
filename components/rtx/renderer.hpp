@@ -333,6 +333,21 @@ namespace Rtx
         /// How many textures the renderer holds, which is where `extendScene`'s `arrived` begins.
         virtual std::uint32_t getTextureCount() const = 0;
 
+        /// Destroys the images of the texture slots a scene has given up.
+        ///
+        /// **What stops a region walked away from going on costing its texture memory.** A slot's
+        /// image otherwise lives until something takes the slot over, so a route that keeps moving
+        /// settles at what it has visited rather than at what is around it.
+        ///
+        /// The slots keep their place and the array does not shrink, because the scene's own table
+        /// does not either: `getTextureCount` still says where an append begins. A backend may leave
+        /// the descriptors naming what has gone — no live material names a freed slot, so nothing
+        /// indexes one.
+        ///
+        /// The order against `extendScene`'s arrivals is free: `SceneDesc` keeps the two lists
+        /// disjoint, so no slot is ever in both.
+        virtual void dropTextures(std::span<const std::uint32_t> slots) = 0;
+
         /// The same scene, with its instances and lights somewhere else and its actors in a new pose.
         ///
         /// **What a frame does when the world has moved.** `setScene` rebuilds everything: the

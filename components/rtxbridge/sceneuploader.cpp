@@ -1,5 +1,7 @@
 #include "sceneuploader.hpp"
 
+#include <span>
+
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtx/wavespectrum.hpp>
@@ -8,6 +10,19 @@
 
 namespace RtxBridge
 {
+    namespace
+    {
+        /// Hands over the texture slots the scene has given up, and says how many there were.
+        std::size_t dropFreed(Rtx::Renderer& renderer, const Rtx::SceneDesc& scene)
+        {
+            const std::span<const Rtx::Index> freed = scene.getFreedTextures();
+            if (!freed.empty())
+                renderer.dropTextures(freed);
+
+            return freed.size();
+        }
+    }
+
     bool SceneUploader::recognises(
         const Rtx::Renderer& renderer, const Rtx::SceneDesc& scene, std::uint32_t textures) const
     {
@@ -32,8 +47,19 @@ namespace RtxBridge
 
         if (!arrived)
         {
+            // **A departure with nothing arriving is the ordinary way to leave a region**, and it is
+            // the frame that must not wait for an arrival to give the memory back: walking away from
+            // a ring frees its slots and nothing takes them over until the walk reaches the far side
+            // of the next one.
+            SceneUpload left;
+            left.mDropped = dropFreed(renderer, scene);
+
+            // Both lists are consumed here, so both are forgotten here. When the departures of
+            // `getFreedMeshes` grow a consumer it belongs beside the drop above, before this.
+            scene.clearArrivals();
+
             renderer.placeScene(scene, sea);
-            return SceneUpload{};
+            return left;
         }
 
         // Held only across the call: `TextureData` carries spans into this, and both `extendScene`
@@ -57,6 +83,10 @@ namespace RtxBridge
         }
         else
         {
+            // Order against the arrivals is free — `SceneDesc` keeps the two lists disjoint — and
+            // first is where the memory is given back soonest. A reset needs none of this: the array
+            // is made again from nothing and holds no image of what went.
+            done.mDropped = dropFreed(renderer, scene);
             renderer.extendScene(scene, textures.getDescriptions(), sea);
             done.mKind = SceneUpload::Kind::Extended;
         }

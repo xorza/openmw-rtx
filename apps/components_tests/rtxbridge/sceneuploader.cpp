@@ -25,6 +25,7 @@ namespace RtxBridge
         {
             Rtx::Index mMesh = 0;
             Rtx::Index mMaterial = 0;
+            Rtx::Index mTexture = 0;
             Rtx::Index mSlot = 0;
         };
 
@@ -44,8 +45,10 @@ namespace RtxBridge
             Model made;
             made.mMesh = scene.addMesh(positions, normals, uvs, indices);
 
+            made.mTexture = scene.addTexture(texture);
+
             Rtx::Material material;
-            material.mDiffuse = scene.addTexture(texture);
+            material.mDiffuse = made.mTexture;
             made.mMaterial = scene.addMaterial(material);
             made.mSlot = scene.addInstance(Rtx::MeshInstance{ .mMesh = made.mMesh, .mMaterial = made.mMaterial });
 
@@ -103,26 +106,56 @@ namespace RtxBridge
             const Rtx::Index keptMaterials[2] = { second.mMaterial, third.mMaterial };
             ASSERT_TRUE(scene.release(keptMeshes, keptMaterials, {}));
 
-            EXPECT_EQ(uploader.hand(renderer, scene, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Placed)
-                << "a cell leaving cost a build";
+            const SceneUpload left = uploader.hand(renderer, scene, images, Rtx::SeaState{});
+            EXPECT_EQ(left.mKind, SceneUpload::Kind::Placed) << "a cell leaving cost a build";
             EXPECT_EQ(renderer.mRebuilt, 1u);
             EXPECT_EQ(renderer.mExtended, 1u);
             EXPECT_EQ(renderer.mTextures, 3u);
 
+            // **And its texture is given back on that same frame.** Nothing arrived, so this is the
+            // branch that used to do only the placing — and waiting for an arrival to hand the memory
+            // over is a whole grid of cells on a route that keeps moving.
+            EXPECT_EQ(left.mDropped, std::size_t{ 1 });
+            EXPECT_EQ(renderer.mDropped, (std::vector<std::uint32_t>{ first.mTexture }));
+            EXPECT_EQ(renderer.mTextures, 3u) << "the array shrank, so an append would begin in the wrong place";
+
+            // Named once and then forgotten, which is what the arrivals being cleared on this branch
+            // buys: a slot dropped every frame until something took it over would be a drop per
+            // frame for as long as the region was gone.
+            EXPECT_EQ(uploader.hand(renderer, scene, images, Rtx::SeaState{}).mDropped, std::size_t{ 0 });
+            EXPECT_EQ(renderer.mDropped.size(), std::size_t{ 1 });
+
             // **And replacing the scene outright is what a rebuild is for.** Travel, not a boundary:
             // `clear` starts every index again, so everything built from one has to be built again.
             scene.clear();
-            addModel(scene, VFS::Path::NormalizedView("textures/four.dds"));
+            const Model fourth = addModel(scene, VFS::Path::NormalizedView("textures/four.dds"));
 
             const SceneUpload travelled = uploader.hand(renderer, scene, images, Rtx::SeaState{});
             EXPECT_EQ(travelled.mKind, SceneUpload::Kind::Rebuilt);
             EXPECT_EQ(travelled.mDescribed, std::size_t{ 1 });
             EXPECT_EQ(renderer.mRebuilt, 2u);
             EXPECT_EQ(renderer.mTextures, 1u);
+            EXPECT_EQ(travelled.mDropped, std::size_t{ 0 }) << "a scene made again has no image of what went";
 
             // And back to the ordinary frame, so the rebuild above left the uploader agreeing with
             // the scene rather than one revision behind it.
             EXPECT_EQ(uploader.hand(renderer, scene, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Placed);
+
+            // **A crossing, which is the two at once**: one ring arrives as another goes, on one
+            // frame. Both lists are applied and neither costs a rebuild.
+            const Model fifth = addModel(scene, VFS::Path::NormalizedView("textures/five.dds"));
+            scene.dropInstance(fourth.mSlot);
+
+            const Rtx::Index stillHere[1] = { fifth.mMesh };
+            const Rtx::Index stillWorn[1] = { fifth.mMaterial };
+            ASSERT_TRUE(scene.release(stillHere, stillWorn, {}));
+
+            const SceneUpload crossed = uploader.hand(renderer, scene, images, Rtx::SeaState{});
+            EXPECT_EQ(crossed.mKind, SceneUpload::Kind::Extended);
+            EXPECT_EQ(crossed.mDescribed, std::size_t{ 1 }) << "the arrival, and not the one that went";
+            EXPECT_EQ(crossed.mDropped, std::size_t{ 1 });
+            EXPECT_EQ(renderer.mDropped.back(), fourth.mTexture);
+            EXPECT_FALSE(renderer.mAppendedToWrongEnd);
         }
 
         /// Two uploaders over one scene do not share a decision, which is what makes one per renderer

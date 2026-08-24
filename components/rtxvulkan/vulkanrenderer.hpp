@@ -61,6 +61,7 @@ namespace Rtx
         void setScene(const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea) override;
         void extendScene(const SceneDesc& scene, std::span<const TextureData> arrived, const SeaState& sea) override;
         std::uint32_t getTextureCount() const override;
+        void dropTextures(std::span<const std::uint32_t> slots) override;
         void placeScene(const SceneDesc& scene, const SeaState& sea) override;
         const SceneStats& getSceneStats() const override { return mStats; }
         void resize(std::uint32_t width, std::uint32_t height) override;

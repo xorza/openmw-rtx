@@ -341,6 +341,16 @@ namespace Rtx
         return mTextures == nullptr ? 0 : mTextures->getCount();
     }
 
+    void VulkanRenderer::dropTextures(std::span<const std::uint32_t> slots)
+    {
+        // Before there is an array at all, which is a scene that swept before it was ever handed
+        // over. There is nothing holding the images to destroy.
+        if (mTextures == nullptr)
+            return;
+
+        mTextures->drop(slots);
+    }
+
     void VulkanRenderer::placeScene(const SceneDesc& scene, const SeaState& sea)
     {
         assert(mAcceleration != nullptr && "placeScene before setScene");
