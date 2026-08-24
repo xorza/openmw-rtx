@@ -9,11 +9,11 @@
 
 #include <components/rtx/renderer.hpp>
 
+#include "commands.hpp"
 #include "hostbuffer.hpp"
 
 namespace Rtx
 {
-    class CommandPool;
     class Device;
     class Image;
 
@@ -26,6 +26,12 @@ namespace Rtx
     ///
     /// **A slot a texture gave back is taken over before the table grows**, so a session of opening
     /// and closing menus does not walk the table upwards forever.
+    ///
+    /// **Nothing here submits on its own.** Making a texture and writing one are recorded into a
+    /// batch and submitted together, because a submit is a round trip to the queue and the interface
+    /// makes a texture per picture widget, per font atlas and per traced view. What decides when
+    /// that happens is the reader: every accessor below flushes first, so the work is done by the
+    /// time anything can observe it and there is no ordering rule for a caller to remember.
     class GuiTextures
     {
     public:
@@ -43,30 +49,60 @@ namespace Rtx
         /// `rgba` is the region's own rows and not slices of a wider image, which is what lets the
         /// staging buffer hold the region rather than the surface. The rectangle must lie inside the
         /// texture, which is a contract and so an assert.
+        ///
+        /// The bytes are copied into the staging buffer here and the copy is recorded; neither has
+        /// reached the texture when this returns, so `rgba` need not outlive the call.
         void write(std::uint32_t slot, const Renderer::GuiRegion& region, std::span<const std::uint8_t> rgba);
 
         void drop(std::uint32_t slot);
 
         /// What the pass samples, or null where nothing holds that slot.
-        VkImageView getView(std::uint32_t slot) const;
+        VkImageView getView(std::uint32_t slot);
 
         /// The image itself, for a caller that draws into it rather than handing over pixels, or
         /// null where nothing holds that slot. Kept in `VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`,
         /// which is where anything that borrows it has to put it back.
-        const Image* getImage(std::uint32_t slot) const;
+        const Image* getImage(std::uint32_t slot);
 
         /// The whole texture in main memory, four bytes a pixel. Costs a transfer off the device.
-        void read(std::uint32_t slot, std::vector<std::uint8_t>& pixels) const;
+        void read(std::uint32_t slot, std::vector<std::uint8_t>& pixels);
 
     private:
+        /// Submits what has been recorded and waits for it, then takes back the staging and lets go
+        /// of the textures that were given back while it was pending.
+        ///
+        /// Costs nothing where nothing is pending, which is what lets every accessor call it.
+        void flush();
+
+        /// Copies `rgba` into the staging buffer and says where it landed.
+        ///
+        /// **A run at a time out of one buffer**, so several writes can share a submit: a single
+        /// buffer rewritten from the start would have the second write overwrite the first's bytes
+        /// before either copy had run.
+        VkDeviceSize stage(std::span<const std::uint8_t> rgba);
+
         const Device& mDevice;
         CommandPool& mPool;
 
         std::vector<std::unique_ptr<Image>> mImages;
         std::vector<std::uint32_t> mFree;
 
-        /// Grown to the largest texture written so far and reused after that: a video frame arrives
-        /// through here once a frame and must not allocate to do it.
+        /// Grown to the largest single region ever written and reused after that: a video frame
+        /// arrives through here whole once a frame and must not allocate to do it.
+        ///
+        /// **Sized to a region rather than to a frame's worth of them.** A frame that writes more
+        /// than this holds flushes partway through and carries on, which costs a submit and bounds
+        /// what the staging can grow to; sizing it to the largest frame instead would hold a load's
+        /// worth of textures in host-visible video memory for the rest of the session.
         HostBuffer mStaging;
+        VkDeviceSize mStagingUsed = 0;
+
+        /// Textures given back, held until the batch that names them has been submitted.
+        std::vector<std::unique_ptr<Image>> mRetired;
+
+        /// Last, so that it is destroyed first: its own destructor flushes, and what it has
+        /// recorded names images, retired images and staging that must still exist when that
+        /// happens.
+        Batch mBatch;
     };
 }

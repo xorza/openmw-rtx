@@ -11,3 +11,13 @@
 - `Rtx::GuiTextures::add` clears each new texture through a submit it then waits on, so every texture
   the interface creates — one per picture widget, per font atlas, per traced view — costs a queue
   round trip.
+
+- `Rtx::SceneDesc::release` returns before it looks at a texture whenever the live mesh and material
+  counts match the table's, so a texture that stops being named while every mesh and material
+  survives — an emitter whose sprite went, an animated material that switched to another image —
+  keeps its slot and its uploaded image for the rest of the session.
+
+- `VulkanRenderer::traceGuiTexture` copies the traced picture into a GUI texture without a
+  dependency on the write that put the texture in `VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`.
+  Synchronization validation reports `SYNC-HAZARD-WRITE-AFTER-WRITE` on `vkCmdCopyImage` for every
+  traced view — the harness loads the layers without it, so the suite is green.

@@ -170,6 +170,10 @@ namespace Rtx
         ///
         /// Read back rather than drawn: what is under test is which texels the copy landed on, and a
         /// linear sampler over a four-texel texture blends every one of them into its neighbours.
+        ///
+        /// **Also what says the two writes happen in the order they were asked for.** Nothing reads
+        /// the texture between them, so they share a submit — and copies into one image are
+        /// unordered within a submit unless something orders them.
         TEST_F(RtxGuiDrawTest, aRegionWriteChangesItsRectangleAndNothingElse)
         {
             constexpr std::uint32_t side = 4;
@@ -223,6 +227,10 @@ namespace Rtx
         }
 
         /// A texture the table has just handed out is blank rather than whatever the memory held.
+        ///
+        /// **Which is a statement about when the clear runs, not only that it is asked for.** Making
+        /// a texture records a clear and submits nothing; this is what says it has run by the time a
+        /// draw can name the slot.
         TEST_F(RtxGuiDrawTest, aTextureIsBlankBeforeItIsWritten)
         {
             const std::uint32_t texture = mRenderer->addGuiTexture(1, 1);
@@ -235,6 +243,79 @@ namespace Rtx
             drawQuad(texture, -1.0f, 1.0f, 1.0f, -1.0f, packColour(255, 255, 255, 255));
 
             EXPECT_EQ(at(4, 4), (std::array<std::uint8_t, 4>{ 0, 0, 255, 255 }));
+        }
+
+        /// Textures made and written before anything reads one each come back holding their own.
+        ///
+        /// **What the staging buffer is really being asked.** The writes share a submit, so they
+        /// share the buffer they are copied out of, a run apiece; three sizes rather than three of
+        /// one because a run handed out at the wrong offset only shows where the lengths differ.
+        /// Between them they are more than one buffer's worth, so at least one write has to submit
+        /// what is pending and start the buffer again — and what was already recorded must still
+        /// land.
+        TEST_F(RtxGuiDrawTest, texturesWrittenBeforeAnyIsReadEachHoldTheirOwn)
+        {
+            struct Written
+            {
+                std::uint32_t mSide;
+                std::array<std::uint8_t, 4> mColour;
+                std::uint32_t mSlot = 0;
+            };
+
+            // A megabyte, a kilobyte and four bytes: the largest is what the staging settles at, and
+            // the two after it borrow a corner of what that left.
+            std::array<Written, 3> written{
+                Written{ .mSide = 512, .mColour = { 255, 0, 0, 255 } },
+                Written{ .mSide = 16, .mColour = { 0, 255, 0, 255 } },
+                Written{ .mSide = 1, .mColour = { 0, 0, 255, 255 } },
+            };
+
+            std::vector<std::uint8_t> rows;
+            for (Written& one : written)
+            {
+                one.mSlot = mRenderer->addGuiTexture(one.mSide, one.mSide);
+                mHeld.push_back(one.mSlot);
+
+                rows.clear();
+                rows.reserve(std::size_t{ one.mSide } * one.mSide * 4);
+                for (std::uint32_t texel = 0; texel < one.mSide * one.mSide; ++texel)
+                    rows.insert(rows.end(), one.mColour.begin(), one.mColour.end());
+
+                mRenderer->writeGuiTexture(one.mSlot, Renderer::GuiRegion{ 0, 0, one.mSide, one.mSide }, rows);
+            }
+
+            // The corners, because a run that overlapped its neighbour's is wrong at an edge before
+            // it is wrong in the middle.
+            for (const Written& one : written)
+            {
+                EXPECT_EQ(inTexture(one.mSlot, one.mSide, 0, 0), one.mColour) << "first texel of " << one.mSide;
+                EXPECT_EQ(inTexture(one.mSlot, one.mSide, one.mSide - 1, one.mSide - 1), one.mColour)
+                    << "last texel of " << one.mSide;
+            }
+        }
+
+        /// A texture given back while a write to it is still pending is let go without complaint.
+        ///
+        /// **The assertion is the validation sweep in `TearDown`.** Nothing has been submitted when
+        /// the slot is dropped, so the image being destroyed is one a recorded command still names —
+        /// which is a use after free unless what was recorded is submitted first.
+        TEST_F(RtxGuiDrawTest, aTextureDroppedWithAWritePendingIsLetGoCleanly)
+        {
+            const std::uint32_t texture = mRenderer->addGuiTexture(2, 2);
+
+            std::array<std::uint8_t, 2 * 2 * 4> red{};
+            for (std::size_t at = 0; at < red.size(); at += 4)
+            {
+                red[at] = 255;
+                red[at + 3] = 255;
+            }
+            mRenderer->writeGuiTexture(texture, Renderer::GuiRegion{ 0, 0, 2, 2 }, red);
+
+            mRenderer->dropGuiTexture(texture);
+
+            const std::uint32_t again = mRenderer->addGuiTexture(2, 2);
+            EXPECT_EQ(again, texture) << "the freed slot, not a new one";
+            mRenderer->dropGuiTexture(again);
         }
 
         /// The GUI over a frame that was actually traced, which is the first time the two halves of
