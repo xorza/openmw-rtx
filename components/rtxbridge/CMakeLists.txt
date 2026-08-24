@@ -16,6 +16,8 @@ set(RTXBRIDGE_FILES
     sceneextractor.hpp
     sceneuploader.cpp
     sceneuploader.hpp
+    terrainresidency.cpp
+    terrainresidency.hpp
     texturebuilder.cpp
     texturebuilder.hpp
     waterbuilder.cpp

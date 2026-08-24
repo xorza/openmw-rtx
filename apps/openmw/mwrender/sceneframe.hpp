@@ -11,6 +11,11 @@ namespace osg
     class Node;
 }
 
+namespace RtxBridge
+{
+    class Residency;
+}
+
 namespace Resource
 {
     class ImageManager;
@@ -144,6 +149,14 @@ namespace MWRender
 
         /// Where a texture the mirror has not seen before is read from.
         Resource::ImageManager& mImages;
+
+        /// Geometry the graph does not parent, for a renderer that walks rather than culls.
+        ///
+        /// **`Terrain::QuadTreeWorld` resolves its chunks inside a cull and parents them to
+        /// nothing**, so with `distant terrain` on the ground, the paged objects and the grass are
+        /// invisible to any visitor that is not a cull. Asked rather than walked; null where the
+        /// terrain parents its chunks like anything else, which is every other world.
+        RtxBridge::Residency* mResident = nullptr;
     };
 }
 

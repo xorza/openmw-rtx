@@ -10,7 +10,6 @@ a finished piece is only what the next one needs to know.
 | issue | root |
 |---|---|
 | the doll's scene names a texture with an empty path | **A** — probably expected now; wants a look |
-| distant terrain is invisible to the mirror | **B** |
 | `Inactive`/`SemiActive` skeletons refuse to move | **B** — closed, bar a test |
 | the rasterizer's cull and the mirror both pose | **B** — stale; a real hazard stands where it did |
 | `OSGTexture` allocates twice a frame and uploads whole | **C** — left as upstream has it |
@@ -83,40 +82,32 @@ uploader is asserted to place rather than rebuild, but nobody has watched one.
 
 `plan.md` §12 named three things the mirror inherits from cull. Posing was taken. The rest:
 
-### B1. Distant terrain, object paging and groundcover are invisible
+### What B1 came to
 
-`Terrain::RootNode::accept` forwards to `Terrain::QuadTreeWorld::accept`, whose first two lines return
-for any visitor that is not a cull or an intersection visitor. `MirrorTraversal` is neither, and the
-chunks that would have been its children are never children of anything: they are entries in a
-`ViewData` keyed on a camera, resolved inside that call and accepted straight into the visitor that
-asked. `ObjectPaging` and `Groundcover` hang off the same quad tree, so with `distant terrain` on the
-mirror sees no ground, no paged objects and no grass.
+`Terrain::World::collect(view, viewPoint, visitor)` is the residency, and it is **not a traversal**:
+nothing is rejected and no frustum is consulted, because a ray tracer decides what exists. It does
+nothing in the base class, which is the right answer for `TerrainGrid` — its chunks are children of
+its own root and would be reached twice if it answered as well. `QuadTreeWorld` overrides it, sharing
+the chunk loop with its own `accept` through a private `handOver` so that **`accept`'s behaviour is
+unchanged by construction**: the only edit to it is the loop moving out.
 
-**The mirror must not become a cull visitor to fix this.** `Terrain::TerrainDrawable::cull` puts the
-chunk in a render bin and never applies it, so a cull walk over the whole graph makes the ground
-vanish rather than appear — and it would pick LOD from an eye point such a walk has no business
-having.
+`collect` respects the same two things a walk would: a root `enable(false)` has detached, and the
+node mask. Without the first, an exterior's ground goes on being handed over while the player stands
+in a cave — which is what six interiors reported before it was added.
 
-So the fix is on the terrain side: **`Terrain::World` grows a residency API that is not a traversal.**
+`RtxBridge::Residency` is how the mirror asks, and `SceneExtractor::extract` takes one so the chunks
+are dated, counted and swept inside the same walk as the graph. `RtxBridge::TerrainResidency` holds
+the one `Terrain::View` the mirror owns, driven from the eye.
 
-```cpp
-/// Every chunk this world holds for `view`, at the detail `viewPoint` asks for, handed to `visitor`.
-///
-/// **Not a cull.** LOD is chosen by distance from `viewPoint` and nothing is rejected: a ray tracer
-/// decides what exists and the answer is everything within the view distance.
-virtual void collect(View& view, const osg::Vec3f& viewPoint, osg::NodeVisitor& visitor);
-```
+**The harness can page its terrain now, which is the only reason any of this is checkable headlessly.**
+`openmw-rtxtool --distant-terrain` builds `QuadTreeWorld` where it used to build only `TerrainGrid`.
+At `seyda-neen-shore` the ground is a quarter of what the frame hits — 7.02% of primary rays against
+5.20% with the residency suppressed — and `RtxPagedTerrainTest` is that same control as a test.
 
-`QuadTreeWorld` implements it as the body of its own `accept` with the camera lookup replaced by the
-caller's `View`, the water-culling callback dropped, and the rendering node accepted for every visitor
-type. `TerrainGrid` — which the harness uses — implements it by traversing itself, which is what it
-does today. The mirror holds a `View` of its own, driven from the player's position rather than a
-camera's, so the LOD a reflection sees is the LOD the primary ray sees and the harness and the game
-reach terrain through one call instead of two that can disagree.
-
-**Scope note.** This touches `components/terrain`, which the rasterizer also uses. Adding a virtual
-that `QuadTreeWorld::accept` is then written in terms of leaves its behaviour bit-identical, and that
-is the bar.
+**A trap worth keeping.** A paged world chooses its detail from the view point at the moment of the
+walk, and the harness's first walk happens before the camera is placed. Anchored on the origin, Seyda
+Neen's ground was resolved from seventy thousand units away and came back as the coarsest chunks in
+the tree. It is seeded from the requested camera, or from the middle of the centre cell.
 
 ### B2. Two traversal sequences feed one "have I posed this frame" counter
 
@@ -226,13 +217,11 @@ correct behaviour, and a window nobody has opened.
 **The region write is in.** See root C: the world map sends a cell instead of the overlay, and the
 one entry left under C is the rasterizer's own, left alone on purpose.
 
-**1 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
-with `distant terrain` on and comparing a frame; verify the mirror by turning `distant terrain` on and
-taking a shot of an exterior with ground in it.
+**Terrain residency is in.** See root B. What is left of B is insurance rather than repair.
 
-**2 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
+**1 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
 
-**3 — I.** Ten minutes.
+**2 — I.** Ten minutes.
 
 ## What this does not touch
 

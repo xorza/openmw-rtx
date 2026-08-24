@@ -505,7 +505,7 @@ namespace MWRender::Rtx
 
         const RtxBridge::ExtractionStats found
             // One walk over the whole graph, where every path is already distinct.
-            = mExtractor->extract(frame.mScene, osg::Matrixf::identity(), 0, mFrame);
+            = mExtractor->extract(frame.mScene, osg::Matrixf::identity(), 0, mFrame, frame.mResident);
 
         // **Traced or not, the frame is presented.** A walk that placed nothing and an eye with no
         // roll are both reasons to leave the target holding whatever it last held; neither is a

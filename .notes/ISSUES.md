@@ -8,11 +8,6 @@
   worth animating, and `SceneUtil::Skeleton` then refuses to move its bones however it is asked. The
   mirror poses everyone it reaches, but not past that flag.
 
-- With `distant terrain` on, the in-game mirror sees no ground and no paged objects.
-  `Terrain::RootNode::accept` forwards to `Terrain::QuadTreeWorld::accept`, which returns
-  immediately for any visitor that is not a cull or an intersection visitor, and the chunks it
-  would have produced are never children of anything the mirror walks.
-
 - `MyGUIPlatform::OSGTexture` allocates an `osg::Image` on every `lock` and an `osg::Texture2D` on
   every `unlock`, and uploads the whole texture either way. A picture written once a frame — the
   video widget — therefore allocates twice a frame and re-sends every pixel of the frame. It does not

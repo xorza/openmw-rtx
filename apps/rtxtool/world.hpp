@@ -3,9 +3,12 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 #include <osg/Matrixf>
+#include <osg/Vec3f>
+#include <osg/Vec4i>
 
 #include <components/esm/refid.hpp>
 #include <components/esm3/readerscache.hpp>
@@ -14,6 +17,8 @@
 #include <components/toutf8/toutf8.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
+
+#include <components/rtxbridge/terrainresidency.hpp>
 
 #include "terrainstorage.hpp"
 
@@ -36,7 +41,7 @@ namespace Resource
 
 namespace Terrain
 {
-    class TerrainGrid;
+    class World;
 }
 
 namespace osg
@@ -140,6 +145,19 @@ namespace RtxTool
         /// count after bound exactly the ones it caused.
         osg::Group* getTerrainRoot() const { return mTerrainParent.get(); }
 
+        /// Whether the terrain is paged the way the game pages it with `distant terrain` on.
+        ///
+        /// **What makes this worth an option at all**: `Terrain::QuadTreeWorld` keeps its chunks out
+        /// of the scene graph, so it is the one terrain a mirror cannot find by walking — and the
+        /// harness building only `Terrain::TerrainGrid` meant nothing here could see that.
+        void pageTerrain(bool paged) { mPagedTerrain = paged; }
+
+        /// The terrain's chunks where the graph does not parent them, or null where it does.
+        RtxBridge::Residency* getTerrainResidency() { return mResident.get(); }
+
+        /// Where a paged world chooses its detail from. Ignored where nothing pages.
+        void setTerrainViewPoint(const osg::Vec3f& where);
+
         Resource::SceneManager& getSceneManager();
 
         Resource::ImageManager& getImageManager();
@@ -193,6 +211,14 @@ namespace RtxTool
         std::unique_ptr<TerrainStorage> mTerrainStorage;
         osg::ref_ptr<osg::Group> mTerrainParent;
         osg::ref_ptr<osg::Group> mCompileRoot;
-        std::unique_ptr<Terrain::TerrainGrid> mTerrain;
+        std::unique_ptr<Terrain::World> mTerrain;
+        bool mPagedTerrain = false;
+
+        /// Non-null only for a paged world, which is the only one that hides its chunks.
+        std::unique_ptr<RtxBridge::TerrainResidency> mResident;
+
+        /// The square of cells the paged world is told to hold, grown as cells are loaded. A grid
+        /// nothing has been put in yet holds no ground at all.
+        std::optional<osg::Vec4i> mActiveGrid;
     };
 }

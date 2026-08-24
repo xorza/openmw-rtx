@@ -341,8 +341,8 @@ namespace RtxBridge
         stamp.setReferenceTime(seconds);
     }
 
-    ExtractionStats SceneExtractor::extract(
-        const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame)
+    ExtractionStats SceneExtractor::extract(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,
+        std::size_t frame, Residency* resident)
     {
         ExtractionStats stats;
         mAnchor = anchor;
@@ -354,6 +354,12 @@ namespace RtxBridge
         // state-set controller it finds, which is what makes an actor behind the camera posed and a
         // fire lit; OSG's visitor API is non-const regardless, so the cast happens once, here.
         const_cast<osg::Node&>(node).accept(*mWalk);
+
+        // **Inside the same walk, not beside it.** The chunks a quad tree keeps out of the graph are
+        // part of the same frame as everything else — the same epoch, the same stats, the same
+        // sweep — and a second `begin` would date them apart from it.
+        if (resident != nullptr)
+            resident->collect(*mWalk);
 
         return stats;
     }

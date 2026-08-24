@@ -3,6 +3,7 @@
 #include <span>
 #include <string>
 
+#include <components/esm/util.hpp>
 #include <components/esm3/loadcell.hpp>
 
 #include "cellscene.hpp"
@@ -32,6 +33,16 @@ namespace RtxTool
         if (cell.isExterior())
             mStanding = CellSquare{ .mX = cell.getGridX(), .mY = cell.getGridY() };
 
+        // **Before the first walk, because a paged world resolves its chunks during one.** The
+        // camera below is placed from the scene's own bounds and the scene does not exist yet, so
+        // the detail is anchored on where the run was told to stand — or, where it was told nothing,
+        // on the middle of the cell it is centred on. Anchoring it on the origin instead put Seyda
+        // Neen's ground seventy thousand units away from the eye that asked for it, and the coarsest
+        // chunks in the tree are what came back.
+        const float cellSize = static_cast<float>(ESM::getCellSize(ESM::Cell::sDefaultWorldspaceId));
+        const osg::Vec3f middle((cell.getGridX() + 0.5f) * cellSize, (cell.getGridY() + 0.5f) * cellSize, 0.0f);
+        mWorld->setTerrainViewPoint(request.mOrigin.value_or(middle));
+
         // The first walk. Everything after this is the same walk again, once a frame.
         mStaged = mirror(0);
 
@@ -59,11 +70,19 @@ namespace RtxTool
 
     RtxBridge::ExtractionStats StagedWorld::mirror(std::size_t frame)
     {
-        return mExtractor.extract(*mRoot, osg::Matrixf::identity(), 0, frame);
+        // **The residency is asked inside the same walk**, so the chunks a paged world keeps out of
+        // the graph are dated, counted and swept with everything the graph does hold. Null where
+        // nothing pages, which is every run that did not ask for it.
+        return mExtractor.extract(*mRoot, osg::Matrixf::identity(), 0, frame, mWorld->getTerrainResidency());
     }
 
     Crossing StagedWorld::moveTo(const osg::Vec3f& where)
     {
+        // **Every frame and not only on a crossing**, because the detail a paged world builds at is
+        // a distance from the eye rather than a property of the cell: a camera flying across one
+        // cell changes what the chunks under it should be without changing which cell it is in.
+        mWorld->setTerrainViewPoint(where);
+
         if (!mStanding.has_value())
             return {};
 

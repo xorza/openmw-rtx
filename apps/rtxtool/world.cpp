@@ -27,6 +27,7 @@
 #include <components/sceneutil/shadow.hpp>
 #include <components/settings/values.hpp>
 #include <components/shader/shadermanager.hpp>
+#include <components/terrain/quadtreeworld.hpp>
 #include <components/terrain/terraingrid.hpp>
 #include <components/vfs/registerarchives.hpp>
 
@@ -167,7 +168,16 @@ namespace RtxTool
     osg::ref_ptr<osg::Group> World::buildTerrain(const ESM::Cell& cell)
     {
         if (!cell.isExterior())
+        {
+            // **Turned off rather than left standing.** A run that staged an exterior first still
+            // holds the world that has ground in it, and a paged world reached through `collect`
+            // does not stop answering merely because nothing added it to this cell's graph. This is
+            // what the game does when the player goes inside.
+            if (mTerrain != nullptr)
+                mTerrain->enable(false);
+
             return nullptr;
+        }
 
         if (mTerrain == nullptr)
         {
@@ -179,12 +189,52 @@ namespace RtxTool
             // instead, which is what a ray tracer wants anyway.
             mCompileRoot = new osg::Group;
 
-            mTerrain = std::make_unique<Terrain::TerrainGrid>(mTerrainParent, mCompileRoot, mResourceSystem.get(),
-                mTerrainStorage.get(), ~0u, ESM::Cell::sDefaultWorldspaceId, sExpiryDelay);
+            if (mPagedTerrain)
+            {
+                // **The same world the game builds with `distant terrain` on**, and the reason this
+                // is an option at all: `QuadTreeWorld` keeps its chunks out of the scene graph, so
+                // it is the one terrain a mirror cannot find by walking. The numbers below are the
+                // settings' own defaults, because what is under test is the paging and not a
+                // tuning of it.
+                auto paged
+                    = std::make_unique<Terrain::QuadTreeWorld>(mTerrainParent, mCompileRoot, mResourceSystem.get(),
+                        mTerrainStorage.get(), ~0u, ~0u, ~0u, Settings::terrain().mCompositeMapResolution,
+                        static_cast<float>(std::pow(2, Settings::terrain().mCompositeMapLevel.get())),
+                        Settings::terrain().mLodFactor, Settings::terrain().mVertexLodMod,
+                        Settings::terrain().mMaxCompositeGeometrySize, false, ESM::Cell::sDefaultWorldspaceId,
+                        sExpiryDelay);
+
+                mResident = std::make_unique<RtxBridge::TerrainResidency>();
+                mResident->follow(paged.get());
+                mTerrain = std::move(paged);
+            }
+            else
+                mTerrain = std::make_unique<Terrain::TerrainGrid>(mTerrainParent, mCompileRoot, mResourceSystem.get(),
+                    mTerrainStorage.get(), ~0u, ESM::Cell::sDefaultWorldspaceId, sExpiryDelay);
+
+            // Far enough that nothing near the camera is dropped for distance: rays go everywhere,
+            // and what the harness is looking at is whether the ground is there at all.
+            mTerrain->setViewDistance(Settings::camera().mViewingDistance);
         }
+
+        // **A grid and not a cell, for the paged world.** It holds what the grid names and nothing
+        // else, so a cell arriving widens the square rather than being loaded into it.
+        const osg::Vec4i square(cell.getGridX(), cell.getGridY(), cell.getGridX() + 1, cell.getGridY() + 1);
+        mActiveGrid = mActiveGrid.has_value()
+            ? osg::Vec4i(std::min(mActiveGrid->x(), square.x()), std::min(mActiveGrid->y(), square.y()),
+                std::max(mActiveGrid->z(), square.z()), std::max(mActiveGrid->w(), square.w()))
+            : square;
+        mTerrain->setActiveGrid(*mActiveGrid);
+        mTerrain->enable(true);
 
         mTerrain->loadCell(cell.getGridX(), cell.getGridY());
         return mTerrainParent;
+    }
+
+    void World::setTerrainViewPoint(const osg::Vec3f& where)
+    {
+        if (mResident != nullptr)
+            mResident->setViewPoint(where);
     }
 
     void World::unloadTerrain(int x, int y)

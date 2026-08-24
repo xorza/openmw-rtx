@@ -141,6 +141,7 @@ if (OPENMW_RTX)
         rtxtool/framing.cpp
         rtxtool/installation.cpp
         rtxtool/material.cpp
+        rtxtool/pagedterrain.cpp
         rtxtool/perfcontrol.cpp
         rtxtool/props.cpp
         rtxtool/retire.cpp

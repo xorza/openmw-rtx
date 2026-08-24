@@ -119,6 +119,26 @@ namespace RtxBridge
 
     class MirrorTraversal;
 
+    /// Geometry a walk of the scene graph cannot reach, offered to the walk that asks for it.
+    ///
+    /// **`Terrain::QuadTreeWorld` is the reason this exists.** With `distant terrain` on it resolves
+    /// its chunks inside a cull, against a view keyed on the camera culling, and parents them to
+    /// nothing — so the ground, the paged objects and the grass are invisible to any visitor that is
+    /// not a cull, which is every visitor a ray tracer has. It cannot be made a cull either: a cull
+    /// puts a chunk in a render bin instead of applying it, so walking the graph that way makes the
+    /// ground vanish rather than appear.
+    ///
+    /// So it is asked instead of walked, and this is the shape of the question. Implemented on the
+    /// game's side, because `openmw-rtx-bridge` knows nothing about terrain.
+    class Residency
+    {
+    public:
+        virtual ~Residency() = default;
+
+        /// Hands `visitor` everything held that the graph does not parent.
+        virtual void collect(osg::NodeVisitor& visitor) = 0;
+    };
+
     /// Hashes and compares an owning key by the address it holds.
     ///
     /// **What lets an identity map hold its subject alive without paying for that on a lookup.** A
@@ -221,8 +241,12 @@ namespace RtxBridge
         /// @param frame which of a `SceneUtil::LightSource`'s two buffers to read. The game passes
         ///        the viewer's frame number, which is the one update has just finished writing;
         ///        anything with no `LightManager` in its graph can leave it.
-        ExtractionStats extract(
-            const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame = 0);
+        /// @param resident geometry the graph does not parent, walked with the same visitor after
+        ///        the graph and inside the same walk — so what it places is counted, dated and swept
+        ///        with everything else. Null where there is none, which is every caller but the
+        ///        game's.
+        ExtractionStats extract(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,
+            std::size_t frame = 0, Residency* resident = nullptr);
 
         /// Ends a frame: what was placed becomes what was placed before.
         ///
