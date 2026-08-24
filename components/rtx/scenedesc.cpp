@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cassert>
 
+#include "error.hpp"
+
 namespace Rtx
 {
     namespace
@@ -38,6 +40,11 @@ namespace Rtx
         assert(indices.size() % 3 == 0);
         assert(std::all_of(indices.begin(), indices.end(), [&](std::uint32_t i) { return i < positions.size(); }));
 
+        if (positions.size() > sVertexBlock || indices.size() > sIndexBlock)
+            throw Error("a mesh of " + std::to_string(positions.size()) + " vertices and "
+                + std::to_string(indices.size()) + " indices is past the " + std::to_string(sVertexBlock) + " and "
+                + std::to_string(sIndexBlock) + " one block of the shared buffers holds");
+
         ++mStructureRevision;
         ++mMeshRevision;
 
@@ -49,6 +56,10 @@ namespace Rtx
         // it rather than in a buffer that had to be resized twice. The attribute buffers stay
         // parallel to the position buffer whether or not the mesh brought the attribute, so a shader
         // can index all of them with one vertex id.
+        //
+        // **As long as the allocator reaches and no longer.** The blocks decide where a run may go,
+        // not how much room is held: rounding this up to a whole block would leave the tail of the
+        // last one uploaded to the device as well, which is megabytes of nothing per scene.
         if (mPositions.size() < mVertexRuns.getEnd())
         {
             mPositions.resize(mVertexRuns.getEnd());

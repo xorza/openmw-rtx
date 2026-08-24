@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <components/rtx/error.hpp>
 #include <components/rtx/scenedesc.hpp>
 
 namespace Rtx
@@ -623,6 +624,71 @@ namespace Rtx
             EXPECT_EQ(sorted(scene.getFreedMeshes()), (std::vector<Index>{ mesh })) << "a slot went twice";
 
             EXPECT_EQ(scene.getTextures().size(), 1u) << "a sprite's texture is on no material and must not go";
+        }
+
+        /// A mesh's vertices never straddle a block, and the tail one skipped is handed out again.
+        ///
+        /// **What lets the device hold a list of buffers rather than one.** A buffer that is a single
+        /// allocation moves when it grows, and every bottom-level acceleration structure holds a
+        /// device address into it; blocked, each block is allocated once and never moves. The rule
+        /// that buys that is the one asserted here — a run lies inside one block or it is not placed
+        /// there — and the price is the tail, which must go back into circulation or a scene would
+        /// leak most of a block per boundary crossed.
+        ///
+        /// Hand-computed against a block of 262,144. Two hundred thousand vertices leave 62,144 of
+        /// the first block; a hundred thousand cannot fit in that, so it starts the second and the
+        /// tail stays behind; sixty thousand then fits the tail and takes it at 200,000.
+        TEST(RtxSceneDescTest, aMeshNeverStraddlesABlockAndTheTailItSkippedIsReused)
+        {
+            ASSERT_EQ(SceneDesc::sVertexBlock, 262144u) << "the arithmetic below is written against this";
+
+            // One buffer, sliced. A block is a quarter of a million vertices and three separate
+            // copies of that is memory this test has no use for.
+            const std::vector<osg::Vec3f> room(SceneDesc::sVertexBlock);
+            const std::array<std::uint32_t, 3> triangle{ 0, 1, 2 };
+
+            const auto vertices = [&](std::size_t count) { return std::span(room).first(count); };
+
+            SceneDesc scene;
+            const Index first = scene.addMesh(vertices(200000), {}, {}, triangle);
+            EXPECT_EQ(scene.getMeshes()[first].mVertexOffset, 0u);
+
+            const Index second = scene.addMesh(vertices(100000), {}, {}, triangle);
+            EXPECT_EQ(scene.getMeshes()[second].mVertexOffset, SceneDesc::sVertexBlock)
+                << "a run was laid across a block boundary";
+            EXPECT_EQ(scene.getPositions().size(), std::size_t{ 362144 });
+
+            // And the 62,144 the second one stepped over is a hole like any other.
+            const Index third = scene.addMesh(vertices(60000), {}, {}, triangle);
+            EXPECT_EQ(scene.getMeshes()[third].mVertexOffset, 200000u) << "the tail of a block was not reused";
+            EXPECT_EQ(scene.getPositions().size(), std::size_t{ 362144 }) << "a mesh that fitted the tail appended";
+
+            // None of the three crosses a boundary, which is the property rather than the three
+            // offsets that happen to demonstrate it.
+            for (const Index mesh : { first, second, third })
+            {
+                const MeshRange& range = scene.getMeshes()[mesh];
+                EXPECT_EQ(range.mVertexOffset / SceneDesc::sVertexBlock,
+                    (range.mVertexOffset + range.mVertexCount - 1) / SceneDesc::sVertexBlock)
+                    << "mesh " << mesh << " straddles a block";
+            }
+        }
+
+        /// A mesh longer than a block is refused by name rather than written across two of them.
+        ///
+        /// **Not an assert, because a vertex count comes out of a content file.** A run that
+        /// straddled a block would be written across two device allocations that are not next to
+        /// each other, which is not a wrong picture but a wild write.
+        TEST(RtxSceneDescTest, aMeshLongerThanABlockIsRefusedByName)
+        {
+            const std::vector<osg::Vec3f> tooMany(SceneDesc::sVertexBlock + 1);
+            const std::array<std::uint32_t, 3> triangle{ 0, 1, 2 };
+
+            SceneDesc scene;
+            EXPECT_THROW(scene.addMesh(tooMany, {}, {}, triangle), Error);
+
+            // And exactly a block is not too many, so the refusal is a boundary and not a ban.
+            EXPECT_NO_THROW(scene.addMesh(std::span(tooMany).first(SceneDesc::sVertexBlock), {}, {}, triangle));
         }
 
         TEST(RtxSceneDescTest, clearingEmptiesEveryTable)

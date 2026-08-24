@@ -504,10 +504,35 @@ drag in the window, which is what the frame time was.
    a. `SpanAllocator` with a block size in `SceneDesc`, with the host vectors growing a block at a
       time. Nothing on the device changes; the existing tests should pass unaltered, and a new one
       asserts a run never straddles a block and that a block's tail is reused.
+
+      **Done, and the host vectors do not grow a block at a time.** Rounding them up to a whole
+      block was tried and dropped: `getPositions()` is what the backend uploads, so the tail of the
+      last block would be megabytes of nothing sent to the device every scene, and `resize` already
+      grows geometrically so there was no reallocation to save. The blocks govern *where a run may
+      go* and nothing else — which is what made the existing tests pass unaltered, as this said they
+      should. 256 Ki vertices and 1 Mi indices a block; a mesh longer than one is **thrown on by
+      name rather than asserted**, because a vertex count comes out of a content file and a run
+      across two blocks is a wild write rather than a wrong picture. Nothing in Morrowind comes near
+      it: the whole suite, an island crossing and a Balmora `shot` all pass without it firing.
    b. `SceneAcceleration`'s position and index buffers become block lists, and everything that reads
       a vertex or an index by global id is taught the arithmetic. Still a full rebuild per arrival;
       the picture must be pixel-identical, which `openmw-rtxtool shot` over the views in
       `files/rtx/views.cfg` is exactly the instrument for.
+
+      **Scoped, not started.** The two halves are not equally hard and the split is worth knowing
+      before beginning. **Positions need no shader change at all**: they are a build input and the
+      target of the per-frame host write for deformed meshes, and the hit shader reads a triangle's
+      vertices back out of the structure through
+      `VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_BIT_KHR` rather than out of a buffer. So
+      blocking them is arithmetic inside `SceneAcceleration` and nothing else.
+
+      **Indices, normals and texture coordinates are the coupled half.** `visibility.comp` binds all
+      three as single storage buffers at set 0 bindings 3, 4 and 5 and indexes them by global id, so
+      blocking them changes the shader, the descriptor layout and `VisibilityPass`'s writes together.
+      The clean route is buffer device address — the device already hands them out, the shader
+      already uses `scalar` layout, and one buffer of `uint64_t` block addresses replaces the three
+      bindings with `block[id / blockSize].at[id % blockSize]`. Landing it half-way leaves a renderer
+      whose picture cannot be checked, so it wants to go in as one piece.
    c. Bottom-level storage becomes a block list with per-mesh create and destroy.
    d. `extendScene` builds `getArrivedMeshes` and destroys `getFreedMeshes` instead of rebuilding.
 

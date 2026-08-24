@@ -283,11 +283,34 @@ namespace Rtx
     class SceneDesc
     {
     public:
+        /// How many vertices one block of the position, normal and texture-coordinate buffers holds.
+        ///
+        /// **What lets a device buffer be appended to instead of made again.** A buffer that is one
+        /// allocation moves when it grows, and every bottom-level acceleration structure in the world
+        /// holds a device address into it — so a cell arriving rebuilt all of them. Blocked, the
+        /// buffer is a list of allocations made once and never moved: growing costs one more block
+        /// and nothing already placed shifts.
+        ///
+        /// **Bounded below by the largest run one mesh can ask for**, because a run may not straddle
+        /// a block. A terrain chunk at full detail is a 65×65 grid and Morrowind's models are far
+        /// smaller, so this leaves four orders of magnitude of headroom; what it costs is the tail of
+        /// a block too short for the next run, which `SpanAllocator` hands out again like any other
+        /// hole. Three megabytes of positions a block.
+        static constexpr Index sVertexBlock = 256 * 1024;
+
+        /// The same for the index buffer, which wants its own number: a triangle soup has three
+        /// indices a vertex and a terrain chunk closer to six.
+        static constexpr Index sIndexBlock = 1024 * 1024;
+
         /// Copies the vertex data into the shared buffers and returns the new mesh's index.
         ///
         /// `normals` and `texCoords` may be empty; when they are not they must match `positions` in
         /// length, and `indices` must be a whole number of triangles addressing only those vertices.
         /// All three are contracts on the caller, so they are asserted rather than reported.
+        ///
+        /// Throws where the mesh is longer than a block. **Named rather than asserted**, because a
+        /// vertex count comes out of a content file and a run that straddled a block would be
+        /// written across two device allocations that are not next to each other.
         Index addMesh(std::span<const osg::Vec3f> positions, std::span<const osg::Vec3f> normals,
             std::span<const osg::Vec2f> texCoords, std::span<const std::uint32_t> indices);
 
@@ -595,8 +618,8 @@ namespace Rtx
         ///
         /// One for the vertices because the position, normal and texture-coordinate buffers are
         /// parallel and a vertex id indexes all three.
-        SpanAllocator mVertexRuns;
-        SpanAllocator mIndexRuns;
+        SpanAllocator mVertexRuns{ sVertexBlock };
+        SpanAllocator mIndexRuns{ sIndexBlock };
         SpanAllocator mLayerRuns;
         SpanAllocator mMaskRuns;
 
