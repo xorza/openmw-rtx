@@ -398,8 +398,7 @@ namespace RtxBridge
     {
         /// Drops every entry not stamped with `epoch`, and collects what is left.
         ///
-        /// The survivors go out unsorted and, for the emitter textures, with repeats — several
-        /// candles share one sprite. `Rtx::SceneDesc::retain` takes them that way.
+        /// The survivors go out unsorted. `Rtx::SceneDesc::release` takes them that way.
         template <class Map>
         std::uint32_t sweep(Map& known, std::uint64_t epoch, std::vector<Rtx::Index>& live)
         {
@@ -469,7 +468,16 @@ namespace RtxBridge
             }
         }
 
-        sweep(mEmitterTextures, mEpoch, mLiveTextures);
+        // The sprite's own reference goes back with the emitter that took it, which is what makes
+        // an emitter leaving enough to free its texture — a frame where no mesh and no material
+        // died is exactly the frame the sweep below returns from without looking.
+        std::erase_if(mEmitterTextures, [this](const auto& entry) {
+            if (entry.second.mEpoch == mEpoch)
+                return false;
+
+            mScene.dropTexture(entry.second.mIndex);
+            return true;
+        });
 
         // What `animate` keeps. Swept with everything else because it is keyed on a node the graph
         // can drop, and because a state set held past its node holds the textures in it alive too.
@@ -486,7 +494,7 @@ namespace RtxBridge
         // of nineteen crossings on a route across Vvardenfell were full rebuilds. A slot that is
         // freed keeps its index and its room, and the next arrival that fits takes it over. Nothing
         // downstream is told anything, because for it nothing moved (`.notes/rtx/plan.md` §10).
-        mScene.release(mLiveMeshes, mLiveMaterials, mLiveTextures);
+        mScene.release(mLiveMeshes, mLiveMaterials);
 
         // **After the sweep and not before it**, so that the walk which fills the next epoch is the
         // one this is measured against. Every entry that survived is still carrying the old stamp
@@ -791,7 +799,14 @@ namespace RtxBridge
         // sprite's texture is on no material, and an emitter is not in the scene between frames.
         auto [known, arrived] = mEmitterTextures.try_emplace(&particles);
         if (arrived)
+        {
             known->second.mIndex = mScene.addTexture(VFS::Path::Normalized(sprite->getFileName()));
+
+            // **Held, because nothing else can name it.** An emitter is a placement and is thrown
+            // away every frame, so this entry is the only lasting thing that says the sprite is in
+            // use; the scene frees the slot when the sweep below lets go of it.
+            mScene.holdTexture(known->second.mIndex);
+        }
 
         known->second.mEpoch = mEpoch;
         const Rtx::Index texture = known->second.mIndex;

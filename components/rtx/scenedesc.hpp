@@ -355,7 +355,26 @@ namespace Rtx
         void addLight(const Light& light);
 
         /// Returns the index of `path`, adding it only if it is not already known.
+        ///
+        /// **The slot is live from here**, before anything names it, and stays live until the last
+        /// thing that named it lets go. A caller that adds a texture and then puts it on no material
+        /// and takes no hold of it keeps that slot for the rest of the scene, which is a caller
+        /// asking for a texture it did not want.
         Index addTexture(VFS::Path::NormalizedView path);
+
+        /// Names a texture for something no material can speak for, and stops.
+        ///
+        /// **A particle emitter's sprite, and nothing else so far.** An emitter is a placement — it
+        /// is thrown away and rebuilt every frame — so the texture it draws with hangs off no
+        /// material and no table the scene owns; whatever recognises the emitter between frames is
+        /// what has to hold it. The alternative was a keep set handed over on every sweep, which
+        /// could only be looked at on the frames a mesh or a material also died.
+        ///
+        /// `sNoIndex` is allowed and does nothing, so a caller need not test what it got.
+        void holdTexture(Index texture);
+
+        /// Gives back one `holdTexture`. The slot is freed here where nothing else names it.
+        void dropTexture(Index texture);
 
         /// Places `instance` in a slot and returns it.
         ///
@@ -392,31 +411,32 @@ namespace Rtx
         /// an emitter with no live particles, which is most of them for most of a frame.
         void addEmitter(std::span<const Sprite> sprites, Index texture, bool additive);
 
-        /// Drops everything not named and closes the gaps, reporting where the survivors went.
+        /// Drops every mesh and material the caller did not name.
         ///
-        /// Frees every mesh, material and texture the caller did not name.
-        ///
-        /// **The only way a scene loses anything, and nothing is renumbered by it.** A freed entry
+        /// **The only way a scene loses geometry, and nothing is renumbered by it.** A freed entry
         /// keeps its index and its room; the index goes on a free list and the next arrival that
         /// fits takes the slot. Compacting instead — closing the gaps and renaming what pointed into
         /// them — is what made a cell boundary cost a full rebuild: every bottom-level acceleration
         /// structure in the world is named by a mesh index, and every material a hit reads is named
         /// by another. `.notes/rtx/plan.md` §10 has the argument.
         ///
-        /// A texture survives if it is named here, or if a surviving material or layer still names
-        /// it. Layers and masks have no keep set of their own: they belong to the material that owns
-        /// them, and a freed material leaks its run until the scene is replaced outright.
+        /// **Textures are not swept here and are not named here.** A material freed below gives back
+        /// what it named on its way out, which is the same thing `setMaterial` does when a shading
+        /// animation stops naming an image and the same thing `dropTexture` does for an emitter's
+        /// sprite. Sweeping them instead meant asking on the frames a mesh or a material happened to
+        /// die as well, and a texture that stopped being named on any other frame was never noticed.
+        ///
+        /// Layers and masks have no keep set either: they belong to the material that owns them, and
+        /// a freed material leaks its run until the scene is replaced outright.
         ///
         /// **Placements do not go**, and they no longer have to be carried anywhere either: a slot
         /// is a name, and what it names has stopped moving.
         ///
         /// @param meshes every mesh to keep, each once, in any order.
         /// @param materials the same for materials.
-        /// @param textures textures to keep whatever else names them — a particle emitter's sprite
-        ///        is on no material, so nothing else would speak for it.
-        /// @return whether anything was freed. False is the ordinary frame, and it costs three
+        /// @return whether anything was freed. False is the ordinary frame, and it costs two
         ///         comparisons: a scene that lost nothing has as many survivors as it had entries.
-        bool release(std::span<const Index> meshes, std::span<const Index> materials, std::span<const Index> textures);
+        bool release(std::span<const Index> meshes, std::span<const Index> materials);
 
         /// Empties every table while keeping the capacity, so rebuilding a scene does not go back to
         /// the allocator for buffers it already had.
@@ -626,6 +646,21 @@ namespace Rtx
         /// Records `slot` as having arrived or gone, in the lists for its table.
         void noteMesh(Index slot, SlotNews what);
         void noteTexture(Index slot, SlotNews what);
+
+        /// Takes and gives back the textures a material names — its three roles and every layer's.
+        ///
+        /// Only ever called in that pair, and `setMaterial` is why the order between them matters.
+        void holdMaterialTextures(const Material& material);
+        void dropMaterialTextures(const Material& material);
+
+        /// How many things name each texture, parallel to `mTextures`.
+        ///
+        /// **The materials and the holds, and nothing else counts.** A slot reaches zero exactly
+        /// when the last of them lets go, which is where its path is emptied and its index goes on
+        /// the free list — so `mTextures[slot].empty()` and this being zero say the same thing,
+        /// except in the window between `addTexture` and whatever is about to name what it returned.
+        /// The path is what a reader should ask, because that window is real.
+        std::vector<std::uint32_t> mTextureRefs;
 
         /// **Disjoint, and each slot named once**, which is what lets a backend apply the two lists
         /// in either order. A slot the sweep gave up and a later walk took back is an arrival and

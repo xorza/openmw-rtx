@@ -147,7 +147,7 @@ namespace RtxBridge
             const std::array<Rtx::Index, 1> keptMaterials{ staying.mMaterial };
 
             // The staying model's own material speaks for its texture, so nothing has to be listed.
-            ASSERT_TRUE(scene.release(keptMeshes, keptMaterials, {}));
+            ASSERT_TRUE(scene.release(keptMeshes, keptMaterials));
             ASSERT_FALSE(scene.getTextures()[staying.mTexture].empty());
             ASSERT_TRUE(scene.getTextures()[going.mTexture].empty());
 

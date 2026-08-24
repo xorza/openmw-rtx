@@ -318,8 +318,11 @@ what removes it.
    freed and taken over again inside one window, which stops being a theoretical path.
 4. `release` keeps its early-out, which is what it was measured for, and no longer has a texture
    sweep to skip.
-5. §3's free slot becomes "no reference" rather than "empty path" — the same statement, made where it
-   is decided instead of inferred from a side effect of it.
+5. §3's free slot stays "empty path", and the count is what empties it. **They are not the same
+   statement**, which is the one thing the design got wrong on paper: `addTexture` hands back a slot
+   before anything names it, so there is a window — the rest of one `readMaterial` — where the count
+   is zero and the slot is emphatically not free. The path is written the moment the slot exists and
+   cleared the moment the last name goes, so it is the test a reader should ask.
 
 **The order in step 1 is the trap.** Decrement first and an animated material rewritten with a
 texture it already had frees the slot and takes it again — a slot that changed identity under every
@@ -335,8 +338,17 @@ them. Each of these fails today:
 - A texture two materials name survives one of them going, and goes with the second.
 - A material rewritten with the texture it already had keeps it, at the same slot.
 
-To measure when it lands: the texture table's length and the array's bytes after a long walk across
-the island, against what they are today.
+**Measured, and it is zero.** `bench --frames 1200` — twenty seconds of world at each of the two
+places — holds at 375 textures and 6.5 MiB outside Balmora and 237 and 2.8 MiB in the Mages Guild,
+which is what it held before.
+
+That is the honest answer rather than a disappointing one, and it says what the hole actually was.
+Both cases the sweep could not see need something to stop being named while its cell stays: an
+emitter that ends, or a material that switches image rather than texture matrix. Balmora's animated
+surfaces are `NifOsg::UVController` scrolls, which rewrite `mTextureTransform` and name the same
+image throughout, and its candles burn for as long as you stand there. What the fix removes is a
+class of leak the tests can now show and these two viewpoints cannot; a session long enough to
+measure it is not a bench.
 
 ## 6. The borrow belongs to `GuiTextures`
 

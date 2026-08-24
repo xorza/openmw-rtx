@@ -112,9 +112,8 @@ namespace RtxBridge
     {
         std::uint32_t mMeshes = 0;
         std::uint32_t mMaterials = 0;
-        std::uint32_t mTextures = 0;
 
-        bool empty() const { return mMeshes == 0 && mMaterials == 0 && mTextures == 0; }
+        bool empty() const { return mMeshes == 0 && mMaterials == 0; }
     };
 
     class MirrorTraversal;
@@ -443,9 +442,9 @@ namespace RtxBridge
 
         /// Which texture each particle system draws with.
         ///
-        /// **Cached for its liveness rather than for its speed**, though it saves a path hash per
-        /// emitter per frame as well: a sprite's texture hangs off no material, so this map is the
-        /// only thing that can speak for it when the scene is swept.
+        /// **This entry is the reference**, and not a note about one: a sprite's texture hangs off
+        /// no material, so the scene is told to hold it when the emitter is first met and to let go
+        /// when the sweep loses it. It saves a path hash per emitter per frame as well.
         Identity<const osg::Drawable> mEmitterTextures;
 
         /// A node's controllers and the state set they write into, kept so the address is the same
@@ -498,7 +497,6 @@ namespace RtxBridge
         // Refilled per sweep: the survivors, as the scene wants them.
         std::vector<Rtx::Index> mLiveMeshes;
         std::vector<Rtx::Index> mLiveMaterials;
-        std::vector<Rtx::Index> mLiveTextures;
 
         // Refilled per drawable rather than reallocated, because a cell is tens of thousands of them.
         std::vector<std::uint32_t> mIndexScratch;

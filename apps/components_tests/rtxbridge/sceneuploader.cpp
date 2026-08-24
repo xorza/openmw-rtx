@@ -104,7 +104,7 @@ namespace RtxBridge
 
             const Rtx::Index keptMeshes[2] = { second.mMesh, third.mMesh };
             const Rtx::Index keptMaterials[2] = { second.mMaterial, third.mMaterial };
-            ASSERT_TRUE(scene.release(keptMeshes, keptMaterials, {}));
+            ASSERT_TRUE(scene.release(keptMeshes, keptMaterials));
 
             const SceneUpload left = uploader.hand(renderer, Rtx::sWorld, scene, images, Rtx::SeaState{});
             EXPECT_EQ(left.mKind, SceneUpload::Kind::Placed) << "a cell leaving cost a build";
@@ -149,7 +149,7 @@ namespace RtxBridge
 
             const Rtx::Index stillHere[1] = { fifth.mMesh };
             const Rtx::Index stillWorn[1] = { fifth.mMaterial };
-            ASSERT_TRUE(scene.release(stillHere, stillWorn, {}));
+            ASSERT_TRUE(scene.release(stillHere, stillWorn));
 
             const SceneUpload crossed = uploader.hand(renderer, Rtx::sWorld, scene, images, Rtx::SeaState{});
             EXPECT_EQ(crossed.mKind, SceneUpload::Kind::Extended);

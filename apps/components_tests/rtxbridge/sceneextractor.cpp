@@ -1102,7 +1102,7 @@ namespace RtxBridge
         }
 
         /// A material and the texture behind it go when the last thing wearing them does.
-        TEST(RtxSceneExtractorTest, aSweepTakesTheMaterialsNothingWearsAndLeavesTheirTextures)
+        TEST(RtxSceneExtractorTest, aSweepTakesTheMaterialsNothingWearsAndTheTexturesTheyNamed)
         {
             osg::ref_ptr<osg::Geometry> stone = makeQuad();
             paint(*stone->getOrCreateStateSet(), "textures/tx_stone_01.dds");
@@ -1132,11 +1132,12 @@ namespace RtxBridge
             EXPECT_EQ(scene.getMaterials().size(), 1u);
             EXPECT_EQ(scene.getMaterials()[0].mDiffuse, Rtx::sNoIndex);
 
-            // **The texture stays, and that is deliberate.** It lives in a bindless array a material
+            // **The slot stays, and that is deliberate.** It lives in a bindless array a material
             // indexes by position, so reclaiming one renumbers the rest and the array is built again
-            // — a fifth of a second, against nothing saved but a texture's bytes.
-            EXPECT_EQ(went.mTextures, 0u);
+            // — a fifth of a second, against nothing saved but a texture's bytes. What goes is what
+            // was in it: the material that named it was the last thing naming it.
             EXPECT_EQ(scene.getTextures().size(), 1u);
+            EXPECT_TRUE(scene.getTextures()[0].value().empty()) << "a texture nothing names was kept";
         }
 
         /// A particle system under a transform that carries its texture and its blend, the way
@@ -1331,11 +1332,15 @@ namespace RtxBridge
 
             const Retirement went = extractor.retire();
 
-            // Nothing is reclaimed from the table — it is append-only — so what this asserts is that
-            // the sprite's texture is still *findable*, which is the thing the emitter map exists
-            // for: a sprite hangs off no material, so nothing else could speak for it.
-            EXPECT_EQ(went.mTextures, 0u);
+            EXPECT_EQ(went.mMeshes, 1u) << "the stone the second walk did not meet";
+            EXPECT_EQ(went.mMaterials, 1u);
+
+            // No slot is reclaimed from the table — nothing is renumbered — so what this asserts is
+            // that the sprite's texture is still *named*, which is the thing the emitter map exists
+            // for: a sprite hangs off no material, so nothing else holds it. The stone's went with
+            // the stone's material, which is the other half of the same statement.
             ASSERT_EQ(scene.getTextures().size(), 2u);
+            EXPECT_TRUE(scene.getTextures()[0].value().empty()) << "the stone's texture outlived the stone";
             EXPECT_EQ(scene.getTextures()[1], VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
 
             // And the emitter still draws with it.
@@ -1345,6 +1350,21 @@ namespace RtxBridge
             ASSERT_EQ(scene.getEmitters().size(), 1u);
             EXPECT_EQ(scene.getEmitters().front().mTexture, 1u) << "the sprite lost the slot it was given";
             EXPECT_EQ(scene.getTextures().size(), 2u) << "the sprite's path was added a second time";
+
+            // **And the other way round, on the frame the sweep does not look at.** The stone comes
+            // back and then the emitter goes, taking no mesh and no material with it — which is
+            // exactly the frame `SceneDesc::release` answers with two comparisons and returns from.
+            // The sprite's slot has to be given back by whatever was holding it.
+            scene.clearPlacement();
+            extractor.extract(*both, osg::Matrixf::identity(), 0);
+            ASSERT_TRUE(extractor.retire().empty());
+            ASSERT_EQ(scene.getTextures()[0], VFS::Path::NormalizedView("textures/tx_stone_01.dds"));
+
+            scene.clearPlacement();
+            extractor.extract(*stone, osg::Matrixf::identity(), 0);
+
+            EXPECT_TRUE(extractor.retire().empty()) << "an emitter is neither a mesh nor a material";
+            EXPECT_TRUE(scene.getTextures()[1].value().empty()) << "the sprite outlived the emitter";
         }
 
         /// A drawable that describes nothing inherits the nearest description above it.

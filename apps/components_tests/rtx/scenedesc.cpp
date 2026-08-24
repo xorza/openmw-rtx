@@ -288,7 +288,7 @@ namespace Rtx
             const std::uint64_t was = scene.getStructureRevision();
             const std::array keep{ first, last };
             const std::array<Index, 0> noMaterials{};
-            ASSERT_TRUE(scene.release(keep, noMaterials, {}));
+            ASSERT_TRUE(scene.release(keep, noMaterials));
 
             // Nothing moved, nothing shrank, and every index still means what it meant.
             EXPECT_EQ(scene.getMeshes().size(), 3u);
@@ -357,7 +357,7 @@ namespace Rtx
 
             // The slot comes back and is taken over. The table is the same size it was, and what is
             // in it is not.
-            ASSERT_TRUE(scene.release({}, {}, {}));
+            ASSERT_TRUE(scene.release({}, {}));
             EXPECT_EQ(scene.getMeshRevision(), meshes) << "a cell leaving asked for the structures to be built again";
 
             EXPECT_EQ(scene.addMesh(sTrianglePositions, {}, {}, sTriangleIndices), slot);
@@ -402,7 +402,7 @@ namespace Rtx
             ASSERT_EQ(scene.getMeshes()[kept].mVertexOffset, 12u);
 
             const std::array keep{ kept };
-            ASSERT_TRUE(scene.release(keep, {}, {}));
+            ASSERT_TRUE(scene.release(keep, {}));
 
             // Exactly the two that went, once each. Sorted, because which way a sweep walks its
             // table is not something a backend should have to know.
@@ -448,7 +448,7 @@ namespace Rtx
             const Index slot = scene.addMesh(sQuadPositions, normals, uvs, sQuadIndices);
             ASSERT_EQ(scene.getNormals()[scene.getMeshes()[slot].mVertexOffset], osg::Vec3f(1.0f, 0.0f, 0.0f));
 
-            ASSERT_TRUE(scene.release({}, {}, {}));
+            ASSERT_TRUE(scene.release({}, {}));
             EXPECT_EQ(scene.addMesh(sQuadPositions, {}, {}, sQuadIndices), slot);
 
             EXPECT_EQ(scene.getNormals()[scene.getMeshes()[slot].mVertexOffset], osg::Vec3f())
@@ -498,7 +498,7 @@ namespace Rtx
 
             const std::array<Index, 0> noMeshes{};
             const std::array materials{ plain, kept };
-            ASSERT_TRUE(scene.release(noMeshes, materials, {}));
+            ASSERT_TRUE(scene.release(noMeshes, materials));
 
             // One texture went with the material that wore it, and it stopped being an arrival.
             EXPECT_EQ(sorted(scene.getFreedTextures()), (std::vector<Index>{ ground }));
@@ -581,7 +581,7 @@ namespace Rtx
             const std::array meshes{ mesh };
             const std::array materials{ kept };
 
-            ASSERT_TRUE(scene.release(meshes, materials, {}));
+            ASSERT_TRUE(scene.release(meshes, materials));
             EXPECT_EQ(scene.getStructureRevision(), structure) << "a sweep of one material asked for a rebuild";
             EXPECT_GT(scene.getShadingRevision(), settled);
 
@@ -590,7 +590,7 @@ namespace Rtx
             // that is freed in place invalidates nothing, so the frame after a cell leaves costs the
             // top level and nothing else.
             const std::uint64_t before = scene.getStructureRevision();
-            ASSERT_TRUE(scene.release({}, materials, {}));
+            ASSERT_TRUE(scene.release({}, materials));
             EXPECT_EQ(scene.getStructureRevision(), before) << "a cell leaving asked for a rebuild";
         }
 
@@ -608,7 +608,7 @@ namespace Rtx
             const std::uint64_t was = scene.getStructureRevision();
             const std::uint64_t shading = scene.getShadingRevision();
 
-            EXPECT_FALSE(scene.release(meshes, materials, {}));
+            EXPECT_FALSE(scene.release(meshes, materials));
             EXPECT_EQ(scene.getStructureRevision(), was);
             EXPECT_EQ(scene.getShadingRevision(), shading);
             EXPECT_TRUE(scene.getFreedMeshes().empty()) << "a sweep that freed nothing named something";
@@ -617,13 +617,101 @@ namespace Rtx
             // Asked again with everything already free, which is the frame after a cell left: the
             // live count is what the keep set is compared against, not the table's size.
             const std::array<Index, 0> none{};
-            ASSERT_TRUE(scene.release(none, none, {}));
+            ASSERT_TRUE(scene.release(none, none));
             EXPECT_EQ(sorted(scene.getFreedMeshes()), (std::vector<Index>{ mesh }));
 
-            EXPECT_FALSE(scene.release(none, none, {})) << "a table with nothing left in it went again";
+            EXPECT_FALSE(scene.release(none, none)) << "a table with nothing left in it went again";
             EXPECT_EQ(sorted(scene.getFreedMeshes()), (std::vector<Index>{ mesh })) << "a slot went twice";
 
-            EXPECT_EQ(scene.getTextures().size(), 1u) << "a sprite's texture is on no material and must not go";
+            // A texture nothing has been told to name is nobody's to give back, so it stays — which
+            // is what `addTexture` says of a caller that asks for one and then puts it nowhere.
+            EXPECT_EQ(scene.getTextures().size(), 1u);
+            EXPECT_TRUE(scene.getFreedTextures().empty());
+        }
+
+        /// A texture goes with the last material that names it, and not with the first.
+        ///
+        /// **The case a sweep could only answer on some frames.** Freeing used to be a walk of the
+        /// live materials run from `release`, and `release` returns before it starts whenever the
+        /// mesh and material counts say nothing died. Counting the names instead makes the answer
+        /// the same whatever else the frame did.
+        TEST(RtxSceneDescTest, aTextureGoesWithTheLastMaterialThatNamesIt)
+        {
+            SceneDesc scene;
+            const Index mesh = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
+            const Index shared = scene.addTexture(VFS::Path::NormalizedView("textures/tx_stone.dds"));
+            const Index lone = scene.addTexture(VFS::Path::NormalizedView("textures/tx_sand.dds"));
+
+            scene.addMaterial(Material{ .mDiffuse = shared });
+            const Index second = scene.addMaterial(Material{ .mDiffuse = shared, .mNormal = lone });
+
+            const std::array meshes{ mesh };
+            const std::array keepSecond{ second };
+            ASSERT_TRUE(scene.release(meshes, keepSecond));
+
+            EXPECT_TRUE(scene.getFreedTextures().empty()) << "a texture another material still names";
+            EXPECT_EQ(scene.getTextures()[shared], VFS::Path::NormalizedView("textures/tx_stone.dds"));
+
+            const std::array<Index, 0> none{};
+            ASSERT_TRUE(scene.release(meshes, none));
+
+            EXPECT_EQ(sorted(scene.getFreedTextures()), (std::vector<Index>{ shared, lone }));
+            EXPECT_TRUE(scene.getTextures()[shared].value().empty());
+            EXPECT_TRUE(scene.getTextures()[lone].value().empty());
+        }
+
+        /// A material rewritten gives back what it stopped naming and keeps what it still names.
+        ///
+        /// **What a flipbook is**: `NifOsg` turns a fire over thirty-two times a second by rewriting
+        /// one state set, and the surface wearing it never moves. The material keeps its slot; the
+        /// image it walked away from does not.
+        TEST(RtxSceneDescTest, aMaterialRewrittenGivesBackOnlyWhatItStoppedNaming)
+        {
+            SceneDesc scene;
+            const Index first = scene.addTexture(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+            const Index second = scene.addTexture(VFS::Path::NormalizedView("textures/tx_fire_01.dds"));
+            const Index material = scene.addMaterial(Material{ .mDiffuse = first });
+
+            scene.setMaterial(material, Material{ .mDiffuse = second });
+
+            EXPECT_EQ(sorted(scene.getFreedTextures()), (std::vector<Index>{ first }));
+            EXPECT_TRUE(scene.getTextures()[first].value().empty()) << "the frame it left is still named";
+            EXPECT_EQ(scene.getTextures()[second], VFS::Path::NormalizedView("textures/tx_fire_01.dds"));
+
+            // **And round again onto a frame it already had.** Taking the new set before giving the
+            // old one back is the whole of what stops this: the other order takes the slot to zero,
+            // empties its path and hands it to the next thing that asks for one — a texture changing
+            // identity under a material that never stopped naming it.
+            scene.setMaterial(material, Material{ .mDiffuse = second, .mTwoSided = true });
+
+            EXPECT_EQ(scene.getTextures()[second], VFS::Path::NormalizedView("textures/tx_fire_01.dds"))
+                << "a texture the material still names was let go and taken again";
+            EXPECT_EQ(sorted(scene.getFreedTextures()), (std::vector<Index>{ first })) << "and reported as going";
+        }
+
+        /// A hold speaks for a texture no material can, and the slot goes when the hold does.
+        TEST(RtxSceneDescTest, aHeldTextureGoesWhenTheHoldDoesAndNotBefore)
+        {
+            SceneDesc scene;
+            const Index mesh = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
+            const Index material = scene.addMaterial(Material{});
+            const Index sprite = scene.addTexture(VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+            scene.holdTexture(sprite);
+
+            // The ordinary frame, where the sweep answers with two comparisons and returns.
+            const std::array meshes{ mesh };
+            const std::array materials{ material };
+            EXPECT_FALSE(scene.release(meshes, materials));
+            EXPECT_EQ(scene.getTextures()[sprite], VFS::Path::NormalizedView("textures/tx_fire_00.dds"));
+
+            scene.dropTexture(sprite);
+
+            EXPECT_EQ(sorted(scene.getFreedTextures()), (std::vector<Index>{ sprite }));
+            EXPECT_TRUE(scene.getTextures()[sprite].value().empty());
+
+            // And the slot is handed out again rather than the table growing.
+            EXPECT_EQ(scene.addTexture(VFS::Path::NormalizedView("textures/tx_smoke.dds")), sprite);
+            EXPECT_EQ(scene.getTextures().size(), 1u);
         }
 
         /// A mesh's vertices never straddle a block, and the tail one skipped is handed out again.

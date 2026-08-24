@@ -538,8 +538,8 @@ namespace MWRender::Rtx
         // Last, because it bumps the epoch the next walk is measured against: everything that
         // survived is still carrying the old stamp until it does.
         if (const RtxBridge::Retirement went = mExtractor->retire(); !went.empty())
-            Log(Debug::Info) << "Ray tracing dropped " << went.mMeshes << " meshes, " << went.mMaterials
-                             << " materials and " << went.mTextures << " textures the world no longer has";
+            Log(Debug::Info) << "Ray tracing dropped " << went.mMeshes << " meshes and " << went.mMaterials
+                             << " materials the world no longer has";
 
         // Only what a trace wrote, because the cap is a count of pictures and not of frames: a run
         // that spent its first sixteen at the main menu would write the same black texel sixteen
