@@ -6,6 +6,7 @@
 
 #include <osg/Image>
 
+#include <components/debug/debuglog.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/rtx/error.hpp>
 #include <components/rtx/scenedesc.hpp>
@@ -136,14 +137,22 @@ namespace RtxBridge
             // **Null and a throw are both answers here.** A path that names nothing, and a decoder
             // that will not have it, are the world's business rather than a broken contract — and
             // the entry has to exist either way, because the scene indexes into this by position.
+            //
+            // An empty path is not asked for at all: `SceneDesc::release` empties a slot the scene
+            // has given up and leaves it in the table until something takes it over, so asking the
+            // image manager for nothing would throw and be reported as a texture that could not be
+            // read.
             osg::ref_ptr<const osg::Image> image;
-            try
+            if (!path.empty())
             {
-                image = images.getImage(path);
-            }
-            catch (const std::exception&)
-            {
-                image = nullptr;
+                try
+                {
+                    image = images.getImage(path);
+                }
+                catch (const std::exception&)
+                {
+                    image = nullptr;
+                }
             }
 
             mImages.push_back(std::move(image));
@@ -177,7 +186,19 @@ namespace RtxBridge
 
             if (!described.has_value())
             {
-                ++mUnreadable;
+                // A freed slot is described as the stand-in like any other, because the table is
+                // indexed by the scene's own texture index throughout — but it is not a failure and
+                // does not name a file to complain about.
+                if (const VFS::Path::Normalized& path = scene.getTextures()[slots[at]]; !path.empty())
+                {
+                    ++mUnreadable;
+
+                    // Named rather than tallied, because a count says a texture is grey and nothing
+                    // about which one. On the frame a cell arrives, which is a load and not a frame
+                    // path.
+                    Log(Debug::Warning) << "Texture \"" << path.value() << "\" could not be read; drawing the stand-in";
+                }
+
                 described = standIn(mLevels);
             }
 

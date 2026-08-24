@@ -26,7 +26,7 @@ namespace Rtx
 
             std::set<const void*> linked;
             for (const VkBaseInStructure* next = reinterpret_cast<const VkBaseInStructure*>(&features.mFeatures2);
-                next != nullptr; next = next->pNext)
+                 next != nullptr; next = next->pNext)
                 linked.insert(next);
 
             EXPECT_EQ(linked.size(), 11u) << "a member was added to DeviceFeatures without chaining it";
@@ -49,7 +49,7 @@ namespace Rtx
 
             std::set<const void*> linked;
             for (const VkBaseInStructure* next = reinterpret_cast<const VkBaseInStructure*>(&properties.mProperties2);
-                next != nullptr; next = next->pNext)
+                 next != nullptr; next = next->pNext)
                 linked.insert(next);
 
             EXPECT_EQ(linked.size(), 7u) << "a member was added to DeviceProperties without chaining it";

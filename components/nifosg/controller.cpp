@@ -266,7 +266,7 @@ namespace NifOsg
             float input = getInputValue(nv);
             unsigned int i = 1;
             for (std::vector<FloatInterpolator>::iterator it = mKeyFrames.begin() + 1; it != mKeyFrames.end();
-                ++it, ++i)
+                 ++it, ++i)
             {
                 float val = 0;
                 if (!(*it).empty())

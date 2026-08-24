@@ -366,8 +366,7 @@ cannot be answered. Two small changes make it one again:
 ## F. The formatter
 
 `CI/check_clang_format.sh` runs whatever `clang-format` is on `PATH`; `.gitlab-ci.yml` sets
-`CLANG_FORMAT: clang-format-14` and installs it from Debian. This box has 22, and the two disagree —
-the tree is currently clean under 22 and was recorded as differing in seven files under 14.
+`CLANG_FORMAT: clang-format-14` and installs it from Debian. This box has 22, and the two disagree.
 
 The issue as logged says the two versions cannot both be satisfied, and that is true and permanent:
 clang-format's output is not stable across majors and no `.clang-format` makes it so. **A gate whose
@@ -378,11 +377,21 @@ answer depends on what happens to be installed is not a gate.** This fork does n
 - Have `CI/check_clang_format.sh` read `clang-format --version`, compare the major against a single
   constant in the script, and fail with "this tree is formatted by clang-format N; you have M" rather
   than producing a diff nobody can act on.
-- Point the CI job at the same version. `pipx run clang-format==N.*` is a pinned wheel with a real
-  binary in it and needs no distribution package, which makes the gate reproducible on any machine
-  including this one.
+- Keep CI's installed version and the constant tied together, so a bump that touches one and not the
+  other fails naming both.
 
-The alternative — reformat to 14 and pin there — costs the same work and buys an older formatter.
+**Which version, decided by sweeping the whole tree rather than the files the issue named.** Under 14
+eleven files differ, every one of them written or touched by this fork. Under 22 about a hundred and
+eighty do, almost all of them upstream's — `esm4`, `opencs`, `detournavigator`. The tree is an
+upstream tree formatted at 14 with a fork's worth of files formatted at 22 on top, so 14 is what it
+is already formatted for and 22 would mean reformatting upstream's code to gain nothing but a newer
+formatter. 14's one visible cost is that a pure-virtual whose signature wraps puts `= 0` on its own
+line; that is what upstream already lives with.
+
+Ubuntu 24.04 packages `clang-format-14`, so CI needs no new mechanism — the gate checking the major
+is what made the version reproducible, not how it is installed. Arch does not package it, and
+`pipx install 'clang-format==14.*'` is a wheel with a real binary in it, which is what the failure
+message points a developer at.
 
 ## The plan
 

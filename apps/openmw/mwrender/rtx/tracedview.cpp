@@ -51,6 +51,8 @@ namespace MWRender::Rtx
     TracedView::TracedView(const OffscreenViewSpec& spec, RtxRenderer& owner, ::Rtx::Renderer& renderer)
         : mOwner(owner)
         , mRenderer(renderer)
+        , mSubject(spec.mFromWorld ? nullptr : &spec.mScene)
+        , mSubjectMask(spec.mMask)
         , mWidth(spec.mWidth)
         , mHeight(spec.mHeight)
         , mExtentX(spec.mWidth)
@@ -60,8 +62,6 @@ namespace MWRender::Rtx
         , mSunDirection(-spec.mSunDirection)
         , mSunIrradiance(irradianceOf(spec.mSunDiffuse))
         , mAmbient(irradianceOf(spec.mSunAmbient))
-        , mSubject(spec.mFromWorld ? nullptr : &spec.mScene)
-        , mSubjectMask(spec.mMask)
         , mTransparent(spec.mClearColour.a() < 1.f)
         , mFromWorld(spec.mFromWorld)
     {

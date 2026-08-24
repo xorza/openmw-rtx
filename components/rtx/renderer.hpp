@@ -420,7 +420,8 @@ namespace Rtx
         /// there is no previous one to reconstruct it from. `camera.mTransparentBackground` is what
         /// says the picture stops where nothing was hit.
         virtual void traceGuiTexture(
-            std::uint32_t texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options) = 0;
+            std::uint32_t texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options)
+            = 0;
 
         /// A scene of its own for a picture inside the interface to be traced against.
         ///

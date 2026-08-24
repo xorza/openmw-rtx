@@ -96,6 +96,9 @@ SpacesInContainerLiterals: true
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
+# clang-format 14. The output is not stable across majors and no setting in this file makes it
+# so, so the gate pins one: CI/check_clang_format.sh refuses any other major by name. Change
+# both together, and reformat the tree in the same commit.
 Standard:        c++20
 TabWidth:        4
 UseTab:          Never

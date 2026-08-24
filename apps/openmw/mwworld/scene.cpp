@@ -1114,7 +1114,7 @@ namespace MWWorld
     {
         const VFS::Path::Normalized meshPath = useAnim
             ? Misc::ResourceHelpers::correctActorModelPath(
-                  VFS::Path::toNormalized(mesh), mRendering.getResourceSystem()->getVFS())
+                VFS::Path::toNormalized(mesh), mRendering.getResourceSystem()->getVFS())
             : VFS::Path::toNormalized(mesh);
 
         if (mRendering.getResourceSystem()->getSceneManager()->checkLoaded(meshPath, mRendering.getReferenceTime()))

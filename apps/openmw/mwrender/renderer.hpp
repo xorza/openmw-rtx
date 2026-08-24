@@ -214,7 +214,8 @@ namespace MWRender
         ///        and so nothing a renderer could have been handed one through.
         virtual std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(osg::Group& guiRoot,
             Resource::ImageManager& images, Shader::ShaderManager& shaders, const VFS::Manager& vfs,
-            float scalingFactor, VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath) = 0;
+            float scalingFactor, VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath)
+            = 0;
 
     protected:
         Renderer() = default;

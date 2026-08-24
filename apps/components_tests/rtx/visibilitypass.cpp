@@ -1998,9 +1998,9 @@ namespace Rtx
                 // at x = 50, and the pane reaches 20. Or straight at the pane, to see it at all.
                 Shaders::VisibilityConstants camera = lookAtIt
                     ? makeCamera(
-                          osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -50.0f, 0.0f), 60.0f, size, size, 10000.0f)
+                        osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -50.0f, 0.0f), 60.0f, size, size, 10000.0f)
                     : makeCamera(
-                          osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                        osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
                 camera.mSunDirection = osg::Vec3f(0.0f, 1.0f, 0.0f);
                 camera.mSunIrradiance = osg::Vec3f(2.0f, 2.0f, 2.0f);
 

@@ -243,7 +243,7 @@ namespace MWRender
 
     RaceSelectionPreview::RaceSelectionPreview(Renderer& renderer, Resource::ResourceSystem* resourceSystem)
         : CharacterPreview(
-              renderer, resourceSystem, MWMechanics::getPlayer(), 512, 512, osg::Vec3f(0, 125, 8), osg::Vec3f(0, 0, 8))
+            renderer, resourceSystem, MWMechanics::getPlayer(), 512, 512, osg::Vec3f(0, 125, 8), osg::Vec3f(0, 0, 8))
         , mBase(*mCharacter.get<ESM::NPC>()->mBase)
         , mRef(ESM::makeBlankCellRef(), &mBase)
         , mPitchRadians(osg::DegreesToRadians(6.f))

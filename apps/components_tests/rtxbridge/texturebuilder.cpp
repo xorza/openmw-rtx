@@ -1,16 +1,52 @@
+#include <array>
+#include <cstdint>
 #include <vector>
 
 #include <gtest/gtest.h>
 
 #include <osg/Image>
+#include <osg/Vec2f>
+#include <osg/Vec3f>
 
+#include <components/resource/imagemanager.hpp>
 #include <components/rtx/error.hpp>
+#include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/texturebuilder.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace RtxBridge
 {
     namespace
     {
+        /// A mesh, a material and the texture it names, which is how a model arrives.
+        struct Model
+        {
+            Rtx::Index mMesh = 0;
+            Rtx::Index mMaterial = 0;
+            Rtx::Index mTexture = 0;
+        };
+
+        /// One triangle and one material naming `texture`, so all three arrive together.
+        Model addModel(Rtx::SceneDesc& scene, VFS::Path::NormalizedView texture)
+        {
+            const osg::Vec3f positions[3] = { { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 } };
+            const osg::Vec3f normals[3] = { { 0, 0, 1 }, { 0, 0, 1 }, { 0, 0, 1 } };
+            const osg::Vec2f uvs[3] = { { 0, 0 }, { 1, 0 }, { 0, 1 } };
+            const std::uint32_t indices[3] = { 0, 1, 2 };
+
+            Model made;
+            made.mMesh = scene.addMesh(positions, normals, uvs, indices);
+            made.mTexture = scene.addTexture(texture);
+
+            Rtx::Material material;
+            material.mDiffuse = made.mTexture;
+            made.mMaterial = scene.addMaterial(material);
+            scene.addInstance(Rtx::MeshInstance{ .mMesh = made.mMesh, .mMaterial = made.mMaterial });
+
+            return made;
+        }
+
         /// One block's worth of image in `format`, which is all the description reads beyond it.
         osg::ref_ptr<osg::Image> makeBlock(GLenum format)
         {
@@ -86,6 +122,51 @@ namespace RtxBridge
         {
             std::vector<Rtx::MipLevel> levels;
             EXPECT_THROW(describeImage(*makeBlock(GL_RGBA), levels), Rtx::Error);
+        }
+
+        /// A slot the scene has given up is not a texture that could not be read.
+        ///
+        /// `SceneDesc::release` empties a freed slot's path and leaves the slot in the table until
+        /// something takes it over, so a describe that walks it finds no file to ask for. Both slots
+        /// here come out the stand-in — the table is indexed by the scene's own texture index and
+        /// every slot has to fill one — but only the slot that named a file and failed at it is a
+        /// failure, and conflating the two makes a departing cell look like a broken one.
+        TEST(RtxTextureBuilderTest, aFreedSlotTakesTheStandInWithoutCountingAsUnreadable)
+        {
+            VFS::Manager vfs;
+            Resource::ImageManager images(&vfs, 0);
+
+            // Two models, because a texture is only swept on a sweep that drops something: `release`
+            // answers the ordinary frame by comparing the mesh and material counts and returning
+            // before it looks at a texture at all.
+            Rtx::SceneDesc scene;
+            const Model staying = addModel(scene, VFS::Path::NormalizedView("textures/named.dds"));
+            const Model going = addModel(scene, VFS::Path::NormalizedView("textures/freed.dds"));
+
+            const std::array<Rtx::Index, 1> keptMeshes{ staying.mMesh };
+            const std::array<Rtx::Index, 1> keptMaterials{ staying.mMaterial };
+
+            // The staying model's own material speaks for its texture, so nothing has to be listed.
+            ASSERT_TRUE(scene.release(keptMeshes, keptMaterials, {}));
+            ASSERT_FALSE(scene.getTextures()[staying.mTexture].empty());
+            ASSERT_TRUE(scene.getTextures()[going.mTexture].empty());
+
+            const Rtx::Index named = staying.mTexture;
+            const Rtx::Index freed = going.mTexture;
+
+            const std::array<Rtx::Index, 2> slots{ named, freed };
+            const SceneTextures described(scene, images, slots);
+
+            // The VFS is empty, so neither resolves: one is a file that is not there and the other
+            // is no file at all.
+            ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 2 });
+            EXPECT_EQ(described.getDescriptions()[0].mSlot, named);
+            EXPECT_EQ(described.getDescriptions()[1].mSlot, freed);
+            EXPECT_EQ(described.getDescriptions()[0].mName, "unreadable");
+            EXPECT_EQ(described.getDescriptions()[1].mName, "unreadable");
+
+            // One of the two, and it is the one that named a file.
+            EXPECT_EQ(described.getUnreadable(), 1u);
         }
     }
 }

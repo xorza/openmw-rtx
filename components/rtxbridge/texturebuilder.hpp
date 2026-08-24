@@ -65,7 +65,9 @@ namespace RtxBridge
         /// What was described, each carrying the slot it goes to in `TextureData::mSlot`.
         std::span<const Rtx::TextureData> getDescriptions() const { return mDescriptions; }
 
-        /// How many of them could not be read and got the stand-in instead.
+        /// How many named a file that could not be read, each logged with its path where it was
+        /// described. A slot the scene has freed is not among them: it names nothing, so there was
+        /// nothing to fail at — it gets the stand-in like the rest, and is not counted.
         ///
         /// **Not zero in the game.** The harness names textures out of content files and every one
         /// of them is a `.dds` on disk; a live scene graph also holds textures that were never files

@@ -198,6 +198,9 @@ Clang_Format:
     paths:
       - apt-cache/
   variables:
+    # Must match REQUIRED_MAJOR in CI/check_clang_format.sh, which fails naming both if it
+    # does not. Bumping means this, that constant, .clang-format's comment, the package in
+    # CI/install_debian_deps.sh and a reformat of the tree, in one commit.
     CLANG_FORMAT: clang-format-14
   before_script:
     - CI/install_debian_deps.sh openmw-clang-format
