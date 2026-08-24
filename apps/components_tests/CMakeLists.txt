@@ -122,6 +122,7 @@ if (OPENMW_RTX)
         rtx/scenedesc.cpp
         rtx/shadingmap.cpp
         rtx/spanallocator.cpp
+        rtx/structurestorage.cpp
         rtx/visibilitypass.cpp
         rtx/wavespectrum.cpp
         rtxbridge/fogbuilder.cpp

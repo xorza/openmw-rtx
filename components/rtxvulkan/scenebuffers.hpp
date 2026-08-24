@@ -39,7 +39,14 @@ namespace Rtx
         ///        with no height in it is a flat sea, which is what a test asserting an exact
         ///        transmittance needs.
         SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
-            std::span<const InstanceRecord> records, VkBuffer indexBlocks, const SeaState& sea = SeaState{});
+            std::span<const InstanceRecord> records, const SeaState& sea = SeaState{});
+
+        /// Takes in the attributes of the meshes the scene says arrived.
+        ///
+        /// The blocks are appended to rather than replaced, so nothing already written moves and
+        /// nothing built from it has to be built again. A departure needs nothing here: a mesh slot
+        /// with no geometry in it is never read.
+        void extend(const SceneDesc& scene);
 
         /// Rewrites what a moving world changes, leaving what it is made of alone.
         ///
@@ -68,9 +75,8 @@ namespace Rtx
         /// **Tables of addresses and not the data.** The vertex attributes are lists of blocks, so
         /// what a shader binds is where the blocks are; it resolves a global id to one of them
         /// itself. See `BlockedBuffer`.
-        VkBuffer getNormalBlocks() const { return mNormalBlocks.getHandle(); }
-        VkBuffer getTexCoordBlocks() const { return mTexCoordBlocks.getHandle(); }
-        VkBuffer getIndexBlocks() const { return mIndexBlocks; }
+        VkBuffer getNormalBlocks() const { return mNormals.getTable(); }
+        VkBuffer getTexCoordBlocks() const { return mTexCoords.getTable(); }
         VkBuffer getMeshes() const { return mMeshes.getHandle(); }
         VkBuffer getInstances() const { return mInstances.getHandle(); }
         VkBuffer getMaterials() const { return mMaterials.getHandle(); }
@@ -97,8 +103,12 @@ namespace Rtx
         VkDeviceSize getBytes() const;
 
     private:
-        /// Fills the attribute blocks from the scene and writes the tables of their addresses.
-        void uploadAttributes(Batch& batch, const SceneDesc& scene);
+        /// Reserves room for the scene's attributes, copies in the runs `meshes` names, and rewrites
+        /// the per-mesh row table.
+        ///
+        /// **Per mesh and not per scene**, because that is what an arrival is: the blocks already
+        /// hold everything else, and rewriting them would be rewriting what nothing changed.
+        void writeMeshes(const SceneDesc& scene, std::span<const Index> meshes);
 
         /// Makes `held` at least `bytes` long, keeping it where it is already big enough.
         ///
@@ -114,8 +124,7 @@ namespace Rtx
 
         // What the scene is made of. Written once, through a staging copy, because nothing rewrites
         // them and device-only memory is the faster place for the device to read.
-        BlockedBuffer<Buffer> mTexCoords{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec2f) };
-        Buffer mMeshes;
+        BlockedBuffer mTexCoords{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec2f) };
 
         // **Host-visible and rewritten from `place`, not uploaded once.** Anything that animates a
         // state set gives the mirror a new material every frame — OpenMW's water cycles thirty-two
@@ -130,11 +139,9 @@ namespace Rtx
         /// writes nothing.
         std::uint64_t mShaded = 0;
 
+        std::vector<Shaders::GpuMesh> mMeshScratch;
         std::vector<Shaders::GpuMaterial> mMaterialScratch;
         std::vector<Shaders::GpuLayer> mLayerScratch;
-
-        /// `SceneAcceleration`'s table, passed through: the build had to have the indices first.
-        VkBuffer mIndexBlocks = VK_NULL_HANDLE;
 
         // What a moving world changes. Written straight into video memory every frame.
         //
@@ -144,11 +151,11 @@ namespace Rtx
         //
         // **Blocked like the geometry they belong to**, so a scene that grows keeps the blocks it
         // already has and adds one.
-        BlockedBuffer<HostBuffer> mNormals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+        BlockedBuffer mNormals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
 
-        /// Where those blocks are, for the shader that resolves a global vertex id.
-        HostBuffer mNormalBlocks;
-        HostBuffer mTexCoordBlocks;
+        /// One row a mesh slot, so a hit can turn its slot into offsets into the tables above.
+        /// Rewritten whole whenever a mesh arrives or leaves, which is a few kilobytes.
+        HostBuffer mMeshes;
 
         HostBuffer mInstances;
         HostBuffer mLights;

@@ -91,7 +91,7 @@ namespace Rtx
             VkDescriptorBufferInfo{ hitCount.getHandle(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getNormalBlocks(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getTexCoordBlocks(), 0, VK_WHOLE_SIZE },
-            VkDescriptorBufferInfo{ inputs.mBuffers->getIndexBlocks(), 0, VK_WHOLE_SIZE },
+            VkDescriptorBufferInfo{ inputs.mIndexBlocks, 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getMeshes(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getInstances(), 0, VK_WHOLE_SIZE },
             VkDescriptorBufferInfo{ inputs.mBuffers->getMaterials(), 0, VK_WHOLE_SIZE },

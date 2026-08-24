@@ -3,12 +3,18 @@
 #include <cassert>
 #include <cstdint>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
 
+#include "hostbuffer.hpp"
+
 namespace Rtx
 {
+    class Device;
+
     /// One table of fixed-size elements, kept as a list of separate buffers of a fixed count each.
     ///
     /// **What makes a scene appendable.** A table sized to the scene has to be made again when the
@@ -21,9 +27,13 @@ namespace Rtx
     /// what the paragraph above buys: a block cut to what is currently in it would have to be made
     /// again the moment anything more arrived. The slack is bounded by one block per table.
     ///
+    /// **Host-written, and every one of these is.** Resizable BAR makes the whole of video memory
+    /// writable by the processor, so a mesh arriving is a `memcpy` into the memory the device will
+    /// read — no staging buffer, no copy to record, no transfer to order against the build that
+    /// reads it. That is what lets an arrival be written without touching what is already there.
+    ///
     /// `Rtx::SceneDesc` never lets a mesh's run straddle a block, so `addressOf` on a run's first
     /// element covers the whole run.
-    template <class Block>
     class BlockedBuffer
     {
     public:
@@ -37,59 +47,73 @@ namespace Rtx
             assert(blockSize > 0 && stride > 0);
         }
 
+        /// Says which device the blocks are made on and what they are for. Once, before anything is
+        /// reserved.
+        void open(const Device& device, VkBufferUsageFlags usage, std::string_view name);
+
         std::uint32_t getBlockSize() const { return mBlockSize; }
         std::uint32_t getStride() const { return mStride; }
 
         /// Bytes one whole block occupies, which is what every block is made at.
         VkDeviceSize getBlockBytes() const { return VkDeviceSize{ mBlockSize } * mStride; }
 
-        /// How many blocks `elements` of them need. At least one, because a table nothing has been
-        /// put in still has to be bound.
-        std::uint32_t blocksFor(std::uint32_t elements) const
+        /// Makes blocks until the table can hold `elements`, and rewrites the address table where it
+        /// made any. Nothing already in it moves. At least one block always exists, because a table
+        /// nothing has been put in still has to be bound.
+        void reserve(std::uint32_t elements);
+
+        /// Copies `values` in, starting at element `at`. Splits across blocks where it has to, so
+        /// the caller never has to know where the boundaries fell. The room must have been reserved.
+        template <class T>
+        void writeAt(std::uint32_t at, std::span<const T> values)
         {
-            return elements == 0 ? 1u : (elements + mBlockSize - 1) / mBlockSize;
+            assert(sizeof(T) == mStride);
+
+            std::uint32_t written = 0;
+            while (written < values.size())
+            {
+                const std::uint32_t element = at + written;
+                const std::uint32_t room = mBlockSize - element % mBlockSize;
+                const auto part = std::min<std::uint32_t>(room, static_cast<std::uint32_t>(values.size()) - written);
+
+                assert(blockOf(element) < mBlocks.size());
+                mBlocks[blockOf(element)].writeAt(offsetOf(element), values.subspan(written, part));
+                written += part;
+            }
         }
 
         /// Which block an element is in, and how far into it, in bytes.
         std::uint32_t blockOf(std::uint32_t element) const { return element / mBlockSize; }
         VkDeviceSize offsetOf(std::uint32_t element) const { return VkDeviceSize{ element % mBlockSize } * mStride; }
 
-        void add(Block&& block)
-        {
-            mAddresses.push_back(block.getDeviceAddress());
-            mBlocks.push_back(std::move(block));
-        }
-
-        /// The block an element is in. **A contract**: a scene that has grown past what has been
-        /// added here is one whose caller should have built the blocks again, not written into a
-        /// block that does not exist.
-        Block& at(std::uint32_t element)
-        {
-            assert(blockOf(element) < mBlocks.size());
-            return mBlocks[blockOf(element)];
-        }
-
         /// Where an element sits on the device, for a builder that reads it directly.
+        ///
+        /// **A contract**: a scene reaching past what has been reserved is a caller that skipped a
+        /// `reserve`, not a table that should quietly grow under a builder.
         VkDeviceAddress addressOf(std::uint32_t element) const
         {
             assert(blockOf(element) < mAddresses.size());
             return mAddresses[blockOf(element)] + offsetOf(element);
         }
 
-        /// Where every block starts, in block order — what a shader is handed so it can resolve a
-        /// global id itself.
-        std::span<const VkDeviceAddress> getAddresses() const { return mAddresses; }
+        /// Where every block starts, as a shader reads it so it can resolve a global id itself.
+        VkBuffer getTable() const { return mTable.getHandle(); }
 
         VkDeviceSize getBytes() const { return getBlockBytes() * mBlocks.size(); }
 
     private:
+        const Device* mDevice = nullptr;
+        VkBufferUsageFlags mUsage = 0;
+        std::string mName;
+
         std::uint32_t mBlockSize;
         std::uint32_t mStride;
 
-        std::vector<Block> mBlocks;
+        std::vector<HostBuffer> mBlocks;
 
-        /// Kept beside the blocks rather than asked for, because a table of them is written to the
-        /// device and a device address is a driver call.
+        /// Kept beside the blocks rather than asked for, because a device address is a driver call
+        /// and a table of them goes to the device on every growth.
         std::vector<VkDeviceAddress> mAddresses;
+        HostBuffer mTable;
     };
 }

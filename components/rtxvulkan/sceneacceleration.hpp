@@ -14,6 +14,7 @@
 #include "blockedbuffer.hpp"
 #include "buffer.hpp"
 #include "hostbuffer.hpp"
+#include "structurestorage.hpp"
 
 namespace Rtx
 {
@@ -71,6 +72,15 @@ namespace Rtx
         /// index into the structures this already holds.
         void place(CommandPool& pool, const SceneDesc& scene, std::span<const InstanceRecord> records, GpuTimer* timer);
 
+        /// Takes in the meshes the scene says arrived and lets go of the ones it says went.
+        ///
+        /// **What a cell crossing costs, instead of the world.** Every structure already built stays
+        /// where it is: the geometry blocks are appended to rather than replaced, so the addresses
+        /// they were built from are still theirs, and the storage a departing mesh gives back is
+        /// handed to the next one that fits. The top level is rebuilt every frame regardless and
+        /// picks the change up for nothing.
+        void extend(Batch& batch, const SceneDesc& scene);
+
         VkAccelerationStructureKHR getTopLevel() const { return mTopLevel; }
 
         /// Where the index blocks are, as a shader reads them.
@@ -81,7 +91,7 @@ namespace Rtx
         ///
         /// **A table of addresses and not the data**, because the indices are a list of blocks: what
         /// a shader binds is where the blocks are, and it resolves `block[id / INDEX_BLOCK]` itself.
-        VkBuffer getIndexBlocks() const { return mIndexBlocks.getHandle(); }
+        VkBuffer getIndexBlocks() const { return mIndices.getTable(); }
         std::uint32_t getInstanceCount() const { return mInstanceCount; }
 
         /// How many of those instances traversal has to stop and ask about.
@@ -92,13 +102,20 @@ namespace Rtx
         std::uint32_t getCutoutInstanceCount() const { return mCutoutInstanceCount; }
 
         /// Bytes held by the structures themselves, not counting the geometry they were built from.
-        VkDeviceSize getStructureBytes() const { return mBottomLevelBytes + mTopLevelBytes; }
+        VkDeviceSize getStructureBytes() const { return mBottomLevelStorage.getBytes() + mTopLevelBytes; }
 
     private:
-        /// Fills the geometry blocks from the scene and writes the table of the index blocks.
-        void uploadGeometry(Batch& batch, const SceneDesc& scene);
+        /// Reserves room for the scene's geometry and copies in the runs `meshes` names.
+        ///
+        /// **Per mesh and not per scene**, because that is what an arrival is: the blocks already
+        /// hold everything else, and rewriting them would be rewriting what nothing changed.
+        void writeGeometry(const SceneDesc& scene, std::span<const Index> meshes);
 
-        void buildBottomLevel(Batch& batch, const SceneDesc& scene);
+        /// Creates and records the build of a structure for each of `meshes`, taking storage for it.
+        ///
+        /// A slot that already holds one has it destroyed and its room given back first: a slot the
+        /// scene took back and handed out again arrives carrying different geometry.
+        void buildMeshes(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes);
 
         /// Fills the refit build infos and sizes the scratch.
         ///
@@ -123,13 +140,11 @@ namespace Rtx
         /// reads these in a shader: a hit gets its vertices back out of the structure through
         /// position fetch, so they are a build input and a write target and nothing else — which is
         /// why there is no table of their addresses beside them.
-        BlockedBuffer<HostBuffer> mPositions{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+        BlockedBuffer mPositions{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
 
-        BlockedBuffer<Buffer> mIndices{ Shaders::INDEX_BLOCK, sizeof(std::uint32_t) };
+        BlockedBuffer mIndices{ Shaders::INDEX_BLOCK, sizeof(std::uint32_t) };
 
-        /// Where those index blocks are, for the shader that resolves a global element id.
-        HostBuffer mIndexBlocks;
-        Buffer mBottomLevelStorage;
+        StructureStorage mBottomLevelStorage;
         Buffer mTopLevelStorage;
 
         /// The rows the top level is built from. Rewritten whole every frame, so it is written where
@@ -137,6 +152,9 @@ namespace Rtx
         HostBuffer mInstances;
 
         std::vector<VkAccelerationStructureKHR> mBottomLevel;
+
+        /// Where each of those sits in the storage, so a released mesh can give its room back.
+        std::vector<StructureRoom> mBottomLevelRooms;
 
         /// Each of those structures' device address, asked for once when it was made.
         ///
@@ -149,6 +167,21 @@ namespace Rtx
 
         /// What each mesh's build asked for, so a rebuild does not have to ask the driver again.
         std::vector<VkDeviceSize> mBuildScratch;
+
+        /// Every mesh slot, for the whole-scene build the constructor does through the same path an
+        /// arrival takes. Kept so that path allocates nothing per scene.
+        std::vector<Index> mEveryMesh;
+
+        // What one run of `buildMeshes` describes. Members rather than locals because a build info
+        // keeps `pGeometries` as a pointer and a range is handed over by address, so both have to
+        // outlive the loop that filled them — and because a cell arriving must not allocate five
+        // vectors to say so.
+        std::vector<VkAccelerationStructureGeometryKHR> mBuildGeometries;
+        std::vector<VkAccelerationStructureBuildGeometryInfoKHR> mBuilds;
+        std::vector<VkAccelerationStructureBuildRangeInfoKHR> mBuildRanges;
+        std::vector<VkDeviceSize> mBuildSizes;
+        std::vector<VkAccelerationStructureBuildGeometryInfoKHR> mLiveBuilds;
+        std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> mBuildRangePointers;
 
         /// Kept across frames rather than made per refit: a device allocation on the frame path is a
         /// stall, and this settles at the high-water mark of whatever the world is showing. It never
@@ -186,7 +219,6 @@ namespace Rtx
         /// **Two totals, each assigned, because one accumulated.** The bottom levels are made once
         /// and the top level again every frame that moves, so adding both to one figure reported a
         /// scene that grew by its own top level sixty times a second.
-        VkDeviceSize mBottomLevelBytes = 0;
         VkDeviceSize mTopLevelBytes = 0;
     };
 }

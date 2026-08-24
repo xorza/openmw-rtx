@@ -67,18 +67,14 @@ namespace Rtx
             writeAt(0, data);
         }
 
-        /// Writes `data` at the start and zeroes everything after it.
+        /// Zeroes the whole buffer.
         ///
-        /// **For a block, which is made longer than what has been put in it.** A buffer whose tail
-        /// holds whatever was last in that memory is a picture that depends on it too.
-        template <class T>
-        void fillFrom(std::span<const T> data) const
+        /// **For a block, which is made longer than what will be put in it.** A buffer holding
+        /// whatever was last in that memory is a picture that depends on it too.
+        void clear() const
         {
             assert(mMapped != nullptr);
-            assert(data.size_bytes() <= mSize);
-
-            writeAt(0, data);
-            std::memset(static_cast<std::byte*>(mMapped) + data.size_bytes(), 0, mSize - data.size_bytes());
+            std::memset(mMapped, 0, mSize);
         }
 
     private:

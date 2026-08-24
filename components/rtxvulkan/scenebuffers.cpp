@@ -21,12 +21,6 @@ namespace Rtx
     {
         constexpr VkBufferUsageFlags sTableUsage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
-        /// What a block of vertex attributes needs beyond a plain table: the shader reaches it
-        /// through a pointer out of the table of block addresses rather than through a binding, and
-        /// a buffer only has an address if it was created saying so.
-        constexpr VkBufferUsageFlags sBlockUsage
-            = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-
         // A shader cannot see a C++ enum, so the two spellings of the same three values are pinned
         // here rather than trusted to stay in step.
         static_assert(static_cast<std::uint32_t>(MaterialKind::Surface) == Shaders::KIND_SURFACE);
@@ -96,19 +90,18 @@ namespace Rtx
     }
 
     SceneBuffers::SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
-        std::span<const InstanceRecord> records, VkBuffer indexBlocks, const SeaState& sea)
+        std::span<const InstanceRecord> records, const SeaState& sea)
         : mDevice(&device)
-        , mIndexBlocks(indexBlocks)
     {
-        std::vector<Shaders::GpuMesh> meshes;
-        meshes.reserve(scene.getMeshes().size());
-        for (const MeshRange& mesh : scene.getMeshes())
-            meshes.push_back(
-                Shaders::GpuMesh{ .mVertexOffset = mesh.mVertexOffset, .mIndexOffset = mesh.mIndexOffset });
+        mNormals.open(device, sTableUsage, "normals");
+        mTexCoords.open(device, sTableUsage, "uvs");
 
-        mMeshes = uploadBuffer(device, batch, std::span<const Shaders::GpuMesh>(meshes), sTableUsage);
+        // Every mesh the scene holds, which is the same path an arrival takes with a shorter list.
+        std::vector<Index> every(scene.getMeshes().size());
+        for (std::size_t at = 0; at < every.size(); ++at)
+            every[at] = static_cast<Index>(at);
 
-        uploadAttributes(batch, scene);
+        writeMeshes(scene, every);
 
         // The shading tables come from `place`, which is also where they are rewritten when a
         // material changes. Forced here because nothing has been written at revision zero.
@@ -119,45 +112,42 @@ namespace Rtx
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mInstances.getHandle()), "instance rows");
     }
 
-    void SceneBuffers::uploadAttributes(Batch& batch, const SceneDesc& scene)
+    void SceneBuffers::extend(const SceneDesc& scene)
     {
-        // **Whole blocks here and a mesh at a time afterwards.** Only a skinned body's normals
-        // change, so filling these once is a load's cost and every frame after it pays for what
-        // actually moved.
-        const std::span<const osg::Vec3f> normals = scene.getNormals();
-        for (std::uint32_t block = 0; block < mNormals.blocksFor(static_cast<std::uint32_t>(normals.size())); ++block)
-        {
-            const std::size_t from = std::size_t{ block } * mNormals.getBlockSize();
-            const std::size_t count = std::min<std::size_t>(mNormals.getBlockSize(), normals.size() - from);
+        writeMeshes(scene, scene.getArrivedMeshes());
+    }
 
-            HostBuffer made(*mDevice, mNormals.getBlockBytes(), sBlockUsage);
-            made.fillFrom(normals.subspan(from, count));
-            mDevice->setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(made.getHandle()),
-                "normals " + std::to_string(block));
-            mNormals.add(std::move(made));
+    void SceneBuffers::writeMeshes(const SceneDesc& scene, std::span<const Index> meshes)
+    {
+        // **Whole runs here and a mesh at a time afterwards.** Only a skinned body's normals change,
+        // so filling these when the mesh arrives is a load's cost and every frame after it pays for
+        // what actually moved.
+        mNormals.reserve(static_cast<std::uint32_t>(scene.getNormals().size()));
+        mTexCoords.reserve(static_cast<std::uint32_t>(scene.getTexCoords().size()));
+
+        for (const Index mesh : meshes)
+        {
+            const MeshRange& range = scene.getMeshes()[mesh];
+            if (range.mVertexCount == 0)
+                continue;
+
+            mNormals.writeAt(range.mVertexOffset, scene.getNormals().subspan(range.mVertexOffset, range.mVertexCount));
+            mTexCoords.writeAt(
+                range.mVertexOffset, scene.getTexCoords().subspan(range.mVertexOffset, range.mVertexCount));
         }
 
-        const std::span<const osg::Vec2f> uvs = scene.getTexCoords();
-        for (std::uint32_t block = 0; block < mTexCoords.blocksFor(static_cast<std::uint32_t>(uvs.size())); ++block)
-        {
-            const std::size_t from = std::size_t{ block } * mTexCoords.getBlockSize();
-            const std::size_t count = std::min<std::size_t>(mTexCoords.getBlockSize(), uvs.size() - from);
+        // **Whole, and it is eight bytes a slot.** A mesh arriving moves nothing already in this,
+        // but sizing it to the scene means growing it, and growing means writing it — so the rows
+        // that did not change are written again for the price of not having to know which did.
+        mMeshScratch.clear();
+        mMeshScratch.reserve(scene.getMeshes().size());
+        for (const MeshRange& mesh : scene.getMeshes())
+            mMeshScratch.push_back(
+                Shaders::GpuMesh{ .mVertexOffset = mesh.mVertexOffset, .mIndexOffset = mesh.mIndexOffset });
 
-            Buffer made = uploadBuffer(
-                *mDevice, batch, std::as_bytes(uvs.subspan(from, count)), sBlockUsage, mTexCoords.getBlockBytes());
-            mDevice->setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(made.getHandle()),
-                "uvs " + std::to_string(block));
-            mTexCoords.add(std::move(made));
-        }
-
-        const auto table = [&](HostBuffer& into, std::span<const VkDeviceAddress> addresses, const char* name) {
-            into = HostBuffer(*mDevice, addresses.size_bytes(), sTableUsage);
-            into.write(addresses);
-            mDevice->setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(into.getHandle()), name);
-        };
-
-        table(mNormalBlocks, mNormals.getAddresses(), "normal blocks");
-        table(mTexCoordBlocks, mTexCoords.getAddresses(), "uv blocks");
+        reserve(mMeshes, mMeshScratch.size() * sizeof(Shaders::GpuMesh));
+        mMeshes.write(std::span<const Shaders::GpuMesh>(mMeshScratch));
+        mDevice->setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mMeshes.getHandle()), "meshes");
     }
 
     void SceneBuffers::reserve(HostBuffer& held, const VkDeviceSize bytes)
@@ -325,9 +315,7 @@ namespace Rtx
         for (const Index mesh : scene.getDeformed())
         {
             const MeshRange& range = scene.getMeshes()[mesh];
-            mNormals.at(range.mVertexOffset)
-                .writeAt(mNormals.offsetOf(range.mVertexOffset),
-                    scene.getNormals().subspan(range.mVertexOffset, range.mVertexCount));
+            mNormals.writeAt(range.mVertexOffset, scene.getNormals().subspan(range.mVertexOffset, range.mVertexCount));
         }
     }
 

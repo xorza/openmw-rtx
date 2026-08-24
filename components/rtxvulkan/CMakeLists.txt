@@ -94,6 +94,7 @@ add_custom_target(openmw-rtx-vulkan-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS} SO
 set(RTX_VULKAN_FILES
     atrouspass.cpp
     atrouspass.hpp
+    blockedbuffer.cpp
     blockedbuffer.hpp
     buffer.cpp
     buffer.hpp
@@ -141,6 +142,8 @@ set(RTX_VULKAN_FILES
     scenebuffers.hpp
     shadermodule.cpp
     shadermodule.hpp
+    structurestorage.cpp
+    structurestorage.hpp
     swapchain.cpp
     swapchain.hpp
     texture.cpp

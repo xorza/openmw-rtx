@@ -9,7 +9,6 @@ a finished piece is only what the next one needs to know.
 
 | issue | root |
 |---|---|
-| a cell arriving rebuilds every bottom-level structure — 47 ms | **A** |
 | a traced view rebuilds its whole scene per redraw | **A** |
 | the doll's scene names a texture with an empty path | **A** — probably expected now; wants a look |
 | distant terrain is invisible to the mirror | **B** |
@@ -49,26 +48,20 @@ against blocks of 262,144 and 1,048,576, so `id / BLOCK` is zero in every scene 
 is what does: a filler mesh of one whole block of each pushes a lit, textured wall into block one, and
 the picture must match the same wall alone. Forcing any of the three block lookups to zero fails it.
 
-**What remains before a cell can append.** `SceneAcceleration` and `SceneBuffers` are still
-constructed *from a whole scene*, so `VulkanRenderer::extendScene` throws both away whenever
-`getMeshRevision()` moves. Two things stand between here and an append.
+**And a cell arriving now appends.** `Rtx::StructureStorage` holds the bottom-level structures in a
+list of buffers with a `SpanAllocator` over each, so a released mesh gives its room back and the next
+that fits takes it; `extendScene` destroys `getFreedMeshes()`, writes and builds `getArrivedMeshes()`,
+and leaves everything else exactly where it is. All four geometry tables are host-written, which is
+what makes an arrival a `memcpy` rather than a staged copy to order against the build reading it.
+Over nineteen crossings of the streaming route, building fell from **1.1 s to 0.6 s** — 58 ms a
+crossing to 32 — and what is left is the meshes that actually arrived, their textures, and the
+instance rows. The route's own frame cost is dominated by *reading*: 5.9 s of the 6.5, which is the
+harness parsing content files with none of `CellPreloader`'s threads under it.
 
-### A2. Bottom-level storage is one buffer, created and destroyed as a batch
-
-`buildBottomLevel` sizes one `mBottomLevelStorage` to the sum of every structure in the scene, creates
-each at an offset in it and builds them in one submit. There is no way to add one or take one out.
-
-Same answer one level up: **a list of storage blocks with a `SpanAllocator` over each**, and the
-per-mesh operations the scene already has — `addMesh` allocates a structure's worth, creates, builds
-and asks its address once; a released mesh destroys the structure and gives the storage back.
-
-`extendScene` then becomes: build `getArrivedMeshes()`, destroy `getFreedMeshes()`, write the texture
-slots that arrived, drop the ones that went, place. Nothing else. The top level is rebuilt every frame
-and does not care.
-
-The renderer is synchronous, so a structure destroyed after a release cannot be in flight and no
-deferred-destruction queue is needed *yet*. When the frame stops waiting on the queue (M12) this is
-one of the two places that has to grow a fence-keyed retirement list.
+**One trap, and it cost a device.** A blocked table's address table is *made again* whenever a block
+is added, so a handle to it copied once is a handle to a destroyed buffer the first time the scene
+grows past a block. `VisibilityInputs` takes the index table fresh every frame; nothing may cache
+one. A still never finds this — only a route does.
 
 ### A3. A view scene can only be replaced
 
@@ -87,8 +80,6 @@ of that rather than of anything drawn wrong. Nobody has looked at a doll to say 
 
 ### What A buys, as numbers to take
 
-- A cell crossing on the streaming route: **47 ms → the cost of the meshes that actually arrived.**
-  Same place, same route, the frame after it lands; median and worst.
 - A race-creation slider drag: from a rebuild a frame to a placement a frame.
 
 ## B. The mirror is still downstream of decisions a rasterizer made
@@ -248,22 +239,22 @@ unchanged on all sixteen views. Balmora's build is 231 ms against 249 before it,
 block slack costs nothing measurable. A cell arriving still rebuilds everything — that is the next
 step, and it is now the only thing in the way.
 
-**1 — A2, bottom-level storage, then `extendScene`.** Build the arrivals, destroy the departures.
-Measure the crossing on the streaming route, median and worst, against 47 ms.
+**The append is in.** See root A. What is left of root A is the view scenes, which have no
+`extendScene` of their own.
 
-**2 — A3, view scenes get the same three branches.** Look at a race-creation slider drag in the
+**1 — A3, view scenes get the same three branches.** Look at a race-creation slider drag in the
 window; that is what the frame time was.
 
-**3 — C, the region write.** `RegionTexture`, both backends, `Picture::setRegion`, `GlobalMap` onto
+**2 — C, the region write.** `RegionTexture`, both backends, `Picture::setRegion`, `GlobalMap` onto
 `Picture`. The GUI texture tests plus walking across a cell boundary with the world map open.
 
-**4 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
+**3 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
 with `distant terrain` on and comparing a frame; verify the mirror by turning `distant terrain` on and
 taking a shot of an exterior with ground in it.
 
-**5 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
+**4 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
 
-**6 — I.** Ten minutes.
+**5 — I.** Ten minutes.
 
 ## What this does not touch
 
@@ -271,7 +262,7 @@ taking a shot of an exterior with ground in it.
 before returning. That is why A2 needs no retirement queue, why `GuiTextures::write` can destroy and
 recreate freely, and why none of the above has to reason about frames in flight. It is also the single
 largest thing standing between this renderer and its frame budget, and it is M12's. The plan above
-should not be built in a way that assumes it stays true: **A2, the texture drop and `Batch`'s kept
-staging are the three places that will need a fence-keyed retirement list the day it stops**, and that
-is written here so that day is a change rather than a bug. `Batch` is already shaped for it: what it
+should not be built in a way that assumes it stays true: **`StructureStorage`, the texture drop and
+`Batch`'s kept staging are the three places that will need a fence-keyed retirement list the day it
+stops**, and that is written here so that day is a change rather than a bug. `Batch` is already shaped for it: what it
 holds is released by `flush`, and a `flush` that signals rather than waits is the same object.

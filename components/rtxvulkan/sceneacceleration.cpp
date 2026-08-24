@@ -11,6 +11,8 @@
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
 
+#include <components/rtx/error.hpp>
+
 #include "commands.hpp"
 #include "device.hpp"
 #include "gputimer.hpp"
@@ -93,12 +95,20 @@ namespace Rtx
     {
         assert(scene.getPlacedCount() > 0);
 
-        uploadGeometry(batch, scene);
+        mPositions.open(device, sBuildInputUsage, "positions");
+        mIndices.open(device, sBuildInputUsage, "indices");
 
-        // **The indices, every bottom level and the top level in one submit.** Each was its own
-        // round trip and each is ordered against the last by a barrier the recording already
-        // carries: `uploadBuffer` ends in one, and `buildBottomLevel` ends in `barrierAfterBuild`.
-        buildBottomLevel(batch, scene);
+        // Every mesh the scene holds, which is the same path an arrival takes with a shorter list.
+        mEveryMesh.resize(scene.getMeshes().size());
+        for (std::size_t at = 0; at < mEveryMesh.size(); ++at)
+            mEveryMesh[at] = static_cast<Index>(at);
+
+        writeGeometry(scene, mEveryMesh);
+
+        // **The geometry, every bottom level and the top level in one submit.** Each was its own
+        // round trip; the host writes above are visible to the submit without a barrier, and
+        // `buildMeshes` ends in `barrierAfterBuild`.
+        buildMeshes(batch, scene, mEveryMesh);
         prepareTopLevel(scene, records);
         recordTopLevel(batch.getCommands(), nullptr);
     }
@@ -115,79 +125,109 @@ namespace Rtx
                 functions.mDestroyAccelerationStructure(mDevice.getHandle(), structure, nullptr);
     }
 
-    void SceneAcceleration::uploadGeometry(Batch& batch, const SceneDesc& scene)
+    void SceneAcceleration::writeGeometry(const SceneDesc& scene, std::span<const Index> meshes)
     {
-        const std::span<const osg::Vec3f> positions = scene.getPositions();
-        for (std::uint32_t block = 0; block < mPositions.blocksFor(static_cast<std::uint32_t>(positions.size()));
-             ++block)
+        // The scene's own reach, so a block exists for every run it has handed out. Blocks already
+        // made are left exactly where they are.
+        mPositions.reserve(static_cast<std::uint32_t>(scene.getPositions().size()));
+        mIndices.reserve(static_cast<std::uint32_t>(scene.getIndices().size()));
+
+        for (const Index mesh : meshes)
         {
-            const std::size_t from = std::size_t{ block } * mPositions.getBlockSize();
-            const std::size_t count = std::min<std::size_t>(mPositions.getBlockSize(), positions.size() - from);
+            const MeshRange& range = scene.getMeshes()[mesh];
+            if (range.mVertexCount == 0)
+                continue;
 
-            HostBuffer made(mDevice, mPositions.getBlockBytes(), sBuildInputUsage);
-            made.fillFrom(positions.subspan(from, count));
-            mDevice.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(made.getHandle()),
-                "positions " + std::to_string(block));
-            mPositions.add(std::move(made));
+            mPositions.writeAt(
+                range.mVertexOffset, scene.getPositions().subspan(range.mVertexOffset, range.mVertexCount));
+            mIndices.writeAt(range.mIndexOffset, scene.getIndices().subspan(range.mIndexOffset, range.mIndexCount));
         }
-
-        const std::span<const std::uint32_t> indices = scene.getIndices();
-        for (std::uint32_t block = 0; block < mIndices.blocksFor(static_cast<std::uint32_t>(indices.size())); ++block)
-        {
-            const std::size_t from = std::size_t{ block } * mIndices.getBlockSize();
-            const std::size_t count = std::min<std::size_t>(mIndices.getBlockSize(), indices.size() - from);
-
-            Buffer made = uploadBuffer(mDevice, batch, std::as_bytes(indices.subspan(from, count)), sBuildInputUsage,
-                mIndices.getBlockBytes());
-            mDevice.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(made.getHandle()),
-                "indices " + std::to_string(block));
-            mIndices.add(std::move(made));
-        }
-
-        const std::span<const VkDeviceAddress> table = mIndices.getAddresses();
-        mIndexBlocks = HostBuffer(mDevice, table.size_bytes(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-        mIndexBlocks.write(table);
-        mDevice.setName(
-            VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mIndexBlocks.getHandle()), "index blocks");
     }
 
-    void SceneAcceleration::buildBottomLevel(Batch& batch, const SceneDesc& scene)
+    void SceneAcceleration::extend(Batch& batch, const SceneDesc& scene)
+    {
+        // **Departures first, so the room they give back is there for the arrivals.** The two lists
+        // are disjoint, so a slot handed out again appears only among the arrivals and is dealt with
+        // by `buildMeshes`, which destroys whatever the slot was holding.
+        for (const Index mesh : scene.getFreedMeshes())
+        {
+            if (mesh >= mBottomLevel.size())
+                continue;
+
+            if (mBottomLevel[mesh] != VK_NULL_HANDLE)
+                mDevice.getFunctions().mDestroyAccelerationStructure(mDevice.getHandle(), mBottomLevel[mesh], nullptr);
+
+            mBottomLevel[mesh] = VK_NULL_HANDLE;
+            mBottomLevelAddresses[mesh] = 0;
+            mBottomLevelStorage.give(mBottomLevelRooms[mesh]);
+            mBottomLevelRooms[mesh] = StructureRoom{};
+        }
+
+        writeGeometry(scene, scene.getArrivedMeshes());
+        buildMeshes(batch, scene, scene.getArrivedMeshes());
+    }
+
+    void SceneAcceleration::buildMeshes(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes)
     {
         const DeviceFunctions& functions = mDevice.getFunctions();
-        const std::size_t count = scene.getMeshes().size();
+        const std::size_t slots = scene.getMeshes().size();
+
+        // Grown to what the scene now holds, never shrunk: a slot the scene took back keeps its
+        // index, and the tables below are indexed by it.
+        mBottomLevel.resize(slots, VK_NULL_HANDLE);
+        mBottomLevelAddresses.resize(slots, 0);
+        mBottomLevelRooms.resize(slots);
+        mBuildScratch.resize(slots, 0);
 
         // The build reads these through pointers it keeps until the command is recorded, so they
-        // live here rather than inside the loop.
-        std::vector<VkAccelerationStructureGeometryKHR> geometries(count);
-        std::vector<VkAccelerationStructureBuildGeometryInfoKHR> builds(count);
-        std::vector<VkAccelerationStructureBuildRangeInfoKHR> ranges(count);
-        std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> rangePointers(count);
-        std::vector<VkDeviceSize> structureOffsets(count);
-        std::vector<VkDeviceSize> scratchOffsets(count);
-        std::vector<VkDeviceSize> structureSizes(count);
-        mBuildScratch.resize(count);
+        // live across the whole function rather than inside the loop.
+        mBuildGeometries.assign(meshes.size(), VkAccelerationStructureGeometryKHR{});
+        mBuilds.assign(meshes.size(), VkAccelerationStructureBuildGeometryInfoKHR{});
+        mBuildRanges.assign(meshes.size(), VkAccelerationStructureBuildRangeInfoKHR{});
+        mBuildRangePointers.clear();
+        mLiveBuilds.clear();
+        mBuildRangePointers.reserve(meshes.size());
+        mLiveBuilds.reserve(meshes.size());
 
         const VkDeviceSize scratchAlignment
             = mDevice.getPhysicalDevice()
                   .getProperties()
                   .mAccelerationStructure.minAccelerationStructureScratchOffsetAlignment;
 
-        VkDeviceSize structureTotal = 0;
+        // Sized before anything is created, so a load's structures land in one storage block rather
+        // than one per mesh. An arrival asks for nothing and gets a block big enough for itself.
+        VkDeviceSize wanted = 0;
+        std::vector<VkDeviceSize> scratchOffsets(meshes.size());
         VkDeviceSize scratchTotal = 0;
 
-        for (std::size_t i = 0; i < count; ++i)
+        for (std::size_t at = 0; at < meshes.size(); ++at)
         {
-            const MeshRange& mesh = scene.getMeshes()[i];
+            const Index slot = meshes[at];
+            const MeshRange& mesh = scene.getMeshes()[slot];
+
+            // **A slot handed out again arrives holding different geometry.** Whatever was there is
+            // destroyed and its room given back before this one asks for room of its own, so the
+            // two can be the same run.
+            if (mBottomLevel[slot] != VK_NULL_HANDLE)
+            {
+                functions.mDestroyAccelerationStructure(mDevice.getHandle(), mBottomLevel[slot], nullptr);
+                mBottomLevel[slot] = VK_NULL_HANDLE;
+                mBottomLevelAddresses[slot] = 0;
+                mBottomLevelStorage.give(mBottomLevelRooms[slot]);
+                mBottomLevelRooms[slot] = StructureRoom{};
+            }
 
             // Indices are mesh-local, so each structure is handed the slice of the shared buffers
             // that belongs to it and addresses vertex zero as its own first vertex.
-            geometries[i] = VkAccelerationStructureGeometryKHR{
+            mBuildGeometries[at] = VkAccelerationStructureGeometryKHR{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
                 .geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
                 .geometry = { .triangles = {
                                   .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
                                   .vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
-                                  .vertexData = { .deviceAddress = mPositions.addressOf(mesh.mVertexOffset) },
+                                  .vertexData = { .deviceAddress = mesh.mVertexCount > 0
+                                          ? mPositions.addressOf(mesh.mVertexOffset)
+                                          : 0 },
                                   .vertexStride = sizeof(osg::Vec3f),
                                   // **Guarded, because a freed slot has no vertices.** A slot the
                                   // scene has taken back keeps its index and its room and holds a
@@ -195,7 +235,8 @@ namespace Rtx
                                   // there wraps, and the driver is handed four billion vertices.
                                   .maxVertex = mesh.mVertexCount > 0 ? mesh.mVertexCount - 1 : 0,
                                   .indexType = VK_INDEX_TYPE_UINT32,
-                                  .indexData = { .deviceAddress = mIndices.addressOf(mesh.mIndexOffset) },
+                                  .indexData = { .deviceAddress
+                                      = mesh.mIndexCount > 0 ? mIndices.addressOf(mesh.mIndexOffset) : 0 },
                               } },
                 // Opaque as built, and overridden per instance where a material says otherwise:
                 // opacity is a property of the material and a mesh does not carry one, so the
@@ -203,7 +244,7 @@ namespace Rtx
                 .flags = VK_GEOMETRY_OPAQUE_BIT_KHR,
             };
 
-            builds[i] = VkAccelerationStructureBuildGeometryInfoKHR{
+            mBuilds[at] = VkAccelerationStructureBuildGeometryInfoKHR{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
                 .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
                 // ALLOW_DATA_ACCESS is what lets a shader read a hit triangle's vertices back out of
@@ -212,7 +253,7 @@ namespace Rtx
                     | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_BIT_KHR,
                 .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
                 .geometryCount = 1,
-                .pGeometries = &geometries[i],
+                .pGeometries = &mBuildGeometries[at],
             };
 
             const std::uint32_t triangles = mesh.getTriangleCount();
@@ -223,10 +264,9 @@ namespace Rtx
             // acceleration structure can be created at.
             if (triangles == 0)
             {
-                structureSizes[i] = 0;
-                ranges[i] = VkAccelerationStructureBuildRangeInfoKHR{};
-                rangePointers[i] = &ranges[i];
-                mBuildScratch[i] = 0;
+                mBuildScratch[slot] = 0;
+                mBuildSizes.resize(meshes.size());
+                mBuildSizes[at] = 0;
                 continue;
             }
 
@@ -234,27 +274,24 @@ namespace Rtx
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
             };
             functions.mGetAccelerationStructureBuildSizes(
-                mDevice.getHandle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &builds[i], &triangles, &sizes);
+                mDevice.getHandle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &mBuilds[at], &triangles, &sizes);
 
-            structureOffsets[i] = structureTotal;
-            structureSizes[i] = sizes.accelerationStructureSize;
-            structureTotal = alignUp(structureTotal + sizes.accelerationStructureSize, sStructureAlignment);
+            mBuildSizes.resize(meshes.size());
+            mBuildSizes[at] = sizes.accelerationStructureSize;
+            wanted = alignUp(wanted + sizes.accelerationStructureSize, sStructureAlignment);
 
-            scratchOffsets[i] = scratchTotal;
+            scratchOffsets[at] = scratchTotal;
             scratchTotal = alignUp(scratchTotal + sizes.buildScratchSize, scratchAlignment);
 
             // Kept so a rebuild of this one mesh does not have to ask the driver its size again.
             // The same geometry describes it, so the answer cannot have changed.
-            mBuildScratch[i] = sizes.buildScratchSize;
+            mBuildScratch[slot] = sizes.buildScratchSize;
 
-            ranges[i] = VkAccelerationStructureBuildRangeInfoKHR{ .primitiveCount = triangles };
-            rangePointers[i] = &ranges[i];
+            mBuildRanges[at] = VkAccelerationStructureBuildRangeInfoKHR{ .primitiveCount = triangles };
         }
 
-        mBottomLevelBytes = structureTotal;
-        mBottomLevelStorage = Buffer(mDevice, structureTotal, sStorageUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        mDevice.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mBottomLevelStorage.getHandle()),
-            "bottom level structures");
+        if (scratchTotal == 0)
+            return;
 
         // Scratch is transient: it is read and written by the build and never again. It is handed to
         // the batch below rather than left to this scope, because the build it feeds has only been
@@ -262,60 +299,45 @@ namespace Rtx
         Buffer scratch(mDevice, scratchTotal, sScratchUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         const VkDeviceAddress scratchAddress = scratch.getDeviceAddress();
 
-        // Which slots actually have a structure, so the build below is handed those and only those.
-        std::vector<VkAccelerationStructureBuildGeometryInfoKHR> live;
-        std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> liveRanges;
-        live.reserve(count);
-        liveRanges.reserve(count);
-
-        mBottomLevel.assign(count, VK_NULL_HANDLE);
-        for (std::size_t i = 0; i < count; ++i)
+        for (std::size_t at = 0; at < meshes.size(); ++at)
         {
-            if (structureSizes[i] == 0)
+            if (mBuildSizes[at] == 0)
                 continue;
+
+            const Index slot = meshes[at];
+            mBottomLevelRooms[slot] = mBottomLevelStorage.take(mDevice, mBuildSizes[at], wanted);
 
             const VkAccelerationStructureCreateInfoKHR create{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
-                .buffer = mBottomLevelStorage.getHandle(),
-                .offset = structureOffsets[i],
-                .size = structureSizes[i],
+                .buffer = mBottomLevelStorage.getBuffer(mBottomLevelRooms[slot]),
+                .offset = mBottomLevelStorage.getOffset(mBottomLevelRooms[slot]),
+                .size = mBuildSizes[at],
                 .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
             };
-            checkVk(functions.mCreateAccelerationStructure(mDevice.getHandle(), &create, nullptr, &mBottomLevel[i]),
+            checkVk(functions.mCreateAccelerationStructure(mDevice.getHandle(), &create, nullptr, &mBottomLevel[slot]),
                 "vkCreateAccelerationStructureKHR");
 
-            builds[i].dstAccelerationStructure = mBottomLevel[i];
-            builds[i].scratchData.deviceAddress = scratchAddress + scratchOffsets[i];
+            mBuilds[at].dstAccelerationStructure = mBottomLevel[slot];
+            mBuilds[at].scratchData.deviceAddress = scratchAddress + scratchOffsets[at];
 
-            live.push_back(builds[i]);
-            liveRanges.push_back(rangePointers[i]);
-        }
-
-        // **Asked once each, here, and never again.** These handles last until the next `setScene`
-        // and their addresses with them, so the alternative is the same question per instance per
-        // frame — fifty thousand driver round trips on a nine-by-nine exterior for fifty thousand
-        // answers that cannot have changed.
-        // Zero for a slot with no structure, which nothing asks for: a placement only ever names a
-        // mesh that has one.
-        mBottomLevelAddresses.assign(count, 0);
-        for (std::size_t i = 0; i < count; ++i)
-        {
-            if (mBottomLevel[i] == VK_NULL_HANDLE)
-                continue;
-
+            // **Asked once each, here, and never again.** A handle lasts until the mesh is released
+            // and its address with it, so the alternative is the same question per instance per
+            // frame — fifty thousand driver round trips on a nine-by-nine exterior for fifty
+            // thousand answers that cannot have changed.
             const VkAccelerationStructureDeviceAddressInfoKHR address{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
-                .accelerationStructure = mBottomLevel[i],
+                .accelerationStructure = mBottomLevel[slot],
             };
-            mBottomLevelAddresses[i] = functions.mGetAccelerationStructureDeviceAddress(mDevice.getHandle(), &address);
-        }
+            mBottomLevelAddresses[slot]
+                = functions.mGetAccelerationStructureDeviceAddress(mDevice.getHandle(), &address);
 
-        if (live.empty())
-            return;
+            mLiveBuilds.push_back(mBuilds[at]);
+            mBuildRangePointers.push_back(&mBuildRanges[at]);
+        }
 
         const VkCommandBuffer commands = batch.getCommands();
         functions.mCmdBuildAccelerationStructures(
-            commands, static_cast<std::uint32_t>(live.size()), live.data(), liveRanges.data());
+            commands, static_cast<std::uint32_t>(mLiveBuilds.size()), mLiveBuilds.data(), mBuildRangePointers.data());
         barrierAfterBuild(commands);
 
         batch.keep(std::move(scratch));
@@ -365,8 +387,7 @@ namespace Rtx
             // **Straight into the memory the builder reads**, with no staging buffer between and no
             // copy to record. The submit below carries an implicit dependency on host writes made
             // before it, which is what a barrier would otherwise have been for.
-            mPositions.at(mesh.mVertexOffset)
-                .writeAt(mPositions.offsetOf(mesh.mVertexOffset), scene.getMeshPositions(index));
+            mPositions.writeAt(mesh.mVertexOffset, scene.getMeshPositions(index));
 
             // The same description the first build was given, which is what makes the structure it
             // produces the same size as the one already sitting at this mesh's offset.

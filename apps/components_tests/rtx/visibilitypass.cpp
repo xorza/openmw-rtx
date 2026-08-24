@@ -3092,7 +3092,7 @@ namespace Rtx
             makeInstanceRecords(scene, records);
             Batch setup(pool);
             const SceneAcceleration acceleration(device, setup, scene, records);
-            const SceneBuffers buffers(device, setup, scene, records, acceleration.getIndexBlocks());
+            const SceneBuffers buffers(device, setup, scene, records);
 
             const TextureArray textures(device, setup, {});
             const VisibilityPass pass(device, setup, Testing::getShaderDirectory(), textures.getLayout());
@@ -3100,6 +3100,7 @@ namespace Rtx
             const VisibilityInputs inputs{
                 .mScene = acceleration.getTopLevel(),
                 .mBuffers = &buffers,
+                .mIndexBlocks = acceleration.getIndexBlocks(),
                 .mTextures = textures.getSet(),
             };
 

@@ -23,6 +23,14 @@ namespace Rtx
         VkAccelerationStructureKHR mScene = VK_NULL_HANDLE;
         const SceneBuffers* mBuffers = nullptr;
 
+        /// Where the index blocks are, which is `SceneAcceleration`'s: the build had to have the
+        /// indices first, and a shader needs the same ones at a hit.
+        ///
+        /// **Taken fresh every frame and never cached**, because the table is made again whenever a
+        /// block is added to it. A handle copied once is a handle to a buffer a later arrival
+        /// destroyed, and what that costs is the device.
+        VkBuffer mIndexBlocks = VK_NULL_HANDLE;
+
         /// The bindless texture array's set, bound once and not pushed.
         VkDescriptorSet mTextures = VK_NULL_HANDLE;
 

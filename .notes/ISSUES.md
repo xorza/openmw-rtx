@@ -1,11 +1,5 @@
 # Open issues
 
-- A cell arriving rebuilds every bottom-level acceleration structure, not only the ones that
-  arrived — 47 ms a crossing on the streaming route. The geometry they were built from lives in one
-  device buffer sized to the scene, and appending to it moves it; every structure holds a device
-  address into it. `SceneAcceleration` and `SceneBuffers` would have to hold a list of blocks
-  instead, with the scene's vertex allocator given the same block size.
-
 - The rasterizer's cull and the mirror both pose every deforming drawable they reach, at traversal
   numbers of their own, so each frame skins twice and the two write different halves of a double
   buffer the previous frame's draw thread is reading.

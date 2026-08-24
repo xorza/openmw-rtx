@@ -275,8 +275,7 @@ namespace Rtx
         Batch setup(mPool);
 
         mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, scene, mRecordScratch);
-        mBuffers = std::make_unique<SceneBuffers>(
-            mDevice, setup, scene, mRecordScratch, mAcceleration->getIndexBlocks(), sea);
+        mBuffers = std::make_unique<SceneBuffers>(mDevice, setup, scene, mRecordScratch, sea);
         mTextures = std::make_unique<TextureArray>(mDevice, setup, textures);
         mBuiltMeshes = scene.getMeshRevision();
 
@@ -311,32 +310,29 @@ namespace Rtx
         Batch setup(mPool);
         mTextures->write(setup, arrived);
 
-        // **The structures are made again and the array is not**, which is the whole of what this
-        // saves: 12 ms against 150. Building only the meshes that arrived is the next step and a
-        // larger one — a bottom level lives in a storage buffer sized to the batch that built it,
-        // so appending means a second buffer rather than a bigger one.
+        // **The meshes that arrived, and no others.** Everything already built stays where it is:
+        // the geometry blocks are appended to rather than replaced, so every address a structure was
+        // built from is still its own, and the storage a departing mesh gives back goes to the next
+        // one that fits.
+        //
         // **The revision and not the count.** A slot a departing cell freed is taken over by the
         // next mesh that fits, so the table can hold different geometry at the same size — and a
-        // guard on the size sends that to `placeScene`, which refits a skinned body into a
-        // bottom-level structure that was never made for it.
+        // guard on the size would send that here without noticing.
         if (scene.getMeshRevision() != mBuiltMeshes)
         {
-            makeInstanceRecords(scene, mRecordScratch);
-            mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, scene, mRecordScratch);
-            mBuffers = std::make_unique<SceneBuffers>(
-                mDevice, setup, scene, mRecordScratch, mAcceleration->getIndexBlocks(), sea);
+            mBuffers->extend(scene);
+            mAcceleration->extend(setup, scene);
             mBuiltMeshes = scene.getMeshRevision();
-            mTimed = false;
-            setup.flush();
         }
-        else
-        {
-            // **Flushed before the placement, not after it.** `placeScene` submits on its own and
-            // refits structures the arrivals above may have built, so the two cannot be left to
-            // finish in whatever order their destructors run in.
-            setup.flush();
-            placeScene(scene, sea);
-        }
+
+        // **Flushed before the placement, not after it.** `placeScene` submits on its own and refits
+        // structures the arrivals above may have just built, so the two cannot be left to finish in
+        // whatever order their destructors run in.
+        setup.flush();
+
+        // Always, because the top level names every instance and an arrival changed the list. It is
+        // rebuilt every frame regardless, so an arrival costs it nothing.
+        placeScene(scene, sea);
 
         // **The history is kept.** Nothing was renumbered, so what the last frame resolved still
         // describes the same surfaces — and throwing it away is a visible flash every time an actor
@@ -537,6 +533,7 @@ namespace Rtx
         const VisibilityInputs inputs{
             .mScene = mAcceleration->getTopLevel(),
             .mBuffers = mBuffers.get(),
+            .mIndexBlocks = mAcceleration->getIndexBlocks(),
             .mTextures = mTextures->getSet(),
             .mShading = mTextures->getShading(),
         };
@@ -706,8 +703,7 @@ namespace Rtx
         Batch setup(mPool);
 
         held.mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, desc, mRecordScratch);
-        held.mBuffers = std::make_unique<SceneBuffers>(
-            mDevice, setup, desc, mRecordScratch, held.mAcceleration->getIndexBlocks(), SeaState{});
+        held.mBuffers = std::make_unique<SceneBuffers>(mDevice, setup, desc, mRecordScratch, SeaState{});
         held.mTextures = std::make_unique<TextureArray>(mDevice, setup, textures);
 
         // A doll can be the first thing this renderer ever builds — a race preview stands in front
@@ -774,6 +770,7 @@ namespace Rtx
         const VisibilityInputs inputs{
             .mScene = acceleration.getTopLevel(),
             .mBuffers = buffers,
+            .mIndexBlocks = acceleration.getIndexBlocks(),
             .mTextures = array.getSet(),
             .mShading = array.getShading(),
         };
