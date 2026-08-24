@@ -598,22 +598,52 @@ WaveSample sampleWave(GpuWave wave, vec2 at, float time, float footprint)
     return result;
 }
 
-/// The surface normal at a point, from the gradient of the wave height field.
+/// The water's surface where a ray met it: one read of the wave field, and everything taken from it.
 ///
-/// The height is `sum(A sin(k dot(d, p) - w t))` and this is its slope, so the two cannot disagree —
-/// which matters more than it sounds: `caustic` differentiates this same field again, and a normal
-/// that did not come from the height would put the light where the surface is not.
+/// **The normal, the elevation and what the cone could not resolve of either, out of one loop.** They
+/// are derivatives and moments of a single height field, and the moment two of them are computed
+/// apart the light lands where the surface is not — which is the same argument `WaveSample` makes one
+/// level down.
+struct WaterSurface
+{
+    /// Unit, from the gradient of the height field.
+    vec3 mNormal;
+
+    /// Elevation about the still level, in world units, of the waves this cone can resolve.
+    float mHeight;
+
+    /// Mean square slope the cone averaged away. **Not gone, rough.** A surface that lost its slope
+    /// reflects like polished plastic; keeping the variance of what was dropped is what lets it come
+    /// back as a widened specular lobe instead, which is LEAN mapping's argument in one dimension.
+    float mLostSlope;
+
+    /// Variance of the *elevation* the cone averaged away, in world units squared.
+    ///
+    /// What `mLostSlope` is to the reflection this is to the foam. The surf line is a level set of
+    /// the surface, and a level set of a field too fine to resolve is a coin toss unless how far
+    /// that field still wanders is carried alongside the mean.
+    float mLostHeight;
+
+    /// Root mean square elevation of the whole spectrum, resolved or not — the sea state itself,
+    /// and `WATER_SIGNIFICANT_HEIGHT` times it is the height oceanography quotes.
+    float mRoughness;
+};
+
+/// Reads the surface at a point.
 ///
-/// @param unresolved what the cone averaged away, as mean square slope. **Not gone, rough.** A
-///        surface that lost its slope reflects like polished plastic; keeping the variance of what
-///        was dropped is what lets it come back as a widened specular lobe instead, which is LEAN
-///        mapping's argument in the one dimension it needs.
-vec3 waterNormal(vec2 at, float time, float footprint, out float unresolved)
+/// The height is `sum(A sin(k dot(d, p) - w t))`; the normal is its slope and `caustic`
+/// differentiates the same field once more, so none of the three can disagree about where a crest is.
+WaterSurface waterSurfaceAt(vec2 at, float time, float footprint)
 {
     const vec2 here = drifted(at, time);
 
+    WaterSurface surface;
+    surface.mHeight = 0.0;
+    surface.mLostSlope = 0.0;
+    surface.mLostHeight = 0.0;
+
     vec2 slope = vec2(0.0);
-    unresolved = 0.0;
+    float variance = 0.0;
 
     for (uint i = 0u; i < WAVE_COUNT; ++i)
     {
@@ -621,15 +651,69 @@ vec3 waterNormal(vec2 at, float time, float footprint, out float unresolved)
         const WaveSample sampled = sampleWave(wave, here, time, footprint);
         const float steepness = wave.mAmplitude * wave.mWavenumber;
 
-        // A sinusoid of steepness `s` has mean square slope `s^2 / 2`.
-        unresolved += (1.0 - sampled.mDetail * sampled.mDetail) * 0.5 * steepness * steepness;
+        // A sinusoid of amplitude `a` has mean square `a^2 / 2`, and the spectrum's components are
+        // independent, so the sum of those is the whole of the surface's variance. **Taken off the
+        // same table the shape comes from** rather than handed down beside it: this is a frame
+        // constant and could have been one, and a sea state that disagreed with its own waves would
+        // be a surf line drawn where the water is not.
+        const float energy = 0.5 * wave.mAmplitude * wave.mAmplitude;
+        variance += energy;
+
+        // How much of each the cone threw away. `mDetail` is an amplitude scale, so what survives of
+        // a variance is its square.
+        const float dropped = 1.0 - sampled.mDetail * sampled.mDetail;
+        surface.mLostSlope += dropped * 0.5 * steepness * steepness;
+        surface.mLostHeight += dropped * energy;
         if (sampled.mDetail <= 0.0)
             continue;
 
         slope += wave.mDirection * (sampled.mDetail * steepness * cos(sampled.mPhase));
+        surface.mHeight += sampled.mDetail * wave.mAmplitude * sin(sampled.mPhase);
     }
 
-    return normalize(vec3(-slope, 1.0));
+    surface.mNormal = normalize(vec3(-slope, 1.0));
+    surface.mRoughness = sqrt(variance);
+    return surface;
+}
+
+/// How much of the surface at a point is broken water, from none of it to all.
+///
+/// **One criterion, and it is the oldest one there is.** A wave breaks when its height reaches about
+/// three quarters of the depth it stands in — McCowan's solitary-wave limit, 1894, still what a surf
+/// zone is placed with — so broken water is wherever the column under it is thinner than that. The
+/// band's width is not a distance anyone picks: it falls out of the sea state, and a calmer sea
+/// foams in a narrower strip of shore with nothing tuned.
+///
+/// **Against the depth at this instant rather than the still one**, which is the whole of the
+/// pattern. A crest carries the column deeper and a trough leaves it thinner, so the criterion is
+/// met and unmet as the waves run through — the surf line wanders up and down the beach by the
+/// height of the sea rather than sitting where the still water would put it, and it is ragged along
+/// the shore because the wave passing over it is. Nothing here is a texture or a noise field: it is
+/// the same height the normal came from, asked a different question.
+///
+/// **And what the cone could not resolve is answered rather than dropped.** Far enough off, the
+/// surf line is finer than the pixel looking at it, and a hard test against an averaged height
+/// flickers between all foam and none as the camera moves. What is wanted there is the *share* of
+/// the surface breaking, which is the Gaussian tail of the elevation that was averaged away — a sum
+/// of many independent sinusoids is Gaussian by the central limit theorem. Both ends fall out of one
+/// expression once the unresolved elevation is treated as the noise it is, which is the same
+/// argument `mLostSlope` makes for the reflection and why the two are carried together.
+///
+/// @param depth how deep the still water is under this point, straight down and in world units.
+float foamCoverage(WaterSurface surface, float depth)
+{
+    // What the sea state breaks in, and what stands between this point and breaking once the wave
+    // over it is counted.
+    const float breaking = surface.mRoughness * WATER_SIGNIFICANT_HEIGHT / WATER_BREAKER_RATIO;
+    const float margin = breaking - (depth + surface.mHeight);
+
+    // `P(the unresolved elevation does not make up the margin)`. The smoothstep stands in for the
+    // Gaussian's own integral, which it follows to within a hundredth across the three standard
+    // deviations that are not already nought or one. The floor is a divide guard and nothing else:
+    // a surface every one of whose waves is resolved has a genuinely sharp edge, and drawing it
+    // sharp is right.
+    const float noise = max(sqrt(surface.mLostHeight), 1.0e-3);
+    return smoothstep(-1.6, 1.6, margin / noise);
 }
 
 /// What is left of the daylight by the time it reaches a point, as a fraction per channel.
@@ -1742,13 +1826,12 @@ vec3 shadeWater(Surface surface, vec3 incident)
 
     // Keyed off world position rather than anything interpolated, so one cell's surface continues
     // into the next without a seam at the boundary.
-    float unresolved = 0.0;
-    const vec3 waves = waterNormal(surface.mPosition.xy, camera.mTime, surface.mFootprint, unresolved);
+    const WaterSurface sea = waterSurfaceAt(surface.mPosition.xy, camera.mTime, surface.mFootprint);
 
     // A normal tilting by an angle turns its reflection by twice that, so the lobe the lost slopes
     // leave behind is twice their root mean square.
-    const float lobe = clamp(2.0 * sqrt(unresolved), 0.0, 1.0);
-    vec3 normal = fromBelow ? -waves : waves;
+    const float lobe = clamp(2.0 * sqrt(sea.mLostSlope), 0.0, 1.0);
+    vec3 normal = fromBelow ? -sea.mNormal : sea.mNormal;
 
     // A facet still facing away is one the surface would have hidden behind the wave in front of it.
     // Tilting it back toward the plane until it faces the ray is the cheap stand-in for the
@@ -1797,7 +1880,36 @@ vec3 shadeWater(Surface surface, vec3 incident)
     // With no water left between the surface and the ground, this is the ground. Only from above:
     // seen from under it, `depth` is a distance through air and says nothing about a shore.
     const float shore = fromBelow ? 1.0 : smoothstep(0.0, WATER_SHORE_FADE, depth);
-    return mix(behind, mix(refracted, reflected, fresnel), shore);
+    const vec3 water = mix(behind, mix(refracted, reflected, fresnel), shore);
+    if (fromBelow)
+        return water;
+
+    // **How deep the water is, and not how far the ray went through it.** Refraction bends toward
+    // the vertical, so a grazing view's path to the bed is up to half again the depth under the
+    // point — enough to put the surf line in a different place depending on where it is watched
+    // from, which is the one thing a shoreline may not do. The drop is the path times its own
+    // vertical share, which is exact.
+    const float under = depth * max(-through.z, 0.0);
+
+    // **Not faded out with the water, which is the one composition that looked obvious and is
+    // wrong.** `shore` exists to hide the plane cutting the terrain, and at this sea state it covers
+    // fifty centimetres of depth where the whole surf zone is seventeen — so multiplying by it left
+    // four per cent foam at its strongest and none at all at the waterline, which is where a
+    // shoreline is whitest. Foam is not a tint of the water column, it is a raft floating on top of
+    // one; where the column is too thin to tint anything the raft is still there, and the last
+    // stretch of it lying over wet sand is what the edge of the sea looks like. It ends where the
+    // water does on its own, because past that no ray finds water to stand on.
+    const float covered = foamCoverage(sea, under);
+    if (!(covered > 0.0))
+        return water;
+
+    // **Broken water is a raft of bubbles rather than a surface**: white, diffuse, and hiding what is
+    // under it rather than tinting it. Lit the way every other diffuse surface in the frame is lit,
+    // which is what keeps a beach and the surf running along it in the same sun.
+    const vec3 foam
+        = WATER_FOAM_ALBEDO * (gather(surface.mPosition, sea.mNormal, surface.mFootprint) + pathEnd(surface.mPosition));
+
+    return mix(water, foam, covered);
 }
 
 /// How fast a bounce ray's cone widens, against a primary ray's.

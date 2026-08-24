@@ -2303,6 +2303,64 @@ namespace Rtx
             EXPECT_EQ(pixels[centre], 18) << "red, settled at what the water scatters";
         }
 
+        /// Broken water is where the column under it is too thin to hold a wave up, and neither the
+        /// depth nor the sea state decides that on its own.
+        ///
+        /// **No sun, so the answer is arithmetic rather than a pattern.** Foam is Lambertian and
+        /// spectrally flat, so a surface entirely covered by it, lit by an ambient of one and nothing
+        /// else, sends back exactly `WATER_FOAM_ALBEDO` in every channel:
+        ///
+        ///   0.55, encoded 1.055 * 0.55^(1/2.4) - 0.055 = 0.76738, or 196 of 255
+        ///
+        /// and that is the same in all three, which the water under it can never be: Jerlov's coastal
+        /// extinction takes red out first, so any depth of water at all reads green.
+        ///
+        /// **Three legs, because the criterion has two sides.** A pond too shallow for its sea foams;
+        /// the same pond under a sea too small to break in it does not; and the same *sea* over deep
+        /// water does not either. McCowan puts the break at `H / 0.78`, so each of those is a
+        /// comparison against one number and both terms of it are exercised.
+        TEST_F(RtxVisibilityTest, surfCoversWaterTooThinToHoldItsOwnWavesUp)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+
+            const auto look = [&](float depth, float significantHeight) {
+                const SceneDesc scene = makeFlooded(4000.0f, depth);
+
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                camera.mAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
+                camera.mWaterLevel = 0.0f;
+
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, {}, camera, size, pixels, SeaState{ .mSignificantHeight = significantHeight });
+                return std::array<int, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
+            };
+
+            // Two units of water under a sea whose significant height is forty, which breaks out to
+            // fifty-one units of depth: the centre is covered whatever the wave over it is doing, so
+            // the value is exact rather than a pattern that happened to land on a pixel.
+            const std::array<int, 3> surf = look(2.0f, 40.0f);
+            EXPECT_EQ(surf[0], 196) << "red, and it is the foam's own albedo and nothing else";
+            EXPECT_EQ(surf[1], 196) << "green";
+            EXPECT_EQ(surf[2], 196) << "blue — a bubble raft has no colour of its own";
+
+            // **The same water under a sea that cannot break in it.** A significant height of one
+            // breaks in 1.28 units and there are two here, so the criterion is never met and what
+            // comes back is the bed through two units of water that barely tint it.
+            const std::array<int, 3> calm = look(2.0f, 1.0f);
+            EXPECT_LT(calm[0], surf[0]) << "no foam, and the bed shows through instead";
+            EXPECT_EQ(calm[0], calm[1]) << "two units of water take out nothing worth measuring";
+
+            // **And the same sea over water deep enough to hold it.** Nothing about the waves
+            // changed; the column under them did, which is the whole of the criterion. What comes
+            // back is water — dark and green, because red went first.
+            const std::array<int, 3> deep = look(400.0f, 40.0f);
+            EXPECT_LT(deep[0], surf[0]) << "no foam over deep water, however rough the sea";
+            EXPECT_LT(deep[0], deep[1]) << "and water is green: red goes first";
+            EXPECT_LT(deep[2], deep[1]) << "with blue between the two";
+        }
+
         /// The same column of water has to look the same from either side of it.
         ///
         /// **This is the test that found the missing half.** Seen from ten units above, a ray crosses

@@ -150,21 +150,16 @@ namespace Sky
             }
 
             // And across the wrap, which is the third boundary and the one nothing else looks at.
-            EXPECT_LT(
-                (sunAt(0.0f, times).mDirection - sunAt(23.95f, times).mDirection).length(),
-                0.05f)
+            EXPECT_LT((sunAt(0.0f, times).mDirection - sunAt(23.95f, times).mDirection).length(), 0.05f)
                 << "the sun jumped at midnight";
 
             // Both joins meet exactly, which is what "the two arcs are one circle" means.
-            EXPECT_LT((sunAt(nightStart - 1e-3f, times).mDirection
-                          - sunAt(nightStart + 1e-3f, times).mDirection)
-                          .length(),
+            EXPECT_LT(
+                (sunAt(nightStart - 1e-3f, times).mDirection - sunAt(nightStart + 1e-3f, times).mDirection).length(),
                 1e-3f)
                 << "a seam at dusk";
-            EXPECT_LT((sunAt(sunrise - 1e-3f, times).mDirection
-                          - sunAt(sunrise + 1e-3f, times).mDirection)
-                          .length(),
-                1e-3f)
+            EXPECT_LT(
+                (sunAt(sunrise - 1e-3f, times).mDirection - sunAt(sunrise + 1e-3f, times).mDirection).length(), 1e-3f)
                 << "a seam at dawn";
         }
 
@@ -206,8 +201,7 @@ namespace Sky
             // grey ambient of a fifth lifts each channel by a fifth of itself, and only the ones
             // that do not clip move: red is already one and stays there, so the sunset reads a
             // different hue from the one the file records rather than a brighter version of it.
-            const osg::Vec3f lifted
-                = sunDiscAt(times.mDayEnd, times, sSunsetTint, osg::Vec4f(0.2f, 0.2f, 0.2f, 1.0f));
+            const osg::Vec3f lifted = sunDiscAt(times.mDayEnd, times, sSunsetTint, osg::Vec4f(0.2f, 0.2f, 0.2f, 1.0f));
             EXPECT_FLOAT_EQ(lifted.x(), 1.0f) << "clipped";
             EXPECT_NEAR(lifted.y(), 1.2f * 189.0f / 255.0f, 1e-4f);
             EXPECT_NEAR(lifted.z(), 1.2f * 157.0f / 255.0f, 1e-4f);

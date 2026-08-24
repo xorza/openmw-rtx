@@ -78,10 +78,9 @@ namespace Sky
         direction.normalize();
         position.normalize();
 
-        return SunPlacement{ .mPosition = position,
-            .mDirection = direction,
-            .mShare = sunShareAt(hour, times),
-            .mNight = night };
+        return SunPlacement{
+            .mPosition = position, .mDirection = direction, .mShare = sunShareAt(hour, times), .mNight = night
+        };
     }
 
     osg::Vec3f sunDiscAt(
@@ -91,8 +90,7 @@ namespace Sky
         if (hour < times.mDayEnd - preSunset)
             return osg::Vec3f(1.0f, 1.0f, 1.0f);
 
-        const float factor
-            = preSunset > 0.0f ? std::min(1.0f, (hour - (times.mDayEnd - preSunset)) / preSunset) : 1.0f;
+        const float factor = preSunset > 0.0f ? std::min(1.0f, (hour - (times.mDayEnd - preSunset)) / preSunset) : 1.0f;
 
         osg::Vec4f colour = osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f) * (1.0f - factor) + sunsetColour * factor;
 

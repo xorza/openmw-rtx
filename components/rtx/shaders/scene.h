@@ -200,6 +200,29 @@ namespace Rtx::Shaders
     /// is one line rather than five pieces of arithmetic that quietly stop describing the shader.
     RTX_CONST vec3 WATER_EXTINCTION = vec3(0.004572f, 0.000714f, 0.001143f);
 
+    /// What a raft of bubbles sends back, as a share of what falls on it.
+    ///
+    /// Koepke measured a whitecap at an effective 0.22 averaged over the whole patch and the decaying
+    /// tail behind it; fresh foam itself runs 0.5 to 0.6. What this covers is the fresh part, because
+    /// the tail is what the coverage below is already fading out. **Spectrally flat**, which almost
+    /// nothing else in this game is: a bubble raft scatters by geometry rather than by pigment, so
+    /// foam is the one white surface in a frame where every other white came off a texture.
+    RTX_CONST float WATER_FOAM_ALBEDO = 0.55f;
+
+    /// The share of its own depth a wave's height reaches before it breaks.
+    ///
+    /// McCowan's solitary-wave limit, 1894, and still the number a surf zone is placed with. It is
+    /// what makes the foam band's width a consequence of the sea state rather than a distance
+    /// somebody picked: a calmer sea breaks closer in, in a narrower strip, with nothing tuned.
+    RTX_CONST float WATER_BREAKER_RATIO = 0.78f;
+
+    /// Significant wave height over the surface's rms elevation.
+    ///
+    /// The oceanographers' definition — the mean of the highest third, which for a Gaussian sea is
+    /// four standard deviations. `SeaState` normalises its spectrum to it and the surf line is
+    /// placed by it, so it is one number rather than a four written twice.
+    RTX_CONST float WATER_SIGNIFICANT_HEIGHT = 4.0f;
+
     /// The single-scattering albedo: the share of extinction that was scattering and not absorption,
     /// and so the part the water hands back as its own colour instead of swallowing.
     ///

@@ -142,14 +142,19 @@ them left behind is in §8.
   arithmetic, `RtxBridge::makeSkylight` is the only thing that may build a sun out of it, and its
   irradiance being zero is the whole of "there is no sun". Every sun bug this renderer has had was
   two of those dials disagreeing.
-- **M6 — water. Done**, bar foam (§8). TMA spectrum under Donelan–Banner spread, 32
+- **M6 — water. Done.** TMA spectrum under Donelan–Banner spread, 32
   components, shortest wave 32 units; ripples carried on the swell; Schlick Fresnel with one
   reflection and one refraction ray **at the pixel's own cone spread, not the bounce spread**;
   Beer–Lambert with Jerlov coastal extinction; caustics from `1/|det J|` with the second-order
   correction that took the term from handing back 12.3% more light than fell on the water to 2.4%.
   *Binds:* **the shader is more current than any prose about it**, here and in
   `/home/xxorza/Projects/rtxmw/docs/design.md` §7; every expectation derives from `WATER_EXTINCTION`,
-  `WATER_IOR` and `WATER_F0` rather than a literal beside it.
+  `WATER_IOR` and `WATER_F0` rather than a literal beside it. And the surf is McCowan's breaking
+  criterion against the depth *at this instant* — `H = 0.78 d`, so the band's width falls out of the
+  sea state and nothing places it. **The note that said to take it off the sign of `det J` was
+  wrong**: that Jacobian is the refracted bundle's, it scales with depth, and this surface is not
+  displaced — so it is near the identity in exactly the shallows foam belongs in, and where it does
+  invert it marks a caustic cusp under the water rather than a surface that folded.
 - **M7 — fog. Done**, bar a test of a real view (§8). 24 non-uniform steps, density falling off from
   the cell's water level, three fbm octaves with a coverage band normalised by its own mean, HG-Draine
   at eight-micron droplets per steradian, eight shadow rays for shafts. *Binds:* **no new bindings** —
@@ -192,11 +197,18 @@ fast*. 1920×1080, no upscaling, validation off, best of thirty on this box.
 
 | what | where | cost |
 |---|---|---|
+| shoreline foam | a shoreline in the middle distance | 8.14 → 8.25 ms |
+| | the camera standing in the surf, foam over a third of the frame | 8.47 → 10.32 ms |
 | the sprite layer, in the trace | Seyda Neen's ship, 165 emitters and 4,655 particles | 8.22 → 8.85 ms |
 | | Balmora's guild of mages, 19 emitters | 7.34 → 7.47 ms |
 | the harness's live props, whole frame | Balmora in a window, 94 props | 49 → 37 fps |
 | a cell arriving | nineteen crossings across the island | none of them a rebuild (§10) |
 | the GUI's own submit | 12,400 interface frames with a video playing | 0.38 queue round trips a frame |
+
+Foam's near-field figure is a shadow ray per covered pixel — it is lit the way every other diffuse
+surface is — and the reflection and refraction rays under it are still traced and then mixed away
+where it covers. Removing those would want the depth before the refraction that measures it, which
+is the circle to break if it ever matters.
 
 The trace is the cheap half of the sprites and the sphere test is why: an emitter is a few units
 across and one rejection throws it away for almost every pixel. The window's six milliseconds are not
@@ -249,8 +261,6 @@ every count; and a control fifo bounding the recording to the measured frames.
 - **The sky dome** (M5): clouds and stars. The sky is a horizon-to-zenith gradient, a sun disc and
   the two moons — phased on the game's own three-day clock, lit by McEwen's lunar-Lambert, and able
   to eclipse the sun. Nothing else is in it.
-- **Shoreline foam** (M6). The **sign** of `det J` is where a surface folds, which is where whitecaps
-  belong — so the term is already computed.
 - **Weather effects** (M5's other half): rain, snow, ash and blight storms, blizzards, and a
   thunderstorm's lightning. `WorldState` carries `mWeatherId`, `mWeatherTransition` and `mWindSpeed`
   and nothing on this side reads one of them — what reaches the picture is only what `MWWorld::Weather`

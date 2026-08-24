@@ -166,7 +166,7 @@ namespace Rtx
 
         if (variance > 0.0f)
         {
-            const float scale = mSignificantHeight / (4.0f * std::sqrt(variance));
+            const float scale = mSignificantHeight / (Shaders::WATER_SIGNIFICANT_HEIGHT * std::sqrt(variance));
             for (Shaders::GpuWave& wave : waves)
                 wave.mAmplitude *= scale;
         }
