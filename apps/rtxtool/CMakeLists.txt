@@ -44,6 +44,8 @@ set(RTXTOOL_FILES
     viewpoint.hpp
     validationchoice.cpp
     validationchoice.hpp
+    verify.cpp
+    verify.hpp
     views.cpp
     views.hpp
     window.cpp

@@ -1,6 +1,6 @@
 # The open issues, traced to their roots
 
-`.notes/ISSUES.md` read one at a time looks like a list of jobs. Traced back it is **six roots**, and
+`.notes/ISSUES.md` read one at a time looks like a list of jobs. Traced back it is **five roots**, and
 this document is those roots and the order to take them in. It does not restate `plan.md` §10 (slots,
 not compaction), §11 (the three roots) or §12 (the seam with the rasterizer); it continues them.
 
@@ -17,8 +17,7 @@ a finished piece is only what the next one needs to know.
 | the rasterizer's cull and the mirror both pose | **B** — stale; a real hazard stands where it did |
 | `OSGTexture` allocates twice a frame and uploads whole | **C** |
 | the world map overlay uploads whole on a cell crossing | **C** |
-| `shot` is not comparable between builds | **G** |
-| a `buffer_reference` read of normals changes the picture | **G** |
+| a `buffer_reference` read of normals changes the picture | **A** |
 | `GuiTextures::add` waits on the queue per texture | **H** |
 | `RtxTool::Chosen` warns under `-Wmissing-field-initializers` | **I** |
 
@@ -66,9 +65,17 @@ id does `block[id / blockSize][id % blockSize]`.
   `ALLOW_DATA_ACCESS`. Indices, normals and texture coordinates are the coupled half, at set 0
   bindings 3, 4 and 5.
 
-**The fallback, and it may be the answer.** If a pointer read is in any doubt here, reach the blocks
-through a **partially-bound descriptor array** of storage buffers indexed by block: no pointers, the
-same arithmetic, and a binding model the texture array already uses. G2 is what decides between them.
+**And the probe now says the pointer itself is innocent.** `RtxProbeTest` reads one buffer of packed
+`vec3`s both ways — a storage-buffer descriptor and a `buffer_reference` at `buffer_reference_align =
+4`, the same declaration `7b-backend.patch` used — and the two agree exactly, in resizable-BAR
+host-visible memory and in staged device-local memory alike. So the defect is not "a pointer read
+returns different data"; it is in what the patch built around it, and the untested part of that is
+the **address table**: `normalBlocks[vertex / VERTEX_BLOCK]`, a `uint64_t` read out of a `HostBuffer`
+through a descriptor. That is where to look first, and the probe is where to ask.
+
+**The fallback, if it turns out to be the pointer after all.** Reach the blocks through a
+**partially-bound descriptor array** of storage buffers indexed by block: no pointers, the same
+arithmetic, and a binding model the texture array already uses.
 
 ### A2. Bottom-level storage is one buffer, created and destroyed as a batch
 
@@ -223,49 +230,6 @@ upload is still the right trade.
 `GlobalMap::write` serialises `mOverlayImage` into the savegame, so main memory is the source of truth
 and the device copy is derived. That is the right way round.
 
-## G. The renderer can draw a picture and cannot say whether it changed
-
-Two entries, one gap seen from two sides.
-
-- **`shot` at its defaults is not an A/B instrument.** Eight frames through DLSS Ray Reconstruction,
-  and two builds that describe the same scene identically write different bytes. `--upscale=off
-  --repeat=1` is stable: through it the whole of A1's block plumbing reproduced the baseline byte for
-  byte on all sixteen views, while the defaults called fifteen of them different. Every bisection
-  taken before that was found says nothing, and several said the opposite of the truth.
-- **A device-level discrepancy can only be met as a rendering mystery.** Nothing here can ask whether
-  a pointer read and a descriptor read of one buffer agree, so the question had to be put to a whole
-  traced frame and answered by elimination — which cost a day and did not answer it.
-
-This is what stopped A1. Two instruments, both small, both of which pay for themselves on the next
-step alone.
-
-### G1. A stable picture A/B, as a command rather than a habit
-
-`openmw-rtxtool verify --against=<directory>` renders every view in `views.cfg` with upscaling off,
-one frame and a fixed seed, and where `--against` names a previous run reports **which views differ
-and by how much** — worst channel delta and how many pixels — rather than merely that they do. "Worst
-2 of 255 on 5% of the pixels" and "worst 37 on 20%" are different findings; a bare *differs* is what
-cost the time.
-
-**The reference is the previous build on this machine, never a corpus in git.** The picture is a
-function of the driver and the card as much as of the code, so checked-in hashes would be a promise
-the tree cannot keep — and the question a refactor asks is "is this the same as before *my* change",
-which a previous run answers exactly.
-
-`shot` keeps its defaults. It is for looking, and looking wants the upscaler.
-
-### G2. A device-behaviour test bed
-
-`apps/components_tests/rtx/` already stands up an instance, a device and a `ComputePipeline`. What it
-has never done is ask the device **one** question. A test that fills a buffer with a known pattern,
-reads it in a compute shader through a descriptor and through a `buffer_reference` pointer, and
-asserts the two agree, is a dozen lines against machinery that exists — and it is the run that would
-have answered A1's defect outright.
-
-That is the shape for every device assumption this renderer takes on trust and cannot currently state:
-scalar block layout, `ALLOW_DATA_ACCESS` position fetch, a partially-bound descriptor left naming an
-image that has been destroyed.
-
 ## H. Every resource is its own queue round trip
 
 `Rtx::GuiTextures::add` clears each new texture through a submit it waits on. That is the logged
@@ -304,34 +268,41 @@ build it once.
 
 Ordered by what unblocks what. Each step is landable on its own and leaves the tree working.
 
-**1 — G, the two instruments.** `verify --against` first, because it is what says whether anything
-below changed the picture; then the test bed, with A1's question — a pointer read and a descriptor
-read of one buffer — as its first case. Verify G1 against itself: two runs of one build agree on every
-view, and a deliberately perturbed shader is reported with a magnitude.
+**The two instruments are in.** `openmw-rtxtool verify --against=<directory>` renders all sixteen
+views with upscaling off, one frame at seed zero, and reports each against a previous run as a worst
+channel delta and a share of the pixels; it exits non-zero when anything moved, and the whole run
+takes sixteen seconds. `apps/components_tests/rtx/probe.cpp` puts one question to the device through
+`shaders/probe.comp`, which the build compiles only when the tests are on.
 
-**2 — H, the batch.** Independent of everything, and it shortens every load the steps below are tested
+Both were checked against themselves. Two runs of one build call all sixteen views the same; a tone
+curve scaled by 1.004 is reported as *worst 1 of 255* on between 5% and 93% of each view, and by 1.08
+as *worst 3 to 9* on nearly every pixel. That difference between the two is the finding a bare
+*differs* could not carry.
+
+**1 — H, the batch.** Independent of everything, and it shortens every load the steps below are tested
 through. Whole suite unchanged; the bench's build figure at Balmora and on the island route.
 
-**3 — A1, the geometry blocks.** `7b-backend.patch` is the starting point and it is known bit-exact
-apart from the pointer read; G2 decides between fixing that and taking the descriptor-array fallback.
-Still a full rebuild per arrival. The picture must be unchanged, which is now a command.
+**2 — A1, the geometry blocks.** `7b-backend.patch` is the starting point and it is known bit-exact
+apart from the normal fetch. Start at the address table, which the probe has not yet been asked
+about; the descriptor-array fallback stands if it turns out to be the pointer. Still a full rebuild
+per arrival. The picture must be unchanged, which is now a command.
 
-**4 — A2, bottom-level storage, then `extendScene`.** Build the arrivals, destroy the departures.
+**3 — A2, bottom-level storage, then `extendScene`.** Build the arrivals, destroy the departures.
 Measure the crossing on the streaming route, median and worst, against 47 ms.
 
-**5 — A3, view scenes get the same three branches.** Look at a race-creation slider drag in the
+**4 — A3, view scenes get the same three branches.** Look at a race-creation slider drag in the
 window; that is what the frame time was.
 
-**6 — C, the region write.** `RegionTexture`, both backends, `Picture::setRegion`, `GlobalMap` onto
+**5 — C, the region write.** `RegionTexture`, both backends, `Picture::setRegion`, `GlobalMap` onto
 `Picture`. The GUI texture tests plus walking across a cell boundary with the world map open.
 
-**7 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
+**6 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
 with `distant terrain` on and comparing a frame; verify the mirror by turning `distant terrain` on and
 taking a shot of an exterior with ground in it.
 
-**8 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
+**7 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
 
-**9 — I.** Ten minutes.
+**8 — I.** Ten minutes.
 
 ## What this does not touch
 

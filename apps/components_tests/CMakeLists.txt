@@ -117,6 +117,7 @@ if (OPENMW_RTX)
         rtx/harness.hpp
         rtx/lightgrid.cpp
         rtx/pipelinecache.cpp
+        rtx/probe.cpp
         rtx/requirements.cpp
         rtx/scenedesc.cpp
         rtx/shadingmap.cpp
@@ -143,6 +144,7 @@ if (OPENMW_RTX)
         rtxtool/stability.cpp
         rtxtool/terrainstorage.cpp
         rtxtool/validationchoice.cpp
+        rtxtool/verify.cpp
         rtxtool/view.cpp
     )
     list(APPEND UNITTEST_SRC_FILES ${RTX_TEST_FILES})

@@ -186,7 +186,14 @@ namespace RtxTool
             "with `scene`, print the world position of every object whose model path contains this. "
             "How the coordinates in a view are found.");
 
-        addOption("out", bpo::value<std::string>()->default_value("shot.png"), "where to write the image");
+        addOption("against", bpo::value<std::string>()->default_value(""),
+            "with `verify`, a directory a previous `verify` wrote, to subtract this run from. The "
+            "reference is always a run of the previous build on this machine and never a corpus in "
+            "the tree: the picture is a function of the driver and the card as much as of the code");
+
+        addOption("out", bpo::value<std::string>()->default_value("shot.png"),
+            "where to write the image, or with `verify` the directory to write every view into "
+            "(\"verify\" unless named)");
         addOption("size", bpo::value<std::string>()->default_value("1920x1080"), "image size, as WIDTHxHEIGHT");
         addOption("fov", bpo::value<float>()->default_value(60.0f), "vertical field of view, in degrees");
         addOption("pos", bpo::value<std::string>()->default_value(""),

@@ -43,6 +43,7 @@
 #include "stagedworld.hpp"
 #include "textures.hpp"
 #include "validationchoice.hpp"
+#include "verify.hpp"
 #include "view.hpp"
 #include "views.hpp"
 #include "world.hpp"
@@ -154,7 +155,8 @@ namespace RtxTool
                      "  shot     render a cell and write a PNG, with no window\n"
                      "  view     open a window on a cell and fly around it\n"
                      "  bench    time a run of frames at each of a list of places\n"
-                     "  textures every texture a cell uses, vanilla beside de-lit, as one sheet\n\n"
+                     "  textures every texture a cell uses, vanilla beside de-lit, as one sheet\n"
+                     "  verify   render every view and say what moved since the last run\n\n"
                      "With no arguments at all: a window on the ship at Seyda Neen, where the game starts.\n\n"
                   << options;
         }
@@ -465,6 +467,39 @@ namespace RtxTool
 
                 return runScene(
                     world, *cell, stagingFrom(variables), actorsFrom(variables), variables["twice"].as<bool>());
+            }
+
+            if (command == "verify")
+            {
+                const auto [width, height] = parseSize(variables["size"].as<std::string>());
+
+                VerifyRequest request;
+                request.mViews = loadViews(resources / "rtx" / "views.cfg");
+                request.mShaderDirectory = resources / "rtx" / "shaders";
+                request.mOut = variables["out"].defaulted() ? "verify" : variables["out"].as<std::string>();
+                request.mAgainst = variables["against"].as<std::string>();
+                request.mWidth = width;
+                request.mHeight = height;
+                request.mFieldOfView = variables["fov"].as<float>();
+                request.mDelight = variables["delight"].as<float>();
+                request.mFilter = variables["filter"].as<bool>();
+                request.mExposure = parseExposure(variables["exposure"].as<std::string>());
+                request.mWeather = variables["weather"].as<std::string>();
+                request.mHour = variables["hour"].as<float>();
+                request.mActors = actorsFrom(variables);
+
+                // **Off unless somebody asked**, for the reason `bench` gives it: GPU-assisted
+                // validation instruments every shader, and a picture drawn under an instrumented
+                // shader is not the picture the next run will be compared against.
+                const bool asked = !variables["validation"].defaulted() || !variables["sync-validation"].defaulted()
+                    || !variables["gpu-validation"].defaulted();
+
+                const Rtx::ValidationOptions validation
+                    = asked ? validationFrom(variables, false) : Rtx::ValidationOptions{};
+
+                World world(config, variables, resources);
+
+                return runVerify(world, validation, request);
             }
 
             if (command == "bench")

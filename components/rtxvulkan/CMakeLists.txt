@@ -51,6 +51,13 @@ set(RTX_SHADERS
     shaders/visibility.comp
 )
 
+# The device-behaviour probes, compiled only where something is going to run them. Nothing the
+# renderer draws reaches these: they state an assumption about the hardware so that it can fail as a
+# test rather than as a rendering mystery.
+if (BUILD_COMPONENTS_TESTS)
+    list(APPEND RTX_SHADERS shaders/probe.comp)
+endif()
+
 # Compiling and validating in one custom command is deliberate: an invalid module must fail the
 # build, never the frame. -MD gives ninja the include graph so editing a shared header rebuilds every
 # shader that includes it.

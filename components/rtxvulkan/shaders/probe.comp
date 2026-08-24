@@ -1,0 +1,51 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_scalar_block_layout : require
+#extension GL_EXT_buffer_reference2 : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+
+// One buffer of `vec3`s, read twice: once through a storage-buffer descriptor and once through a
+// pointer built from the same buffer's device address. Both readings are written out, so the host
+// can say which of them is wrong rather than only that they disagree.
+//
+// **This is the question that stopped the geometry blocking.** Swapping the normal fetch from a
+// descriptor to a `buffer_reference` changed the picture and nothing else did, and with no way to
+// ask the device directly it had to be put to a whole traced frame and answered by elimination —
+// which cost a day and reached the wrong answer twice.
+
+#include "probe.h"
+
+layout(local_size_x = PROBE_WORKGROUP) in;
+
+layout(set = 0, binding = 0, scalar) readonly buffer Source
+{
+    vec3 sourceValues[];
+};
+
+layout(set = 0, binding = 1, scalar) writeonly buffer Readings
+{
+    vec3 readings[];
+};
+
+// The alignment the packed `vec3` tables in `SceneBuffers` would be reached at: four, because a
+// twelve-byte element at an arbitrary index is only ever float-aligned.
+layout(buffer_reference, buffer_reference_align = 4, scalar) readonly buffer SourceBlock
+{
+    vec3 values[];
+};
+
+layout(push_constant, scalar) uniform Push
+{
+    ProbeConstants probe;
+};
+
+void main()
+{
+    const uint at = gl_GlobalInvocationID.x;
+    if (at >= probe.mCount)
+        return;
+
+    readings[at] = sourceValues[at];
+    readings[probe.mCount + at] = SourceBlock(probe.mSource).values[at];
+}
