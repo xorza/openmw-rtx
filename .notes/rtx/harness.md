@@ -31,23 +31,26 @@ sides read.
 
 ## 2. Where they differ
 
-### 2.1 The frame is described twice — the one that matters most
+### 2.1 The frame was described twice — closed
 
-The game builds `MWRender::WorldState` (`renderingmanager.cpp:783`, `describeWorld`) and hands it
-down inside a `SceneFrame`; `Rtx::RtxRenderer::renderFrame` turns that into
-`Shaders::VisibilityConstants` (`apps/openmw/mwrender/rtx/rtxrenderer.cpp:633` onward). The harness
-never makes a `WorldState` at all: it carries `RtxTool::CellLighting` and turns *that* into the same
-constants through `applyLighting` (`apps/rtxtool/lighting.cpp`) and `makeFrameConstants`
-(`apps/rtxtool/framing.cpp`).
+Both sides now fill one `RtxBridge::FrameWorld` and call one `applyWorld`
+(`components/rtxbridge/frameworld.hpp`). What each does to *reach* those numbers still differs and
+always will — the game decodes what a live weather system settled on, the harness derives them from
+the content files at an hour it was told — but the list of what a frame's world half contains, and
+the writing of it, are one thing.
 
-So **every field of the frame is written twice, by two hands, against no shared test**. This is not
-theoretical: the weather identity, the wind, the storm direction and both moons each had to be added
-to both paths in the same sitting, and the sun's own `mTime` was once filled by the harness and left
-at zero by the game — a frozen ocean in the game and a moving one in `shot`, which is precisely the
-failure mode this shape produces.
+**`WorldState` could not itself be that struct, and the reason is worth keeping.** Its colours are
+display-encoded, because `MWRender::PostProcessor` reads the same struct and OpenMW's own pipeline
+works in that space end to end. The ray tracer decodes; the rasterizer must not. So `WorldState`
+stays the game's faithful report in the world's own numbers, and `FrameWorld` is the renderer's
+units — linear colours, an extinction rather than two distances, the weather blend already turned
+the right way round, the moons placed.
 
-**It is also the cheapest to close**, because the game's half is already the right shape: a plain
-struct of what the world is doing, with no game types in it beyond `osg` vectors.
+Three defects of exactly this shape had already happened by the time it was closed, and the last was
+found while closing it: the sea's clock filled by the harness and left at zero by the game, so waves
+stood still in the game alone; the weather, the wind and both moons added twice in one sitting; and
+**`mFogUniform` written only by the harness, so every interior in the game ran the outdoor banked-fog
+field** a room is far too small for.
 
 ### 2.2 Water is different geometry in the two
 
@@ -137,20 +140,16 @@ the player — so a pose bug that only the game produces cannot be reproduced in
 
 Ordered by what each buys against what it costs. Every step stands alone and leaves the tree working.
 
-### Step 1 — One frame description, written once
+### Step 1 — One frame description, written once — **done**
 
-**Move `WorldState` into `components/rtx` (or the bridge) and give it one conversion to
-`VisibilityConstants`.** The game fills a `WorldState` as it does today; the harness fills one from
-`CellLighting` plus its camera; both call the same function.
+`RtxBridge::FrameWorld` and `applyWorld`, filled by `RtxRenderer::renderFrame` on one side and
+`RtxTool::applyLighting` on the other, with `RtxFrameWorldTest` asserting that every number the world
+decides reaches the frame, that the camera's half is left alone, and that an unfilled world is a
+frame with no sky in it.
 
-- *Buys:* the §2.1 class of bug ends. A field added to the frame is added once, and `shot` cannot
-  drift from the game without a test failing.
-- *Costs:* a struct moves and two call sites change. `WorldState` already holds nothing but `osg`
-  types and plain scalars, so nothing has to be unpicked to move it.
-- *Test:* one that builds a `WorldState`, runs it through the shared conversion, and asserts every
-  field lands — the thing neither path has today.
-
-This is the highest-value item on the list and should be done first.
+It also finished the moons: the game reports the two `MoonState`s it was already given
+(`WorldState::mMoons`) and `RtxBridge::placeMoon` turns them into the same placements the harness
+derives, so both surfaces draw the same moons from one piece of geometry code.
 
 ### Step 2 — The weather arithmetic into a component
 

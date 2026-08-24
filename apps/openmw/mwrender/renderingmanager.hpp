@@ -411,6 +411,13 @@ namespace MWRender
         bool mUpdateProjectionMatrix = false;
         bool mNight = false;
 
+        /// Masser and Secunda, as the weather system last settled them.
+        ///
+        /// **Kept for the reason the storm's direction is:** `WorldState` has to report them and the
+        /// sky cannot be asked back. Until the weather system first speaks they are an alpha of
+        /// nothing, which is a moon nothing draws.
+        MoonState mMoonStates[2] = {};
+
         /// The last direction `MWWorld::WeatherManager` aimed its storm particles.
         ///
         /// **Kept because `WorldState` has to report it and the sky cannot be asked.** The weather

@@ -224,11 +224,17 @@ namespace RtxBridge
         const Model model(moon);
         const float degrees = model.angle(day, hour);
 
+        return placeMoon(moon, degrees, model.mAxisOffset, model.phase(day, hour),
+            model.earlyShadowAlpha(degrees) * model.hourlyAlpha(hour));
+    }
+
+    MoonPlacement placeMoon(Moon moon, float alongArcDegrees, float axisOffsetDegrees, int phase, float alpha)
+    {
         // `Moon::setState`'s own two rotations (`apps/openmw/mwrender/gl/skyutil.cpp:900`): the arc
         // tips the moon up from the horizon about +X, and the axis offset swings that whole arc
         // about the zenith so the two moons rise in different places and their paths cross.
-        const float alongArc = osg::DegreesToRadians(degrees);
-        const float aboutZenith = osg::DegreesToRadians(model.mAxisOffset);
+        const float alongArc = osg::DegreesToRadians(alongArcDegrees);
+        const float aboutZenith = osg::DegreesToRadians(axisOffsetDegrees);
 
         const osg::Quat arc(alongArc, osg::Vec3f(1.0f, 0.0f, 0.0f));
         const osg::Quat swing(aboutZenith, osg::Vec3f(0.0f, 0.0f, 1.0f));
@@ -246,9 +252,9 @@ namespace RtxBridge
 
             // Eight painted phases are eight steps of a half turn each way, counted from full — so
             // the index is the angle, and the sign of its sine is the limb the light is on.
-            .mPhaseAngle = static_cast<float>(model.phase(day, hour)) * 0.25f * osg::PIf,
+            .mPhaseAngle = static_cast<float>(phase) * 0.25f * osg::PIf,
 
-            .mAlpha = model.earlyShadowAlpha(degrees) * model.hourlyAlpha(hour),
+            .mAlpha = alpha,
 
             // One scale for both faces, taken off Masser's brightest channel — see `sPeakRadiance`.
             .mColour = (moon == Moon::Masser ? sMasserFace : sSecundaFace) * (sPeakRadiance / sMasserFace.x()),

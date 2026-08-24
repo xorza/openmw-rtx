@@ -3,6 +3,8 @@
 
 #include <optional>
 
+#include "weatherresult.hpp"
+
 #include <osg/Matrixf>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
@@ -126,6 +128,14 @@ namespace MWRender
         /// (`apps/openmw/mwworld/weather.cpp:1261`). Meaningless without `mNextWeatherId`.
         float mWeatherTransition = 0.0f;
         float mWindSpeed = 0.0f;
+
+        /// Masser and Secunda, as the weather system last settled them.
+        ///
+        /// **The world's own numbers and not a placement**, which is what keeps this header off the
+        /// ray tracer: `components/rtxbridge` is not built at all with the option off, and this is a
+        /// header the rasterizer reads. An alpha of nothing is a moon that is not drawn, which is
+        /// what a value-initialised pair says before the weather system has spoken.
+        MoonState mMoons[2] = {};
 
         /// Where a storm drives what it carries, unit length.
         ///

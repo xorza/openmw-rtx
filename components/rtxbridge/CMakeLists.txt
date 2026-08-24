@@ -5,6 +5,8 @@
 set(RTXBRIDGE_FILES
     fogbuilder.cpp
     fogbuilder.hpp
+    frameworld.cpp
+    frameworld.hpp
     frameimage.cpp
     frameimage.hpp
     lightbuilder.cpp

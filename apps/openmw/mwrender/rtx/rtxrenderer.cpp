@@ -37,7 +37,9 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/upscale.hpp>
 #include <components/rtxbridge/frameimage.hpp>
+#include <components/rtxbridge/frameworld.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
+#include <components/rtxbridge/moonbuilder.hpp>
 #include <components/rtxbridge/png.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/rtxbridge/sceneuploader.hpp>
@@ -635,69 +637,87 @@ namespace MWRender::Rtx
         // **Decoded here, because the world does not know what a transport is.** Every colour on
         // the frame is a content file's three bytes over 255 and no transfer function; the
         // rasterizer samples them as they are and this light transport is linear, so the conversion
-        // belongs to whichever renderer needs it. The harness runs the same decode on the same
-        // numbers, which is what keeps a screenshot and the game one picture.
+        // belongs to whichever renderer needs it.
         osg::Vec3f sun(world.mSunVector.x(), world.mSunVector.y(), world.mSunVector.z());
         if (sun.length2() > 0.0f)
             sun.normalize();
 
-        const osg::Vec3f haze = RtxBridge::decodeColour(world.mAir.mColour);
-
-        constants.mSunDirection = sun;
-
-        // Scaled by the same ratio of sun to sky the harness uses. Sharing the constant is what
-        // keeps a screenshot and the game the same picture.
-        constants.mSunIrradiance = RtxBridge::decodeColour(world.mSunColour) * ::Rtx::Shaders::DAYLIGHT;
-        constants.mAmbient = RtxBridge::decodeColour(world.mAmbientColour);
-
-        // Negative infinity and not zero: zero is sea level, and a cell with no water has to answer
-        // "how deep is this point" with never.
-        constants.mWaterLevel = world.mWaterEnabled ? world.mWaterHeight : -std::numeric_limits<float>::infinity();
-
-        // **What the sea is animated by, and leaving it at zero is a frozen ocean.** The harness
-        // passes this through `applyLighting`; the game assembles its own constants and simply did
-        // not, so every wave stood still. Real elapsed seconds rather than the frame count: a sea
-        // that ran at the frame rate would slow down whenever the frame did.
-        constants.mTime = static_cast<float>(when.getSimulationTime());
-
         // The horizon is the fog and the zenith is the sky's own, which is the pair Morrowind
         // records: one colour for the air, and one for the dome it fades into overhead.
-        constants.mSkyHorizon = haze;
-
-        // **The sky's own colour, and an interior has none.** The weather system stops writing it
-        // the moment the player steps inside, so what the sky is still holding belongs to wherever
-        // they were last outdoors — and the air's own colour stands in, which is what a room's sky
-        // is anyway. A quasi-exterior is on the outdoor side of that: it has weather.
-        constants.mSkyZenith = world.isOutdoors() ? RtxBridge::decodeColour(world.mSkyColour) : haze;
-
-        constants.mFogColour = haze;
+        const osg::Vec3f haze = RtxBridge::decodeColour(world.mAir.mColour);
 
         // **The fog is a linear ramp there and a medium here**, so what is matched is where each is
         // half gone: the ramp at the midpoint of start and end, an exponential at `ln(2) / sigma`.
         // The same derivation `RtxBridge::fogExtinction` makes from a recorded depth, reached
         // instead from the distances the game has already computed.
         const float half = 0.5f * (world.mAir.mStart + world.mAir.mEnd);
-        constants.mFogExtinction = half > 0.0f ? std::numbers::ln2_v<float> / half : 0.0f;
 
-        // **The blend runs the opposite way to what its name suggests.** `getWeatherTransition`
-        // hands back `WeatherManager::mTransitionFactor`, which is set to one when a change begins
-        // and counted *down* to zero as it completes — the engine's own mix is `1 - factor`
-        // (`apps/openmw/mwworld/weather.cpp:1261`). Passed through unturned it is a sky that starts
-        // as the weather it is becoming and ends as the one it left.
-        //
-        // **And the current weather twice where nothing is changing**, since the shader mixes
-        // unconditionally: naming this one on both sides at a blend of zero is what lets it.
-        constants.mWeather = static_cast<std::uint32_t>(world.mWeatherId);
-        constants.mNextWeather
-            = world.mNextWeatherId.has_value() ? static_cast<std::uint32_t>(*world.mNextWeatherId) : constants.mWeather;
-        constants.mWeatherBlend = world.mNextWeatherId.has_value() ? 1.0f - world.mWeatherTransition : 0.0f;
+        RtxBridge::FrameWorld described{
+            .mSunDirection = sun,
 
-        constants.mWindSpeed = world.mWindSpeed;
+            // Scaled by the same ratio of sun to sky the harness uses. Sharing the constant is what
+            // keeps a screenshot and the game the same picture.
+            .mSunIrradiance = RtxBridge::decodeColour(world.mSunColour) * ::Rtx::Shaders::DAYLIGHT,
+            .mAmbient = RtxBridge::decodeColour(world.mAmbientColour),
+            .mSkyHorizon = haze,
 
-        // Already aimed at the player by the weather system, which is the only thing that knows
-        // where they stand. `RtxBridge::stormDirection` is the same rule for the harness, which has
-        // no player to ask.
-        constants.mStormDirection = world.mStormDirection;
+            // **The sky's own colour, and an interior has none.** The weather system stops writing
+            // it the moment the player steps inside, so what the sky is still holding belongs to
+            // wherever they were last outdoors — and the air's own colour stands in, which is what a
+            // room's sky is anyway. A quasi-exterior is on the outdoor side of that: it has weather.
+            .mSkyZenith = world.isOutdoors() ? RtxBridge::decodeColour(world.mSkyColour) : haze,
+
+            .mAir = { .mColour = haze,
+                .mExtinction = half > 0.0f ? std::numbers::ln2_v<float> / half : 0.0f,
+
+                // **One indoors and nothing out of doors.** Banks are what weather does to a
+                // landscape, and a room running the outdoor coverage field reads as a rendering
+                // fault rather than as weather.
+                .mUniform = world.isInteriorCell() ? 1.0f : 0.0f },
+
+            // Negative infinity and not zero: zero is sea level, and a cell with no water has to
+            // answer "how deep is this point" with never.
+            .mWaterLevel = world.mWaterEnabled ? world.mWaterHeight : -std::numeric_limits<float>::infinity(),
+
+            // **What the sea is animated by, and leaving it at zero is a frozen ocean.** Real
+            // elapsed seconds rather than the frame count: a sea that ran at the frame rate would
+            // slow down whenever the frame did.
+            .mSeconds = static_cast<float>(when.getSimulationTime()),
+
+            // **The blend runs the opposite way to what its name suggests.** `getWeatherTransition`
+            // hands back `WeatherManager::mTransitionFactor`, which is set to one when a change
+            // begins and counted *down* as it completes — the engine's own mix is `1 - factor`
+            // (`apps/openmw/mwworld/weather.cpp:1261`). Passed through unturned it is a sky that
+            // starts as the weather it is becoming and ends as the one it left.
+            //
+            // **And the current weather twice where nothing is changing**, since the shader mixes
+            // unconditionally: naming this one on both sides at a blend of zero is what lets it.
+            .mWeather = static_cast<std::uint32_t>(world.mWeatherId),
+            .mNextWeather = world.mNextWeatherId.has_value() ? static_cast<std::uint32_t>(*world.mNextWeatherId)
+                                                             : static_cast<std::uint32_t>(world.mWeatherId),
+            .mWeatherBlend = world.mNextWeatherId.has_value() ? 1.0f - world.mWeatherTransition : 0.0f,
+
+            .mWindSpeed = world.mWindSpeed,
+
+            // Already aimed at the player by the weather system, which is the only thing that knows
+            // where they stand. `RtxBridge::stormDirection` is the same rule for the harness, which
+            // has no player to ask.
+            .mStormDirection = world.mStormDirection,
+        };
+
+        for (std::size_t moon = 0; moon < described.mMoons.size(); ++moon)
+        {
+            const MoonState& state = world.mMoons[moon];
+
+            // `Unspecified` is a ninth value and not a phase; the weather system uses it to mean it
+            // has not spoken, and a moon it has not spoken about is one with no alpha anyway.
+            const int phase = state.mPhase == MoonState::Phase::Unspecified ? 0 : static_cast<int>(state.mPhase);
+
+            described.mMoons[moon] = RtxBridge::placeMoon(static_cast<RtxBridge::Moon>(moon),
+                state.mRotationFromHorizon, state.mRotationFromNorth, phase, state.mMoonAlpha);
+        }
+
+        RtxBridge::applyWorld(described, constants);
 
         // **What the sampler and the jitter are walked by, and leaving it at zero is a bug with two
         // faces.** The bounce samples the same point every frame, so nothing ever converges; and the

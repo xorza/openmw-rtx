@@ -130,6 +130,7 @@ if (OPENMW_RTX)
         rtx/wavespectrum.cpp
         rtxbridge/fogbuilder.cpp
         rtxbridge/frameimage.cpp
+        rtxbridge/frameworld.cpp
         rtxbridge/lightbuilder.cpp
         rtxbridge/moonbuilder.cpp
         rtxbridge/sceneextractor.cpp

@@ -69,6 +69,19 @@ namespace RtxBridge
     /// @param hour on a twenty-four hour clock.
     MoonPlacement makeMoon(Moon moon, int day, float hour);
 
+    /// A moon placed from angles somebody else worked out.
+    ///
+    /// **Two callers reach the same sky by different routes.** The game runs a weather system and
+    /// hands over the angles it settled on; the harness has none and derives them from the clock
+    /// through `makeMoon`. What a moon *is* once those angles are known — where its face points, how
+    /// wide it is, which way its terminator falls — is one answer and lives here.
+    ///
+    /// @param alongArc degrees travelled from the horizon it rose at, zero to 180.
+    /// @param axisOffset degrees the whole arc is swung about the zenith.
+    /// @param phase which of the eight painted phases, counted from full.
+    /// @param alpha what the game fades it by. Zero is a moon that is not drawn.
+    MoonPlacement placeMoon(Moon moon, float alongArc, float axisOffset, int phase, float alpha);
+
     /// A placement as the shader takes it.
     ///
     /// **One conversion and two callers**, which is the point it shares with `makeLight`: the game

@@ -659,6 +659,9 @@ namespace MWRender
 
     void RenderingManager::setMoonStates(const MoonState& masser, const MoonState& secunda)
     {
+        mMoonStates[0] = masser;
+        mMoonStates[1] = secunda;
+
         mSky->setMasserState(masser);
         mSky->setSecundaState(secunda);
     }
@@ -814,6 +817,7 @@ namespace MWRender
             .mNextWeatherId = nextWeather,
             .mWeatherTransition = world.getWeatherTransition(),
             .mWindSpeed = world.getWindSpeed(),
+            .mMoons = { mMoonStates[0], mMoonStates[1] },
             .mStormDirection = mStormParticleDirection,
         };
     }
