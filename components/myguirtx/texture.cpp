@@ -1,5 +1,8 @@
 #include "texture.hpp"
 
+#include <cassert>
+#include <cstring>
+
 #include <algorithm>
 #include <stdexcept>
 
@@ -131,7 +134,7 @@ namespace MyGUIRtx
     {
         if (mNumElemBytes == 4)
         {
-            mRenderer.writeGuiTexture(mSlot, mPixels);
+            mRenderer.writeGuiTexture(mSlot, whole(), mPixels);
             return;
         }
 
@@ -165,7 +168,31 @@ namespace MyGUIRtx
             }
         }
 
-        mRenderer.writeGuiTexture(mSlot, mWidened);
+        mRenderer.writeGuiTexture(mSlot, whole(), mWidened);
+    }
+
+    void Texture::writeRegion(
+        std::uint32_t x, std::uint32_t y, std::uint32_t width, std::uint32_t height, std::span<const std::uint8_t> rows)
+    {
+        assert(mNumElemBytes == 4 && "a region write into a texture the GUI asked for fewer channels of");
+        assert(x + width <= static_cast<std::uint32_t>(mWidth) && y + height <= static_cast<std::uint32_t>(mHeight)
+            && "a region past the edge of the texture");
+        assert(rows.size() == std::size_t{ width } * height * 4 && "the region's own rows, tightly packed");
+
+        // **Kept here as well as sent**, because this side's copy is what MyGUI hands out on the next
+        // `lock`: a picture written in part and then locked whole would otherwise come back holding
+        // the region's old pixels.
+        for (std::uint32_t row = 0; row < height; ++row)
+            std::memcpy(mPixels.data() + (std::size_t{ y + row } * mWidth + x) * 4,
+                rows.data() + std::size_t{ row } * width * 4, std::size_t{ width } * 4);
+
+        mRenderer.writeGuiTexture(mSlot, Rtx::Renderer::GuiRegion{ x, y, width, height }, rows);
+    }
+
+    Rtx::Renderer::GuiRegion Texture::whole() const
+    {
+        return Rtx::Renderer::GuiRegion{ 0, 0, static_cast<std::uint32_t>(mWidth),
+            static_cast<std::uint32_t>(mHeight) };
     }
 
     void Texture::setShader(const std::string& /*shaderName*/)

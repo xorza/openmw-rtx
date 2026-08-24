@@ -20,6 +20,8 @@ file(GLOB UNITTEST_SRC_FILES
     lua/testutilpackage.cpp
     lua/testyaml.cpp
 
+    myguiplatform/pixels.cpp
+
     misc/compression.cpp
     misc/progressreporter.cpp
     misc/testendianness.cpp

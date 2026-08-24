@@ -1,8 +1,10 @@
 #ifndef OPENMW_COMPONENTS_MYGUIPLATFORM_PICTURE_H
 #define OPENMW_COMPONENTS_MYGUIPLATFORM_PICTURE_H
 
+#include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <MyGUI_RenderFormat.h>
 
@@ -45,10 +47,25 @@ namespace MyGUIPlatform
         /// no asking it for part of one.
         void set(const osg::Image& image);
 
+        /// Copies a rectangle of `image` in, where the backend can take one.
+        ///
+        /// **Falls back to the whole image where it cannot**, which is what makes this safe to call
+        /// from anywhere: `RegionTexture` is an offer a backend makes rather than one it owes, and a
+        /// caller that had to ask would end up with two code paths of its own.
+        ///
+        /// `image` is the whole picture and the rectangle names part of it, so the rows are gathered
+        /// out of it here. The texture must already exist — a `set` comes first — and the rectangle
+        /// must lie inside it.
+        void setRegion(const osg::Image& image, int x, int y, int width, int height);
+
         /// Null until the first `set`.
         MyGUI::ITexture* getTexture() const { return mTexture; }
 
     private:
+        /// The rectangle's rows, gathered out of the image so the backend gets them tightly packed.
+        /// Kept because a picture written in part is written in part again and again.
+        std::vector<std::uint8_t> mRegionScratch;
+
         std::string mName;
         MyGUI::ITexture* mTexture = nullptr;
         int mWidth = 0;

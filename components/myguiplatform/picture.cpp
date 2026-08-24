@@ -1,6 +1,7 @@
 #include "picture.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <cstring>
 #include <optional>
@@ -12,6 +13,7 @@
 #include <osg/Image>
 
 #include "pixels.hpp"
+#include "regiontexture.hpp"
 
 namespace MyGUIPlatform
 {
@@ -29,7 +31,8 @@ namespace MyGUIPlatform
     }
 
     Picture::Picture(Picture&& other) noexcept
-        : mName(std::move(other.mName))
+        : mRegionScratch(std::move(other.mRegionScratch))
+        , mName(std::move(other.mName))
         , mTexture(std::exchange(other.mTexture, nullptr))
         , mWidth(other.mWidth)
         , mHeight(other.mHeight)
@@ -45,6 +48,7 @@ namespace MyGUIPlatform
         if (mTexture != nullptr)
             MyGUI::RenderManager::getInstance().destroyTexture(mTexture);
 
+        mRegionScratch = std::move(other.mRegionScratch);
         mName = std::move(other.mName);
         mTexture = std::exchange(other.mTexture, nullptr);
         mWidth = other.mWidth;
@@ -52,6 +56,27 @@ namespace MyGUIPlatform
         mFormat = other.mFormat;
 
         return *this;
+    }
+
+    void Picture::setRegion(const osg::Image& image, int x, int y, int width, int height)
+    {
+        auto* region = dynamic_cast<RegionTexture*>(mTexture);
+
+        // **The whole thing where the backend has nothing better**, which is exactly what a caller
+        // would otherwise have written for itself. `mFormat` is what says whether the rows below
+        // would even be the right bytes: a picture the GUI took at three channels is widened on the
+        // way through `set` and has no packed rectangle to send.
+        if (region == nullptr || mFormat != MyGUI::PixelFormat::R8G8B8A8)
+        {
+            set(image);
+            return;
+        }
+
+        assert(x >= 0 && y >= 0 && x + width <= mWidth && y + height <= mHeight);
+
+        gatherRegion(image, x, y, width, height, mRegionScratch);
+        region->writeRegion(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y),
+            static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), mRegionScratch);
     }
 
     void Picture::set(const osg::Image& image)

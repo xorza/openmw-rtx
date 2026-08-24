@@ -6,6 +6,8 @@
 
 #include <osg/ref_ptr>
 
+#include <components/myguiplatform/picture.hpp>
+
 namespace MyGUI
 {
     class ITexture;
@@ -79,14 +81,6 @@ namespace MWRender
     private:
         struct WritePng;
 
-        /// A texture of this size for the GUI to show, made through MyGUI's own factory so that
-        /// which renderer is behind it is not this class's business.
-        MyGUI::ITexture& createTexture(const char* name, bool alpha) const;
-
-        /// The whole image, because MyGUI hands out a fresh buffer on every lock and there is no
-        /// asking it for part of one.
-        void upload(MyGUI::ITexture& texture, const osg::Image& image) const;
-
         osg::ref_ptr<SceneUtil::WorkQueue> mWorkQueue;
         osg::ref_ptr<CreateMapWorkItem> mWorkItem;
         osg::ref_ptr<WritePng> mWritePng;
@@ -98,8 +92,11 @@ namespace MWRender
         /// What the player has walked, and the only copy of it: this is what is saved.
         osg::ref_ptr<osg::Image> mOverlayImage;
 
-        MyGUI::ITexture* mBaseTexture = nullptr;
-        MyGUI::ITexture* mOverlayTexture = nullptr;
+        /// The two pictures the GUI shows, which is what `MyGUIPlatform::Picture` is for: making
+        /// the texture, keeping it while its shape holds, and writing part of it where the backend
+        /// can take part of one.
+        MyGUIPlatform::Picture mBase{ "global map" };
+        MyGUIPlatform::Picture mOverlay{ "global map overlay" };
 
         /// One cell's worth of composited pixels, kept so that painting one allocates nothing and
         /// so that a repaint that changes nothing can be recognised before the upload.

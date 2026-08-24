@@ -93,7 +93,8 @@ namespace Rtx
         void dropViewScene(std::uint32_t scene) override;
 
         std::uint32_t addGuiTexture(std::uint32_t width, std::uint32_t height) override;
-        void writeGuiTexture(std::uint32_t texture, std::span<const std::uint8_t> rgba) override;
+        void writeGuiTexture(
+            std::uint32_t texture, const GuiRegion& region, std::span<const std::uint8_t> rgba) override;
         void dropGuiTexture(std::uint32_t texture) override;
         void drawGui(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches) override;
         void traceGuiTexture(

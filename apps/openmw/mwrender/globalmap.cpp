@@ -228,12 +228,6 @@ namespace MWRender
     {
         if (mWorkItem)
             mWorkItem->waitTillDone();
-
-        MyGUI::RenderManager& textures = MyGUI::RenderManager::getInstance();
-        if (mBaseTexture)
-            textures.destroyTexture(mBaseTexture);
-        if (mOverlayTexture)
-            textures.destroyTexture(mOverlayTexture);
     }
 
     void GlobalMap::render()
@@ -281,21 +275,6 @@ namespace MWRender
         imageX = (float(x / float(Constants::CellSizeInUnits) - mMinX) / (mMaxX - mMinX + 1)) * getWidth();
 
         imageY = (1.f - float(z / float(Constants::CellSizeInUnits) - mMinY) / (mMaxY - mMinY + 1)) * getHeight();
-    }
-
-    MyGUI::ITexture& GlobalMap::createTexture(const char* name, bool alpha) const
-    {
-        MyGUI::ITexture& texture = *MyGUI::RenderManager::getInstance().createTexture(name);
-        texture.createManual(mWidth, mHeight, MyGUI::TextureUsage::Static | MyGUI::TextureUsage::Write,
-            alpha ? MyGUI::PixelFormat::R8G8B8A8 : MyGUI::PixelFormat::R8G8B8);
-        return texture;
-    }
-
-    void GlobalMap::upload(MyGUI::ITexture& texture, const osg::Image& image) const
-    {
-        void* pixels = texture.lock(MyGUI::TextureUsage::Write);
-        std::memcpy(pixels, image.data(), image.getTotalSizeInBytes());
-        texture.unlock();
     }
 
     bool GlobalMap::exploreCell(int cellX, int cellY, const osg::Image* tile)
@@ -364,7 +343,10 @@ namespace MWRender
             std::memcpy(mOverlayImage->data(originX, originY + y),
                 mCellScratch.data() + static_cast<std::size_t>(y) * cellSize * 4, cellSize * 4);
 
-        upload(*mOverlayTexture, *mOverlayImage);
+        // **The cell and not the overlay.** Eighteen pixels square against two megabytes, on the
+        // frame a cell arrives. A backend that cannot take a rectangle still gets the whole image,
+        // which is what this did unconditionally.
+        mOverlay.setRegion(*mOverlayImage, originX, originY, cellSize, cellSize);
         return true;
     }
 
@@ -374,7 +356,7 @@ namespace MWRender
 
         std::memset(mOverlayImage->data(), 0, mOverlayImage->getTotalSizeInBytes());
 
-        upload(*mOverlayTexture, *mOverlayImage);
+        mOverlay.set(*mOverlayImage);
     }
 
     void GlobalMap::write(ESM::GlobalMap& map)
@@ -480,19 +462,19 @@ namespace MWRender
                 *mOverlayImage, destBox.mLeft, mHeight - destBox.mBottom, destBox.mRight - destBox.mLeft, destHeight);
         }
 
-        upload(*mOverlayTexture, *mOverlayImage);
+        mOverlay.set(*mOverlayImage);
     }
 
     MyGUI::ITexture& GlobalMap::getBaseTexture()
     {
         ensureLoaded();
-        return *mBaseTexture;
+        return *mBase.getTexture();
     }
 
     MyGUI::ITexture& GlobalMap::getOverlayTexture()
     {
         ensureLoaded();
-        return *mOverlayTexture;
+        return *mOverlay.getTexture();
     }
 
     void GlobalMap::ensureLoaded()
@@ -507,11 +489,8 @@ namespace MWRender
         mOverlayImage = mWorkItem->mOverlayImage;
         mWorkItem = nullptr;
 
-        mBaseTexture = &createTexture("global map", false);
-        upload(*mBaseTexture, *base);
-
-        mOverlayTexture = &createTexture("global map overlay", true);
-        upload(*mOverlayTexture, *mOverlayImage);
+        mBase.set(*base);
+        mOverlay.set(*mOverlayImage);
     }
 
     void GlobalMap::asyncWritePng()

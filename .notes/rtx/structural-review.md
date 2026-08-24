@@ -13,8 +13,7 @@ a finished piece is only what the next one needs to know.
 | distant terrain is invisible to the mirror | **B** |
 | `Inactive`/`SemiActive` skeletons refuse to move | **B** — closed, bar a test |
 | the rasterizer's cull and the mirror both pose | **B** — stale; a real hazard stands where it did |
-| `OSGTexture` allocates twice a frame and uploads whole | **C** |
-| the world map overlay uploads whole on a cell crossing | **C** |
+| `OSGTexture` allocates twice a frame and uploads whole | **C** — left as upstream has it |
 | `GuiTextures::add` waits on the queue per texture | **C** |
 | `RtxTool::Chosen` warns under `-Wmissing-field-initializers` | **I** |
 
@@ -151,55 +150,36 @@ local-map tile — 256 down to 18, which is cheap — and then uploads **the ent
 over two megabytes on Vvardenfell, on the frame a cell arrives. Both entries are one missing
 operation.
 
-### C1. A region write, in both backends
+### What C has left, and what it left alone
 
-MyGUI's interface cannot be changed, so the region write lives beside it:
+**`MyGUIPlatform::RegionTexture` is the offer**, beside `Picture` because MyGUI's own `ITexture`
+cannot make it: `writeRegion(x, y, width, height, rows)`, and a caller that finds a backend does not
+implement it writes the whole surface instead. `MyGUIRtx::Texture` implements it — the pixels are
+kept on that side anyway, so it writes part of them and sends part of them, through
+`Rtx::Renderer::writeGuiTexture`, which gained a `GuiRegion` rather than an overload. `GlobalMap`
+holds two `MyGUIPlatform::Picture`s and its own `createTexture` and `upload` are gone; `exploreCell`
+sends **1,296 bytes instead of 2.3 MB** on the frame a cell arrives.
 
-```cpp
-namespace MyGUIPlatform
-{
-    /// A texture that can be written in part.
-    ///
-    /// **Not something MyGUI can ask for.** `ITexture` hands out a buffer for the whole surface and
-    /// takes it back filled; a picture that changes in one corner has nowhere to say so. Both
-    /// backends can do better than the interface allows, and this is where they say it.
-    class RegionTexture
-    {
-    public:
-        virtual ~RegionTexture() = default;
-
-        /// `rows` is `height` rows of `width` pixels, four bytes each, tightly packed.
-        virtual void writeRegion(int x, int y, int width, int height, std::span<const std::uint8_t> rows) = 0;
-    };
-}
-```
-
-`OSGTexture` implements it by keeping its `osg::Image` across locks — which is the whole of the
-allocation entry, independently of the region — writing the rows and calling `dirty()`, so the texture
-uploads the sub-image rather than being replaced. `MyGUIRtx::Texture` widens into the scratch it
-already has; `Rtx::GuiTextures::write` grows one `VkBufferImageCopy` region and nothing else.
-`Rtx::Renderer::writeGuiTexture` gains the rectangle rather than gaining an overload.
-
-### C2. One owner for "pixels the game holds, shown in the interface"
-
-`MyGUIPlatform::Picture` is already that class. `GlobalMap` does not use it: it has its own
-`createTexture` and `upload`, both of which are `Picture`'s job under another name. So `GlobalMap`
-holds two `Picture`s, `Picture` gains `setRegion`, reaching the backend through one
-`dynamic_cast<RegionTexture*>` per call, and `GlobalMap::createTexture` and `upload` go. `exploreCell`
-then uploads 18 × 18 × 4 bytes instead of two megabytes.
-
-The `memcmp` that recognises a repaint changing nothing stays: a kilobyte of comparison against an
-upload is still the right trade.
+**`OSGTexture` is deliberately untouched.** Keeping its `osg::Image` across locks is what the logged
+allocation entry asks for, and it is also what upstream's `unlock` comment refuses: `mTexture` may be
+in flight on the draw thread, and a fresh image and a fresh texture per unlock is how that is avoided.
+Doing better needs a scheme keyed on frames in flight, which is a change to the rasterizer — the path
+this fork keeps as upstream has it so that "does the RT path do this correctly" stays answerable by
+comparison. `Picture::setRegion` falls back to the whole image there, which is exactly what the world
+map did before, so the GL path is unchanged. Its `ISSUES.md` entry stays.
 
 **Deliberately not proposed:** dropping the CPU copy and keeping the overlay only on the device.
 `GlobalMap::write` serialises `mOverlayImage` into the savegame, so main memory is the source of truth
 and the device copy is derived. That is the right way round.
 
 **And this owner is where the last queue round trips live.** `Rtx::Batch` took the scene's load path
-down to one submit; `GuiTextures::add` and `write` were left out of it because MyGUI hands over one
+down to one submit; `GuiTextures::add` and `write` are still a wait each, because MyGUI hands over one
 texture at a time, through `createTexture` and then `lock`/`unlock` — two waits for one picture, with
-nothing between them that knows both are coming. Whatever owns a GUI texture properly is what can
-open a batch across the pair.
+nothing between them that knows both are coming. `Picture` is what could open a batch across the pair.
+
+**Nobody has walked across a cell boundary with the map open.** The region write is asserted at the
+device (`aRegionWriteChangesItsRectangleAndNothingElse`) and the gather that feeds it is asserted on
+its own (`MyGUIPlatformPixelsTest`), but the two have not been seen meeting in the game.
 
 ## I. One that is exactly what it looks like
 
@@ -243,16 +223,16 @@ step, and it is now the only thing in the way.
 **Root A is done.** What is left of it is one entry in `ISSUES.md` that is probably a description of
 correct behaviour, and a window nobody has opened.
 
-**1 — C, the region write.** `RegionTexture`, both backends, `Picture::setRegion`, `GlobalMap` onto
-`Picture`. The GUI texture tests plus walking across a cell boundary with the world map open.
+**The region write is in.** See root C: the world map sends a cell instead of the overlay, and the
+one entry left under C is the rasterizer's own, left alone on purpose.
 
-**2 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
+**1 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
 with `distant terrain` on and comparing a frame; verify the mirror by turning `distant terrain` on and
 taking a shot of an exterior with ground in it.
 
-**3 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
+**2 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
 
-**4 — I.** Ten minutes.
+**3 — I.** Ten minutes.
 
 ## What this does not touch
 

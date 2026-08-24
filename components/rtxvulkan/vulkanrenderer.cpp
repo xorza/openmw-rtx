@@ -466,9 +466,10 @@ namespace Rtx
         return mGuiTextures.add(width, height);
     }
 
-    void VulkanRenderer::writeGuiTexture(std::uint32_t texture, std::span<const std::uint8_t> rgba)
+    void VulkanRenderer::writeGuiTexture(
+        std::uint32_t texture, const GuiRegion& region, std::span<const std::uint8_t> rgba)
     {
-        mGuiTextures.write(texture, rgba);
+        mGuiTextures.write(texture, region, rgba);
     }
 
     void VulkanRenderer::dropGuiTexture(std::uint32_t texture)

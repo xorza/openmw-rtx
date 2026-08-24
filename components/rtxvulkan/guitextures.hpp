@@ -7,6 +7,8 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/renderer.hpp>
+
 #include "hostbuffer.hpp"
 
 namespace Rtx
@@ -36,11 +38,12 @@ namespace Rtx
         /// A slot holding a texture of this size, cleared to nothing.
         std::uint32_t add(std::uint32_t width, std::uint32_t height);
 
-        /// The whole texture, four bytes a pixel, tightly packed, row zero first.
+        /// A rectangle of a texture, four bytes a pixel, tightly packed, row zero first.
         ///
-        /// **All of it, because MyGUI's interface has no way to say less.** It hands out a buffer to
-        /// fill and takes it back filled; there is no rectangle in that and so none here.
-        void write(std::uint32_t slot, std::span<const std::uint8_t> rgba);
+        /// `rgba` is the region's own rows and not slices of a wider image, which is what lets the
+        /// staging buffer hold the region rather than the surface. The rectangle must lie inside the
+        /// texture, which is a contract and so an assert.
+        void write(std::uint32_t slot, const Renderer::GuiRegion& region, std::span<const std::uint8_t> rgba);
 
         void drop(std::uint32_t slot);
 

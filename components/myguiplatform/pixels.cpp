@@ -1,6 +1,7 @@
 #include "pixels.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstring>
 
 #include <osg/Image>
@@ -61,5 +62,18 @@ namespace MyGUIPlatform
                 into[2] = static_cast<std::uint8_t>(std::clamp(colour.b(), 0.f, 1.f) * 255.f + 0.5f);
                 into[3] = static_cast<std::uint8_t>(std::clamp(colour.a(), 0.f, 1.f) * 255.f + 0.5f);
             }
+    }
+
+    void gatherRegion(const osg::Image& image, int x, int y, int width, int height, std::vector<std::uint8_t>& rows)
+    {
+        assert(image.isDataContiguous());
+        assert(x >= 0 && y >= 0 && width >= 0 && height >= 0);
+        assert(x + width <= image.s() && y + height <= image.t());
+
+        rows.resize(static_cast<std::size_t>(width) * height * 4);
+
+        for (int row = 0; row < height; ++row)
+            std::memcpy(rows.data() + static_cast<std::size_t>(row) * width * 4, image.data(x, y + row),
+                static_cast<std::size_t>(width) * 4);
     }
 }

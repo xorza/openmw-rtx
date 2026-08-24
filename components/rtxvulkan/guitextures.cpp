@@ -50,14 +50,23 @@ namespace Rtx
         return static_cast<std::uint32_t>(mImages.size() - 1);
     }
 
-    void GuiTextures::write(std::uint32_t slot, std::span<const std::uint8_t> rgba)
+    void GuiTextures::write(std::uint32_t slot, const Renderer::GuiRegion& region, std::span<const std::uint8_t> rgba)
     {
         assert(slot < mImages.size() && mImages[slot] != nullptr && "a write to a slot nothing holds");
 
         const Image& image = *mImages[slot];
-        const VkDeviceSize bytes = VkDeviceSize{ image.getWidth() } * image.getHeight() * 4;
-        assert(rgba.size() == bytes && "the whole texture, four bytes a pixel, tightly packed");
+        assert(region.mX + region.mWidth <= image.getWidth() && region.mY + region.mHeight <= image.getHeight()
+            && "a region past the edge of the texture");
 
+        const VkDeviceSize bytes = VkDeviceSize{ region.mWidth } * region.mHeight * 4;
+        assert(rgba.size() == bytes && "the region's own rows, four bytes a pixel, tightly packed");
+
+        if (bytes == 0)
+            return;
+
+        // Sized to the largest region ever written rather than to the texture: a video frame comes
+        // through here whole once a frame and must not allocate to do it, and the world map's
+        // eighteen pixels square borrow a corner of what that left.
         if (mStaging.getSize() < bytes)
             mStaging = HostBuffer(mDevice, bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
@@ -68,12 +77,13 @@ namespace Rtx
                 VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
                 VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
 
-            const VkBufferImageCopy region{
+            const VkBufferImageCopy copy{
                 .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-                .imageExtent = { image.getWidth(), image.getHeight(), 1 },
+                .imageOffset = { static_cast<std::int32_t>(region.mX), static_cast<std::int32_t>(region.mY), 0 },
+                .imageExtent = { region.mWidth, region.mHeight, 1 },
             };
             vkCmdCopyBufferToImage(
-                commands, mStaging.getHandle(), image.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+                commands, mStaging.getHandle(), image.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
             image.transition(commands, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                 VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,

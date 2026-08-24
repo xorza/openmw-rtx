@@ -79,7 +79,7 @@ namespace Rtx
             {
                 const std::uint32_t texture = mRenderer->addGuiTexture(1, 1);
                 mHeld.push_back(texture);
-                mRenderer->writeGuiTexture(texture, colour);
+                mRenderer->writeGuiTexture(texture, Renderer::GuiRegion{ 0, 0, 1, 1 }, colour);
                 return texture;
             }
 
@@ -156,10 +156,51 @@ namespace Rtx
             EXPECT_EQ(at(4, 4), (std::array<std::uint8_t, 4>{ 255, 0, 0, 255 })) << "as written";
 
             constexpr std::array<std::uint8_t, 4> sGreen{ 0, 255, 0, 255 };
-            mRenderer->writeGuiTexture(texture, sGreen);
+            mRenderer->writeGuiTexture(texture, Renderer::GuiRegion{ 0, 0, 1, 1 }, sGreen);
 
             drawQuad(texture, -1.0f, 1.0f, 1.0f, -1.0f, packColour(255, 255, 255, 255));
             EXPECT_EQ(at(4, 4), (std::array<std::uint8_t, 4>{ 0, 255, 0, 255 })) << "as rewritten";
+        }
+
+        /// A write of part of a texture changes that part and leaves the rest where it was.
+        ///
+        /// **What the world map needs and MyGUI's own interface cannot say.** Entering a cell
+        /// repaints eighteen pixels square of an overlay two megabytes wide, and sending the whole
+        /// of it on the frame the cell arrives is the cost this exists to remove.
+        ///
+        /// Read back rather than drawn: what is under test is which texels the copy landed on, and a
+        /// linear sampler over a four-texel texture blends every one of them into its neighbours.
+        TEST_F(RtxGuiDrawTest, aRegionWriteChangesItsRectangleAndNothingElse)
+        {
+            constexpr std::uint32_t side = 4;
+            const std::uint32_t texture = mRenderer->addGuiTexture(side, side);
+            mHeld.push_back(texture);
+
+            std::array<std::uint8_t, side * side * 4> red{};
+            for (std::size_t at = 0; at < red.size(); at += 4)
+            {
+                red[at] = 255;
+                red[at + 3] = 255;
+            }
+            mRenderer->writeGuiTexture(texture, Renderer::GuiRegion{ 0, 0, side, side }, red);
+
+            // Two texels wide and one tall, at the second column of the second row: a write that
+            // ignored the offset, took it as a row count, or transposed it lands somewhere the sweep
+            // below looks.
+            constexpr std::array<std::uint8_t, 8> green{ 0, 255, 0, 255, 0, 255, 0, 255 };
+            mRenderer->writeGuiTexture(texture, Renderer::GuiRegion{ 1, 2, 2, 1 }, green);
+
+            for (std::uint32_t row = 0; row < side; ++row)
+                for (std::uint32_t column = 0; column < side; ++column)
+                {
+                    const bool written = row == 2 && (column == 1 || column == 2);
+                    const std::array<std::uint8_t, 4> expected = written
+                        ? std::array<std::uint8_t, 4>{ 0, 255, 0, 255 }
+                        : std::array<std::uint8_t, 4>{ 255, 0, 0, 255 };
+
+                    EXPECT_EQ(inTexture(texture, side, column, row), expected)
+                        << "texel " << column << ", " << row << (written ? " was not written" : " was not left alone");
+                }
         }
 
         /// A slot given back is taken over before the table grows.

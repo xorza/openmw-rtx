@@ -417,11 +417,23 @@ namespace Rtx
         /// Slots a texture gave back are taken over before the table grows.
         virtual std::uint32_t addGuiTexture(std::uint32_t width, std::uint32_t height) = 0;
 
-        /// The whole texture, four bytes a pixel, tightly packed, row zero first.
+        /// Which part of a GUI texture a write covers, with the origin at the top left.
+        struct GuiRegion
+        {
+            std::uint32_t mX = 0;
+            std::uint32_t mY = 0;
+            std::uint32_t mWidth = 0;
+            std::uint32_t mHeight = 0;
+        };
+
+        /// A rectangle of a texture, four bytes a pixel, tightly packed, row zero first.
         ///
-        /// **All of it, because MyGUI's interface has no way to say less**: it hands out a buffer to
-        /// fill and takes it back filled, and there is no rectangle in that.
-        virtual void writeGuiTexture(std::uint32_t texture, std::span<const std::uint8_t> rgba) = 0;
+        /// `rgba` is the region's own rows and not slices of a wider image. **The whole surface is
+        /// what MyGUI's own interface can say** — it hands out a buffer to fill and takes it back
+        /// filled — so most callers pass the whole rectangle; the world map is the one that does
+        /// not, and it repaints eighteen pixels square instead of two megabytes.
+        virtual void writeGuiTexture(std::uint32_t texture, const GuiRegion& region, std::span<const std::uint8_t> rgba)
+            = 0;
 
         virtual void dropGuiTexture(std::uint32_t texture) = 0;
 

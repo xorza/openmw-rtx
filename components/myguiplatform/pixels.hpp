@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 #include <MyGUI_RenderFormat.h>
 
@@ -34,6 +35,18 @@ namespace MyGUIPlatform
     /// what draws. Both backends widen images for MyGUI, and only one of them used to do it the
     /// quick way.
     void writeRgba(const osg::Image& image, std::uint8_t* into);
+
+    /// Copies a rectangle of `image` into `rows`, tightly packed, four bytes a pixel, row zero
+    /// first — `height` rows of `width` pixels and nothing between them.
+    ///
+    /// **What a backend that can take a rectangle has to be handed.** The image's own rows are as
+    /// wide as the image, so a region inside one is not a run of bytes; this is where it becomes
+    /// one. `rows` is resized and refilled, so a caller writing part of a picture again and again
+    /// allocates once.
+    ///
+    /// The image must be four bytes a pixel with contiguous data and the rectangle must lie inside
+    /// it, which are contracts on the caller.
+    void gatherRegion(const osg::Image& image, int x, int y, int width, int height, std::vector<std::uint8_t>& rows);
 }
 
 #endif

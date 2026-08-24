@@ -2,19 +2,18 @@
 #define OPENMW_COMPONENTS_MYGUIRTX_TEXTURE_H
 
 #include <cstdint>
+#include <span>
 #include <string>
 #include <vector>
 
 #include <MyGUI_ITexture.h>
 
+#include <components/myguiplatform/regiontexture.hpp>
+#include <components/rtx/renderer.hpp>
+
 namespace Resource
 {
     class ImageManager;
-}
-
-namespace Rtx
-{
-    class Renderer;
 }
 
 namespace MyGUIRtx
@@ -25,7 +24,7 @@ namespace MyGUIRtx
     /// **The pixels live twice on purpose.** MyGUI's interface hands out a buffer to fill and takes
     /// it back filled, so there has to be one on this side; what goes to the device is a copy of it,
     /// made when the buffer comes back.
-    class Texture final : public MyGUI::ITexture
+    class Texture final : public MyGUI::ITexture, public MyGUIPlatform::RegionTexture
     {
     public:
         Texture(std::string name, Rtx::Renderer& renderer, Resource::ImageManager* imageManager);
@@ -59,6 +58,12 @@ namespace MyGUIRtx
 
         void setShader(const std::string& shaderName) override;
 
+        /// **What MyGUI's own interface cannot ask for.** The pixels are kept on this side anyway,
+        /// so writing part of them and sending that part is the whole of it — the world map paints
+        /// eighteen pixels square when a cell arrives and used to send two megabytes.
+        void writeRegion(std::uint32_t x, std::uint32_t y, std::uint32_t width, std::uint32_t height,
+            std::span<const std::uint8_t> rows) override;
+
         /*internal:*/
 
         /// Where this sits in the renderer's table, or `sNoSlot` while it holds nothing.
@@ -70,9 +75,12 @@ namespace MyGUIRtx
         /// Takes the slot back and forgets the size, so that a second `createManual` starts clean.
         void release();
 
-        /// Sends `mPixels` to the renderer, widening it to four bytes a pixel where MyGUI asked for
-        /// fewer. The scratch it widens into is kept, because a video frame comes through here once
-        /// a frame.
+        /// The whole surface, which is what every write but the world map's covers.
+        Rtx::Renderer::GuiRegion whole() const;
+
+        /// Sends the whole of `mPixels` to the renderer, widening it to four bytes a pixel where
+        /// MyGUI asked for fewer. The scratch it widens into is kept, because a video frame comes
+        /// through here once a frame.
         void upload();
 
         std::string mName;

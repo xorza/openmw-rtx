@@ -358,7 +358,7 @@ add_component_dir (loadinglistener
 
 add_component_dir (myguiplatform
     myguirendermanager myguidatamanager myguiplatform myguitexture myguiloglistener additivelayer scalinglayer
-    guirendermanager picture pixels
+    guirendermanager picture pixels regiontexture
     )
 
 add_component_dir (widgets
