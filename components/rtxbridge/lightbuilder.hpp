@@ -138,6 +138,14 @@ namespace RtxBridge
     ///        takes a name from outside should put it through `weatherIndex` before this.
     Daylight makeDaylight(std::string_view weather, float hour);
 
+    /// The daylight partway between two weathers, at `blend` from the first to the second.
+    ///
+    /// **What `WeatherManager::calculateTransitionResult` does, and it blends the same things.** Each
+    /// weather's numbers are read at the hour and then mixed — the fog's recorded *depth* among them
+    /// rather than the extinction it becomes, because those are two different curves and the engine
+    /// converts after blending.
+    Daylight makeDaylight(std::string_view from, std::string_view to, float blend, float hour);
+
     /// A colour as the content files store one, decoded.
     ///
     /// Morrowind's colours are display-encoded, and the light transport downstream is linear. The

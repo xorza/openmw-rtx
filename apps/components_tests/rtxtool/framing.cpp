@@ -183,6 +183,36 @@ namespace RtxTool
             // The cell's own half is left where it was: nothing here reads the water.
             EXPECT_EQ(outdoors.mWaterLevel, -32.0f);
 
+            // **And a transition is between the two rather than either of them**, which is the one
+            // thing this tool never ran: the blend the shader carries was exercised only in the
+            // game. The engine mixes the results — every colour, and the fog's recorded depth before
+            // it becomes an extinction — so halfway is halfway on each of them.
+            CellLighting turning{ .mWaterLevel = -32.0f, .mOutdoors = true };
+            relight(turning, "Clear", "Overcast", 0.5f, 0, 12.0f);
+
+            EXPECT_EQ(turning.mWeather, Rtx::Shaders::WEATHER_CLEAR);
+            EXPECT_EQ(turning.mNextWeather, Rtx::Shaders::WEATHER_OVERCAST);
+            EXPECT_FLOAT_EQ(turning.mWeatherBlend, 0.5f);
+
+            const osg::Vec3f clear = RtxBridge::makeDaylight("Clear", 12.0f).mSkyZenith;
+            const osg::Vec3f overcast = RtxBridge::makeDaylight("Overcast", 12.0f).mSkyZenith;
+            for (int channel = 0; channel < 3; ++channel)
+            {
+                const float half = 0.5f * (clear[channel] + overcast[channel]);
+                EXPECT_NEAR(turning.mDaylight.mSkyZenith[channel], half, 1e-5f) << "channel " << channel;
+            }
+
+            // Either end of the mix is the weather at that end, exactly.
+            CellLighting ends{ .mWaterLevel = -32.0f, .mOutdoors = true };
+            relight(ends, "Clear", "Overcast", 0.0f, 0, 12.0f);
+            EXPECT_EQ(ends.mDaylight.mSkyZenith, clear);
+            relight(ends, "Clear", "Overcast", 1.0f, 0, 12.0f);
+            EXPECT_EQ(ends.mDaylight.mSkyZenith, overcast);
+
+            // And the wind crosses with them, which is one of the numbers the engine blends too.
+            EXPECT_FLOAT_EQ(
+                turning.mWindSpeed, 0.5f * (RtxBridge::windSpeed("Clear") + RtxBridge::windSpeed("Overcast")));
+
             // **An interior has no sky for a clock to move.** Every field comes back as it went in,
             // including the weather it was never under.
             const CellLighting room{ .mAmbient = osg::Vec3f(0.1f, 0.2f, 0.3f), .mWaterLevel = -8.0f };

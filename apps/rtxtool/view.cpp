@@ -5,6 +5,7 @@
 #include <cmath>
 #include <format>
 #include <memory>
+#include <optional>
 #include <ostream>
 
 #include <SDL.h>
@@ -102,6 +103,7 @@ namespace RtxTool
                      "  right drag     look\n"
                      "  shift / alt    six times faster / seven times slower\n"
                      "  wheel          change the base speed\n"
+                     "  T              run the clock,  a day and a half a minute\n"
                      "  , .            an hour back and forward,  shift for a day\n"
                      "  [ ]            the weather either side of this one, of those the region gets\n"
                      "  P              print this spot as a views.cfg block\n"
@@ -190,13 +192,33 @@ namespace RtxTool
 
         printHelp();
 
+        /// How fast the clock runs when it is running: game hours per real second.
+        ///
+        /// **A whole day in a minute and a half**, which is fast enough to watch a sunrise arrive
+        /// and slow enough to see it happen. The game runs at a thirtieth of this; nothing here is
+        /// pretending to be a play session.
+        constexpr float sHoursPerSecond = 1.0f / 4.0f;
+
+        /// How long a weather takes to become the next one, in real seconds.
+        constexpr float sTransitionSeconds = 4.0f;
+
+        bool clockRunning = false;
+
+        /// The weather being turned into, and how far along. Empty where the sky is settled.
+        std::optional<std::string> turningInto;
+        float turned = 0.0f;
+
         /// Moves the sky to whatever the request now says, and takes the result back.
         ///
         /// **Nothing is reloaded.** The region, its lamps and its water are the same cell they were;
         /// only the arithmetic over the hour and the settings is done again, which is why a key can
         /// run the sun round the clock without a frame being dropped.
         const auto moveSky = [&] {
-            staged.setSky(request.mWeather, request.mDay, request.mHour);
+            if (turningInto.has_value())
+                staged.setSky(request.mWeather, *turningInto, turned, request.mDay, request.mHour);
+            else
+                staged.setSky(request.mWeather, request.mDay, request.mHour);
+
             request.mLighting = staged.getLighting();
         };
 
@@ -270,11 +292,27 @@ namespace RtxTool
                         // an ashstorm on Solstheim — and a window is for looking at what the game
                         // looks like. The name cannot be one of the unknown ones by now: the region
                         // would have thrown while it was being lit.
-                        const std::uint32_t at = RtxBridge::weatherIndex(request.mWeather).value();
-                        request.mWeather = RtxBridge::weatherName(
-                            RtxBridge::nextRegionWeather(world.findRegion(staged.getRegion()), at, forward));
+                        // **Turned into rather than swapped for.** A transition is the one thing the
+                        // harness never ran — the blend the shader carries was exercised only in the
+                        // game, which is the surface nobody iterates on.
+                        const std::uint32_t at
+                            = RtxBridge::weatherIndex(turningInto.value_or(request.mWeather)).value();
+
+                        // Whatever the last one was turning into is where this one starts from, so
+                        // pressing the key twice does not jump.
+                        if (turningInto.has_value())
+                            request.mWeather = *turningInto;
+
+                        turningInto = std::string(RtxBridge::weatherName(
+                            RtxBridge::nextRegionWeather(world.findRegion(staged.getRegion()), at, forward)));
+                        turned = 0.0f;
 
                         moveSky();
+                    }
+                    else if (event.key.keysym.sym == SDLK_t)
+                    {
+                        clockRunning = !clockRunning;
+                        out() << (clockRunning ? "the clock is running\n" : "the clock is stopped\n");
                     }
                     else if (event.key.keysym.sym == SDLK_p)
                     {
@@ -340,7 +378,10 @@ namespace RtxTool
                 window.setTitle(
                     std::format("{}  |  {:.0f} fps  |  {}  |  {:.0f}, {:.0f}, {:.0f}  |  {:.0f} u/s  |  day {} {} {}",
                         request.mTitle, framesSinceTitle / elapsed, sizes, at.x(), at.y(), at.z(), camera.getSpeed(),
-                        request.mDay, clockFace(request.mHour), request.mWeather));
+                        request.mDay, clockFace(request.mHour),
+                        turningInto.has_value()
+                            ? std::format("{} to {} {:.0f}%", request.mWeather, *turningInto, turned * 100.0f)
+                            : request.mWeather));
 
                 framesSinceTitle = 0;
                 lastTitle = now;
@@ -375,6 +416,30 @@ namespace RtxTool
             // renumbers what the last frame was built from.
             if (staged.advanceTo(static_cast<float>(std::chrono::duration<double>(now - began).count())))
                 hand();
+
+            // **The clock and whatever the weather is doing, both on real seconds.** A window is
+            // the one surface with a wall clock, and these are what it is for: a sunrise that
+            // arrives while you watch it, and the one transition between two weathers that nothing
+            // else in this tool has ever run.
+            if (clockRunning || turningInto.has_value())
+            {
+                if (clockRunning)
+                    request.mHour = std::fmod(request.mHour + seconds * sHoursPerSecond, 24.0f);
+
+                if (turningInto.has_value())
+                {
+                    turned += seconds / sTransitionSeconds;
+                    if (turned >= 1.0f)
+                    {
+                        // Arrived: the sky it was turning into is simply the sky now.
+                        request.mWeather = *turningInto;
+                        turningInto.reset();
+                        turned = 0.0f;
+                    }
+                }
+
+                moveSky();
+            }
 
             // The direction rather than `getTarget`, which exists so a person can read `look` in
             // `views.cfg` and tell where it points. Recovering it back out of two world points is

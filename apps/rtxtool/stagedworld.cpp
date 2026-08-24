@@ -27,6 +27,11 @@ namespace RtxTool
         // lighting the frame is described from.
         mWater.emplace(*mRoot);
         mLighting.mWaterLevel = mWater->follow(cell);
+
+        // **The moons' portraits, into the same table the trace reads.** Held rather than named by a
+        // material: a moon is drawn by a ray that reached nothing, so no material can speak for its
+        // texture and the sweep would take the slot on the first frame a cell died.
+        mLighting.mFaces = RtxBridge::addMoonFaces(mScene);
         mReport = std::move(arrived.mReport);
 
         // **Before the first walk, because the walk runs the animators.** The graph's own

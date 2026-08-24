@@ -9,6 +9,7 @@
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sky/moonmodel.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace RtxBridge
 {
@@ -31,15 +32,6 @@ namespace RtxBridge
         const osg::Vec3f sMasserFace(0.0332f, 0.0099f, 0.0123f);
         const osg::Vec3f sSecundaFace(0.0440f, 0.0373f, 0.0295f);
 
-        /// What the brightest channel of a full Masser comes back with.
-        ///
-        /// **Pinned, and not by taste.** A real full moon is a 640,000th of the sun and there is no
-        /// scale this renderer could put both on, so the number has to be chosen — and what chooses
-        /// it is that a moon bright enough to blow all three channels is a white disc whatever
-        /// colour it was given. This lands Masser's red at the top of the range with its blue a
-        /// fifth of that, which is the most red a moon can be and still be a moon.
-        constexpr float sPeakRadiance = 0.18f;
-
         /// Half the angle a moon of this size subtends, out of the geometry the game's own renderer
         /// builds: `Moons_<name>_Size / 125 * 450` scales a quad of half-extent 0.5, a thousand
         /// units away.
@@ -48,6 +40,23 @@ namespace RtxBridge
             const float halfWidth = 0.5f * 450.0f * setting(moon, "Size") / 125.0f;
             return std::atan(halfWidth / 1000.0f);
         }
+    }
+
+    MoonFaces addMoonFaces(Rtx::SceneDesc& scene)
+    {
+        constexpr VFS::Path::NormalizedView masser("textures/tx_masser_full.dds");
+        constexpr VFS::Path::NormalizedView secunda("textures/tx_secunda_full.dds");
+
+        const MoonFaces faces{ .mMasser = scene.addTexture(masser), .mSecunda = scene.addTexture(secunda) };
+        scene.holdTexture(faces.mMasser);
+        scene.holdTexture(faces.mSecunda);
+        return faces;
+    }
+
+    void dropMoonFaces(Rtx::SceneDesc& scene, const MoonFaces& faces)
+    {
+        scene.dropTexture(faces.mMasser);
+        scene.dropTexture(faces.mSecunda);
     }
 
     Rtx::Shaders::MoonDisc describeMoon(const MoonPlacement& placement)
@@ -60,6 +69,8 @@ namespace RtxBridge
             .mAngularRadius = placement.mAngularRadius,
             .mPhaseAngle = placement.mPhaseAngle,
             .mAlpha = placement.mAlpha,
+            .mFace = placement.mFace == Rtx::sNoIndex ? Rtx::Shaders::NO_MOON_FACE
+                                                      : static_cast<std::uint32_t>(placement.mFace),
         };
     }
 
@@ -103,8 +114,10 @@ namespace RtxBridge
 
             .mAlpha = alpha,
 
-            // One scale for both faces, taken off Masser's brightest channel — see `sPeakRadiance`.
-            .mColour = (moon == Moon::Masser ? sMasserFace : sSecundaFace) * (sPeakRadiance / sMasserFace.x()),
+            // **The file's own mean, unscaled.** `Rtx::Shaders::MOON_RADIANCE` is what takes a
+            // moon's texels to radiance, and it multiplies this where no portrait is loaded and the
+            // portrait itself where one is — so the level lives in one place either way.
+            .mColour = moon == Moon::Masser ? sMasserFace : sSecundaFace,
         };
 
         placement.mDirection.normalize();

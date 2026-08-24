@@ -34,7 +34,8 @@ namespace RtxBridge
                 .mAngularRadius = 0.1676f,
                 .mPhaseAngle = 0.25f,
                 .mAlpha = 0.5f,
-                .mColour = osg::Vec3f(0.18f, 0.054f, 0.067f),
+                .mFace = 7,
+                .mColour = osg::Vec3f(0.0332f, 0.0099f, 0.0123f),
             };
             world.mMoons[1] = MoonPlacement{
                 .mDirection = osg::Vec3f(0.0f, 1.0f, 0.0f),
@@ -43,7 +44,8 @@ namespace RtxBridge
                 .mAngularRadius = 0.0719f,
                 .mPhaseAngle = 2.5f,
                 .mAlpha = 0.25f,
-                .mColour = osg::Vec3f(0.238f, 0.202f, 0.16f),
+                .mFace = 9,
+                .mColour = osg::Vec3f(0.0440f, 0.0373f, 0.0295f),
             };
 
             return world;
@@ -97,6 +99,7 @@ namespace RtxBridge
                 EXPECT_EQ(disc.mAngularRadius, placed.mAngularRadius) << "moon " << moon;
                 EXPECT_EQ(disc.mPhaseAngle, placed.mPhaseAngle) << "moon " << moon;
                 EXPECT_EQ(disc.mAlpha, placed.mAlpha) << "moon " << moon;
+                EXPECT_EQ(disc.mFace, static_cast<std::uint32_t>(placed.mFace)) << "moon " << moon;
             }
 
             // **And the two moons are not one moon written twice**, which is what an index carried
@@ -156,6 +159,7 @@ namespace RtxBridge
             EXPECT_EQ(constants.mSunIrradiance, osg::Vec3f()) << "no sun";
             EXPECT_EQ(constants.mSunVisible, 0u) << "and no disc of one either";
             EXPECT_EQ(constants.mMoons[0].mAlpha, 0.0f) << "and no moons";
+            EXPECT_EQ(constants.mMoons[0].mFace, Rtx::Shaders::NO_MOON_FACE) << "and no portrait to draw";
             EXPECT_EQ(constants.mMoons[1].mAlpha, 0.0f);
             EXPECT_EQ(constants.mFogExtinction, 0.0f) << "and air that costs nothing";
 

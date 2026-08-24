@@ -288,7 +288,16 @@ every count; and a control fifo bounding the recording to the measured frames.
   against the primary ray, never into an acceleration structure.
 - **Distant land.** OpenMW's object paging and terrain LOD were tuned for a rasterizer's silhouette
   budget, not a BVH's, and the renderer now asks for them by distance rather than inheriting them.
-  What distance is right is unmeasured.
+  What distance is right is unmeasured — **and it cannot be measured in the harness yet**, which
+  pages terrain and nothing else: the game's `ObjectPaging` and its groundcover are not placed there,
+  so distant land is a different scene in the two.
+
+- **The harness's people are a posed row, not the game's.** `PosedActors` stands creatures and NPCs
+  in front of the camera and steps their animation by a clock, which exercises skinning, rigs and the
+  deforming path and does not exercise what the mechanics actually ask for — an idle chosen by AI, a
+  weapon drawn mid-swing, someone turning to face the player. A pose defect only the game produces
+  cannot be reproduced under `shot`. Probably never fully closed: what an NPC is doing is a mechanics
+  answer, and the harness has no mechanics.
 
 **Standing risk**
 

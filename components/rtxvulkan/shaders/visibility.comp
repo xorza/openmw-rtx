@@ -1394,7 +1394,26 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
         = clamp(1.0 - 0.019 * phase + 0.000242 * phase * phase - 1.46e-6 * phase * phase * phase, 0.0, 1.0);
     const float shade = lunar * 2.0 * incidence / (incidence + emission) + (1.0 - lunar) * incidence;
 
-    return moon.mColour * shade * covered;
+    // **The portrait where there is one, its mean where there is not.** `mColour` carries the mean
+    // so the two paths land at the same brightness and only the detail differs — the file decides
+    // the maria and the silhouette, `MOON_RADIANCE` decides how bright a full moon is, and neither
+    // is scaling the other.
+    vec3 base = moon.mColour;
+    if (moon.mFace != NO_MOON_FACE)
+    {
+        // `u` runs with the face's right and `v` against its up, which is the Y-down convention the
+        // quad the game draws is authored in.
+        const vec2 uv = vec2(0.5 + 0.5 * face.x, 0.5 - 0.5 * face.y);
+        const vec4 painted = textureLod(textures[nonuniformEXT(moon.mFace)], uv, 0.0);
+
+        // **Multiplied by its own alpha, which the file does not do for us.** Past the edge of the
+        // painted disc the colour climbs back toward the middle of its range, so sampling the colour
+        // and dropping the alpha draws a bright ring around every moon; multiplying removes it and
+        // hands over the limb's own antialiasing at the same time.
+        base = painted.rgb * painted.a;
+    }
+
+    return base * MOON_RADIANCE * shade * covered;
 }
 
 /// The radiance a ray that hit nothing comes back with, for a ray being looked along.

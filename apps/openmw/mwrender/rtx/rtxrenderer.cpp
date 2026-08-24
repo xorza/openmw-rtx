@@ -518,6 +518,13 @@ namespace MWRender::Rtx
         // slot: a re-walk over an unchanged graph finds every one of them where it left it.
         mScene.clearPlacement();
 
+        // **The moons' portraits, once, into the table the trace reads.** Held rather than named by
+        // a material: a moon is drawn by a ray that reached nothing, so nothing else can speak for
+        // the slot and the sweep would take it on the first frame a cell died. The scene outlives
+        // every cell here, so this is asked once and never again.
+        if (mMoonFaces.mMasser == ::Rtx::sNoIndex)
+            mMoonFaces = RtxBridge::addMoonFaces(mScene);
+
         const RtxBridge::ExtractionStats found
             // One walk over the whole graph, where every path is already distinct.
             = mExtractor->extract(frame.mScene, osg::Matrixf::identity(), 0, mFrame, frame.mResident);
@@ -716,6 +723,7 @@ namespace MWRender::Rtx
 
             described.mMoons[moon] = RtxBridge::placeMoon(static_cast<RtxBridge::Moon>(moon),
                 state.mRotationFromHorizon, state.mRotationFromNorth, phase, state.mMoonAlpha);
+            described.mMoons[moon].mFace = mMoonFaces.of(static_cast<RtxBridge::Moon>(moon));
         }
 
         RtxBridge::applyWorld(described, constants);

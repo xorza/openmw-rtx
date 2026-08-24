@@ -105,6 +105,12 @@ namespace RtxTool
         /// water are the same either side of it; what changes is where the sun and the moons stand
         /// and what the air is doing, which `relight` works out from the settings alone.
         void setSky(std::string_view weather, int day, float hour) { relight(mLighting, weather, day, hour); }
+
+        /// The same, partway between two weathers.
+        void setSky(std::string_view from, std::string_view to, float blend, int day, float hour)
+        {
+            relight(mLighting, from, to, blend, day, hour);
+        }
         const Placement& getPlacement() const { return mPlacement; }
 
         /// What advances the scene between frames by frame index, or null where nothing in it

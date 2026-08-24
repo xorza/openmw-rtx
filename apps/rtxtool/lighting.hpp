@@ -7,6 +7,7 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxbridge/fogbuilder.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
+#include <components/rtxbridge/moonbuilder.hpp>
 
 namespace RtxTool
 {
@@ -43,15 +44,22 @@ namespace RtxTool
         int mDay = 0;
         float mHour = 12.0f;
 
-        /// Which weather the sky is under, as the shader's `WEATHER_*` number it.
+        /// Which weather the sky is under, which it is turning into, and how far along.
         ///
-        /// **One and not two.** The harness runs no weather simulation, so nothing here is ever
-        /// halfway between two skies — a frame is under the weather it was asked for, which is what
-        /// makes two runs of a view the same picture.
+        /// **A settled sky names the same weather twice at a blend of nothing**, which is what a
+        /// `shot` always is: nothing here advances on its own. A window can run a transition, and
+        /// then these three say where it has got to — every colour, and the fog's depth, mixed at
+        /// exactly the points `WeatherManager` mixes them.
         std::uint32_t mWeather = Rtx::Shaders::WEATHER_CLEAR;
+        std::uint32_t mNextWeather = Rtx::Shaders::WEATHER_CLEAR;
+        float mWeatherBlend = 0.0f;
 
         /// How hard that weather blows, as the content files record it. An interior has no wind.
         float mWindSpeed = 0.0f;
+
+        /// Where the two moons' portraits sit in the scene's texture table. Whoever owns the scene
+        /// puts them there; nothing about a cell decides it.
+        RtxBridge::MoonFaces mFaces;
 
         /// The air in the cell, whichever of the two places it came from: an interior's `AMBI` or
         /// the weather over an exterior. A zero extinction is a cell with no fog, and costs nothing.
@@ -77,4 +85,7 @@ namespace RtxTool
     ///
     /// An interior is left untouched: it has no sky for a clock to move.
     void relight(CellLighting& lighting, std::string_view weather, int day, float hour);
+
+    /// The same, partway between two weathers — which is what a window running a transition wants.
+    void relight(CellLighting& lighting, std::string_view from, std::string_view to, float blend, int day, float hour);
 }

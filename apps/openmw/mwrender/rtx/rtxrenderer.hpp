@@ -12,6 +12,7 @@
 #include <components/myguiplatform/picture.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/frameimage.hpp>
+#include <components/rtxbridge/moonbuilder.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/rtxbridge/sceneuploader.hpp>
 
@@ -269,6 +270,10 @@ namespace MWRender::Rtx
         /// Kept across frames, which is the whole of what makes a re-walk cheap: the identity maps
         /// inside the extractor are what resolve a mesh met again to the one already uploaded.
         ::Rtx::SceneDesc mScene;
+
+        /// Where the two moons' portraits sit in `mScene`'s texture table, added on the first frame
+        /// that has a scene at all.
+        RtxBridge::MoonFaces mMoonFaces;
         std::unique_ptr<RtxBridge::SceneExtractor> mExtractor;
 
         /// Which of place, extend and rebuild a frame is, and what a rebuild has to describe.

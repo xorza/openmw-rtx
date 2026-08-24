@@ -107,52 +107,104 @@ namespace RtxBridge
         return direction;
     }
 
+    namespace
+    {
+        /// One weather's numbers at one hour, before any of them is converted.
+        ///
+        /// **Kept in the units the file records them in**, because a transition lerps *these* and not
+        /// what they become: the game blends the fog's recorded depth and converts once
+        /// (`apps/openmw/mwworld/weather.cpp:1090`), and blending two extinctions instead is a
+        /// different curve.
+        struct Reading
+        {
+            osg::Vec3f mHaze;
+            osg::Vec3f mSky;
+            osg::Vec3f mAmbient;
+            osg::Vec3f mSun;
+            float mFogDepth = 0.0f;
+        };
+
+        Reading readWeather(std::string_view weather, const Sky::TimeOfDaySettings& times, float hour)
+        {
+            const std::string name(weather);
+
+            // **The game's own four-point ramp rather than a step between four phases.** Each
+            // quantity crosses dawn over a window of its own — the sun can be up before the sky has
+            // finished turning — so reading whichever phase an hour fell in got every hour inside a
+            // transition wrong, which is most of sunrise and most of dusk.
+            const auto ramp = [&name, &times, hour](std::string_view field) {
+                const std::string prefix(field);
+                const auto colour = [&name, &prefix](std::string_view phase) {
+                    return Fallback::Map::getColour(
+                        "Weather_" + name + "_" + prefix + "_" + std::string(phase) + "_Color");
+                };
+
+                return decodeColour(Sky::TimeOfDayInterpolator<osg::Vec4f>(
+                    colour("Sunrise"), colour("Day"), colour("Sunset"), colour("Night"))
+                        .getValue(hour, times, prefix));
+            };
+
+            // **A content file records a day depth and a night one and nothing between**, so the
+            // game hands the day value to three of the ramp's four points and lets it cross to night
+            // at dusk. Asking for a sunrise depth is not a key that reads zero — the fallback map
+            // does not know it at all and throws.
+            const float day = Fallback::Map::getFloat("Weather_" + name + "_Land_Fog_Day_Depth");
+            const float night = Fallback::Map::getFloat("Weather_" + name + "_Land_Fog_Night_Depth");
+
+            return Reading{
+                .mHaze = ramp("Fog"),
+                .mSky = ramp("Sky"),
+                .mAmbient = ramp("Ambient"),
+                .mSun = ramp("Sun"),
+                .mFogDepth = Sky::TimeOfDayInterpolator<float>(day, day, day, night).getValue(hour, times, "Fog"),
+            };
+        }
+
+        Daylight settle(const Reading& read, const Sky::TimeOfDaySettings& times, float hour)
+        {
+            return Daylight{
+                .mSun = { .mDirection = sunDirection(hour, times.mNightEnd, times.mNightStart),
+
+                    // **Not switched off at night, because the game does not switch it off either.**
+                    // `WeatherManager::calculateResult` takes the sun's colour straight off this
+                    // ramp, and its night value is a dim blue rather than nothing.
+                    .mIrradiance = read.mSun * Rtx::Shaders::DAYLIGHT },
+
+                // The disc is the other question and the engine answers it by the hour.
+                .mSunVisible = hour > times.mNightEnd && hour < times.mNightStart,
+                .mSkyHorizon = read.mHaze,
+                .mSkyZenith = read.mSky,
+                .mAmbient = read.mAmbient,
+                .mFog = { .mColour = read.mHaze, .mExtinction = fogExtinction(read.mFogDepth) },
+            };
+        }
+    }
+
     Daylight makeDaylight(std::string_view weather, float hour)
     {
         const Sky::TimeOfDaySettings times = Sky::TimeOfDaySettings::fromFallback();
-        const std::string name(weather);
+        return settle(readWeather(weather, times, hour), times, hour);
+    }
 
-        // **The game's own four-point ramp rather than a step between four phases.** Each quantity
-        // crosses dawn over a window of its own — the sun can be up before the sky has finished
-        // turning — so reading whichever phase an hour fell in got every hour inside a transition
-        // wrong, which is most of sunrise and most of dusk.
-        const auto ramp = [&name, &times, hour](std::string_view field) {
-            const std::string prefix(field);
-            const auto colour = [&name, &prefix](std::string_view phase) {
-                return Fallback::Map::getColour("Weather_" + name + "_" + prefix + "_" + std::string(phase) + "_Color");
-            };
+    Daylight makeDaylight(std::string_view from, std::string_view to, float blend, float hour)
+    {
+        const Sky::TimeOfDaySettings times = Sky::TimeOfDaySettings::fromFallback();
+        const Reading a = readWeather(from, times, hour);
+        const Reading b = readWeather(to, times, hour);
 
-            return decodeColour(Sky::TimeOfDayInterpolator<osg::Vec4f>(
-                colour("Sunrise"), colour("Day"), colour("Sunset"), colour("Night"))
-                    .getValue(hour, times, prefix));
-        };
+        const auto mix = [blend](const auto& x, const auto& y) { return x * (1.0f - blend) + y * blend; };
 
-        // One read, two uses: the horizon is fog seen from far enough away, which is why the game
-        // records a single colour for both.
-        const osg::Vec3f haze = ramp("Fog");
-
-        // **A content file records a day depth and a night one and nothing between**, so the game
-        // hands the day value to three of the ramp's four points and lets it cross to night at dusk.
-        // Asking for a sunrise depth is not a key that reads zero — the fallback map does not know
-        // it at all and throws.
-        const float day = Fallback::Map::getFloat("Weather_" + name + "_Land_Fog_Day_Depth");
-        const float night = Fallback::Map::getFloat("Weather_" + name + "_Land_Fog_Night_Depth");
-        const float depth = Sky::TimeOfDayInterpolator<float>(day, day, day, night).getValue(hour, times, "Fog");
-
-        return Daylight{
-            .mSun = { .mDirection = sunDirection(hour, times.mNightEnd, times.mNightStart),
-
-                // **Not switched off at night, because the game does not switch it off either.**
-                // `WeatherManager::calculateResult` takes the sun's colour straight off this ramp,
-                // and its night value is a dim blue rather than nothing — so a harness that zeroed
-                // it lit its nights differently from the game it exists to predict.
-                .mIrradiance = ramp("Sun") * Rtx::Shaders::DAYLIGHT },
-            .mSunVisible = hour > times.mNightEnd && hour < times.mNightStart,
-            .mSkyHorizon = haze,
-            .mSkyZenith = ramp("Sky"),
-            .mAmbient = ramp("Ambient"),
-            .mFog = { .mColour = haze, .mExtinction = fogExtinction(depth) },
-        };
+        // Exactly the quantities `calculateTransitionResult` blends, and the depth among them rather
+        // than the extinction it becomes.
+        return settle(
+            Reading{
+                .mHaze = mix(a.mHaze, b.mHaze),
+                .mSky = mix(a.mSky, b.mSky),
+                .mAmbient = mix(a.mAmbient, b.mAmbient),
+                .mSun = mix(a.mSun, b.mSun),
+                .mFogDepth = mix(a.mFogDepth, b.mFogDepth),
+            },
+            times, hour);
     }
 
     std::optional<std::uint32_t> weatherIndex(std::string_view weather)

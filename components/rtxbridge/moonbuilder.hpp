@@ -2,6 +2,7 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
 
 namespace RtxBridge
@@ -47,12 +48,15 @@ namespace RtxBridge
         /// zero to one. Zero is a moon that is not there to be drawn.
         float mAlpha = 0.0f;
 
-        /// What a fully lit face sends back, linear.
+        /// The painted face in the scene's texture table, or `Rtx::sNoIndex` for none.
+        Rtx::Index mFace = Rtx::sNoIndex;
+
+        /// The mean opaque texel of this moon's portrait, linear and unscaled.
         ///
-        /// **The two portraits' own colours, scaled together rather than each to its own peak.**
-        /// Masser is red and Secunda is grey and the red one is two and a half times the darker —
-        /// which is a fact about the art, so normalising them apart would throw away the only reason
-        /// to draw Masser rather than a bright dot.
+        /// **What the disc falls back to where no portrait is loaded.** Masser is red and Secunda is
+        /// grey and the red one is two and a half times the darker, which is a fact about the art;
+        /// `Rtx::Shaders::MOON_RADIANCE` is what takes either of them to radiance, so the two moons
+        /// keep their relationship and the level stays in one place.
         osg::Vec3f mColour;
     };
 
@@ -67,6 +71,32 @@ namespace RtxBridge
     ///        which the rise-hour formula anchors to 16 Last Seed.
     /// @param hour on a twenty-four hour clock.
     MoonPlacement makeMoon(Moon moon, int day, float hour);
+
+    /// The two painted faces, in a scene's texture table.
+    ///
+    /// **Held rather than named by a material**, because a moon is not a surface anything stands on:
+    /// the disc is drawn by a ray that reached nothing, so no material can speak for its texture and
+    /// the sweep would take the slot back on the first frame a cell died.
+    struct MoonFaces
+    {
+        Rtx::Index mMasser = Rtx::sNoIndex;
+        Rtx::Index mSecunda = Rtx::sNoIndex;
+
+        Rtx::Index of(Moon moon) const { return moon == Moon::Masser ? mMasser : mSecunda; }
+    };
+
+    /// Adds `tx_masser_full.dds` and `tx_secunda_full.dds` to `scene` and holds them there.
+    ///
+    /// **One call and two callers**, as ever: the game's scene and the harness's both need the faces
+    /// in the same table the trace reads, and a moon drawn from the mean of its portrait rather than
+    /// the portrait itself is a coloured circle.
+    ///
+    /// Safe to call again on a scene that already has them — `addTexture` hands back the slot it
+    /// already gave — though each call takes a hold, so each wants its own `dropMoonFaces`.
+    MoonFaces addMoonFaces(Rtx::SceneDesc& scene);
+
+    /// Gives back the holds `addMoonFaces` took.
+    void dropMoonFaces(Rtx::SceneDesc& scene, const MoonFaces& faces);
 
     /// A moon placed from angles somebody else worked out.
     ///

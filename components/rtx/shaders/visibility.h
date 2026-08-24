@@ -52,6 +52,10 @@ namespace Rtx::Shaders
     RTX_CONST uint WEATHER_BLIZZARD = 9u;
     RTX_CONST uint WEATHER_COUNT = 10u;
 
+    /// What `MoonDisc::mFace` holds where no portrait was loaded: the disc is then its mean colour
+    /// with the shading law over it, which is what a moon looked like before the faces arrived.
+    RTX_CONST uint NO_MOON_FACE = 0xFFFFFFFFu;
+
     /// One of the two moons, as a disc a ray that reached nothing can find.
     ///
     /// **A disc and not a body**, for the reason the sun is: nothing puts a sphere in an
@@ -86,6 +90,18 @@ namespace Rtx::Shaders
         /// What the game fades the moon by near the horizon and at the ends of its arc. Zero is a
         /// moon that is not there, and the whole disc is skipped for it.
         float mAlpha;
+
+        /// The painted face, in the bindless array, or `NO_MOON_FACE` where none was loaded.
+        ///
+        /// **The `full` portrait and only that one.** The game ships eight per moon and this draws
+        /// the terminator itself, so what is wanted from the file is the maria and the silhouette —
+        /// one face under eight lightings, which is what a tidally locked moon is.
+        ///
+        /// **The alpha is not premultiplied.** Past the edge of the painted disc the file's colour
+        /// climbs back toward the middle of its range, so a sampler that took the colour and dropped
+        /// the alpha drew a bright ring around every moon. Multiplying by it removes that and hands
+        /// over the limb's own antialiasing for nothing.
+        uint mFace;
     };
 
     /// The camera, as a ray generator.
@@ -310,8 +326,8 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
-    static_assert(sizeof(MoonDisc) == 60, "MoonDisc must be scalar-packed on every side");
-    static_assert(sizeof(VisibilityConstants) == 388, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(MoonDisc) == 64, "MoonDisc must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 396, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

@@ -137,6 +137,19 @@ namespace Rtx::Shaders
     /// has no low frequencies to begin with, which is the whole point of it.
     RTX_CONST uint BLUE_NOISE_EXTENT = 64;
 
+    /// What a moon's own texels are worth as radiance.
+    ///
+    /// **Pinned, and not by taste.** A real full moon is a 640,000th of the sun and there is no scale
+    /// this renderer could put both on, so the number has to be chosen — and what chooses it is that
+    /// a moon bright enough to blow all three channels is a white disc whatever colour it was given,
+    /// which throws away the only reason to draw Masser rather than a bright dot. `tx_masser_full`'s
+    /// mean opaque texel is 0.0332 in red, and this is what takes that to 0.18: the most red a moon
+    /// can be and still be a moon.
+    ///
+    /// It multiplies the portrait where one is loaded and the portrait's mean where none is, so the
+    /// two paths are the same brightness and only the detail differs.
+    RTX_CONST float MOON_RADIANCE = 5.4217f;
+
     /// Angular radius of the sun, in radians — a disc about half a degree across.
     ///
     /// The real figure, because there is only one right answer and nothing about this renderer wants
