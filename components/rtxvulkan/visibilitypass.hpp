@@ -43,8 +43,10 @@ namespace Rtx
 
     /// One ray per pixel against the top-level structure, shaded by the geometric normal it hit.
     ///
-    /// Everything it needs is pushed at record time — no descriptor pool, no set to allocate, and so
-    /// nothing for it to allocate per frame either.
+    /// Everything it needs arrives at record time — no descriptor pool, no set to allocate, and so
+    /// nothing for it to allocate per frame either. The frame's own description is the exception and
+    /// only just: it lives in a buffer this owns because it outgrew what a push constant may carry,
+    /// and that buffer is made once and rewritten in place.
     class VisibilityPass
     {
     public:
@@ -68,6 +70,16 @@ namespace Rtx
 
     private:
         Buffer mBlueNoise;
+
+        /// This frame's `VisibilityConstants`, on the device.
+        ///
+        /// **They were a push constant until they passed 256 bytes**, which is the whole of
+        /// `maxPushConstantsSize` on the hardware this targets. Written with `vkCmdUpdateBuffer`
+        /// rather than through a mapping: the write is recorded into the command buffer and so runs
+        /// in queue order, which is what lets one buffer serve every frame without a second copy to
+        /// keep the host and the device apart.
+        Buffer mConstants;
+
         ComputePipeline mPipeline;
     };
 }

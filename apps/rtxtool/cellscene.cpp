@@ -293,9 +293,17 @@ namespace RtxTool
                 .mReport = std::move(report) };
 
         const RtxBridge::Daylight daylight = RtxBridge::makeDaylight(weather, hour);
+
+        // **After the daylight, and that is what makes the `value` safe.** A name that is none of
+        // the ten throws out of the fallback map on the line above, so anything that reaches here
+        // is a weather the table knows.
+        const std::uint32_t identity = RtxBridge::weatherIndex(weather).value();
+
         return RegionLoad{ .mLighting = CellLighting{ .mAmbient = daylight.mAmbient,
                                .mWaterLevel = level,
                                .mDaylight = daylight,
+                               .mWeather = identity,
+                               .mWindSpeed = RtxBridge::windSpeed(weather),
                                .mFog = daylight.mFog },
             .mReport = std::move(report) };
     }

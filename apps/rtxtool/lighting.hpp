@@ -4,16 +4,9 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/shaders/visibility.h>
 #include <components/rtxbridge/fogbuilder.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
-
-namespace Rtx
-{
-    namespace Shaders
-    {
-        struct VisibilityConstants;
-    }
-}
 
 namespace RtxTool
 {
@@ -35,6 +28,16 @@ namespace RtxTool
 
         /// The sun and the sky over an exterior. An interior leaves this dark.
         RtxBridge::Daylight mDaylight;
+
+        /// Which weather the sky is under, as the shader's `WEATHER_*` number it.
+        ///
+        /// **One and not two.** The harness runs no weather simulation, so nothing here is ever
+        /// halfway between two skies — a frame is under the weather it was asked for, which is what
+        /// makes two runs of a view the same picture.
+        std::uint32_t mWeather = Rtx::Shaders::WEATHER_CLEAR;
+
+        /// How hard that weather blows, as the content files record it. An interior has no wind.
+        float mWindSpeed = 0.0f;
 
         /// The air in the cell, whichever of the two places it came from: an interior's `AMBI` or
         /// the weather over an exterior. A zero extinction is a cell with no fog, and costs nothing.

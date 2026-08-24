@@ -410,6 +410,14 @@ namespace MWRender
         float mFirstPersonFieldOfView;
         bool mUpdateProjectionMatrix = false;
         bool mNight = false;
+
+        /// The last direction `MWWorld::WeatherManager` aimed its storm particles.
+        ///
+        /// **Kept because `WorldState` has to report it and the sky cannot be asked.** The weather
+        /// system computes it once a frame against the player's position and hands it straight on;
+        /// the value is `MWWorld::Weather::defaultDirection` until it first does.
+        osg::Vec3f mStormParticleDirection = osg::Vec3f(0.0f, 1.0f, 0.0f);
+
         osg::Vec2f mProjectionOffset;
         const MWWorld::GroundcoverStore& mGroundCoverStore;
 

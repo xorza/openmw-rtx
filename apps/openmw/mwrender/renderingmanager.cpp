@@ -640,6 +640,7 @@ namespace MWRender
 
     void RenderingManager::setStormParticleDirection(const osg::Vec3f& direction)
     {
+        mStormParticleDirection = direction;
         mSky->setStormParticleDirection(direction);
     }
 
@@ -784,6 +785,10 @@ namespace MWRender
         const MWBase::World& world = *MWBase::Environment::get().getWorld();
         const bool underwater = mWater->isUnderwater(mCamera->getPosition());
 
+        // The world's "no transition" is -1, and `WorldState` would rather say it in the type.
+        const int next = world.getNextWeatherScriptId();
+        const std::optional<int> nextWeather = next < 0 ? std::nullopt : std::optional(next);
+
         return WorldState{
             .mSunPosition = mSunPosition,
             .mSunVector = mSunVector,
@@ -806,9 +811,10 @@ namespace MWRender
             .mFieldOfView = mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView,
             .mGameHour = world.getTimeStamp().getHour(),
             .mWeatherId = world.getCurrentWeatherScriptId(),
-            .mNextWeatherId = world.getNextWeatherScriptId(),
+            .mNextWeatherId = nextWeather,
             .mWeatherTransition = world.getWeatherTransition(),
             .mWindSpeed = world.getWindSpeed(),
+            .mStormDirection = mStormParticleDirection,
         };
     }
 

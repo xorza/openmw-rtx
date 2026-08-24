@@ -679,6 +679,26 @@ namespace MWRender::Rtx
         const float half = 0.5f * (world.mAir.mStart + world.mAir.mEnd);
         constants.mFogExtinction = half > 0.0f ? std::numbers::ln2_v<float> / half : 0.0f;
 
+        // **The blend runs the opposite way to what its name suggests.** `getWeatherTransition`
+        // hands back `WeatherManager::mTransitionFactor`, which is set to one when a change begins
+        // and counted *down* to zero as it completes — the engine's own mix is `1 - factor`
+        // (`apps/openmw/mwworld/weather.cpp:1261`). Passed through unturned it is a sky that starts
+        // as the weather it is becoming and ends as the one it left.
+        //
+        // **And the current weather twice where nothing is changing**, since the shader mixes
+        // unconditionally: naming this one on both sides at a blend of zero is what lets it.
+        constants.mWeather = static_cast<std::uint32_t>(world.mWeatherId);
+        constants.mNextWeather
+            = world.mNextWeatherId.has_value() ? static_cast<std::uint32_t>(*world.mNextWeatherId) : constants.mWeather;
+        constants.mWeatherBlend = world.mNextWeatherId.has_value() ? 1.0f - world.mWeatherTransition : 0.0f;
+
+        constants.mWindSpeed = world.mWindSpeed;
+
+        // Already aimed at the player by the weather system, which is the only thing that knows
+        // where they stand. `RtxBridge::stormDirection` is the same rule for the harness, which has
+        // no player to ask.
+        constants.mStormDirection = world.mStormDirection;
+
         // **What the sampler and the jitter are walked by, and leaving it at zero is a bug with two
         // faces.** The bounce samples the same point every frame, so nothing ever converges; and the
         // upscaler, which jitters whatever it is told, is handed the same sub-pixel offset every

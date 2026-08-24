@@ -253,7 +253,8 @@ namespace MWRender
 
         mStateUpdater->setGameHour(world.mGameHour);
         mStateUpdater->setWeatherId(world.mWeatherId);
-        mStateUpdater->setNextWeatherId(world.mNextWeatherId);
+        // -1 for no transition, which is what the world hands over and what a technique reads.
+        mStateUpdater->setNextWeatherId(world.mNextWeatherId.value_or(-1));
         mStateUpdater->setWeatherTransition(world.mWeatherTransition);
         mStateUpdater->setWindSpeed(world.mWindSpeed);
 

@@ -4,6 +4,7 @@
 
 #include <components/esm3/loadligh.hpp>
 #include <components/fallback/fallback.hpp>
+#include <components/rtx/shaders/visibility.h>
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/sceneutil/util.hpp>
 
@@ -163,6 +164,8 @@ namespace RtxBridge
                 { "Weather_Sunset_Duration", "2" },
                 { "Weather_Clear_Land_Fog_Day_Depth", "0.4" },
                 { "Weather_Clear_Land_Fog_Night_Depth", "0.8" },
+                { "Weather_Clear_Wind_Speed", "0.3" },
+                { "Weather_Ashstorm_Wind_Speed", "0.8" },
             });
 
             for (float hour = 0.0f; hour < 24.0f; hour += 0.25f)
@@ -175,6 +178,81 @@ namespace RtxBridge
             EXPECT_EQ(makeDaylight("Clear", 6.0f).mFog.mExtinction, day) << "sunrise";
             EXPECT_EQ(makeDaylight("Clear", 20.0f).mFog.mExtinction, day) << "sunset";
             EXPECT_GT(makeDaylight("Clear", 0.0f).mFog.mExtinction, day) << "night";
+
+            // The wind comes off the same file and the same per-weather key, so a storm reading
+            // harder than fair weather is what says the name reached the lookup rather than a
+            // constant being handed back.
+            EXPECT_FLOAT_EQ(windSpeed("Clear"), 0.3f);
+            EXPECT_FLOAT_EQ(windSpeed("Ashstorm"), 0.8f);
+
+            // A name that is none of the ten is not a key the map will even consider, which is why
+            // `weatherIndex` is the thing to ask first.
+            EXPECT_THROW(windSpeed("Drizzle"), std::logic_error);
+            EXPECT_THROW(makeDaylight("Drizzle", 12.0f), std::logic_error);
+        }
+
+        /// The ten names, in the order a script id counts along.
+        ///
+        /// **This order is the engine's and not ours.** `MWWorld::WeatherManager::addWeather` is
+        /// called ten times in `apps/openmw/mwworld/weather.cpp:672` and each call's position is the
+        /// `mScriptId` the game later hands the renderer; the shader's `WEATHER_*` name the same
+        /// positions. A table that drifted from either would put an ashstorm's sky over a rainstorm
+        /// without anything failing to compile.
+        TEST(RtxLightBuilderTest, aWeatherNameIndexesTheOrderTheEngineRegistersThemIn)
+        {
+            EXPECT_EQ(weatherIndex("Clear"), Rtx::Shaders::WEATHER_CLEAR);
+            EXPECT_EQ(weatherIndex("Cloudy"), Rtx::Shaders::WEATHER_CLOUDY);
+            EXPECT_EQ(weatherIndex("Foggy"), Rtx::Shaders::WEATHER_FOGGY);
+            EXPECT_EQ(weatherIndex("Overcast"), Rtx::Shaders::WEATHER_OVERCAST);
+            EXPECT_EQ(weatherIndex("Rain"), Rtx::Shaders::WEATHER_RAIN);
+            EXPECT_EQ(weatherIndex("Thunderstorm"), Rtx::Shaders::WEATHER_THUNDERSTORM);
+            EXPECT_EQ(weatherIndex("Ashstorm"), Rtx::Shaders::WEATHER_ASHSTORM);
+            EXPECT_EQ(weatherIndex("Blight"), Rtx::Shaders::WEATHER_BLIGHT);
+            EXPECT_EQ(weatherIndex("Snow"), Rtx::Shaders::WEATHER_SNOW);
+            EXPECT_EQ(weatherIndex("Blizzard"), Rtx::Shaders::WEATHER_BLIZZARD);
+
+            EXPECT_FALSE(weatherIndex("Drizzle").has_value());
+
+            // **Case is not folded**, because the name goes on to spell a `Weather_<name>_*` key
+            // and the fallback map's whitelist holds exactly one spelling of each. Accepting a
+            // second here would hand `makeDaylight` a name that throws.
+            EXPECT_FALSE(weatherIndex("clear").has_value());
+            EXPECT_FALSE(weatherIndex("").has_value());
+        }
+
+        /// Ash and blight blow off Red Mountain at whoever is standing in them.
+        ///
+        /// `apps/openmw/mwworld/weather.cpp:47` takes the direction from the volcano at (25000,
+        /// 70000) to the player, flattened to the ground. Every other weather leaves it due north,
+        /// which is `MWWorld::Weather::defaultDirection`.
+        TEST(RtxLightBuilderTest, anAshStormBlowsAwayFromRedMountainAndNothingElseTurnsAtAll)
+        {
+            const osg::Vec3f north(0.0f, 1.0f, 0.0f);
+
+            // A three-four-five triangle off the summit, so the unit vector is exact: (3, 4) over a
+            // length of 5 is (0.6, 0.8). The height is thrown away rather than normalised with the
+            // rest, which is what keeps the wind on the ground.
+            const osg::Vec3f standing(25003.0f, 70004.0f, 999.0f);
+            for (const std::uint32_t weather : { Rtx::Shaders::WEATHER_ASHSTORM, Rtx::Shaders::WEATHER_BLIGHT })
+            {
+                const osg::Vec3f blowing = stormDirection(weather, standing);
+                EXPECT_FLOAT_EQ(blowing.x(), 0.6f) << "weather " << weather;
+                EXPECT_FLOAT_EQ(blowing.y(), 0.8f) << "weather " << weather;
+                EXPECT_FLOAT_EQ(blowing.z(), 0.0f) << "weather " << weather;
+            }
+
+            // Due south of the mountain it points south, which is the half of "away from" that a
+            // fixed bearing would get wrong.
+            EXPECT_EQ(stormDirection(Rtx::Shaders::WEATHER_ASHSTORM, osg::Vec3f(25000.0f, 60000.0f, 0.0f)),
+                osg::Vec3f(0.0f, -1.0f, 0.0f));
+
+            // Standing on the summit there is no away, and a normalised zero is a frame of NaN.
+            EXPECT_EQ(stormDirection(Rtx::Shaders::WEATHER_ASHSTORM, osg::Vec3f(25000.0f, 70000.0f, 4000.0f)), north);
+
+            // Everything the mountain does not send reads the wind's own bearing wherever it stands.
+            for (const std::uint32_t weather : { Rtx::Shaders::WEATHER_CLEAR, Rtx::Shaders::WEATHER_RAIN,
+                     Rtx::Shaders::WEATHER_BLIZZARD, Rtx::Shaders::WEATHER_SNOW })
+                EXPECT_EQ(stormDirection(weather, standing), north) << "weather " << weather;
         }
 
         /// Three kinds of record place a mesh and no light, and one kind is nonsense.

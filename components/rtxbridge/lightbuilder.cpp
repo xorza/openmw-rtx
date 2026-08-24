@@ -1,12 +1,14 @@
 #include "lightbuilder.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <string>
 
 #include <components/esm3/loadligh.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/shaders/scene.h>
+#include <components/rtx/shaders/visibility.h>
 
 namespace RtxBridge
 {
@@ -45,6 +47,27 @@ namespace RtxBridge
         constexpr float sNorthing = 75.0f;
         constexpr float sClimb = 100.0f;
 
+        /// Morrowind's ten weathers, in `MWWorld::WeatherManager`'s registration order — which is
+        /// what a script id counts along and what a `Weather_<name>_*` key spells. The shader names
+        /// the same order as `WEATHER_*`; this is the only place the spellings live.
+        constexpr std::array<std::string_view, Rtx::Shaders::WEATHER_COUNT> sWeathers = {
+            "Clear",
+            "Cloudy",
+            "Foggy",
+            "Overcast",
+            "Rain",
+            "Thunderstorm",
+            "Ashstorm",
+            "Blight",
+            "Snow",
+            "Blizzard",
+        };
+
+        /// Where the ash comes from, out of `apps/openmw/mwworld/weather.cpp:55`. Flat, because the
+        /// direction it drives is taken on the ground plane and never points up the mountain.
+        constexpr float sRedMountainX = 25000.0f;
+        constexpr float sRedMountainY = 70000.0f;
+
         float channelToLinear(float encoded)
         {
             return encoded <= 0.04045f ? encoded / 12.92f : std::pow((encoded + 0.055f) / 1.055f, 2.4f);
@@ -52,8 +75,10 @@ namespace RtxBridge
 
         /// A weather's colour for one time of day, decoded.
         ///
-        /// Absent settings read as black, which is what an unknown weather name should look like —
-        /// these come off a file this does not own and cannot be asserted about.
+        /// **A key the fallback map does not recognise throws**, and one it recognises but never
+        /// received reads as middle grey — `Fallback::Map::getColour`'s own two answers, and the
+        /// reason `weatherIndex` exists to be asked first. The whitelist names the ten weathers one
+        /// by one, so a misspelt name is the throwing case rather than the grey one.
         osg::Vec3f weatherColour(std::string_view weather, std::string_view field, std::string_view phase)
         {
             return decodeColour(Fallback::Map::getColour(
@@ -148,6 +173,37 @@ namespace RtxBridge
             daylight.mSun.mIrradiance = weatherColour(weather, "Sun", name) * Rtx::Shaders::DAYLIGHT;
 
         return daylight;
+    }
+
+    std::optional<std::uint32_t> weatherIndex(std::string_view weather)
+    {
+        const auto found = std::find(sWeathers.begin(), sWeathers.end(), weather);
+        if (found == sWeathers.end())
+            return std::nullopt;
+
+        return static_cast<std::uint32_t>(found - sWeathers.begin());
+    }
+
+    float windSpeed(std::string_view weather)
+    {
+        return Fallback::Map::getFloat("Weather_" + std::string(weather) + "_Wind_Speed");
+    }
+
+    osg::Vec3f stormDirection(std::uint32_t weather, const osg::Vec3f& observer)
+    {
+        // `MWWorld::Weather::defaultDirection`, which is due north and what every weather that
+        // carries nothing still blows along.
+        const osg::Vec3f north(0.0f, 1.0f, 0.0f);
+        if (weather != Rtx::Shaders::WEATHER_ASHSTORM && weather != Rtx::Shaders::WEATHER_BLIGHT)
+            return north;
+
+        osg::Vec3f away(observer.x() - sRedMountainX, observer.y() - sRedMountainY, 0.0f);
+
+        // Standing on the summit, where the direction away from it is no direction at all.
+        if (away.normalize() == 0.0f)
+            return north;
+
+        return away;
     }
 
     osg::Vec3f decodeColour(const osg::Vec4f& encoded)

@@ -37,12 +37,15 @@ namespace Rtx
                 .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
                 .size = pushConstantBytes,
             };
+            // A range of no bytes is not a range Vulkan will take, and a pass whose constants
+            // outgrew the push limit and moved into a buffer asks for exactly that.
+            const bool pushes = pushConstantBytes > 0;
             const VkPipelineLayoutCreateInfo pipelineLayout{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
                 .setLayoutCount = static_cast<std::uint32_t>(sets.size()),
                 .pSetLayouts = sets.data(),
-                .pushConstantRangeCount = 1,
-                .pPushConstantRanges = &range,
+                .pushConstantRangeCount = pushes ? 1u : 0u,
+                .pPushConstantRanges = pushes ? &range : nullptr,
             };
             checkVk(vkCreatePipelineLayout(mDevice.getHandle(), &pipelineLayout, nullptr, &mLayout),
                 "vkCreatePipelineLayout");

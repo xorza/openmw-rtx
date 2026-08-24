@@ -24,11 +24,11 @@ namespace Rtx
         constexpr auto sStorage = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         constexpr auto sImage = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 
-        /// The structure, the four channels it writes, and the tables a hit reads, in the order the
-        /// shader declares them. The channels are at one, fifteen, seventeen and eighteen because
+        /// The structure, the four channels it writes, the tables a hit reads and the frame itself,
+        /// in the order the shader declares them. The channels are at one, fifteen, seventeen and eighteen because
         /// they grew onto the end of a layout that already existed rather than renumbering the
         /// tables under them.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 25> sBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 26> sBindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 1, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 2, sStorage, 1, sCompute },
@@ -54,14 +54,18 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 22, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 23, sStorage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 24, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 25, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, sCompute },
         };
     }
 
     VisibilityPass::VisibilityPass(const Device& device, Batch& batch, const std::filesystem::path& shaderDirectory,
         VkDescriptorSetLayout textureLayout)
         : mBlueNoise(uploadBuffer(device, batch, BlueNoise::shared().getValues(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT))
-        , mPipeline(device, sBindings, sizeof(Shaders::VisibilityConstants), std::span(&textureLayout, 1),
-              shaderDirectory / "visibility.comp.spv", "visibility")
+        , mConstants(device, sizeof(Shaders::VisibilityConstants),
+              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+        , mPipeline(
+              device, sBindings, 0, std::span(&textureLayout, 1), shaderDirectory / "visibility.comp.spv", "visibility")
     {
     }
 
@@ -69,6 +73,55 @@ namespace Rtx
         const Buffer& hitCount, const Shaders::VisibilityConstants& constants) const
     {
         assert(buffer.getWidth() >= constants.mWidth && buffer.getHeight() >= constants.mHeight);
+
+        // **How many emitters there are is the scene's answer and not the camera's.** The table
+        // never shrinks, so its length says nothing about this frame; taking the count off the
+        // buffers here is what keeps a caller from having to know the table exists at all.
+        Shaders::VisibilityConstants described = constants;
+        described.mEmitterCount = inputs.mBuffers->getEmitterCount();
+
+        // **Both directions, because one buffer serves every trace.** The write has to wait for the
+        // last dispatch that read it — a traced view and the world are two traces — and the next
+        // dispatch has to wait for the write.
+        const VkBufferMemoryBarrier2 beforeWrite{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+            .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            .srcAccessMask = VK_ACCESS_2_UNIFORM_READ_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
+            .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .buffer = mConstants.getHandle(),
+            .size = VK_WHOLE_SIZE,
+        };
+        const VkDependencyInfo settle{
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .bufferMemoryBarrierCount = 1,
+            .pBufferMemoryBarriers = &beforeWrite,
+        };
+        vkCmdPipelineBarrier2(commands, &settle);
+
+        // A few hundred bytes, so this is an inline write into the command buffer rather than a
+        // staging copy — and being recorded, it runs in queue order with the traces around it.
+        vkCmdUpdateBuffer(commands, mConstants.getHandle(), 0, sizeof(described), &described);
+
+        const VkBufferMemoryBarrier2 written{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+            .srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
+            .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            .dstAccessMask = VK_ACCESS_2_UNIFORM_READ_BIT,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .buffer = mConstants.getHandle(),
+            .size = VK_WHOLE_SIZE,
+        };
+        const VkDependencyInfo handOver{
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .bufferMemoryBarrierCount = 1,
+            .pBufferMemoryBarriers = &written,
+        };
+        vkCmdPipelineBarrier2(commands, &handOver);
 
         const VkWriteDescriptorSetAccelerationStructureKHR sceneWrite{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
@@ -107,8 +160,9 @@ namespace Rtx
         const VkDescriptorBufferInfo gridWrite{ inputs.mBuffers->getGrid(), 0, VK_WHOLE_SIZE };
         const VkDescriptorBufferInfo spriteWrite{ inputs.mBuffers->getSprites(), 0, VK_WHOLE_SIZE };
         const VkDescriptorBufferInfo emitterWrite{ inputs.mBuffers->getEmitters(), 0, VK_WHOLE_SIZE };
+        const VkDescriptorBufferInfo frameWrite{ mConstants.getHandle(), 0, VK_WHOLE_SIZE };
 
-        std::array<VkWriteDescriptorSet, 25> writes{};
+        std::array<VkWriteDescriptorSet, 26> writes{};
         writes[0] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = &sceneWrite,
@@ -167,19 +221,19 @@ namespace Rtx
             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             .pBufferInfo = &emitterWrite,
         };
+        writes[25] = VkWriteDescriptorSet{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstBinding = 25,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .pBufferInfo = &frameWrite,
+        };
 
         vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getHandle());
         vkCmdPushDescriptorSet(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getLayout(), 0,
             static_cast<std::uint32_t>(writes.size()), writes.data());
         vkCmdBindDescriptorSets(
             commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getLayout(), 1, 1, &inputs.mTextures, 0, nullptr);
-        // **How many emitters there are is the scene's answer and not the camera's.** The table
-        // never shrinks, so its length says nothing about this frame; taking the count off the
-        // buffers here is what keeps a caller from having to know the table exists at all.
-        Shaders::VisibilityConstants pushed = constants;
-        pushed.mEmitterCount = inputs.mBuffers->getEmitterCount();
-
-        vkCmdPushConstants(commands, mPipeline.getLayout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pushed), &pushed);
         vkCmdDispatch(commands, groupsFor(constants.mWidth), groupsFor(constants.mHeight), 1);
     }
 

@@ -34,6 +34,24 @@ namespace Rtx::Shaders
     /// row of pixels.
     RTX_CONST uint VISIBILITY_WORKGROUP = 8;
 
+    /// Morrowind's ten weathers, in the order `MWWorld::WeatherManager` registers them.
+    ///
+    /// That order is not an arrangement of this renderer's: it is what a weather's script id counts
+    /// along, and it is the order the `Weather_<name>_*` keys sit in a content file. Naming them
+    /// here is what lets the game hand over a script id and the harness a name off a command line
+    /// and have the two mean one sky — `RtxBridge::weatherIndex` is the table that joins them.
+    RTX_CONST uint WEATHER_CLEAR = 0u;
+    RTX_CONST uint WEATHER_CLOUDY = 1u;
+    RTX_CONST uint WEATHER_FOGGY = 2u;
+    RTX_CONST uint WEATHER_OVERCAST = 3u;
+    RTX_CONST uint WEATHER_RAIN = 4u;
+    RTX_CONST uint WEATHER_THUNDERSTORM = 5u;
+    RTX_CONST uint WEATHER_ASHSTORM = 6u;
+    RTX_CONST uint WEATHER_BLIGHT = 7u;
+    RTX_CONST uint WEATHER_SNOW = 8u;
+    RTX_CONST uint WEATHER_BLIZZARD = 9u;
+    RTX_CONST uint WEATHER_COUNT = 10u;
+
     /// The camera, as a ray generator.
     ///
     /// `mRight` and `mUp` are already scaled by the half-extents of the image plane at unit distance,
@@ -175,6 +193,30 @@ namespace Rtx::Shaders
         /// mix changes the air's character and never how much of it there is.
         float mFogUniform;
 
+        /// Which weather the sky is under, which one it is turning into, and how far along.
+        ///
+        /// **Never a "nothing is changing" sentinel.** `MWWorld::World::getNextWeatherScriptId`
+        /// answers -1 while no transition is running, and a shader carrying that would test for it
+        /// on every pixel of every settled frame; a settled sky names the same weather twice at a
+        /// blend of zero instead, so the mix is unconditional and right at either end of it.
+        uint mWeather;
+        uint mNextWeather;
+        float mWeatherBlend;
+
+        /// How hard the wind blows, and the direction what it carries travels.
+        ///
+        /// The speed is the game's own dial rather than a physical one — it is what `MWWorld::Weather`
+        /// interpolates between two weathers, and `fStromWindSpeed` is the figure a storm reaches.
+        /// The direction is where the particles *go*, and a weather with nothing to carry still
+        /// names one, because the wind blows in fair weather too.
+        ///
+        /// Unit length wherever a weather set it, and zero where nothing did — an inventory doll
+        /// and a map tile are traced under no sky at all. This header is included verbatim by GLSL,
+        /// which has no member initialisers, so that default is the aggregate's zero and not a
+        /// promise made here.
+        float mWindSpeed;
+        vec3 mStormDirection;
+
         /// How much of each texture's painted-in lighting to divide back out, from zero to one.
         ///
         /// **Morrowind's textures were lit before they were saved**, and a ray tracer lights them
@@ -219,7 +261,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
-    static_assert(sizeof(VisibilityConstants) == 236, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 264, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

@@ -189,7 +189,15 @@ layout(set = 0, binding = 24, scalar) readonly buffer Emitters
 
 layout(set = 1, binding = 0) uniform sampler2D textures[];
 
-layout(push_constant, scalar) uniform Push
+// **A buffer and not a push constant.** The frame's description passed 256 bytes, which is every
+// byte `maxPushConstantsSize` promises on this hardware; `VisibilityPass` writes it into a buffer of
+// its own instead. The name and the fields are the ones the push block had, so nothing below this
+// line knows the difference.
+//
+// **Uniform and not storage**, which is worth 0.14 ms of the trace at Balmora: every pixel reads
+// half of these fields several times over, and a uniform block is promoted to a constant bank the
+// way the push constants it replaces were, where a storage buffer is a memory read like any other.
+layout(set = 0, binding = 25, scalar) uniform Frame
 {
     VisibilityConstants camera;
 };

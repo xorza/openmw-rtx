@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
+#include <string_view>
 
 #include <osg/Vec3f>
 
@@ -80,11 +82,37 @@ namespace RtxBridge
     /// sun stops shining, not because it goes below the ground.
     osg::Vec3f sunDirection(float hour, float sunrise, float nightStart);
 
+    /// A weather's index, as `MWWorld::WeatherManager` registers them and the shader's `WEATHER_*`
+    /// name them, or nothing for a name that is none of the ten.
+    ///
+    /// **One table, two callers**, which is the point it shares with `makeLight`: the game hands the
+    /// renderer a weather's script id and the harness hands it a name off a command line, and a
+    /// frame taken either way has to be under the same sky.
+    std::optional<std::uint32_t> weatherIndex(std::string_view weather);
+
+    /// How hard the wind blows under a named weather, as the content files record it.
+    ///
+    /// The game interpolates between two of these; the harness, which runs no weather, reads the
+    /// one. A name that is none of the ten throws, so ask `weatherIndex` first.
+    float windSpeed(std::string_view weather);
+
+    /// Where a storm drives what it carries, for an observer standing at `observer`.
+    ///
+    /// **Ash and blight blow off Red Mountain.** `apps/openmw/mwworld/weather.cpp:47` aims the
+    /// direction from the volcano at whoever is standing in it, flattened to the ground — which is
+    /// why an ashstorm comes at the player's face wherever they walk, and why this needs a position
+    /// at all. Every other weather takes the wind's own bearing and does not.
+    ///
+    /// The game reports what its own weather system computed, since it has a player to ask about;
+    /// this is the same rule for a harness that has only a camera.
+    osg::Vec3f stormDirection(std::uint32_t weather, const osg::Vec3f& observer);
+
     /// The daylight a named weather casts at `hour`, on a twenty-four hour clock.
     ///
     /// @param weather a weather's name as the fallback settings spell it — "Clear", "Cloudy",
-    ///        "Overcast" and the rest. An unknown one reads as a moonless night rather than
-    ///        throwing: the settings come off a file this does not own.
+    ///        "Overcast" and the rest. **A name that is none of the ten throws** `std::logic_error`
+    ///        out of the fallback map, which whitelists its keys one weather at a time; whoever
+    ///        takes a name from outside should put it through `weatherIndex` before this.
     Daylight makeDaylight(std::string_view weather, float hour);
 
     /// A colour as the content files store one, decoded.

@@ -1,7 +1,10 @@
 #ifndef GAME_RENDER_SCENEFRAME_H
 #define GAME_RENDER_SCENEFRAME_H
 
+#include <optional>
+
 #include <osg/Matrixf>
+#include <osg/Vec3f>
 #include <osg/Vec4f>
 
 namespace osg
@@ -106,10 +109,30 @@ namespace MWRender
         float mFieldOfView = 0.0f;
 
         float mGameHour = 0.0f;
+
+        /// Which weather the sky is under, as a script id — an index into the ten
+        /// `MWWorld::WeatherManager` registers.
         int mWeatherId = 0;
-        int mNextWeatherId = 0;
+
+        /// Which one it is turning into, and nothing at all while it is turning into none.
+        ///
+        /// **The world says -1 there and this does not.** A sentinel inside the range of a field is
+        /// the sort of thing a reader has to already know about, and a default of zero would have
+        /// said "a transition to Clear, just finished" — which is a sky, and a wrong one.
+        std::optional<int> mNextWeatherId;
+
+        /// How far that transition has left to run, which is **one when it begins and zero when it
+        /// ends**: `WeatherManager` counts it down, and its own mix is `1 - this`
+        /// (`apps/openmw/mwworld/weather.cpp:1261`). Meaningless without `mNextWeatherId`.
         float mWeatherTransition = 0.0f;
         float mWindSpeed = 0.0f;
+
+        /// Where a storm drives what it carries, unit length.
+        ///
+        /// **Not derivable from the weather alone**, which is why it is reported rather than worked
+        /// out downstream: an ash or blight storm blows off Red Mountain *at the player*, so the
+        /// direction depends on where they stand. Every other weather leaves it due north.
+        osg::Vec3f mStormDirection = osg::Vec3f(0.0f, 1.0f, 0.0f);
 
         /// Whether the cell record calls this an interior.
         ///
