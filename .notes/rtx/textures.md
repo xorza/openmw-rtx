@@ -225,8 +225,25 @@ directory, four runs, **zero GL errors** where master has none either, the same 
 the same cell, and a main menu whose text is crisp — which is the font atlas, and so the whole of
 `createManual`, `lock`, `unlock` and the first `load`.
 
-To measure when it lands: allocations per frame with a video playing, and the bytes uploaded when a
-cell is entered on the global map.
+**Measured, with a video playing.** Ninety seconds of `mw_logo.bik` at 640×480, driven by
+`--script-run` with a `PlayBink`: 4906 locks and 4895 uploads, for **28 allocations against 9812** —
+fourteen images and fourteen textures over the whole run, where the old rule was an image per lock
+and a texture object per unlock.
+
+The bytes are the same 5.6 GiB either way — 6,011,421,120 sent against the 6,020,295,872 a
+whole-surface rule would have sent — and that is the right answer rather than a disappointing one: a
+video writes every pixel of every frame, so there is nothing for a row range to narrow. What the
+video path had to lose was the allocation, and it lost all of it.
+
+**And the global map, per cell entered:** the overlay in this install is 954×864, so what a `set`
+sent was **3,297,024 bytes**; eighteen rows of it — `[Map] global map cell size` — is **68,688**.
+Forty-eight times less, on the frame a cell arrives.
+
+That one is the event's own arithmetic against this install's own numbers rather than a count from a
+run: `GlobalMap::exploreCell` returns before it writes anything until the local map has rendered the
+tile for that cell, and a run nobody is playing never activates the map. Both figures above are read
+off the real textures — the overlay's size from the run that locked it, the row count from the
+setting the write is made of.
 
 ## 3. Free slots stop being textures
 
