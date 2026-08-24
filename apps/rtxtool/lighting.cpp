@@ -3,6 +3,8 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxbridge/frameworld.hpp>
 #include <components/rtxbridge/moonbuilder.hpp>
+#include <components/rtxbridge/skybuilder.hpp>
+#include <components/sky/clouds.hpp>
 
 namespace RtxTool
 {
@@ -30,6 +32,8 @@ namespace RtxTool
         lighting.mNextWeather = lighting.mWeather;
         lighting.mWeatherBlend = 0.0f;
         lighting.mWindSpeed = RtxBridge::windSpeed(weather);
+        lighting.mGlare = RtxBridge::glareView(weather);
+        lighting.mCloudSpeed = Sky::cloudSpeed(weather);
     }
 
     void relight(CellLighting& lighting, std::string_view from, std::string_view to, float blend, int day, float hour)
@@ -43,8 +47,12 @@ namespace RtxTool
         lighting.mNextWeather = RtxBridge::weatherIndex(to).value();
         lighting.mWeatherBlend = blend;
 
-        // The wind is one of the quantities the engine mixes across a transition too.
-        lighting.mWindSpeed = RtxBridge::windSpeed(from) * (1.0f - blend) + RtxBridge::windSpeed(to) * blend;
+        // The wind is one of the quantities the engine mixes across a transition too, and so are
+        // the glare and the deck's speed.
+        const auto mix = [blend](float x, float y) { return x * (1.0f - blend) + y * blend; };
+        lighting.mWindSpeed = mix(RtxBridge::windSpeed(from), RtxBridge::windSpeed(to));
+        lighting.mGlare = mix(RtxBridge::glareView(from), RtxBridge::glareView(to));
+        lighting.mCloudSpeed = mix(Sky::cloudSpeed(from), Sky::cloudSpeed(to));
     }
 
     void applyLighting(const CellLighting& lighting, Rtx::Shaders::VisibilityConstants& constants)
@@ -71,6 +79,18 @@ namespace RtxTool
             // so the same rule reaches the same answer for whoever is looking.
             .mStormDirection = RtxBridge::stormDirection(lighting.mWeather, constants.mOrigin),
         };
+
+        // **The sky's own two layers, and an interior has neither.** A room has no deck over it and
+        // no stars in it, and the defaults are what say so — a texture slot of `NO_SKY_TEXTURE` and
+        // a fade of nothing, which the shader skips before it samples anything.
+        if (lighting.mOutdoors)
+        {
+            world.mClouds = RtxBridge::describeClouds(lighting.mWeather, lighting.mNextWeather, lighting.mWeatherBlend,
+                lighting.mDaylight.mHaze, world.mStormDirection, lighting.mRoll.mClouds, lighting.mSky);
+
+            world.mStars = RtxBridge::describeStars(
+                lighting.mDaylight.mStarFade, lighting.mGlare, lighting.mRoll.mStars, lighting.mSky);
+        }
 
         // **Left where a default leaves them for a room**, which is an alpha of nothing and so a
         // disc the sky skips: an interior has no moons over it, and `relight` will not put any there.

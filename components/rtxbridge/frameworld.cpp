@@ -26,6 +26,9 @@ namespace RtxBridge
         constants.mWindSpeed = world.mWindSpeed;
         constants.mStormDirection = world.mStormDirection;
 
+        constants.mClouds = world.mClouds;
+        constants.mStars = world.mStars;
+
         for (std::size_t moon = 0; moon < world.mMoons.size(); ++moon)
             constants.mMoons[moon] = describeMoon(world.mMoons[moon]);
     }

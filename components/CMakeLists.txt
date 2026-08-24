@@ -394,7 +394,7 @@ add_component_dir (fallback
     )
 
 add_component_dir (sky
-    moonmodel sun timeofday
+    clouds moonmodel sun skyroll timeofday
     )
 
 add_component_dir (lua_ui

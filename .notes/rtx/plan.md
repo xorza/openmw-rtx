@@ -134,14 +134,28 @@ them left behind is in §8.
 - **M4 — direct lighting and shadows. Done.** *Binds:* water is excluded from shadow rays **by a mask
   bit rather than a cutout test** — the any-hit version halves the frame rate; and everything about a
   lamp is derived, because a `LIGH` record carries a colour and a radius and no intensity.
-- **M5 — sky, sun, moons. Sun, moons and sky light done; the rest of the dome and the weather in it
-  are not** (§8). Driven by `MWWorld::Weather` and `DateTimeManager` rather than re-derived from the
+- **M5 — sky, sun, moons. The dome is done; the weather in it is not** (§8). A gradient, the sun's
+  disc, both moons, Morrowind's own cloud decks and its star sheet. Driven by `MWWorld::Weather` and `DateTimeManager` rather than re-derived from the
   ini. *Binds:* **sky is a light source, not a backdrop**, and the sun and the moons are discs a ray
   that hit nothing finds — so anything reflective gets them for nothing and their size lives in one
   place. And **the sun is one object, not the engine's five dials**: `Sky::sunAt` reads Morrowind's
   arithmetic, `RtxBridge::makeSkylight` is the only thing that may build a sun out of it, and its
   irradiance being zero is the whole of "there is no sun". Every sun bug this renderer has had was
-  two of those dials disagreeing.
+  two of those dials disagreeing. **The clouds and the stars are found rather than hung on a mesh**:
+  the deck is where a ray crosses a layer at a height and the stars are a stereographic sheet on the
+  sphere, so the textures, the scroll, the blend and the colours are all the game's own and only the
+  surface they are painted on is derived — and the star sheet's tiling was **measured off
+  `sky_night_01.nif`** rather than chosen: four turns around the sky and two from horizon to zenith,
+  which is what makes a star a sixth of a degree instead of the third the same sheet spread once
+  would give. *Binds:* **`MWRender::RenderingManager` owns everything `WorldState` says about the
+  sky**, off the `WeatherResult` it is handed, and `Sky::SkyRoll` is turned there too. Reading any of
+  it back out of `SkyManager` is what made the game's sky read from a manager that may never have
+  been built. **And the deck's crossing is `Sky::cloudBlend`**, which is where the black sky actually
+  came from: the engine divides the transition by `Clouds_Maximum_Percent`, two of the ten weathers
+  record none, and the NaN that fell out reached the shader from the game alone — the harness has no
+  weather system to divide anything. A rasterizer survives one, because a NaN opacity draws nothing
+  and the old sky stays; a tracer mixes its whole sky by it. Both now run one curve, and
+  `describeClouds` makes the value well-formed at the boundary because a content file is untrusted.
 - **M6 — water. Done.** TMA spectrum under Donelan–Banner spread, 32
   components, shortest wave 32 units; ripples carried on the swell; Schlick Fresnel with one
   reflection and one refraction ray **at the pixel's own cone spread, not the bounce spread**;
@@ -197,6 +211,8 @@ fast*. 1920×1080, no upscaling, validation off, best of thirty on this box.
 
 | what | where | cost |
 |---|---|---|
+| the cloud deck and the stars | Seyda Neen's ship, a seventh of the frame sky | 8.06 → 8.02 ms |
+| | straight up, all of it sky | 2.22 → 2.31 ms |
 | shoreline foam | a shoreline in the middle distance | 8.14 → 8.25 ms |
 | | the camera standing in the surf, foam over a third of the frame | 8.47 → 10.32 ms |
 | the sprite layer, in the trace | Seyda Neen's ship, 165 emitters and 4,655 particles | 8.22 → 8.85 ms |
@@ -204,6 +220,9 @@ fast*. 1920×1080, no upscaling, validation off, best of thirty on this box.
 | the harness's live props, whole frame | Balmora in a window, 94 props | 49 → 37 fps |
 | a cell arriving | nineteen crossings across the island | none of them a rebuild (§10) |
 | the GUI's own submit | 12,400 interface frames with a video playing | 0.38 queue round trips a frame |
+
+The sky costs two texture reads on a ray that reached nothing and is inside the noise on a frame
+with a world in it — the ship's pair differ by less than the run-to-run spread.
 
 Foam's near-field figure is a shadow ray per covered pixel — it is lit the way every other diffuse
 surface is — and the reflection and refraction rays under it are still traced and then mixed away
@@ -258,13 +277,9 @@ every count; and a control fifo bounding the recording to the measured frames.
 
 **Content the renderer does not draw yet**
 
-- **The sky dome** (M5): clouds and stars. The sky is a horizon-to-zenith gradient, a sun disc and
-  the two moons — phased on the game's own three-day clock, lit by McEwen's lunar-Lambert, and able
-  to eclipse the sun. Nothing else is in it.
 - **Weather effects** (M5's other half): rain, snow, ash and blight storms, blizzards, and a
-  thunderstorm's lightning. `WorldState` carries `mWeatherId`, `mWeatherTransition` and `mWindSpeed`
-  and nothing on this side reads one of them — what reaches the picture is only what `MWWorld::Weather`
-  had already folded into the sun, the ambient and the fog band. Four of the ten weathers hang a NIF
+  thunderstorm's lightning. The sky over them is drawn — a weather's own cloud deck arrives with it
+  and crosses on its own `Transition_Delta` — but nothing falls out of it. Four of the ten weathers hang a NIF
   particle system off the sky and rain builds its own in `SkyManager::createRain`, all of it under a
   node the trace never sees. **Three answers, not one.** The particles are the sprite layer's case and
   it was written for them — `shaders/scene.h` names a rain streak as the reason that layer is
@@ -288,6 +303,18 @@ every count; and a control fifo bounding the recording to the measured frames.
 - **The GUI's second submit.** `GuiTextures` flushes just before `drawGui` rather than inside it, so
   a frame that writes a texture costs two queue round trips where it could cost one. Measured at 0.38
   a frame, which is not what a frame is spending its time on.
+
+**Content**
+
+- **The night sky is one of its seven layers.** `sky_night_01.nif` carries the star field and six
+  more — three nebulae and the warrior, mage and thief constellations — each its own mesh and
+  texture over a different band of the sky. Only the field is drawn.
+
+- **Solstheim's two cloud decks are not loaded.** `files/openmw.cfg` names them `Tx_Sky_Snow.dds` and
+  `Tx_Sky_Blizzard.dds`, and what Bloodmoon ships is `tx_bm_sky_snow.dds` and `tx_bm_sky_blizzard.dds`
+  — so snow and blizzard get no deck at all rather than the wrong one, which is what
+  `addSkyTextures` checks the archives for. The rasterizer reads the same fallbacks and has the same
+  gap, so this is a line of a real `Morrowind.ini` rather than anything either renderer does.
 
 **Tooling**
 

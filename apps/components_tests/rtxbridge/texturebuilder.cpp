@@ -117,11 +117,37 @@ namespace RtxBridge
             EXPECT_EQ(a.mName, "textures/tx_test.dds");
         }
 
-        /// A format this cannot upload fails by name rather than uploading noise.
-        TEST(RtxTextureBuilderTest, anUncompressedImageIsRefusedAndSaysWhich)
+        /// The uncompressed spellings a `.dds` uses are taken, and both channel orders are kept.
+        ///
+        /// **Morrowind's meshes are block-compressed to the last file and its sky is not.** The
+        /// cloud decks are 32-bit `DDPF_RGB`, so a renderer that took only blocks drew every
+        /// weather's clouds as the unreadable stand-in — an opaque grey, which over a deck is the
+        /// whole sky. The two orders are separate formats rather than one and a swizzle: a `.dds`
+        /// says which it holds and the API has a format for each, where converting would mean owning
+        /// a copy of a buffer `TextureData` is defined by not owning.
+        TEST(RtxTextureBuilderTest, theUncompressedSpellingsAreTakenAndKeepTheirChannelOrder)
         {
             std::vector<Rtx::MipLevel> levels;
-            EXPECT_THROW(describeImage(*makeBlock(GL_RGBA), levels), Rtx::Error);
+
+            EXPECT_EQ(describeImage(*makeBlock(GL_RGBA), levels).mFormat, Rtx::TextureFormat::Rgba8Srgb);
+            EXPECT_EQ(describeImage(*makeBlock(GL_BGRA), levels).mFormat, Rtx::TextureFormat::Bgra8Srgb);
+
+            // **Display-encoded, which every content format is.** The one uncompressed format that
+            // is not exists for tests asserting an exact texel, and a cloud texture read through it
+            // would come out with its transfer function applied twice.
+            EXPECT_TRUE(Rtx::isSrgb(Rtx::TextureFormat::Rgba8Srgb));
+            EXPECT_TRUE(Rtx::isSrgb(Rtx::TextureFormat::Bgra8Srgb));
+        }
+
+        /// A format this still cannot upload fails by name rather than uploading noise.
+        ///
+        /// Three-channel spellings are refused deliberately: uploading one would need the fourth
+        /// channel written in, which means owning a buffer, and nothing this game ships stores an
+        /// opaque texture without one.
+        TEST(RtxTextureBuilderTest, aFormatWithNoAlphaChannelIsRefusedAndSaysWhich)
+        {
+            std::vector<Rtx::MipLevel> levels;
+            EXPECT_THROW(describeImage(*makeBlock(GL_RGB), levels), Rtx::Error);
         }
 
         /// A slot the scene has given up is described by nobody, and the gap it leaves is survived.

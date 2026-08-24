@@ -160,6 +160,12 @@ namespace RtxBridge
                 .mSkyHorizon = haze,
                 .mSkyZenith = decodeColour(read.mSky),
                 .mAmbient = sky.mAmbient,
+                .mHaze = read.mHaze,
+
+                // **The engine's own ramp for the stars**, which is four points like every other and
+                // crosses on the `Stars` window rather than the sky's: they outlast the sunset and
+                // are gone before the sun is up. Nothing but night has any of it.
+                .mStarFade = Sky::TimeOfDayInterpolator<float>(0.0f, 0.0f, 0.0f, 1.0f).getValue(hour, times, "Stars"),
                 .mFog = { .mColour = haze, .mExtinction = fogExtinction(read.mFogDepth) },
             };
         }
@@ -223,6 +229,11 @@ namespace RtxBridge
             return std::nullopt;
 
         return static_cast<std::uint32_t>(found - sWeathers.begin());
+    }
+
+    float glareView(std::string_view weather)
+    {
+        return Fallback::Map::getFloat("Weather_" + std::string(weather) + "_Glare_View");
     }
 
     std::uint32_t nextRegionWeather(const ESM::Region* region, std::uint32_t weather, bool forward)

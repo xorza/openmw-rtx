@@ -15,6 +15,7 @@
 #include <components/rtxbridge/moonbuilder.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/rtxbridge/sceneuploader.hpp>
+#include <components/rtxbridge/skybuilder.hpp>
 
 #include "../renderer.hpp"
 
@@ -274,6 +275,9 @@ namespace MWRender::Rtx
         /// Where the two moons' portraits sit in `mScene`'s texture table, added on the first frame
         /// that has a scene at all.
         RtxBridge::MoonFaces mMoonFaces;
+
+        /// The cloud decks and the star sheet, on the same terms as the moons' faces.
+        RtxBridge::SkyTextures mSkyTextures;
         std::unique_ptr<RtxBridge::SceneExtractor> mExtractor;
 
         /// Which of place, extend and rebuild a frame is, and what a rebuild has to describe.

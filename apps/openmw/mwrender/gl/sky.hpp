@@ -8,6 +8,8 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
+#include <components/sky/clouds.hpp>
+#include <components/sky/skyroll.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "precipitationocclusion.hpp"
@@ -99,6 +101,11 @@ namespace MWRender
 
         float getBaseWindSpeed() const;
 
+        /// How far the clouds have scrolled and the stars have rolled, which `MWRender::RenderingManager`
+        /// turns and hands down. **Not advanced here**: this manager belongs to one of the two
+        /// renderers and is built lazily, so a clock inside it is one the other cannot read.
+        void setRoll(const Sky::SkyRoll& roll) { mRoll = roll; }
+
         void setSunglare(bool enabled);
 
         SceneUtil::RTTNode* getSkyRTT() { return mSkyRTT.get(); }
@@ -136,7 +143,6 @@ namespace MWRender
         osg::ref_ptr<osg::Node> mAtmosphereDay;
 
         osg::ref_ptr<osg::PositionAttitudeTransform> mAtmosphereNightNode;
-        float mAtmosphereNightRoll;
         osg::ref_ptr<AtmosphereNightUpdater> mAtmosphereNightUpdater;
 
         osg::ref_ptr<AtmosphereUpdater> mAtmosphereUpdater;
@@ -158,8 +164,8 @@ namespace MWRender
 
         bool mIsStorm;
 
-        bool mTimescaleClouds;
-        float mCloudAnimationTimer;
+        /// How far the deck has scrolled and the stars have turned, as handed down.
+        Sky::SkyRoll mRoll;
 
         // particle system rotation is independent of cloud rotation internally
         osg::Vec3f mStormParticleDirection;
@@ -170,7 +176,6 @@ namespace MWRender
         std::string mClouds;
         std::string mNextClouds;
         float mCloudBlendFactor;
-        float mCloudSpeed;
         float mStarsOpacity;
         osg::Vec4f mCloudColour;
         osg::Vec4f mSkyColour;

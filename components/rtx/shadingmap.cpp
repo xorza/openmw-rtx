@@ -76,6 +76,8 @@ namespace Rtx
                 case TextureFormat::Bc3Srgb:
                     return 16;
                 case TextureFormat::Rgba8Unorm:
+                case TextureFormat::Rgba8Srgb:
+                case TextureFormat::Bgra8Srgb:
                     return 0;
             }
 

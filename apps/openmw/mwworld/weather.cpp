@@ -153,8 +153,9 @@ namespace MWWorld
 
     float Weather::cloudBlendFactor(const float transitionRatio) const
     {
-        // Clouds Maximum Percent affects how quickly the sky transitions from one sky texture to the next.
-        return transitionRatio / mCloudsMaximumPercent;
+        // `Sky::cloudBlend`'s, because a renderer with no weather system to run has to cross its sky
+        // on the same curve — and because the case that curve gets wrong is a black sky.
+        return Sky::cloudBlend(transitionRatio, mCloudsMaximumPercent);
     }
 
     float Weather::calculateThunder(const float transitionRatio, const float elapsedSeconds, const bool isPaused)

@@ -40,6 +40,10 @@ namespace Rtx
                     return VK_FORMAT_BC3_SRGB_BLOCK;
                 case TextureFormat::Rgba8Unorm:
                     return VK_FORMAT_R8G8B8A8_UNORM;
+                case TextureFormat::Rgba8Srgb:
+                    return VK_FORMAT_R8G8B8A8_SRGB;
+                case TextureFormat::Bgra8Srgb:
+                    return VK_FORMAT_B8G8R8A8_SRGB;
             }
 
             // Unreachable for any value of the enumeration; a new one that forgets a case lands

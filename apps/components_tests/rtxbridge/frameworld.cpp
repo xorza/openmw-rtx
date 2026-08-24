@@ -1,7 +1,10 @@
+#include <limits>
+
 #include <gtest/gtest.h>
 
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxbridge/frameworld.hpp>
+#include <components/rtxbridge/skybuilder.hpp>
 
 namespace RtxBridge
 {
@@ -26,6 +29,17 @@ namespace RtxBridge
                 .mWindSpeed = 0.8f,
                 .mStormDirection = osg::Vec3f(0.6f, 0.8f, 0.0f),
             };
+
+            world.mClouds = Rtx::Shaders::CloudDeck{
+                .mOpacity = 0.875f,
+                .mColour = osg::Vec3f(0.51f, 0.52f, 0.53f),
+                .mBlend = 0.25f,
+                .mScroll = 3.5f,
+                .mTurn = 1.25f,
+                .mTexture = 4u,
+                .mNext = 9u,
+            };
+            world.mStars = Rtx::Shaders::StarField{ .mFade = 0.75f, .mTurn = 2.5f, .mTexture = 11u };
 
             world.mMoons[0] = MoonPlacement{
                 .mDirection = osg::Vec3f(0.0f, 0.0f, 1.0f),
@@ -87,6 +101,18 @@ namespace RtxBridge
             EXPECT_EQ(constants.mWindSpeed, world.mWindSpeed);
             EXPECT_EQ(constants.mStormDirection, world.mStormDirection);
 
+            EXPECT_EQ(constants.mClouds.mOpacity, world.mClouds.mOpacity);
+            EXPECT_EQ(constants.mClouds.mColour, world.mClouds.mColour);
+            EXPECT_EQ(constants.mClouds.mBlend, world.mClouds.mBlend);
+            EXPECT_EQ(constants.mClouds.mScroll, world.mClouds.mScroll);
+            EXPECT_EQ(constants.mClouds.mTurn, world.mClouds.mTurn);
+            EXPECT_EQ(constants.mClouds.mTexture, world.mClouds.mTexture);
+            EXPECT_EQ(constants.mClouds.mNext, world.mClouds.mNext);
+
+            EXPECT_EQ(constants.mStars.mFade, world.mStars.mFade);
+            EXPECT_EQ(constants.mStars.mTurn, world.mStars.mTurn);
+            EXPECT_EQ(constants.mStars.mTexture, world.mStars.mTexture);
+
             for (std::size_t moon = 0; moon < world.mMoons.size(); ++moon)
             {
                 const MoonPlacement& placed = world.mMoons[moon];
@@ -107,6 +133,93 @@ namespace RtxBridge
             // pass under.
             EXPECT_NE(constants.mMoons[0].mAlpha, constants.mMoons[1].mAlpha);
             EXPECT_NE(constants.mMoons[0].mDirection, constants.mMoons[1].mDirection);
+        }
+
+        /// A blend that is not a number is not a sky.
+        ///
+        /// **The bug this is here for turned the game's sky black and left the harness's alone.**
+        /// `Weather::cloudBlendFactor` divides the transition by `Clouds_Maximum_Percent`, and the
+        /// shipped fallbacks record none for ash or blight — so a transition into either handed back
+        /// a NaN. The rasterizer survives one, because a NaN opacity draws nothing and the sky it
+        /// already had stays; a tracer mixes its whole sky by it and gets a NaN back, which is black.
+        ///
+        /// **And `std::clamp` does not catch it**, which is the part worth a test rather than a
+        /// comment: it asks whether the value is *outside* the range, both comparisons are false for
+        /// a NaN, and it hands the NaN straight back. The boundary has to ask the question the other
+        /// way round.
+        TEST(RtxSkyBuilderTest, aCloudBlendThatIsNotANumberComesOutAsNoBlendAtAll)
+        {
+            SkyTextures textures;
+            textures.mClouds.fill(Rtx::sNoIndex);
+            textures.mClouds[Rtx::Shaders::WEATHER_CLEAR] = 3;
+            textures.mClouds[Rtx::Shaders::WEATHER_RAIN] = 5;
+
+            const osg::Vec4f fog(0.4f, 0.4f, 0.5f, 1.0f);
+            const osg::Vec3f north(0.0f, 1.0f, 0.0f);
+            const auto deck = [&](float blend) {
+                return describeClouds(
+                    Rtx::Shaders::WEATHER_CLEAR, Rtx::Shaders::WEATHER_RAIN, blend, fog, north, 0.0f, textures);
+            };
+
+            EXPECT_EQ(deck(std::numeric_limits<float>::quiet_NaN()).mBlend, 0.0f) << "a NaN is no crossing";
+            EXPECT_EQ(deck(-1.0f).mBlend, 0.0f) << "and neither is anything under nought";
+            EXPECT_EQ(deck(7.0f).mBlend, 1.0f) << "or over one";
+            EXPECT_EQ(deck(0.25f).mBlend, 0.25f) << "while a real one is passed through untouched";
+
+            // The rest of the deck still says what it says, so the guard is on the blend and not a
+            // bail-out that would have taken the clouds with it.
+            EXPECT_EQ(deck(std::numeric_limits<float>::quiet_NaN()).mTexture, 3u);
+            EXPECT_EQ(deck(std::numeric_limits<float>::quiet_NaN()).mNext, 5u);
+            EXPECT_GT(deck(std::numeric_limits<float>::quiet_NaN()).mOpacity, 0.0f);
+        }
+
+        /// A weather the content files give no cloud texture has no deck, rather than a grey one.
+        ///
+        /// Ash and blight name none in the shipped fallbacks, and Solstheim's two name files the
+        /// archives do not hold — and an unreadable texture is drawn as the stand-in, which is an
+        /// opaque mid grey and over a deck is the entire sky.
+        TEST(RtxSkyBuilderTest, aWeatherWithNoCloudTextureGetsNoDeck)
+        {
+            SkyTextures textures;
+            textures.mClouds.fill(Rtx::sNoIndex);
+            textures.mClouds[Rtx::Shaders::WEATHER_CLEAR] = 3;
+
+            EXPECT_EQ(textures.cloudsOf(Rtx::Shaders::WEATHER_CLEAR), 3u);
+            EXPECT_EQ(textures.cloudsOf(Rtx::Shaders::WEATHER_ASHSTORM), Rtx::Shaders::NO_SKY_TEXTURE);
+            EXPECT_EQ(textures.cloudsOf(Rtx::Shaders::WEATHER_COUNT + 4u), Rtx::Shaders::NO_SKY_TEXTURE)
+                << "and an index past the ten is not a lookup";
+
+            const osg::Vec4f fog(0.4f, 0.4f, 0.5f, 1.0f);
+            const osg::Vec3f north(0.0f, 1.0f, 0.0f);
+            const Rtx::Shaders::CloudDeck none = describeClouds(
+                Rtx::Shaders::WEATHER_ASHSTORM, Rtx::Shaders::WEATHER_ASHSTORM, 0.0f, fog, north, 0.0f, textures);
+
+            EXPECT_EQ(none.mOpacity, 0.0f) << "nothing to draw, said the way an interior says it";
+            EXPECT_EQ(none.mTexture, Rtx::Shaders::NO_SKY_TEXTURE);
+        }
+
+        /// The stars go out when the weather keeps them in, and the sheet is not even named then.
+        TEST(RtxSkyBuilderTest, aWeatherThatHidesTheSunHidesTheStarsWithIt)
+        {
+            SkyTextures textures;
+            textures.mClouds.fill(Rtx::sNoIndex);
+            textures.mStars = 8;
+
+            // Full night, clear weather: all of the sheet.
+            EXPECT_EQ(describeStars(1.0f, 1.0f, 0.0f, textures).mFade, 1.0f);
+            EXPECT_EQ(describeStars(1.0f, 1.0f, 0.0f, textures).mTexture, 8u);
+
+            // A thunderstorm's `Glare_View` is nought, and under one there are no stars at all.
+            EXPECT_EQ(describeStars(1.0f, 0.0f, 0.0f, textures).mFade, 0.0f);
+            EXPECT_EQ(describeStars(1.0f, 0.0f, 0.0f, textures).mTexture, Rtx::Shaders::NO_SKY_TEXTURE)
+                << "and a sheet nobody can see is one nothing has to sample";
+
+            // Nor by day, whatever the weather is doing.
+            EXPECT_EQ(describeStars(0.0f, 1.0f, 0.0f, textures).mFade, 0.0f);
+
+            // Half out is half out, and the roll is carried whatever the fade came to.
+            EXPECT_EQ(describeStars(0.5f, 1.0f, 2.5f, textures).mFade, 0.5f);
+            EXPECT_EQ(describeStars(0.5f, 1.0f, 2.5f, textures).mTurn, 2.5f);
         }
 
         /// The camera's half is left exactly as it was found.
@@ -162,6 +275,9 @@ namespace RtxBridge
             EXPECT_EQ(constants.mSunDiscColour, osg::Vec3f(1.0f, 1.0f, 1.0f)) << "a plain white one when there is";
             EXPECT_EQ(constants.mMoons[0].mAlpha, 0.0f) << "and no moons";
             EXPECT_EQ(constants.mMoons[0].mFace, Rtx::Shaders::NO_MOON_FACE) << "and no portrait to draw";
+            EXPECT_EQ(constants.mClouds.mOpacity, 0.0f) << "and no deck over it";
+            EXPECT_EQ(constants.mClouds.mTexture, Rtx::Shaders::NO_SKY_TEXTURE);
+            EXPECT_EQ(constants.mStars.mTexture, Rtx::Shaders::NO_SKY_TEXTURE) << "and no stars in it";
             EXPECT_EQ(constants.mMoons[1].mAlpha, 0.0f);
             EXPECT_EQ(constants.mFogExtinction, 0.0f) << "and air that costs nothing";
 

@@ -9,6 +9,8 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <components/sky/skyroll.hpp>
+
 namespace osg
 {
     class Camera;
@@ -97,8 +99,33 @@ namespace MWRender
         osg::Vec4f mSunDiscColour{ 1.0f, 1.0f, 1.0f, 0.0f };
 
         /// How much of the sun this weather lets through, which dims a disc under an overcast but
-        /// says nothing about whether there is one.
+        /// says nothing about whether there is one. It is also what keeps the stars in behind one.
         float mSunGlare = 1.0f;
+
+        /// How far the deck has crossed from this weather's cloud texture to the next one's.
+        ///
+        /// **Not `mWeatherTransition`.** Each weather carries a `Transition_Delta` that shapes its
+        /// own arrival, so the clouds cross on a curve of their own while every colour crosses
+        /// linearly — which is what lets a storm's sky roll in ahead of its light.
+        float mCloudBlend = 0.0f;
+
+        /// How far out the stars have come: the engine's four-point `Stars` ramp at this hour,
+        /// before the weather's glare is taken off it.
+        float mNightFade = 0.0f;
+
+        /// What the cloud deck is lit by, before `Sky::cloudColour` lifts it.
+        ///
+        /// **The weather's own fog colour and not `mAir`'s.** The air a ray crosses is the fog
+        /// manager's, which knows about being underwater and about a room; the deck is lit by what
+        /// the weather said, which is the same number the harness reads out of the content files.
+        osg::Vec4f mCloudFog;
+
+        /// How far the cloud deck has scrolled and the star sphere has rolled.
+        ///
+        /// **Advanced by the sky manager and read here**, because both renderers turn the same sky:
+        /// the deck runs on the weather's own speed and the stars come round once every four days,
+        /// and neither is a thing the hour of the day can be asked for.
+        Sky::SkyRoll mSkyRoll;
 
         /// Includes the night-eye effect, because that is where it has already been added.
         osg::Vec4f mAmbientColour;

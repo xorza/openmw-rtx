@@ -52,6 +52,66 @@ namespace Rtx::Shaders
     RTX_CONST uint WEATHER_BLIZZARD = 9u;
     RTX_CONST uint WEATHER_COUNT = 10u;
 
+    /// What a sky texture slot holds where nothing was loaded for it — a weather with no cloud
+    /// texture recorded, or a frame with no star sheet.
+    RTX_CONST uint NO_SKY_TEXTURE = 0xFFFFFFFFu;
+
+    /// Morrowind's cloud deck, as a ray that reached nothing finds it.
+    ///
+    /// **A deck at a height rather than the dome the game shipped.** The engine hangs its clouds on
+    /// a mesh whose UVs were painted into the file, which is a thing to rasterize and not a thing to
+    /// intersect; what that mesh is *for* is a flat layer of cloud seen in perspective, and a ray
+    /// tracer can have the layer itself. The texture, its scroll, its blend and its colour are all
+    /// the game's own — only the surface they are painted on is derived rather than loaded.
+    struct CloudDeck
+    {
+        /// How much deck there is, from none of it to all.
+        ///
+        /// **Nought is no sky at all, and it is nought by default.** A `VisibilityConstants` is a
+        /// plain C structure shared with the shader and has no constructor to run, so whatever means
+        /// "there is nothing here" has to be what zeroing it says — a texture index cannot, because
+        /// zero is a real slot and every frame that forgot to say otherwise would draw slot nought
+        /// across its whole sky. `StarField::mFade` is the same field for the same reason.
+        float mOpacity;
+
+        /// What the deck is lit by, linear. Morrowind's own: the fog colour with an eighth added,
+        /// applied as an emission to an unlit material, so a cloud is its texture times this and
+        /// owes nothing to the sun.
+        vec3 mColour;
+
+        /// How far from `mTexture` to `mNext`. A settled sky names the same texture twice at zero,
+        /// so the shader mixes unconditionally rather than testing for a transition.
+        float mBlend;
+
+        /// The scroll along `v`, in texture widths. `Sky::SkyRoll` advances it.
+        float mScroll;
+
+        /// How far the deck is turned about the zenith, in radians — the storm's own bearing, which
+        /// is what the engine rotates its cloud mesh by.
+        float mTurn;
+
+        uint mTexture;
+        uint mNext;
+    };
+
+    /// The star field.
+    ///
+    /// **Stars are on a sphere and clouds are on a plane**, which is the whole difference between
+    /// this and `CloudDeck`: a cloud layer converges at the horizon and a star does not move at all
+    /// as the eye does. The projection is stereographic for that reason — it takes the whole upper
+    /// hemisphere into a disc and keeps a star round doing it.
+    struct StarField
+    {
+        /// How much of the sheet is there: the engine's `Stars` ramp times the weather's glare, so
+        /// stars come out at dusk and an overcast keeps them in.
+        float mFade;
+
+        /// How far the sphere has rolled about the zenith, in radians. Once every four days.
+        float mTurn;
+
+        uint mTexture;
+    };
+
     /// What `MoonDisc::mFace` holds where no portrait was loaded: the disc is then its mean colour
     /// with the shading law over it, which is what a moon looked like before the faces arrived.
     RTX_CONST uint NO_MOON_FACE = 0xFFFFFFFFu;
@@ -208,6 +268,10 @@ namespace Rtx::Shaders
         /// makes a drawn disc and a cast shadow the same fact.
         vec3 mSunDiscColour;
 
+        /// The cloud deck and the star field over it.
+        CloudDeck mClouds;
+        StarField mStars;
+
         /// What a ray that hits nothing comes back with, at the horizon and overhead.
         ///
         /// The game's own two colours: its atmosphere is the one overhead and its fog is what that
@@ -340,7 +404,9 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
     static_assert(sizeof(MoonDisc) == 64, "MoonDisc must be scalar-packed on every side");
-    static_assert(sizeof(VisibilityConstants) == 404, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(CloudDeck) == 36, "CloudDeck must be scalar-packed on every side");
+    static_assert(sizeof(StarField) == 12, "StarField must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 452, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

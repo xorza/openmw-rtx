@@ -401,6 +401,24 @@ namespace MWRender
         /// How much of the sun the weather lets through, which dims a disc under an overcast.
         float mSunGlare = 1.f;
 
+        /// The deck's own crossing between two weathers' cloud textures, which is not the plain
+        /// transition factor, and how far the stars have come out. Both `WorldState`'s to report.
+        float mCloudBlend = 0.f;
+        float mNightFade = 0.f;
+
+        /// What the sky and the cloud deck are coloured by, and how fast the deck runs.
+        ///
+        /// **Off the weather rather than out of `SkyManager`.** That manager is one renderer's and
+        /// is built lazily; a ray-traced frame reading its cached copies got whatever an unbuilt one
+        /// starts at, which for a colour is black.
+        osg::Vec4f mSkyColour;
+        osg::Vec4f mCloudFog;
+        float mCloudSpeed = 0.f;
+
+        /// How far the deck has scrolled and the stars have rolled. **One owner and two consumers**:
+        /// the sky manager is handed it and `WorldState` reports it, so both renderers turn one sky.
+        Sky::SkyRoll mSkyRoll;
+
         bool mWaterEnabled = false;
         float mWaterHeight = 0.f;
         osg::ref_ptr<NpcAnimation> mPlayerAnimation;

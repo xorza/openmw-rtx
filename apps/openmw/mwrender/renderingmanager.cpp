@@ -1,5 +1,7 @@
 #include "renderingmanager.hpp"
 
+#include <algorithm>
+
 #include <cstdlib>
 
 #include <osg/Camera>
@@ -68,6 +70,7 @@
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
+#include "../mwworld/datetimemanager.hpp"
 
 #include "actorspaths.hpp"
 #include "camera.hpp"
@@ -649,8 +652,17 @@ namespace MWRender
         // Kept apart rather than multiplied together: the alpha is how much of the sun is over the
         // horizon and the glare is how much of it this weather lets through, and only the first of
         // them says whether there is a sun to light anything at all.
+        // **Everything `WorldState` says about the sky is taken from here**, off the weather the
+        // world settled on, and nothing is read back out of the sky manager. It answers only when it
+        // has been created, and it is created by whichever renderer is drawing — so a ray-traced
+        // frame that asked it for the sky's colour got the black an unbuilt one starts at.
+        mSkyColour = weather.mSkyColor;
+        mCloudFog = weather.mFogColor;
+        mCloudSpeed = weather.mCloudSpeed;
         mSunDiscColour = weather.mSunDiscColor;
         mSunGlare = weather.mGlareView;
+        mCloudBlend = std::clamp(weather.mCloudBlendFactor, 0.f, 1.f);
+        mNightFade = weather.mNight ? weather.mNightFade : 0.f;
     }
 
     void RenderingManager::setStormParticleDirection(const osg::Vec3f& direction)
@@ -767,6 +779,14 @@ namespace MWRender
         if (!paused)
         {
             mEffectManager->update(dt);
+
+            // **The sky's clock is turned here and handed down, not kept inside the sky manager.**
+            // That manager belongs to one of the two renderers and is built lazily, so a ray-traced
+            // frame that asked it how far the clouds had scrolled was asking something that might
+            // never have been created — and got a nought that never moved.
+            mSkyRoll.advance(dt, mCloudSpeed,
+                MWBase::Environment::get().getWorld()->getTimeManager()->getGameTimeScale(), Sky::timescaleClouds());
+            mSky->setRoll(mSkyRoll);
             mSky->update(dt);
 
             const MWWorld::Ptr& player = mPlayerAnimation->getPtr();
@@ -815,8 +835,12 @@ namespace MWRender
             .mSunVisibility = mSunVisibility,
             .mSunDiscColour = mSunDiscColour,
             .mSunGlare = mSunGlare,
+            .mCloudBlend = mCloudBlend,
+            .mNightFade = mNightFade,
+            .mCloudFog = mCloudFog,
+            .mSkyRoll = mSkyRoll,
             .mAmbientColour = mSunLight->getAmbient(),
-            .mSkyColour = mSky->getSkyColor(),
+            .mSkyColour = mSkyColour,
             .mLocation = world.isCellExterior() ? Location::Exterior
                 : world.isCellQuasiExterior()   ? Location::QuasiExterior
                                                 : Location::Interior,

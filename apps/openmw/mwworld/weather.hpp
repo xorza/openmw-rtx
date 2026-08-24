@@ -12,6 +12,7 @@
 
 #include <components/esm/refid.hpp>
 #include <components/fallback/fallback.hpp>
+#include <components/sky/clouds.hpp>
 #include <components/sky/moonmodel.hpp>
 #include <components/sky/sun.hpp>
 #include <components/sky/timeofday.hpp>

@@ -1420,6 +1420,112 @@ vec3 skyGlow(vec3 direction)
     return mix(camera.mSkyHorizon, camera.mSkyZenith, clamp(direction.z, 0.0, 1.0));
 }
 
+/// How wide one tile of the cloud texture is across the sky.
+///
+/// The deck is a flat layer, so a direction meets it at `xy / z` — the tangent of its angle from
+/// straight up — and one at the zenith puts a tile's edge at forty-five degrees. Morrowind's own
+/// dome is about that: a handful of tiles from horizon to horizon.
+const float CLOUD_TILE = 1.0;
+
+/// How many times Morrowind's star sheet repeats around the sky, and from the horizon to the zenith.
+///
+/// **Measured off the mesh the engine draws them on, not chosen.** `sky_night_01.nif`'s star field is
+/// 104 vertices covering elevation nought to ninety, and its texture coordinates run about `-0.29`
+/// to `3.62` across and `-0.79` to `1.44` up — four turns and a couple of bands. Whole turns are not
+/// a rounding either: a fractional one puts a seam where the azimuth wraps.
+///
+/// It is what decides how big a star is, and the answer is the art's rather than this renderer's.
+/// The sheet is 512 across, so a texel is a sixth of a degree round and a twelfth up — which is a
+/// star, where the same sheet spread once over the whole sky is a blob a third of a degree wide.
+const float STAR_TURNS = 4.0;
+const float STAR_BANDS = 2.0;
+
+/// Where the deck stops being drawn and starts being the haze it fades into, as a height above the
+/// horizon.
+///
+/// **A flat layer's horizon is at infinity**, which is where `xy / z` goes as the ray levels out —
+/// so the tiles compress without bound and the texture turns to noise before they do. That is also
+/// what Morrowind's sky actually looks like, because the same place is where its fog takes over: the
+/// horizon *is* the fog, `mSkyHorizon` is that colour, and the deck arrives at it rather than being
+/// cut off in front of it.
+const float CLOUD_HORIZON = 0.28;
+
+/// What a ray that reached nothing finds in the cloud deck, and how much of the sky it hides.
+///
+/// **The deck is where the ray crosses a layer at a height**, which is the thing the game's cloud
+/// mesh was a stand-in for. What is Morrowind's here is everything except that surface: the texture
+/// is the weather's own, the scroll and the bearing are what the engine turns its mesh by, the blend
+/// across a transition is the same factor, and the colour is the fog plus the eighth
+/// `SkyManager::setWeather` adds to it.
+///
+/// **Alpha is coverage and the colour is emission**, which is the material the engine gives it: an
+/// unlit alpha-tracking one, so a cloud owes nothing to where the sun is and a thin cloud lets the
+/// sky through rather than lightening it.
+///
+/// @param covered how much of what lies behind the deck it hides, which is what puts the stars out.
+vec3 cloudDeck(vec3 direction, out float covered)
+{
+    covered = 0.0;
+    if (!(camera.mClouds.mOpacity > 0.0) || camera.mClouds.mTexture == NO_SKY_TEXTURE || direction.z <= 0.0)
+        return vec3(0.0);
+
+    // Into the haze rather than off an edge, for the reason `CLOUD_HORIZON` gives.
+    const float reaches = smoothstep(0.0, CLOUD_HORIZON, direction.z);
+    if (reaches <= 0.0)
+        return vec3(0.0);
+
+    // Turned about the zenith first, so the deck runs the way the weather drives it.
+    const float turn = camera.mClouds.mTurn;
+    const vec2 bearing = vec2(cos(turn), sin(turn));
+    const vec2 along
+        = vec2(direction.x * bearing.x - direction.y * bearing.y, direction.x * bearing.y + direction.y * bearing.x);
+
+    const vec2 uv = along / (direction.z * CLOUD_TILE) + vec2(0.0, camera.mClouds.mScroll);
+
+    // **The top mip and no cone.** A deck seen edge-on compresses without bound, so the right level
+    // is whatever the gradient says — and the gradient is what the hardware works out for itself
+    // from neighbouring lanes, which a ray tracer does not have. The horizon fade is what stands in:
+    // it takes the texture out over exactly the band where the compression would alias.
+    const vec4 near = textureLod(textures[nonuniformEXT(camera.mClouds.mTexture)], uv, 0.0);
+    const vec4 far = camera.mClouds.mNext == NO_SKY_TEXTURE
+        ? near
+        : textureLod(textures[nonuniformEXT(camera.mClouds.mNext)], uv, 0.0);
+
+    const vec4 cloud = mix(near, far, camera.mClouds.mBlend);
+
+    covered = cloud.a * reaches * camera.mClouds.mOpacity;
+    return camera.mClouds.mColour * covered;
+}
+
+/// What the star field sends back along a ray.
+///
+/// **The mapping the engine's own mesh carries**: the sheet wrapped round the sky four times and
+/// twice from the horizon to the zenith, which is what `STAR_TURNS` and `STAR_BANDS` were read off
+/// it. Equirectangular rather than a disc projection, so a texel is the same size wherever it lands
+/// and the azimuth wraps without a seam — a star is one texel, and any variation in the mapping's
+/// scale is the whole difference between a point and a smear.
+///
+/// **What this leaves out is the other six textures.** The engine's night sky is seven meshes in one
+/// file — the field, three nebulae and three constellations — and only the field is here.
+vec3 starField(vec3 direction)
+{
+    if (!(camera.mStars.mFade > 0.0) || camera.mStars.mTexture == NO_SKY_TEXTURE || direction.z <= 0.0)
+        return vec3(0.0);
+
+    // **Into the haze, the same way the deck goes.** The air a ray crosses on its way out grows
+    // without bound as it levels off, and a star seen through all of it is not seen: left lit to the
+    // horizon they draw a band of stars lying on the ground.
+    const float reaches = smoothstep(0.0, CLOUD_HORIZON, direction.z);
+    if (reaches <= 0.0)
+        return vec3(0.0);
+
+    // The roll is a turn of the sphere, which in this mapping is a shift along `u` and nothing else.
+    const vec2 uv = vec2((atan(direction.y, direction.x) - camera.mStars.mTurn) * (STAR_TURNS / TAU),
+        acos(clamp(direction.z, -1.0, 1.0)) * (STAR_BANDS / (0.25 * TAU)));
+
+    return (camera.mStars.mFade * reaches) * textureLod(textures[nonuniformEXT(camera.mStars.mTexture)], uv, 0.0).rgb;
+}
+
 /// What a moon's lit face sends back along a ray, and how much of the sky it stands in front of.
 ///
 /// **The disc is the sphere seen flat**, so the surface normal is recovered rather than stored: a
@@ -1529,6 +1635,12 @@ vec3 skyRadiance(vec3 direction, float blur)
 {
     vec3 colour = skyGlow(direction);
 
+    // **The stars are behind everything and the deck is in front of it**, which is the order the
+    // sky is actually stacked in: a star is on the celestial sphere, the clouds are a couple of
+    // kilometres up, and the moons and the sun are between them. So the stars go on first, the deck
+    // takes its share of whatever is behind it at the end, and the two discs are added in between.
+    colour += starField(direction);
+
     // **Added to the sky rather than composited over it**, because what stands between the eye and
     // a moon is air, and the dome's own glow is that air. What the moon *does* hide is anything
     // further off than it is, which for now is the sun alone.
@@ -1572,7 +1684,11 @@ vec3 skyRadiance(vec3 direction, float blur)
         colour += ((1.0 - hidden) * radiance) * camera.mSunDiscColour;
     }
 
-    return colour;
+    // Last, and over everything: the deck is nearer than any of it.
+    float covered;
+    const vec3 clouds = cloudDeck(direction, covered);
+
+    return colour * (1.0 - covered) + clouds;
 }
 
 /// What a ray found, resolved down to the inputs shading needs.

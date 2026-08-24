@@ -36,6 +36,17 @@ namespace Rtx
         /// asserting an exact texel needs, because a block cannot express an arbitrary value and an
         /// sRGB format would land the assertion on the far side of a transfer function.
         Rgba8Unorm,
+
+        /// Uncompressed and display-encoded, in the two channel orders a `.dds` states them in.
+        ///
+        /// **Morrowind's meshes are block-compressed to the last file and its sky is not.** The
+        /// cloud decks are 32-bit `DDPF_RGB`, which is what a texture painted for a full-screen dome
+        /// in 2002 would be, and a renderer that took only blocks drew every weather grey. Both
+        /// orders are carried rather than one and a swizzle, because a `.dds` says which it is and
+        /// the API has a format for each — converting would mean owning a copy of a buffer this
+        /// type is defined by not owning.
+        Rgba8Srgb,
+        Bgra8Srgb,
     };
 
     /// Whether a format's bytes are display-encoded, which every content format's are.

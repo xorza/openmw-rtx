@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include <osg/Vec3f>
+#include <osg/Vec4f>
 
 #include <components/rtx/scenedesc.hpp>
 
@@ -114,6 +115,18 @@ namespace RtxBridge
         /// night, whatever the weather put in the sun's slot while the sun was not there.
         osg::Vec3f mAmbient;
 
+        /// The weather's fog colour as the file records it, undecoded.
+        ///
+        /// **The one thing here that is not in the renderer's units**, and it is deliberate: the
+        /// cloud deck is lit by this plus an eighth, added *before* the decode because that is where
+        /// the engine adds it, so handing over the linear colour would lose the only form the lift
+        /// is right in. `Sky::cloudColour` and `describeClouds` are the two halves of it.
+        osg::Vec4f mHaze;
+
+        /// How far the stars have come out: the engine's `Stars` ramp at this hour, before the
+        /// weather's glare is taken off it.
+        float mStarFade = 0.0f;
+
         /// The weather's own air.
         ///
         /// **Its colour is `mSkyHorizon`, and the same read fills both.** Morrowind records one
@@ -151,6 +164,10 @@ namespace RtxBridge
     /// The game interpolates between two of these; the harness, which runs no weather, reads the
     /// one. A name that is none of the ten throws, so ask `weatherIndex` first.
     float windSpeed(std::string_view weather);
+
+    /// How much of the sun that weather lets through — `Weather_<name>_Glare_View`, which dims a sun
+    /// disc under an overcast and keeps the stars in behind one.
+    float glareView(std::string_view weather);
 
     /// Where a storm drives what it carries, for an observer standing at `observer`.
     ///

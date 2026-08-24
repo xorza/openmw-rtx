@@ -235,17 +235,13 @@ namespace MWRender
         Resource::SceneManager* sceneManager, bool enableSkyRTT)
         : mSceneManager(sceneManager)
         , mCamera(camera)
-        , mAtmosphereNightRoll(0.f)
         , mCreated(false)
         , mIsStorm(false)
-        , mTimescaleClouds(Fallback::Map::getBool("Weather_Timescale_Clouds"))
-        , mCloudAnimationTimer(0.f)
         , mStormParticleDirection(MWWorld::Weather::defaultDirection())
         , mStormDirection(MWWorld::Weather::defaultDirection())
         , mClouds()
         , mNextClouds()
         , mCloudBlendFactor(0.f)
-        , mCloudSpeed(0.f)
         , mStarsOpacity(0.f)
         , mRainSpeed(0.f)
         , mRainDiameter(0.f)
@@ -542,19 +538,11 @@ namespace MWRender
             mParticleNode->setAttitude(quat);
         }
 
-        const float timeScale = MWBase::Environment::get().getWorld()->getTimeManager()->getGameTimeScale();
-
-        // UV Scroll the clouds
-        float cloudDelta = duration * mCloudSpeed / 400.f;
-        if (mTimescaleClouds)
-            cloudDelta *= timeScale / 60.f;
-
-        mCloudAnimationTimer += cloudDelta;
-        if (mCloudAnimationTimer >= 4.f)
-            mCloudAnimationTimer -= 4.f;
-
-        mNextCloudUpdater->setTextureCoord(mCloudAnimationTimer);
-        mCloudUpdater->setTextureCoord(mCloudAnimationTimer);
+        // **The deck's scroll and the stars' roll are turned by `RenderingManager` and handed here**,
+        // because a ray tracer that draws its own sky has to turn the same one and this manager may
+        // never have been created for it to ask.
+        mNextCloudUpdater->setTextureCoord(mRoll.mClouds);
+        mCloudUpdater->setTextureCoord(mRoll.mClouds);
 
         // morrowind rotates each cloud mesh independently
         osg::Quat rotation;
@@ -567,10 +555,8 @@ namespace MWRender
             mNextCloudMesh->setAttitude(rotation);
         }
 
-        // rotate the stars by 360 degrees every 4 days
-        mAtmosphereNightRoll += timeScale * duration * osg::DegreesToRadians(360.f) / (3600 * 96.f);
         if (mAtmosphereNightNode->getNodeMask() != 0)
-            mAtmosphereNightNode->setAttitude(osg::Quat(mAtmosphereNightRoll, osg::Vec3f(0, 0, 1)));
+            mAtmosphereNightNode->setAttitude(osg::Quat(mRoll.mStars, osg::Vec3f(0, 0, 1)));
         mPrecipitationOccluder->update();
     }
 
@@ -797,11 +783,11 @@ namespace MWRender
 
         if (mCloudColour != weather.mFogColor)
         {
-            osg::Vec4f clr(weather.mFogColor);
-            clr += osg::Vec4f(0.13f, 0.13f, 0.13f, 0.f);
+            // The lift is `Sky::cloudColour`'s, because the ray tracer lights the same deck with it.
+            const osg::Vec4f lit = Sky::cloudColour(weather.mFogColor);
 
-            mCloudUpdater->setEmissionColor(clr);
-            mNextCloudUpdater->setEmissionColor(clr);
+            mCloudUpdater->setEmissionColor(lit);
+            mNextCloudUpdater->setEmissionColor(lit);
 
             mCloudColour = weather.mFogColor;
         }
@@ -819,8 +805,6 @@ namespace MWRender
         {
             mFogColour = weather.mFogColor;
         }
-
-        mCloudSpeed = weather.mCloudSpeed;
 
         mMasser->adjustTransparency(weather.mGlareView);
         mSecunda->adjustTransparency(weather.mGlareView);

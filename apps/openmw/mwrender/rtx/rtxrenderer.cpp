@@ -523,7 +523,10 @@ namespace MWRender::Rtx
         // the slot and the sweep would take it on the first frame a cell died. The scene outlives
         // every cell here, so this is asked once and never again.
         if (mMoonFaces.mMasser == ::Rtx::sNoIndex)
+        {
             mMoonFaces = RtxBridge::addMoonFaces(mScene);
+            mSkyTextures = RtxBridge::addSkyTextures(mScene, *mResources->getVFS());
+        }
 
         const RtxBridge::ExtractionStats found
             // One walk over the whole graph, where every path is already distinct.
@@ -721,6 +724,22 @@ namespace MWRender::Rtx
             // where they stand. `RtxBridge::stormDirection` is the same rule for the harness, which
             // has no player to ask.
             .mStormDirection = world.mStormDirection,
+
+            // **The two layers of sky over everything else, and an interior has neither.** Left at
+            // their defaults indoors, which is a texture slot of `NO_SKY_TEXTURE` and a fade of
+            // nothing — the shader skips both before it samples anything.
+            .mClouds = world.isOutdoors()
+                ? RtxBridge::describeClouds(static_cast<std::uint32_t>(world.mWeatherId),
+                    world.mNextWeatherId.has_value() ? static_cast<std::uint32_t>(*world.mNextWeatherId)
+                                                     : static_cast<std::uint32_t>(world.mWeatherId),
+                    world.mCloudBlend, world.mAir.mColour, world.mStormDirection, world.mSkyRoll.mClouds, mSkyTextures)
+                : ::Rtx::Shaders::CloudDeck{ .mOpacity = 0.0f,
+                    .mTexture = ::Rtx::Shaders::NO_SKY_TEXTURE,
+                    .mNext = ::Rtx::Shaders::NO_SKY_TEXTURE },
+
+            .mStars = world.isOutdoors()
+                ? RtxBridge::describeStars(world.mNightFade, world.mSunGlare, world.mSkyRoll.mStars, mSkyTextures)
+                : ::Rtx::Shaders::StarField{ .mTexture = ::Rtx::Shaders::NO_SKY_TEXTURE },
         };
 
         for (std::size_t moon = 0; moon < described.mMoons.size(); ++moon)

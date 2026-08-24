@@ -8,6 +8,8 @@
 #include <components/rtxbridge/fogbuilder.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/moonbuilder.hpp>
+#include <components/rtxbridge/skybuilder.hpp>
+#include <components/sky/skyroll.hpp>
 
 namespace RtxTool
 {
@@ -57,9 +59,29 @@ namespace RtxTool
         /// How hard that weather blows, as the content files record it. An interior has no wind.
         float mWindSpeed = 0.0f;
 
+        /// How much of the sun this weather lets through, and how fast its deck runs. The engine
+        /// mixes both across a transition, so both are settled when the weather is.
+        float mGlare = 1.0f;
+        float mCloudSpeed = 0.0f;
+
+        /// How far the *deck* has crossed, which is not `mWeatherBlend`.
+        ///
+        /// **Each weather spreads its own arrival over a share of the crossing**, so a storm's sky
+        /// rolls in ahead of its light. `Sky::cloudBlend` is the curve, and the game runs it too —
+        /// crossing the sky linearly here was the harness quietly drawing a different transition.
+        float mCloudBlend = 0.0f;
+
         /// Where the two moons' portraits sit in the scene's texture table. Whoever owns the scene
         /// puts them there; nothing about a cell decides it.
         RtxBridge::MoonFaces mFaces;
+
+        /// And where the cloud decks and the star sheet sit, on the same terms.
+        RtxBridge::SkyTextures mSky;
+
+        /// How far the deck has scrolled and the stars have rolled. **Zero for a screenshot**, which
+        /// is what makes one repeatable — the same choice `mSeconds` makes for the sea; a window
+        /// advances it off its own clock.
+        Sky::SkyRoll mRoll;
 
         /// The air in the cell, whichever of the two places it came from: an interior's `AMBI` or
         /// the weather over an exterior. A zero extinction is a cell with no fog, and costs nothing.

@@ -37,6 +37,18 @@ namespace RtxBridge
                     return Rtx::TextureFormat::Bc2Srgb;
                 case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT:
                     return Rtx::TextureFormat::Bc3Srgb;
+
+                // **Not every file the game ships is a block.** The sky's cloud decks are plain
+                // 32-bit `DDPF_RGB`, which is what a texture painted for a full-screen dome would
+                // be, and taking only the compressed formats drew every weather's clouds grey.
+                // Three-channel spellings are absent deliberately: a `GL_RGB` upload would need the
+                // fourth channel written in, which means owning a buffer, and nothing in this game
+                // stores an opaque texture without one.
+                case GL_RGBA:
+                    return Rtx::TextureFormat::Rgba8Srgb;
+                case GL_BGRA:
+                    return Rtx::TextureFormat::Bgra8Srgb;
+
                 default:
                     return std::nullopt;
             }
@@ -81,8 +93,7 @@ namespace RtxBridge
         const std::optional<Rtx::TextureFormat> format = toTextureFormat(image.getPixelFormat());
         if (!format.has_value())
             throw Rtx::Error("texture \"" + image.getFileName() + "\" is pixel format "
-                + std::to_string(image.getPixelFormat())
-                + ", and this renderer uploads only the block-compressed formats Morrowind ships");
+                + std::to_string(image.getPixelFormat()) + ", which is not one this renderer uploads");
 
         const auto width = static_cast<std::uint32_t>(image.s());
         const auto height = static_cast<std::uint32_t>(image.t());

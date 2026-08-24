@@ -83,6 +83,13 @@ namespace RtxBridge
         float mWindSpeed = 0.0f;
         osg::Vec3f mStormDirection = osg::Vec3f(0.0f, 1.0f, 0.0f);
 
+        /// The cloud deck and the star field, already in the units the shader takes: `describeClouds`
+        /// and `describeStars` are what both renderers reach them through.
+        Rtx::Shaders::CloudDeck mClouds{
+            .mOpacity = 0.0f, .mTexture = Rtx::Shaders::NO_SKY_TEXTURE, .mNext = Rtx::Shaders::NO_SKY_TEXTURE
+        };
+        Rtx::Shaders::StarField mStars{ .mTexture = Rtx::Shaders::NO_SKY_TEXTURE };
+
         /// Masser and Secunda, in that order. An alpha of nothing is a moon the sky skips, which is
         /// what an interior and an interface trace both leave behind.
         std::array<MoonPlacement, 2> mMoons;

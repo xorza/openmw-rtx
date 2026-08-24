@@ -5,6 +5,7 @@
 
 #include <components/esm/util.hpp>
 #include <components/esm3/loadcell.hpp>
+#include <components/resource/resourcesystem.hpp>
 
 #include "cellscene.hpp"
 #include "world.hpp"
@@ -32,6 +33,7 @@ namespace RtxTool
         // material: a moon is drawn by a ray that reached nothing, so no material can speak for its
         // texture and the sweep would take the slot on the first frame a cell died.
         mLighting.mFaces = RtxBridge::addMoonFaces(mScene);
+        mLighting.mSky = RtxBridge::addSkyTextures(mScene, *world.getResourceSystem().getVFS());
         mReport = std::move(arrived.mReport);
 
         // **Before the first walk, because the walk runs the animators.** The graph's own

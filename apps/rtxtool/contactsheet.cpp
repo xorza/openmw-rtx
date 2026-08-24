@@ -32,6 +32,8 @@ namespace RtxTool
                 case Rtx::TextureFormat::Bc3Srgb:
                     return 16;
                 case Rtx::TextureFormat::Rgba8Unorm:
+                case Rtx::TextureFormat::Rgba8Srgb:
+                case Rtx::TextureFormat::Bgra8Srgb:
                     return 0;
             }
 
