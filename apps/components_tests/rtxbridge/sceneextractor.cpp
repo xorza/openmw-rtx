@@ -436,20 +436,20 @@ namespace RtxBridge
             EXPECT_EQ(scene.getMeshes().size(), 1u) << "the other half of the double buffer is the same mesh";
             EXPECT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 7.0f));
 
-            // **And the number is what makes it happen, which is the trap worth writing down.** A
+            // **And the frame number cannot hold it back, which is what `Traversals` is for.** A
             // deforming drawable skins once per traversal number and hands back what it already has
-            // for one it has seen, so a caller that walks with the same number twice gets the pose
-            // it got the first time however far the bones have moved since. The offscreen views are
-            // where that bites: they are drawn when the character changes rather than when the
-            // frame does, so their clock is theirs to advance.
+            // for one it has seen, so a walk that reused a number got the pose it got the first
+            // time however far the bones had moved since. The number is the extractor's own now and
+            // only ever goes up, so the same frame twice — which is a doll redrawn twice while the
+            // game stands on one frame — still poses twice.
             rigged.mBone->setMatrix(osg::Matrix::translate(0.0, 0.0, 99.0));
             rigged.update(3);
 
             scene.clearPlacement();
             extractor.extract(*rigged.mSkeleton, osg::Matrixf::identity(), 0, 1);
 
-            EXPECT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 7.0f))
-                << "the same traversal number twice leaves the pose where the first walk put it";
+            EXPECT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 99.0f))
+                << "a second walk on the same frame posed at a number it had already used";
         }
 
         /// A drawable whose geometry is not the geometry the mirror met under that address is
@@ -553,6 +553,83 @@ namespace RtxBridge
                 EXPECT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, static_cast<float>(frame)))
                     << "the bone moved to " << frame << " and the mirrored pose did not follow";
             }
+        }
+
+        /// What `Inactive` actually does, and why the node mask beside it is what matters.
+        ///
+        /// **`Inactive` is not a defect, and this is what keeps that true.** It reads like a
+        /// rasterizer decision the mirror inherited — `MWMechanics::Actors` sets it for actors
+        /// outside the processing range — and the fear was that the mirror would go on reaching such
+        /// an actor and find a skeleton refusing to move. It would: `SceneUtil::Skeleton::traverse`
+        /// turns back only an **update** visitor, so the bones stop being animated while the mirror
+        /// goes on skinning them, and what it places is the pose the last update left.
+        ///
+        /// What makes that harmless is the base node mask, which the same code zeroes in the same
+        /// breath — so the mirror never reaches the actor at all. That is an invariant of
+        /// `MWMechanics::Actors` and of nothing here, so it is written down as a test: the day the
+        /// mask stops being zero, this fails and says what the consequence is.
+        TEST(RtxSceneExtractorTest, anInactiveActorStopsAnimatingAndIsKeptOutOfReachByItsMask)
+        {
+            /// The same clock the `SemiActive` case uses: the bone moves only because the update
+            /// traversal reached it, which is the entire question.
+            struct BoneClock : osg::NodeCallback
+            {
+                void operator()(osg::Node* node, osg::NodeVisitor* nv) override
+                {
+                    static_cast<osg::MatrixTransform*>(node)->setMatrix(
+                        osg::Matrix::translate(0.0, 0.0, static_cast<double>(nv->getTraversalNumber())));
+                    traverse(node, nv);
+                }
+            };
+
+            RiggedQuad rigged;
+            rigged.mBone->addUpdateCallback(new BoneClock);
+
+            // **Under a parent, because that is where a node mask is read.** OSG checks a node's
+            // mask in whatever traverses *to* it, so a walk handed the masked node itself as its
+            // root never asks — and a test that did would report the mask working when it was only
+            // never consulted.
+            osg::ref_ptr<osg::Group> world = new osg::Group;
+            world->addChild(rigged.mSkeleton);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+
+            // One update while the actor is in range, so the skeleton has a pose to be frozen at.
+            rigged.update(1);
+            extractor.extract(*world, osg::Matrixf::identity(), 0, 0);
+            ASSERT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 1.0f));
+
+            // Out of range. The update traversal is turned back from here on, so the bone stops at
+            // one however far the clock runs — and the mirror goes on placing the actor there.
+            rigged.mSkeleton->setActive(SceneUtil::Skeleton::Inactive);
+
+            for (unsigned int traversal = 2; traversal <= 4; ++traversal)
+            {
+                rigged.update(traversal);
+
+                scene.clearPlacement();
+                const ExtractionStats found = extractor.extract(*world, osg::Matrixf::identity(), 0, traversal - 1);
+
+                ASSERT_EQ(found.mInstances, 1u) << "the mirror stopped reaching an Inactive actor on its own";
+                EXPECT_EQ(scene.getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 1.0f))
+                    << "an Inactive skeleton animated at traversal " << traversal;
+            }
+
+            // And what the game does in the same breath as setting the flag, which is the half that
+            // makes the frozen pose above unreachable rather than merely still.
+            rigged.mSkeleton->setNodeMask(0);
+
+            scene.clearPlacement();
+            rigged.update(5);
+            const ExtractionStats missed = extractor.extract(*world, osg::Matrixf::identity(), 0, 4);
+
+            // **What the walk found, and not what the scene holds.** A slot survives
+            // `clearPlacement` — that is the whole of "slots, not compaction" — and it is
+            // `retire` that decides a slot nobody stood in is nobody's, on evidence this test does
+            // not have: it is still holding the rig alive itself.
+            EXPECT_EQ(missed.mInstances, 0u) << "an actor the game put out of reach was mirrored anyway";
+            EXPECT_EQ(missed.mDeformed, 0u) << "and its pose was computed on the way past";
         }
 
         /// A pose is the one thing the mesh cache does not answer: met again, it is read again — and

@@ -289,45 +289,64 @@ namespace RtxTool
         /// where the game starts and the one place every player of it has stood.
         constexpr std::string_view sDefaultView = "seyda-neen-ship";
 
-        Chosen chooseView(const bpo::variables_map& variables, const std::filesystem::path& resources)
+        /// The view a run names, or null where it named none and gave a cell instead.
+        ///
+        /// Separated out because `Chosen` is built from it in one go below: an aggregate assembled
+        /// in two stages cannot name every field in its initialiser, and the compiler is right to
+        /// say so.
+        const View* findChosenView(
+            const bpo::variables_map& variables, const std::filesystem::path& resources, std::vector<View>& views)
         {
-            Chosen chosen{
-                .mCell = variables["cell"].as<std::string>(),
-                .mTitle = "OpenMW RTX",
-                .mOrigin = parseVec3(variables["pos"].as<std::string>(), "--pos"),
-                .mTarget = parseVec3(variables["look"].as<std::string>(), "--look"),
-            };
-
             std::string name = variables["view"].as<std::string>();
             if (name.empty())
             {
-                if (!chosen.mCell.empty())
-                    return chosen;
+                if (!variables["cell"].as<std::string>().empty())
+                    return nullptr;
 
                 name = sDefaultView;
             }
 
-            const std::vector<View> views = loadViews(resources / "rtx" / "views.cfg");
+            views = loadViews(resources / "rtx" / "views.cfg");
             const View* view = findView(views, name);
+            if (view != nullptr)
+                return view;
+
+            std::string known;
+            for (const View& candidate : views)
+                known += "\n  " + candidate.mName + "   " + candidate.mNote;
+
+            throw std::runtime_error("no view is called \"" + name + "\". These are:" + known);
+        }
+
+        Chosen chooseView(const bpo::variables_map& variables, const std::filesystem::path& resources)
+        {
+            // Holds what the view below points into, for as long as this function needs it.
+            std::vector<View> views;
+            const View* view = findChosenView(variables, resources, views);
+
+            // Anything given on the command line wins over the view, which is why the two optionals
+            // are read first and the view is only consulted where they came back empty.
+            const std::optional<osg::Vec3f> origin = parseVec3(variables["pos"].as<std::string>(), "--pos");
+            const std::optional<osg::Vec3f> target = parseVec3(variables["look"].as<std::string>(), "--look");
+
             if (view == nullptr)
-            {
-                std::string known;
-                for (const View& candidate : views)
-                    known += "\n  " + candidate.mName + "   " + candidate.mNote;
+                return Chosen{
+                    .mCell = variables["cell"].as<std::string>(),
+                    .mTitle = "OpenMW RTX",
+                    .mView = {},
+                    .mNote = {},
+                    .mOrigin = origin,
+                    .mTarget = target,
+                };
 
-                throw std::runtime_error("no view is called \"" + name + "\". These are:" + known);
-            }
-
-            chosen.mCell = view->mCell;
-            chosen.mTitle = "OpenMW RTX - " + view->mName;
-            chosen.mView = view->mName;
-            chosen.mNote = view->mNote;
-            if (!chosen.mOrigin)
-                chosen.mOrigin = view->mOrigin;
-            if (!chosen.mTarget)
-                chosen.mTarget = view->mTarget;
-
-            return chosen;
+            return Chosen{
+                .mCell = view->mCell,
+                .mTitle = "OpenMW RTX - " + view->mName,
+                .mView = view->mName,
+                .mNote = view->mNote,
+                .mOrigin = origin.has_value() ? origin : view->mOrigin,
+                .mTarget = target.has_value() ? target : view->mTarget,
+            };
         }
 
         /// The places a profiling run visits, in the order it visits them.

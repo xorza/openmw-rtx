@@ -108,14 +108,6 @@ namespace MWRender::Rtx
         /// told, because a skinned mesh keeps two poses and picks between them by frame.
         unsigned int mPosedFrame = 0;
 
-        /// How many times this picture has been drawn, which is the clock its walk is stamped with.
-        ///
-        /// **Not the renderer's frame number, and not a constant.** It only has to differ from the
-        /// last one: a deforming drawable skins once per traversal number and hands back what it
-        /// already has for a number it has seen, so the walk needs a clock, and this picture is
-        /// drawn when the character changes rather than when the frame does.
-        std::size_t mRedraws = 0;
-
         osg::ref_ptr<osg::Image> mCopy;
 
         /// Whether `mCopy` holds the picture the most recent `redraw()` asked for.

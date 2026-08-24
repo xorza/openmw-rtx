@@ -177,7 +177,7 @@ namespace RtxBridge
         explicit MirrorTraversal(SceneExtractor& extractor);
 
         /// Points the walk at a root, at where it stands, and at the frame it is mirroring.
-        void begin(const osg::Matrixf& root, std::size_t frame, ExtractionStats& stats);
+        void begin(const osg::Matrixf& root, std::size_t frame, unsigned int traversal, ExtractionStats& stats);
 
         osg::FrameStamp& getStamp() { return *mStamp; }
 
@@ -210,6 +210,9 @@ namespace RtxBridge
 
         osg::Matrixf mRoot;
         std::size_t mFrame = 0;
+
+        /// The last number this walk posed at, so a caller handing back a stale one is caught.
+        unsigned int mTraversal = 0;
         ExtractionStats* mStats = nullptr;
 
         /// The local-to-world of the node being visited, above `mRoot`.
@@ -229,28 +232,34 @@ namespace RtxBridge
         mPose.setFrameStamp(mStamp);
     }
 
-    void MirrorTraversal::begin(const osg::Matrixf& root, std::size_t frame, ExtractionStats& stats)
+    void MirrorTraversal::begin(
+        const osg::Matrixf& root, std::size_t frame, unsigned int traversal, ExtractionStats& stats)
     {
+        // **The whole of what a traversal number promises.** `SceneUtil::Skeleton` and both
+        // deforming geometries refuse to move for a number they have already seen, so a walk that
+        // handed back a number is a walk whose actors keep the pose somebody else gave them — and it
+        // fails as a frozen figure nobody can explain rather than as anything a log would carry.
+        assert(traversal > mTraversal && "a mirror walk asked to pose at a number it has already used");
+        mTraversal = traversal;
+
         mRoot = root;
         mFrame = frame;
         mStats = &stats;
         mHere = osg::Matrix();
         mShading.clear();
 
-        // **One past the game's own, so that it is never the game's own.** `SceneUtil::Skeleton` and
-        // both deforming geometries refuse to move for a traversal number they have already seen —
-        // which is what stops a second camera skinning an actor twice, and would otherwise make the
-        // mirror read back whatever pose the rasterizer's cull happened to choose. A number of its
-        // own is what makes the mirror's pose the mirror's, on screen or off it.
+        // **The mirror's own sequence and never the game's.** Its actors are posed by this walk,
+        // wherever the eye is; a number taken from the game's frame would make the mirror read back
+        // whatever pose the rasterizer's cull happened to choose. `RtxBridge::Traversals` is where
+        // that sequence lives and why there is one of it.
         //
         // It is also why the two must not both be running: they alternate the buffer a deforming
         // drawable writes, and the draw thread of the frame before is reading one of them
         // (`.notes/rtx/plan.md` §12). The frame that comes of it is discarded, and the answer is to
         // stop drawing it at all rather than to interleave the numbers.
-        const auto number = static_cast<unsigned int>(frame) + 1;
-        setTraversalNumber(number);
-        mPose.setTraversalNumber(number);
-        mStamp->setFrameNumber(number);
+        setTraversalNumber(traversal);
+        mPose.setTraversalNumber(traversal);
+        mStamp->setFrameNumber(traversal);
     }
 
     void MirrorTraversal::apply(osg::Node& node)
@@ -326,9 +335,10 @@ namespace RtxBridge
         mShading.resize(held);
     }
 
-    SceneExtractor::SceneExtractor(Rtx::SceneDesc& scene)
+    SceneExtractor::SceneExtractor(Rtx::SceneDesc& scene, Traversals* traversals)
         : mScene(scene)
         , mWalk(std::make_unique<MirrorTraversal>(*this))
+        , mTraversals(traversals == nullptr ? mOwnTraversals : *traversals)
     {
     }
 
@@ -347,7 +357,7 @@ namespace RtxBridge
         ExtractionStats stats;
         mAnchor = anchor;
 
-        mWalk->begin(transform, frame, stats);
+        mWalk->begin(transform, frame, mTraversals.next(), stats);
         mWalk->setTraversalMask(mTraversalMask);
 
         // **Non-const because the walk writes.** It poses every actor it reaches and it runs every

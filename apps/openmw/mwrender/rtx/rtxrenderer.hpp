@@ -12,6 +12,7 @@
 #include <components/myguiplatform/picture.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/frameimage.hpp>
+#include <components/rtxbridge/sceneextractor.hpp>
 #include <components/rtxbridge/sceneuploader.hpp>
 
 #include "../renderer.hpp"
@@ -43,12 +44,6 @@ namespace osgUtil
 namespace Rtx
 {
     class Renderer;
-}
-
-namespace RtxBridge
-{
-    struct ExtractionStats;
-    class SceneExtractor;
 }
 
 namespace SceneUtil
@@ -163,6 +158,17 @@ namespace MWRender::Rtx
         /// Takes a view off that list, because it is going away.
         void forgetView(TracedView& view);
 
+        /// The one sequence every mirror walk here poses at — the world's, and every traced view's.
+        ///
+        /// **Shared rather than each keeping its own**, because a subtree both can reach would
+        /// otherwise be posed by whichever counter got there first and frozen for the other. See
+        /// `RtxBridge::Traversals`.
+        RtxBridge::Traversals& getTraversals() { return mTraversals; }
+
+        /// The game's frame number, which is which of a `SceneUtil::LightSource`'s two buffers
+        /// update has just written. Not a pose number; see `getTraversals`.
+        std::size_t getFrame() const { return mFrame; }
+
         /// Where a picture of its own subject gets its textures from. Null before there is a world.
         Resource::ResourceSystem* getResources() const { return mResources; }
 
@@ -252,6 +258,14 @@ namespace MWRender::Rtx
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
 
+        /// The one sequence every mirror walk in this renderer poses at.
+        ///
+        /// **Before the extractors, because they hold a reference to it.** Shared with every
+        /// `TracedView`, which is the whole point: a subtree the world and a doll can both reach must
+        /// not be posed by two counters that can each be behind the other. See
+        /// `RtxBridge::Traversals`.
+        RtxBridge::Traversals mTraversals;
+
         /// Kept across frames, which is the whole of what makes a re-walk cheap: the identity maps
         /// inside the extractor are what resolve a mesh met again to the one already uploaded.
         ::Rtx::SceneDesc mScene;
@@ -280,6 +294,8 @@ namespace MWRender::Rtx
         /// The frame number the walk and the trace are both stamped with, so what the upscaler
         /// jitters and what the sampler walks are the same sequence the world is counting.
         std::size_t mFrame = 0;
+
+        /// The one sequence every mirror walk in this renderer poses at.
         bool mComplained = false;
 
         /// Where `OPENMW_RTX_SHOT` says to write traced frames, and how many are left to write.

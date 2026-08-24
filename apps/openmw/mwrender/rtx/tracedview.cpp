@@ -68,7 +68,7 @@ namespace MWRender::Rtx
         if (!mFromWorld)
         {
             mScene = std::make_unique<::Rtx::SceneDesc>();
-            mExtractor = std::make_unique<RtxBridge::SceneExtractor>(*mScene);
+            mExtractor = std::make_unique<RtxBridge::SceneExtractor>(*mScene, &mOwner.getTraversals());
             mExtractor->setTraversalMask(mSubjectMask);
             mViewScene = renderer.addViewScene();
         }
@@ -185,7 +185,10 @@ namespace MWRender::Rtx
         // cull traversal over it, and `SceneUtil::Skeleton` and both deforming geometries refuse to
         // move for a traversal number they have already seen. A walk that said zero every time
         // skinned the doll when the inventory first opened and never again.
-        mExtractor->extract(*mSubject, osg::Matrixf::identity(), 0, mRedraws++);
+        // **The frame and not a redraw count.** This picks which of a `SceneUtil::LightSource`'s two
+        // buffers to read, which is a property of the frame the game is in; what says "pose again"
+        // is the traversal number, and that comes from the one counter the renderer holds.
+        mExtractor->extract(*mSubject, osg::Matrixf::identity(), 0, mOwner.getFrame());
 
         // **No `advance` between them**, unlike the world's frame: a picture drawn when the
         // character changes rather than when the frame does has no motion to describe, and

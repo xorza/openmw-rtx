@@ -99,7 +99,7 @@ namespace MWRender::Rtx
         , mUpdateVisitor(new osgUtil::UpdateVisitor)
         , mStats(new osg::Stats("Viewer"))
         , mStartTick(osg::Timer::instance()->tick())
-        , mExtractor(std::make_unique<RtxBridge::SceneExtractor>(mScene))
+        , mExtractor(std::make_unique<RtxBridge::SceneExtractor>(mScene, &mTraversals))
     {
         // **What the shader visitor is told a GPU offers.** It runs on every model OpenMW loads
         // and needs a number to fit texture slots into; without a GL context there is nothing to

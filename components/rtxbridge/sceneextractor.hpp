@@ -119,6 +119,33 @@ namespace RtxBridge
 
     class MirrorTraversal;
 
+    /// The numbers mirror walks pose at, and the rule that they only ever go up.
+    ///
+    /// **`SceneUtil::Skeleton` and both deforming drawables refuse to move for a traversal number
+    /// they have already seen.** That is what stops one actor being skinned twice in a frame, and it
+    /// means a walk's number is not a label but a claim: this pose is newer than the last.
+    ///
+    /// This fork has two things that walk — the world, once a frame, and a traced view whenever its
+    /// subject changes — and they must not be two sequences. A subtree reached by both would be posed
+    /// by whichever got there first and frozen for the other, and nothing states that no subtree is
+    /// shared: `NpcAnimation` merely happens to clone a `RigGeometry` per instance. One counter, and
+    /// the hazard cannot arise.
+    ///
+    /// **Not the frame number**, which a walk also carries and which means something else — which of
+    /// a `SceneUtil::LightSource`'s two buffers update has just written. A doll redrawn twice in one
+    /// frame needs two pose numbers and one light buffer.
+    class Traversals
+    {
+    public:
+        /// The next number, greater than every number handed out before it.
+        unsigned int next() { return ++mLast; }
+
+    private:
+        /// **From one and not from zero.** Everything OSG poses starts at a traversal number of
+        /// zero, so a first walk saying zero is a walk that poses nothing.
+        unsigned int mLast = 0;
+    };
+
     /// Geometry a walk of the scene graph cannot reach, offered to the walk that asks for it.
     ///
     /// **`Terrain::QuadTreeWorld` is the reason this exists.** With `distant terrain` on it resolves
@@ -188,7 +215,11 @@ namespace RtxBridge
     class SceneExtractor
     {
     public:
-        explicit SceneExtractor(Rtx::SceneDesc& scene);
+        /// @param traversals where this walk's pose numbers come from. **Shared by everything that
+        ///        can reach one graph** — the game hands the same counter to the world's walk and to
+        ///        every traced view. Left out, the extractor keeps a sequence of its own, which is
+        ///        right for a harness where nothing else walks the same nodes.
+        explicit SceneExtractor(Rtx::SceneDesc& scene, Traversals* traversals = nullptr);
 
         /// Out of line because `MirrorTraversal` and the identity maps' key types are only forward
         /// declared here.
@@ -438,6 +469,10 @@ namespace RtxBridge
         /// are per-frame allocations if the walk is a local, and a cell is tens of thousands of
         /// drawables deep.
         std::unique_ptr<MirrorTraversal> mWalk;
+
+        /// Used only where the caller named none.
+        Traversals mOwnTraversals;
+        Traversals& mTraversals;
 
         osg::Node::NodeMask mTraversalMask = ~0u;
 
