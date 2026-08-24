@@ -6,11 +6,15 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <osg/Vec2f>
+#include <osg/Vec3f>
+
 #include <components/rtx/instancerecord.hpp>
 #include <components/rtx/lightgrid.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/wavespectrum.hpp>
 
+#include "blockedbuffer.hpp"
 #include "buffer.hpp"
 #include "hostbuffer.hpp"
 
@@ -35,7 +39,7 @@ namespace Rtx
         ///        with no height in it is a flat sea, which is what a test asserting an exact
         ///        transmittance needs.
         SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
-            std::span<const InstanceRecord> records, VkBuffer indices, const SeaState& sea = SeaState{});
+            std::span<const InstanceRecord> records, VkBuffer indexBlocks, const SeaState& sea = SeaState{});
 
         /// Rewrites what a moving world changes, leaving what it is made of alone.
         ///
@@ -59,9 +63,14 @@ namespace Rtx
         SceneBuffers(const SceneBuffers&) = delete;
         SceneBuffers& operator=(const SceneBuffers&) = delete;
 
-        VkBuffer getNormals() const { return mNormals.getHandle(); }
-        VkBuffer getTexCoords() const { return mTexCoords.getHandle(); }
-        VkBuffer getIndices() const { return mIndices; }
+        /// Where each blocked table's blocks are, as a shader reads them.
+        ///
+        /// **Tables of addresses and not the data.** The vertex attributes are lists of blocks, so
+        /// what a shader binds is where the blocks are; it resolves a global id to one of them
+        /// itself. See `BlockedBuffer`.
+        VkBuffer getNormalBlocks() const { return mNormalBlocks.getHandle(); }
+        VkBuffer getTexCoordBlocks() const { return mTexCoordBlocks.getHandle(); }
+        VkBuffer getIndexBlocks() const { return mIndexBlocks; }
         VkBuffer getMeshes() const { return mMeshes.getHandle(); }
         VkBuffer getInstances() const { return mInstances.getHandle(); }
         VkBuffer getMaterials() const { return mMaterials.getHandle(); }
@@ -88,6 +97,9 @@ namespace Rtx
         VkDeviceSize getBytes() const;
 
     private:
+        /// Fills the attribute blocks from the scene and writes the tables of their addresses.
+        void uploadAttributes(Batch& batch, const SceneDesc& scene);
+
         /// Makes `held` at least `bytes` long, keeping it where it is already big enough.
         ///
         /// A frame that placed more than the last one is a cell that arrived, and that goes through
@@ -102,7 +114,7 @@ namespace Rtx
 
         // What the scene is made of. Written once, through a staging copy, because nothing rewrites
         // them and device-only memory is the faster place for the device to read.
-        Buffer mTexCoords;
+        BlockedBuffer<Buffer> mTexCoords{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec2f) };
         Buffer mMeshes;
 
         // **Host-visible and rewritten from `place`, not uploaded once.** Anything that animates a
@@ -121,14 +133,23 @@ namespace Rtx
         std::vector<Shaders::GpuMaterial> mMaterialScratch;
         std::vector<Shaders::GpuLayer> mLayerScratch;
 
-        VkBuffer mIndices = VK_NULL_HANDLE;
+        /// `SceneAcceleration`'s table, passed through: the build had to have the indices first.
+        VkBuffer mIndexBlocks = VK_NULL_HANDLE;
 
         // What a moving world changes. Written straight into video memory every frame.
         //
         // The normals are here for the sake of a few dozen of them: a skinned body's are recomputed
         // per frame and the rest of a cell's never change, so the buffer is filled once and then
         // written a mesh at a time.
-        HostBuffer mNormals;
+        //
+        // **Blocked like the geometry they belong to**, so a scene that grows keeps the blocks it
+        // already has and adds one.
+        BlockedBuffer<HostBuffer> mNormals{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
+
+        /// Where those blocks are, for the shader that resolves a global vertex id.
+        HostBuffer mNormalBlocks;
+        HostBuffer mTexCoordBlocks;
+
         HostBuffer mInstances;
         HostBuffer mLights;
         HostBuffer mLightOffsets;

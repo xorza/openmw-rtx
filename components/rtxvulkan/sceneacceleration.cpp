@@ -1,5 +1,6 @@
 #include "sceneacceleration.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <span>
@@ -92,12 +93,7 @@ namespace Rtx
     {
         assert(scene.getPlacedCount() > 0);
 
-        mPositions = HostBuffer(device, scene.getPositions().size_bytes(), sBuildInputUsage);
-        mPositions.write(scene.getPositions());
-
-        mIndices = uploadBuffer(device, batch, scene.getIndices(), sBuildInputUsage);
-        device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mPositions.getHandle()), "positions");
-        device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mIndices.getHandle()), "indices");
+        uploadGeometry(batch, scene);
 
         // **The indices, every bottom level and the top level in one submit.** Each was its own
         // round trip and each is ordered against the last by a barrier the recording already
@@ -119,13 +115,46 @@ namespace Rtx
                 functions.mDestroyAccelerationStructure(mDevice.getHandle(), structure, nullptr);
     }
 
+    void SceneAcceleration::uploadGeometry(Batch& batch, const SceneDesc& scene)
+    {
+        const std::span<const osg::Vec3f> positions = scene.getPositions();
+        for (std::uint32_t block = 0; block < mPositions.blocksFor(static_cast<std::uint32_t>(positions.size()));
+             ++block)
+        {
+            const std::size_t from = std::size_t{ block } * mPositions.getBlockSize();
+            const std::size_t count = std::min<std::size_t>(mPositions.getBlockSize(), positions.size() - from);
+
+            HostBuffer made(mDevice, mPositions.getBlockBytes(), sBuildInputUsage);
+            made.fillFrom(positions.subspan(from, count));
+            mDevice.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(made.getHandle()),
+                "positions " + std::to_string(block));
+            mPositions.add(std::move(made));
+        }
+
+        const std::span<const std::uint32_t> indices = scene.getIndices();
+        for (std::uint32_t block = 0; block < mIndices.blocksFor(static_cast<std::uint32_t>(indices.size())); ++block)
+        {
+            const std::size_t from = std::size_t{ block } * mIndices.getBlockSize();
+            const std::size_t count = std::min<std::size_t>(mIndices.getBlockSize(), indices.size() - from);
+
+            Buffer made = uploadBuffer(mDevice, batch, std::as_bytes(indices.subspan(from, count)), sBuildInputUsage,
+                mIndices.getBlockBytes());
+            mDevice.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(made.getHandle()),
+                "indices " + std::to_string(block));
+            mIndices.add(std::move(made));
+        }
+
+        const std::span<const VkDeviceAddress> table = mIndices.getAddresses();
+        mIndexBlocks = HostBuffer(mDevice, table.size_bytes(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        mIndexBlocks.write(table);
+        mDevice.setName(
+            VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mIndexBlocks.getHandle()), "index blocks");
+    }
+
     void SceneAcceleration::buildBottomLevel(Batch& batch, const SceneDesc& scene)
     {
         const DeviceFunctions& functions = mDevice.getFunctions();
         const std::size_t count = scene.getMeshes().size();
-
-        const VkDeviceAddress positions = mPositions.getDeviceAddress();
-        const VkDeviceAddress indices = mIndices.getDeviceAddress();
 
         // The build reads these through pointers it keeps until the command is recorded, so they
         // live here rather than inside the loop.
@@ -158,8 +187,7 @@ namespace Rtx
                 .geometry = { .triangles = {
                                   .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
                                   .vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
-                                  .vertexData = { .deviceAddress
-                                      = positions + VkDeviceSize{ mesh.mVertexOffset } * sizeof(osg::Vec3f) },
+                                  .vertexData = { .deviceAddress = mPositions.addressOf(mesh.mVertexOffset) },
                                   .vertexStride = sizeof(osg::Vec3f),
                                   // **Guarded, because a freed slot has no vertices.** A slot the
                                   // scene has taken back keeps its index and its room and holds a
@@ -167,8 +195,7 @@ namespace Rtx
                                   // there wraps, and the driver is handed four billion vertices.
                                   .maxVertex = mesh.mVertexCount > 0 ? mesh.mVertexCount - 1 : 0,
                                   .indexType = VK_INDEX_TYPE_UINT32,
-                                  .indexData = { .deviceAddress
-                                      = indices + VkDeviceSize{ mesh.mIndexOffset } * sizeof(std::uint32_t) },
+                                  .indexData = { .deviceAddress = mIndices.addressOf(mesh.mIndexOffset) },
                               } },
                 // Opaque as built, and overridden per instance where a material says otherwise:
                 // opacity is a property of the material and a mesh does not carry one, so the
@@ -323,8 +350,6 @@ namespace Rtx
         if (mRefitScratch.getSize() < scratchTotal)
             mRefitScratch = Buffer(mDevice, scratchTotal, sScratchUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        const VkDeviceAddress positions = mPositions.getDeviceAddress();
-        const VkDeviceAddress indices = mIndices.getDeviceAddress();
         const VkDeviceAddress scratchAddress = mRefitScratch.getDeviceAddress();
 
         mRefitGeometries.resize(count);
@@ -340,7 +365,8 @@ namespace Rtx
             // **Straight into the memory the builder reads**, with no staging buffer between and no
             // copy to record. The submit below carries an implicit dependency on host writes made
             // before it, which is what a barrier would otherwise have been for.
-            mPositions.writeAt(VkDeviceSize{ mesh.mVertexOffset } * sizeof(osg::Vec3f), scene.getMeshPositions(index));
+            mPositions.at(mesh.mVertexOffset)
+                .writeAt(mPositions.offsetOf(mesh.mVertexOffset), scene.getMeshPositions(index));
 
             // The same description the first build was given, which is what makes the structure it
             // produces the same size as the one already sitting at this mesh's offset.
@@ -350,8 +376,7 @@ namespace Rtx
                 .geometry = { .triangles = {
                                   .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
                                   .vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
-                                  .vertexData = { .deviceAddress
-                                      = positions + VkDeviceSize{ mesh.mVertexOffset } * sizeof(osg::Vec3f) },
+                                  .vertexData = { .deviceAddress = mPositions.addressOf(mesh.mVertexOffset) },
                                   .vertexStride = sizeof(osg::Vec3f),
                                   // **Guarded, because a freed slot has no vertices.** A slot the
                                   // scene has taken back keeps its index and its room and holds a
@@ -359,8 +384,7 @@ namespace Rtx
                                   // there wraps, and the driver is handed four billion vertices.
                                   .maxVertex = mesh.mVertexCount > 0 ? mesh.mVertexCount - 1 : 0,
                                   .indexType = VK_INDEX_TYPE_UINT32,
-                                  .indexData = { .deviceAddress
-                                      = indices + VkDeviceSize{ mesh.mIndexOffset } * sizeof(std::uint32_t) },
+                                  .indexData = { .deviceAddress = mIndices.addressOf(mesh.mIndexOffset) },
                               } },
                 .flags = VK_GEOMETRY_OPAQUE_BIT_KHR,
             };

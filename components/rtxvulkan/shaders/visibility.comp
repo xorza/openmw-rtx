@@ -5,6 +5,8 @@
 #extension GL_EXT_ray_tracing_position_fetch : require
 #extension GL_EXT_scalar_block_layout : require
 #extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_buffer_reference2 : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
 
 // Primary visibility. One ray per pixel against the top-level structure, shaded by the albedo of
 // whatever it hit.
@@ -32,18 +34,56 @@ layout(set = 0, binding = 2) buffer HitCount
     uint hits;
 };
 
-layout(set = 0, binding = 3, scalar) readonly buffer Normals
+// The vertex attributes and the indices, as lists of blocks.
+//
+// **A block is allocated once at its full size and never moved**, so a scene that grows keeps every
+// address already handed out and every acceleration structure built from one stays valid — which is
+// what lets a cell arriving append rather than rebuild the world. What is bound here is *where* the
+// blocks are; a global id resolves to one of them and an offset inside it. `Rtx::SceneDesc` never
+// lets a mesh's run straddle a block, and both sizes are powers of two, so that is a shift and a
+// mask.
+//
+// The alignment is four: a twelve-byte element at an arbitrary index is only ever float-aligned.
+layout(buffer_reference, scalar, buffer_reference_align = 4) readonly buffer NormalBlock
 {
-    vec3 normals[];
+    vec3 at[];
 };
-layout(set = 0, binding = 4, scalar) readonly buffer TexCoords
+layout(buffer_reference, scalar, buffer_reference_align = 4) readonly buffer TexCoordBlock
 {
-    vec2 texCoords[];
+    vec2 at[];
 };
-layout(set = 0, binding = 5, scalar) readonly buffer Indices
+layout(buffer_reference, scalar, buffer_reference_align = 4) readonly buffer IndexBlock
 {
-    uint indices[];
+    uint at[];
 };
+
+layout(set = 0, binding = 3, scalar) readonly buffer NormalBlocks
+{
+    uint64_t normalBlocks[];
+};
+layout(set = 0, binding = 4, scalar) readonly buffer TexCoordBlocks
+{
+    uint64_t texCoordBlocks[];
+};
+layout(set = 0, binding = 5, scalar) readonly buffer IndexBlocks
+{
+    uint64_t indexBlocks[];
+};
+
+vec3 normalAt(uint vertex)
+{
+    return NormalBlock(normalBlocks[vertex / VERTEX_BLOCK]).at[vertex % VERTEX_BLOCK];
+}
+
+vec2 texCoordAt(uint vertex)
+{
+    return TexCoordBlock(texCoordBlocks[vertex / VERTEX_BLOCK]).at[vertex % VERTEX_BLOCK];
+}
+
+uint indexAt(uint element)
+{
+    return IndexBlock(indexBlocks[element / INDEX_BLOCK]).at[element % INDEX_BLOCK];
+}
 layout(set = 0, binding = 6, scalar) readonly buffer Meshes
 {
     GpuMesh meshes[];
@@ -336,7 +376,7 @@ vec3 triangleCross(vec3 corners[3], mat4x3 toWorld)
 uvec3 triangleCorners(GpuMesh mesh, uint primitive)
 {
     const uint triangle = mesh.mIndexOffset + primitive * 3u;
-    return mesh.mVertexOffset + uvec3(indices[triangle], indices[triangle + 1u], indices[triangle + 2u]);
+    return mesh.mVertexOffset + uvec3(indexAt(triangle), indexAt(triangle + 1u), indexAt(triangle + 2u));
 }
 
 /// What each corner contributes at a hit, from the two barycentrics a query reports.
@@ -378,9 +418,9 @@ float coneLod(uint slot, vec2 uv0, vec2 uv1, vec2 uv2, vec3 crossed, vec3 direct
 /// The texture coordinates of the triangle a hit landed on.
 void triangleUvs(uvec3 corner, out vec2 uv[3])
 {
-    uv[0] = texCoords[corner.x];
-    uv[1] = texCoords[corner.y];
-    uv[2] = texCoords[corner.z];
+    uv[0] = texCoordAt(corner.x);
+    uv[1] = texCoordAt(corner.y);
+    uv[2] = texCoordAt(corner.z);
 }
 
 vec2 interpolate(vec2 uv[3], vec3 weight)
@@ -1427,7 +1467,8 @@ Surface trace(vec3 origin, vec3 direction, float tmin, float footprint, float sp
     const vec3 crossed = triangleCross(corners, toWorld);
     surface.mGeometric = dot(crossed, crossed) > 0.0 ? normalize(crossed) : vec3(0.0, 0.0, 1.0);
 
-    const vec3 shading = normals[corner.x] * weight.x + normals[corner.y] * weight.y + normals[corner.z] * weight.z;
+    const vec3 shading
+        = normalAt(corner.x) * weight.x + normalAt(corner.y) * weight.y + normalAt(corner.z) * weight.z;
     const vec3 normal = dot(shading, shading) > 1e-8 ? normalize(mat3(toWorld) * shading) : surface.mGeometric;
     surface.mNormal = faceforward(normal, direction, normal);
 

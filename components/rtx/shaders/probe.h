@@ -32,14 +32,22 @@ namespace Rtx::Shaders
     /// Threads in the probe's workgroup.
     RTX_CONST uint PROBE_WORKGROUP = 64;
 
+    /// How many ways the probe reads one pattern, and so how many `mCount`-long runs its readings
+    /// buffer holds: through a descriptor, through a pointer the host handed over, and through a
+    /// pointer read out of a table and indexed by block.
+    RTX_CONST uint PROBE_READINGS = 3;
+
     struct ProbeConstants
     {
         /// The same buffer bound at set 0 binding 0, by device address.
         uint64 mSource;
 
-        /// How many `vec3`s to read out of it. The readings buffer holds twice this: the descriptor
-        /// half first, the pointer half after it.
+        /// How many `vec3`s to read out of it.
         uint mCount;
+
+        /// Elements per block in the address table at binding 2, which holds the same pattern cut
+        /// into separate buffers. This is what `SceneBuffers` would do with `VERTEX_BLOCK`.
+        uint mBlock;
     };
 
 #ifdef RTX_HOST

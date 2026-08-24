@@ -1,5 +1,8 @@
 #include "scenebuffers.hpp"
 
+#include <algorithm>
+#include <string>
+
 #include <components/rtx/instancerecord.hpp>
 
 #include <array>
@@ -17,6 +20,12 @@ namespace Rtx
     namespace
     {
         constexpr VkBufferUsageFlags sTableUsage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+        /// What a block of vertex attributes needs beyond a plain table: the shader reaches it
+        /// through a pointer out of the table of block addresses rather than through a binding, and
+        /// a buffer only has an address if it was created saying so.
+        constexpr VkBufferUsageFlags sBlockUsage
+            = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
         // A shader cannot see a C++ enum, so the two spellings of the same three values are pinned
         // here rather than trusted to stay in step.
@@ -87,9 +96,9 @@ namespace Rtx
     }
 
     SceneBuffers::SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
-        std::span<const InstanceRecord> records, VkBuffer indices, const SeaState& sea)
+        std::span<const InstanceRecord> records, VkBuffer indexBlocks, const SeaState& sea)
         : mDevice(&device)
-        , mIndices(indices)
+        , mIndexBlocks(indexBlocks)
     {
         std::vector<Shaders::GpuMesh> meshes;
         meshes.reserve(scene.getMeshes().size());
@@ -97,13 +106,9 @@ namespace Rtx
             meshes.push_back(
                 Shaders::GpuMesh{ .mVertexOffset = mesh.mVertexOffset, .mIndexOffset = mesh.mIndexOffset });
 
-        mTexCoords = uploadBuffer(device, batch, scene.getTexCoords(), sTableUsage);
         mMeshes = uploadBuffer(device, batch, std::span<const Shaders::GpuMesh>(meshes), sTableUsage);
 
-        // **Whole here and a mesh at a time afterwards.** Only a skinned body's normals change, so
-        // filling this once is a load's cost and every frame after it pays for what actually moved.
-        mNormals = HostBuffer(device, scene.getNormals().size_bytes(), sTableUsage);
-        mNormals.write(scene.getNormals());
+        uploadAttributes(batch, scene);
 
         // The shading tables come from `place`, which is also where they are rewritten when a
         // material changes. Forced here because nothing has been written at revision zero.
@@ -111,9 +116,48 @@ namespace Rtx
         place(scene, records, sea);
 
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mMaterials.getHandle()), "materials");
-        device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mTexCoords.getHandle()), "uvs");
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mInstances.getHandle()), "instance rows");
-        device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mNormals.getHandle()), "normals");
+    }
+
+    void SceneBuffers::uploadAttributes(Batch& batch, const SceneDesc& scene)
+    {
+        // **Whole blocks here and a mesh at a time afterwards.** Only a skinned body's normals
+        // change, so filling these once is a load's cost and every frame after it pays for what
+        // actually moved.
+        const std::span<const osg::Vec3f> normals = scene.getNormals();
+        for (std::uint32_t block = 0; block < mNormals.blocksFor(static_cast<std::uint32_t>(normals.size())); ++block)
+        {
+            const std::size_t from = std::size_t{ block } * mNormals.getBlockSize();
+            const std::size_t count = std::min<std::size_t>(mNormals.getBlockSize(), normals.size() - from);
+
+            HostBuffer made(*mDevice, mNormals.getBlockBytes(), sBlockUsage);
+            made.fillFrom(normals.subspan(from, count));
+            mDevice->setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(made.getHandle()),
+                "normals " + std::to_string(block));
+            mNormals.add(std::move(made));
+        }
+
+        const std::span<const osg::Vec2f> uvs = scene.getTexCoords();
+        for (std::uint32_t block = 0; block < mTexCoords.blocksFor(static_cast<std::uint32_t>(uvs.size())); ++block)
+        {
+            const std::size_t from = std::size_t{ block } * mTexCoords.getBlockSize();
+            const std::size_t count = std::min<std::size_t>(mTexCoords.getBlockSize(), uvs.size() - from);
+
+            Buffer made = uploadBuffer(
+                *mDevice, batch, std::as_bytes(uvs.subspan(from, count)), sBlockUsage, mTexCoords.getBlockBytes());
+            mDevice->setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(made.getHandle()),
+                "uvs " + std::to_string(block));
+            mTexCoords.add(std::move(made));
+        }
+
+        const auto table = [&](HostBuffer& into, std::span<const VkDeviceAddress> addresses, const char* name) {
+            into = HostBuffer(*mDevice, addresses.size_bytes(), sTableUsage);
+            into.write(addresses);
+            mDevice->setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(into.getHandle()), name);
+        };
+
+        table(mNormalBlocks, mNormals.getAddresses(), "normal blocks");
+        table(mTexCoordBlocks, mTexCoords.getAddresses(), "uv blocks");
     }
 
     void SceneBuffers::reserve(HostBuffer& held, const VkDeviceSize bytes)
@@ -281,8 +325,9 @@ namespace Rtx
         for (const Index mesh : scene.getDeformed())
         {
             const MeshRange& range = scene.getMeshes()[mesh];
-            mNormals.writeAt(VkDeviceSize{ range.mVertexOffset } * sizeof(osg::Vec3f),
-                scene.getNormals().subspan(range.mVertexOffset, range.mVertexCount));
+            mNormals.at(range.mVertexOffset)
+                .writeAt(mNormals.offsetOf(range.mVertexOffset),
+                    scene.getNormals().subspan(range.mVertexOffset, range.mVertexCount));
         }
     }
 
@@ -290,7 +335,7 @@ namespace Rtx
     {
         // The indices are not counted here: they belong to the acceleration structure, which reports
         // its own size.
-        return mNormals.getSize() + mTexCoords.getSize() + mMeshes.getSize() + mInstances.getSize()
+        return mNormals.getBytes() + mTexCoords.getBytes() + mMeshes.getSize() + mInstances.getSize()
             + mMaterials.getSize() + mLayers.getSize() + mMasks.getSize() + mLights.getSize() + mLightOffsets.getSize()
             + mLightIndices.getSize() + mGrid.getSize() + mWaves.getSize() + mSprites.getSize() + mEmitters.getSize();
     }

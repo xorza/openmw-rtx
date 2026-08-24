@@ -36,6 +36,26 @@ namespace Rtx::Shaders
     /// A material with no texture in a slot stores this.
     RTX_CONST uint NO_TEXTURE = 0xFFFFFFFFu;
 
+    /// Elements in one block of the shared vertex buffers, and of the index buffer.
+    ///
+    /// **What lets a device buffer be appended to instead of made again.** A buffer that is one
+    /// allocation moves when it grows, and every bottom-level acceleration structure in the world
+    /// holds a device address into it — so a cell arriving rebuilt all of them. Blocked, the buffer
+    /// is a list of allocations made once at full size and never moved: growing costs one more block
+    /// and nothing already placed shifts. A shader resolves a global id with `id / BLOCK` and
+    /// `id % BLOCK`, which is a shift and a mask because both are powers of two.
+    ///
+    /// **Bounded below by the largest run one mesh can ask for**, because a run may not straddle a
+    /// block. A terrain chunk at full detail is a 65×65 grid and Morrowind's models are far smaller,
+    /// so this leaves four orders of magnitude of headroom; what it costs is the tail of a block too
+    /// short for the next run, which `Rtx::SpanAllocator` hands out again like any other hole. Three
+    /// megabytes of positions a block.
+    RTX_CONST uint VERTEX_BLOCK = 256u * 1024u;
+
+    /// The index buffer wants its own number: a triangle soup has three indices a vertex and a
+    /// terrain chunk closer to six.
+    RTX_CONST uint INDEX_BLOCK = 1024u * 1024u;
+
     /// Cells along each edge of the grid a texture's baked lighting is estimated over.
     ///
     /// Coarse on purpose: painted lighting varies slowly across a surface and painted detail does

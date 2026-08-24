@@ -14,6 +14,7 @@
 
 #include <components/vfs/pathutil.hpp>
 
+#include "shaders/scene.h"
 #include "spanallocator.hpp"
 
 namespace Rtx
@@ -285,22 +286,13 @@ namespace Rtx
     public:
         /// How many vertices one block of the position, normal and texture-coordinate buffers holds.
         ///
-        /// **What lets a device buffer be appended to instead of made again.** A buffer that is one
-        /// allocation moves when it grows, and every bottom-level acceleration structure in the world
-        /// holds a device address into it — so a cell arriving rebuilt all of them. Blocked, the
-        /// buffer is a list of allocations made once and never moved: growing costs one more block
-        /// and nothing already placed shifts.
+        /// One block of the shared vertex buffers, and of the index buffer.
         ///
-        /// **Bounded below by the largest run one mesh can ask for**, because a run may not straddle
-        /// a block. A terrain chunk at full detail is a 65×65 grid and Morrowind's models are far
-        /// smaller, so this leaves four orders of magnitude of headroom; what it costs is the tail of
-        /// a block too short for the next run, which `SpanAllocator` hands out again like any other
-        /// hole. Three megabytes of positions a block.
-        static constexpr Index sVertexBlock = 256 * 1024;
-
-        /// The same for the index buffer, which wants its own number: a triangle soup has three
-        /// indices a vertex and a terrain chunk closer to six.
-        static constexpr Index sIndexBlock = 1024 * 1024;
+        /// **The shaders' own numbers**, because a run this places against a block is resolved back
+        /// to that block by a shader dividing by the same figure. `Shaders::VERTEX_BLOCK` says at
+        /// length what they are for.
+        static constexpr Index sVertexBlock = Shaders::VERTEX_BLOCK;
+        static constexpr Index sIndexBlock = Shaders::INDEX_BLOCK;
 
         /// Copies the vertex data into the shared buffers and returns the new mesh's index.
         ///

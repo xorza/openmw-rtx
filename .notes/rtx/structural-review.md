@@ -17,7 +17,6 @@ a finished piece is only what the next one needs to know.
 | the rasterizer's cull and the mirror both pose | **B** — stale; a real hazard stands where it did |
 | `OSGTexture` allocates twice a frame and uploads whole | **C** |
 | the world map overlay uploads whole on a cell crossing | **C** |
-| a `buffer_reference` read of normals changes the picture | **A** |
 | `GuiTextures::add` waits on the queue per texture | **C** |
 | `RtxTool::Chosen` warns under `-Wmissing-field-initializers` | **I** |
 
@@ -29,53 +28,30 @@ reports what changed — `getArrivedMeshes`, `getFreedMeshes`, `getArrivedTextur
 **disjoint and each naming a slot once**, so a backend may apply arrivals and departures in either
 order. Texture slots are already dropped on the strength of that.
 
-**The geometry side of the backend still cannot be appended to.** `SceneAcceleration` and
-`SceneBuffers` are constructed *from a whole scene*, so `VulkanRenderer::extendScene` throws both away
-whenever `getMeshRevision()` moves. Three things stand between here and an append.
+**The geometry now lives in blocks that never move.** `Rtx::BlockedBuffer` holds each of the four
+shared tables — positions, indices, normals, texture coordinates — as a list of buffers of
+`Shaders::VERTEX_BLOCK` or `INDEX_BLOCK` elements, each **made at its full size** so that a block
+filled part way is still appendable and every device address already handed out stays good.
+`SceneDesc` places runs against the same two constants and never lets a mesh straddle one, so the
+address of a run's first element covers the run. A shader is bound *where the blocks are* and
+resolves `block[id / BLOCK][id % BLOCK]` through a `GL_EXT_buffer_reference` pointer; the slack is
+one block per table, about 4.7 MiB on Balmora.
 
-### A1. The geometry buffers are one allocation and move when they grow
+**The earlier reading of this was wrong, and the instrument is what settled it.** A pointer read does
+not move the picture: `verify --against` calls all sixteen views byte-identical with every pointer
+fetch live, and `RtxProbeTest` has since agreed with the device directly, across both memory kinds
+and a three-block table. The day spent bisecting a whole traced frame was spent because nothing could
+ask either question.
 
-`SceneAcceleration` holds `mPositions` (host-visible) and `mIndices` (device-local), each sized once
-to the scene. A cell that does not fit the holes the last one left grows the scene's vectors, and the
-next construction makes new buffers at new addresses.
+**Nothing the game loads reaches a second block.** Balmora is 165,536 vertices and 589,869 indices
+against blocks of 262,144 and 1,048,576, so `id / BLOCK` is zero in every scene this fork renders and
+`verify` cannot exercise the arithmetic at all. `RtxVisibilityTest.aMeshInTheSecondBlockIsShadedOutOfTheSecondBlock`
+is what does: a filler mesh of one whole block of each pushes a lit, textured wall into block one, and
+the picture must match the same wall alone. Forcing any of the three block lookups to zero fails it.
 
-`SceneDesc` already places its runs against a block: **256 Ki vertices and 1 Mi indices**, shared with
-the shaders as `Shaders::VERTEX_BLOCK` and `INDEX_BLOCK`, and no run ever straddles one. A mesh longer
-than a block is **thrown on by name rather than asserted** — a vertex count comes out of a content
-file, and a run across two blocks is a wild write rather than a wrong picture. The host vectors are
-deliberately *not* rounded up to a block: `getPositions()` is what the backend uploads, and the tail
-would be megabytes of nothing sent to the device.
-
-What remains is the device side: `SceneAcceleration`'s positions and indices, and `SceneBuffers`'
-normals and texture coordinates, become lists of blocks; whatever reads a vertex or an index by global
-id does `block[id / blockSize][id % blockSize]`.
-
-**This was written in full and reverted; `7b-backend.patch` holds it.** What it established:
-
-- **The block plumbing is bit-exact.** With the blocks in place and the shader still reading through
-  storage-buffer descriptors, the renderer reproduced the baseline **byte for byte on all sixteen
-  views**. The arithmetic, the sizing, the per-mesh addresses and the deformed-mesh writes are right.
-- **Reading through a pointer is what moved the picture.** Swapping only the normal fetch to
-  `GL_EXT_buffer_reference` changes the image; keeping the load and discarding its value leaves it
-  byte-identical. Ruled out: array stride (SPIR-V says 12, which is right), load width (three floats
-  behaves as a `vec3`), the block index (the scenes that differ are single-block), buffer size, and
-  the uninitialised tail. Instruction counts are otherwise identical, so it is not reassociation.
-- **Positions need no shader change at all** — they are a build input and the target of the
-  per-frame host write, and a hit reads its triangle's vertices back out of the structure through
-  `ALLOW_DATA_ACCESS`. Indices, normals and texture coordinates are the coupled half, at set 0
-  bindings 3, 4 and 5.
-
-**And the probe now says the pointer itself is innocent.** `RtxProbeTest` reads one buffer of packed
-`vec3`s both ways — a storage-buffer descriptor and a `buffer_reference` at `buffer_reference_align =
-4`, the same declaration `7b-backend.patch` used — and the two agree exactly, in resizable-BAR
-host-visible memory and in staged device-local memory alike. So the defect is not "a pointer read
-returns different data"; it is in what the patch built around it, and the untested part of that is
-the **address table**: `normalBlocks[vertex / VERTEX_BLOCK]`, a `uint64_t` read out of a `HostBuffer`
-through a descriptor. That is where to look first, and the probe is where to ask.
-
-**The fallback, if it turns out to be the pointer after all.** Reach the blocks through a
-**partially-bound descriptor array** of storage buffers indexed by block: no pointers, the same
-arithmetic, and a binding model the texture array already uses.
+**What remains before a cell can append.** `SceneAcceleration` and `SceneBuffers` are still
+constructed *from a whole scene*, so `VulkanRenderer::extendScene` throws both away whenever
+`getMeshRevision()` moves. Two things stand between here and an append.
 
 ### A2. Bottom-level storage is one buffer, created and destroyed as a batch
 
@@ -266,27 +242,28 @@ went from 727 submits to one, and its build from **555 ms to 249**; the island r
 243. Sixteen views byte-identical, whole suite unchanged. The crossing figure barely moved, because
 a crossing that appends builds nothing and its cost is reading content files.
 
-**1 — A1, the geometry blocks.** `7b-backend.patch` is the starting point and it is known bit-exact
-apart from the normal fetch. Start at the address table, which the probe has not yet been asked
-about; the descriptor-array fallback stands if it turns out to be the pointer. Still a full rebuild
-per arrival. The picture must be unchanged, which is now a command.
+**The geometry is blocked.** See root A: the four shared tables are lists of fixed blocks, the
+shader resolves a global id through a pointer out of a table of block addresses, and the picture is
+unchanged on all sixteen views. Balmora's build is 231 ms against 249 before it, so the 4.7 MiB of
+block slack costs nothing measurable. A cell arriving still rebuilds everything — that is the next
+step, and it is now the only thing in the way.
 
-**2 — A2, bottom-level storage, then `extendScene`.** Build the arrivals, destroy the departures.
+**1 — A2, bottom-level storage, then `extendScene`.** Build the arrivals, destroy the departures.
 Measure the crossing on the streaming route, median and worst, against 47 ms.
 
-**3 — A3, view scenes get the same three branches.** Look at a race-creation slider drag in the
+**2 — A3, view scenes get the same three branches.** Look at a race-creation slider drag in the
 window; that is what the frame time was.
 
-**4 — C, the region write.** `RegionTexture`, both backends, `Picture::setRegion`, `GlobalMap` onto
+**3 — C, the region write.** `RegionTexture`, both backends, `Picture::setRegion`, `GlobalMap` onto
 `Picture`. The GUI texture tests plus walking across a cell boundary with the world map open.
 
-**5 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
+**4 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
 with `distant terrain` on and comparing a frame; verify the mirror by turning `distant terrain` on and
 taking a shot of an exterior with ground in it.
 
-**6 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
+**5 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
 
-**7 — I.** Ten minutes.
+**6 — I.** Ten minutes.
 
 ## What this does not touch
 

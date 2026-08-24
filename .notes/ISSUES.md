@@ -39,8 +39,3 @@
 
 - `RtxTool::Chosen` is aggregate-initialised at `apps/rtxtool/main.cpp:297` without `mView` or
   `mNote`, so the build warns twice under `-Wmissing-field-initializers`.
-
-- Reading a scene's vertex normals in `visibility.comp` through a `GL_EXT_buffer_reference` pointer
-  gives a different picture from reading the same buffer through a storage-buffer descriptor: with
-  the pointer load present but its value discarded the image is byte-identical, and with its value
-  used it differs by up to 37 of 255 across a fifth of the pixels.

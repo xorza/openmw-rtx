@@ -1,5 +1,6 @@
 #include "commands.hpp"
 
+#include <cassert>
 #include <exception>
 #include <utility>
 
@@ -139,16 +140,32 @@ namespace Rtx
 
     Buffer uploadBuffer(const Device& device, Batch& batch, std::span<const std::byte> bytes, VkBufferUsageFlags usage)
     {
-        Buffer staging(device, bytes.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        staging.write(bytes);
+        return uploadBuffer(device, batch, bytes, usage, bytes.size());
+    }
 
-        Buffer result(
-            device, bytes.size(), usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    Buffer uploadBuffer(const Device& device, Batch& batch, std::span<const std::byte> bytes, VkBufferUsageFlags usage,
+        VkDeviceSize size)
+    {
+        assert(bytes.size() <= size);
+
+        Buffer result(device, size, usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
         const VkCommandBuffer commands = batch.getCommands();
-        const VkBufferCopy region{ .size = bytes.size() };
-        vkCmdCopyBuffer(commands, staging.getHandle(), result.getHandle(), 1, &region);
+
+        // Disjoint from the copy below, so the two transfer writes need nothing between them.
+        if (bytes.size() < size)
+            vkCmdFillBuffer(commands, result.getHandle(), bytes.size(), size - bytes.size(), 0);
+
+        if (!bytes.empty())
+        {
+            Buffer staging(device, bytes.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            staging.write(bytes);
+
+            const VkBufferCopy region{ .size = bytes.size() };
+            vkCmdCopyBuffer(commands, staging.getHandle(), result.getHandle(), 1, &region);
+            batch.keep(std::move(staging));
+        }
 
         // **What makes an upload self-contained.** Batched, the next thing recorded may be an
         // acceleration structure built out of exactly these bytes, and without this it would read
@@ -170,8 +187,6 @@ namespace Rtx
             .pBufferMemoryBarriers = &copied,
         };
         vkCmdPipelineBarrier2(commands, &dependency);
-
-        batch.keep(std::move(staging));
 
         return result;
     }

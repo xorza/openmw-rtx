@@ -119,6 +119,14 @@ namespace Rtx
     /// beside it.
     Buffer uploadBuffer(const Device& device, Batch& batch, std::span<const std::byte> bytes, VkBufferUsageFlags usage);
 
+    /// The same into a buffer of `size` bytes rather than of the data's, with the tail zeroed.
+    ///
+    /// For a block, which is made at its full size and filled as far as the scene reaches into it: a
+    /// block cut to what is in it would have to be made again the moment anything more arrived, and
+    /// a tail holding whatever was last in that memory is a picture that depends on it.
+    Buffer uploadBuffer(const Device& device, Batch& batch, std::span<const std::byte> bytes, VkBufferUsageFlags usage,
+        VkDeviceSize size);
+
     template <class T>
     Buffer uploadBuffer(const Device& device, Batch& batch, std::span<const T> data, VkBufferUsageFlags usage)
     {

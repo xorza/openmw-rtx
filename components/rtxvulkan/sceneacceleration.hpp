@@ -6,8 +6,12 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/instancerecord.hpp>
+#include <osg/Vec3f>
 
+#include <components/rtx/instancerecord.hpp>
+#include <components/rtx/shaders/scene.h>
+
+#include "blockedbuffer.hpp"
 #include "buffer.hpp"
 #include "hostbuffer.hpp"
 
@@ -69,12 +73,15 @@ namespace Rtx
 
         VkAccelerationStructureKHR getTopLevel() const { return mTopLevel; }
 
-        /// The index buffer the structures were built from.
+        /// Where the index blocks are, as a shader reads them.
         ///
         /// A shader needs the same indices at a hit, to find which three vertices it landed between.
         /// They are here rather than in `SceneBuffers` because the build had to have them first, and
         /// uploading a cell's worth of them twice is a megabyte for nothing.
-        VkBuffer getIndices() const { return mIndices.getHandle(); }
+        ///
+        /// **A table of addresses and not the data**, because the indices are a list of blocks: what
+        /// a shader binds is where the blocks are, and it resolves `block[id / INDEX_BLOCK]` itself.
+        VkBuffer getIndexBlocks() const { return mIndexBlocks.getHandle(); }
         std::uint32_t getInstanceCount() const { return mInstanceCount; }
 
         /// How many of those instances traversal has to stop and ask about.
@@ -88,6 +95,9 @@ namespace Rtx
         VkDeviceSize getStructureBytes() const { return mBottomLevelBytes + mTopLevelBytes; }
 
     private:
+        /// Fills the geometry blocks from the scene and writes the table of the index blocks.
+        void uploadGeometry(Batch& batch, const SceneDesc& scene);
+
         void buildBottomLevel(Batch& batch, const SceneDesc& scene);
 
         /// Fills the refit build infos and sizes the scratch.
@@ -108,9 +118,17 @@ namespace Rtx
 
         /// Host-written, because a skinned body rewrites its own slice every frame and the build
         /// that reads it runs in the same submit — a host write before a submit needs no barrier.
-        HostBuffer mPositions;
+        ///
+        /// **Blocked, so a scene that grows keeps every address it has already handed out.** Nothing
+        /// reads these in a shader: a hit gets its vertices back out of the structure through
+        /// position fetch, so they are a build input and a write target and nothing else — which is
+        /// why there is no table of their addresses beside them.
+        BlockedBuffer<HostBuffer> mPositions{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
 
-        Buffer mIndices;
+        BlockedBuffer<Buffer> mIndices{ Shaders::INDEX_BLOCK, sizeof(std::uint32_t) };
+
+        /// Where those index blocks are, for the shader that resolves a global element id.
+        HostBuffer mIndexBlocks;
         Buffer mBottomLevelStorage;
         Buffer mTopLevelStorage;
 

@@ -275,8 +275,8 @@ namespace Rtx
         Batch setup(mPool);
 
         mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, scene, mRecordScratch);
-        mBuffers
-            = std::make_unique<SceneBuffers>(mDevice, setup, scene, mRecordScratch, mAcceleration->getIndices(), sea);
+        mBuffers = std::make_unique<SceneBuffers>(
+            mDevice, setup, scene, mRecordScratch, mAcceleration->getIndexBlocks(), sea);
         mTextures = std::make_unique<TextureArray>(mDevice, setup, textures);
         mBuiltMeshes = scene.getMeshRevision();
 
@@ -324,7 +324,7 @@ namespace Rtx
             makeInstanceRecords(scene, mRecordScratch);
             mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, scene, mRecordScratch);
             mBuffers = std::make_unique<SceneBuffers>(
-                mDevice, setup, scene, mRecordScratch, mAcceleration->getIndices(), sea);
+                mDevice, setup, scene, mRecordScratch, mAcceleration->getIndexBlocks(), sea);
             mBuiltMeshes = scene.getMeshRevision();
             mTimed = false;
             setup.flush();
@@ -707,7 +707,7 @@ namespace Rtx
 
         held.mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, desc, mRecordScratch);
         held.mBuffers = std::make_unique<SceneBuffers>(
-            mDevice, setup, desc, mRecordScratch, held.mAcceleration->getIndices(), SeaState{});
+            mDevice, setup, desc, mRecordScratch, held.mAcceleration->getIndexBlocks(), SeaState{});
         held.mTextures = std::make_unique<TextureArray>(mDevice, setup, textures);
 
         // A doll can be the first thing this renderer ever builds — a race preview stands in front

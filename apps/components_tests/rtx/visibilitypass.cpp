@@ -1176,6 +1176,115 @@ namespace Rtx
             EXPECT_EQ(again, plain);
         }
 
+        /// A mesh in the second block of the shared buffers is shaded out of the second block.
+        ///
+        /// **Nothing the game loads reaches this.** Balmora is 165,536 vertices and 589,869 indices
+        /// against blocks of 262,144 and 1,048,576, so every scene this fork has ever rendered lives
+        /// in block zero and `id / VERTEX_BLOCK` has never been anything but zero. Blocking exists
+        /// for what happens when it is not, and the only thing that can say whether that works is a
+        /// scene built to cross the boundary.
+        ///
+        /// The filler is one degenerate triangle carrying a whole block of vertices, and it is never
+        /// instanced — so the two scenes hand the tracer the same instance, the same material and
+        /// the same texture, and differ in nothing but where the wall's vertices sit. The allocator
+        /// will not let a run straddle a block, so a mesh that does not fit the tail starts the next
+        /// one.
+        TEST_F(RtxVisibilityTest, aMeshInTheSecondBlockIsShadedOutOfTheSecondBlock)
+        {
+            constexpr std::uint32_t size = 64;
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            // **Lit, and lit from the side.** An unlit wall is the same black whatever its normals
+            // and its texture came to, which is a test that cannot fail. The sun crosses the face
+            // rather than facing it, so the tilt below is the whole of what decides each pixel.
+            camera.mSunDirection = osg::Vec3f(1.0f, 0.2f, 0.0f);
+            camera.mSunIrradiance = osg::Vec3f(3.0f, 3.0f, 3.0f);
+
+            // **Four different texels, so a texture coordinate read out of the wrong block shows.**
+            // A flat texture gives the same pixel whatever the coordinates came to, and this test
+            // would then pass with the coordinate table unread.
+            constexpr std::array<std::uint8_t, 16> corners{
+                255,
+                0,
+                0,
+                255, //
+                0,
+                255,
+                0,
+                255, //
+                0,
+                0,
+                255,
+                255, //
+                255,
+                255,
+                0,
+                255,
+            };
+            constexpr MipLevel one{ 0, 2, 2 };
+            const TextureData painted{
+                .mFormat = TextureFormat::Rgba8Unorm,
+                .mWidth = 2,
+                .mHeight = 2,
+                .mBytes = std::as_bytes(std::span(corners)),
+                .mLevels = std::span(&one, 1),
+            };
+
+            // **Tilted away from the face they sit on, for the same reason.** A shading normal equal
+            // to the geometric one is a normal the shader can lose without the picture moving: it
+            // falls back to the geometry whenever what it read is degenerate, which is exactly what
+            // an unwritten block holds.
+            const std::array<osg::Vec3f, 4> quadNormals{
+                osg::Vec3f(-0.6f, -0.8f, 0.0f),
+                osg::Vec3f(0.6f, -0.8f, 0.0f),
+                osg::Vec3f(0.6f, -0.8f, 0.0f),
+                osg::Vec3f(-0.6f, -0.8f, 0.0f),
+            };
+
+            const auto addWall = [&](SceneDesc& scene) {
+                const Index mesh = scene.addMesh(sWallQuad, quadNormals, sQuadUv, sQuadIndices);
+                const Index material = scene.addMaterial(
+                    Material{ .mDiffuse = scene.addTexture(VFS::Path::NormalizedView("corners.dds")) });
+                scene.addInstance(
+                    MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = material });
+                return mesh;
+            };
+
+            SceneDesc single;
+            const Index alone = addWall(single);
+            ASSERT_EQ(single.getMeshes()[alone].mVertexOffset, 0u);
+
+            // **One filler that fills both blocks**, because the vertex and index tables are blocked
+            // at different sizes and a mesh pushed past one is not thereby past the other.
+            SceneDesc crossed;
+            const std::vector<osg::Vec3f> fillerVertices(SceneDesc::sVertexBlock, osg::Vec3f(0.0f, 0.0f, 0.0f));
+
+            // The largest whole number of triangles a block holds, so what is left of it is one
+            // index and the wall's six cannot fit.
+            std::vector<std::uint32_t> fillerIndices(SceneDesc::sIndexBlock / 3 * 3);
+            for (std::size_t at = 0; at < fillerIndices.size(); ++at)
+                fillerIndices[at] = static_cast<std::uint32_t>(at % 3);
+
+            crossed.addMesh(fillerVertices, {}, {}, fillerIndices);
+            const Index beyond = addWall(crossed);
+
+            // Hand-computed: the filler is a whole vertex block, so the wall starts the next one;
+            // and 1,048,575 of 1,048,576 indices leaves a tail of one, which six will not fit into.
+            // Asserted, because a test whose subject quietly moved back into block zero would pass
+            // while testing nothing.
+            ASSERT_EQ(crossed.getMeshes()[beyond].mVertexOffset, SceneDesc::sVertexBlock);
+            ASSERT_EQ(crossed.getMeshes()[beyond].mIndexOffset, SceneDesc::sIndexBlock);
+
+            std::vector<std::uint8_t> alonePixels;
+            std::vector<std::uint8_t> crossedPixels;
+            EXPECT_EQ(countHits(single, std::span(&painted, 1), camera, size, alonePixels), size * size);
+            EXPECT_EQ(countHits(crossed, std::span(&painted, 1), camera, size, crossedPixels), size * size);
+
+            EXPECT_EQ(crossedPixels, alonePixels)
+                << "the wall shaded differently once its vertices moved into the second block";
+        }
+
         /// The other half of de-lighting: the shader dividing the estimate back out.
         ///
         /// `ShadingMap`'s own tests say the estimate is right; this says the frame uses it. A map is
@@ -2983,7 +3092,7 @@ namespace Rtx
             makeInstanceRecords(scene, records);
             Batch setup(pool);
             const SceneAcceleration acceleration(device, setup, scene, records);
-            const SceneBuffers buffers(device, setup, scene, records, acceleration.getIndices());
+            const SceneBuffers buffers(device, setup, scene, records, acceleration.getIndexBlocks());
 
             const TextureArray textures(device, setup, {});
             const VisibilityPass pass(device, setup, Testing::getShaderDirectory(), textures.getLayout());
