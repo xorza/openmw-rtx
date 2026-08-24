@@ -26,6 +26,7 @@
 #include <components/esm3/loadmisc.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadprob.hpp>
+#include <components/esm3/loadregn.hpp>
 #include <components/esm3/loadrepa.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/loadweap.hpp>
@@ -150,6 +151,9 @@ namespace EsmLoader
         std::vector<ESM::Cell> mCells;
         std::vector<ESM::GameSetting> mGameSettings;
         std::vector<ESM::Land> mLands;
+
+        /// Sorted by id. What a cell names to say which weathers ever happen over it.
+        std::vector<ESM::Region> mRegions;
         std::vector<RefIdWithType> mRefIdTypes;
 
         /// Sorted by `LandTextureRef::getKey`.

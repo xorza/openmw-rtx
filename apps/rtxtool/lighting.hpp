@@ -36,9 +36,12 @@ namespace RtxTool
         /// leave them exactly where they were rather than replacing them with an outdoor noon.
         bool mOutdoors = false;
 
-        /// Which day the world stands on, counted from the one a new game begins. Only the moons
-        /// read it.
+        /// When the world stands, on Morrowind's own count of days from the one a new game begins
+        /// and a twenty-four hour clock. **Only the moons read these** — where the sun is and what
+        /// the air is doing were settled into `mDaylight` and `mFog` when the hour was chosen, and a
+        /// moon cannot be, because its phase needs a date the sun never asked for.
         int mDay = 0;
+        float mHour = 12.0f;
 
         /// Which weather the sky is under, as the shader's `WEATHER_*` number it.
         ///

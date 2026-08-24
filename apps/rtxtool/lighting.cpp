@@ -1,6 +1,7 @@
 #include "lighting.hpp"
 
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxbridge/moonbuilder.hpp>
 
 namespace RtxTool
 {
@@ -15,6 +16,7 @@ namespace RtxTool
         lighting.mDaylight = daylight;
         lighting.mFog = daylight.mFog;
         lighting.mDay = day;
+        lighting.mHour = hour;
 
         // The name reached `makeDaylight` intact, so it is one of the ten.
         lighting.mWeather = RtxBridge::weatherIndex(weather).value();
@@ -47,5 +49,12 @@ namespace RtxTool
         // ashstorm at the player; every caller here has already put its camera in `mOrigin`, so the
         // same rule reaches the same answer for whoever is looking.
         constants.mStormDirection = RtxBridge::stormDirection(lighting.mWeather, constants.mOrigin);
+
+        // **Left where an aggregate zeroes them for a room**, which is an alpha of nothing and so a
+        // disc the sky skips: an interior has no moons over it, and `relight` will not put any there.
+        if (lighting.mOutdoors)
+            for (const RtxBridge::Moon moon : { RtxBridge::Moon::Masser, RtxBridge::Moon::Secunda })
+                constants.mMoons[static_cast<std::size_t>(moon)]
+                    = RtxBridge::describeMoon(RtxBridge::makeMoon(moon, lighting.mDay, lighting.mHour));
     }
 }

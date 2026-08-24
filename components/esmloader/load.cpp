@@ -11,6 +11,7 @@
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/esm3/loadltex.hpp>
+#include <components/esm3/loadregn.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/files/collections.hpp>
 #include <components/files/conversion.hpp>
@@ -160,6 +161,7 @@ namespace EsmLoader
             CellRecords mCells;
             Records<ESM::GameSetting> mGameSettings;
             Records<ESM::Land> mLands;
+            Records<ESM::Region> mRegions;
             std::vector<LandTextureRecord> mLandTextures;
             ShallowModels mModels;
         };
@@ -201,6 +203,10 @@ namespace EsmLoader
                 case ESM::REC_LAND:
                     if (query.mLoadLands)
                         return loadRecord(reader, content.mLands);
+                    break;
+                case ESM::REC_REGN:
+                    if (query.mLoadRegions)
+                        return loadRecord(reader, content.mRegions);
                     break;
                 case ESM::REC_LTEX:
                     if (query.mLoadLandTextures)
@@ -362,6 +368,8 @@ namespace EsmLoader
             loaded << ' ' << content.mLands.size() << " lands,";
         if (query.mLoadLandTextures)
             loaded << ' ' << content.mLandTextures.size() << " land textures,";
+        if (query.mLoadRegions)
+            loaded << ' ' << content.mRegions.size() << " regions,";
         reportModels(loaded, content.mModels, sModelIndices);
 
         Log(Debug::Info) << "Loaded" << loaded.str();
@@ -375,6 +383,8 @@ namespace EsmLoader
         if (query.mLoadLands)
             result.mLands = prepareRecords(content.mLands, GetKey{});
         result.mLandTextures = prepareLandTextures(content.mLandTextures);
+        if (query.mLoadRegions)
+            result.mRegions = prepareRecords(content.mRegions, GetKey{});
         prepareModels(content.mModels, result.mModels, sModelIndices);
 
         addRefIdsTypes(result);
@@ -389,6 +399,8 @@ namespace EsmLoader
             prepared << ' ' << result.mLands.size() << " lands,";
         if (query.mLoadLandTextures)
             prepared << ' ' << result.mLandTextures.size() << " land textures,";
+        if (query.mLoadRegions)
+            prepared << ' ' << result.mRegions.size() << " regions,";
         reportModels(prepared, result.mModels, sModelIndices);
 
         Log(Debug::Info) << "Merged across content files to" << prepared.str();

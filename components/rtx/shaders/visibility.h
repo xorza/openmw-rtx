@@ -52,6 +52,42 @@ namespace Rtx::Shaders
     RTX_CONST uint WEATHER_BLIZZARD = 9u;
     RTX_CONST uint WEATHER_COUNT = 10u;
 
+    /// One of the two moons, as a disc a ray that reached nothing can find.
+    ///
+    /// **A disc and not a body**, for the reason the sun is: nothing puts a sphere in an
+    /// acceleration structure, so a moon is a direction with a size and a face painted across it.
+    /// What that buys is the same thing the sun's disc buys — water traces a reflection ray and
+    /// finds the moon in it for nothing, and there is one place a moon's size lives.
+    struct MoonDisc
+    {
+        /// Unit vector toward the moon, and the two axes its face is painted along. The face turns
+        /// against the horizon as the moon crosses, which is what a tidally locked moon does and
+        /// what a billboard does not.
+        vec3 mDirection;
+        vec3 mRight;
+        vec3 mUp;
+
+        /// What a fully lit face sends back, linear.
+        vec3 mColour;
+
+        /// Half the angle the disc subtends. Masser's is nine and a half degrees, which is
+        /// thirty-five times the sun.
+        float mAngularRadius;
+
+        /// How far round its cycle: zero is full and pi is new.
+        ///
+        /// **The share that is lit comes from the game and the direction it faces comes from the
+        /// sky.** Morrowind advances a phase on its own three-day clock, which owes nothing to where
+        /// its sun actually is — so the terminator is carved at the angle the game names and then
+        /// turned so the lit limb points at the sun, which is the only orientation that does not
+        /// read as a mistake.
+        float mPhaseAngle;
+
+        /// What the game fades the moon by near the horizon and at the ends of its arc. Zero is a
+        /// moon that is not there, and the whole disc is skipped for it.
+        float mAlpha;
+    };
+
     /// The camera, as a ray generator.
     ///
     /// `mRight` and `mUp` are already scaled by the half-extents of the image plane at unit distance,
@@ -217,6 +253,10 @@ namespace Rtx::Shaders
         float mWindSpeed;
         vec3 mStormDirection;
 
+        /// Masser and Secunda, in that order. An interface trace and an interior leave both at an
+        /// alpha of nothing, which costs the sky one compare each.
+        MoonDisc mMoons[2];
+
         /// How much of each texture's painted-in lighting to divide back out, from zero to one.
         ///
         /// **Morrowind's textures were lit before they were saved**, and a ray tracer lights them
@@ -261,7 +301,8 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
-    static_assert(sizeof(VisibilityConstants) == 264, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(MoonDisc) == 60, "MoonDisc must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 384, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

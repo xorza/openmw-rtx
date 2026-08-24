@@ -6,6 +6,7 @@
 #include <string>
 
 #include <components/esm3/loadligh.hpp>
+#include <components/esm3/loadregn.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
@@ -182,6 +183,25 @@ namespace RtxBridge
             return std::nullopt;
 
         return static_cast<std::uint32_t>(found - sWeathers.begin());
+    }
+
+    std::uint32_t nextRegionWeather(const ESM::Region* region, std::uint32_t weather, bool forward)
+    {
+        const std::uint32_t count = static_cast<std::uint32_t>(sWeathers.size());
+        const std::uint32_t step = forward ? 1u : count - 1u;
+
+        // Round once and no further: a region with nothing to offer hands back a step of the plain
+        // order rather than spinning, which is what a record of all zeroes would otherwise do.
+        std::uint32_t at = (weather + step) % count;
+        for (std::uint32_t tried = 0; tried < count; ++tried)
+        {
+            if (region == nullptr || region->mData.mProbabilities[at] > 0)
+                return at;
+
+            at = (at + step) % count;
+        }
+
+        return (weather + step) % count;
     }
 
     std::string_view weatherName(std::uint32_t weather)

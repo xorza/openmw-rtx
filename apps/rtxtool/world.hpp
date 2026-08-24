@@ -55,6 +55,7 @@ namespace ESM
     struct Light;
     struct Cell;
     struct NPC;
+    struct Region;
 }
 
 namespace RtxTool
@@ -78,6 +79,12 @@ namespace RtxTool
         /// Finds a cell the way Morrowind addresses one: a pair of integers is an exterior, anything
         /// else is an interior's name. Null when there is no such cell.
         const ESM::Cell* findCell(std::string_view spec) const;
+
+        /// The region a cell names, or null where it names none or names one nothing defines.
+        ///
+        /// **What decides which weathers a place ever sees.** Interiors mostly name nothing, and the
+        /// caller reads that as "no opinion" rather than "no weather".
+        const ESM::Region* findRegion(const ESM::RefId& id) const;
 
         /// One object a cell places.
         struct Object

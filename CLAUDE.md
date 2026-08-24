@@ -159,6 +159,14 @@ because it compiled.
 renderer headlessly in about a second and prints a summary line — hit fraction, camera, frame time —
 so a change is checkable without a screenshot ever being looked at.
 
+**Do not bench, and do not report frame times, until the renderer draws everything the game has.**
+That is *Feature-complete first, then fast* taken to its conclusion: a suite run against a frame that
+is about to grow a sky, weather and groundcover measures a frame nobody will ever see, and the number
+it produces has to be taken again anyway. Land the feature, check it with `shot`, and move on — the
+figure a landing feature costs gets measured in M12, in one pass, against the finished frame. The
+exception stands and is the only one: a cost so large it stops the work, which is a judgement to say
+out loud rather than a licence to go measuring.
+
 `openmw-rtxtool view` opens a window, which is for the things only a window shows: how something
 moves, how it holds up while you fly through it, whether an artefact is a still or a shimmer. It
 takes `--frames N` so it can also be run by something that cannot click — which is how the window

@@ -29,6 +29,8 @@ namespace RtxTool
         // one of its own.
         setSeconds(actors.mSeconds);
 
+        mRegion = cell.mRegion;
+
         // Absent for an interior, and that is what `moveTo` reads as "this never streams".
         if (cell.isExterior())
             mStanding = CellSquare{ .mX = cell.getGridX(), .mY = cell.getGridY() };
@@ -101,6 +103,8 @@ namespace RtxTool
         const ESM::Cell* cell = mWorld->findCell(cellAt(square));
         if (cell == nullptr)
             return {};
+
+        mRegion = cell->mRegion;
 
         // **The actors come out first.** The new cells are walked into whatever the scene holds, so
         // a snapshot retaken with everyone still in it would place a second copy of them on the very

@@ -10,6 +10,7 @@
 
 #include <osg/Group>
 
+#include <components/esm/refid.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 
@@ -90,6 +91,12 @@ namespace RtxTool
         /// Mutable for whoever hands it to a backend, which consumes the arrivals it holds.
         Rtx::SceneDesc& getScene() { return mScene; }
         const CellLighting& getLighting() const { return mLighting; }
+
+        /// The region the camera's own cell names, or an empty id where it names none.
+        ///
+        /// **Followed across crossings**, because it is what decides which weathers are on offer and
+        /// a run that flies from the Bitter Coast to the Ashlands leaves one region for another.
+        const ESM::RefId& getRegion() const { return mRegion; }
 
         /// Moves the sky to another moment, without reading the region again.
         ///
@@ -193,6 +200,7 @@ namespace RtxTool
         /// Which square the camera stood in when the region was last brought in. Absent for an
         /// interior, which is the same test as "this never streams".
         std::optional<CellSquare> mStanding;
+        ESM::RefId mRegion;
 
         /// Where the world's clock stands, in seconds. One clock for the whole staged world: an
         /// actor's idle and the flipbook on the brazier beside them are the same second of it.

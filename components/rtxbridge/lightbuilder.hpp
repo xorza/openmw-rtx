@@ -13,6 +13,7 @@
 namespace ESM
 {
     struct Light;
+    struct Region;
 }
 
 namespace RtxBridge
@@ -93,6 +94,17 @@ namespace RtxBridge
     /// The name that index spells, for whoever has to hand one back to `makeDaylight`. Empty for
     /// an index past the ten.
     std::string_view weatherName(std::uint32_t weather);
+
+    /// The weather one step either side of this one, skipping any the region never gets.
+    ///
+    /// **A region does not see all ten.** A `REGN` record carries ten chances that add to a hundred,
+    /// in the order `WEATHER_*` names them, and a zero is a weather that never happens there: the
+    /// ash wastes never snow, Solstheim never has an ashstorm, and offering either is offering a sky
+    /// the game would not produce.
+    ///
+    /// A null region — an interior, or a cell whose record names none — offers all ten, and so does
+    /// a region whose chances are all zero, since the alternative is a step that goes nowhere.
+    std::uint32_t nextRegionWeather(const ESM::Region* region, std::uint32_t weather, bool forward);
 
     /// How hard the wind blows under a named weather, as the content files record it.
     ///

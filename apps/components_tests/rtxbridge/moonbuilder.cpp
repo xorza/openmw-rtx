@@ -11,11 +11,14 @@ namespace RtxBridge
     {
         /// Morrowind's own `[Moons]`, as the ini ships it.
         ///
-        /// **Vanilla's own numbers, and that is what makes the order not matter.**
+        /// **Morrowind's own numbers, so this stands up with no installation present.**
+        ///
         /// `Fallback::Map::init` keeps the first value it is given for a key, and a test elsewhere in
-        /// this binary opens the real installation and plants Morrowind's — so whichever runs first
-        /// wins. Every figure below is the one the shipped ini carries, which leaves the two sources
-        /// agreeing and the expectations here true either way.
+        /// this binary opens the real installation — so whichever ran first is what these tests see.
+        /// Every value below is the ini's, and every one of them matches the default OpenMW ships
+        /// **except the two sizes**, where the ini says 94 and 40 against OpenMW's 55 and 20. That is
+        /// why nothing here asserts a size, and why everything that turns on the arc does: the
+        /// speeds, the increments and the fade angles agree between the two.
         void seed()
         {
             Fallback::Map::init({
@@ -53,25 +56,35 @@ namespace RtxBridge
         /// that hits the floor. 15 * 0.5217391 is 7.826087 degrees an hour.
         constexpr float sMasserPerHour = 15.0f * (180.0f / 23.0f / 15.0f);
 
-        /// A disc nineteen degrees across, which is thirty-five times the real moon.
+        /// A moon is as wide as the renderer the game already has draws it.
         ///
-        /// `Moons_Masser_Size` of 94 is scaled by 450/125 onto a quad of half-extent 0.5 a thousand
-        /// units off, so the radius is `atan(0.5 * 450 * 94 / 125 / 1000)` — `atan(0.1692)`.
+        /// `Moons_<name>_Size` is scaled by 450/125 onto a quad of half-extent 0.5 a thousand units
+        /// off (`apps/openmw/mwrender/gl/skyutil.cpp:641`), so the radius is `atan(1.8 * size /
+        /// 1000)` — the closed form this checks the code against.
+        ///
+        /// **The size itself is not pinned here, and deliberately.** Morrowind's own ini says 94 and
+        /// 40, OpenMW ships defaults of 55 and 20, and which pair a run sees depends on the order
+        /// the suite planted its fallback keys. The conversion is what this owns; the number is
+        /// whatever the installation is configured with, and both give a moon far larger than the
+        /// real one — 9.6 degrees of radius against 5.7.
         TEST(RtxMoonBuilderTest, aMoonIsAsWideAsTheGameDrawsIt)
         {
             seed();
 
-            EXPECT_NEAR(moonAngularRadius(Moon::Masser), std::atan(0.1692f), 1e-6f);
-            EXPECT_NEAR(moonAngularRadius(Moon::Secunda), std::atan(0.072f), 1e-6f);
+            const float masser = Fallback::Map::getFloat("Moons_Masser_Size");
+            const float secunda = Fallback::Map::getFloat("Moons_Secunda_Size");
 
-            // 9.6 degrees against 4.12, which is the pair the two portraits were painted for — 512
-            // pixels against 256.
-            EXPECT_NEAR(osg::RadiansToDegrees(moonAngularRadius(Moon::Masser)), 9.6035f, 1e-3f);
-            EXPECT_NEAR(osg::RadiansToDegrees(moonAngularRadius(Moon::Secunda)), 4.118f, 1e-3f);
+            EXPECT_NEAR(moonAngularRadius(Moon::Masser), std::atan(1.8f * masser / 1000.0f), 1e-6f);
+            EXPECT_NEAR(moonAngularRadius(Moon::Secunda), std::atan(1.8f * secunda / 1000.0f), 1e-6f);
 
-            // The sizes are 2.35 apart and the angles less, because the arctangent is already
-            // bending: a moon that wide is past where the angle and the size stay proportional.
-            EXPECT_LT(moonAngularRadius(Moon::Masser) / moonAngularRadius(Moon::Secunda), 94.0f / 40.0f);
+            // **Enormous either way**, which is the sky Morrowind is remembered for: the smaller of
+            // the two pairs still puts Masser at twelve times the real moon's quarter degree.
+            EXPECT_GT(osg::RadiansToDegrees(moonAngularRadius(Moon::Masser)), 3.0f);
+
+            // Masser is the larger, and the angles are closer together than the sizes are: the
+            // arctangent is already bending at a disc this wide.
+            EXPECT_GT(moonAngularRadius(Moon::Masser), moonAngularRadius(Moon::Secunda));
+            EXPECT_LT(moonAngularRadius(Moon::Masser) / moonAngularRadius(Moon::Secunda), masser / secunda);
         }
 
         /// Masser rises at four in the afternoon on the day the game begins, and climbs from there.

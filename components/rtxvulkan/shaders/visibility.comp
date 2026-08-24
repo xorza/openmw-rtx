@@ -1331,6 +1331,72 @@ vec3 skyGlow(vec3 direction)
     return mix(camera.mSkyHorizon, camera.mSkyZenith, clamp(direction.z, 0.0, 1.0));
 }
 
+/// What a moon's lit face sends back along a ray, and how much of the sky it stands in front of.
+///
+/// **The disc is the sphere seen flat**, so the surface normal is recovered rather than stored: a
+/// point at `(x, y)` across the face, in units of its own radius, sits at a height of
+/// `sqrt(1 - x² - y²)` on a unit sphere. One square root buys a terminator that curves the way a
+/// real one does and moves continuously, where a selector between eight painted phases would step.
+///
+/// **The lit share is the game's and the direction it faces is the sky's.** Morrowind advances a
+/// phase on a three-day clock that owes nothing to where its sun actually is, so the share has to
+/// come from `mPhaseAngle`; but a crescent that did not point at the sun would read as a mistake, so
+/// the terminator is turned toward it. The two answers are independent and neither can be dropped.
+///
+/// @param covered how much of what lies behind the moon it hides, which is what puts the sun out.
+vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
+{
+    covered = 0.0;
+
+    // A moon that is down, or one the far side of the sky. **The hemisphere test is not optional**:
+    // the offsets below are the same for a direction and its opposite, so without it every ray
+    // pointing away from a moon would land in the middle of its face.
+    if (moon.mAlpha <= 0.0 || dot(direction, moon.mDirection) <= 0.0)
+        return vec3(0.0);
+
+    // Where across the face, in units of its radius. A direction at the limb stands `sin(radius)`
+    // off the centre line, so dividing by that puts the limb at one and makes the cone test a
+    // comparison this needed anyway.
+    const float limb = sin(moon.mAngularRadius);
+    const vec2 at = vec2(dot(direction, moon.mRight), dot(direction, moon.mUp)) / limb;
+    const float across = length(at);
+
+    // The pixel's own spread in the same units, so the silhouette is antialiased rather than
+    // stepped. A moon is degrees wide and a pixel a thousandth of one, so this is a hair either
+    // side of the limb and nothing anywhere else.
+    const float fade = max(blur / limb, 1.0e-5);
+    covered = (1.0 - smoothstep(1.0 - fade, 1.0 + fade, across)) * moon.mAlpha;
+    if (covered <= 0.0)
+        return vec3(0.0);
+
+    // Clamped into the disc before the height is taken, so the band the antialiasing covers reads
+    // the limb's own shading instead of the square root of a negative number.
+    const vec2 face = at / max(across, 1.0);
+    const vec3 normal = vec3(face, sqrt(max(1.0 - dot(face, face), 0.0)));
+
+    const vec2 toward = vec2(dot(-camera.mSunDirection, moon.mRight), dot(-camera.mSunDirection, moon.mUp));
+    const float turn = dot(toward, toward) > 0.0 ? atan(toward.y, toward.x) : 0.0;
+    const vec3 light
+        = vec3(sin(moon.mPhaseAngle) * cos(turn), sin(moon.mPhaseAngle) * sin(turn), cos(moon.mPhaseAngle));
+
+    const float incidence = max(dot(normal, light), 0.0);
+    const float emission = max(normal.z, 1.0e-4);
+
+    // **McEwen's lunar-Lambert, because a Lambertian sphere does not look like a moon.** A rough
+    // dusty surface scatters back the way the light came, which is why the real one reads as a flat
+    // disc rather than a lit ball, and Lommel-Seeliger's `mu0 / (mu0 + mu)` is that in one divide.
+    // Alone it puts the sunward limb at exactly twice the middle at every phase but full — its
+    // emission cosine goes to zero there while the incidence cosine does not — so it is blended
+    // toward a Lambertian term, whose cosine does vanish. The polynomial is McEwen's own, in the
+    // phase angle in degrees.
+    const float phase = degrees(moon.mPhaseAngle);
+    const float lunar
+        = clamp(1.0 - 0.019 * phase + 0.000242 * phase * phase - 1.46e-6 * phase * phase * phase, 0.0, 1.0);
+    const float shade = lunar * 2.0 * incidence / (incidence + emission) + (1.0 - lunar) * incidence;
+
+    return moon.mColour * shade * covered;
+}
+
 /// The radiance a ray that hit nothing comes back with, for a ray being looked along.
 ///
 /// **The sun is drawn here rather than answered by a lobe on each surface that could reflect it.**
@@ -1355,6 +1421,17 @@ vec3 skyRadiance(vec3 direction, float blur)
 {
     vec3 colour = skyGlow(direction);
 
+    // **Added to the sky rather than composited over it**, because what stands between the eye and
+    // a moon is air, and the dome's own glow is that air. What the moon *does* hide is anything
+    // further off than it is, which for now is the sun alone.
+    float hidden = 0.0;
+    for (uint moon = 0u; moon < 2u; ++moon)
+    {
+        float covered;
+        colour += moonFace(camera.mMoons[moon], direction, blur, covered);
+        hidden = max(hidden, covered);
+    }
+
     // The chord across the disc rather than the cosine of its angle. Both answer "is this direction
     // inside it", and at half a degree the cosine is 0.999988 — five of a float's seven digits spent
     // before the question is asked. `|a - b|` is `2 sin(theta / 2)` for unit vectors, which loses
@@ -1366,7 +1443,10 @@ vec3 skyRadiance(vec3 direction, float blur)
         // pretend otherwise, so it saturates until there is an exposure stage to bring it down.
         // That is a fact about the sun rather than a choice made here: a photograph exposed for a
         // landscape shows a white disc, and a glitter road really is a field of blown-out sparks.
-        colour += camera.mSunIrradiance / (0.5 * TAU * edge * edge);
+        // **Dimmed by whatever stands in front of it, which is the whole of an eclipse.** Masser is
+        // nineteen degrees across against the sun's half a degree, so on the rare crossing it is
+        // total, and it costs one multiply on the frames it is not.
+        colour += (1.0 - hidden) * camera.mSunIrradiance / (0.5 * TAU * edge * edge);
     }
 
     return colour;

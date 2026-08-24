@@ -2,6 +2,8 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/shaders/visibility.h>
+
 namespace RtxBridge
 {
     /// Which of the two moons over Vvardenfell.
@@ -44,6 +46,14 @@ namespace RtxBridge
         /// What the game fades the moon out by near the horizon and around the ends of its arc, from
         /// zero to one. Zero is a moon that is not there to be drawn.
         float mAlpha = 0.0f;
+
+        /// What a fully lit face sends back, linear.
+        ///
+        /// **The two portraits' own colours, scaled together rather than each to its own peak.**
+        /// Masser is red and Secunda is grey and the red one is two and a half times the darker —
+        /// which is a fact about the art, so normalising them apart would throw away the only reason
+        /// to draw Masser rather than a bright dot.
+        osg::Vec3f mColour;
     };
 
     /// Where a moon stands on `day` at `hour`, out of the `Moons_*` settings.
@@ -58,6 +68,13 @@ namespace RtxBridge
     ///        which the rise-hour formula anchors to 16 Last Seed.
     /// @param hour on a twenty-four hour clock.
     MoonPlacement makeMoon(Moon moon, int day, float hour);
+
+    /// A placement as the shader takes it.
+    ///
+    /// **One conversion and two callers**, which is the point it shares with `makeLight`: the game
+    /// reads its moons off the weather system it already runs and the harness works them out from
+    /// the clock, and a frame taken either way has to be under the same moons.
+    Rtx::Shaders::MoonDisc describeMoon(const MoonPlacement& placement);
 
     /// The angular radius `makeMoon` gives that moon, in radians.
     ///

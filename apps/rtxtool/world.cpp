@@ -104,6 +104,10 @@ namespace RtxTool
             query.mLoadGameSettings = true;
             query.mLoadLands = true;
             query.mLoadLandTextures = true;
+
+            // **A cell names its region and the region names which weathers ever happen there**,
+            // which is what the window's weather keys walk. Nothing else reads them.
+            query.mLoadRegions = true;
             // Everything that names a model, because everything a cell places has to be rendered:
             // a room missing its lamps and its bookshelves is not the room.
             query.mModels = EsmLoader::allModelRecords();
@@ -256,6 +260,18 @@ namespace RtxTool
     }
 
     World::~World() = default;
+
+    const ESM::Region* World::findRegion(const ESM::RefId& id) const
+    {
+        if (id.empty())
+            return nullptr;
+
+        for (const ESM::Region& region : mEsmData.mRegions)
+            if (region.mId == id)
+                return &region;
+
+        return nullptr;
+    }
 
     const ESM::Cell* World::findCell(std::string_view spec) const
     {

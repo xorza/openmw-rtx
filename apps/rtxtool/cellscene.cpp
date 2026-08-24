@@ -305,6 +305,7 @@ namespace RtxTool
                                .mDaylight = daylight,
                                .mOutdoors = true,
                                .mDay = day,
+                               .mHour = hour,
                                .mWeather = identity,
                                .mWindSpeed = RtxBridge::windSpeed(weather),
                                .mFog = daylight.mFog },

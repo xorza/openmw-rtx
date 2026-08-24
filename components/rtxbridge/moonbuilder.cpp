@@ -175,6 +175,22 @@ namespace RtxBridge
             }
         };
 
+        /// The mean opaque texel of `tx_masser_full.dds` and `tx_secunda_full.dds`, linear.
+        ///
+        /// Measured off the shipped portraits rather than chosen: one red, one grey, and the ratio
+        /// between them is what tells the two moons apart at a glance.
+        const osg::Vec3f sMasserFace(0.0332f, 0.0099f, 0.0123f);
+        const osg::Vec3f sSecundaFace(0.0440f, 0.0373f, 0.0295f);
+
+        /// What the brightest channel of a full Masser comes back with.
+        ///
+        /// **Pinned, and not by taste.** A real full moon is a 640,000th of the sun and there is no
+        /// scale this renderer could put both on, so the number has to be chosen — and what chooses
+        /// it is that a moon bright enough to blow all three channels is a white disc whatever
+        /// colour it was given. This lands Masser's red at the top of the range with its blue a
+        /// fifth of that, which is the most red a moon can be and still be a moon.
+        constexpr float sPeakRadiance = 0.18f;
+
         /// Half the angle a moon of this size subtends, out of the geometry the game's own renderer
         /// builds: `Moons_<name>_Size / 125 * 450` scales a quad of half-extent 0.5, a thousand
         /// units away.
@@ -183,6 +199,19 @@ namespace RtxBridge
             const float halfWidth = 0.5f * 450.0f * setting(moon, "Size") / 125.0f;
             return std::atan(halfWidth / 1000.0f);
         }
+    }
+
+    Rtx::Shaders::MoonDisc describeMoon(const MoonPlacement& placement)
+    {
+        return Rtx::Shaders::MoonDisc{
+            .mDirection = placement.mDirection,
+            .mRight = placement.mRight,
+            .mUp = placement.mUp,
+            .mColour = placement.mColour,
+            .mAngularRadius = placement.mAngularRadius,
+            .mPhaseAngle = placement.mPhaseAngle,
+            .mAlpha = placement.mAlpha,
+        };
     }
 
     float moonAngularRadius(Moon moon)
@@ -220,6 +249,9 @@ namespace RtxBridge
             .mPhaseAngle = static_cast<float>(model.phase(day, hour)) * 0.25f * osg::PIf,
 
             .mAlpha = model.earlyShadowAlpha(degrees) * model.hourlyAlpha(hour),
+
+            // One scale for both faces, taken off Masser's brightest channel — see `sPeakRadiance`.
+            .mColour = (moon == Moon::Masser ? sMasserFace : sSecundaFace) * (sPeakRadiance / sMasserFace.x()),
         };
 
         placement.mDirection.normalize();

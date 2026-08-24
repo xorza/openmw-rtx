@@ -103,7 +103,7 @@ namespace RtxTool
                      "  shift / alt    six times faster / seven times slower\n"
                      "  wheel          change the base speed\n"
                      "  , .            an hour back and forward,  shift for a day\n"
-                     "  [ ]            the weather before and after this one\n"
+                     "  [ ]            the weather either side of this one, of those the region gets\n"
                      "  P              print this spot as a views.cfg block\n"
                      "  F3             print this spot as a command line, for profiling\n"
                      "  F2             write a screenshot\n"
@@ -265,13 +265,14 @@ namespace RtxTool
                     {
                         const bool forward = event.key.keysym.sym == SDLK_RIGHTBRACKET;
 
-                        // The ten in the order the engine registers them, which is what `[` and `]`
-                        // walk: a name that is none of them cannot have got this far, since the
-                        // region would have thrown while it was being lit.
+                        // **Only the weathers the camera's own region ever gets.** Walking all ten
+                        // offers skies the game would never produce there — snow on the Bitter Coast,
+                        // an ashstorm on Solstheim — and a window is for looking at what the game
+                        // looks like. The name cannot be one of the unknown ones by now: the region
+                        // would have thrown while it was being lit.
                         const std::uint32_t at = RtxBridge::weatherIndex(request.mWeather).value();
-                        const std::uint32_t next
-                            = (at + (forward ? 1u : Rtx::Shaders::WEATHER_COUNT - 1u)) % Rtx::Shaders::WEATHER_COUNT;
-                        request.mWeather = RtxBridge::weatherName(next);
+                        request.mWeather = RtxBridge::weatherName(
+                            RtxBridge::nextRegionWeather(world.findRegion(staged.getRegion()), at, forward));
 
                         moveSky();
                     }

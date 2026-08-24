@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <components/esm3/loadligh.hpp>
+#include <components/esm3/loadregn.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxbridge/lightbuilder.hpp>
@@ -223,6 +224,43 @@ namespace RtxBridge
             // second here would hand `makeDaylight` a name that throws.
             EXPECT_FALSE(weatherIndex("clear").has_value());
             EXPECT_FALSE(weatherIndex("").has_value());
+        }
+
+        /// A region is offered only the weathers it ever gets.
+        ///
+        /// **A `REGN` record's ten chances add to a hundred and a zero means never**, in the order
+        /// `WEATHER_*` names them. The Bitter Coast has no ashstorms and the Ashlands no snow, so a
+        /// window that walked all ten would offer skies the game could not produce there.
+        TEST(RtxLightBuilderTest, steppingTheWeatherSkipsTheOnesTheRegionNeverGets)
+        {
+            // Clear, Cloudy and Rain only — the shape of a coastal region, with everything from
+            // Thunderstorm on left at nothing.
+            ESM::Region coast;
+            coast.mData.mProbabilities = { 50, 30, 0, 0, 20, 0, 0, 0, 0, 0 };
+
+            EXPECT_EQ(nextRegionWeather(&coast, Rtx::Shaders::WEATHER_CLEAR, true), Rtx::Shaders::WEATHER_CLOUDY);
+            EXPECT_EQ(nextRegionWeather(&coast, Rtx::Shaders::WEATHER_CLOUDY, true), Rtx::Shaders::WEATHER_RAIN)
+                << "Foggy and Overcast are skipped";
+            EXPECT_EQ(nextRegionWeather(&coast, Rtx::Shaders::WEATHER_RAIN, true), Rtx::Shaders::WEATHER_CLEAR)
+                << "and it wraps past the six it never gets";
+
+            // Backwards over the same three.
+            EXPECT_EQ(nextRegionWeather(&coast, Rtx::Shaders::WEATHER_CLEAR, false), Rtx::Shaders::WEATHER_RAIN);
+            EXPECT_EQ(nextRegionWeather(&coast, Rtx::Shaders::WEATHER_RAIN, false), Rtx::Shaders::WEATHER_CLOUDY);
+            EXPECT_EQ(nextRegionWeather(&coast, Rtx::Shaders::WEATHER_CLOUDY, false), Rtx::Shaders::WEATHER_CLEAR);
+
+            // **A step from a weather the region does not get still lands on one it does**, which is
+            // what a camera crossing out of one region into another leaves behind.
+            EXPECT_EQ(nextRegionWeather(&coast, Rtx::Shaders::WEATHER_BLIZZARD, true), Rtx::Shaders::WEATHER_CLEAR);
+
+            // No region — an interior, or a cell naming one nothing defines — offers all ten.
+            EXPECT_EQ(nextRegionWeather(nullptr, Rtx::Shaders::WEATHER_CLEAR, true), Rtx::Shaders::WEATHER_CLOUDY);
+            EXPECT_EQ(nextRegionWeather(nullptr, Rtx::Shaders::WEATHER_CLEAR, false), Rtx::Shaders::WEATHER_BLIZZARD);
+
+            // And a record that allows nothing at all steps once rather than spinning for ever.
+            ESM::Region nowhere;
+            nowhere.mData.mProbabilities = {};
+            EXPECT_EQ(nextRegionWeather(&nowhere, Rtx::Shaders::WEATHER_CLEAR, true), Rtx::Shaders::WEATHER_CLOUDY);
         }
 
         /// Ash and blight blow off Red Mountain at whoever is standing in them.
