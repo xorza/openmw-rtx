@@ -26,8 +26,24 @@ namespace MyGUIPlatform
 
     Picture::~Picture()
     {
-        if (mTexture != nullptr)
-            MyGUI::RenderManager::getInstance().destroyTexture(mTexture);
+        release();
+    }
+
+    void Picture::release()
+    {
+        if (mTexture == nullptr)
+            return;
+
+        // **Asked for rather than assumed, because a picture can outlive the interface.** The
+        // renderer holds one for the frozen frame and `Engine`'s destructor lets go of the window
+        // manager a dozen lines before the renderer — so by the time this runs there is no table to
+        // give a texture back to. MyGUI's own accessor asserts in that case, and its assert logs,
+        // and logging asks for the log manager that went with it, until the stack runs out.
+        if (MyGUI::RenderManager* manager = MyGUI::RenderManager::getInstancePtr())
+            manager->destroyTexture(mTexture);
+
+        mTexture = nullptr;
+        mRegion = nullptr;
     }
 
     Picture::Picture(Picture&& other) noexcept
@@ -46,8 +62,7 @@ namespace MyGUIPlatform
         if (this == &other)
             return *this;
 
-        if (mTexture != nullptr)
-            MyGUI::RenderManager::getInstance().destroyTexture(mTexture);
+        release();
 
         mRegionScratch = std::move(other.mRegionScratch);
         mName = std::move(other.mName);

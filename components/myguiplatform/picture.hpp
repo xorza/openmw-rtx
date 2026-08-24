@@ -65,6 +65,9 @@ namespace MyGUIPlatform
         MyGUI::ITexture* getTexture() const { return mTexture; }
 
     private:
+        /// Gives the texture back where there is still an interface to give it back to.
+        void release();
+
         /// The rectangle's rows, gathered out of the image so the backend gets them tightly packed.
         /// Kept because a picture written in part is written in part again and again.
         std::vector<std::uint8_t> mRegionScratch;

@@ -274,8 +274,15 @@ namespace RtxBridge
             // stops moving its bones, once three traversals have passed with nothing reaching it.
             // Under a renderer that culls, the cull is what keeps saying so. This walk is what
             // reaches an actor here, so this walk is what says so.
+            //
+            // **The frame and not this walk's own number.** What compares against it is the update
+            // traversal, whose number is the frame's; a pose number is a different sequence that
+            // only agrees with it by accident. It agreed on the ship at a new game, where the first
+            // walk happens on the first frame, and was twelve behind after a savegame load — where
+            // the loading screen's frames are updates with no walk between them — which froze every
+            // actor in the world and left them sliding about in the pose they arrived in.
             if (auto* skeleton = dynamic_cast<SceneUtil::Skeleton*>(group))
-                skeleton->markReached(getTraversalNumber());
+                skeleton->markReached(static_cast<unsigned int>(mFrame));
         }
         else if (auto* source = dynamic_cast<SceneUtil::LightSource*>(&node))
             mExtractor.addLight(*source, placed(), mFrame, *mStats);
