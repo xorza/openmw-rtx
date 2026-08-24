@@ -144,7 +144,7 @@ namespace RtxTool
             }
 
             RtxBridge::SceneUploader uploader;
-            uploader.hand(*renderer, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
+            uploader.hand(*renderer, Rtx::sWorld, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
 
             Framing framing = Framing::lookingFrom(staged.getPlacement());
             framing.mFieldOfView = request.mFieldOfView;

@@ -72,7 +72,7 @@ namespace RtxTool
         RtxBridge::SceneUploader uploader;
 
         const Clock::time_point buildStart = Clock::now();
-        uploader.hand(*renderer, scene, images, Rtx::SeaState{});
+        uploader.hand(*renderer, Rtx::sWorld, scene, images, Rtx::SeaState{});
         const double buildMs = millisecondsSince(buildStart);
         const Rtx::SceneStats& stats = renderer->getSceneStats();
 
@@ -124,7 +124,7 @@ namespace RtxTool
             // picture from no repeat at all. Handed rather than placed because a step walks the
             // whole graph and sweeps it, and either half of that can change what has to be built.
             if (frame > 0 && request.mMotion != nullptr && request.mMotion->step(frame))
-                uploader.hand(*renderer, scene, images, Rtx::SeaState{});
+                uploader.hand(*renderer, Rtx::sWorld, scene, images, Rtx::SeaState{});
 
             // A plain timing run holds it still, so that what the spread shows is the machine and
             // not two frames that happened to sample different geometry.

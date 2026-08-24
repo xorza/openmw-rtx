@@ -196,15 +196,13 @@ namespace MWRender::Rtx
         // sound for the world: this walk is the whole of what this picture is of.
         mExtractor->retire();
 
-        // **Described whole, because `setViewScene` builds the array from nothing** — and so held
-        // across redraws that changed no texture, because describing one reads every texel of it.
-        // The two lists are exactly what says whether the table this indexes is still the table it
-        // was described from.
-        if (mTextures == nullptr || !mScene->getArrivedTextures().empty() || !mScene->getFreedTextures().empty())
-            mTextures = std::make_unique<RtxBridge::SceneTextures>(*mScene, *resources->getImageManager());
-
-        mRenderer.setViewScene(mViewScene, *mScene, mTextures->getDescriptions());
-        mScene->clearArrivals();
+        // **The same three branches a cell gets**, which is what a slider drag is: the subject is
+        // rebuilt only when it is replaced outright, and a redraw that changed nothing but where the
+        // parts stand places what is already on the device. `SceneUploader` is what decides, and it
+        // is the same decision in the game and in the harness because it is written once.
+        //
+        // It consumes the arrivals, so nothing here clears them.
+        mUploader.hand(mRenderer, mViewScene, *mScene, *resources->getImageManager());
 
         mOptions.mScene = mViewScene;
     }

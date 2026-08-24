@@ -97,14 +97,14 @@ namespace RtxTool
 
             // The first ring has nothing to append to, so it builds whatever it found.
             const RtxBridge::SceneUpload first
-                = uploader.hand(renderer, scene, world->getImageManager(), Rtx::SeaState{});
+                = uploader.hand(renderer, Rtx::sWorld, scene, world->getImageManager(), Rtx::SeaState{});
             ASSERT_EQ(first.mKind, RtxBridge::SceneUpload::Kind::Rebuilt);
             ASSERT_GT(scene.getPlacedCount(), std::size_t{ 0 }) << "the ring placed no geometry";
 
             // Standing still is the ordinary frame: the walk finds everything where it was.
             extractor.extract(*root, osg::Matrixf::identity(), 0);
             extractor.advance();
-            EXPECT_EQ(uploader.hand(renderer, scene, world->getImageManager(), Rtx::SeaState{}).mKind,
+            EXPECT_EQ(uploader.hand(renderer, Rtx::sWorld, scene, world->getImageManager(), Rtx::SeaState{}).mKind,
                 RtxBridge::SceneUpload::Kind::Placed);
 
             const std::size_t meshesBefore = scene.getMeshes().size();
@@ -114,7 +114,7 @@ namespace RtxTool
                 << "a step of one cell east leaves the three columns behind it";
 
             const RtxBridge::SceneUpload crossed
-                = uploader.hand(renderer, scene, world->getImageManager(), Rtx::SeaState{});
+                = uploader.hand(renderer, Rtx::sWorld, scene, world->getImageManager(), Rtx::SeaState{});
             EXPECT_EQ(crossed.mKind, RtxBridge::SceneUpload::Kind::Extended);
             EXPECT_GT(scene.getMeshes().size(), meshesBefore) << "three cells arrived and brought no geometry";
 

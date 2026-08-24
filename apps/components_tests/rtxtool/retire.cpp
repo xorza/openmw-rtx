@@ -340,7 +340,7 @@ namespace RtxTool
             const auto draw = [&](const Rtx::SceneDesc& drawn, const CellLighting& lit,
                                   std::vector<std::uint8_t>& out) {
                 const RtxBridge::SceneTextures described(drawn, world->getImageManager());
-                renderer->setScene(drawn, described.getDescriptions(), Rtx::SeaState{});
+                renderer->setScene(Rtx::sWorld, drawn, described.getDescriptions(), Rtx::SeaState{});
 
                 Rtx::Shaders::VisibilityConstants camera = Rtx::makeCamera(placement.mOrigin, placement.mTarget, 60.0f,
                     extents.mRenderWidth, extents.mRenderHeight, 100000.0f);

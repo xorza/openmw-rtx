@@ -144,13 +144,12 @@ namespace Rtx
         }
     }
 
-    void SceneAcceleration::extend(Batch& batch, const SceneDesc& scene)
+    void SceneAcceleration::release(std::span<const Index> meshes)
     {
-        // **Departures first, so the room they give back is there for the arrivals.** The two lists
-        // are disjoint, so a slot handed out again appears only among the arrivals and is dealt with
-        // by `buildMeshes`, which destroys whatever the slot was holding.
-        for (const Index mesh : scene.getFreedMeshes())
+        for (const Index mesh : meshes)
         {
+            // A slot this never held: a scene can add a mesh and sweep it in the same window,
+            // before anything was handed over to build it.
             if (mesh >= mBottomLevel.size())
                 continue;
 
@@ -162,6 +161,14 @@ namespace Rtx
             mBottomLevelStorage.give(mBottomLevelRooms[mesh]);
             mBottomLevelRooms[mesh] = StructureRoom{};
         }
+    }
+
+    void SceneAcceleration::extend(Batch& batch, const SceneDesc& scene)
+    {
+        // **Departures first, so the room they give back is there for the arrivals.** The two lists
+        // are disjoint, so a slot handed out again appears only among the arrivals and is dealt with
+        // by `buildMeshes`, which destroys whatever the slot was holding.
+        release(scene.getFreedMeshes());
 
         writeGeometry(scene, scene.getArrivedMeshes());
         buildMeshes(batch, scene, scene.getArrivedMeshes());

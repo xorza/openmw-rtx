@@ -48,14 +48,6 @@ namespace Rtx
         }
     }
 
-    /// Everything a picture that is not of the world needs to be traced against.
-    struct ViewScene
-    {
-        std::unique_ptr<SceneAcceleration> mAcceleration;
-        std::unique_ptr<SceneBuffers> mBuffers;
-        std::unique_ptr<TextureArray> mTextures;
-    };
-
     VulkanRenderer::VulkanRenderer(const RendererOptions& options)
         : mInstance(instanceOptionsFor(options))
         , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()), deviceExtensionsFor(options))
@@ -247,23 +239,44 @@ namespace Rtx
         return mInstance.getValidationLog() != nullptr;
     }
 
-    void VulkanRenderer::setScene(const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea)
+    VulkanRenderer::ViewScene& VulkanRenderer::sceneAt(std::uint32_t slot)
     {
+        if (slot == sWorld)
+            return mWorld;
+
+        assert(slot < mViewScenes.size() && mViewScenes[slot] != nullptr && "a scene slot nothing holds");
+        return *mViewScenes[slot];
+    }
+
+    const VulkanRenderer::ViewScene& VulkanRenderer::sceneAt(std::uint32_t slot) const
+    {
+        return const_cast<VulkanRenderer*>(this)->sceneAt(slot);
+    }
+
+    void VulkanRenderer::setScene(
+        std::uint32_t slot, const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea)
+    {
+        ViewScene& held = sceneAt(slot);
+
         // Torn down before anything is built, so a second scene does not hold two of everything at
         // once — a cell's structures and textures are most of what this renderer occupies. The pass
         // is not among them; see below.
-        mTextures.reset();
-        mBuffers.reset();
-        mAcceleration.reset();
+        held.mTextures.reset();
+        held.mBuffers.reset();
+        held.mAcceleration.reset();
 
-        // A sum over one scene means nothing over the next, so it goes back with the scene rather
-        // than being carried empty into one it cannot describe. Neither does a motion vector, which
-        // would point at where something stood in a world that is no longer there.
-        mHistory.reset();
-        mPreviousCamera = Shaders::VisibilityConstants{};
+        if (slot == sWorld)
+        {
+            // A sum over one scene means nothing over the next, so it goes back with the scene
+            // rather than being carried empty into one it cannot describe. Neither does a motion
+            // vector, which would point at where something stood in a world that is no longer there.
+            mHistory.reset();
+            mPreviousCamera = Shaders::VisibilityConstants{};
 
-        // Whatever a previous frame's placement recorded belongs to a scene that no longer exists.
-        mTimed = false;
+            // Whatever a previous frame's placement recorded belongs to a scene that no longer
+            // exists.
+            mTimed = false;
+        }
 
         // Made here for the same reason a frame's are: both of the two below want them, and this is
         // the only place that knows both.
@@ -274,10 +287,10 @@ namespace Rtx
         // be its own round trip, and Balmora's are 367 of them.
         Batch setup(mPool);
 
-        mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, scene, mRecordScratch);
-        mBuffers = std::make_unique<SceneBuffers>(mDevice, setup, scene, mRecordScratch, sea);
-        mTextures = std::make_unique<TextureArray>(mDevice, setup, textures);
-        mBuiltMeshes = scene.getMeshRevision();
+        held.mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, scene, mRecordScratch);
+        held.mBuffers = std::make_unique<SceneBuffers>(mDevice, setup, scene, mRecordScratch, sea);
+        held.mTextures = std::make_unique<TextureArray>(mDevice, setup, textures);
+        held.mBuiltMeshes = scene.getMeshRevision();
 
         // **Built once and kept, because building one compiles the shader — half a second a time,
         // measured.** Nothing about the pass depends on the scene: it needs the device and the shape
@@ -286,29 +299,35 @@ namespace Rtx
         // descriptors get allocated and never what the layout says. Identically defined layouts are
         // compatible, so a set from a later array binds against the pipeline layout the first one
         // produced. `TextureArray`'s layout is where that invariant is kept.
+        //
+        // A doll can be the first thing this renderer ever builds — a race preview stands in front
+        // of a game that has no world yet — and the pass belongs to neither scene.
         if (mPass == nullptr)
-            mPass = std::make_unique<VisibilityPass>(mDevice, setup, mShaderDirectory, mTextures->getLayout());
+            mPass = std::make_unique<VisibilityPass>(mDevice, setup, mShaderDirectory, held.mTextures->getLayout());
 
         // By hand rather than left to the destructor, so a submit that fails throws out of here
         // instead of being logged on the way past.
         setup.flush();
 
-        mStats = SceneStats{
-            .mInstances = mAcceleration->getInstanceCount(),
-            .mCutoutInstances = mAcceleration->getCutoutInstanceCount(),
-            .mStructureBytes = mAcceleration->getStructureBytes(),
-            .mTableBytes = mBuffers->getBytes(),
-            .mTextureCount = mTextures->getCount(),
-            .mTextureBytes = mTextures->getBytes(),
-        };
+        if (slot == sWorld)
+            mStats = SceneStats{
+                .mInstances = held.mAcceleration->getInstanceCount(),
+                .mCutoutInstances = held.mAcceleration->getCutoutInstanceCount(),
+                .mStructureBytes = held.mAcceleration->getStructureBytes(),
+                .mTableBytes = held.mBuffers->getBytes(),
+                .mTextureCount = held.mTextures->getCount(),
+                .mTextureBytes = held.mTextures->getBytes(),
+            };
     }
 
-    void VulkanRenderer::extendScene(const SceneDesc& scene, std::span<const TextureData> arrived, const SeaState& sea)
+    void VulkanRenderer::extendScene(
+        std::uint32_t slot, const SceneDesc& scene, std::span<const TextureData> arrived, const SeaState& sea)
     {
-        assert(mAcceleration != nullptr && "extendScene before setScene");
+        ViewScene& held = sceneAt(slot);
+        assert(held.mAcceleration != nullptr && "extendScene before setScene");
 
         Batch setup(mPool);
-        mTextures->write(setup, arrived);
+        held.mTextures->write(setup, arrived);
 
         // **The meshes that arrived, and no others.** Everything already built stays where it is:
         // the geometry blocks are appended to rather than replaced, so every address a structure was
@@ -318,11 +337,11 @@ namespace Rtx
         // **The revision and not the count.** A slot a departing cell freed is taken over by the
         // next mesh that fits, so the table can hold different geometry at the same size — and a
         // guard on the size would send that here without noticing.
-        if (scene.getMeshRevision() != mBuiltMeshes)
+        if (scene.getMeshRevision() != held.mBuiltMeshes)
         {
-            mBuffers->extend(scene);
-            mAcceleration->extend(setup, scene);
-            mBuiltMeshes = scene.getMeshRevision();
+            held.mBuffers->extend(scene);
+            held.mAcceleration->extend(setup, scene);
+            held.mBuiltMeshes = scene.getMeshRevision();
         }
 
         // **Flushed before the placement, not after it.** `placeScene` submits on its own and refits
@@ -332,61 +351,82 @@ namespace Rtx
 
         // Always, because the top level names every instance and an arrival changed the list. It is
         // rebuilt every frame regardless, so an arrival costs it nothing.
-        placeScene(scene, sea);
+        placeScene(slot, scene, sea);
 
         // **The history is kept.** Nothing was renumbered, so what the last frame resolved still
         // describes the same surfaces — and throwing it away is a visible flash every time an actor
         // walks into view with a texture nobody has worn yet.
-        mStats = SceneStats{
-            .mInstances = mAcceleration->getInstanceCount(),
-            .mCutoutInstances = mAcceleration->getCutoutInstanceCount(),
-            .mStructureBytes = mAcceleration->getStructureBytes(),
-            .mTableBytes = mBuffers->getBytes(),
-            .mTextureCount = mTextures->getCount(),
-            .mTextureBytes = mTextures->getBytes(),
-        };
+        if (slot == sWorld)
+            mStats = SceneStats{
+                .mInstances = held.mAcceleration->getInstanceCount(),
+                .mCutoutInstances = held.mAcceleration->getCutoutInstanceCount(),
+                .mStructureBytes = held.mAcceleration->getStructureBytes(),
+                .mTableBytes = held.mBuffers->getBytes(),
+                .mTextureCount = held.mTextures->getCount(),
+                .mTextureBytes = held.mTextures->getBytes(),
+            };
     }
 
-    std::uint32_t VulkanRenderer::getTextureCount() const
+    std::uint32_t VulkanRenderer::getTextureCount(std::uint32_t slot) const
     {
-        return mTextures == nullptr ? 0 : mTextures->getCount();
+        const ViewScene& held = sceneAt(slot);
+        return held.mTextures == nullptr ? 0 : held.mTextures->getCount();
     }
 
-    void VulkanRenderer::dropTextures(std::span<const std::uint32_t> slots)
+    void VulkanRenderer::dropTextures(std::uint32_t slot, std::span<const std::uint32_t> textures)
     {
+        ViewScene& held = sceneAt(slot);
+
         // Before there is an array at all, which is a scene that swept before it was ever handed
         // over. There is nothing holding the images to destroy.
-        if (mTextures == nullptr)
+        if (held.mTextures == nullptr)
             return;
 
-        mTextures->drop(slots);
+        held.mTextures->drop(textures);
     }
 
-    void VulkanRenderer::placeScene(const SceneDesc& scene, const SeaState& sea)
+    void VulkanRenderer::placeScene(std::uint32_t slot, const SceneDesc& scene, const SeaState& sea)
     {
-        assert(mAcceleration != nullptr && "placeScene before setScene");
+        ViewScene& held = sceneAt(slot);
+        assert(held.mAcceleration != nullptr && "placeScene before setScene");
 
         // **The frame's report starts here and not at the trace.** Placing the world is two submits
         // and, on a nine-by-nine exterior, most of the frame; a report that began at `renderFrame`
         // would leave the largest part of it out.
-        mTimer.beginFrame();
-        mTimed = true;
+        //
+        // A picture inside the interface is drawn between frames and is no part of one, so it is
+        // neither timed nor allowed to open the frame's report.
+        const bool ofTheWorld = slot == sWorld;
+        if (ofTheWorld)
+        {
+            mTimer.beginFrame();
+            mTimed = true;
+        }
+
+        // **What the scene let go of, given back here.** Walking away from a ring frees its meshes
+        // and nothing arrives to take them over until the walk reaches the far side of the next one,
+        // so a frame that only places is the one that must not hold their structures. Already done
+        // where `extendScene` came through, and asking twice costs two comparisons a slot.
+        held.mAcceleration->release(scene.getFreedMeshes());
 
         // **Once, and both halves read it.** The rows carry a matrix inverse apiece and a
         // nine-by-nine exterior is fifty thousand of them; the acceleration structure and the
         // instance table were each building the whole set for themselves.
         makeInstanceRecords(scene, mRecordScratch);
 
-        mAcceleration->place(mPool, scene, mRecordScratch, &mTimer);
+        held.mAcceleration->place(mPool, scene, mRecordScratch, ofTheWorld ? &mTimer : nullptr);
 
         // **Only what a moving world changed**, which is the instance rows, the lights and the
         // vertices of anything skinned. Rebuilding all of it was measured at twenty to twenty-seven
         // milliseconds on a nine-by-nine region and was the largest single cost in the frame.
-        mBuffers->place(scene, mRecordScratch, sea);
+        held.mBuffers->place(scene, mRecordScratch, sea);
 
-        mStats.mInstances = mAcceleration->getInstanceCount();
-        mStats.mCutoutInstances = mAcceleration->getCutoutInstanceCount();
-        mStats.mTableBytes = mBuffers->getBytes();
+        if (!ofTheWorld)
+            return;
+
+        mStats.mInstances = held.mAcceleration->getInstanceCount();
+        mStats.mCutoutInstances = held.mAcceleration->getCutoutInstanceCount();
+        mStats.mTableBytes = held.mBuffers->getBytes();
 
         // A frame whose instances moved is not one the last frame reprojects onto.
         mHistory.reset();
@@ -531,11 +571,11 @@ namespace Rtx
         sampled.mPreviousUp = mPreviousCamera.mUp;
 
         const VisibilityInputs inputs{
-            .mScene = mAcceleration->getTopLevel(),
-            .mBuffers = mBuffers.get(),
-            .mIndexBlocks = mAcceleration->getIndexBlocks(),
-            .mTextures = mTextures->getSet(),
-            .mShading = mTextures->getShading(),
+            .mScene = mWorld.mAcceleration->getTopLevel(),
+            .mBuffers = mWorld.mBuffers.get(),
+            .mIndexBlocks = mWorld.mAcceleration->getIndexBlocks(),
+            .mTextures = mWorld.mTextures->getSet(),
+            .mShading = mWorld.mTextures->getShading(),
         };
 
         // Made by the first frame that averages, and that frame is the one that fills it.
@@ -686,34 +726,6 @@ namespace Rtx
         return static_cast<std::uint32_t>(mViewScenes.size() - 1);
     }
 
-    void VulkanRenderer::setViewScene(std::uint32_t scene, const SceneDesc& desc, std::span<const TextureData> textures)
-    {
-        assert(scene < mViewScenes.size() && mViewScenes[scene] != nullptr && "a scene nothing holds");
-
-        ViewScene& held = *mViewScenes[scene];
-
-        // Torn down before anything is built, for the reason `setScene` gives: holding two of
-        // everything at once is what a rebuild is trying not to cost.
-        held.mTextures.reset();
-        held.mBuffers.reset();
-        held.mAcceleration.reset();
-
-        makeInstanceRecords(desc, mRecordScratch);
-
-        Batch setup(mPool);
-
-        held.mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, desc, mRecordScratch);
-        held.mBuffers = std::make_unique<SceneBuffers>(mDevice, setup, desc, mRecordScratch, SeaState{});
-        held.mTextures = std::make_unique<TextureArray>(mDevice, setup, textures);
-
-        // A doll can be the first thing this renderer ever builds — a race preview stands in front
-        // of a game that has no world yet — and the pass belongs to neither scene.
-        if (mPass == nullptr)
-            mPass = std::make_unique<VisibilityPass>(mDevice, setup, mShaderDirectory, held.mTextures->getLayout());
-
-        setup.flush();
-    }
-
     void VulkanRenderer::dropViewScene(std::uint32_t scene)
     {
         assert(scene < mViewScenes.size() && mViewScenes[scene] != nullptr && "a scene given back twice");
@@ -749,7 +761,7 @@ namespace Rtx
         assert(camera.mWidth == options.mWidth && camera.mHeight == options.mHeight
             && "the camera has to be built for the part of the texture it fills");
 
-        const bool ofTheWorld = options.mScene == GuiTraceOptions::sWorld;
+        const bool ofTheWorld = options.mScene == sWorld;
         assert((ofTheWorld || (options.mScene < mViewScenes.size() && mViewScenes[options.mScene] != nullptr))
             && "a trace against a scene nothing holds");
 
@@ -763,9 +775,9 @@ namespace Rtx
         growViewTargets(options.mWidth, options.mHeight);
 
         const SceneAcceleration& acceleration
-            = ofTheWorld ? *mAcceleration : *mViewScenes[options.mScene]->mAcceleration;
-        const SceneBuffers* buffers = ofTheWorld ? mBuffers.get() : mViewScenes[options.mScene]->mBuffers.get();
-        const TextureArray& array = ofTheWorld ? *mTextures : *mViewScenes[options.mScene]->mTextures;
+            = ofTheWorld ? *mWorld.mAcceleration : *mViewScenes[options.mScene]->mAcceleration;
+        const SceneBuffers* buffers = ofTheWorld ? mWorld.mBuffers.get() : mViewScenes[options.mScene]->mBuffers.get();
+        const TextureArray& array = ofTheWorld ? *mWorld.mTextures : *mViewScenes[options.mScene]->mTextures;
 
         const VisibilityInputs inputs{
             .mScene = acceleration.getTopLevel(),

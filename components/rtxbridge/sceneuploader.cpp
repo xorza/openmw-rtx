@@ -13,26 +13,26 @@ namespace RtxBridge
     namespace
     {
         /// Hands over the texture slots the scene has given up, and says how many there were.
-        std::size_t dropFreed(Rtx::Renderer& renderer, const Rtx::SceneDesc& scene)
+        std::size_t dropFreed(Rtx::Renderer& renderer, std::uint32_t slot, const Rtx::SceneDesc& scene)
         {
             const std::span<const Rtx::Index> freed = scene.getFreedTextures();
             if (!freed.empty())
-                renderer.dropTextures(freed);
+                renderer.dropTextures(slot, freed);
 
             return freed.size();
         }
     }
 
     bool SceneUploader::recognises(
-        const Rtx::Renderer& renderer, const Rtx::SceneDesc& scene, std::uint32_t textures) const
+        const Rtx::Renderer& renderer, std::uint32_t slot, const Rtx::SceneDesc& scene, std::uint32_t textures) const
     {
-        return mRenderer == &renderer && mScene == &scene && mUploaded == textures;
+        return mRenderer == &renderer && mSlot == slot && mScene == &scene && mUploaded == textures;
     }
 
-    SceneUpload SceneUploader::hand(
-        Rtx::Renderer& renderer, Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::SeaState& sea)
+    SceneUpload SceneUploader::hand(Rtx::Renderer& renderer, std::uint32_t slot, Rtx::SceneDesc& scene,
+        Resource::ImageManager& images, const Rtx::SeaState& sea)
     {
-        const bool mine = recognises(renderer, scene, renderer.getTextureCount());
+        const bool mine = recognises(renderer, slot, scene, renderer.getTextureCount(slot));
 
         // Geometry the walk has not met before has no bottom-level structure and no uploaded
         // texture. **Which is a cell change and a load, not a frame** — a door opening moves
@@ -52,13 +52,14 @@ namespace RtxBridge
             // a ring frees its slots and nothing takes them over until the walk reaches the far side
             // of the next one.
             SceneUpload left;
-            left.mDropped = dropFreed(renderer, scene);
+            left.mDropped = dropFreed(renderer, slot, scene);
 
-            // Both lists are consumed here, so both are forgotten here. When the departures of
-            // `getFreedMeshes` grow a consumer it belongs beside the drop above, before this.
+            // **Placed before the lists are forgotten**, because placing is what consumes the meshes
+            // that went: their structures are destroyed and their storage given back there. Clearing
+            // first would hand the renderer an empty list and hold a departed ring's structures
+            // until something arrived to take the slots over.
+            renderer.placeScene(slot, scene, sea);
             scene.clearArrivals();
-
-            renderer.placeScene(scene, sea);
             return left;
         }
 
@@ -77,7 +78,7 @@ namespace RtxBridge
 
         if (reset)
         {
-            renderer.setScene(scene, textures.getDescriptions(), sea);
+            renderer.setScene(slot, scene, textures.getDescriptions(), sea);
             mReset = scene.getResetRevision();
             done.mKind = SceneUpload::Kind::Rebuilt;
         }
@@ -86,16 +87,17 @@ namespace RtxBridge
             // Order against the arrivals is free — `SceneDesc` keeps the two lists disjoint — and
             // first is where the memory is given back soonest. A reset needs none of this: the array
             // is made again from nothing and holds no image of what went.
-            done.mDropped = dropFreed(renderer, scene);
-            renderer.extendScene(scene, textures.getDescriptions(), sea);
+            done.mDropped = dropFreed(renderer, slot, scene);
+            renderer.extendScene(slot, scene, textures.getDescriptions(), sea);
             done.mKind = SceneUpload::Kind::Extended;
         }
 
         scene.clearArrivals();
 
         mRenderer = &renderer;
+        mSlot = slot;
         mScene = &scene;
-        mUploaded = renderer.getTextureCount();
+        mUploaded = renderer.getTextureCount(slot);
         mBuilt = scene.getStructureRevision();
         return done;
     }

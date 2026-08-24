@@ -9,7 +9,6 @@ a finished piece is only what the next one needs to know.
 
 | issue | root |
 |---|---|
-| a traced view rebuilds its whole scene per redraw | **A** |
 | the doll's scene names a texture with an empty path | **A** — probably expected now; wants a look |
 | distant terrain is invisible to the mirror | **B** |
 | `Inactive`/`SemiActive` skeletons refuse to move | **B** — closed, bar a test |
@@ -48,6 +47,12 @@ against blocks of 262,144 and 1,048,576, so `id / BLOCK` is zero in every scene 
 is what does: a filler mesh of one whole block of each pushes a lit, textured wall into block one, and
 the picture must match the same wall alone. Forcing any of the three block lookups to zero fails it.
 
+**And a picture inside the interface is one of these too.** `setViewScene` is gone: every call that
+names a scene takes a slot — `Rtx::sWorld` or one `addViewScene` handed out — so an inventory doll
+goes through `SceneUploader` exactly as a cell does and gets the same three branches. A race-creation
+slider drag re-walks the same subject every frame and adds nothing, so every redraw after the first
+is a placement rather than an acceleration structure and a texture array built from nothing.
+
 **And a cell arriving now appends.** `Rtx::StructureStorage` holds the bottom-level structures in a
 list of buffers with a `SpanAllocator` over each, so a released mesh gives its room back and the next
 that fits takes it; `extendScene` destroys `getFreedMeshes()`, writes and builds `getArrivedMeshes()`,
@@ -63,24 +68,17 @@ is added, so a handle to it copied once is a handle to a destroyed buffer the fi
 grows past a block. `VisibilityInputs` takes the index table fresh every frame; nothing may cache
 one. A still never finds this — only a route does.
 
-### A3. A view scene can only be replaced
-
-`TracedView` now re-walks incrementally — the identity maps own their keys, so a body part freed and
-replaced at the same address cannot be mistaken for its predecessor, and the texture descriptions are
-held across redraws that changed no texture. The mirror is incremental and **the upload is not**:
-`setViewScene` tears down the acceleration structures, the buffers and the texture array and makes
-them again, because a view scene has no `placeScene` or `extendScene` of its own.
-
-That is the doll issue in full. Give a view scene the same three branches the world's scene has; it is
-the same code and it wants A1 and A2 under it first.
+### The doll's empty texture path
 
 Freed texture slots in a doll's scene are now ordinary — a re-walk sweeps, and a swept slot is
 described as the stand-in without being counted — so the empty-path entry is most likely a description
 of that rather than of anything drawn wrong. Nobody has looked at a doll to say so.
 
-### What A buys, as numbers to take
+### What A has left
 
-- A race-creation slider drag: from a rebuild a frame to a placement a frame.
+The picture is unchanged on all sixteen views throughout, which `verify --against` says in sixteen
+seconds. What has not been looked at by hand is a race-creation slider drag in the window — the
+uploader is asserted to place rather than rebuild, but nobody has watched one.
 
 ## B. The mirror is still downstream of decisions a rasterizer made
 
@@ -242,19 +240,19 @@ step, and it is now the only thing in the way.
 **The append is in.** See root A. What is left of root A is the view scenes, which have no
 `extendScene` of their own.
 
-**1 — A3, view scenes get the same three branches.** Look at a race-creation slider drag in the
-window; that is what the frame time was.
+**Root A is done.** What is left of it is one entry in `ISSUES.md` that is probably a description of
+correct behaviour, and a window nobody has opened.
 
-**2 — C, the region write.** `RegionTexture`, both backends, `Picture::setRegion`, `GlobalMap` onto
+**1 — C, the region write.** `RegionTexture`, both backends, `Picture::setRegion`, `GlobalMap` onto
 `Picture`. The GUI texture tests plus walking across a cell boundary with the world map open.
 
-**3 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
+**2 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
 with `distant terrain` on and comparing a frame; verify the mirror by turning `distant terrain` on and
 taking a shot of an exterior with ground in it.
 
-**4 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
+**3 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
 
-**5 — I.** Ten minutes.
+**4 — I.** Ten minutes.
 
 ## What this does not touch
 

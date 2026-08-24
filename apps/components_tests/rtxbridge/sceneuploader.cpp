@@ -71,7 +71,7 @@ namespace RtxBridge
 
             // **First time through there is nothing to append to**, so two textures arriving is a
             // build of everything even though nothing was renumbered.
-            const SceneUpload built = uploader.hand(renderer, scene, images, Rtx::SeaState{});
+            const SceneUpload built = uploader.hand(renderer, Rtx::sWorld, scene, images, Rtx::SeaState{});
             EXPECT_EQ(built.mKind, SceneUpload::Kind::Rebuilt);
             EXPECT_EQ(built.mDescribed, std::size_t{ 2 });
             EXPECT_EQ(built.mUnreadable, 2u) << "a path that names nothing is described as the stand-in";
@@ -80,7 +80,7 @@ namespace RtxBridge
 
             // Nothing has changed, which is every ordinary frame: the transforms are rewritten and
             // not one texture is looked at again.
-            const SceneUpload still = uploader.hand(renderer, scene, images, Rtx::SeaState{});
+            const SceneUpload still = uploader.hand(renderer, Rtx::sWorld, scene, images, Rtx::SeaState{});
             EXPECT_EQ(still.mKind, SceneUpload::Kind::Placed);
             EXPECT_EQ(still.mDescribed, std::size_t{ 0 });
             EXPECT_EQ(renderer.mPlaced, 1u);
@@ -89,7 +89,7 @@ namespace RtxBridge
             // A ring arrives: a third model, so the tables grew and nothing moved.
             const Model third = addModel(scene, VFS::Path::NormalizedView("textures/three.dds"));
 
-            const SceneUpload grown = uploader.hand(renderer, scene, images, Rtx::SeaState{});
+            const SceneUpload grown = uploader.hand(renderer, Rtx::sWorld, scene, images, Rtx::SeaState{});
             EXPECT_EQ(grown.mKind, SceneUpload::Kind::Extended);
             EXPECT_EQ(grown.mDescribed, std::size_t{ 1 }) << "only the arrival is described, not the table";
             EXPECT_EQ(renderer.mExtended, 1u);
@@ -106,7 +106,7 @@ namespace RtxBridge
             const Rtx::Index keptMaterials[2] = { second.mMaterial, third.mMaterial };
             ASSERT_TRUE(scene.release(keptMeshes, keptMaterials, {}));
 
-            const SceneUpload left = uploader.hand(renderer, scene, images, Rtx::SeaState{});
+            const SceneUpload left = uploader.hand(renderer, Rtx::sWorld, scene, images, Rtx::SeaState{});
             EXPECT_EQ(left.mKind, SceneUpload::Kind::Placed) << "a cell leaving cost a build";
             EXPECT_EQ(renderer.mRebuilt, 1u);
             EXPECT_EQ(renderer.mExtended, 1u);
@@ -122,7 +122,7 @@ namespace RtxBridge
             // Named once and then forgotten, which is what the arrivals being cleared on this branch
             // buys: a slot dropped every frame until something took it over would be a drop per
             // frame for as long as the region was gone.
-            EXPECT_EQ(uploader.hand(renderer, scene, images, Rtx::SeaState{}).mDropped, std::size_t{ 0 });
+            EXPECT_EQ(uploader.hand(renderer, Rtx::sWorld, scene, images, Rtx::SeaState{}).mDropped, std::size_t{ 0 });
             EXPECT_EQ(renderer.mDropped.size(), std::size_t{ 1 });
 
             // **And replacing the scene outright is what a rebuild is for.** Travel, not a boundary:
@@ -130,7 +130,7 @@ namespace RtxBridge
             scene.clear();
             const Model fourth = addModel(scene, VFS::Path::NormalizedView("textures/four.dds"));
 
-            const SceneUpload travelled = uploader.hand(renderer, scene, images, Rtx::SeaState{});
+            const SceneUpload travelled = uploader.hand(renderer, Rtx::sWorld, scene, images, Rtx::SeaState{});
             EXPECT_EQ(travelled.mKind, SceneUpload::Kind::Rebuilt);
             EXPECT_EQ(travelled.mDescribed, std::size_t{ 1 });
             EXPECT_EQ(renderer.mRebuilt, 2u);
@@ -139,7 +139,8 @@ namespace RtxBridge
 
             // And back to the ordinary frame, so the rebuild above left the uploader agreeing with
             // the scene rather than one revision behind it.
-            EXPECT_EQ(uploader.hand(renderer, scene, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Placed);
+            EXPECT_EQ(
+                uploader.hand(renderer, Rtx::sWorld, scene, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Placed);
 
             // **A crossing, which is the two at once**: one ring arrives as another goes, on one
             // frame. Both lists are applied and neither costs a rebuild.
@@ -150,7 +151,7 @@ namespace RtxBridge
             const Rtx::Index stillWorn[1] = { fifth.mMaterial };
             ASSERT_TRUE(scene.release(stillHere, stillWorn, {}));
 
-            const SceneUpload crossed = uploader.hand(renderer, scene, images, Rtx::SeaState{});
+            const SceneUpload crossed = uploader.hand(renderer, Rtx::sWorld, scene, images, Rtx::SeaState{});
             EXPECT_EQ(crossed.mKind, SceneUpload::Kind::Extended);
             EXPECT_EQ(crossed.mDescribed, std::size_t{ 1 }) << "the arrival, and not the one that went";
             EXPECT_EQ(crossed.mDropped, std::size_t{ 1 });
@@ -170,12 +171,13 @@ namespace RtxBridge
 
             SceneUploader built;
             Testing::CountingRenderer first;
-            EXPECT_EQ(built.hand(first, scene, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Rebuilt);
-            EXPECT_EQ(built.hand(first, scene, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Placed);
+            EXPECT_EQ(built.hand(first, Rtx::sWorld, scene, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Rebuilt);
+            EXPECT_EQ(built.hand(first, Rtx::sWorld, scene, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Placed);
 
             SceneUploader fresh;
             Testing::CountingRenderer second;
-            EXPECT_EQ(fresh.hand(second, scene, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Rebuilt);
+            EXPECT_EQ(
+                fresh.hand(second, Rtx::sWorld, scene, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Rebuilt);
         }
 
         /// A renderer carrying somebody else's textures is built from nothing, not appended to.
@@ -199,21 +201,78 @@ namespace RtxBridge
             addModel(crowded, VFS::Path::NormalizedView("textures/three.dds"));
 
             SceneUploader place;
-            ASSERT_EQ(place.hand(renderer, crowded, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Rebuilt);
+            ASSERT_EQ(
+                place.hand(renderer, Rtx::sWorld, crowded, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Rebuilt);
             ASSERT_EQ(renderer.mTextures, 3u);
 
             Rtx::SceneDesc sparse;
             addModel(sparse, VFS::Path::NormalizedView("textures/four.dds"));
 
             SceneUploader next;
-            const SceneUpload second = next.hand(renderer, sparse, images, Rtx::SeaState{});
+            const SceneUpload second = next.hand(renderer, Rtx::sWorld, sparse, images, Rtx::SeaState{});
             EXPECT_EQ(second.mKind, SceneUpload::Kind::Rebuilt);
             EXPECT_EQ(second.mDescribed, std::size_t{ 1 }) << "the descriptions began past the end of the table";
             EXPECT_EQ(renderer.mTextures, 1u);
 
             // And the same uploader carries on with the scene it did build, so the guard costs the
             // ordinary frame nothing.
-            EXPECT_EQ(next.hand(renderer, sparse, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Placed);
+            EXPECT_EQ(
+                next.hand(renderer, Rtx::sWorld, sparse, images, Rtx::SeaState{}).mKind, SceneUpload::Kind::Placed);
         }
+        /// A picture inside the interface is handed over the same way a cell is, and neither
+        /// disturbs the other.
+        ///
+        /// **This is what a race-creation slider drag costs.** The doll is walked again on every
+        /// frame of the drag — the placements thrown away and refilled — and nothing about it
+        /// arrives or goes, so the second hand and every one after it is a placement. Rebuilding it
+        /// each time is an acceleration structure and a texture array made from nothing sixty times
+        /// a second, which is what `setViewScene` used to be.
+        TEST(RtxSceneUploaderTest, aPictureIsHandedOverTheSameWayACellIsAndNeitherDisturbsTheOther)
+        {
+            VFS::Manager vfs;
+            Resource::ImageManager images(&vfs, 0);
+            Testing::CountingRenderer renderer;
+
+            Rtx::SceneDesc world;
+            addModel(world, VFS::Path::NormalizedView("textures/ground.dds"));
+            addModel(world, VFS::Path::NormalizedView("textures/wall.dds"));
+
+            Rtx::SceneDesc doll;
+            const Model body = addModel(doll, VFS::Path::NormalizedView("textures/skin.dds"));
+
+            const std::uint32_t slot = renderer.addViewScene();
+
+            SceneUploader ofTheWorld;
+            SceneUploader ofTheDoll;
+
+            ASSERT_EQ(ofTheWorld.hand(renderer, Rtx::sWorld, world, images).mKind, SceneUpload::Kind::Rebuilt);
+            ASSERT_EQ(ofTheDoll.hand(renderer, slot, doll, images).mKind, SceneUpload::Kind::Rebuilt);
+
+            // Each table is its own length, and building the doll did not append onto the world's.
+            EXPECT_EQ(renderer.getTextureCount(Rtx::sWorld), 2u);
+            EXPECT_EQ(renderer.getTextureCount(slot), 1u);
+            EXPECT_FALSE(renderer.mAppendedToWrongEnd);
+
+            // The drag: the placements are thrown away and the same body walked back in, which is
+            // what `SceneExtractor` does when its identity maps recognise every drawable — it places
+            // and adds nothing.
+            for (int frame = 0; frame < 3; ++frame)
+            {
+                doll.clearPlacement();
+                doll.addInstance(Rtx::MeshInstance{ .mMesh = body.mMesh, .mMaterial = body.mMaterial });
+
+                EXPECT_EQ(ofTheDoll.hand(renderer, slot, doll, images).mKind, SceneUpload::Kind::Placed)
+                    << "redraw " << frame << " rebuilt a subject that did not change";
+            }
+
+            // And the world is still the world's: the doll's frames did not make its next one a
+            // rebuild.
+            world.clearPlacement();
+            world.addInstance(Rtx::MeshInstance{ .mMesh = 0, .mMaterial = 0 });
+            EXPECT_EQ(ofTheWorld.hand(renderer, Rtx::sWorld, world, images).mKind, SceneUpload::Kind::Placed);
+            EXPECT_EQ(renderer.getTextureCount(Rtx::sWorld), 2u);
+            EXPECT_EQ(renderer.getTextureCount(slot), 1u);
+        }
+
     }
 }

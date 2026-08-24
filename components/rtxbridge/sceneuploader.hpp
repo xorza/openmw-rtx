@@ -3,6 +3,9 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <components/rtx/renderer.hpp>
+#include <components/rtx/wavespectrum.hpp>
+
 namespace Resource
 {
     class ImageManager;
@@ -10,9 +13,7 @@ namespace Resource
 
 namespace Rtx
 {
-    class Renderer;
     class SceneDesc;
-    struct SeaState;
 }
 
 namespace RtxBridge
@@ -67,8 +68,12 @@ namespace RtxBridge
         /// what the three branches differ over is what to do *besides* placing.
         /// Takes the scene by mutable reference because it consumes its arrivals: what a walk added
         /// is uploaded here and forgotten here, so a caller cannot upload it twice or lose it.
-        SceneUpload hand(
-            Rtx::Renderer& renderer, Rtx::SceneDesc& scene, Resource::ImageManager& images, const Rtx::SeaState& sea);
+        /// @param slot which of the renderer's scenes: `Rtx::sWorld`, or one `addViewScene` gave
+        ///        out. **A doll takes the same three branches a cell does** — a race-creation slider
+        ///        drag redraws the same subject sixty times a second, and rebuilding it each time is
+        ///        what this exists to stop.
+        SceneUpload hand(Rtx::Renderer& renderer, std::uint32_t slot, Rtx::SceneDesc& scene,
+            Resource::ImageManager& images, const Rtx::SeaState& sea = Rtx::SeaState{});
 
     private:
         /// **Whether the pair in front of it is the pair it last built, and appending is only
@@ -83,10 +88,14 @@ namespace RtxBridge
         /// Compared and never dereferenced. The count is what carries the argument — an array
         /// somebody else left behind is not one to append to whatever its address was — and the two
         /// pointers are what stop a coincidence in it from mattering.
-        bool recognises(const Rtx::Renderer& renderer, const Rtx::SceneDesc& scene, std::uint32_t textures) const;
+        bool recognises(const Rtx::Renderer& renderer, std::uint32_t slot, const Rtx::SceneDesc& scene,
+            std::uint32_t textures) const;
 
         const Rtx::Renderer* mRenderer = nullptr;
         const Rtx::SceneDesc* mScene = nullptr;
+
+        /// Which of that renderer's scenes, so an uploader cannot append a doll onto the world.
+        std::uint32_t mSlot = Rtx::sWorld;
 
         /// How long the renderer's texture array was when this last left it.
         std::uint32_t mUploaded = 0;

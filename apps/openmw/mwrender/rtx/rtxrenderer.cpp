@@ -559,7 +559,8 @@ namespace MWRender::Rtx
 
         // Placed, appended or rebuilt — the decision, and the describing a rebuild needs, are the
         // harness's too and are written once (`RtxBridge::SceneUploader`).
-        const RtxBridge::SceneUpload handed = mUploader.hand(*mRenderer, mScene, frame.mImages, ::Rtx::SeaState{});
+        const RtxBridge::SceneUpload handed
+            = mUploader.hand(*mRenderer, ::Rtx::sWorld, mScene, frame.mImages, ::Rtx::SeaState{});
 
         mHasScene = true;
 

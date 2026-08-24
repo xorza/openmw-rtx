@@ -216,7 +216,7 @@ namespace Rtx
             scene.addInstance(MeshInstance{
                 .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(sWall, {}, {}, sQuadIndices) });
 
-            mRenderer->setScene(scene, {}, SeaState{});
+            mRenderer->setScene(Rtx::sWorld, scene, {}, SeaState{});
 
             const Shaders::VisibilityConstants camera
                 = makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, sExtent, sExtent, 1000000.0f);
@@ -281,7 +281,7 @@ namespace Rtx
         {
             constexpr std::uint32_t extent = 16;
 
-            mRenderer->setScene(makeSheet(25.0f), {}, SeaState{});
+            mRenderer->setScene(Rtx::sWorld, makeSheet(25.0f), {}, SeaState{});
 
             const std::uint32_t texture = mRenderer->addGuiTexture(extent, extent);
             mHeld.push_back(texture);
@@ -331,7 +331,7 @@ namespace Rtx
             constexpr std::uint32_t extent = 16;
             constexpr std::uint32_t filled = 8;
 
-            mRenderer->setScene(makeSheet(25.0f), {}, SeaState{});
+            mRenderer->setScene(Rtx::sWorld, makeSheet(25.0f), {}, SeaState{});
 
             const std::uint32_t texture = mRenderer->addGuiTexture(extent, extent);
             mHeld.push_back(texture);
@@ -364,10 +364,10 @@ namespace Rtx
             constexpr std::uint32_t extent = 16;
 
             // Two hundred across is the whole box, so the world's sheet covers every pixel.
-            mRenderer->setScene(makeSheet(100.0f), {}, SeaState{});
+            mRenderer->setScene(Rtx::sWorld, makeSheet(100.0f), {}, SeaState{});
 
             const std::uint32_t doll = mRenderer->addViewScene();
-            mRenderer->setViewScene(doll, makeSheet(25.0f), {});
+            mRenderer->setScene(doll, makeSheet(25.0f), {}, SeaState{});
 
             const std::uint32_t texture = mRenderer->addGuiTexture(extent, extent);
             mHeld.push_back(texture);
@@ -387,11 +387,11 @@ namespace Rtx
                 return across;
             };
 
-            EXPECT_EQ(covered(GuiTraceOptions::sWorld), extent) << "the world fills the box";
+            EXPECT_EQ(covered(sWorld), extent) << "the world fills the box";
             EXPECT_EQ(covered(doll), 4u) << "and the doll is a quarter of it";
 
             // The world is still the world afterwards: building one scene did not replace the other.
-            EXPECT_EQ(covered(GuiTraceOptions::sWorld), extent) << "the world, still there";
+            EXPECT_EQ(covered(sWorld), extent) << "the world, still there";
 
             mRenderer->dropViewScene(doll);
         }
@@ -402,7 +402,7 @@ namespace Rtx
         {
             constexpr std::uint32_t extent = 16;
 
-            mRenderer->setScene(makeSheet(25.0f), {}, SeaState{});
+            mRenderer->setScene(Rtx::sWorld, makeSheet(25.0f), {}, SeaState{});
 
             const std::uint32_t texture = mRenderer->addGuiTexture(extent, extent);
             mHeld.push_back(texture);

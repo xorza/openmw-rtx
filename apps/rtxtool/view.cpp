@@ -157,8 +157,9 @@ namespace RtxTool
         /// brings models the region did not have, which is a growth and not a renumbering, so the
         /// structures already built stay built and the textures already uploaded stay uploaded —
         /// a few milliseconds instead of the fifth of a second a full rebuild of the array costs.
-        const auto hand
-            = [&] { return uploader.hand(*renderer, staged.getScene(), world.getImageManager(), Rtx::SeaState{}); };
+        const auto hand = [&] {
+            return uploader.hand(*renderer, Rtx::sWorld, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
+        };
 
         if (staged.getActorCount() > 0 || staged.getPropCount() > 0)
         {

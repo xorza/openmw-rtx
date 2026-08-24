@@ -81,6 +81,13 @@ namespace Rtx
         /// picks the change up for nothing.
         void extend(Batch& batch, const SceneDesc& scene);
 
+        /// Destroys the structures of `meshes` and gives their storage back.
+        ///
+        /// **Idempotent**, because both the frame that places and the one that appends run it: a
+        /// slot whose structure has already gone holds no handle and no room, and asking again is a
+        /// pair of comparisons.
+        void release(std::span<const Index> meshes);
+
         VkAccelerationStructureKHR getTopLevel() const { return mTopLevel; }
 
         /// Where the index blocks are, as a shader reads them.

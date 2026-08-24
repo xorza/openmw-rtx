@@ -66,7 +66,7 @@ namespace Rtx
             renderer->resize(sSize, sSize);
 
             const SceneDesc scene = wall();
-            renderer->setScene(scene, {}, SeaState{});
+            renderer->setScene(Rtx::sWorld, scene, {}, SeaState{});
 
             const Shaders::VisibilityConstants camera
                 = makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, sSize, sSize, 10000.0f);
@@ -99,7 +99,7 @@ namespace Rtx
             // point of carrying them in the same report is that they are the same frame's cost.
             EXPECT_FALSE(reports(drawn.mGpu, "tlas")) << "nothing was placed, so nothing was built";
 
-            renderer->placeScene(scene, SeaState{});
+            renderer->placeScene(Rtx::sWorld, scene, SeaState{});
             const FrameResult placed = renderer->renderFrame(camera, FrameOptions{});
 
             EXPECT_TRUE(reports(placed.mGpu, "tlas")) << "the top level was rebuilt and went unmeasured";

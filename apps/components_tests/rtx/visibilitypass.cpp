@@ -449,7 +449,7 @@ namespace Rtx
                 bool jitter = false, std::optional<float> exposure = 1.0f)
             {
                 mRenderer->resize(size, size);
-                mRenderer->setScene(scene, textures, sea);
+                mRenderer->setScene(Rtx::sWorld, scene, textures, sea);
 
                 // One frame per sample, where this used to record several dispatches into a single
                 // submit. The renderer fences between frames, which orders them, and its own history
@@ -751,7 +751,7 @@ namespace Rtx
                     = makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
 
                 mRenderer->resize(size, size);
-                mRenderer->setScene(scene, {}, SeaState{});
+                mRenderer->setScene(Rtx::sWorld, scene, {}, SeaState{});
 
                 for (const std::uint32_t frame : { 1u, 2u })
                 {
@@ -962,7 +962,7 @@ namespace Rtx
                 scene.clearPlacement();
                 scene.updateMesh(wall, wallAt(away), {});
                 scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = wall });
-                mRenderer->placeScene(scene, SeaState{});
+                mRenderer->placeScene(Rtx::sWorld, scene, SeaState{});
             };
 
             deformTo(400.0f);
@@ -1068,14 +1068,14 @@ namespace Rtx
 
             mRenderer->resize(size, size);
             const TextureData first = describe(redTexel, 0);
-            mRenderer->setScene(scene, std::span(&first, 1), SeaState{});
+            mRenderer->setScene(Rtx::sWorld, scene, std::span(&first, 1), SeaState{});
             mRenderer->renderFrame(camera, FrameOptions{ .mExposure = 1.0f });
 
             std::vector<std::uint8_t> shown;
             mRenderer->readPixels(shown);
             ASSERT_EQ(shown[centre], 255) << "the wall did not start out red";
             ASSERT_EQ(shown[centre + 2], 0);
-            ASSERT_EQ(mRenderer->getTextureCount(), 1u);
+            ASSERT_EQ(mRenderer->getTextureCount(Rtx::sWorld), 1u);
 
             // A second texture and a second material, on a wall nearer the eye. The mesh table is
             // untouched, so this is the append path and not a rebuild.
@@ -1087,8 +1087,8 @@ namespace Rtx
             // **The slot the scene gave it**, which is what an arrival now carries: a texture is
             // written where it belongs rather than after whatever is already there.
             const TextureData second = describe(blueTexel, scene.getMaterials()[blue].mDiffuse);
-            mRenderer->extendScene(scene, std::span(&second, 1), SeaState{});
-            EXPECT_EQ(mRenderer->getTextureCount(), 2u);
+            mRenderer->extendScene(Rtx::sWorld, scene, std::span(&second, 1), SeaState{});
+            EXPECT_EQ(mRenderer->getTextureCount(Rtx::sWorld), 2u);
 
             mRenderer->renderFrame(camera, FrameOptions{ .mExposure = 1.0f });
             mRenderer->readPixels(shown);
@@ -1102,7 +1102,7 @@ namespace Rtx
             // And the first texture is still where it was: move the near wall out of the way and the
             // one behind it has to be red again, sampled from a descriptor nothing rewrote.
             scene.dropInstance(1);
-            mRenderer->placeScene(scene, SeaState{});
+            mRenderer->placeScene(Rtx::sWorld, scene, SeaState{});
             mRenderer->renderFrame(camera, FrameOptions{ .mExposure = 1.0f });
             mRenderer->readPixels(shown);
 

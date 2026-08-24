@@ -11,6 +11,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/renderer.hpp>
+#include <components/rtxbridge/sceneuploader.hpp>
 
 #include "../offscreenview.hpp"
 
@@ -32,7 +33,6 @@ namespace Rtx
 namespace RtxBridge
 {
     class SceneExtractor;
-    class SceneTextures;
 }
 
 namespace MWRender::Rtx
@@ -95,16 +95,14 @@ namespace MWRender::Rtx
         std::unique_ptr<::Rtx::SceneDesc> mScene;
         std::unique_ptr<RtxBridge::SceneExtractor> mExtractor;
 
-        /// What the scene's textures were described as, kept while the table stands.
+        /// Which of the renderer's scenes this picture is traced against, and what decides how it
+        /// is handed over.
         ///
-        /// **Because `setViewScene` wants the whole table and describing it is not free.** Estimating
-        /// a texture's shading reads every one of its texels, and a redraw where no texture arrived
-        /// or went is describing the same images to the same answer. Rebuilt when the table changes
-        /// and held otherwise, which is what a slider that only moves a bone costs.
-        ///
-        /// The descriptions carry spans into this, so it outlives the call that reads them.
-        std::unique_ptr<RtxBridge::SceneTextures> mTextures;
+        /// **A doll takes the same three branches a cell does.** A race-creation slider drag redraws
+        /// the same subject every frame, and the uploader is what makes that a placement rather than
+        /// an acceleration structure and a texture array built from nothing sixty times a second.
         std::uint32_t mViewScene = 0;
+        RtxBridge::SceneUploader mUploader;
 
         /// The traversal number the subject was last posed at. What an intersection test has to be
         /// told, because a skinned mesh keeps two poses and picks between them by frame.

@@ -20,6 +20,12 @@ struct SDL_Window;
 
 namespace Rtx
 {
+    /// The world's scene, rather than one a picture inside the interface brought with it.
+    ///
+    /// Every call that names a scene takes one of these — `sWorld`, or a slot `addViewScene` handed
+    /// out — so that the two go through the same code.
+    inline constexpr std::uint32_t sWorld = ~0u;
+
     class SceneDesc;
 
     /// Developer instrumentation. Nobody enables any of this in a run they care about the frame rate
@@ -129,9 +135,6 @@ namespace Rtx
         /// What the rest of the texture holds, red first. Transparent black for a picture the GUI
         /// composites over what is behind it, which is every caller there is so far.
         std::array<float, 4> mClear{};
-
-        /// The world, rather than a scene the picture brought with it.
-        static constexpr std::uint32_t sWorld = ~0u;
 
         /// What to trace against: a slot `addViewScene` gave out, or `sWorld` for the one the frame
         /// is drawn from. A map tile is a picture of the world; a doll is not.
@@ -313,7 +316,14 @@ namespace Rtx
         /// `textures` are described rather than loaded — the bridge decodes and the backend uploads,
         /// which is what keeps `openmw-rtx-bridge` free of a graphics API. They are indexed by the
         /// scene's texture index, so their order is the scene's, and they must outlive the call.
-        virtual void setScene(const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea) = 0;
+        ///
+        /// **`slot` says which scene**: `sWorld` for the one the frame is traced against, or a slot
+        /// `addViewScene` handed out for a picture inside the interface. The three calls below take
+        /// it too, so a doll gets the same decision a cell does — see `RtxBridge::SceneUploader`,
+        /// which is where that decision is made once for both.
+        virtual void setScene(
+            std::uint32_t slot, const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea)
+            = 0;
 
         /// The same scene with more in it: geometry and textures appended, nothing renumbered.
         ///
@@ -328,10 +338,12 @@ namespace Rtx
         ///
         /// Only for a scene whose tables **grew**. A `retain` that closed the gaps renumbers every
         /// index, and the answer to that is still `setScene`.
-        virtual void extendScene(const SceneDesc& scene, std::span<const TextureData> arrived, const SeaState& sea) = 0;
+        virtual void extendScene(
+            std::uint32_t slot, const SceneDesc& scene, std::span<const TextureData> arrived, const SeaState& sea)
+            = 0;
 
         /// How many textures the renderer holds, which is where `extendScene`'s `arrived` begins.
-        virtual std::uint32_t getTextureCount() const = 0;
+        virtual std::uint32_t getTextureCount(std::uint32_t slot) const = 0;
 
         /// Destroys the images of the texture slots a scene has given up.
         ///
@@ -346,7 +358,7 @@ namespace Rtx
         ///
         /// The order against `extendScene`'s arrivals is free: `SceneDesc` keeps the two lists
         /// disjoint, so no slot is ever in both.
-        virtual void dropTextures(std::span<const std::uint32_t> slots) = 0;
+        virtual void dropTextures(std::uint32_t slot, std::span<const std::uint32_t> textures) = 0;
 
         /// The same scene, with its instances and lights somewhere else and its actors in a new pose.
         ///
@@ -359,7 +371,7 @@ namespace Rtx
         ///
         /// `scene` must be the one `setScene` was given, with `clearPlacement` called and the
         /// instances re-walked: the placements index into structures this already holds.
-        virtual void placeScene(const SceneDesc& scene, const SeaState& sea) = 0;
+        virtual void placeScene(std::uint32_t slot, const SceneDesc& scene, const SeaState& sea) = 0;
 
         /// Only meaningful once `setScene` has been called.
         virtual const SceneStats& getSceneStats() const = 0;
@@ -448,16 +460,7 @@ namespace Rtx
         /// Slots a scene gave back are taken over before the table grows, as the texture table does.
         virtual std::uint32_t addViewScene() = 0;
 
-        /// Replaces what that scene holds.
-        ///
-        /// **Costs a rebuild, so it is called when the subject changes** — a doll putting something
-        /// on — rather than every time the picture is drawn. There is no `extend` and no `place`
-        /// beside it: a doll is one character, and the three-way decision those exist for is about a
-        /// cell arriving next to a world already built.
-        virtual void setViewScene(std::uint32_t scene, const SceneDesc& desc, std::span<const TextureData> textures)
-            = 0;
-
-        virtual void dropViewScene(std::uint32_t scene) = 0;
+        virtual void dropViewScene(std::uint32_t slot) = 0;
 
         /// The whole of a GUI texture, four bytes a pixel, tightly packed, row zero first.
         ///

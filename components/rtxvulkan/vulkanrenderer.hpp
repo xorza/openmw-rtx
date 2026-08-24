@@ -31,12 +31,6 @@ namespace Rtx
     class GBuffer;
     class Image;
 
-    /// One picture-inside-the-interface scene: what a doll is made of, apart from the world.
-    ///
-    /// **Three objects and not four.** `VisibilityPass` is shared with the world's, because nothing
-    /// about it depends on which scene it traces — every texture array declares the same bindless
-    /// layout, and identically defined layouts are compatible. See `VulkanRenderer::setScene`.
-    struct ViewScene;
     class Presenter;
     class SceneAcceleration;
     class SceneBuffers;
@@ -50,6 +44,29 @@ namespace Rtx
     /// cannot disagree with itself.
     class VulkanRenderer final : public Renderer
     {
+        /// Everything one scene is traced against — the world's, or a picture's in the interface.
+        ///
+        /// **The same three objects and the same three branches for both**, which is what lets an
+        /// inventory doll be handed over by `RtxBridge::SceneUploader` exactly as a cell is: a
+        /// slider drag places what it already built instead of building it again.
+        ///
+        /// **Three objects and not four.** `VisibilityPass` is shared, because nothing about it
+        /// depends on which scene it traces — every texture array declares the same bindless layout,
+        /// and identically defined layouts are compatible.
+        struct ViewScene
+        {
+            std::unique_ptr<SceneAcceleration> mAcceleration;
+            std::unique_ptr<SceneBuffers> mBuffers;
+            std::unique_ptr<TextureArray> mTextures;
+
+            /// Which revision of the mesh table the structures were built from, so `extendScene` can
+            /// tell a scene that only gained textures from one that gained geometry too.
+            ///
+            /// Counted rather than sized, because a freed slot taken over by something else is a
+            /// mesh arriving at a table that did not grow.
+            std::uint64_t mBuiltMeshes = 0;
+        };
+
     public:
         /// Throws `Error` where this machine cannot run it. `createVulkanRenderer` is what turns
         /// that into a reason a caller can act on.
@@ -58,11 +75,13 @@ namespace Rtx
 
         std::string describeDevice() const override;
         bool isValidating() const override;
-        void setScene(const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea) override;
-        void extendScene(const SceneDesc& scene, std::span<const TextureData> arrived, const SeaState& sea) override;
-        std::uint32_t getTextureCount() const override;
-        void dropTextures(std::span<const std::uint32_t> slots) override;
-        void placeScene(const SceneDesc& scene, const SeaState& sea) override;
+        void setScene(std::uint32_t slot, const SceneDesc& scene, std::span<const TextureData> textures,
+            const SeaState& sea) override;
+        void extendScene(std::uint32_t slot, const SceneDesc& scene, std::span<const TextureData> arrived,
+            const SeaState& sea) override;
+        std::uint32_t getTextureCount(std::uint32_t slot) const override;
+        void dropTextures(std::uint32_t slot, std::span<const std::uint32_t> textures) override;
+        void placeScene(std::uint32_t slot, const SceneDesc& scene, const SeaState& sea) override;
         const SceneStats& getSceneStats() const override { return mStats; }
         void resize(std::uint32_t width, std::uint32_t height) override;
         FrameExtents getExtents() const override;
@@ -71,7 +90,6 @@ namespace Rtx
         bool presentFrame() override;
 
         std::uint32_t addViewScene() override;
-        void setViewScene(std::uint32_t scene, const SceneDesc& desc, std::span<const TextureData> textures) override;
         void dropViewScene(std::uint32_t scene) override;
 
         std::uint32_t addGuiTexture(std::uint32_t width, std::uint32_t height) override;
@@ -86,6 +104,11 @@ namespace Rtx
         void takeValidationErrors(std::vector<std::string>& errors) override;
 
     private:
+        /// The scene a slot names — `sWorld`'s, or a picture's. A slot nothing holds is a caller
+        /// bug, so it is asserted rather than reported.
+        ViewScene& sceneAt(std::uint32_t slot);
+        const ViewScene& sceneAt(std::uint32_t slot) const;
+
         /// @param width, height what the frame is **presented** at. What it is traced at is the
         ///        upscaler's answer for that, or the same numbers where nothing upscales.
         void createTargets(std::uint32_t width, std::uint32_t height);
@@ -116,14 +139,6 @@ namespace Rtx
         /// Whether `placeScene` has already opened this frame's timer, so `renderFrame` adds to that
         /// report rather than starting a second one and throwing the builds away.
         bool mTimed = false;
-
-        /// How many meshes the acceleration structures were built for, so `extendScene` can tell a
-        /// scene that only gained textures from one that gained geometry too.
-        /// Which revision of the mesh table the structures were built from.
-        ///
-        /// Counted rather than sized, because a freed slot taken over by something else is a mesh
-        /// arriving at a table that did not grow.
-        std::uint64_t mBuiltMeshes = 0;
 
         std::filesystem::path mShaderDirectory;
 
@@ -165,11 +180,9 @@ namespace Rtx
 
         Buffer mHitCount;
 
-        // Rebuilt by `setScene`, in dependency order: the buffers borrow the structures' indices and
-        // the pass names the texture array's layout.
-        std::unique_ptr<SceneAcceleration> mAcceleration;
-        std::unique_ptr<SceneBuffers> mBuffers;
-        std::unique_ptr<TextureArray> mTextures;
+        /// The world's, which is one of these like any other: what `sWorld` names.
+        ViewScene mWorld;
+
         std::unique_ptr<VisibilityPass> mPass;
         SceneStats mStats;
 

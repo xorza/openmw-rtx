@@ -262,7 +262,7 @@ namespace RtxTool
             RtxBridge::SceneUploader uploader;
 
             const Clock::time_point buildStart = Clock::now();
-            uploader.hand(*renderer, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
+            uploader.hand(*renderer, Rtx::sWorld, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
             const double buildMs = std::chrono::duration<double, std::milli>(Clock::now() - buildStart).count();
 
             const float far = std::max(staged.getScene().getBounds().radius() * 8.0f, 10000.0f);
@@ -328,8 +328,8 @@ namespace RtxTool
                 if (const Crossing crossed = staged.moveTo(standing.mOrigin); crossed.happened())
                 {
                     const Clock::time_point read = Clock::now();
-                    const RtxBridge::SceneUpload handed
-                        = uploader.hand(*renderer, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
+                    const RtxBridge::SceneUpload handed = uploader.hand(
+                        *renderer, Rtx::sWorld, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
                     const Clock::time_point built = Clock::now();
 
                     ++crossings;
@@ -351,7 +351,7 @@ namespace RtxTool
                 if (frame > 0 && staged.getMotion() != nullptr && staged.getMotion()->step(frame))
                 {
                     const Clock::time_point placeStart = Clock::now();
-                    uploader.hand(*renderer, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
+                    uploader.hand(*renderer, Rtx::sWorld, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
                     placeMs = std::chrono::duration<double, std::milli>(Clock::now() - placeStart).count();
                 }
 

@@ -267,14 +267,14 @@ namespace Rtx
 
             std::vector<std::uint8_t> reference;
             plain->resize(extents.mRenderWidth, extents.mRenderHeight);
-            plain->setScene(scene, {}, SeaState{});
+            plain->setScene(Rtx::sWorld, scene, {}, SeaState{});
             plain->renderFrame(camera, FrameOptions{ .mFilter = false });
             plain->readPixels(reference);
 
             // **Several frames, because a temporal upscaler has nothing on the first.** The camera
             // does not move, so what the run buys is history rather than a different picture.
             constexpr std::uint32_t sFrames = 8;
-            upscaling->setScene(scene, {}, SeaState{});
+            upscaling->setScene(Rtx::sWorld, scene, {}, SeaState{});
             for (std::uint32_t frame = 0; frame < sFrames; ++frame)
             {
                 camera.mFrame = frame;

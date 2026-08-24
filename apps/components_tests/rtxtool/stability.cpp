@@ -150,7 +150,7 @@ namespace RtxTool
             ASSERT_EQ(extents.mRenderWidth, extents.mOutputWidth) << "DLAA is one to one, or this measures upscaling";
 
             const RtxBridge::SceneTextures described(scene, world->getImageManager());
-            renderer->setScene(scene, described.getDescriptions(), Rtx::SeaState{});
+            renderer->setScene(Rtx::sWorld, scene, described.getDescriptions(), Rtx::SeaState{});
 
             const osg::Vec3f origin(-19216.0f, -14896.0f, 160.0f);
             const osg::Vec3f target(-19424.0f, -12960.0f, 60.0f);

@@ -22,42 +22,45 @@ namespace RtxBridge::Testing
         std::string describeDevice() const override { return "a renderer that counts rather than draws"; }
         bool isValidating() const override { return false; }
 
-        void setScene(
-            const Rtx::SceneDesc& scene, std::span<const Rtx::TextureData> textures, const Rtx::SeaState&) override
+        void setScene(std::uint32_t slot, const Rtx::SceneDesc& scene, std::span<const Rtx::TextureData> textures,
+            const Rtx::SeaState&) override
         {
             ++mRebuilt;
             mDescribed = textures.size();
 
             // What the backend does: the array is made again and ends where the scene's table
             // does, whatever it held before.
-            mTextures = static_cast<std::uint32_t>(scene.getTextures().size());
+            countAt(slot) = static_cast<std::uint32_t>(scene.getTextures().size());
         }
 
-        void extendScene(
-            const Rtx::SceneDesc& scene, std::span<const Rtx::TextureData> arrived, const Rtx::SeaState&) override
+        void extendScene(std::uint32_t slot, const Rtx::SceneDesc& scene, std::span<const Rtx::TextureData> arrived,
+            const Rtx::SeaState&) override
         {
             ++mExtended;
             mDescribed = arrived.size();
-            mTextures += static_cast<std::uint32_t>(arrived.size());
+            countAt(slot) += static_cast<std::uint32_t>(arrived.size());
 
             // The contract `extendScene` is given rather than one it checks: appending only the
             // arrivals has to leave the array exactly as long as the scene's table.
-            mAppendedToWrongEnd |= mTextures != scene.getTextures().size();
+            mAppendedToWrongEnd |= countAt(slot) != scene.getTextures().size();
         }
 
-        void placeScene(const Rtx::SceneDesc&, const Rtx::SeaState&) override
+        void placeScene(std::uint32_t, const Rtx::SceneDesc&, const Rtx::SeaState&) override
         {
             ++mPlaced;
             mDescribed = 0;
         }
 
-        std::uint32_t getTextureCount() const override { return mTextures; }
+        std::uint32_t getTextureCount(std::uint32_t slot) const override
+        {
+            return const_cast<CountingRenderer*>(this)->countAt(slot);
+        }
 
         /// The slots the scene gave back, in the order it named them, across every call.
         ///
         /// **The array does not shrink**, which is what `mTextures` staying put records: a slot goes
         /// on being where an append begins from whether or not it holds an image.
-        void dropTextures(std::span<const std::uint32_t> slots) override
+        void dropTextures(std::uint32_t, std::span<const std::uint32_t> slots) override
         {
             ++mDropCalls;
             mDropped.insert(mDropped.end(), slots.begin(), slots.end());
@@ -82,8 +85,18 @@ namespace RtxBridge::Testing
             std::uint32_t, const Rtx::Shaders::VisibilityConstants&, const Rtx::GuiTraceOptions&) override
         {
         }
-        std::uint32_t addViewScene() override { return mViewScenes++; }
-        void setViewScene(std::uint32_t, const Rtx::SceneDesc&, std::span<const Rtx::TextureData>) override {}
+        std::uint32_t addViewScene() override
+        {
+            mViewTextures.push_back(0);
+            return mViewScenes++;
+        }
+
+        /// **A table a slot, as a real backend keeps.** An uploader that mixed the world's count
+        /// with a doll's would begin one scene's descriptions inside the other's table, which is the
+        /// overrun `aSecondSceneOnOneRendererIsBuiltRatherThanAppendedTo` exists for.
+        std::uint32_t& countAt(std::uint32_t slot) { return slot == Rtx::sWorld ? mTextures : mViewTextures[slot]; }
+
+        std::vector<std::uint32_t> mViewTextures;
         void dropViewScene(std::uint32_t) override {}
         void readGuiTexture(std::uint32_t, std::vector<std::uint8_t>&) override {}
         void readPixels(std::vector<std::uint8_t>&) override {}
