@@ -34,6 +34,7 @@ namespace MyGUIPlatform
         : mRegionScratch(std::move(other.mRegionScratch))
         , mName(std::move(other.mName))
         , mTexture(std::exchange(other.mTexture, nullptr))
+        , mRegion(std::exchange(other.mRegion, nullptr))
         , mWidth(other.mWidth)
         , mHeight(other.mHeight)
         , mFormat(other.mFormat)
@@ -51,6 +52,7 @@ namespace MyGUIPlatform
         mRegionScratch = std::move(other.mRegionScratch);
         mName = std::move(other.mName);
         mTexture = std::exchange(other.mTexture, nullptr);
+        mRegion = std::exchange(other.mRegion, nullptr);
         mWidth = other.mWidth;
         mHeight = other.mHeight;
         mFormat = other.mFormat;
@@ -60,13 +62,11 @@ namespace MyGUIPlatform
 
     void Picture::setRegion(const osg::Image& image, int x, int y, int width, int height)
     {
-        auto* region = dynamic_cast<RegionTexture*>(mTexture);
-
         // **The whole thing where the backend has nothing better**, which is exactly what a caller
         // would otherwise have written for itself. `mFormat` is what says whether the rows below
         // would even be the right bytes: a picture the GUI took at three channels is widened on the
         // way through `set` and has no packed rectangle to send.
-        if (region == nullptr || mFormat != MyGUI::PixelFormat::R8G8B8A8)
+        if (mRegion == nullptr || mFormat != MyGUI::PixelFormat::R8G8B8A8)
         {
             set(image);
             return;
@@ -75,7 +75,7 @@ namespace MyGUIPlatform
         assert(x >= 0 && y >= 0 && x + width <= mWidth && y + height <= mHeight);
 
         gatherRegion(image, x, y, width, height, mRegionScratch);
-        region->writeRegion(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y),
+        mRegion->writeRegion(static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y),
             static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), mRegionScratch);
     }
 
@@ -93,6 +93,8 @@ namespace MyGUIPlatform
             mTexture = MyGUI::RenderManager::getInstance().createTexture(mName);
             mTexture->createManual(
                 image.s(), image.t(), MyGUI::TextureUsage::Static | MyGUI::TextureUsage::Write, format);
+
+            mRegion = dynamic_cast<RegionTexture*>(mTexture);
 
             mWidth = image.s();
             mHeight = image.t();

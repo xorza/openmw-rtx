@@ -208,6 +208,23 @@ None of this needs a GL context — the callback's arithmetic is the part worth 
 - A texture written before it is drawn keeps its `osg::Texture2D`; the first write after `markDrawn`
   replaces it exactly once and marks it `DYNAMIC`; the write after that keeps it.
 
+**Rows and not a rectangle**, in the end. A run of whole rows is one contiguous span of both the
+image and the upload, so sending one needs no `GL_UNPACK_ROW_LENGTH` and no reasoning about row
+padding. The map's block is a few rows of the surface either way, which is a twentieth of what used
+to go rather than a thousandth — and the rectangle is still there to narrow if that ever matters.
+
+**What the callback has to do that the plan did not say.** OpenSceneGraph's own upload path binds a
+pixel buffer where the image has one and unbinds it where it has not; a client pointer read as an
+offset into a buffer somebody else left bound is `GL_INVALID_OPERATION`. It showed as two errors in
+seventy seconds of play — both on a frame a cell arrived, because that is when the terrain composite
+map uploads through a buffer of its own — and as nothing at all on every other frame. `load` and
+`subload` both call `State::unbindPixelBufferObject` first.
+
+Verified against the renderer this is for: `[RTX] enabled = false` through a scratch `--config`
+directory, four runs, **zero GL errors** where master has none either, the same picture as master in
+the same cell, and a main menu whose text is crisp — which is the font atlas, and so the whole of
+`createManual`, `lock`, `unlock` and the first `load`.
+
 To measure when it lands: allocations per frame with a video playing, and the bytes uploaded when a
 cell is entered on the global map.
 

@@ -445,6 +445,10 @@ namespace MyGUIPlatform
 
         if (OSGTexture* osgtexture = static_cast<OSGTexture*>(texture))
         {
+            // **What tells it the draw traversal has seen this picture**, and so that the next write
+            // to it may not land in the image it is about to read.
+            osgtexture->markDrawn();
+
             batch.mTexture = osgtexture->getTexture();
             if (batch.mTexture->getDataVariance() == osg::Object::DYNAMIC)
                 mDrawable->setDataVariance(osg::Object::DYNAMIC); // only for this frame, reset in begin()

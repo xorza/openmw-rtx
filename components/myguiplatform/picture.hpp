@@ -20,6 +20,7 @@ namespace osg
 
 namespace MyGUIPlatform
 {
+    class RegionTexture;
 
     /// Pixels the game holds in main memory, in front of the GUI.
     ///
@@ -51,7 +52,9 @@ namespace MyGUIPlatform
         ///
         /// **Falls back to the whole image where it cannot**, which is what makes this safe to call
         /// from anywhere: `RegionTexture` is an offer a backend makes rather than one it owes, and a
-        /// caller that had to ask would end up with two code paths of its own.
+        /// caller that had to ask would end up with two code paths of its own. Both of this fork's
+        /// backends do make it, so what the fallback is left covering is a picture MyGUI took at
+        /// three channels.
         ///
         /// `image` is the whole picture and the rectangle names part of it, so the rows are gathered
         /// out of it here. The texture must already exist — a `set` comes first — and the rectangle
@@ -68,6 +71,11 @@ namespace MyGUIPlatform
 
         std::string mName;
         MyGUI::ITexture* mTexture = nullptr;
+
+        /// The same texture, where it can take a rectangle. Asked once when the texture is made
+        /// rather than on every write, because a picture written in part is written in part again
+        /// and again and a `dynamic_cast` is not free.
+        RegionTexture* mRegion = nullptr;
         int mWidth = 0;
         int mHeight = 0;
         MyGUI::PixelFormat mFormat = MyGUI::PixelFormat::Unknow;

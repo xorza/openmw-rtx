@@ -21,6 +21,7 @@ file(GLOB UNITTEST_SRC_FILES
     lua/testyaml.cpp
 
     myguiplatform/pixels.cpp
+    myguiplatform/texture.cpp
 
     misc/compression.cpp
     misc/progressreporter.cpp
