@@ -124,49 +124,50 @@ namespace RtxBridge
             EXPECT_THROW(describeImage(*makeBlock(GL_RGBA), levels), Rtx::Error);
         }
 
-        /// A slot the scene has given up is not a texture that could not be read.
+        /// A slot the scene has given up is described by nobody, and the gap it leaves is survived.
         ///
-        /// `SceneDesc::release` empties a freed slot's path and leaves the slot in the table until
-        /// something takes it over, so a describe that walks it finds no file to ask for. Both slots
-        /// here come out the stand-in — the table is indexed by the scene's own texture index and
-        /// every slot has to fill one — but only the slot that named a file and failed at it is a
-        /// failure, and conflating the two makes a departing cell look like a broken one.
-        TEST(RtxTextureBuilderTest, aFreedSlotTakesTheStandInWithoutCountingAsUnreadable)
+        /// `SceneDesc` empties a freed slot's path and leaves it in the table until something takes
+        /// it over. Describing one would build an image, a shading map and a descriptor write for a
+        /// slot no material can reach — and count it as a texture that could not be read, which is
+        /// what made a departing cell look like a broken one.
+        ///
+        /// **The freed slot is first here on purpose.** What comes out is no longer one description
+        /// per entry of the table, so a backend taking position for slot would put every texture
+        /// above the gap one place too low — and it did, until the array was told to honour the slot
+        /// each description carries.
+        TEST(RtxTextureBuilderTest, aFreedSlotIsNotDescribedAndTheOthersKeepTheirSlots)
         {
             VFS::Manager vfs;
             Resource::ImageManager images(&vfs, 0);
 
-            // Two models, because a texture is only swept on a sweep that drops something: `release`
-            // answers the ordinary frame by comparing the mesh and material counts and returning
-            // before it looks at a texture at all.
+            // Two models, because a texture is only given back when the last material naming it is:
+            // `release` answers the ordinary frame by comparing the mesh and material counts and
+            // returning before it frees anything at all.
             Rtx::SceneDesc scene;
-            const Model staying = addModel(scene, VFS::Path::NormalizedView("textures/named.dds"));
             const Model going = addModel(scene, VFS::Path::NormalizedView("textures/freed.dds"));
+            const Model staying = addModel(scene, VFS::Path::NormalizedView("textures/named.dds"));
 
             const std::array<Rtx::Index, 1> keptMeshes{ staying.mMesh };
             const std::array<Rtx::Index, 1> keptMaterials{ staying.mMaterial };
 
-            // The staying model's own material speaks for its texture, so nothing has to be listed.
             ASSERT_TRUE(scene.release(keptMeshes, keptMaterials));
-            ASSERT_FALSE(scene.getTextures()[staying.mTexture].empty());
-            ASSERT_TRUE(scene.getTextures()[going.mTexture].empty());
+            ASSERT_EQ(going.mTexture, 0u) << "the gap has to be below something to be a gap";
+            ASSERT_TRUE(scene.isTextureFree(going.mTexture));
+            ASSERT_FALSE(scene.isTextureFree(staying.mTexture));
 
-            const Rtx::Index named = staying.mTexture;
-            const Rtx::Index freed = going.mTexture;
+            // The VFS is empty, so the one that is described does not resolve — which is the other
+            // half of the statement: a slot that named a file and failed at it is a failure, and a
+            // slot that names nothing is not one.
+            const auto check = [&](const SceneTextures& described, const char* which) {
+                ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 1 }) << which;
+                EXPECT_EQ(described.getDescriptions()[0].mSlot, staying.mTexture) << which;
+                EXPECT_EQ(described.getDescriptions()[0].mName, "unreadable") << which;
+                EXPECT_EQ(described.getUnreadable(), 1u) << which;
+            };
 
-            const std::array<Rtx::Index, 2> slots{ named, freed };
-            const SceneTextures described(scene, images, slots);
-
-            // The VFS is empty, so neither resolves: one is a file that is not there and the other
-            // is no file at all.
-            ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 2 });
-            EXPECT_EQ(described.getDescriptions()[0].mSlot, named);
-            EXPECT_EQ(described.getDescriptions()[1].mSlot, freed);
-            EXPECT_EQ(described.getDescriptions()[0].mName, "unreadable");
-            EXPECT_EQ(described.getDescriptions()[1].mName, "unreadable");
-
-            // One of the two, and it is the one that named a file.
-            EXPECT_EQ(described.getUnreadable(), 1u);
+            const std::array<Rtx::Index, 2> both{ going.mTexture, staying.mTexture };
+            check(SceneTextures(scene, images, both), "described by arrival");
+            check(SceneTextures(scene, images), "described from the whole table");
         }
     }
 }

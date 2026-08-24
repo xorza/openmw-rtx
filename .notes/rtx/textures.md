@@ -235,13 +235,28 @@ from end to end instead of being inferred from its position.**
 Tests — extend `apps/components_tests/rtxbridge/texturebuilder.cpp`, which already builds the
 fixture. `aFreedSlotTakesTheStandInWithoutCountingAsUnreadable` inverts: the freed slot yields no
 description at all, the named-but-missing one still yields the stand-in and still counts as
-unreadable. Add the case the renumbering trap hides — describe a table whose *first* slot is free and
-assert each description's `mSlot` is its own slot, not its position — and, in
-`apps/components_tests/rtx/`, that an array built from a table with a trailing free slot reports a
-count equal to the table's length.
+unreadable, and the freed slot goes *first* so that a reader taking position for slot is wrong. In
+`apps/components_tests/rtx/visibilitypass.cpp`, whose texture-slot test already walks a scene through
+an append, two more steps: a table with a free slot at the end, where the array has to be as long as
+the table; and the same table with the hole at the bottom, where one description naming slot one has
+to land at slot one.
 
-To measure when it lands: descriptions built and bytes uploaded on the frame a doll is rebuilt, and
-the same on a cell boundary crossing.
+**Both new steps were confirmed to fail with the defect put back** — the array sized to its
+descriptions misses the first, the constructor renumbering misses the second.
+
+**What the removal cost, and it is the interesting part.** Thirty-three pixel tests broke on it, all
+of them building `TextureData` by hand with the default slot and relying on the constructor to
+number them — so every description went to slot zero and destroyed the one before it inside a
+recording batch. The convention is real and worth keeping *for a fixture*: each of those tests builds
+its textures in the order its scene adds them. It moved to `inSceneOrder` beside the fixture's other
+helpers, where it is named and where being wrong about it cannot reach a scene with a hole in its
+table.
+
+**Measured, and zero again**, for the reason §5's was: `shot --view=balmora` holds at 361 textures in
+6634 KiB and `bench` at 375 and 237, because a full describe happens when an array is built from
+nothing and a scene built from nothing has no free slots. What this removes is a stand-in image, a
+thousand floats of neutral shading and a descriptor write per hole, on a rebuild of a table that has
+holes — which is a doll after a change of clothes, and not a viewpoint a bench can stand at.
 
 **A related finding, not part of this.** `SceneDesc::release` returns early when the mesh and
 material counts match the live ones (`scenedesc.cpp:395`), so a texture that stops being named while

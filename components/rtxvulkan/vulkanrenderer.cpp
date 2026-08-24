@@ -288,7 +288,8 @@ namespace Rtx
 
         held.mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, scene, mRecordScratch);
         held.mBuffers = std::make_unique<SceneBuffers>(mDevice, setup, scene, mRecordScratch, sea);
-        held.mTextures = std::make_unique<TextureArray>(mDevice, setup, textures);
+        held.mTextures = std::make_unique<TextureArray>(
+            mDevice, setup, static_cast<std::uint32_t>(scene.getTextures().size()), textures);
         held.mBuiltMeshes = scene.getMeshRevision();
 
         // **Built once and kept, because building one compiles the shader — half a second a time,

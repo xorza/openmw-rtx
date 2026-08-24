@@ -376,6 +376,14 @@ namespace Rtx
         /// Gives back one `holdTexture`. The slot is freed here where nothing else names it.
         void dropTexture(Index texture);
 
+        /// Whether nothing stands in `slot`: the last thing naming it gave it back, and it is
+        /// waiting for the next `addTexture` to take it over.
+        ///
+        /// **The path and not the reference count**, which is the same answer except for the window
+        /// between `addTexture` handing a slot out and whatever is about to name it doing so. A
+        /// reader that asked the count would find a texture it was in the middle of building.
+        bool isTextureFree(Index texture) const { return mTextures[texture].empty(); }
+
         /// Places `instance` in a slot and returns it.
         ///
         /// **The slot is the placement's name for as long as it stands.** It is the custom index a

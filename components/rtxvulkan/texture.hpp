@@ -55,9 +55,16 @@ namespace Rtx
     class TextureArray
     {
     public:
-        /// Uploads every description, in the order given, so a material's texture index is an index
-        /// into this. May be empty; the shader is told the count and does not index past it.
-        TextureArray(const Device& device, Batch& batch, std::span<const TextureData> textures);
+        /// An array of `slots` textures, with `textures` written into the slots they name.
+        ///
+        /// **The length is the scene's table and not what was described**, because a slot the scene
+        /// has given back is described by nobody and still sits between two that are: sizing to the
+        /// descriptions would put every texture above it one place too low. It also keeps `getCount`
+        /// equal to the table an uploader compares against, so a trailing free slot does not read as
+        /// a scene this array has never seen.
+        ///
+        /// `textures` may be empty; the shader is told the count and does not index past it.
+        TextureArray(const Device& device, Batch& batch, std::uint32_t slots, std::span<const TextureData> textures);
         ~TextureArray();
 
         /// Writes each of `arrived` into the slot it names, leaving every other texture alone.
@@ -112,7 +119,7 @@ namespace Rtx
         /// which is what tells a caller its own write has already happened.
         bool growShading();
 
-        /// Makes room for a slot at the end of the array, and refuses one past what it holds.
+        /// Grows the array to reach `slot`, and refuses one past what the binding holds.
         void reserveSlot(std::uint32_t slot);
 
         const Device& mDevice;

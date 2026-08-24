@@ -449,7 +449,7 @@ namespace Rtx
                 bool jitter = false, std::optional<float> exposure = 1.0f)
             {
                 mRenderer->resize(size, size);
-                mRenderer->setScene(Rtx::sWorld, scene, textures, sea);
+                mRenderer->setScene(Rtx::sWorld, scene, inSceneOrder(textures), sea);
 
                 // One frame per sample, where this used to record several dispatches into a single
                 // submit. The renderer fences between frames, which orders them, and its own history
@@ -477,7 +477,23 @@ namespace Rtx
                 return hits;
             }
 
+            /// The fixture's textures, numbered the way its scene added them.
+            ///
+            /// **A convention of these tests and not of the renderer.** Every test here builds its
+            /// descriptions in the order its scene calls `addTexture`, so position is slot. The
+            /// array used to assume that of every caller, which is a trap for the one whose scene
+            /// has given a slot back: its table has a hole in it and its descriptions do not.
+            std::span<const TextureData> inSceneOrder(std::span<const TextureData> textures)
+            {
+                mNumbered.assign(textures.begin(), textures.end());
+                for (std::size_t at = 0; at < mNumbered.size(); ++at)
+                    mNumbered[at].mSlot = static_cast<std::uint32_t>(at);
+
+                return mNumbered;
+            }
+
             Renderer* mRenderer = nullptr;
+            std::vector<TextureData> mNumbered;
             std::vector<std::string> mErrors;
         };
 
@@ -1086,7 +1102,8 @@ namespace Rtx
 
             // **The slot the scene gave it**, which is what an arrival now carries: a texture is
             // written where it belongs rather than after whatever is already there.
-            const TextureData second = describe(blueTexel, scene.getMaterials()[blue].mDiffuse);
+            const Index blueTexture = scene.getMaterials()[blue].mDiffuse;
+            const TextureData second = describe(blueTexel, blueTexture);
             mRenderer->extendScene(Rtx::sWorld, scene, std::span(&second, 1), SeaState{});
             EXPECT_EQ(mRenderer->getTextureCount(Rtx::sWorld), 2u);
 
@@ -1108,6 +1125,53 @@ namespace Rtx
 
             EXPECT_EQ(shown[centre], 255) << "the texture already uploaded was disturbed by the append";
             EXPECT_EQ(shown[centre + 2], 0);
+
+            // **And a table with a hole at the end of it.** Letting the near wall's material go
+            // frees the texture it wore, and the slot stays in the scene's table until something
+            // takes it over — so an array built from what is left has to be as long as the table
+            // rather than as long as the descriptions. Stopping at the last one written also stops
+            // `SceneUploader` recognising its own scene, and every frame after this would build the
+            // world again from nothing.
+            const std::array<Index, 1> keptMeshes{ mesh };
+            const std::array<Index, 1> keptMaterials{ red };
+            ASSERT_TRUE(scene.release(keptMeshes, keptMaterials));
+            ASSERT_TRUE(scene.isTextureFree(blueTexture));
+            ASSERT_EQ(scene.getTextures().size(), 2u) << "the table does not shrink";
+
+            mRenderer->setScene(Rtx::sWorld, scene, std::span(&first, 1), SeaState{});
+
+            EXPECT_EQ(mRenderer->getTextureCount(Rtx::sWorld), 2u)
+                << "the array stopped at the last texture it was handed rather than at the table";
+
+            mRenderer->renderFrame(camera, FrameOptions{ .mExposure = 1.0f });
+            mRenderer->readPixels(shown);
+
+            EXPECT_EQ(shown[centre], 255) << "the texture that survived lost its slot";
+            EXPECT_EQ(shown[centre + 2], 0);
+
+            // **And the same table with the hole at the bottom of it.** A wall in front wearing a
+            // texture the scene has put back into the slot the last one gave up, and then the far
+            // wall's material goes: what is left is one description naming slot one over a slot zero
+            // nothing stands in. An array numbering its descriptions by position would write it at
+            // zero, and the wall would sample a descriptor nobody ever wrote.
+            const Index again
+                = scene.addMaterial(Material{ .mDiffuse = scene.addTexture(VFS::Path::NormalizedView("blue.dds")) });
+            ASSERT_EQ(scene.getMaterials()[again].mDiffuse, blueTexture) << "the freed slot was not taken over";
+
+            scene.dropInstance(0);
+            scene.addInstance(
+                MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = again });
+
+            const std::array<Index, 1> keptAgain{ again };
+            ASSERT_TRUE(scene.release(keptMeshes, keptAgain));
+            ASSERT_TRUE(scene.isTextureFree(0u));
+
+            mRenderer->setScene(Rtx::sWorld, scene, std::span(&second, 1), SeaState{});
+            mRenderer->renderFrame(camera, FrameOptions{ .mExposure = 1.0f });
+            mRenderer->readPixels(shown);
+
+            EXPECT_EQ(shown[centre + 2], 255) << "the description landed at its position rather than its slot";
+            EXPECT_EQ(shown[centre], 0);
         }
 
         /// **The pass is built once and kept, because building one compiles a shader** — so the set
@@ -2107,9 +2171,9 @@ namespace Rtx
                 // at x = 50, and the pane reaches 20. Or straight at the pane, to see it at all.
                 Shaders::VisibilityConstants camera = lookAtIt
                     ? makeCamera(
-                        osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -50.0f, 0.0f), 60.0f, size, size, 10000.0f)
+                          osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -50.0f, 0.0f), 60.0f, size, size, 10000.0f)
                     : makeCamera(
-                        osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                          osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
                 camera.mSunDirection = osg::Vec3f(0.0f, 1.0f, 0.0f);
                 camera.mSunIrradiance = osg::Vec3f(2.0f, 2.0f, 2.0f);
 
@@ -3094,7 +3158,7 @@ namespace Rtx
             const SceneAcceleration acceleration(device, setup, scene, records);
             const SceneBuffers buffers(device, setup, scene, records);
 
-            const TextureArray textures(device, setup, {});
+            const TextureArray textures(device, setup, 0, {});
             const VisibilityPass pass(device, setup, Testing::getShaderDirectory(), textures.getLayout());
             setup.flush();
             const VisibilityInputs inputs{

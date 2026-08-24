@@ -125,36 +125,38 @@ namespace RtxBridge
     void SceneTextures::describe(
         const Rtx::SceneDesc& scene, Resource::ImageManager& images, std::span<const Rtx::Index> slots)
     {
+        // Which slots the loop below kept, because a free one is passed over and the descriptions
+        // are no longer one per entry of `slots`.
+        std::vector<Rtx::Index> kept;
+        kept.reserve(slots.size());
         mImages.reserve(slots.size());
+
         for (const Rtx::Index slot : slots)
         {
-            const VFS::Path::Normalized& path = scene.getTextures()[slot];
+            // **A free slot is not a texture.** `SceneDesc` empties one the last thing naming it
+            // gave back and leaves it in the table until something takes it over; describing it
+            // would build an image, a shading map and a descriptor write for a slot no material can
+            // reach — and count it as a texture that arrived.
+            if (scene.isTextureFree(slot))
+                continue;
 
-            // Already decoded and still resident where it is a file at all: the scene manager keeps
-            // image data on the CPU after apply, so this is a cache hit and a memcpy rather than a
-            // second decode.
+            // Already decoded and still resident: the scene manager keeps image data on the CPU
+            // after apply, so this is a cache hit and a memcpy rather than a second decode.
             //
             // **Null and a throw are both answers here.** A path that names nothing, and a decoder
             // that will not have it, are the world's business rather than a broken contract — and
-            // the entry has to exist either way, because the scene indexes into this by position.
-            //
-            // An empty path is not asked for at all: `SceneDesc::release` empties a slot the scene
-            // has given up and leaves it in the table until something takes it over, so asking the
-            // image manager for nothing would throw and be reported as a texture that could not be
-            // read.
+            // the entry has to exist either way, because the description below is built from it.
             osg::ref_ptr<const osg::Image> image;
-            if (!path.empty())
+            try
             {
-                try
-                {
-                    image = images.getImage(path);
-                }
-                catch (const std::exception&)
-                {
-                    image = nullptr;
-                }
+                image = images.getImage(scene.getTextures()[slot]);
+            }
+            catch (const std::exception&)
+            {
+                image = nullptr;
             }
 
+            kept.push_back(slot);
             mImages.push_back(std::move(image));
         }
 
@@ -186,23 +188,18 @@ namespace RtxBridge
 
             if (!described.has_value())
             {
-                // A freed slot is described as the stand-in like any other, because the table is
-                // indexed by the scene's own texture index throughout — but it is not a failure and
-                // does not name a file to complain about.
-                if (const VFS::Path::Normalized& path = scene.getTextures()[slots[at]]; !path.empty())
-                {
-                    ++mUnreadable;
+                ++mUnreadable;
 
-                    // Named rather than tallied, because a count says a texture is grey and nothing
-                    // about which one. On the frame a cell arrives, which is a load and not a frame
-                    // path.
-                    Log(Debug::Warning) << "Texture \"" << path.value() << "\" could not be read; drawing the stand-in";
-                }
+                // Named rather than tallied, because a count says a texture is grey and nothing
+                // about which one. On the frame a cell arrives, which is a load and not a frame
+                // path.
+                Log(Debug::Warning) << "Texture \"" << scene.getTextures()[kept[at]].value()
+                                    << "\" could not be read; drawing the stand-in";
 
                 described = standIn(mLevels);
             }
 
-            described->mSlot = slots[at];
+            described->mSlot = kept[at];
             mDescriptions.push_back(*described);
         }
 

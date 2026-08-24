@@ -263,11 +263,12 @@ namespace Rtx
         }
     }
 
-    TextureArray::TextureArray(const Device& device, Batch& batch, std::span<const TextureData> textures)
+    TextureArray::TextureArray(
+        const Device& device, Batch& batch, std::uint32_t slots, std::span<const TextureData> textures)
         : mDevice(device)
     {
-        if (textures.size() > sMaxTextures)
-            throw Error("a scene with " + std::to_string(textures.size()) + " textures is past the "
+        if (slots > sMaxTextures)
+            throw Error("a scene with " + std::to_string(slots) + " textures is past the "
                 + std::to_string(sMaxTextures) + " this array holds");
 
         const VkSamplerCreateInfo sampler{
@@ -318,16 +319,14 @@ namespace Rtx
         };
         checkVk(vkAllocateDescriptorSets(device.getHandle(), &allocate, &mSet), "vkAllocateDescriptorSets");
 
-        // **Position is the slot here**, because an array built from nothing is built in the scene's
-        // own order and a material's index is where its description sat. `write` is the one that has
-        // to be told, and it is the whole of the upload: the array starts empty and `reserveSlot`
-        // grows it one arrival at a time, so nothing is created here to be replaced a line later.
-        // The shading buffer is empty at this point too, so the grow path inside it writes it all.
-        std::vector<TextureData> placed(textures.begin(), textures.end());
-        for (std::size_t at = 0; at < placed.size(); ++at)
-            placed[at].mSlot = static_cast<std::uint32_t>(at);
+        // **Sized to the table before anything is written into it**, so a description lands in the
+        // slot it names whatever sits either side of it. Every entry starts holding no image and no
+        // estimate, which is what a free slot goes on holding: its descriptor is never written, and
+        // the binding's `PARTIALLY_BOUND` is what makes that legal for one nothing samples.
+        mTextures.resize(slots);
+        mShadingValues.assign(std::size_t{ slots } * sShadingCells, 1.0f);
 
-        write(batch, placed);
+        write(batch, textures);
 
         // **A scene with no textures still binds the shading buffer**, and `write` has nothing to do
         // for one — so the neutral map that stands in for an empty array is made here rather than
@@ -341,11 +340,10 @@ namespace Rtx
             throw Error("a scene wanting texture slot " + std::to_string(slot) + " is past the "
                 + std::to_string(sMaxTextures) + " this array holds");
 
-        // Slots only ever appear at the end or inside, never past it: the scene hands out the next
-        // index when it has no free one, so a batch of arrivals appends in order.
-        assert(slot <= mTextures.size() && "a texture slot past the end of the array");
-        if (slot == mTextures.size())
-            mTextures.emplace_back();
+        // Grown to reach it rather than one at a time: arrivals come in whatever order the scene's
+        // free list handed the slots out, so the highest is not always the last.
+        if (slot >= mTextures.size())
+            mTextures.resize(slot + 1);
     }
 
     void TextureArray::write(Batch& batch, std::span<const TextureData> arrived)

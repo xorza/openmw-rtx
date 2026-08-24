@@ -26,8 +26,11 @@ namespace RtxBridge
     /// content file contains is how a renderer grows code nothing runs.
     Rtx::TextureData describeImage(const osg::Image& image, std::vector<Rtx::MipLevel>& levels);
 
-    /// Every texture a scene names, described in the order it names them, and the storage those
-    /// descriptions point into.
+    /// Every live texture a scene names, described, and the storage those descriptions point into.
+    ///
+    /// **Each description carries the slot it belongs to and there is not one per slot.** A slot the
+    /// scene has given back is passed over rather than described, so a backend writes what arrived
+    /// and leaves the rest of its array alone.
     ///
     /// **This is where the bridge stops.** `Rtx::TextureData` carries spans rather than bytes, so
     /// something has to own the decoded images and the level table while a backend reads them; this
@@ -39,10 +42,10 @@ namespace RtxBridge
     class SceneTextures
     {
     public:
-        /// Resolves and describes every texture `scene` names, in its own order.
+        /// Resolves and describes every texture `scene` still names, in table order.
         ///
-        /// For a backend building an array from nothing. A slot nothing stands in is described as
-        /// the stand-in, so what comes out is indexed by the scene's own texture index throughout.
+        /// For a backend building an array from nothing. The free slots are not among them, so the
+        /// array has to be sized to the scene's table rather than to what comes out of here.
         SceneTextures(const Rtx::SceneDesc& scene, Resource::ImageManager& images);
 
         /// The same, for `slots` and nothing else.
@@ -54,7 +57,7 @@ namespace RtxBridge
         ///
         /// **A list and not an offset**, because a slot a departing cell freed is taken over
         /// wherever it sits: what arrived is no longer the end of the table. Each description
-        /// carries the slot it belongs to.
+        /// carries the slot it belongs to, and a slot that has since been given back is skipped.
         SceneTextures(const Rtx::SceneDesc& scene, Resource::ImageManager& images, std::span<const Rtx::Index> slots);
 
         SceneTextures(const SceneTextures&) = delete;
@@ -66,8 +69,7 @@ namespace RtxBridge
         std::span<const Rtx::TextureData> getDescriptions() const { return mDescriptions; }
 
         /// How many named a file that could not be read, each logged with its path where it was
-        /// described. A slot the scene has freed is not among them: it names nothing, so there was
-        /// nothing to fail at — it gets the stand-in like the rest, and is not counted.
+        /// described.
         ///
         /// **Not zero in the game.** The harness names textures out of content files and every one
         /// of them is a `.dds` on disk; a live scene graph also holds textures that were never files
