@@ -401,20 +401,49 @@ working.
 **1 — F, the formatter.** Half an hour, and until it is done every other step's diff is arguable.
 Verify with `CI/check_clang_format.sh` and `CI/check_file_names.sh`.
 
+   **Done.** Pinned at 14 rather than 22, for the reason section F now records: the whole-tree sweep
+   the decision actually needed says 22 costs about a hundred and eighty files and 14 costs eleven.
+   The gate refuses any other major by name; CI keeps its apt package and the constant checks it.
+
 **2 — E, the two small ones.** The `-Wreorder` fix, the empty-path skip, and the per-file warning
 for an unreadable texture. Verify with `components-tests --gtest_filter=*TextureBuilder*` plus a new
 case: a scene with a freed texture slot describes it as the stand-in and reports zero unreadable.
+
+   **Done.** The test needs two models and a sweep that drops one of them: `release` compares the
+   mesh and material counts and returns before it looks at a texture, so a scene that loses nothing
+   never frees the slot the case is about.
 
 **3 — D, the frame's way back.** `freezeFrame` and `saveScreenshot`. No test can assert what a load
 screen looks like; assert instead that `freezeFrame` returns a texture of the target's extents and
 that the screenshot writer is reached with an image of the right size. Look at one load in the window
 because that is the only thing that shows it.
 
+   **Done, bar the window.** Both go through `RtxBridge::frameImage`, and so does `capture`'s
+   savegame thumbnail — a third caller, which is what made the extraction worth it. The row order is
+   the only thing separating them: MyGUI takes the trace's own, `osgDB` wants it turned over. The
+   writer moved out of `glrenderer.cpp` into `MWRender::makeScreenshotWriter` so both renderers
+   write the same files with the same names.
+
+   The two size assertions are on `frameImage` rather than on `RtxRenderer`, which needs a window, a
+   device and a live MyGUI render manager and is in `openmw-lib`, which `components-tests` does not
+   link. **The window check is still outstanding**: the game's first load happens before anything has
+   been presented, so it takes the black path, and forcing a later one needs a hand on the keyboard —
+   walk through a door for the backdrop, press the screenshot key for the file.
+
 **4 — A1, arrivals and departures as sets.** `getArrivedMeshes`, `getFreedMeshes`,
 `getFreedTextures`, cleared by `clearArrivals`. Pure addition; nothing reads them yet. Verify with
 `components-tests --gtest_filter=*SceneDesc*`, extending the existing release and reuse cases rather
 than adding a file: a walk that frees a cell names exactly the slots it freed, in any order, once
 each.
+
+   **Done, and the lists are disjoint** — a slot is named by one of them or by neither, never both.
+   That is not decoration: without it the two have no safe application order, because a slot freed
+   and then taken over is destroyed by a backend that applies departures last, and one that arrived
+   and then went leaves a live structure behind for a backend that applies them first. A per-slot
+   byte parallel to each table keeps them apart at constant cost; the linear erase runs only when a
+   slot changes sides, which needs a window that was never handed over, since a walk adds before the
+   sweep that follows it frees. **Step 5 can therefore apply the lists in either order**, and step
+   7d likewise.
 
 **5 — A4, freeing a texture slot.** `TextureArray::drop`, driven from `getFreedTextures` through
 `SceneUploader`. Small, self-contained, and it is the proof that A1's lists are right. Measure the
