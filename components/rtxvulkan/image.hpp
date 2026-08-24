@@ -81,9 +81,8 @@ namespace Rtx
 
         /// Copies the image to host memory, `getTexelBytes()` per pixel, tightly packed, row by row.
         ///
-        /// Leaves the image in `VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL` rather than putting it back:
-        /// everything that reads an image back is finished with it. Anything that is not must
-        /// transition it again itself.
+        /// **Left in the layout it was handed**, because reading an image is not a change to it and
+        /// a caller that had to know a read moved it is one that would forget.
         ///
         /// Submits and waits, so it belongs to a screenshot rather than to a frame.
         void read(CommandPool& pool, VkImageLayout layout, std::vector<std::uint8_t>& pixels) const;
