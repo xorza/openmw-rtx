@@ -57,18 +57,14 @@ namespace RtxTool
     /// follows takes its placements, its meshes and its materials with it.
     /// What a cell brought that no walk will ever meet again.
     ///
-    /// **The graph is not the whole of it.** A cell's references hang under a group and a walk finds
-    /// them every time; its `LIGH` records and its water quad were put into the scene directly, so
-    /// nothing can re-find them — and the sweep that runs when a cell departs clears the scene's
-    /// light table on the understanding that the next walk refills it, which is true of a light
-    /// carried by a torch and false of one read out of a record. They are kept here, with the cell,
-    /// because the cell is the only thing that knows when they should go.
+    /// **Its water quad, and that is now the whole of it.** A cell's references hang under a group
+    /// and a walk finds them every time — its lights included, since those are `LightSource` nodes
+    /// exactly as the game makes them. The water is the exception: an analytic quad goes straight
+    /// into the scene, so nothing can re-find it and the cell is the only thing that knows when it
+    /// should go.
     struct LoadedCell
     {
         osg::ref_ptr<osg::Group> mNode;
-
-        /// The lights its `LIGH` references cast, re-placed after every sweep.
-        std::vector<Rtx::Light> mLights;
 
         /// Its water surface, or nothing where it holds none.
         std::optional<RtxBridge::WaterSurface> mWater;
@@ -103,15 +99,6 @@ namespace RtxTool
 
         /// How many cells the region actually found. Fewer than asked for at a coastline.
         std::uint32_t mCells = 0;
-
-        /// What the cell's `LIGH` references cast. Carried, negative and off-by-default records
-        /// place a mesh and no light, so this is shorter than the cell's list of them.
-        ///
-        /// Reported rather than placed, because reading a cell twice must not light it twice.
-        /// Geometry is safe from that — the extractor recognises what it has already seen — and
-        /// a light has no such identity, so the decision to place one belongs to whoever knows
-        /// whether this cell is already in the scene.
-        std::vector<Rtx::Light> mLights;
 
         /// The cell's ambient, linear. Black for an exterior, whose sky is M5's.
         osg::Vec3f mAmbient;

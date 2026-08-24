@@ -20,6 +20,8 @@
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/texturebuilder.hpp>
 #include <components/rtxbridge/waterbuilder.hpp>
+#include <components/sceneutil/lightcommon.hpp>
+#include <components/sceneutil/lightutil.hpp>
 
 namespace RtxTool
 {
@@ -202,14 +204,8 @@ namespace RtxTool
 
         for (const ESM::Cell* cell : arrived)
         {
-            // **Sliced out of the run this cell added**, because the report gathers every arrival's
-            // lights into one list and a departure has to take back exactly its own.
-            const std::size_t before = report.mLights.size();
-            osg::ref_ptr<osg::Group> node = readObjects(world, *cell, root, report, liveProps);
-
             LoadedCell& entry = loaded[keyOf(*cell)];
-            entry.mNode = std::move(node);
-            entry.mLights.assign(report.mLights.begin() + static_cast<std::ptrdiff_t>(before), report.mLights.end());
+            entry.mNode = readObjects(world, *cell, root, report, liveProps);
 
             // **Every cell and not only the one the region is centred on.** The sea is continuous
             // and each square carries its own footprint of it, so a ring that placed one quad left
@@ -227,6 +223,12 @@ namespace RtxTool
 
     namespace
     {
+        /// What the game marks a light node with (`MWRender::Mask_Lighting`).
+        ///
+        /// **The mirror does not filter on it**, so it decides nothing here; it is the game's value
+        /// so that the two graphs look the same to anything that ever does.
+        constexpr unsigned int sLightMask = 1u << 19;
+
         osg::ref_ptr<osg::Group> readObjects(
             World& world, const ESM::Cell& cell, osg::Group& root, CellReport& report, bool liveProps)
         {
@@ -242,11 +244,6 @@ namespace RtxTool
                     report.mPeople.push_back(CellPerson{ .mRecord = object.mPerson, .mTransform = object.mTransform });
                     return;
                 }
-
-                if (object.mLight != nullptr)
-                    if (const std::optional<Rtx::Light> light
-                        = RtxBridge::makeLight(*object.mLight, object.mTransform.getTrans()))
-                        report.mLights.push_back(*light);
 
                 osg::ref_ptr<osg::Node> node;
                 try
@@ -272,16 +269,46 @@ namespace RtxTool
                 //
                 // Reported *instead of* mirrored, because the instance somebody makes of it shares
                 // these very drawables and would place the same candle a second time.
-                if (liveProps
-                    && (node->getUpdateCallback() != nullptr || node->getNumChildrenRequiringUpdateTraversal() > 0))
-                {
+                osg::ref_ptr<osg::MatrixTransform> where = new osg::MatrixTransform(osg::Matrixd(object.mTransform));
+
+                const bool prop = liveProps
+                    && (node->getUpdateCallback() != nullptr || node->getNumChildrenRequiringUpdateTraversal() > 0);
+
+                // The model goes in first where it is going in at all, so that `addLight` below can
+                // find an `AttachLight` node inside it.
+                if (prop)
                     report.mProps.push_back(CellProp{ .mModel = object.mModel, .mTransform = object.mTransform });
-                    return;
+                else
+                    where->addChild(node);
+
+                // **A `LIGH` reference's light goes into the graph, exactly as the game puts it
+                // there.** Read out of the record into a list instead, it was something no walk
+                // could ever meet — so the sweep that empties the light table on the frame a cell
+                // departs had nothing to refill it from, and every lamp went out on the first
+                // crossing. `SceneUtil::addLight` also honours the `AttachLight` node a model may
+                // carry, which is how a lantern's flame sits at the wick rather than at the origin.
+                //
+                // **And it happens whether or not the model went to the props.** A lantern whose
+                // flame has to be instanced somewhere it can run still stands where it stood and
+                // still lights the street; attaching after the prop test lost every one of them.
+                if (object.mLight != nullptr)
+                {
+                    const osg::ref_ptr<SceneUtil::LightSource> source = SceneUtil::addLight(
+                        where, SceneUtil::LightCommon(*object.mLight), sLightMask, cell.isExterior());
+
+                    // **A prop's transform carries the light and nothing else, and `addLight` calls
+                    // that empty.** The flag exists so the game can skip a light on something with
+                    // nothing to draw; here the model is not missing, it is being instanced
+                    // somewhere it can run its flame. Left alone this dropped every candle, every
+                    // lamp and every torch in the game — twenty-three of them in the census office
+                    // alone, which reported no lights at all.
+                    if (prop)
+                        source->setEmpty(false);
                 }
 
-                osg::ref_ptr<osg::MatrixTransform> where = new osg::MatrixTransform(osg::Matrixd(object.mTransform));
-                where->addChild(node);
-                group->addChild(where);
+                // A prop with no light leaves an empty transform, which is nothing to place.
+                if (where->getNumChildren() > 0)
+                    group->addChild(where);
             });
 
             if (group->getNumChildren() > 0)
@@ -298,8 +325,6 @@ namespace RtxTool
         bool liveProps)
     {
         CellReport report = readRegion(world, centre, root, scene, extractor, loaded, liveProps);
-        for (const Rtx::Light& light : report.mLights)
-            scene.addLight(light);
 
         // **The one the camera is standing on**, which is what "how deep is this point" is asked
         // against. Every exterior square is at the same sea level, so which of the ring's quads

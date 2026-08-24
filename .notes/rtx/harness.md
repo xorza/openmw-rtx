@@ -171,15 +171,29 @@ a namespace of that name, and the error message says only that `MoonModel` does 
   does **not** violate "not one line of the ray tracer is compiled with the option off" — it is not
   ray-tracer code, and the picture the rasterizer draws is unchanged.
 
-### Step 3 — Lights as graph nodes
+### Step 3 — Lights as graph nodes — **done**
 
-**Attach a `SceneUtil::LightSource` when the harness instances a `LIGH` reference**, the way the game
-does, and delete `LoadedCell::mLights` and `placeCellLights` with it.
+`readObjects` calls `SceneUtil::addLight` on the reference's own transform, exactly as the game does,
+and `LoadedCell::mLights`, `CellReport::mLights`, `StagedWorld::placeCellLights` and
+`PosedActors::mLit` are all gone. The §2.3 defect cannot recur, because there is no second
+bookkeeping path left to forget.
 
-- *Buys:* one route for lights instead of two; the §2.3 defect cannot recur; carried and moving
-  lights become possible.
-- *Costs:* the harness has to build the node OpenMW builds. `RtxBridge::makeLight` already holds the
-  conversion, so what is needed is the attachment, not the physics.
+**It also honours `AttachLight`**, which the record path could not: a chandelier's light now sits at
+its candles rather than at the reference's origin, and the shadows say so.
+
+Three things this turned up, in the order they bit:
+
+- **A light-carrying reference that is also a live prop returned before the attach**, so every
+  candle, lamp and torch in the game lost its light. Attaching before the prop test fixes half of it.
+- **The other half is `setEmpty`.** `SceneUtil::addLight` marks a source with no geometry beneath it
+  empty so the game can skip a light on something invisible, and a prop's transform carries the light
+  alone — the census office reported twenty-three light references and nought lights. A prop's model
+  is not missing, it is being instanced somewhere it can run its flame, so the source says it is not
+  empty.
+- **`StagedWorld::mirror` never emptied the per-frame lists before walking**, which
+  `RtxRenderer::renderFrame` has always done. Appending rather than replacing did not show while the
+  lights were read from records and placed once; the moment they became nodes a walk meets, every
+  light in the region counted twice per walk.
 
 ### Step 4 — Water the way the game has it
 

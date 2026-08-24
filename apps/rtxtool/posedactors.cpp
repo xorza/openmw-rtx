@@ -36,7 +36,6 @@ namespace RtxTool
         , mScene(scene)
         , mExtractor(extractor)
         , mRoot(root)
-        , mLit(scene.getLights().begin(), scene.getLights().end())
         , mSeconds(request.mSeconds)
         , mClothes(request.mClothes)
         , mLastSeconds(request.mSeconds)
@@ -148,34 +147,25 @@ namespace RtxTool
 
     RtxBridge::ExtractionStats PosedActors::mirror()
     {
-        // The game's frame, and now this one: empty the lists a walk refills, put back the lights
-        // that belong to the world rather than to the graph, then walk the whole thing.
+        // The game's frame, and now this one: empty the lists a walk refills, then walk the whole
+        // thing. The lights are among what it refills — they are `LightSource` nodes in the graph,
+        // exactly as the game has them.
         mScene.clearPlacement();
-        for (const Rtx::Light& light : mLit)
-            mScene.addLight(light);
-
         return mExtractor.extract(mRoot, osg::Matrixf::identity(), 0);
     }
 
     void PosedActors::unplace()
     {
-        // **The placements are not among what this puts back.** They are addressed by slot and the
+        // **The placements are not among what this empties.** They are addressed by slot and the
         // scene keeps them: a world that stands still stands still, and an actor walked in again
-        // finds the slot it had. What `clearPlacement` empties is the per-frame lists, and of those
-        // only the lights belong to the world rather than to the actors.
+        // finds the slot it had. What `clearPlacement` empties is the per-frame lists, and the walk
+        // that comes next is what fills them again.
         mScene.clearPlacement();
-        for (const Rtx::Light& light : mLit)
-            mScene.addLight(light);
     }
 
     bool PosedActors::step(std::uint32_t frame)
     {
         return advanceTo(mSeconds + static_cast<float>(frame) * sFrameSeconds);
-    }
-
-    void PosedActors::restanding()
-    {
-        mLit.assign(mScene.getLights().begin(), mScene.getLights().end());
     }
 
     void PosedActors::posedAt(float seconds, float elapsed)

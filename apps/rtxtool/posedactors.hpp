@@ -113,12 +113,8 @@ namespace RtxTool
         /// twice.
         void unplace();
 
-        /// Empties the per-frame lists, restores the world's lights, and walks the graph.
+        /// Empties the per-frame lists and walks the graph, which is what fills them again.
         RtxBridge::ExtractionStats mirror();
-
-        /// Takes the lights as they now stand to be what a frame puts back. The other half of
-        /// `unplace`, called once the cells that arrived between them are in.
-        void restanding();
 
         /// What the actors added the first time they were walked in.
         const RtxBridge::ExtractionStats& getPlaced() const { return mPlaced; }
@@ -156,7 +152,6 @@ namespace RtxTool
 
         /// The world's own lights, which `clearPlacement` empties every frame and only this can
         /// put back — a light on the graph belongs to whatever is carrying it.
-        std::vector<Rtx::Light> mLit;
 
         std::vector<std::unique_ptr<Actor>> mActors;
 

@@ -70,15 +70,15 @@ namespace RtxTool
 
     StagedWorld::~StagedWorld() = default;
 
-    void StagedWorld::placeCellLights()
-    {
-        for (const auto& [key, cell] : mLoaded)
-            for (const Rtx::Light& light : cell.mLights)
-                mScene.addLight(light);
-    }
-
     RtxBridge::ExtractionStats StagedWorld::mirror(std::size_t frame)
     {
+        // **Emptied before it is filled, which is what `RtxRenderer::renderFrame` does too.** The
+        // lists a walk refills — the lights, the sprites, the emitters, the deforming set — are
+        // appended to rather than replaced, so a second walk without this counted every light in the
+        // region twice. It did not show while the lights were read out of records and placed once;
+        // it showed the moment they became `LightSource` nodes the walk meets.
+        mScene.clearPlacement();
+
         // **The residency is asked inside the same walk**, so the chunks a paged world keeps out of
         // the graph are dated, counted and swept with everything the graph does hold. Null where
         // nothing pages, which is every run that did not ask for it.
@@ -146,17 +146,11 @@ namespace RtxTool
             mExtractor.advance();
         }
 
-        // And then what no walk can refill, sweep or no sweep. A `LIGH` record is not a node: it
-        // went into the scene directly, so an emptied light table cannot be answered by walking
-        // again — this is the only thing that puts the lamps back.
-        placeCellLights();
-
         if (mPosed == nullptr)
             return crossed;
 
-        // The snapshot first, then the people who arrived with the ring: the snapshot is the still
-        // world, and a resident belongs to the half of the scene that is walked in again per frame.
-        mPosed->restanding();
+        // The people who arrived with the ring. A resident belongs to the half of the scene that is
+        // walked in again per frame, which is why they go in after the cells rather than with them.
         if (mActors.mResidents)
             mPosed->addResidents(arrived.mPeople);
         if (mActors.mProps)

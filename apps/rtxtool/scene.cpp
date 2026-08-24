@@ -55,8 +55,8 @@ namespace RtxTool
         }
         out << "  cutout materials:     " << cutouts << ", " << tested << " of them alpha-tested outright\n"
             << "  emissive materials:   " << glowing << '\n'
-            << "  lights:               " << report.mLights.size() << " casting, ambient " << report.mAmbient.x()
-            << ", " << report.mAmbient.y() << ", " << report.mAmbient.z() << '\n'
+            << "  lights:               " << staged.getScene().getLights().size() << " casting, ambient "
+            << report.mAmbient.x() << ", " << report.mAmbient.y() << ", " << report.mAmbient.z() << '\n'
             << "  deforming drawables:  " << stats.mDeformed << '\n'
             << "  emitters:             " << stats.mEmitters << " holding " << stats.mSprites << " live particles\n"
             << "  residents:            " << staged.getActorCount() << " posed, " << staged.getPropCount()

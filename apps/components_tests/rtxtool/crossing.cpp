@@ -131,14 +131,13 @@ namespace RtxTool
             EXPECT_EQ(renderer.mRebuilt, 1u) << "the crossing cost a full build after all";
         }
 
-        /// A cell brings water and lights, and takes them away again when it leaves.
+        /// A cell brings water and lights, by the two different routes they take.
         ///
-        /// **Neither is anything a walk can find.** A `LIGH` record and an analytic water quad go
-        /// into the scene directly, so the sweep that runs when a cell departs cannot speak for them
-        /// — it clears the light table outright, on the understanding that the next walk refills it,
-        /// which is true of a torch in someone's hand and false of a lamp on a post. Both of these
-        /// went wrong the same way: the lamp on the boat at Seyda Neen went out on the first
-        /// crossing, and the sea was one rectangle under wherever the run started.
+        /// **The water is the one no walk can find.** An analytic quad goes into the scene directly,
+        /// so the cell has to remember it and hand it back when it leaves. Its lights take the
+        /// graph like the game's do, which is what makes them survive the sweep that empties the
+        /// light table whenever a cell departs — they went out on the first crossing while they
+        /// were a list instead.
         TEST(RtxCrossingTest, aCellBringsWaterAndLightsAndTakesThemWithIt)
         {
             Files::ConfigurationManager config;
@@ -175,12 +174,10 @@ namespace RtxTool
 
             EXPECT_EQ(where.size(), loaded.size()) << "the ring placed one quad and named it nine times";
 
-            // And the lights came with the cells rather than with the region as a whole.
-            std::size_t lit = 0;
-            for (const auto& [key, cell] : loaded)
-                lit += cell.mLights.size();
-
-            EXPECT_GT(lit, std::size_t{ 0 }) << "a town of nine cells casts no light at all";
+            // **And the lights are in the graph**, so a walk is what places them — there is no
+            // list of them anywhere for this to count.
+            extractor.extract(*root, osg::Matrixf::identity(), 0);
+            EXPECT_GT(scene.getLights().size(), std::size_t{ 0 }) << "a town of nine cells casts no light at all";
         }
 
         /// The lamps are still burning after the crossing that swept the scene.
