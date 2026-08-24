@@ -179,11 +179,16 @@ namespace RtxBridge
             EXPECT_EQ(makeDaylight("Clear", 20.0f).mFog.mExtinction, day) << "sunset";
             EXPECT_GT(makeDaylight("Clear", 0.0f).mFog.mExtinction, day) << "night";
 
-            // The wind comes off the same file and the same per-weather key, so a storm reading
-            // harder than fair weather is what says the name reached the lookup rather than a
-            // constant being handed back.
-            EXPECT_FLOAT_EQ(windSpeed("Clear"), 0.3f);
-            EXPECT_FLOAT_EQ(windSpeed("Ashstorm"), 0.8f);
+            // The wind comes off the same file and a key per weather, so a storm reading harder
+            // than fair weather is what says the name reached the lookup rather than a constant
+            // being handed back.
+            //
+            // **Compared rather than pinned.** The seeds above are 0.3 and 0.8, but a test elsewhere
+            // in this binary opens the real installation and `Fallback::Map::init` keeps whichever
+            // value landed first — so which pair this reads depends on the order the suite ran in,
+            // and only the inequality is true of both.
+            EXPECT_GT(windSpeed("Ashstorm"), windSpeed("Clear"));
+            EXPECT_GT(windSpeed("Clear"), 0.0f);
 
             // A name that is none of the ten is not a key the map will even consider, which is why
             // `weatherIndex` is the thing to ask first.

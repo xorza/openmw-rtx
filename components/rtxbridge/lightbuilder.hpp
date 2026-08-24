@@ -90,6 +90,10 @@ namespace RtxBridge
     /// frame taken either way has to be under the same sky.
     std::optional<std::uint32_t> weatherIndex(std::string_view weather);
 
+    /// The name that index spells, for whoever has to hand one back to `makeDaylight`. Empty for
+    /// an index past the ten.
+    std::string_view weatherName(std::uint32_t weather);
+
     /// How hard the wind blows under a named weather, as the content files record it.
     ///
     /// The game interpolates between two of these; the harness, which runs no weather, reads the

@@ -4,6 +4,23 @@
 
 namespace RtxTool
 {
+    void relight(CellLighting& lighting, std::string_view weather, int day, float hour)
+    {
+        if (!lighting.mOutdoors)
+            return;
+
+        const RtxBridge::Daylight daylight = RtxBridge::makeDaylight(weather, hour);
+
+        lighting.mAmbient = daylight.mAmbient;
+        lighting.mDaylight = daylight;
+        lighting.mFog = daylight.mFog;
+        lighting.mDay = day;
+
+        // The name reached `makeDaylight` intact, so it is one of the ten.
+        lighting.mWeather = RtxBridge::weatherIndex(weather).value();
+        lighting.mWindSpeed = RtxBridge::windSpeed(weather);
+    }
+
     void applyLighting(const CellLighting& lighting, Rtx::Shaders::VisibilityConstants& constants)
     {
         constants.mAmbient = lighting.mAmbient;

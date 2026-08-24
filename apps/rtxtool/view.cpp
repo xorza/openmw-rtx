@@ -1,5 +1,6 @@
 #include "view.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <format>
@@ -13,6 +14,8 @@
 #include <components/files/conversion.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/shaders/visibility.h>
+#include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/png.hpp>
 #include <components/rtxbridge/sceneuploader.hpp>
 
@@ -72,6 +75,7 @@ namespace RtxTool
                 .mTarget = camera.getTarget(),
                 .mWeather = request.mWeather,
                 .mHour = request.mHour,
+                .mDay = request.mDay,
             };
         }
 
@@ -98,6 +102,8 @@ namespace RtxTool
                      "  right drag     look\n"
                      "  shift / alt    six times faster / seven times slower\n"
                      "  wheel          change the base speed\n"
+                     "  , .            an hour back and forward,  shift for a day\n"
+                     "  [ ]            the weather before and after this one\n"
                      "  P              print this spot as a views.cfg block\n"
                      "  F3             print this spot as a command line, for profiling\n"
                      "  F2             write a screenshot\n"
@@ -135,6 +141,7 @@ namespace RtxTool
             StagingRequest{
                 .mWeather = request.mWeather,
                 .mHour = request.mHour,
+                .mDay = request.mDay,
                 .mFieldOfView = request.mFieldOfView,
                 .mOrigin = request.mOrigin,
                 .mTarget = request.mTarget,
@@ -183,6 +190,16 @@ namespace RtxTool
 
         printHelp();
 
+        /// Moves the sky to whatever the request now says, and takes the result back.
+        ///
+        /// **Nothing is reloaded.** The region, its lamps and its water are the same cell they were;
+        /// only the arithmetic over the hour and the settings is done again, which is why a key can
+        /// run the sun round the clock without a frame being dropped.
+        const auto moveSky = [&] {
+            staged.setSky(request.mWeather, request.mDay, request.mHour);
+            request.mLighting = staged.getLighting();
+        };
+
         bool running = true;
         bool looking = false;
         bool resized = false;
@@ -224,6 +241,40 @@ namespace RtxTool
                         running = false;
                     else if (event.key.keysym.sym == SDLK_F1)
                         printHelp();
+                    else if (event.key.keysym.sym == SDLK_COMMA || event.key.keysym.sym == SDLK_PERIOD)
+                    {
+                        const bool forward = event.key.keysym.sym == SDLK_PERIOD;
+                        const bool byDay = (event.key.keysym.mod & KMOD_SHIFT) != 0;
+
+                        if (byDay)
+                        {
+                            // A day back from the first is a day before the world began, and the
+                            // rise-hour formula counts from a fixed date rather than a signed one.
+                            request.mDay = std::max(request.mDay + (forward ? 1 : -1), 0);
+                        }
+                        else
+                        {
+                            // Wrapped rather than clamped, so holding one of these walks the sun
+                            // round and round instead of parking it at a horizon.
+                            request.mHour = std::fmod(request.mHour + (forward ? 1.0f : 23.0f), 24.0f);
+                        }
+
+                        moveSky();
+                    }
+                    else if (event.key.keysym.sym == SDLK_LEFTBRACKET || event.key.keysym.sym == SDLK_RIGHTBRACKET)
+                    {
+                        const bool forward = event.key.keysym.sym == SDLK_RIGHTBRACKET;
+
+                        // The ten in the order the engine registers them, which is what `[` and `]`
+                        // walk: a name that is none of them cannot have got this far, since the
+                        // region would have thrown while it was being lit.
+                        const std::uint32_t at = RtxBridge::weatherIndex(request.mWeather).value();
+                        const std::uint32_t next
+                            = (at + (forward ? 1u : Rtx::Shaders::WEATHER_COUNT - 1u)) % Rtx::Shaders::WEATHER_COUNT;
+                        request.mWeather = RtxBridge::weatherName(next);
+
+                        moveSky();
+                    }
                     else if (event.key.keysym.sym == SDLK_p)
                     {
                         // The readable line above both formats, so a log of them says where each
@@ -285,8 +336,10 @@ namespace RtxTool
                 if (shown.mRenderWidth != shown.mOutputWidth)
                     sizes = std::format("{}x{} to {}", shown.mRenderWidth, shown.mRenderHeight, sizes);
 
-                window.setTitle(std::format("{}  |  {:.0f} fps  |  {}  |  {:.0f}, {:.0f}, {:.0f}  |  {:.0f} u/s",
-                    request.mTitle, framesSinceTitle / elapsed, sizes, at.x(), at.y(), at.z(), camera.getSpeed()));
+                window.setTitle(
+                    std::format("{}  |  {:.0f} fps  |  {}  |  {:.0f}, {:.0f}, {:.0f}  |  {:.0f} u/s  |  day {} {} {}",
+                        request.mTitle, framesSinceTitle / elapsed, sizes, at.x(), at.y(), at.z(), camera.getSpeed(),
+                        request.mDay, clockFace(request.mHour), request.mWeather));
 
                 framesSinceTitle = 0;
                 lastTitle = now;

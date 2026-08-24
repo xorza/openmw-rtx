@@ -182,6 +182,7 @@ namespace RtxTool
             StagingRequest request;
             request.mWeather = variables["weather"].as<std::string>();
             request.mHour = variables["hour"].as<float>();
+            request.mDay = variables["day"].as<int>();
             request.mFieldOfView = variables["fov"].as<float>();
 
             // Where to stand is left out: a report is not taken from anywhere, and the two commands
@@ -229,6 +230,7 @@ namespace RtxTool
                 StagingRequest{
                     .mWeather = request.mWeather,
                     .mHour = request.mHour,
+                    .mDay = request.mDay,
                     .mFieldOfView = request.mFieldOfView,
                     .mOrigin = request.mOrigin,
                     .mTarget = request.mTarget,
@@ -509,6 +511,7 @@ namespace RtxTool
                 request.mExposure = parseExposure(variables["exposure"].as<std::string>());
                 request.mWeather = variables["weather"].as<std::string>();
                 request.mHour = variables["hour"].as<float>();
+                request.mDay = variables["day"].as<int>();
                 request.mActors = actorsFrom(variables);
 
                 // **Off unless somebody asked**, for the reason `bench` gives it: GPU-assisted
@@ -551,6 +554,7 @@ namespace RtxTool
                 request.mExposure = parseExposure(variables["exposure"].as<std::string>());
                 request.mWeather = variables["weather"].as<std::string>();
                 request.mHour = variables["hour"].as<float>();
+                request.mDay = variables["day"].as<int>();
                 request.mActors = ActorRequest{
                     .mCreatures = variables["actor"].as<std::vector<std::string>>(),
                     .mPeople = variables["npc"].as<std::vector<std::string>>(),
@@ -615,6 +619,7 @@ namespace RtxTool
                     request.mDelight = variables["delight"].as<float>();
                     request.mWeather = variables["weather"].as<std::string>();
                     request.mHour = variables["hour"].as<float>();
+                    request.mDay = variables["day"].as<int>();
 
                     return runView(world, chosen.mCell, validation, request, actors);
                 }
@@ -634,6 +639,7 @@ namespace RtxTool
                 request.mDelight = variables["delight"].as<float>();
                 request.mWeather = variables["weather"].as<std::string>();
                 request.mHour = variables["hour"].as<float>();
+                request.mDay = variables["day"].as<int>();
                 request.mUpscale = parseUpscale(variables["upscale"].as<std::string>());
 
                 // **A reference cannot be built through a denoiser.** `--accumulate` averages frames

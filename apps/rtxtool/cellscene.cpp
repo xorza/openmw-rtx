@@ -264,7 +264,8 @@ namespace RtxTool
     }
 
     RegionLoad loadRegion(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded, std::string_view weather, float hour, bool liveProps)
+        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded, std::string_view weather, int day, float hour,
+        bool liveProps)
     {
         CellReport report = readRegion(world, centre, root, loaded, liveProps);
         for (const Rtx::Light& light : report.mLights)
@@ -302,6 +303,8 @@ namespace RtxTool
         return RegionLoad{ .mLighting = CellLighting{ .mAmbient = daylight.mAmbient,
                                .mWaterLevel = level,
                                .mDaylight = daylight,
+                               .mOutdoors = true,
+                               .mDay = day,
                                .mWeather = identity,
                                .mWindSpeed = RtxBridge::windSpeed(weather),
                                .mFog = daylight.mFog },

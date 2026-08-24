@@ -131,6 +131,7 @@ if (OPENMW_RTX)
         rtxbridge/fogbuilder.cpp
         rtxbridge/frameimage.cpp
         rtxbridge/lightbuilder.cpp
+        rtxbridge/moonbuilder.cpp
         rtxbridge/sceneextractor.cpp
         rtxbridge/sceneuploader.cpp
         rtxbridge/texturebuilder.cpp

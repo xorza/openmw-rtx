@@ -49,6 +49,10 @@ namespace RtxTool
         std::string mWeather = "Clear";
         float mHour = 12.0f;
 
+        /// Which day, counted from the one a new game begins on — 16 Last Seed. Only the moons read
+        /// it: their phase runs on a three-day cycle and their rise hour on a twenty-four day one.
+        int mDay = 0;
+
         float mFieldOfView = 60.0f;
 
         /// Where to stand and what to look at. Either left out is derived from the cell's own
@@ -86,6 +90,13 @@ namespace RtxTool
         /// Mutable for whoever hands it to a backend, which consumes the arrivals it holds.
         Rtx::SceneDesc& getScene() { return mScene; }
         const CellLighting& getLighting() const { return mLighting; }
+
+        /// Moves the sky to another moment, without reading the region again.
+        ///
+        /// **What the window's clock and weather keys turn.** The cells, their lamps and their
+        /// water are the same either side of it; what changes is where the sun and the moons stand
+        /// and what the air is doing, which `relight` works out from the settings alone.
+        void setSky(std::string_view weather, int day, float hour) { relight(mLighting, weather, day, hour); }
         const Placement& getPlacement() const { return mPlacement; }
 
         /// What advances the scene between frames by frame index, or null where nothing in it

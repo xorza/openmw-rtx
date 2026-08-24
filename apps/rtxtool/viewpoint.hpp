@@ -45,6 +45,9 @@ namespace RtxTool
         std::string mWeather;
         float mHour = 12.0f;
 
+        /// Which day, counted from the one a new game begins on. Only the moons read it.
+        int mDay = 0;
+
         /// Degrees clockwise from north, in `[0, 360)`.
         ///
         /// **North is +Y and east is +X**, so the arguments come the other way round from the usual
@@ -54,6 +57,9 @@ namespace RtxTool
         /// Degrees above the horizon, in `[-90, 90]`.
         float getClimb() const;
     };
+
+    /// The hour as a clock reads it. Rounded to the minute, which is finer than the sun moves.
+    std::string clockFace(float hour);
 
     /// One line for a person: where this is, in numbers worth reading rather than round-tripping.
     ///

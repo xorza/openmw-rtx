@@ -37,12 +37,12 @@ namespace RtxTool
             return slug.empty() ? "new-view" : slug;
         }
 
-        /// The hour as a clock reads it. Rounded to the minute, which is finer than the sun moves.
-        std::string clockFace(float hour)
-        {
-            const int minutes = static_cast<int>(std::lround(hour * 60.0f)) % (24 * 60);
-            return std::format("{:02}:{:02}", minutes / 60, minutes % 60);
-        }
+    }
+
+    std::string clockFace(float hour)
+    {
+        const int minutes = static_cast<int>(std::lround(hour * 60.0f)) % (24 * 60);
+        return std::format("{:02}:{:02}", minutes / 60, minutes % 60);
     }
 
     float Viewpoint::getBearing() const
@@ -66,9 +66,9 @@ namespace RtxTool
 
     std::string describeSpot(const Viewpoint& spot)
     {
-        return std::format("# {} at {:.0f}, {:.0f}, {:.0f} — bearing {:.0f}°, climb {:.0f}° — {}, {}\n", spot.mCell,
-            spot.mOrigin.x(), spot.mOrigin.y(), spot.mOrigin.z(), spot.getBearing(), spot.getClimb(),
-            clockFace(spot.mHour), spot.mWeather);
+        return std::format("# {} at {:.0f}, {:.0f}, {:.0f} — bearing {:.0f}°, climb {:.0f}° — day {}, {}, {}\n",
+            spot.mCell, spot.mOrigin.x(), spot.mOrigin.y(), spot.mOrigin.z(), spot.getBearing(), spot.getClimb(),
+            spot.mDay, clockFace(spot.mHour), spot.mWeather);
     }
 
     std::string describeBlock(const Viewpoint& spot)
@@ -98,9 +98,11 @@ namespace RtxTool
 
         return std::format(
             "--cell=\"{}\" --pos={},{},{} --look={},{},{} --fov={} --size={}x{} --weather={}"
-            " --hour={} --exposure={} --filter={} --validation={} --sync-validation={} --gpu-validation={}{}",
+            " --hour={} --day={} --exposure={} --filter={} --validation={} --sync-validation={}"
+            " --gpu-validation={}{}",
             request.mCell, origin.x(), origin.y(), origin.z(), target.x(), target.y(), target.z(), request.mFieldOfView,
-            width, height, request.mWeather, request.mHour, exposure, request.mFilter, validation.mEnabled,
-            validation.mSynchronization, validation.mGpuAssisted, request.mShowAlbedo ? " --albedo" : "");
+            width, height, request.mWeather, request.mHour, request.mDay, exposure, request.mFilter,
+            validation.mEnabled, validation.mSynchronization, validation.mGpuAssisted,
+            request.mShowAlbedo ? " --albedo" : "");
     }
 }

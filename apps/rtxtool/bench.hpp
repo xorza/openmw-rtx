@@ -81,6 +81,9 @@ namespace RtxTool
         std::string mWeather = "Clear";
         float mHour = 12.0f;
 
+        /// Which day, counted from the one a new game begins on. Only the moons read it.
+        int mDay = 0;
+
         ActorRequest mActors;
 
         /// How many frames each place is measured over, which is `mFrames` or what `mSeconds` comes

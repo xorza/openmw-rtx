@@ -137,6 +137,11 @@ namespace RtxTool
             "what time an exterior's sun is at, on a twenty-four hour clock. An interior is lit "
             "by its own lamps and does not care");
 
+        addOption("day", bpo::value<int>()->default_value(0),
+            "which day the world stands on, counted from the one a new game starts — 16 Last Seed, "
+            "where both moons are full. It is the moons this decides and nothing else: their phase "
+            "runs on a three-day cycle and the hour they rise on a twenty-four day one");
+
         addOption("frames", bpo::value<std::uint32_t>()->default_value(0),
             "with `view`, close after this many frames instead of waiting to be closed. With "
             "`bench`, measure this many frames at each place instead of deriving them from "

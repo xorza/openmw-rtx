@@ -71,7 +71,7 @@ namespace RtxTool
 
             LoadedCells loaded;
             const CellLighting lit
-                = loadRegion(world, cell, *root, scene, extractor, loaded, "Clear", 12.0f, false).mLighting;
+                = loadRegion(world, cell, *root, scene, extractor, loaded, "Clear", 0, 12.0f, false).mLighting;
             extractor.extract(*root, osg::Matrixf::identity(), 0);
 
             return lit;

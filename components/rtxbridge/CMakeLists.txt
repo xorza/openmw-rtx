@@ -9,6 +9,8 @@ set(RTXBRIDGE_FILES
     frameimage.hpp
     lightbuilder.cpp
     lightbuilder.hpp
+    moonbuilder.cpp
+    moonbuilder.hpp
     png.cpp
     png.hpp
     posecull.hpp

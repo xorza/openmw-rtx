@@ -79,6 +79,9 @@ namespace RtxTool
         std::string mWeather = "Clear";
         float mHour = 12.0f;
 
+        /// Which day, counted from the one a new game begins on. Only the moons read it.
+        int mDay = 0;
+
         std::optional<osg::Vec3f> mOrigin;
         std::optional<osg::Vec3f> mTarget;
 

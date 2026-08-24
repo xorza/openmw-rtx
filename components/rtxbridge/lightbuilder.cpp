@@ -184,6 +184,11 @@ namespace RtxBridge
         return static_cast<std::uint32_t>(found - sWeathers.begin());
     }
 
+    std::string_view weatherName(std::uint32_t weather)
+    {
+        return weather < sWeathers.size() ? sWeathers[weather] : std::string_view();
+    }
+
     float windSpeed(std::string_view weather)
     {
         return Fallback::Map::getFloat("Weather_" + std::string(weather) + "_Wind_Speed");

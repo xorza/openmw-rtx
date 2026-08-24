@@ -130,7 +130,7 @@ namespace RtxTool
             // content; forty-nine cells would be a different fixture wearing the same number.
             LoadedCells loaded;
             const CellLighting lighting
-                = loadRegion(*world, *cell, *root, scene, extractor, loaded, "Clear", 12.0f, false).mLighting;
+                = loadRegion(*world, *cell, *root, scene, extractor, loaded, "Clear", 0, 12.0f, false).mLighting;
             ASSERT_FALSE(scene.getInstances().empty()) << "the cell placed no geometry";
 
             Rtx::RendererOptions options;

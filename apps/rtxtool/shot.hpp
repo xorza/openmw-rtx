@@ -107,6 +107,9 @@ namespace RtxTool
         std::string mWeather = "Clear";
         float mHour = 12.0f;
 
+        /// Which day, counted from the one a new game begins on. Only the moons read it.
+        int mDay = 0;
+
         /// Where to stand and what to look at. Both default to a view of the whole cell from outside
         /// it, which is the only placement that needs nothing known about the cell.
         std::optional<osg::Vec3f> mOrigin;

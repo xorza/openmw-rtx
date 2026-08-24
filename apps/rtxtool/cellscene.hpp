@@ -158,6 +158,6 @@ namespace RtxTool
     };
 
     RegionLoad loadRegion(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded, std::string_view weather, float hour,
+        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded, std::string_view weather, int day, float hour,
         bool liveProps);
 }

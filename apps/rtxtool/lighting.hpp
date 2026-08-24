@@ -29,6 +29,17 @@ namespace RtxTool
         /// The sun and the sky over an exterior. An interior leaves this dark.
         RtxBridge::Daylight mDaylight;
 
+        /// Whether this cell has a sky over it.
+        ///
+        /// **The one thing `relight` cannot work out for itself.** An interior's ambient and air
+        /// come out of its own `AMBI` record and owe nothing to the clock, so moving the hour must
+        /// leave them exactly where they were rather than replacing them with an outdoor noon.
+        bool mOutdoors = false;
+
+        /// Which day the world stands on, counted from the one a new game begins. Only the moons
+        /// read it.
+        int mDay = 0;
+
         /// Which weather the sky is under, as the shader's `WEATHER_*` number it.
         ///
         /// **One and not two.** The harness runs no weather simulation, so nothing here is ever
@@ -53,4 +64,14 @@ namespace RtxTool
     /// The lamps themselves are not here. They are in the scene, and the pass finds them through the
     /// grid `SceneBuffers` binned them into rather than through a count anyone has to remember.
     void applyLighting(const CellLighting& lighting, Rtx::Shaders::VisibilityConstants& constants);
+
+    /// Moves a cell's sky to another moment, leaving everything the sky does not decide.
+    ///
+    /// **What the window's clock keys turn, and it reloads nothing.** Where the sun and the moons
+    /// stand and what the air is doing are arithmetic over the settings and the hour; the geometry,
+    /// the lamps and the water are the same cell they were, so stepping an hour is a few dozen
+    /// floating-point operations rather than a region being read again.
+    ///
+    /// An interior is left untouched: it has no sky for a clock to move.
+    void relight(CellLighting& lighting, std::string_view weather, int day, float hour);
 }

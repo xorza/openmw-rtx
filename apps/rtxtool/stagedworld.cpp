@@ -17,8 +17,8 @@ namespace RtxTool
         , mWorld(&world)
         , mActors(actors)
     {
-        const RegionLoad arrived = loadRegion(
-            world, cell, *mRoot, mScene, mExtractor, mLoaded, request.mWeather, request.mHour, actors.mProps);
+        const RegionLoad arrived = loadRegion(world, cell, *mRoot, mScene, mExtractor, mLoaded, request.mWeather,
+            request.mDay, request.mHour, actors.mProps);
 
         mLighting = arrived.mLighting;
         mReport = std::move(arrived.mReport);

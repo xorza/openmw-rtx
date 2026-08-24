@@ -131,6 +131,7 @@ namespace RtxTool
                 StagingRequest{
                     .mWeather = request.mWeather,
                     .mHour = request.mHour,
+                    .mDay = request.mDay,
                     .mFieldOfView = request.mFieldOfView,
                     .mOrigin = view.mOrigin,
                     .mTarget = view.mTarget,

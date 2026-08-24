@@ -4,9 +4,11 @@
 
 #include <osg/Vec3f>
 
+#include <components/fallback/fallback.hpp>
 #include <components/rtx/camera.hpp>
 #include <components/rtx/error.hpp>
 #include <components/rtx/renderer.hpp>
+#include <components/rtx/shaders/visibility.h>
 
 #include <apps/rtxtool/framing.hpp>
 #include <apps/rtxtool/placement.hpp>
@@ -111,6 +113,81 @@ namespace RtxTool
             EXPECT_EQ(makeFrameConstants(moving, sExtents).mTime, 3.5f);
             EXPECT_EQ(makeFrameConstants(moving, sExtents).mWaterLevel, -12.0f);
             EXPECT_NE(makeFrameConstants(moving, sExtents).mTime, plain.mTime);
+        }
+
+        /// The clock and the weather move the sky and leave the cell alone.
+        ///
+        /// **What the window's `,` `.` and `[` `]` turn.** Two weathers have to reach two different
+        /// skies or the keys are decoration, and an interior has to come back untouched: its ambient
+        /// and its air are its own `AMBI` record, which no hour has a say in.
+        ///
+        /// The settings below are planted so this stands up on its own — an allowed key the map
+        /// never received answers middle grey, and two weathers left unseeded would agree, which
+        /// would pass for the wrong reason.
+        ///
+        /// **But they are not what is asserted against.** `Fallback::Map::init` keeps whichever
+        /// value arrives first, and a test elsewhere in this binary opens the real installation and
+        /// plants Morrowind's own — so which of the two a key holds depends on the order the suite
+        /// ran in. Every expectation here is therefore against what `RtxBridge` says the same
+        /// weather is, which is `relight`'s actual contract and true of either source.
+        TEST(RtxFramingTest, theClockAndTheWeatherMoveTheSkyAndLeaveTheCellAlone)
+        {
+            Fallback::Map::init({
+                { "Weather_Sunrise_Time", "6" },
+                { "Weather_Sunset_Time", "18" },
+                { "Weather_Sunset_Duration", "2" },
+                { "Weather_Clear_Land_Fog_Day_Depth", "0.4" },
+                { "Weather_Clear_Land_Fog_Night_Depth", "0.8" },
+                { "Weather_Clear_Wind_Speed", "0.3" },
+                { "Weather_Clear_Sky_Day_Color", "100,150,200" },
+                { "Weather_Clear_Sun_Day_Color", "255,255,255" },
+                { "Weather_Overcast_Land_Fog_Day_Depth", "0.9" },
+                { "Weather_Overcast_Land_Fog_Night_Depth", "0.9" },
+                { "Weather_Overcast_Wind_Speed", "0.7" },
+                { "Weather_Overcast_Sky_Day_Color", "80,80,80" },
+                { "Weather_Overcast_Sun_Day_Color", "120,120,120" },
+            });
+
+            CellLighting outdoors{ .mWaterLevel = -32.0f, .mOutdoors = true };
+
+            relight(outdoors, "Clear", 0, 12.0f);
+            EXPECT_EQ(outdoors.mWeather, Rtx::Shaders::WEATHER_CLEAR);
+            EXPECT_FLOAT_EQ(outdoors.mWindSpeed, RtxBridge::windSpeed("Clear"));
+            EXPECT_EQ(outdoors.mDaylight.mSkyZenith, RtxBridge::makeDaylight("Clear", 12.0f).mSkyZenith);
+            EXPECT_GT(outdoors.mDaylight.mSun.mIrradiance.x(), 0.0f) << "noon has a sun";
+
+            // Midnight is the same weather with the sun switched off — a night is dark because the
+            // sun stops shining, not because it has gone under the ground.
+            relight(outdoors, "Clear", 0, 0.0f);
+            EXPECT_EQ(outdoors.mDaylight.mSun.mIrradiance, osg::Vec3f());
+            EXPECT_EQ(outdoors.mWeather, Rtx::Shaders::WEATHER_CLEAR) << "the hour is not the weather";
+
+            // And another weather is another sky, at the same hour.
+            relight(outdoors, "Overcast", 5, 12.0f);
+            EXPECT_EQ(outdoors.mWeather, Rtx::Shaders::WEATHER_OVERCAST);
+            EXPECT_EQ(outdoors.mDay, 5);
+            EXPECT_FLOAT_EQ(outdoors.mWindSpeed, RtxBridge::windSpeed("Overcast"));
+            EXPECT_EQ(outdoors.mDaylight.mSkyZenith, RtxBridge::makeDaylight("Overcast", 12.0f).mSkyZenith);
+            EXPECT_GT(outdoors.mFog.mExtinction, 0.0f);
+
+            // **And the two are different skies**, whichever file the numbers came out of, which is
+            // what says the weather key does anything at all.
+            EXPECT_NE(RtxBridge::makeDaylight("Clear", 12.0f).mSkyZenith,
+                RtxBridge::makeDaylight("Overcast", 12.0f).mSkyZenith);
+
+            // The cell's own half is left where it was: nothing here reads the water.
+            EXPECT_EQ(outdoors.mWaterLevel, -32.0f);
+
+            // **An interior has no sky for a clock to move.** Every field comes back as it went in,
+            // including the weather it was never under.
+            const CellLighting room{ .mAmbient = osg::Vec3f(0.1f, 0.2f, 0.3f), .mWaterLevel = -8.0f };
+            CellLighting moved = room;
+            relight(moved, "Overcast", 5, 3.0f);
+            EXPECT_EQ(moved.mAmbient, room.mAmbient);
+            EXPECT_EQ(moved.mWaterLevel, room.mWaterLevel);
+            EXPECT_EQ(moved.mWeather, room.mWeather);
+            EXPECT_EQ(moved.mDay, room.mDay);
+            EXPECT_EQ(moved.mWindSpeed, room.mWindSpeed);
         }
 
         /// A camera with no basis says so rather than filling the image with NaN.

@@ -68,7 +68,7 @@ namespace RtxTool
 
             EXPECT_EQ(describeProfile(request, validation, origin, target, 2560, 1440),
                 "--cell=\"Balmora, Guild of Fighters\" --pos=-19216.5,-14896.25,160 --look=-19323,-13903,109.5"
-                " --fov=60 --size=2560x1440 --weather=Ashstorm --hour=17.25 --exposure=auto --filter=false "
+                " --fov=60 --size=2560x1440 --weather=Ashstorm --hour=17.25 --day=0 --exposure=auto --filter=false "
                 "--validation=true"
                 " --sync-validation=true --gpu-validation=false");
         }
@@ -159,7 +159,8 @@ namespace RtxTool
         {
             const std::string line = describeSpot(makeSpot());
             EXPECT_EQ(line,
-                "# Balmora, Guild of Mages at -283, -671, -581 \u2014 bearing 127\u00b0, climb -10\u00b0 \u2014 12:00, "
+                "# Balmora, Guild of Mages at -283, -671, -581 \u2014 bearing 127\u00b0, climb -10\u00b0 \u2014 day 0, "
+                "12:00, "
                 "Clear\n");
 
             // A quarter past five in the evening, because a decimal hour is not a time anyone reads.
