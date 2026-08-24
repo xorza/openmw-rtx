@@ -18,6 +18,7 @@
 #include "lighting.hpp"
 #include "placement.hpp"
 #include "posedactors.hpp"
+#include "waterplane.hpp"
 
 namespace ESM
 {
@@ -182,6 +183,10 @@ namespace RtxTool
         LoadedCells mLoaded;
 
         CellLighting mLighting;
+
+        /// The world's water, one sheet the way the game has it. Declared after the root it hangs
+        /// under and before anything that walks it.
+        std::optional<WaterPlane> mWater;
         Placement mPlacement;
 
         /// What the staging load and the staging walk came to, kept for whoever reports on them.

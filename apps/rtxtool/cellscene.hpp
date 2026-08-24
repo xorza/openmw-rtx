@@ -14,7 +14,6 @@
 
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
-#include <components/rtxbridge/waterbuilder.hpp>
 
 #include "lighting.hpp"
 #include "world.hpp"
@@ -55,7 +54,7 @@ namespace RtxTool
     /// **A group per cell is what makes a cell able to leave.** Taking that node off the root is the
     /// whole of unloading: the next walk does not reach what was under it, and the sweep that
     /// follows takes its placements, its meshes and its materials with it.
-    /// What a cell brought that no walk will ever meet again.
+    /// What a cell brought.
     ///
     /// **Its water quad, and that is now the whole of it.** A cell's references hang under a group
     /// and a walk finds them every time — its lights included, since those are `LightSource` nodes
@@ -65,9 +64,6 @@ namespace RtxTool
     struct LoadedCell
     {
         osg::ref_ptr<osg::Group> mNode;
-
-        /// Its water surface, or nothing where it holds none.
-        std::optional<RtxBridge::WaterSurface> mWater;
     };
 
     using LoadedCells = std::map<std::string, LoadedCell>;

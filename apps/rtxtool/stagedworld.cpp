@@ -21,6 +21,12 @@ namespace RtxTool
             request.mDay, request.mHour, actors.mProps);
 
         mLighting = arrived.mLighting;
+
+        // **After the region, because an interior's sheet sits over whatever the room holds.** The
+        // level it answers is what "how deep is this point" is asked against, so it goes into the
+        // lighting the frame is described from.
+        mWater.emplace(*mRoot);
+        mLighting.mWaterLevel = mWater->follow(cell);
         mReport = std::move(arrived.mReport);
 
         // **Before the first walk, because the walk runs the animators.** The graph's own
@@ -28,6 +34,11 @@ namespace RtxTool
         // shot is only repeatable if it is told which second it is showing rather than measuring
         // one of its own.
         setSeconds(actors.mSeconds);
+
+        // **Without this the sea is shaded as ordinary geometry.** `isWater` answers no for every
+        // mask until it is told which one names the water, and the game tells its own extractor the
+        // same thing at `rtxrenderer.cpp:172`.
+        mExtractor.setWaterMask(sWaterMask);
 
         mRegion = cell.mRegion;
 
@@ -112,6 +123,11 @@ namespace RtxTool
             return {};
 
         mRegion = cell->mRegion;
+
+        // **The sheet moves with the camera's cell, exactly as `Water::changeCell` moves the
+        // game's.** It is finite — a hundred and fifty cells across — so a camera that flew far
+        // enough from where it started would otherwise reach the edge of the sea.
+        mLighting.mWaterLevel = mWater->follow(*cell);
 
         // **The actors come out first.** The new cells are walked into whatever the scene holds, so
         // a snapshot retaken with everyone still in it would place a second copy of them on the very

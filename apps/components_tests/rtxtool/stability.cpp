@@ -131,6 +131,12 @@ namespace RtxTool
             LoadedCells loaded;
             const CellLighting lighting
                 = loadRegion(*world, *cell, *root, scene, extractor, loaded, "Clear", 0, 12.0f, false).mLighting;
+
+            // **The walk is what places anything at all.** `loadRegion` builds the graph and nothing
+            // more, so without this the scene held whatever had been put into it directly — which
+            // for as long as the sea was an analytic quad was exactly one quad, and this measured
+            // the temporal resolve of a frame containing a single flat surface.
+            extractor.extract(*root, osg::Matrixf::identity(), 0);
             ASSERT_FALSE(scene.getInstances().empty()) << "the cell placed no geometry";
 
             Rtx::RendererOptions options;

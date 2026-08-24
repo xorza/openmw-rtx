@@ -136,7 +136,6 @@ if (OPENMW_RTX)
         rtxbridge/sceneextractor.cpp
         rtxbridge/sceneuploader.cpp
         rtxbridge/texturebuilder.cpp
-        rtxbridge/waterbuilder.cpp
         rtxtool/actor.cpp
         rtxtool/benchsuite.cpp
         rtxtool/contactsheet.cpp

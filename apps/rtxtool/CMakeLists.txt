@@ -48,6 +48,8 @@ set(RTXTOOL_FILES
     verify.hpp
     views.cpp
     views.hpp
+    waterplane.cpp
+    waterplane.hpp
     window.cpp
     window.hpp
     world.cpp

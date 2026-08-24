@@ -19,7 +19,6 @@
 #include <components/rtxbridge/fogbuilder.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/texturebuilder.hpp>
-#include <components/rtxbridge/waterbuilder.hpp>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/sceneutil/lightutil.hpp>
 
@@ -140,15 +139,6 @@ namespace RtxTool
             if (entry->second.mNode != nullptr)
                 root.removeChild(entry->second.mNode);
 
-            // **The third thing a cell brought.** Its quad was placed rather than walked into, so
-            // the sweep cannot find it and the hold that protected it has to be given back by hand
-            // — otherwise every square the camera ever crossed keeps a sheet of sea behind it.
-            if (entry->second.mWater.has_value())
-            {
-                scene.dropInstance(entry->second.mWater->mInstance);
-                extractor.unhold(entry->second.mWater->mMesh, entry->second.mWater->mMaterial);
-            }
-
             // **The ground goes with the references standing on it.** They arrive by two routes —
             // the cell's own group, and the one node `Terrain::TerrainGrid` accumulates into — so
             // taking the group off the root drops only half of what the cell brought.
@@ -206,16 +196,6 @@ namespace RtxTool
         {
             LoadedCell& entry = loaded[keyOf(*cell)];
             entry.mNode = readObjects(world, *cell, root, report, liveProps);
-
-            // **Every cell and not only the one the region is centred on.** The sea is continuous
-            // and each square carries its own footprint of it, so a ring that placed one quad left
-            // the water as a rectangle under wherever the run happened to start.
-            //
-            // After the objects, because an interior's pool is sized by what the room holds and
-            // there is nothing to measure until the room is in.
-            entry.mWater = RtxBridge::addWater(scene, *cell);
-            if (entry.mWater.has_value())
-                extractor.hold(entry.mWater->mMesh, entry.mWater->mMaterial);
         }
 
         return report;
@@ -326,14 +306,9 @@ namespace RtxTool
     {
         CellReport report = readRegion(world, centre, root, scene, extractor, loaded, liveProps);
 
-        // **The one the camera is standing on**, which is what "how deep is this point" is asked
-        // against. Every exterior square is at the same sea level, so which of the ring's quads
-        // this reads makes no difference out of doors; indoors there is only ever the one.
-        const auto centreCell = loaded.find(keyOf(centre));
-        const std::optional<RtxBridge::WaterSurface> water
-            = centreCell == loaded.end() ? std::nullopt : centreCell->second.mWater;
-
-        const float level = water.has_value() ? water->mLevel : -std::numeric_limits<float>::infinity();
+        // **The sheet is the world's and not the region's**, so whoever owns it says where it is.
+        // Left at never here, and `StagedWorld` writes what its own plane answers.
+        const float level = -std::numeric_limits<float>::infinity();
 
         // An interior's sky is never seen and its sun never shines, so the daylight stays dark.
         // Its air is its own, out of the same `AMBI` its ambient came from.

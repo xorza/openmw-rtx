@@ -397,18 +397,6 @@ namespace RtxBridge
         return key;
     }
 
-    void SceneExtractor::unhold(Rtx::Index mesh, Rtx::Index material)
-    {
-        // The first match and not every one: two cells may hold the same pair, and letting one go
-        // must not speak for the other.
-        if (const auto found = std::find(mHeldMeshes.begin(), mHeldMeshes.end(), mesh); found != mHeldMeshes.end())
-            mHeldMeshes.erase(found);
-
-        if (const auto found = std::find(mHeldMaterials.begin(), mHeldMaterials.end(), material);
-            found != mHeldMaterials.end())
-            mHeldMaterials.erase(found);
-    }
-
     void SceneExtractor::advance()
     {
         mScene.advancePlacement();
@@ -441,15 +429,6 @@ namespace RtxBridge
 
             return dropped;
         }
-    }
-
-    void SceneExtractor::hold(Rtx::Index mesh, Rtx::Index material)
-    {
-        if (mesh != Rtx::sNoIndex)
-            mHeldMeshes.push_back(mesh);
-
-        if (material != Rtx::sNoIndex)
-            mHeldMaterials.push_back(material);
     }
 
     Retirement SceneExtractor::retire()
@@ -502,11 +481,6 @@ namespace RtxBridge
         // What `animate` keeps. Swept with everything else because it is keyed on a node the graph
         // can drop, and because a state set held past its node holds the textures in it alive too.
         std::erase_if(mAnimated, [this](const auto& entry) { return entry.second.mEpoch != mEpoch; });
-
-        // What no walk can speak for. Duplicates are fine here — `release` takes a keep set, not a
-        // list of distinct survivors.
-        mLiveMeshes.insert(mLiveMeshes.end(), mHeldMeshes.begin(), mHeldMeshes.end());
-        mLiveMaterials.insert(mLiveMaterials.end(), mHeldMaterials.begin(), mHeldMaterials.end());
 
         // **Freed, not compacted, and that is what makes a cell boundary cheap.** Closing the gaps
         // renumbered every mesh and every material, so everything built from an index — which is

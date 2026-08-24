@@ -195,19 +195,26 @@ Three things this turned up, in the order they bit:
   lights were read from records and placed once; the moment they became nodes a walk meets, every
   light in the region counted twice per walk.
 
-### Step 4 — Water the way the game has it
+### Step 4 — Water the way the game has it — **done**
 
-**Give the harness a water node with `Mask_Water` rather than an analytic quad**, so the walk finds
-it exactly as it finds the game's.
+`RtxTool::WaterPlane` builds the sheet the game builds — `SceneUtil::createWaterGeometry` at a
+hundred and fifty cells across, forty segments, `Mask_Water` — and moves it to whichever cell is
+being looked at, exactly as `Water::changeCell` does. The extractor is told the same mask the game
+tells it, so the walk finds the sea by itself.
 
-- *Buys:* the sea in `shot` becomes the sea in the game (§2.2), and `waterbuilder`'s hold-and-release
-  bookkeeping goes away with it.
-- *Costs:* the harness needs the plane's geometry from somewhere. `MWRender::Water` is game code and
-  cannot be linked, so either the plane's construction moves to a component or the harness builds an
-  equivalent one and the two are pinned by a test.
-- *Open:* the game's plane and a per-cell quad answer "how far does the sea go" differently, and the
-  harness loads a ring rather than a world. Decide what the harness should show past its ring before
-  building this.
+**The open question answered itself.** The game's water is one sheet a hundred and fifty cells
+across, so it reaches the horizon whatever is loaded and the ring never enters into it. The geometry
+builder was already a component; nothing had to move.
+
+`components/rtxbridge/waterbuilder` is deleted, and with it `LoadedCell::mWater`, the instance
+bookkeeping, and `SceneExtractor::hold`/`unhold` — the escape hatch for geometry placed outside a
+walk, which now has nothing to hold. Everything a cell brings is in the graph.
+
+**It also found a test that had been passing for the wrong reason.**
+`RtxUpscalerStabilityTest` never walked the graph: it called `loadRegion` and asserted the scene was
+not empty, which was true only because the analytic quad went in directly. The temporal resolve was
+being measured against **one flat quad and nothing else**, under a comment saying the bound had been
+"calibrated against exactly this much content". It walks now, and passes against the cell.
 
 ### Step 5 — Walk every frame, behind a switch
 

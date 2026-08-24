@@ -131,14 +131,14 @@ namespace RtxTool
             EXPECT_EQ(renderer.mRebuilt, 1u) << "the crossing cost a full build after all";
         }
 
-        /// A cell brings water and lights, by the two different routes they take.
+        /// The sea is one sheet the world owns, not a footprint per cell.
         ///
-        /// **The water is the one no walk can find.** An analytic quad goes into the scene directly,
-        /// so the cell has to remember it and hand it back when it leaves. Its lights take the
-        /// graph like the game's do, which is what makes them survive the sweep that empties the
-        /// light table whenever a cell departs — they went out on the first crossing while they
-        /// were a list instead.
-        TEST(RtxCrossingTest, aCellBringsWaterAndLightsAndTakesThemWithIt)
+        /// **Which is what `MWRender::Water` has always been**: a plane a hundred and fifty cells
+        /// across, moved to whichever cell is being looked at. A quad per square was a different
+        /// surface from the game's — a different extent, a different tessellation and a different
+        /// shoreline — and everything the harness ever judged about caustics, the glitter path or a
+        /// grazing Fresnel was judged against it.
+        TEST(RtxCrossingTest, theSeaIsOneSheetTheWorldOwns)
         {
             Files::ConfigurationManager config;
             bpo::variables_map variables;
@@ -149,35 +149,23 @@ namespace RtxTool
             const ESM::Cell* from = world->findCell(sFrom);
             ASSERT_NE(from, nullptr);
 
-            const osg::ref_ptr<osg::Group> root = new osg::Group;
-            Rtx::SceneDesc scene;
-            RtxBridge::SceneExtractor extractor(scene);
-            LoadedCells loaded;
+            StagedWorld staged(*world, *from, StagingRequest{}, ActorRequest{});
+            ASSERT_FALSE(staged.empty());
 
-            crossTo(*world, *from, *root, scene, loaded, extractor);
+            // Balmora is inland and its cells still have water: every exterior does, and the sea is
+            // simply below the ground there.
+            EXPECT_EQ(staged.getLighting().mWaterLevel, 0.0f) << "an exterior's sea is at zero";
 
-            // **Every square of the ring, not just its middle.** Balmora's nine are all exteriors
-            // and every exterior has water, so nine quads stand once the ring is in.
-            ASSERT_EQ(loaded.size(), std::size_t{ 9 });
-            std::size_t withWater = 0;
-            for (const auto& [key, cell] : loaded)
-                if (cell.mWater.has_value())
-                    ++withWater;
+            // **One sheet and one placement of it**, whatever the ring holds. Nine quads is what the
+            // footprint-per-cell version left behind, and the count is how the two tell apart.
+            std::size_t sheets = 0;
+            for (const Rtx::MeshInstance& placed : staged.getScene().getInstances())
+            {
+                const Rtx::Material& material = staged.getScene().getMaterials()[placed.mMaterial];
+                sheets += material.mKind == Rtx::MaterialKind::Water ? 1 : 0;
+            }
 
-            EXPECT_EQ(withWater, loaded.size()) << "an exterior always has water";
-
-            // Each quad stands somewhere of its own: nine cells sharing one placement would be the
-            // bug this is here for, wearing a different hat.
-            std::set<Rtx::Index> where;
-            for (const auto& [key, cell] : loaded)
-                where.insert(cell.mWater->mInstance);
-
-            EXPECT_EQ(where.size(), loaded.size()) << "the ring placed one quad and named it nine times";
-
-            // **And the lights are in the graph**, so a walk is what places them — there is no
-            // list of them anywhere for this to count.
-            extractor.extract(*root, osg::Matrixf::identity(), 0);
-            EXPECT_GT(scene.getLights().size(), std::size_t{ 0 }) << "a town of nine cells casts no light at all";
+            EXPECT_EQ(sheets, std::size_t{ 1 }) << "the sea was placed once per cell again";
         }
 
         /// The lamps are still burning after the crossing that swept the scene.

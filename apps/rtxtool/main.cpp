@@ -24,7 +24,6 @@
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/rtxbridge/texturebuilder.hpp>
-#include <components/rtxbridge/waterbuilder.hpp>
 
 #include <components/settings/settings.hpp>
 #include <limits>
