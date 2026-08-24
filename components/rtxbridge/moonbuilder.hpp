@@ -58,11 +58,10 @@ namespace RtxBridge
 
     /// Where a moon stands on `day` at `hour`, out of the `Moons_*` settings.
     ///
-    /// **`MWWorld::MoonModel`'s own arithmetic, reached from the clock rather than from the weather
-    /// system** — `apps/openmw/mwworld/weather.cpp:363` is where it was reverse engineered and where
-    /// every one of the odd-looking constants is explained. It is here rather than borrowed because
-    /// the game must keep working with the ray tracer compiled out, so the two exist and the tests
-    /// below are what keep them saying the same thing.
+    /// **`Weather::MoonModel`'s clock, reached from an hour rather than from a weather system.** The
+    /// game asks that same component through `MWWorld::MoonModel` and hands the answer down as a
+    /// `MoonState`; this asks it directly, because the harness has no weather system to ask. One
+    /// arithmetic, two routes to it.
     ///
     /// @param day days since the world began, on Morrowind's own count: the game starts on day 0,
     ///        which the rise-hour formula anchors to 16 Last Seed.

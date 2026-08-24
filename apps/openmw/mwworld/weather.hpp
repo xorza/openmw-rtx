@@ -12,6 +12,7 @@
 
 #include <components/esm/refid.hpp>
 #include <components/fallback/fallback.hpp>
+#include <components/weather/moonmodel.hpp>
 
 #include "../mwbase/soundmanager.hpp"
 
@@ -272,37 +273,33 @@ namespace MWWorld
     };
 
     /// A class that acts as a model for the moons.
+    /// One moon's place in the sky, as the renderer wants it stated.
+    ///
+    /// **The arithmetic is `Weather::MoonModel`'s and this is the adapter.** Two renderers need the
+    /// same answers out of the `Moons_*` settings — this one and `openmw-rtxtool`, which has no
+    /// weather system to ask — so the clock itself sits in a component below both, and what is left
+    /// here is turning what it says into the type the sky was already being handed.
     class MoonModel
     {
     public:
-        MoonModel(const std::string& name);
+        explicit MoonModel(const std::string& name)
+            : mModel(name)
+        {
+        }
+
         MoonModel(float fadeInStart, float fadeInFinish, float fadeOutStart, float fadeOutFinish, float axisOffset,
-            float speed, float dailyIncrement, float fadeStartAngle, float fadeEndAngle,
-            float moonShadowEarlyFadeAngle);
+            float speed, float dailyIncrement, float fadeStartAngle, float fadeEndAngle, float moonShadowEarlyFadeAngle)
+            : mModel(fadeInStart, fadeInFinish, fadeOutStart, fadeOutFinish, axisOffset, speed, dailyIncrement,
+                  fadeStartAngle, fadeEndAngle, moonShadowEarlyFadeAngle)
+        {
+        }
 
         MWRender::MoonState calculateState(const TimeStamp& gameTime) const;
 
     private:
-        float mFadeInStart;
-        float mFadeInFinish;
-        float mFadeOutStart;
-        float mFadeOutFinish;
-        float mAxisOffset;
-        float mSpeed;
-        float mDailyIncrement;
-        float mFadeStartAngle;
-        float mFadeEndAngle;
-        float mMoonShadowEarlyFadeAngle;
-
-        float angle(int gameDay, float gameHour) const;
-        float moonPhaseHour(int gameDay) const;
-        float moonRiseHour(int gameDay) const;
-        float rotation(float hours) const;
-        MWRender::MoonState::Phase phase(const TimeStamp& gameTime) const;
-        bool isVisible(int gameDay, float gameHour) const;
-        float shadowBlend(float angle) const;
-        float hourlyAlpha(float gameHour) const;
-        float earlyMoonShadowAlpha(float angle) const;
+        // **`::` and not `Weather::`.** `MWWorld::Weather` is a class in this very header, so an
+        // unqualified name here finds it instead of the component's namespace.
+        ::Weather::MoonModel mModel;
     };
 
     /// Interface for weather settings

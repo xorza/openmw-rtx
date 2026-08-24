@@ -151,18 +151,29 @@ It also finished the moons: the game reports the two `MoonState`s it was already
 (`WorldState::mMoons`) and `RtxBridge::placeMoon` turns them into the same placements the harness
 derives, so both surfaces draw the same moons from one piece of geometry code.
 
-### Step 2 — The weather arithmetic into a component
+### Step 2 — The weather arithmetic into a component — **the moons done, the sun's ramp not**
 
-**Move `MWWorld::MoonModel` and the sun's own ramp into `components/weather`, and have
-`apps/openmw/mwworld/weather.cpp` delegate to it.**
+`components/weather/moonmodel.hpp` is one moon's clock, and both sides ask it: `MWWorld::MoonModel`
+is now an adapter that turns a `Weather::MoonMoment` into the `MWRender::MoonState` the sky was
+already being handed, and `RtxBridge::makeMoon` asks the same component directly because the harness
+has no weather system to go through. The second copy is deleted rather than tested against.
 
-- *Buys:* §2.4's two copies become one, by construction rather than by test. The harness gets the
-  ramp it is missing, so a sunrise renders the same in both. `makeDaylight` shrinks to a caller.
-- *Costs:* it modifies game code. Not the rasterizer — the picture the GL path draws is unchanged and
-  it is engine arithmetic rather than RTX code — but it is upstream code all the same, and that is a
-  judgement to make deliberately.
-- *Note:* this is what the earlier objection got wrong. Putting it in `components/` does **not**
-  violate "not one line of the ray tracer is compiled with the option off": it is not ray-tracer code.
+**Careful of the name.** `MWWorld::Weather` is a class, so inside `MWWorld` an unqualified
+`Weather::` finds it rather than the component's namespace; the adapter writes `::Weather::`.
+
+**What is left is the sun's ramp.** `TimeOfDayInterpolator`, `TimeOfDaySettings` and `WeatherSetting`
+(`apps/openmw/mwworld/weather.hpp:63-136`) are self-contained — four values and an hour, no world to
+ask — and moving them is mechanical. What is not mechanical is the half that pays for it: the
+harness's `makeDaylight` picks one of four colours by phase and would have to be rebuilt around the
+interpolator, including assembling a `TimeOfDaySettings` out of the `Weather_*` timing keys. Until
+that is done there is no second caller, so moving the interpolator alone would be churn in game code
+for nothing. Do both together or neither.
+
+- *Still buys:* a sunrise hour that renders the same in `shot` and in the game, which §2.4 says it
+  does not today.
+- *Note:* an earlier objection to this step was wrong. Putting engine arithmetic in `components/`
+  does **not** violate "not one line of the ray tracer is compiled with the option off" — it is not
+  ray-tracer code, and the picture the rasterizer draws is unchanged.
 
 ### Step 3 — Lights as graph nodes
 
