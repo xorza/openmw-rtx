@@ -41,6 +41,11 @@ namespace RtxBridge
         float mLevel = 0.0f;
         Rtx::Index mMesh = Rtx::sNoIndex;
         Rtx::Index mMaterial = Rtx::sNoIndex;
+
+        /// Where the quad stands, so whoever placed it can drop it again when the cell it belongs
+        /// to leaves. One surface per cell: the sea is continuous, and a cell needs no more of it
+        /// than its own footprint.
+        Rtx::Index mInstance = Rtx::sNoIndex;
     };
 
     std::optional<WaterSurface> addWater(Rtx::SceneDesc& scene, const ESM::Cell& cell);

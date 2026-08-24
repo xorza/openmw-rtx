@@ -1,5 +1,6 @@
 #include "sceneextractor.hpp"
 
+#include <algorithm>
 #include <unordered_map>
 
 #include "lightbuilder.hpp"
@@ -394,6 +395,18 @@ namespace RtxBridge
         }
 
         return key;
+    }
+
+    void SceneExtractor::unhold(Rtx::Index mesh, Rtx::Index material)
+    {
+        // The first match and not every one: two cells may hold the same pair, and letting one go
+        // must not speak for the other.
+        if (const auto found = std::find(mHeldMeshes.begin(), mHeldMeshes.end(), mesh); found != mHeldMeshes.end())
+            mHeldMeshes.erase(found);
+
+        if (const auto found = std::find(mHeldMaterials.begin(), mHeldMaterials.end(), material);
+            found != mHeldMaterials.end())
+            mHeldMaterials.erase(found);
     }
 
     void SceneExtractor::advance()

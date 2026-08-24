@@ -116,7 +116,8 @@ namespace RtxTool
         return std::to_string(square.mX) + ',' + std::to_string(square.mY);
     }
 
-    std::uint32_t dropCellsOutside(World& world, const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded)
+    std::uint32_t dropCellsOutside(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
+        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded)
     {
         if (!centre.isExterior())
             return 0;
@@ -134,8 +135,17 @@ namespace RtxTool
                 continue;
             }
 
-            if (entry->second != nullptr)
-                root.removeChild(entry->second);
+            if (entry->second.mNode != nullptr)
+                root.removeChild(entry->second.mNode);
+
+            // **The third thing a cell brought.** Its quad was placed rather than walked into, so
+            // the sweep cannot find it and the hold that protected it has to be given back by hand
+            // — otherwise every square the camera ever crossed keeps a sheet of sea behind it.
+            if (entry->second.mWater.has_value())
+            {
+                scene.dropInstance(entry->second.mWater->mInstance);
+                extractor.unhold(entry->second.mWater->mMesh, entry->second.mWater->mMaterial);
+            }
 
             // **The ground goes with the references standing on it.** They arrive by two routes —
             // the cell's own group, and the one node `Terrain::TerrainGrid` accumulates into — so
@@ -150,7 +160,8 @@ namespace RtxTool
         return went;
     }
 
-    CellReport readRegion(World& world, const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded, bool liveProps)
+    CellReport readRegion(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
+        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded, bool liveProps)
     {
         CellReport report;
 
@@ -190,7 +201,26 @@ namespace RtxTool
             report.mAmbient = RtxBridge::decodeColour(centre.mAmbi.mAmbient);
 
         for (const ESM::Cell* cell : arrived)
-            loaded[keyOf(*cell)] = readObjects(world, *cell, root, report, liveProps);
+        {
+            // **Sliced out of the run this cell added**, because the report gathers every arrival's
+            // lights into one list and a departure has to take back exactly its own.
+            const std::size_t before = report.mLights.size();
+            osg::ref_ptr<osg::Group> node = readObjects(world, *cell, root, report, liveProps);
+
+            LoadedCell& entry = loaded[keyOf(*cell)];
+            entry.mNode = std::move(node);
+            entry.mLights.assign(report.mLights.begin() + static_cast<std::ptrdiff_t>(before), report.mLights.end());
+
+            // **Every cell and not only the one the region is centred on.** The sea is continuous
+            // and each square carries its own footprint of it, so a ring that placed one quad left
+            // the water as a rectangle under wherever the run happened to start.
+            //
+            // After the objects, because an interior's pool is sized by what the room holds and
+            // there is nothing to measure until the room is in.
+            entry.mWater = RtxBridge::addWater(scene, *cell);
+            if (entry.mWater.has_value())
+                extractor.hold(entry.mWater->mMesh, entry.mWater->mMaterial);
+        }
 
         return report;
     }
@@ -267,20 +297,16 @@ namespace RtxTool
         RtxBridge::SceneExtractor& extractor, LoadedCells& loaded, std::string_view weather, int day, float hour,
         bool liveProps)
     {
-        CellReport report = readRegion(world, centre, root, loaded, liveProps);
+        CellReport report = readRegion(world, centre, root, scene, extractor, loaded, liveProps);
         for (const Rtx::Light& light : report.mLights)
             scene.addLight(light);
 
-        // After the geometry, because an interior's pool is sized by what the room holds and
-        // there is nothing to measure until the room is in. Here rather than in `readRegion` for
-        // the reason the lights are: reading a region twice must not fill it twice.
-        const std::optional<RtxBridge::WaterSurface> water = RtxBridge::addWater(scene, centre);
-
-        // **Held, because no walk will ever meet it.** The quad goes straight into the scene, so a
-        // sweep keyed on what the graph holds would take it and leave its placement standing on a
-        // mesh that is gone.
-        if (water.has_value())
-            extractor.hold(water->mMesh, water->mMaterial);
+        // **The one the camera is standing on**, which is what "how deep is this point" is asked
+        // against. Every exterior square is at the same sea level, so which of the ring's quads
+        // this reads makes no difference out of doors; indoors there is only ever the one.
+        const auto centreCell = loaded.find(keyOf(centre));
+        const std::optional<RtxBridge::WaterSurface> water
+            = centreCell == loaded.end() ? std::nullopt : centreCell->second.mWater;
 
         const float level = water.has_value() ? water->mLevel : -std::numeric_limits<float>::infinity();
 

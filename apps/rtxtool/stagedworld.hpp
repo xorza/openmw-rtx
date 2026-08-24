@@ -164,6 +164,13 @@ namespace RtxTool
         /// necessary.
         RtxBridge::ExtractionStats mirror(std::size_t frame);
 
+        /// Puts every loaded cell's `LIGH` lights back into the scene.
+        ///
+        /// **After every sweep that took them.** The scene's light table is emptied whenever a cell
+        /// departs, because a walk is expected to refill it — and these came out of records rather
+        /// than out of the graph, so no walk ever will.
+        void placeCellLights();
+
         /// Moves the world's clock, which is what everything the graph animates is driven by.
         void setSeconds(float seconds);
 

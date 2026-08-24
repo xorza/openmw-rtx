@@ -45,14 +45,14 @@ namespace RtxTool
         /// stamp the first one's placements, which is exactly how a cell goes: the sweep finds them
         /// unmet. And the roots have to outlive the mirror, because it keys its meshes on the nodes
         /// in them and a freed address is one the allocator can hand back holding something else.
-        RtxBridge::ExtractionStats readCell(World& world, const ESM::Cell& cell,
+        RtxBridge::ExtractionStats readCell(World& world, const ESM::Cell& cell, Rtx::SceneDesc& scene,
             std::vector<osg::ref_ptr<osg::Group>>& kept, RtxBridge::SceneExtractor& extractor)
         {
             osg::ref_ptr<osg::Group> root = new osg::Group;
             kept.push_back(root);
 
             LoadedCells loaded;
-            readRegion(world, cell, *root, loaded, /*liveProps=*/false);
+            readRegion(world, cell, *root, scene, extractor, loaded, /*liveProps=*/false);
             return extractor.extract(*root, osg::Matrixf::identity(), 0);
         }
 
@@ -139,7 +139,7 @@ namespace RtxTool
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
 
-            const RtxBridge::ExtractionStats one = readCell(*world, *first, kept, extractor);
+            const RtxBridge::ExtractionStats one = readCell(*world, *first, scene, kept, extractor);
             ASSERT_GT(one.mMeshesAdded, 0u);
 
             const std::size_t held = scene.getMeshes().size();
@@ -153,7 +153,7 @@ namespace RtxTool
             // The second room, and only the second room. The first is still in the resource cache,
             // so its drawables are alive and would be recognised if anything walked them.
             scene.clearPlacement();
-            const RtxBridge::ExtractionStats two = readCell(*world, *second, kept, extractor);
+            const RtxBridge::ExtractionStats two = readCell(*world, *second, scene, kept, extractor);
 
             ASSERT_GT(two.mMeshesReused, 0u) << "two Imperial interiors that share no model at all";
             ASSERT_GT(two.mMeshesAdded, 0u);
@@ -226,7 +226,7 @@ namespace RtxTool
             Rtx::SceneDesc alone;
             {
                 RtxBridge::SceneExtractor fresh(alone);
-                readCell(*world, *second, kept, fresh);
+                readCell(*world, *second, alone, kept, fresh);
             }
 
             EXPECT_EQ(meshFingerprints(scene), meshFingerprints(alone));
@@ -234,7 +234,7 @@ namespace RtxTool
             // And the survivors go on resolving through the identity map: a third walk of the same
             // room adds nothing at all, because nothing moved under it.
             scene.clearPlacement();
-            const RtxBridge::ExtractionStats again = readCell(*world, *second, kept, extractor);
+            const RtxBridge::ExtractionStats again = readCell(*world, *second, scene, kept, extractor);
 
             EXPECT_EQ(again.mMeshesAdded, 0u) << "a survivor was not recognised after the sweep";
             EXPECT_EQ(again.mMaterialsAdded, 0u);
@@ -246,7 +246,7 @@ namespace RtxTool
             // of every room ever entered.
             extractor.retire();
             scene.clearPlacement();
-            readCell(*world, *first, kept, extractor);
+            readCell(*world, *first, scene, kept, extractor);
 
             // A percent of slack, and it is external fragmentation rather than a leak: best fit
             // puts a run in the smallest hole that holds it and leaves the remainder, and a

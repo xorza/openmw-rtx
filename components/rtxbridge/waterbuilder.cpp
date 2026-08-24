@@ -80,12 +80,12 @@ namespace RtxBridge
         const Rtx::Index mesh = addQuad(scene);
         const Rtx::Index shading = scene.addMaterial(material);
 
-        scene.addInstance(Rtx::MeshInstance{
+        const Rtx::Index instance = scene.addInstance(Rtx::MeshInstance{
             .mTransform = osg::Matrixf::scale(scale) * osg::Matrixf::translate(centre),
             .mMesh = mesh,
             .mMaterial = shading,
         });
 
-        return WaterSurface{ .mLevel = centre.z(), .mMesh = mesh, .mMaterial = shading };
+        return WaterSurface{ .mLevel = centre.z(), .mMesh = mesh, .mMaterial = shading, .mInstance = instance };
     }
 }

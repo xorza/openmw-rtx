@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -13,6 +14,7 @@
 
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
+#include <components/rtxbridge/waterbuilder.hpp>
 
 #include "lighting.hpp"
 #include "world.hpp"
@@ -53,7 +55,26 @@ namespace RtxTool
     /// **A group per cell is what makes a cell able to leave.** Taking that node off the root is the
     /// whole of unloading: the next walk does not reach what was under it, and the sweep that
     /// follows takes its placements, its meshes and its materials with it.
-    using LoadedCells = std::map<std::string, osg::ref_ptr<osg::Group>>;
+    /// What a cell brought that no walk will ever meet again.
+    ///
+    /// **The graph is not the whole of it.** A cell's references hang under a group and a walk finds
+    /// them every time; its `LIGH` records and its water quad were put into the scene directly, so
+    /// nothing can re-find them — and the sweep that runs when a cell departs clears the scene's
+    /// light table on the understanding that the next walk refills it, which is true of a light
+    /// carried by a torch and false of one read out of a record. They are kept here, with the cell,
+    /// because the cell is the only thing that knows when they should go.
+    struct LoadedCell
+    {
+        osg::ref_ptr<osg::Group> mNode;
+
+        /// The lights its `LIGH` references cast, re-placed after every sweep.
+        std::vector<Rtx::Light> mLights;
+
+        /// Its water surface, or nothing where it holds none.
+        std::optional<RtxBridge::WaterSurface> mWater;
+    };
+
+    using LoadedCells = std::map<std::string, LoadedCell>;
 
     /// Takes every cell outside the active grid around `centre` off the graph. Returns how many.
     ///
@@ -61,7 +82,8 @@ namespace RtxTool
     /// its ground under the one node `Terrain::TerrainGrid` accumulates into, so a departure is a
     /// child removed from the root *and* an `unloadCell` — and dropping only the first leaves a
     /// working set that gains ground for as long as the camera flies.
-    std::uint32_t dropCellsOutside(World& world, const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded);
+    std::uint32_t dropCellsOutside(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
+        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded);
 
     /// What reading a cell produced besides the scene itself.
     struct CellReport
@@ -113,7 +135,8 @@ namespace RtxTool
     ///        geometry — the clone shares the drawables — so mirroring the template as well would
     ///        stand two candles in one place. A caller with nowhere to keep an instance passes false
     ///        and gets the still template, which is a candle with an authored spark on it.
-    CellReport readRegion(World& world, const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded, bool liveProps);
+    CellReport readRegion(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
+        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded, bool liveProps);
 
     /// Which exterior square a point stands in.
     ///

@@ -70,6 +70,13 @@ namespace RtxTool
 
     StagedWorld::~StagedWorld() = default;
 
+    void StagedWorld::placeCellLights()
+    {
+        for (const auto& [key, cell] : mLoaded)
+            for (const Rtx::Light& light : cell.mLights)
+                mScene.addLight(light);
+    }
+
     RtxBridge::ExtractionStats StagedWorld::mirror(std::size_t frame)
     {
         // **The residency is asked inside the same walk**, so the chunks a paged world keeps out of
@@ -112,16 +119,13 @@ namespace RtxTool
         if (mPosed != nullptr)
             mPosed->unplace();
 
-        const CellReport arrived = readRegion(*mWorld, *cell, *mRoot, mLoaded, mActors.mProps);
+        const CellReport arrived = readRegion(*mWorld, *cell, *mRoot, mScene, mExtractor, mLoaded, mActors.mProps);
 
         // **The ring that arrived and the ones that left.** The working set is a square that follows
         // the camera, not everything ever visited; without the second half this grows for as long as
         // the run lasts and stops resembling the game after the first crossing.
         const Crossing crossed{ .mArrived = arrived.mCells,
-            .mDeparted = dropCellsOutside(*mWorld, *cell, *mRoot, mLoaded) };
-
-        for (const Rtx::Light& light : arrived.mLights)
-            mScene.addLight(light);
+            .mDeparted = dropCellsOutside(*mWorld, *cell, *mRoot, mScene, mExtractor, mLoaded) };
 
         // Built, then walked, which is the split the game has too. The walk is also what tells the
         // sweep below that the departed cells are no longer met.
@@ -130,6 +134,22 @@ namespace RtxTool
 
         if (crossed.mDeparted > 0)
             mExtractor.retire();
+
+        // **A second walk, because the sweep emptied what the first one filled.**
+        // `SceneDesc::release` clears the sprites, the emitters and the light table on the frames a
+        // cell dies, on the understanding that the walk which comes next refills them — true of the
+        // game, which walks every frame, and false here, where a walk happens only when the ring
+        // moves. Bringing that next walk forward is what the understanding actually asks for.
+        if (crossed.mDeparted > 0)
+        {
+            mirror(0);
+            mExtractor.advance();
+        }
+
+        // And then what no walk can refill, sweep or no sweep. A `LIGH` record is not a node: it
+        // went into the scene directly, so an emptied light table cannot be answered by walking
+        // again — this is the only thing that puts the lamps back.
+        placeCellLights();
 
         if (mPosed == nullptr)
             return crossed;

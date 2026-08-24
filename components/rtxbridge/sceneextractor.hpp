@@ -319,6 +319,13 @@ namespace RtxBridge
         /// everything else.
         void hold(Rtx::Index mesh, Rtx::Index material);
 
+        /// Gives back one `hold`, so the next sweep may take the pair if nothing else names them.
+        ///
+        /// **What a cell leaving takes with it.** Its water quad was held because no walk can reach
+        /// one; holding it for ever is how a camera that crosses Vvardenfell ends up with a mesh and
+        /// a material for every square it ever stood in.
+        void unhold(Rtx::Index mesh, Rtx::Index material);
+
         /// Places one light. **The graph and not the content files**, because that is where a light
         /// that moves with the thing carrying it exists: a torch in an NPC's hand is no cell
         /// record, and neither is a lamp something picked up and put down.

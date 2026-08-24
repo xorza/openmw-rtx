@@ -20,6 +20,7 @@
 #include <components/rtxbridge/sceneuploader.hpp>
 
 #include <apps/rtxtool/cellscene.hpp>
+#include <apps/rtxtool/stagedworld.hpp>
 #include <apps/rtxtool/world.hpp>
 
 #include "../rtxbridge/countingrenderer.hpp"
@@ -44,11 +45,11 @@ namespace RtxTool
         /// Brings the ring around `centre` in, takes the ones that left off, and mirrors what is
         /// left — which is what `runWindow`'s `bring` does, in the same order and for the same
         /// reasons.
-        std::uint32_t crossTo(World& world, const ESM::Cell& centre, osg::Group& root, LoadedCells& loaded,
-            RtxBridge::SceneExtractor& extractor)
+        std::uint32_t crossTo(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
+            LoadedCells& loaded, RtxBridge::SceneExtractor& extractor)
         {
-            readRegion(world, centre, root, loaded, /*liveProps=*/false);
-            const std::uint32_t went = dropCellsOutside(world, centre, root, loaded);
+            readRegion(world, centre, root, scene, extractor, loaded, /*liveProps=*/false);
+            const std::uint32_t went = dropCellsOutside(world, centre, root, scene, extractor, loaded);
 
             extractor.extract(root, osg::Matrixf::identity(), 0);
             extractor.advance();
@@ -93,7 +94,7 @@ namespace RtxTool
             RtxBridge::Testing::CountingRenderer renderer;
             LoadedCells loaded;
 
-            EXPECT_EQ(crossTo(*world, *from, *root, loaded, extractor), 0u) << "nothing was loaded to leave yet";
+            EXPECT_EQ(crossTo(*world, *from, *root, scene, loaded, extractor), 0u) << "nothing was loaded to leave yet";
 
             // The first ring has nothing to append to, so it builds whatever it found.
             const RtxBridge::SceneUpload first
@@ -110,7 +111,7 @@ namespace RtxTool
             const std::size_t meshesBefore = scene.getMeshes().size();
             const std::size_t texturesBefore = scene.getTextures().size();
 
-            EXPECT_EQ(crossTo(*world, *to, *root, loaded, extractor), 3u)
+            EXPECT_EQ(crossTo(*world, *to, *root, scene, loaded, extractor), 3u)
                 << "a step of one cell east leaves the three columns behind it";
 
             const RtxBridge::SceneUpload crossed
@@ -128,6 +129,91 @@ namespace RtxTool
             EXPECT_EQ(renderer.mTextures, scene.getTextures().size());
             EXPECT_FALSE(renderer.mAppendedToWrongEnd);
             EXPECT_EQ(renderer.mRebuilt, 1u) << "the crossing cost a full build after all";
+        }
+
+        /// A cell brings water and lights, and takes them away again when it leaves.
+        ///
+        /// **Neither is anything a walk can find.** A `LIGH` record and an analytic water quad go
+        /// into the scene directly, so the sweep that runs when a cell departs cannot speak for them
+        /// — it clears the light table outright, on the understanding that the next walk refills it,
+        /// which is true of a torch in someone's hand and false of a lamp on a post. Both of these
+        /// went wrong the same way: the lamp on the boat at Seyda Neen went out on the first
+        /// crossing, and the sea was one rectangle under wherever the run started.
+        TEST(RtxCrossingTest, aCellBringsWaterAndLightsAndTakesThemWithIt)
+        {
+            Files::ConfigurationManager config;
+            bpo::variables_map variables;
+            const std::unique_ptr<World> world = openWorld(config, variables);
+            if (world == nullptr)
+                GTEST_SKIP() << "no Morrowind installation configured";
+
+            const ESM::Cell* from = world->findCell(sFrom);
+            ASSERT_NE(from, nullptr);
+
+            const osg::ref_ptr<osg::Group> root = new osg::Group;
+            Rtx::SceneDesc scene;
+            RtxBridge::SceneExtractor extractor(scene);
+            LoadedCells loaded;
+
+            crossTo(*world, *from, *root, scene, loaded, extractor);
+
+            // **Every square of the ring, not just its middle.** Balmora's nine are all exteriors
+            // and every exterior has water, so nine quads stand once the ring is in.
+            ASSERT_EQ(loaded.size(), std::size_t{ 9 });
+            std::size_t withWater = 0;
+            for (const auto& [key, cell] : loaded)
+                if (cell.mWater.has_value())
+                    ++withWater;
+
+            EXPECT_EQ(withWater, loaded.size()) << "an exterior always has water";
+
+            // Each quad stands somewhere of its own: nine cells sharing one placement would be the
+            // bug this is here for, wearing a different hat.
+            std::set<Rtx::Index> where;
+            for (const auto& [key, cell] : loaded)
+                where.insert(cell.mWater->mInstance);
+
+            EXPECT_EQ(where.size(), loaded.size()) << "the ring placed one quad and named it nine times";
+
+            // And the lights came with the cells rather than with the region as a whole.
+            std::size_t lit = 0;
+            for (const auto& [key, cell] : loaded)
+                lit += cell.mLights.size();
+
+            EXPECT_GT(lit, std::size_t{ 0 }) << "a town of nine cells casts no light at all";
+        }
+
+        /// The lamps are still burning after the crossing that swept the scene.
+        ///
+        /// **The bug this is here for, in one line.** A camera stepped out of the square it started
+        /// in, three cells died, `SceneDesc::release` emptied the light table on the way past — and
+        /// every lamp read out of a `LIGH` record went out and stayed out, because the walk that was
+        /// supposed to refill the table had never carried them in the first place.
+        TEST(RtxCrossingTest, aCrossingLeavesTheLampsBurning)
+        {
+            Files::ConfigurationManager config;
+            bpo::variables_map variables;
+            const std::unique_ptr<World> world = openWorld(config, variables);
+            if (world == nullptr)
+                GTEST_SKIP() << "no Morrowind installation configured";
+
+            const ESM::Cell* from = world->findCell(sFrom);
+            ASSERT_NE(from, nullptr);
+
+            StagedWorld staged(*world, *from, StagingRequest{}, ActorRequest{});
+            ASSERT_FALSE(staged.empty());
+
+            const std::size_t before = staged.getScene().getLights().size();
+            ASSERT_GT(before, std::size_t{ 0 }) << "Balmora's nine cells cast no light to begin with";
+
+            // The middle of the square east of this one, which is a crossing and not a step.
+            constexpr float side = 8192.0f;
+            const Crossing crossed
+                = staged.moveTo(osg::Vec3f(-2.0f * side + 0.5f * side, -2.0f * side + 0.5f * side, 0.0f));
+            ASSERT_GT(crossed.mDeparted, std::uint32_t{ 0 }) << "nothing left, so nothing swept";
+
+            EXPECT_GT(staged.getScene().getLights().size(), std::size_t{ 0 })
+                << "the sweep took the lamps and no walk put them back";
         }
 
         /// Walking a long way leaves a working set the size of the grid, not the size of the walk.
@@ -159,7 +245,7 @@ namespace RtxTool
                 const ESM::Cell* cell = world->findCell("-3," + std::to_string(y));
                 ASSERT_NE(cell, nullptr) << "no cell at -3," << y;
 
-                crossTo(*world, *cell, *root, loaded, extractor);
+                crossTo(*world, *cell, *root, scene, loaded, extractor);
                 placed = scene.getPlacedCount();
 
                 if (y == -1)

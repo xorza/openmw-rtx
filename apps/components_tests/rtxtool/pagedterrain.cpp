@@ -36,7 +36,7 @@ namespace RtxTool
             Rtx::SceneDesc scene;
             RtxBridge::SceneExtractor extractor(scene);
 
-            readRegion(world, cell, *root, loaded, /*liveProps=*/false);
+            readRegion(world, cell, *root, scene, extractor, loaded, /*liveProps=*/false);
             world.setTerrainViewPoint(osg::Vec3f(cell.getGridX() * 8192.0f, cell.getGridY() * 8192.0f, 0.0f));
 
             extractor.extract(*root, osg::Matrixf::identity(), 0, 0, ask ? world.getTerrainResidency() : nullptr);
