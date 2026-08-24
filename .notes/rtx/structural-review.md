@@ -1,191 +1,132 @@
 # The open issues, traced to their roots
 
-`.notes/ISSUES.md` lists thirteen. Read one at a time they look like thirteen jobs. Traced back they
-are **six roots, two stale entries and two one-line defects** — and four of the six already have
-their answer named somewhere in `plan.md`, half-built and stopped at the device.
+`.notes/ISSUES.md` read one at a time looks like a list of jobs. Traced back it is **six roots**, and
+this document is those roots and the order to take them in. It does not restate `plan.md` §10 (slots,
+not compaction), §11 (the three roots) or §12 (the seam with the rasterizer); it continues them.
 
-This document is the analysis and the plan. It does not restate `plan.md` §10 (slots, not
-compaction), §11 (the three roots) or §12 (the seam with the rasterizer); it continues them, and says
-where §12 has gone stale because the renderer split overtook it.
+Entries that have been answered are deleted rather than marked, as in `ISSUES.md`. What is kept from
+a finished piece is only what the next one needs to know.
 
-| # | issue | root | verdict |
-|---|---|---|---|
-| 1 | a freed texture slot keeps its image | **A** | design, small |
-| 2 | a cell arriving rebuilds every bottom-level structure — 47 ms | **A** | design, large |
-| 3 | the rasterizer's cull and the mirror both pose | **B** | **stale** — no cull runs under the ray tracer |
-| 4 | `Inactive`/`SemiActive` skeletons refuse to move | **B** | **closed**, bar a test |
-| 5 | distant terrain is invisible to the mirror | **B** | design, medium |
-| 6 | `check_clang_format.sh` cannot be satisfied | **F** | process |
-| 7 | `OSGTexture` allocates twice a frame and uploads whole | **C** | design, medium |
-| 8 | a traced view rebuilds its whole scene per redraw | **A** | design, medium |
-| 9 | the doll's scene names a texture with an empty path | **E** | **stale**, and the canary needs a name |
-| 10 | `freezeFrame` hands back one black texel | **D** | unfinished wiring |
-| 11 | no screenshot key on the ray tracing path | **D** | unfinished wiring |
-| 12 | `TracedView` warns under `-Wreorder` | **E** | one line |
-| 13 | the world map overlay uploads whole on a cell crossing | **C** | design, medium |
-
-The order to do them in is at the end, and it is not this order.
+| issue | root |
+|---|---|
+| a cell arriving rebuilds every bottom-level structure — 47 ms | **A** |
+| a traced view rebuilds its whole scene per redraw | **A** |
+| the doll's scene names a texture with an empty path | **A** — probably expected now; wants a look |
+| distant terrain is invisible to the mirror | **B** |
+| `Inactive`/`SemiActive` skeletons refuse to move | **B** — closed, bar a test |
+| the rasterizer's cull and the mirror both pose | **B** — stale; a real hazard stands where it did |
+| `OSGTexture` allocates twice a frame and uploads whole | **C** |
+| the world map overlay uploads whole on a cell crossing | **C** |
+| `shot` is not comparable between builds | **G** |
+| a `buffer_reference` read of normals changes the picture | **G** |
+| `GuiTextures::add` waits on the queue per texture | **H** |
+| `RtxTool::Chosen` warns under `-Wmissing-field-initializers` | **I** |
 
 ## A. The device never learned "slots, not compaction"
 
-`plan.md` §10 changed what a scene *is*: a table of slots that are handed out, freed and taken over,
-where nothing is ever moved and no index is ever renumbered. `Rtx::SceneDesc` is built that way
-throughout — `SpanAllocator` behind every variable-length run, a free list behind every table, a
-`getArrivedTextures` list saying which slots a walk wrote.
+`plan.md` §10 changed what a scene *is*: a table of slots handed out, freed and taken over, where
+nothing moves and no index is renumbered. `Rtx::SceneDesc` is built that way throughout, and it now
+reports what changed — `getArrivedMeshes`, `getFreedMeshes`, `getArrivedTextures`, `getFreedTextures`,
+**disjoint and each naming a slot once**, so a backend may apply arrivals and departures in either
+order. Texture slots are already dropped on the strength of that.
 
-**The backend was never taught the same thing.** `SceneAcceleration` and `SceneBuffers` are
-constructed *from a whole scene* and there is no other way to change them: `VulkanRenderer::extendScene`
-compares `getMeshRevision()` and, when it moved, throws both away and builds them again. That is
-issue 2, and issues 1 and 8 are the same shape one level down — a resource whose lifetime is "the
-scene it was built from" rather than "the slot it belongs to".
+**The geometry side of the backend still cannot be appended to.** `SceneAcceleration` and
+`SceneBuffers` are constructed *from a whole scene*, so `VulkanRenderer::extendScene` throws both away
+whenever `getMeshRevision()` moves. Three things stand between here and an append.
 
-Four things stand between here and an append.
-
-### A1. Arrivals and departures are a set for textures and a counter for everything else
-
-`SceneDesc` reports `getArrivedTextures()` — the slots a walk wrote, wherever they sit — and that is
-exactly what let `TextureArray::write` stop rebuilding. For meshes it reports `getMeshRevision()`, a
-number that says *something* arrived and cannot say *what*. For departures it reports nothing at all:
-`release` returns a bool.
-
-So:
-
-- `getArrivedMeshes()`, cleared by the same `clearArrivals` the textures use.
-- `getFreedMeshes()` and `getFreedTextures()`, filled by `release` and cleared the same way.
-
-This is not new design. It is `plan.md` §11 C's second half, and it is the precondition for
-everything below. It is also, on its own, the whole of issue 1: a backend told which texture slots
-went can destroy those images, and the descriptor it leaves behind is legal because the array is
-already declared `VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT` and nothing indexes a slot no live
-material names.
-
-### A2. The geometry buffers are one allocation and move when they grow
+### A1. The geometry buffers are one allocation and move when they grow
 
 `SceneAcceleration` holds `mPositions` (host-visible) and `mIndices` (device-local), each sized once
-to `scene.getPositions().size_bytes()`. A cell arriving that does not fit in the holes the last one
-left grows the scene's `std::vector`s, and the next construction makes new buffers at new addresses.
-Every bottom-level structure was built from an address into the old ones, and the shader reads the
-index buffer at a hit through a descriptor naming it.
+to the scene. A cell that does not fit the holes the last one left grows the scene's vectors, and the
+next construction makes new buffers at new addresses.
 
-`SpanAllocator` already takes a **block size** and already refuses to let a run straddle one — the
-comment on its constructor says in as many words that this is what makes appending to a device buffer
-possible. `SceneDesc` constructs all four allocators with block zero. Nothing uses the feature.
+`SceneDesc` already places its runs against a block: **256 Ki vertices and 1 Mi indices**, shared with
+the shaders as `Shaders::VERTEX_BLOCK` and `INDEX_BLOCK`, and no run ever straddles one. A mesh longer
+than a block is **thrown on by name rather than asserted** — a vertex count comes out of a content
+file, and a run across two blocks is a wild write rather than a wrong picture. The host vectors are
+deliberately *not* rounded up to a block: `getPositions()` is what the backend uploads, and the tail
+would be megabytes of nothing sent to the device.
 
-The change is in three places and they must agree on one number:
+What remains is the device side: `SceneAcceleration`'s positions and indices, and `SceneBuffers`'
+normals and texture coordinates, become lists of blocks; whatever reads a vertex or an index by global
+id does `block[id / blockSize][id % blockSize]`.
 
-1. `SceneDesc` constructs `mVertexRuns` and `mIndexRuns` with a block size, and its `std::vector`s
-   grow a block at a time rather than to `getEnd()`.
-2. `SceneAcceleration` holds `std::vector<HostBuffer>` and `std::vector<Buffer>` of one block each,
-   appending a block when the scene reaches into one that does not exist. Existing blocks are never
-   reallocated, so no address a structure was built from ever moves.
-3. Whatever reads a vertex or an index by global id — the hit shader, `SceneBuffers`' normals and
-   texture coordinates — indexes `block[id / blockSize][id % blockSize]`, or is handed an array of
-   buffer device addresses and does the arithmetic itself.
+**This was written in full and reverted; `7b-backend.patch` holds it.** What it established:
 
-The block size is bounded below by the largest single run a mesh can ask for, because
-`SpanAllocator::allocate` asserts `count <= block`. A terrain chunk at full detail is a 65×65 grid;
-a NIF mesh in Morrowind is smaller than that by a wide margin. **256 Ki vertices a block** is three
-megabytes of positions per block and leaves four orders of magnitude of headroom over the largest
-run; the index allocator wants its own number, and they need not match.
+- **The block plumbing is bit-exact.** With the blocks in place and the shader still reading through
+  storage-buffer descriptors, the renderer reproduced the baseline **byte for byte on all sixteen
+  views**. The arithmetic, the sizing, the per-mesh addresses and the deformed-mesh writes are right.
+- **Reading through a pointer is what moved the picture.** Swapping only the normal fetch to
+  `GL_EXT_buffer_reference` changes the image; keeping the load and discarding its value leaves it
+  byte-identical. Ruled out: array stride (SPIR-V says 12, which is right), load width (three floats
+  behaves as a `vec3`), the block index (the scenes that differ are single-block), buffer size, and
+  the uninitialised tail. Instruction counts are otherwise identical, so it is not reassociation.
+- **Positions need no shader change at all** — they are a build input and the target of the
+  per-frame host write, and a hit reads its triangle's vertices back out of the structure through
+  `ALLOW_DATA_ACCESS`. Indices, normals and texture coordinates are the coupled half, at set 0
+  bindings 3, 4 and 5.
 
-The cost of blocking is fragmentation at block boundaries: the tail of a block too short for the next
-run becomes a hole like any other, and `SpanAllocator` already merges and reuses those. At 256 Ki a
-block the tail wasted is a rounding error against a cell.
+**The fallback, and it may be the answer.** If a pointer read is in any doubt here, reach the blocks
+through a **partially-bound descriptor array** of storage buffers indexed by block: no pointers, the
+same arithmetic, and a binding model the texture array already uses. G2 is what decides between them.
 
-### A3. Bottom-level storage is one buffer, and structures are created and destroyed as a batch
+### A2. Bottom-level storage is one buffer, created and destroyed as a batch
 
-`buildBottomLevel` sizes one `mBottomLevelStorage` to the sum of every structure in the scene,
-creates each at an offset in it, and builds them all in one submit. There is no way to add a
-structure to that buffer, and no way to take one out.
+`buildBottomLevel` sizes one `mBottomLevelStorage` to the sum of every structure in the scene, creates
+each at an offset in it and builds them in one submit. There is no way to add one or take one out.
 
-Same answer, one level up: **a list of storage blocks with a `SpanAllocator` over each**, and the
-per-mesh operations the scene already has:
+Same answer one level up: **a list of storage blocks with a `SpanAllocator` over each**, and the
+per-mesh operations the scene already has — `addMesh` allocates a structure's worth, creates, builds
+and asks its address once; a released mesh destroys the structure and gives the storage back.
 
-- `addMesh` → allocate a structure's worth of storage, create it, build it, ask its address once.
-- `release` of a mesh → destroy the structure, give its storage back, zero its address.
+`extendScene` then becomes: build `getArrivedMeshes()`, destroy `getFreedMeshes()`, write the texture
+slots that arrived, drop the ones that went, place. Nothing else. The top level is rebuilt every frame
+and does not care.
 
-The renderer is fully synchronous today — every submit in `rtxvulkan` goes through
-`CommandPool::submitAndWait` — so a structure destroyed after a `release` cannot be in flight, and no
-deferred-destruction queue is needed *yet*. When the frame stops waiting on the queue (M12), this is
-one of the things that has to grow a fence-keyed retirement list, and the plan should say so now
-rather than discover it then.
+The renderer is synchronous, so a structure destroyed after a release cannot be in flight and no
+deferred-destruction queue is needed *yet*. When the frame stops waiting on the queue (M12) this is
+one of the two places that has to grow a fence-keyed retirement list.
 
-What `extendScene` becomes: build the structures for `getArrivedMeshes()`, destroy the structures for
-`getFreedMeshes()`, write the texture slots that arrived, drop the texture slots that went, and place.
-Nothing else. The top level is already rebuilt every frame and does not care.
+### A3. A view scene can only be replaced
 
-### A4. Freeing a texture slot
+`TracedView` now re-walks incrementally — the identity maps own their keys, so a body part freed and
+replaced at the same address cannot be mistaken for its predecessor, and the texture descriptions are
+held across redraws that changed no texture. The mirror is incremental and **the upload is not**:
+`setViewScene` tears down the acceleration structures, the buffers and the texture array and makes
+them again, because a view scene has no `placeScene` or `extendScene` of its own.
 
-Falls out of A1 with no further design: `TextureArray::drop(slot)` destroys the image and leaves the
-descriptor stale. `plan.md` §11 C records the current behaviour as deliberate — "the array holds a
-freed slot's image until something takes the slot over, which is what keeps every descriptor pointing
-at something that exists" — and it was the right call while the scene could not name what it freed.
-With A1 it stops being one, and the island route's 11 MiB settling point drops by whatever the
-departing cells were still holding.
+That is the doll issue in full. Give a view scene the same three branches the world's scene has; it is
+the same code and it wants A1 and A2 under it first.
 
-### A5. A traced view rebuilds its scene because pointer identity is unsound
-
-`TracedView::rebuildSubject` throws away the extractor and the `SceneDesc` on every redraw. Its own
-comment says why, and the reason is correct: `NpcAnimation::updateParts` frees the body parts that
-changed and builds their replacements, and the allocator is free to put a new part exactly where a
-retired one was. An identity map keyed on `const osg::Drawable*` then resolves the new part to the
-retired part's mesh — the torn figure a change of clothes produced.
-
-**The map holds a raw pointer, and that is the defect.** The same hazard is written down as a caveat
-on `SceneExtractor::retire` for the world's scene, where it is survivable only because the whole graph
-is walked and swept every frame — a window of one frame rather than of one redraw.
-
-The structural answer is to make pointer identity *true*: **key the identity maps on
-`osg::ref_ptr<const osg::Drawable>` and `osg::ref_ptr<const osg::StateSet>`.** An entry in the map
-holds its subject alive, so its address cannot be handed to anything else while the entry exists, and
-the sweep is what lets go. The map is exactly the thing that must not be fooled and exactly the thing
-that can hold the reference. What it costs is that retired geometry outlives its owner by one sweep,
-which is what a sweep is for.
-
-With that, `rebuildSubject` becomes what the world's walk already is: clear the placements, walk,
-advance, retire — and a slider drag redraws by re-placing the same meshes instead of re-uploading a
-character and rebuilding every structure under it. That is issue 8, and it also removes the last
-reason the doll's scene ever had a freed texture slot in it, which is issue 9.
+Freed texture slots in a doll's scene are now ordinary — a re-walk sweeps, and a swept slot is
+described as the stand-in without being counted — so the empty-path entry is most likely a description
+of that rather than of anything drawn wrong. Nobody has looked at a doll to say so.
 
 ### What A buys, as numbers to take
 
 - A cell crossing on the streaming route: **47 ms → the cost of the meshes that actually arrived.**
-  Measure it at the same place, on the same route, the frame after it lands.
-- Texture memory on the island route: the settling point falls by whatever departed cells hold.
-- A race-creation slider drag: from a full rebuild a frame to a placement a frame.
-- Worst frame across a crossing, which is the number that matters and the one nobody has yet.
+  Same place, same route, the frame after it lands; median and worst.
+- A race-creation slider drag: from a rebuild a frame to a placement a frame.
 
 ## B. The mirror is still downstream of decisions a rasterizer made
 
-`plan.md` §12 named three things the mirror inherits from cull — skinned vertices, terrain LOD and
-object paging — and said the target is to stop being downstream of any of them. Posing was taken
-(the mirror carries its own `PoseCull` and hands it the two deforming drawable kinds). The other two
-were not.
+`plan.md` §12 named three things the mirror inherits from cull. Posing was taken. The rest:
 
 ### B1. Distant terrain, object paging and groundcover are invisible
 
-`Terrain::RootNode::accept` forwards to `Terrain::QuadTreeWorld::accept`, whose first two lines are
+`Terrain::RootNode::accept` forwards to `Terrain::QuadTreeWorld::accept`, whose first two lines return
+for any visitor that is not a cull or an intersection visitor. `MirrorTraversal` is neither, and the
+chunks that would have been its children are never children of anything: they are entries in a
+`ViewData` keyed on a camera, resolved inside that call and accepted straight into the visitor that
+asked. `ObjectPaging` and `Groundcover` hang off the same quad tree, so with `distant terrain` on the
+mirror sees no ground, no paged objects and no grass.
 
-```cpp
-bool isCullVisitor = nv.getVisitorType() == osg::NodeVisitor::CULL_VISITOR;
-if (!isCullVisitor && nv.getVisitorType() != osg::NodeVisitor::INTERSECTION_VISITOR)
-    return;
-```
+**The mirror must not become a cull visitor to fix this.** `Terrain::TerrainDrawable::cull` puts the
+chunk in a render bin and never applies it, so a cull walk over the whole graph makes the ground
+vanish rather than appear — and it would pick LOD from an eye point such a walk has no business
+having.
 
-`MirrorTraversal` is a plain `osg::NodeVisitor`, so it is neither, and the chunks that would have been
-its children are never children of anything: they are entries in a `ViewData` keyed on a camera,
-resolved by `loadRenderingNode` inside that call and accepted straight into the visitor that asked.
-`ObjectPaging` and `Groundcover` are `ChunkManager`s registered on the same quad tree, so with
-`distant terrain` on the mirror sees no ground, no paged objects and no grass — the game runs, and
-the world is a floor of nothing with the near cells' objects standing on it.
-
-**The mirror must not become a cull visitor to fix this.** `PoseCull`'s own comment says why, and it
-is `Terrain::TerrainDrawable::cull`: it puts the chunk in a render bin and never applies it, so a cull
-walk over the whole graph makes the ground vanish rather than appear. It would also pick LOD from an
-eye point such a walk has no business having.
-
-So the fix is on the terrain side, and it is the smaller half of what `plan.md` §12 asked for:
-**`Terrain::World` grows a residency API that is not a traversal.**
+So the fix is on the terrain side: **`Terrain::World` grows a residency API that is not a traversal.**
 
 ```cpp
 /// Every chunk this world holds for `view`, at the detail `viewPoint` asks for, handed to `visitor`.
@@ -196,71 +137,47 @@ virtual void collect(View& view, const osg::Vec3f& viewPoint, osg::NodeVisitor& 
 ```
 
 `QuadTreeWorld` implements it as the body of its own `accept` with the camera lookup replaced by the
-caller's `View`, the water-culling callback dropped, and `entry.mRenderingNode->accept(nv)` reached
-for every visitor type. `TerrainGrid` — which the harness uses, and which builds real children —
-implements it by traversing itself, which is what it does today.
+caller's `View`, the water-culling callback dropped, and the rendering node accepted for every visitor
+type. `TerrainGrid` — which the harness uses — implements it by traversing itself, which is what it
+does today. The mirror holds a `View` of its own, driven from the player's position rather than a
+camera's, so the LOD a reflection sees is the LOD the primary ray sees and the harness and the game
+reach terrain through one call instead of two that can disagree.
 
-The mirror then holds a `Terrain::View` of its own, created once, and drives it from the player's
-position rather than the camera's. Two properties follow that are worth having on their own account:
-the LOD a reflection sees is the LOD the primary ray sees, and the harness and the game reach terrain
-through one call instead of two paths that can disagree.
+**Scope note.** This touches `components/terrain`, which the rasterizer also uses. Adding a virtual
+that `QuadTreeWorld::accept` is then written in terms of leaves its behaviour bit-identical, and that
+is the bar.
 
-`Terrain::World::preload` already takes a `View*` and a view point, so the shape is not new to that
-class; what is new is that the result can be walked by something other than a camera.
+### B2. Two traversal sequences feed one "have I posed this frame" counter
 
-**Scope note.** This is a change to `components/terrain`, which the rasterizer also uses. The rule
-in `CLAUDE.md` is that the rasterizer is not modified — adding a virtual that `QuadTreeWorld::accept`
-is then written in terms of leaves its behaviour bit-identical, and that is the bar to hold to.
+The logged issue — cull and the mirror both posing — is stale: with `[RTX] enabled` there is no
+viewer, no cull traversal and no draw thread. What survives is worth naming. `SceneUtil::Skeleton` and
+both deforming drawables key "already posed" on a single `unsigned int`, and this fork feeds it from
+two independent sequences: the world's walk uses `frameNumber + 1`, a traced view uses its own redraw
+count. They do not collide because a `RigGeometry` is cloned per instance and no drawable is reached
+by both — a property of `NpcAnimation`, not an invariant anything states, and one shared subtree away
+from a frozen pose nobody can explain.
 
-### B2. Issue 3 is stale, and there is a real hazard left where it stood
+Give `RtxRenderer` one monotonic traversal counter, hand it to the world walk and to every traced
+view, and assert in `MirrorTraversal::begin` that the number is greater than the last.
 
-"The rasterizer's cull and the mirror both pose every deforming drawable" was written 43 commits ago,
-before `03469d1671` put OpenGL behind `MWRender::Renderer` and `37f35a86a9` gave the ray tracer a
-native path. **With `[RTX] enabled` there is no `osgViewer::Viewer`, no cull traversal and no draw
-thread**: `RtxRenderer::renderFrame` runs the mirror, traces, draws the GUI and presents. Nothing
-skins twice and nothing reads the buffer being written.
+### B3. The `Inactive` half is closed, and wants a test
 
-What survives is one design property worth naming: **`SceneUtil::Skeleton` and both deforming
-drawables key "have I already posed this frame" on a single `unsigned int`, and this fork now has two
-independent sequences feeding it.** The world's walk uses `frameNumber + 1`; `TracedView` uses its own
-`mRedraws++` for the pose and the game's frame number for the update traversal. They do not collide
-today because a `RigGeometry` is cloned per instance and no drawable is reached by both. That is a
-property of `NpcAnimation`, not an invariant anything states, and it is one shared subtree away from
-being a frozen pose nobody can explain.
-
-Cheap and durable: give `RtxRenderer` one monotonic traversal counter, hand it out to the world walk
-and to every traced view, and assert in `MirrorTraversal::begin` that the number it was given is
-greater than the last. Then the sequence is a fact rather than a coincidence.
-
-### B3. Issue 4 is closed bar its test
-
-`7c58662b65` gave `SceneUtil::Skeleton` a `markReached` and called it from the mirror, which is what
-`SemiActive` was actually asking — a skeleton stops animating once several traversals pass with
-nothing reaching it, on the reasoning that only a renderer about to draw reaches one. `Inactive` is
-the remaining half of the entry and it is not a defect: `MWMechanics::Actors` sets it only for actors
-outside the processing range, and sets those actors' base node mask to zero in the same breath, so
-the mirror cannot reach them and would have nothing to pose if it could.
-
-Keep a test that says so — an actor at `Inactive` with a zero node mask contributes no deformed mesh
-— so the day the node mask stops being zero, something fails rather than something freezes.
+`Inactive` is not a defect: `MWMechanics::Actors` sets it only for actors outside the processing
+range and zeroes their base node mask in the same breath, so the mirror cannot reach them. Keep a test
+saying so — an actor at `Inactive` with a zero node mask contributes no deformed mesh — so the day the
+mask stops being zero something fails rather than freezes.
 
 ## C. The GUI image path has exactly one verb, and it is "replace everything"
 
 `MyGUI::ITexture` offers `lock`/`unlock` over the whole surface and nothing narrower, and both
-backends implement it literally:
+backends implement it literally: `MyGUIPlatform::OSGTexture::lock` allocates a whole `osg::Image` and
+`unlock` a whole `osg::Texture2D`, so a video frame is two allocations and a full re-upload every
+frame; `MyGUIRtx::Texture` keeps its pixels but sends all of them.
 
-- `MyGUIPlatform::OSGTexture::lock` allocates a whole `osg::Image`; `unlock` allocates a whole
-  `osg::Texture2D` and hands it the image. A video frame is two allocations and a full re-upload
-  every frame. That is issue 7.
-- `MyGUIRtx::Texture` keeps its pixels, which is better, but `upload` sends all of them, and
-  `Rtx::GuiTextures::write` stages them and waits on the queue.
-
-The consumer that makes this hurt is the world map overlay. `GlobalMap::exploreCell` box-filters one
-cell's local-map tile — `local map resolution` 256 down to `global map cell size` 18, which is cheap
-— writes it into `mOverlayImage`, and then uploads **the entire overlay**: `cellSize × (maxX−minX+1)`
-square, four bytes a texel, a little over two megabytes on Vvardenfell, on the frame a cell arrives.
-It is a spike on exactly the frame that already has the most to do. That is issue 13, and issues 7 and
-13 are one missing operation.
+The consumer that makes this hurt is the world map. `GlobalMap::exploreCell` box-filters one cell's
+local-map tile — 256 down to 18, which is cheap — and then uploads **the entire overlay**, a little
+over two megabytes on Vvardenfell, on the frame a cell arrives. Both entries are one missing
+operation.
 
 ### C1. A region write, in both backends
 
@@ -285,279 +202,143 @@ namespace MyGUIPlatform
 }
 ```
 
-`OSGTexture` implements it by keeping its `osg::Image` across locks — which is the whole of issue 7,
-independently of the region — writing the rows into it and calling `dirty()`, so the texture object
-uploads the sub-image rather than being replaced. `MyGUIRtx::Texture` implements it by widening into
-the same scratch it already has and calling a `writeGuiTexture` that takes a rectangle;
-`Rtx::GuiTextures::write` grows one `VkBufferImageCopy` region parameter and nothing else.
-
-`Rtx::Renderer::writeGuiTexture` gains the rectangle rather than gaining an overload —
-there is no backward compatibility to keep and two entry points is two things to get wrong.
+`OSGTexture` implements it by keeping its `osg::Image` across locks — which is the whole of the
+allocation entry, independently of the region — writing the rows and calling `dirty()`, so the texture
+uploads the sub-image rather than being replaced. `MyGUIRtx::Texture` widens into the scratch it
+already has; `Rtx::GuiTextures::write` grows one `VkBufferImageCopy` region and nothing else.
+`Rtx::Renderer::writeGuiTexture` gains the rectangle rather than gaining an overload.
 
 ### C2. One owner for "pixels the game holds, shown in the interface"
 
-`MyGUIPlatform::Picture` is already that class and its doc comment already says so. `GlobalMap` does
-not use it: it has its own `createTexture` and its own `upload`, both of which are `Picture`'s job
-with a different name.
+`MyGUIPlatform::Picture` is already that class. `GlobalMap` does not use it: it has its own
+`createTexture` and `upload`, both of which are `Picture`'s job under another name. So `GlobalMap`
+holds two `Picture`s, `Picture` gains `setRegion`, reaching the backend through one
+`dynamic_cast<RegionTexture*>` per call, and `GlobalMap::createTexture` and `upload` go. `exploreCell`
+then uploads 18 × 18 × 4 bytes instead of two megabytes.
 
-So: `GlobalMap` holds two `Picture`s, `Picture` gains `setRegion(const osg::Image&, x, y, w, h)`
-reaching the backend through a `dynamic_cast<RegionTexture*>` done once per call, and
-`GlobalMap::createTexture` and `GlobalMap::upload` go. `exploreCell` then uploads
-`18 × 18 × 4` bytes instead of two megabytes, on the frame it changed one cell.
+The `memcmp` that recognises a repaint changing nothing stays: a kilobyte of comparison against an
+upload is still the right trade.
 
-The `memcmp` that recognises a repaint changing nothing stays: it is a kilobyte of comparison against
-an upload, and it is now a kilobyte against a much smaller upload, which is still the right trade.
+**Deliberately not proposed:** dropping the CPU copy and keeping the overlay only on the device.
+`GlobalMap::write` serialises `mOverlayImage` into the savegame, so main memory is the source of truth
+and the device copy is derived. That is the right way round.
 
-### C3. What is deliberately not proposed here
+## G. The renderer can draw a picture and cannot say whether it changed
 
-Making the overlay live only on the device, with the CPU copy dropped. It cannot: `GlobalMap::write`
-serialises `mOverlayImage` into the savegame, so a main-memory copy is the source of truth and the
-device copy is the derived one. That is the right way round and it should stay.
+Two entries, one gap seen from two sides.
 
-## D. A frame that exists on the device has no way back into the game
+- **`shot` at its defaults is not an A/B instrument.** Eight frames through DLSS Ray Reconstruction,
+  and two builds that describe the same scene identically write different bytes. `--upscale=off
+  --repeat=1` is stable: through it the whole of A1's block plumbing reproduced the baseline byte for
+  byte on all sixteen views, while the defaults called fifteen of them different. Every bisection
+  taken before that was found says nothing, and several said the opposite of the truth.
+- **A device-level discrepancy can only be met as a rendering mystery.** Nothing here can ask whether
+  a pointer read and a descriptor read of one buffer agree, so the question had to be put to a whole
+  traced frame and answered by elimination — which cost a day and did not answer it.
 
-Two entries, one cause, and neither is a design flaw — they are wiring that was left for later and
-should be finished, because both are silently wrong rather than absent.
+This is what stopped A1. Two instruments, both small, both of which pay for themselves on the next
+step alone.
 
-- **`freezeFrame` hands back one black texel.** The loading screen puts it up as the backdrop and
-  fades from black instead of from the world the player was standing in.
-- **`saveScreenshot` logs a warning.** The screenshot key does nothing on the ray tracing path.
+### G1. A stable picture A/B, as a command rather than a habit
 
-Everything either needs already exists. `Rtx::Renderer::readPixels` reads the output-resolution
-target and `RtxRenderer::capture` already uses it for the savegame thumbnail;
-`SceneUtil::writeScreenshotToFile` is a free function over an `osg::Image` with no GL in it, and
-`SceneUtil::AsyncScreenCaptureOperation` puts it on the work queue. What is GL-only is
-`osgViewer::ScreenCaptureHandler`, which is the *capture* half and the half the ray tracer already
-has its own version of.
+`openmw-rtxtool verify --against=<directory>` renders every view in `views.cfg` with upscaling off,
+one frame and a fixed seed, and where `--against` names a previous run reports **which views differ
+and by how much** — worst channel delta and how many pixels — rather than merely that they do. "Worst
+2 of 255 on 5% of the pixels" and "worst 37 on 20%" are different findings; a bare *differs* is what
+cost the time.
 
-So:
+**The reference is the previous build on this machine, never a corpus in git.** The picture is a
+function of the driver and the card as much as of the code, so checked-in hashes would be a promise
+the tree cannot keep — and the question a refactor asks is "is this the same as before *my* change",
+which a previous run answers exactly.
 
-- `freezeFrame` reads the target into an `osg::Image` held on the renderer and sets `mFrozenFrame`
-  from it. A load screen is exactly the moment a full readback is affordable.
-- `saveScreenshot` reads the target, wraps it, and hands it to the same async writer the OpenGL
-  renderer hands `osgViewer`'s captures to, honouring `Settings::general().mScreenshotFormat` and
-  the screenshot path from `RendererSpec` — so the two renderers write the same files to the same
-  place with the same names.
+`shot` keeps its defaults. It is for looking, and looking wants the upscaler.
 
-That leaves `OPENMW_RTX_SHOT`'s `keep()` as a separate, deliberate thing: it writes numbered PNGs for
-a profiling corpus and is not the screenshot key.
+### G2. A device-behaviour test bed
 
-## E. Two that are exactly what they look like
+`apps/components_tests/rtx/` already stands up an instance, a device and a `ComputePipeline`. What it
+has never done is ask the device **one** question. A test that fills a buffer with a known pattern,
+reads it in a compute shader through a descriptor and through a `buffer_reference` pointer, and
+asserts the two agree, is a dozen lines against machinery that exists — and it is the run that would
+have answered A1's defect outright.
 
-**Issue 12** — `MWRender::Rtx::TracedView`'s constructor initialises `mWidth` before `mSubjectMask`
-while the declarations run the other way. Reorder the initialiser list to match the declarations.
-One line, and every translation unit including `tracedview.hpp` stops warning.
+That is the shape for every device assumption this renderer takes on trust and cannot currently state:
+scalar block layout, `ALLOW_DATA_ACCESS` position fetch, a partially-bound descriptor left naming an
+image that has been destroyed.
 
-**Issue 9 is stale, and its lesson is not.** It was logged at `9bbcbbcf30`, when a traced view kept
-its extractor across redraws and called `retire()`; `SceneDesc::release` empties a freed texture
-slot's path, and `SceneTextures` describes every slot of a scene it is asked to build whole — so a
-freed slot arrived at the backend as one unreadable texture and one grey stand-in. `9a3b17ff1e` made
-each redraw build a fresh scene, which cannot have a freed slot in it, so the symptom is gone.
+## H. Every resource is its own queue round trip
 
-The conflation is still in the code and still latent: **`SceneTextures` cannot tell "a slot the scene
-freed" from "a file the decoder would not have", and reports neither by name.** `getUnreadable()` is
-a count, `RtxRenderer` logs it as a count, and a count nobody can follow to a file is a canary that
-cannot be answered. Two small changes make it one again:
+`Rtx::GuiTextures::add` clears each new texture through a submit it waits on. That is the logged
+entry; it is one of fourteen `submitAndWait` sites, and what makes it structural is the ones inside a
+loop:
 
-- `describe` skips a slot whose path is empty, describing it as the stand-in without counting it.
-- The unreadable ones are logged once each with their path, at `Debug::Warning`, on the frame they
-  are described — which is a load and not a frame path.
+- **`Texture::Texture` submits and waits per texture.** Balmora's 361 textures are 361 round trips
+  through the driver on the frame the cell lands.
+- `uploadBuffer` submits and waits per buffer.
+- `GuiTextures::add` and `write`, once per texture the interface creates or changes.
 
-## F. The formatter
+`commands.hpp` already says it — *"One submit per call, which is right for a load path and wrong for
+anything else"* — and it is not right for a load path either, once that is a cell boundary.
 
-`CI/check_clang_format.sh` runs whatever `clang-format` is on `PATH`; `.gitlab-ci.yml` sets
-`CLANG_FORMAT: clang-format-14` and installs it from Debian. This box has 22, and the two disagree.
+**This is not M12's asynchrony and must not wait for it.** M12 is about the frame no longer waiting on
+the queue; this is about not asking the queue three hundred times to do one thing. They compose: the
+batch that submits once and waits is the same object that later submits once and does not.
 
-The issue as logged says the two versions cannot both be satisfied, and that is true and permanent:
-clang-format's output is not stable across majors and no `.clang-format` makes it so. **A gate whose
-answer depends on what happens to be installed is not a gate.** This fork does not upstream, so:
+- `CommandPool::batch()` hands back a `Batch` holding one open command buffer. `flush()`, and the
+  destructor, submits and waits once.
+- **The batch owns the staging.** `uploadBuffer` and `Texture` keep a staging buffer as a local and
+  rely on the wait happening before it leaves scope; batched, it has to live until the flush. That is
+  the whole of the design content.
+- `Texture` and `uploadBuffer` take a `Batch&` where they take a `CommandPool&`.
 
-- Adopt the version the tree is already formatted for and say so in `.clang-format` next to
-  `Standard: c++20`, as a comment naming the major.
-- Have `CI/check_clang_format.sh` read `clang-format --version`, compare the major against a single
-  constant in the script, and fail with "this tree is formatted by clang-format N; you have M" rather
-  than producing a diff nobody can act on.
-- Keep CI's installed version and the constant tied together, so a bump that touches one and not the
-  other fails naming both.
+Measured against the build figure the bench prints: 410 ms on the island route, 704 ms at Balmora.
 
-**Which version, decided by sweeping the whole tree rather than the files the issue named.** Under 14
-eleven files differ, every one of them written or touched by this fork. Under 22 about a hundred and
-eighty do, almost all of them upstream's — `esm4`, `opencs`, `detournavigator`. The tree is an
-upstream tree formatted at 14 with a fork's worth of files formatted at 22 on top, so 14 is what it
-is already formatted for and 22 would mean reformatting upstream's code to gain nothing but a newer
-formatter. 14's one visible cost is that a pure-virtual whose signature wraps puts `= 0` on its own
-line; that is what upstream already lives with.
+## I. One that is exactly what it looks like
 
-Ubuntu 24.04 packages `clang-format-14`, so CI needs no new mechanism — the gate checking the major
-is what made the version reproducible, not how it is installed. Arch does not package it, and
-`pipx install 'clang-format==14.*'` is a wheel with a real binary in it, which is what the failure
-message points a developer at.
+`RtxTool::Chosen` is designated-initialised in `chooseView` without `mView` or `mNote`. Those two are
+assigned a few lines later, which is the actual defect: the aggregate is built in two stages, so its
+initialiser cannot name everything and the compiler is right to say so. Resolve the view first and
+build it once.
 
 ## The plan
 
-Ordered by what unblocks what, not by size. Each step is landable on its own and leaves the tree
-working.
+Ordered by what unblocks what. Each step is landable on its own and leaves the tree working.
 
-**1 — F, the formatter.** Half an hour, and until it is done every other step's diff is arguable.
-Verify with `CI/check_clang_format.sh` and `CI/check_file_names.sh`.
+**1 — G, the two instruments.** `verify --against` first, because it is what says whether anything
+below changed the picture; then the test bed, with A1's question — a pointer read and a descriptor
+read of one buffer — as its first case. Verify G1 against itself: two runs of one build agree on every
+view, and a deliberately perturbed shader is reported with a magnitude.
 
-   **Done.** Pinned at 14 rather than 22, for the reason section F now records: the whole-tree sweep
-   the decision actually needed says 22 costs about a hundred and eighty files and 14 costs eleven.
-   The gate refuses any other major by name; CI keeps its apt package and the constant checks it.
+**2 — H, the batch.** Independent of everything, and it shortens every load the steps below are tested
+through. Whole suite unchanged; the bench's build figure at Balmora and on the island route.
 
-**2 — E, the two small ones.** The `-Wreorder` fix, the empty-path skip, and the per-file warning
-for an unreadable texture. Verify with `components-tests --gtest_filter=*TextureBuilder*` plus a new
-case: a scene with a freed texture slot describes it as the stand-in and reports zero unreadable.
+**3 — A1, the geometry blocks.** `7b-backend.patch` is the starting point and it is known bit-exact
+apart from the pointer read; G2 decides between fixing that and taking the descriptor-array fallback.
+Still a full rebuild per arrival. The picture must be unchanged, which is now a command.
 
-   **Done.** The test needs two models and a sweep that drops one of them: `release` compares the
-   mesh and material counts and returns before it looks at a texture, so a scene that loses nothing
-   never frees the slot the case is about.
+**4 — A2, bottom-level storage, then `extendScene`.** Build the arrivals, destroy the departures.
+Measure the crossing on the streaming route, median and worst, against 47 ms.
 
-**3 — D, the frame's way back.** `freezeFrame` and `saveScreenshot`. No test can assert what a load
-screen looks like; assert instead that `freezeFrame` returns a texture of the target's extents and
-that the screenshot writer is reached with an image of the right size. Look at one load in the window
-because that is the only thing that shows it.
+**5 — A3, view scenes get the same three branches.** Look at a race-creation slider drag in the
+window; that is what the frame time was.
 
-   **Done, bar the window.** Both go through `RtxBridge::frameImage`, and so does `capture`'s
-   savegame thumbnail — a third caller, which is what made the extraction worth it. The row order is
-   the only thing separating them: MyGUI takes the trace's own, `osgDB` wants it turned over. The
-   writer moved out of `glrenderer.cpp` into `MWRender::makeScreenshotWriter` so both renderers
-   write the same files with the same names.
+**6 — C, the region write.** `RegionTexture`, both backends, `Picture::setRegion`, `GlobalMap` onto
+`Picture`. The GUI texture tests plus walking across a cell boundary with the world map open.
 
-   The two size assertions are on `frameImage` rather than on `RtxRenderer`, which needs a window, a
-   device and a live MyGUI render manager and is in `openmw-lib`, which `components-tests` does not
-   link. **The window check is still outstanding**: the game's first load happens before anything has
-   been presented, so it takes the black path, and forcing a later one needs a hand on the keyboard —
-   walk through a door for the backdrop, press the screenshot key for the file.
+**7 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
+with `distant terrain` on and comparing a frame; verify the mirror by turning `distant terrain` on and
+taking a shot of an exterior with ground in it.
 
-**4 — A1, arrivals and departures as sets.** `getArrivedMeshes`, `getFreedMeshes`,
-`getFreedTextures`, cleared by `clearArrivals`. Pure addition; nothing reads them yet. Verify with
-`components-tests --gtest_filter=*SceneDesc*`, extending the existing release and reuse cases rather
-than adding a file: a walk that frees a cell names exactly the slots it freed, in any order, once
-each.
+**8 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
 
-   **Done, and the lists are disjoint** — a slot is named by one of them or by neither, never both.
-   That is not decoration: without it the two have no safe application order, because a slot freed
-   and then taken over is destroyed by a backend that applies departures last, and one that arrived
-   and then went leaves a live structure behind for a backend that applies them first. A per-slot
-   byte parallel to each table keeps them apart at constant cost; the linear erase runs only when a
-   slot changes sides, which needs a window that was never handed over, since a walk adds before the
-   sweep that follows it frees. **Step 5 can therefore apply the lists in either order**, and step
-   7d likewise.
-
-**5 — A4, freeing a texture slot.** `TextureArray::drop`, driven from `getFreedTextures` through
-`SceneUploader`. Small, self-contained, and it is the proof that A1's lists are right. Measure the
-island route's texture bytes at the same seven crossings the 685-texture figure came from.
-
-   **Done. The island route ends at 9.6 MiB against 10.7**, `openmw-rtxtool bench --suite=streaming`,
-   same 685 slots and still no rebuilds. The descriptors are left naming what has gone and the
-   validation layers do not object, which is what `VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT` was
-   already there for.
-
-   **The settling point falls by less than this section implied, and the reason is worth keeping.**
-   What the drop reclaims is the slots that are free *at that moment*, not everything the departed
-   cells held: on a route that keeps moving the next ring takes the slots over within a crossing or
-   two, so most of a departure's memory was going to be reused rather than held. The saving is
-   therefore the transient, and it is larger the longer a region stays gone — which is the standing
-   player and the interior, not the flight across the island. The bench reports the end of the route
-   only; per-crossing texture bytes would need an instrument that does not exist yet.
-
-   `SceneUpload::mDropped` counts it, and it is **not zero on a `Placed`**: leaving a region is a
-   frame where nothing arrives, and that branch returned before it did anything besides place. It now
-   drops and clears there too, which is where a future step 7d's mesh departures belong as well.
-
-**6 — A5, sound identity, and the traced views with it.** `osg::ref_ptr` keys in `SceneExtractor`,
-then `TracedView::rebuildSubject` becomes an incremental re-walk. Verify with the existing
-`components-tests --gtest_filter=*SceneExtractor*` plus a case that frees a drawable and allocates
-another, asserting the second does not resolve to the first's mesh. Look at a race-creation slider
-drag in the window, which is what the frame time was.
-
-   **Done for the identity; the redraw is only half done, and the half that is left is 7's.** The
-   maps own their keys through a transparent `ByAddress`, so a lookup from a raw pointer still costs
-   no reference count. `mAnimated` went with them: it was keyed on a raw node, and a node replaced at
-   the same address would have been handed the first one's animated state set — the same defect one
-   map over. The test asserts the entry is the only holder, that the replacement cannot land on the
-   retired part's address, that it takes a mesh of its own, and that the sweep is what finally
-   releases it.
-
-   `rebuildSubject` now clears placements, walks, and sweeps — **no `advance` between them**, unlike
-   the world's frame: a picture drawn when the character changes rather than when the frame does has
-   no motion to describe, and a scene that never advances answers with a previous transform equal to
-   its current one. The texture descriptions are held across redraws that changed no texture, keyed
-   on `getArrivedTextures` and `getFreedTextures` being empty — which is step 4's lists finding a
-   second reader, and it is what takes the per-redraw shading estimate off a slider that only moves a
-   bone.
-
-   **What is not done: the device still rebuilds.** `setViewScene` tears down the acceleration
-   structures, the buffers and the texture array and makes them again, because a view scene has no
-   `placeScene` or `extendScene` of its own. So the mirror is incremental and the upload is not, and
-   issue 8 stays open. Giving a view scene the same three branches the world's has belongs with 7,
-   not before it.
-
-   The island route is unmoved by the owning keys — 685 textures, 9.6 MiB, 24.3 MiB of structures,
-   19 crossings and no rebuilds — and two runs at 16.4 and 16.5 ms median sit inside the 15.5–16.5
-   spread the same bench gives run to run. The slider drag itself is still unlooked at: it is
-   reachable only through the interface.
-
-**7 — A2 and A3, blocks.** The large one, and it wants its own sequence:
-
-   a. `SpanAllocator` with a block size in `SceneDesc`, with the host vectors growing a block at a
-      time. Nothing on the device changes; the existing tests should pass unaltered, and a new one
-      asserts a run never straddles a block and that a block's tail is reused.
-
-      **Done, and the host vectors do not grow a block at a time.** Rounding them up to a whole
-      block was tried and dropped: `getPositions()` is what the backend uploads, so the tail of the
-      last block would be megabytes of nothing sent to the device every scene, and `resize` already
-      grows geometrically so there was no reallocation to save. The blocks govern *where a run may
-      go* and nothing else — which is what made the existing tests pass unaltered, as this said they
-      should. 256 Ki vertices and 1 Mi indices a block; a mesh longer than one is **thrown on by
-      name rather than asserted**, because a vertex count comes out of a content file and a run
-      across two blocks is a wild write rather than a wrong picture. Nothing in Morrowind comes near
-      it: the whole suite, an island crossing and a Balmora `shot` all pass without it firing.
-   b. `SceneAcceleration`'s position and index buffers become block lists, and everything that reads
-      a vertex or an index by global id is taught the arithmetic. Still a full rebuild per arrival;
-      the picture must be pixel-identical, which `openmw-rtxtool shot` over the views in
-      `files/rtx/views.cfg` is exactly the instrument for.
-
-      **Scoped, not started.** The two halves are not equally hard and the split is worth knowing
-      before beginning. **Positions need no shader change at all**: they are a build input and the
-      target of the per-frame host write for deformed meshes, and the hit shader reads a triangle's
-      vertices back out of the structure through
-      `VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_BIT_KHR` rather than out of a buffer. So
-      blocking them is arithmetic inside `SceneAcceleration` and nothing else.
-
-      **Indices, normals and texture coordinates are the coupled half.** `visibility.comp` binds all
-      three as single storage buffers at set 0 bindings 3, 4 and 5 and indexes them by global id, so
-      blocking them changes the shader, the descriptor layout and `VisibilityPass`'s writes together.
-      The clean route is buffer device address — the device already hands them out, the shader
-      already uses `scalar` layout, and one buffer of `uint64_t` block addresses replaces the three
-      bindings with `block[id / blockSize].at[id % blockSize]`. Landing it half-way leaves a renderer
-      whose picture cannot be checked, so it wants to go in as one piece.
-   c. Bottom-level storage becomes a block list with per-mesh create and destroy.
-   d. `extendScene` builds `getArrivedMeshes` and destroys `getFreedMeshes` instead of rebuilding.
-
-   Measure at (d): the crossing on the streaming route, median and worst frame, against 47 ms.
-
-**8 — C, the region write.** `RegionTexture`, both backends, `Picture::setRegion`, `GlobalMap` onto
-`Picture`. Verify with the GUI texture tests in `components-tests` — a region write leaves the rest of
-the texture alone, and a widened one-channel region widens correctly — and by walking across a cell
-boundary with the world map open.
-
-**9 — B1, terrain residency.** `Terrain::World::collect`, `QuadTreeWorld`'s implementation written by
-moving its own `accept` body, the mirror holding a `View` of its own. Verify that `QuadTreeWorld::accept`
-is unchanged in behaviour by running the OpenGL path with `distant terrain` on and comparing a frame;
-verify the mirror by turning `distant terrain` on and taking a `shot` of an exterior that has ground
-in it.
-
-**10 — B2 and B3, the traversal counter and the `Inactive` test.** Small, and last because they are
-insurance rather than repair.
+**9 — I.** Ten minutes.
 
 ## What this does not touch
 
 **The renderer is synchronous end to end** — every submit in `components/rtxvulkan` waits on a fence
-before returning. That is why A3 needs no retirement queue, why `GuiTextures::write` can destroy and
-recreate freely, and why none of the above has to reason about frames in flight. It is also the
-single largest thing standing between this renderer and its frame budget, and it is M12's, not this
-document's. The plan above should not be built in a way that assumes it stays true: A3 and A4 are the
-two places that will need a fence-keyed retirement list the day it stops, and that is written here so
-that day is a change rather than a bug.
+before returning. That is why A2 needs no retirement queue, why `GuiTextures::write` can destroy and
+recreate freely, and why none of the above has to reason about frames in flight. It is also the single
+largest thing standing between this renderer and its frame budget, and it is M12's. The plan above
+should not be built in a way that assumes it stays true: **A2 and the texture drop are the two places
+that will need a fence-keyed retirement list the day it stops**, and that is written here so that day
+is a change rather than a bug.

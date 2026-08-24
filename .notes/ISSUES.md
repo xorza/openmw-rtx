@@ -39,3 +39,13 @@
 
 - `RtxTool::Chosen` is aggregate-initialised at `apps/rtxtool/main.cpp:297` without `mView` or
   `mNote`, so the build warns twice under `-Wmissing-field-initializers`.
+
+- `openmw-rtxtool shot` renders eight frames through DLSS Ray Reconstruction by default, and the
+  accumulated result differs between two builds that describe the same scene identically, so the
+  images two binaries write for one view cannot be compared byte for byte. `--upscale=off
+  --repeat=1` gives the same bytes for the same scene across builds.
+
+- Reading a scene's vertex normals in `visibility.comp` through a `GL_EXT_buffer_reference` pointer
+  gives a different picture from reading the same buffer through a storage-buffer descriptor: with
+  the pointer load present but its value discarded the image is byte-identical, and with its value
+  used it differs by up to 37 of 255 across a fifth of the pixels.
