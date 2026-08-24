@@ -386,6 +386,13 @@ namespace MWRender
         osg::Vec4f mSunPosition;
         osg::Vec4f mSunVector;
         bool mSunAtNight = false;
+
+        /// Whether the sun's disc is enabled, which is what `setSunVisible` switches.
+        ///
+        /// **Kept because `WorldState` has to report it**, and because it is not the same question as
+        /// whether the sun is lighting anything: `WeatherManager` leaves a dim blue sun on all night
+        /// and turns only the disc off.
+        bool mSunVisible = false;
         float mSunVisibility = 0.f;
 
         bool mWaterEnabled = false;

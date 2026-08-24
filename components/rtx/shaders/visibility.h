@@ -170,6 +170,15 @@ namespace Rtx::Shaders
         vec3 mSunDirection;
         vec3 mSunIrradiance;
 
+        /// Non-zero where the sun's disc is in the sky to be seen.
+        ///
+        /// **Separate from the irradiance, because the game keeps them separate.** A night is lit by
+        /// a dim blue sun — `WeatherManager` reads that straight off its ramp and never switches the
+        /// light off — while the disc itself is enabled and disabled by the hour. Drawing the disc
+        /// from the irradiance alone put a blazing point in the middle of every night sky: a small
+        /// irradiance over the sun's tiny solid angle is an enormous radiance.
+        uint mSunVisible;
+
         /// What a ray that hits nothing comes back with, at the horizon and overhead.
         ///
         /// The game's own two colours: its atmosphere is the one overhead and its fog is what that
@@ -302,7 +311,7 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
     static_assert(sizeof(MoonDisc) == 60, "MoonDisc must be scalar-packed on every side");
-    static_assert(sizeof(VisibilityConstants) == 384, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 388, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

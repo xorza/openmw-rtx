@@ -658,6 +658,7 @@ namespace MWRender::Rtx
             // Scaled by the same ratio of sun to sky the harness uses. Sharing the constant is what
             // keeps a screenshot and the game the same picture.
             .mSunIrradiance = RtxBridge::decodeColour(world.mSunColour) * ::Rtx::Shaders::DAYLIGHT,
+            .mSunVisible = world.mSunVisible,
             .mAmbient = RtxBridge::decodeColour(world.mAmbientColour),
             .mSkyHorizon = haze,
 

@@ -41,6 +41,11 @@ namespace RtxBridge
         osg::Vec3f mSunDirection;
         osg::Vec3f mSunIrradiance;
 
+        /// Whether the sun's disc is in the sky to be seen, which is not the same question as
+        /// whether it is lighting anything: the game leaves a dim blue sun on all night and enables
+        /// the disc by the hour.
+        bool mSunVisible = false;
+
         /// The cell's own ambient, linear. What a path is terminated with rather than what is added
         /// on top of it — `visibility.h` says why.
         osg::Vec3f mAmbient;

@@ -13,6 +13,7 @@ namespace RtxBridge
             FrameWorld world{
                 .mSunDirection = osg::Vec3f(0.0f, 0.6f, -0.8f),
                 .mSunIrradiance = osg::Vec3f(1.5f, 1.25f, 1.0f),
+                .mSunVisible = true,
                 .mAmbient = osg::Vec3f(0.11f, 0.12f, 0.13f),
                 .mSkyHorizon = osg::Vec3f(0.21f, 0.22f, 0.23f),
                 .mSkyZenith = osg::Vec3f(0.31f, 0.32f, 0.33f),
@@ -66,6 +67,7 @@ namespace RtxBridge
 
             EXPECT_EQ(constants.mSunDirection, world.mSunDirection);
             EXPECT_EQ(constants.mSunIrradiance, world.mSunIrradiance);
+            EXPECT_EQ(constants.mSunVisible, 1u);
             EXPECT_EQ(constants.mAmbient, world.mAmbient);
             EXPECT_EQ(constants.mSkyHorizon, world.mSkyHorizon);
             EXPECT_EQ(constants.mSkyZenith, world.mSkyZenith);
@@ -152,6 +154,7 @@ namespace RtxBridge
             applyWorld(FrameWorld{}, constants);
 
             EXPECT_EQ(constants.mSunIrradiance, osg::Vec3f()) << "no sun";
+            EXPECT_EQ(constants.mSunVisible, 0u) << "and no disc of one either";
             EXPECT_EQ(constants.mMoons[0].mAlpha, 0.0f) << "and no moons";
             EXPECT_EQ(constants.mMoons[1].mAlpha, 0.0f);
             EXPECT_EQ(constants.mFogExtinction, 0.0f) << "and air that costs nothing";

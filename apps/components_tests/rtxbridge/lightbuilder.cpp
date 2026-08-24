@@ -188,6 +188,20 @@ namespace RtxBridge
             EXPECT_GT(dusk, day);
             EXPECT_LT(dusk, night);
 
+            // **The sun's disc goes out at night and its light does not.** The engine reads the
+            // colour straight off the ramp all night — a dim blue rather than nothing — and
+            // switches only the disc, between sunrise and the start of night
+            // (`apps/openmw/mwworld/weather.cpp:651`). Drawing the disc from the irradiance alone
+            // put a blazing point in the middle of every night sky, because a small irradiance over
+            // the sun's half-degree solid angle is an enormous radiance.
+            EXPECT_TRUE(makeDaylight("Clear", 12.0f).mSunVisible) << "noon";
+            EXPECT_FALSE(makeDaylight("Clear", 0.0f).mSunVisible) << "midnight";
+            EXPECT_FALSE(makeDaylight("Clear", 22.0f).mSunVisible) << "night begins at twenty";
+            EXPECT_TRUE(makeDaylight("Clear", 7.0f).mSunVisible) << "and it is up again after six";
+
+            EXPECT_NE(makeDaylight("Clear", 0.0f).mSun.mIrradiance, osg::Vec3f())
+                << "the light is not switched off with the disc";
+
             // The wind comes off the same file and a key per weather, so a storm reading harder
             // than fair weather is what says the name reached the lookup rather than a constant
             // being handed back.

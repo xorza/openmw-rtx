@@ -47,6 +47,13 @@ namespace RtxBridge
     {
         Rtx::Sun mSun;
 
+        /// Whether the sun's disc is up to be seen.
+        ///
+        /// **Not the same as whether it lights anything.** Its night colour is a dim blue and the
+        /// engine reads that straight off the ramp, so the light never goes out; what goes out is
+        /// the disc, between sunset and sunrise (`apps/openmw/mwworld/weather.cpp:651`).
+        bool mSunVisible = false;
+
         /// Sky radiance, linear, at the horizon and overhead.
         osg::Vec3f mSkyHorizon;
         osg::Vec3f mSkyZenith;

@@ -646,6 +646,8 @@ namespace MWRender
 
     void RenderingManager::setSunVisible(bool visible)
     {
+        mSunVisible = visible;
+
         if (visible)
             mSky->sunEnable();
         else
@@ -798,6 +800,7 @@ namespace MWRender
             .mSunAtNight = mSunAtNight,
             .mSunColour = mSunLight->getDiffuse(),
             .mSunVisibility = mSunVisibility,
+            .mSunVisible = mSunVisible,
             .mAmbientColour = mSunLight->getAmbient(),
             .mSkyColour = mSky->getSkyColor(),
             .mLocation = world.isCellExterior() ? Location::Exterior

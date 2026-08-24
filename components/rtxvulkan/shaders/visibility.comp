@@ -1437,7 +1437,7 @@ vec3 skyRadiance(vec3 direction, float blur)
     // before the question is asked. `|a - b|` is `2 sin(theta / 2)` for unit vectors, which loses
     // nothing, and it is the same quantity the cap's solid angle is built from: `pi * chord^2`.
     const float edge = 2.0 * sin(0.5 * (SUN_ANGULAR_RADIUS + blur));
-    if (length(direction + camera.mSunDirection) < edge)
+    if (camera.mSunVisible != 0u && length(direction + camera.mSunDirection) < edge)
     {
         // **The sun's radiance is five orders of magnitude above the sky's** and this does not
         // pretend otherwise, so it saturates until there is an exposure stage to bring it down.

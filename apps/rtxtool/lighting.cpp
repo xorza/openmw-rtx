@@ -29,6 +29,7 @@ namespace RtxTool
         RtxBridge::FrameWorld world{
             .mSunDirection = lighting.mDaylight.mSun.mDirection,
             .mSunIrradiance = lighting.mDaylight.mSun.mIrradiance,
+            .mSunVisible = lighting.mDaylight.mSunVisible,
             .mAmbient = lighting.mAmbient,
             .mSkyHorizon = lighting.mDaylight.mSkyHorizon,
             .mSkyZenith = lighting.mDaylight.mSkyZenith,

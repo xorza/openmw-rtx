@@ -6,6 +6,7 @@ namespace RtxBridge
     {
         constants.mSunDirection = world.mSunDirection;
         constants.mSunIrradiance = world.mSunIrradiance;
+        constants.mSunVisible = world.mSunVisible ? 1u : 0u;
         constants.mAmbient = world.mAmbient;
 
         constants.mSkyHorizon = world.mSkyHorizon;

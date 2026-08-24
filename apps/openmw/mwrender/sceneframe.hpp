@@ -79,6 +79,10 @@ namespace MWRender
         osg::Vec4f mSunColour;
         float mSunVisibility = 0.0f;
 
+        /// Whether the sun's disc is drawn at all, which `MWWorld::WeatherManager` switches by the
+        /// hour. Not `mSunVisibility`, which is how much glare it throws while it is up.
+        bool mSunVisible = false;
+
         /// Includes the night-eye effect, because that is where it has already been added.
         osg::Vec4f mAmbientColour;
 

@@ -2553,6 +2553,11 @@ namespace Rtx
                 camera.mSunDirection = sunAt(osg::DegreesToRadians(45.0f));
                 camera.mSunIrradiance = osg::Vec3f(irradiance, irradiance, irradiance);
 
+                // **The disc is a separate fact from the light**, because the game switches it off
+                // at night and leaves a dim sun burning. A fixture that wants to look at the sun has
+                // to say the sun is there to look at.
+                camera.mSunVisible = 1u;
+
                 const SceneDesc scene = makeWall();
                 std::vector<std::uint8_t> pixels;
                 countHits(scene, {}, camera, size, pixels);
@@ -2637,6 +2642,7 @@ namespace Rtx
                 view.normalize();
                 camera.mSunDirection = osg::Vec3f(-view.x(), -view.y(), view.z());
                 camera.mSunIrradiance = osg::Vec3f(irradiance, irradiance, irradiance);
+                camera.mSunVisible = 1u;
                 camera.mWaterLevel = 0.0f;
 
                 const SceneDesc scene = makeOpenWater(20000.0f);

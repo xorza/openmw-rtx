@@ -147,6 +147,7 @@ namespace RtxBridge
                 // and its night value is a dim blue rather than nothing — so a harness that zeroed
                 // it lit its nights differently from the game it exists to predict.
                 .mIrradiance = ramp("Sun") * Rtx::Shaders::DAYLIGHT },
+            .mSunVisible = hour > times.mNightEnd && hour < times.mNightStart,
             .mSkyHorizon = haze,
             .mSkyZenith = ramp("Sky"),
             .mAmbient = ramp("Ambient"),
