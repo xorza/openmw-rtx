@@ -53,3 +53,10 @@
 
 - The world map's overlay is composed on the processor: entering a cell box-filters that cell's whole
   local-map tile and uploads the entire overlay texture again, on the frame the cell arrives.
+
+- `Rtx::GuiTextures::add` clears each new texture through a submit it then waits on, so every texture
+  the interface creates — one per picture widget, per font atlas, per traced view — costs a queue
+  round trip.
+
+- `RtxBridge::SceneTextures` reports the textures it could not read as a count and names none of
+  them, and it counts a slot the scene has freed, whose path is empty, among them.
