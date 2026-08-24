@@ -168,6 +168,49 @@ namespace RtxTool
             EXPECT_EQ(sheets, std::size_t{ 1 }) << "the sea was placed once per cell again";
         }
 
+        /// Walking every frame leaves the scene exactly where it was.
+        ///
+        /// **The cadence the game runs at, which is now the only cadence this has.** A still world
+        /// used to be kept as a snapshot between cell crossings, so anything a sweep emptied stayed
+        /// empty until the ring next moved — and the game, which re-walks and re-sweeps every frame,
+        /// could never have hidden that.
+        ///
+        /// A walk that leaves the scene where it was is the whole property: emptied and refilled on
+        /// the same cadence, so a light counted twice per walk or one nothing put back both show up
+        /// as a count that moves.
+        TEST(RtxCrossingTest, walkingEveryFrameLeavesTheSceneWhereItWas)
+        {
+            Files::ConfigurationManager config;
+            bpo::variables_map variables;
+            const std::unique_ptr<World> world = openWorld(config, variables);
+            if (world == nullptr)
+                GTEST_SKIP() << "no Morrowind installation configured";
+
+            const ESM::Cell* from = world->findCell(sFrom);
+            ASSERT_NE(from, nullptr);
+
+            // **Nobody in it, which is the case under test.** A region with residents or live props
+            // already walks every frame through them, so a default request would have exercised
+            // their stepping and reported that this worked.
+            const ActorRequest empty{ .mResidents = false, .mProps = false };
+
+            StagedWorld staged(*world, *from, StagingRequest{}, empty);
+            ASSERT_FALSE(staged.empty());
+            ASSERT_EQ(staged.getActorCount(), std::size_t{ 0 });
+            ASSERT_NE(staged.getMotion(), nullptr) << "a still world is walked every frame too";
+
+            const std::size_t lights = staged.getScene().getLights().size();
+            const std::size_t placed = staged.getScene().getPlacedCount();
+            ASSERT_GT(lights, std::size_t{ 0 }) << "nothing to notice going missing";
+
+            for (std::uint32_t frame = 1; frame <= 4; ++frame)
+            {
+                EXPECT_TRUE(staged.getMotion()->step(frame)) << "a walk always has to be handed over";
+                EXPECT_EQ(staged.getScene().getLights().size(), lights) << "at frame " << frame;
+                EXPECT_EQ(staged.getScene().getPlacedCount(), placed) << "at frame " << frame;
+            }
+        }
+
         /// The lamps are still burning after the crossing that swept the scene.
         ///
         /// **The bug this is here for, in one line.** A camera stepped out of the square it started

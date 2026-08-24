@@ -179,7 +179,33 @@ namespace RtxTool
     bool StagedWorld::advanceTo(float seconds)
     {
         setSeconds(seconds);
-        return mPosed != nullptr && mPosed->advanceTo(seconds);
+        if (mPosed != nullptr && mPosed->advanceTo(seconds))
+            return true;
+
+        // **Nothing moved, and the walk happens anyway.** Actors already walk when they step, so
+        // this is only ever the still world — which is exactly the case a snapshot was hiding.
+        mirror(0);
+        mExtractor.advance();
+        return true;
+    }
+
+    Motion* StagedWorld::getMotion()
+    {
+        // **The actors' own stepping first**, because it already walks the whole graph when it runs
+        // and asking for both would walk it twice. Where there are none, the walk is still the
+        // game's — a still world is walked every frame here exactly as it is there.
+        return mPosed != nullptr ? static_cast<Motion*>(mPosed.get()) : &mEveryFrame;
+    }
+
+    bool StagedWorld::EveryFrame::step(std::uint32_t frame)
+    {
+        mStaged.mirror(frame);
+        mStaged.mExtractor.advance();
+
+        // **Always true, because the frame after a walk has to be handed over.** A walk that found
+        // everything where it was still emptied and refilled the per-frame lists, and the backend's
+        // copy of those is what a hand-over rewrites.
+        return true;
     }
 
     void StagedWorld::setSeconds(float seconds)

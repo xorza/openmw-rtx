@@ -96,16 +96,16 @@ phases where the game ramps — but the consequences compound:
   is what is left of §2.4; the sun's ramp and the moons' clock are shared now (step 2), so an hour
   renders the same in both and there is one copy of each arithmetic.
 
-### 2.5 The harness walks the graph only when the ring moves
+### 2.5 The harness walks the graph only when the ring moves — closed
 
 The game re-walks its whole scene graph every frame and sweeps every frame, which is what makes mark
-and sweep sound (`plan.md` §6, M11). The harness walks in its constructor and on a cell crossing, and
-keeps a snapshot of the still world (`PosedActors`) between them.
+and sweep sound (`plan.md` §6, M11). The harness used to walk in its constructor and on a cell
+crossing, keeping a snapshot of the still world between them — and **anything the sweep cleared
+stayed cleared** until the ring next moved. The lamps were one victim; the sprites, the emitters and
+the deforming set are cleared by the same call and were others waiting to happen.
 
-That is a deliberate trade and it buys the determinism in §1. What it costs is that **anything the
-sweep clears stays cleared** until the ring next moves — the lamps were one victim, and the sprites,
-the emitters and the deforming set are cleared by the same call. The current fix walks a second time
-after the sweep, which is the game's next frame brought forward.
+It walks every frame now (step 5). Determinism did not have to be traded for it: a walk cannot change
+a world that did not change, and the frames prove it byte for byte.
 
 ### 2.6 Time does not pass
 
@@ -216,15 +216,23 @@ not empty, which was true only because the analytic quad went in directly. The t
 being measured against **one flat quad and nothing else**, under a comment saying the bound had been
 "calibrated against exactly this much content". It walks now, and passes against the cell.
 
-### Step 5 — Walk every frame, behind a switch
+### Step 5 — Walk every frame — **done, and not behind a switch**
 
-**Give the harness the option to re-walk and sweep every frame, as the game does.**
+The harness walks and sweeps the whole graph every frame, always. It reuses the seam that was already
+there: `Motion` is what a run asks for when the scene changes between frames, and
+`StagedWorld::EveryFrame` is one that walks whether or not anything moved. Where there are actors
+nothing changes — their own stepping already walks the whole graph — so this is exactly the still
+world, which is the case the snapshot was hiding.
 
-- *Buys:* §2.5 closes. The sweep's contract holds without anything being brought forward by hand, and
-  the harness exercises the cadence the game actually runs at.
-- *Costs:* determinism must survive it — the walk has to be a function of the frame index and not of
-  the clock, which is what `getMotion` already exists for. Leave it off by default so `shot` stays
-  reproducible, and turn it on for the window and the bench.
+**It was written as a switch and the switch was wrong.** The argument for one was cost, and there is
+none: a `shot` takes **1.85 seconds with the walk and 1.84 without**, and a still frame comes out
+byte-identical either way. What an option actually bought was a harness that *normally* ran at a
+cadence the game never does — so the tool's own default was the divergence this file exists to close,
+and the two paths would both have needed testing for ever.
+
+**The rule it settles, which is worth stating once:** the harness is not a thing to optimise. It
+exists to behave as the game behaves, and where the two differ, the harness moves. A cost that buys
+divergence is not a saving.
 
 ### Step 6 — A clock
 

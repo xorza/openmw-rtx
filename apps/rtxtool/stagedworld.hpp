@@ -113,7 +113,7 @@ namespace RtxTool
         /// **By index and not by the clock**, which is what makes a run of frames reproducible: a
         /// world stepped by how long the last frame took renders a different sequence on every
         /// machine. A window wants the other one — see `advanceTo`.
-        Motion* getMotion() { return mPosed.get(); }
+        Motion* getMotion();
 
         /// Advances the world to `seconds` and walks whatever moved back in. False where nothing
         /// did, which is what spares the frame a hand-over it does not need.
@@ -182,7 +182,33 @@ namespace RtxTool
         /// Which cells are in the graph, and the group each hangs under.
         LoadedCells mLoaded;
 
+        /// Walks the whole graph every frame whether or not anything in it moved.
+        ///
+        /// **What the game does, and this does it too.** Nothing in a still world changes between
+        /// two of these, so what it buys is not motion: it is that the per-frame lists are emptied
+        /// and refilled on the same cadence the game empties and refills them, so a sweep that takes
+        /// something the next walk was supposed to bring back cannot hide.
+        ///
+        /// **It was a switch and it is not one any more.** Measured, a `shot` costs 1.85 seconds
+        /// with it and 1.84 without, and a still frame comes out byte-identical either way — so the
+        /// only thing an option bought was a harness that normally ran at a cadence the game never
+        /// does, which is the opposite of what this tool is for.
+        class EveryFrame : public Motion
+        {
+        public:
+            explicit EveryFrame(StagedWorld& staged)
+                : mStaged(staged)
+            {
+            }
+
+            bool step(std::uint32_t frame) override;
+
+        private:
+            StagedWorld& mStaged;
+        };
+
         CellLighting mLighting;
+        EveryFrame mEveryFrame{ *this };
 
         /// The world's water, one sheet the way the game has it. Declared after the root it hangs
         /// under and before anything that walks it.
