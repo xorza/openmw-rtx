@@ -134,10 +134,14 @@ them left behind is in §8.
 - **M4 — direct lighting and shadows. Done.** *Binds:* water is excluded from shadow rays **by a mask
   bit rather than a cutout test** — the any-hit version halves the frame rate; and everything about a
   lamp is derived, because a `LIGH` record carries a colour and a radius and no intensity.
-- **M5 — sky, sun, moons. Sun and sky light done; the dome and the weather in it are not** (§8).
-  Driven by `MWWorld::Weather` and `DateTimeManager` rather than re-derived from the ini. *Binds:*
-  **sky is a light source, not a backdrop**, and the sun is a disc a ray that hit nothing finds — so
-  anything reflective gets it for nothing and its size lives in one place.
+- **M5 — sky, sun, moons. Sun, moons and sky light done; the rest of the dome and the weather in it
+  are not** (§8). Driven by `MWWorld::Weather` and `DateTimeManager` rather than re-derived from the
+  ini. *Binds:* **sky is a light source, not a backdrop**, and the sun and the moons are discs a ray
+  that hit nothing finds — so anything reflective gets them for nothing and their size lives in one
+  place. And **the sun is one object, not the engine's five dials**: `Sky::sunAt` reads Morrowind's
+  arithmetic, `RtxBridge::makeSkylight` is the only thing that may build a sun out of it, and its
+  irradiance being zero is the whole of "there is no sun". Every sun bug this renderer has had was
+  two of those dials disagreeing.
 - **M6 — water. Done**, bar foam (§8). TMA spectrum under Donelan–Banner spread, 32
   components, shortest wave 32 units; ripples carried on the swell; Schlick Fresnel with one
   reflection and one refraction ray **at the pixel's own cone spread, not the bounce spread**;
@@ -242,8 +246,9 @@ every count; and a control fifo bounding the recording to the measured frames.
 
 **Content the renderer does not draw yet**
 
-- **The sky dome** (M5): moons, clouds and stars. The sky is a horizon-to-zenith gradient and a sun
-  disc; there is nothing else in it.
+- **The sky dome** (M5): clouds and stars. The sky is a horizon-to-zenith gradient, a sun disc and
+  the two moons — phased on the game's own three-day clock, lit by McEwen's lunar-Lambert, and able
+  to eclipse the sun. Nothing else is in it.
 - **Shoreline foam** (M6). The **sign** of `det J` is where a surface folds, which is where whitecaps
   belong — so the term is already computed.
 - **Weather effects** (M5's other half): rain, snow, ash and blight storms, blizzards, and a
