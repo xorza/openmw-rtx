@@ -58,7 +58,9 @@
 
 #include "gloffscreenview.hpp"
 
+#include "../screenshotwriter.hpp"
 #include "postprocessor.hpp"
+
 #include "screenshotmanager.hpp"
 
 namespace
@@ -87,31 +89,6 @@ namespace
         if (Settings::physics().mAsyncNumThreads == 0)
             profiler.removeUserStatsLine(" -Async");
     }
-
-    struct ScreenCaptureMessageBox
-    {
-        void operator()(std::string filePath) const
-        {
-            if (filePath.empty())
-            {
-                MWBase::Environment::get().getWindowManager()->scheduleMessageBox(
-                    "#{OMWEngine:ScreenshotFailed}", MWGui::ShowInDialogueMode_Never);
-
-                return;
-            }
-
-            auto l10n = MWBase::Environment::get().getL10nManager()->getContext("OMWEngine");
-            std::string message = l10n->formatMessage("ScreenshotMade", { "file" }, { L10n::toUnicode(filePath) });
-
-            MWBase::Environment::get().getWindowManager()->scheduleMessageBox(
-                std::move(message), MWGui::ShowInDialogueMode_Never);
-        }
-    };
-
-    struct IgnoreString
-    {
-        void operator()(std::string) const {}
-    };
 
     class IdentifyOpenGLOperation : public osg::GraphicsOperation
     {
@@ -172,11 +149,7 @@ namespace MWRender
 
         createWindow(spec.mResourceDir);
 
-        mScreenCaptureOperation = new SceneUtil::AsyncScreenCaptureOperation(&spec.mWorkQueue,
-            new SceneUtil::WriteScreenshotToFileOperation(spec.mScreenshotPath, Settings::general().mScreenshotFormat,
-                Settings::general().mNotifyOnSavedScreenshot
-                    ? std::function<void(std::string)>(ScreenCaptureMessageBox{})
-                    : std::function<void(std::string)>(IgnoreString{})));
+        mScreenCaptureOperation = makeScreenshotWriter(spec.mWorkQueue, spec.mScreenshotPath);
 
         mScreenCaptureHandler = new osgViewer::ScreenCaptureHandler(mScreenCaptureOperation);
         mViewer->addEventHandler(mScreenCaptureHandler);

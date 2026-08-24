@@ -33,12 +33,6 @@
 - The inventory doll's mirrored scene names one texture with an empty path, which resolves to
   nothing and is drawn with the grey stand-in. The world's scene names none.
 
-- `RtxRenderer::freezeFrame` hands the loading screen one black texel rather than the frame that was
-  just presented, so a load on the ray tracing path fades from black instead of from the world.
-
-- The ray tracing renderer has no screenshot key: `RtxRenderer::saveScreenshot` logs and does
-  nothing. `OPENMW_RTX_SHOT` still writes frames.
-
 - The world map's overlay is composed on the processor: entering a cell box-filters that cell's whole
   local-map tile and uploads the entire overlay texture again, on the frame the cell arrives.
 

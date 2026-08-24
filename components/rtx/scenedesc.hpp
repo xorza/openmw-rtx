@@ -462,12 +462,12 @@ namespace Rtx
         /// left, and by `clear`; never by a placement, which is rewritten every frame anyway.
         std::uint64_t getStructureRevision() const { return mStructureRevision; }
 
-        /// Forgets which slots have arrived, for a caller that has uploaded them.
+        /// Forgets what has arrived and what has gone, for a caller that has applied both.
         ///
         /// **Whoever hands the scene to a backend owns this**, not the frame: an arrival lives from
         /// the walk that made it until something has taken it, and a walk that is never handed over
         /// must not lose what it added.
-        void clearArrivals() { mArrivedTextures.clear(); }
+        void clearArrivals();
 
         /// Which texture slots have been written since the last `clearArrivals`.
         ///
@@ -476,6 +476,23 @@ namespace Rtx
         /// can be anywhere, so the arrivals say where each one goes and the backend writes those and
         /// nothing else.
         std::span<const Index> getArrivedTextures() const { return mArrivedTextures; }
+
+        /// Which mesh slots have been written since the last `clearArrivals`.
+        ///
+        /// The same list for the expensive half. `getMeshRevision` says *that* a mesh arrived and a
+        /// backend hearing it had nothing to do but build the scene again; this says *which*, which
+        /// is what lets it build those structures and leave the rest standing.
+        std::span<const Index> getArrivedMeshes() const { return mArrivedMeshes; }
+
+        /// Which mesh slots `release` has given up since the last `clearArrivals`.
+        std::span<const Index> getFreedMeshes() const { return mFreedMeshes; }
+
+        /// Which texture slots `release` has given up since the last `clearArrivals`.
+        ///
+        /// **What lets a backend stop holding a departed cell's images.** An array that is never
+        /// told a slot went keeps whatever was in it until something takes the slot over, so a
+        /// region walked away from goes on costing its texture memory.
+        std::span<const Index> getFreedTextures() const { return mFreedTextures; }
 
         /// How many times a **mesh** has appeared, which is the expensive half of the above.
         ///
@@ -583,8 +600,42 @@ namespace Rtx
         SpanAllocator mLayerRuns;
         SpanAllocator mMaskRuns;
 
-        /// Texture slots written since the last `clearArrivals`, which is what a backend uploads.
+        /// What has become of a slot since the last `clearArrivals`.
+        enum class SlotNews : std::uint8_t
+        {
+            None,
+            Arrived,
+            Freed,
+        };
+
+        /// Records `slot` as having arrived or gone, in the lists for its table.
+        void noteMesh(Index slot, SlotNews what);
+        void noteTexture(Index slot, SlotNews what);
+
+        /// **Disjoint, and each slot named once**, which is what lets a backend apply the two lists
+        /// in either order. A slot the sweep gave up and a later walk took back is an arrival and
+        /// not a departure; one that arrived and then went is a departure and not an arrival.
+        /// Without that, a backend applying departures last destroys a structure it has just built,
+        /// and one applying them first leaves a slot it has just freed holding a live mesh.
+        ///
+        /// The linear erase is the price of changing sides, and it is only paid when a slot does —
+        /// which needs a window that was never handed over, because a walk adds before the sweep
+        /// that follows it frees.
+        static void note(Index slot, SlotNews what, std::vector<SlotNews>& news, std::vector<Index>& arrived,
+            std::vector<Index>& freed);
+
+        /// Slots written since the last `clearArrivals`, which is what a backend uploads or builds.
         std::vector<Index> mArrivedTextures;
+        std::vector<Index> mArrivedMeshes;
+
+        /// Slots `release` gave up since the last `clearArrivals`, which is what a backend drops.
+        std::vector<Index> mFreedTextures;
+        std::vector<Index> mFreedMeshes;
+
+        /// Which list each slot is in, parallel to its table. What keeps the lists disjoint and
+        /// duplicate-free without either being searched.
+        std::vector<SlotNews> mTextureNews;
+        std::vector<SlotNews> mMeshNews;
 
         // The scan this replaces was O(materials x textures). A cell is a hundred of each and would
         // never have noticed; a worldspace is thousands of both, and load time is not the place to

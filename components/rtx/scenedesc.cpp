@@ -75,11 +75,48 @@ namespace Rtx
             const Index index = mFreeMeshes.back();
             mFreeMeshes.pop_back();
             mMeshes[index] = range;
+            noteMesh(index, SlotNews::Arrived);
             return index;
         }
 
         mMeshes.push_back(range);
-        return static_cast<Index>(mMeshes.size() - 1);
+
+        const Index index = static_cast<Index>(mMeshes.size() - 1);
+        noteMesh(index, SlotNews::Arrived);
+        return index;
+    }
+
+    void SceneDesc::noteMesh(Index slot, SlotNews what)
+    {
+        // Grown here rather than beside every push, so the two stay parallel in one place. A resize
+        // to the size it already is does not allocate, which is what the frame path pays.
+        mMeshNews.resize(mMeshes.size(), SlotNews::None);
+        note(slot, what, mMeshNews, mArrivedMeshes, mFreedMeshes);
+    }
+
+    void SceneDesc::noteTexture(Index slot, SlotNews what)
+    {
+        mTextureNews.resize(mTextures.size(), SlotNews::None);
+        note(slot, what, mTextureNews, mArrivedTextures, mFreedTextures);
+    }
+
+    void SceneDesc::note(
+        Index slot, SlotNews what, std::vector<SlotNews>& news, std::vector<Index>& arrived, std::vector<Index>& freed)
+    {
+        assert(what != SlotNews::None);
+        assert(slot < news.size());
+
+        SlotNews& standing = news[slot];
+        if (standing == what)
+            return;
+
+        if (standing == SlotNews::Arrived)
+            std::erase(arrived, slot);
+        else if (standing == SlotNews::Freed)
+            std::erase(freed, slot);
+
+        standing = what;
+        (what == SlotNews::Arrived ? arrived : freed).push_back(slot);
     }
 
     void SceneDesc::writeMesh(const MeshRange& range, std::span<const osg::Vec3f> positions,
@@ -244,7 +281,7 @@ namespace Rtx
         }
 
         mTextureIndex.emplace(path, index);
-        mArrivedTextures.push_back(index);
+        noteTexture(index, SlotNews::Arrived);
         return index;
     }
 
@@ -381,6 +418,7 @@ namespace Rtx
             range.mIndexCount = 0;
 
             mFreeMeshes.push_back(index);
+            noteMesh(index, SlotNews::Freed);
             ++freedMeshes;
         }
 
@@ -449,6 +487,7 @@ namespace Rtx
             mTextureIndex.erase(mTextures[index]);
             mTextures[index] = VFS::Path::Normalized();
             mFreeTextures.push_back(index);
+            noteTexture(index, SlotNews::Freed);
             ++freedTextures;
         }
 
@@ -508,6 +547,30 @@ namespace Rtx
         mLayerRuns.clear();
         mMaskRuns.clear();
         mArrivedTextures.clear();
+        mArrivedMeshes.clear();
+        mFreedTextures.clear();
+        mFreedMeshes.clear();
+        mTextureNews.clear();
+        mMeshNews.clear();
+    }
+
+    void SceneDesc::clearArrivals()
+    {
+        // Only the slots that have news are reset, rather than the whole of both tables: a
+        // worldspace is thousands of meshes and what a frame changes is tens.
+        for (const Index slot : mArrivedMeshes)
+            mMeshNews[slot] = SlotNews::None;
+        for (const Index slot : mFreedMeshes)
+            mMeshNews[slot] = SlotNews::None;
+        for (const Index slot : mArrivedTextures)
+            mTextureNews[slot] = SlotNews::None;
+        for (const Index slot : mFreedTextures)
+            mTextureNews[slot] = SlotNews::None;
+
+        mArrivedMeshes.clear();
+        mFreedMeshes.clear();
+        mArrivedTextures.clear();
+        mFreedTextures.clear();
     }
 
     std::span<const osg::Vec3f> SceneDesc::getMeshPositions(Index mesh) const

@@ -124,6 +124,7 @@ if (OPENMW_RTX)
         rtx/visibilitypass.cpp
         rtx/wavespectrum.cpp
         rtxbridge/fogbuilder.cpp
+        rtxbridge/frameimage.cpp
         rtxbridge/lightbuilder.cpp
         rtxbridge/sceneextractor.cpp
         rtxbridge/sceneuploader.cpp

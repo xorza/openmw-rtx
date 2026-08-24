@@ -11,6 +11,7 @@
 
 #include <components/myguiplatform/picture.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtxbridge/frameimage.hpp>
 #include <components/rtxbridge/sceneuploader.hpp>
 
 #include "../renderer.hpp"
@@ -48,6 +49,11 @@ namespace RtxBridge
 {
     struct ExtractionStats;
     class SceneExtractor;
+}
+
+namespace SceneUtil
+{
+    class AsyncScreenCaptureOperation;
 }
 
 namespace MWRender::Rtx
@@ -190,6 +196,12 @@ namespace MWRender::Rtx
         /// Writes the traced frame to a numbered PNG, where `OPENMW_RTX_SHOT` asked for it.
         void keep();
 
+        /// The frame that was last presented, read back into `mPixels`.
+        ///
+        /// **Off the device and so asked for rather than kept.** Zero-sized before anything has been
+        /// presented, which `RtxBridge::frameImage` answers with null.
+        RtxBridge::TracedFrame readFrame();
+
         /// Hands MyGUI's triangles to the renderer, where there is a GUI up at all.
         void drawGui();
 
@@ -215,6 +227,10 @@ namespace MWRender::Rtx
         std::vector<TracedView*> mDrawing;
 
         MyGUIPlatform::Picture mFrozenFrame{ "frozen frame" };
+
+        /// Where a screenshot goes, and the same one the OpenGL renderer uses: the two write the
+        /// same files to the same place with the same names.
+        osg::ref_ptr<SceneUtil::AsyncScreenCaptureOperation> mScreenshotWriter;
 
         SDL_Window* mWindow = nullptr;
 

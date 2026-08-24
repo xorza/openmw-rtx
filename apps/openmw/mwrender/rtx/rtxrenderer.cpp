@@ -36,10 +36,12 @@
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/upscale.hpp>
+#include <components/rtxbridge/frameimage.hpp>
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/rtxbridge/png.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
 #include <components/rtxbridge/sceneuploader.hpp>
+#include <components/sceneutil/screencapture.hpp>
 #include <components/sdlutil/imagetosurface.hpp>
 #include <components/settings/values.hpp>
 
@@ -50,6 +52,7 @@
 #include <components/resource/resourcesystem.hpp>
 
 #include "../renderingmanager.hpp"
+#include "../screenshotwriter.hpp"
 #include "../vismask.hpp"
 
 #include "tracedview.hpp"
@@ -109,6 +112,8 @@ namespace MWRender::Rtx
         mFrameStamp->setReferenceTime(0.0);
         mFrameStamp->setSimulationTime(0.0);
         mUpdateVisitor->setFrameStamp(mFrameStamp);
+
+        mScreenshotWriter = makeScreenshotWriter(spec.mWorkQueue, spec.mScreenshotPath);
 
         createWindow(spec.mResourceDir);
 
@@ -182,6 +187,11 @@ namespace MWRender::Rtx
     // Out of line because the members it destroys are only forward declared in the header.
     RtxRenderer::~RtxRenderer()
     {
+        // Before the renderer, because a write still on the queue holds an image of a frame this
+        // owns the memory for.
+        if (mScreenshotWriter != nullptr)
+            mScreenshotWriter->stop();
+
         mRenderer.reset();
 
         if (mWindow != nullptr)
@@ -358,46 +368,52 @@ namespace MWRender::Rtx
             fitToWindow();
     }
 
-    void RtxRenderer::capture(osg::Image& image, int width, int height)
+    RtxBridge::TracedFrame RtxRenderer::readFrame()
     {
-        if (width <= 0 || height <= 0)
-            return;
-
         const ::Rtx::FrameExtents extents = mRenderer->getExtents();
-        const int wide = static_cast<int>(extents.mOutputWidth);
-        const int tall = static_cast<int>(extents.mOutputHeight);
-        if (wide <= 0 || tall <= 0)
-            return;
+        if (extents.mOutputWidth == 0 || extents.mOutputHeight == 0)
+            return {};
 
         mRenderer->readPixels(mPixels);
-        if (mPixels.size() < static_cast<std::size_t>(wide) * static_cast<std::size_t>(tall) * 4)
+
+        return RtxBridge::TracedFrame{
+            .mWidth = extents.mOutputWidth,
+            .mHeight = extents.mOutputHeight,
+            .mPixels = mPixels,
+        };
+    }
+
+    void RtxRenderer::capture(osg::Image& image, int width, int height)
+    {
+        // An out-parameter because the caller owns the image, so the shared conversion's result is
+        // moved into it rather than handed back.
+        const osg::ref_ptr<osg::Image> taken
+            = RtxBridge::frameImage(readFrame(), width, height, RtxBridge::RowOrder::BottomFirst);
+        if (taken == nullptr)
             return;
 
         image.allocateImage(width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE);
-
-        // **Resampled here rather than by `osg::Image::scaleImage`, which is `gluScaleImage`.** That
-        // is a GL call and there is no context to make it in — and this runs on every save, because
-        // the thumbnail a save carries is asked for at its own small size. Nearest is what a box
-        // filter would round to at a hundred pixels across.
-        for (int y = 0; y < height; ++y)
-        {
-            // The trace writes row zero at the top and an `osg::Image` starts at the bottom.
-            const int row = std::min(tall - 1, (height - 1 - y) * tall / height);
-            std::uint8_t* into = image.data(0, y);
-
-            for (int x = 0; x < width; ++x)
-            {
-                const int column = std::min(wide - 1, x * wide / width);
-                std::memcpy(into + x * 4, mPixels.data() + (static_cast<std::size_t>(row) * wide + column) * 4, 4);
-            }
-        }
+        std::memcpy(image.data(), taken->data(), image.getTotalSizeInBytes());
     }
 
     void RtxRenderer::saveScreenshot()
     {
-        // Reuses `OPENMW_RTX_SHOT`'s writer rather than the rasterizer's asynchronous one, which is
-        // an `osgViewer::ScreenCaptureHandler` reading a frame buffer that does not exist here.
-        Log(Debug::Warning) << "Ray tracing has no screenshot key yet";
+        const RtxBridge::TracedFrame frame = readFrame();
+
+        // Bottom row first, because what writes the file is `osgDB` through the same operation the
+        // rasterizer hands `osgViewer`'s captures to, and that is the convention it reads.
+        const osg::ref_ptr<osg::Image> taken = RtxBridge::frameImage(
+            frame, static_cast<int>(frame.mWidth), static_cast<int>(frame.mHeight), RtxBridge::RowOrder::BottomFirst);
+
+        if (taken == nullptr)
+        {
+            Log(Debug::Warning) << "Ray tracing has no frame to write a screenshot from";
+            return;
+        }
+
+        // Straight to the writer rather than through a capture handler: the handler's job is to get
+        // a frame off the graphics context, and this frame is already off it.
+        (*mScreenshotWriter)(*taken, 0);
     }
 
     std::unique_ptr<OffscreenView> RtxRenderer::createOffscreenView(const OffscreenViewSpec& spec)
@@ -407,8 +423,22 @@ namespace MWRender::Rtx
 
     MyGUI::ITexture& RtxRenderer::freezeFrame()
     {
+        const RtxBridge::TracedFrame frame = readFrame();
+
+        // The trace's own row order, kept: `MyGUIPlatform::Picture` copies an image straight into a
+        // locked texture and the interface draws it from the top down, so flipping here would stand
+        // the world the player was in on its head behind the loading screen.
+        const osg::ref_ptr<osg::Image> taken = RtxBridge::frameImage(
+            frame, static_cast<int>(frame.mWidth), static_cast<int>(frame.mHeight), RtxBridge::RowOrder::TopFirst);
+
+        // A full readback, which a load screen is exactly the moment to afford.
+        if (taken != nullptr)
+            mFrozenFrame.set(*taken);
+
         if (mFrozenFrame.getTexture() == nullptr)
         {
+            // Nothing has been presented yet, which is the very first load. Black is what a fade
+            // from nothing looks like, and it is the honest picture of a world that is not there.
             osg::ref_ptr<osg::Image> black = new osg::Image;
             black->allocateImage(1, 1, 1, GL_RGB, GL_UNSIGNED_BYTE);
             std::memset(black->data(), 0, black->getTotalSizeInBytes());

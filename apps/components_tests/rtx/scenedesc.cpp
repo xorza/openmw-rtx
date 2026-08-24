@@ -1,4 +1,7 @@
+#include <algorithm>
 #include <array>
+#include <span>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -16,6 +19,15 @@ namespace Rtx
         };
 
         constexpr std::array<std::uint32_t, 6> sQuadIndices{ 0, 1, 2, 0, 2, 3 };
+
+        /// What a news list names, sorted, so a set can be compared without depending on the order
+        /// the sweep happened to walk its table in.
+        std::vector<Index> sorted(std::span<const Index> slots)
+        {
+            std::vector<Index> copy(slots.begin(), slots.end());
+            std::sort(copy.begin(), copy.end());
+            return copy;
+        }
 
         TEST(RtxSceneDescTest, aMeshRemembersWhereItsVerticesWent)
         {
@@ -293,6 +305,12 @@ namespace Rtx
             EXPECT_EQ(scene.getStructureRevision(), was)
                 << "nothing arrived, so nothing built from these indices is out of date";
 
+            // **The sweep names the slot it gave up, and it stops being an arrival by naming it.**
+            // Nothing has been handed over, so all three are still spoken for — two as arrivals and
+            // the third as a departure, never as both.
+            EXPECT_EQ(sorted(scene.getFreedMeshes()), (std::vector<Index>{ middle }));
+            EXPECT_EQ(sorted(scene.getArrivedMeshes()), (std::vector<Index>{ first, last }));
+
             // A triangle fits the hole exactly and takes it back, at the index and the offset the
             // old one had.
             const Index moved = scene.addMesh(sTrianglePositions, {}, {}, sTriangleIndices);
@@ -304,6 +322,16 @@ namespace Rtx
 
             // And the last mesh is still where it was, which a compaction is what would break.
             EXPECT_EQ(scene.getMeshPositions(last)[0].z(), 2.0f);
+
+            // **Taking the slot back moves it the other way**, which is what lets a backend apply
+            // the two lists in either order: this slot is built and not then destroyed, whichever
+            // half it does first.
+            EXPECT_EQ(sorted(scene.getArrivedMeshes()), (std::vector<Index>{ first, moved, last }));
+            EXPECT_TRUE(scene.getFreedMeshes().empty()) << "a slot taken back was still reported as gone";
+
+            scene.clearArrivals();
+            EXPECT_TRUE(scene.getArrivedMeshes().empty());
+            EXPECT_TRUE(scene.getFreedMeshes().empty());
         }
 
         /// A mesh arriving is told from a texture arriving, and a reused slot counts as an arrival.
@@ -374,6 +402,10 @@ namespace Rtx
 
             const std::array keep{ kept };
             ASSERT_TRUE(scene.release(keep, {}, {}));
+
+            // Exactly the two that went, once each. Sorted, because which way a sweep walks its
+            // table is not something a backend should have to know.
+            EXPECT_EQ(sorted(scene.getFreedMeshes()), (std::vector<Index>{ roomy, snug }));
 
             const std::size_t vertices = scene.getPositions().size();
             ASSERT_EQ(vertices, 16u);
@@ -467,6 +499,10 @@ namespace Rtx
             const std::array materials{ plain, kept };
             ASSERT_TRUE(scene.release(noMeshes, materials, {}));
 
+            // One texture went with the material that wore it, and it stopped being an arrival.
+            EXPECT_EQ(sorted(scene.getFreedTextures()), (std::vector<Index>{ ground }));
+            EXPECT_EQ(sorted(scene.getArrivedTextures()), (std::vector<Index>{ stone, sand, moss }));
+
             // Every survivor is at the index it was given, which is what nothing moving means.
             EXPECT_EQ(scene.getMaterials().size(), 3u);
             EXPECT_EQ(scene.getMaterials()[plain].mDiffuse, stone);
@@ -512,6 +548,7 @@ namespace Rtx
             EXPECT_EQ(scene.addTexture(VFS::Path::NormalizedView("textures/tx_ground.dds")), ground);
             EXPECT_EQ(scene.getTextures().size(), 4u) << "the table grew past a free slot";
             EXPECT_EQ(scene.getArrivedTextures().back(), ground) << "a slot taken over was not reported as arriving";
+            EXPECT_TRUE(scene.getFreedTextures().empty()) << "a slot taken back was still reported as gone";
         }
 
         /// **The split that keeps an animated state set from rebuilding the world.**
@@ -573,12 +610,17 @@ namespace Rtx
             EXPECT_FALSE(scene.release(meshes, materials, {}));
             EXPECT_EQ(scene.getStructureRevision(), was);
             EXPECT_EQ(scene.getShadingRevision(), shading);
+            EXPECT_TRUE(scene.getFreedMeshes().empty()) << "a sweep that freed nothing named something";
+            EXPECT_TRUE(scene.getFreedTextures().empty());
 
             // Asked again with everything already free, which is the frame after a cell left: the
             // live count is what the keep set is compared against, not the table's size.
             const std::array<Index, 0> none{};
             ASSERT_TRUE(scene.release(none, none, {}));
+            EXPECT_EQ(sorted(scene.getFreedMeshes()), (std::vector<Index>{ mesh }));
+
             EXPECT_FALSE(scene.release(none, none, {})) << "a table with nothing left in it went again";
+            EXPECT_EQ(sorted(scene.getFreedMeshes()), (std::vector<Index>{ mesh })) << "a slot went twice";
 
             EXPECT_EQ(scene.getTextures().size(), 1u) << "a sprite's texture is on no material and must not go";
         }
@@ -605,6 +647,13 @@ namespace Rtx
             EXPECT_TRUE(scene.getSprites().empty());
             EXPECT_TRUE(scene.getEmitters().empty());
             EXPECT_EQ(scene.getTriangleCount(), 0u);
+
+            // A reset renumbers, so nothing that arrived or went under the old numbering means
+            // anything: a backend hearing this rebuilds rather than applying either list.
+            EXPECT_TRUE(scene.getArrivedMeshes().empty());
+            EXPECT_TRUE(scene.getFreedMeshes().empty());
+            EXPECT_TRUE(scene.getArrivedTextures().empty());
+            EXPECT_TRUE(scene.getFreedTextures().empty());
         }
     }
 }
