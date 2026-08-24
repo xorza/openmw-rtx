@@ -254,7 +254,9 @@ namespace Rtx
         /// A share of the process's NGX runtime, held for as long as this renderer upscales, and
         /// null where it does not. `describeDevice` takes a share of its own to answer with, which
         /// is this same object wherever this one is holding it.
-        std::shared_ptr<const Dlss> mNgx;
+        /// NGX, where this renderer was asked to upscale. **Owned outright and null otherwise** —
+        /// built in the constructor, destroyed with the renderer, and the only one in the process.
+        std::unique_ptr<Dlss> mNgx;
 
         /// Ray Reconstruction, built for one pair of resolutions and so rebuilt by every resize.
         std::unique_ptr<DlssPass> mUpscaler;

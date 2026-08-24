@@ -92,27 +92,31 @@ namespace Rtx
         return std::span<const char* const>(device, deviceCount);
     }
 
-    std::shared_ptr<const Dlss> Dlss::open(const Device& device, VkInstance instance)
+    DlssSupport Dlss::probe(const Device& device, VkInstance instance)
     {
-        if (const std::shared_ptr<Dlss> already = sOpen.lock())
+        if (sLive != nullptr)
         {
-            if (already->mDevice != device.getHandle())
-                throw Error("NGX is already up on another device, and it keeps one runtime per process");
+            if (sLive->mDevice != device.getHandle())
+                return DlssSupport{ false, "NGX is up on another device, and it keeps one runtime per process" };
 
-            return already;
+            return DlssSupport{ sLive->mAvailable, sLive->mObstacle };
         }
 
-        // `make_shared` cannot reach a private constructor, and the alternative to a passkey type is
-        // the one `new` in the one function allowed to make one.
-        const std::shared_ptr<Dlss> started(new Dlss(device, instance));
-        sOpen = started;
-
-        return started;
+        // **Stood up and taken down inside this call**, which is what makes it safe to ask from
+        // anywhere: nothing outside holds a runtime that this could be ending, because the branch
+        // above is what happens when something does.
+        const Dlss asked(device, instance);
+        return DlssSupport{ asked.mAvailable, asked.mObstacle };
     }
 
     Dlss::Dlss(const Device& device, VkInstance instance)
         : mDevice(device.getHandle())
     {
+        // **Before anything is started**, so a refusal leaves the runtime that is up untouched. A
+        // constructor that threw after `Init` would have shut the first one down on the way out.
+        if (sLive != nullptr)
+            throw Error("NGX keeps one runtime per process and one is already up");
+
         const wchar_t* const searched[] = { featurePath() };
 
         NVSDK_NGX_FeatureCommonInfo common{};
@@ -155,6 +159,10 @@ namespace Rtx
             mObstacle = needsDriver != 0 ? "this driver is older than the Ray Reconstruction it would have to load"
                                          : "this device does not offer Ray Reconstruction";
         }
+
+        // **Last, so that only a runtime that came all the way up claims the process.** Everything
+        // above throws on failure, and a constructor that threw gets no destructor to clear this.
+        sLive = this;
     }
 
     VkExtent2D Dlss::getRenderSize(VkExtent2D output, Upscale upscale) const
@@ -186,6 +194,8 @@ namespace Rtx
 
     Dlss::~Dlss()
     {
+        sLive = nullptr;
+
         // The capability map is NGX's own and goes with it; nothing releases it separately.
         NVSDK_NGX_VULKAN_Shutdown1(mDevice);
     }

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include <span>
 #include <string>
 
@@ -16,22 +15,38 @@ namespace Rtx
 {
     class Device;
 
-    /// NVIDIA's NGX runtime, and what it says this machine can do with it.
+    /// Whether Ray Reconstruction can run here, and why not where it cannot.
+    struct DlssSupport
+    {
+        bool mAvailable = false;
+
+        /// Empty where it is available.
+        std::string mObstacle;
+    };
+
+    /// The process's NGX runtime, and what it says this machine can do with it.
     ///
     /// **Ray Reconstruction is an upscaler that denoises**, which is why it is worth a dependency
     /// rather than a filter of our own: it reconstructs from the demodulated radiance, albedo,
     /// normals, depth and motion the G-buffer already carries, across several frames, where the
     /// à-trous pass has one frame and one channel to work with.
     ///
-    /// **One per process, and the type is what makes that true.** NGX keeps its state globally and
-    /// `NVSDK_NGX_VULKAN_Shutdown` is unconditional — the second of these to be destroyed does not
-    /// put the first one's state back, it ends it. So there is no public constructor: `open` hands
-    /// out a share of the one runtime and the last handle to go is what shuts it down.
+    /// **Owned outright, at a place that says so.** `VulkanRenderer` builds one in its constructor
+    /// when it was asked to upscale and destroys it in its destructor, and that is the whole of the
+    /// lifetime — no counting, nothing lazy, and nothing that comes up as a side effect of being
+    /// asked a question. A renderer that does not upscale never has one.
     ///
-    /// **That is not a style preference, it is the bug this shape exists to prevent.** A second one
-    /// built to answer "is Ray Reconstruction available" and let go again leaves the first holding a
-    /// feature it can no longer evaluate, and what that looks like is `FAIL_NotInitialized` from a
-    /// frame several seconds later with nothing pointing back at the question.
+    /// **One at a time, and the constructor refuses a second.** NGX's state is global to the
+    /// process, `NVSDK_NGX_VULKAN_Shutdown` is unconditional, and the runtime belongs to the
+    /// `VkDevice` it was started on — so a second of these would not coexist with the first, it
+    /// would end it. That was a real bug: `describeDevice` used to build one to ask "is Ray
+    /// Reconstruction available" and let it go again, which shut down the runtime the renderer was
+    /// still upscaling with, surfacing as `FAIL_NotInitialized` from a frame a cell load later,
+    /// pointing at nothing. `probe` is what that question asks now, and it hands back an answer
+    /// rather than a runtime.
+    ///
+    /// **Not thread safe, and every caller is on one thread**: a renderer is built before there is
+    /// anything else to build one from.
     ///
     /// Built only with `-DOPENMW_RTX_DLSS=ON`, which needs the SDK; the whole class is absent
     /// otherwise, so nothing has to ask at runtime whether it was compiled in.
@@ -46,16 +61,20 @@ namespace Rtx
         static std::span<const char* const> getInstanceExtensions();
         static std::span<const char* const> getDeviceExtensions();
 
-        /// The process's NGX runtime, started if nothing is holding one already.
+        /// Whether Ray Reconstruction can run on `device`, without leaving a runtime behind.
         ///
-        /// **A share and not an instance.** Everything that wants to ask NGX something holds one of
-        /// these for as long as it is asking, and the runtime comes down when the last one goes.
-        /// Callers on one thread, which every caller is: a renderer is built before there is
-        /// anything else to build one from.
+        /// **An answer and not a handle**, which is the whole of why this is not the constructor:
+        /// asking a capability question must not decide anything about who owns NGX. Where a runtime
+        /// is already up this asks that one; where none is, it stands one up for the length of the
+        /// call and takes it down again.
         ///
-        /// Throws `Error` where the runtime will not come up, and where a second device asks for it
-        /// — there is one runtime and it belongs to the device that started it.
-        static std::shared_ptr<const Dlss> open(const Device& device, VkInstance instance);
+        /// Throws `Error` where the runtime will not come up at all, which a caller reporting on a
+        /// device wants to print rather than propagate.
+        static DlssSupport probe(const Device& device, VkInstance instance);
+
+        /// Starts the runtime. **Throws where one is already up**, on any device: there is one per
+        /// process, and a second would end the first rather than stand beside it.
+        Dlss(const Device& device, VkInstance instance);
 
         ~Dlss();
 
@@ -85,11 +104,10 @@ namespace Rtx
         NVSDK_NGX_Parameter* getCapabilities() const { return mCapabilities; }
 
     private:
-        Dlss(const Device& device, VkInstance instance);
-
-        /// Whoever is holding the runtime, or nothing where it is down. Not owning: the handles
-        /// `open` hands out are what keep it up, so the last one to go is what shuts it down.
-        static inline std::weak_ptr<Dlss> sOpen;
+        /// Whichever one is up, or null. **A tripwire and not an owner**: nothing reads it to find
+        /// the runtime — the renderer holds that — and what it is for is making a second one a throw
+        /// instead of a silent shutdown of the first.
+        static inline Dlss* sLive = nullptr;
 
         VkDevice mDevice = VK_NULL_HANDLE;
         NVSDK_NGX_Parameter* mCapabilities = nullptr;

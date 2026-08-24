@@ -74,16 +74,18 @@ namespace Rtx
                 GTEST_SKIP() << reason;
 
             const Device& device = *harness->mDevice;
-            const std::shared_ptr<const Dlss> handle = Dlss::open(device, harness->mInstance->getHandle());
-            const Dlss& ngx = *handle;
+            const Dlss ngx(device, harness->mInstance->getHandle());
             if (!ngx.isAvailable())
                 GTEST_SKIP() << ngx.getObstacle();
 
-            // **The runtime is the process's, and asking again hands back the one that is up.** A
-            // second `Dlss` beside this one would shut NGX down when it went and leave the first
-            // holding a feature that answers `FAIL_NotInitialized` — which is the whole reason
-            // there is no public constructor, and which nothing else here would notice.
-            EXPECT_EQ(Dlss::open(device, harness->mInstance->getHandle()).get(), handle.get());
+            // **A second one is refused rather than made.** It would not stand beside this one: NGX
+            // keeps one runtime per process and its shutdown is unconditional, so the second to be
+            // destroyed would leave the first holding a feature that answers `FAIL_NotInitialized`
+            // — which nothing else here would notice.
+            EXPECT_THROW(Dlss(device, harness->mInstance->getHandle()), Error);
+
+            // And asking the capability question does not disturb it, which is what `probe` is for.
+            EXPECT_TRUE(Dlss::probe(device, harness->mInstance->getHandle()).mAvailable);
 
             // **The frame budget's own numbers, asked of DLSS rather than assumed.** `plan.md` §5.3
             // settles on 1920×1080 internal to 3840×2160, and Performance is the mode that ratio
