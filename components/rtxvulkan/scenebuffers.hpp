@@ -16,7 +16,7 @@
 
 namespace Rtx
 {
-    class CommandPool;
+    class Batch;
     class Device;
     class SceneDesc;
 
@@ -34,7 +34,7 @@ namespace Rtx
         ///        world, animated by the time in the frame's constants rather than rebuilt. A state
         ///        with no height in it is a flat sea, which is what a test asserting an exact
         ///        transmittance needs.
-        SceneBuffers(const Device& device, CommandPool& pool, const SceneDesc& scene,
+        SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
             std::span<const InstanceRecord> records, VkBuffer indices, const SeaState& sea = SeaState{});
 
         /// Rewrites what a moving world changes, leaving what it is made of alone.

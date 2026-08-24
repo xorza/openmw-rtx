@@ -13,6 +13,7 @@
 
 namespace Rtx
 {
+    class Batch;
     class CommandPool;
     class GpuTimer;
     class Device;
@@ -38,7 +39,7 @@ namespace Rtx
         /// instance buffer to be built from. `records` are `scene`'s rows, made by the caller for
         /// the reason `place` gives.
         SceneAcceleration(
-            const Device& device, CommandPool& pool, const SceneDesc& scene, std::span<const InstanceRecord> records);
+            const Device& device, Batch& batch, const SceneDesc& scene, std::span<const InstanceRecord> records);
         ~SceneAcceleration();
 
         SceneAcceleration(const SceneAcceleration&) = delete;
@@ -87,7 +88,7 @@ namespace Rtx
         VkDeviceSize getStructureBytes() const { return mBottomLevelBytes + mTopLevelBytes; }
 
     private:
-        void buildBottomLevel(CommandPool& pool, const SceneDesc& scene);
+        void buildBottomLevel(Batch& batch, const SceneDesc& scene);
 
         /// Fills the refit build infos and sizes the scratch.
         ///

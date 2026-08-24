@@ -2981,11 +2981,13 @@ namespace Rtx
             CommandPool pool(device);
             std::vector<InstanceRecord> records;
             makeInstanceRecords(scene, records);
-            const SceneAcceleration acceleration(device, pool, scene, records);
-            const SceneBuffers buffers(device, pool, scene, records, acceleration.getIndices());
+            Batch setup(pool);
+            const SceneAcceleration acceleration(device, setup, scene, records);
+            const SceneBuffers buffers(device, setup, scene, records, acceleration.getIndices());
 
-            const TextureArray textures(device, pool, {});
-            const VisibilityPass pass(device, pool, Testing::getShaderDirectory(), textures.getLayout());
+            const TextureArray textures(device, setup, {});
+            const VisibilityPass pass(device, setup, Testing::getShaderDirectory(), textures.getLayout());
+            setup.flush();
             const VisibilityInputs inputs{
                 .mScene = acceleration.getTopLevel(),
                 .mBuffers = &buffers,

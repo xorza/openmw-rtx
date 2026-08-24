@@ -87,7 +87,7 @@ namespace Rtx
     }
 
     SceneAcceleration::SceneAcceleration(
-        const Device& device, CommandPool& pool, const SceneDesc& scene, std::span<const InstanceRecord> records)
+        const Device& device, Batch& batch, const SceneDesc& scene, std::span<const InstanceRecord> records)
         : mDevice(device)
     {
         assert(scene.getPlacedCount() > 0);
@@ -95,13 +95,16 @@ namespace Rtx
         mPositions = HostBuffer(device, scene.getPositions().size_bytes(), sBuildInputUsage);
         mPositions.write(scene.getPositions());
 
-        mIndices = uploadBuffer(device, pool, scene.getIndices(), sBuildInputUsage);
+        mIndices = uploadBuffer(device, batch, scene.getIndices(), sBuildInputUsage);
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mPositions.getHandle()), "positions");
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mIndices.getHandle()), "indices");
 
-        buildBottomLevel(pool, scene);
+        // **The indices, every bottom level and the top level in one submit.** Each was its own
+        // round trip and each is ordered against the last by a barrier the recording already
+        // carries: `uploadBuffer` ends in one, and `buildBottomLevel` ends in `barrierAfterBuild`.
+        buildBottomLevel(batch, scene);
         prepareTopLevel(scene, records);
-        pool.submitAndWait([&](VkCommandBuffer commands) { recordTopLevel(commands, nullptr); });
+        recordTopLevel(batch.getCommands(), nullptr);
     }
 
     SceneAcceleration::~SceneAcceleration()
@@ -116,7 +119,7 @@ namespace Rtx
                 functions.mDestroyAccelerationStructure(mDevice.getHandle(), structure, nullptr);
     }
 
-    void SceneAcceleration::buildBottomLevel(CommandPool& pool, const SceneDesc& scene)
+    void SceneAcceleration::buildBottomLevel(Batch& batch, const SceneDesc& scene)
     {
         const DeviceFunctions& functions = mDevice.getFunctions();
         const std::size_t count = scene.getMeshes().size();
@@ -226,9 +229,10 @@ namespace Rtx
         mDevice.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mBottomLevelStorage.getHandle()),
             "bottom level structures");
 
-        // Scratch is transient: it is read and written by the build and never again. It goes out of
-        // scope with this function, which is the only reason a cell's worth of it is affordable.
-        const Buffer scratch(mDevice, scratchTotal, sScratchUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        // Scratch is transient: it is read and written by the build and never again. It is handed to
+        // the batch below rather than left to this scope, because the build it feeds has only been
+        // recorded when this function returns — and the batch frees it the moment the flush does.
+        Buffer scratch(mDevice, scratchTotal, sScratchUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         const VkDeviceAddress scratchAddress = scratch.getDeviceAddress();
 
         // Which slots actually have a structure, so the build below is handed those and only those.
@@ -282,11 +286,12 @@ namespace Rtx
         if (live.empty())
             return;
 
-        pool.submitAndWait([&](VkCommandBuffer commands) {
-            functions.mCmdBuildAccelerationStructures(
-                commands, static_cast<std::uint32_t>(live.size()), live.data(), liveRanges.data());
-            barrierAfterBuild(commands);
-        });
+        const VkCommandBuffer commands = batch.getCommands();
+        functions.mCmdBuildAccelerationStructures(
+            commands, static_cast<std::uint32_t>(live.size()), live.data(), liveRanges.data());
+        barrierAfterBuild(commands);
+
+        batch.keep(std::move(scratch));
     }
 
     void SceneAcceleration::prepareRefit(const SceneDesc& scene)

@@ -1,6 +1,6 @@
 # The open issues, traced to their roots
 
-`.notes/ISSUES.md` read one at a time looks like a list of jobs. Traced back it is **five roots**, and
+`.notes/ISSUES.md` read one at a time looks like a list of jobs. Traced back it is **four roots**, and
 this document is those roots and the order to take them in. It does not restate `plan.md` §10 (slots,
 not compaction), §11 (the three roots) or §12 (the seam with the rasterizer); it continues them.
 
@@ -18,7 +18,7 @@ a finished piece is only what the next one needs to know.
 | `OSGTexture` allocates twice a frame and uploads whole | **C** |
 | the world map overlay uploads whole on a cell crossing | **C** |
 | a `buffer_reference` read of normals changes the picture | **A** |
-| `GuiTextures::add` waits on the queue per texture | **H** |
+| `GuiTextures::add` waits on the queue per texture | **C** |
 | `RtxTool::Chosen` warns under `-Wmissing-field-initializers` | **I** |
 
 ## A. The device never learned "slots, not compaction"
@@ -230,32 +230,11 @@ upload is still the right trade.
 `GlobalMap::write` serialises `mOverlayImage` into the savegame, so main memory is the source of truth
 and the device copy is derived. That is the right way round.
 
-## H. Every resource is its own queue round trip
-
-`Rtx::GuiTextures::add` clears each new texture through a submit it waits on. That is the logged
-entry; it is one of fourteen `submitAndWait` sites, and what makes it structural is the ones inside a
-loop:
-
-- **`Texture::Texture` submits and waits per texture.** Balmora's 361 textures are 361 round trips
-  through the driver on the frame the cell lands.
-- `uploadBuffer` submits and waits per buffer.
-- `GuiTextures::add` and `write`, once per texture the interface creates or changes.
-
-`commands.hpp` already says it — *"One submit per call, which is right for a load path and wrong for
-anything else"* — and it is not right for a load path either, once that is a cell boundary.
-
-**This is not M12's asynchrony and must not wait for it.** M12 is about the frame no longer waiting on
-the queue; this is about not asking the queue three hundred times to do one thing. They compose: the
-batch that submits once and waits is the same object that later submits once and does not.
-
-- `CommandPool::batch()` hands back a `Batch` holding one open command buffer. `flush()`, and the
-  destructor, submits and waits once.
-- **The batch owns the staging.** `uploadBuffer` and `Texture` keep a staging buffer as a local and
-  rely on the wait happening before it leaves scope; batched, it has to live until the flush. That is
-  the whole of the design content.
-- `Texture` and `uploadBuffer` take a `Batch&` where they take a `CommandPool&`.
-
-Measured against the build figure the bench prints: 410 ms on the island route, 704 ms at Balmora.
+**And this owner is where the last queue round trips live.** `Rtx::Batch` took the scene's load path
+down to one submit; `GuiTextures::add` and `write` were left out of it because MyGUI hands over one
+texture at a time, through `createTexture` and then `lock`/`unlock` — two waits for one picture, with
+nothing between them that knows both are coming. Whatever owns a GUI texture properly is what can
+open a batch across the pair.
 
 ## I. One that is exactly what it looks like
 
@@ -279,30 +258,35 @@ curve scaled by 1.004 is reported as *worst 1 of 255* on between 5% and 93% of e
 as *worst 3 to 9* on nearly every pixel. That difference between the two is the finding a bare
 *differs* could not carry.
 
-**1 — H, the batch.** Independent of everything, and it shortens every load the steps below are tested
-through. Whole suite unchanged; the bench's build figure at Balmora and on the island route.
+**The batch is in.** `Rtx::Batch` holds one open command buffer and the staging recorded against it,
+and `setScene` opens exactly one for a whole cell — every structure, every table, every texture. It
+also turned up `TextureArray`'s constructor uploading each texture twice, once in `uploadAll` and
+again in the `write` that follows it; `uploadAll` is gone and `write` is the only upload. Balmora
+went from 727 submits to one, and its build from **555 ms to 249**; the island route's from 538 to
+243. Sixteen views byte-identical, whole suite unchanged. The crossing figure barely moved, because
+a crossing that appends builds nothing and its cost is reading content files.
 
-**2 — A1, the geometry blocks.** `7b-backend.patch` is the starting point and it is known bit-exact
+**1 — A1, the geometry blocks.** `7b-backend.patch` is the starting point and it is known bit-exact
 apart from the normal fetch. Start at the address table, which the probe has not yet been asked
 about; the descriptor-array fallback stands if it turns out to be the pointer. Still a full rebuild
 per arrival. The picture must be unchanged, which is now a command.
 
-**3 — A2, bottom-level storage, then `extendScene`.** Build the arrivals, destroy the departures.
+**2 — A2, bottom-level storage, then `extendScene`.** Build the arrivals, destroy the departures.
 Measure the crossing on the streaming route, median and worst, against 47 ms.
 
-**4 — A3, view scenes get the same three branches.** Look at a race-creation slider drag in the
+**3 — A3, view scenes get the same three branches.** Look at a race-creation slider drag in the
 window; that is what the frame time was.
 
-**5 — C, the region write.** `RegionTexture`, both backends, `Picture::setRegion`, `GlobalMap` onto
+**4 — C, the region write.** `RegionTexture`, both backends, `Picture::setRegion`, `GlobalMap` onto
 `Picture`. The GUI texture tests plus walking across a cell boundary with the world map open.
 
-**6 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
+**5 — B1, terrain residency.** Verify `QuadTreeWorld::accept` is unchanged by running the OpenGL path
 with `distant terrain` on and comparing a frame; verify the mirror by turning `distant terrain` on and
 taking a shot of an exterior with ground in it.
 
-**7 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
+**6 — B2 and B3, the traversal counter and the `Inactive` test.** Insurance rather than repair.
 
-**8 — I.** Ten minutes.
+**7 — I.** Ten minutes.
 
 ## What this does not touch
 
@@ -310,6 +294,7 @@ taking a shot of an exterior with ground in it.
 before returning. That is why A2 needs no retirement queue, why `GuiTextures::write` can destroy and
 recreate freely, and why none of the above has to reason about frames in flight. It is also the single
 largest thing standing between this renderer and its frame budget, and it is M12's. The plan above
-should not be built in a way that assumes it stays true: **A2 and the texture drop are the two places
-that will need a fence-keyed retirement list the day it stops**, and that is written here so that day
-is a change rather than a bug.
+should not be built in a way that assumes it stays true: **A2, the texture drop and `Batch`'s kept
+staging are the three places that will need a fence-keyed retirement list the day it stops**, and that
+is written here so that day is a change rather than a bug. `Batch` is already shaped for it: what it
+holds is released by `flush`, and a `flush` that signals rather than waits is the same object.

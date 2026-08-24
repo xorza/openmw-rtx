@@ -269,10 +269,15 @@ namespace Rtx
         // the only place that knows both.
         makeInstanceRecords(scene, mRecordScratch);
 
-        mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, scene, mRecordScratch);
+        // **One submit for the whole cell.** Every structure, every table and every texture is
+        // recorded into this and the queue is asked once, at the flush below; each of them used to
+        // be its own round trip, and Balmora's are 367 of them.
+        Batch setup(mPool);
+
+        mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, scene, mRecordScratch);
         mBuffers
-            = std::make_unique<SceneBuffers>(mDevice, mPool, scene, mRecordScratch, mAcceleration->getIndices(), sea);
-        mTextures = std::make_unique<TextureArray>(mDevice, mPool, textures);
+            = std::make_unique<SceneBuffers>(mDevice, setup, scene, mRecordScratch, mAcceleration->getIndices(), sea);
+        mTextures = std::make_unique<TextureArray>(mDevice, setup, textures);
         mBuiltMeshes = scene.getMeshRevision();
 
         // **Built once and kept, because building one compiles the shader — half a second a time,
@@ -283,7 +288,11 @@ namespace Rtx
         // compatible, so a set from a later array binds against the pipeline layout the first one
         // produced. `TextureArray`'s layout is where that invariant is kept.
         if (mPass == nullptr)
-            mPass = std::make_unique<VisibilityPass>(mDevice, mPool, mShaderDirectory, mTextures->getLayout());
+            mPass = std::make_unique<VisibilityPass>(mDevice, setup, mShaderDirectory, mTextures->getLayout());
+
+        // By hand rather than left to the destructor, so a submit that fails throws out of here
+        // instead of being logged on the way past.
+        setup.flush();
 
         mStats = SceneStats{
             .mInstances = mAcceleration->getInstanceCount(),
@@ -299,7 +308,8 @@ namespace Rtx
     {
         assert(mAcceleration != nullptr && "extendScene before setScene");
 
-        mTextures->write(mPool, arrived);
+        Batch setup(mPool);
+        mTextures->write(setup, arrived);
 
         // **The structures are made again and the array is not**, which is the whole of what this
         // saves: 12 ms against 150. Building only the meshes that arrived is the next step and a
@@ -312,14 +322,19 @@ namespace Rtx
         if (scene.getMeshRevision() != mBuiltMeshes)
         {
             makeInstanceRecords(scene, mRecordScratch);
-            mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, scene, mRecordScratch);
+            mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, scene, mRecordScratch);
             mBuffers = std::make_unique<SceneBuffers>(
-                mDevice, mPool, scene, mRecordScratch, mAcceleration->getIndices(), sea);
+                mDevice, setup, scene, mRecordScratch, mAcceleration->getIndices(), sea);
             mBuiltMeshes = scene.getMeshRevision();
             mTimed = false;
+            setup.flush();
         }
         else
         {
+            // **Flushed before the placement, not after it.** `placeScene` submits on its own and
+            // refits structures the arrivals above may have built, so the two cannot be left to
+            // finish in whatever order their destructors run in.
+            setup.flush();
             placeScene(scene, sea);
         }
 
@@ -688,15 +703,19 @@ namespace Rtx
 
         makeInstanceRecords(desc, mRecordScratch);
 
-        held.mAcceleration = std::make_unique<SceneAcceleration>(mDevice, mPool, desc, mRecordScratch);
+        Batch setup(mPool);
+
+        held.mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, desc, mRecordScratch);
         held.mBuffers = std::make_unique<SceneBuffers>(
-            mDevice, mPool, desc, mRecordScratch, held.mAcceleration->getIndices(), SeaState{});
-        held.mTextures = std::make_unique<TextureArray>(mDevice, mPool, textures);
+            mDevice, setup, desc, mRecordScratch, held.mAcceleration->getIndices(), SeaState{});
+        held.mTextures = std::make_unique<TextureArray>(mDevice, setup, textures);
 
         // A doll can be the first thing this renderer ever builds — a race preview stands in front
         // of a game that has no world yet — and the pass belongs to neither scene.
         if (mPass == nullptr)
-            mPass = std::make_unique<VisibilityPass>(mDevice, mPool, mShaderDirectory, held.mTextures->getLayout());
+            mPass = std::make_unique<VisibilityPass>(mDevice, setup, mShaderDirectory, held.mTextures->getLayout());
+
+        setup.flush();
     }
 
     void VulkanRenderer::dropViewScene(std::uint32_t scene)

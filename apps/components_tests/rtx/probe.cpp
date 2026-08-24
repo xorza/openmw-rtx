@@ -156,7 +156,9 @@ namespace Rtx
             expectAgreement(pattern, probe(device, pipeline, pool, resident.getHandle(), resident.getDeviceAddress()),
                 "host-visible");
 
-            const Buffer staged = uploadBuffer(device, pool, std::span<const osg::Vec3f>(pattern), usage);
+            Batch upload(pool);
+            const Buffer staged = uploadBuffer(device, upload, std::span<const osg::Vec3f>(pattern), usage);
+            upload.flush();
             expectAgreement(
                 pattern, probe(device, pipeline, pool, staged.getHandle(), staged.getDeviceAddress()), "device-local");
         }

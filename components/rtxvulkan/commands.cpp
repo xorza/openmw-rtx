@@ -1,5 +1,10 @@
 #include "commands.hpp"
 
+#include <exception>
+#include <utility>
+
+#include <components/debug/debuglog.hpp>
+
 #include "device.hpp"
 #include "result.hpp"
 
@@ -89,20 +94,84 @@ namespace Rtx
         vkFreeCommandBuffers(mDevice.getHandle(), mHandle, 1, &commands);
     }
 
-    Buffer uploadBuffer(
-        const Device& device, CommandPool& pool, std::span<const std::byte> bytes, VkBufferUsageFlags usage)
+    Batch::~Batch()
     {
-        const Buffer staging(device, bytes.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        try
+        {
+            flush();
+        }
+        catch (const std::exception& e)
+        {
+            // A submit fails when the device is lost, and terminating out of a destructor tells
+            // nobody which one it was.
+            Log(Debug::Error) << "a command batch could not be submitted: " << e.what();
+        }
+    }
+
+    VkCommandBuffer Batch::getCommands()
+    {
+        if (mCommands == VK_NULL_HANDLE)
+            mCommands = mPool.begin();
+
+        return mCommands;
+    }
+
+    void Batch::keep(Buffer&& staging)
+    {
+        mStaging.push_back(std::move(staging));
+    }
+
+    void Batch::flush()
+    {
+        if (mCommands == VK_NULL_HANDLE)
+        {
+            // Staging with nothing recorded is a caller that kept a buffer and then decided against
+            // the copy; it has no reader either way.
+            mStaging.clear();
+            return;
+        }
+
+        // Cleared before the wait can be skipped and after it cannot: the copies have run by the
+        // time `endAndWait` returns, so this is where a staging buffer stops being read.
+        mPool.endAndWait(std::exchange(mCommands, VK_NULL_HANDLE));
+        mStaging.clear();
+    }
+
+    Buffer uploadBuffer(const Device& device, Batch& batch, std::span<const std::byte> bytes, VkBufferUsageFlags usage)
+    {
+        Buffer staging(device, bytes.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         staging.write(bytes);
 
         Buffer result(
             device, bytes.size(), usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        pool.submitAndWait([&](VkCommandBuffer commands) {
-            const VkBufferCopy region{ .size = bytes.size() };
-            vkCmdCopyBuffer(commands, staging.getHandle(), result.getHandle(), 1, &region);
-        });
+        const VkCommandBuffer commands = batch.getCommands();
+        const VkBufferCopy region{ .size = bytes.size() };
+        vkCmdCopyBuffer(commands, staging.getHandle(), result.getHandle(), 1, &region);
+
+        // **What makes an upload self-contained.** Batched, the next thing recorded may be an
+        // acceleration structure built out of exactly these bytes, and without this it would read
+        // them before the copy had run.
+        const VkBufferMemoryBarrier2 copied{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+            .srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
+            .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .buffer = result.getHandle(),
+            .size = VK_WHOLE_SIZE,
+        };
+        const VkDependencyInfo dependency{
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .bufferMemoryBarrierCount = 1,
+            .pBufferMemoryBarriers = &copied,
+        };
+        vkCmdPipelineBarrier2(commands, &dependency);
+
+        batch.keep(std::move(staging));
 
         return result;
     }

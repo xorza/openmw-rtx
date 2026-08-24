@@ -86,7 +86,7 @@ namespace Rtx
         }
     }
 
-    SceneBuffers::SceneBuffers(const Device& device, CommandPool& pool, const SceneDesc& scene,
+    SceneBuffers::SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
         std::span<const InstanceRecord> records, VkBuffer indices, const SeaState& sea)
         : mDevice(&device)
         , mIndices(indices)
@@ -97,8 +97,8 @@ namespace Rtx
             meshes.push_back(
                 Shaders::GpuMesh{ .mVertexOffset = mesh.mVertexOffset, .mIndexOffset = mesh.mIndexOffset });
 
-        mTexCoords = uploadBuffer(device, pool, scene.getTexCoords(), sTableUsage);
-        mMeshes = uploadBuffer(device, pool, std::span<const Shaders::GpuMesh>(meshes), sTableUsage);
+        mTexCoords = uploadBuffer(device, batch, scene.getTexCoords(), sTableUsage);
+        mMeshes = uploadBuffer(device, batch, std::span<const Shaders::GpuMesh>(meshes), sTableUsage);
 
         // **Whole here and a mesh at a time afterwards.** Only a skinned body's normals change, so
         // filling this once is a load's cost and every frame after it pays for what actually moved.

@@ -57,9 +57,9 @@ namespace Rtx
         };
     }
 
-    VisibilityPass::VisibilityPass(const Device& device, CommandPool& pool,
-        const std::filesystem::path& shaderDirectory, VkDescriptorSetLayout textureLayout)
-        : mBlueNoise(uploadBuffer(device, pool, BlueNoise::shared().getValues(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT))
+    VisibilityPass::VisibilityPass(const Device& device, Batch& batch, const std::filesystem::path& shaderDirectory,
+        VkDescriptorSetLayout textureLayout)
+        : mBlueNoise(uploadBuffer(device, batch, BlueNoise::shared().getValues(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT))
         , mPipeline(device, sBindings, sizeof(Shaders::VisibilityConstants), std::span(&textureLayout, 1),
               shaderDirectory / "visibility.comp.spv", "visibility")
     {

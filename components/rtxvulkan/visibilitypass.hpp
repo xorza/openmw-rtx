@@ -12,7 +12,7 @@
 
 namespace Rtx
 {
-    class CommandPool;
+    class Batch;
     class Device;
     class GBuffer;
     class SceneBuffers;
@@ -45,7 +45,7 @@ namespace Rtx
         ///        the same numbers whatever is being looked at.
         /// @param textureLayout the layout of the bindless array this will be handed at record
         ///        time. Needed here because a pipeline layout names every set it will ever see.
-        VisibilityPass(const Device& device, CommandPool& pool, const std::filesystem::path& shaderDirectory,
+        VisibilityPass(const Device& device, Batch& batch, const std::filesystem::path& shaderDirectory,
             VkDescriptorSetLayout textureLayout);
 
         VisibilityPass(const VisibilityPass&) = delete;

@@ -118,7 +118,9 @@ namespace Rtx
                         | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                     "gui test target");
 
-                const Buffer buffer = uploadBuffer(device, *mPool, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+                Batch upload(*mPool);
+                const Buffer buffer = uploadBuffer(device, upload, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+                upload.flush();
 
                 mPool->submitAndWait([&](VkCommandBuffer commands) {
                     target.transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -151,6 +153,16 @@ namespace Rtx
             }
 
             Testing::Harness* mHarness = nullptr;
+            /// A texture on the device, waited for. The renderer records these into a batch it
+            /// flushes once for a whole cell; a test wants the one texture ready on the next line.
+            Texture makeTexture(const TextureData& data, std::string_view name)
+            {
+                Batch upload(*mPool);
+                Texture texture(*mHarness->mDevice, upload, data, name);
+                upload.flush();
+                return texture;
+            }
+
             std::unique_ptr<CommandPool> mPool;
             std::unique_ptr<GuiPass> mPass;
         };
@@ -164,7 +176,7 @@ namespace Rtx
         TEST_F(RtxGuiPassTest, aHalfTransparentQuadBlendsOverWhatWasAlreadyThere)
         {
             const FlatTexture white(1, sWhiteTexel);
-            const Texture texture(*mHarness->mDevice, *mPool, white.mData, "white");
+            const Texture texture = makeTexture(white.mData, "white");
 
             const std::array<GuiVertex, 6> quad = makeQuad(-1.0f, 1.0f, 0.0f, -1.0f, packColour(255, 0, 0, 128));
             const std::array<GuiDraw, 1> draws{ GuiDraw{ texture.getView(), 0, quad.size() } };
@@ -209,7 +221,7 @@ namespace Rtx
                 255,
             };
             const FlatTexture corners(2, sCorners);
-            const Texture texture(*mHarness->mDevice, *mPool, corners.mData, "corners");
+            const Texture texture = makeTexture(corners.mData, "corners");
 
             // The whole frame, opaque white so the texture passes through the multiply unchanged.
             const std::array<GuiVertex, 6> quad = makeQuad(-1.0f, 1.0f, 1.0f, -1.0f, packColour(255, 255, 255, 255));
@@ -237,8 +249,8 @@ namespace Rtx
             constexpr std::array<std::uint8_t, 4> sGreenTexel{ 0, 255, 0, 255 };
             const FlatTexture white(1, sWhiteTexel);
             const FlatTexture green(1, sGreenTexel);
-            const Texture whiteTexture(*mHarness->mDevice, *mPool, white.mData, "white");
-            const Texture greenTexture(*mHarness->mDevice, *mPool, green.mData, "green");
+            const Texture whiteTexture = makeTexture(white.mData, "white");
+            const Texture greenTexture = makeTexture(green.mData, "green");
 
             const std::array<GuiVertex, 6> left = makeQuad(-1.0f, 1.0f, 0.0f, -1.0f, packColour(255, 0, 0, 255));
             const std::array<GuiVertex, 6> right = makeQuad(0.0f, 1.0f, 1.0f, -1.0f, packColour(255, 255, 255, 255));
@@ -273,7 +285,7 @@ namespace Rtx
         TEST_F(RtxGuiPassTest, anAdditiveBatchAddsToTheFrameWhereAnOverOneReplacesIt)
         {
             const FlatTexture white(1, sWhiteTexel);
-            const Texture texture(*mHarness->mDevice, *mPool, white.mData, "white");
+            const Texture texture = makeTexture(white.mData, "white");
 
             const std::array<GuiVertex, 6> left = makeQuad(-1.0f, 1.0f, 0.0f, -1.0f, packColour(255, 0, 0, 128));
             const std::array<GuiVertex, 6> right = makeQuad(0.0f, 1.0f, 1.0f, -1.0f, packColour(255, 0, 0, 128));

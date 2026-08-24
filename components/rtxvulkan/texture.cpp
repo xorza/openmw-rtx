@@ -90,7 +90,7 @@ namespace Rtx
         }
     }
 
-    Texture::Texture(const Device& device, CommandPool& pool, const TextureData& data, std::string_view name)
+    Texture::Texture(const Device& device, Batch& batch, const TextureData& data, std::string_view name)
         : mDevice(device.getHandle())
         , mBytes(data.mBytes.size())
     {
@@ -120,7 +120,7 @@ namespace Rtx
             device, requirements.size, requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, false);
         checkVk(vkBindImageMemory(mDevice, mHandle, mMemory.getHandle(), 0), "vkBindImageMemory");
 
-        const Buffer staging(device, data.mBytes.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        Buffer staging(device, data.mBytes.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         staging.write(data.mBytes);
 
@@ -137,7 +137,11 @@ namespace Rtx
 
         const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, levels, 0, 1 };
 
-        pool.submitAndWait([&](VkCommandBuffer commands) {
+        // **Recorded rather than submitted.** A cell brings hundreds of these and the queue is asked
+        // once for all of them; the image is left where a sampler expects it, so nothing recorded
+        // afterwards has to know this one happened.
+        const VkCommandBuffer commands = batch.getCommands();
+        {
             const auto barrier
                 = [&](VkImageLayout from, VkImageLayout to, VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess,
                       VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess) {
@@ -171,7 +175,9 @@ namespace Rtx
             barrier(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                 VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                 VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-        });
+        }
+
+        batch.keep(std::move(staging));
 
         const VkImageViewCreateInfo view{
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -227,16 +233,6 @@ namespace Rtx
 
     namespace
     {
-        std::vector<Texture> uploadAll(const Device& device, CommandPool& pool, std::span<const TextureData> textures)
-        {
-            std::vector<Texture> uploaded;
-            uploaded.reserve(textures.size());
-            for (const TextureData& texture : textures)
-                uploaded.emplace_back(device, pool, texture, texture.mName);
-
-            return uploaded;
-        }
-
         /// Every texture's shading map end to end, and a neutral one wherever there is no estimate.
         ///
         /// **A missing map has to be neutral rather than absent.** A material whose texture would
@@ -267,12 +263,11 @@ namespace Rtx
         }
     }
 
-    TextureArray::TextureArray(const Device& device, CommandPool& pool, std::span<const TextureData> textures)
+    TextureArray::TextureArray(const Device& device, Batch& batch, std::span<const TextureData> textures)
         : mDevice(device)
-        , mTextures(uploadAll(device, pool, textures))
     {
-        if (mTextures.size() > sMaxTextures)
-            throw Error("a scene with " + std::to_string(mTextures.size()) + " textures is past the "
+        if (textures.size() > sMaxTextures)
+            throw Error("a scene with " + std::to_string(textures.size()) + " textures is past the "
                 + std::to_string(sMaxTextures) + " this array holds");
 
         const VkSamplerCreateInfo sampler{
@@ -325,13 +320,14 @@ namespace Rtx
 
         // **Position is the slot here**, because an array built from nothing is built in the scene's
         // own order and a material's index is where its description sat. `write` is the one that has
-        // to be told, and it is the same code either way: the shading buffer is empty at this point,
-        // so the grow path inside it writes the whole thing.
+        // to be told, and it is the whole of the upload: the array starts empty and `reserveSlot`
+        // grows it one arrival at a time, so nothing is created here to be replaced a line later.
+        // The shading buffer is empty at this point too, so the grow path inside it writes it all.
         std::vector<TextureData> placed(textures.begin(), textures.end());
         for (std::size_t at = 0; at < placed.size(); ++at)
             placed[at].mSlot = static_cast<std::uint32_t>(at);
 
-        write(pool, placed);
+        write(batch, placed);
 
         // **A scene with no textures still binds the shading buffer**, and `write` has nothing to do
         // for one — so the neutral map that stands in for an empty array is made here rather than
@@ -352,7 +348,7 @@ namespace Rtx
             mTextures.emplace_back();
     }
 
-    void TextureArray::write(CommandPool& pool, std::span<const TextureData> arrived)
+    void TextureArray::write(Batch& batch, std::span<const TextureData> arrived)
     {
         if (arrived.empty())
             return;
@@ -363,7 +359,7 @@ namespace Rtx
 
             // Assigned rather than emplaced, so whatever the slot held is destroyed here — after its
             // descriptor has stopped being the one bound and before the new one replaces it.
-            mTextures[texture.mSlot] = Texture(mDevice, pool, texture, "texture " + std::to_string(texture.mSlot));
+            mTextures[texture.mSlot] = Texture(mDevice, batch, texture, "texture " + std::to_string(texture.mSlot));
         }
 
         gatherShadingAt(arrived, mShadingValues);

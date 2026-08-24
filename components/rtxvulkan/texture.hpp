@@ -15,7 +15,7 @@
 
 namespace Rtx
 {
-    class CommandPool;
+    class Batch;
     class Device;
 
     /// A sampled image on the GPU.
@@ -25,7 +25,7 @@ namespace Rtx
         /// A slot with nothing in it yet, which is what the array holds while it is being filled.
         Texture() = default;
 
-        Texture(const Device& device, CommandPool& pool, const TextureData& data, std::string_view name);
+        Texture(const Device& device, Batch& batch, const TextureData& data, std::string_view name);
         ~Texture();
 
         Texture(const Texture&) = delete;
@@ -57,7 +57,7 @@ namespace Rtx
     public:
         /// Uploads every description, in the order given, so a material's texture index is an index
         /// into this. May be empty; the shader is told the count and does not index past it.
-        TextureArray(const Device& device, CommandPool& pool, std::span<const TextureData> textures);
+        TextureArray(const Device& device, Batch& batch, std::span<const TextureData> textures);
         ~TextureArray();
 
         /// Writes each of `arrived` into the slot it names, leaving every other texture alone.
@@ -71,7 +71,7 @@ namespace Rtx
         /// wherever it sits. A slot at the end grows the array; one inside it replaces what was
         /// there, and the image that was there goes when it is replaced and not when it was freed —
         /// so no descriptor ever names an image that has been destroyed.
-        void write(CommandPool& pool, std::span<const TextureData> arrived);
+        void write(Batch& batch, std::span<const TextureData> arrived);
 
         /// Destroys the images of `slots`, leaving the slots themselves where they are.
         ///
