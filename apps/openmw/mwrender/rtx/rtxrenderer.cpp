@@ -532,8 +532,8 @@ namespace MWRender::Rtx
 
         // **What the walk did not find has gone, and this is where the scene is told.** The graph
         // above is the whole world every frame, which is what makes mark and sweep sound here — and
-        // it is not only about memory: the identity maps are keyed on `osg` pointers, and an address
-        // the engine has freed can come back holding something else entirely.
+        // it is also the only thing that lets go: the identity maps hold their keys alive, so
+        // geometry the engine has dropped outlives it until a sweep takes the entry naming it.
         //
         // Last, because it bumps the epoch the next walk is measured against: everything that
         // survived is still carrying the old stamp until it does.

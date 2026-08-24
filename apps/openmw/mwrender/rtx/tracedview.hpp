@@ -32,6 +32,7 @@ namespace Rtx
 namespace RtxBridge
 {
     class SceneExtractor;
+    class SceneTextures;
 }
 
 namespace MWRender::Rtx
@@ -93,6 +94,16 @@ namespace MWRender::Rtx
         /// and unused for a picture of the world.
         std::unique_ptr<::Rtx::SceneDesc> mScene;
         std::unique_ptr<RtxBridge::SceneExtractor> mExtractor;
+
+        /// What the scene's textures were described as, kept while the table stands.
+        ///
+        /// **Because `setViewScene` wants the whole table and describing it is not free.** Estimating
+        /// a texture's shading reads every one of its texels, and a redraw where no texture arrived
+        /// or went is describing the same images to the same answer. Rebuilt when the table changes
+        /// and held otherwise, which is what a slider that only moves a bone costs.
+        ///
+        /// The descriptions carry spans into this, so it outlives the call that reads them.
+        std::unique_ptr<RtxBridge::SceneTextures> mTextures;
         std::uint32_t mViewScene = 0;
 
         /// The traversal number the subject was last posed at. What an intersection test has to be

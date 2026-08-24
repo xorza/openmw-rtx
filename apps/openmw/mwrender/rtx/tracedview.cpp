@@ -168,34 +168,42 @@ namespace MWRender::Rtx
         // subtree is what finds the head to look at, and it runs in an update traversal.
         mPosedFrame = mOwner.updateSubtree(const_cast<osg::Node&>(*mSubject));
 
-        // **From nothing, every time, and that is the point rather than the cost.** A mirror that
-        // is kept answers "have I met this drawable before" with an `osg` address, and between one
-        // redraw and the next this subject is taken apart: `NpcAnimation::updateParts` frees the
-        // body parts that changed and builds their replacements, which the allocator is free to put
-        // exactly where the old ones were. A walk that carried its tables across that finds the
-        // retired part's entry under the new part's address and mirrors the wrong geometry — the
-        // torn figure a change of clothes produced. There is no window here for that: the tables
-        // start empty, so nothing can be mistaken for anything.
+        // **Re-walked and not rebuilt**, which the identity maps owning their keys is what makes
+        // sound. Between one redraw and the next this subject is taken apart —
+        // `NpcAnimation::updateParts` frees the body parts that changed and builds their
+        // replacements — and the allocator is free to put a new part exactly where a retired one
+        // was. A map keyed on the bare address found the retired part's entry under the new part's
+        // and mirrored the wrong geometry, which is the torn figure a change of clothes produced;
+        // a map that holds its key cannot be shown that address at all until it lets go.
         //
-        // What it costs is re-reading a character's meshes, which is tens of them, on a path that
-        // already rebuilds every acceleration structure and the whole texture array below.
-        // The extractor first: it holds a reference to the scene it walks into.
-        mExtractor.reset();
-        mScene = std::make_unique<::Rtx::SceneDesc>();
-        mExtractor = std::make_unique<RtxBridge::SceneExtractor>(*mScene);
-        mExtractor->setTraversalMask(mSubjectMask);
+        // The placements are the one thing a redraw throws away, as the world's frame does: what a
+        // walk refills wholesale goes, and the meshes and materials stay because they are what the
+        // walk is trying not to read again.
+        mScene->clearPlacement();
 
-        // **A clock that reads differently every time, and it outlives the tables above.** The walk
-        // poses the subject by running a cull traversal over it, and `SceneUtil::Skeleton` and both
-        // deforming geometries — which are the game's and survive every rebuild — refuse to move
-        // for a traversal number they have already seen. A walk that said zero every time skinned
-        // the doll when the inventory first opened and never again.
+        // **A clock that reads differently every time.** The walk poses the subject by running a
+        // cull traversal over it, and `SceneUtil::Skeleton` and both deforming geometries refuse to
+        // move for a traversal number they have already seen. A walk that said zero every time
+        // skinned the doll when the inventory first opened and never again.
         mExtractor->extract(*mSubject, osg::Matrixf::identity(), 0, mRedraws++);
 
-        // Described whole rather than by arrivals: this is a rebuild, and there is nothing to append
-        // to. A character is tens of textures, not the hundreds a cell carries.
-        const RtxBridge::SceneTextures textures(*mScene, *resources->getImageManager());
-        mRenderer.setViewScene(mViewScene, *mScene, textures.getDescriptions());
+        // **No `advance` between them**, unlike the world's frame: a picture drawn when the
+        // character changes rather than when the frame does has no motion to describe, and
+        // `SceneDesc` answers a scene that has never advanced with a previous transform equal to its
+        // current one — which is the right answer here and a stale one otherwise.
+        //
+        // The sweep is what takes the parts that came off. It is sound for the same reason it is
+        // sound for the world: this walk is the whole of what this picture is of.
+        mExtractor->retire();
+
+        // **Described whole, because `setViewScene` builds the array from nothing** — and so held
+        // across redraws that changed no texture, because describing one reads every texel of it.
+        // The two lists are exactly what says whether the table this indexes is still the table it
+        // was described from.
+        if (mTextures == nullptr || !mScene->getArrivedTextures().empty() || !mScene->getFreedTextures().empty())
+            mTextures = std::make_unique<RtxBridge::SceneTextures>(*mScene, *resources->getImageManager());
+
+        mRenderer.setViewScene(mViewScene, *mScene, mTextures->getDescriptions());
         mScene->clearArrivals();
 
         mOptions.mScene = mViewScene;

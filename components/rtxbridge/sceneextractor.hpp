@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <span>
@@ -118,6 +119,30 @@ namespace RtxBridge
 
     class MirrorTraversal;
 
+    /// Hashes and compares an owning key by the address it holds.
+    ///
+    /// **What lets an identity map hold its subject alive without paying for that on a lookup.** A
+    /// map keyed on a raw `osg` pointer can be fooled: the engine frees a body part and the
+    /// allocator puts the replacement exactly where it was, so the walk that meets the new one finds
+    /// the old one's entry and mirrors geometry it has nothing to do with. A `ref_ptr` key makes the
+    /// address *true* — nothing else can hold it while the entry does — and being transparent is
+    /// what keeps every lookup from a raw pointer out of the reference count.
+    template <class T>
+    struct ByAddress
+    {
+        using is_transparent = void;
+
+        std::size_t operator()(const osg::ref_ptr<T>& value) const { return std::hash<const T*>{}(value.get()); }
+        std::size_t operator()(const T* value) const { return std::hash<const T*>{}(value); }
+
+        bool operator()(const osg::ref_ptr<T>& left, const osg::ref_ptr<T>& right) const
+        {
+            return left.get() == right.get();
+        }
+        bool operator()(const osg::ref_ptr<T>& left, const T* right) const { return left.get() == right; }
+        bool operator()(const T* left, const osg::ref_ptr<T>& right) const { return left == right.get(); }
+    };
+
     /// One state set in the chain that shades a drawable, nearest it last.
     ///
     /// **Not simply a node's own state set.** OpenMW animates shading by handing a
@@ -145,7 +170,8 @@ namespace RtxBridge
     public:
         explicit SceneExtractor(Rtx::SceneDesc& scene);
 
-        /// Out of line because `MirrorTraversal` is only forward declared here.
+        /// Out of line because `MirrorTraversal` and the identity maps' key types are only forward
+        /// declared here.
         ~SceneExtractor();
 
         SceneExtractor(const SceneExtractor&) = delete;
@@ -218,10 +244,10 @@ namespace RtxBridge
         /// mirrors only the movers would retire the region it is standing in. The game re-walks its
         /// whole graph every frame and can call this; the harness keeps a snapshot and does not.
         ///
-        /// **It is a soundness fix and not only a memory one.** The identity maps are keyed on raw
-        /// `osg` pointers, which is what makes a crate met again resolve to the crate already
-        /// uploaded — and an address the engine has freed can be handed back for something else.
-        /// Without this the next thing allocated there inherits a mesh it has nothing to do with.
+        /// **It is also the only thing that lets go.** The identity maps own their keys, which is
+        /// what makes an address mean one object for as long as an entry names it; the cost of that
+        /// is that geometry the graph has dropped outlives its owner until a sweep, and a caller
+        /// that never sweeps holds every drawable it has ever walked.
         ///
         /// Anything a caller kept across this — a snapshot of placements, an index of its own — is
         /// stale afterwards, and `Rtx::SceneDesc::getRevision` is what says so.
@@ -346,18 +372,26 @@ namespace RtxBridge
         /// remains is one lookup, and Phase 2 is about not making that either.
         std::unordered_map<std::size_t, Known> mPlacements;
 
+        /// What the scene knows one `osg` object as, keyed so the object cannot go while the entry
+        /// stands. See `ByAddress`.
+        template <class T>
+        using Identity = std::unordered_map<osg::ref_ptr<T>, Known, ByAddress<T>, ByAddress<T>>;
+
         // Keyed on pointer identity, which OpenMW's resource cache and its optimizer's
         // SHARE_DUPLICATE_STATE pass together make meaningful: the same model loaded twice is the
         // same object, and equivalent state sets are collapsed into one.
-        std::unordered_map<const osg::Drawable*, Known> mMeshes;
-        std::unordered_map<const osg::StateSet*, Known> mMaterials;
+        //
+        // **Owning, which is what makes that identity sound.** What these hold outlives the graph
+        // by one sweep, and a sweep is what lets go.
+        Identity<const osg::Drawable> mMeshes;
+        Identity<const osg::StateSet> mMaterials;
 
         /// Which texture each particle system draws with.
         ///
         /// **Cached for its liveness rather than for its speed**, though it saves a path hash per
         /// emitter per frame as well: a sprite's texture hangs off no material, so this map is the
         /// only thing that can speak for it when the scene is swept.
-        std::unordered_map<const osg::Drawable*, Known> mEmitterTextures;
+        Identity<const osg::Drawable> mEmitterTextures;
 
         /// A node's controllers and the state set they write into, kept so the address is the same
         /// one next frame. See `animate`.
@@ -367,7 +401,11 @@ namespace RtxBridge
             std::uint64_t mEpoch = 0;
         };
 
-        std::unordered_map<const osg::Node*, Animated> mAnimated;
+        /// Owning for the same reason the identity maps are: a node freed and replaced at the same
+        /// address would otherwise be handed the state set the first one's controllers were writing.
+        std::unordered_map<osg::ref_ptr<const osg::Node>, Animated, ByAddress<const osg::Node>,
+            ByAddress<const osg::Node>>
+            mAnimated;
 
         /// The walk itself, made once rather than per call.
         ///

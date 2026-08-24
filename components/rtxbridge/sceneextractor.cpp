@@ -915,13 +915,13 @@ namespace RtxBridge
 
             const VertexArrays fresh = readVertices(geometry, mFlatNormalScratch);
 
-            // **The vertex count is what says this is still the same drawable, and it has to be
-            // asked.** This map is keyed on an `osg` address and the engine hands addresses back:
-            // a body part taken off and another put on lands where the first one was, and the walk
-            // that meets it finds the entry the first one left. Writing a pose into that slot is
-            // not a wrong pose — the slot is a run inside one shared vertex buffer, so a longer
-            // mesh runs off the end of it and over the meshes that follow, which is a model torn
-            // into triangles reaching across itself.
+            // **The vertex count is what says the slot still fits, and it has to be asked.** The
+            // drawable is the same object — the map owns its key, so it cannot be a different one
+            // wearing the same address — but a deforming drawable is a shell over a source geometry
+            // the engine may replace, and a rig re-pointed at a longer mesh is the same rig. Writing
+            // that pose into the old slot is not a wrong pose: the slot is a run inside one shared
+            // vertex buffer, so a longer mesh runs off the end of it and over the meshes that
+            // follow, which is a model torn into triangles reaching across itself.
             //
             // Where the count differs the entry is wrong rather than stale, so it goes and the
             // geometry is mirrored afresh. The slot it abandons keeps the epoch it had and the

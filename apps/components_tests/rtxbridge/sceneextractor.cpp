@@ -11,6 +11,7 @@
 #include <osg/Material>
 #include <osg/MatrixTransform>
 #include <osg/Texture2D>
+#include <osg/observer_ptr>
 #include <osgParticle/Particle>
 #include <osgParticle/ParticleSystem>
 #include <osgUtil/UpdateVisitor>
@@ -815,6 +816,64 @@ namespace RtxBridge
         /// crate already uploaded — and an address the engine freed when a cell unloaded can be
         /// handed straight back for something else. Sweeping is what stops the next thing allocated
         /// there inheriting a mesh it has nothing to do with.
+        /// A drawable the graph has let go cannot be mistaken for whatever replaces it.
+        ///
+        /// **The torn figure a change of clothes produced.** `NpcAnimation::updateParts` frees the
+        /// body parts that changed and builds their replacements, and the allocator is free to put a
+        /// new part exactly where a retired one was; a map keyed on the bare address then finds the
+        /// retired part's entry under the new part's and mirrors geometry that has nothing to do with
+        /// it. The entry owns its subject, so that address is not available to hand out again until
+        /// the sweep lets go — which is what makes the identity true rather than likely.
+        TEST(RtxSceneExtractorTest, aDrawableTheGraphLetGoKeepsItsAddressUntilTheSweepReleasesIt)
+        {
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            osg::ref_ptr<osg::Geometry> part = makeQuad();
+            root->addChild(part);
+
+            extractor.extract(*root, osg::Matrixf::identity(), 0);
+            ASSERT_EQ(scene.getMeshes().size(), 1u);
+
+            // The epoch this opens is what the walk below is measured against, so the sweep at the
+            // end has something to find stale.
+            ASSERT_TRUE(extractor.retire().empty());
+
+            const osg::Geometry* was = part.get();
+            osg::observer_ptr<osg::Geometry> watch = part;
+
+            // The graph lets go, and so does the test. Nothing outside the extractor holds it now.
+            root->removeChild(part);
+            part = nullptr;
+            ASSERT_EQ(was->referenceCount(), 1) << "something other than the identity map is holding it";
+            ASSERT_TRUE(watch.valid()) << "the map let it go while its entry still stood";
+
+            // So the replacement cannot land where it was, which is the whole of the fix: the
+            // address is spoken for.
+            osg::ref_ptr<osg::Geometry> replacement = makeQuad();
+            static_cast<osg::Vec3Array*>(replacement->getVertexArray())->at(0).z() = 5.0f;
+            ASSERT_NE(replacement.get(), was) << "the replacement landed on the retired part's address";
+
+            root->addChild(replacement);
+            scene.clearPlacement();
+
+            const ExtractionStats again = extractor.extract(*root, osg::Matrixf::identity(), 0, 1);
+            EXPECT_EQ(again.mMeshesAdded, 1u) << "the replacement resolved to the retired part's mesh";
+            EXPECT_EQ(again.mMeshesReused, 0u);
+
+            // Two slots, and the new one carries its own vertices rather than the retired one's.
+            ASSERT_EQ(scene.getMeshes().size(), 2u);
+            EXPECT_EQ(scene.getMeshPositions(1)[0].z(), 5.0f);
+
+            // **And the sweep is what lets go.** Holding the key is what costs: geometry the graph
+            // dropped outlives its owner until here, and a caller that never sweeps holds every
+            // drawable it has ever walked.
+            const Retirement went = extractor.retire();
+            EXPECT_EQ(went.mMeshes, 1u);
+            EXPECT_FALSE(watch.valid()) << "the sweep dropped the entry and kept the drawable alive";
+        }
+
         TEST(RtxSceneExtractorTest, aSweepDropsWhatTheWalkNoLongerFindsAndCarriesTheRest)
         {
             osg::ref_ptr<osg::Geometry> stays = makeQuad();

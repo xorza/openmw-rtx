@@ -472,6 +472,33 @@ then `TracedView::rebuildSubject` becomes an incremental re-walk. Verify with th
 another, asserting the second does not resolve to the first's mesh. Look at a race-creation slider
 drag in the window, which is what the frame time was.
 
+   **Done for the identity; the redraw is only half done, and the half that is left is 7's.** The
+   maps own their keys through a transparent `ByAddress`, so a lookup from a raw pointer still costs
+   no reference count. `mAnimated` went with them: it was keyed on a raw node, and a node replaced at
+   the same address would have been handed the first one's animated state set — the same defect one
+   map over. The test asserts the entry is the only holder, that the replacement cannot land on the
+   retired part's address, that it takes a mesh of its own, and that the sweep is what finally
+   releases it.
+
+   `rebuildSubject` now clears placements, walks, and sweeps — **no `advance` between them**, unlike
+   the world's frame: a picture drawn when the character changes rather than when the frame does has
+   no motion to describe, and a scene that never advances answers with a previous transform equal to
+   its current one. The texture descriptions are held across redraws that changed no texture, keyed
+   on `getArrivedTextures` and `getFreedTextures` being empty — which is step 4's lists finding a
+   second reader, and it is what takes the per-redraw shading estimate off a slider that only moves a
+   bone.
+
+   **What is not done: the device still rebuilds.** `setViewScene` tears down the acceleration
+   structures, the buffers and the texture array and makes them again, because a view scene has no
+   `placeScene` or `extendScene` of its own. So the mirror is incremental and the upload is not, and
+   issue 8 stays open. Giving a view scene the same three branches the world's has belongs with 7,
+   not before it.
+
+   The island route is unmoved by the owning keys — 685 textures, 9.6 MiB, 24.3 MiB of structures,
+   19 crossings and no rebuilds — and two runs at 16.4 and 16.5 ms median sit inside the 15.5–16.5
+   spread the same bench gives run to run. The slider drag itself is still unlooked at: it is
+   reachable only through the interface.
+
 **7 — A2 and A3, blocks.** The large one, and it wants its own sequence:
 
    a. `SpanAllocator` with a block size in `SceneDesc`, with the host vectors growing a block at a
