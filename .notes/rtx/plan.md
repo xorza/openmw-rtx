@@ -263,11 +263,6 @@ every count; and a control fifo bounding the recording to the measured frames.
 
 **Tooling**
 
-- **Shader hot reload** (was §7.5, never built). Watch `components/*/shaders/`, recompile with
-  `glslc`, run `spirv-val`, rebuild only the affected pipelines, keep rendering; a compile failure
-  prints and keeps the last good pipeline. Art-direction constants — water extinction and scattering,
-  fog height and grain, the tone curve — would move into one hot-reloadable block. Tuning is a
-  rebuild until this exists.
 - **A test of a real fogged view** (M7). The banks over a shore and the shafts themselves are looked
   at rather than asserted; there is no histogram test.
 
@@ -287,8 +282,6 @@ every count; and a control fifo bounding the recording to the measured frames.
 - **Vanilla content assumes a rasterizer** — sheets lit from both sides, discarded outer transforms,
   Z-first Euler angles, two-sided stencil (`design.md` §8.1–8.6). Every one is diagnosed next door.
   Read it before debugging anything that looks like a content bug.
-- **De-lighting is a look problem, not a code problem.** No test says an albedo is right. Contact
-  sheets and a human.
 
 ## 9.
 
