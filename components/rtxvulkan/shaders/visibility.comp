@@ -2352,6 +2352,17 @@ struct SpriteLayer
     /// What survives the covering sprites. One for a frame with only flames in it: additive
     /// blending hides nothing by definition.
     float mTransmittance;
+
+    /// Where the eye stood relative to the sprite that hid the most of this pixel, and how far that
+    /// sprite travelled since the last frame. Nought where nothing hid anything.
+    ///
+    /// **One sprite's, because a pixel gets one motion vector.** Blending two velocities gives a
+    /// third that describes neither, so what is carried is the one that owns most of what the pixel
+    /// shows — and `mHidden` is how much of it that was, which is what decides whether the sprite or
+    /// the surface behind it is the pixel's own motion.
+    vec3 mToNearest;
+    vec3 mNearestMoved;
+    float mHidden;
 };
 
 /// How much of the sprite's rim the mip chain has already eaten, as a factor to taper it by.
@@ -2395,6 +2406,9 @@ SpriteLayer spritesAlong(vec3 origin, vec3 direction, float limit)
     SpriteLayer layer;
     layer.mRadiance = vec3(0.0);
     layer.mTransmittance = 1.0;
+    layer.mToNearest = vec3(0.0);
+    layer.mNearestMoved = vec3(0.0);
+    layer.mHidden = 0.0;
 
     vec3 covered = vec3(0.0);
     float coverage = 0.0;
@@ -2540,6 +2554,14 @@ SpriteLayer spritesAlong(vec3 origin, vec3 direction, float limit)
             covered += colour * puffLight(sprite.mPosition) * (alpha * reaching);
             coverage += alpha;
             layer.mTransmittance *= 1.0 - alpha;
+
+            // The one that hid the most, which is the one the pixel mostly is.
+            if (alpha > layer.mHidden)
+            {
+                layer.mHidden = alpha;
+                layer.mToNearest = direction * depth;
+                layer.mNearestMoved = sprite.mMoved;
+            }
         }
     }
 
@@ -2609,6 +2631,22 @@ vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
     return reprojected(pixel, direction * distance + camera.mCameraMotion + movedBy(instance, point));
 }
 
+/// Whether the sprites over a pixel own more of it than the surface behind them does.
+bool layerHides(SpriteLayer layer)
+{
+    return layer.mHidden > 0.0 && layer.mTransmittance < 0.5;
+}
+
+/// Where the sprite that owns a pixel stood on the previous frame's screen, in pixels.
+///
+/// The same reprojection a surface gets: the eye's own walk, and the sprite's travel against it. A
+/// particle born this frame carries no travel, which is the truth — it has no past to point at, and
+/// the mask beside it is what says not to trust the pixel anyway.
+vec2 spriteMotionOf(uvec2 pixel, SpriteLayer layer)
+{
+    return reprojected(pixel, layer.mToNearest + camera.mCameraMotion - layer.mNearestMoved);
+}
+
 /// Where the sky a ray found stood on the previous frame's screen, in pixels.
 ///
 /// **Infinitely far, so the eye's own walk does not carry it and its turn is the whole of it.** A
@@ -2623,12 +2661,6 @@ vec2 skyMotionOf(uvec2 pixel, vec3 direction)
 {
     return reprojected(pixel, direction);
 }
-
-/// How rough every surface in this renderer is, until there is a material model that knows.
-///
-/// **A constant, and it is written rather than left out** — Ray Reconstruction is built for the
-/// packed layout and reads the guide's fourth channel whatever is in it, so the honest answer for a
-/// renderer with no specular lobe is "fully diffuse" rather than whatever the channel held last.
 
 /// The depth a rasterizer would have written for a hit `along` units down `direction`.
 ///
@@ -2784,8 +2816,17 @@ void main()
 
     // **The sky moves too, and only its turn moves it.** `skyMotionOf` says why storing nothing here
     // was a smear across every camera rotation.
-    const vec2 moved = surface.mHit ? motionOf(pixel, origin, direction, surface.mDistance, surface.mInstance)
-                                    : skyMotionOf(pixel, direction);
+    vec2 moved = surface.mHit ? motionOf(pixel, origin, direction, surface.mDistance, surface.mInstance)
+                              : skyMotionOf(pixel, direction);
+
+    // **A pixel a sprite mostly is moves the way that sprite did.** One motion vector is written per
+    // pixel and it used to be the surface's whatever stood in front of it, so a raindrop crossing a
+    // wall was reprojected as though it were the wall — which is what `particleMask` was reduced to
+    // apologising for. Half is the whole of the rule and not a threshold anybody picked: the sprites
+    // hide `1 - mTransmittance` of what is behind them, so past a half the pixel is more sprite than
+    // surface, and the majority owns the vector.
+    if (layerHides(particles))
+        moved = spriteMotionOf(pixel, particles);
     imageStore(motion, at, vec4(moved, 0.0, 0.0));
 
     // A miss is as far away as anything can be, and `mDistance` already carries `mFar` for it.

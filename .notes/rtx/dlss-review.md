@@ -24,37 +24,35 @@ every switch from what it answers, `FrameResult` carries the same value back, an
 the profile line and the game all report it. The preset is pinned to Ray Reconstruction's own D and
 is selectable, which was measured to move 52% of a frame's pixels against E.
 
-Most of a third went with the two masks: the trace writes where a sprite reached and where the past
+Most of a third went with the two masks and the sprite motion behind them: the trace writes where a sprite reached and where the past
 is not worth carrying, `pInIsParticleMask` and `pInBiasCurrentColorMask` take them, and `InReset` is
 driven by a signal the simulation sends rather than by a camera basis that a cell load never
-disturbs. What is left of that group is below, and it is smaller and harder than it looked.
+disturbs. A sprite carries its own travel and owns the motion vector of any pixel it mostly is, and
+`InFrameTimeDeltaInMsec` is measured between the frames it describes. What is left of that group is
+below, and it is smaller and harder than it looked.
 
 ---
 
-## The frame in front of the surface is only half described
+## What the frame reflects, and what it composites over the top
 
-`visibility.comp:2762` writes one motion vector per pixel, from the surface a primary ray hit or from
-the sky where it hit nothing. Everything the frame composites in front of that surface inherits the
-surface's motion.
+`visibility.comp` writes one motion vector per pixel. It is the surface's where a surface owns the
+pixel and the sprite's where a sprite hides more than half of it, so rain, snow and ash are
+reprojected as themselves rather than as the wall behind them — the particle carries its own travel,
+off `osgParticle`'s previous position, and `particleMask` and `biasMask` say which pixels those are.
+What is left is the two populations that route needs different machinery for.
 
-The frame now *says* which pixels those are — `particleMask` and `biasMask` are written beside the
-G-buffer and handed to `pInIsParticleMask` and `pInBiasCurrentColorMask` — so the upscaler stops
-accumulating over them. What is still missing is telling it where they went.
-
-- [ ] A sprite still has no motion of its own. Rain, snow, ash and smoke are marked as untrustworthy
-      rather than reprojected, which is the header's own remedy and not the same as being right: a
-      thousand raindrops crossing the frame are held at the current sample instead of resolved
-      across several.
+- [ ] An **additive** sprite never claims its pixel's motion. A flame or a spark hides nothing by
+      definition, so it never reaches the test that decides which travel the pixel carries, and the
+      light it adds is reprojected with whatever stands behind it. Right for the surface, wrong for
+      the glow, and the two are not separable in one vector.
 - [ ] Water is shaded by `shadeWater` on the primary hit, so a reflection moves with the water
       surface rather than with what is reflected in it. **Not by the route the guide names**: it asks
       for specular motion vectors, and the vendored header has no `pInSpecularMotionVectors` — it
       offers `pInSpecularHitDistance` with `pInWorldToViewMatrix` and `pInViewToClipMatrix`, and
       those three sit in the block the header marks `/*** OPTIONAL - only for research purposes ***/`.
       The production route is `pInMotionVectorsReflections`, "motion vectors of reflected objects
-      like for mirrored surfaces", which is a second motion field and not a wiring job.
-- [ ] `InFrameTimeDeltaInMsec` is never set, and the header says it "helps in determining the amount
-      to denoise or anti-alias based on the speed of the object from motion vector magnitudes and fps
-      as determined by this delta". The renderer does not know the frame delta and its callers do.
+      like for mirrored surfaces": a second motion field, computed by reprojecting the reflected
+      point through the previous frame's mirrored camera, and not a wiring job.
 - [ ] The colour-pair guides are unset and are **not** the cheap win they look. `pInColorBeforeFog` /
       `pInColorAfterFog` and `pInColorBeforeParticles` / `pInColorAfterParticles` are all inside the
       research-purposes block. Worse, the trace holds both sides of each composite in the *direct*

@@ -416,6 +416,29 @@ namespace Rtx
             };
         }
 
+        /// A texture that is white and wholly opaque, at one level.
+        ///
+        /// **What `makeMipLadder` cannot be.** Its levels encode which one was sampled, so its alpha
+        /// is the level's own byte and its first is 40 of 255 — a sprite cut from it covers a sixth
+        /// of what is behind it, which is a fine thing to be seen through and no use at all for
+        /// asking what happens when a sprite owns a pixel.
+        void makeOpaqueSheet(TestTexture& texture)
+        {
+            constexpr std::uint32_t extent = 4;
+
+            texture.mLevels.push_back(MipLevel{ 0, extent, extent });
+            texture.mBytes.assign(std::size_t{ extent } * extent * 4, std::uint8_t{ 255 });
+
+            texture.mData = TextureData{
+                .mFormat = TextureFormat::Rgba8Unorm,
+                .mWidth = extent,
+                .mHeight = extent,
+                .mBytes = std::as_bytes(std::span(texture.mBytes)),
+                .mLevels = texture.mLevels,
+                .mName = "opaque sheet",
+            };
+        }
+
         /// Which level of `makeMipLadder` a linear sample came from.
         float ladderLevel(float sampled)
         {
@@ -2558,6 +2581,76 @@ namespace Rtx
             EXPECT_LT(
                 std::count(particles.begin(), particles.end(), 1.0f), static_cast<std::ptrdiff_t>(particles.size()))
                 << "and the sprite is not the whole frame, so the two masks differ";
+        }
+
+        /// A pixel a sprite mostly is moves the way that sprite did, and not the way the wall
+        /// behind it did.
+        ///
+        /// **The half of the problem the masks only apologise for.** One motion vector is written
+        /// per pixel, and it used to be the surface's whatever stood in front of it — so a raindrop
+        /// crossing a wall was reprojected as though it were the wall, every frame. The particle
+        /// carries its own travel now, off `osgParticle`'s own previous position.
+        TEST_F(RtxVisibilityTest, aPixelASpriteOwnsCarriesTheSpritesOwnMotion)
+        {
+            constexpr std::uint32_t size = 33;
+
+            // Two hundred units under the eye, so a unit across is `size / (2 * 200 * tan(30 deg))`
+            // of a pixel: 33 / 230.94 = 0.14289. A sprite that travelled sixty units across is
+            // 8.573 pixels of screen motion, and nothing else in the frame moves at all.
+            constexpr float travel = 60.0f;
+            constexpr float expected = 33.0f * travel / (2.0f * 200.0f * 0.5773503f);
+
+            TestTexture sheet;
+            makeOpaqueSheet(sheet);
+            const std::span<const TextureData> textures(&sheet.mData, 1);
+
+            SceneDesc scene = makeFlooded(4000.0f, 40.0f);
+            const Index cut = scene.addTexture(VFS::Path::NormalizedView("sprite.dds"));
+            const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 200.0f),
+                .mRadius = 40.0f,
+                .mAlpha = 1.0f,
+                .mMoved = osg::Vec3f(travel, 0.0f, 0.0f) } };
+            scene.addEmitter(sprites, cut, false);
+
+            const Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+
+            // **Twice, with the camera held still.** The first frame has no past to reproject
+            // against, so what the second one writes is the sprite's travel and nothing else.
+            std::vector<std::uint8_t> pixels;
+            countHits(scene, textures, camera, size, pixels, SeaState{});
+            mRenderer->renderFrame(camera, FrameOptions{});
+
+            std::vector<float> covered;
+            std::vector<float> moved;
+            mRenderer->readChannel(Channel::ParticleMask, covered);
+            mRenderer->readChannel(Channel::Motion, moved);
+
+            const auto sprited = std::find(covered.begin(), covered.end(), 1.0f);
+            ASSERT_NE(sprited, covered.end()) << "the emitter reached no pixel at all";
+            const std::size_t at = static_cast<std::size_t>(sprited - covered.begin());
+
+            // A corner, which the sprite is nowhere near: still water under a still camera.
+            EXPECT_NEAR(moved[0], 0.0f, 0.01f) << "nothing else in the frame moved";
+            EXPECT_NEAR(moved[1], 0.0f, 0.01f);
+
+            EXPECT_NEAR(std::abs(moved[at * 2]), expected, 0.5f)
+                << "the sprite's own travel, projected at the depth it hangs at";
+            EXPECT_NEAR(moved[at * 2 + 1], 0.0f, 0.5f) << "and it travelled across rather than along";
+
+            // **The parameter has to matter**, or this measures a coincidence: the same frame with a
+            // particle that did not move writes the surface's nought instead.
+            SceneDesc still = makeFlooded(4000.0f, 40.0f);
+            const Index cutAgain = still.addTexture(VFS::Path::NormalizedView("sprite.dds"));
+            const std::array<Sprite, 1> stopped{ Sprite{
+                .mPosition = osg::Vec3f(0.0f, 0.0f, 200.0f), .mRadius = 40.0f, .mAlpha = 1.0f } };
+            still.addEmitter(stopped, cutAgain, false);
+
+            countHits(still, textures, camera, size, pixels, SeaState{});
+            mRenderer->renderFrame(camera, FrameOptions{});
+            mRenderer->readChannel(Channel::Motion, moved);
+
+            EXPECT_NEAR(moved[at * 2], 0.0f, 0.01f) << "a particle that stood still moved nothing";
         }
 
         /// The same column of water has to look the same from either side of it.

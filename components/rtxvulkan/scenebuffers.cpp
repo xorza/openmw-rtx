@@ -61,6 +61,7 @@ namespace Rtx
                 .mRadius = sprite.mRadius,
                 .mColour = sprite.mColour,
                 .mAlpha = sprite.mAlpha,
+                .mMoved = sprite.mMoved,
             };
         }
 

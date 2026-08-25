@@ -62,6 +62,13 @@ namespace Rtx
         /// was given.
         osg::Vec2f mJitter;
 
+        /// How long since the previous frame, in milliseconds, or nought where there was none.
+        ///
+        /// The header's own words: it "helps in determining the amount to denoise or anti-alias
+        /// based on the speed of the object from motion vector magnitudes and fps as determined by
+        /// this delta". A motion vector says how far something went and not how fast.
+        float mFrameDeltaMs = 0.0f;
+
         /// Whether the previous frame is worth anything. True after a jump no motion vector can
         /// describe: a new cell, a teleport, the first frame after a resize.
         bool mReset = false;

@@ -163,6 +163,7 @@ namespace Rtx
         evaluate.InMVScaleX = 1.0f;
         evaluate.InMVScaleY = 1.0f;
         evaluate.InReset = inputs.mReset ? 1 : 0;
+        evaluate.InFrameTimeDeltaInMsec = inputs.mFrameDeltaMs;
         evaluate.InRenderSubrectDimensions = NVSDK_NGX_Dimensions{ mRenderExtent.width, mRenderExtent.height };
 
         const NVSDK_NGX_Result ran = NGX_VULKAN_EVALUATE_DLSSD_EXT(commands, mHandle, mParameters, &evaluate);

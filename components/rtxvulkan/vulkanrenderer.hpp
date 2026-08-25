@@ -1,8 +1,10 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -153,6 +155,14 @@ namespace Rtx
         /// Whether the next frame has to be reconstructed without a past. Set by `resetHistory` and
         /// spent by the frame that follows it.
         bool mHistoryStale = false;
+
+        /// When the last frame was recorded, so the next can say how long ago that was.
+        ///
+        /// **Measured here rather than asked of the caller.** What the upscaler wants is the
+        /// interval between the frames it is reconstructing across, and this is the function those
+        /// frames pass through — a number handed in instead could be forgotten by one caller,
+        /// stale in another, and wrong in both without anything saying so.
+        std::optional<std::chrono::steady_clock::time_point> mLastFrameAt;
 
         /// What the trace runs at, and so what every G-buffer channel and the composite are sized
         /// to. Equal to the output extent wherever nothing upscales.

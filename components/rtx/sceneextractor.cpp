@@ -1013,11 +1013,21 @@ namespace Rtx
             if (!(alpha > 0.0f))
                 continue;
 
+            // **Both ends through the same matrix, and the difference taken here.** `place` is where
+            // the emitter stands *now*; a system carried by an actor moved between the two frames and
+            // this does not know by how much, so what comes out is the particle's own travel and not
+            // its travel plus its emitter's. For rain, snow and ash — which are placed in the world
+            // and not on anybody — the two are the same thing, and those are the populations that
+            // cross a frame fast enough for the difference to be the picture.
+            const osg::Vec3f stood = particle->getPosition() * place;
+            const osg::Vec3f came = particle->getPreviousPosition() * place;
+
             mSpriteScratch.push_back(Sprite{
-                .mPosition = particle->getPosition() * place,
+                .mPosition = stood,
                 .mRadius = radius,
                 .mColour = osg::Vec3f(colour.r(), colour.g(), colour.b()),
                 .mAlpha = alpha,
+                .mMoved = stood - came,
             });
         }
 

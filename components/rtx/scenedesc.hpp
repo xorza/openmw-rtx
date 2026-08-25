@@ -261,6 +261,14 @@ namespace Rtx
 
         /// What the particle's own fade left of it, multiplied into the texture's alpha at the hit.
         float mAlpha = 1.0f;
+
+        /// Where the particle stood on the previous frame, less where it stands now — see
+        /// `Shaders::GpuSprite::mMoved` for why it is the difference that is carried.
+        ///
+        /// **The particle's own answer.** `osgParticle` keeps a previous position per particle for
+        /// its own line rendering, so nothing here has to track a particle across frames or care
+        /// that births and deaths reshuffle the array.
+        osg::Vec3f mMoved;
     };
 
     /// One particle system: what its sprites are drawn with, and a sphere that holds all of them.

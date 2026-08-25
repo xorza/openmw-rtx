@@ -531,6 +531,14 @@ namespace Rtx
         assert(camera.mWidth == mRenderWidth && camera.mHeight == mRenderHeight
             && "the camera has to be built for the render extent; ask getExtents");
 
+        // **How long since the last one, which a motion vector cannot say.** A vector carries a
+        // distance; how fast that was depends on the time it took, and the upscaler tunes how hard
+        // it denoises against exactly that.
+        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        const float sinceLastMs
+            = mLastFrameAt.has_value() ? std::chrono::duration<float, std::milli>(now - *mLastFrameAt).count() : 0.0f;
+        mLastFrameAt = now;
+
         // The count is an atomic sum over the frame, so it starts each one at nothing.
         *static_cast<std::uint32_t*>(mHitCount.map()) = 0;
         mHitCount.unmap();
@@ -653,6 +661,7 @@ namespace Rtx
                         .mBiasMask = mChannels->getBiasMask(),
                         .mOutput = *mUpscaled,
                         .mJitter = sampled.mJitter,
+                        .mFrameDeltaMs = sinceLastMs,
                         // **A history is worthless after a jump no motion vector can describe.** A
                         // zero basis catches the frames that have no past at all — a resize, a
                         // rebuild, the first one — and nothing caught the rest: walking through a

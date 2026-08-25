@@ -367,6 +367,18 @@ namespace Rtx::Shaders
         float mRadius;
         vec3 mColour;
         float mAlpha;
+
+        /// How far this particle travelled since the last frame, in world units.
+        ///
+        /// **A displacement and not the position it came from.** The two carry the same fact and not
+        /// the same precision: a raindrop's step is a fraction of a unit where its position is six
+        /// figures, so subtracting two positions on the device throws away most of the answer before
+        /// the reprojection has it. Taken as a difference where both numbers are known exactly and
+        /// carried small.
+        ///
+        /// Zero for a particle born this frame, which is the truth: it has no past to reproject to.
+        vec3 mMoved;
+        float mPad;
     };
 
     /// One particle system: a sphere a ray is rejected by, and the run of sprites behind it.
@@ -449,7 +461,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 48, "GpuLayer must be scalar-packed on every side");
     static_assert(sizeof(GpuMaterial) == 68, "GpuMaterial must be scalar-packed on every side");
-    static_assert(sizeof(GpuSprite) == 32, "GpuSprite must be scalar-packed on every side");
+    static_assert(sizeof(GpuSprite) == 48, "GpuSprite must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitter) == 56, "GpuEmitter must be scalar-packed on every side");
 #endif
 
