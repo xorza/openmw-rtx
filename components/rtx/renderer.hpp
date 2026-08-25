@@ -212,6 +212,10 @@ namespace Rtx
         /// of the eye.
         Depth,
 
+        /// Two floats a pixel: where what the water reflects stood on the previous frame's screen.
+        /// Nought everywhere that is not water reflecting a surface.
+        ReflectionMotion,
+
         /// One float a pixel: one where a sprite reached, nought where none did.
         ParticleMask,
 

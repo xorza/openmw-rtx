@@ -2651,6 +2651,103 @@ namespace Rtx
             mRenderer->readChannel(Channel::Motion, moved);
 
             EXPECT_NEAR(moved[at * 2], 0.0f, 0.01f) << "a particle that stood still moved nothing";
+
+            // **And the kind that hides nothing.** A flame blends additively, so it leaves the
+            // transmittance at one however bright it is: no measure of coverage will ever find it,
+            // and the rule that only asked about coverage left its glow reprojected as the water
+            // under it. It owns the pixel by outshining what the layer left instead.
+            SceneDesc flame = makeFlooded(4000.0f, 40.0f);
+            const Index cutFlame = flame.addTexture(VFS::Path::NormalizedView("sprite.dds"));
+            const std::array<Sprite, 1> burning{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 200.0f),
+                .mRadius = 40.0f,
+                .mAlpha = 1.0f,
+                .mMoved = osg::Vec3f(travel, 0.0f, 0.0f) } };
+            flame.addEmitter(burning, cutFlame, true);
+
+            countHits(flame, textures, camera, size, pixels, SeaState{});
+            mRenderer->renderFrame(camera, FrameOptions{});
+
+            std::vector<float> lit;
+            mRenderer->readChannel(Channel::ParticleMask, lit);
+            mRenderer->readChannel(Channel::Motion, moved);
+
+            const auto glowing = std::find(lit.begin(), lit.end(), 1.0f);
+            ASSERT_NE(glowing, lit.end()) << "an additive sprite is still a sprite the mask names";
+            const std::size_t over = static_cast<std::size_t>(glowing - lit.begin());
+
+            EXPECT_NEAR(std::abs(moved[over * 2]), expected, 0.5f)
+                << "the flame's own travel, though it covered nothing at all";
+        }
+
+        /// A reflection is not where the water is, and reprojects from where its image is.
+        ///
+        /// **The one surface in the frame that shows something standing somewhere else.** Water is
+        /// shaded on the primary hit, so the ordinary motion vector describes the water — and a
+        /// shoreline mirrored in a lake then swims as the camera walks, because it is being
+        /// reprojected at the depth of the surface carrying it rather than at the depth of its own
+        /// image.
+        TEST_F(RtxVisibilityTest, aReflectionReprojectsFromWhereItsImageIsAndNotFromTheWater)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = std::size_t{ size / 2 } * size + size / 2;
+
+            // A ceiling two hundred units over the water, with the eye a hundred up between them
+            // looking straight down. The water under the eye is a hundred away; the ceiling's image
+            // in the plane is at `z = -200`, which is three hundred — so a step sideways moves the
+            // reflection exactly a third of what it moves the surface, and only a mirrored
+            // reprojection can produce that. Reprojecting the ceiling where it actually stands would
+            // put it behind the camera.
+            constexpr float step = 10.0f;
+            constexpr float halfHeight = 0.5773503f;
+            constexpr float surface = size * step / (2.0f * 100.0f * halfHeight);
+            constexpr float image = size * step / (2.0f * 300.0f * halfHeight);
+
+            SceneDesc scene = makeOpenWater(4000.0f);
+            scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                .mMesh = scene.addMesh(makeSheet(4000.0f, 200.0f), {}, {}, sQuadIndices) });
+
+            const auto look = [&](float across) {
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(across, -1.0f, 100.0f), osg::Vec3f(across, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+
+                // The plane the water geometry lies in, which the mirrored reprojection reflects
+                // about. A scene with water in it and no level named is not one this renderer makes.
+                camera.mWaterLevel = 0.0f;
+                return camera;
+            };
+
+            // **A flat sea, because this is a claim about the plane.** The image of a point in a
+            // tilted facet is not its image in the plane, so a wave scatters the reflection by
+            // exactly the amount this reprojection cannot describe — which is what the bias mask
+            // beside it is for, and not what is being measured here.
+            constexpr SeaState still{ .mSignificantHeight = 0.0f };
+
+            std::vector<std::uint8_t> pixels;
+            countHits(scene, {}, look(0.0f), size, pixels, still);
+
+            std::vector<float> mirrored;
+            std::vector<float> moved;
+            mRenderer->readChannel(Channel::ReflectionMotion, mirrored);
+            mRenderer->readChannel(Channel::Motion, moved);
+            ASSERT_EQ(mirrored.size(), std::size_t{ size } * size * 2);
+
+            // **Nothing has moved yet**, which the mirrored field has to say as plainly as the
+            // ordinary one: a still camera over still water reflects a still ceiling.
+            mRenderer->renderFrame(look(0.0f), FrameOptions{});
+            mRenderer->readChannel(Channel::ReflectionMotion, mirrored);
+            EXPECT_NEAR(mirrored[centre * 2], 0.0f, 0.01f) << "a still frame reflects a still image";
+            EXPECT_NEAR(mirrored[centre * 2 + 1], 0.0f, 0.01f);
+
+            // A step sideways, with everything in the world standing still.
+            mRenderer->renderFrame(look(step), FrameOptions{});
+            mRenderer->readChannel(Channel::ReflectionMotion, mirrored);
+            mRenderer->readChannel(Channel::Motion, moved);
+
+            EXPECT_NEAR(std::abs(moved[centre * 2]), surface, 0.1f) << "the water is a hundred units under the eye";
+            EXPECT_NEAR(std::abs(mirrored[centre * 2]), image, 0.1f)
+                << "and what it reflects has its image three hundred under, so it moves a third as far";
+            EXPECT_LT(std::abs(mirrored[centre * 2]), std::abs(moved[centre * 2]))
+                << "which is the whole point: the two are not the same vector";
         }
 
         /// The same column of water has to look the same from either side of it.

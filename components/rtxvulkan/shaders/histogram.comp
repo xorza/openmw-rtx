@@ -12,6 +12,7 @@
 // reading is one path-traced sample per pixel. The reference implementation measured that as a
 // uniform 2.7% bias, and the whole of the fix is which image these two passes are bound to.
 
+#include "colour.h"
 #include "exposure.h"
 
 layout(local_size_x = HISTOGRAM_WORKGROUP, local_size_y = HISTOGRAM_WORKGROUP) in;
@@ -28,10 +29,6 @@ layout(push_constant, scalar) uniform Push
 {
     HistogramConstants frame;
 };
-
-/// Rec. 709 luminance, which is what these primaries are. Here rather than in the shared header
-/// because the host has no use for it and `vec3` is an OpenSceneGraph type over there.
-const vec3 LUMINANCE_WEIGHTS = vec3(0.2126, 0.7152, 0.0722);
 
 /// A workgroup's own tally, so its 256 pixels contend for shared memory rather than for one global
 /// atomic each. The buffer then sees one atomic per bin per workgroup instead of one per pixel.

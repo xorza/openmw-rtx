@@ -15,6 +15,7 @@
 // positions come back out of the acceleration structure through position fetch, so the only vertex
 // data bound here is what that cannot give: normals and texture coordinates.
 
+#include "colour.h"
 #include "gbuffer.h"
 #include "scene.h"
 #include "visibility.h"
@@ -204,6 +205,10 @@ layout(set = 0, binding = 27, GBUFFER_MASK) uniform writeonly image2D particleMa
 ///
 /// The sprites above, and the water with them, for the reason `GBuffer::getBiasMask` gives.
 layout(set = 0, binding = 28, GBUFFER_MASK) uniform writeonly image2D biasMask;
+
+/// Where what the water reflects stood on the previous frame's screen, in pixels. Nought everywhere
+/// that is not water reflecting a surface.
+layout(set = 0, binding = 29, GBUFFER_MOTION) uniform writeonly image2D reflectionMotion;
 
 /// Every live particle in the scene, one emitter's run after another's.
 layout(set = 0, binding = 23, scalar) readonly buffer Sprites
@@ -2032,6 +2037,11 @@ struct WaterPath
     /// How far it went to find that, or `WATER_MAX_PATH` where it found nothing.
     float mDistance;
 
+    /// Where it landed, in world units, and which instance row that surface came off. Both nought
+    /// where nothing was found.
+    vec3 mPosition;
+    uint mInstance;
+
     /// The plane of what it landed on, unturned.
     ///
     /// **Carried because the bed's gradient is what places a surf zone**, and the ray that measures
@@ -2068,6 +2078,8 @@ WaterPath waterRay(vec3 origin, vec3 direction, float footprint, float lobe)
         = trace(origin, direction, WATER_BIAS, footprint, camera.mSpreadAngle + 2.0 * lobe, MASK_SOLID);
 
     WaterPath path;
+    path.mPosition = hit.mPosition;
+    path.mInstance = hit.mInstance;
     path.mDistance = hit.mHit ? hit.mDistance : WATER_MAX_PATH;
     path.mGeometric = hit.mHit ? hit.mGeometric : vec3(0.0, 0.0, 1.0);
     path.mRadiance
@@ -2130,9 +2142,27 @@ vec3 absorbedByWater(vec3 radiance, float path)
     return radiance * transmittance + WATER_SCATTER * scattered * camera.mAmbient;
 }
 
-/// What the water sends back along the ray that found it.
-vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response)
+/// What a water surface reflects, which is not where the water is.
+struct WaterMirror
 {
+    /// Where the reflected surface stands, in world units.
+    vec3 mAt;
+
+    /// Which instance row it came off, so the frame can ask where that used to be.
+    uint mInstance;
+
+    /// False where the reflection found no surface to describe.
+    bool mFound;
+};
+
+/// What the water sends back along the ray that found it.
+/// @param mirror what this surface reflects, for the motion vector that describes it. Not found
+///        where the reflection reached only sky, or where the water is being looked at from
+///        underneath — neither is a thing a mirrored reprojection has an answer for.
+vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response, out WaterMirror mirror)
+{
+    mirror = WaterMirror(vec3(0.0), 0u, false);
+
     // **Which side of the water a ray is on is a question about the plane, not about a wave.** At a
     // glancing angle a facet can tilt far enough to face away from the ray, and reading that as "the
     // camera is underwater" sends the reflection down into the seabed and turns the far water white.
@@ -2182,10 +2212,12 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response)
     // travelled no water at all. Attenuating the wrong one turns that window green.
     const vec3 leaving = surface.mPosition + plane * WATER_BIAS;
 
-    const WaterPath mirror = waterRay(leaving, reflect(incident, normal), surface.mFootprint, lobe);
-    vec3 reflected = mirror.mRadiance;
+    const WaterPath bounced = waterRay(leaving, reflect(incident, normal), surface.mFootprint, lobe);
+    vec3 reflected = bounced.mRadiance;
     if (fromBelow)
-        reflected = absorbedByWater(reflected, mirror.mDistance);
+        reflected = absorbedByWater(reflected, bounced.mDistance);
+    else if (bounced.mDistance < WATER_MAX_PATH)
+        mirror = WaterMirror(bounced.mPosition, bounced.mInstance, true);
 
     const vec3 through = refract(incident, normal, fromBelow ? WATER_IOR : 1.0 / WATER_IOR);
     if (dot(through, through) < 1e-6)
@@ -2342,6 +2374,20 @@ vec3 puffLight(vec3 position)
     return light;
 }
 
+/// One sprite's case for owning a pixel's motion vector.
+struct SpriteClaim
+{
+    /// Where the eye stood relative to the sprite.
+    vec3 mToward;
+
+    /// How far it travelled since the last frame, in world units.
+    vec3 mMoved;
+
+    /// How strong the case is, in whatever its kind is judged by — the share it hid, or the light
+    /// it added. Nought for a claim nothing filled.
+    float mWeight;
+};
+
 /// What the sprites between the eye and `limit` add to the frame, and what they leave of it.
 struct SpriteLayer
 {
@@ -2353,16 +2399,19 @@ struct SpriteLayer
     /// blending hides nothing by definition.
     float mTransmittance;
 
-    /// Where the eye stood relative to the sprite that hid the most of this pixel, and how far that
-    /// sprite travelled since the last frame. Nought where nothing hid anything.
+    /// The covering sprite that hid the most of this pixel, and the additive one that put the most
+    /// light into it.
     ///
-    /// **One sprite's, because a pixel gets one motion vector.** Blending two velocities gives a
-    /// third that describes neither, so what is carried is the one that owns most of what the pixel
-    /// shows — and `mHidden` is how much of it that was, which is what decides whether the sprite or
-    /// the surface behind it is the pixel's own motion.
-    vec3 mToNearest;
-    vec3 mNearestMoved;
-    float mHidden;
+    /// **Two, because the two kinds of blending are two different ways to own a pixel** and there is
+    /// no single number that ranks them against each other. Smoke owns by covering: an unlit puff
+    /// contributes no light at all and still decides everything the pixel shows, because what it
+    /// shows is the puff. A flame owns by outshining: it hides nothing by definition, so no measure
+    /// of coverage will ever find it. `spriteClaim` is where the two are told apart.
+    ///
+    /// One of them wins in the end, because a pixel gets one motion vector and blending two
+    /// velocities gives a third that describes neither.
+    SpriteClaim mCovering;
+    SpriteClaim mAdding;
 };
 
 /// How much of the sprite's rim the mip chain has already eaten, as a factor to taper it by.
@@ -2406,9 +2455,8 @@ SpriteLayer spritesAlong(vec3 origin, vec3 direction, float limit)
     SpriteLayer layer;
     layer.mRadiance = vec3(0.0);
     layer.mTransmittance = 1.0;
-    layer.mToNearest = vec3(0.0);
-    layer.mNearestMoved = vec3(0.0);
-    layer.mHidden = 0.0;
+    layer.mCovering = SpriteClaim(vec3(0.0), vec3(0.0), 0.0);
+    layer.mAdding = SpriteClaim(vec3(0.0), vec3(0.0), 0.0);
 
     vec3 covered = vec3(0.0);
     float coverage = 0.0;
@@ -2547,7 +2595,13 @@ SpriteLayer spritesAlong(vec3 origin, vec3 direction, float limit)
                 // because that is what a flame is, and the exposure downstream decides where it
                 // lands. A gain on top of it blows every flame to a white square and hides the shape
                 // that was already in the texture.
-                layer.mRadiance += colour * (alpha * reaching * EMISSIVE_INTENSITY);
+                const vec3 added = colour * (alpha * reaching * EMISSIVE_INTENSITY);
+                layer.mRadiance += added;
+
+                const float lit = dot(added, LUMINANCE_WEIGHTS);
+                if (lit > layer.mAdding.mWeight)
+                    layer.mAdding = SpriteClaim(direction * depth, sprite.mMoved, lit);
+
                 continue;
             }
 
@@ -2555,13 +2609,10 @@ SpriteLayer spritesAlong(vec3 origin, vec3 direction, float limit)
             coverage += alpha;
             layer.mTransmittance *= 1.0 - alpha;
 
-            // The one that hid the most, which is the one the pixel mostly is.
-            if (alpha > layer.mHidden)
-            {
-                layer.mHidden = alpha;
-                layer.mToNearest = direction * depth;
-                layer.mNearestMoved = sprite.mMoved;
-            }
+            // **By what it hid and not by what it was lit by.** An unlit puff of smoke sends back no
+            // light at all and still decides the whole of what the pixel shows.
+            if (alpha > layer.mCovering.mWeight)
+                layer.mCovering = SpriteClaim(direction * depth, sprite.mMoved, alpha);
         }
     }
 
@@ -2631,10 +2682,30 @@ vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
     return reprojected(pixel, direction * distance + camera.mCameraMotion + movedBy(instance, point));
 }
 
-/// Whether the sprites over a pixel own more of it than the surface behind them does.
-bool layerHides(SpriteLayer layer)
+/// Which sprite over a pixel owns its motion vector, if any of them does.
+///
+/// **Two ways to own a pixel, because there are two ways to blend into one.** A covering sprite owns
+/// it by hiding most of what was behind: `1 - mTransmittance` is exactly the share of the pixel that
+/// is the sprite rather than the surface, whatever either of them is lit by, and past a half the
+/// majority of what the pixel shows is the sprite. An additive one hides nothing by definition — no
+/// measure of coverage will ever find a flame — and owns the pixel instead when what it added
+/// outshines what the layer left of the surface behind it.
+///
+/// Neither clause subsumes the other. An unlit puff of smoke contributes no light and still decides
+/// everything the pixel shows; a flame over a dark wall contributes all of it and covers nothing.
+///
+/// @param behind the frame as it stood before the sprites were composited over it.
+/// @return a claim whose `mWeight` is nought where the surface keeps its own pixel.
+SpriteClaim spriteClaim(vec3 behind, SpriteLayer layer)
 {
-    return layer.mHidden > 0.0 && layer.mTransmittance < 0.5;
+    if (layer.mTransmittance < 0.5)
+        return layer.mCovering;
+
+    const float left = dot(behind, LUMINANCE_WEIGHTS) * layer.mTransmittance;
+    if (layer.mAdding.mWeight > left)
+        return layer.mAdding;
+
+    return SpriteClaim(vec3(0.0), vec3(0.0), 0.0);
 }
 
 /// Where the sprite that owns a pixel stood on the previous frame's screen, in pixels.
@@ -2642,9 +2713,34 @@ bool layerHides(SpriteLayer layer)
 /// The same reprojection a surface gets: the eye's own walk, and the sprite's travel against it. A
 /// particle born this frame carries no travel, which is the truth — it has no past to point at, and
 /// the mask beside it is what says not to trust the pixel anyway.
-vec2 spriteMotionOf(uvec2 pixel, SpriteLayer layer)
+vec2 spriteMotionOf(uvec2 pixel, SpriteClaim claim)
 {
-    return reprojected(pixel, layer.mToNearest + camera.mCameraMotion - layer.mNearestMoved);
+    return reprojected(pixel, claim.mToward + camera.mCameraMotion - claim.mMoved);
+}
+
+/// Where what a water surface reflects stood on the previous frame's screen, in pixels.
+///
+/// **A reflection is not where the water is, and reprojecting it as though it were is what makes a
+/// mirrored shoreline swim.** The eye sees the reflected point at its image in the plane, so the
+/// thing that has to be reprojected is that image: mirror it about the water level, and mirror its
+/// motion with it.
+///
+/// **Exact for a flat surface and an approximation by exactly the wave.** The image of a point in a
+/// tilted facet is not the image in the plane, so this is the reflection the water would carry if it
+/// were still — which is what a mirrored reprojection can describe, and is why the wave's own
+/// scatter is left to the mask beside it.
+///
+/// The plane is `camera.mWaterLevel`, which every frame with water in it names: the surface this
+/// reflects about is the one the water geometry lies in, and not the facet the ray happened to
+/// bounce off.
+vec2 mirrorMotionOf(uvec2 pixel, vec3 origin, WaterMirror mirror)
+{
+    // The plane's own reflection, which is linear on differences: the constant cancels in the
+    // subtraction below, so only `z` changes sign.
+    const vec3 seen = vec3(mirror.mAt.xy, 2.0 * camera.mWaterLevel - mirror.mAt.z);
+    const vec3 went = movedBy(mirror.mInstance, mirror.mAt);
+
+    return reprojected(pixel, seen - origin + camera.mCameraMotion + vec3(went.xy, -went.z));
 }
 
 /// Where the sky a ray found stood on the previous frame's screen, in pixels.
@@ -2728,10 +2824,13 @@ void main()
     SurfaceResponse response = noResponse();
     vec3 transmittance = vec3(1.0);
 
+    // Filled only by water, and only where the water reflects a surface rather than the sky.
+    WaterMirror mirror = WaterMirror(vec3(0.0), 0u, false);
+
     if (!surface.mHit)
         shaded = camera.mTransparentBackground != 0u ? vec3(0.0) : skyRadiance(direction, pixelBlur());
     else if (surface.mWater)
-        shaded = shadeWater(surface, direction, response);
+        shaded = shadeWater(surface, direction, response, mirror);
     else if (camera.mShowAlbedo != 0u)
     {
         // **The colour is replaced and the surface is not.** What this view changes is what a pixel
@@ -2775,6 +2874,10 @@ void main()
     // included. Exactly right for what is behind the sprite and an over-darkening of the haze in
     // front of it, which is the part of the ray a puff of smoke is nearly always at the end of.
     const SpriteLayer particles = spritesAlong(origin, direction, surface.mDistance);
+
+    // Kept because the motion vector below is decided by which of the two terms of the line under
+    // this one is the larger, and that line is where the first of them stops existing.
+    const vec3 beforeParticles = shaded;
 
     shaded = shaded * particles.mTransmittance + particles.mRadiance;
     transmittance *= particles.mTransmittance;
@@ -2822,12 +2925,18 @@ void main()
     // **A pixel a sprite mostly is moves the way that sprite did.** One motion vector is written per
     // pixel and it used to be the surface's whatever stood in front of it, so a raindrop crossing a
     // wall was reprojected as though it were the wall — which is what `particleMask` was reduced to
-    // apologising for. Half is the whole of the rule and not a threshold anybody picked: the sprites
-    // hide `1 - mTransmittance` of what is behind them, so past a half the pixel is more sprite than
-    // surface, and the majority owns the vector.
-    if (layerHides(particles))
-        moved = spriteMotionOf(pixel, particles);
+    // apologising for. `spriteClaim` says which sprite owns the pixel, by either of the two ways a
+    // sprite can own one — which covers a flame as well as a raindrop.
+    const SpriteClaim claim = spriteClaim(beforeParticles, particles);
+    if (claim.mWeight > 0.0)
+        moved = spriteMotionOf(pixel, claim);
     imageStore(motion, at, vec4(moved, 0.0, 0.0));
+
+    // **The one surface in this frame that shows something standing somewhere else.** Water is
+    // shaded where it is seen, so the vector above describes the surface and not what is in it; this
+    // is the other one, and the upscaler weighs the two by the specular albedo it was already given.
+    imageStore(reflectionMotion, at,
+        vec4(mirror.mFound ? mirrorMotionOf(pixel, origin, mirror) : vec2(0.0), 0.0, 0.0));
 
     // A miss is as far away as anything can be, and `mDistance` already carries `mFar` for it.
     imageStore(depth, at,

@@ -88,6 +88,15 @@ namespace Rtx
         /// most of that range is spent within a few units of the eye.
         const Image& getDepth() const { return mDepth; }
 
+        /// Where what the water reflects stood on the previous frame's screen, in pixels.
+        ///
+        /// **Water is shaded where it is seen and shows what is somewhere else.** The motion channel
+        /// describes the surface, so a reflection reprojects with the water carrying it rather than
+        /// with the thing reflected — a shoreline mirrored in a lake swims as the camera walks. NGX
+        /// takes this beside the ordinary field as "motion vectors of reflected objects like for
+        /// mirrored surfaces", and weighs the two by the specular albedo it already has.
+        const Image& getReflectionMotion() const { return mReflectionMotion; }
+
         /// Where a sprite reached this frame, as one or nought.
         ///
         /// **A sprite is the one thing in the frame with no motion vector of its own.** The trace
@@ -125,6 +134,7 @@ namespace Rtx
         Image mGuide;
         Image mMotion;
         Image mDepth;
+        Image mReflectionMotion;
         Image mParticleMask;
         Image mBiasMask;
     };

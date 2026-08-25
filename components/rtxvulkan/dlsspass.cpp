@@ -125,6 +125,7 @@ namespace Rtx
         NVSDK_NGX_Resource_VK depth = resourceOf(inputs.mDepth);
         NVSDK_NGX_Resource_VK motion = resourceOf(inputs.mMotion);
         NVSDK_NGX_Resource_VK target = resourceOf(inputs.mOutput);
+        NVSDK_NGX_Resource_VK reflections = resourceOf(inputs.mReflectionMotion);
         NVSDK_NGX_Resource_VK particles = resourceOf(inputs.mParticleMask);
         NVSDK_NGX_Resource_VK bias = resourceOf(inputs.mBiasMask);
 
@@ -146,6 +147,7 @@ namespace Rtx
         // Both sit in the block the header marks optional and neither is in the one it marks
         // research; the colour-pair guides for fog and particles are in that second block, which is
         // why they are not here.
+        evaluate.pInMotionVectorsReflections = &reflections;
         evaluate.pInIsParticleMask = &particles;
         evaluate.pInBiasCurrentColorMask = &bias;
 

@@ -60,7 +60,8 @@ namespace Rtx
         /// costs no memory, so every channel carries it rather than only the five DLSS reads today.
         constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-        /// The channels a caller can ask to read back: motion, depth and the two masks.
+        /// The channels a caller can ask to read back: the two motion fields, the depth and the
+        /// two masks. See `Rtx::Channel`.
         constexpr VkImageUsageFlags sReadable = sUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     }
 
@@ -72,6 +73,7 @@ namespace Rtx
         , mGuide(device, width, height, sGuide, sUsage, "g-guide")
         , mMotion(device, width, height, sMotion, sReadable, "g-motion")
         , mDepth(device, width, height, sDepth, sReadable, "g-depth")
+        , mReflectionMotion(device, width, height, sMotion, sReadable, "g-reflection-motion")
         , mParticleMask(device, width, height, sMask, sReadable, "g-particle-mask")
         , mBiasMask(device, width, height, sMask, sReadable, "g-bias-mask")
     {
@@ -89,8 +91,8 @@ namespace Rtx
         // previous frame is still running. Sourcing the barrier at the compute stage is the whole of
         // what a write-after-read needs; nothing has to be made visible, only ordered. Discarding
         // from `TOP_OF_PIPE` waits for nothing at all, and buys a torn frame for a barrier saved.
-        for (const Image* image :
-            { &mDirect, &mIndirect, &mAlbedo, &mSpecular, &mGuide, &mMotion, &mDepth, &mParticleMask, &mBiasMask })
+        for (const Image* image : { &mDirect, &mIndirect, &mAlbedo, &mSpecular, &mGuide, &mMotion, &mDepth,
+                 &mReflectionMotion, &mParticleMask, &mBiasMask })
             image->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
@@ -98,8 +100,8 @@ namespace Rtx
 
     void GBuffer::handOver(VkCommandBuffer commands) const
     {
-        for (const Image* image :
-            { &mDirect, &mIndirect, &mAlbedo, &mSpecular, &mGuide, &mMotion, &mDepth, &mParticleMask, &mBiasMask })
+        for (const Image* image : { &mDirect, &mIndirect, &mAlbedo, &mSpecular, &mGuide, &mMotion, &mDepth,
+                 &mReflectionMotion, &mParticleMask, &mBiasMask })
             image->transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);

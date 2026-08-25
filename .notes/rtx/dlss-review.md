@@ -28,38 +28,26 @@ Most of a third went with the two masks and the sprite motion behind them: the t
 is not worth carrying, `pInIsParticleMask` and `pInBiasCurrentColorMask` take them, and `InReset` is
 driven by a signal the simulation sends rather than by a camera basis that a cell load never
 disturbs. A sprite carries its own travel and owns the motion vector of any pixel it mostly is, and
-`InFrameTimeDeltaInMsec` is measured between the frames it describes. What is left of that group is
-below, and it is smaller and harder than it looked.
+`InFrameTimeDeltaInMsec` is measured between the frames it describes.
+
+The rest of it went with `SpriteClaim` and `mirrorMotionOf`. A sprite owns its pixel's motion vector
+by either of the two ways a sprite can own a pixel — covering most of it, or outshining what is left
+of the surface behind — so a flame is caught as well as a raindrop. And water writes a second motion
+field for what it reflects, mirrored about the water plane, which `pInMotionVectorsReflections`
+takes. One item is left, and it is the one whose parameters the SDK itself marks research-only.
 
 ---
 
-## What the frame reflects, and what it composites over the top
+## What the frame composites over the top
 
-`visibility.comp` writes one motion vector per pixel. It is the surface's where a surface owns the
-pixel and the sprite's where a sprite hides more than half of it, so rain, snow and ash are
-reprojected as themselves rather than as the wall behind them — the particle carries its own travel,
-off `osgParticle`'s previous position, and `particleMask` and `biasMask` say which pixels those are.
-What is left is the two populations that route needs different machinery for.
-
-- [ ] An **additive** sprite never claims its pixel's motion. A flame or a spark hides nothing by
-      definition, so it never reaches the test that decides which travel the pixel carries, and the
-      light it adds is reprojected with whatever stands behind it. Right for the surface, wrong for
-      the glow, and the two are not separable in one vector.
-- [ ] Water is shaded by `shadeWater` on the primary hit, so a reflection moves with the water
-      surface rather than with what is reflected in it. **Not by the route the guide names**: it asks
-      for specular motion vectors, and the vendored header has no `pInSpecularMotionVectors` — it
-      offers `pInSpecularHitDistance` with `pInWorldToViewMatrix` and `pInViewToClipMatrix`, and
-      those three sit in the block the header marks `/*** OPTIONAL - only for research purposes ***/`.
-      The production route is `pInMotionVectorsReflections`, "motion vectors of reflected objects
-      like for mirrored surfaces": a second motion field, computed by reprojecting the reflected
-      point through the previous frame's mirrored camera, and not a wiring job.
-- [ ] The colour-pair guides are unset and are **not** the cheap win they look. `pInColorBeforeFog` /
-      `pInColorAfterFog` and `pInColorBeforeParticles` / `pInColorAfterParticles` are all inside the
-      research-purposes block. Worse, the trace holds both sides of each composite in the *direct*
-      channel only, while `pInColor` is the composited frame — `direct + albedo * indirect` — so
-      handing over what is already in hand would compare quantities that differ by the whole indirect
-      term. Doing it honestly means the stage transmittances reaching the composite pass, which is a
-      change to the channel layout rather than two more images.
+- [ ] The colour-pair guides are unset. `pInColorBeforeFog` / `pInColorAfterFog` and
+      `pInColorBeforeParticles` / `pInColorAfterParticles` are all inside the block the header marks
+      `/*** OPTIONAL - only for research purposes ***/`, and they are not the cheap win they look:
+      the trace holds both sides of each composite in the *direct* channel only, while `pInColor` is
+      the composited frame — `direct + albedo * indirect` — so handing over what is already in hand
+      would compare quantities that differ by the whole indirect term. Doing it honestly means the
+      fog and sprite transmittances coming off the indirect channel and reaching the composite pass
+      instead, which changes what the wavelet filters and wants its own measurement.
 
 ## The specular albedo is real but is not the quantity that was asked for
 
@@ -100,3 +88,8 @@ None of this changes the picture; it is bandwidth and memory on the frame path.
       à-trous filter's world-distance test, so the upscaler is fed twice the bandwidth it reads.
 - [ ] `mIndirect` and `mUpscaled` are four-channel and appear to use three. The `w` of the direct
       image carries coverage and is read; these two are not.
+- [ ] `particleMask` and `biasMask` each carry a yes or a no in a `VK_FORMAT_R32_SFLOAT` — a bit of
+      information in thirty-two, and eight megabytes of render-resolution image between them at
+      1080p. `R8_UNORM` is not among the formats Vulkan requires a device to support as a storage
+      image, which is why they are floats; a support check at startup, or packing the pair into one
+      two-channel image and handing NGX a view of each, would recover most of it.

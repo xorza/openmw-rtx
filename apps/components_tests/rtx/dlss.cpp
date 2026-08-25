@@ -136,6 +136,8 @@ namespace Rtx
             const std::unique_ptr<Image> motion = makeImage(device, render, VK_FORMAT_R32G32_SFLOAT, "test-motion");
             // The two the frame writes for what it composites in front of its surfaces. One float
             // apiece for the reason `gbuffer.h` gives.
+            const std::unique_ptr<Image> reflections
+                = makeImage(device, render, VK_FORMAT_R32G32_SFLOAT, "test-reflections");
             const std::unique_ptr<Image> particles = makeImage(device, render, VK_FORMAT_R32_SFLOAT, "test-particles");
             const std::unique_ptr<Image> bias = makeImage(device, render, VK_FORMAT_R32_SFLOAT, "test-bias");
             const std::unique_ptr<Image> output
@@ -151,6 +153,7 @@ namespace Rtx
             fill(pool, *motion, { 0.0f, 0.0f, 0.0f, 0.0f });
             // No sprite reached this frame and nothing about it is untrustworthy, which is the
             // state that has to leave the picture alone.
+            fill(pool, *reflections, { 0.0f, 0.0f, 0.0f, 0.0f });
             fill(pool, *particles, { 0.0f, 0.0f, 0.0f, 0.0f });
             fill(pool, *bias, { 0.0f, 0.0f, 0.0f, 0.0f });
             fill(pool, *output, { 0.0f, 0.0f, 0.0f, 0.0f });
@@ -166,6 +169,7 @@ namespace Rtx
                         .mNormalRoughness = *normals,
                         .mDepth = *depth,
                         .mMotion = *motion,
+                        .mReflectionMotion = *reflections,
                         .mParticleMask = *particles,
                         .mBiasMask = *bias,
                         .mOutput = *output,

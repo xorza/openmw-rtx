@@ -657,6 +657,7 @@ namespace Rtx
                         .mNormalRoughness = mChannels->getGuide(),
                         .mDepth = mChannels->getDepth(),
                         .mMotion = mChannels->getMotion(),
+                        .mReflectionMotion = mChannels->getReflectionMotion(),
                         .mParticleMask = mChannels->getParticleMask(),
                         .mBiasMask = mChannels->getBiasMask(),
                         .mOutput = *mUpscaled,
@@ -883,6 +884,9 @@ namespace Rtx
                 break;
             case Channel::Depth:
                 image = &mChannels->getDepth();
+                break;
+            case Channel::ReflectionMotion:
+                image = &mChannels->getReflectionMotion();
                 break;
             case Channel::ParticleMask:
                 image = &mChannels->getParticleMask();

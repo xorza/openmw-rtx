@@ -28,7 +28,7 @@ namespace Rtx
         /// order the shader declares them. The channels are scattered through the numbering because
         /// each grew onto the end of a layout that already existed rather than renumbering the
         /// tables under them.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 29> sBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 30> sBindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 1, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 2, sStorage, 1, sCompute },
@@ -58,6 +58,7 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 26, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 27, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 28, sImage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 29, sImage, 1, sCompute },
         };
     }
 
@@ -131,7 +132,7 @@ namespace Rtx
             .accelerationStructureCount = 1,
             .pAccelerationStructures = &inputs.mScene,
         };
-        const std::array<VkDescriptorImageInfo, 9> channels{
+        const std::array<VkDescriptorImageInfo, 10> channels{
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getDirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getIndirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getAlbedo().getView(), VK_IMAGE_LAYOUT_GENERAL },
@@ -141,9 +142,10 @@ namespace Rtx
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getSpecular().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getParticleMask().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getBiasMask().getView(), VK_IMAGE_LAYOUT_GENERAL },
+            VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getReflectionMotion().getView(), VK_IMAGE_LAYOUT_GENERAL },
         };
         // In `sBindings`' order, which is where those numbers are explained.
-        constexpr std::array<std::uint32_t, 9> channelBindings{ 1, 15, 17, 18, 20, 22, 26, 27, 28 };
+        constexpr std::array<std::uint32_t, 10> channelBindings{ 1, 15, 17, 18, 20, 22, 26, 27, 28, 29 };
         static_assert(channels.size() == channelBindings.size(), "every channel needs the binding it goes to");
 
         // Bindings two upwards are all storage buffers, in the order the shader declares them.

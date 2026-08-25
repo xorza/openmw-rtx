@@ -47,6 +47,10 @@ namespace Rtx
         /// render pixels.
         const Image& mMotion;
 
+        /// Where what the water reflects stood on the previous frame's screen — see
+        /// `GBuffer::getReflectionMotion`.
+        const Image& mReflectionMotion;
+
         /// Where a sprite reached, as one or nought — the pixels that are not the base pass and so
         /// carry no motion of their own.
         const Image& mParticleMask;
