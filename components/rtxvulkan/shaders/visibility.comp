@@ -70,7 +70,7 @@ void main()
     if (!surface.mHit)
         shaded = frame.mTransparentBackground != 0u ? vec3(0.0) : skyRadiance(direction, pixelBlur(frame.mCamera));
     else if (surface.mWater)
-        shaded = shadeWater(surface, direction, response, mirror);
+        shaded = shadeWater(surface, direction, response, mirror, pixelKey(pixel));
     else if (frame.mShowAlbedo != 0u)
     {
         // **The colour is replaced and the surface is not.** What this view changes is what a pixel
@@ -82,7 +82,7 @@ void main()
     }
     else
     {
-        shaded = shadeSurface(surface, vec3(0.0));
+        shaded = shadeSurface(surface, vec3(0.0), pixelKey(pixel) + SEED_LAMPS_EYE);
         bounced = bounceLight(surface, pixel);
         response = lambertResponse(surface);
     }

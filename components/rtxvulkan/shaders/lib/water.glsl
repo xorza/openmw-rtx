@@ -76,12 +76,14 @@ struct WaterPath
 /// a refraction ray offset to the far side of the plane began under the ground wherever the bed sat
 /// nearer the surface than the offset, and reported water of unbounded depth.
 ///
+/// @param seed which draw sequence the lamp reservoir at the far end of this ray steps. The
+///        reflection and the refraction take different ones, or both keep the same lamp.
 /// @param lobe the rms angle those slopes deflect this ray by — a *radius*, which is why the cone
 ///        it traces is widened by twice it. Everything `spread` feeds is a width: `resolved` compares
 ///        it against a wavelength and `coneLod` against a texel area, and `mSpreadAngle` is the whole
 ///        angle a pixel covers rather than half of one. The sky's disc takes the same number
 ///        unhalved, because a disc is named by its radius.
-WaterPath waterRay(vec3 origin, vec3 direction, float footprint, float lobe)
+WaterPath waterRay(vec3 origin, vec3 direction, float footprint, float lobe, uint seed)
 {
     const Surface hit
         = trace(origin, direction, WATER_BIAS, footprint, frame.mCamera.mSpreadAngle + 2.0 * lobe, MASK_SOLID);
@@ -92,7 +94,7 @@ WaterPath waterRay(vec3 origin, vec3 direction, float footprint, float lobe)
     path.mDistance = hit.mHit ? hit.mDistance : WATER_MAX_PATH;
     path.mGeometric = hit.mHit ? hit.mGeometric : vec3(0.0, 0.0, 1.0);
     path.mRadiance
-        = hit.mHit ? shadeSurface(hit, pathEnd(hit.mPosition))
+        = hit.mHit ? shadeSurface(hit, pathEnd(hit.mPosition), seed)
                    : skyRadiance(direction, pixelBlur(frame.mCamera) + lobe);
 
     return path;
@@ -150,10 +152,13 @@ struct WaterMirror
 };
 
 /// What the water sends back along the ray that found it.
+/// @param key this pixel's draw key, which the three reservoirs below each offset by their own
+///        `SEED_LAMPS_` constant — what the water reflects, what is seen through it and the foam
+///        are three surfaces shaded from one hit, and three reservoirs seeded alike keep one lamp.
 /// @param mirror what this surface reflects, for the motion vector that describes it. Not found
 ///        where the reflection reached only sky, or where the water is being looked at from
 ///        underneath — neither is a thing a mirrored reprojection has an answer for.
-vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response, out WaterMirror mirror)
+vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response, out WaterMirror mirror, uint key)
 {
     mirror = WaterMirror(vec3(0.0), vec3(0.0), 0u, false);
 
@@ -218,7 +223,7 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response, ou
     const vec3 leaving = surface.mPosition + plane * WATER_BIAS;
 
     const vec3 away = reflect(incident, normal);
-    const WaterPath bounced = waterRay(leaving, away, surface.mFootprint, lobe);
+    const WaterPath bounced = waterRay(leaving, away, surface.mFootprint, lobe, key + SEED_LAMPS_MIRROR);
     vec3 reflected = bounced.mRadiance;
     if (fromBelow)
         reflected = absorbedByWater(reflected, bounced.mDistance);
@@ -242,7 +247,8 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response, ou
 
     // Refraction bends by a third of what reflection does, so what is seen *through* the surface is
     // blurred correspondingly less by the same lost slopes.
-    const WaterPath behind = waterRay(leaving, through, surface.mFootprint, lobe * WATER_REFRACTION_BEND);
+    const WaterPath behind
+        = waterRay(leaving, through, surface.mFootprint, lobe * WATER_REFRACTION_BEND, key + SEED_LAMPS_THROUGH);
     const vec3 refracted = fromBelow ? behind.mRadiance : absorbedByWater(behind.mRadiance, behind.mDistance);
 
     // With no water left between the surface and the ground, this is the ground. Only from above:
@@ -294,7 +300,9 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response, ou
     // under it rather than tinting it. Lit the way every other diffuse surface in the frame is lit,
     // which is what keeps a beach and the surf running along it in the same sun.
     const vec3 foam
-        = WATER_FOAM_ALBEDO * (gather(surface.mPosition, sea.mNormal, surface.mFootprint) + pathEnd(surface.mPosition));
+        = WATER_FOAM_ALBEDO
+        * (gather(surface.mPosition, sea.mNormal, surface.mFootprint, key + SEED_LAMPS_FOAM)
+            + pathEnd(surface.mPosition));
 
     return mix(water, foam, covered);
 }

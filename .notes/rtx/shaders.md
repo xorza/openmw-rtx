@@ -222,19 +222,45 @@ The clamp is guarded by the same test rather than measured on its own: it runs a
 frames, and the accumulated mean still sits on the converged one to within two per cent — a clamp
 eating real light would bias it down. That it *removes* fireflies is reasoned and not yet counted.
 
-### 4.3 Direct lighting is unbounded in the number of lamps
+### 4.3 The shadow rays are bounded and the variance that buys is not yet paid for
 
-`gather` walks every lamp the grid cell holds and spends a shadow ray on each that passes two cheap
-tests. The grid bounds *which* lamps, not *how many* — a Balmora interior with a dozen
-candles is a dozen shadow rays a pixel, and the cost is per-pixel rather than per-frame.
+`gather` no longer walks the cell's lamps spending a ray apiece. Every candidate is weighed by what
+it would deliver unshadowed — its reach, its falloff and the cosine, which is everything knowable
+without tracing — one is kept by reservoir sampling, and exactly one shadow ray is spent on it. The
+estimator divides by the chance it was kept, `sum of the weights / the weight of the one held`, which
+is what makes it unbiased rather than merely cheap. With one lamp in a cell it is exactly the
+arithmetic that was there before, and single-lamp views render byte for byte as they did.
 
-RIS with one reservoir bounds it to one, and ReSTIR's temporal and spatial reuse then makes that one
-sample worth more than the dozen were. The renderer already has the two things that make it cheap:
-the light grid gives a bounded candidate set to resample from, and the motion vectors give a
-temporal neighbour.
+Resampling needs a *sequence* of draws where the blue-noise tile gives one per pixel per frame, so
+`random.glsl` grew a hashed counter beside it. The tile is an arrangement across the screen and there
+is no screen-space arrangement of a sequence to arrange.
 
-This is sequenced *after* 4.2, because a reservoir needs a history to reuse and the history is what
-4.2 builds.
+**What it costs, measured, 1280×720, best of thirty:**
+
+| view | trace, walking every lamp | trace, one reservoir |
+|---|---|---|
+| Seyda Neen customs office | 4.85 ms | **3.82 ms** |
+| Wolverine Hall | 3.41 ms | **3.27 ms** |
+
+**What it costs the picture is not yet established, and the sign of it is not in doubt.** Against a
+256-frame converged reference, unfiltered, the customs office differs in 12.4% of channels with a
+worst case of 170/255 — a heavy tail rather than a shift, which is what an unbiased estimator with
+high variance looks like. The cause is known and is not a defect in the implementation: the target
+function cannot include visibility, so where the brightest lamp in a room is occluded for a pixel,
+the reservoir keeps it and returns nothing, and the dimmer lamp that actually lights that pixel is
+reached only on the frames it happens to win.
+
+**Reuse is the half that pays for it**, and it is the rest of this. A reservoir carried from the
+previous frame through the motion vector, and from a few neighbours, is what turns one candidate a
+pixel into an effective many — and the visibility that was traced last frame is exactly the
+information the target function could not have. The accumulator built for 4.2 is the state that makes
+the temporal half cheap.
+
+**Whether the denoiser already absorbs it is the open question and this could not answer it.** A
+filtered single frame against a converged reference is confounded twice over: the exposure is
+measured per run, so two runs of different frame counts are not on one scale, and the read-back is
+eight bits where the difference being looked for is a fraction of one. That measurement wants a
+fixed exposure and a float channel a test cannot read yet.
 
 ### 4.4 The same computation is written more than once
 
@@ -343,10 +369,12 @@ runs of one build, the doll about 0.02% — so those two need a magnitude compar
 control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path and `doll`
 the only transparent-background one.
 
-**1 — bound the shadow rays (4.3).** RIS over the grid cell's candidates, one reservoir, one shadow
-ray. Then temporal reuse through the accumulator's history, then spatial. *Check:* the same RMSE-against-
-reference metric, in an interior with a dozen lamps — and a count of shadow rays per pixel, which is
-the thing being bounded.
+**1 — reuse the reservoirs (4.3).** RIS is in and bounds the rays; what it does not yet have is the
+reuse that pays for the variance. Temporal first — carry each pixel's reservoir through the motion
+vector it already writes, which brings last frame's *traced visibility* into a target function that
+could not otherwise have it — then spatial across a few neighbours. *Check:* the customs office
+against a converged reference at a fixed exposure, which must come back to where walking every lamp
+put it; and the trace time, which must keep what the bounding won.
 
 **2 — opacity micromaps.** The device features are already required and probed; nothing builds a
 micromap. `alphaPasses` is what stops being invoked. *Check:* the trace timer on a view of foliage,
