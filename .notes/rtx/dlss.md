@@ -9,8 +9,9 @@ the vendored SDK's `nvsdk_ngx_helpers_dlssd_vk.h`.
 `.notes/rtx/dlss-review.md` holds the findings themselves, as a checklist to be deleted from. This
 file is the order to take them in and nothing else.
 
-**The ordering is by dependency, not by size.** Steps 1 and 2 buy nothing on their own; everything
-after them is unjudgeable without them, which is why they come first.
+**The ordering is by dependency, not by size.** What made the two steps that have gone come first
+was that nothing after them could be judged until a run said what had reconstructed it and which
+network had done it; that is now what a run says, so what follows can be measured as it lands.
 
 ---
 
@@ -25,48 +26,20 @@ What is left is everything about the frame *in front* of those surfaces. The net
 nothing about the sprites and fog composited over them, and it reprojects every one of those pixels
 with the motion of whatever geometry stands behind them.
 
-None of that is currently visible from a run: `--filter` and `--jitter` are both silently inert at
-the default upscale, and nothing in a summary line says which denoiser produced the picture.
+**A run now says what reconstructed it**, which is what makes the rest measurable.
+`Rtx::Reconstruction` resolves the denoiser, the jitter and the preset in one place; the renderer
+drives every switch from it, `FrameResult` carries it back, and `shot`, `bench`, the profile line and
+the game report it. The three-way comparison the steps below are argued from — the raw bounce, the
+wavelet, and Ray Reconstruction — is one command each, and the network is pinned rather than
+whatever the installed library felt like.
 
 ---
 
-## 1. Make the reconstruction legible
+## 1. The three cheap correctness items
 
-**First because nothing after it can be judged.** Every step below changes the picture, and there is
-currently no way to see that it did: the frame's summary reports a trace time and a hit fraction and
-says nothing about which of the two denoisers ran, at what preset, or whether the wavelet was
-silently skipped.
-
-- Report the reconstruction in `shot`'s summary and in the game's periodic line — upscaler or
-  wavelet or neither, the preset, and the render-to-output pair.
-- `filtering = options.mFilter && !upscaling` and `jitter = options.mJitter || upscaling` make two
-  command-line flags mean nothing unless a third is set a particular way. A run that asks for the
-  wavelet and gets Ray Reconstruction should say so rather than quietly comply.
-- Settle the three-way comparison that the rest of this document is argued from: one view at
-  `--upscale=off --filter=false` (the reference), at `--upscale=off` (the wavelet), and at the
-  default (Ray Reconstruction).
-
-**Done when** a shot says what made it, and the same view renders three ways from one command each.
-
-## 2. Pin which network is running
-
-**Second because it moves every measurement taken after it.** No render preset is selected, so the
-frame is reconstructed by whatever the installed feature library defaults to — which has changed
-between SDK versions and again between the CNN and transformer models (`.notes/todo.txt` already
-carries that question). Two machines, or one machine after a driver update, are not comparing the
-same thing.
-
-- Select a preset explicitly and record it wherever step 1 reports.
-- The guide is firmer than "deprecated": presets A through C are **no longer available**, `eDefault`
-  and `ePresetD` are what remain, and `ePresetD` is the one it recommends.
-
-**Done when** two runs of the same view on different days are comparable, and the report says which
-network answered.
-
-## 3. The three cheap correctness items
-
-**Third because each changes results and none needs anything built.** Doing them after step 1 means
-the change is visible; doing them before step 4 means step 4 is measured against a correct baseline.
+**First because each changes results and none needs anything built**, and because a run reports the
+reconstruction now, so each change is visible as it lands. Before step 2, so that step 2 is measured
+against a correct baseline.
 
 - `InReset` fires only when the previous camera basis is zero — a resize or a renderer rebuild. Its
   own doc comment names cell loads, teleports and cuts, and none of those reach it. The renderer
@@ -79,9 +52,9 @@ the change is visible; doing them before step 4 means step 4 is measured against
 **Done when** walking through a door stops ghosting, and a mismatched input is a failed assertion
 rather than a wrong picture.
 
-## 4. Hand over the two guides the frame already computes
+## 2. Hand over the two guides the frame already computes
 
-**Fourth because it is the largest gain available with no new scope.** `visibility.comp` composites
+**Second because it is the largest gain available with no new scope.** `visibility.comp` composites
 fog and then a sprite layer over the finished frame, and holds both sides of each composite in local
 variables before discarding the distinction. Those are exactly `pInColorBeforeFog` /
 `pInColorAfterFog` and `pInColorBeforeParticles` / `pInColorAfterParticles`, which exist so that
@@ -97,11 +70,11 @@ network to stop.
 - Two more render-resolution images and the composite handing over what it already has.
 
 **Done when** a `--weather=Rain` shot at the default upscale stops smearing drops, judged against
-the three-way comparison from step 1.
+the three-way comparison a run can now be asked for.
 
-## 5. Stop binding what nothing reads
+## 3. Stop binding what nothing reads
 
-**Fifth because step 4 settles which channels exist**, and doing it earlier means doing it twice.
+**Third because step 2 settles which channels exist**, and doing it earlier means doing it twice.
 None of this changes the picture; it is bandwidth and memory on the frame path.
 
 - Depth is bound as `RG32F` because the second component serves the wavelet's world-distance test;
@@ -110,14 +83,14 @@ None of this changes the picture; it is bandwidth and memory on the frame path.
 
 **Done when** the upscaler's inputs are the size of what it reads, measured rather than assumed.
 
-## 6. Motion for what is not an opaque surface
+## 4. Motion for what is not an opaque surface
 
-**Last because it is the hardest and step 4 may have made half of it unnecessary.** The trace writes
+**Last because it is the hardest and step 2 may have made half of it unnecessary.** The trace writes
 one motion vector per pixel, from the surface a primary ray hit or from the sky where it hit nothing.
 Everything in front of that surface inherits its motion.
 
 - Sprites move independently of the geometry behind them and have no previous position to difference
-  against; the bias mask from step 4 may be the whole answer, and if it is, this shrinks to water.
+  against; the bias mask from step 2 may be the whole answer, and if it is, this shrinks to water.
 - Water is shaded on the primary hit, so a reflection moves with the surface rather than with what is
   reflected in it. **Not by the route the guide names**: it asks for specular motion vectors, and the
   vendored header has no such parameter — it offers `pInSpecularHitDistance` with
@@ -153,8 +126,9 @@ it is the last placeholder any of the four inputs still holds.
   `FAIL_InvalidParameter` that named no parameter. Nothing above should disturb them without
   re-deriving them.
 - The Streamline guide and the vendored `nvsdk_ngx_helpers_dlssd_vk.h` **describe different
-  features**, and the code follows the header, which is right for raw NGX. They state opposite
+  features**, and the code follows the header, which is right for raw NGX. `ngxPresetOf` carries the
+  warning for the half of it that is now pinned in code; the rest is only here. They state opposite
   conventions for `InMVScale{X,Y}`; the guide lists specular motion vectors among the required
   inputs and the header has no such parameter; and the guide's optional set is a transparency layer
-  with SSS and depth-of-field guides where the header's is the fog and particle pairs step 4 uses.
+  with SSS and depth-of-field guides where the header's is the fog and particle pairs step 2 uses.
   A future reader who finds the guide first will conclude the code is wrong on all three.

@@ -12,31 +12,19 @@ Checked against NVIDIA's own material: the [DLSS-RR programming
 guide](https://github.com/NVIDIAGameWorks/Streamline/blob/main/docs/ProgrammingGuideDLSS_RR.md) and
 the vendored SDK's `nvsdk_ngx_helpers_dlssd_vk.h`.
 
-**Line numbers were re-checked against the tree at `b279e94d15`.** The material-placeholder group
-this document opened with is gone: `e18e76c5de` gave every shading path a `SurfaceResponse`, so the
-diffuse albedo is the surface alone, the roughness is per-pixel, and the specular channel is written
-rather than cleared.
+**Line numbers were re-checked against the working tree**, which carries two groups' worth of
+fixes on top of `b279e94d15` and has moved them.
+
+Two groups this document opened with are gone. The material placeholders went with `e18e76c5de`,
+which gave every shading path a `SurfaceResponse` — the diffuse albedo is the surface alone, the
+roughness is per-pixel, and the specular channel is written rather than cleared. And the group about
+a run not saying what reconstructed it went with `Rtx::Reconstruction`, which took the rule out of
+the frame path: one function decides the denoiser, the jitter and the preset, the renderer drives
+every switch from what it answers, `FrameResult` carries the same value back, and `shot`, `bench`,
+the profile line and the game all report it. The preset is pinned to Ray Reconstruction's own D and
+is selectable, which was measured to move 52% of a frame's pixels against E.
 
 ---
-
-## Nothing distinguishes one reconstruction from another
-
-Every other item changes the picture, and none of them can be judged, because a run does not say
-what made it and two runs are not necessarily the same network.
-
-- [ ] `vulkanrenderer.cpp:612` computes `filtering = options.mFilter && !upscaling`, and upscaling is
-      on by default. `--filter` therefore does nothing on a default shot or a default game frame, and
-      the à-trous pass — five dispatches, its own scratch image, its own tuning constants — never
-      runs on the frame path unless `--upscale=off` is also given.
-- [ ] `vulkanrenderer.cpp:546` enables jitter on `options.mJitter || upscaling`, so `--jitter` is
-      likewise a no-op at the default upscale. Two flags whose meaning depends on a third that
-      neither of them mentions, and neither says so when overridden.
-- [ ] Nothing in a run's report records which denoiser produced the picture, at what preset, or at
-      what render-to-output pair. `shot.cpp:173` reports a trace time and a hit fraction and stops.
-- [ ] No render preset is selected anywhere in `dlss.cpp` or `dlsspass.cpp`, so the frame is
-      reconstructed by whatever the installed feature library defaults to. The guide states presets A
-      through C are **no longer available** and that `ePresetD` is the recommended one; leaving it
-      unset is not reproducible across SDK versions, machines or driver updates.
 
 ## The frame in front of the surface is not described
 
@@ -62,7 +50,7 @@ surface's motion, and Ray Reconstruction reprojects it accordingly.
       surface rather than with what is reflected in it. The vendored header carries
       `pInSpecularHitDistance` with `pInWorldToViewMatrix` and `pInViewToClipMatrix` for this case;
       none of the three is set.
-- [ ] `vulkanrenderer.cpp:653` sets `InReset` only when the previous camera basis is zero — the first
+- [ ] `vulkanrenderer.cpp:656` sets `InReset` only when the previous camera basis is zero — the first
       frame after a resolution change or a renderer rebuild. A teleport, a cell load, a door or a
       cutscene cut leaves the history intact, and `DlssInputs::mReset`'s own doc comment names those
       as the cases it is for. Nothing else in the renderer signals them.
@@ -81,14 +69,14 @@ surface's motion, and Ray Reconstruction reprojects it accordingly.
 ## Contract gaps inside the pass
 
 - [ ] `DlssPass::record` asserts the colour and output extents match what the feature was built for
-      (`dlsspass.cpp:106-107`) and not the five other inputs. A guide, depth, motion or albedo image
+      (`dlsspass.cpp:116-117`) and not the five other inputs. A guide, depth, motion or albedo image
       at the wrong resolution is accepted, and the failure mode the header already warns about for
       `SAMPLED_BIT` — success returned, nothing logged, wrong picture — applies equally here.
 - [ ] `resourceOf` (`dlsspass.cpp:46`) passes `true` for NGX's read-write flag on every resource
       including the six that are read-only, on the grounds that they were created with
       `STORAGE_BIT`. The header comment explains the reasoning, but the flag is what NGX uses to
       decide barrier behaviour on the resource.
-- [ ] `ngxQualityOf` (`ngx.hpp:42`) maps `Upscale::Off` to `MaxPerf` and relies on a comment that
+- [ ] `ngxQualityOf` (`ngx.hpp:45`) maps `Upscale::Off` to `MaxPerf` and relies on a comment that
       `Off` never reaches it. If it ever does, the renderer upscales at maximum performance instead
       of refusing.
 - [ ] The load-bearing facts about NGX's conventions exist only as prose in `dlsspass.cpp` — the
@@ -96,13 +84,6 @@ surface's motion, and Ray Reconstruction reprojects it accordingly.
       the depth's shape rather than its origin, `DepthInverted` and `AutoExposure` being deliberately
       absent. Each was found by a failure that reported `FAIL_InvalidParameter` and named no
       parameter. Nothing pins them but the comments.
-- [ ] The Streamline guide and the vendored header **disagree about the shape of the feature**, and
-      nothing records which is authoritative for this build. The guide states the opposite convention
-      for `InMVScale{X,Y}` to the header; it lists specular motion vectors among the *required*
-      inputs while the vendored header has no `pInSpecularMotionVectors` at all; and it describes a
-      transparency-layer, SSS and DOF guide set where the header offers the fog and particle pairs
-      above. The code follows the header, which is right for raw NGX, and a reader who finds the
-      guide first will conclude the code is wrong.
 
 ## Resources are sized beyond what their consumer reads
 
