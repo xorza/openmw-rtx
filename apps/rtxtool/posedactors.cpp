@@ -30,8 +30,8 @@ namespace RtxTool
         }
     }
 
-    PosedActors::PosedActors(World& world, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor,
-        osg::Group& root, const ActorRequest& request)
+    PosedActors::PosedActors(World& world, Rtx::SceneDesc& scene, Rtx::SceneExtractor& extractor, osg::Group& root,
+        const ActorRequest& request)
         : mWorld(world)
         , mScene(scene)
         , mExtractor(extractor)
@@ -115,7 +115,7 @@ namespace RtxTool
         }
     }
 
-    const RtxBridge::ExtractionStats& PosedActors::settle()
+    const Rtx::ExtractionStats& PosedActors::settle()
     {
         // **A frame's worth at a time, because that is the step the emitters were authored
         // against**: a birth rate is particles per second, a collider bounces per step, and a
@@ -153,7 +153,7 @@ namespace RtxTool
         return true;
     }
 
-    RtxBridge::ExtractionStats PosedActors::mirror()
+    Rtx::ExtractionStats PosedActors::mirror()
     {
         // The game's frame, and now this one: empty the lists a walk refills, then walk the whole
         // thing. The lights are among what it refills — they are `LightSource` nodes in the graph,
@@ -185,7 +185,7 @@ namespace RtxTool
         }
     }
 
-    RtxBridge::ExtractionStats PosedActors::place(float seconds)
+    Rtx::ExtractionStats PosedActors::place(float seconds)
     {
         posedAt(seconds, seconds - mLastSeconds);
         mExtractor.advanceEmitters(seconds - mLastSeconds);

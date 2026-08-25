@@ -14,7 +14,7 @@
 #include <components/resource/keyframemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtxbridge/posecull.hpp>
+#include <components/rtx/posecull.hpp>
 #include <components/sceneutil/controller.hpp>
 #include <components/sceneutil/keyframe.hpp>
 #include <components/sceneutil/skeleton.hpp>
@@ -126,7 +126,7 @@ namespace RtxTool
     Actor::Actor(World& world, ActorModel model, const osg::Matrixf& transform)
         : mClock(std::make_shared<Clock>())
         , mWorldClock(std::make_shared<Clock>())
-        , mCull(std::make_unique<RtxBridge::PoseCull>())
+        , mCull(std::make_unique<Rtx::PoseCull>())
         , mUpdate(std::make_unique<osgUtil::UpdateVisitor>())
         , mStamp(new osg::FrameStamp)
         , mModel(std::move(model))

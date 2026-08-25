@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include <components/rtxbridge/png.hpp>
+#include <components/rtx/png.hpp>
 
 #include "posedactors.hpp"
 #include "views.hpp"
@@ -86,7 +86,7 @@ namespace RtxTool
 
     /// Subtracts one picture from another. Mismatched where either is empty or they disagree on
     /// their extents.
-    FrameDifference compareFrames(const RtxBridge::PngImage& before, const RtxBridge::PngImage& after);
+    FrameDifference compareFrames(const Rtx::PngImage& before, const Rtx::PngImage& after);
 
     /// Renders every view and, where `mAgainst` names a previous run, reports what moved.
     ///

@@ -15,7 +15,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
+#include <components/rtx/sceneextractor.hpp>
 
 #include <apps/rtxtool/cellscene.hpp>
 #include <apps/rtxtool/posedactors.hpp>
@@ -82,10 +82,10 @@ namespace RtxTool
             // What one walk of the shared templates gives: every emitter in the room, each holding
             // its authored seed.
             Rtx::SceneDesc seeded;
-            RtxBridge::ExtractionStats seedStats;
+            Rtx::ExtractionStats seedStats;
             {
                 osg::ref_ptr<osg::Group> root = new osg::Group;
-                RtxBridge::SceneExtractor extractor(seeded);
+                Rtx::SceneExtractor extractor(seeded);
                 LoadedCells loaded;
                 readRegion(*world, *cell, *root, seeded, extractor, loaded, /*liveProps=*/false);
                 seedStats = extractor.extract(*root, osg::Matrixf::identity(), 0);
@@ -95,10 +95,10 @@ namespace RtxTool
 
             Rtx::SceneDesc live;
             osg::ref_ptr<osg::Group> root = new osg::Group;
-            RtxBridge::SceneExtractor extractor(live);
+            Rtx::SceneExtractor extractor(live);
             LoadedCells loaded;
             const CellReport report = readRegion(*world, *cell, *root, live, extractor, loaded, /*liveProps=*/true);
-            const RtxBridge::ExtractionStats mirrored = extractor.extract(*root, osg::Matrixf::identity(), 0);
+            const Rtx::ExtractionStats mirrored = extractor.extract(*root, osg::Matrixf::identity(), 0);
 
             EXPECT_EQ(mirrored.mEmitters, 0u) << "a reference that is going to be instanced is not mirrored too";
             ASSERT_FALSE(report.mProps.empty());
@@ -106,7 +106,7 @@ namespace RtxTool
             const ActorRequest request{ .mResidents = false, .mProps = true };
             PosedActors posed(*world, live, extractor, *root, request);
             posed.addProps(report.mProps);
-            const RtxBridge::ExtractionStats settled = posed.settle();
+            const Rtx::ExtractionStats settled = posed.settle();
 
             EXPECT_EQ(posed.getPropCount(), report.mProps.size());
             EXPECT_EQ(settled.mEmitters, seedStats.mEmitters) << "the same emitters, instanced rather than shared";
@@ -132,7 +132,7 @@ namespace RtxTool
             posed.unplace();
             EXPECT_EQ(live.getEmitters().size(), std::size_t{ 0 }) << "unplace is meant to empty them";
 
-            const RtxBridge::ExtractionStats remirrored = posed.mirror();
+            const Rtx::ExtractionStats remirrored = posed.mirror();
             EXPECT_EQ(remirrored.mEmitters, settled.mEmitters) << "the room lost its candles across a crossing";
             EXPECT_FALSE(spritePositions(live).empty());
 
@@ -141,7 +141,7 @@ namespace RtxTool
             Rtx::SceneDesc again;
             {
                 osg::ref_ptr<osg::Group> twiceRoot = new osg::Group;
-                RtxBridge::SceneExtractor twice(again);
+                Rtx::SceneExtractor twice(again);
                 LoadedCells once;
                 readRegion(*world, *cell, *twiceRoot, again, twice, once, /*liveProps=*/false);
                 twice.extract(*twiceRoot, osg::Matrixf::identity(), 0);

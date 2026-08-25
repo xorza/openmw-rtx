@@ -79,12 +79,12 @@ be either.
 ## 4. Layout
 
 ```
-components/rtx/                 openmw-rtx          the API-neutral core: no OSG, no game headers
+components/rtx/                 openmw-rtx          the API-neutral core: no graphics API, no game
+                                                    headers; osg::Node -> SceneDesc lives here too
     shaders/    GLSL + headers shared verbatim with C++ (`#ifdef __cplusplus`)
 components/rtxvulkan/           openmw-rtx-vulkan   the Vulkan backend, and its GLSL
 components/rtxmetal/            openmw-rtx-metal    the Metal backend (`.notes/rtx/backends.md`)
 components/rtxbackends/         openmw-rtx-backends which backend a build has
-components/rtxbridge/           openmw-rtx-bridge   osg::Node -> SceneDesc, with change tracking
 components/myguirtx/            MyGUI's backend for it
 components/surface/             what the content says a surface is; both renderers read it
 apps/openmw/mwrender/rtx/       the game-side owner
@@ -95,10 +95,16 @@ files/rtx/views.cfg             named viewpoints; benches.cfg names the suites
 C++ sources sit flat in each directory, as every other component in this tree does; only the GLSL
 gets a subdirectory, matching `files/shaders`.
 
-The seam that matters: **`openmw-rtx` never includes an OSG scene-graph header and never includes a
-game header**, and never a backend's. It is testable against synthetic scenes with no game data
-present, which is what makes the allocation test and the pass tests fast and hermetic.
-`openmw-rtx-bridge` is the only place that knows both worlds.
+The seam that matters: **`openmw-rtx` never links a graphics API and never includes a game header.**
+The linker holds the first half; nothing but taste holds the second. It is testable against synthetic
+scenes with no game data present, which is what makes the allocation test and the pass tests fast and
+hermetic.
+
+**OpenSceneGraph was never that seam**, and `.notes/rtx/merge.md` §1 is why the separate
+`openmw-rtx-bridge` folded back in: the scene arrives as an `osg::Node` graph and the maths types are
+OSG's, so a wall between the half that reads a graph and the half that does not had the same
+consumers on both sides and duplicated code across itself. What a backend is handed is `SceneDesc`
+either way.
 
 Every shader is compiled by `glslc` at build time and **validated by `spirv-val` in the same custom
 command** — an invalid module fails the build, not the frame. Debug builds compile with `-g` so
@@ -139,11 +145,11 @@ them left behind is in §8.
   ini. *Binds:* **sky is a light source, not a backdrop**, and the sun and the moons are discs a ray
   that hit nothing finds — so anything reflective gets them for nothing and their size lives in one
   place. And **the sun is one object, not the engine's five dials**: `Sky::sunAt` reads Morrowind's
-  arithmetic, `RtxBridge::makeSkylight` is the only thing that may build a sun out of it, and its
+  arithmetic, `Rtx::makeSkylight` is the only thing that may build a sun out of it, and its
   irradiance being zero is the whole of "there is no sun". Every sun bug this renderer has had was
   two of those dials disagreeing. **The clouds and the night sky are found rather than hung on a
   mesh**: the deck is where a ray crosses a layer at a height, and the night is read off the file the
-  rasterizer draws it with — `RtxBridge::readNightSky` walks `Models/skynight01` at load and takes
+  rasterizer draws it with — `Rtx::readNightSky` walks `Models/skynight01` at load and takes
   from it which sheet the star field wears, how much sky one tile of that sheet covers, the elevation
   the field fades out below, and where each of the six patches painted across it sits and how wide it
   is. Those patches are three nebulae and the warrior, the mage and the thief; they are most of what

@@ -13,12 +13,12 @@
 #include <components/debug/debugging.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/files/conversion.hpp>
+#include <components/rtx/lightbuilder.hpp>
+#include <components/rtx/png.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/sceneuploader.hpp>
 #include <components/rtx/shaders/visibility.h>
-#include <components/rtxbridge/lightbuilder.hpp>
-#include <components/rtxbridge/png.hpp>
-#include <components/rtxbridge/sceneuploader.hpp>
 
 #include "framing.hpp"
 #include "stagedworld.hpp"
@@ -81,15 +81,15 @@ namespace RtxTool
         }
 
         /// What a hand-over came to, for the line a ring prints.
-        const char* describeUpload(const RtxBridge::SceneUpload& handed)
+        const char* describeUpload(const Rtx::SceneUpload& handed)
         {
             switch (handed.mKind)
             {
-                case RtxBridge::SceneUpload::Kind::Placed:
+                case Rtx::SceneUpload::Kind::Placed:
                     return "nothing arrived, so only the transforms were rewritten";
-                case RtxBridge::SceneUpload::Kind::Extended:
+                case Rtx::SceneUpload::Kind::Extended:
                     return "appended";
-                case RtxBridge::SceneUpload::Kind::Rebuilt:
+                case Rtx::SceneUpload::Kind::Rebuilt:
                     return "rebuilt, because the tables were renumbered";
             }
 
@@ -158,7 +158,7 @@ namespace RtxTool
 
         request.mLighting = staged.getLighting();
 
-        RtxBridge::SceneUploader uploader;
+        Rtx::SceneUploader uploader;
 
         /// Hands the renderer the scene as it now stands, building only what has to be built.
         ///
@@ -172,7 +172,7 @@ namespace RtxTool
 
         if (staged.getActorCount() > 0 || staged.getPropCount() > 0)
         {
-            const RtxBridge::ExtractionStats& settled = staged.getSettled();
+            const Rtx::ExtractionStats& settled = staged.getSettled();
             out() << std::format(
                 "{} actors and {} live props placed, {} deforming drawables, {} emitters holding "
                 "{} particles\n",
@@ -295,16 +295,15 @@ namespace RtxTool
                         // **Turned into rather than swapped for.** A transition is the one thing the
                         // harness never ran — the blend the shader carries was exercised only in the
                         // game, which is the surface nobody iterates on.
-                        const std::uint32_t at
-                            = RtxBridge::weatherIndex(turningInto.value_or(request.mWeather)).value();
+                        const std::uint32_t at = Rtx::weatherIndex(turningInto.value_or(request.mWeather)).value();
 
                         // Whatever the last one was turning into is where this one starts from, so
                         // pressing the key twice does not jump.
                         if (turningInto.has_value())
                             request.mWeather = *turningInto;
 
-                        turningInto = std::string(RtxBridge::weatherName(
-                            RtxBridge::nextRegionWeather(world.findRegion(staged.getRegion()), at, forward)));
+                        turningInto = std::string(Rtx::weatherName(
+                            Rtx::nextRegionWeather(world.findRegion(staged.getRegion()), at, forward)));
                         turned = 0.0f;
 
                         moveSky();
@@ -336,7 +335,7 @@ namespace RtxTool
                             = request.mScreenshotDirectory / ("rtx-" + std::to_string(SDL_GetTicks()) + ".png");
                         std::vector<std::uint8_t> pixels;
                         renderer->readPixels(pixels);
-                        RtxBridge::writePng(file, shown.mOutputWidth, shown.mOutputHeight, pixels);
+                        Rtx::writePng(file, shown.mOutputWidth, shown.mOutputHeight, pixels);
                         out() << "wrote " << Files::pathToUnicodeString(file) << '\n';
                     }
                     break;
@@ -402,7 +401,7 @@ namespace RtxTool
                 // **What the ring cost, said out loud.** Appending is the whole point of taking the
                 // game's decision here, and the line that says which branch ran is what turns a
                 // claim about it into a measurement.
-                const RtxBridge::SceneUpload handed = hand();
+                const Rtx::SceneUpload handed = hand();
                 out() << std::format("loaded {} cells and dropped {}, {} instances now placed — {} in {:.1f} ms\n",
                     crossed.mArrived, crossed.mDeparted, staged.getScene().getPlacedCount(), describeUpload(handed),
                     std::chrono::duration<double, std::milli>(Clock::now() - crossingStart).count());

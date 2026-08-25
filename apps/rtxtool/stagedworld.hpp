@@ -12,7 +12,7 @@
 
 #include <components/esm/refid.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
+#include <components/rtx/sceneextractor.hpp>
 #include <components/weather/precipitation.hpp>
 
 #include "cellscene.hpp"
@@ -157,10 +157,10 @@ namespace RtxTool
 
         /// What the actors and props came to once they were walked in. All zero where there are
         /// none.
-        const RtxBridge::ExtractionStats& getSettled() const { return mSettled; }
+        const Rtx::ExtractionStats& getSettled() const { return mSettled; }
 
         /// What the staging walk found: the still world, before anyone was posed into it.
-        const RtxBridge::ExtractionStats& getStaged() const { return mStaged; }
+        const Rtx::ExtractionStats& getStaged() const { return mStaged; }
 
         /// What reading the region found, including everything it could not place. Kept because a
         /// report of what the renderer is handed has to come off the same load the renderer got.
@@ -171,7 +171,7 @@ namespace RtxTool
         /// **A diagnostic and not a frame.** Nothing changes between the two, so every count it
         /// returns for new geometry should be zero — which is the property the incremental mirror
         /// rests on, and the only way to ask it is to ask twice.
-        RtxBridge::ExtractionStats mirrorAgain() { return mirror(0); }
+        Rtx::ExtractionStats mirrorAgain() { return mirror(0); }
 
         /// People and creatures, which is everyone posed less the props.
         std::size_t getActorCount() const;
@@ -183,7 +183,7 @@ namespace RtxTool
         /// **Nothing outside calls this any more.** Staging walks once and streaming walks again per
         /// ring; the per-frame walk belongs to `PosedActors`, which owns the pose that made it
         /// necessary.
-        RtxBridge::ExtractionStats mirror(std::size_t frame);
+        Rtx::ExtractionStats mirror(std::size_t frame);
 
         /// Moves the world's clock, which is what everything the graph animates is driven by.
         void setSeconds(float seconds);
@@ -200,7 +200,7 @@ namespace RtxTool
         osg::ref_ptr<osg::Group> mRoot = new osg::Group;
 
         Rtx::SceneDesc mScene;
-        RtxBridge::SceneExtractor mExtractor;
+        Rtx::SceneExtractor mExtractor;
 
         /// Which cells are in the graph, and the group each hangs under.
         LoadedCells mLoaded;
@@ -256,12 +256,12 @@ namespace RtxTool
 
         /// What the staging load and the staging walk came to, kept for whoever reports on them.
         CellReport mReport;
-        RtxBridge::ExtractionStats mStaged;
+        Rtx::ExtractionStats mStaged;
 
         /// Held rather than borrowed: the extractor keys its meshes on node pointers, so actors
         /// freed while the scene still names them is a dangling identity.
         std::unique_ptr<PosedActors> mPosed;
-        RtxBridge::ExtractionStats mSettled;
+        Rtx::ExtractionStats mSettled;
 
         /// What `moveTo` needs and the constructor already had. Borrowed: the world outlives this.
         World* mWorld = nullptr;

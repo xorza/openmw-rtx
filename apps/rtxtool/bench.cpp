@@ -16,8 +16,8 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/sceneuploader.hpp>
 #include <components/rtx/wavespectrum.hpp>
-#include <components/rtxbridge/sceneuploader.hpp>
 
 #include "framing.hpp"
 #include "perfcontrol.hpp"
@@ -260,7 +260,7 @@ namespace RtxTool
                 return 1;
             }
 
-            RtxBridge::SceneUploader uploader;
+            Rtx::SceneUploader uploader;
 
             const Clock::time_point buildStart = Clock::now();
             uploader.hand(*renderer, Rtx::sWorld, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
@@ -329,12 +329,12 @@ namespace RtxTool
                 if (const Crossing crossed = staged.moveTo(standing.mOrigin); crossed.happened())
                 {
                     const Clock::time_point read = Clock::now();
-                    const RtxBridge::SceneUpload handed = uploader.hand(
+                    const Rtx::SceneUpload handed = uploader.hand(
                         *renderer, Rtx::sWorld, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
                     const Clock::time_point built = Clock::now();
 
                     ++crossings;
-                    crossRebuilds += handed.mKind == RtxBridge::SceneUpload::Kind::Rebuilt ? 1u : 0u;
+                    crossRebuilds += handed.mKind == Rtx::SceneUpload::Kind::Rebuilt ? 1u : 0u;
                     crossReadMs += std::chrono::duration<double, std::milli>(read - frameStart).count();
                     crossBuildMs += std::chrono::duration<double, std::milli>(built - read).count();
                     crossWorstMs

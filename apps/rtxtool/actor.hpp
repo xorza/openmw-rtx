@@ -11,7 +11,7 @@
 
 #include <components/vfs/pathutil.hpp>
 
-namespace RtxBridge
+namespace Rtx
 {
     class PoseCull;
 }
@@ -152,8 +152,8 @@ namespace RtxTool
         std::shared_ptr<Clock> mWorldClock;
 
         /// **A real cull traversal, because that is the only kind a skinned body poses for.** See
-        /// `RtxBridge::PoseCull`; the mirror carries one too, for the actors nothing else reached.
-        std::unique_ptr<RtxBridge::PoseCull> mCull;
+        /// `Rtx::PoseCull`; the mirror carries one too, for the actors nothing else reached.
+        std::unique_ptr<Rtx::PoseCull> mCull;
         std::unique_ptr<osgUtil::UpdateVisitor> mUpdate;
 
         /// What the update traversal tells anything that integrates rather than samples — which in

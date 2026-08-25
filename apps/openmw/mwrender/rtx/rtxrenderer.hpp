@@ -10,12 +10,12 @@
 #include <osg/ref_ptr>
 
 #include <components/myguiplatform/picture.hpp>
+#include <components/rtx/frameimage.hpp>
+#include <components/rtx/moonbuilder.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/frameimage.hpp>
-#include <components/rtxbridge/moonbuilder.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
-#include <components/rtxbridge/sceneuploader.hpp>
-#include <components/rtxbridge/skybuilder.hpp>
+#include <components/rtx/sceneextractor.hpp>
+#include <components/rtx/sceneuploader.hpp>
+#include <components/rtx/skybuilder.hpp>
 
 #include "../renderer.hpp"
 
@@ -53,7 +53,7 @@ namespace SceneUtil
     class AsyncScreenCaptureOperation;
 }
 
-namespace MWRender::Rtx
+namespace MWRender
 {
     /// The picture as rays find it: a window, a mirror of the scene graph, and a trace.
     ///
@@ -76,7 +76,7 @@ namespace MWRender::Rtx
     /// after the update traversal and the present runs after the mirror, all inside one frame.
     class TracedView;
 
-    class RtxRenderer final : public MWRender::Renderer
+    class RtxRenderer final : public Renderer
     {
     public:
         /// Throws `std::runtime_error` naming what stopped it — no loader for the backend's API,
@@ -163,9 +163,9 @@ namespace MWRender::Rtx
         /// The one sequence every mirror walk here poses at — the world's, and every traced view's.
         ///
         /// **Shared rather than each keeping its own**, because a subtree both can reach would
-        /// otherwise be posed by whichever counter got there first and frozen for the other. See
-        /// `RtxBridge::Traversals`.
-        RtxBridge::Traversals& getTraversals() { return mTraversals; }
+        /// otherwise be posed by whichever counter got there first and frozen for the other.
+        /// See `Rtx::Traversals`.
+        Rtx::Traversals& getTraversals() { return mTraversals; }
 
         /// The game's frame number, which is which of a `SceneUtil::LightSource`'s two buffers
         /// update has just written. Not a pose number; see `getTraversals`.
@@ -174,15 +174,15 @@ namespace MWRender::Rtx
         /// Where a picture of its own subject gets its textures from. Null before there is a world.
         Resource::ResourceSystem* getResources() const { return mResources; }
 
-        /// Runs one update traversal over a subtree that is not in the graph.
+        /// The clock an update traversal runs on: this renderer's own, which advances once per
+        /// drawn frame whether or not the world's does.
         ///
-        /// **Nothing else will.** The rasterizer hangs an offscreen view's camera off the scene
-        /// graph, so the viewer's own update traversal reaches the subtree under it and poses the
-        /// character; there is no such graph here, and a doll that is never updated is a doll in the
-        /// bind pose with a camera that never found its head.
-        /// @return the traversal number it posed at, which is the frame a double-buffered pose
-        ///         was written into and so the one an intersection test has to read.
-        unsigned int updateSubtree(osg::Node& node);
+        /// **What a picture of its own subject is posed against.** The rasterizer hangs an offscreen
+        /// view's camera off the scene graph, so the viewer's update traversal reaches the subtree
+        /// under it; there is no such graph here, and `Rtx::OffscreenTrace` runs the traversal
+        /// itself against this. Not `getFrame`, which stops when the game is paused — a doll posed
+        /// against a stopped clock is a doll frozen the first time it was drawn.
+        const osg::FrameStamp& getUpdateStamp() const { return *mFrameStamp; }
 
     private:
         /// Makes the SDL window the backend builds its surface on. No GL attribute is set and no GL
@@ -199,7 +199,7 @@ namespace MWRender::Rtx
         /// here rather than in `renderFrame` — see the comment on the call.
         ///
         /// @return whether anything was written into the target.
-        bool traceWorld(const SceneFrame& frame, const RtxBridge::ExtractionStats& found);
+        bool traceWorld(const SceneFrame& frame, const Rtx::ExtractionStats& found);
 
         /// Writes the traced frame to a numbered PNG, where `OPENMW_RTX_SHOT` asked for it.
         void keep();
@@ -207,8 +207,8 @@ namespace MWRender::Rtx
         /// The frame that was last presented, read back into `mPixels`.
         ///
         /// **Off the device and so asked for rather than kept.** Zero-sized before anything has been
-        /// presented, which `RtxBridge::frameImage` answers with null.
-        RtxBridge::TracedFrame readFrame();
+        /// presented, which `Rtx::frameImage` answers with null.
+        Rtx::TracedFrame readFrame();
 
         /// Hands MyGUI's triangles to the renderer, where there is a GUI up at all.
         void drawGui();
@@ -255,7 +255,7 @@ namespace MWRender::Rtx
         /// stamped against.
         osg::Timer_t mStartTick = 0;
 
-        std::unique_ptr<::Rtx::Renderer> mRenderer;
+        std::unique_ptr<Rtx::Renderer> mRenderer;
 
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
@@ -264,24 +264,23 @@ namespace MWRender::Rtx
         ///
         /// **Before the extractors, because they hold a reference to it.** Shared with every
         /// `TracedView`, which is the whole point: a subtree the world and a doll can both reach must
-        /// not be posed by two counters that can each be behind the other. See
-        /// `RtxBridge::Traversals`.
-        RtxBridge::Traversals mTraversals;
+        /// not be posed by two counters that can each be behind the other. See `Rtx::Traversals`.
+        Rtx::Traversals mTraversals;
 
         /// Kept across frames, which is the whole of what makes a re-walk cheap: the identity maps
         /// inside the extractor are what resolve a mesh met again to the one already uploaded.
-        ::Rtx::SceneDesc mScene;
+        Rtx::SceneDesc mScene;
 
         /// Where the two moons' portraits sit in `mScene`'s texture table, added on the first frame
         /// that has a scene at all.
-        RtxBridge::MoonFaces mMoonFaces;
+        Rtx::MoonFaces mMoonFaces;
 
         /// The cloud decks and the star sheet, on the same terms as the moons' faces.
-        RtxBridge::SkyTextures mSkyTextures;
-        std::unique_ptr<RtxBridge::SceneExtractor> mExtractor;
+        Rtx::SkyTextures mSkyTextures;
+        std::unique_ptr<Rtx::SceneExtractor> mExtractor;
 
         /// Which of place, extend and rebuild a frame is, and what a rebuild has to describe.
-        RtxBridge::SceneUploader mUploader;
+        Rtx::SceneUploader mUploader;
 
         /// A running average of what the trace costs, reported every `sReportEvery` frames.
         ///

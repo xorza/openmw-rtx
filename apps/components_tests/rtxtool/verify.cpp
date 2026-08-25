@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include <components/rtxbridge/png.hpp>
+#include <components/rtx/png.hpp>
 
 #include <apps/rtxtool/verify.hpp>
 
@@ -12,14 +12,14 @@ namespace RtxTool
     namespace
     {
         /// A picture of one flat colour, so a test can then move exactly the pixels it means to.
-        RtxBridge::PngImage flat(std::uint32_t width, std::uint32_t height, std::uint8_t value)
+        Rtx::PngImage flat(std::uint32_t width, std::uint32_t height, std::uint8_t value)
         {
-            RtxBridge::PngImage image{ width, height, {} };
+            Rtx::PngImage image{ width, height, {} };
             image.mPixels.assign(std::size_t{ width } * height * 4, value);
             return image;
         }
 
-        std::uint8_t& channelAt(RtxBridge::PngImage& image, std::uint32_t x, std::uint32_t y, std::size_t channel)
+        std::uint8_t& channelAt(Rtx::PngImage& image, std::uint32_t x, std::uint32_t y, std::size_t channel)
         {
             return image.mPixels[(std::size_t{ y } * image.mWidth + x) * 4 + channel];
         }
@@ -30,8 +30,8 @@ namespace RtxTool
         /// nothing rounded in it.
         TEST(RtxVerifyTest, aDifferenceIsCountedInPixelsAndMeasuredInChannels)
         {
-            const RtxBridge::PngImage before = flat(10, 10, 100);
-            RtxBridge::PngImage after = before;
+            const Rtx::PngImage before = flat(10, 10, 100);
+            Rtx::PngImage after = before;
 
             EXPECT_TRUE(compareFrames(before, after).same());
             EXPECT_EQ(compareFrames(before, after).mTotal, 100u);
@@ -55,8 +55,8 @@ namespace RtxTool
         /// a magnitude on a frame that is identical.
         TEST(RtxVerifyTest, alphaIsNotPartOfWhatThePictureLooksLike)
         {
-            const RtxBridge::PngImage before = flat(4, 4, 200);
-            RtxBridge::PngImage after = before;
+            const Rtx::PngImage before = flat(4, 4, 200);
+            Rtx::PngImage after = before;
             for (std::uint32_t y = 0; y < 4; ++y)
                 for (std::uint32_t x = 0; x < 4; ++x)
                     channelAt(after, x, y, 3) = 0;
@@ -67,14 +67,14 @@ namespace RtxTool
         /// Two sizes are not a delta, and neither is a reference that was never written.
         TEST(RtxVerifyTest, nothingToSubtractIsSaidRatherThanCountedAsZero)
         {
-            const RtxBridge::PngImage before = flat(10, 10, 100);
+            const Rtx::PngImage before = flat(10, 10, 100);
 
             EXPECT_TRUE(compareFrames(before, flat(10, 9, 100)).mMismatched);
-            EXPECT_TRUE(compareFrames(before, RtxBridge::PngImage{}).mMismatched);
-            EXPECT_TRUE(compareFrames(RtxBridge::PngImage{}, before).mMismatched);
+            EXPECT_TRUE(compareFrames(before, Rtx::PngImage{}).mMismatched);
+            EXPECT_TRUE(compareFrames(Rtx::PngImage{}, before).mMismatched);
 
             // And a mismatch is never `same`, which is what the exit status is built on.
-            EXPECT_FALSE(compareFrames(before, RtxBridge::PngImage{}).same());
+            EXPECT_FALSE(compareFrames(before, Rtx::PngImage{}).same());
         }
     }
 }

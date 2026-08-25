@@ -139,6 +139,8 @@ cd build                       # --resources defaults to ./resources, so the too
 ./openmw-rtxtool view --view=balmora               # a window somewhere else; F1 lists its keys
 ./openmw-rtxtool shot --view=balmora --out=b.png   # one frame, no window — the default way to look
 ./openmw-rtxtool scene --view=balmora --twice      # what the renderer was handed
+./openmw-rtxtool doll --npc=fargoth --out=d.png    # the inventory doll, traced headlessly
+./openmw-rtxtool map --view=balmora --out=m.png    # one local-map tile, straight down
 ./openmw-rtxtool scene --list-views                # the named viewpoints
 ./openmw-rtxtool info                              # the device and its ray tracing limits
 
@@ -199,9 +201,9 @@ whole graph and poses what it finds itself. It reaches the screen through **its 
 interop** — the GUI is drawn by the backend, and the inventory doll and the maps are traces rather
 than render-to-texture passes. `.notes/rtx/plan.md` §2–3 has the alternatives.
 
-Code lives in `components/rtx/` (the API-neutral core: no OSG, no game headers),
-`components/rtxvulkan/` and `components/rtxmetal/` (the two backends, picked by
-`components/rtxbackends/`), `components/rtxbridge/` (`osg::Node` → scene description),
+Code lives in `components/rtx/` (the API-neutral core: what the scene *is*, `osg::Node` → scene
+description, and no graphics API and no game headers), `components/rtxvulkan/` and
+`components/rtxmetal/` (the two backends, picked by `components/rtxbackends/`),
 `components/myguirtx/` (MyGUI's backend for it), `apps/openmw/mwrender/rtx/` (the game-side owner)
 and `apps/rtxtool/` (the headless harness). `components/surface/` is renderer-neutral and holds what
 the content says a surface is, which both renderers read.

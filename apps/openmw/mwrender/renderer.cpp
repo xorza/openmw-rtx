@@ -18,7 +18,7 @@ namespace MWRender
 
 #ifdef OPENMW_RTX
         if (name == "raytrace")
-            return std::make_unique<Rtx::RtxRenderer>(spec);
+            return std::make_unique<RtxRenderer>(spec);
 #endif
 
         // **Named rather than fallen back from.** A renderer that quietly became a different one

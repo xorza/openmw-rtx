@@ -12,7 +12,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
+#include <components/rtx/sceneextractor.hpp>
 
 #include <apps/rtxtool/cellscene.hpp>
 #include <apps/rtxtool/world.hpp>
@@ -34,7 +34,7 @@ namespace RtxTool
             osg::ref_ptr<osg::Group> root = new osg::Group;
             LoadedCells loaded;
             Rtx::SceneDesc scene;
-            RtxBridge::SceneExtractor extractor(scene);
+            Rtx::SceneExtractor extractor(scene);
 
             readRegion(world, cell, *root, scene, extractor, loaded, /*liveProps=*/false);
             world.setTerrainViewPoint(osg::Vec3f(cell.getGridX() * 8192.0f, cell.getGridY() * 8192.0f, 0.0f));

@@ -53,9 +53,9 @@ namespace Rtx
 
 namespace Rtx
 {
-    void GpuBreakdown::add(std::span<const Rtx::GpuSpan> spans)
+    void GpuBreakdown::add(std::span<const GpuSpan> spans)
     {
-        for (const Rtx::GpuSpan& span : spans)
+        for (const GpuSpan& span : spans)
         {
             // The index and not the iterator: adding a name invalidates whatever `find` returned,
             // and the row about to be pushed to is the one that name is at.

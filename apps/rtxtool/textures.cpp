@@ -7,7 +7,7 @@
 #include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/texturebuilder.hpp>
+#include <components/rtx/texturebuilder.hpp>
 
 #include "contactsheet.hpp"
 #include "stagedworld.hpp"
@@ -23,7 +23,7 @@ namespace RtxTool
         StagedWorld staged(world, cell, request, actors);
         const Rtx::SceneDesc& scene = staged.getScene();
 
-        const RtxBridge::SceneTextures described(scene, world.getImageManager());
+        const Rtx::SceneTextures described(scene, world.getImageManager());
         const ContactSheet sheet = writeContactSheet(described.getDescriptions(), output, strength);
         if (sheet.mCount == 0)
         {

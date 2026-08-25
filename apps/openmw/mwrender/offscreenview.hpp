@@ -54,6 +54,17 @@ namespace MWRender
         int mHeight = 0;
 
         /// Only the nodes these bits select; `vismask.hpp`.
+        ///
+        /// **An inclusion mask, AND-ed at every node**, so a category left out of it is dropped
+        /// wherever it appears below — which is a shape worth naming, because the same shape once
+        /// left the weather's particles out of every storm.
+        ///
+        /// **And the two renderers read it in different places.** The rasterizer puts it on the
+        /// camera's cull mask, so it applies to every picture. A ray tracer has no cull: it applies
+        /// only where `mFromWorld` is false and there is a walk of this subtree to mask, because a
+        /// picture of the world traces against the scene the frame's own walk already built and is
+        /// masked by whatever masked that. A map tile is therefore drawn with everything the frame
+        /// holds, this field notwithstanding.
         unsigned int mMask = ~0u;
 
         std::variant<Perspective, Orthographic> mProjection;

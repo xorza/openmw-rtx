@@ -16,14 +16,14 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
-#include <components/rtxbridge/sceneuploader.hpp>
+#include <components/rtx/sceneextractor.hpp>
+#include <components/rtx/sceneuploader.hpp>
 
 #include <apps/rtxtool/cellscene.hpp>
 #include <apps/rtxtool/stagedworld.hpp>
 #include <apps/rtxtool/world.hpp>
 
-#include "../rtxbridge/countingrenderer.hpp"
+#include "../rtx/countingrenderer.hpp"
 #include "installation.hpp"
 
 namespace RtxTool
@@ -46,7 +46,7 @@ namespace RtxTool
         /// left — which is what `runWindow`'s `bring` does, in the same order and for the same
         /// reasons.
         std::uint32_t crossTo(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
-            LoadedCells& loaded, RtxBridge::SceneExtractor& extractor)
+            LoadedCells& loaded, Rtx::SceneExtractor& extractor)
         {
             readRegion(world, centre, root, scene, extractor, loaded, /*liveProps=*/false);
             const std::uint32_t went = dropCellsOutside(world, centre, root, scene, extractor, loaded);
@@ -89,24 +89,24 @@ namespace RtxTool
             const osg::ref_ptr<osg::Group> root = new osg::Group;
 
             Rtx::SceneDesc scene;
-            RtxBridge::SceneExtractor extractor(scene);
-            RtxBridge::SceneUploader uploader;
-            RtxBridge::Testing::CountingRenderer renderer;
+            Rtx::SceneExtractor extractor(scene);
+            Rtx::SceneUploader uploader;
+            Rtx::Testing::CountingRenderer renderer;
             LoadedCells loaded;
 
             EXPECT_EQ(crossTo(*world, *from, *root, scene, loaded, extractor), 0u) << "nothing was loaded to leave yet";
 
             // The first ring has nothing to append to, so it builds whatever it found.
-            const RtxBridge::SceneUpload first
+            const Rtx::SceneUpload first
                 = uploader.hand(renderer, Rtx::sWorld, scene, world->getImageManager(), Rtx::SeaState{});
-            ASSERT_EQ(first.mKind, RtxBridge::SceneUpload::Kind::Rebuilt);
+            ASSERT_EQ(first.mKind, Rtx::SceneUpload::Kind::Rebuilt);
             ASSERT_GT(scene.getPlacedCount(), std::size_t{ 0 }) << "the ring placed no geometry";
 
             // Standing still is the ordinary frame: the walk finds everything where it was.
             extractor.extract(*root, osg::Matrixf::identity(), 0);
             extractor.advance();
             EXPECT_EQ(uploader.hand(renderer, Rtx::sWorld, scene, world->getImageManager(), Rtx::SeaState{}).mKind,
-                RtxBridge::SceneUpload::Kind::Placed);
+                Rtx::SceneUpload::Kind::Placed);
 
             const std::size_t meshesBefore = scene.getMeshes().size();
             const std::size_t texturesBefore = scene.getTextures().size();
@@ -114,9 +114,9 @@ namespace RtxTool
             EXPECT_EQ(crossTo(*world, *to, *root, scene, loaded, extractor), 3u)
                 << "a step of one cell east leaves the three columns behind it";
 
-            const RtxBridge::SceneUpload crossed
+            const Rtx::SceneUpload crossed
                 = uploader.hand(renderer, Rtx::sWorld, scene, world->getImageManager(), Rtx::SeaState{});
-            EXPECT_EQ(crossed.mKind, RtxBridge::SceneUpload::Kind::Extended);
+            EXPECT_EQ(crossed.mKind, Rtx::SceneUpload::Kind::Extended);
             EXPECT_GT(scene.getMeshes().size(), meshesBefore) << "three cells arrived and brought no geometry";
 
             // **Exactly the arrivals, which is the whole saving.** Anything else means the offset
@@ -261,7 +261,7 @@ namespace RtxTool
             const osg::ref_ptr<osg::Group> root = new osg::Group;
 
             Rtx::SceneDesc scene;
-            RtxBridge::SceneExtractor extractor(scene);
+            Rtx::SceneExtractor extractor(scene);
             LoadedCells loaded;
 
             std::size_t afterFirstStep = 0;

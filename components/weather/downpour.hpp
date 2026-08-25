@@ -61,8 +61,8 @@ namespace Weather
     /// How hard a named weather blows, as the content files record it.
     ///
     /// **A name that is none of the ten throws**, because `Fallback::Map` will not consider a key it
-    /// does not whitelist — which is why a caller holding a name from outside asks
-    /// `RtxBridge::weatherIndex` first.
+    /// does not whitelist — which is why a caller holding a name from outside asks `Rtx::weatherIndex`
+    /// first.
     float windSpeed(std::string_view weather);
 
     /// What a named weather drops, read straight off the content files.

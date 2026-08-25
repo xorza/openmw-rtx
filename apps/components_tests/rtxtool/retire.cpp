@@ -16,8 +16,8 @@
 #include <components/rtx/camera.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
-#include <components/rtxbridge/texturebuilder.hpp>
+#include <components/rtx/sceneextractor.hpp>
+#include <components/rtx/texturebuilder.hpp>
 
 #include <apps/rtxtool/cellscene.hpp>
 #include <apps/rtxtool/lighting.hpp>
@@ -45,8 +45,8 @@ namespace RtxTool
         /// stamp the first one's placements, which is exactly how a cell goes: the sweep finds them
         /// unmet. And the roots have to outlive the mirror, because it keys its meshes on the nodes
         /// in them and a freed address is one the allocator can hand back holding something else.
-        RtxBridge::ExtractionStats readCell(World& world, const ESM::Cell& cell, Rtx::SceneDesc& scene,
-            std::vector<osg::ref_ptr<osg::Group>>& kept, RtxBridge::SceneExtractor& extractor)
+        Rtx::ExtractionStats readCell(World& world, const ESM::Cell& cell, Rtx::SceneDesc& scene,
+            std::vector<osg::ref_ptr<osg::Group>>& kept, Rtx::SceneExtractor& extractor)
         {
             osg::ref_ptr<osg::Group> root = new osg::Group;
             kept.push_back(root);
@@ -65,7 +65,7 @@ namespace RtxTool
 
         /// Builds one room into its own root, mirrors it, and hands back what lit it.
         CellLighting loadAndMirror(World& world, const ESM::Cell& cell, std::vector<osg::ref_ptr<osg::Group>>& kept,
-            Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor)
+            Rtx::SceneDesc& scene, Rtx::SceneExtractor& extractor)
         {
             const osg::ref_ptr<osg::Group> root = keepRoot(kept);
 
@@ -137,9 +137,9 @@ namespace RtxTool
 
             std::vector<osg::ref_ptr<osg::Group>> kept;
             Rtx::SceneDesc scene;
-            RtxBridge::SceneExtractor extractor(scene);
+            Rtx::SceneExtractor extractor(scene);
 
-            const RtxBridge::ExtractionStats one = readCell(*world, *first, scene, kept, extractor);
+            const Rtx::ExtractionStats one = readCell(*world, *first, scene, kept, extractor);
             ASSERT_GT(one.mMeshesAdded, 0u);
 
             const std::size_t held = scene.getMeshes().size();
@@ -153,7 +153,7 @@ namespace RtxTool
             // The second room, and only the second room. The first is still in the resource cache,
             // so its drawables are alive and would be recognised if anything walked them.
             scene.clearPlacement();
-            const RtxBridge::ExtractionStats two = readCell(*world, *second, scene, kept, extractor);
+            const Rtx::ExtractionStats two = readCell(*world, *second, scene, kept, extractor);
 
             ASSERT_GT(two.mMeshesReused, 0u) << "two Imperial interiors that share no model at all";
             ASSERT_GT(two.mMeshesAdded, 0u);
@@ -164,7 +164,7 @@ namespace RtxTool
             // Taken here and not before the second room arrived: that walk added meshes, which is a
             // structure change and rightly one. What must not change is the *sweep*.
             const std::uint64_t beforeSweep = scene.getStructureRevision();
-            const RtxBridge::Retirement went = extractor.retire();
+            const Rtx::Retirement went = extractor.retire();
 
             EXPECT_GT(went.mMeshes, 0u) << "the room that was walked away from is still in the scene";
             EXPECT_LT(went.mMeshes, held) << "the models the two rooms share were dropped along with it";
@@ -225,7 +225,7 @@ namespace RtxTool
             // whatever order they arrived in and whatever gaps one of them is carrying.
             Rtx::SceneDesc alone;
             {
-                RtxBridge::SceneExtractor fresh(alone);
+                Rtx::SceneExtractor fresh(alone);
                 readCell(*world, *second, alone, kept, fresh);
             }
 
@@ -234,7 +234,7 @@ namespace RtxTool
             // And the survivors go on resolving through the identity map: a third walk of the same
             // room adds nothing at all, because nothing moved under it.
             scene.clearPlacement();
-            const RtxBridge::ExtractionStats again = readCell(*world, *second, scene, kept, extractor);
+            const Rtx::ExtractionStats again = readCell(*world, *second, scene, kept, extractor);
 
             EXPECT_EQ(again.mMeshesAdded, 0u) << "a survivor was not recognised after the sweep";
             EXPECT_EQ(again.mMaterialsAdded, 0u);
@@ -289,7 +289,7 @@ namespace RtxTool
             // because compacting takes them with it.
             std::vector<osg::ref_ptr<osg::Group>> kept;
             Rtx::SceneDesc scene;
-            RtxBridge::SceneExtractor extractor(scene);
+            Rtx::SceneExtractor extractor(scene);
             CellLighting lighting;
             loadAndMirror(*world, *first, kept, scene, extractor);
 
@@ -307,7 +307,7 @@ namespace RtxTool
             }
 
             Rtx::SceneDesc alone;
-            RtxBridge::SceneExtractor fresh(alone);
+            Rtx::SceneExtractor fresh(alone);
             CellLighting freshly;
             freshly = loadAndMirror(*world, *second, kept, alone, fresh);
 
@@ -339,7 +339,7 @@ namespace RtxTool
 
             const auto draw = [&](const Rtx::SceneDesc& drawn, const CellLighting& lit,
                                   std::vector<std::uint8_t>& out) {
-                const RtxBridge::SceneTextures described(drawn, world->getImageManager());
+                const Rtx::SceneTextures described(drawn, world->getImageManager());
                 renderer->setScene(Rtx::sWorld, drawn, described.getDescriptions(), Rtx::SeaState{});
 
                 Rtx::Shaders::VisibilityConstants camera = Rtx::makeCamera(placement.mOrigin, placement.mTarget, 60.0f,

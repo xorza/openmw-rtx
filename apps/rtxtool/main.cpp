@@ -17,13 +17,13 @@
 #include <components/files/conversion.hpp>
 #include <components/platform/platform.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/rtx/fogbuilder.hpp>
+#include <components/rtx/lightbuilder.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/sceneextractor.hpp>
+#include <components/rtx/texturebuilder.hpp>
 #include <components/rtx/upscale.hpp>
-#include <components/rtxbridge/fogbuilder.hpp>
-#include <components/rtxbridge/lightbuilder.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
-#include <components/rtxbridge/texturebuilder.hpp>
 
 #include <components/settings/settings.hpp>
 #include <limits>
@@ -34,7 +34,9 @@
 #include "cellchoice.hpp"
 #include "cellscene.hpp"
 #include "find.hpp"
+#include "npc.hpp"
 #include "options.hpp"
+#include "picture.hpp"
 #include "placement.hpp"
 #include "posedactors.hpp"
 #include "scene.hpp"
@@ -155,6 +157,8 @@ namespace RtxTool
                      "  view     open a window on a cell and fly around it\n"
                      "  bench    time a run of frames at each of a list of places\n"
                      "  textures every texture a cell uses, vanilla beside de-lit, as one sheet\n"
+                     "  doll     the inventory doll of one person, traced against a scene of its own\n"
+                     "  map      one local-map tile of a cell, traced straight down\n"
                      "  verify   render every view and say what moved since the last run\n\n"
                      "With no arguments at all: a window on the ship at Seyda Neen, where the game starts.\n\n"
                   << options;
@@ -186,6 +190,28 @@ namespace RtxTool
 
             // Where to stand is left out: a report is not taken from anywhere, and the two commands
             // that read one derive the camera from the region's own bounds.
+            return request;
+        }
+
+        /// What a picture inside the interface is asked for, from the command line.
+        ///
+        /// @param width the size to write at where `--size` said nothing. **Its own default and not
+        ///        the shot's**, because a doll and a map tile are pictures rather than frames: the
+        ///        game draws one at 512 by 1024 and the other square.
+        PictureRequest pictureFrom(const bpo::variables_map& variables, const std::filesystem::path& resources,
+            std::uint32_t width, std::uint32_t height)
+        {
+            const auto [asked, high] = parseSize(variables["size"].as<std::string>());
+
+            PictureRequest request;
+            request.mOutput = variables["out"].as<std::string>();
+            request.mShaderDirectory = resources / "rtx" / "shaders";
+            request.mWidth = variables["size"].defaulted() ? width : asked;
+            request.mHeight = variables["size"].defaulted() ? height : high;
+            request.mSeconds = variables["actor-time"].as<float>();
+            request.mDressed = variables["clothes"].as<bool>();
+            request.mOrigin = parseVec3(variables["pos"].as<std::string>(), "--pos");
+            request.mTarget = parseVec3(variables["look"].as<std::string>(), "--look");
             return request;
         }
 
@@ -245,7 +271,7 @@ namespace RtxTool
 
             if (staged.getActorCount() > 0 || staged.getPropCount() > 0)
             {
-                const RtxBridge::ExtractionStats& settled = staged.getSettled();
+                const Rtx::ExtractionStats& settled = staged.getSettled();
                 out() << "actors:     " << staged.getActorCount() << " placed, " << settled.mDeformed
                       << " deforming drawables\n"
                       << "props:      " << staged.getPropCount() << " live, " << settled.mEmitters
@@ -472,6 +498,50 @@ namespace RtxTool
 
                 return runTextures(world, *cell, stagingFrom(variables), actorsFrom(variables),
                     variables["out"].as<std::string>(), variables["delight"].as<float>());
+            }
+
+            if (command == "doll")
+            {
+                // **The first of them, because `--npc` is the row `shot` stands up.** One picture is
+                // of one person, and the option is shared rather than duplicated so that the same
+                // name reaches the same record either way.
+                //
+                // Read before the content files are, so a run that named nobody says so in the time
+                // it takes to print a line.
+                const StringsVector people = variables["npc"].as<StringsVector>();
+                if (people.empty())
+                {
+                    out() << "doll needs somebody: --npc=<id>. `openmw-rtxtool scene --find=<text>` finds one.\n";
+                    return 1;
+                }
+
+                const PictureRequest request = pictureFrom(variables, resources, 512, 1024);
+
+                World world(config, variables, resources);
+
+                const ESM::NPC* npc = findNpc(world, people.front());
+                if (npc == nullptr)
+                {
+                    out() << "no NPC record is called \"" << people.front() << "\".\n";
+                    return 1;
+                }
+
+                return runDoll(world, *npc, request);
+            }
+
+            if (command == "map")
+            {
+                const Chosen chosen = chooseView(variables, resources);
+                const PictureRequest request = pictureFrom(variables, resources, 1024, 1024);
+
+                World world(config, variables, resources);
+                world.pageTerrain(variables["distant-terrain"].as<bool>());
+
+                const ESM::Cell* cell = findCellOrComplain(world, chosen.mCell);
+                if (cell == nullptr)
+                    return 1;
+
+                return runMap(world, *cell, stagingFrom(variables), actorsFrom(variables), request);
             }
 
             if (command == "scene")

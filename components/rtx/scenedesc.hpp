@@ -199,8 +199,8 @@ namespace Rtx
     /// shadow ray runs to the end of the world rather than to an emitter.
     ///
     /// **One sun, where the game keeps five dials for one**, and the one thing to know here is that
-    /// nothing may fill these fields itself: `RtxBridge::makeSkylight` builds every one of them and
-    /// its header says what goes wrong when they are set apart.
+    /// nothing may fill these fields itself: `makeSkylight` builds every one of them and its
+    /// header says what goes wrong when they are set apart.
     struct Sun
     {
         /// Where the sun stands, unit — and so `-mPosition` is where its light travels.

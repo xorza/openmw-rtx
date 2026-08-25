@@ -5,7 +5,7 @@
 
 #include <components/debug/debugging.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
+#include <components/rtx/sceneextractor.hpp>
 
 #include "cellchoice.hpp"
 #include "stagedworld.hpp"
@@ -25,7 +25,7 @@ namespace RtxTool
 
         // **The still world and the people in it, summed.** They arrive by two walks — the region's
         // geometry, then whoever was posed into it — and what the renderer is handed is both.
-        RtxBridge::ExtractionStats stats = staged.getStaged();
+        Rtx::ExtractionStats stats = staged.getStaged();
         stats += staged.getSettled();
 
         printCellHeading(cell);
@@ -73,7 +73,7 @@ namespace RtxTool
         if (twice)
         {
             // **Literally the same graph, walked again**, which is what the game does every frame.
-            const RtxBridge::ExtractionStats total = staged.mirrorAgain();
+            const Rtx::ExtractionStats total = staged.mirrorAgain();
 
             out << "\nsecond pass over the same graph\n"
                 << "  new meshes:           " << total.mMeshesAdded << " (should be 0)\n"

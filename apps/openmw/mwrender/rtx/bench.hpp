@@ -10,7 +10,7 @@ namespace Rtx
     struct FrameResult;
 }
 
-namespace MWRender::Rtx
+namespace MWRender
 {
     /// Times a run of frames inside the running game and reports what `openmw-rtxtool bench` does.
     ///
@@ -47,7 +47,7 @@ namespace MWRender::Rtx
         /// `frameMs` is the whole frame and not the trace: measured from one call to the next, so it
         /// carries everything the game does between them — which is the number a player feels and
         /// the one `result.mTraceMs` cannot see.
-        void frame(const ::Rtx::FrameResult& result, double frameMs);
+        void frame(const Rtx::FrameResult& result, double frameMs);
 
     private:
         void report() const;
@@ -71,7 +71,7 @@ namespace MWRender::Rtx
         std::unique_ptr<Held> mHeld;
 #else
         /// The shape with nothing in it, so the frame path needs no conditional of its own.
-        void frame(const ::Rtx::FrameResult&, double) {}
+        void frame(const Rtx::FrameResult&, double) {}
 #endif
     };
 }

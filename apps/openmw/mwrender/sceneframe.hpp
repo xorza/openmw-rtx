@@ -18,7 +18,7 @@ namespace osg
     class Node;
 }
 
-namespace RtxBridge
+namespace Rtx
 {
     class Residency;
 }
@@ -100,7 +100,7 @@ namespace MWRender
         ///
         /// **And the alpha is the whole of "is there a sun".** It is nought all night and at the two
         /// hours the sun is level with the horizon, ramping across dawn and dusk, and it is what a
-        /// ray tracer scales its *sunlight* by rather than only its disc — `RtxBridge::makeSkylight`
+        /// ray tracer scales its *sunlight* by rather than only its disc — `Rtx::makeSkylight`
         /// says why a renderer that scaled only the disc had shadows swinging across a dark sky.
         osg::Vec4f mSunDiscColour{ 1.0f, 1.0f, 1.0f, 0.0f };
 
@@ -194,7 +194,7 @@ namespace MWRender
         /// Masser and Secunda, as the weather system last settled them.
         ///
         /// **The world's own numbers and not a placement**, which is what keeps this header off the
-        /// ray tracer: `components/rtxbridge` is not built at all with the option off, and this is a
+        /// ray tracer: `components/rtx` is not built at all with the option off, and this is a
         /// header the rasterizer reads. An alpha of nothing is a moon that is not drawn, which is
         /// what a value-initialised pair says before the weather system has spoken.
         MoonState mMoons[2] = {};
@@ -251,7 +251,7 @@ namespace MWRender
         /// nothing**, so with `distant terrain` on the ground, the paged objects and the grass are
         /// invisible to any visitor that is not a cull. Asked rather than walked; null where the
         /// terrain parents its chunks like anything else, which is every other world.
-        RtxBridge::Residency* mResident = nullptr;
+        Rtx::Residency* mResident = nullptr;
     };
 }
 

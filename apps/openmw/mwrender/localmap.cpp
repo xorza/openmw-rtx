@@ -152,6 +152,11 @@ namespace MWRender
             OffscreenViewSpec spec{ *mSceneRoot };
             spec.mWidth = mMapResolution;
             spec.mHeight = mMapResolution;
+            // **The rasterizer's cull mask, and nothing to the ray tracer.** A map tile is a
+            // picture of the world, so the trace runs against the scene the frame's own walk built
+            // and this selects nothing — see `OffscreenViewSpec::mMask`. It is an inclusion mask
+            // either way, which is deliberate here: a chart wants the ground and the buildings and
+            // not the smoke over them.
             spec.mMask = Mask_Scene | Mask_SimpleWater | Mask_Terrain | Mask_Object | Mask_Static;
             spec.mProjection = OffscreenViewSpec::Orthographic{ .mWidth = static_cast<float>(mMapWorldSize),
                 .mHeight = static_cast<float>(mMapWorldSize) };

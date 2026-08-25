@@ -1,9 +1,9 @@
 #include "lighting.hpp"
 
+#include <components/rtx/frameworld.hpp>
+#include <components/rtx/moonbuilder.hpp>
 #include <components/rtx/shaders/visibility.h>
-#include <components/rtxbridge/frameworld.hpp>
-#include <components/rtxbridge/moonbuilder.hpp>
-#include <components/rtxbridge/skybuilder.hpp>
+#include <components/rtx/skybuilder.hpp>
 #include <components/sky/clouds.hpp>
 #include <components/weather/downpour.hpp>
 
@@ -11,7 +11,7 @@ namespace RtxTool
 {
     namespace
     {
-        void settle(CellLighting& lighting, const RtxBridge::Daylight& daylight, int day, float hour)
+        void settle(CellLighting& lighting, const Rtx::Daylight& daylight, int day, float hour)
         {
             lighting.mAmbient = daylight.mAmbient;
             lighting.mDaylight = daylight;
@@ -26,14 +26,14 @@ namespace RtxTool
         if (!lighting.mOutdoors)
             return;
 
-        settle(lighting, RtxBridge::makeDaylight(weather, hour), day, hour);
+        settle(lighting, Rtx::makeDaylight(weather, hour), day, hour);
 
         // The name reached `makeDaylight` intact, so it is one of the ten.
-        lighting.mWeather = RtxBridge::weatherIndex(weather).value();
+        lighting.mWeather = Rtx::weatherIndex(weather).value();
         lighting.mNextWeather = lighting.mWeather;
         lighting.mWeatherBlend = 0.0f;
         lighting.mWindSpeed = Weather::windSpeed(weather);
-        lighting.mGlare = RtxBridge::glareView(weather);
+        lighting.mGlare = Rtx::glareView(weather);
         lighting.mCloudSpeed = Sky::cloudSpeed(weather);
     }
 
@@ -42,23 +42,23 @@ namespace RtxTool
         if (!lighting.mOutdoors)
             return;
 
-        settle(lighting, RtxBridge::makeDaylight(from, to, blend, hour), day, hour);
+        settle(lighting, Rtx::makeDaylight(from, to, blend, hour), day, hour);
 
-        lighting.mWeather = RtxBridge::weatherIndex(from).value();
-        lighting.mNextWeather = RtxBridge::weatherIndex(to).value();
+        lighting.mWeather = Rtx::weatherIndex(from).value();
+        lighting.mNextWeather = Rtx::weatherIndex(to).value();
         lighting.mWeatherBlend = blend;
 
         // The wind is one of the quantities the engine mixes across a transition too, and so are
         // the glare and the deck's speed.
         const auto mix = [blend](float x, float y) { return x * (1.0f - blend) + y * blend; };
         lighting.mWindSpeed = mix(Weather::windSpeed(from), Weather::windSpeed(to));
-        lighting.mGlare = mix(RtxBridge::glareView(from), RtxBridge::glareView(to));
+        lighting.mGlare = mix(Rtx::glareView(from), Rtx::glareView(to));
         lighting.mCloudSpeed = mix(Sky::cloudSpeed(from), Sky::cloudSpeed(to));
     }
 
     void applyLighting(const CellLighting& lighting, Rtx::Shaders::VisibilityConstants& constants)
     {
-        RtxBridge::FrameWorld world{
+        Rtx::FrameWorld world{
             .mSun = lighting.mDaylight.mSun,
             .mAmbient = lighting.mAmbient,
             .mSkyHorizon = lighting.mDaylight.mSkyHorizon,
@@ -78,7 +78,7 @@ namespace RtxTool
             // **Asked of the eye, which is the only body standing in this weather.** The game aims
             // an ashstorm at the player; every caller here has already put its camera in `mOrigin`,
             // so the same rule reaches the same answer for whoever is looking.
-            .mStormDirection = RtxBridge::stormDirection(lighting.mWeather, constants.mOrigin),
+            .mStormDirection = Rtx::stormDirection(lighting.mWeather, constants.mOrigin),
         };
 
         // **The sky's own two layers, and an interior has neither.** A room has no deck over it and
@@ -86,25 +86,25 @@ namespace RtxTool
         // a fade of nothing, which the shader skips before it samples anything.
         if (lighting.mOutdoors)
         {
-            world.mClouds = RtxBridge::describeClouds(lighting.mWeather, lighting.mNextWeather, lighting.mWeatherBlend,
+            world.mClouds = Rtx::describeClouds(lighting.mWeather, lighting.mNextWeather, lighting.mWeatherBlend,
                 lighting.mDaylight.mHaze, world.mStormDirection, lighting.mRoll.mClouds, lighting.mSky);
 
-            world.mStars = RtxBridge::describeStars(
+            world.mStars = Rtx::describeStars(
                 lighting.mDaylight.mStarFade, lighting.mGlare, lighting.mRoll.mStars, lighting.mSky);
 
-            RtxBridge::describePatches(lighting.mRoll.mStars, lighting.mSky, world.mSkyPatches);
+            Rtx::describePatches(lighting.mRoll.mStars, lighting.mSky, world.mSkyPatches);
         }
 
         // **Left where a default leaves them for a room**, which is an alpha of nothing and so a
         // disc the sky skips: an interior has no moons over it, and `relight` will not put any there.
         if (lighting.mOutdoors)
-            for (const RtxBridge::Moon moon : { RtxBridge::Moon::Masser, RtxBridge::Moon::Secunda })
+            for (const Rtx::Moon moon : { Rtx::Moon::Masser, Rtx::Moon::Secunda })
             {
-                RtxBridge::MoonPlacement placed = RtxBridge::makeMoon(moon, lighting.mDay, lighting.mHour);
+                Rtx::MoonPlacement placed = Rtx::makeMoon(moon, lighting.mDay, lighting.mHour);
                 placed.mFace = lighting.mFaces.of(moon);
                 world.mMoons[static_cast<std::size_t>(moon)] = placed;
             }
 
-        RtxBridge::applyWorld(world, constants);
+        Rtx::applyWorld(world, constants);
     }
 }

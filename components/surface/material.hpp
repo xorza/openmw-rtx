@@ -52,8 +52,8 @@ namespace Surface
     ///
     /// **One table, because there were fifty literals.** The same handful of strings were spelled out
     /// in `nifloader.cpp` (17), `shadervisitor.cpp` (15), `terrain/material.cpp` (4) and
-    /// `rtxbridge/sceneextractor.cpp` (4), and a typo in any of them silently produced an untextured
-    /// surface rather than a build error.
+    /// `rtx/sceneextractor.cpp` (4), and a typo in any of them silently produced an untextured surface
+    /// rather than a build error.
     std::string_view textureRoleName(TextureRole role);
 
     /// The role a texture unit's name means, or nothing for a name that is not a role — `blendMap`

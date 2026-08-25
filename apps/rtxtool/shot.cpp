@@ -3,7 +3,7 @@
 #include "framing.hpp"
 #include "placement.hpp"
 #include <components/rtx/frametimes.hpp>
-#include <components/rtxbridge/png.hpp>
+#include <components/rtx/png.hpp>
 
 #include <chrono>
 #include <memory>
@@ -16,7 +16,7 @@
 #include <components/files/conversion.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/sceneuploader.hpp>
+#include <components/rtx/sceneuploader.hpp>
 
 namespace RtxTool
 {
@@ -69,7 +69,7 @@ namespace RtxTool
         // derived from it.
         const Rtx::FrameExtents extents = renderer->getExtents();
 
-        RtxBridge::SceneUploader uploader;
+        Rtx::SceneUploader uploader;
 
         const Clock::time_point buildStart = Clock::now();
         uploader.hand(*renderer, Rtx::sWorld, scene, images, Rtx::SeaState{});
@@ -145,7 +145,7 @@ namespace RtxTool
 
         std::vector<std::uint8_t> pixels;
         renderer->readPixels(pixels);
-        RtxBridge::writePng(request.mOutput, extents.mOutputWidth, extents.mOutputHeight, pixels);
+        Rtx::writePng(request.mOutput, extents.mOutputWidth, extents.mOutputHeight, pixels);
 
         // Primary rays, so out of the pixels that were traced rather than the pixels written.
         const double fraction

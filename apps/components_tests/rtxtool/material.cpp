@@ -265,7 +265,7 @@ namespace RtxTool
             // A scene of its own, thrown away with the call: this audits what the graph holds, and
             // `readRegion` needs somewhere to put the water quad no graph can carry.
             Rtx::SceneDesc placed;
-            RtxBridge::SceneExtractor extractor(placed);
+            Rtx::SceneExtractor extractor(placed);
             readRegion(world, *cell, *root, placed, extractor, loaded, /*liveProps=*/false);
 
             Audit audit;

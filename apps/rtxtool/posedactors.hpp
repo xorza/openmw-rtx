@@ -10,7 +10,7 @@
 #include <osg/Matrixf>
 
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
+#include <components/rtx/sceneextractor.hpp>
 
 #include "motion.hpp"
 
@@ -71,7 +71,7 @@ namespace RtxTool
         /// **The snapshot before anyone is added, and `settle` after everyone is.** Adding builds a
         /// body without placing it; a snapshot taken with one already in it would put a second copy
         /// of that person in the scene on the very next frame.
-        PosedActors(World& world, Rtx::SceneDesc& scene, RtxBridge::SceneExtractor& extractor, osg::Group& root,
+        PosedActors(World& world, Rtx::SceneDesc& scene, Rtx::SceneExtractor& extractor, osg::Group& root,
             const ActorRequest& request);
         ~PosedActors();
 
@@ -99,7 +99,7 @@ namespace RtxTool
         /// only reaches the flame it is meant to be once its emitter has run for a lifetime or two.
         /// A single frame stepped from nothing integrates nothing, so a shot of a lit room would
         /// show fifty-five candles with no flames on them.
-        const RtxBridge::ExtractionStats& settle();
+        const Rtx::ExtractionStats& settle();
 
         /// Advances to `seconds` and walks everyone back in. False where there is nobody.
         bool advanceTo(float seconds);
@@ -114,10 +114,10 @@ namespace RtxTool
         void unplace();
 
         /// Empties the per-frame lists and walks the graph, which is what fills them again.
-        RtxBridge::ExtractionStats mirror();
+        Rtx::ExtractionStats mirror();
 
         /// What the actors added the first time they were walked in.
-        const RtxBridge::ExtractionStats& getPlaced() const { return mPlaced; }
+        const Rtx::ExtractionStats& getPlaced() const { return mPlaced; }
 
         /// Everything being posed, props included.
         std::size_t getCount() const { return mActors.size(); }
@@ -127,7 +127,7 @@ namespace RtxTool
 
     private:
         void add(ActorModel model, const osg::Matrixf& transform);
-        RtxBridge::ExtractionStats place(float seconds);
+        Rtx::ExtractionStats place(float seconds);
 
         /// Poses everyone at `seconds`, having advanced the world by `elapsed`, without walking
         /// them into the scene.
@@ -140,7 +140,7 @@ namespace RtxTool
 
         World& mWorld;
         Rtx::SceneDesc& mScene;
-        RtxBridge::SceneExtractor& mExtractor;
+        Rtx::SceneExtractor& mExtractor;
 
         /// Where an actor is hung, so the one walk that mirrors the world mirrors them too.
         ///
@@ -161,7 +161,7 @@ namespace RtxTool
         /// as people: everyone plays the same idle and nothing in the content offsets them.
         std::vector<float> mPhases;
 
-        RtxBridge::ExtractionStats mPlaced;
+        Rtx::ExtractionStats mPlaced;
         float mSeconds = 0.0f;
         bool mClothes = true;
 

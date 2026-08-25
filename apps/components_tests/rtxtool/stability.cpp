@@ -17,8 +17,8 @@
 #include <components/rtx/camera.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
-#include <components/rtxbridge/texturebuilder.hpp>
+#include <components/rtx/sceneextractor.hpp>
+#include <components/rtx/texturebuilder.hpp>
 
 #include <apps/rtxtool/cellscene.hpp>
 #include <apps/rtxtool/lighting.hpp>
@@ -124,7 +124,7 @@ namespace RtxTool
 
             osg::ref_ptr<osg::Group> root = new osg::Group;
             Rtx::SceneDesc scene;
-            RtxBridge::SceneExtractor extractor(scene);
+            Rtx::SceneExtractor extractor(scene);
             // **One cell and not the region the harness now loads by default.** What this measures
             // is the temporal resolve, and the bound below was calibrated against exactly this much
             // content; forty-nine cells would be a different fixture wearing the same number.
@@ -155,7 +155,7 @@ namespace RtxTool
             const Rtx::FrameExtents extents = renderer->getExtents();
             ASSERT_EQ(extents.mRenderWidth, extents.mOutputWidth) << "DLAA is one to one, or this measures upscaling";
 
-            const RtxBridge::SceneTextures described(scene, world->getImageManager());
+            const Rtx::SceneTextures described(scene, world->getImageManager());
             renderer->setScene(Rtx::sWorld, scene, described.getDescriptions(), Rtx::SeaState{});
 
             const osg::Vec3f origin(-19216.0f, -14896.0f, 160.0f);

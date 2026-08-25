@@ -313,14 +313,14 @@ namespace Rtx
 
         /// Builds everything a scene needs, replacing whatever was there.
         ///
-        /// `textures` are described rather than loaded — the bridge decodes and the backend uploads,
-        /// which is what keeps `openmw-rtx-bridge` free of a graphics API. They are indexed by the
+        /// `textures` are described rather than loaded — `SceneTextures` decodes and the backend
+        /// uploads, which is what keeps this library free of a graphics API. They are indexed by the
         /// scene's texture index, so their order is the scene's, and they must outlive the call.
         ///
         /// **`slot` says which scene**: `sWorld` for the one the frame is traced against, or a slot
         /// `addViewScene` handed out for a picture inside the interface. The three calls below take
-        /// it too, so a doll gets the same decision a cell does — see `RtxBridge::SceneUploader`,
-        /// which is where that decision is made once for both.
+        /// it too, so a doll gets the same decision a cell does — see `SceneUploader`, which is
+        /// where that decision is made once for both.
         virtual void setScene(
             std::uint32_t slot, const SceneDesc& scene, std::span<const TextureData> textures, const SeaState& sea)
             = 0;

@@ -9,7 +9,7 @@
 
 #include <components/files/configurationmanager.hpp>
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
+#include <components/rtx/sceneextractor.hpp>
 #include <components/sceneutil/visitor.hpp>
 
 #include <components/esm3/loadnpc.hpp>
@@ -81,9 +81,9 @@ namespace RtxTool
             // one extreme to the other whatever the track happens to contain.
             Rtx::SceneDesc first;
             {
-                RtxBridge::SceneExtractor extractor(first);
+                Rtx::SceneExtractor extractor(first);
                 actor.pose(0.0f, sStep);
-                const RtxBridge::ExtractionStats stats = extractor.extract(actor.getRoot(), actor.getTransform(), 0);
+                const Rtx::ExtractionStats stats = extractor.extract(actor.getRoot(), actor.getTransform(), 0);
 
                 EXPECT_GT(stats.mDeformed, 0u) << "a creature is skinned geometry";
                 EXPECT_EQ(stats.mSkippedUnknown, 0u);
@@ -92,7 +92,7 @@ namespace RtxTool
 
             Rtx::SceneDesc second;
             {
-                RtxBridge::SceneExtractor extractor(second);
+                Rtx::SceneExtractor extractor(second);
                 actor.pose(actor.getDuration() * 0.25f, sStep);
                 extractor.extract(actor.getRoot(), actor.getTransform(), 0);
             }
@@ -113,7 +113,7 @@ namespace RtxTool
             // to come back, or a long run drifts.
             Rtx::SceneDesc again;
             {
-                RtxBridge::SceneExtractor extractor(again);
+                Rtx::SceneExtractor extractor(again);
                 actor.pose(actor.getDuration(), sStep);
                 extractor.extract(actor.getRoot(), actor.getTransform(), 0);
             }
@@ -160,12 +160,12 @@ namespace RtxTool
                     return Assembled{};
 
                 Rtx::SceneDesc scene;
-                RtxBridge::SceneExtractor extractor(scene);
+                Rtx::SceneExtractor extractor(scene);
 
                 Actor actor(*world, buildNpc(*world, *who, dressed), osg::Matrixf::identity());
                 actor.pose(0.0f, sStep);
 
-                const RtxBridge::ExtractionStats stats = extractor.extract(actor.getRoot(), actor.getTransform(), 0);
+                const Rtx::ExtractionStats stats = extractor.extract(actor.getRoot(), actor.getTransform(), 0);
                 return Assembled{ actor.getSkeleton(), stats.mInstances, stats.mDeformed, scene.getTriangleCount() };
             };
 

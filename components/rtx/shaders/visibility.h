@@ -39,7 +39,7 @@ namespace Rtx::Shaders
     /// That order is not an arrangement of this renderer's: it is what a weather's script id counts
     /// along, and it is the order the `Weather_<name>_*` keys sit in a content file. Naming them
     /// here is what lets the game hand over a script id and the harness a name off a command line
-    /// and have the two mean one sky — `RtxBridge::weatherIndex` is the table that joins them.
+    /// and have the two mean one sky — `Rtx::weatherIndex` is the table that joins them.
     RTX_CONST uint WEATHER_CLEAR = 0u;
     RTX_CONST uint WEATHER_CLOUDY = 1u;
     RTX_CONST uint WEATHER_FOGGY = 2u;
@@ -132,7 +132,7 @@ namespace Rtx::Shaders
         float mTurn;
 
         /// How much sky one tile of the sheet covers, in radians — **read off the mesh** rather than
-        /// chosen, and it is what decides how big a star is. `RtxBridge::NightSky` measures it as the
+        /// chosen, and it is what decides how big a star is. `Rtx::NightSky` measures it as the
         /// median rate the unwrap runs at, and the unwrap is isotropic, which is what keeps a star
         /// round. Morrowind's comes to about a tenth of a degree per texel; the same sheet spread
         /// once over the hemisphere would be a third, which is a blob.
@@ -284,7 +284,7 @@ namespace Rtx::Shaders
         /// interior, a night, and either end of the day once the disc has gone into the horizon all
         /// say it that way, and every use of the sun below is gated on it — the shadow ray, the
         /// caustics, the shafts and the disc. There is deliberately no second field saying whether
-        /// the disc is drawn; `RtxBridge::makeSkylight` is where that is kept true and why.
+        /// the disc is drawn; `Rtx::makeSkylight` is where that is kept true and why.
         ///
         /// The position stays meaningful through the night even so, because a moon's crescent points
         /// at where the sun would be. Where it is and whether it is there are separate questions.

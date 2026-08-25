@@ -47,8 +47,8 @@ namespace Rtx
         /// Everything one scene is traced against — the world's, or a picture's in the interface.
         ///
         /// **The same three objects and the same three branches for both**, which is what lets an
-        /// inventory doll be handed over by `RtxBridge::SceneUploader` exactly as a cell is: a
-        /// slider drag places what it already built instead of building it again.
+        /// inventory doll be handed over by `Rtx::SceneUploader` exactly as a cell is: a slider
+        /// drag places what it already built instead of building it again.
         ///
         /// **Three objects and not four.** `VisibilityPass` is shared, because nothing about it
         /// depends on which scene it traces — every texture array declares the same bindless layout,

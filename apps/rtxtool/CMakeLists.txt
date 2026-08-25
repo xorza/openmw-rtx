@@ -38,6 +38,8 @@ set(RTXTOOL_FILES
     options.hpp
     perfcontrol.cpp
     perfcontrol.hpp
+    picture.cpp
+    picture.hpp
     view.cpp
     view.hpp
     viewpoint.cpp
@@ -67,7 +69,6 @@ target_link_libraries(openmw-rtxtool-lib
     openmw-rtx
     openmw-rtx-backends
     openmw-rtx-vulkan
-    openmw-rtx-bridge
     components
 )
 

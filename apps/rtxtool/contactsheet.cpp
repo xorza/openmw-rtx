@@ -9,7 +9,7 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/texturedata.hpp>
 
-#include <components/rtxbridge/png.hpp>
+#include <components/rtx/png.hpp>
 
 namespace RtxTool
 {
@@ -197,7 +197,7 @@ namespace RtxTool
     {
         ContactSheet sheet = drawContactSheet(textures, strength);
         if (sheet.mCount > 0)
-            RtxBridge::writePng(out, sheet.mWidth, sheet.mHeight, sheet.mPixels);
+            Rtx::writePng(out, sheet.mWidth, sheet.mHeight, sheet.mPixels);
 
         return sheet;
     }

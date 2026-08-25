@@ -13,8 +13,8 @@
 #include <components/files/conversion.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/sceneuploader.hpp>
 #include <components/rtx/wavespectrum.hpp>
-#include <components/rtxbridge/sceneuploader.hpp>
 
 #include "framing.hpp"
 #include "stagedworld.hpp"
@@ -54,7 +54,7 @@ namespace RtxTool
         return mTotal == 0 ? 0.0 : static_cast<double>(mDiffering) / static_cast<double>(mTotal) * 100.0;
     }
 
-    FrameDifference compareFrames(const RtxBridge::PngImage& before, const RtxBridge::PngImage& after)
+    FrameDifference compareFrames(const Rtx::PngImage& before, const Rtx::PngImage& after)
     {
         if (before.empty() || after.empty() || before.mWidth != after.mWidth || before.mHeight != after.mHeight)
             return FrameDifference{ .mMismatched = true };
@@ -144,7 +144,7 @@ namespace RtxTool
                 return 1;
             }
 
-            RtxBridge::SceneUploader uploader;
+            Rtx::SceneUploader uploader;
             uploader.hand(*renderer, Rtx::sWorld, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
 
             Framing framing = Framing::lookingFrom(staged.getPlacement());
@@ -163,14 +163,13 @@ namespace RtxTool
 
             std::vector<std::uint8_t> pixels;
             renderer->readPixels(pixels);
-            RtxBridge::writePng(
-                frameFile(request.mOut, view.mName), extents.mOutputWidth, extents.mOutputHeight, pixels);
+            Rtx::writePng(frameFile(request.mOut, view.mName), extents.mOutputWidth, extents.mOutputHeight, pixels);
 
             if (request.mAgainst.empty())
                 continue;
 
-            const RtxBridge::PngImage reference = RtxBridge::readPng(frameFile(request.mAgainst, view.mName));
-            const RtxBridge::PngImage taken{ extents.mOutputWidth, extents.mOutputHeight, std::move(pixels) };
+            const Rtx::PngImage reference = Rtx::readPng(frameFile(request.mAgainst, view.mName));
+            const Rtx::PngImage taken{ extents.mOutputWidth, extents.mOutputHeight, std::move(pixels) };
             const FrameDifference difference = compareFrames(reference, taken);
 
             unmatched += difference.mMismatched ? 1u : 0u;

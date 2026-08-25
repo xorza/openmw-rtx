@@ -32,27 +32,27 @@
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/rtx/camera.hpp>
+#include <components/rtx/frameimage.hpp>
+#include <components/rtx/frameworld.hpp>
+#include <components/rtx/lightbuilder.hpp>
+#include <components/rtx/moonbuilder.hpp>
+#include <components/rtx/png.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/sceneextractor.hpp>
+#include <components/rtx/sceneuploader.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/upscale.hpp>
-#include <components/rtxbridge/frameimage.hpp>
-#include <components/rtxbridge/frameworld.hpp>
-#include <components/rtxbridge/lightbuilder.hpp>
-#include <components/rtxbridge/moonbuilder.hpp>
-#include <components/rtxbridge/png.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
-#include <components/rtxbridge/sceneuploader.hpp>
 #include <components/sceneutil/screencapture.hpp>
 #include <components/sdlutil/imagetosurface.hpp>
 #include <components/settings/values.hpp>
 
 #include "../offscreenview.hpp"
-#include <components/weather/precipitation.hpp>
 #include "../sceneframe.hpp"
 #include "../stage.hpp"
 #include "../windowsetup.hpp"
 #include <components/resource/resourcesystem.hpp>
+#include <components/weather/precipitation.hpp>
 
 #include "../renderingmanager.hpp"
 #include "../screenshotwriter.hpp"
@@ -60,7 +60,7 @@
 
 #include "tracedview.hpp"
 
-namespace MWRender::Rtx
+namespace MWRender
 {
     namespace
     {
@@ -119,7 +119,7 @@ namespace MWRender::Rtx
         , mUpdateVisitor(new osgUtil::UpdateVisitor)
         , mStats(new osg::Stats("Viewer"))
         , mStartTick(osg::Timer::instance()->tick())
-        , mExtractor(std::make_unique<RtxBridge::SceneExtractor>(mScene, &mTraversals))
+        , mExtractor(std::make_unique<Rtx::SceneExtractor>(mScene, &mTraversals))
     {
         // **What the shader visitor is told a GPU offers.** It runs on every model OpenMW loads
         // and needs a number to fit texture slots into; without a GL context there is nothing to
@@ -149,11 +149,11 @@ namespace MWRender::Rtx
 
         // **Refused rather than defaulted**, for the reason `Rtx::upscaleNamed` gives: a typo that
         // quietly renders at another mode is a measurement of the wrong thing.
-        const std::optional<::Rtx::Upscale> upscale = ::Rtx::upscaleNamed(wanted);
+        const std::optional<Rtx::Upscale> upscale = Rtx::upscaleNamed(wanted);
         if (!upscale.has_value())
             throw std::runtime_error('"' + wanted + "\" is not one of off, performance, balanced, quality or dlaa");
 
-        ::Rtx::RendererOptions options;
+        Rtx::RendererOptions options;
         options.mShaderDirectory = spec.mResourceDir / "rtx" / "shaders";
         options.mWidth = mWidth;
         options.mHeight = mHeight;
@@ -162,7 +162,7 @@ namespace MWRender::Rtx
         options.mValidation.mEnabled = Settings::rtx().mValidation;
 
         std::string reason;
-        mRenderer = ::Rtx::createRenderer(options, reason);
+        mRenderer = Rtx::createRenderer(options, reason);
         if (mRenderer == nullptr)
             throw std::runtime_error("no ray tracing renderer: " + reason);
 
@@ -224,7 +224,7 @@ namespace MWRender::Rtx
         // is — Vulkan here, Metal on Apple silicon — is the one thing about the API this file would
         // otherwise have had to know, and `Rtx::surfaceWindowFlag` is where that is settled. No GL
         // context is ever made, which is the point of the whole path.
-        const WindowPlacement placement = describeWindow(::Rtx::surfaceWindowFlag());
+        const WindowPlacement placement = describeWindow(Rtx::surfaceWindowFlag());
 
         mWindow = SDL_CreateWindow(
             "OpenMW", placement.mX, placement.mY, placement.mWidth, placement.mHeight, placement.mFlags);
@@ -243,18 +243,6 @@ namespace MWRender::Rtx
 
         // Nothing goes between the world and the screen: what the trace writes is the picture.
         setSceneRoot(worldRoot);
-    }
-
-    unsigned int RtxRenderer::updateSubtree(osg::Node& node)
-    {
-        const unsigned int at = static_cast<unsigned int>(mFrameStamp->getFrameNumber());
-
-        mUpdateVisitor->reset();
-        mUpdateVisitor->setFrameStamp(mFrameStamp);
-        mUpdateVisitor->setTraversalNumber(at);
-        node.accept(*mUpdateVisitor);
-
-        return at;
     }
 
     void RtxRenderer::setSceneRoot(osg::Group& root)
@@ -333,7 +321,7 @@ namespace MWRender::Rtx
         }
 
         // Whatever the backend settled on, which is what the trace and the GUI are both sized to.
-        const ::Rtx::FrameExtents extents = mRenderer->getExtents();
+        const Rtx::FrameExtents extents = mRenderer->getExtents();
         mCamera->setViewport(0, 0, static_cast<int>(extents.mOutputWidth), static_cast<int>(extents.mOutputHeight));
     }
 
@@ -388,15 +376,15 @@ namespace MWRender::Rtx
             fitToWindow();
     }
 
-    RtxBridge::TracedFrame RtxRenderer::readFrame()
+    Rtx::TracedFrame RtxRenderer::readFrame()
     {
-        const ::Rtx::FrameExtents extents = mRenderer->getExtents();
+        const Rtx::FrameExtents extents = mRenderer->getExtents();
         if (extents.mOutputWidth == 0 || extents.mOutputHeight == 0)
             return {};
 
         mRenderer->readPixels(mPixels);
 
-        return RtxBridge::TracedFrame{
+        return Rtx::TracedFrame{
             .mWidth = extents.mOutputWidth,
             .mHeight = extents.mOutputHeight,
             .mPixels = mPixels,
@@ -407,8 +395,7 @@ namespace MWRender::Rtx
     {
         // An out-parameter because the caller owns the image, so the shared conversion's result is
         // moved into it rather than handed back.
-        const osg::ref_ptr<osg::Image> taken
-            = RtxBridge::frameImage(readFrame(), width, height, RtxBridge::RowOrder::BottomFirst);
+        const osg::ref_ptr<osg::Image> taken = Rtx::frameImage(readFrame(), width, height, Rtx::RowOrder::BottomFirst);
         if (taken == nullptr)
             return;
 
@@ -431,12 +418,12 @@ namespace MWRender::Rtx
 
     void RtxRenderer::saveScreenshot()
     {
-        const RtxBridge::TracedFrame frame = readFrame();
+        const Rtx::TracedFrame frame = readFrame();
 
         // Bottom row first, because what writes the file is `osgDB` through the same operation the
         // rasterizer hands `osgViewer`'s captures to, and that is the convention it reads.
-        const osg::ref_ptr<osg::Image> taken = RtxBridge::frameImage(
-            frame, static_cast<int>(frame.mWidth), static_cast<int>(frame.mHeight), RtxBridge::RowOrder::BottomFirst);
+        const osg::ref_ptr<osg::Image> taken = Rtx::frameImage(
+            frame, static_cast<int>(frame.mWidth), static_cast<int>(frame.mHeight), Rtx::RowOrder::BottomFirst);
 
         if (taken == nullptr)
         {
@@ -456,13 +443,13 @@ namespace MWRender::Rtx
 
     MyGUI::ITexture& RtxRenderer::freezeFrame()
     {
-        const RtxBridge::TracedFrame frame = readFrame();
+        const Rtx::TracedFrame frame = readFrame();
 
         // The trace's own row order, kept: `MyGUIPlatform::Picture` copies an image straight into a
         // locked texture and the interface draws it from the top down, so flipping here would stand
         // the world the player was in on its head behind the loading screen.
-        const osg::ref_ptr<osg::Image> taken = RtxBridge::frameImage(
-            frame, static_cast<int>(frame.mWidth), static_cast<int>(frame.mHeight), RtxBridge::RowOrder::TopFirst);
+        const osg::ref_ptr<osg::Image> taken = Rtx::frameImage(
+            frame, static_cast<int>(frame.mWidth), static_cast<int>(frame.mHeight), Rtx::RowOrder::TopFirst);
 
         // A full readback, which a load screen is exactly the moment to afford.
         if (taken != nullptr)
@@ -501,14 +488,14 @@ namespace MWRender::Rtx
 
         --mKeepLeft;
 
-        const ::Rtx::FrameExtents extents = mRenderer->getExtents();
+        const Rtx::FrameExtents extents = mRenderer->getExtents();
         mRenderer->readPixels(mPixels);
 
         const std::filesystem::path file = mKeepAt.string() + std::format("-{:04}.png", sKeepAtMost - mKeepLeft - 1);
 
         try
         {
-            RtxBridge::writePng(file, extents.mOutputWidth, extents.mOutputHeight, mPixels);
+            Rtx::writePng(file, extents.mOutputWidth, extents.mOutputHeight, mPixels);
         }
         catch (const std::exception& failed)
         {
@@ -547,10 +534,10 @@ namespace MWRender::Rtx
         // a material: a moon is drawn by a ray that reached nothing, so nothing else can speak for
         // the slot and the sweep would take it on the first frame a cell died. The scene outlives
         // every cell here, so this is asked once and never again.
-        if (mMoonFaces.mMasser == ::Rtx::sNoIndex)
+        if (mMoonFaces.mMasser == Rtx::sNoIndex)
         {
-            mMoonFaces = RtxBridge::addMoonFaces(mScene);
-            mSkyTextures = RtxBridge::addSkyTextures(mScene, *mResources->getSceneManager());
+            mMoonFaces = Rtx::addMoonFaces(mScene);
+            mSkyTextures = Rtx::addSkyTextures(mScene, *mResources->getSceneManager());
         }
 
         // **What the weather drops, walked as a second root.** Those nodes hang under the sky's
@@ -579,7 +566,7 @@ namespace MWRender::Rtx
                 *frame.mWorld.mPrecipitation->getNode(), osg::Matrixf::translate(osg::Vec3f(at)), 0, mFrame);
         }
 
-        const RtxBridge::ExtractionStats found
+        const Rtx::ExtractionStats found
             // One walk over the whole graph, where every path is already distinct.
             = mExtractor->extract(frame.mScene, osg::Matrixf::identity(), 0, mFrame, frame.mResident);
 
@@ -613,7 +600,7 @@ namespace MWRender::Rtx
         //
         // Last, because it bumps the epoch the next walk is measured against: everything that
         // survived is still carrying the old stamp until it does.
-        if (const RtxBridge::Retirement went = mExtractor->retire(); !went.empty())
+        if (const Rtx::Retirement went = mExtractor->retire(); !went.empty())
             Log(Debug::Info) << "Ray tracing dropped " << went.mMeshes << " meshes and " << went.mMaterials
                              << " materials the world no longer has";
 
@@ -624,7 +611,7 @@ namespace MWRender::Rtx
             keep();
     }
 
-    bool RtxRenderer::traceWorld(const SceneFrame& frame, const RtxBridge::ExtractionStats& found)
+    bool RtxRenderer::traceWorld(const SceneFrame& frame, const Rtx::ExtractionStats& found)
     {
         const osg::FrameStamp& when = frame.mWhen;
         const osg::Camera& camera = frame.mCamera;
@@ -634,13 +621,12 @@ namespace MWRender::Rtx
             return false;
 
         // Placed, appended or rebuilt — the decision, and the describing a rebuild needs, are the
-        // harness's too and are written once (`RtxBridge::SceneUploader`).
-        const RtxBridge::SceneUpload handed
-            = mUploader.hand(*mRenderer, ::Rtx::sWorld, mScene, frame.mImages, ::Rtx::SeaState{});
+        // harness's too and are written once (`Rtx::SceneUploader`).
+        const Rtx::SceneUpload handed = mUploader.hand(*mRenderer, Rtx::sWorld, mScene, frame.mImages, Rtx::SeaState{});
 
         mHasScene = true;
 
-        if (handed.mKind == RtxBridge::SceneUpload::Kind::Rebuilt)
+        if (handed.mKind == Rtx::SceneUpload::Kind::Rebuilt)
             Log(Debug::Info) << "Ray tracing built " << mScene.getMeshes().size() << " meshes into " << found.mInstances
                              << " instances with " << found.mLights << " lights, " << found.mDeformed
                              << " of them deforming, and skipped " << found.mSkippedUnknown << " it cannot read";
@@ -688,13 +674,13 @@ namespace MWRender::Rtx
             return false;
         }
 
-        const ::Rtx::FrameExtents extents = mRenderer->getExtents();
+        const Rtx::FrameExtents extents = mRenderer->getExtents();
 
         // **The frame's field of view and not the setting's.** `WorldState` carries the one the
         // world settled on, which is the override wherever something asked for one — a zoom, a
         // cutscene, a script — and the setting only where nothing did.
-        ::Rtx::Shaders::VisibilityConstants constants = ::Rtx::makeCameraAlong(
-            eye, forward, world.mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, sFar);
+        Rtx::Shaders::VisibilityConstants constants
+            = Rtx::makeCameraAlong(eye, forward, world.mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, sFar);
         // **Decoded here, because the world does not know what a transport is.** Every colour on
         // the frame is a content file's three bytes over 255 and no transfer function; the
         // rasterizer samples them as they are and this light transport is linear, so the conversion
@@ -708,27 +694,27 @@ namespace MWRender::Rtx
 
         // The horizon is the fog and the zenith is the sky's own, which is the pair Morrowind
         // records: one colour for the air, and one for the dome it fades into overhead.
-        const osg::Vec3f haze = RtxBridge::decodeColour(world.mAir.mColour);
+        const osg::Vec3f haze = Rtx::decodeColour(world.mAir.mColour);
 
         // **The fog is a linear ramp there and a medium here**, so what is matched is where each is
         // half gone: the ramp at the midpoint of start and end, an exponential at `ln(2) / sigma`.
-        // The same derivation `RtxBridge::fogExtinction` makes from a recorded depth, reached
-        // instead from the distances the game has already computed.
+        // The same derivation `Rtx::fogExtinction` makes from a recorded depth, reached instead
+        // from the distances the game has already computed.
         const float half = 0.5f * (world.mAir.mStart + world.mAir.mEnd);
 
         // **The sun is not assembled here.** Everything the world says about it goes to the one
         // builder that decides what a sun may be — which is what keeps the game and the harness
         // under the same sky, and what makes a sun that lights an empty night impossible to write.
-        const RtxBridge::Skylight sky = RtxBridge::makeSkylight(RtxBridge::SkyReading{
+        const Rtx::Skylight sky = Rtx::makeSkylight(Rtx::SkyReading{
             .mSunPosition = discAt,
             .mSunShare = world.mSunDiscColour.a(),
-            .mSunColour = RtxBridge::decodeColour(world.mSunColour),
-            .mAmbient = RtxBridge::decodeColour(world.mAmbientColour),
-            .mDiscColour = RtxBridge::decodeColour(world.mSunDiscColour),
+            .mSunColour = Rtx::decodeColour(world.mSunColour),
+            .mAmbient = Rtx::decodeColour(world.mAmbientColour),
+            .mDiscColour = Rtx::decodeColour(world.mSunDiscColour),
             .mGlare = world.mSunGlare,
         });
 
-        RtxBridge::FrameWorld described{
+        Rtx::FrameWorld described{
             .mSun = sky.mSun,
             .mAmbient = sky.mAmbient,
             .mSkyHorizon = haze,
@@ -737,7 +723,7 @@ namespace MWRender::Rtx
             // it the moment the player steps inside, so what the sky is still holding belongs to
             // wherever they were last outdoors — and the air's own colour stands in, which is what a
             // room's sky is anyway. A quasi-exterior is on the outdoor side of that: it has weather.
-            .mSkyZenith = world.isOutdoors() ? RtxBridge::decodeColour(world.mSkyColour) : haze,
+            .mSkyZenith = world.isOutdoors() ? Rtx::decodeColour(world.mSkyColour) : haze,
 
             .mAir = { .mColour = haze,
                 .mExtinction = half > 0.0f ? std::numbers::ln2_v<float> / half : 0.0f,
@@ -772,25 +758,25 @@ namespace MWRender::Rtx
             .mWindSpeed = world.mWindSpeed,
 
             // Already aimed at the player by the weather system, which is the only thing that knows
-            // where they stand. `RtxBridge::stormDirection` is the same rule for the harness, which
-            // has no player to ask.
+            // where they stand. `Rtx::stormDirection` is the same rule for the harness, which has
+            // no player to ask.
             .mStormDirection = world.mStormDirection,
 
             // **The two layers of sky over everything else, and an interior has neither.** Left at
             // their defaults indoors, which is a texture slot of `NO_SKY_TEXTURE` and a fade of
             // nothing — the shader skips both before it samples anything.
             .mClouds = world.isOutdoors()
-                ? RtxBridge::describeClouds(static_cast<std::uint32_t>(world.mWeatherId),
+                ? Rtx::describeClouds(static_cast<std::uint32_t>(world.mWeatherId),
                     world.mNextWeatherId.has_value() ? static_cast<std::uint32_t>(*world.mNextWeatherId)
                                                      : static_cast<std::uint32_t>(world.mWeatherId),
                     world.mCloudBlend, world.mAir.mColour, world.mStormDirection, world.mSkyRoll.mClouds, mSkyTextures)
-                : ::Rtx::Shaders::CloudDeck{ .mOpacity = 0.0f,
-                    .mTexture = ::Rtx::Shaders::NO_SKY_TEXTURE,
-                    .mNext = ::Rtx::Shaders::NO_SKY_TEXTURE },
+                : Rtx::Shaders::CloudDeck{ .mOpacity = 0.0f,
+                    .mTexture = Rtx::Shaders::NO_SKY_TEXTURE,
+                    .mNext = Rtx::Shaders::NO_SKY_TEXTURE },
 
             .mStars = world.isOutdoors()
-                ? RtxBridge::describeStars(world.mNightFade, world.mSunGlare, world.mSkyRoll.mStars, mSkyTextures)
-                : ::Rtx::Shaders::StarField{ .mTexture = ::Rtx::Shaders::NO_SKY_TEXTURE },
+                ? Rtx::describeStars(world.mNightFade, world.mSunGlare, world.mSkyRoll.mStars, mSkyTextures)
+                : Rtx::Shaders::StarField{ .mTexture = Rtx::Shaders::NO_SKY_TEXTURE },
         };
 
         for (std::size_t moon = 0; moon < described.mMoons.size(); ++moon)
@@ -801,17 +787,17 @@ namespace MWRender::Rtx
             // has not spoken, and a moon it has not spoken about is one with no alpha anyway.
             const int phase = state.mPhase == MoonState::Phase::Unspecified ? 0 : static_cast<int>(state.mPhase);
 
-            described.mMoons[moon] = RtxBridge::placeMoon(static_cast<RtxBridge::Moon>(moon),
-                state.mRotationFromHorizon, state.mRotationFromNorth, phase, state.mMoonAlpha);
-            described.mMoons[moon].mFace = mMoonFaces.of(static_cast<RtxBridge::Moon>(moon));
+            described.mMoons[moon] = Rtx::placeMoon(static_cast<Rtx::Moon>(moon), state.mRotationFromHorizon,
+                state.mRotationFromNorth, phase, state.mMoonAlpha);
+            described.mMoons[moon].mFace = mMoonFaces.of(static_cast<Rtx::Moon>(moon));
         }
 
         // The nebulae and the constellations, on the star sphere and turning with it. An interior
         // leaves them at their defaults, which is no texture and so nothing drawn.
         if (world.isOutdoors())
-            RtxBridge::describePatches(world.mSkyRoll.mStars, mSkyTextures, described.mSkyPatches);
+            Rtx::describePatches(world.mSkyRoll.mStars, mSkyTextures, described.mSkyPatches);
 
-        RtxBridge::applyWorld(described, constants);
+        Rtx::applyWorld(described, constants);
 
         // **What the sampler and the jitter are walked by, and leaving it at zero is a bug with two
         // faces.** The bounce samples the same point every frame, so nothing ever converges; and the
@@ -824,8 +810,8 @@ namespace MWRender::Rtx
         // it is what a reference and a pixel test want, and the default is theirs. Without this an
         // interior lit by nothing but this placeholder's ambient reaches the screen at a few
         // hundredths and reads as black.
-        const ::Rtx::FrameResult result
-            = mRenderer->renderFrame(constants, ::Rtx::FrameOptions{ .mExposure = std::nullopt });
+        const Rtx::FrameResult result
+            = mRenderer->renderFrame(constants, Rtx::FrameOptions{ .mExposure = std::nullopt });
 
         // **The whole frame, measured between one trace and the next.** Everything the game does
         // in between is in it — update, cull, the rasterizer, this — which is what a player feels

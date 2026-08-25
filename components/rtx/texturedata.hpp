@@ -27,7 +27,7 @@ namespace Rtx
     enum class TextureFormat
     {
         /// BC1 with its punch-through alpha bit read. Both DXT1 spellings land here, and
-        /// `RtxBridge::describeImage` says why the header's alpha flag is not consulted.
+        /// `describeImage` says why the header's alpha flag is not consulted.
         Bc1RgbaSrgb,
         Bc2Srgb,
         Bc3Srgb,

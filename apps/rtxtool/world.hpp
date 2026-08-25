@@ -18,7 +18,7 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include <components/rtxbridge/terrainresidency.hpp>
+#include <components/rtx/terrainresidency.hpp>
 
 #include "terrainstorage.hpp"
 
@@ -167,7 +167,7 @@ namespace RtxTool
         void pageTerrain(bool paged) { mPagedTerrain = paged; }
 
         /// The terrain's chunks where the graph does not parent them, or null where it does.
-        RtxBridge::Residency* getTerrainResidency() { return mResident.get(); }
+        Rtx::Residency* getTerrainResidency() { return mResident.get(); }
 
         /// Where a paged world chooses its detail from. Ignored where nothing pages.
         void setTerrainViewPoint(const osg::Vec3f& where);
@@ -229,7 +229,7 @@ namespace RtxTool
         bool mPagedTerrain = false;
 
         /// Non-null only for a paged world, which is the only one that hides its chunks.
-        std::unique_ptr<RtxBridge::TerrainResidency> mResident;
+        std::unique_ptr<Rtx::TerrainResidency> mResident;
 
         /// The square of cells the paged world is told to hold, grown as cells are loaded. A grid
         /// nothing has been put in yet holds no ground at all.

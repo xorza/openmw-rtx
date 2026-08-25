@@ -13,7 +13,7 @@
 #include <osg/Vec3f>
 
 #include <components/rtx/scenedesc.hpp>
-#include <components/rtxbridge/sceneextractor.hpp>
+#include <components/rtx/sceneextractor.hpp>
 
 #include "lighting.hpp"
 #include "world.hpp"
@@ -75,7 +75,7 @@ namespace RtxTool
     /// child removed from the root *and* an `unloadCell` — and dropping only the first leaves a
     /// working set that gains ground for as long as the camera flies.
     std::uint32_t dropCellsOutside(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded);
+        Rtx::SceneExtractor& extractor, LoadedCells& loaded);
 
     /// What reading a cell produced besides the scene itself.
     struct CellReport
@@ -119,7 +119,7 @@ namespace RtxTool
     ///        stand two candles in one place. A caller with nowhere to keep an instance passes false
     ///        and gets the still template, which is a candle with an authored spark on it.
     CellReport readRegion(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded, bool liveProps);
+        Rtx::SceneExtractor& extractor, LoadedCells& loaded, bool liveProps);
 
     /// Which exterior square a point stands in.
     ///
@@ -164,6 +164,6 @@ namespace RtxTool
     };
 
     RegionLoad loadRegion(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded, std::string_view weather, int day, float hour,
+        Rtx::SceneExtractor& extractor, LoadedCells& loaded, std::string_view weather, int day, float hour,
         bool liveProps);
 }

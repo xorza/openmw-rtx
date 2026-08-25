@@ -4,11 +4,11 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/fogbuilder.hpp>
+#include <components/rtx/lightbuilder.hpp>
+#include <components/rtx/moonbuilder.hpp>
 #include <components/rtx/shaders/visibility.h>
-#include <components/rtxbridge/fogbuilder.hpp>
-#include <components/rtxbridge/lightbuilder.hpp>
-#include <components/rtxbridge/moonbuilder.hpp>
-#include <components/rtxbridge/skybuilder.hpp>
+#include <components/rtx/skybuilder.hpp>
 #include <components/sky/skyroll.hpp>
 
 namespace RtxTool
@@ -30,7 +30,7 @@ namespace RtxTool
         float mWaterLevel = -std::numeric_limits<float>::infinity();
 
         /// The sun and the sky over an exterior. An interior leaves this dark.
-        RtxBridge::Daylight mDaylight;
+        Rtx::Daylight mDaylight;
 
         /// Whether this cell has a sky over it.
         ///
@@ -73,10 +73,10 @@ namespace RtxTool
 
         /// Where the two moons' portraits sit in the scene's texture table. Whoever owns the scene
         /// puts them there; nothing about a cell decides it.
-        RtxBridge::MoonFaces mFaces;
+        Rtx::MoonFaces mFaces;
 
         /// And where the cloud decks and the star sheet sit, on the same terms.
-        RtxBridge::SkyTextures mSky;
+        Rtx::SkyTextures mSky;
 
         /// How far the deck has scrolled and the stars have rolled. **Zero for a screenshot**, which
         /// is what makes one repeatable — the same choice `mSeconds` makes for the sea; a window
@@ -85,7 +85,7 @@ namespace RtxTool
 
         /// The air in the cell, whichever of the two places it came from: an interior's `AMBI` or
         /// the weather over an exterior. A zero extinction is a cell with no fog, and costs nothing.
-        RtxBridge::Fog mFog;
+        Rtx::Fog mFog;
     };
 
     /// Writes how the cell is lit into the constants a frame is traced with.

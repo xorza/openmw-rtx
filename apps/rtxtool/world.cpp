@@ -210,7 +210,7 @@ namespace RtxTool
                         Settings::terrain().mMaxCompositeGeometrySize, false, ESM::Cell::sDefaultWorldspaceId,
                         sExpiryDelay);
 
-                mResident = std::make_unique<RtxBridge::TerrainResidency>();
+                mResident = std::make_unique<Rtx::TerrainResidency>();
                 mResident->follow(paged.get());
                 mTerrain = std::move(paged);
             }

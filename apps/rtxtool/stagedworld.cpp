@@ -50,8 +50,8 @@ namespace RtxTool
         // **The moons' portraits, into the same table the trace reads.** Held rather than named by a
         // material: a moon is drawn by a ray that reached nothing, so no material can speak for its
         // texture and the sweep would take the slot on the first frame a cell died.
-        mLighting.mFaces = RtxBridge::addMoonFaces(mScene);
-        mLighting.mSky = RtxBridge::addSkyTextures(mScene, *world.getResourceSystem().getSceneManager());
+        mLighting.mFaces = Rtx::addMoonFaces(mScene);
+        mLighting.mSky = Rtx::addSkyTextures(mScene, *world.getResourceSystem().getSceneManager());
         mReport = std::move(arrived.mReport);
 
         // **Before the first walk, because the walk runs the animators.** The graph's own
@@ -112,7 +112,7 @@ namespace RtxTool
 
     StagedWorld::~StagedWorld() = default;
 
-    RtxBridge::ExtractionStats StagedWorld::mirror(std::size_t frame)
+    Rtx::ExtractionStats StagedWorld::mirror(std::size_t frame)
     {
         // **Emptied before it is filled, which is what `RtxRenderer::renderFrame` does too.** The
         // lists a walk refills — the lights, the sprites, the emitters, the deforming set — are

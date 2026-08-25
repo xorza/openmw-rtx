@@ -17,7 +17,7 @@
 #include "../../mwbase/environment.hpp"
 #include "../../mwbase/statemanager.hpp"
 
-namespace MWRender::Rtx
+namespace MWRender
 {
     namespace
     {
@@ -52,7 +52,7 @@ namespace MWRender::Rtx
     {
         std::vector<double> mFrames;
         std::vector<double> mTraces;
-        ::Rtx::GpuBreakdown mGpu;
+        Rtx::GpuBreakdown mGpu;
     };
 
     Bench::Bench()
@@ -97,7 +97,7 @@ namespace MWRender::Rtx
 
     Bench::~Bench() = default;
 
-    void Bench::frame(const ::Rtx::FrameResult& result, double frameMs)
+    void Bench::frame(const Rtx::FrameResult& result, double frameMs)
     {
         if (mHeld == nullptr || mDone)
             return;
@@ -140,17 +140,17 @@ namespace MWRender::Rtx
 
     void Bench::report() const
     {
-        const ::Rtx::FrameTimes frames = ::Rtx::summarise(mHeld->mFrames);
-        const ::Rtx::FrameTimes traces = ::Rtx::summarise(mHeld->mTraces);
-        const std::span<const ::Rtx::GpuZone> zones = mHeld->mGpu.summariseZones();
+        const Rtx::FrameTimes frames = Rtx::summarise(mHeld->mFrames);
+        const Rtx::FrameTimes traces = Rtx::summarise(mHeld->mTraces);
+        const std::span<const Rtx::GpuZone> zones = mHeld->mGpu.summariseZones();
 
         // Built whole and logged once: the report is a table, and a table split across log lines by
         // a timestamp apiece is not one.
         std::string out = "\nRay tracing bench\n";
-        out += ::Rtx::describeHeadings();
-        out += ::Rtx::describeTimes("frame ms", frames);
-        out += ::Rtx::describeTimes("trace ms", traces);
-        out += ::Rtx::describeZones(zones);
+        out += Rtx::describeHeadings();
+        out += Rtx::describeTimes("frame ms", frames);
+        out += Rtx::describeTimes("trace ms", traces);
+        out += Rtx::describeZones(zones);
         out += std::format("  {} frames in {:.2f} s — {:.1f} fps, {:.1f} at the 1% low\n", mHeld->mFrames.size(),
             mMeasuredMs / 1000.0, frames.getRate(), frames.getLowRate());
 

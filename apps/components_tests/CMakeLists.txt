@@ -106,40 +106,37 @@ source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 
 if (OPENMW_RTX)
     set(RTX_TEST_FILES
-        rtx/bluenoise.cpp
         rtx/allocations.cpp
         rtx/allocations.hpp
+        rtx/bluenoise.cpp
         rtx/computepipeline.cpp
         rtx/device.cpp
         rtx/dlss.cpp
+        rtx/fogbuilder.cpp
+        rtx/frameimage.cpp
         rtx/frametimes.cpp
+        rtx/frameworld.cpp
         rtx/gputimer.cpp
         rtx/guipass.cpp
         rtx/guitextures.cpp
         rtx/harness.cpp
         rtx/harness.hpp
+        rtx/lightbuilder.cpp
         rtx/lightgrid.cpp
+        rtx/moonbuilder.cpp
+        rtx/offscreentrace.cpp
         rtx/pipelinecache.cpp
         rtx/probe.cpp
         rtx/requirements.cpp
         rtx/scenedesc.cpp
+        rtx/sceneextractor.cpp
+        rtx/sceneuploader.cpp
         rtx/shadingmap.cpp
         rtx/spanallocator.cpp
         rtx/structurestorage.cpp
+        rtx/texturebuilder.cpp
         rtx/visibilitypass.cpp
         rtx/wavespectrum.cpp
-        rtxbridge/fogbuilder.cpp
-        sky/skyroll.cpp
-        weather/downpour.cpp
-        sky/sun.cpp
-
-        rtxbridge/frameimage.cpp
-        rtxbridge/frameworld.cpp
-        rtxbridge/lightbuilder.cpp
-        rtxbridge/moonbuilder.cpp
-        rtxbridge/sceneextractor.cpp
-        rtxbridge/sceneuploader.cpp
-        rtxbridge/texturebuilder.cpp
         rtxtool/actor.cpp
         rtxtool/benchsuite.cpp
         rtxtool/contactsheet.cpp
@@ -156,6 +153,9 @@ if (OPENMW_RTX)
         rtxtool/validationchoice.cpp
         rtxtool/verify.cpp
         rtxtool/view.cpp
+        sky/skyroll.cpp
+        sky/sun.cpp
+        weather/downpour.cpp
     )
     list(APPEND UNITTEST_SRC_FILES ${RTX_TEST_FILES})
 endif()
@@ -169,7 +169,7 @@ target_link_libraries(components-tests
 )
 
 if (OPENMW_RTX)
-    target_link_libraries(components-tests openmw-rtx openmw-rtx-backends openmw-rtx-vulkan openmw-rtx-bridge
+    target_link_libraries(components-tests openmw-rtx openmw-rtx-backends openmw-rtx-vulkan
                           openmw-rtxtool-lib)
 
     # Per file rather than per target: this binary holds upstream's tests as well as this fork's, and

@@ -52,20 +52,23 @@ where the shader roughly triples. This is the cheapest this will ever be.
 components/rtx/          openmw-rtx           links no graphics API
 components/rtxvulkan/    openmw-rtx-vulkan    links Vulkan::Vulkan
 components/rtxmetal/     openmw-rtx-metal     links Metal, QuartzCore
-components/rtxbridge/    openmw-rtx-bridge    links no graphics API
 ```
+
+> Since written: `components/rtxbridge` folded into `components/rtx` (`.notes/rtx/merge.md` §1).
+> The seam this section argues for is the graphics API and the linker still enforces it; the OSG
+> boundary the fourth row implied was never a link boundary and had the same consumers on both
+> sides. Read "the bridge" below as the half of `openmw-rtx` that walks a scene graph.
 
 `.notes/rtx/plan.md` §4 rejected grouping this component into subdirectories, and that argument still holds: a
 subdirectory would make every include read `rtx/vulkan/device.hpp` for no gain. But the reason to
 split here is not tidiness. **A subdirectory is not a link boundary and a library is.** Three targets
 means `openmw-rtx` physically cannot include `vulkan_core.h` — the linker enforces the seam that
 `.notes/rtx/plan.md` §4 already calls the one that matters, instead of a convention enforced by whoever is
-reading the diff. It is the same reason `rtxbridge` is already a component of its own rather than a
-folder.
+reading the diff.
 
-Files stay flat inside each, as the convention says. `openmw-rtx-bridge` links no graphics API either
-once §5.5 lands, which it does not today: `texturebuilder.hpp` includes `components/rtx/texture.hpp`
-and drags Vulkan through the whole bridge.
+Files stay flat inside each, as the convention says. The scene-building half links no graphics API
+either once §5.5 lands, which it does not today: `texturebuilder.hpp` includes
+`components/rtx/texture.hpp` and drags Vulkan through it.
 
 ## 3. What the interface is
 
@@ -346,7 +349,7 @@ It becomes `describeTextures`, returning the `TextureData` descriptions the scen
 it names them, with the `osg::Image` references held so the bytes outlive the upload. `describeImage`
 already does the hard half and is already neutral.
 
-`openmw-rtx-bridge` then links no graphics API, which is what it always claimed to be.
+Nothing that builds a scene then names a graphics API, which is what it always claimed to be.
 
 ### 5.6 The scene as a struct of addresses
 

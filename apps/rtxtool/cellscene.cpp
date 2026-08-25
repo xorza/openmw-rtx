@@ -16,9 +16,9 @@
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtxbridge/fogbuilder.hpp>
-#include <components/rtxbridge/lightbuilder.hpp>
-#include <components/rtxbridge/texturebuilder.hpp>
+#include <components/rtx/fogbuilder.hpp>
+#include <components/rtx/lightbuilder.hpp>
+#include <components/rtx/texturebuilder.hpp>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/sceneutil/lightutil.hpp>
 #include <components/weather/downpour.hpp>
@@ -119,7 +119,7 @@ namespace RtxTool
     }
 
     std::uint32_t dropCellsOutside(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded)
+        Rtx::SceneExtractor& extractor, LoadedCells& loaded)
     {
         if (!centre.isExterior())
             return 0;
@@ -154,7 +154,7 @@ namespace RtxTool
     }
 
     CellReport readRegion(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded, bool liveProps)
+        Rtx::SceneExtractor& extractor, LoadedCells& loaded, bool liveProps)
     {
         CellReport report;
 
@@ -191,7 +191,7 @@ namespace RtxTool
         // is most of what lights one. An exterior's `AMBI` is the weather system's business and
         // is not read here.
         if (!centre.isExterior() && centre.mHasAmbi)
-            report.mAmbient = RtxBridge::decodeColour(centre.mAmbi.mAmbient);
+            report.mAmbient = Rtx::decodeColour(centre.mAmbi.mAmbient);
 
         for (const ESM::Cell* cell : arrived)
         {
@@ -302,7 +302,7 @@ namespace RtxTool
     }
 
     RegionLoad loadRegion(World& world, const ESM::Cell& centre, osg::Group& root, Rtx::SceneDesc& scene,
-        RtxBridge::SceneExtractor& extractor, LoadedCells& loaded, std::string_view weather, int day, float hour,
+        Rtx::SceneExtractor& extractor, LoadedCells& loaded, std::string_view weather, int day, float hour,
         bool liveProps)
     {
         CellReport report = readRegion(world, centre, root, scene, extractor, loaded, liveProps);
@@ -317,15 +317,15 @@ namespace RtxTool
             return RegionLoad{ .mLighting = CellLighting{ .mAmbient = report.mAmbient,
                                    .mWaterLevel = level,
                                    .mDaylight = {},
-                                   .mFog = RtxBridge::interiorFog(centre) },
+                                   .mFog = Rtx::interiorFog(centre) },
                 .mReport = std::move(report) };
 
-        const RtxBridge::Daylight daylight = RtxBridge::makeDaylight(weather, hour);
+        const Rtx::Daylight daylight = Rtx::makeDaylight(weather, hour);
 
         // **After the daylight, and that is what makes the `value` safe.** A name that is none of
         // the ten throws out of the fallback map on the line above, so anything that reaches here
         // is a weather the table knows.
-        const std::uint32_t identity = RtxBridge::weatherIndex(weather).value();
+        const std::uint32_t identity = Rtx::weatherIndex(weather).value();
 
         return RegionLoad{ .mLighting = CellLighting{ .mAmbient = daylight.mAmbient,
                                .mWaterLevel = level,

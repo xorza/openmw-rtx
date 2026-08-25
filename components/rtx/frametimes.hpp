@@ -5,7 +5,7 @@
 #include <string_view>
 #include <vector>
 
-#include <components/rtx/renderer.hpp>
+#include "renderer.hpp"
 
 namespace Rtx
 {
@@ -64,7 +64,7 @@ namespace Rtx
     public:
         /// Takes one frame's zones. The names are the backend's literals and are copied on first
         /// sight only, so a long run pushes a double per zone and nothing else.
-        void add(std::span<const Rtx::GpuSpan> spans);
+        void add(std::span<const GpuSpan> spans);
 
         /// Summarises what was gathered, most expensive first — which is the order the question
         /// "where did the frame go" wants read. Empty where no frame reported a zone.
