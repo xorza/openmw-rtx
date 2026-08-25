@@ -532,14 +532,32 @@ that a temporal denoiser would drop the level count and change what a tile is wo
 answered (the history takes 44%, the cascade still carries the majority), and that answer says the
 tile is worth what it was worth. What neither asked is *which frame* the cascade is in.
 
-**And the ceiling was probed and the probe was not sound.** Serving every per-tap read from the centre
-takes the cascade to 1.24 ms at Wolverine Hall and 0.97 at Balmora — but that substitution makes the
-whole loop body invariant and the compiler hoists most of it, so the figure bounds the loads *and*
-the arithmetic together and bounds them loosely. A tile addresses only part of the load half, and
-only at the fine strides: at stride sixteen a sixteen-wide workgroup shares no tap with itself, and
-the tile is (16 + 4·16)² texels for exactly the 6400 reads it replaces.
+**And the ceiling was measured: the hardware cache is already doing the tile's job.** Pinning every
+level's stride to one — which puts the whole 5×5 footprint inside L1 at every level, the best case
+any cache or tile could ever reach — moves the cascade by this much at Wolverine Hall, four runs
+each:
 
-It stays in the queue, last, for the build that has no DLSS SDK.
+| | runs | median | best |
+|---|---|---|---|
+| the real stride ladder, 1 to 16 | 2.778 / 2.847 / 2.682 / 2.689 | 2.69 ms | 2.682 |
+| every level pinned to stride one | 2.549 / 2.511 / 2.696 / 2.689 | 2.62 ms | 2.511 |
+
+**Between nothing and six per cent, with the distributions overlapping.** A shared-memory tile can
+recover at most that, and only where it fits: at an eight-wide workgroup the tile is (8 + 4s)² texels
+and 28 bytes a texel, so it holds to stride four and runs out at eight — the coarse levels, which are
+exactly the ones whose taps miss.
+
+**The premise was the count and the count was never the cost.** 250 image loads a pixel is a large
+number and an image load that hits L1 is nearly free; a 5×5 stencil has enormous reuse inside a
+working set however far apart its taps are indexed. What the 2.7 ms is actually spent on is the
+per-tap arithmetic — a `pow` with a runtime exponent, two `exp` and a `normalize` inside `positionAt`,
+125 of each a pixel — and a tile does nothing for any of it.
+
+An earlier probe served every per-tap read from the centre and read 1.24 ms; that substitution makes
+the loop body invariant and the compiler hoists it, so the figure bounded the loads and the
+arithmetic together and bounded them loosely. It is recorded here only so nobody repeats it.
+
+Not worth doing, and it is the *arithmetic* that anyone wanting this pass faster should look at.
 
 ### 4.9 Small things — closed
 
@@ -598,22 +616,14 @@ runs of one build, the doll about 0.02% — so those two need a magnitude compar
 same-build control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path
 and `doll` the only transparent-background one.
 
-**1 — decide SER (4.5).** The number is in and it is 50%, bound equally by 80 registers and by the
-8,448 bytes of shared memory the ray query's traversal stack costs (4.6). So the lever this step was
-waiting on — shrink live state, watch occupancy rise — does not exist: the shared-memory limit holds
-at twelve blocks whatever the registers do. What is left to decide is whether *coherence* is worth a
-ray-tracing pipeline, which is a different argument from occupancy and has to be made on its own
-terms. Until it is made, `plan.md` §8's SER entry should say it needs one.
-
-**2 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
-neighbourhood every thread in the workgroup shares. **Last, and that is the finding**: the cascade
-runs only where `upscale == Upscale::Off`, so it is the denoiser for a build made without the DLSS
-SDK and for every reference this harness renders, and it is absent from the frame the budget is
-written against. Worth 2.6 to 2.8 ms where it runs. The tile helps at the fine strides and not at the
-coarse ones, for the reason 4.8 gives.
-
-*Check:* the byte comparison — a tile is a cache and must change nothing — and the atrous timer at
-`--upscale=off`, against the level count it was measured at.
+**1 — decide SER (4.5) — deferred.** Both facts that were missing are now in 4.5: the port is far
+cheaper than this entry assumed, because ray query and `reorderThreadEXT` coexist in one raygen
+shader; and the occupancy case for it is gone, because 50% is bound as hard by the traversal stack as
+by the registers. What is left is a coherence claim nobody has measured, against a feature that costs
+in proportion to the live state carried across it — and this kernel carries a lot. **Deferred by
+choice, not blocked.** What would settle it is a day: port to raygen with no reorder call at all,
+hold the byte comparison, and compare registers, occupancy and the trace timer. If the port alone
+regresses, the reorder never has to be argued.
 
 Every one of these is M12, and each gets its number written down when it lands rather than acted on
 before.

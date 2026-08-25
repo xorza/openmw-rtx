@@ -436,7 +436,19 @@ every count; and a control fifo bounding the recording to the measured frames.
 
 **Performance — M12, and none of it is started**
 
-- **SER** (`VK_EXT/NV_ray_tracing_invocation_reorder`).
+- **SER** (`VK_EXT_ray_tracing_invocation_reorder`). **Needs a ray-tracing pipeline**, because
+  `reorderThreadEXT` exists in ray generation shaders only — but it does *not* need payloads, hit
+  shaders or a real binding table: a `.rgen` can hold `rayQueryEXT` and `reorderThreadEXT` together,
+  which is compiled and checked in `shaders.md` §4.5. So the megakernel body survives the move and
+  what changes is the stage, a one-group pipeline and `vkCmdTraceRaysKHR`. The device reports
+  `reorders` rather than `none`.
+
+  **Deferred, and the argument for it is weaker than it looked.** The occupancy case is gone —
+  `visibility.comp` runs at 50%, bound equally by 80 registers and by the 8,448 bytes the ray query
+  traversal stack costs, so shrinking live state does not move it. What is left is coherence, and
+  this frame is largely screen-coherent; on top of that SER costs in proportion to the live state
+  carried across the reorder, and this kernel carries a great deal. `shaders.md` §4.5 has the whole
+  of it and the day's experiment that would settle it.
 - **Opacity micromaps for cutout foliage.** The device features are required and probed; nothing
   builds a micromap.
 - **BLAS compaction**, and **cluster acceleration structures** if they earn their place.
