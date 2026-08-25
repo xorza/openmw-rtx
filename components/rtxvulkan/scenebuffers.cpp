@@ -153,6 +153,24 @@ namespace Rtx
         mDevice->setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mMeshes.getHandle()), "meshes");
     }
 
+    void SceneBuffers::binSprites(const osg::Vec3f& origin, const Shaders::Camera& camera)
+    {
+        mSpriteTiles.rebuild(mSpriteScratch, mEmitterScratch, origin, camera);
+
+        // Nothing may be bound to a descriptor a shader declares, and a frame with no sprites in it
+        // has an empty list — the offsets are all nought, so the shader reads none of this.
+        static constexpr std::uint32_t noIndex = 0;
+        const std::span<const std::uint32_t> indices = mSpriteTiles.getIndices().empty()
+            ? std::span<const std::uint32_t>(&noIndex, 1)
+            : mSpriteTiles.getIndices();
+
+        reserve(mSpriteTileOffsets, mSpriteTiles.getOffsets().size_bytes());
+        reserve(mSpriteTileIndices, indices.size_bytes());
+
+        mSpriteTileOffsets.write(mSpriteTiles.getOffsets());
+        mSpriteTileIndices.write(indices);
+    }
+
     void SceneBuffers::reserve(HostBuffer& held, const VkDeviceSize bytes)
     {
         if (held.getSize() >= bytes)
@@ -262,7 +280,15 @@ namespace Rtx
         for (const SpriteEmitter& emitter : scene.getEmitters())
             mEmitterScratch.push_back(toGpu(emitter));
 
-        mEmitterCount = static_cast<std::uint32_t>(mEmitterScratch.size());
+        // **Which emitter placed a sprite, written from this side because only this side knows.**
+        // The scene keeps the pairing as a run on the emitter; a tile's list is sprites, and a
+        // sprite walked out of one has to be able to say when the run it belongs to has changed.
+        for (std::uint32_t at = 0; at < mEmitterScratch.size(); ++at)
+        {
+            const Shaders::GpuEmitter& emitter = mEmitterScratch[at];
+            for (std::uint32_t sprite = emitter.mFirst; sprite < emitter.mFirst + emitter.mCount; ++sprite)
+                mSpriteScratch[sprite].mEmitter = at;
+        }
 
         mLightGrid.rebuild(scene.getLights());
 

@@ -64,6 +64,8 @@ set(RTX_FILES
     skybuilder.hpp
     spanallocator.cpp
     spanallocator.hpp
+    spritetiles.cpp
+    spritetiles.hpp
     terrainresidency.cpp
     terrainresidency.hpp
     texturebuilder.cpp

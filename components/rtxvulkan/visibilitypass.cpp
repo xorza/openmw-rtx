@@ -28,7 +28,7 @@ namespace Rtx
         /// order the shader declares them. The channels are scattered through the numbering because
         /// each grew onto the end of a layout that already existed rather than renumbering the
         /// tables under them.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 30> sBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 32> sBindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 1, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 2, sStorage, 1, sCompute },
@@ -55,6 +55,8 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 23, sStorage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 24, sStorage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 25, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 30, sStorage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 31, sStorage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 26, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 27, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 28, sImage, 1, sCompute },
@@ -82,7 +84,6 @@ namespace Rtx
         // never shrinks, so its length says nothing about this frame; taking the count off the
         // buffers here is what keeps a caller from having to know the table exists at all.
         Shaders::VisibilityConstants described = constants;
-        described.mEmitterCount = inputs.mBuffers->getEmitterCount();
 
         // **Both directions, because one buffer serves every trace.** The write has to wait for the
         // last dispatch that read it — a traced view and the world are two traces — and the next
@@ -169,6 +170,8 @@ namespace Rtx
         const VkDescriptorBufferInfo gridWrite{ inputs.mBuffers->getGrid(), 0, VK_WHOLE_SIZE };
         const VkDescriptorBufferInfo spriteWrite{ inputs.mBuffers->getSprites(), 0, VK_WHOLE_SIZE };
         const VkDescriptorBufferInfo emitterWrite{ inputs.mBuffers->getEmitters(), 0, VK_WHOLE_SIZE };
+        const VkDescriptorBufferInfo tileOffsetWrite{ inputs.mBuffers->getSpriteTileOffsets(), 0, VK_WHOLE_SIZE };
+        const VkDescriptorBufferInfo tileIndexWrite{ inputs.mBuffers->getSpriteTileIndices(), 0, VK_WHOLE_SIZE };
         const VkDescriptorBufferInfo frameWrite{ mConstants.getHandle(), 0, VK_WHOLE_SIZE };
 
         // **Appended rather than indexed.** Every one of these used to name its own slot — channels
@@ -217,6 +220,8 @@ namespace Rtx
         appendBuffer(23, spriteWrite);
         appendBuffer(24, emitterWrite);
         appendUniform(25, frameWrite);
+        appendBuffer(30, tileOffsetWrite);
+        appendBuffer(31, tileIndexWrite);
 
         vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getHandle());
         // Every binding the layout declares, written exactly once — a shader that grew one and a

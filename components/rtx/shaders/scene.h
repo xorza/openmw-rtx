@@ -378,8 +378,24 @@ namespace Rtx::Shaders
         ///
         /// Zero for a particle born this frame, which is the truth: it has no past to reproject to.
         vec3 mMoved;
-        float mPad;
+
+        /// Which emitter placed it, which is what a tile's list has to carry.
+        ///
+        /// **Walking sprites rather than emitters is what made this necessary.** The march evaluates
+        /// the fog's field once per emitter per ray — forty hashes, amortised over that emitter's
+        /// whole run — and a list of sprites can only keep that amortisation if a sprite can say
+        /// when the run it belongs to has changed. It sits in the padding the structure already had.
+        uint mEmitter;
     };
+
+    /// How many pixels a side one tile of the sprite list covers.
+    ///
+    /// **Sixteen, and the trade is the usual one.** Finer tiles reject more sprites per pixel and
+    /// cost more of them to bin: a raindrop is a few pixels across, so at sixteen it lands in one
+    /// tile or four, and a tile's list is short. The screen's tile count is derived from this and the
+    /// frame's extent on both sides — `(width + SPRITE_TILE - 1) / SPRITE_TILE` — so there is one
+    /// number here and no second one to disagree with it.
+    RTX_CONST uint SPRITE_TILE = 16u;
 
     /// One particle system: a sphere a ray is rejected by, and the run of sprites behind it.
     struct GpuEmitter

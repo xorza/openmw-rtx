@@ -110,7 +110,7 @@ float spriteTaper(float radial, float lod)
 /// What it does not model is a covering sprite in front of an adding one — a plume across a flame
 /// would dim it, and here it does not. The two are separate emitters in Morrowind's content and
 /// they are stacked rather than crossed.
-SpriteLayer spritesAlong(vec3 origin, vec3 direction, float limit)
+SpriteLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit)
 {
     SpriteLayer layer;
     layer.mRadiance = vec3(0.0);
@@ -126,154 +126,179 @@ SpriteLayer spritesAlong(vec3 origin, vec3 direction, float limit)
     const vec3 across = normalize(frame.mCamera.mRight);
     const vec3 upward = normalize(frame.mCamera.mUp);
 
-    for (uint e = 0u; e < frame.mEmitterCount; ++e)
+    // **The tiles are derived and not carried**, from the same expression `Rtx::SpriteTiles` uses,
+    // so the two cannot disagree about how many there are across.
+    const uint tilesAcross = (frame.mCamera.mWidth + SPRITE_TILE - 1u) / SPRITE_TILE;
+    const uint tile = (pixel.y / SPRITE_TILE) * tilesAcross + pixel.x / SPRITE_TILE;
+    const uint last = spriteTileOffsets[tile + 1u];
+
+    // **What the outer loop over emitters used to hold, carried across a walk that no longer has
+    // one.** The tile's sprites are in ascending index, and a sprite's index is contiguous within
+    // its emitter, so an emitter's sprites arrive consecutively and these are worked out once for
+    // each run — which is the amortisation the emitter loop was giving away for free.
+    uint held = ~0u;
+    GpuEmitter emitter;
+    bool missed = true;
+    float extinction = 0.0;
+    bool oriented = false;
+    float width = 0.0;
+
+    for (uint slot = spriteTileOffsets[tile]; slot < last; ++slot)
     {
-        const GpuEmitter emitter = emitters[e];
+        const GpuSprite sprite = sprites[spriteTileIndices[slot]];
 
-        const vec3 toCentre = emitter.mCentre - origin;
-        const float along = dot(toCentre, direction);
-        if (along + emitter.mReach <= 0.0 || along - emitter.mReach >= limit)
-            continue;
-
-        if (dot(toCentre, toCentre) - along * along > emitter.mReach * emitter.mReach)
-            continue;
-
-        // **One evaluation of the fog's field for the whole emitter**, taken halfway to it: that is
-        // the mean-value point of the path, and the field costs forty hashes out of doors. Every
-        // sprite behind this sphere is within `mReach` of the same air.
-        const float extinction = fogExtinctionAt(origin + direction * (0.5 * along), max(along, 1.0));
-
-        // **Two zero axes is a sprite that faces the eye**, which is nearly every emitter in the
-        // game; asked once for the emitter rather than once for each of its sprites.
-        // `fixed` is a reserved word in GLSL, which is why this is not called one.
-        const bool oriented = dot(emitter.mAcross, emitter.mAcross) > 0.0 && dot(emitter.mUpward, emitter.mUpward) > 0.0;
-
-        // How wide the streak is against how long, which is the shape the content authored and the
-        // one thing kept from its across axis. Asked here for the same reason as the line above.
-        const float width = oriented ? length(emitter.mAcross) : 0.0;
-
-        for (uint i = emitter.mFirst; i < emitter.mFirst + emitter.mCount; ++i)
+        if (sprite.mEmitter != held)
         {
-            const GpuSprite sprite = sprites[i];
+            held = sprite.mEmitter;
+            emitter = emitters[held];
 
-            const vec3 toSprite = sprite.mPosition - origin;
+            const vec3 toCentre = emitter.mCentre - origin;
+            const float along = dot(toCentre, direction);
 
-            // How far along the ray the quad is, where across it the ray crossed in units of its own
-            // half-extents, and how far out that is as a fraction — the three things the rest needs,
-            // and the only place the two kinds of sprite differ.
-            float depth;
-            vec2 at;
-            float radial;
+            // The same two rejections the emitter loop made, kept because a tile is sixteen pixels
+            // wide and a sprite in it is one *some* ray of the tile can reach rather than this one.
+            missed = along + emitter.mReach <= 0.0 || along - emitter.mReach >= limit
+                || dot(toCentre, toCentre) - along * along > emitter.mReach * emitter.mReach;
 
-            if (oriented)
+            if (!missed)
             {
-                // **A quad that hangs in the world**, so the ray meets a plane rather than a disc.
-                //
-                // **The axis it hangs on is the content's; which way its width faces is not.**
-                // `osgParticle` uses both authored axes untransformed for a `FIXED` system because
-                // a rasterizer has to commit the quad to some plane, and Morrowind's rain commits
-                // it to the world's X–Z one — so a drop looked at from along X is a polygon seen
-                // edge-on and thins away to nothing, and the same storm reads three times heavier
-                // facing north than facing east. That is a fact about drawing quads rather than
-                // about rain, and it is the sort of thing rays are here to stop answering with.
-                //
-                // So the streak's axis is kept exactly as authored — its length, its fall, the lean
-                // the wind gave it — and only the width is swung about that axis to meet the ray.
-                // Seen face-on, which is where the content was authored and judged, nothing moves.
-                const vec3 axis = emitter.mUpward;
-                const vec3 swung = cross(axis, direction);
-                const float swing = length(swung);
+                // **One evaluation of the fog's field for the whole emitter**, taken halfway to it:
+                // that is the mean-value point of the path, and the field costs forty hashes out of
+                // doors. Every sprite behind this sphere is within `mReach` of the same air.
+                extinction = fogExtinctionAt(origin + direction * (0.5 * along), max(along, 1.0));
 
-                // Looking straight down the streak's own axis, where no swing presents any width.
-                // There is nothing to see from there either, so the authored width stands in.
-                const vec3 side = swing > 1.0e-4 ? swung * (width / swing) : emitter.mAcross;
+                // **Two zero axes is a sprite that faces the eye**, which is nearly every emitter in
+                // the game; asked once for the emitter rather than once for each of its sprites.
+                // `fixed` is a reserved word in GLSL, which is why this is not called one.
+                oriented
+                    = dot(emitter.mAcross, emitter.mAcross) > 0.0 && dot(emitter.mUpward, emitter.mUpward) > 0.0;
 
-                const vec3 across = side * sprite.mRadius;
-                const vec3 upward = axis * sprite.mRadius;
-                const vec3 normal = cross(across, upward);
-
-                const float facing = dot(normal, direction);
-                if (abs(facing) <= 1.0e-6)
-                    continue;
-
-                depth = dot(toSprite, normal) / facing;
-                if (depth <= 0.0 || depth >= limit)
-                    continue;
-
-                const vec3 offset = direction * depth - toSprite;
-                at = vec2(dot(offset, across) / dot(across, across), dot(offset, upward) / dot(upward, upward));
-                if (max(abs(at.x), abs(at.y)) >= 1.0)
-                    continue;
-
-                radial = length(at);
+                // How wide the streak is against how long, which is the shape the content authored
+                // and the one thing kept from its across axis. Asked here for the same reason.
+                width = oriented ? length(emitter.mAcross) : 0.0;
             }
-            else
-            {
-                depth = dot(toSprite, direction);
-                if (depth <= 0.0 || depth >= limit)
-                    continue;
-
-                // Perpendicular to the ray rather than to the camera's axis, so a sprite at the
-                // corner of the frame faces the eye and not the screen.
-                const vec3 offset = toSprite - direction * depth;
-                radial = length(offset) / sprite.mRadius;
-                if (radial >= 1.0)
-                    continue;
-
-                at = -vec2(dot(offset, across), dot(offset, upward)) / sprite.mRadius;
-            }
-
-            // The sprite is `2 * mRadius` wide where the pixel's cone is `mSpreadAngle * depth`
-            // across, and the ratio of the two in texels is the level that resolves it.
-            const vec2 size = vec2(textureSize(textures[nonuniformEXT(emitter.mTexture)], 0));
-            const float lod
-                = max(0.0, log2(max(size.x, size.y) * frame.mCamera.mSpreadAngle * depth / (2.0 * sprite.mRadius)));
-
-            // The quad `osgParticle` would have drawn: texture coordinate zero at `-right -up` and
-            // one at `+right +up`, about a centre at half.
-            const vec2 uv = at * 0.5 + 0.5;
-
-            const vec4 texel = textureLod(textures[nonuniformEXT(emitter.mTexture)], uv, lod);
-
-            // **The rim is put back on a disc and left alone on a quad.** What the taper restores is
-            // a round blob the mip chain averaged into the square it was cut to; a rain streak was
-            // authored as that rectangle, and tapering it would round off the drop.
-            const float alpha
-                = texel.a * sprite.mAlpha * (oriented ? 1.0 : spriteTaper(radial, lod));
-            if (!(alpha > 0.0))
-                continue;
-
-            const vec3 colour = texel.rgb * sprite.mColour;
-            const float reaching = exp(-extinction * depth);
-
-            if (emitter.mAdditive != 0u)
-            {
-                // **No gain, deliberately.** The blend the file asks for says exactly how much light
-                // the sprite adds; `EMISSIVE_INTENSITY` is only what carries the original's scale,
-                // where a fully lit surface reached one, onto this renderer's, where the sun is
-                // `DAYLIGHT`. A flame then comes out tens of times the mean of the room it stands in,
-                // because that is what a flame is, and the exposure downstream decides where it
-                // lands. A gain on top of it blows every flame to a white square and hides the shape
-                // that was already in the texture.
-                const vec3 added = colour * (alpha * reaching * EMISSIVE_INTENSITY);
-                layer.mRadiance += added;
-
-                const float lit = dot(added, LUMINANCE_WEIGHTS);
-                if (lit > layer.mAdding.mWeight)
-                    layer.mAdding = SpriteClaim(direction * depth, sprite.mMoved, lit);
-
-                continue;
-            }
-
-            covered += colour * puffLight(sprite.mPosition) * (alpha * reaching);
-            coverage += alpha;
-            layer.mTransmittance *= 1.0 - alpha;
-
-            // **By what it hid and not by what it was lit by.** An unlit puff of smoke sends back no
-            // light at all and still decides the whole of what the pixel shows.
-            if (alpha > layer.mCovering.mWeight)
-                layer.mCovering = SpriteClaim(direction * depth, sprite.mMoved, alpha);
         }
+
+        if (missed)
+            continue;
+
+        const vec3 toSprite = sprite.mPosition - origin;
+
+        // How far along the ray the quad is, where across it the ray crossed in units of its own
+        // half-extents, and how far out that is as a fraction — the three things the rest needs,
+        // and the only place the two kinds of sprite differ.
+        float depth;
+        vec2 at;
+        float radial;
+
+        if (oriented)
+        {
+            // **A quad that hangs in the world**, so the ray meets a plane rather than a disc.
+            //
+            // **The axis it hangs on is the content's; which way its width faces is not.**
+            // `osgParticle` uses both authored axes untransformed for a `FIXED` system because
+            // a rasterizer has to commit the quad to some plane, and Morrowind's rain commits
+            // it to the world's X–Z one — so a drop looked at from along X is a polygon seen
+            // edge-on and thins away to nothing, and the same storm reads three times heavier
+            // facing north than facing east. That is a fact about drawing quads rather than
+            // about rain, and it is the sort of thing rays are here to stop answering with.
+            //
+            // So the streak's axis is kept exactly as authored — its length, its fall, the lean
+            // the wind gave it — and only the width is swung about that axis to meet the ray.
+            // Seen face-on, which is where the content was authored and judged, nothing moves.
+            const vec3 axis = emitter.mUpward;
+            const vec3 swung = cross(axis, direction);
+            const float swing = length(swung);
+
+            // Looking straight down the streak's own axis, where no swing presents any width.
+            // There is nothing to see from there either, so the authored width stands in.
+            const vec3 side = swing > 1.0e-4 ? swung * (width / swing) : emitter.mAcross;
+
+            const vec3 across = side * sprite.mRadius;
+            const vec3 upward = axis * sprite.mRadius;
+            const vec3 normal = cross(across, upward);
+
+            const float facing = dot(normal, direction);
+            if (abs(facing) <= 1.0e-6)
+                continue;
+
+            depth = dot(toSprite, normal) / facing;
+            if (depth <= 0.0 || depth >= limit)
+                continue;
+
+            const vec3 offset = direction * depth - toSprite;
+            at = vec2(dot(offset, across) / dot(across, across), dot(offset, upward) / dot(upward, upward));
+            if (max(abs(at.x), abs(at.y)) >= 1.0)
+                continue;
+
+            radial = length(at);
+        }
+        else
+        {
+            depth = dot(toSprite, direction);
+            if (depth <= 0.0 || depth >= limit)
+                continue;
+
+            // Perpendicular to the ray rather than to the camera's axis, so a sprite at the
+            // corner of the frame faces the eye and not the screen.
+            const vec3 offset = toSprite - direction * depth;
+            radial = length(offset) / sprite.mRadius;
+            if (radial >= 1.0)
+                continue;
+
+            at = -vec2(dot(offset, across), dot(offset, upward)) / sprite.mRadius;
+        }
+
+        // The sprite is `2 * mRadius` wide where the pixel's cone is `mSpreadAngle * depth`
+        // across, and the ratio of the two in texels is the level that resolves it.
+        const vec2 size = vec2(textureSize(textures[nonuniformEXT(emitter.mTexture)], 0));
+        const float lod
+            = max(0.0, log2(max(size.x, size.y) * frame.mCamera.mSpreadAngle * depth / (2.0 * sprite.mRadius)));
+
+        // The quad `osgParticle` would have drawn: texture coordinate zero at `-right -up` and
+        // one at `+right +up`, about a centre at half.
+        const vec2 uv = at * 0.5 + 0.5;
+
+        const vec4 texel = textureLod(textures[nonuniformEXT(emitter.mTexture)], uv, lod);
+
+        // **The rim is put back on a disc and left alone on a quad.** What the taper restores is
+        // a round blob the mip chain averaged into the square it was cut to; a rain streak was
+        // authored as that rectangle, and tapering it would round off the drop.
+        const float alpha
+            = texel.a * sprite.mAlpha * (oriented ? 1.0 : spriteTaper(radial, lod));
+        if (!(alpha > 0.0))
+            continue;
+
+        const vec3 colour = texel.rgb * sprite.mColour;
+        const float reaching = exp(-extinction * depth);
+
+        if (emitter.mAdditive != 0u)
+        {
+            // **No gain, deliberately.** The blend the file asks for says exactly how much light
+            // the sprite adds; `EMISSIVE_INTENSITY` is only what carries the original's scale,
+            // where a fully lit surface reached one, onto this renderer's, where the sun is
+            // `DAYLIGHT`. A flame then comes out tens of times the mean of the room it stands in,
+            // because that is what a flame is, and the exposure downstream decides where it
+            // lands. A gain on top of it blows every flame to a white square and hides the shape
+            // that was already in the texture.
+            const vec3 added = colour * (alpha * reaching * EMISSIVE_INTENSITY);
+            layer.mRadiance += added;
+
+            const float lit = dot(added, LUMINANCE_WEIGHTS);
+            if (lit > layer.mAdding.mWeight)
+                layer.mAdding = SpriteClaim(direction * depth, sprite.mMoved, lit);
+
+            continue;
+        }
+
+        covered += colour * puffLight(sprite.mPosition) * (alpha * reaching);
+        coverage += alpha;
+        layer.mTransmittance *= 1.0 - alpha;
+
+        // **By what it hid and not by what it was lit by.** An unlit puff of smoke sends back no
+        // light at all and still decides the whole of what the pixel shows.
+        if (alpha > layer.mCovering.mWeight)
+            layer.mCovering = SpriteClaim(direction * depth, sprite.mMoved, alpha);
     }
 
     if (coverage > 0.0)

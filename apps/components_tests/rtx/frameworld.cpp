@@ -262,7 +262,6 @@ namespace Rtx
             constants.mDelight = 0.5f;
             constants.mShowAlbedo = 1;
             constants.mTransparentBackground = 1;
-            constants.mEmitterCount = 7;
 
             applyWorld(distinct(), constants);
 
@@ -279,7 +278,6 @@ namespace Rtx
             EXPECT_EQ(constants.mDelight, 0.5f);
             EXPECT_EQ(constants.mShowAlbedo, 1u);
             EXPECT_EQ(constants.mTransparentBackground, 1u);
-            EXPECT_EQ(constants.mEmitterCount, 7u);
         }
 
         /// A default world is a frame with no sky in it, which is what an interface trace wants.

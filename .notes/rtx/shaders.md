@@ -26,7 +26,7 @@ shows is under `lib/`, one responsibility a file:
 | `fog.glsl` | 465 | `fogNoise`, `fogShape`, `fogExtinctionAt`, the phase functions, `fogAlong` |
 | `sea.glsl` | 339 | the spectrum and its derivatives: `drifted`, `sampleWave`, `waterSurfaceAt`, `caustic`, the four foam functions |
 | `sky.glsl` | 330 | `skyGlow`, `cloudDeck`, `skyPatches`, `starField`, `moonFace`, `skyRadiance` |
-| `sprites.glsl` | 323 | `puffLight`, `spriteTaper`, `spritesAlong`, the claims |
+| `sprites.glsl` | 338 | `puffLight`, `spriteTaper`, `spritesAlong`, the claims |
 | `water.glsl` | 301 | shading the surface: `waterRay`, `bedFall`, `WaterMirror`, `shadeWater` |
 | `bindings.glsl` | 252 | the descriptor set, the buffer references, `normalAt`/`texCoordAt`/`indexAt` |
 | `traversal.glsl` | 244 | `Surface`, `alphaPasses`, `trace`, `occluded` |
@@ -334,15 +334,60 @@ What can be done now is make it measurable: the split is what lets a variant be 
 compared — swapping a lib file for a cheaper one is now a one-line edit — and Nsight's occupancy
 figure against `visibility.comp` is the one number that decides whether 4.5 is worth asking.
 
-### 4.7 The sprite march is O(emitters) per pixel with no binning
+### 4.7 The sprite march — closed, and the finding it replaced was wrong
 
-`spritesAlong` loops over every emitter in the scene for every pixel, rejecting each with a
-ray-sphere test. Measured in `plan.md`: 165 emitters at Seyda Neen. At 1920×1080 that is 340 million
-sphere tests a frame to find the few that matter.
+**What it cost, measured by neutering the emitter loop and rendering the same views.** GPU trace
+zone, median of eight:
 
-The comment defends the sphere test, and it is right that one rejection is cheap. It is a per-pixel
-cost against a per-frame answer: which emitters a *tile* can see is the same question the light grid
-already answers for lamps, computed once per tile instead of once per pixel.
+| view | emitters, live particles | with the sprite march | without it | the layer |
+|---|---|---|---|---|
+| Vivec, clear | 24, 2328 | 2.173 ms | 2.138 ms | 0.035 ms |
+| Seyda Neen shore, clear | 21, 351 | 0.883 ms | 0.811 ms | 0.072 ms |
+| **Seyda Neen shore, thunderstorm** | **22, 2907** | **22.4 ms** | **0.836 ms** | **~21.5 ms** |
+
+**Rain was 96% of the trace**, which is `CLAUDE.md`'s one exception to *feature-complete first, then
+fast*: a twenty-two millisecond trace is a frame too slow to judge, and no measurement taken beside
+it means anything.
+
+**The diagnosis this finding used to carry was wrong, and the measurement is what said so.** It read
+that the cost was the `O(emitters)` outer loop — 165 emitters, 340 million sphere tests. There are
+twenty-odd emitters in every view that can be measured, storms included, and the outer loop is not
+what was expensive: Vivec holds 2328 live particles for 0.035 ms and the storm holds 2907 for six
+hundred times that. What separates them is not how many sprites there are but **how much of the
+screen the sphere holding them covers**. A brazier is a point and the ray-sphere test throws it away
+for almost every pixel, which is exactly what that test was written for and it works. Rain is one
+emitter whose sphere is the whole view, so every pixel was admitted and then walked all of its
+sprites — 2.7 billion tests a frame. Binning *emitters* per tile would have bought nothing, because
+no tile rejects the rain.
+
+**So the sprites are binned instead.** `Rtx::SpriteTiles` is the light grid's shape — offsets,
+indices, a range per tile — over a screen-space grid rebuilt each frame against the camera, which the
+layer can be because `spritesAlong` is called once, from `main`, with the pixel's own primary ray.
+Two properties carry it:
+
+- **Ascending sprite index within a tile.** Sprites composite in the order they are walked; indices
+  are contiguous per emitter, so ascending index is the order the emitter loop kept. That is what
+  makes a byte comparison the check rather than an approximation of one.
+- **`GpuSprite::mEmitter`**, in the padding the structure already had. The fog's field costs forty
+  hashes and is evaluated once per emitter per ray, and a walk over sprites can only keep that
+  amortisation if a sprite can say when its run has changed.
+
+The bound is a sphere per sprite — exact for a billboard, which the march tests as a disc of
+`mRadius`, and the two authored axes added for an oriented quad, which swinging the width about the
+axis cannot lengthen. Screen extent from the closed-form tangent slopes rather than a projected box,
+with a pixel of slack each way for the jitter. `aTileHoldsEverySpriteAnyRayThroughItCanMeet` is the
+proof: every pixel of a small frame against every sprite, both kinds of quad, jittered and not,
+cross-checked against the march's own test written out again.
+
+**What it bought:**
+
+| | before | after |
+|---|---|---|
+| Seyda Neen shore, thunderstorm | 22.4 ms | 1.99 / 2.34 / 1.79 ms |
+| Seyda Neen shore, clear | 0.884 ms | 0.821 ms |
+
+**Eleven times, and the frame is the same frame.** Nine views byte for byte in clear weather, the
+storm byte for byte, `map` and `doll` drawing what they drew, and nothing from the validation layers.
 
 ### 4.8 The à-trous cascade re-reads its guides per tap
 
@@ -454,11 +499,7 @@ runs of one build, the doll about 0.02% — so those two need a magnitude compar
 same-build control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path
 and `doll` the only transparent-background one.
 
-**1 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
-a range the way the light grid is. *Check:* the trace timer at Seyda Neen with 165 emitters, and the
-byte comparison — binning must not change a pixel.
-
-**2 — say each thing once, and stop the game carrying what only the harness wants (4.4, 4.9).** The
+**1 — say each thing once, and stop the game carrying what only the harness wants (4.4, 4.9).** The
 consolidation this review was for, and the last of it. The wave spectrum is evaluated at two
 different points — the surface a ray met and the bed its light landed on — so the two *loops* cannot
 merge; what is one thing said twice is the structure inside them, `drifted` and `sampleWave` and the
@@ -473,7 +514,7 @@ module serving both.
 *Check:* the byte comparison, because none of this may move a pixel — and `shot` still printing its
 hit fraction, because the specialization is only correct if the number it reports is the same one.
 
-**3 — a linear channel the harness can read (4.1, 4.2).** Both measurements below are up against
+**2 — a linear channel the harness can read (4.1, 4.2).** Both measurements below are up against
 eight bits. 4.2's figure of 0.00253 is already two thirds of a byte at that brightness, so the
 accumulated frame sits at the edge of what the read-back can distinguish and a tighter number cannot
 be had at all; 4.1's tail is counted in bounce luminance, which the tone curve has spent by the time
@@ -484,7 +525,7 @@ in.
 eight-bit path could resolve. A channel that disagreed with the one it replaces is a channel
 measuring something else.
 
-**4 — count what the firefly clamp removes (4.1).** The tail table in 4.1 was taken before the clamp
+**3 — count what the firefly clamp removes (4.1).** The tail table in 4.1 was taken before the clamp
 existed, on the one-sample bounce; what is not established is how much of it the clamp actually
 takes once a history is behind it. That wants the same instrumentation the table came from, run
 through `AccumulatePass` this time, on the same four cells.
@@ -493,15 +534,15 @@ through `AccumulatePass` this time, on the same four cells.
 still holding: the accumulated mean stays on the converged reference to within two per cent, which a
 clamp eating real light would pull down.
 
-**5 — the temporal half, off the floor (4.2).** "A little over a third of the error the cascade
-cannot reach" is a floor and not a figure, for the reason step 3 exists. Recompute it where the
+**4 — the temporal half, off the floor (4.2).** "A little over a third of the error the cascade
+cannot reach" is a floor and not a figure, for the reason step 2 exists. Recompute it where the
 format can hold the answer.
 
 *Check:* the same pair of RMSEs against a 128-sample reference on the same coplanar grid — the
 cascade alone, and the cascade with sixteen frames behind it. The ratio is the answer; the absolute
 numbers are what the eight-bit path could not give.
 
-**6 — carry the reservoir (4.3).** Temporal through the motion vector first, spatial across
+**5 — carry the reservoir (4.3).** Temporal through the motion vector first, spatial across
 neighbours after. This is the one item here that changes the picture rather than the frame time: it
 brings the previous frame's *traced visibility* into a target function that cannot otherwise have
 it, so the lamp that is kept is the lamp that was actually reaching. 4.3 closed the cost argument,
@@ -511,14 +552,14 @@ so it is queued on its own merits and nothing is waiting on it.
 pinned exposure, which must stay at the fifth decimal — and beside it the first-frame RMSE, which is
 what reuse is for and which has to *fall*.
 
-**7 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
-neighbourhood every thread in the workgroup shares. Held until 5 has said what the cascade is still
+**6 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
+neighbourhood every thread in the workgroup shares. Held until 4 has said what the cascade is still
 worth, because a temporal denoiser usually needs fewer levels and the tile is worth more per level.
 
 *Check:* the byte comparison — a tile is a cache and must change nothing — and the atrous timer
 against the level count it was measured at.
 
-**8 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel, after 6 has
+**7 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel, after 5 has
 changed what is live: the micromaps already took a texture fetch and a candidate loop off part of
 the hot path, and a carried reservoir puts a buffer into it. Nothing in 4.6 is to be *acted* on
 before this — that is `CLAUDE.md`'s rule and it holds — and the split into `lib/` is what makes a
@@ -527,7 +568,7 @@ cheaper variant a one-line edit once the number says which one to try.
 *Check:* the number itself, written down beside the register count and the live-state inventory 4.6
 lists, and nothing else changed.
 
-**9 — decide SER (4.5).** With 8's number in hand: if occupancy is where the megakernel is losing,
+**8 — decide SER (4.5).** With 7's number in hand: if occupancy is where the megakernel is losing,
 price the ray-tracing pipeline that `reorderThreadEXT` requires, against what ray query and the
 register-resident megakernel are worth. Until it is decided, `plan.md` §8's SER entry should say it
 needs one.

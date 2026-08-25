@@ -393,14 +393,6 @@ namespace Rtx::Shaders
         /// direction — so it is what makes two renders of one camera differ. Zero is a repeatable
         /// frame, which is what a test wants; a window passes its own count.
         uint mFrame;
-
-        /// How many of the emitter table's entries this frame filled.
-        ///
-        /// **Filled in by `VisibilityPass` off the scene's buffers, not by whoever makes the
-        /// camera.** The table never shrinks — a cell of forty emitters leaves room for forty after
-        /// the next one placed two — so its length cannot say how much of it is this frame's, and
-        /// the count belongs with the buffers rather than with the eye.
-        uint mEmitterCount;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
@@ -410,7 +402,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(CloudDeck) == 36, "CloudDeck must be scalar-packed on every side");
     static_assert(sizeof(StarField) == 20, "StarField must be scalar-packed on every side");
     static_assert(sizeof(SkyPatch) == 44, "SkyPatch must be scalar-packed on every side");
-    static_assert(sizeof(VisibilityConstants) == 724, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 720, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

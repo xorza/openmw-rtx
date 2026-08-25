@@ -113,7 +113,7 @@ void main()
     // What a covering sprite hides is taken off the whole of `shaded`, the fog's own in-scattering
     // included. Exactly right for what is behind the sprite and an over-darkening of the haze in
     // front of it, which is the part of the ray a puff of smoke is nearly always at the end of.
-    const SpriteLayer particles = spritesAlong(origin, direction, surface.mDistance);
+    const SpriteLayer particles = spritesAlong(pixel, origin, direction, surface.mDistance);
 
     // Kept because the motion vector below is decided by which of the two terms of the line under
     // this one is the larger, and that line is where the first of them stops existing.

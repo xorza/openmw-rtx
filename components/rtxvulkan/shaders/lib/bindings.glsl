@@ -216,11 +216,29 @@ layout(set = 0, binding = 23, scalar) readonly buffer Sprites
     GpuSprite sprites[];
 };
 
-/// One sphere and one run of sprites per particle system. `frame.mEmitterCount` says how many are
-/// real: the buffer never shrinks, so its length outlives the cell that filled it.
+/// One sphere and one run of sprites per particle system, indexed by `GpuSprite::mEmitter`.
+///
+/// **No count beside it, because nothing walks these.** The buffer never shrinks, so its length
+/// outlives the cell that filled it — and since the sprite tiles replaced the loop over emitters,
+/// the only way in is from a sprite the tile named, which can only name one that is real.
 layout(set = 0, binding = 24, scalar) readonly buffer Emitters
 {
     GpuEmitter emitters[];
+};
+
+/// Where each screen tile's sprites begin, with a sentinel so the last tile needs no special case.
+///
+/// `Rtx::SpriteTiles` says why the layer is binned per tile and the emitters are not.
+layout(set = 0, binding = 30, scalar) readonly buffer SpriteTileOffsets
+{
+    uint spriteTileOffsets[];
+};
+
+/// Every tile's sprites, run together in tile order and ascending inside each run — which is the
+/// order the march used to walk them in, and so the order they still composite in.
+layout(set = 0, binding = 31, scalar) readonly buffer SpriteTileIndices
+{
+    uint spriteTileIndices[];
 };
 
 /// Every texture the scene loaded, indexed by the slot a material, a layer or an emitter names.

@@ -138,6 +138,7 @@ if (OPENMW_RTX)
         rtx/sceneuploader.cpp
         rtx/shadingmap.cpp
         rtx/spanallocator.cpp
+        rtx/spritetiles.cpp
         rtx/structurestorage.cpp
         rtx/texturebuilder.cpp
         rtx/visibilitypass.cpp

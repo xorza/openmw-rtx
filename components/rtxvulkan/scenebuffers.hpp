@@ -12,6 +12,7 @@
 #include <components/rtx/instancerecord.hpp>
 #include <components/rtx/lightgrid.hpp>
 #include <components/rtx/shaders/scene.h>
+#include <components/rtx/spritetiles.hpp>
 #include <components/rtx/wavespectrum.hpp>
 
 #include "blockedbuffer.hpp"
@@ -88,10 +89,15 @@ namespace Rtx
         VkBuffer getSprites() const { return mSprites.getHandle(); }
         VkBuffer getEmitters() const { return mEmitters.getHandle(); }
 
-        /// How many emitters the last `place` wrote, which is what the shader's loop runs to. The
-        /// buffer's own length cannot say: it never shrinks, and a table that stood at forty
-        /// emitters would keep drawing them in the cell after.
-        std::uint32_t getEmitterCount() const { return mEmitterCount; }
+        /// Bins this scene's sprites into the screen tiles of the camera about to trace them.
+        ///
+        /// **From the frame and not from the placement**, because the binning is in screen space and
+        /// the camera does not exist until the frame does. `place` wrote the sprites; this reads the
+        /// copy of them kept beside the buffer.
+        void binSprites(const osg::Vec3f& origin, const Shaders::Camera& camera);
+
+        VkBuffer getSpriteTileOffsets() const { return mSpriteTileOffsets.getHandle(); }
+        VkBuffer getSpriteTileIndices() const { return mSpriteTileIndices.getHandle(); }
 
         /// Where the lamps were binned, for the constants the pass pushes.
         const LightGrid& getLightGrid() const { return mLightGrid; }
@@ -165,16 +171,18 @@ namespace Rtx
         HostBuffer mWaves;
         HostBuffer mSprites;
         HostBuffer mEmitters;
+        HostBuffer mSpriteTileOffsets;
+        HostBuffer mSpriteTileIndices;
 
         // Refilled per placement rather than reallocated: a scene is tens of thousands of instances
         // and this is the frame path.
         std::vector<Shaders::GpuInstance> mInstanceScratch;
         std::vector<Shaders::GpuLight> mLightScratch;
 
+        SpriteTiles mSpriteTiles;
+
         std::vector<Shaders::GpuSprite> mSpriteScratch;
         std::vector<Shaders::GpuEmitter> mEmitterScratch;
-
-        std::uint32_t mEmitterCount = 0;
 
         /// Kept because the pass needs its geometry, which no buffer carries.
         LightGrid mLightGrid;
