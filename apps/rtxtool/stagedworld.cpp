@@ -33,7 +33,7 @@ namespace RtxTool
         // material: a moon is drawn by a ray that reached nothing, so no material can speak for its
         // texture and the sweep would take the slot on the first frame a cell died.
         mLighting.mFaces = RtxBridge::addMoonFaces(mScene);
-        mLighting.mSky = RtxBridge::addSkyTextures(mScene, *world.getResourceSystem().getVFS());
+        mLighting.mSky = RtxBridge::addSkyTextures(mScene, *world.getResourceSystem().getSceneManager());
         mReport = std::move(arrived.mReport);
 
         // **Before the first walk, because the walk runs the animators.** The graph's own

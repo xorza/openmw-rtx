@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <span>
 
 #include <osg/Vec3f>
 #include <osg/Vec4f>
@@ -9,10 +10,7 @@
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
 
-namespace VFS
-{
-    class Manager;
-}
+#include "nightsky.hpp"
 
 namespace RtxBridge
 {
@@ -32,8 +30,9 @@ namespace RtxBridge
         /// cloud texture for that weather, which the shipped fallbacks do for ash and blight.
         std::array<Rtx::Index, Rtx::Shaders::WEATHER_COUNT> mClouds{};
 
-        /// The star sheet, `Sky::starSheet`.
-        Rtx::Index mStars = Rtx::sNoIndex;
+        /// The night sky, read off the mesh the rasterizer draws it with: the star field, the scale
+        /// its sheet is laid at, where it fades, and the six patches painted across it.
+        NightSky mNight;
 
         /// What the shader takes for a weather, or `NO_SKY_TEXTURE`.
         std::uint32_t cloudsOf(std::uint32_t weather) const;
@@ -49,7 +48,7 @@ namespace RtxBridge
     ///
     /// Safe to call again on a scene that already has them — `addTexture` hands back the slot it
     /// already gave — though each call takes a hold, so each wants its own `dropSkyTextures`.
-    SkyTextures addSkyTextures(Rtx::SceneDesc& scene, const VFS::Manager& vfs);
+    SkyTextures addSkyTextures(Rtx::SceneDesc& scene, Resource::SceneManager& scenes);
 
     /// Gives back the holds `addSkyTextures` took.
     void dropSkyTextures(Rtx::SceneDesc& scene, const SkyTextures& textures);
@@ -73,4 +72,16 @@ namespace RtxBridge
     /// @param glare the weather's `Glare_View`, which is what keeps them in under an overcast.
     /// @param turn `Sky::SkyRoll::mStars`.
     Rtx::Shaders::StarField describeStars(float fade, float glare, float turn, const SkyTextures& textures);
+
+    /// The nebulae and the constellations, placed.
+    ///
+    /// **The same shape a moon is**, which is the point: each is a sheet laid once across a patch of
+    /// sky, so what it comes to is a direction, a size and a texture — and the disc the moons are
+    /// already drawn as is what draws it. Where they go was read off the mesh, not written down.
+    ///
+    /// @param turn `Sky::SkyRoll::mStars`, because they are on the star sphere and turn with it.
+    /// @param patches written here rather than returned, so a frame's description costs no
+    ///        allocation.
+    void describePatches(float turn, const SkyTextures& textures,
+        std::span<Rtx::Shaders::SkyPatch, Rtx::Shaders::SKY_PATCH_COUNT> patches);
 }

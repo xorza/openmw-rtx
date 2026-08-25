@@ -94,12 +94,34 @@ namespace Rtx::Shaders
         uint mNext;
     };
 
+    /// How many patches the night sky is painted with, over and above the star field.
+    RTX_CONST uint SKY_PATCH_COUNT = 6u;
+
+    /// One of them, as a ray that reached nothing finds it.
+    ///
+    /// **The same thing a moon is**, and drawn the same way: a direction, an angular size, and a
+    /// sheet laid across the face. `Sky::nightPatches` says where the six are and how big, measured
+    /// off the mesh the rasterizer hangs them on.
+    struct SkyPatch
+    {
+        vec3 mDirection;
+
+        /// The face's own axes, unit and square to `mDirection` and to each other.
+        vec3 mRight;
+        vec3 mUp;
+
+        /// Half the angle it subtends, in radians. The nebulae reach past a radian, which is why
+        /// they read as a tint over the sky rather than as something in it.
+        float mAngularRadius;
+
+        uint mTexture;
+    };
+
     /// The star field.
     ///
     /// **Stars are on a sphere and clouds are on a plane**, which is the whole difference between
-    /// this and `CloudDeck`: a cloud layer converges at the horizon and a star does not move at all
-    /// as the eye does. The projection is stereographic for that reason — it takes the whole upper
-    /// hemisphere into a disc and keeps a star round doing it.
+    /// this and `CloudDeck`: a cloud layer converges at the horizon and a star does not move as the
+    /// eye does. The sheet is laid on that sphere at the scale the engine's own mesh lays it at.
     struct StarField
     {
         /// How much of the sheet is there: the engine's `Stars` ramp times the weather's glare, so
@@ -108,6 +130,17 @@ namespace Rtx::Shaders
 
         /// How far the sphere has rolled about the zenith, in radians. Once every four days.
         float mTurn;
+
+        /// How much sky one tile of the sheet covers, in radians — **read off the mesh** rather than
+        /// chosen, and it is what decides how big a star is. `RtxBridge::NightSky` measures it as the
+        /// median rate the unwrap runs at, and the unwrap is isotropic, which is what keeps a star
+        /// round. Morrowind's comes to about a tenth of a degree per texel; the same sheet spread
+        /// once over the hemisphere would be a third, which is a blob.
+        float mTile;
+
+        /// The elevation the field fades out below, in radians. The mesh's again: the engine draws a
+        /// vertex of that dome only where its authored colour is white, and its bottom ring is not.
+        float mHorizon;
 
         uint mTexture;
     };
@@ -268,9 +301,12 @@ namespace Rtx::Shaders
         /// makes a drawn disc and a cast shadow the same fact.
         vec3 mSunDiscColour;
 
-        /// The cloud deck and the star field over it.
+        /// The cloud deck and the star field over it, and the nebulae and constellations painted
+        /// across that. They all fade together on `StarField::mFade`, because in the engine they are
+        /// one mesh under one switch.
         CloudDeck mClouds;
         StarField mStars;
+        SkyPatch mSkyPatches[SKY_PATCH_COUNT];
 
         /// What a ray that hits nothing comes back with, at the horizon and overhead.
         ///
@@ -405,8 +441,9 @@ namespace Rtx::Shaders
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
     static_assert(sizeof(MoonDisc) == 64, "MoonDisc must be scalar-packed on every side");
     static_assert(sizeof(CloudDeck) == 36, "CloudDeck must be scalar-packed on every side");
-    static_assert(sizeof(StarField) == 12, "StarField must be scalar-packed on every side");
-    static_assert(sizeof(VisibilityConstants) == 452, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(StarField) == 20, "StarField must be scalar-packed on every side");
+    static_assert(sizeof(SkyPatch) == 44, "SkyPatch must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 724, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

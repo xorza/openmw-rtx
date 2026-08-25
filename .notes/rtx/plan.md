@@ -141,13 +141,15 @@ them left behind is in §8.
   place. And **the sun is one object, not the engine's five dials**: `Sky::sunAt` reads Morrowind's
   arithmetic, `RtxBridge::makeSkylight` is the only thing that may build a sun out of it, and its
   irradiance being zero is the whole of "there is no sun". Every sun bug this renderer has had was
-  two of those dials disagreeing. **The clouds and the stars are found rather than hung on a mesh**:
-  the deck is where a ray crosses a layer at a height and the stars are a stereographic sheet on the
-  sphere, so the textures, the scroll, the blend and the colours are all the game's own and only the
-  surface they are painted on is derived — and the star sheet's tiling was **measured off
-  `sky_night_01.nif`** rather than chosen: four turns around the sky and two from horizon to zenith,
-  which is what makes a star a sixth of a degree instead of the third the same sheet spread once
-  would give. *Binds:* **`MWRender::RenderingManager` owns everything `WorldState` says about the
+  two of those dials disagreeing. **The clouds and the night sky are found rather than hung on a
+  mesh**: the deck is where a ray crosses a layer at a height, and the night is read off the file the
+  rasterizer draws it with — `RtxBridge::readNightSky` walks `Models/skynight01` at load and takes
+  from it which sheet the star field wears, how much sky one tile of that sheet covers, the elevation
+  the field fades out below, and where each of the six patches painted across it sits and how wide it
+  is. Those patches are three nebulae and the warrior, the mage and the thief; they are most of what
+  gives a Morrowind night its colour, and drawing the field alone puts stars on black. Each is the
+  same disc a moon is and is drawn by the same arithmetic. **Nothing about that mesh is written down
+  here**, because a mod replaces it and a table would go silently wrong. *Binds:* **`MWRender::RenderingManager` owns everything `WorldState` says about the
   sky**, off the `WeatherResult` it is handed, and `Sky::SkyRoll` is turned there too. Reading any of
   it back out of `SkyManager` is what made the game's sky read from a manager that may never have
   been built. **And the deck's crossing is `Sky::cloudBlend`**, which is where the black sky actually
@@ -306,9 +308,6 @@ every count; and a control fifo bounding the recording to the measured frames.
 
 **Content**
 
-- **The night sky is one of its seven layers.** `sky_night_01.nif` carries the star field and six
-  more — three nebulae and the warrior, mage and thief constellations — each its own mesh and
-  texture over a different band of the sky. Only the field is drawn.
 
 - **Solstheim's two cloud decks are not loaded.** `files/openmw.cfg` names them `Tx_Sky_Snow.dds` and
   `Tx_Sky_Blizzard.dds`, and what Bloodmoon ships is `tx_bm_sky_snow.dds` and `tx_bm_sky_blizzard.dds`

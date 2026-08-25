@@ -203,7 +203,9 @@ namespace RtxBridge
         {
             SkyTextures textures;
             textures.mClouds.fill(Rtx::sNoIndex);
-            textures.mStars = 8;
+            textures.mNight.mField = 8;
+            textures.mNight.mTile = 0.9f;
+            textures.mNight.mHorizon = 0.4f;
 
             // Full night, clear weather: all of the sheet.
             EXPECT_EQ(describeStars(1.0f, 1.0f, 0.0f, textures).mFade, 1.0f);
@@ -220,6 +222,17 @@ namespace RtxBridge
             // Half out is half out, and the roll is carried whatever the fade came to.
             EXPECT_EQ(describeStars(0.5f, 1.0f, 2.5f, textures).mFade, 0.5f);
             EXPECT_EQ(describeStars(0.5f, 1.0f, 2.5f, textures).mTurn, 2.5f);
+
+            // **The scale and the fade come off the mesh and are passed through**, which is the
+            // whole reason they are fields and not constants: a replaced night sky changes them.
+            EXPECT_EQ(describeStars(1.0f, 1.0f, 0.0f, textures).mTile, 0.9f);
+            EXPECT_EQ(describeStars(1.0f, 1.0f, 0.0f, textures).mHorizon, 0.4f);
+
+            // And a mesh that gave up no scale draws nothing, rather than dividing by it.
+            SkyTextures unread;
+            unread.mClouds.fill(Rtx::sNoIndex);
+            unread.mNight.mField = 8;
+            EXPECT_EQ(describeStars(1.0f, 1.0f, 0.0f, unread).mTexture, Rtx::Shaders::NO_SKY_TEXTURE);
         }
 
         /// The camera's half is left exactly as it was found.

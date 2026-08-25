@@ -47,9 +47,4 @@ namespace Sky
     {
         return Fallback::Map::getBool("Weather_Timescale_Clouds");
     }
-
-    std::string_view starSheet()
-    {
-        return "textures/tx_stars.dds";
-    }
 }

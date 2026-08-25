@@ -90,6 +90,10 @@ namespace RtxBridge
         };
         Rtx::Shaders::StarField mStars{ .mTexture = Rtx::Shaders::NO_SKY_TEXTURE };
 
+        /// The nebulae and constellations painted across the star sphere. `describePatches` fills
+        /// them; a default leaves every one with no texture, which is a room's night sky.
+        std::array<Rtx::Shaders::SkyPatch, Rtx::Shaders::SKY_PATCH_COUNT> mSkyPatches{};
+
         /// Masser and Secunda, in that order. An alpha of nothing is a moon the sky skips, which is
         /// what an interior and an interface trace both leave behind.
         std::array<MoonPlacement, 2> mMoons;

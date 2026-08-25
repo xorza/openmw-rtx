@@ -4,6 +4,7 @@
 #include <string>
 
 #include <components/misc/strings/lower.hpp>
+#include <components/resource/scenemanager.hpp>
 #include <components/sky/clouds.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -20,8 +21,9 @@ namespace RtxBridge
         return static_cast<std::uint32_t>(mClouds[weather]);
     }
 
-    SkyTextures addSkyTextures(Rtx::SceneDesc& scene, const VFS::Manager& vfs)
+    SkyTextures addSkyTextures(Rtx::SceneDesc& scene, Resource::SceneManager& scenes)
     {
+        const VFS::Manager& vfs = *scenes.getVFS();
         const auto hold = [&](const std::string& name) {
             // The file records a bare name and the archive holds it under `textures/`, which is the
             // same join the scene manager makes before it is handed one.
@@ -44,7 +46,9 @@ namespace RtxBridge
                 loaded.mClouds[weather] = hold(std::string(named));
         }
 
-        loaded.mStars = hold(std::string(Sky::starSheet()).substr(std::string("textures/").size()));
+        // **The night sky is the mesh's**, every number of it: which sheet the field wears, how much
+        // sky a tile of it covers, where it fades out, and where the six patches sit.
+        loaded.mNight = readNightSky(scene, scenes);
 
         return loaded;
     }
@@ -55,7 +59,7 @@ namespace RtxBridge
             if (slot != Rtx::sNoIndex)
                 scene.dropTexture(slot);
 
-        scene.dropTexture(textures.mStars);
+        dropNightSky(scene, textures.mNight);
     }
 
     Rtx::Shaders::CloudDeck describeClouds(std::uint32_t weather, std::uint32_t next, float blend,
@@ -93,13 +97,62 @@ namespace RtxBridge
     {
         const float seen = fade * glare;
 
+        const bool drawn = seen > 0.0f && textures.mNight.mField != Rtx::sNoIndex && textures.mNight.mTile > 0.0f;
+
         return Rtx::Shaders::StarField{
             .mFade = seen,
             .mTurn = turn,
+            .mTile = textures.mNight.mTile,
+            .mHorizon = textures.mNight.mHorizon,
 
             // A sheet nobody can see is one nothing has to sample, and saying so here is what keeps
             // the test out of the shader's hot path.
-            .mTexture = seen > 0.0f ? static_cast<std::uint32_t>(textures.mStars) : Rtx::Shaders::NO_SKY_TEXTURE,
+            .mTexture = drawn ? static_cast<std::uint32_t>(textures.mNight.mField) : Rtx::Shaders::NO_SKY_TEXTURE,
         };
+    }
+
+    void describePatches(float turn, const SkyTextures& textures,
+        std::span<Rtx::Shaders::SkyPatch, Rtx::Shaders::SKY_PATCH_COUNT> patches)
+    {
+        // Straight up with no texture, which is a patch the sky skips — and what an interior and a
+        // mesh with fewer than six of them both leave behind.
+        const Rtx::Shaders::SkyPatch none{ .mDirection = osg::Vec3f(0.0f, 0.0f, 1.0f),
+            .mRight = osg::Vec3f(1.0f, 0.0f, 0.0f),
+            .mUp = osg::Vec3f(0.0f, 1.0f, 0.0f),
+            .mAngularRadius = 0.0f,
+            .mTexture = Rtx::Shaders::NO_SKY_TEXTURE };
+
+        for (std::size_t patch = 0; patch < patches.size(); ++patch)
+        {
+            const NightSky::Patch& placed = textures.mNight.mPatches[patch];
+            if (placed.mTexture == Rtx::sNoIndex || !(placed.mAngularRadius > 0.0f))
+            {
+                patches[patch] = none;
+                continue;
+            }
+
+            // Turned with the star sphere, because that is the mesh they are painted on: a rotation
+            // about the zenith, which is what the engine gives the whole night node.
+            const osg::Vec3f towards(placed.mDirection.x() * std::cos(turn) - placed.mDirection.y() * std::sin(turn),
+                placed.mDirection.x() * std::sin(turn) + placed.mDirection.y() * std::cos(turn), placed.mDirection.z());
+
+            // **A canonical orientation, because the mesh's own is not recoverable from a centre and
+            // a radius.** What a patch is painted with is a soft wash or a scatter of stars, neither
+            // of which reads as turned the wrong way; keeping `mUp` as near the zenith as the patch
+            // allows is what stops one drifting as the sphere rolls.
+            osg::Vec3f up = osg::Vec3f(0.0f, 0.0f, 1.0f) - towards * towards.z();
+            if (up.length2() < 1.0e-6f)
+                up = osg::Vec3f(0.0f, 1.0f, 0.0f);
+            up.normalize();
+
+            osg::Vec3f right = up ^ towards;
+            right.normalize();
+
+            patches[patch] = Rtx::Shaders::SkyPatch{ .mDirection = towards,
+                .mRight = right,
+                .mUp = up,
+                .mAngularRadius = placed.mAngularRadius,
+                .mTexture = static_cast<std::uint32_t>(placed.mTexture) };
+        }
     }
 }

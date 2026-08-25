@@ -525,7 +525,7 @@ namespace MWRender::Rtx
         if (mMoonFaces.mMasser == ::Rtx::sNoIndex)
         {
             mMoonFaces = RtxBridge::addMoonFaces(mScene);
-            mSkyTextures = RtxBridge::addSkyTextures(mScene, *mResources->getVFS());
+            mSkyTextures = RtxBridge::addSkyTextures(mScene, *mResources->getSceneManager());
         }
 
         const RtxBridge::ExtractionStats found
@@ -754,6 +754,11 @@ namespace MWRender::Rtx
                 state.mRotationFromHorizon, state.mRotationFromNorth, phase, state.mMoonAlpha);
             described.mMoons[moon].mFace = mMoonFaces.of(static_cast<RtxBridge::Moon>(moon));
         }
+
+        // The nebulae and the constellations, on the star sphere and turning with it. An interior
+        // leaves them at their defaults, which is no texture and so nothing drawn.
+        if (world.isOutdoors())
+            RtxBridge::describePatches(world.mSkyRoll.mStars, mSkyTextures, described.mSkyPatches);
 
         RtxBridge::applyWorld(described, constants);
 

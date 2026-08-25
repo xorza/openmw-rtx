@@ -13,6 +13,8 @@ set(RTXBRIDGE_FILES
     lightbuilder.hpp
     moonbuilder.cpp
     moonbuilder.hpp
+    nightsky.cpp
+    nightsky.hpp
     skybuilder.cpp
     skybuilder.hpp
     png.cpp

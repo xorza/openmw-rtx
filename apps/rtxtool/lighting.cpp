@@ -90,6 +90,8 @@ namespace RtxTool
 
             world.mStars = RtxBridge::describeStars(
                 lighting.mDaylight.mStarFade, lighting.mGlare, lighting.mRoll.mStars, lighting.mSky);
+
+            RtxBridge::describePatches(lighting.mRoll.mStars, lighting.mSky, world.mSkyPatches);
         }
 
         // **Left where a default leaves them for a room**, which is an alpha of nothing and so a

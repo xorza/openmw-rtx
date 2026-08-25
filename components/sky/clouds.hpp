@@ -40,7 +40,4 @@ namespace Sky
 
     /// Whether the deck moves on the world's clock or on the player's — `Weather_Timescale_Clouds`.
     bool timescaleClouds();
-
-    /// The sheet the night sky's stars are painted on, which is what `sky_night_01.nif` wears.
-    std::string_view starSheet();
 }

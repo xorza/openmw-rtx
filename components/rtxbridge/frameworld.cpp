@@ -29,6 +29,9 @@ namespace RtxBridge
         constants.mClouds = world.mClouds;
         constants.mStars = world.mStars;
 
+        for (std::size_t patch = 0; patch < world.mSkyPatches.size(); ++patch)
+            constants.mSkyPatches[patch] = world.mSkyPatches[patch];
+
         for (std::size_t moon = 0; moon < world.mMoons.size(); ++moon)
             constants.mMoons[moon] = describeMoon(world.mMoons[moon]);
     }
