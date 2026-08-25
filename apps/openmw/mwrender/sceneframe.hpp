@@ -30,6 +30,8 @@ namespace Resource
 
 namespace MWRender
 {
+    class Precipitation;
+
     /// What kind of place the player is standing in, as the cell record says.
     ///
     /// **Three and not two, because the two consumers split the middle one differently.** A
@@ -119,6 +121,14 @@ namespace MWRender
         /// manager's, which knows about being underwater and about a room; the deck is lit by what
         /// the weather said, which is the same number the harness reads out of the content files.
         osg::Vec4f mCloudFog;
+
+        /// What the weather drops, or null where nothing has built it yet.
+        ///
+        /// **A node rather than a description**, unlike everything else here. The rest of this
+        /// structure is numbers because the two renderers reach them by different routes; the
+        /// precipitation is one `osgParticle` system that both walk, so what is carried is where to
+        /// find it. `MWRender::Precipitation` says why it is not the sky manager's.
+        Precipitation* mPrecipitation = nullptr;
 
         /// How far the cloud deck has scrolled and the star sphere has rolled.
         ///

@@ -123,7 +123,15 @@ namespace RtxTool
         // animation clock is held where it is throughout — a warm-up is about the emitters and
         // nothing else, and turning it would leave every actor two seconds into its idle.
         for (float at = sFrameSeconds; at <= sWarmSeconds; at += sFrameSeconds)
+        {
             posedAt(mSeconds, sFrameSeconds);
+
+            // **The emitters are stepped by the walk that mirrors, and there has not been one yet.**
+            // So they are stepped on their own here, over the same graph and the same clock a
+            // mirror would have used, which is the whole of what a warm-up is.
+            mExtractor.advanceEmitters(sFrameSeconds);
+            mExtractor.stepEmitters(mRoot);
+        }
 
         mPlaced = place(mSeconds);
         return mPlaced;
@@ -180,6 +188,7 @@ namespace RtxTool
     RtxBridge::ExtractionStats PosedActors::place(float seconds)
     {
         posedAt(seconds, seconds - mLastSeconds);
+        mExtractor.advanceEmitters(seconds - mLastSeconds);
         mLastSeconds = seconds;
 
         // **Posed, and not placed.** They are in the graph, so the walk that mirrors everything else

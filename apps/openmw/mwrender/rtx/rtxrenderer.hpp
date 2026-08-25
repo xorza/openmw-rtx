@@ -304,6 +304,9 @@ namespace MWRender::Rtx
         /// jitters and what the sampler walks are the same sequence the world is counting.
         std::size_t mFrame = 0;
 
+        /// What the world's clock last read, so the emitters can be handed the gap since.
+        double mLastSimulationTime = 0.0;
+
         /// The one sequence every mirror walk in this renderer poses at.
         bool mComplained = false;
 

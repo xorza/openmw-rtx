@@ -42,6 +42,8 @@ namespace SceneUtil
 
 namespace MWRender
 {
+    class Precipitation;
+
     ///@brief The SkyManager handles rendering of the sky domes, celestial bodies as well as other objects that need to
     /// be rendered
     /// relative to the camera (e.g. weather particle effects)
@@ -101,6 +103,10 @@ namespace MWRender
 
         float getBaseWindSpeed() const;
 
+        /// What the weather drops. **Built here and drawn by whoever is drawing**, because a particle
+        /// system is not a rasterizer's or a tracer's — it is the world's, and there is one of it.
+        Precipitation* getPrecipitation() { return mPrecipitation.get(); }
+
         /// How far the clouds have scrolled and the stars have rolled, which `MWRender::RenderingManager`
         /// turns and hands down. **Not advanced here**: this manager belongs to one of the two
         /// renderers and is built lazily, so a clock inside it is one the other cannot read.
@@ -116,11 +122,6 @@ namespace MWRender
         void create();
         ///< no need to call this, automatically done on first enable()
 
-        void createRain();
-        void destroyRain();
-        void switchUnderwaterRain();
-        void updateRainParameters();
-
         Resource::SceneManager* mSceneManager;
 
         osg::Camera* mCamera;
@@ -129,8 +130,6 @@ namespace MWRender
         osg::ref_ptr<osg::Group> mSkyNode;
         osg::ref_ptr<osg::Group> mEarlyRenderBinRoot;
 
-        osg::ref_ptr<osg::PositionAttitudeTransform> mParticleNode;
-        osg::ref_ptr<osg::Node> mParticleEffect;
         osg::ref_ptr<UnderwaterSwitchCallback> mUnderwaterSwitch;
 
         osg::ref_ptr<osg::Group> mCloudNode;
@@ -150,12 +149,6 @@ namespace MWRender
         std::unique_ptr<Sun> mSun;
         std::unique_ptr<Moon> mMasser;
         std::unique_ptr<Moon> mSecunda;
-
-        osg::ref_ptr<osg::Group> mRainNode;
-        osg::ref_ptr<osgParticle::ParticleSystem> mRainParticleSystem;
-        osg::ref_ptr<osgParticle::BoxPlacer> mPlacer;
-        osg::ref_ptr<RainCounter> mCounter;
-        osg::ref_ptr<RainShooter> mRainShooter;
 
         bool mPrecipitationOcclusion = false;
         std::unique_ptr<PrecipitationOccluder> mPrecipitationOccluder;
@@ -181,17 +174,6 @@ namespace MWRender
         osg::Vec4f mSkyColour;
         osg::Vec4f mFogColour;
 
-        VFS::Path::Normalized mCurrentParticleEffect;
-
-        std::string mRainEffect;
-        float mRainSpeed;
-        float mRainDiameter;
-        float mRainMinHeight;
-        float mRainMaxHeight;
-        float mRainEntranceSpeed;
-        int mRainMaxRaindrops;
-        bool mRainRipplesEnabled;
-        bool mSnowRipplesEnabled;
         float mWindSpeed;
         float mBaseWindSpeed;
 
@@ -200,6 +182,13 @@ namespace MWRender
 
         float mPrecipitationAlpha;
         bool mDirtyParticlesEffect;
+
+        /// What falls out of the weather, which both renderers draw and neither owns.
+        std::unique_ptr<Precipitation> mPrecipitation;
+
+        /// Hangs this renderer's own concerns back on whatever `mPrecipitation` has just built: the
+        /// occlusion pass, the underwater cull callback and the generated shaders' hints.
+        void decoratePrecipitation();
 
         osg::Vec4f mMoonScriptColor;
 

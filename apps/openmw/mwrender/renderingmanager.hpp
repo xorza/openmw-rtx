@@ -92,6 +92,8 @@ namespace Debug
 
 namespace MWRender
 {
+    class Precipitation;
+
     class IntersectionVisitorWithIgnoreList;
 
     class EffectManager;
@@ -195,6 +197,13 @@ namespace MWRender
         osg::Vec2f getScreenCoords(const osg::BoundingBox& bb);
 
         void setSkyEnabled(bool enabled);
+
+        /// What the weather drops, for whoever is drawing it. Null before the sky is built.
+        ///
+        /// **Owned by the sky manager and drawn by both**, which is the whole point of it being an
+        /// `osgParticle` system and not a renderer's own: there is one rain and one storm cloud, and
+        /// the ray tracer walks the same nodes the rasterizer does rather than making a second set.
+        Precipitation* getPrecipitation();
 
         /// What the weather system has just worked out, for whatever draws the sky.
         ///

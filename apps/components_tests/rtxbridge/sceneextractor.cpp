@@ -12,8 +12,11 @@
 #include <osg/MatrixTransform>
 #include <osg/Texture2D>
 #include <osg/observer_ptr>
+#include <osgParticle/ConstantRateCounter>
+#include <osgParticle/ModularEmitter>
 #include <osgParticle/Particle>
 #include <osgParticle/ParticleSystem>
+#include <osgParticle/ParticleSystemUpdater>
 #include <osgUtil/UpdateVisitor>
 
 #include <components/rtx/instancerecord.hpp>
@@ -1365,6 +1368,128 @@ namespace RtxBridge
 
             EXPECT_TRUE(extractor.retire().empty()) << "an emitter is neither a mesh nor a material";
             EXPECT_TRUE(scene.getTextures()[1].value().empty()) << "the sprite outlived the emitter";
+        }
+
+        /// Gives a plume what makes it run: something emitting at a fixed rate, and the updater
+        /// that integrates what it emitted.
+        ///
+        /// Both go in above the system they drive, which is where `NifOsg` puts them and where
+        /// `osgParticle` needs them — a walk that meets the updater first reads a system already
+        /// integrated this frame rather than one frame of staleness.
+        ///
+        /// Frozen on cull to start with, because that is how a system arrives from a file and how a
+        /// system that has never been drawn stays: `_last_frame` moves in `drawImplementation` and
+        /// nowhere else, so nothing here would ever advance it.
+        void drive(Plume& plume, double perSecond)
+        {
+            plume.mParticles->setFreezeOnCull(true);
+
+            osgParticle::Particle& seed = plume.mParticles->getDefaultParticleTemplate();
+            seed.setLifeTime(10.0f);
+            seed.setSizeRange(osgParticle::rangef(2.0f, 2.0f));
+            seed.setAlphaRange(osgParticle::rangef(1.0f, 1.0f));
+            seed.setColorRange(
+                osgParticle::rangev4(osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f), osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f)));
+
+            osg::ref_ptr<osgParticle::ConstantRateCounter> counter = new osgParticle::ConstantRateCounter;
+            counter->setNumberOfParticlesPerSecondToCreate(perSecond);
+
+            osg::ref_ptr<osgParticle::ModularEmitter> emitter = new osgParticle::ModularEmitter;
+            emitter->setParticleSystem(plume.mParticles);
+            emitter->setCounter(counter);
+
+            osg::ref_ptr<osgParticle::ParticleSystemUpdater> updater = new osgParticle::ParticleSystemUpdater;
+            updater->addParticleSystem(plume.mParticles);
+
+            plume.mRoot->insertChild(0, emitter);
+            plume.mRoot->insertChild(1, updater);
+        }
+
+        /// An emitter runs, and it runs once per turn of the emitter clock however often it is walked.
+        ///
+        /// **`osgParticle` hangs its whole simulation off the cull traversal**, and a ray tracer has
+        /// none — so without the walk claiming that name at the two nodes that ask, every particle
+        /// system in the world stands still on the seed its file was authored with. That failure is
+        /// silent: the scene still has an emitter in it and still places sprites, they just never
+        /// change, which is why this asserts on a count that moves rather than on one that exists.
+        TEST(RtxSceneExtractorTest, anEmitterRunsOnTheEmitterClockAndOnlyOncePerTurnOfIt)
+        {
+            Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
+            drive(plume, 100.0);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+
+            // **The first turn only starts the clock.** `ParticleProcessor` keeps the last time it
+            // saw and has none yet, so it records one and steps nothing — which is also why a
+            // renderer that walks a cell once and shows it has to warm its emitters first.
+            extractor.advanceEmitters(0.1);
+            EXPECT_EQ(extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0).mSprites, 0u);
+
+            EXPECT_FALSE(plume.mParticles->getFreezeOnCull())
+                << "freeze-on-cull asks whether the draw has touched this, and nothing here draws";
+
+            // A tenth of a second at a hundred a second is ten.
+            extractor.advanceEmitters(0.1);
+            EXPECT_EQ(extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0).mSprites, 10u);
+
+            // **The same ten, and not another ten.** Every walk that reaches an emitter says it is a
+            // cull traversal, and the game reaches this one twice a frame — the world's walk and the
+            // weather's. What keeps that one step is `ParticleProcessor`'s own once-per-frame guard,
+            // and it only holds while a single clock is writing it.
+            EXPECT_EQ(extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0).mSprites, 10u);
+
+            // Ten more on the next turn, so the guard is a guard and not a stop.
+            extractor.advanceEmitters(0.1);
+            EXPECT_EQ(extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0).mSprites, 20u);
+        }
+
+        /// A gap in the world's clock is clamped rather than emitted.
+        ///
+        /// A loading screen, a paused window or a harness holding the world still are each a gap an
+        /// emitter would take literally, and a literal hour at a hundred a second is three hundred
+        /// and sixty thousand particles in one frame.
+        TEST(RtxSceneExtractorTest, aJumpInTheWorldsClockIsClampedRatherThanEmitted)
+        {
+            Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
+            drive(plume, 100.0);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+
+            extractor.advanceEmitters(0.1);
+            extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
+
+            // Clamped to the two tenths the game's own frame loop caps a step at: twenty, not
+            // 360,000.
+            extractor.advanceEmitters(3600.0);
+            EXPECT_EQ(extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0).mSprites, 20u);
+
+            // And a step backwards is not a step backwards, it is no step at all.
+            extractor.advanceEmitters(-10.0);
+            EXPECT_EQ(extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0).mSprites, 20u);
+        }
+
+        /// The emitters can be run without a frame being mirrored, which is what a warm-up is.
+        TEST(RtxSceneExtractorTest, emittersCanBeSteppedWithoutMirroringAnything)
+        {
+            Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
+            drive(plume, 100.0);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+
+            for (int turn = 0; turn < 3; ++turn)
+            {
+                extractor.advanceEmitters(0.1);
+                extractor.stepEmitters(*plume.mRoot);
+            }
+
+            EXPECT_EQ(scene.getSprites().size(), 0u) << "stepping is not mirroring: nothing was placed";
+
+            // Two of those three turns emitted — the first only started the clock — and the walk that
+            // finally mirrors them adds none of its own, because its turn is already spent.
+            EXPECT_EQ(extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0).mSprites, 20u);
         }
 
         /// A drawable that describes nothing inherits the nearest description above it.

@@ -256,6 +256,26 @@ namespace RtxBridge
         /// fires at its own frame rate and go on running them while the game is paused.
         void setSimulationTime(double seconds);
 
+        /// Moves the emitters on by `elapsed` seconds, and must be called once per frame.
+        ///
+        /// **Separate from the world's clock, and only ever forwards.** `osgParticle` integrates the
+        /// gap between one frame stamp and the last, so it is the one thing here that cannot be
+        /// handed an absolute time: a loading screen, a paused window or a harness warming its
+        /// emitters up while the world stands still are each a gap that would put every plume in the
+        /// cell on its own ceiling at once. A step backwards or a jump is clamped away here rather
+        /// than guarded against at each call.
+        ///
+        /// This is also the sequence every emitter's once-per-frame guard is kept against, so
+        /// however many walks reach one, exactly one of them steps it.
+        void advanceEmitters(double elapsed);
+
+        /// Runs the emitters under `node` without mirroring anything, on the clock above.
+        ///
+        /// For a caller that needs them somewhere other than where a file seeded them before it has
+        /// a frame to show — a harness warming a cell's candles up so the first shot has flames in
+        /// it. A walk that mirrors runs them as it goes and does not need this.
+        void stepEmitters(osg::Node& node);
+
         /// Walks `node` and places what it finds by `transform`, under `anchor`.
         ///
         /// Takes a const reference because nothing here writes to the graph; OSG's visitor API is

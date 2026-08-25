@@ -33,6 +33,7 @@
 #include "../../mwbase/environment.hpp"
 #include "../../mwbase/world.hpp"
 
+#include "../precipitation.hpp"
 #include "../renderbin.hpp"
 #include "../util.hpp"
 #include "../vismask.hpp"
@@ -40,167 +41,6 @@
 
 namespace
 {
-    class WrapAroundOperator : public osgParticle::Operator
-    {
-    public:
-        WrapAroundOperator(osg::Camera* camera, const osg::Vec3& wrapRange)
-            : osgParticle::Operator()
-            , mCamera(camera)
-            , mWrapRange(wrapRange)
-            , mHalfWrapRange(mWrapRange / 2.0)
-        {
-            mPreviousCameraPosition = getCameraPosition();
-        }
-
-        osg::Object* cloneType() const override { return nullptr; }
-
-        osg::Object* clone(const osg::CopyOp& op) const override { return nullptr; }
-
-        void operate(osgParticle::Particle* particle, double dt) override {}
-
-        void operateParticles(osgParticle::ParticleSystem* ps, double dt) override
-        {
-            osg::Vec3 position = getCameraPosition();
-            osg::Vec3 positionDifference = position - mPreviousCameraPosition;
-
-            osg::Matrix toWorld, toLocal;
-
-            std::vector<osg::Matrix> worldMatrices = ps->getWorldMatrices();
-
-            if (!worldMatrices.empty())
-            {
-                toWorld = worldMatrices[0];
-                toLocal.invert(toWorld);
-            }
-
-            for (int i = 0; i < ps->numParticles(); ++i)
-            {
-                osgParticle::Particle* p = ps->getParticle(i);
-                p->setPosition(toWorld.preMult(p->getPosition()));
-                p->setPosition(p->getPosition() - positionDifference);
-
-                for (int j = 0; j < 3; ++j) // wrap-around in all 3 dimensions
-                {
-                    osg::Vec3 pos = p->getPosition();
-
-                    if (pos[j] < -mHalfWrapRange[j])
-                        pos[j] = mHalfWrapRange[j] + fmod(pos[j] - mHalfWrapRange[j], mWrapRange[j]);
-                    else if (pos[j] > mHalfWrapRange[j])
-                        pos[j] = fmod(pos[j] + mHalfWrapRange[j], mWrapRange[j]) - mHalfWrapRange[j];
-
-                    p->setPosition(pos);
-                }
-
-                p->setPosition(toLocal.preMult(p->getPosition()));
-            }
-
-            mPreviousCameraPosition = position;
-        }
-
-    protected:
-        osg::Camera* mCamera;
-        osg::Vec3 mPreviousCameraPosition;
-        osg::Vec3 mWrapRange;
-        osg::Vec3 mHalfWrapRange;
-
-        osg::Vec3 getCameraPosition() { return mCamera->getInverseViewMatrix().getTrans(); }
-    };
-
-    class WeatherAlphaOperator : public osgParticle::Operator
-    {
-    public:
-        WeatherAlphaOperator(float& alpha, bool rain)
-            : mAlpha(alpha)
-            , mIsRain(rain)
-        {
-        }
-
-        osg::Object* cloneType() const override { return nullptr; }
-
-        osg::Object* clone(const osg::CopyOp& op) const override { return nullptr; }
-
-        void operate(osgParticle::Particle* particle, double dt) override
-        {
-            constexpr float rainThreshold = 0.6f; // Rain_Threshold?
-            float alpha = mIsRain ? mAlpha * rainThreshold : mAlpha;
-            particle->setAlphaRange(osgParticle::rangef(alpha, alpha));
-        }
-
-    private:
-        float& mAlpha;
-        bool mIsRain;
-    };
-
-    // Updater for alpha value on a node's StateSet. Assumes the node has an existing Material StateAttribute.
-    class AlphaFader : public SceneUtil::StateSetUpdater
-    {
-    public:
-        /// @param alpha the variable alpha value is recovered from
-        AlphaFader(const float& alpha)
-            : mAlpha(alpha)
-        {
-        }
-
-        void setDefaults(osg::StateSet* stateset) override
-        {
-            // need to create a deep copy of StateAttributes we will modify
-            osg::Material* mat = static_cast<osg::Material*>(stateset->getAttribute(osg::StateAttribute::MATERIAL));
-            stateset->setAttribute(osg::clone(mat, osg::CopyOp::DEEP_COPY_ALL), osg::StateAttribute::ON);
-        }
-
-        void apply(osg::StateSet* stateset, osg::NodeVisitor* nv) override
-        {
-            osg::Material* mat = static_cast<osg::Material*>(stateset->getAttribute(osg::StateAttribute::MATERIAL));
-            mat->setDiffuse(osg::Material::FRONT_AND_BACK, osg::Vec4f(0.f, 0.f, 0.f, mAlpha));
-        }
-
-    protected:
-        const float& mAlpha;
-    };
-
-    // Helper for adding AlphaFaders to a subgraph
-    class SetupVisitor : public osg::NodeVisitor
-    {
-    public:
-        SetupVisitor(const float& alpha)
-            : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
-            , mAlpha(alpha)
-        {
-        }
-
-        void apply(osg::Node& node) override
-        {
-            if (osg::StateSet* stateset = node.getStateSet())
-            {
-                if (stateset->getAttribute(osg::StateAttribute::MATERIAL))
-                {
-                    SceneUtil::CompositeStateSetUpdater* composite = nullptr;
-                    osg::Callback* callback = node.getUpdateCallback();
-
-                    while (callback)
-                    {
-                        composite = dynamic_cast<SceneUtil::CompositeStateSetUpdater*>(callback);
-                        if (composite)
-                            break;
-
-                        callback = callback->getNestedCallback();
-                    }
-
-                    osg::ref_ptr<AlphaFader> alphaFader = new AlphaFader(mAlpha);
-
-                    if (composite)
-                        composite->addController(alphaFader);
-                    else
-                        node.addUpdateCallback(alphaFader);
-                }
-            }
-
-            traverse(node);
-        }
-
-    private:
-        const float& mAlpha;
-    };
 
     class SkyRTT : public SceneUtil::RTTNode
     {
@@ -243,19 +83,10 @@ namespace MWRender
         , mNextClouds()
         , mCloudBlendFactor(0.f)
         , mStarsOpacity(0.f)
-        , mRainSpeed(0.f)
-        , mRainDiameter(0.f)
-        , mRainMinHeight(0.f)
-        , mRainMaxHeight(0.f)
-        , mRainEntranceSpeed(1.f)
-        , mRainMaxRaindrops(0)
-        , mRainRipplesEnabled(Fallback::Map::getBool("Weather_Rain_Ripples"))
-        , mSnowRipplesEnabled(Fallback::Map::getBool("Weather_Snow_Ripples"))
         , mWindSpeed(0.f)
         , mBaseWindSpeed(0.f)
         , mEnabled(true)
         , mSunglareEnabled(true)
-        , mPrecipitationAlpha(0.f)
         , mDirtyParticlesEffect(false)
     {
         mSkyRootNode = new CameraRelativeTransform;
@@ -282,6 +113,13 @@ namespace MWRender
         mSkyRootNode->addChild(mSkyNode);
 
         mUnderwaterSwitch = new UnderwaterSwitchCallback(mSkyRootNode);
+
+        // **Under the sky's own node, and so behind its mask.** The rain is a box that follows the
+        // eye, which is what the camera-relative root above gives it — and a walk that took this
+        // subtree along with the world would place every drop where the world's origin is. Whoever
+        // wants it asks for it and walks it on its own terms; `Mask_WeatherParticles` is what says
+        // which part of it they meant.
+        mPrecipitation = std::make_unique<Precipitation>(mSkyNode, *mSceneManager, camera);
 
         mPrecipitationOcclusion = Settings::shaders().mWeatherParticleOcclusion;
         mPrecipitationOccluder = std::make_unique<PrecipitationOccluder>(mSkyRootNode, parentNode, rootNode, camera);
@@ -366,109 +204,6 @@ namespace MWRender
         mCreated = true;
     }
 
-    void SkyManager::createRain()
-    {
-        if (mRainNode)
-            return;
-
-        mRainNode = new osg::Group;
-
-        mRainParticleSystem = new NifOsg::ParticleSystem;
-        osg::Vec3 rainRange = osg::Vec3(mRainDiameter, mRainDiameter, (mRainMinHeight + mRainMaxHeight) / 2.f);
-
-        mRainParticleSystem->setParticleAlignment(osgParticle::ParticleSystem::FIXED);
-        // Vertical placement with some horizontal compression.
-        // Z-down alignment is used so that the UV uses Y-down convention
-        mRainParticleSystem->setAlignVectors(osg::Vec3f(0.1f, 0, 0), osg::Vec3f(0, 0, -1.f));
-
-        osg::ref_ptr<osg::StateSet> stateset = mRainParticleSystem->getOrCreateStateSet();
-
-        constexpr VFS::Path::NormalizedView raindropImage("textures/tx_raindrop_01.dds");
-        osg::ref_ptr<osg::Texture2D> raindropTex
-            = new osg::Texture2D(mSceneManager->getImageManager()->getImage(raindropImage));
-        raindropTex->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
-        raindropTex->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
-
-        stateset->setTextureAttribute(0, raindropTex);
-        stateset->setNestRenderBins(false);
-        stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-        stateset->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
-        stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
-
-        osg::ref_ptr<osg::Material> mat = new osg::Material;
-        mat->setAmbient(osg::Material::FRONT_AND_BACK, osg::Vec4f(1, 1, 1, 1));
-        mat->setDiffuse(osg::Material::FRONT_AND_BACK, osg::Vec4f(1, 1, 1, 1));
-        mat->setColorMode(osg::Material::AMBIENT_AND_DIFFUSE);
-        stateset->setAttributeAndModes(mat);
-
-        osgParticle::Particle& particleTemplate = mRainParticleSystem->getDefaultParticleTemplate();
-        particleTemplate.setSizeRange(osgParticle::rangef(5.f, 15.f));
-        particleTemplate.setAlphaRange(osgParticle::rangef(1.f, 1.f));
-        particleTemplate.setLifeTime(1);
-
-        osg::ref_ptr<osgParticle::ModularEmitter> emitter = new osgParticle::ModularEmitter;
-        emitter->setParticleSystem(mRainParticleSystem);
-
-        osg::ref_ptr<osgParticle::BoxPlacer> placer = new osgParticle::BoxPlacer;
-        placer->setXRange(-rainRange.x() / 2, rainRange.x() / 2);
-        placer->setYRange(-rainRange.y() / 2, rainRange.y() / 2);
-        placer->setZRange(-rainRange.z() / 2, rainRange.z() / 2);
-        emitter->setPlacer(placer);
-        mPlacer = placer;
-
-        // FIXME: vanilla engine does not use a particle system to handle rain, it uses a NIF-file with 20 raindrops in
-        // it. It spawns the (maxRaindrops-getParticleSystem()->numParticles())*dt/rainEntranceSpeed batches every frame
-        // (near 1-2). Since the rain is a regular geometry, it produces water ripples, also in theory it can be removed
-        // if collides with something.
-        osg::ref_ptr<RainCounter> counter = new RainCounter;
-        counter->setNumberOfParticlesPerSecondToCreate(mRainMaxRaindrops / mRainEntranceSpeed * 20);
-        emitter->setCounter(counter);
-        mCounter = counter;
-
-        osg::ref_ptr<RainShooter> shooter = new RainShooter;
-        mRainShooter = shooter;
-        emitter->setShooter(shooter);
-
-        osg::ref_ptr<osgParticle::ParticleSystemUpdater> updater = new osgParticle::ParticleSystemUpdater;
-        updater->addParticleSystem(mRainParticleSystem);
-
-        osg::ref_ptr<osgParticle::ModularProgram> program = new osgParticle::ModularProgram;
-        program->addOperator(new WrapAroundOperator(mCamera, rainRange));
-        program->addOperator(new WeatherAlphaOperator(mPrecipitationAlpha, true));
-        program->setParticleSystem(mRainParticleSystem);
-        mRainNode->addChild(program);
-
-        mRainNode->addChild(emitter);
-        mRainNode->addChild(mRainParticleSystem);
-        mRainNode->addChild(updater);
-
-        // Note: if we ever switch to regular geometry rain, it'll need to use an AlphaFader.
-        mRainNode->addCullCallback(mUnderwaterSwitch);
-        mRainNode->setNodeMask(Mask_WeatherParticles);
-
-        mRainParticleSystem->setUserValue("simpleLighting", true);
-        mRainParticleSystem->setUserValue("particleOcclusion", true);
-        mSceneManager->recreateShaders(mRainNode);
-
-        mSkyNode->addChild(mRainNode);
-        if (mPrecipitationOcclusion)
-            mPrecipitationOccluder->enable();
-    }
-
-    void SkyManager::destroyRain()
-    {
-        if (!mRainNode)
-            return;
-
-        mSkyNode->removeChild(mRainNode);
-        mRainNode = nullptr;
-        mPlacer = nullptr;
-        mCounter = nullptr;
-        mRainParticleSystem = nullptr;
-        mRainShooter = nullptr;
-        mPrecipitationOccluder->disable();
-    }
-
     SkyManager::~SkyManager()
     {
         if (mSkyRootNode)
@@ -499,26 +234,17 @@ namespace MWRender
 
     bool SkyManager::hasRain() const
     {
-        return mRainNode != nullptr;
+        return mPrecipitation->hasRain();
     }
 
     bool SkyManager::getRainRipplesEnabled() const
     {
-        if (!mEnabled)
-            return false;
-
-        if (hasRain())
-            return mRainRipplesEnabled;
-
-        if (mParticleNode && mCurrentParticleEffect == Settings::models().mWeathersnow.get())
-            return mSnowRipplesEnabled;
-
-        return false;
+        return mEnabled && mPrecipitation->ripplesEnabled();
     }
 
     float SkyManager::getPrecipitationAlpha() const
     {
-        return mPrecipitationAlpha;
+        return mPrecipitation->getPrecipitationAlpha();
     }
 
     void SkyManager::update(float duration)
@@ -526,17 +252,8 @@ namespace MWRender
         if (!mEnabled)
             return;
 
-        switchUnderwaterRain();
-
-        if (mIsStorm && mParticleNode)
-        {
-            osg::Quat quat;
-            quat.makeRotate(MWWorld::Weather::defaultDirection(), mStormParticleDirection);
-            // Morrowind deliberately rotates the blizzard mesh, so so should we.
-            if (mCurrentParticleEffect == Settings::models().mWeatherblizzard.get())
-                quat.makeRotate(osg::Vec3f(-1, 0, 0), mStormParticleDirection);
-            mParticleNode->setAttitude(quat);
-        }
+        mPrecipitation->setStormDirection(mStormParticleDirection);
+        mPrecipitation->update(duration);
 
         // **The deck's scroll and the stars' roll are turned by `RenderingManager` and handed here**,
         // because a ray tracer that draws its own sky has to turn the same one and this manager may
@@ -570,13 +287,55 @@ namespace MWRender
         mEarlyRenderBinRoot->setNodeMask(mask);
         mSkyNode->setNodeMask(mask);
 
-        if (!enabled && mParticleNode && mParticleEffect)
+        // A sky switched off drops nothing, and switching it back on has to build what it dropped —
+        // which is what the dirty flag makes `setWeather` do rather than finding nothing changed.
+        if (!enabled)
         {
-            mCurrentParticleEffect.clear();
+            WeatherResult dry;
+            mPrecipitation->setWeather(dry);
+            mPrecipitationOccluder->disable();
             mDirtyParticlesEffect = true;
         }
 
         mEnabled = enabled;
+    }
+
+    void SkyManager::decoratePrecipitation()
+    {
+        // **What a rebuild threw away and only this renderer wants back.** `Precipitation` builds the
+        // particle systems both renderers read and knows nothing about any of this: an occlusion
+        // pass that keeps rain off the inside of a roof, a cull callback that freezes it under
+        // water, and the two user values a generated pipeline reads off a drawable.
+        const bool occluded = mPrecipitation->wantsOcclusion();
+
+        for (osg::Node* node : { static_cast<osg::Node*>(mPrecipitation->getRainNode()),
+                 static_cast<osg::Node*>(mPrecipitation->getEffectNode()) })
+        {
+            if (node == nullptr)
+                continue;
+
+            node->addCullCallback(mUnderwaterSwitch);
+
+            SceneUtil::FindByClassVisitor findPSVisitor("ParticleSystem");
+            node->accept(findPSVisitor);
+            for (osg::Node* found : findPSVisitor.mFoundNodes)
+            {
+                found->setUserValue("simpleLighting", true);
+                if (occluded)
+                    found->setUserValue("particleOcclusion", true);
+            }
+
+            mSceneManager->recreateShaders(node);
+        }
+
+        if (!mPrecipitationOcclusion || !occluded)
+        {
+            mPrecipitationOccluder->disable();
+            return;
+        }
+
+        mPrecipitationOccluder->enable();
+        mPrecipitationOccluder->updateRange(mPrecipitation->getWrapRange());
     }
 
     void SkyManager::setMoonColour(bool red)
@@ -586,150 +345,26 @@ namespace MWRender
         mSecunda->setColor(red ? mMoonScriptColor : osg::Vec4f(1, 1, 1, 1));
     }
 
-    void SkyManager::updateRainParameters()
-    {
-        if (mRainShooter)
-        {
-            float angle = -std::atan(mWindSpeed / 50.f);
-            mRainShooter->setVelocity(osg::Vec3f(0, mRainSpeed * std::sin(angle), -mRainSpeed / std::cos(angle)));
-            mRainShooter->setAngle(angle);
-
-            osg::Vec3 rainRange = osg::Vec3(mRainDiameter, mRainDiameter, (mRainMinHeight + mRainMaxHeight) / 2.f);
-
-            mPlacer->setXRange(-rainRange.x() / 2, rainRange.x() / 2);
-            mPlacer->setYRange(-rainRange.y() / 2, rainRange.y() / 2);
-            mPlacer->setZRange(-rainRange.z() / 2, rainRange.z() / 2);
-
-            mCounter->setNumberOfParticlesPerSecondToCreate(mRainMaxRaindrops / mRainEntranceSpeed * 20);
-            mPrecipitationOccluder->updateRange(rainRange);
-        }
-    }
-
-    void SkyManager::switchUnderwaterRain()
-    {
-        if (!mRainParticleSystem)
-            return;
-
-        bool freeze = mUnderwaterSwitch->isUnderwater();
-        mRainParticleSystem->setFrozen(freeze);
-    }
-
     void SkyManager::setWeather(const WeatherResult& weather)
     {
         if (!mCreated)
             return;
 
-        mRainEntranceSpeed = weather.mRainEntranceSpeed;
-        mRainMaxRaindrops = weather.mRainMaxRaindrops;
-        mRainDiameter = weather.mRainDiameter;
-        mRainMinHeight = weather.mRainMinHeight;
-        mRainMaxHeight = weather.mRainMaxHeight;
-        mRainSpeed = weather.mRainSpeed;
-        mWindSpeed = weather.mWindSpeed;
-        mBaseWindSpeed = weather.mBaseWindSpeed;
-
-        if (mRainEffect != weather.mRainEffect)
-        {
-            mRainEffect = weather.mRainEffect;
-            if (!mRainEffect.empty())
-            {
-                createRain();
-            }
-            else
-            {
-                destroyRain();
-            }
-        }
-
-        updateRainParameters();
-
         mIsStorm = weather.mIsStorm;
-
         if (mIsStorm)
             mStormDirection = weather.mStormDirection;
 
-        if (mDirtyParticlesEffect || (mCurrentParticleEffect != weather.mParticleEffect))
+        // **The particles themselves are `MWRender::Precipitation`'s**, because a particle system is
+        // a thing both renderers read and this one is only the rasterizer. What is left here is what
+        // is genuinely the rasterizer's: the occlusion pass that keeps rain off the inside of a
+        // roof, the cull callback that freezes it under water, and the shader hints a generated
+        // pipeline reads — none of which survive a rebuild, which is what the revision is for.
+        const unsigned int was = mPrecipitation->getRevision();
+        mPrecipitation->setWeather(weather);
+        if (mPrecipitation->getRevision() != was || mDirtyParticlesEffect)
         {
             mDirtyParticlesEffect = false;
-            mCurrentParticleEffect = weather.mParticleEffect;
-
-            // cleanup old particles
-            if (mParticleEffect)
-            {
-                mParticleNode->removeChild(mParticleEffect);
-                mParticleEffect = nullptr;
-            }
-
-            if (mCurrentParticleEffect.empty())
-            {
-                if (mParticleNode)
-                {
-                    mSkyNode->removeChild(mParticleNode);
-                    mParticleNode = nullptr;
-                }
-                if (mRainEffect.empty())
-                {
-                    mPrecipitationOccluder->disable();
-                }
-            }
-            else
-            {
-                if (!mParticleNode)
-                {
-                    mParticleNode = new osg::PositionAttitudeTransform;
-                    mParticleNode->addCullCallback(mUnderwaterSwitch);
-                    mParticleNode->setNodeMask(Mask_WeatherParticles);
-                    mSkyNode->addChild(mParticleNode);
-                }
-
-                mParticleEffect = mSceneManager->getInstance(mCurrentParticleEffect, mParticleNode);
-
-                SceneUtil::AssignControllerSourcesVisitor assignVisitor(std::make_shared<SceneUtil::FrameTimeSource>());
-                mParticleEffect->accept(assignVisitor);
-
-                SetupVisitor alphaFaderSetupVisitor(mPrecipitationAlpha);
-                mParticleEffect->accept(alphaFaderSetupVisitor);
-
-                SceneUtil::FindByClassVisitor findPSVisitor("ParticleSystem");
-                mParticleEffect->accept(findPSVisitor);
-
-                const osg::Vec3 defaultWrapRange = osg::Vec3(1024, 1024, 800);
-                const bool occlusionEnabledForEffect
-                    = !mRainEffect.empty() || mCurrentParticleEffect == Settings::models().mWeathersnow.get();
-
-                for (unsigned int i = 0; i < findPSVisitor.mFoundNodes.size(); ++i)
-                {
-                    osgParticle::ParticleSystem* ps
-                        = static_cast<osgParticle::ParticleSystem*>(findPSVisitor.mFoundNodes[i]);
-
-                    osg::ref_ptr<osgParticle::ModularProgram> program = new osgParticle::ModularProgram;
-                    if (occlusionEnabledForEffect)
-                        program->addOperator(new WrapAroundOperator(mCamera, defaultWrapRange));
-                    program->addOperator(new WeatherAlphaOperator(mPrecipitationAlpha, false));
-                    program->setParticleSystem(ps);
-                    mParticleNode->addChild(program);
-
-                    for (int particleIndex = 0; particleIndex < ps->numParticles(); ++particleIndex)
-                    {
-                        ps->getParticle(particleIndex)
-                            ->setAlphaRange(osgParticle::rangef(mPrecipitationAlpha, mPrecipitationAlpha));
-                        ps->getParticle(particleIndex)->update(0, true);
-                    }
-
-                    ps->setUserValue("simpleLighting", true);
-
-                    if (occlusionEnabledForEffect)
-                        ps->setUserValue("particleOcclusion", true);
-                }
-
-                mSceneManager->recreateShaders(mParticleNode);
-
-                if (mPrecipitationOcclusion && occlusionEnabledForEffect)
-                {
-                    mPrecipitationOccluder->enable();
-                    mPrecipitationOccluder->updateRange(defaultWrapRange);
-                }
-            }
+            decoratePrecipitation();
         }
 
         if (mClouds != weather.mCloudTexture)
@@ -822,7 +457,6 @@ namespace MWRender
         }
 
         mAtmosphereNightNode->setNodeMask(weather.mNight ? ~0u : 0);
-        mPrecipitationAlpha = weather.mPrecipitationAlpha;
     }
 
     float SkyManager::getBaseWindSpeed() const
@@ -894,6 +528,7 @@ namespace MWRender
     void SkyManager::setWaterHeight(float height)
     {
         mUnderwaterSwitch->setWaterLevel(height);
+        mPrecipitation->setWaterLevel(height);
     }
 
     void SkyManager::listAssetsToPreload(
@@ -940,5 +575,6 @@ namespace MWRender
     void SkyManager::setWaterEnabled(bool enabled)
     {
         mUnderwaterSwitch->setEnabled(enabled);
+        mPrecipitation->setWaterEnabled(enabled);
     }
 }

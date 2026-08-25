@@ -14,7 +14,9 @@
 #include <osg/Texture2D>
 #include <osg/TriangleIndexFunctor>
 #include <osgParticle/Particle>
+#include <osgParticle/ParticleProcessor>
 #include <osgParticle/ParticleSystem>
+#include <osgParticle/ParticleSystemUpdater>
 
 #include <array>
 #include <cassert>
@@ -36,6 +38,22 @@ namespace RtxBridge
 {
     namespace
     {
+        /// Clears the one gate a renderer with no draw can only ever answer wrongly.
+        ///
+        /// `osgParticle` stops a system whose draw has not touched it for two frames — a sound
+        /// saving when the draw is what advances that number, and a permanent stop when nothing
+        /// draws through OpenGL at all. `ParticleSystem::_last_frame` moves in `drawImplementation`
+        /// and nowhere else, so two frames in, every system in the world is judged off screen and
+        /// stopped for good.
+        ///
+        /// Said where the system is driven rather than where its sprites are read, because it is
+        /// true of every system this renderer runs and not only of the ones with a texture to show.
+        void keepRunning(osgParticle::ParticleSystem& system)
+        {
+            if (system.getFreezeOnCull())
+                system.setFreezeOnCull(false);
+        }
+
         /// Collects triangle indices whatever primitive mode the geometry used.
         ///
         /// Strips, fans and quads all arrive here as triangles, which is the only form an
@@ -186,11 +204,21 @@ namespace RtxBridge
         /// `accept` takes**, so nothing outside this file has to know what kind of visitor it is.
         osg::NodeVisitor& getPose() { return mPose; }
 
+        /// Moves the emitter clock on by one frame. See `mEmitterStamp`.
+        void advanceEmitters(double elapsed);
+
+        /// Runs the emitters under `node` and looks through everything else, for a caller that wants
+        /// them moved without a frame being mirrored.
+        void stepOnly(osg::Node& node);
+
         void apply(osg::Node& node) override;
         void apply(osg::Transform& node) override;
         void apply(osg::Drawable& drawable) override;
 
     private:
+        /// Runs one node of an `osgParticle` simulation, if that is what this node is. See below.
+        bool stepParticles(osg::Node& node);
+
         /// Where the node being visited stands in the world.
         ///
         /// Narrowed to single precision here and not before: `mHere` accumulates in the width
@@ -208,6 +236,26 @@ namespace RtxBridge
         /// local: a state graph, a render stage, a viewport and two matrices per frame is an
         /// allocation apiece for a traversal that is the same one every time.
         PoseCull mPose;
+
+        /// **The emitters' own clock, and it is not the world's.**
+        ///
+        /// `osgParticle` integrates the difference between one frame stamp and the last, so what it
+        /// is handed has to move forward in the steps its content was authored against. A step of
+        /// nothing emits nothing; a step of half an hour puts every plume in the cell on its own
+        /// ceiling at once — and the world's clock does both, across a loading screen, a paused
+        /// window, or a harness warming its emitters while the world holds still. This one moves
+        /// only through `advanceEmitters`, which cannot be handed a jump or a step backwards.
+        ///
+        /// Its frame number is the one sequence `ParticleProcessor` keeps its once-per-frame guard
+        /// against, so however many walks reach an emitter, exactly one of them steps it — and that
+        /// is why nothing else in this renderer may drive a particle system. Two clocks writing that
+        /// guard is not two steps, it is a `_t0` from whichever wrote last.
+        osg::ref_ptr<osg::FrameStamp> mEmitterStamp = new osg::FrameStamp;
+        double mEmitterSeconds = 0.0;
+        unsigned int mEmitterFrame = 0;
+
+        /// Whether this walk is running emitters and looking through everything else.
+        bool mStepOnly = false;
 
         osg::Matrixf mRoot;
         std::size_t mFrame = 0;
@@ -265,6 +313,13 @@ namespace RtxBridge
 
     void MirrorTraversal::apply(osg::Node& node)
     {
+        if (mStepOnly)
+        {
+            if (!stepParticles(node))
+                traverse(node);
+            return;
+        }
+
         // **The two node types this looks at rather than through**, split on `asGroup` so that
         // neither pays for the other's cast: a light is an `osg::Node` and a skeleton is an
         // `osg::Group`, so one question answers which of the two a node could be.
@@ -287,6 +342,12 @@ namespace RtxBridge
         }
         else if (auto* source = dynamic_cast<SceneUtil::LightSource*>(&node))
             mExtractor.addLight(*source, placed(), mFrame, *mStats);
+        else if (stepParticles(node))
+        {
+            // Neither of the two is a drawable or has a child, so there is no state set below them
+            // to carry and nothing under them to reach.
+            return;
+        }
 
         const std::size_t held = mShading.size();
 
@@ -301,6 +362,75 @@ namespace RtxBridge
         traverse(node);
 
         mShading.resize(held);
+    }
+
+    /// Runs one node of an `osgParticle` simulation, and says whether that is what this node was.
+    ///
+    /// **The whole of `osgParticle` hangs off the cull traversal.** Emission, the affector programs
+    /// and the integration all live in `ParticleProcessor::traverse` and
+    /// `ParticleSystemUpdater::traverse`, and both open by asking whether the visitor calling them
+    /// is a cull visitor. A ray tracer culls nothing, so left alone every particle system in the
+    /// world stands still on the state its file was authored with: candles without flames, braziers
+    /// without smoke, rain that never falls. This walk is the only thing that reaches them, so this
+    /// walk is what runs them — the same reason it is what poses an actor.
+    ///
+    /// **So it says it is a cull visitor, to these two nodes and for the length of one call.**
+    /// `RtxBridge::PoseCull` is a real one and warns against exactly this, because
+    /// `SceneUtil::RigGeometry` and `MorphGeometry` answer the same question with an unchecked
+    /// `static_cast` — as does `MWRender::CameraRelativeTransform`, which `apply(osg::Transform&)`
+    /// below hands this very visitor. Neither of these two casts: both only compare the type, and
+    /// `ParticleSystem::update` reaches for the visitor through `asCullVisitor`, which answers null
+    /// and skips a depth sort a ray tracer has no use for. Both derive from a plain `osg::Node`,
+    /// whose `traverse` is empty, so the claim cannot reach a child — and that is what keeps it
+    /// away from the three that would take it badly.
+    ///
+    /// It is this walk and not `mPose` for the same reason it is here at all: a processor reads its
+    /// world transform off the visitor's node path, and this is the walk standing on one.
+    bool MirrorTraversal::stepParticles(osg::Node& node)
+    {
+        if (auto* processor = dynamic_cast<osgParticle::ParticleProcessor*>(&node))
+        {
+            if (osgParticle::ParticleSystem* system = processor->getParticleSystem())
+                keepRunning(*system);
+        }
+        else if (auto* updater = dynamic_cast<osgParticle::ParticleSystemUpdater*>(&node))
+        {
+            for (unsigned int at = 0; at < updater->getNumParticleSystems(); ++at)
+                keepRunning(*updater->getParticleSystem(at));
+        }
+        else
+            return false;
+
+        // The emitter clock goes with the claim: what runs under it is the only thing in this walk
+        // that must not be handed the world's.
+        const osg::NodeVisitor::VisitorType was = getVisitorType();
+        setVisitorType(CULL_VISITOR);
+        setFrameStamp(mEmitterStamp);
+
+        node.traverse(*this);
+
+        setFrameStamp(mStamp);
+        setVisitorType(was);
+
+        return true;
+    }
+
+    void MirrorTraversal::advanceEmitters(double elapsed)
+    {
+        // The cap the game's own frame loop uses, and `MWRender::RainCounter` after it.
+        constexpr double longest = 0.2;
+
+        mEmitterSeconds += std::clamp(elapsed, 0.0, longest);
+        mEmitterStamp->setSimulationTime(mEmitterSeconds);
+        mEmitterStamp->setReferenceTime(mEmitterSeconds);
+        mEmitterStamp->setFrameNumber(++mEmitterFrame);
+    }
+
+    void MirrorTraversal::stepOnly(osg::Node& node)
+    {
+        mStepOnly = true;
+        node.accept(*this);
+        mStepOnly = false;
     }
 
     /// **Accumulated on the way down rather than recomputed on the way up.**
@@ -324,6 +454,14 @@ namespace RtxBridge
     /// the other one that looks — so nothing moves.
     void MirrorTraversal::apply(osg::Transform& node)
     {
+        // Nothing an emitter needs is in the chain: a processor reads its world transform off the
+        // node path, which `accept` keeps whatever this does.
+        if (mStepOnly)
+        {
+            apply(static_cast<osg::Node&>(node));
+            return;
+        }
+
         const osg::Matrix above = mHere;
         node.computeLocalToWorldMatrix(mHere, this);
 
@@ -334,6 +472,9 @@ namespace RtxBridge
 
     void MirrorTraversal::apply(osg::Drawable& drawable)
     {
+        if (mStepOnly)
+            return;
+
         const std::size_t held = mShading.size();
         if (const osg::StateSet* own = drawable.getStateSet())
             mShading.push_back(Shading{ .mStateSet = own });
@@ -357,6 +498,16 @@ namespace RtxBridge
         osg::FrameStamp& stamp = mWalk->getStamp();
         stamp.setSimulationTime(seconds);
         stamp.setReferenceTime(seconds);
+    }
+
+    void SceneExtractor::advanceEmitters(double elapsed)
+    {
+        mWalk->advanceEmitters(elapsed);
+    }
+
+    void SceneExtractor::stepEmitters(osg::Node& node)
+    {
+        mWalk->stepOnly(node);
     }
 
     ExtractionStats SceneExtractor::extract(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,

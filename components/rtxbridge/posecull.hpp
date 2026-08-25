@@ -2,6 +2,8 @@
 
 #include <osg/Transform>
 #include <osg/Viewport>
+#include <osgParticle/ParticleProcessor>
+#include <osgParticle/ParticleSystemUpdater>
 #include <osgUtil/CullVisitor>
 #include <osgUtil/RenderStage>
 #include <osgUtil/StateGraph>
@@ -53,5 +55,23 @@ namespace RtxBridge
 
         /// The pose is read off the drawable afterwards, so there is nothing to do with it here.
         void apply(osg::Drawable&) override {}
+
+        /// **Everything but a particle simulation**, which this is a real cull visitor for and so
+        /// would otherwise run.
+        ///
+        /// `osgParticle` hangs emission and integration off the cull traversal and keeps a
+        /// once-per-frame guard, and a `_t0`, per processor. Two visitors stepping the same emitter
+        /// on two clocks does not step it twice — it steps it on whichever wrote that guard last,
+        /// and the frame the clocks change hands is a `_t0` from one of them differenced against a
+        /// simulation time from the other. `RtxBridge::SceneExtractor` owns the one emitter clock in
+        /// this renderer, so posing keeps its hands off them.
+        void apply(osg::Node& node) override
+        {
+            if (dynamic_cast<osgParticle::ParticleProcessor*>(&node) != nullptr
+                || dynamic_cast<osgParticle::ParticleSystemUpdater*>(&node) != nullptr)
+                return;
+
+            osgUtil::CullVisitor::apply(node);
+        }
     };
 }

@@ -185,12 +185,17 @@ namespace RtxTool
 
     bool StagedWorld::advanceTo(float seconds)
     {
+        const float elapsed = seconds - mSeconds;
         setSeconds(seconds);
         if (mPosed != nullptr && mPosed->advanceTo(seconds))
             return true;
 
         // **Nothing moved, and the walk happens anyway.** Actors already walk when they step, so
         // this is only ever the still world — which is exactly the case a snapshot was hiding.
+        //
+        // The emitters are carried by that step where there is one, so this is the only path that
+        // owes them the gap itself.
+        mExtractor.advanceEmitters(static_cast<double>(elapsed));
         mirror(0);
         mExtractor.advance();
         return true;

@@ -84,6 +84,7 @@
 #include "npcanimation.hpp"
 #include "objectpaging.hpp"
 #include "pathgrid.hpp"
+#include "precipitation.hpp"
 #include "recastmesh.hpp"
 #include "renderer.hpp"
 #include "sceneframe.hpp"
@@ -693,6 +694,11 @@ namespace MWRender
         mSky->setSecundaState(secunda);
     }
 
+    Precipitation* RenderingManager::getPrecipitation()
+    {
+        return mSky->getPrecipitation();
+    }
+
     void RenderingManager::setSkyEnabled(bool enabled)
     {
         mSky->setEnabled(enabled);
@@ -838,6 +844,7 @@ namespace MWRender
             .mCloudBlend = mCloudBlend,
             .mNightFade = mNightFade,
             .mCloudFog = mCloudFog,
+            .mPrecipitation = mSky->getPrecipitation(),
             .mSkyRoll = mSkyRoll,
             .mAmbientColour = mSunLight->getAmbient(),
             .mSkyColour = mSkyColour,

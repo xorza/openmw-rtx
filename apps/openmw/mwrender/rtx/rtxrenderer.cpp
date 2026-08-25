@@ -48,6 +48,7 @@
 #include <components/settings/values.hpp>
 
 #include "../offscreenview.hpp"
+#include "../precipitation.hpp"
 #include "../sceneframe.hpp"
 #include "../stage.hpp"
 #include "../windowsetup.hpp"
@@ -61,6 +62,18 @@
 
 namespace MWRender::Rtx
 {
+    namespace
+    {
+        /// What the world's own walk takes. The sky is answered by a ray that reached nothing, the
+        /// sun with it, and the simple water is the flat stand-in the real one replaces.
+        constexpr osg::Node::NodeMask sWorldTraversal
+            = ~static_cast<osg::Node::NodeMask>(Mask_Sky | Mask_Sun | Mask_SimpleWater);
+
+        /// What the weather's own walk takes, which is all of it: it begins at the precipitation
+        /// node and everything below that is precipitation by construction.
+        constexpr osg::Node::NodeMask sWeatherTraversal = ~static_cast<osg::Node::NodeMask>(0);
+    }
+
     namespace
     {
         /// Far enough to cross any cell. A primary ray that reaches this has left the world.
@@ -166,7 +179,7 @@ namespace MWRender::Rtx
         // `Mask_Water`, and a deep copy of it under `Mask_SimpleWater` that exists for the local
         // map — and the rasterizer picks between them with the drawing camera's traversal mask.
         // A mirror that walks both places the sea twice, at the same height, as two meshes.
-        mExtractor->setTraversalMask(~static_cast<osg::Node::NodeMask>(Mask_Sky | Mask_Sun | Mask_SimpleWater));
+        mExtractor->setTraversalMask(sWorldTraversal);
 
         // What is left of the two is the world's own water, and it is the sea.
         mExtractor->setWaterMask(Mask_Water);
@@ -511,6 +524,13 @@ namespace MWRender::Rtx
         // time of day.
         mExtractor->setSimulationTime(when.getSimulationTime());
 
+        // **The emitters on their own clock, by the gap and not to the time.** They are the one
+        // thing here that integrates the difference between two frames rather than reading the
+        // hour, so what a pause or a loading screen leaves in that difference is a jump they would
+        // take literally. The extractor clamps it; this only has to hand over the gap.
+        mExtractor->advanceEmitters(when.getSimulationTime() - mLastSimulationTime);
+        mLastSimulationTime = when.getSimulationTime();
+
         // **Every frame, and the placements are the one thing it does not throw away.** What goes
         // is the lists a walk refills wholesale — lights, deformed meshes, sprites, emitters. The
         // meshes, materials and texture paths stay because the acceleration structures and the
@@ -526,6 +546,35 @@ namespace MWRender::Rtx
         {
             mMoonFaces = RtxBridge::addMoonFaces(mScene);
             mSkyTextures = RtxBridge::addSkyTextures(mScene, *mResources->getSceneManager());
+        }
+
+        // **What the weather drops, walked as a second root.** Those nodes hang under the sky's
+        // camera-relative transform, which strips the translation — so their particles are placed
+        // about the origin and the eye is what puts them back. And the sky's own mask keeps the
+        // first walk out of that subtree entirely, which is right: a cloud deck is a texture on a
+        // ray that reached nothing, and rain is geometry standing in front of one.
+        //
+        // The same systems the rasterizer draws, not a second set of them. `MWRender::Precipitation`
+        // owns them and neither renderer does.
+        // Nothing falls where the eye is under water. The rasterizer answers this by not culling
+        // the subtree; this renderer answers it by not walking it.
+        if (frame.mWorld.mPrecipitation != nullptr && !frame.mWorld.mPrecipitation->isUnderwater())
+        {
+            osg::Vec3d at;
+            osg::Vec3d ahead;
+            osg::Vec3d skyward;
+            frame.mCamera.getViewMatrixAsLookAt(at, ahead, skyward);
+
+            // **Everything under it, because everything under it is precipitation.** The walk
+            // starts at that node, so there is nothing there to select — and naming
+            // `Mask_WeatherParticles` here selected almost nothing: `Resource::SceneManager` stamps
+            // `Mask_ParticleSystem` on the `ParticleSystem` drawable of every model it loads, so a
+            // blizzard's own particles are not marked as weather, and asking for weather alone
+            // extracted the storm with all of its particles missing.
+            mExtractor->setTraversalMask(sWeatherTraversal);
+            mExtractor->extract(
+                *frame.mWorld.mPrecipitation->getNode(), osg::Matrixf::translate(osg::Vec3f(at)), 0, mFrame);
+            mExtractor->setTraversalMask(sWorldTraversal);
         }
 
         const RtxBridge::ExtractionStats found
@@ -789,9 +838,13 @@ namespace MWRender::Rtx
         mSpentMs += result.mTraceMs;
         if (++mTimed == sReportEvery)
         {
+            // **The emitters among it, because they are the half a placement count does not carry.**
+            // Sprites are not instances and never enter that number, so a cell whose every flame,
+            // brazier and raindrop had stopped read exactly like one whose emitters were running.
             Log(Debug::Info) << "Ray tracing: " << mSpentMs / mTimed << " ms a frame over the last " << mTimed
-                             << ", tracing " << mScene.getPlacedCount() << " instances at " << extents.mRenderWidth
-                             << "x" << extents.mRenderHeight;
+                             << ", tracing " << mScene.getPlacedCount() << " instances and "
+                             << mScene.getEmitters().size() << " emitters holding " << mScene.getSprites().size()
+                             << " sprites at " << extents.mRenderWidth << "x" << extents.mRenderHeight;
             mSpentMs = 0.0;
             mTimed = 0;
         }

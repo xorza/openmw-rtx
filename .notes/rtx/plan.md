@@ -309,7 +309,79 @@ every count; and a control fifo bounding the recording to the measured frames.
     emitter's sphere is measured on the quad's diagonal rather than its width — a streak ten times as
     tall as it is wide, measured on the width, is cut off nine tenths of the way up.
 
-  **What is left is reach, not drawing.** Those nodes hang under `SkyManager`'s `Mask_Sky` root,
+  **`MWRender::Precipitation` is done and the reach is wired.** The rain system and the storm effect
+  node came out of `mwrender/gl/sky.cpp` into a renderer-neutral home; `SkyManager` keeps only what
+  is genuinely the rasterizer's — the occlusion pass, the underwater cull callback, the shader hints
+  — and puts them back through `getRevision`, which counts the rebuilds. `RenderingManager` hands the
+  node down on `WorldState` and `RtxRenderer` walks it as a second root, with the eye added back
+  because those nodes hang beneath the sky's camera-relative transform.
+
+  **The mask that walk was given was wrong, and what it exposed was much larger than rain.**
+
+  - `Mask_WeatherParticles` selected almost nothing under it. `Resource::SceneManager` stamps
+    `Mask_ParticleSystem` on the `ParticleSystem` drawable of every model it loads, so a blizzard's
+    own particles are not marked as weather: the storm was extracted with all of its particles
+    missing. The walk begins at the precipitation node, where everything below is precipitation by
+    construction, so it takes the lot.
+  - The rain's state set is assembled by hand and so was never *described*: `ShaderVisitor` augments
+    a `Surface::Material` and does not invent one, and the extractor reads the description rather
+    than the texture attribute. Everything else the weather throws comes out of a NIF and the content
+    pipeline describes it. `Precipitation` now says what that surface is in `Surface`'s own terms.
+  - **`osgParticle` runs its entire simulation from the cull traversal, and this renderer has none.**
+    Emission, the affector programs and the integration all live in `ParticleProcessor::traverse` and
+    `ParticleSystemUpdater::traverse`, and both open by asking whether the visitor calling them is a
+    cull visitor. So nothing had ever stepped a particle in the ray-traced path — not the rain, and
+    not **any** particle system in the game: candles without flames, braziers without smoke, every
+    one running on the seed its file was authored with. It fails silently, because the emitter is
+    still in the scene and still places sprites; they simply never change.
+
+  **The mirror walk owns it, because the mirror walk is already what a cull traversal used to do
+  here** — it is what poses an actor, and it is the only thing that reaches every emitter. It claims
+  the cull visitor's name at the two nodes that ask and for the length of one call. `PoseCull` is the
+  real one and warns against exactly this, because `SceneUtil::RigGeometry`, `MorphGeometry` and
+  `MWRender::CameraRelativeTransform` all answer that question with an unchecked `static_cast`;
+  neither of these two casts, both only compare, and `ParticleSystem::update` reaches for the visitor
+  through the checked `asCullVisitor` — which answers null and skips a depth sort a ray tracer has no
+  use for. Both derive from a plain `osg::Node` whose `traverse` is empty, so the claim cannot reach
+  a child, and that is what keeps it away from the three that would take it badly.
+
+  **One emitter clock, and nothing else in the renderer may drive a particle.** `osgParticle` keeps a
+  once-per-frame guard and a `_t0` per processor, so two visitors stepping the same emitter on two
+  clocks is not two steps — it is a `_t0` from whichever wrote last, differenced against the other's
+  simulation time, and every plume in the cell on its own ceiling. The extractor owns that clock; it
+  moves only through `advanceEmitters`, which cannot be handed a jump or a step backwards, and its
+  frame number is the single sequence that guard is kept against, so however many walks reach an
+  emitter exactly one of them steps it. `PoseCull` is a real cull visitor and so was a second driver
+  in the harness; it now leaves particle nodes alone. The warm-up that fills a cell's candles before
+  the first `shot` runs on the same clock, through `stepEmitters`.
+
+  Two more, found on the way and fixed at the source rather than worked around:
+
+  - **Freeze-on-cull.** `ParticleSystem::_last_frame` advances in `drawImplementation` and nowhere
+    else, so with no OpenGL draw every system would be judged off screen two frames in and stopped
+    for good. Cleared where a system is driven, because it is a fact about this renderer rather than
+    about any emitter.
+  - **The underwater gate came from the cull.** `SkyManager` froze the rain from
+    `UnderwaterSwitchCallback`, which reads a view point only a cull traversal writes — under the ray
+    tracer it never runs, so what it last saw is the origin and the rain kept falling to the sea bed.
+    `Precipitation` now asks the camera, which both renderers keep, and the RTX walk skips the
+    subtree entirely where the rasterizer's cull callback would have hidden it.
+
+  The rain's updater also moved above the system it drives, which is where `NifOsg` deliberately puts
+  it: a walk meeting the updater first reads a system already integrated this frame rather than one
+  frame of staleness. The rasterizer cannot tell, since it bins the drawable and draws it later.
+
+  **Measured at Seyda Neen, weather forced from the console.** Clear: 21 emitters, 361 sprites,
+  6.1 ms. Rain: 22 emitters, ~1650 sprites, 13.0 ms — and both counts move every report, which is
+  what says the simulation is running rather than frozen. That the rain roughly doubles the frame is
+  a number for M12 and is written down here rather than acted on. Three tests pin the mechanism:
+  without the cull claim they report zero particles ever created, which was exactly the symptom.
+
+  **What is left:** the harness's own weather. It has no weather system and would build the effect
+  from a name, which needs `Precipitation` and `WeatherResult` in `components/` — they are game-side
+  today, and `apps/rtxtool` links `components` and not `openmw-lib`.
+
+  **What was left before this:** Those nodes hang under `SkyManager`'s `Mask_Sky` root,
   which the extractor's traversal mask excludes, under a `CameraRelativeTransform` that strips the
   translation — so the walk needs the eye added back and the mask opened. And the construction itself
   is in `apps/openmw/mwrender/gl/`, which is the wrong home for something both renderers draw: it
