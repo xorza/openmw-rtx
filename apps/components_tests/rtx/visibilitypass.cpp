@@ -532,6 +532,51 @@ namespace Rtx
                 return hits;
             }
 
+            /// The same render as `countHits`, read back in linear radiance rather than as bytes.
+            ///
+            /// **What a figure is measured on.** `readPixels` gives the picture a display would
+            /// show — eight bits, after the display curve — and the filter figures below had reached
+            /// the point where that was the quantiser talking: two thirds of a byte at the
+            /// brightness they sit at. `Channel::Radiance` is the same frame before either, and it
+            /// is the *same quantity* while nothing tone-maps and the exposure is pinned at one, so
+            /// the numbers stay comparable to the ones that were recorded through bytes.
+            void renderRadiance(const SceneDesc& scene, const Shaders::VisibilityConstants& camera, std::uint32_t size,
+                std::vector<float>& values, std::uint32_t accumulate = 0, bool filter = false)
+            {
+                // The bytes are read and thrown away: they are what sharing `countHits`'s render
+                // loop costs, and one image copy against a sixty-four frame render is not a trade
+                // worth a second copy of that loop.
+                std::vector<std::uint8_t> pixels;
+                countHits(scene, {}, camera, size, pixels, SeaState{}, accumulate, filter);
+                mRenderer->readChannel(Channel::Radiance, values);
+            }
+
+            /// A run of filtered frames with the history let build, read back in linear radiance.
+            ///
+            /// **Not `countHits` with a count on it, and the difference is the whole point.**
+            /// `mAccumulate` averages finished frames in the composite; this leaves that at nought
+            /// and advances `mFrame` instead, so each frame is a different draw and the only thing
+            /// combining them is the accumulator under test. `resetHistory` first, because a
+            /// one-frame baseline taken after a longer run is a baseline that already has a history
+            /// in it — which reads as the accumulator doing nothing at all.
+            void renderFiltered(const SceneDesc& scene, const Shaders::VisibilityConstants& camera, std::uint32_t size,
+                std::vector<float>& values, std::uint32_t frames)
+            {
+                mRenderer->resize(size, size);
+                mRenderer->setScene(Rtx::sWorld, scene, {}, SeaState{});
+                mRenderer->resetHistory();
+
+                for (std::uint32_t frame = 0; frame < frames; ++frame)
+                {
+                    Shaders::VisibilityConstants sampled = camera;
+                    sampled.mFrame = frame;
+                    mRenderer->renderFrame(
+                        sampled, FrameOptions{ .mAccumulate = 0, .mFilter = true, .mExposure = 1.0f });
+                }
+
+                mRenderer->readChannel(Channel::Radiance, values);
+            }
+
             /// The fixture's textures, numbered the way its scene added them.
             ///
             /// **A convention of these tests and not of the renderer.** Every test here builds its
@@ -3854,11 +3899,12 @@ namespace Rtx
         /// the same unbiased estimator, averaged. One sample against that is the error a denoiser
         /// exists to reduce, and the ratio of the two is the only honest way to say it worked.
         ///
-        /// **The bound sits between the two weightings on purpose.** Measured here: one sample is
-        /// 0.0419 off the reference, the plane weight brings that to 0.0023 and a plain depth weight
-        /// to 0.0061 — eighteen times better against seven. Every number is repeatable, because
-        /// frame zero and a sixty-four frame average are both deterministic, so a tenth is a bound
-        /// this passes with room and a depth test cannot reach.
+        /// **The bound sits between the two weightings on purpose.** Measured here on
+        /// `Channel::Radiance`: one sample is 0.0420 off the reference and the plane weight brings
+        /// that to 0.0020, against 0.0061 for a plain depth weight — twenty times better against
+        /// seven. Every number is repeatable, because frame zero and a sixty-four frame average are
+        /// both deterministic, so a tenth is a bound this passes with room and a depth test cannot
+        /// reach.
         TEST_F(RtxVisibilityTest, theFilterAndItsHistoryConvergeOnAGrazingSurface)
         {
             constexpr std::uint32_t size = 64;
@@ -3876,28 +3922,28 @@ namespace Rtx
             camera.mSkyZenith = osg::Vec3f(0.80f, 0.65f, 0.15f);
 
             const auto render = [&](std::uint32_t accumulate, bool filter) {
-                std::vector<std::uint8_t> pixels;
-                countHits(scene, {}, camera, size, pixels, SeaState{}, accumulate, filter);
-                return pixels;
+                std::vector<float> values;
+                renderRadiance(scene, camera, size, values, accumulate, filter);
+                return values;
             };
 
             // Unfiltered, because a thousand filtered frames converge on the filter's opinion and
             // not on the answer.
-            const std::vector<std::uint8_t> reference = render(64, false);
-            const std::vector<std::uint8_t> raw = render(0, false);
-            const std::vector<std::uint8_t> filtered = render(0, true);
+            const std::vector<float> reference = render(64, false);
+            const std::vector<float> raw = render(0, false);
+            const std::vector<float> filtered = render(0, true);
 
-            const auto errorAgainstReference = [&](const std::vector<std::uint8_t>& pixels) {
+            const auto errorAgainstReference = [&](const std::vector<float>& values) {
                 float squares = 0.0f;
                 std::size_t counted = 0;
-                for (std::size_t i = 1; i < pixels.size(); i += 4)
+                for (std::size_t i = 1; i < values.size(); i += 4)
                 {
                     // Only where there is a surface: the sky above the horizon is not being
                     // filtered and averages to itself, so counting it would dilute both figures.
-                    if (pixels[i] == reference[i] && pixels[i] == 0)
+                    if (values[i] == reference[i] && values[i] == 0.0f)
                         continue;
 
-                    const float error = decodeSrgb(pixels[i]) - decodeSrgb(reference[i]);
+                    const float error = values[i] - reference[i];
                     squares += error * error;
                     ++counted;
                 }
@@ -3928,29 +3974,17 @@ namespace Rtx
             // and a "one frame" baseline taken without a reset is a baseline that already has a
             // history in it — which reads as the accumulator doing nothing at all.
             const auto renderSequence = [&](std::uint32_t frames) {
-                mRenderer->resize(size, size);
-                mRenderer->setScene(Rtx::sWorld, scene, {}, SeaState{});
-                mRenderer->resetHistory();
-
-                for (std::uint32_t frame = 0; frame < frames; ++frame)
-                {
-                    Shaders::VisibilityConstants sampled = camera;
-                    sampled.mFrame = frame;
-                    mRenderer->renderFrame(
-                        sampled, FrameOptions{ .mAccumulate = 0, .mFilter = true, .mExposure = 1.0f });
-                }
-
-                std::vector<std::uint8_t> pixels;
-                mRenderer->readPixels(pixels);
-                return pixels;
+                std::vector<float> values;
+                renderFiltered(scene, camera, size, values, frames);
+                return values;
             };
 
-            const std::vector<std::uint8_t> settledPixels = renderSequence(Shaders::ACCUMULATE_FRAMES);
+            const std::vector<float> settledPixels = renderSequence(Shaders::ACCUMULATE_FRAMES);
             const float settled = errorAgainstReference(settledPixels);
 
             // **The accumulator may not make this worse, and on this surface that is the whole of
-            // what it can be asked.** Measured here, the cascade alone already lands within a third
-            // of a byte of the converged reference — a flat sheet under a smooth sky is precisely
+            // what it can be asked.** Measured here, the cascade alone already lands at 0.0020 of
+            // the converged reference — a flat sheet under a smooth sky is precisely
             // where five levels of à-trous have every advantage, since the signal is uniform and
             // every neighbour is a valid sample of it. What the history is for is the case this
             // scene does not have: contact regions, small geometry, and pixels with few neighbours
@@ -3967,11 +4001,11 @@ namespace Rtx
             std::size_t counted = 0;
             for (std::size_t i = 1; i < settledPixels.size(); i += 4)
             {
-                if (settledPixels[i] == reference[i] && settledPixels[i] == 0)
+                if (settledPixels[i] == reference[i] && settledPixels[i] == 0.0f)
                     continue;
 
-                settledMean += static_cast<double>(decodeSrgb(settledPixels[i]));
-                referenceMean += static_cast<double>(decodeSrgb(reference[i]));
+                settledMean += static_cast<double>(settledPixels[i]);
+                referenceMean += static_cast<double>(reference[i]);
                 ++counted;
             }
 
@@ -4049,41 +4083,28 @@ namespace Rtx
             camera.mSkyZenith = osg::Vec3f(0.05f, 0.20f, 0.90f);
 
             const auto renderSequence = [&](std::uint32_t frames) {
-                mRenderer->resize(size, size);
-                mRenderer->setScene(Rtx::sWorld, scene, {}, SeaState{});
-                mRenderer->resetHistory();
-
-                for (std::uint32_t frame = 0; frame < frames; ++frame)
-                {
-                    Shaders::VisibilityConstants sampled = camera;
-                    sampled.mFrame = frame;
-                    mRenderer->renderFrame(
-                        sampled, FrameOptions{ .mAccumulate = 0, .mFilter = true, .mExposure = 1.0f });
-                }
-
-                std::vector<std::uint8_t> pixels;
-                mRenderer->readPixels(pixels);
-                return pixels;
+                std::vector<float> values;
+                renderFiltered(scene, camera, size, values, frames);
+                return values;
             };
 
             // Unfiltered, because a converged reference has to be the answer and not the filter's
             // opinion of it.
-            std::vector<std::uint8_t> reference;
-            countHits(scene, {}, camera, size, reference, SeaState{}, 128, false);
+            std::vector<float> reference;
+            renderRadiance(scene, camera, size, reference, 128, false);
 
-            const auto errorAgainstReference = [&](const std::vector<std::uint8_t>& pixels) {
+            const auto errorAgainstReference = [&](const std::vector<float>& values) {
                 double squares = 0.0;
                 std::size_t counted = 0;
-                for (std::size_t i = 0; i < pixels.size(); i += 4)
+                for (std::size_t i = 0; i < values.size(); i += 4)
                     for (std::size_t channel = 0; channel < 3; ++channel)
                     {
                         const std::size_t at = i + channel;
                         // Only where the grid is: the sky around it is not being filtered.
-                        if (pixels[at] == reference[at] && reference[at] == 0)
+                        if (values[at] == reference[at] && reference[at] == 0.0f)
                             continue;
 
-                        const double error = static_cast<double>(decodeSrgb(pixels[at]))
-                            - static_cast<double>(decodeSrgb(reference[at]));
+                        const double error = static_cast<double>(values[at]) - static_cast<double>(reference[at]);
                         squares += error * error;
                         ++counted;
                     }
@@ -4091,24 +4112,25 @@ namespace Rtx
                 return std::sqrt(squares / static_cast<double>(counted));
             };
 
-            const std::vector<std::uint8_t> settledPixels = renderSequence(Shaders::ACCUMULATE_FRAMES);
+            const std::vector<float> settledPixels = renderSequence(Shaders::ACCUMULATE_FRAMES);
             const double alone = errorAgainstReference(renderSequence(1));
             const double settled = errorAgainstReference(settledPixels);
 
-            // Measured on this box: 0.00406 against the converged reference with the cascade alone,
-            // 0.00253 once sixteen frames are behind it — a little over a third of the error the
-            // filter cannot reach. Deterministic to the last digit across runs, which is what lets
-            // the bounds below sit this close to the figures.
+            // Measured on this box through `Channel::Radiance`: 0.00380 against the converged
+            // reference with the cascade alone, 0.00214 once sixteen frames are behind it — the
+            // history removes **44%** of the error the filter cannot reach. Deterministic to the last
+            // digit across runs, which is what lets the bounds below sit this close to the figures.
             //
-            // **A third is a floor and not a ceiling.** The read-back is eight bits a channel, and
-            // 0.00253 is two thirds of one byte at this brightness — the accumulated frame is at the
-            // edge of what the output format can distinguish, so what is being measured here is
-            // partly the quantiser. What the number establishes is the direction and that it is not
-            // small; a tighter figure needs the float channel a test cannot read yet.
+            // **A third was the quantiser, and this is the figure without it.** Read back as bytes
+            // the same pair came to 0.00406 and 0.00253, a ratio of 0.62 — because 0.00253 is two
+            // thirds of one byte at this brightness and the settled frame was sitting on the floor
+            // the output format put under it. The raw figure barely moved (0.00406 to 0.00380) and
+            // the settled one moved a sixth, which is exactly the shape a quantiser's floor has: it
+            // costs the quiet number and not the noisy one.
             EXPECT_GT(alone, 0.003) << "the cascade alone leaves enough error here for the question to mean something: "
                                     << alone;
-            EXPECT_LT(settled, alone * 0.70)
-                << "and a history of " << Shaders::ACCUMULATE_FRAMES << " frames takes a third of what the cascade "
+            EXPECT_LT(settled, alone * 0.60)
+                << "and a history of " << Shaders::ACCUMULATE_FRAMES << " frames takes two fifths of what the cascade "
                 << "cannot: " << alone << " becomes " << settled;
 
             // **And it converges on the reference rather than on its own opinion.** Quieter is not
@@ -4120,11 +4142,11 @@ namespace Rtx
                 for (std::size_t channel = 0; channel < 3; ++channel)
                 {
                     const std::size_t at = i + channel;
-                    if (settledPixels[at] == reference[at] && reference[at] == 0)
+                    if (settledPixels[at] == reference[at] && reference[at] == 0.0f)
                         continue;
 
-                    settledMean += static_cast<double>(decodeSrgb(settledPixels[at]));
-                    referenceMean += static_cast<double>(decodeSrgb(reference[at]));
+                    settledMean += static_cast<double>(settledPixels[at]);
+                    referenceMean += static_cast<double>(reference[at]);
                     ++counted;
                 }
 

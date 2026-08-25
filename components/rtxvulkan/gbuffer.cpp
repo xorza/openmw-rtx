@@ -70,14 +70,14 @@ namespace Rtx
         /// costs no memory, so every channel carries it rather than only the five DLSS reads today.
         constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-        /// The channels a caller can ask to read back: the two motion fields, the depth and the
-        /// two masks. See `Rtx::Channel`.
+        /// The channels a caller can ask to read back: the bounce, the two motion fields, the depth
+        /// and the two masks. See `Rtx::Channel`.
         constexpr VkImageUsageFlags sReadable = sUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     }
 
     GBuffer::GBuffer(const Device& device, std::uint32_t width, std::uint32_t height)
         : mDirect(device, width, height, sRadiance, sUsage, "g-direct")
-        , mIndirect(device, width, height, sRadiance, sUsage, "g-indirect")
+        , mIndirect(device, width, height, sRadiance, sReadable, "g-indirect")
         , mAlbedo(device, width, height, sAlbedo, sUsage, "g-albedo")
         , mSpecular(device, width, height, sAlbedo, sUsage, "g-specular")
         , mGuide(device, width, height, sGuide, sUsage, "g-guide")

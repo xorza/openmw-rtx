@@ -121,8 +121,10 @@ namespace Rtx
 
         // `SAMPLED` because an upscaler samples what it is handed, and one bit short of that is a
         // black frame nothing reports. See `GBuffer`, which carries it for the same reason.
+        // `TRANSFER_SRC` because `Channel::Radiance` copies this out: it is the frame a measurement
+        // is taken on, where `readPixels` gives the one a display would show.
         mColour = std::make_unique<Image>(mDevice, mRenderWidth, mRenderHeight, VK_FORMAT_R32G32B32A32_SFLOAT,
-            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "colour");
+            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "colour");
 
         // **Always shareable, not only when something asks.** The only cost is which memory type
         // the driver picks, and it does not move the frame: Balmora at 1080p, best of thirty, reads
@@ -956,6 +958,14 @@ namespace Rtx
                 break;
             case Channel::BiasMask:
                 image = &mChannels->getBiasMask();
+                break;
+            case Channel::Indirect:
+                image = &mChannels->getIndirect();
+                break;
+            case Channel::Radiance:
+                // The one channel that is not the trace's: the composite's own output, which is the
+                // frame every other channel was gathered to make.
+                image = mColour.get();
                 break;
         }
 

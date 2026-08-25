@@ -215,13 +215,14 @@ history as the two reset signals, `historyLost` being one expression both denois
 one sample is exactly zero, which a filter reads as *certain* and is the opposite of the truth — so
 the variance is written by the accumulator rather than derived by the cascade.
 
-**What it is worth: a little over a third of the error the cascade cannot reach.** Measured against a
-128-sample converged reference, on a coplanar grid whose shading normals alternate by forty degrees:
+**What it is worth: 44% of the error the cascade cannot reach.** Measured through
+`Channel::Radiance` against a 128-sample converged reference, on a coplanar grid whose shading
+normals alternate by forty degrees:
 
-| | RMSE against the reference |
-|---|---|
-| the cascade alone, one frame | 0.00406 |
-| with sixteen frames behind it | 0.00253 |
+| | RMSE against the reference | as bytes, before the float channel |
+|---|---|---|
+| the cascade alone, one frame | 0.00380 | 0.00406 |
+| with sixteen frames behind it | 0.00214 | 0.00253 |
 
 **The scene is the finding.** On the flat sheet the other filter test uses, a history is worth
 nothing at all — every pixel there looks at one surface under one smooth sky, so every pixel has the
@@ -230,9 +231,12 @@ from one distribution. The cascade lands within a third of a byte on a single fr
 nothing left to remove. Where neighbours genuinely disagree — which is what Morrowind's geometry is —
 the cascade is left with little more than the centre pixel and the history carries the frame.
 
-**And a third is a floor.** The read-back is eight bits a channel and 0.00253 is two thirds of one
-byte at this brightness, so the accumulated frame is already at the edge of what the output format
-can distinguish. A tighter figure needs the float channel a test cannot read yet.
+**And a third *was* the floor, which is what the float channel took off.** The byte pair gave a
+ratio of 0.62 and the float pair gives 0.56 — because 0.00253 was two thirds of one byte at this
+brightness and the settled frame was sitting on the quantiser rather than on its own error. Note the
+shape of the correction: the noisy figure barely moved (0.00406 to 0.00380) and the quiet one moved a
+sixth, which is what a floor under a measurement does. The grazing test moved the same way, 0.0023 to
+0.0020.
 
 The clamp is guarded by the same test rather than measured on its own: it runs across all sixteen
 frames, and the accumulated mean still sits on the converged one to within two per cent — a clamp
@@ -458,35 +462,18 @@ runs of one build, the doll about 0.02% — so those two need a magnitude compar
 same-build control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path
 and `doll` the only transparent-background one.
 
-**1 — a linear channel the harness can read (4.1, 4.2).** Both measurements below are up against
-eight bits. 4.2's figure of 0.00253 is already two thirds of a byte at that brightness, so the
-accumulated frame sits at the edge of what the read-back can distinguish and a tighter number cannot
-be had at all; 4.1's tail is counted in bounce luminance, which the tone curve has spent by the time
-`OffscreenTrace` sees it. What both want is the image before the curve, in the format it was traced
-in.
-
-*Check:* the filter tests reproduce their present figures through the new channel to within what the
-eight-bit path could resolve. A channel that disagreed with the one it replaces is a channel
-measuring something else.
-
-**2 — count what the firefly clamp removes (4.1).** The tail table in 4.1 was taken before the clamp
-existed, on the one-sample bounce; what is not established is how much of it the clamp actually
-takes once a history is behind it. That wants the same instrumentation the table came from, run
-through `AccumulatePass` this time, on the same four cells.
+**1 — count what the firefly clamp removes (4.1).** The tail table in 4.1 was taken before the clamp
+existed, on the one-sample bounce; what is not established is how much of it the clamp actually takes
+once a history is behind it. `Channel::Indirect` is the read-back it needs — the bounce in linear
+radiance, before the albedo is multiplied back in and before the curve — and what is left is to take
+the table again through `AccumulatePass`, on the same four cells. The accumulator writes into images
+of its own rather than back into the G-buffer, so a second channel has to reach those.
 
 *Check:* the table again, per view, with the clamp on and off — and the guard that already exists
 still holding: the accumulated mean stays on the converged reference to within two per cent, which a
 clamp eating real light would pull down.
 
-**3 — the temporal half, off the floor (4.2).** "A little over a third of the error the cascade
-cannot reach" is a floor and not a figure, for the reason step 1 exists. Recompute it where the
-format can hold the answer.
-
-*Check:* the same pair of RMSEs against a 128-sample reference on the same coplanar grid — the
-cascade alone, and the cascade with sixteen frames behind it. The ratio is the answer; the absolute
-numbers are what the eight-bit path could not give.
-
-**4 — carry the reservoir (4.3).** Temporal through the motion vector first, spatial across
+**2 — carry the reservoir (4.3).** Temporal through the motion vector first, spatial across
 neighbours after. This is the one item here that changes the picture rather than the frame time: it
 brings the previous frame's *traced visibility* into a target function that cannot otherwise have
 it, so the lamp that is kept is the lamp that was actually reaching. 4.3 closed the cost argument,
@@ -496,14 +483,16 @@ so it is queued on its own merits and nothing is waiting on it.
 pinned exposure, which must stay at the fifth decimal — and beside it the first-frame RMSE, which is
 what reuse is for and which has to *fall*.
 
-**5 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
-neighbourhood every thread in the workgroup shares. Held until 3 has said what the cascade is still
-worth, because a temporal denoiser usually needs fewer levels and the tile is worth more per level.
+**3 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
+neighbourhood every thread in the workgroup shares. It was held until the temporal half had a real
+figure, and now it has one: the history takes 44% of what the cascade cannot reach (4.2), so the
+cascade is still carrying the majority of the error and its level count is not about to collapse.
+The tile is worth what it was worth.
 
 *Check:* the byte comparison — a tile is a cache and must change nothing — and the atrous timer
 against the level count it was measured at.
 
-**6 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel, after 4 has
+**4 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel, after 2 has
 changed what is live: the micromaps already took a texture fetch and a candidate loop off part of
 the hot path, and a carried reservoir puts a buffer into it. Nothing in 4.6 is to be *acted* on
 before this — that is `CLAUDE.md`'s rule and it holds — and the split into `lib/` is what makes a
@@ -512,7 +501,7 @@ cheaper variant a one-line edit once the number says which one to try.
 *Check:* the number itself, written down beside the register count and the live-state inventory 4.6
 lists, and nothing else changed.
 
-**7 — decide SER (4.5).** With 6's number in hand: if occupancy is where the megakernel is losing,
+**5 — decide SER (4.5).** With 4's number in hand: if occupancy is where the megakernel is losing,
 price the ray-tracing pipeline that `reorderThreadEXT` requires, against what ray query and the
 register-resident megakernel are worth. Until it is decided, `plan.md` §8's SER entry should say it
 needs one.
