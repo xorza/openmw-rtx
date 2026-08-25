@@ -66,6 +66,19 @@ namespace RtxTool
         /// Write the albedo with no shading over it.
         bool mShowAlbedo = false;
 
+        /// Report the share of pixels whose accumulated bounce luminance passes each of a ladder of
+        /// thresholds, beside the frame's other figures.
+        ///
+        /// **What a firefly is counted in, and the one thing bytes cannot say.** A bright bounce is
+        /// scene-referred radiance and the display curve has spent that by the time a pixel is a
+        /// byte, so the tail is read off `Channel::Indirect` — the bounce in linear radiance, after
+        /// the accumulator has had it and before the albedo is put back on.
+        ///
+        /// Wants `--upscale=off` so the wavelet and its accumulator run at all, and a `--accumulate`
+        /// long enough for the history to pass `ACCUMULATE_SETTLED`, which is what the clamp holds
+        /// off until.
+        bool mTail = false;
+
         /// What to scale the frame by before the display curve, or nothing to measure it off the
         /// frame. A picture wants it measured; a reference wants it held still.
         std::optional<float> mExposure;

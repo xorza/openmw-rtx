@@ -4,11 +4,14 @@
 #include "placement.hpp"
 #include <components/rtx/frametimes.hpp>
 #include <components/rtx/png.hpp>
+#include <components/rtx/shaders/colour.h>
 
+#include <array>
 #include <chrono>
 #include <memory>
 #include <ostream>
 #include <span>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -156,6 +159,47 @@ namespace RtxTool
         const double covered = tally.mOpaque + tally.mTransparent + tally.mUnknown;
         const auto share = [covered](double part) { return covered > 0.0 ? part / covered * 100.0 : 0.0; };
 
+        // **The bounce's tail, in radiance and not in bytes.** A firefly is a bounce far enough
+        // above what the pixel has been seeing to be an outlier, and that is a statement about
+        // scene-referred light: the display curve has spent the range it lives in long before a
+        // pixel is a byte. Read off the channel the accumulator wrote, so what is counted is what
+        // the clamp has already been over.
+        std::string tail;
+        if (request.mTail)
+        {
+            std::vector<float> bounce;
+            renderer->readChannel(Rtx::Channel::Indirect, bounce);
+
+            // The ladder 4.1's table was taken on. One is about where the signal ends — a surface
+            // seeing a full hemisphere of sky — and everything past it is the tail proper.
+            static constexpr std::array<float, 5> sThresholds{ 0.5f, 1.0f, 8.0f, 32.0f, 64.0f };
+            std::array<std::uint64_t, 5> over{};
+
+            const std::size_t counted = bounce.size() / 4;
+            for (std::size_t at = 0; at < counted; ++at)
+            {
+                // **The renderer's own weights and not a copy of them.** `colour.h` says why they
+                // are shared: a second set would be a second idea of which of two things is
+                // brighter, and this is what decides which of a frame's pixels are outliers.
+                const float lit = bounce[at * 4] * Rtx::Shaders::LUMINANCE_WEIGHTS.x()
+                    + bounce[at * 4 + 1] * Rtx::Shaders::LUMINANCE_WEIGHTS.y()
+                    + bounce[at * 4 + 2] * Rtx::Shaders::LUMINANCE_WEIGHTS.z();
+
+                for (std::size_t step = 0; step < sThresholds.size(); ++step)
+                    if (lit > sThresholds[step])
+                        ++over[step];
+            }
+
+            std::ostringstream line;
+            line << "bounce tail:";
+            for (std::size_t step = 0; step < sThresholds.size(); ++step)
+                line << (step == 0 ? " >" : ", >") << sThresholds[step] << ' '
+                     << (counted > 0 ? static_cast<double>(over[step]) / static_cast<double>(counted) * 100.0 : 0.0)
+                     << '%';
+            line << '\n';
+            tail = line.str();
+        }
+
         // Primary rays, so out of the pixels that were traced rather than the pixels written.
         const double fraction
             = static_cast<double>(hits) / (static_cast<double>(extents.mRenderWidth) * extents.mRenderHeight) * 100.0;
@@ -191,7 +235,7 @@ namespace RtxTool
             << stats.mMicromappedInstances << " micromapped)\n"
             << "micromaps:  " << share(tally.mOpaque) << "% opaque, " << share(tally.mTransparent) << "% transparent, "
             << share(tally.mUnknown) << "% still asking\n"
-            << "structures: " << stats.mStructureBytes / 1024 << " KiB\n"
+            << tail << "structures: " << stats.mStructureBytes / 1024 << " KiB\n"
             << "tables:     " << stats.mTableBytes / 1024 << " KiB\n"
             << "textures:   " << stats.mTextureCount << " in " << stats.mTextureBytes / 1024 << " KiB\n"
             << "device up:  " << deviceMs << " ms\n"

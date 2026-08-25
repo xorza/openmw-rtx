@@ -133,6 +133,9 @@ namespace RtxTool
             "and a number holds it there. A pixel test and a converged reference want it held, "
             "because a measured exposure makes every value depend on the whole frame");
 
+        addOption("tail", bpo::bool_switch(),
+            "with `shot`, report what share of the frame's bounce is far enough above the mean to be "
+            "a firefly. Wants --upscale=off and an --accumulate long enough to settle the history");
         addOption("albedo", bpo::bool_switch(),
             "write the albedo with no shading over it, which is what a texture problem looks like "
             "when nothing else is in the way");

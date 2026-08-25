@@ -162,35 +162,51 @@ Naming this first because a reorganisation is exactly where it gets lost.
 Ordered as `CLAUDE.md` orders them: how it looks, then performance — with plain correctness ahead of
 both, because a wrong pixel is not a trade.
 
-### 4.1 The firefly clamp is in and its effect is not counted
+### 4.1 The firefly clamp — counted, and the tail it was aimed at has moved
 
-The clamp lives in the accumulator, at `ACCUMULATE_SIGMAS` from the running mean — the form with no
-constant in it that is about this game, which is why it had to wait for a history. What is not
-established is how much of the tail it actually takes.
+**Measured with `shot --tail`**, which reports the share of a frame whose accumulated bounce
+luminance passes each threshold, read off `Channel::Indirect` — the bounce in linear radiance, after
+the accumulator and before the albedo goes back on. 1920×1080 with nothing upscaling, so one pixel is
+0.000048%; the counts are given because the shares are otherwise unreadable.
 
-The tail it is aimed at, measured before it existed, as the share of pixels whose one-sample bounce
-luminance exceeds a threshold:
+| view | one sample | 16 frames, clamp off | 16 frames, clamp on |
+|---|---|---|---|
+| Seyda Neen ship, over 0.5 | 176 px | 10 px | **3 px** |
+| Seyda Neen ship, over 1 | 6 | 2 | **0** |
+| Balmora, over 0.5 | 19 | 1 | **0** |
+| Balmora, over 8 | 3 | 0 | **0** |
+| customs office, over 0.5 | 27 | 20 | **20** |
+| customs office, over 1 | 13 | 19 | **17** |
+| canalworks, any | 0 | 0 | 0 |
 
-| threshold | Seyda Neen ship | Balmora | customs office | canalworks |
-|---|---|---|---|---|
-| 0.5 | 10.8% | 4.9% | 0.046% | 0% |
-| 1 | 0.0037% | 0.0002% | 0.022% | 0% |
-| 8 | 0% | 0.0001% | 0.0004% | 0% |
-| 32 | 0% | 0.0001% | 0.0002% | 0% |
-| 64 | 0% | 0% | 0% | 0% |
+**The history does nearly all of it and the clamp finishes it.** Sixteen frames take the ship's tail
+from 176 pixels to ten; the clamp takes those ten to three, and everything over one to none. Balmora's
+single surviving pixel goes as well. That is the shape the design predicted — an average over
+independent draws is the strongest outlier suppressor there is, and the clamp is for what survives it.
 
-The signal ends at about one — a surface seeing a full hemisphere of sky — and above it is two to
-thirty-four pixels of nine hundred thousand, reaching between 32 and 64.
+**The customs office is where it declines to fire, and that is the clamp being right.** Twenty pixels
+sit over 0.5 there with seventeen over one, and clamping barely touches them: `ceiling` is the running
+mean plus `ACCUMULATE_SIGMAS` of its own spread, so a pixel that sees a bright thing *consistently*
+raises the mean to meet it and is never an outlier. Those are not fireflies; they are a lamp a bounce
+keeps landing on. It is exactly the argument the clamp was built on — what a firefly is cannot be said
+in radiance, only in deviations from what this pixel has been seeing — and the one cell in the set
+with lamps everywhere is where it shows.
+
+**The table this replaces is three orders of magnitude larger, and it is not comparable.** It read
+10.8% of the ship's pixels over 0.5 where the same view now reads 0.0085% on the same one-sample
+bounce. It was taken before reservoir sampling bounded the shadow rays, before the delighting, and
+before there was an accumulator at all, so what it counted is not what this counts. What it
+established — that the signal ends around one and the tail above it is a handful of pixels — still
+holds, and holds by a wider margin.
 
 **Why an absolute ceiling was never possible.** `falloff` is `window² / (d² + 1)`, so a bounce landing
 on a lamp returns that lamp's intensity, and a lamp's intensity is content. Any number chosen for
 these four cells is a number a modded fifth moves.
 
-**What guards it today is that it does not eat real light**: `theHistoryCarriesWhereTheCascadeHasNo
-NeighboursToBorrow` runs it across sixteen frames and the accumulated mean still sits on a converged
-reference to within two per cent, which a clamp firing too eagerly would pull down. Counting what it
-*removes* wants this table taken again through the accumulator, which needs the trace instrumented
-the way it was to produce it.
+**What guards it against eating real light** is
+`theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow`: it runs the clamp across sixteen frames and
+the accumulated mean still sits on a converged reference to within two per cent, which a clamp firing
+too eagerly would pull down.
 
 **A NaN was looked for and is not there.** Every channel the trace writes was instrumented and counted
 across seven views and two storms: none. Nor should there be — the tree answers untrusted content at
@@ -462,18 +478,7 @@ runs of one build, the doll about 0.02% — so those two need a magnitude compar
 same-build control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path
 and `doll` the only transparent-background one.
 
-**1 — count what the firefly clamp removes (4.1).** The tail table in 4.1 was taken before the clamp
-existed, on the one-sample bounce; what is not established is how much of it the clamp actually takes
-once a history is behind it. `Channel::Indirect` is the read-back it needs — the bounce in linear
-radiance, before the albedo is multiplied back in and before the curve — and what is left is to take
-the table again through `AccumulatePass`, on the same four cells. The accumulator writes into images
-of its own rather than back into the G-buffer, so a second channel has to reach those.
-
-*Check:* the table again, per view, with the clamp on and off — and the guard that already exists
-still holding: the accumulated mean stays on the converged reference to within two per cent, which a
-clamp eating real light would pull down.
-
-**2 — carry the reservoir (4.3).** Temporal through the motion vector first, spatial across
+**1 — carry the reservoir (4.3).** Temporal through the motion vector first, spatial across
 neighbours after. This is the one item here that changes the picture rather than the frame time: it
 brings the previous frame's *traced visibility* into a target function that cannot otherwise have
 it, so the lamp that is kept is the lamp that was actually reaching. 4.3 closed the cost argument,
@@ -483,7 +488,7 @@ so it is queued on its own merits and nothing is waiting on it.
 pinned exposure, which must stay at the fifth decimal — and beside it the first-frame RMSE, which is
 what reuse is for and which has to *fall*.
 
-**3 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
+**2 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
 neighbourhood every thread in the workgroup shares. It was held until the temporal half had a real
 figure, and now it has one: the history takes 44% of what the cascade cannot reach (4.2), so the
 cascade is still carrying the majority of the error and its level count is not about to collapse.
@@ -492,7 +497,7 @@ The tile is worth what it was worth.
 *Check:* the byte comparison — a tile is a cache and must change nothing — and the atrous timer
 against the level count it was measured at.
 
-**4 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel, after 2 has
+**3 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel, after 1 has
 changed what is live: the micromaps already took a texture fetch and a candidate loop off part of
 the hot path, and a carried reservoir puts a buffer into it. Nothing in 4.6 is to be *acted* on
 before this — that is `CLAUDE.md`'s rule and it holds — and the split into `lib/` is what makes a
@@ -501,7 +506,7 @@ cheaper variant a one-line edit once the number says which one to try.
 *Check:* the number itself, written down beside the register count and the live-state inventory 4.6
 lists, and nothing else changed.
 
-**5 — decide SER (4.5).** With 4's number in hand: if occupancy is where the megakernel is losing,
+**4 — decide SER (4.5).** With 3's number in hand: if occupancy is where the megakernel is losing,
 price the ray-tracing pipeline that `reorderThreadEXT` requires, against what ray query and the
 register-resident megakernel are worth. Until it is decided, `plan.md` §8's SER entry should say it
 needs one.
