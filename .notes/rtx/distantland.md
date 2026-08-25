@@ -1,0 +1,225 @@
+# Distant land
+
+Exteriors rendered past the cells the game keeps loaded: the active grid at full detail as it is
+today, and a further ring of cells — four out — as terrain LOD. Companion to `plan.md` (the route)
+and `backends.md` (the two backends); this one is about what has to change and in what order.
+
+Everything in §2 and §3 was read or measured rather than assumed, and each claim says which.
+
+## 1. What is being asked for
+
+- The active grid keeps exactly what it has now: full-detail chunks, real ground textures, blend
+  masks, every static and every actor.
+- Beyond it, out to **four cells** in every direction, ground exists and is drawn at decreasing
+  detail. That is a 9×9 block of cells against the 3×3 the game processes.
+- Distant statics come with it, because a hillside with no towers on it is not distant land.
+- It costs what LOD is supposed to cost. Nine times the area must not be nine times the frame.
+
+## 2. What already exists
+
+**`Terrain::QuadTreeWorld` is the whole LOD mechanism and it is already correct.**
+`DefaultLodCallback::isSufficientDetail` (`quadtreeworld.cpp:54`) does exactly the split being asked
+for: a node that intersects the active grid returns `Deeper` until it is at leaf size, so the active
+grid is never LOD'd; everything else picks a level from its distance and stops. Leaves are an eighth
+of a cell (`mMinSize`, `quadtreeworld.cpp:293`).
+
+**`QuadTreeWorld::collect` is a ray tracer's question, not a cull.** It was written for this
+renderer: it takes a view the caller owns, resolves it always, and hands over every chunk within the
+view distance with nothing rejected by a frustum. `Rtx::TerrainResidency` holds that view — one
+view, so the reflection and the primary ray cannot disagree about a chunk's level — and
+`RenderingManager` follows it and sets its view point to the eye every frame
+(`renderingmanager.cpp:892`). It is tested:
+`aPagedWorldsGroundReachesTheMirrorAndOnlyBecauseItWasAskedFor`, with the converse test that a
+`TerrainGrid` offers no residency so the ground is never placed twice.
+
+**Distant statics arrive through the same call.** `loadRenderingNode` walks `mChunkManagers` and
+asks each for its chunk, so `ObjectPaging`'s merged statics and groundcover come back from `collect`
+alongside the ground.
+
+**The extractor already understands a layer stack.** `resolveTerrainMaterial` reads a
+`TerrainDrawable`'s passes into `MaterialKind::Terrain` with a `MaterialLayer` apiece — diffuse,
+transform, blend mask — and the shader sums them at a hit with `maskWeight`.
+
+So the paging, the LOD, the delivery and the near-field shading are all in place. What is missing is
+narrower than it looks.
+
+## 3. What blocks it
+
+### 3.1 View distance is smaller than a cell
+
+`viewing distance = 7168.0` (`settings-default.cfg:19`) against a cell of 8192 units.
+`mViewDistance` is what `isSufficientDetail` cuts traversal at, and the active grid is exempt from
+the cut — so **nothing outside the active grid is ever produced**, and paging is doing no work at
+all.
+
+Measured: `--distant-terrain` at Balmora renders the same 199,821 triangles as without it, and the
+frame differs in 940 pixels out of 2,073,600 — the difference being the same ground packed into
+quadtree chunks rather than grid chunks (84 fewer materials, 144 fewer instances). No distance
+appears because none is asked for.
+
+### 3.2 Distant chunks are textured by an OpenGL render target
+
+`ChunkManager::createChunk` (`chunkmanager.cpp:258`):
+
+```cpp
+bool useCompositeMap = chunkSize >= mCompositeMapLevel;
+```
+
+with `composite map level = 0`, so `mCompositeMapLevel` is 1 and **every chunk of a cell or larger
+is textured by one composite map**. A composite map is an `osg::Texture2D` with no image, drawn by
+`Terrain::CompositeMapRenderer` — an `osg::Drawable` that renders the layer stack into a texture
+through OpenGL.
+
+**The RTX path has no GL context.** That is the fork's central decision, not an oversight: with
+`[RTX] enabled` there is no `osgViewer` graphics window and no interop. So a composite map arrives
+with nothing to upload, `describeImage` cannot read it, and the chunk gets the mid-grey stand-in
+`SceneTextures::getUnreadable` counts.
+
+This does not bite today only because §3.1 means no chunk is ever a cell across. It is the whole of
+the work.
+
+### 3.3 Nothing is culled, so distance is paid for in full
+
+The RT path has no frustum: rays go everywhere, so every chunk `collect` hands over is in the
+acceleration structure whether or not it is behind the eye. Nine times the area is nine times the
+*coverage*, and only LOD keeps it from being nine times the geometry — which is what LOD is for, and
+it holds: four cells is known affordable and is a starting radius rather than a ceiling. What this
+does mean is that the radius is paid for in full at every camera angle, so it is a memory and
+structure question rather than a visibility one, and §6 step 6 is where that is held flat.
+
+## 4. The design
+
+### D1 — the RT path never asks for a composite map
+
+`composite map level` is raised, under RTX, above the largest chunk the quadtree will build, so
+`useCompositeMap` is false everywhere and **every chunk arrives as a layer stack of real files and
+real blend masks**. Forced by the renderer rather than asked of the user: it is not a tuning knob
+here but a statement that this path cannot read a render target.
+
+This is what makes everything below possible. The inputs to a composite — the ground textures, their
+transforms, the masks — are then all present, readable, and already being read by
+`resolveTerrainMaterial`.
+
+### D2 — the RT path bakes its own composite, in the core, from that stack
+
+A chunk past a threshold is baked once into a single texture and its material becomes a one-layer
+terrain material — which is exactly the shape `createPasses` gives a GL composite chunk, reached
+without a GL context.
+
+**Why bake at all, rather than shade the stack live at distance.** The composite is not only a
+texturing workaround, it is the *shading* LOD. A distant chunk covers many cells and carries every
+ground type in them; shading it live is one `maskWeight` and one texture fetch per layer per hit,
+and distant hits are the majority of the pixels once four cells are visible. Baking turns that into
+one fetch. The near field keeps the live stack, where the layer count is small and the sharpness is
+worth paying for.
+
+**Why in the core and on the CPU.** It fits the seam the renderer already has — `components/rtx/`
+decides what the scene *is* and hands a backend `TextureData`; the backend uploads it like any other
+image. No new Vulkan pass, no second path through the frame, and it is testable with no device at
+all: a components test bakes a stack and asserts texels. It is also written once for both backends,
+which a Vulkan bake would not be.
+
+**Why it does not go on the frame path.** A frame that bakes eight chunks is a dropped frame, and
+this tree's rule is that work is made incremental rather than batched behind a threshold. The bake
+is a queue drained a bounded amount per frame, with the chunk shading from its live stack — or from
+a coarser ancestor's bake — until its own is ready.
+
+### D3 — the distant radius is an RTX setting in cells
+
+`viewing distance` is the rasterizer's fog-and-visibility knob and means something else. What the RT
+path needs is *how much world exists*, which is a property of the acceleration structure and not of
+the camera. A new `[RTX] distant land cells` (default 4) converts to `cells × 8192` units and is
+what `setViewDistance` is given on this path.
+
+### D4 — terrain residency is left alone
+
+`TerrainResidency` already asks rather than walks, already holds exactly one view, and is already
+tested. Nothing about it changes.
+
+## 5. What has to be redesigned
+
+### R1 — the scene's texture table is keyed by file path
+
+`SceneDesc::addTexture(VFS::Path::NormalizedView)` dedups by path, and `SceneTextures` resolves each
+path through `Resource::ImageManager`. **A baked composite is not a file**, so neither call can
+express it: there is no path to dedup on and nothing for the image manager to open.
+
+This is the one structural change the feature needs. The table has to be able to hold an image whose
+bytes the core already owns, keyed by something stable, with the same reference counting and the
+same slot reuse every other texture gets — because a distant chunk comes and goes as the player
+moves and its composite has to go with it.
+
+The narrow shape: a second way in that takes a description and a key, with the existing path-keyed
+call written in terms of it. Not a second table, and not a parallel lifetime.
+
+### R2 — `resolveTerrainMaterial` gains a decision it does not have
+
+Today it always builds the stack. It has to choose per chunk between the live stack and the bake,
+and the identity it already uses — the first pass's `StateSet` pointer — is enough to key the bake
+cache, so no new notion of *which piece of world this is* has to be invented. What it needs from the
+chunk is its size, to make the choice.
+
+### R3 — the harness has to be able to see distant land
+
+`openmw-rtxtool` builds a `QuadTreeWorld` behind `--distant-terrain` and then hands it
+`Settings::camera().mViewingDistance` (`world.cpp:223`), so it inherits §3.1 exactly. It needs the
+same cell-radius setting the renderer gets, and a view far enough out to look at.
+
+Two of the nine byte-comparison views — `seyda-neen-shore` and `dagon-fel` — already carry an open
+issue about rendering a bare water quad, and that is the same neighbourhood: a view that gives a
+cell and no camera. Worth settling alongside, since they are the views that would show this feature.
+
+## 6. Implementation steps
+
+Each leaves the tree working and names its own check. The frame changes shape at step 4, when
+distant ground first arrives textured, so any figure taken before it is a figure about a different
+frame.
+
+**1 — let the scene hold an image that is not a file (R1).** The table gains a keyed description and
+`addTexture` is written in terms of it; reference counting, slot reuse and the freed-slot list are
+unchanged. **Check:** the existing texture tests still pass, plus one that adds a described image,
+drops it, and sees the slot reused.
+
+**2 — bake a layer stack into one texture, in the core.** `Rtx::TerrainComposite` beside
+`AlphaImage`: a stack of diffuse images, transforms and masks in, one `TextureData` out. No device,
+no GL. **Check:** a components test that bakes a two-layer stack with a known mask and asserts exact
+texels at the boundary and in each layer's interior — a bake that got a transform or a mask sense
+backwards is a chunk with its ground types swapped, and only an exact assertion catches it.
+
+**3 — stop the GL composite being made at all (D1).** Force `composite map level` past the largest
+chunk under RTX. **Check:** `--distant-terrain` past a cell produces chunks whose passes are all
+readable files; `SceneTextures::getUnreadable` stays at whatever it was before, which is the number
+that says no render target reached the uploader.
+
+**4 — choose the bake at distance (R2, D2).** `resolveTerrainMaterial` takes the chunk's size and
+either builds the stack or asks for the composite. Bakes go on a queue drained a bounded amount per
+frame; a chunk with no composite yet shades from its stack. **Check:** the byte comparison on the
+nine views is unchanged — the active grid must not move a pixel — and distant ground is textured
+rather than grey.
+
+**5 — give the radius its own setting (D3).** `[RTX] distant land cells`, default 4, in the game and
+the harness — a knob rather than a constant, because four is where this starts and not where the
+hardware stops. **Check:** 1, 2 and 4 cells each produce visibly more ground, and the trace timer and
+structure bytes are reported at each so the shape of the growth is on record before anyone raises the
+default.
+
+**6 — hold the frame flat.** Chunks arriving and leaving must not spike: the bake queue is bounded,
+the structures append and recycle slots as they already do, and composites are released with their
+chunks. **Check:** the worst frame and the p99 across a walk that crosses several cell boundaries,
+beside the median — the tree's rule is that a spike is a dropped frame however good the average is.
+
+**7 — settle the two views (R3).** `seyda-neen-shore` and `dagon-fel` are the views this feature is
+visible in and both currently render a bare water quad. **Check:** the open issue in `ISSUES.md`
+closes, and both show terrain.
+
+## 7. What is not known yet
+
+- **How many layers a large chunk's stack has** once composites are off. `createPasses` gathers what
+  the area holds; if an eight-cell chunk comes back with twenty passes, the bake is still fine but
+  the interim shading before a bake lands is not, and step 4's fallback has to be a coarser ancestor
+  rather than the live stack.
+- **What object paging costs at radius 4.** It arrives through the same `collect` and is merged
+  geometry, so its textures are real files and nothing in §3.2 applies to it — but it is geometry in
+  the acceleration structure, and step 6 should count it separately from the ground.
+- **Groundcover.** Another chunk manager on the same path. Out of scope here; it wants its own
+  answer and probably its own distance.
