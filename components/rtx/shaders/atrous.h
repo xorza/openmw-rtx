@@ -57,12 +57,24 @@ namespace Rtx::Shaders
         /// way in distance between neighbouring pixels while remaining one flat surface, so a test
         /// on distance alone would refuse to filter exactly the ground that most needs it.
         float mPlaneSigma;
+
+        /// How far a tap's brightness may differ from the centre's before it stops being the same
+        /// light, in standard deviations of what the centre has been measuring.
+        ///
+        /// **The term SVGF has and this cascade did not**, and the reason it did not was that there
+        /// was no history to take a variance from. With one, the filter can finally stop at an edge
+        /// in the *light* — the line where a shadow ends on a flat wall, which the normal test and
+        /// the plane test both read as one surface and blur straight through.
+        ///
+        /// Scaled by the estimator's own spread, so a pixel that is still noisy filters widely and a
+        /// settled one holds its detail. SVGF's own figure.
+        float mLuminanceSigma;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
-    static_assert(sizeof(AtrousConstants) == 72, "AtrousConstants must be scalar-packed on every side");
+    static_assert(sizeof(AtrousConstants) == 76, "AtrousConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

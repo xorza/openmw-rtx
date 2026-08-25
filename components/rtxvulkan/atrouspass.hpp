@@ -49,8 +49,12 @@ namespace Rtx
         ///
         /// @param buffer must have been handed over, so the trace's writes are visible here. Its
         ///        indirect channel is the input and may be written by an even-numbered level.
+        /// @param moments what the accumulator in front of this measured: the estimator's own
+        ///        variance, which is what turns a difference in brightness into an edge or into
+        ///        noise. A pixel with no history carries one, and one means "filter widely".
         /// @param camera the one the frame was traced with; the edge tests rebuild its rays.
-        const Image& record(VkCommandBuffer commands, const GBuffer& buffer, const Shaders::Camera& camera) const;
+        const Image& record(
+            VkCommandBuffer commands, const GBuffer& buffer, const Image& moments, const Shaders::Camera& camera) const;
 
     private:
         const Device& mDevice;

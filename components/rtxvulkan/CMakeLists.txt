@@ -41,6 +41,7 @@ find_program(OPENMW_SPIRV_VAL NAMES spirv-val REQUIRED
     DOC "spirv-val, from SPIRV-Tools — validates every module the build produces")
 
 set(RTX_SHADERS
+    shaders/accumulate.comp
     shaders/atrous.comp
     shaders/composite.comp
     shaders/exposure.comp
@@ -114,6 +115,8 @@ add_custom_target(openmw-rtx-vulkan-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS}
                   SOURCES ${RTX_SHADERS} ${RTX_SHADER_LIB})
 
 set(RTX_VULKAN_FILES
+    accumulatepass.cpp
+    accumulatepass.hpp
     atrouspass.cpp
     atrouspass.hpp
     blockedbuffer.cpp

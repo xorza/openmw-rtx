@@ -58,7 +58,9 @@ namespace Rtx
         , mShaderDirectory(options.mShaderDirectory)
         , mUpscale(options.mUpscale)
         , mPreset(options.mPreset)
+        , mAccumulate(mDevice, options.mShaderDirectory)
         , mFilter(mDevice, options.mShaderDirectory)
+        , mViewAccumulate(mDevice, options.mShaderDirectory)
         , mViewFilter(mDevice, options.mShaderDirectory)
         , mComposite(mDevice, mPool, options.mShaderDirectory)
         , mExposure(mDevice, options.mShaderDirectory)
@@ -151,6 +153,7 @@ namespace Rtx
         });
 
         mChannels = std::make_unique<GBuffer>(mDevice, mRenderWidth, mRenderHeight);
+        mAccumulate.resize(mRenderWidth, mRenderHeight);
         mFilter.resize(mRenderWidth, mRenderHeight);
 
 #ifdef OPENMW_RTX_DLSS
@@ -596,6 +599,13 @@ namespace Rtx
             mTimer.beginFrame();
         mTimed = false;
 
+        // **A history is worthless after a jump no motion vector can describe.** A zero basis catches
+        // the frames that have no past at all — a resize, a rebuild, the first one — and nothing
+        // caught the rest: walking through a door left the previous camera intact and a reprojection
+        // fetched one room onto another. `mHistoryStale` is the other half, and it is the signal the
+        // renderer was already being sent. Both denoisers ask it, so it is answered once.
+        const bool historyLost = mHistoryStale || mPreviousCamera.mCamera.mForward.length2() <= 0.0f;
+
         const auto start = std::chrono::steady_clock::now();
 
         mPool.submitAndWait([&](VkCommandBuffer commands) {
@@ -633,16 +643,31 @@ namespace Rtx
             // it a frame the wavelet already blurred is asking it to recover what was thrown away —
             // which is why `resolve` never answers with both.
             const bool filtering = reconstruction.mDenoiser == Denoiser::Wavelet;
+            const Image* indirect = &mChannels->getIndirect();
             if (filtering)
-                mTimer.open(commands, "filter");
-
-            const Image& indirect
-                = filtering ? mFilter.record(commands, *mChannels, sampled.mCamera) : mChannels->getIndirect();
-            if (filtering)
+            {
+                // **The temporal half first, and the cascade is what fills in where it was
+                // rejected.** The accumulator replaces the trace's single sample with the mean of
+                // the frames this surface has been seen over, and hands on the variance of that
+                // mean — which is what lets the levels below stop at an edge in the light rather
+                // than only at an edge in the geometry.
+                mTimer.open(commands, "accumulate");
+                const Image& moments = mAccumulate.record(commands, *mChannels, sampled.mCamera, historyLost);
                 mTimer.close(commands);
 
+                // The cascade reads what the accumulator just wrote, in both channels.
+                for (const Image* written : { &mChannels->getIndirect(), &moments })
+                    written->transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+                        VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                        VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+
+                mTimer.open(commands, "filter");
+                indirect = &mFilter.record(commands, *mChannels, moments, sampled.mCamera);
+                mTimer.close(commands);
+            }
+
             mTimer.open(commands, "composite");
-            mComposite.record(commands, *mChannels, indirect, mHistory.get(), *mColour,
+            mComposite.record(commands, *mChannels, *indirect, mHistory.get(), *mColour,
                 Shaders::CompositeConstants{
                     .mWidth = mRenderWidth,
                     .mHeight = mRenderHeight,
@@ -675,13 +700,7 @@ namespace Rtx
                         .mOutput = *mUpscaled,
                         .mJitter = sampled.mCamera.mJitter,
                         .mFrameDeltaMs = sinceLastMs,
-                        // **A history is worthless after a jump no motion vector can describe.** A
-                        // zero basis catches the frames that have no past at all — a resize, a
-                        // rebuild, the first one — and nothing caught the rest: walking through a
-                        // door left the previous camera intact and Ray Reconstruction reprojected
-                        // one room onto another. `mHistoryStale` is the other half, and it is the
-                        // signal the renderer was already being sent.
-                        .mReset = mHistoryStale || mPreviousCamera.mCamera.mForward.length2() <= 0.0f,
+                        .mReset = historyLost,
                     });
 
                 // What NGX recorded is its own; nothing here knows which stages it used.
@@ -767,6 +786,7 @@ namespace Rtx
             VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "view target");
 
         mViewChannels = std::make_unique<GBuffer>(mDevice, mViewWidth, mViewHeight);
+        mViewAccumulate.resize(mViewWidth, mViewHeight);
         mViewFilter.resize(mViewWidth, mViewHeight);
     }
 
@@ -815,7 +835,11 @@ namespace Rtx
             mPass->record(commands, inputs, *mViewChannels, mHitCount, camera);
             mViewChannels->handOver(commands);
 
-            const Image& indirect = mViewFilter.record(commands, *mViewChannels, camera.mCamera);
+            // A doll and a map tile are one frame with no frame before them, so the accumulator is
+            // a pass-through that says so: no history, and the largest variance there is, which is
+            // what tells the cascade to filter as widely as it can.
+            const Image& viewMoments = mViewAccumulate.record(commands, *mViewChannels, camera.mCamera, true);
+            const Image& indirect = mViewFilter.record(commands, *mViewChannels, viewMoments, camera.mCamera);
 
             mComposite.record(commands, *mViewChannels, indirect, nullptr, *mViewColour,
                 Shaders::CompositeConstants{

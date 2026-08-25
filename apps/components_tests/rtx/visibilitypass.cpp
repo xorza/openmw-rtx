@@ -13,6 +13,7 @@
 #include <components/rtx/error.hpp>
 #include <components/rtx/instancerecord.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/shaders/accumulate.h>
 #include <components/rtxvulkan/buffer.hpp>
 #include <components/rtxvulkan/commands.hpp>
 #include <components/rtxvulkan/compositepass.hpp>
@@ -3858,7 +3859,7 @@ namespace Rtx
         /// to 0.0061 — eighteen times better against seven. Every number is repeatable, because
         /// frame zero and a sixty-four frame average are both deterministic, so a tenth is a bound
         /// this passes with room and a depth test cannot reach.
-        TEST_F(RtxVisibilityTest, theFilterHalvesTheErrorAgainstAConvergedGrazingSurface)
+        TEST_F(RtxVisibilityTest, theFilterAndItsHistoryConvergeOnAGrazingSurface)
         {
             constexpr std::uint32_t size = 64;
 
@@ -3910,6 +3911,76 @@ namespace Rtx
             EXPECT_GT(before, 0.02f) << "one sample is noisy enough here for the question to mean something";
             EXPECT_LT(after, before * 0.10f)
                 << "and the filter takes most of that error away: " << before << " becomes " << after;
+
+            // **And the temporal half, which is where the error actually falls.** The spatial cascade
+            // borrows samples sideways from neighbours looking at the same surface, which has a
+            // floor: there are only so many of those and they are correlated. Averaging over frames
+            // borrows from samples that are genuinely independent, so its error keeps falling for as
+            // long as the history is allowed to grow.
+            //
+            // Sequenced frames with no averaging in the composite: the sampler advances, so each
+            // frame is a different draw, and the only thing combining them is the accumulator under
+            // test. A still camera, so every pixel reprojects onto itself and no history is
+            // rejected — which is the case this has to get right before any other.
+            //
+            // **`resetHistory` before each run, and leaving it out is what made this test lie.** The
+            // fixture renders many frames, the accumulator keeps what it built across all of them,
+            // and a "one frame" baseline taken without a reset is a baseline that already has a
+            // history in it — which reads as the accumulator doing nothing at all.
+            const auto renderSequence = [&](std::uint32_t frames) {
+                mRenderer->resize(size, size);
+                mRenderer->setScene(Rtx::sWorld, scene, {}, SeaState{});
+                mRenderer->resetHistory();
+
+                for (std::uint32_t frame = 0; frame < frames; ++frame)
+                {
+                    Shaders::VisibilityConstants sampled = camera;
+                    sampled.mFrame = frame;
+                    mRenderer->renderFrame(
+                        sampled, FrameOptions{ .mAccumulate = 0, .mFilter = true, .mExposure = 1.0f });
+                }
+
+                std::vector<std::uint8_t> pixels;
+                mRenderer->readPixels(pixels);
+                return pixels;
+            };
+
+            const std::vector<std::uint8_t> settledPixels = renderSequence(Shaders::ACCUMULATE_FRAMES);
+            const float settled = errorAgainstReference(settledPixels);
+
+            // **The accumulator may not make this worse, and on this surface that is the whole of
+            // what it can be asked.** Measured here, the cascade alone already lands within a third
+            // of a byte of the converged reference — a flat sheet under a smooth sky is precisely
+            // where five levels of à-trous have every advantage, since the signal is uniform and
+            // every neighbour is a valid sample of it. What the history is for is the case this
+            // scene does not have: contact regions, small geometry, and pixels with few neighbours
+            // looking at the same thing. See `.notes/rtx/shaders.md` for what is not yet measured.
+            EXPECT_LE(settled, after * 1.02f)
+                << "the history does not cost what the cascade gained: " << after << " becomes " << settled;
+
+            // **And it converges toward the reference rather than toward its own opinion.** An
+            // average that drifted would still be quieter, and quieter is not the claim: the mean of
+            // the settled picture has to sit where the converged one does, or the accumulator is
+            // dimming the frame and calling it denoising.
+            double settledMean = 0.0;
+            double referenceMean = 0.0;
+            std::size_t counted = 0;
+            for (std::size_t i = 1; i < settledPixels.size(); i += 4)
+            {
+                if (settledPixels[i] == reference[i] && settledPixels[i] == 0)
+                    continue;
+
+                settledMean += static_cast<double>(decodeSrgb(settledPixels[i]));
+                referenceMean += static_cast<double>(decodeSrgb(reference[i]));
+                ++counted;
+            }
+
+            ASSERT_GT(counted, 0u);
+            settledMean /= static_cast<double>(counted);
+            referenceMean /= static_cast<double>(counted);
+
+            EXPECT_NEAR(settledMean, referenceMean, referenceMean * 0.02)
+                << "the accumulated mean is " << settledMean << " against a converged " << referenceMean;
         }
 
         /// A floor meeting a wall, and the filter keeping them apart.

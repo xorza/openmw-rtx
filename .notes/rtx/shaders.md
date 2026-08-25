@@ -146,51 +146,80 @@ Naming this first because a reorganisation is exactly where it gets lost.
 Ordered as `CLAUDE.md` orders them: how it looks, then performance — with plain correctness ahead of
 both, because a wrong pixel is not a trade.
 
-### 4.1 Nothing guards against a NaN or a firefly reaching the history
+### 4.1 The bounce has a firefly tail, and no way to clamp it that is not a picked number
 
-There is no `isnan`, no `isinf` and no clamp on any radiance channel before `imageStore` in `main`.
-Three ways in:
+Measured on the module this tree builds, as the share of pixels whose one-sample bounce luminance
+exceeds a threshold:
 
-- `bounceLight` is one cosine-weighted sample. A bounce landing on an emissive texel or a unit from a
-  lamp returns a value orders above its neighbours, and the à-trous cascade spreads it over
-  sixty-two pixels rather than removing it — it has no variance estimate to reject it with.
-- `caustic` is floored at `1/WATER_CAUSTIC_MAX` and multiplied by a Jensen gain, but `sunThroughWater`
-  multiplies it by an `exp` whose argument is a path divided by `max(-downward.z, 0.05)`.
-- Anything in the scene tables that arrives as a NaN — a zero-length normal, a degenerate transform
-  — propagates through `normalize` and lands in `guide`.
+| threshold | Seyda Neen ship | Balmora | customs office | canalworks |
+|---|---|---|---|---|
+| 0.5 | 10.8% | 4.9% | 0.046% | 0% |
+| 1 | 0.0037% | 0.0002% | 0.022% | 0% |
+| 2 | 0.0009% | 0.0002% | 0.0016% | 0% |
+| 8 | 0% | 0.0001% | 0.0004% | 0% |
+| 32 | 0% | 0.0001% | 0.0002% | 0% |
+| 64 | 0% | 0% | 0% | 0% |
 
-A NaN in the radiance channel does not stay in one frame: DLSS Ray Reconstruction accumulates it, and
-`mReset` is only raised on a camera jump.
+**The signal ends at about one and the tail is a handful of pixels.** Outdoors the bulk of the bounce
+sits under 0.5 and falls off a cliff at 1, which is a surface seeing a full hemisphere of sky; above
+that is two to thirty-four pixels of nine hundred thousand, reaching somewhere between 32 and 64. The
+interior is the awkward one — two hundred pixels above 1, which is a chandelier doing its job and not
+obviously separable from a bounce that landed on one.
 
-**Fix:** one `sanitised()` in the shared colour header, applied at each of the five `imageStore`s
-that write radiance or a guide — `mix(vec3(0), c, equal(c, c))` for the NaN half and a
-percentile-derived ceiling for the firefly half. The ceiling has to be *measured* and written down
-rather than picked, the way `FOG_COVERAGE` was: the honest form is a multiple of the frame's own
-exposure, which `exposure.comp` already computes.
+`bounceLight` is one cosine-weighted sample, and the à-trous cascade has no variance estimate to
+reject an outlier with, so it spreads each of those over sixty-two pixels rather than removing it.
 
-### 4.2 The indirect signal has no temporal dimension at all
+**There is no constant here that can be derived rather than picked, which is why this is not fixed
+yet.** The renderer's own scale would give one — `DAYLIGHT`, `EMISSIVE_INTENSITY` — but the value a
+bounce can legitimately reach is set by the brightest lamp in the cell, and a lamp's intensity is
+content: `falloff` is `window² / (d² + 1)`, so a bounce landing on a lamp returns that lamp's
+intensity whatever it is. Any absolute ceiling is a number somebody chose, and a modded cell moves it.
 
-`atrous.comp` is five spatial levels with no history buffer, no reprojection and no variance — its
-own header says so: *"SVGF's luminance term is missing outright: it weighs by the variance of an
-accumulated history, and there is no history here yet."*
+**The clamp wants to be relative, and 4.2 is what makes that possible.** Against a running mean a
+sample can be rejected for being far from what the same pixel has been seeing, with no scene-
+independent constant anywhere in it. So this is folded into 4.2 rather than standing alone.
 
-So the two paths through the frame are:
+**A NaN was looked for and is not there.** Every channel the trace writes was instrumented and
+counted across seven views and two storms: no NaN and no infinity, anywhere. Nor should there be —
+the tree already answers untrusted content at the boundary, in `describeClouds`, `fogbuilder`,
+`shadingmap`, `lightbuilder` and `sceneextractor`, each written as `!(x > 0)` so that a NaN lands on
+the safe side, and `Rtx::Camera` guards the normalised zero vector that would otherwise fill an image
+with them. **That is where this belongs and it is already done.** A guard at the five `imageStore`s
+was written and measured at sixty instructions a pixel — twenty comparisons, twenty selects, twenty
+`abs` — to catch a fault that has never occurred and whose source is validated one cell at a time
+rather than one pixel at a time. It was taken out again.
 
-- **Ray Reconstruction on** — the wavelet is skipped entirely (`vulkanrenderer.cpp:637`), and NGX is
-  handed a raw one-sample-per-pixel bounce.
-- **Ray Reconstruction off** — one sample per pixel, blurred by a 125-tap cascade with no way to tell
-  a bright pixel from a wrong one.
+### 4.2 The temporal half is built and its quality win is not yet measured
 
-Both are the same missing piece. Every denoiser the field settled on — SVGF, A-SVGF, ReLAX, ReBLUR —
-is a *temporal* accumulator with a spatial cascade attached, and the spatial part exists to fill in
-where the temporal part was rejected. This renderer has the second half without the first.
+`AccumulatePass` runs in front of the cascade whenever the wavelet does, and `atrous.comp` has
+SVGF's third edge-stopping term for the first time. What is in place:
 
-It already owns every input the first half needs: motion vectors for surfaces, sprites, mirrors and
-sky; a bias mask saying where the past is not worth carrying; a plane-distance edge test; and a
-`GBUFFER_DEPTH` carrying both a clip value and a world distance.
+- The indirect channel is reprojected through the motion vector the trace already writes, bilinearly
+  over the four pixels it lands between, each tap taken only if its stored normal and distance say
+  it is the same surface.
+- A history length per pixel, so the blend is an exact mean while the history is short and an
+  exponential one past `ACCUMULATE_FRAMES`.
+- First and second moments, and the variance the cascade weighs a tap by. A pixel with no history
+  carries the largest variance there is rather than nought — `E[l²] - E[l]²` over one sample is
+  exactly zero, which a filter reads as *certain* and is the opposite of the truth.
+- The firefly clamp 4.1 asked for, at `ACCUMULATE_SIGMAS` from the running mean, with no constant in
+  it that is about this game.
+- `biasMask` and a lost history are the two reset signals, and `historyLost` is now one expression
+  that both denoisers read.
 
-**This is the largest single lever on how it looks**, and it is the one the priority order puts
-first.
+**What is not established is that it makes the picture better.** The scene the filter tests use — a
+grazing sheet under a smooth sky — is already converged by the cascade alone: one filtered frame
+lands within a third of a byte of a sixty-four-sample reference, so there is nothing left for a
+history to take. Five levels of à-trous have every advantage there, because the signal is uniform and
+every neighbour is a valid sample of it.
+
+So the test asserts what it can: that sixteen accumulated frames do not cost what the cascade gained,
+and that the accumulated mean sits on the converged one rather than drifting off it — an average that
+dimmed the frame would be quieter and wrong.
+
+**The measurement wants a scene the cascade struggles with**: contact regions, small geometry, and
+pixels with few neighbours looking at the same thing. That is the number this entry is still missing,
+and it is what closes it.
 
 ### 4.3 Direct lighting is unbounded in the number of lamps
 
@@ -313,37 +342,32 @@ runs of one build, the doll about 0.02% — so those two need a magnitude compar
 control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path and `doll`
 the only transparent-background one.
 
-**1 — sanitise the radiance channels (4.1).** NaN rejection at the five `imageStore`s; the firefly
-ceiling derived from the measured exposure rather than picked, and the derivation written into the
-comment beside it the way `FOG_COVERAGE`'s is. *Check:* a test that traces a lamp at contact range
-and asserts no channel exceeds the ceiling; `shot` on a night exterior for the visual half.
+**1 — measure what the accumulator is worth (4.2).** It is built and it runs; what no test shows is
+a quality win, because the scene the filter tests use is already converged by the cascade alone.
+*Check:* a fixture the cascade does poorly on — a lit corner, or geometry small enough that few
+neighbours share a surface — and the RMSE of one filtered frame against a converged reference,
+against the same with a settled history. The firefly half has its own: the share of pixels above the
+thresholds in 4.1, which must fall without the mean moving.
 
-**2 — temporal accumulation (4.2).** The largest step, and the one the priority order puts first.
-Reproject the indirect channel through the motion vector it already writes, accumulate with a
-history-length counter, estimate variance, and feed it to the wavelet as SVGF's third edge-stopping
-term. `biasMask` is already the reset signal. *Check:* `openmw-rtxtool shot --accumulate` gives a
-converged reference; the metric is RMSE of one filtered frame against it, before and after, on a
-fixed view. That number is what says it worked.
-
-**3 — bound the shadow rays (4.3).** RIS over the grid cell's candidates, one reservoir, one shadow
-ray. Then temporal reuse through step 2's history, then spatial. *Check:* the same RMSE-against-
+**2 — bound the shadow rays (4.3).** RIS over the grid cell's candidates, one reservoir, one shadow
+ray. Then temporal reuse through step 1's history, then spatial. *Check:* the same RMSE-against-
 reference metric, in an interior with a dozen lamps — and a count of shadow rays per pixel, which is
 the thing being bounded.
 
-**4 — opacity micromaps.** The device features are already required and probed; nothing builds a
+**3 — opacity micromaps.** The device features are already required and probed; nothing builds a
 micromap. `alphaPasses` is what stops being invoked. *Check:* the trace timer on a view of foliage,
 which is what M12 measures.
 
-**5 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
+**4 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
 a range the way the light grid is. *Check:* the trace timer at Seyda Neen with 165 emitters, and the
 byte comparison — binning must not change a pixel.
 
-**6 — decide SER (4.5).** After 2 and 3 have changed the live-state picture. Measure occupancy on
+**5 — decide SER (4.5).** After 1 and 2 have changed the live-state picture. Measure occupancy on
 `visibility.comp`; if it is where the megakernel is losing, price the ray-tracing pipeline. Until
 then, `plan.md` §8's SER entry should say it needs one.
 
-Step 1 is correctness and changes only wrong pixels. 2 and 3 are what the frame looks like. 4–6 are
-M12, and each gets its number written down when it lands rather than acted on before.
+1 and 2 are what the frame looks like. 3–5 are M12, and each gets its number written down when it
+lands rather than acted on before.
 
 ## 6. Sources
 

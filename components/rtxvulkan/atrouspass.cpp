@@ -16,13 +16,15 @@ namespace Rtx
             return (extent + Shaders::ATROUS_WORKGROUP - 1) / Shaders::ATROUS_WORKGROUP;
         }
 
-        /// The channel coming in, the channel going out, and the two that say where the edges are:
-        /// normals from the guide and distances from the depth. All storage images, all pushed.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 4> sBindings{
+        /// The channel coming in, the channel going out, the two that say where the edges in the
+        /// surface are — normals from the guide, distances from the depth — and the one that says
+        /// where the edges in the light are. All storage images, all pushed.
+        constexpr std::array<VkDescriptorSetLayoutBinding, 5> sBindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{ 4, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
         };
 
         /// How sharply a tap's normal has to agree with the centre's, and how far off its plane it
@@ -37,6 +39,11 @@ namespace Rtx
         /// turn on evidence.
         constexpr float sNormalPower = 128.0f;
         constexpr float sPlaneSigma = 2.0f;
+
+        /// How far a tap's brightness may differ from the centre's, in standard deviations of what
+        /// the centre has been measuring. SVGF's own, and for the first time there is a variance to
+        /// scale it by.
+        constexpr float sLuminanceSigma = 4.0f;
     }
 
     AtrousPass::AtrousPass(const Device& device, const std::filesystem::path& shaderDirectory)
@@ -56,7 +63,7 @@ namespace Rtx
     }
 
     const Image& AtrousPass::record(
-        VkCommandBuffer commands, const GBuffer& buffer, const Shaders::Camera& camera) const
+        VkCommandBuffer commands, const GBuffer& buffer, const Image& moments, const Shaders::Camera& camera) const
     {
         assert(mScratch != nullptr && "record before resize");
         assert(mScratch->getWidth() >= camera.mWidth && mScratch->getHeight() >= camera.mHeight);
@@ -77,6 +84,7 @@ namespace Rtx
             .mStep = 1,
             .mNormalPower = sNormalPower,
             .mPlaneSigma = sPlaneSigma,
+            .mLuminanceSigma = sLuminanceSigma,
         };
 
         const Image* source = &buffer.getIndirect();
@@ -97,14 +105,15 @@ namespace Rtx
                         VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
             }
 
-            const std::array<VkDescriptorImageInfo, 4> images{
+            const std::array<VkDescriptorImageInfo, 5> images{
                 VkDescriptorImageInfo{ VK_NULL_HANDLE, source->getView(), VK_IMAGE_LAYOUT_GENERAL },
                 VkDescriptorImageInfo{ VK_NULL_HANDLE, target->getView(), VK_IMAGE_LAYOUT_GENERAL },
                 VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getGuide().getView(), VK_IMAGE_LAYOUT_GENERAL },
                 VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getDepth().getView(), VK_IMAGE_LAYOUT_GENERAL },
+                VkDescriptorImageInfo{ VK_NULL_HANDLE, moments.getView(), VK_IMAGE_LAYOUT_GENERAL },
             };
 
-            std::array<VkWriteDescriptorSet, 4> writes{};
+            std::array<VkWriteDescriptorSet, 5> writes{};
             for (std::uint32_t i = 0; i < images.size(); ++i)
                 writes[i] = VkWriteDescriptorSet{
                     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,

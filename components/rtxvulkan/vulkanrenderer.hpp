@@ -12,6 +12,7 @@
 #include <components/rtx/instancerecord.hpp>
 #include <components/rtx/renderer.hpp>
 
+#include "accumulatepass.hpp"
 #include "atrouspass.hpp"
 #include "buffer.hpp"
 #include "commands.hpp"
@@ -216,10 +217,12 @@ namespace Rtx
         /// Held by value rather than built with the scene, because they depend on neither the
         /// scene nor the size of the image: what they read is pushed at record time. The filter is
         /// not const only because it keeps a channel the size of the frame.
+        AccumulatePass mAccumulate;
         AtrousPass mFilter;
 
         /// The same wavelet over the pictures inside the interface, which need it for the same
         /// reason a frame does: one bounce a pixel is noisy, and a doll is looked at closely.
+        AccumulatePass mViewAccumulate;
         AtrousPass mViewFilter;
 
         CompositePass mComposite;
