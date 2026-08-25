@@ -140,6 +140,16 @@ Naming this first because a reorganisation is exactly where it gets lost.
   `WATER_IOR`, `FOG_SPREAD` as `sum(a²)/sum(a)²`, `FOG_COVERAGE` measured with a standard error
   quoted, the Jensen correction on the caustic determinant with its before-and-after.
 - **The shared headers are one fact per number**, pinned by `static_assert` on every side.
+- **A micromap is a static table and the cutout it stands in for is not, so what it may claim is
+  bounded by the whole mip chain.** `alphaPasses` reads the mask at whatever level the ray's cone
+  resolves to, and a trilinear read is a convex combination of texels from two neighbouring levels —
+  so a patch of mask can only be called opaque if the smallest texel *every* level could contribute
+  is still over the cutoff, and transparent if the largest never is. `AlphaBounds` collapses the
+  chain into that pair, each level contributing the three-by-three around the texel a point lands in
+  because that is what a bilinear read at that level reaches. Nothing here is a dilation wide enough
+  to guess at: the ring is derived per level, and one coarse level disagreeing is enough to send a
+  microtriangle back to asking. That is what makes the micromap *remove work and change no pixel*,
+  which is the only thing it is allowed to do.
 
 ## 4. Findings
 
@@ -377,26 +387,42 @@ runs of one build, the doll about 0.02% — so those two need a magnitude compar
 control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path and `doll`
 the only transparent-background one.
 
-**1 — opacity micromaps.** The device features are required, the entry points loaded and the
-subdivision limits reported; nothing builds a micromap, and `alphaPasses` runs on every candidate of
-every cutout in consequence. `Rtx::AlphaImage` is the half that is done — a texture's alpha decoded
-to a byte a texel, for all four formats the content arrives in, which is what a classifier reads.
-What is left is the classifier and the build:
+**1 — build the micromaps.** The classifier is done and nothing calls it. `Rtx::AlphaImage` decodes
+a texture's alpha at every level the file carried; `Rtx::AlphaBounds` collapses that chain into what
+a trilinear read could return and answers *opaque / transparent / neither* for a patch of it;
+`Rtx::subdivideTriangle` cuts a triangle into the `4^level` microtriangles of a level and pairs each
+with the index the hardware reads it at, transcribed from the specification's own reference code;
+`Rtx::Micromap` puts the three together into the states and the per-triangle levels a
+`VkMicromapEXT` is built from. What is left is the Vulkan half:
 
-- **Microtriangle classification.** For each triangle of a cutout mesh, walk the `4^level`
-  microtriangles, sample the alpha over each one's UV footprint, and call it opaque, transparent or
-  unknown. Belongs in `components/rtx/` beside `AlphaImage` — it is a statement about what the
-  content says a surface is, and both backends would want the same answer.
-- **The build.** `VkMicromapEXT` per mesh, chained onto the geometry through
+- **The build.** One `VkMicromapEXT` per mesh from `Micromap::getData` and `getTriangles`, sized by
+  `vkGetMicromapBuildSizesEXT` from `getUsage`, recorded with `vkCmdBuildMicromapsEXT` in the same
+  submit as the bottom levels it feeds, and chained onto the geometry through
   `VkAccelerationStructureTrianglesOpacityMicromapEXT`. Instances keep
   `VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR`, because an unknown microtriangle still has to ask.
+  The storage wants the same treatment `StructureStorage` gives the bottom levels — one buffer at
+  offsets, a slot given back when a mesh goes — because a cell is hundreds of meshes and a device
+  allocation each is what that type exists to avoid.
+- **Which mask a mesh is classified against.** A micromap belongs to a bottom-level structure, so it
+  belongs to a *mesh*; a cutout belongs to a *material*, and `MeshInstance` pairs the two per
+  placement. In practice the pairing is one to one — a mesh is keyed on its drawable and a drawable
+  carries one state set — but nothing enforces it, and a mesh named by two different cutout materials
+  can only have a micromap for one of them. Scan the placements, and build none for a mesh that more
+  than one cutout material names: no micromap is always correct, and it is what the whole cell does
+  today.
+- **Where the bounds are cached.** `AlphaBounds` is built per texture *and cutoff* — the counts in it
+  are of texels already compared — and it is a summed-area table over the finest level, so it is
+  worth a few megabytes for as long as a build runs and is not worth building twice. A cell's meshes share a handful of masks
+  between them; the build wants a map from that pair to one bound, alive for exactly as long as the
+  `SceneTextures` whose bytes it was decoded from.
 
-**The ordering is the risk and it is worth naming before starting.** Which microtriangle a given
-index refers to is fixed by the specification's recursive subdivision — the bird curve — and getting
-it wrong produces a cutout that is plausible and wrong rather than one that fails. Its properties are
-testable on the CPU (the microtriangles tile the triangle, there are `4^level` of them, level nought
-is the triangle itself), but whether the order matches what the hardware reads can only be settled by
-rendering a mesh whose alpha is known and looking at it. That check wants writing first.
+**The check is a byte comparison, and that is the whole answer to the ordering risk.** A correct
+micromap removes work and changes no pixel: every microtriangle it resolves is one `alphaPasses`
+would have resolved the same way, at every level. So foliage rendered before and after must come back
+byte for byte, and a wrong ordering, a wrong subdivision or a bound that was not conservative all
+show up as a differing frame rather than as something to be reasoned about. The trace timer on the
+same view is what says it was worth doing, and `Micromap::getTally` is what says how much of the
+surface stopped asking.
 
 **2 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
 a range the way the light grid is. *Check:* the trace timer at Seyda Neen with 165 emitters, and the
@@ -419,6 +445,8 @@ a cost.
 - [Path Tracing Optimization in Indiana Jones: SER and live-state reductions](https://developer.nvidia.com/blog/path-tracing-optimization-in-indiana-jones-shader-execution-reordering-and-live-state-reductions/)
 - [Megakernel vs Wavefront GPU Path Tracing](https://arxiv.org/pdf/2605.27323)
 - [Vulkan Documentation Project: Ray Tracing](https://docs.vulkan.org/guide/latest/extensions/ray_tracing.html) — ray query against the pipeline
+- [VK_EXT_opacity_micromap appendix](https://github.com/KhronosGroup/Vulkan-Docs/blob/main/appendices/VK_EXT_opacity_micromap.adoc) — `BarycentricsToSpaceFillingCurveIndex`, transcribed verbatim into `microtriangles.cpp`
+- [Vulkan specification: Ray Opacity Micromap](https://docs.vulkan.org/spec/latest/chapters/raytraversal.html) — the four states, the two-state override, and how the curve recurses
 - [NVIDIA-RTX/NRD](https://github.com/NVIDIA-RTX/NRD) — ReBLUR, ReLAX, the demodulation contract
 - [Real-Time Denoising: SVGF, A-SVGF, DLSS & ReLAX](https://www.mysimulator.uk/content/articles/realtime-denoising.html)
 - [ReSTIR PT Enhanced](https://dl.acm.org/doi/10.1145/3804494) — reciprocal neighbour selection, duplication maps

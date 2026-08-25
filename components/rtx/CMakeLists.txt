@@ -12,6 +12,8 @@
 # the game want to write a frame to a file.
 
 set(RTX_FILES
+    alphabounds.cpp
+    alphabounds.hpp
     alphaimage.cpp
     alphaimage.hpp
     bluenoise.cpp
@@ -35,6 +37,10 @@ set(RTX_FILES
     lightbuilder.hpp
     lightgrid.cpp
     lightgrid.hpp
+    micromap.cpp
+    micromap.hpp
+    microtriangles.cpp
+    microtriangles.hpp
     moonbuilder.cpp
     moonbuilder.hpp
     nightsky.cpp

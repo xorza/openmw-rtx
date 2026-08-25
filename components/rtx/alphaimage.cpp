@@ -1,11 +1,9 @@
 #include "alphaimage.hpp"
 
+#include <algorithm>
 #include <array>
-#include <cassert>
-#include <cmath>
 
 #include "colourblock.hpp"
-#include "texturedata.hpp"
 
 namespace Rtx
 {
@@ -61,91 +59,91 @@ namespace Rtx
 
             return palette[(indices >> (texel * 3)) & 0x7u];
         }
+
+        /// One level's alpha, decoded into `into` in row order.
+        ///
+        /// **Every block format is read through the same walk**, because they differ only in how
+        /// many bytes a block is and where its alpha sits inside one. A level whose bytes run short
+        /// keeps the fully opaque values it was filled with, which is the same answer a texture
+        /// that could not be read gets and for the same reason.
+        void decodeLevel(TextureFormat format, std::span<const std::byte> bytes, std::uint32_t width,
+            std::uint32_t height, std::span<std::uint8_t> into)
+        {
+            const std::uint32_t bytesPerBlock = blockBytes(format);
+            const std::uint32_t blocksAcross = (width + 3) / 4;
+
+            for (std::uint32_t y = 0; y < height; ++y)
+                for (std::uint32_t x = 0; x < width; ++x)
+                {
+                    std::uint8_t& value = into[std::size_t{ y } * width + x];
+
+                    if (bytesPerBlock == 0)
+                    {
+                        // Four bytes a texel in every uncompressed spelling, and alpha is the last
+                        // of them whichever order the three colours are stated in.
+                        const std::size_t at = (std::size_t{ y } * width + x) * 4 + 3;
+                        if (at < bytes.size())
+                            value = static_cast<std::uint8_t>(bytes[at]);
+
+                        continue;
+                    }
+
+                    const std::size_t block = (std::size_t{ y / 4 } * blocksAcross + x / 4) * bytesPerBlock;
+                    if (block + bytesPerBlock > bytes.size())
+                        continue;
+
+                    const std::size_t texel = texelInBlock(x, y);
+                    switch (format)
+                    {
+                        case TextureFormat::Bc1RgbaSrgb:
+                        {
+                            // BC1 has no alpha channel — it has a fourth palette entry that means
+                            // "nothing here", and only when the endpoints are stored ascending.
+                            const ColourBlock read = ColourBlock::read(bytes.subspan(block).first<8>(), true);
+                            value = read.isTransparent(texel) ? 0 : 255;
+                            break;
+                        }
+                        case TextureFormat::Bc2Srgb:
+                            value = bc2Alpha(bytes.subspan(block).first<8>(), texel);
+                            break;
+                        case TextureFormat::Bc3Srgb:
+                            value = bc3Alpha(bytes.subspan(block).first<8>(), texel);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+        }
     }
 
     AlphaImage::AlphaImage(const TextureData& texture)
     {
-        if (texture.mLevels.empty())
+        std::size_t texels = 0;
+        for (const MipLevel& level : texture.mLevels)
+            texels += std::size_t{ level.mWidth } * level.mHeight;
+
+        if (texels == 0)
             return;
 
-        const MipLevel& level = texture.mLevels.front();
-        mWidth = level.mWidth;
-        mHeight = level.mHeight;
-        if (mWidth == 0 || mHeight == 0)
-            return;
+        mLevels.reserve(texture.mLevels.size());
+        mValues.assign(texels, std::uint8_t{ 255 });
 
-        mValues.assign(std::size_t{ mWidth } * mHeight, std::uint8_t{ 255 });
+        std::uint32_t at = 0;
+        for (const MipLevel& level : texture.mLevels)
+        {
+            const std::size_t count = std::size_t{ level.mWidth } * level.mHeight;
+            if (count == 0)
+                continue;
 
-        const std::span<const std::byte> bytes = texture.mBytes.subspan(level.mOffset);
-        const std::uint32_t blocksAcross = (mWidth + 3) / 4;
+            mLevels.push_back(MipLevel{ at, level.mWidth, level.mHeight });
 
-        // **Every block format is read through the same walk**, because they differ only in how
-        // many bytes a block is and where its alpha sits inside one.
-        const std::uint32_t bytesPerBlock = blockBytes(texture.mFormat);
-
-        for (std::uint32_t y = 0; y < mHeight; ++y)
-            for (std::uint32_t x = 0; x < mWidth; ++x)
-            {
-                std::uint8_t& value = mValues[std::size_t{ y } * mWidth + x];
-
-                if (bytesPerBlock == 0)
-                {
-                    // Four bytes a texel in every uncompressed spelling, and alpha is the last of
-                    // them whichever order the three colours are stated in.
-                    const std::size_t at = (std::size_t{ y } * mWidth + x) * 4 + 3;
-                    if (at < bytes.size())
-                        value = static_cast<std::uint8_t>(bytes[at]);
-
-                    continue;
-                }
-
-                const std::size_t block = (std::size_t{ y / 4 } * blocksAcross + x / 4) * bytesPerBlock;
-                if (block + bytesPerBlock > bytes.size())
-                    continue;
-
-                const std::size_t texel = texelInBlock(x, y);
-                switch (texture.mFormat)
-                {
-                    case TextureFormat::Bc1RgbaSrgb:
-                    {
-                        // BC1 has no alpha channel — it has a fourth palette entry that means
-                        // "nothing here", and only when the endpoints are stored ascending.
-                        const ColourBlock read = ColourBlock::read(bytes.subspan(block).first<8>(), true);
-                        value = read.isTransparent(texel) ? 0 : 255;
-                        break;
-                    }
-                    case TextureFormat::Bc2Srgb:
-                        value = bc2Alpha(bytes.subspan(block).first<8>(), texel);
-                        break;
-                    case TextureFormat::Bc3Srgb:
-                        value = bc3Alpha(bytes.subspan(block).first<8>(), texel);
-                        break;
-                    default:
-                        break;
-                }
-            }
-    }
-
-    std::uint8_t AlphaImage::at(std::uint32_t x, std::uint32_t y) const
-    {
-        assert(x < mWidth && y < mHeight);
-
-        return mValues[std::size_t{ y } * mWidth + x];
-    }
-
-    std::uint8_t AlphaImage::sample(float u, float v) const
-    {
-        if (mValues.empty())
-            return 255;
-
-        const auto wrap = [](float coordinate, std::uint32_t extent) {
-            const float scaled = std::floor(coordinate * static_cast<float>(extent));
-            const auto whole = static_cast<std::int64_t>(scaled);
-            const auto span = static_cast<std::int64_t>(extent);
-
-            return static_cast<std::uint32_t>(((whole % span) + span) % span);
-        };
-
-        return at(wrap(u, mWidth), wrap(v, mHeight));
+            // Clamped rather than trusted: a level whose offset runs past the bytes decodes nothing
+            // and keeps the fully opaque values it was filled with, which is the answer a texture
+            // that could not be read gets already.
+            const std::size_t from = std::min<std::size_t>(level.mOffset, texture.mBytes.size());
+            decodeLevel(texture.mFormat, texture.mBytes.subspan(from), level.mWidth, level.mHeight,
+                std::span(mValues).subspan(at, count));
+            at += static_cast<std::uint32_t>(count);
+        }
     }
 }

@@ -108,6 +108,7 @@ if (OPENMW_RTX)
     set(RTX_TEST_FILES
         rtx/allocations.cpp
         rtx/allocations.hpp
+        rtx/alphabounds.cpp
         rtx/alphaimage.cpp
         rtx/bluenoise.cpp
         rtx/computepipeline.cpp
@@ -124,6 +125,8 @@ if (OPENMW_RTX)
         rtx/harness.hpp
         rtx/lightbuilder.cpp
         rtx/lightgrid.cpp
+        rtx/micromap.cpp
+        rtx/microtriangles.cpp
         rtx/moonbuilder.cpp
         rtx/offscreentrace.cpp
         rtx/pipelinecache.cpp

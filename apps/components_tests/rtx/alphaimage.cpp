@@ -55,10 +55,10 @@ namespace
         {
             // Seventeen and not sixteen: fifteen has to land on 255, or nothing is ever opaque.
             const auto expected = static_cast<std::uint8_t>(texel * 17);
-            EXPECT_EQ(alpha.at(texel % 4, texel / 4), expected) << "texel " << texel;
+            EXPECT_EQ(alpha.at(0, texel % 4, texel / 4), expected) << "texel " << texel;
         }
 
-        EXPECT_EQ(alpha.at(3, 3), 255) << "the last nibble is fifteen and must be fully opaque";
+        EXPECT_EQ(alpha.at(0, 3, 3), 255) << "the last nibble is fifteen and must be fully opaque";
     }
 
     /// BC3 builds a palette from two endpoints, and which palette depends on their order.
@@ -81,21 +81,21 @@ namespace
         const AlphaImage high(descending.describe());
         const AlphaImage low(ascending.describe());
 
-        EXPECT_EQ(high.at(0, 0), 255) << "index nought is the first endpoint";
-        EXPECT_EQ(low.at(0, 0), 0);
+        EXPECT_EQ(high.at(0, 0, 0), 255) << "index nought is the first endpoint";
+        EXPECT_EQ(low.at(0, 0, 0), 0);
 
         // Entry one is the second endpoint under both spellings.
-        EXPECT_EQ(high.at(1, 0), 0);
-        EXPECT_EQ(low.at(1, 0), 255);
+        EXPECT_EQ(high.at(0, 1, 0), 0);
+        EXPECT_EQ(low.at(0, 1, 0), 255);
 
         // Entry two is where the two palettes part: descending divides the span into sevenths and
         // ascending into fifths, so (6*255)/7 = 218 against (1*255)/5 = 51.
-        EXPECT_EQ(high.at(2, 0), 218);
-        EXPECT_EQ(low.at(2, 0), 51);
+        EXPECT_EQ(high.at(0, 2, 0), 218);
+        EXPECT_EQ(low.at(0, 2, 0), 51);
 
         // And entry four, further along the same two ramps: (4*255)/7 = 145 against (3*255)/5 = 153.
-        EXPECT_EQ(high.at(3, 0), 145);
-        EXPECT_EQ(low.at(3, 0), 153);
+        EXPECT_EQ(high.at(0, 3, 0), 145);
+        EXPECT_EQ(low.at(0, 3, 0), 153);
 
         // **The last two entries are what the ascending spelling is for**, and the case a cutout
         // texture is compressed into: they are nought and full outright rather than interpolated,
@@ -105,14 +105,14 @@ namespace
         const OneBlock ramp(TextureFormat::Bc3Srgb, { 255, 0, 0x3E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
 
         const AlphaImage terminal(ends.describe());
-        EXPECT_EQ(terminal.at(0, 0), 0) << "entry six is nothing at all, not an interpolated step";
-        EXPECT_EQ(terminal.at(1, 0), 255) << "and entry seven is fully opaque";
+        EXPECT_EQ(terminal.at(0, 0, 0), 0) << "entry six is nothing at all, not an interpolated step";
+        EXPECT_EQ(terminal.at(0, 1, 0), 255) << "and entry seven is fully opaque";
 
         // The same indices under the descending spelling are ordinary steps of the ramp, which is
         // what says the two palettes really are different tables and not one with a flag on it.
         const AlphaImage stepped(ramp.describe());
-        EXPECT_EQ(stepped.at(0, 0), 72);
-        EXPECT_EQ(stepped.at(1, 0), 36);
+        EXPECT_EQ(stepped.at(0, 0, 0), 72);
+        EXPECT_EQ(stepped.at(0, 1, 0), 36);
     }
 
     /// BC1 has no alpha channel at all — it has a fourth palette entry meaning "nothing here", and
@@ -130,13 +130,13 @@ namespace
         const AlphaImage solid(opaque.describe());
 
         // 0xE4 is 11 10 01 00: texels 0..3 take indices 0, 1, 2, 3.
-        EXPECT_EQ(cut.at(0, 0), 255);
-        EXPECT_EQ(cut.at(1, 0), 255);
-        EXPECT_EQ(cut.at(2, 0), 255);
-        EXPECT_EQ(cut.at(3, 0), 0) << "index three is the hole, and only in the ascending spelling";
+        EXPECT_EQ(cut.at(0, 0, 0), 255);
+        EXPECT_EQ(cut.at(0, 1, 0), 255);
+        EXPECT_EQ(cut.at(0, 2, 0), 255);
+        EXPECT_EQ(cut.at(0, 3, 0), 0) << "index three is the hole, and only in the ascending spelling";
 
         for (std::uint32_t x = 0; x < 4; ++x)
-            EXPECT_EQ(solid.at(x, 0), 255) << "descending endpoints spend index three on a colour";
+            EXPECT_EQ(solid.at(0, x, 0), 255) << "descending endpoints spend index three on a colour";
     }
 
     /// Uncompressed textures state alpha as the fourth byte whichever order the three colours are in.
@@ -160,46 +160,59 @@ namespace
 
             const AlphaImage alpha(texture);
             for (std::uint32_t texel = 0; texel < 16; ++texel)
-                EXPECT_EQ(alpha.at(texel % 4, texel / 4), static_cast<std::uint8_t>(texel * 16))
+                EXPECT_EQ(alpha.at(0, texel % 4, texel / 4), static_cast<std::uint8_t>(texel * 16))
                     << "texel " << texel << " of format " << static_cast<int>(format);
         }
     }
 
-    /// Sampling wraps, because every texture in this scene is sampled through one repeating sampler
-    /// — and a coordinate outside the unit square is what a tiling ground or a scrolling texture is.
-    TEST(RtxAlphaImageTest, samplingWrapsTheWayTheSceneSamplerDoes)
+    /// The whole mip chain is decoded, because the whole mip chain is what the shader can read.
+    ///
+    /// `alphaPasses` samples the mask at the level the ray's cone resolves to, so a classifier that
+    /// saw only the largest level would be bounding a fetch that never happens. The two levels below
+    /// disagree outright — a level that was read from the wrong offset, or skipped, comes back with
+    /// the other one's values.
+    TEST(RtxAlphaImageTest, everyLevelTheFileCarriesIsDecodedAndNotOnlyTheLargest)
     {
-        std::vector<std::byte> bytes(4 * 4 * 4, std::byte{ 0 });
-        for (std::uint32_t texel = 0; texel < 16; ++texel)
-            bytes[texel * 4 + 3] = std::byte{ static_cast<std::uint8_t>(texel) };
+        // Four by four at 40, then two by two at 200. A real chain averages; these do not, so that
+        // reading the wrong level is a failure rather than a rounding difference.
+        std::vector<std::byte> bytes(4 * 4 * 4 + 2 * 2 * 4, std::byte{ 0 });
+        for (std::size_t texel = 0; texel < 16; ++texel)
+            bytes[texel * 4 + 3] = std::byte{ 40 };
+        for (std::size_t texel = 0; texel < 4; ++texel)
+            bytes[4 * 4 * 4 + texel * 4 + 3] = std::byte{ 200 };
 
-        const MipLevel level{ 0, 4, 4 };
+        const std::array<MipLevel, 2> levels{ MipLevel{ 0, 4, 4 }, MipLevel{ 4 * 4 * 4, 2, 2 } };
         const TextureData texture{
             .mFormat = TextureFormat::Rgba8Unorm,
             .mWidth = 4,
             .mHeight = 4,
             .mBytes = bytes,
-            .mLevels = std::span(&level, 1),
+            .mLevels = levels,
         };
 
         const AlphaImage alpha(texture);
 
-        // A whole turn either way lands on the same texel, and a negative coordinate wraps forward
-        // rather than clamping to the edge — which is the difference between a tiling texture and a
-        // stretched one.
-        EXPECT_EQ(alpha.sample(0.3f, 0.3f), alpha.sample(1.3f, 1.3f));
-        EXPECT_EQ(alpha.sample(0.3f, 0.3f), alpha.sample(-0.7f, -0.7f));
-        EXPECT_EQ(alpha.sample(0.1f, 0.1f), alpha.at(0, 0));
+        ASSERT_EQ(alpha.getLevelCount(), 2u);
+        EXPECT_EQ(alpha.getWidth(), 4u);
+        EXPECT_EQ(alpha.getHeight(), 4u);
+        EXPECT_EQ(alpha.getLevel(1).mWidth, 2u);
+        EXPECT_EQ(alpha.getLevel(1).mHeight, 2u);
+
+        for (std::uint32_t texel = 0; texel < 16; ++texel)
+            EXPECT_EQ(alpha.at(0, texel % 4, texel / 4), 40) << "texel " << texel << " of the largest level";
+        for (std::uint32_t texel = 0; texel < 4; ++texel)
+            EXPECT_EQ(alpha.at(1, texel % 2, texel / 2), 200) << "texel " << texel << " of the level below it";
     }
 
-    /// A texture with no levels is one whose cutout could not be read, and a surface that cannot be
-    /// read is one to draw rather than one to make vanish.
-    TEST(RtxAlphaImageTest, aTextureWithNothingInItReadsAsFullyOpaque)
+    /// A texture with no levels is one whose cutout could not be read, and nothing is invented for
+    /// it: a caller that cannot answer for a mask has to leave its geometry asking.
+    TEST(RtxAlphaImageTest, aTextureWithNothingInItDecodesToNothingAtAll)
     {
         const TextureData nothing{};
         const AlphaImage alpha(nothing);
 
         EXPECT_TRUE(alpha.isEmpty());
-        EXPECT_EQ(alpha.sample(0.5f, 0.5f), 255);
+        EXPECT_EQ(alpha.getLevelCount(), 0u);
+        EXPECT_EQ(alpha.getWidth(), 0u);
     }
 }

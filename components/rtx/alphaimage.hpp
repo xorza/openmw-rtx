@@ -1,13 +1,14 @@
 #pragma once
 
+#include <cassert>
 #include <cstdint>
 #include <vector>
 
+#include "texturedata.hpp"
+
 namespace Rtx
 {
-    struct TextureData;
-
-    /// A texture's alpha channel, decoded to a byte a texel.
+    /// A texture's alpha channel, decoded to a byte a texel, at every level the file carried.
     ///
     /// **What a cutout is, separated from what it looks like.** Every other reader of a texture in
     /// this renderer wants its colour, and the two block formats that carry alpha keep it in eight
@@ -20,34 +21,45 @@ namespace Rtx
     /// sampler converts them on the way in; alpha never was, so nothing here has a transfer
     /// function in it and a byte means what it says.
     ///
-    /// The largest level only. A micromap is a statement about the finest detail a surface has, and
-    /// a mip is that detail already averaged away.
+    /// **The whole chain and not the largest level, because the shader reads the whole chain.**
+    /// `alphaPasses` samples the mask at the level the ray's cone can resolve, so what a cutout
+    /// test can return at a point is bounded by every level over it and not by the finest one — and
+    /// a classifier that read only the finest would be answering a question the renderer never
+    /// asks. `AlphaBounds` is what turns the chain into that bound.
     class AlphaImage
     {
     public:
-        /// Decodes the largest level. A texture with no levels leaves this empty, which `sample`
-        /// answers as fully opaque — a surface whose cutout could not be read is one that should be
-        /// drawn, not one that vanishes.
+        /// Decodes every level the description carries. A texture with none leaves this empty,
+        /// which is a texture whose cutout could not be read — a caller that cannot answer for one
+        /// has to leave it asking rather than decide on its behalf.
         explicit AlphaImage(const TextureData& texture);
 
-        std::uint32_t getWidth() const { return mWidth; }
-        std::uint32_t getHeight() const { return mHeight; }
+        std::uint32_t getLevelCount() const { return static_cast<std::uint32_t>(mLevels.size()); }
 
-        bool isEmpty() const { return mValues.empty(); }
+        /// Where one level sits in the values, and how big it is. `MipLevel::mOffset` counts texels
+        /// here rather than bytes, this being one byte a texel.
+        const MipLevel& getLevel(std::uint32_t level) const { return mLevels[level]; }
 
-        /// Alpha at a texel, which must be inside the image.
-        std::uint8_t at(std::uint32_t x, std::uint32_t y) const;
+        /// The finest level's extent, which is the space a micromap's footprints are measured in.
+        std::uint32_t getWidth() const { return mLevels.empty() ? 0 : mLevels.front().mWidth; }
+        std::uint32_t getHeight() const { return mLevels.empty() ? 0 : mLevels.front().mHeight; }
 
-        /// Alpha at a texture coordinate, wrapping the way the one sampler this scene shares does.
+        bool isEmpty() const { return mLevels.empty(); }
+
+        /// Alpha at a texel of a level, both of which must be inside the image.
         ///
-        /// **Nearest and not bilinear.** What this feeds is a comparison against a cutoff, and the
-        /// question a micromap settles is whether *every* texel under a microtriangle is on one side
-        /// of it. Interpolating first would answer about a texel that is not there.
-        std::uint8_t sample(float u, float v) const;
+        /// Defined here because `AlphaBounds` asks it nine times per texel per level, and a call
+        /// across a translation unit for a vector index is most of what that walk costs.
+        std::uint8_t at(std::uint32_t level, std::uint32_t x, std::uint32_t y) const
+        {
+            const MipLevel& which = mLevels[level];
+            assert(x < which.mWidth && y < which.mHeight);
+
+            return mValues[which.mOffset + std::size_t{ y } * which.mWidth + x];
+        }
 
     private:
-        std::uint32_t mWidth = 0;
-        std::uint32_t mHeight = 0;
+        std::vector<MipLevel> mLevels;
         std::vector<std::uint8_t> mValues;
     };
 }
