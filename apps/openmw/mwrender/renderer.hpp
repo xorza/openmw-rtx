@@ -144,6 +144,15 @@ namespace MWRender
         /// The world, and the GUI over it. Once per frame, from the main loop.
         virtual void renderFrame(const SceneFrame& frame) = 0;
 
+        /// The world under the camera has been replaced rather than moved through.
+        ///
+        /// **A ray tracer reconstructing across frames needs telling, and a rasterizer does not** —
+        /// which is why this has a body rather than being pure. Upstream's renderer draws each frame
+        /// from nothing and has no history for a teleport to invalidate; the traced path accumulates
+        /// one, and a cell load or a door leaves the camera somewhere its previous basis describes
+        /// nothing about.
+        virtual void notifyWorldSpaceChanged() {}
+
         /// A picture of part of the world made somewhere other than the eye, for the GUI to show:
         /// the inventory doll, the race preview, a local map tile.
         ///

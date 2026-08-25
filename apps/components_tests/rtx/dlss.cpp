@@ -134,6 +134,10 @@ namespace Rtx
                 = makeImage(device, render, VK_FORMAT_R32G32B32A32_SFLOAT, "test-normals");
             const std::unique_ptr<Image> depth = makeImage(device, render, VK_FORMAT_R32_SFLOAT, "test-depth");
             const std::unique_ptr<Image> motion = makeImage(device, render, VK_FORMAT_R32G32_SFLOAT, "test-motion");
+            // The two the frame writes for what it composites in front of its surfaces. One float
+            // apiece for the reason `gbuffer.h` gives.
+            const std::unique_ptr<Image> particles = makeImage(device, render, VK_FORMAT_R32_SFLOAT, "test-particles");
+            const std::unique_ptr<Image> bias = makeImage(device, render, VK_FORMAT_R32_SFLOAT, "test-bias");
             const std::unique_ptr<Image> output
                 = makeImage(device, sOutput, VK_FORMAT_R32G32B32A32_SFLOAT, "test-output");
 
@@ -145,6 +149,10 @@ namespace Rtx
             fill(pool, *normals, { 0.0f, 0.0f, 1.0f, 1.0f });
             fill(pool, *depth, { 0.5f, 0.0f, 0.0f, 0.0f });
             fill(pool, *motion, { 0.0f, 0.0f, 0.0f, 0.0f });
+            // No sprite reached this frame and nothing about it is untrustworthy, which is the
+            // state that has to leave the picture alone.
+            fill(pool, *particles, { 0.0f, 0.0f, 0.0f, 0.0f });
+            fill(pool, *bias, { 0.0f, 0.0f, 0.0f, 0.0f });
             fill(pool, *output, { 0.0f, 0.0f, 0.0f, 0.0f });
 
             harness->mInstance->getValidationLog()->clear();
@@ -158,6 +166,8 @@ namespace Rtx
                         .mNormalRoughness = *normals,
                         .mDepth = *depth,
                         .mMotion = *motion,
+                        .mParticleMask = *particles,
+                        .mBiasMask = *bias,
                         .mOutput = *output,
                         .mJitter = osg::Vec2f(0.0f, 0.0f),
                         // The first frame has no history, which is what a reset means.

@@ -97,6 +97,8 @@ namespace MWRender
 
         void renderFrame(const SceneFrame& frame) override;
 
+        void notifyWorldSpaceChanged() override;
+
         /// **A trace into a texture the GUI already draws from**, at the size asked for and from
         /// the viewpoint handed over: the inventory doll, the race preview, a map tile. A picture of
         /// the world traces against the scene this renderer already holds; a picture of a subject

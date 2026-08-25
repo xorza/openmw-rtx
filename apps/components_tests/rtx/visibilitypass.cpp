@@ -2278,9 +2278,9 @@ namespace Rtx
                 // at x = 50, and the pane reaches 20. Or straight at the pane, to see it at all.
                 Shaders::VisibilityConstants camera = lookAtIt
                     ? makeCamera(
-                        osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -50.0f, 0.0f), 60.0f, size, size, 10000.0f)
+                          osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -50.0f, 0.0f), 60.0f, size, size, 10000.0f)
                     : makeCamera(
-                        osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                          osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
                 camera.mSunPosition = osg::Vec3f(0.0f, -1.0f, 0.0f);
                 camera.mSunIrradiance = osg::Vec3f(2.0f, 2.0f, 2.0f);
 
@@ -2490,6 +2490,74 @@ namespace Rtx
             const float mixed = covered * Shaders::WATER_FOAM_ALBEDO
                 + (1.0f - covered) * decodeSrgb(static_cast<std::uint8_t>(calm[0]));
             EXPECT_NEAR(surf[0], encodeSrgb(mixed), 1) << "the run-out term's own value, not just its sign";
+        }
+
+        /// What the frame composites in front of its surfaces, which one motion vector per pixel
+        /// cannot describe.
+        ///
+        /// **A sprite has no motion of its own in this renderer.** The trace writes one vector from
+        /// the surface a primary ray hit, so rain, smoke and every other emitter is reprojected with
+        /// whatever wall stands behind it. The two masks are what tells an upscaler so: one
+        /// identifies the pixels that are not the base pass, the other says where the past must not
+        /// be carried forward at all.
+        ///
+        /// **They are not the same population, and that is the point of having two.** Water carries
+        /// no particle and is still untrustworthy — it is shaded where it is seen rather than where
+        /// it reflects, so a history accumulated over it is a history of the wrong thing.
+        TEST_F(RtxVisibilityTest, eachMaskNamesItsOwnPopulationAndTheyAreNotTheSameOne)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = std::size_t{ size / 2 } * size + size / 2;
+
+            // Water under the camera, and one sprite hanging over the left of the frame. The sprite
+            // needs a texture with alpha in it — a sprite whose texel is transparent is one that
+            // reached nothing, which is exactly what the mask should then say.
+            TestTexture ladder;
+            makeMipLadder(ladder);
+            const std::span<const TextureData> textures(&ladder.mData, 1);
+
+            SceneDesc scene = makeFlooded(4000.0f, 40.0f);
+            const Index sheet = scene.addTexture(VFS::Path::NormalizedView("sprite.dds"));
+            const std::array<Sprite, 1> sprites{ Sprite{
+                .mPosition = osg::Vec3f(-80.0f, 0.0f, 200.0f), .mRadius = 40.0f, .mAlpha = 1.0f } };
+            scene.addEmitter(sprites, sheet, false);
+
+            // Straight down at the water, as every other water test looks, so the frame is water from
+            // edge to edge and the sprite hangs over one side of it.
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
+            camera.mWaterLevel = 0.0f;
+
+            std::vector<std::uint8_t> pixels;
+            countHits(scene, textures, camera, size, pixels, SeaState{});
+
+            std::vector<float> particles;
+            std::vector<float> bias;
+            mRenderer->readChannel(Channel::ParticleMask, particles);
+            mRenderer->readChannel(Channel::BiasMask, bias);
+            ASSERT_EQ(particles.size(), std::size_t{ size } * size);
+            ASSERT_EQ(bias.size(), particles.size());
+
+            // Somewhere a sprite reached, which the mask is what finds.
+            const auto sprited = std::find(particles.begin(), particles.end(), 1.0f);
+            ASSERT_NE(sprited, particles.end()) << "the emitter reached no pixel at all";
+            const std::size_t covered = static_cast<std::size_t>(sprited - particles.begin());
+
+            EXPECT_EQ(particles[covered], 1.0f) << "a sprite reached here";
+            EXPECT_EQ(bias[covered], 1.0f) << "so the past is worth nothing here";
+
+            // The centre looks past the sprite at open water.
+            EXPECT_EQ(particles[centre], 0.0f) << "no sprite over the middle of the frame";
+            EXPECT_EQ(bias[centre], 1.0f) << "and water is untrustworthy without one";
+
+            // **Every pixel is one of the two here**, which is what says the masks are written
+            // rather than left at whatever the image was cleared to.
+            EXPECT_EQ(std::count(bias.begin(), bias.end(), 1.0f), static_cast<std::ptrdiff_t>(bias.size()))
+                << "the frame is water from edge to edge, so all of it is biased";
+            EXPECT_LT(
+                std::count(particles.begin(), particles.end(), 1.0f), static_cast<std::ptrdiff_t>(particles.size()))
+                << "and the sprite is not the whole frame, so the two masks differ";
         }
 
         /// The same column of water has to look the same from either side of it.

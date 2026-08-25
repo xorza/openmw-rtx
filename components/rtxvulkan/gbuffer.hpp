@@ -88,6 +88,23 @@ namespace Rtx
         /// most of that range is spent within a few units of the eye.
         const Image& getDepth() const { return mDepth; }
 
+        /// Where a sprite reached this frame, as one or nought.
+        ///
+        /// **A sprite is the one thing in the frame with no motion vector of its own.** The trace
+        /// writes one per pixel from the surface a primary ray hit, so rain, smoke and every other
+        /// emitter is reprojected with whatever wall stands behind it. NGX's own word for the
+        /// remedy is a mask "to identify which pixels contains particles, essentially that are not
+        /// drawn as part of base pass", and the frame already knows: `spritesAlong` returns what the
+        /// sprites left of the light behind them.
+        const Image& getParticleMask() const { return mParticleMask; }
+
+        /// Where the reconstruction must not carry the past forward, from nought to one.
+        ///
+        /// The sprites above, and the water with them: water is shaded on the primary hit, so what
+        /// is reflected in it moves with the surface rather than with itself, and a history
+        /// accumulated over that is a history of the wrong thing.
+        const Image& getBiasMask() const { return mBiasMask; }
+
         std::uint32_t getWidth() const { return mDirect.getWidth(); }
         std::uint32_t getHeight() const { return mDirect.getHeight(); }
 
@@ -108,5 +125,7 @@ namespace Rtx
         Image mGuide;
         Image mMotion;
         Image mDepth;
+        Image mParticleMask;
+        Image mBiasMask;
     };
 }

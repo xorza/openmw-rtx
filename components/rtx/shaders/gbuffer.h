@@ -14,6 +14,10 @@
 // image, not just the texel being accessed". A whole channel of the frame, silently, on a
 // developer's machine only, because a release build has no layers to say anything at all.
 //
+// **A mask is one float where a byte would do**, and deliberately: `R8_UNORM` is not among the
+// formats Vulkan requires a device to support as a storage image, and a channel this renderer writes
+// every frame is not the place to find that out on somebody else's card. `R32_SFLOAT` is mandatory.
+//
 // So the format is a macro rather than a constant: a layout qualifier is a token GLSL reads before
 // it parses anything, and `VK_FORMAT_*` is an enumerator. The preprocessor is the one thing both
 // languages share, which is what lets one line define both.
@@ -25,6 +29,7 @@
 #define GBUFFER_GUIDE VK_FORMAT_R32G32B32A32_SFLOAT
 #define GBUFFER_MOTION VK_FORMAT_R32G32_SFLOAT
 #define GBUFFER_DEPTH VK_FORMAT_R32G32_SFLOAT
+#define GBUFFER_MASK VK_FORMAT_R32_SFLOAT
 
 #else
 
@@ -33,6 +38,7 @@
 #define GBUFFER_GUIDE rgba32f
 #define GBUFFER_MOTION rg32f
 #define GBUFFER_DEPTH rg32f
+#define GBUFFER_MASK r32f
 
 #endif
 

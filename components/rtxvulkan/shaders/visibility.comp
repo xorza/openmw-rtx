@@ -192,6 +192,19 @@ layout(set = 0, binding = 18, GBUFFER_GUIDE) uniform writeonly image2D guide;
 /// radiance channels does not reach here.
 layout(set = 0, binding = 26, GBUFFER_ALBEDO) uniform writeonly image2D specular;
 
+/// Where a sprite reached, as one or nought.
+///
+/// **The one thing in the frame that carries no motion of its own.** One motion vector is written
+/// per pixel, from the surface a primary ray hit, so every emitter — rain, snow, ash, smoke — is
+/// reprojected with whatever geometry stands behind it. This is what tells the upscaler which pixels
+/// those are, and it is free: the composite below already knows what the sprites left.
+layout(set = 0, binding = 27, GBUFFER_MASK) uniform writeonly image2D particleMask;
+
+/// Where the past is not worth carrying forward, from nought to one.
+///
+/// The sprites above, and the water with them, for the reason `GBuffer::getBiasMask` gives.
+layout(set = 0, binding = 28, GBUFFER_MASK) uniform writeonly image2D biasMask;
+
 /// Every live particle in the scene, one emitter's run after another's.
 layout(set = 0, binding = 23, scalar) readonly buffer Sprites
 {
@@ -2754,6 +2767,20 @@ void main()
     imageStore(albedo, at, vec4(response.mDiffuse, 1.0));
     imageStore(specular, at, vec4(response.mSpecular, 1.0));
     imageStore(guide, at, vec4(response.mNormal, response.mRoughness));
+
+    // **A sprite that hides nothing still moves something.** Additive blending leaves the
+    // transmittance at one by definition, so a flame or a spark shows up only in what it added —
+    // and it is exactly as unreprojectable as a raindrop that occludes. Both count.
+    const bool sprited = particles.mTransmittance < 1.0 || any(greaterThan(particles.mRadiance, vec3(0.0)));
+    imageStore(particleMask, at, vec4(sprited ? 1.0 : 0.0));
+
+    // **Water joins them because it is shaded where it is seen, not where it reflects.** A
+    // reflection moves with the surface carrying it rather than with the thing reflected, so what a
+    // history accumulates over water is a history of the wrong thing. Told apart from the sprites
+    // rather than folded in with them: this says do not trust the past here, which is a different
+    // question from what is a particle.
+    const bool untrusted = sprited || (surface.mHit && surface.mWater);
+    imageStore(biasMask, at, vec4(untrusted ? 1.0 : 0.0));
 
     // **The sky moves too, and only its turn moves it.** `skyMotionOf` says why storing nothing here
     // was a smear across every camera rotation.

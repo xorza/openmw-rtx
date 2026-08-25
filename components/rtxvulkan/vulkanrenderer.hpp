@@ -75,6 +75,8 @@ namespace Rtx
 
         std::string describeDevice() const override;
         bool isValidating() const override;
+        void resetHistory() override { mHistoryStale = true; }
+
         void setScene(std::uint32_t slot, const SceneDesc& scene, std::span<const TextureData> textures,
             const SeaState& sea) override;
         void extendScene(std::uint32_t slot, const SceneDesc& scene, std::span<const TextureData> arrived,
@@ -147,6 +149,10 @@ namespace Rtx
         /// to at runtime that would not mean rebuilding every target anyway.
         Upscale mUpscale = Upscale::Off;
         Preset mPreset = Preset::Default;
+
+        /// Whether the next frame has to be reconstructed without a past. Set by `resetHistory` and
+        /// spent by the frame that follows it.
+        bool mHistoryStale = false;
 
         /// What the trace runs at, and so what every G-buffer channel and the composite are sized
         /// to. Equal to the output extent wherever nothing upscales.

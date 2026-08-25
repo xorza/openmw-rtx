@@ -28,7 +28,7 @@ namespace Rtx
         /// order the shader declares them. The channels are scattered through the numbering because
         /// each grew onto the end of a layout that already existed rather than renumbering the
         /// tables under them.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 27> sBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 29> sBindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 1, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 2, sStorage, 1, sCompute },
@@ -56,6 +56,8 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 24, sStorage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 25, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 26, sImage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 27, sImage, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 28, sImage, 1, sCompute },
         };
     }
 
@@ -129,7 +131,7 @@ namespace Rtx
             .accelerationStructureCount = 1,
             .pAccelerationStructures = &inputs.mScene,
         };
-        const std::array<VkDescriptorImageInfo, 7> channels{
+        const std::array<VkDescriptorImageInfo, 9> channels{
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getDirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getIndirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getAlbedo().getView(), VK_IMAGE_LAYOUT_GENERAL },
@@ -137,9 +139,12 @@ namespace Rtx
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getMotion().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getDepth().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getSpecular().getView(), VK_IMAGE_LAYOUT_GENERAL },
+            VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getParticleMask().getView(), VK_IMAGE_LAYOUT_GENERAL },
+            VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getBiasMask().getView(), VK_IMAGE_LAYOUT_GENERAL },
         };
         // In `sBindings`' order, which is where those numbers are explained.
-        constexpr std::array<std::uint32_t, 7> channelBindings{ 1, 15, 17, 18, 20, 22, 26 };
+        constexpr std::array<std::uint32_t, 9> channelBindings{ 1, 15, 17, 18, 20, 22, 26, 27, 28 };
+        static_assert(channels.size() == channelBindings.size(), "every channel needs the binding it goes to");
 
         // Bindings two upwards are all storage buffers, in the order the shader declares them.
         const std::array<VkDescriptorBufferInfo, 13> buffers{
@@ -164,76 +169,60 @@ namespace Rtx
         const VkDescriptorBufferInfo emitterWrite{ inputs.mBuffers->getEmitters(), 0, VK_WHOLE_SIZE };
         const VkDescriptorBufferInfo frameWrite{ mConstants.getHandle(), 0, VK_WHOLE_SIZE };
 
-        std::array<VkWriteDescriptorSet, 27> writes{};
-        writes[0] = VkWriteDescriptorSet{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .pNext = &sceneWrite,
-            .dstBinding = 0,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
-        };
-        for (std::uint32_t i = 0; i < channels.size(); ++i)
-            writes[1 + i] = VkWriteDescriptorSet{
+        // **Appended rather than indexed.** Every one of these used to name its own slot — channels
+        // at `1 + i`, buffers at `i + 8`, then twenty-one through twenty-six by hand — so adding a
+        // channel silently moved two buffer writes on top of each other and left the new bindings
+        // unwritten. The layout said what was wrong and nothing else did. A cursor cannot make that
+        // mistake, and the count below is checked rather than maintained.
+        std::array<VkWriteDescriptorSet, sBindings.size()> writes{};
+        std::uint32_t filled = 0;
+
+        const auto append = [&](std::uint32_t binding, VkDescriptorType type, const void* next,
+                                const VkDescriptorImageInfo* image, const VkDescriptorBufferInfo* block) {
+            assert(filled < writes.size() && "more descriptor writes than the layout has bindings");
+            writes[filled++] = VkWriteDescriptorSet{
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .dstBinding = channelBindings[i],
+                .pNext = next,
+                .dstBinding = binding,
                 .descriptorCount = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                .pImageInfo = &channels[i],
+                .descriptorType = type,
+                .pImageInfo = image,
+                .pBufferInfo = block,
             };
-        for (std::uint32_t i = 0; i < buffers.size(); ++i)
-            writes[i + 8] = VkWriteDescriptorSet{
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .dstBinding = i + 2,
-                .descriptorCount = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                .pBufferInfo = &buffers[i],
-            };
-        writes[21] = VkWriteDescriptorSet{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstBinding = 16,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-            .pBufferInfo = &noiseWrite,
         };
-        writes[22] = VkWriteDescriptorSet{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstBinding = 19,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-            .pBufferInfo = &shadingWrite,
+        const auto appendImage = [&](std::uint32_t binding, const VkDescriptorImageInfo& image) {
+            append(binding, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, nullptr, &image, nullptr);
         };
-        writes[23] = VkWriteDescriptorSet{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstBinding = 21,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-            .pBufferInfo = &gridWrite,
+        const auto appendBuffer = [&](std::uint32_t binding, const VkDescriptorBufferInfo& block) {
+            append(binding, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, nullptr, nullptr, &block);
         };
-        writes[24] = VkWriteDescriptorSet{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstBinding = 23,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-            .pBufferInfo = &spriteWrite,
-        };
-        writes[25] = VkWriteDescriptorSet{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstBinding = 24,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-            .pBufferInfo = &emitterWrite,
-        };
-        writes[26] = VkWriteDescriptorSet{
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstBinding = 25,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .pBufferInfo = &frameWrite,
+        const auto appendUniform = [&](std::uint32_t binding, const VkDescriptorBufferInfo& block) {
+            append(binding, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, nullptr, nullptr, &block);
         };
 
+        // The one write whose payload hangs off `pNext` rather than off a pointer field.
+        append(0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, &sceneWrite, nullptr, nullptr);
+
+        for (std::uint32_t i = 0; i < channels.size(); ++i)
+            appendImage(channelBindings[i], channels[i]);
+
+        for (std::uint32_t i = 0; i < buffers.size(); ++i)
+            appendBuffer(i + 2, buffers[i]);
+
+        appendBuffer(16, noiseWrite);
+        appendBuffer(19, shadingWrite);
+        appendBuffer(21, gridWrite);
+        appendBuffer(23, spriteWrite);
+        appendBuffer(24, emitterWrite);
+        appendUniform(25, frameWrite);
+
         vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getHandle());
-        vkCmdPushDescriptorSet(commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getLayout(), 0,
-            static_cast<std::uint32_t>(writes.size()), writes.data());
+        // Every binding the layout declares, written exactly once — a shader that grew one and a
+        // record that did not is the failure this counts.
+        assert(filled == writes.size() && "a binding the layout declares was left unwritten");
+
+        vkCmdPushDescriptorSet(
+            commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getLayout(), 0, filled, writes.data());
         vkCmdBindDescriptorSets(
             commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getLayout(), 1, 1, &inputs.mTextures, 0, nullptr);
         vkCmdDispatch(commands, groupsFor(constants.mWidth), groupsFor(constants.mHeight), 1);

@@ -517,6 +517,14 @@ namespace MWRender
         }
     }
 
+    void RtxRenderer::notifyWorldSpaceChanged()
+    {
+        // **Told rather than worked out.** The mirror grows and recycles its slots and is never
+        // cleared, so a cell load leaves it looking exactly as a step across a room does; the
+        // renderer has nothing to notice. `Rtx::Renderer::resetHistory` says what that costs.
+        mRenderer->resetHistory();
+    }
+
     void RtxRenderer::renderFrame(const SceneFrame& frame)
     {
         const osg::FrameStamp& when = frame.mWhen;

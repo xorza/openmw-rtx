@@ -47,6 +47,14 @@ namespace Rtx
         /// render pixels.
         const Image& mMotion;
 
+        /// Where a sprite reached, as one or nought — the pixels that are not the base pass and so
+        /// carry no motion of their own.
+        const Image& mParticleMask;
+
+        /// Where the past must not be carried forward: those sprites, and the water whose
+        /// reflections move with the surface rather than with what is reflected.
+        const Image& mBiasMask;
+
         /// The upscaled frame, at output resolution.
         const Image& mOutput;
 

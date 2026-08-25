@@ -22,6 +22,12 @@ namespace Rtx::Testing
         std::string describeDevice() const override { return "a renderer that counts rather than draws"; }
         bool isValidating() const override { return false; }
 
+        /// Counted rather than acted on: what a caller has to prove is that the discontinuity
+        /// reaches the renderer at all, and this double has no history to throw away.
+        void resetHistory() override { ++mHistoryResets; }
+
+        std::uint32_t mHistoryResets = 0;
+
         void setScene(std::uint32_t slot, const Rtx::SceneDesc& scene, std::span<const Rtx::TextureData> textures,
             const Rtx::SeaState&) override
         {

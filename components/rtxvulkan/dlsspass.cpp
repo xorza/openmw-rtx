@@ -125,6 +125,8 @@ namespace Rtx
         NVSDK_NGX_Resource_VK depth = resourceOf(inputs.mDepth);
         NVSDK_NGX_Resource_VK motion = resourceOf(inputs.mMotion);
         NVSDK_NGX_Resource_VK target = resourceOf(inputs.mOutput);
+        NVSDK_NGX_Resource_VK particles = resourceOf(inputs.mParticleMask);
+        NVSDK_NGX_Resource_VK bias = resourceOf(inputs.mBiasMask);
 
         NVSDK_NGX_VK_DLSSD_Eval_Params evaluate{};
         evaluate.pInColor = &colour;
@@ -134,6 +136,18 @@ namespace Rtx
         evaluate.pInDiffuseAlbedo = &diffuse;
         evaluate.pInSpecularAlbedo = &specular;
         evaluate.pInNormals = &normals;
+
+        // **What the frame composites in front of its surfaces, which nothing else here describes.**
+        // One motion vector is written per pixel, from the surface a primary ray hit, so every
+        // sprite is reprojected with whatever stands behind it. These two are the header's own
+        // remedy: the first identifies "which pixels contains particles, essentially that are not
+        // drawn as part of base pass", the second marks what must not be accumulated across frames.
+        //
+        // Both sit in the block the header marks optional and neither is in the one it marks
+        // research; the colour-pair guides for fog and particles are in that second block, which is
+        // why they are not here.
+        evaluate.pInIsParticleMask = &particles;
+        evaluate.pInBiasCurrentColorMask = &bias;
 
         // **Negated, on both axes.** The trace adds the offset to the *sample coordinate* — it moves
         // where inside its pixel a ray is fired — where NGX wants the offset as applied to the

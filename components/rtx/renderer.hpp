@@ -211,6 +211,12 @@ namespace Rtx
         /// something different at every distance — most of that range is spent within a few units
         /// of the eye.
         Depth,
+
+        /// One float a pixel: one where a sprite reached, nought where none did.
+        ParticleMask,
+
+        /// One float a pixel: how much of this pixel the reconstruction must not carry forward.
+        BiasMask,
     };
 
     /// What a frame is asked for, beyond where the camera stands.
@@ -356,6 +362,21 @@ namespace Rtx
         virtual void extendScene(
             std::uint32_t slot, const SceneDesc& scene, std::span<const TextureData> arrived, const SeaState& sea)
             = 0;
+
+        /// Say that the next frame has no usable past.
+        ///
+        /// **A reconstruction accumulates over several frames, and a jump no motion vector can
+        /// describe makes every one of them a lie.** Walking through a door, a teleport, a cut: the
+        /// camera moves somewhere its previous basis says nothing about, and what is reprojected is
+        /// one room onto another.
+        ///
+        /// **Not derivable from what the renderer sees.** A world scene is built once and then grows
+        /// and recycles its slots — `SceneDesc::clear` is never called on it — so `setScene` fires at
+        /// startup and not again, and the mirror looks the same across a cell load as it does across
+        /// a step. Only the simulation knows, so only the simulation can say.
+        ///
+        /// Costs one frame of reconstruction, so it is for discontinuities and not for changes.
+        virtual void resetHistory() = 0;
 
         /// How many textures the renderer holds, which is where `extendScene`'s `arrived` begins.
         virtual std::uint32_t getTextureCount(std::uint32_t slot) const = 0;

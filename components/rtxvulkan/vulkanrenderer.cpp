@@ -649,11 +649,17 @@ namespace Rtx
                         .mNormalRoughness = mChannels->getGuide(),
                         .mDepth = mChannels->getDepth(),
                         .mMotion = mChannels->getMotion(),
+                        .mParticleMask = mChannels->getParticleMask(),
+                        .mBiasMask = mChannels->getBiasMask(),
                         .mOutput = *mUpscaled,
                         .mJitter = sampled.mJitter,
-                        // No previous frame to reproject against is exactly what a reset means, and
-                        // a zero basis is how the trace already spells it.
-                        .mReset = mPreviousCamera.mForward.length2() <= 0.0f,
+                        // **A history is worthless after a jump no motion vector can describe.** A
+                        // zero basis catches the frames that have no past at all — a resize, a
+                        // rebuild, the first one — and nothing caught the rest: walking through a
+                        // door left the previous camera intact and Ray Reconstruction reprojected
+                        // one room onto another. `mHistoryStale` is the other half, and it is the
+                        // signal the renderer was already being sent.
+                        .mReset = mHistoryStale || mPreviousCamera.mForward.length2() <= 0.0f,
                     });
 
                 // What NGX recorded is its own; nothing here knows which stages it used.
@@ -692,6 +698,9 @@ namespace Rtx
 
         // Read after the last of the frame's submits has been waited on, which every one of them
         // has: the pool fences each before it returns.
+        // Spent on the frame that was just recorded, so the next one reprojects against it normally.
+        mHistoryStale = false;
+
         return FrameResult{
             .mHits = hits, .mTraceMs = ms, .mGpu = mTimer.resolve(), .mReconstruction = reconstruction
         };
@@ -855,10 +864,29 @@ namespace Rtx
     {
         assert(mChannels != nullptr);
 
-        const Image& image = channel == Channel::Motion ? mChannels->getMotion() : mChannels->getDepth();
+        // **A switch and not a pair of ternaries**, so that a channel added and not handled here is
+        // a compiler warning rather than a read of whichever one the last `else` happened to name.
+        const Image* image = nullptr;
+        switch (channel)
+        {
+            case Channel::Motion:
+                image = &mChannels->getMotion();
+                break;
+            case Channel::Depth:
+                image = &mChannels->getDepth();
+                break;
+            case Channel::ParticleMask:
+                image = &mChannels->getParticleMask();
+                break;
+            case Channel::BiasMask:
+                image = &mChannels->getBiasMask();
+                break;
+        }
+
+        assert(image != nullptr && "a channel with no image behind it");
 
         std::vector<std::uint8_t> bytes;
-        image.read(mPool, VK_IMAGE_LAYOUT_GENERAL, bytes);
+        image->read(mPool, VK_IMAGE_LAYOUT_GENERAL, bytes);
 
         values.resize(bytes.size() / sizeof(float));
         std::memcpy(values.data(), bytes.data(), bytes.size());

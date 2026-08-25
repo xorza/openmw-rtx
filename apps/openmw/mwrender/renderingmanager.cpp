@@ -1221,6 +1221,11 @@ namespace MWRender
     {
         mEffectManager->clear();
         mWater->clearRipples();
+
+        // What the traced path cannot work out for itself: the mirror of a world that was swapped
+        // looks exactly like the mirror of one that was walked across. Nothing for the rasterizer,
+        // which keeps no history to invalidate.
+        mRenderer.notifyWorldSpaceChanged();
     }
 
     void RenderingManager::clear()
