@@ -45,6 +45,10 @@ namespace Rtx
         VkPhysicalDeviceRayTracingPositionFetchFeaturesKHR mPositionFetch{};
         VkPhysicalDeviceRayTracingMaintenance1FeaturesKHR mRayTracingMaintenance1{};
         VkPhysicalDeviceOpacityMicromapFeaturesEXT mOpacityMicromap{};
+
+        /// What lets the driver be asked how it compiled a pipeline: registers a thread, spills,
+        /// waves a multiprocessor. See `ComputePipeline`, which is where the answer is read.
+        VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR mPipelineExecutable{};
         VkPhysicalDeviceRayTracingInvocationReorderFeaturesEXT mInvocationReorder{};
     };
 

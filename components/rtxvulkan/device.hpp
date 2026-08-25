@@ -37,6 +37,8 @@ namespace Rtx
         PFN_vkDestroyMicromapEXT mDestroyMicromap = nullptr;
         PFN_vkGetMicromapBuildSizesEXT mGetMicromapBuildSizes = nullptr;
         PFN_vkCmdBuildMicromapsEXT mCmdBuildMicromaps = nullptr;
+        PFN_vkGetPipelineExecutablePropertiesKHR mGetPipelineExecutableProperties = nullptr;
+        PFN_vkGetPipelineExecutableStatisticsKHR mGetPipelineExecutableStatistics = nullptr;
     };
 
     /// A logical device, its single queue, and the extension entry points.
@@ -66,6 +68,18 @@ namespace Rtx
         /// Out of line because the cache is only forward-declared here: it carries `<filesystem>`,
         /// and this header is included by two dozen others that have no use for it.
         VkPipelineCache getPipelineCache() const;
+
+        /// Logs what the driver's compiler made of `pipeline` — registers a thread, spills, shared
+        /// memory a block, or whatever else it chose to report.
+        ///
+        /// **An occupancy figure is a register count and a workgroup size**, and the register count
+        /// exists only inside the driver: no offline compiler has it, because the allocation is the
+        /// driver's, and this is why `.notes/rtx/shaders.md` §4.6 needed no external profiler.
+        ///
+        /// **Here rather than on either pipeline class**, because it is the device's compiler being
+        /// asked and both classes ask it: the entry points are already members, and a copy apiece
+        /// would be two places for the format switch to fall behind a driver.
+        void reportPipeline(VkPipeline pipeline, std::string_view name) const;
 
         /// Attaches a name to a Vulkan object so captures and validation messages name it.
         ///

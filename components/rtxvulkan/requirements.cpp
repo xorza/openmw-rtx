@@ -24,6 +24,12 @@ namespace Rtx
             VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
             VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME,
             VK_EXT_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME,
+            // **Asking the driver what it made of a shader.** Occupancy is a register count and a
+            // workgroup size, and the register count belongs to the driver's own compiler — no
+            // offline tool has it. Required rather than optional because a device that will not say
+            // is a device this fork cannot answer 4.6 on, and a renderer that quietly reported
+            // nothing would be the fallback path this tree does not keep.
+            VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME,
         };
 
         constexpr std::array sOptionalDeviceExtensions{
@@ -90,6 +96,8 @@ namespace Rtx
             RequiredFeature{ "rayTracingMaintenance1",
                 +[](DeviceFeatures& f) -> VkBool32& { return f.mRayTracingMaintenance1.rayTracingMaintenance1; } },
             RequiredFeature{ "micromap", +[](DeviceFeatures& f) -> VkBool32& { return f.mOpacityMicromap.micromap; } },
+            RequiredFeature{ "pipelineExecutableInfo",
+                +[](DeviceFeatures& f) -> VkBool32& { return f.mPipelineExecutable.pipelineExecutableInfo; } },
             RequiredFeature{ "rayTracingInvocationReorder",
                 +[](DeviceFeatures& f) -> VkBool32& { return f.mInvocationReorder.rayTracingInvocationReorder; } },
         };
@@ -100,6 +108,7 @@ namespace Rtx
         void* next = nullptr;
         chain(next, mInvocationReorder, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_INVOCATION_REORDER_FEATURES_EXT);
         chain(next, mOpacityMicromap, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_OPACITY_MICROMAP_FEATURES_EXT);
+        chain(next, mPipelineExecutable, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR);
         chain(next, mRayTracingMaintenance1, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_MAINTENANCE_1_FEATURES_KHR);
         chain(next, mPositionFetch, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_POSITION_FETCH_FEATURES_KHR);
         chain(next, mRayQuery, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR);

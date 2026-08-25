@@ -1,7 +1,5 @@
 #include "computepipeline.hpp"
 
-#include <vector>
-
 #include "device.hpp"
 #include "result.hpp"
 #include "shadermodule.hpp"
@@ -67,6 +65,11 @@ namespace Rtx
 
             const VkComputePipelineCreateInfo pipeline{
                 .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+                // **Asked for at creation, because it cannot be asked for afterwards.** The cost is
+                // to compiling the pipeline and not to running it, and every pipeline here is made
+                // once — where the answer it buys is the only way to see a register count, which is
+                // what an occupancy figure is made of.
+                .flags = VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR,
                 .stage = {
                     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                     .stage = VK_SHADER_STAGE_COMPUTE_BIT,
@@ -81,6 +84,7 @@ namespace Rtx
                 "vkCreateComputePipelines");
 
             mDevice.setName(VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<std::uint64_t>(mHandle), name);
+            mDevice.reportPipeline(mHandle, name);
         }
         catch (...)
         {

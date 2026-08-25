@@ -1,8 +1,11 @@
 #include "device.hpp"
 
+#include <components/debug/debuglog.hpp>
+
 #include <algorithm>
 #include <cstring>
 #include <string>
+#include <vector>
 
 #include <components/rtx/error.hpp>
 
@@ -103,6 +106,8 @@ namespace Rtx
             load(mHandle, mFunctions.mDestroyMicromap, "vkDestroyMicromapEXT");
             load(mHandle, mFunctions.mGetMicromapBuildSizes, "vkGetMicromapBuildSizesEXT");
             load(mHandle, mFunctions.mCmdBuildMicromaps, "vkCmdBuildMicromapsEXT");
+            load(mHandle, mFunctions.mGetPipelineExecutableProperties, "vkGetPipelineExecutablePropertiesKHR");
+            load(mHandle, mFunctions.mGetPipelineExecutableStatistics, "vkGetPipelineExecutableStatisticsKHR");
 
             if (instance.hasDebugUtils())
             {
@@ -142,6 +147,71 @@ namespace Rtx
     VkPipelineCache Device::getPipelineCache() const
     {
         return mPipelineCache->getHandle();
+    }
+
+    void Device::reportPipeline(VkPipeline pipeline, std::string_view name) const
+    {
+        const VkPipelineInfoKHR asked{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR,
+            .pipeline = pipeline,
+        };
+
+        std::uint32_t executables = 0;
+        checkVk(mFunctions.mGetPipelineExecutableProperties(mHandle, &asked, &executables, nullptr),
+            "vkGetPipelineExecutablePropertiesKHR");
+
+        for (std::uint32_t executable = 0; executable < executables; ++executable)
+        {
+            const VkPipelineExecutableInfoKHR which{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR,
+                .pipeline = pipeline,
+                .executableIndex = executable,
+            };
+
+            std::uint32_t count = 0;
+            checkVk(mFunctions.mGetPipelineExecutableStatistics(mHandle, &which, &count, nullptr),
+                "vkGetPipelineExecutableStatisticsKHR");
+
+            std::vector<VkPipelineExecutableStatisticKHR> statistics(count);
+            for (VkPipelineExecutableStatisticKHR& statistic : statistics)
+                statistic.sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR;
+            checkVk(mFunctions.mGetPipelineExecutableStatistics(mHandle, &which, &count, statistics.data()),
+                "vkGetPipelineExecutableStatisticsKHR");
+
+            // **Whatever the driver chose to say, and not a list this side picked.** The names are
+            // the compiler's own — NVIDIA reports registers and spills, another vendor reports
+            // something else — so a fixed set of fields here would be a set that goes empty on the
+            // next driver. `openmw-rtxtool` prints them verbatim.
+            std::string line;
+            for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
+            {
+                if (!line.empty())
+                    line += ", ";
+                line += statistic.name;
+                line += ' ';
+
+                switch (statistic.format)
+                {
+                    case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR:
+                        line += statistic.value.b32 != VK_FALSE ? "yes" : "no";
+                        break;
+                    case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_INT64_KHR:
+                        line += std::to_string(statistic.value.i64);
+                        break;
+                    case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_UINT64_KHR:
+                        line += std::to_string(statistic.value.u64);
+                        break;
+                    case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_FLOAT64_KHR:
+                        line += std::to_string(statistic.value.f64);
+                        break;
+                    default:
+                        line += '?';
+                        break;
+                }
+            }
+
+            Log(Debug::Verbose) << "pipeline " << name << ": " << line;
+        }
     }
 
     void Device::waitIdle() const

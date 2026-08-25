@@ -370,21 +370,54 @@ recovers already is.
 Opacity micromaps are the item to take from M12 instead. They work under ray query, this shader's
 `alphaPasses` runs on every candidate of every cutout, and the published measurements are large.
 
-### 4.6 One kernel, one register budget
+### 4.6 One kernel, one register budget — measured, and registers are only half of it
 
 The megakernel holds live simultaneously, in `main`: a `Surface` (two bools, four `vec3`, two floats,
 a `uint`), a `SurfaceResponse`, a `WaterMirror`, a `SpriteLayer` with two `SpriteClaim`s, a `vec4`
 of fog, a transmittance, and `beforeParticles`. Underneath it, `shadeWater` holds a `WaterSurface`
-and two `WaterPath`s across three more traversals.
+and two `WaterPath`s across three more traversals. Sixteen inlined traversal loops share that budget.
 
-Sixteen inlined traversal loops share that budget. The pixel that pays the most — shallow water with
-foam over it — runs a primary trace, a reflection, a refraction, a `bedFall` probe, a sun shadow ray,
-a lamp shadow ray each, eight fog shadow rays and a bounce, all in one register allocation.
+**Measured through `VK_KHR_pipeline_executable_properties`**, which is the driver's own compiler
+answering — no offline tool has a register count, because the allocation is the driver's, and Nsight
+is not needed for it either. Every pipeline the frame path builds, from one `shot` at Balmora — the
+interface's vertex and fragment report as well, at sixteen registers apiece:
 
-Nothing here should be *acted* on before it is measured — that is the `CLAUDE.md` rule and it holds.
-What can be done now is make it measurable: the split is what lets a variant be compiled and
-compared — swapping a lib file for a cheaper one is now a one-line edit — and Nsight's occupancy
-figure against `visibility.comp` is the one number that decides whether 4.5 is worth asking.
+| pipeline | registers a thread | binary | shared a block | spill a thread |
+|---|---|---|---|---|
+| **visibility** | **80** | 288,256 B | **8,448 B** | 32 B |
+| atrous | 40 | 10,624 | 0 | 0 |
+| accumulate | 31 | 5,120 | 0 | 0 |
+| tone | 18 | 896 | 0 | 0 |
+| composite | 18 | 768 | 0 | 0 |
+| histogram | 16 | 896 | 1,024 | 0 |
+| exposure | 16 | 1,024 | 1,024 | 0 |
+
+**Eight thousand bytes of shared memory in a shader that declares none.** `visibility.comp` has no
+`shared` block anywhere under it, and `histogram.comp`, which does, reports the 1,024 bytes it asked
+for. So the 8,448 is the driver's — 132 bytes a thread at a workgroup of 64 — and it is the ray
+query's traversal stack.
+
+**Which makes the occupancy 50%, bound twice over.** Derived from Ada's published limits rather than
+read off a profiler: 48 warps and 65,536 registers an SM, and up to 100 KB of shared memory.
+
+- registers: `65536 / (80 × 32)` = 25.6 warps → **12 blocks**
+- shared memory: `102400 / 8448` = 12.1 → **12 blocks**
+- both give 24 of 48 warps, **50%**
+
+**The two constraints land on the same number, and that is the finding.** This entry's whole premise
+was that live state is what the megakernel is spending — shrink it, and occupancy rises. It would
+not: taking the register count to sixty-four moves the register limit to sixteen blocks and leaves
+the shared-memory limit at twelve, so the occupancy does not move at all. The lever this finding
+proposed is already held down by something else, and that something else is not live state but the
+traversal the renderer is built on.
+
+Spilling is real and small: 32 bytes a thread, against nothing at all for the other six pipelines.
+`Stack Size` is nought everywhere.
+
+**What it means for 4.5** is that the ray-tracing pipeline is not obviously the cheaper shape. A
+pipeline trace needs its own traversal state and adds a payload, so the 8,448 bytes do not go away by
+moving; what SER buys is coherence, which is a different axis from occupancy and would have to be
+argued on its own.
 
 ### 4.7 The sprite march — closed, and the finding it replaced was wrong
 
@@ -441,15 +474,40 @@ cross-checked against the march's own test written out again.
 **Eleven times, and the frame is the same frame.** Nine views byte for byte in clear weather, the
 storm byte for byte, `map` and `doll` drawing what they drew, and nothing from the validation layers.
 
-### 4.8 The à-trous cascade re-reads its guides per tap
+### 4.8 The à-trous cascade re-reads its guides per tap — and is not on the shipping path
 
 Twenty-five taps a level, five levels, each doing two `imageLoad`s and a `normalize` inside
-`positionAt`. That is 250 image loads and 125 normalizes per pixel, with a 5×5 neighbourhood whose
-guides every thread in the workgroup shares.
+`positionAt`. That is 250 image loads and 125 normalizes per pixel, over a 5×5 neighbourhood every
+thread in the workgroup shares. The standard shape is one shared-memory tile per workgroup, loaded
+once.
 
-The standard shape is one shared-memory tile per workgroup, loaded once. Whether it is worth it
-depends on 4.2 — if the cascade becomes the spatial half of a temporal denoiser, its level count
-usually falls, and the tile is worth more per level.
+**But `Reconstruction::resolve` reaches the wavelet only where `upscale == Upscale::Off`**, and the
+game ships `upscale = quality`. Ray Reconstruction accumulates over frames itself, so a frame handed
+to it must not have been accumulated already — one denoiser or the other, never both. The cascade and
+its accumulator therefore run for a build made without the DLSS SDK, for a player who turns upscaling
+off, and for every reference this harness renders — and never in the frame `plan.md` §5 writes its
+budget against, which is 1920×1080 internal to 3840×2160.
+
+What it costs where it does run, GPU zone, `--upscale=off` at 1920×1080:
+
+| view | cascade | accumulator | trace |
+|---|---|---|---|
+| Wolverine Hall | 2.78 ms | 0.67 | 2.76 |
+| Balmora | 2.63 ms | 0.59 | 4.38 |
+
+**Its own worth-it test was the wrong test.** This finding said the tile's value depended on 4.2 —
+that a temporal denoiser would drop the level count and change what a tile is worth per level. 4.2
+answered (the history takes 44%, the cascade still carries the majority), and that answer says the
+tile is worth what it was worth. What neither asked is *which frame* the cascade is in.
+
+**And the ceiling was probed and the probe was not sound.** Serving every per-tap read from the centre
+takes the cascade to 1.24 ms at Wolverine Hall and 0.97 at Balmora — but that substitution makes the
+whole loop body invariant and the compiler hoists most of it, so the figure bounds the loads *and*
+the arithmetic together and bounds them loosely. A tile addresses only part of the load half, and
+only at the fine strides: at stride sixteen a sixteen-wide workgroup shares no tap with itself, and
+the tile is (16 + 4·16)² texels for exactly the 6400 reads it replaces.
+
+It stays in the queue, last, for the build that has no DLSS SDK.
 
 ### 4.9 Small things — closed
 
@@ -508,28 +566,22 @@ runs of one build, the doll about 0.02% — so those two need a magnitude compar
 same-build control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path
 and `doll` the only transparent-background one.
 
-**1 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
-neighbourhood every thread in the workgroup shares. It was held until the temporal half had a real
-figure, and now it has one: the history takes 44% of what the cascade cannot reach (4.2), so the
-cascade is still carrying the majority of the error and its level count is not about to collapse.
-The tile is worth what it was worth.
+**1 — decide SER (4.5).** The number is in and it is 50%, bound equally by 80 registers and by the
+8,448 bytes of shared memory the ray query's traversal stack costs (4.6). So the lever this step was
+waiting on — shrink live state, watch occupancy rise — does not exist: the shared-memory limit holds
+at twelve blocks whatever the registers do. What is left to decide is whether *coherence* is worth a
+ray-tracing pipeline, which is a different argument from occupancy and has to be made on its own
+terms. Until it is made, `plan.md` §8's SER entry should say it needs one.
 
-*Check:* the byte comparison — a tile is a cache and must change nothing — and the atrous timer
-against the level count it was measured at.
+**2 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
+neighbourhood every thread in the workgroup shares. **Last, and that is the finding**: the cascade
+runs only where `upscale == Upscale::Off`, so it is the denoiser for a build made without the DLSS
+SDK and for every reference this harness renders, and it is absent from the frame the budget is
+written against. Worth 2.6 to 2.8 ms where it runs. The tile helps at the fine strides and not at the
+coarse ones, for the reason 4.8 gives.
 
-**2 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel. The micromaps
-already took a texture fetch and a candidate loop off part of the hot path, and nothing queued
-behind this adds to what is live — 4.3 settled that the reservoir is not being carried. Nothing in
-4.6 is to be *acted* on before this — that is `CLAUDE.md`'s rule and it holds — and the split into
-`lib/` is what makes a cheaper variant a one-line edit once the number says which one to try.
-
-*Check:* the number itself, written down beside the register count and the live-state inventory 4.6
-lists, and nothing else changed.
-
-**3 — decide SER (4.5).** With 2's number in hand: if occupancy is where the megakernel is losing,
-price the ray-tracing pipeline that `reorderThreadEXT` requires, against what ray query and the
-register-resident megakernel are worth. Until it is decided, `plan.md` §8's SER entry should say it
-needs one.
+*Check:* the byte comparison — a tile is a cache and must change nothing — and the atrous timer at
+`--upscale=off`, against the level count it was measured at.
 
 Every one of these is M12, and each gets its number written down when it lands rather than acted on
 before.

@@ -133,6 +133,9 @@ namespace Rtx
             const VkGraphicsPipelineCreateInfo pipeline{
                 .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
                 .pNext = &rendering,
+                // Asked for at creation because it cannot be asked for afterwards, and paid at
+                // creation rather than at draw. `Device::reportPipeline` says what it buys.
+                .flags = VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR,
                 .stageCount = static_cast<std::uint32_t>(stages.size()),
                 .pStages = stages.data(),
                 .pVertexInputState = &vertexInput,
@@ -149,6 +152,7 @@ namespace Rtx
                 "vkCreateGraphicsPipelines");
 
             mDevice.setName(VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<std::uint64_t>(mHandle), options.mName);
+            mDevice.reportPipeline(mHandle, options.mName);
         }
         catch (...)
         {
