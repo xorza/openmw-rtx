@@ -65,24 +65,6 @@ namespace Rtx
             return total;
         }
 
-        /// How many bytes one block of a format occupies, or zero where its texels are not blocked.
-        std::uint32_t blockBytes(TextureFormat format)
-        {
-            switch (format)
-            {
-                case TextureFormat::Bc1RgbaSrgb:
-                    return 8;
-                case TextureFormat::Bc2Srgb:
-                case TextureFormat::Bc3Srgb:
-                    return 16;
-                case TextureFormat::Rgba8Unorm:
-                case TextureFormat::Rgba8Srgb:
-                case TextureFormat::Bgra8Srgb:
-                    return 0;
-            }
-
-            throw Error("unknown texture format");
-        }
     }
 
     ShadingMap::ShadingMap()

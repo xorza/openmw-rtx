@@ -108,6 +108,7 @@ if (OPENMW_RTX)
     set(RTX_TEST_FILES
         rtx/allocations.cpp
         rtx/allocations.hpp
+        rtx/alphaimage.cpp
         rtx/bluenoise.cpp
         rtx/computepipeline.cpp
         rtx/device.cpp

@@ -5,6 +5,8 @@
 #include <span>
 #include <string_view>
 
+#include "error.hpp"
+
 namespace Rtx
 {
     /// Where one mip level sits in a texture's bytes, and how big it is.
@@ -48,6 +50,28 @@ namespace Rtx
         Rgba8Srgb,
         Bgra8Srgb,
     };
+
+    /// How many bytes one block of a format occupies, or zero where its texels are not blocked.
+    ///
+    /// **Exhaustive rather than defaulted**, so that a format added to the enum is a build failure
+    /// here rather than a block format quietly read as though its texels were loose bytes.
+    inline std::uint32_t blockBytes(TextureFormat format)
+    {
+        switch (format)
+        {
+            case TextureFormat::Bc1RgbaSrgb:
+                return 8;
+            case TextureFormat::Bc2Srgb:
+            case TextureFormat::Bc3Srgb:
+                return 16;
+            case TextureFormat::Rgba8Unorm:
+            case TextureFormat::Rgba8Srgb:
+            case TextureFormat::Bgra8Srgb:
+                return 0;
+        }
+
+        throw Error("unknown texture format");
+    }
 
     /// Whether a format's bytes are display-encoded, which every content format's are.
     ///

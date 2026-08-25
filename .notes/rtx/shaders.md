@@ -377,9 +377,26 @@ runs of one build, the doll about 0.02% — so those two need a magnitude compar
 control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path and `doll`
 the only transparent-background one.
 
-**1 — opacity micromaps.** The device features are already required and probed; nothing builds a
-micromap. `alphaPasses` is what stops being invoked. *Check:* the trace timer on a view of foliage,
-which is what M12 measures.
+**1 — opacity micromaps.** The device features are required, the entry points loaded and the
+subdivision limits reported; nothing builds a micromap, and `alphaPasses` runs on every candidate of
+every cutout in consequence. `Rtx::AlphaImage` is the half that is done — a texture's alpha decoded
+to a byte a texel, for all four formats the content arrives in, which is what a classifier reads.
+What is left is the classifier and the build:
+
+- **Microtriangle classification.** For each triangle of a cutout mesh, walk the `4^level`
+  microtriangles, sample the alpha over each one's UV footprint, and call it opaque, transparent or
+  unknown. Belongs in `components/rtx/` beside `AlphaImage` — it is a statement about what the
+  content says a surface is, and both backends would want the same answer.
+- **The build.** `VkMicromapEXT` per mesh, chained onto the geometry through
+  `VkAccelerationStructureTrianglesOpacityMicromapEXT`. Instances keep
+  `VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR`, because an unknown microtriangle still has to ask.
+
+**The ordering is the risk and it is worth naming before starting.** Which microtriangle a given
+index refers to is fixed by the specification's recursive subdivision — the bird curve — and getting
+it wrong produces a cutout that is plausible and wrong rather than one that fails. Its properties are
+testable on the CPU (the microtriangles tile the triangle, there are `4^level` of them, level nought
+is the triangle itself), but whether the order matches what the hardware reads can only be settled by
+rendering a mesh whose alpha is known and looking at it. That check wants writing first.
 
 **2 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
 a range the way the light grid is. *Check:* the trace timer at Seyda Neen with 165 emitters, and the

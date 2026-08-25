@@ -22,24 +22,6 @@ namespace RtxTool
         /// How many pairs stand across the sheet.
         constexpr std::uint32_t sColumns = 6;
 
-        std::uint32_t blockBytes(Rtx::TextureFormat format)
-        {
-            switch (format)
-            {
-                case Rtx::TextureFormat::Bc1RgbaSrgb:
-                    return 8;
-                case Rtx::TextureFormat::Bc2Srgb:
-                case Rtx::TextureFormat::Bc3Srgb:
-                    return 16;
-                case Rtx::TextureFormat::Rgba8Unorm:
-                case Rtx::TextureFormat::Rgba8Srgb:
-                case Rtx::TextureFormat::Bgra8Srgb:
-                    return 0;
-            }
-
-            throw Rtx::Error("unknown texture format");
-        }
-
         /// One texel of a texture's largest level, as it is stored.
         ///
         /// Read a texel at a time rather than decoded into a buffer first: a thumbnail asks for one

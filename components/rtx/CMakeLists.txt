@@ -12,6 +12,8 @@
 # the game want to write a frame to a file.
 
 set(RTX_FILES
+    alphaimage.cpp
+    alphaimage.hpp
     bluenoise.cpp
     bluenoise.hpp
     camera.cpp
