@@ -6,6 +6,9 @@ it reads and the frame wiring in `vulkanrenderer.cpp`, against NVIDIA's [DLSS-RR
 guide](https://github.com/NVIDIAGameWorks/Streamline/blob/main/docs/ProgrammingGuideDLSS_RR.md) and
 the vendored SDK's `nvsdk_ngx_helpers_dlssd_vk.h`.
 
+`.notes/rtx/dlss-review.md` holds the findings themselves, as a checklist to be deleted from. This
+file is the order to take them in and nothing else.
+
 **The ordering is by dependency, not by size.** Steps 1 and 2 buy nothing on their own; everything
 after them is unjudgeable without them, which is why they come first.
 
@@ -54,7 +57,8 @@ carries that question). Two machines, or one machine after a driver update, are 
 same thing.
 
 - Select a preset explicitly and record it wherever step 1 reports.
-- The guide deprecates presets A–C; D or the default are what it names.
+- The guide is firmer than "deprecated": presets A through C are **no longer available**, `eDefault`
+  and `ePresetD` are what remain, and `ePresetD` is the one it recommends.
 
 **Done when** two runs of the same view on different days are comparable, and the report says which
 network answered.
@@ -88,6 +92,8 @@ velocity, reprojected with the motion of the wall behind them; the guide pair is
 network to stop.
 
 - The two colour pairs, and `pInBiasCurrentColorMask` for the same population of pixels.
+- `pInIsParticleMask` as well, which costs nothing to fill: `spritesAlong` already returns the
+  transmittance each sprite left, so which pixels one covered is known where the composite happens.
 - Two more render-resolution images and the composite handing over what it already has.
 
 **Done when** a `--weather=Rain` shot at the default upscale stops smearing drops, judged against
@@ -113,7 +119,9 @@ Everything in front of that surface inherits its motion.
 - Sprites move independently of the geometry behind them and have no previous position to difference
   against; the bias mask from step 4 may be the whole answer, and if it is, this shrinks to water.
 - Water is shaded on the primary hit, so a reflection moves with the surface rather than with what is
-  reflected in it. The SDK's specular motion vectors and specular hit distance exist for that.
+  reflected in it. **Not by the route the guide names**: it asks for specular motion vectors, and the
+  vendored header has no such parameter — it offers `pInSpecularHitDistance` with
+  `pInWorldToViewMatrix` and `pInViewToClipMatrix`, and lets the feature derive them.
 
 **Done when** a camera panning across water and rain holds together at the default upscale.
 
@@ -127,6 +135,11 @@ of the shading model as it stands, and not true of the scene. `Surface::Material
 `mSpecularColour` and `mGlossiness` off `NiMaterialProperty`; `GpuMaterial` carries neither, so
 nothing reaches the shader to report.
 
+**And what the guide asks that channel to hold is narrower than "a specular albedo".** It names the
+pre-integrated environment BRDF — its own `EnvBRDFApprox2`, over `NdotV`, roughness and `F0` — where
+water currently reports a scalar Schlick Fresnel. Right in kind, and not the same function, so
+whatever gives solids a specular half should give both surfaces that one.
+
 Closing that is a milestone in the content pipeline rather than a fix in the upscaler's wiring, and
 it is the last placeholder any of the four inputs still holds.
 
@@ -139,6 +152,9 @@ it is the last placeholder any of the four inputs still holds.
   not its origin, `DepthInverted` and `AutoExposure` deliberately absent. Each was found through a
   `FAIL_InvalidParameter` that named no parameter. Nothing above should disturb them without
   re-deriving them.
-- The Streamline guide and the vendored `nvsdk_ngx_helpers_dlssd_vk.h` state **opposite** conventions
-  for `InMVScale{X,Y}`. The code follows the header, which is right for raw NGX; a future reader
-  finding the guide first will conclude the code is wrong.
+- The Streamline guide and the vendored `nvsdk_ngx_helpers_dlssd_vk.h` **describe different
+  features**, and the code follows the header, which is right for raw NGX. They state opposite
+  conventions for `InMVScale{X,Y}`; the guide lists specular motion vectors among the required
+  inputs and the header has no such parameter; and the guide's optional set is a transparency layer
+  with SSS and depth-of-field guides where the header's is the fog and particle pairs step 4 uses.
+  A future reader who finds the guide first will conclude the code is wrong on all three.
