@@ -179,7 +179,13 @@ them left behind is in §8.
 - **M8 — indirect light. Done.** Path-traced diffuse bounce, sky as an emitter, blue-noise sampling,
   à-trous denoise demodulated by albedo. Water and fog bypass the filter by construction.
 - **M9 — de-lighting. Done.** An estimate divided out at sample time, judged on a contact sheet.
-- **M10 — G-buffer and DLSS Ray Reconstruction. Done.** 1920×1080 internal → 3840×2160.
+- **M10 — G-buffer and DLSS Ray Reconstruction. Done.** 1920×1080 internal → 3840×2160. *Binds:*
+  **a ray that hits nothing still moves.** The sky is infinitely far, so the eye walking does not
+  carry it — but the eye *turning* does, and that is most of what a player does. Storing nothing in
+  the motion channel for a miss had the upscaler fetch the sky's history from the pixel it already
+  occupied, and every turn of the head smeared it. A gradient hides that and a field of stars does
+  not, which is how it was found; under a rotation the sky moves by exactly what a surface at any
+  distance moves by, and there is a test that says so.
 - **M11 — full in-game integration. Done.** Cells, objects, actors, camera, menus, screenshots, the
   local and global maps. *Binds:* **removal is mark and sweep over slots** — the mirror re-walks the
   whole graph every frame, so anything alive was met, and the identity maps are keyed on raw `osg`

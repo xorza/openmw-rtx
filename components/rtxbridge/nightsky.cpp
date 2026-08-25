@@ -5,9 +5,9 @@
 #include <vector>
 
 #include <osg/Geometry>
-#include <osg/TriangleIndexFunctor>
 #include <osg/NodeVisitor>
 #include <osg/Texture2D>
+#include <osg/TriangleIndexFunctor>
 
 #include <components/debug/debuglog.hpp>
 #include <components/resource/scenemanager.hpp>
@@ -124,8 +124,7 @@ namespace RtxBridge
             {
                 const auto* vertices = dynamic_cast<const osg::Vec3Array*>(geometry.getVertexArray());
                 const auto* coords = dynamic_cast<const osg::Vec2Array*>(geometry.getTexCoordArray(0));
-                if (vertices == nullptr || coords == nullptr || vertices->size() != coords->size()
-                    || vertices->empty())
+                if (vertices == nullptr || coords == nullptr || vertices->size() != coords->size() || vertices->empty())
                     return;
 
                 Layer layer;
@@ -151,8 +150,8 @@ namespace RtxBridge
 
                 layer.mDirection.normalize();
                 for (const osg::Vec3f& towards : directions)
-                    layer.mAngularRadius
-                        = std::max(layer.mAngularRadius, std::acos(std::clamp(towards * layer.mDirection, -1.0f, 1.0f)));
+                    layer.mAngularRadius = std::max(
+                        layer.mAngularRadius, std::acos(std::clamp(towards * layer.mDirection, -1.0f, 1.0f)));
 
                 // Seeded from the first coordinate rather than from nothing, and kept per axis: a
                 // sheet whose coordinates all sit above one would otherwise measure its distance

@@ -831,6 +831,82 @@ namespace Rtx
             }
         }
 
+        /// The sky moves when the eye turns and stands still when it walks, and an upscaler is told
+        /// which.
+        ///
+        /// **A miss used to store nothing at all**, on the reasoning that the sky does not move. That
+        /// is true of walking and false of looking around, and looking around is most of what a
+        /// player does — so the upscaler fetched the sky's history from the pixel it already
+        /// occupied and every turn of the head smeared it. A gradient hides that; a field of stars
+        /// does not, which is how it was found.
+        ///
+        /// **The claim is exact rather than approximate.** Under a rotation about the eye, where a
+        /// point lands on screen depends on its direction and not on how far away it is — so the sky
+        /// and a wall at any distance all move by the same number of pixels, and that is what makes
+        /// this an equality and not a "something happened".
+        TEST_F(RtxVisibilityTest, theSkyReprojectsByTheTurnAloneAndAWallAtAnyDistanceAgrees)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::size_t centre = std::size_t{ size / 2 } * size + size / 2;
+
+            /// The centre pixel's motion after the camera moves from the origin, looking along +y, to
+            /// `eye` looking at `at`, with a wall `away` units along that axis.
+            ///
+            /// **A negative `away` puts it behind the eye**, which is a frame of nothing but sky and
+            /// is not the same thing as a scene with nothing in it — a renderer with no geometry at
+            /// all has no acceleration structure to trace, and that is a different test.
+            const auto motion = [&](float away, const osg::Vec3f& eye, const osg::Vec3f& at) {
+                const std::array<osg::Vec3f, 4> wall{
+                    osg::Vec3f(-8000.0f, away, -8000.0f),
+                    osg::Vec3f(8000.0f, away, -8000.0f),
+                    osg::Vec3f(8000.0f, away, 8000.0f),
+                    osg::Vec3f(-8000.0f, away, 8000.0f),
+                };
+
+                SceneDesc scene;
+                scene.addInstance(MeshInstance{
+                    .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(wall, {}, {}, sQuadIndices) });
+
+                const Shaders::VisibilityConstants first
+                    = makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
+
+                std::vector<std::uint8_t> pixels;
+                const std::uint32_t hit = countHits(scene, {}, first, size, pixels);
+                EXPECT_EQ(hit, away > 0.0f ? size * size : 0u) << "the frame is all wall or all sky";
+
+                mRenderer->renderFrame(makeCamera(eye, at, 60.0f, size, size, 1000000.0f), FrameOptions{});
+
+                std::vector<float> moved;
+                mRenderer->readChannel(Channel::Motion, moved);
+                return osg::Vec2f(moved[centre * 2], moved[centre * 2 + 1]);
+            };
+
+            // **A camera that only turns.** Twenty units across a hundred out is a little over eleven
+            // degrees, and every one of these three lands on the same pixel offset.
+            const osg::Vec3f turned(20.0f, 100.0f, 0.0f);
+            const float sky = motion(-500.0f, osg::Vec3f(), turned).x();
+            const float near = motion(200.0f, osg::Vec3f(), turned).x();
+            const float far = motion(400.0f, osg::Vec3f(), turned).x();
+
+            EXPECT_GT(std::abs(sky), 1.0f) << "the sky slid, which storing nothing could never say";
+            EXPECT_LT(std::abs(sky), size) << "and stayed on screen";
+            EXPECT_NEAR(sky, near, 0.01f) << "by exactly what a wall two hundred units off moved";
+            EXPECT_NEAR(sky, far, 0.01f) << "and four hundred, because a turn does not care";
+
+            // **A camera that only walks.** Now the distances part company and the sky is the one
+            // that does not move: it is infinitely far, so a step sideways is nothing beside it.
+            const osg::Vec3f aside(40.0f, 0.0f, 0.0f);
+            const float walkedSky = motion(-500.0f, aside, aside + osg::Vec3f(0.0f, 100.0f, 0.0f)).x();
+            const float walkedNear = motion(200.0f, aside, aside + osg::Vec3f(0.0f, 100.0f, 0.0f)).x();
+
+            EXPECT_NEAR(walkedSky, 0.0f, 1e-3f) << "the sky is where it was";
+            EXPECT_GT(std::abs(walkedNear), 1.0f) << "and the wall is not";
+
+            // And a camera that did nothing moves nothing, sky included — an unproject and a project
+            // with a rounding between them.
+            EXPECT_NEAR(motion(-500.0f, osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f)).x(), 0.0f, 1e-3f);
+        }
+
         /// The two answers the depth channel carries, against hand-computed values for both.
         ///
         /// **Clip depth in `r`, for an upscaler.** `far / (far - near) * (1 - near / z)`, zero at the

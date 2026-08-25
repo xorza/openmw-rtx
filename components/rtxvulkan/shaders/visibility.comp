@@ -2323,16 +2323,13 @@ vec3 movedBy(uint index, vec3 position)
 /// centre instead returns the jitter for a world that did not move, and an upscaler handed that
 /// fetches its history a fraction of a pixel out, by a different fraction every frame. That is a
 /// still image that shakes.
-vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint instance)
+vec2 reprojected(uvec2 pixel, vec3 was)
 {
     // **No answer under a parallel projection.** The inverse below divides by the distance along
     // the view axis, which is the perspective divide and not this camera's projection. Nothing that
     // traces one reprojects: a map tile is one frame with no frame before it.
     if (camera.mOrthographic != 0u)
         return vec2(0.0);
-
-    const vec3 point = origin + direction * distance;
-    const vec3 was = direction * distance + camera.mCameraMotion + movedBy(instance, point);
 
     // Behind the previous eye there is no answer, and the divide below would fold such a point back
     // into the frame as a plausible coordinate.
@@ -2347,6 +2344,28 @@ vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
 
     const vec2 before = (vec2(across, down) / ahead * 0.5 + 0.5) * vec2(camera.mWidth, camera.mHeight);
     return before - (vec2(pixel) + 0.5 + camera.mJitter);
+}
+
+vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint instance)
+{
+    const vec3 point = origin + direction * distance;
+
+    return reprojected(pixel, direction * distance + camera.mCameraMotion + movedBy(instance, point));
+}
+
+/// Where the sky a ray found stood on the previous frame's screen, in pixels.
+///
+/// **Infinitely far, so the eye's own walk does not carry it and its turn is the whole of it.** A
+/// miss used to store nothing here, on the reasoning that the sky does not move — which is true of
+/// walking and false of looking around, and looking around is most of what a player does. What an
+/// upscaler did with it was fetch the sky's history from the pixel it already occupies, so every
+/// turn of the head smeared it; a gradient hides that and a field of stars does not.
+///
+/// The same reprojection a surface gets, with the translation left out: at infinity `mCameraMotion`
+/// is nothing beside the direction, and dropping it is what says so exactly rather than nearly.
+vec2 skyMotionOf(uvec2 pixel, vec3 direction)
+{
+    return reprojected(pixel, direction);
 }
 
 /// How rough every surface in this renderer is, until there is a material model that knows.
@@ -2472,10 +2491,10 @@ void main()
     imageStore(modulate, at, vec4(tint, 1.0));
     imageStore(guide, at, vec4(surface.mHit ? surface.mNormal : vec3(0.0), SURFACE_ROUGHNESS));
 
-    // A miss stores nothing, which a temporal filter reads as "this pixel did not move" — and for
-    // the sky that is true.
-    const vec2 moved
-        = surface.mHit ? motionOf(pixel, origin, direction, surface.mDistance, surface.mInstance) : vec2(0.0);
+    // **The sky moves too, and only its turn moves it.** `skyMotionOf` says why storing nothing here
+    // was a smear across every camera rotation.
+    const vec2 moved = surface.mHit ? motionOf(pixel, origin, direction, surface.mDistance, surface.mInstance)
+                                    : skyMotionOf(pixel, direction);
     imageStore(motion, at, vec4(moved, 0.0, 0.0));
 
     // A miss is as far away as anything can be, and `mDistance` already carries `mFar` for it.
