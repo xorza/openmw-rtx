@@ -694,13 +694,27 @@ WaterSurface waterSurfaceAt(vec2 at, float time, float footprint)
     return surface;
 }
 
-/// How much of the surface at a point is broken water, from none of it to all.
+/// The depth this sea state breaks in, in world units.
 ///
-/// **One criterion, and it is the oldest one there is.** A wave breaks when its height reaches about
-/// three quarters of the depth it stands in — McCowan's solitary-wave limit, 1894, still what a surf
-/// zone is placed with — so broken water is wherever the column under it is thinner than that. The
-/// band's width is not a distance anyone picks: it falls out of the sea state, and a calmer sea
-/// foams in a narrower strip of shore with nothing tuned.
+/// A wave breaks when its height reaches about three quarters of the depth it stands in —
+/// McCowan's solitary-wave limit, 1894, still what a surf zone is placed with. It is what makes the
+/// band's width a consequence of the sea rather than a distance anyone picks: a calmer sea breaks
+/// closer in, in a narrower strip, with nothing tuned.
+float breakingDepth(WaterSurface surface)
+{
+    return surface.mRoughness * WATER_SIGNIFICANT_HEIGHT / WATER_BREAKER_RATIO;
+}
+
+/// How far broken water is carried before it has gone, in world units.
+///
+/// The shallow-water celerity at the breaker line, over the time a raft of bubbles lasts. The floor
+/// is a divide guard for a sea too flat to have a surf zone at all, where nothing breaks anyway.
+float foamRunout(WaterSurface surface)
+{
+    return max(WATER_FOAM_LIFETIME * sqrt(WATER_GRAVITY * breakingDepth(surface)), 1.0e-3);
+}
+
+/// What share of the surface at a point is breaking, from none of it to all.
 ///
 /// **Against the depth at this instant rather than the still one**, which is the whole of the
 /// pattern. A crest carries the column deeper and a trough leaves it thinner, so the criterion is
@@ -718,12 +732,11 @@ WaterSurface waterSurfaceAt(vec2 at, float time, float footprint)
 /// argument `mLostSlope` makes for the reflection and why the two are carried together.
 ///
 /// @param depth how deep the still water is under this point, straight down and in world units.
-float foamCoverage(WaterSurface surface, float depth)
+float foamBreaking(WaterSurface surface, float depth)
 {
     // What the sea state breaks in, and what stands between this point and breaking once the wave
     // over it is counted.
-    const float breaking = surface.mRoughness * WATER_SIGNIFICANT_HEIGHT / WATER_BREAKER_RATIO;
-    const float margin = breaking - (depth + surface.mHeight);
+    const float margin = breakingDepth(surface) - (depth + surface.mHeight);
 
     // `P(the unresolved elevation does not make up the margin)`. The smoothstep stands in for the
     // Gaussian's own integral, which it follows to within a hundredth across the three standard
@@ -731,7 +744,37 @@ float foamCoverage(WaterSurface surface, float depth)
     // a surface every one of whose waves is resolved has a genuinely sharp edge, and drawing it
     // sharp is right.
     const float noise = max(sqrt(surface.mLostHeight), 1.0e-3);
+
     return smoothstep(-1.6, 1.6, margin / noise);
+}
+
+/// How much of what broke is still foam by the time it has been carried to a point.
+///
+/// **A wave has to have reached the point at all, which breaking never asks.** That criterion is a
+/// statement about water a wave is crossing; every hollow that dips below sea level satisfies it
+/// too, and there are a great many of those behind a shoreline. What tells the two apart is the
+/// bed: a shore keeps going down, so the wave broke a few metres away and what it made is still
+/// here, while a pan is level, so the nearest water deep enough to break in is tens of metres off
+/// and nothing that broke there survives the trip. Measured at Seyda Neen the two populations sit a
+/// hundred-fold apart with nothing in between, which is why the shape of the fall-off decides
+/// nothing that was ever close.
+///
+/// @param depth how deep the still water is under this point, in world units.
+/// @param fall how fast the bed falls away toward deep water, as a tangent — measured over the
+///        run-out rather than read off the surface here, for the reason `bedFall` gives.
+float foamReaching(WaterSurface surface, float depth, float fall)
+{
+    const float breaking = breakingDepth(surface);
+
+    // How far the wave came through water shallow enough to break in: the depth still to be lost,
+    // over the rate it is lost at.
+    //
+    // **The still depth and not the instantaneous one**, which `foamBreaking` is the other way
+    // round about. Where the surf line falls is a question about this wave and wanders with it; how
+    // wide the surf zone is, is a question about the beach and does not.
+    const float crossed = max(breaking - depth, 0.0) / max(fall, 1.0e-4);
+
+    return exp(-crossed / foamRunout(surface));
 }
 
 /// What is left of the daylight by the time it reaches a point, as a fraction per channel.
@@ -1965,7 +2008,25 @@ vec3 shadeSurface(Surface surface, vec3 incoming)
         + surface.mEmitted;
 }
 
-/// What a ray sees along `direction` after leaving the water, and how far it went to see it.
+/// What a ray sent out from the water surface found.
+struct WaterPath
+{
+    /// The light coming back along it, already shaded.
+    vec3 mRadiance;
+
+    /// How far it went to find that, or `WATER_MAX_PATH` where it found nothing.
+    float mDistance;
+
+    /// The plane of what it landed on, unturned.
+    ///
+    /// **Carried because the bed's gradient is what places a surf zone**, and the ray that measures
+    /// the depth has already resolved it — asking separately would traverse the same ray twice.
+    /// Level where nothing was found — a value nothing then turns on, because the distance has
+    /// already put such a point outside any surf zone.
+    vec3 mGeometric;
+};
+
+/// What a ray sees along `direction` after leaving the water, and what it found to see it on.
 ///
 /// **The pixel's own cone, not a bounce's.** A reflection and a refraction are specular: they carry
 /// the footprint the primary ray had, where a diffuse bounce spreads over a hemisphere and wants the
@@ -1986,13 +2047,52 @@ vec3 shadeSurface(Surface surface, vec3 incoming)
 ///        it against a wavelength and `coneLod` against a texel area, and `mSpreadAngle` is the whole
 ///        angle a pixel covers rather than half of one. The sky's disc takes the same number
 ///        unhalved, because a disc is named by its radius.
-vec3 waterRay(vec3 origin, vec3 direction, float footprint, float lobe, out float travelled)
+WaterPath waterRay(vec3 origin, vec3 direction, float footprint, float lobe)
 {
     const Surface hit
         = trace(origin, direction, WATER_BIAS, footprint, camera.mSpreadAngle + 2.0 * lobe, MASK_SOLID);
-    travelled = hit.mHit ? hit.mDistance : WATER_MAX_PATH;
 
-    return hit.mHit ? shadeSurface(hit, pathEnd(hit.mPosition)) : skyRadiance(direction, pixelBlur() + lobe);
+    WaterPath path;
+    path.mDistance = hit.mHit ? hit.mDistance : WATER_MAX_PATH;
+    path.mGeometric = hit.mHit ? hit.mGeometric : vec3(0.0, 0.0, 1.0);
+    path.mRadiance
+        = hit.mHit ? shadeSurface(hit, pathEnd(hit.mPosition)) : skyRadiance(direction, pixelBlur() + lobe);
+
+    return path;
+}
+
+/// How fast the bed falls away toward deep water, as a tangent, measured over `span`.
+///
+/// **A tangent plane is not a beach.** The bed's own normal says how the ground tilts at the point
+/// the refraction ray landed on and nothing whatever about whether that tilt carries on: at the rim
+/// of a puddle it tilts exactly as a shore does, and reading it as "water deep enough to break in
+/// lies just down this slope" is what drew a bright line around every hollow behind Seyda Neen.
+/// First-order extrapolation of a slope that stops.
+///
+/// So the fall is a secant over the distance the answer is wanted for rather than a tangent at one
+/// end of it — one ray straight down at the far end — and a bed that stops falling stops counting.
+///
+/// @param at a point on the water surface.
+/// @param geometric the plane of the bed under it.
+/// @param here how deep the water is at `at`.
+float bedFall(vec3 at, vec3 geometric, float here, float span)
+{
+    // Downhill, for a plane, is the horizontal part of whichever way its normal points up. A level
+    // bed has no downhill and goes nowhere, which is the answer for a pan.
+    const vec2 downhill = geometric.z < 0.0 ? -geometric.xy : geometric.xy;
+    if (dot(downhill, downhill) < 1.0e-12)
+        return 0.0;
+
+    const vec3 from = vec3(at.xy + normalize(downhill) * span, at.z + WATER_BIAS);
+    const Surface bed = trace(from, vec3(0.0, 0.0, -1.0), WATER_BIAS, 0.0, 0.0, MASK_SOLID);
+
+    // Nothing under the water plane out there. The ray started in the surface and went down, so a
+    // miss means the ground at that end stands above the sea: that way is dry land and not the open
+    // water a wave would have come from.
+    if (!bed.mHit)
+        return 0.0;
+
+    return max(bed.mDistance - here, 0.0) / span;
 }
 
 /// What is left of `radiance` after `path` units of water, plus what the water scattered back.
@@ -2067,10 +2167,10 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response)
     // travelled no water at all. Attenuating the wrong one turns that window green.
     const vec3 leaving = surface.mPosition + plane * WATER_BIAS;
 
-    float mirrored = 0.0;
-    vec3 reflected = waterRay(leaving, reflect(incident, normal), surface.mFootprint, lobe, mirrored);
+    const WaterPath mirror = waterRay(leaving, reflect(incident, normal), surface.mFootprint, lobe);
+    vec3 reflected = mirror.mRadiance;
     if (fromBelow)
-        reflected = absorbedByWater(reflected, mirrored);
+        reflected = absorbedByWater(reflected, mirror.mDistance);
 
     const vec3 through = refract(incident, normal, fromBelow ? WATER_IOR : 1.0 / WATER_IOR);
     if (dot(through, through) < 1e-6)
@@ -2080,16 +2180,15 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response)
         return reflected;
     }
 
-    float depth = 0.0;
     // Refraction bends by a third of what reflection does, so what is seen *through* the surface is
     // blurred correspondingly less by the same lost slopes.
-    const vec3 behind = waterRay(leaving, through, surface.mFootprint, lobe * WATER_REFRACTION_BEND, depth);
-    const vec3 refracted = fromBelow ? behind : absorbedByWater(behind, depth);
+    const WaterPath bed = waterRay(leaving, through, surface.mFootprint, lobe * WATER_REFRACTION_BEND);
+    const vec3 refracted = fromBelow ? bed.mRadiance : absorbedByWater(bed.mRadiance, bed.mDistance);
 
     // With no water left between the surface and the ground, this is the ground. Only from above:
-    // seen from under it, `depth` is a distance through air and says nothing about a shore.
-    const float shore = fromBelow ? 1.0 : smoothstep(0.0, WATER_SHORE_FADE, depth);
-    const vec3 water = mix(behind, mix(refracted, reflected, fresnel), shore);
+    // seen from under it, the path is a distance through air and says nothing about a shore.
+    const float shore = fromBelow ? 1.0 : smoothstep(0.0, WATER_SHORE_FADE, bed.mDistance);
+    const vec3 water = mix(bed.mRadiance, mix(refracted, reflected, fresnel), shore);
     if (fromBelow)
         return water;
 
@@ -2098,7 +2197,7 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response)
     // point — enough to put the surf line in a different place depending on where it is watched
     // from, which is the one thing a shoreline may not do. The drop is the path times its own
     // vertical share, which is exact.
-    const float under = depth * max(-through.z, 0.0);
+    const float under = bed.mDistance * max(-through.z, 0.0);
 
     // **Not faded out with the water, which is the one composition that looked obvious and is
     // wrong.** `shore` exists to hide the plane cutting the terrain, and at this sea state it covers
@@ -2108,7 +2207,15 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response)
     // one; where the column is too thin to tint anything the raft is still there, and the last
     // stretch of it lying over wet sand is what the edge of the sea looks like. It ends where the
     // water does on its own, because past that no ray finds water to stand on.
-    const float covered = foamCoverage(sea, under);
+    const float breaks = foamBreaking(sea, under);
+    if (!(breaks > 0.0))
+        return water;
+
+    // **The one place a ray is spent on foam, and it is spent only where there could be foam.**
+    // Every pixel of open sea reaches the line above and stops there; what gets this far is the
+    // shallows, which is a thin band of any frame.
+    const float fall = bedFall(surface.mPosition, bed.mGeometric, under, foamRunout(sea));
+    const float covered = breaks * foamReaching(sea, under, fall);
     if (!(covered > 0.0))
         return water;
 

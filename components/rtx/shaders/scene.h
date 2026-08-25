@@ -216,6 +216,53 @@ namespace Rtx::Shaders
     /// somebody picked: a calmer sea breaks closer in, in a narrower strip, with nothing tuned.
     RTX_CONST float WATER_BREAKER_RATIO = 0.78f;
 
+    /// How long a raft of broken water lasts before it has dispersed, in seconds.
+    ///
+    /// **This is what stops a puddle being surf.** The ratio above is a statement about a wave that
+    /// arrives: it says where one breaks, and not whether one ever got here. A hollow inland of the
+    /// shore that dips below sea level satisfies it across the whole of itself — every part of it is
+    /// shallower than anything breaks in — so it comes out white from edge to edge, which is what a
+    /// level pan of water four centimetres deep is not.
+    ///
+    /// What separates the two is how far the wave had to travel through breaking-depth water to
+    /// reach the point, and the bed's own gradient is what says: a few metres where the ground drops
+    /// away to open sea, tens of metres across a pan that does not drop at all. Broken water is
+    /// carried shoreward at the shallow-water celerity and thins while it goes, so that distance
+    /// becomes a share by way of one time — Monahan and Woolf's decay constant for a whitecap.
+    ///
+    /// **A time and not a distance, for the reason the ratio above is a ratio.** The length it
+    /// stands for is `sqrt(g h)` times this, so a heavier sea carries its foam further by itself,
+    /// and the surf zone stays a consequence of the sea state rather than a band somebody sized.
+    RTX_CONST float WATER_FOAM_LIFETIME = 3.5f;
+
+    /// How far under its nominal level the sea's own surface is placed, in world units.
+    ///
+    /// **Coplanar surfaces have no intersection order, so one has to be imposed.** Morrowind's
+    /// terrain heights are whole multiples of eight units and its sea sits at zero, so ground
+    /// authored at sea level is not nearly in the water plane, it is *exactly* in it. A ray then
+    /// finds whichever of the two the arithmetic happened to round toward, and that differs from
+    /// pixel to pixel: a coastal flat comes back as salt and pepper rather than as either surface.
+    /// A rasterizer settles this with draw order and a depth test; a ray tracer has neither.
+    ///
+    /// **The rasterizer never has to answer this and so never had to decide it.** Upstream draws the
+    /// sea as a blended layer with `LEQUAL` and no depth write, over terrain already in the buffer
+    /// (`components/sceneutil/waterutil.cpp`), so "which of the two is at this pixel" is not a
+    /// question it asks: both are, one over the other, and its own fade with depth makes the layer
+    /// contribute nothing where the column is nothing. A ray's first hit is one surface, so the tie
+    /// has to be broken rather than blended away.
+    ///
+    /// It is broken in the ground's favour, which is the reading the content means — a flat the map
+    /// puts *at* sea level is a shore and not a lagoon — and it is broken once, in the geometry, so
+    /// that it holds for every ray rather than for the one path somebody remembered.
+    ///
+    /// **The size is bounded at both ends rather than picked.** It has to beat the intersection's
+    /// own rounding, which is a few units in the last place of the coordinates: out at the far
+    /// corner of the exterior grid those run to some 330,000 units, where a float's last place is
+    /// about 0.04, so a handful of them is under a fifth of a unit. And it has to stay far under
+    /// anything the eye reads, which the sea itself sets — the waves are metres of amplitude and
+    /// this is seven millimetres.
+    RTX_CONST float WATER_TIE_BREAK = 0.5f;
+
     /// Significant wave height over the surface's rms elevation.
     ///
     /// The oceanographers' definition — the mean of the highest third, which for a Gaussian sea is

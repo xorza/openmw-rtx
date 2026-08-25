@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <components/rtx/frameworld.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/skybuilder.hpp>
 
@@ -92,7 +93,12 @@ namespace Rtx
             EXPECT_EQ(constants.mFogExtinction, world.mAir.mExtinction);
             EXPECT_EQ(constants.mFogUniform, world.mAir.mUniform) << "the game wrote this nowhere";
 
-            EXPECT_EQ(constants.mWaterLevel, world.mWaterLevel);
+            // **The one field that does not pass through, and it is meant not to.** What the shader
+            // is told is where the surface actually is, and the surface is placed a hair under its
+            // nominal level so that ground authored at sea level is not fighting it —
+            // `WATER_TIE_BREAK` says why. The two have to move together or the shader's idea of the
+            // water and the water disagree.
+            EXPECT_EQ(constants.mWaterLevel, world.mWaterLevel - Shaders::WATER_TIE_BREAK);
             EXPECT_EQ(constants.mTime, world.mSeconds) << "the game wrote this nowhere either";
 
             EXPECT_EQ(constants.mWeather, world.mWeather);

@@ -10,6 +10,7 @@
 #include <components/rtx/camera.hpp>
 #include <components/rtx/error.hpp>
 #include <components/rtx/renderer.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/weather/downpour.hpp>
 
@@ -114,7 +115,8 @@ namespace RtxTool
             moving.mLighting.mSeconds = 3.5f;
             moving.mLighting.mWaterLevel = -12.0f;
             EXPECT_EQ(makeFrameConstants(moving, sExtents).mTime, 3.5f);
-            EXPECT_EQ(makeFrameConstants(moving, sExtents).mWaterLevel, -12.0f);
+            EXPECT_EQ(makeFrameConstants(moving, sExtents).mWaterLevel, -12.0f - Rtx::Shaders::WATER_TIE_BREAK)
+                << "the level the shader is given is where the surface is, which is a hair under the nominal one";
             EXPECT_NE(makeFrameConstants(moving, sExtents).mTime, plain.mTime);
         }
 

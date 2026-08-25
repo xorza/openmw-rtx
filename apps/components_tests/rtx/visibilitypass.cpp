@@ -210,6 +210,36 @@ namespace Rtx
             return scene;
         }
 
+        /// A bed that shelves: `depth` under the origin, and dropping away northward at `gradient`.
+        ///
+        /// **The shape a surf zone needs, and a level pan is not one.** Where foam sits is set by how
+        /// far the wave came through water shallow enough to break in, and across a level bed that
+        /// distance is unbounded — so anything measuring surf has to give the bed somewhere to go
+        /// down to.
+        ///
+        /// The shore end is cut off exactly where the bed would surface, so that no part of it stands
+        /// proud of the water to shade the point being measured. The seaward end runs the full
+        /// extent, because the run-out probe goes looking that way for water deep enough to break
+        /// in and a bed that stopped short would read as dry land.
+        SceneDesc makeShelving(float extent, float depth, float gradient)
+        {
+            SceneDesc scene = makeOpenWater(extent);
+
+            const float shore = -depth / gradient;
+            const float deep = -depth - gradient * extent;
+            const std::array<osg::Vec3f, 4> bed{
+                osg::Vec3f(-extent, shore, 0.0f),
+                osg::Vec3f(extent, shore, 0.0f),
+                osg::Vec3f(extent, extent, deep),
+                osg::Vec3f(-extent, extent, deep),
+            };
+
+            scene.addInstance(MeshInstance{
+                .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(bed, {}, {}, sQuadIndices) });
+
+            return scene;
+        }
+
         /// How bright the sun is in the tests that measure through water.
         ///
         /// Named because their arithmetic uses it as well: the number the shader is handed and the
@@ -2379,30 +2409,27 @@ namespace Rtx
             EXPECT_EQ(pixels[centre], 18) << "red, settled at what the water scatters";
         }
 
-        /// Broken water is where the column under it is too thin to hold a wave up, and neither the
-        /// depth nor the sea state decides that on its own.
+        /// Broken water is where a wave can break *and* could get to, and no one of the depth, the
+        /// sea state or the bed decides that on its own.
         ///
         /// **No sun, so the answer is arithmetic rather than a pattern.** Foam is Lambertian and
-        /// spectrally flat, so a surface entirely covered by it, lit by an ambient of one and nothing
-        /// else, sends back exactly `WATER_FOAM_ALBEDO` in every channel:
+        /// spectrally flat, so what a covered surface sends back under an ambient of one and nothing
+        /// else is `WATER_FOAM_ALBEDO` in every channel alike — and equal channels are a signature
+        /// the water under it can never forge: Jerlov's coastal extinction takes red out first, so
+        /// any depth of water at all reads green.
         ///
-        ///   0.55, encoded 1.055 * 0.55^(1/2.4) - 0.055 = 0.76738, or 196 of 255
-        ///
-        /// and that is the same in all three, which the water under it can never be: Jerlov's coastal
-        /// extinction takes red out first, so any depth of water at all reads green.
-        ///
-        /// **Three legs, because the criterion has two sides.** A pond too shallow for its sea foams;
-        /// the same pond under a sea too small to break in it does not; and the same *sea* over deep
-        /// water does not either. McCowan puts the break at `H / 0.78`, so each of those is a
-        /// comparison against one number and both terms of it are exercised.
-        TEST_F(RtxVisibilityTest, surfCoversWaterTooThinToHoldItsOwnWavesUp)
+        /// **Four legs, because the criterion has three terms.** A shelving shallow foams; the same
+        /// shore under a sea too small to break in it does not; the same sea over deep water does
+        /// not; and — the leg this grew by — the same water over a *level* bed does not either,
+        /// however shallow it is. McCowan puts the break at `H / 0.78` and the last leg is what says
+        /// that a wave has to have arrived as well, which is what tells a shore from a puddle lying
+        /// behind one.
+        TEST_F(RtxVisibilityTest, surfCoversShallowWaterThatAWaveCanBothBreakInAndReach)
         {
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
 
-            const auto look = [&](float depth, float significantHeight) {
-                const SceneDesc scene = makeFlooded(4000.0f, depth);
-
+            const auto look = [&](const SceneDesc& scene, float significantHeight) {
                 Shaders::VisibilityConstants camera = makeCamera(
                     osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
                 camera.mAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
@@ -2413,28 +2440,36 @@ namespace Rtx
                 return std::array<int, 3>{ pixels[centre], pixels[centre + 1], pixels[centre + 2] };
             };
 
-            // Two units of water under a sea whose significant height is forty, which breaks out to
-            // fifty-one units of depth: the centre is covered whatever the wave over it is doing, so
-            // the value is exact rather than a pattern that happened to land on a pixel.
-            const std::array<int, 3> surf = look(2.0f, 40.0f);
-            EXPECT_EQ(surf[0], 196) << "red, and it is the foam's own albedo and nothing else";
-            EXPECT_EQ(surf[1], 196) << "green";
-            EXPECT_EQ(surf[2], 196) << "blue — a bubble raft has no colour of its own";
+            // Two units of water on a bed falling away at forty-five degrees, under a sea whose
+            // significant height is forty and so breaks out in fifty-one units of depth. The centre
+            // is covered whatever the wave over it is doing.
+            const std::array<int, 3> surf = look(makeShelving(4000.0f, 2.0f, 1.0f), 40.0f);
+            EXPECT_EQ(surf[0], surf[1]) << "a bubble raft has no colour of its own";
+            EXPECT_EQ(surf[1], surf[2]) << "and none in the other channel either";
 
-            // **The same water under a sea that cannot break in it.** A significant height of one
+            // **The same shore under a sea that cannot break in it.** A significant height of one
             // breaks in 1.28 units and there are two here, so the criterion is never met and what
             // comes back is the bed through two units of water that barely tint it.
-            const std::array<int, 3> calm = look(2.0f, 1.0f);
+            const std::array<int, 3> calm = look(makeShelving(4000.0f, 2.0f, 1.0f), 1.0f);
             EXPECT_LT(calm[0], surf[0]) << "no foam, and the bed shows through instead";
             EXPECT_EQ(calm[0], calm[1]) << "two units of water take out nothing worth measuring";
 
             // **And the same sea over water deep enough to hold it.** Nothing about the waves
-            // changed; the column under them did, which is the whole of the criterion. What comes
-            // back is water — dark and green, because red went first.
-            const std::array<int, 3> deep = look(400.0f, 40.0f);
+            // changed; the column under them did. What comes back is water — dark and green,
+            // because red went first.
+            const std::array<int, 3> deep = look(makeShelving(4000.0f, 400.0f, 1.0f), 40.0f);
             EXPECT_LT(deep[0], surf[0]) << "no foam over deep water, however rough the sea";
             EXPECT_LT(deep[0], deep[1]) << "and water is green: red goes first";
             EXPECT_LT(deep[2], deep[1]) << "with blue between the two";
+
+            // **The same two units, the same sea, and a bed that does not go anywhere.** Every
+            // depth-and-sea-state term the first leg met, this one meets too; what it has not got is
+            // anywhere for a wave to have come from, because a level bed puts the nearest water deep
+            // enough to break in an unbounded distance away. This is the pan behind a shoreline, and
+            // before the bed was consulted it rendered as solid surf from edge to edge.
+            const std::array<int, 3> pan = look(makeFlooded(4000.0f, 2.0f), 40.0f);
+            EXPECT_LT(pan[0], surf[0]) << "no foam on water no wave reaches";
+            EXPECT_EQ(pan[0], calm[0]) << "and what is left is the bed, exactly as the calm sea left it";
         }
 
         /// The same column of water has to look the same from either side of it.

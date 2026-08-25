@@ -1,5 +1,7 @@
 #include "frameworld.hpp"
 
+#include "shaders/scene.h"
+
 namespace Rtx
 {
     void applyWorld(const FrameWorld& world, Shaders::VisibilityConstants& constants)
@@ -16,7 +18,9 @@ namespace Rtx
         constants.mFogExtinction = world.mAir.mExtinction;
         constants.mFogUniform = world.mAir.mUniform;
 
-        constants.mWaterLevel = world.mWaterLevel;
+        // The same hair the water's own placement is dropped by, so that what the shader calls the
+        // water level and where the surface actually is stay one number.
+        constants.mWaterLevel = world.mWaterLevel - Shaders::WATER_TIE_BREAK;
         constants.mTime = world.mSeconds;
 
         constants.mWeather = world.mWeather;

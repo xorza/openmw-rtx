@@ -11,6 +11,18 @@ namespace Rtx
         /// The motion of something that has not moved, written out rather than built from a matrix.
         constexpr Transform3x4 sStillTransform{ { { 1.0f, 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f, 0.0f },
             { 0.0f, 0.0f, 1.0f, 0.0f } } };
+
+        /// `transform` with its translation taken `drop` units down the world's up axis.
+        ///
+        /// The translation is the world position of the placement's origin whatever the rest of the
+        /// matrix says, so subtracting from it lowers the instance in the world and not along some
+        /// axis of its own.
+        osg::Matrixf loweredBy(const osg::Matrixf& transform, float drop)
+        {
+            osg::Matrixf lowered = transform;
+            lowered.setTrans(lowered.getTrans() - osg::Vec3f(0.0f, 0.0f, drop));
+            return lowered;
+        }
     }
 
     Transform3x4 toTransform3x4(const osg::Matrixf& matrix)
@@ -51,8 +63,18 @@ namespace Rtx
             const Material* material = instance.mMaterial == sNoIndex ? nullptr : &materials[instance.mMaterial];
             const bool water = material != nullptr && material->mKind == MaterialKind::Water;
 
+            // **Here because this is the one funnel.** `WATER_TIE_BREAK` says why the sea is dropped
+            // at all; it is dropped in this loop rather than wherever any one sea is made because
+            // every water surface in the project reaches the device through this line — the game's
+            // mirrored ocean, the harness's own plane, and the sheets the tests place — and a
+            // tie-break that some of them missed would be worse than none.
+            //
+            // On the placement rather than the mesh, so it holds however the surface was authored.
+            const osg::Matrixf placement
+                = water ? loweredBy(instance.mTransform, Shaders::WATER_TIE_BREAK) : instance.mTransform;
+
             records[slot] = InstanceRecord{
-                .mTransform = toTransform3x4(instance.mTransform),
+                .mTransform = toTransform3x4(placement),
                 // Overwritten below for the few that moved.
                 .mMotion = sStillTransform,
                 .mMesh = instance.mMesh,
