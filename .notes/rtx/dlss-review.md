@@ -34,7 +34,21 @@ The rest of it went with `SpriteClaim` and `mirrorMotionOf`. A sprite owns its p
 by either of the two ways a sprite can own a pixel — covering most of it, or outshining what is left
 of the surface behind — so a flame is caught as well as a raindrop. And water writes a second motion
 field for what it reflects, mirrored about the water plane, which `pInMotionVectorsReflections`
-takes. **All four colour-pair guides are deliberately unset, and that is a measurement rather than a gap.**
+takes. **The specular albedo is the right quantity, and every solid reporting nought is the content's own
+answer.** The guide names `EnvBRDFApprox2` because it is written for a renderer whose specular half
+is a pre-integrated GGX lobe; the channel's job is to be exactly what the specular light was
+multiplied by, so that demodulation divides it back out, and here that is the Schlick Fresnel share
+of a traced reflection. Dividing by an environment BRDF would divide by a number nothing multiplied.
+It now also carries the shore fade and the foam, which scale the reflection along with the rest of
+the surface and were missing from what the channel reported.
+
+Solids carry no specular because Morrowind has none: `components/nifosg/nifloader.cpp` forces
+specular to black and glossiness to zero for every mesh at the game's NIF version — "Morrowind has
+its support disabled" — before anything downstream sees it. Measured across Balmora, Arkngthand,
+a Vivec canton and a guild interior: **831 materials, none with a specular colour and none with a
+glossiness.** Carrying `mSpecularColour` and `mGlossiness` into `GpuMaterial` would carry zeros.
+
+**All four colour-pair guides are deliberately unset, and that is a measurement rather than a gap.**
 `pInColorBeforeFog` / `pInColorAfterFog` and `pInColorBeforeParticles` / `pInColorAfterParticles`
 all sit in the block the header marks `/*** OPTIONAL - only for research purposes ***/`. They were
 wired correctly — the trace kept each stage's direct light and its transmittance, the composite put
@@ -52,17 +66,6 @@ which cannot be wrong — fails the same way (58, 104, 156). Pointing the sprite
 parameter at an image that is not `pInColor`, ruling out resource aliasing, reproduces its number to
 the last digit. These select a different path through the network rather than answer a question
 about the frame, and the machinery that fed them was removed with them rather than left dead.
-
-## The specular albedo is real but is not the quantity that was asked for
-
-- [ ] The guide specifies the specular albedo is the **pre-integrated environment BRDF**, its
-      `EnvBRDFApprox2` — a function of `NdotV`, roughness and `F0`. What `visibility.comp:2755`
-      writes for water is a scalar Schlick Fresnel, and what it writes for every solid is nought. The
-      channel now carries information where it used to carry a cleared image, but not the quantity
-      the feature demodulates by.
-- [ ] Nothing reaches the shader to build one with on a solid surface: `Surface::Material` carries
-      `mSpecularColour` and `mGlossiness` off `NiMaterialProperty`, and `GpuMaterial` carries
-      neither.
 
 ## Contract gaps inside the pass
 

@@ -2201,11 +2201,22 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response, ou
     const float cosine = clamp(dot(-incident, normal), 0.0, 1.0);
     const float fresnel = WATER_F0 + (1.0 - WATER_F0) * pow(1.0 - cosine, 5.0);
 
-    // **Said here rather than at any of the returns below, because there are five of them.** The
-    // wave's normal and not the quad's, the lobe the lost slopes left as the roughness, and the
-    // Fresnel term as the specular albedo — which is what it is: the fraction of this pixel that is
-    // a reflection. Water is the only surface in this renderer with a specular half at all, so it is
-    // the only one that reports one.
+    // **The wave's normal and not the quad's**, the lobe the lost slopes left as the roughness, and
+    // the Fresnel term as the specular albedo — which is what a specular albedo is, and not what a
+    // guide written for a different shading model calls one. The channel is a demodulator: whatever
+    // the specular light was multiplied by has to be exactly what is divided back out, and here that
+    // is the Fresnel share. `EnvBRDFApprox2` is the answer where the specular half is a pre-integrated
+    // GGX lobe; ours is a traced reflection weighted by Schlick, and dividing it by an environment
+    // BRDF would divide by a number nothing ever multiplied.
+    //
+    // Set here so the struct is whole, and settled at each exit below: total internal reflection
+    // makes it all of the pixel, and the shore fade and the foam scale it down with the rest of the
+    // surface. What is written here reaches no return of its own.
+    //
+    // Water is the only surface in this renderer with a specular half at all. Every solid reports
+    // nought and that is the content's answer rather than a gap: `nifloader.cpp` forces specular to
+    // black and glossiness to zero for every mesh at Morrowind's NIF version, because the game had
+    // specular lighting disabled — measured across four cells, 831 materials, none with either.
     response = SurfaceResponse(normal, vec3(0.0), vec3(fresnel), lobe);
 
     // Offset along the *plane*, not the facet: what a ray has to clear to avoid finding this surface
@@ -2230,6 +2241,13 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response, ou
     {
         // Past the critical angle looking up from underwater, where the surface is a mirror and
         // there is nothing behind it to see.
+        //
+        // **All of it, and the Fresnel term is not that.** Schlick answers a share of the light a
+        // surface reflects *when the rest of it refracts*; past the critical angle nothing refracts,
+        // so the pixel is the reflection whatever the angle says. At the critical angle itself
+        // Schlick gives 0.024, and reporting that of a pixel that is entirely a reflection tells the
+        // upscaler to divide the specular light by forty.
+        response.mSpecular = vec3(1.0);
         return reflected;
     }
 
@@ -2242,6 +2260,11 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response, ou
     // seen from under it, the path is a distance through air and says nothing about a shore.
     const float shore = fromBelow ? 1.0 : smoothstep(0.0, WATER_SHORE_FADE, behind.mDistance);
     const vec3 water = mix(behind.mRadiance, mix(refracted, reflected, fresnel), shore);
+
+    // The fade scales the reflection with the rest of the surface, so the share of the pixel that is
+    // a reflection falls with it. From below it is one and this changes nothing.
+    response.mSpecular = vec3(fresnel * shore);
+
     if (fromBelow)
         return water;
 
@@ -2274,6 +2297,9 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response, ou
     const float covered = breaks * foamReaching(sea, under, fall, runout);
     if (!(covered > 0.0))
         return water;
+
+    // A raft of bubbles is diffuse, and what it covers of the pixel it takes from the reflection.
+    response.mSpecular = vec3(fresnel * shore * (1.0 - covered));
 
     // **Broken water is a raft of bubbles rather than a surface**: white, diffuse, and hiding what is
     // under it rather than tinting it. Lit the way every other diffuse surface in the frame is lit,

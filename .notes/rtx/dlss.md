@@ -90,21 +90,25 @@ Everything in front of that surface inherits its motion.
 
 ## Out of the chain: a specular response on solid surfaces
 
-Not a step, because it is not this pipeline's to take. Water is the only surface in the frame with a
-specular half, so the channel Ray Reconstruction demodulates by is nought across every solid — true
-of the shading model as it stands, and not true of the scene. `Surface::Material` carries
-`mSpecularColour` and `mGlossiness` off `NiMaterialProperty`; `GpuMaterial` carries neither, so
-nothing reaches the shader to report.
+Not a step, and not a gap either. Water is the only surface in the frame with a specular half, so the
+channel Ray Reconstruction demodulates by is nought across every solid — and that is **the content's
+own answer rather than a hole in the plumbing**. `components/nifosg/nifloader.cpp` forces specular to
+black and glossiness to zero for every mesh at Morrowind's NIF version, on the grounds that the game
+had specular lighting disabled, before anything downstream sees a value. Measured across Balmora,
+Arkngthand — the most reflective place the game has — a Vivec canton and a guild interior: 831
+materials, none with a specular colour, none with a glossiness. Carrying `mSpecularColour` and
+`mGlossiness` into `GpuMaterial` would carry zeros.
 
-**And what the guide asks that channel to hold is narrower than "a specular albedo".** It names the
-pre-integrated environment BRDF — its own `EnvBRDFApprox2`, over `NdotV`, roughness and `F0` — where
-water currently reports a scalar Schlick Fresnel. Right in kind, and not the same function, so
-whatever gives solids a specular half should give both surfaces that one.
+So a specular response on solids is not a plumbing job that was skipped. It is **new material** this
+renderer would be inventing — a roughness and an `F0` the files do not supply — which is a decision
+about what the game should look like and belongs in a milestone that says so, not in a channel that
+quietly starts reporting something nobody authored.
 
-Closing that is a milestone in the content pipeline rather than a fix in the upscaler's wiring, and
-it is the last placeholder any of the four inputs still holds.
-
----
+**And `EnvBRDFApprox2` is not what this channel wants.** The guide names it because it is written for
+a renderer whose specular half is a pre-integrated GGX lobe. The channel's job is to be exactly what
+the specular light was multiplied by, so demodulation divides it back out; here that is the Schlick
+Fresnel share of a traced reflection, scaled by the shore fade and the foam. Substituting an
+environment BRDF would divide by a number nothing ever multiplied.
 
 ## The two things not to lose
 
