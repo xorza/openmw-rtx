@@ -117,22 +117,6 @@ namespace RtxTool
 
     const Rtx::ExtractionStats& PosedActors::settle()
     {
-        // **A frame's worth at a time, because that is the step the emitters were authored
-        // against**: a birth rate is particles per second, a collider bounces per step, and a
-        // lifetime quantised to one long stride would put every particle at the same age. The
-        // animation clock is held where it is throughout — a warm-up is about the emitters and
-        // nothing else, and turning it would leave every actor two seconds into its idle.
-        for (float at = sFrameSeconds; at <= sWarmSeconds; at += sFrameSeconds)
-        {
-            posedAt(mSeconds, sFrameSeconds);
-
-            // **The emitters are stepped by the walk that mirrors, and there has not been one yet.**
-            // So they are stepped on their own here, over the same graph and the same clock a
-            // mirror would have used, which is the whole of what a warm-up is.
-            mExtractor.advanceEmitters(sFrameSeconds);
-            mExtractor.stepEmitters(mRoot);
-        }
-
         mPlaced = place(mSeconds);
         return mPlaced;
     }

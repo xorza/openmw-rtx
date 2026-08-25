@@ -100,17 +100,49 @@ namespace RtxTool
         const std::span<const CellProp> props
             = actors.mProps ? std::span<const CellProp>(mReport.mProps) : std::span<const CellProp>();
 
-        if (actors.empty() && residents.empty() && props.empty())
-            return;
+        if (!actors.empty() || !residents.empty() || !props.empty())
+        {
+            mPosed = std::make_unique<PosedActors>(world, mScene, mExtractor, *mRoot, actors);
+            mPosed->addResidents(residents);
+            mPosed->addProps(props);
+            mPosed->addRow(actors, mPlacement);
+        }
 
-        mPosed = std::make_unique<PosedActors>(world, mScene, mExtractor, *mRoot, actors);
-        mPosed->addResidents(residents);
-        mPosed->addProps(props);
-        mPosed->addRow(actors, mPlacement);
-        mSettled = mPosed->settle();
+        // **Whoever is standing here, and whether anybody is.** An empty cell has no plumes to run
+        // up, but the weather hangs its emitters off this same graph.
+        warmEmitters();
+
+        // **And walked afterwards, because a warm-up is not a walk.** The first mirror above ran
+        // before the weather had built anything and `stepEmitters` deliberately mirrors nothing, so
+        // without a second one the scene handed to a renderer holds the cell and no rain at all.
+        if (mPosed != nullptr)
+            mSettled = mPosed->settle();
+        else
+            mStaged = mirror(0);
     }
 
     StagedWorld::~StagedWorld() = default;
+
+    void StagedWorld::warmEmitters()
+    {
+        // **A frame's worth at a time, because that is the step the emitters were authored
+        // against**: a birth rate is particles per second, a collider bounces per step, and a
+        // lifetime quantised to one long stride would put every particle at the same age. The
+        // animation clock is held where it is throughout — a warm-up is about the emitters and
+        // nothing else, and turning it would leave every actor two seconds into its idle.
+        for (float at = PosedActors::sFrameSeconds; at <= sWarmSeconds; at += PosedActors::sFrameSeconds)
+        {
+            // **The emitters are stepped by the walk that mirrors, and there has not been one yet.**
+            // So they are stepped on their own here, over the same graph and the same clock a mirror
+            // would have used, which is the whole of what a warm-up is. An actor has to be standing
+            // where it will stand while that happens, because its own plume hangs off it.
+            if (mPosed != nullptr)
+                mPosed->poseFor(PosedActors::sFrameSeconds);
+
+            mExtractor.advanceEmitters(PosedActors::sFrameSeconds);
+            mExtractor.stepEmitters(*mRoot);
+        }
+    }
 
     Rtx::ExtractionStats StagedWorld::mirror(std::size_t frame)
     {

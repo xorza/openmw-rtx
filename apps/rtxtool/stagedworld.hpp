@@ -195,6 +195,28 @@ namespace RtxTool
         /// Tells the precipitation what this weather drops, read straight off the content files.
         void setFalling(std::string_view weather);
 
+        /// Runs every emitter in the staged graph up to a steady state, before the first frame.
+        ///
+        /// **The world's job and not the actors'.** A particle system loads holding the seed the
+        /// file authored — a handful of specks a fifth of a unit across — and only reaches the
+        /// flame or the rainstorm it is meant to be once its emitter has run for a lifetime or two.
+        /// A single frame stepped from nothing integrates nothing, so a shot of a lit room showed
+        /// fifty-five candles with no flames on them.
+        ///
+        /// It used to sit inside `PosedActors::settle`, which made it something only a cell with
+        /// people in it got — and the weather hangs its emitters off this same graph, so a view
+        /// with nobody standing in it rendered one frame's worth of rain and the game rendered a
+        /// storm.
+        void warmEmitters();
+
+        /// How long the emitters are run before the first frame is drawn.
+        ///
+        /// **Two seconds, which is longer than anything the game emits lives.** The median lifetime
+        /// across the shipped emitters is under a second, so by here every seed particle the file
+        /// authored has died and been replaced by the emitter's own — which is the steady state a
+        /// frame is supposed to show.
+        static constexpr float sWarmSeconds = 2.0f;
+
         /// What this weather drives past the eye, kept because `driveWeather` aims it every frame:
         /// an ash storm blows off Red Mountain at whoever is watching, so where the camera stands
         /// is half the answer.

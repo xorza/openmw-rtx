@@ -100,6 +100,18 @@ namespace Weather
                 if (!worldMatrices.empty())
                 {
                     toWorld = worldMatrices[0];
+
+                    // **The box travels with the eye, so where the eye stands is not part of the
+                    // frame the box is defined in.** The placer fills `±range/2` about the origin of
+                    // whatever the particles hang under, and the wrap below is about that origin
+                    // too — so a parent carrying a translation would have every drop wrapped about
+                    // the middle of the world instead. Upstream never had to say this: its only
+                    // parent is `CameraRelativeTransform`, which zeroes its own translation for
+                    // exactly this reason. This fork hangs the same systems under a plain transform
+                    // at the eye as well, and there the drops drifted out of the box towards the
+                    // origin until only the newest were anywhere near the camera.
+                    toWorld.setTrans(osg::Vec3f(0.f, 0.f, 0.f));
+
                     toLocal.invert(toWorld);
                 }
 

@@ -92,14 +92,25 @@ namespace RtxTool
         /// cache still resolves all thirty candles to one mesh.
         void addProps(std::span<const CellProp> props);
 
-        /// Runs the emitters up to a steady state and walks everyone in, reporting what they came to.
+        /// Walks everyone in and reports what they came to.
         ///
-        /// **The warm-up is what makes a still frame worth looking at.** A particle system loads
-        /// holding the seed the file authored — a handful of specks a fifth of a unit across — and
-        /// only reaches the flame it is meant to be once its emitter has run for a lifetime or two.
-        /// A single frame stepped from nothing integrates nothing, so a shot of a lit room would
-        /// show fifty-five candles with no flames on them.
+        /// **After `StagedWorld::warmEmitters`, which is what runs the emitters up.** Warming used
+        /// to happen here, which quietly made it something only a cell with people in it got: the
+        /// weather hangs its own emitters off the same graph, so a view with nobody standing in it
+        /// rendered a rainstorm of one frame's worth of drops.
         const Rtx::ExtractionStats& settle();
+
+        /// Poses everyone `elapsed` further on without walking them in, for a caller stepping the
+        /// whole graph's emitters. An actor's own plume is stepped by that walk, so it has to be
+        /// standing where it will stand while the walk happens.
+        void poseFor(float elapsed) { posedAt(mSeconds, elapsed); }
+
+        /// How far a repeated frame carries the animation. Sixty a second, because that is what the
+        /// frame budget is written against and an actor should move the same amount per frame here
+        /// as it does in the game.
+        ///
+        /// Public because `StagedWorld::warmEmitters` steps the whole graph on it.
+        static constexpr float sFrameSeconds = 1.0f / 60.0f;
 
         /// Advances to `seconds` and walks everyone back in. False where there is nobody.
         bool advanceTo(float seconds);
@@ -172,18 +183,5 @@ namespace RtxTool
         /// hang off update callbacks, which is what the traversal is for — so they are not kept
         /// apart, only counted.
         std::size_t mProps = 0;
-
-        /// How far a repeated frame carries the animation. Sixty a second, because that is what the
-        /// frame budget is written against and an actor should move the same amount per frame here
-        /// as it does in the game.
-        static constexpr float sFrameSeconds = 1.0f / 60.0f;
-
-        /// How long the emitters are run before the first frame is drawn.
-        ///
-        /// **Two seconds, which is longer than anything the game emits lives.** The median lifetime
-        /// across the shipped emitters is under a second, so by here every seed particle the file
-        /// authored has died and been replaced by the emitter's own — which is the steady state a
-        /// frame is supposed to show.
-        static constexpr float sWarmSeconds = 2.0f;
     };
 }
