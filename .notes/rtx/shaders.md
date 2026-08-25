@@ -222,7 +222,7 @@ The clamp is guarded by the same test rather than measured on its own: it runs a
 frames, and the accumulated mean still sits on the converged one to within two per cent — a clamp
 eating real light would bias it down. That it *removes* fireflies is reasoned and not yet counted.
 
-### 4.3 The shadow rays are bounded and the variance that buys is not yet paid for
+### 4.3 The shadow rays are bounded — closed
 
 `gather` no longer walks the cell's lamps spending a ray apiece. Every candidate is weighed by what
 it would deliver unshadowed — its reach, its falloff and the cosine, which is everything knowable
@@ -235,32 +235,40 @@ Resampling needs a *sequence* of draws where the blue-noise tile gives one per p
 `random.glsl` grew a hashed counter beside it. The tile is an arrangement across the screen and there
 is no screen-space arrangement of a sequence to arrange.
 
-**What it costs, measured, 1280×720, best of thirty:**
+**Measured at 1280×720, three runs of thirty, against the commit before it:**
 
-| view | trace, walking every lamp | trace, one reservoir |
+| view | walking every lamp | one reservoir |
 |---|---|---|
-| Seyda Neen customs office | 4.85 ms | **3.82 ms** |
-| Wolverine Hall | 3.41 ms | **3.27 ms** |
+| Seyda Neen customs office | 4.89 / 4.40 / 4.55 ms | **3.85 / 3.90 / 3.94 ms** |
+| Wolverine Hall | 3.47 / 3.58 / 3.48 | **3.27 / 3.31 / 3.30** |
+| Balmora, one lamp a cell | 4.37 / 4.46 / 4.47 | 4.26 / 4.43 / 4.50 |
 
-**What it costs the picture is not yet established, and the sign of it is not in doubt.** Against a
-256-frame converged reference, unfiltered, the customs office differs in 12.4% of channels with a
-worst case of 170/255 — a heavy tail rather than a shift, which is what an unbiased estimator with
-high variance looks like. The cause is known and is not a defect in the implementation: the target
-function cannot include visibility, so where the brightest lamp in a room is occluded for a pixel,
-the reservoir keeps it and returns nothing, and the dimmer lamp that actually lights that pixel is
-reached only on the frames it happens to win.
+About a fifth of the trace in the lamp-heavy interior, a twentieth in the fort, and nothing where
+there was never more than one lamp to walk — which is the shape the change predicts.
 
-**Reuse is the half that pays for it**, and it is the rest of this. A reservoir carried from the
-previous frame through the motion vector, and from a few neighbours, is what turns one candidate a
-pixel into an effective many — and the visibility that was traced last frame is exactly the
-information the target function could not have. The accumulator built for 4.2 is the state that makes
-the temporal half cheap.
+**Unbiased, and the cost to the picture is under a per cent.** Against a 256-frame converged
+reference at a fixed exposure:
 
-**Whether the denoiser already absorbs it is the open question and this could not answer it.** A
-filtered single frame against a converged reference is confounded twice over: the exposure is
-measured per run, so two runs of different frame counts are not on one scale, and the read-back is
-eight bits where the difference being looked for is a fraction of one. That measurement wants a
-fixed exposure and a float channel a test cannot read yet.
+| | customs office | wolverine hall |
+|---|---|---|
+| converged with a reservoir, against converged exhaustive | RMSE 0.00005 | 0.00000 |
+| one filtered frame, walking every lamp | RMSE 0.05973 | 0.01260 |
+| one filtered frame, one reservoir | RMSE 0.05985 | 0.01268 |
+
+The first row is the bias check and it passes: resampling converges on the same answer. The other two
+are what a player sees on the first frame, and the reservoir costs 0.2% and 0.6% of the error the
+denoiser already leaves — which is to say the filter absorbs the variance the estimator adds.
+
+**The exposure is why an earlier reading said otherwise.** Comparing two runs whose exposure was each
+measured from its own frame put 12% of the customs office's channels apart with a worst case of 170,
+and none of it was the estimator: auto-exposure had simply landed in two different places. Any
+comparison of two renders here has to pin `--exposure` on both sides, the way it has to pin
+`--validation`.
+
+**Reuse is now a quality improvement rather than a debt.** Carrying a reservoir through the motion
+vector brings last frame's *traced visibility* into a target function that cannot otherwise have it,
+which is worth having — but it is no longer paying for anything, and it goes in the queue on its own
+merits rather than ahead of them.
 
 ### 4.4 The same computation is written more than once
 
@@ -369,28 +377,22 @@ runs of one build, the doll about 0.02% — so those two need a magnitude compar
 control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path and `doll`
 the only transparent-background one.
 
-**1 — reuse the reservoirs (4.3).** RIS is in and bounds the rays; what it does not yet have is the
-reuse that pays for the variance. Temporal first — carry each pixel's reservoir through the motion
-vector it already writes, which brings last frame's *traced visibility* into a target function that
-could not otherwise have it — then spatial across a few neighbours. *Check:* the customs office
-against a converged reference at a fixed exposure, which must come back to where walking every lamp
-put it; and the trace time, which must keep what the bounding won.
-
-**2 — opacity micromaps.** The device features are already required and probed; nothing builds a
+**1 — opacity micromaps.** The device features are already required and probed; nothing builds a
 micromap. `alphaPasses` is what stops being invoked. *Check:* the trace timer on a view of foliage,
 which is what M12 measures.
 
-**3 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
+**2 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
 a range the way the light grid is. *Check:* the trace timer at Seyda Neen with 165 emitters, and the
 byte comparison — binning must not change a pixel.
 
-**4 — decide SER (4.5).** After the reservoir and the micromaps have changed the live-state
+**3 — decide SER (4.5).** After the reservoir and the micromaps have changed the live-state
 picture. Measure occupancy on
 `visibility.comp`; if it is where the megakernel is losing, price the ray-tracing pipeline. Until
 then, `plan.md` §8's SER entry should say it needs one.
 
-1 is what the frame looks like. 2–4 are M12, and each gets its number written down when it lands
-rather than acted on before.
+All three are M12, and each gets its number written down when it lands rather than acted on before.
+What reuse would add to 4.3 is queued behind them, because it now buys quality rather than repaying
+a cost.
 
 ## 6. Sources
 
