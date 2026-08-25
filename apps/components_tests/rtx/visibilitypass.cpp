@@ -3983,6 +3983,159 @@ namespace Rtx
                 << "the accumulated mean is " << settledMean << " against a converged " << referenceMean;
         }
 
+        /// What the history is worth where the cascade has nothing to borrow from.
+        ///
+        /// **The grazing sheet above is the wavelet's best case and cannot answer this.** Every pixel
+        /// of it looks at one flat surface under one smooth sky, so every pixel has the *same*
+        /// expected bounce — a hundred and twenty-five taps average a hundred and twenty-five draws
+        /// from one distribution, and the error falls by the square root of that. It converges to
+        /// within a third of a byte on a single frame, and a history cannot improve on nothing left
+        /// to remove.
+        ///
+        /// So this is the other case, and it is the one Morrowind's geometry actually is: a surface
+        /// whose neighbours disagree. The sheet is cut into a grid of coplanar cells whose *shading*
+        /// normals alternate by forty degrees, which is far outside what `mNormalPower` lets a tap
+        /// carry — so the plane test passes everywhere, the normal test rejects nearly every
+        /// neighbour, and the cascade is left with little more than the centre pixel. Nothing about
+        /// the accumulator changes: a still camera reprojects every pixel onto itself.
+        ///
+        /// The alternating tilt is not a trick to defeat the filter. It is what a bumpy surface is,
+        /// and the reason the two neighbours may not be averaged is that they are genuinely lit
+        /// differently — a cosine lobe tilted forty degrees samples a different part of this sky.
+        TEST_F(RtxVisibilityTest, theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr int cells = 16;
+            constexpr float extent = 4000.0f;
+            constexpr float tilt = 20.0f;
+
+            std::vector<osg::Vec3f> positions;
+            std::vector<osg::Vec3f> normals;
+            std::vector<std::uint32_t> indices;
+            for (int y = 0; y < cells; ++y)
+                for (int x = 0; x < cells; ++x)
+                {
+                    const float lowX = -extent + 2.0f * extent * static_cast<float>(x) / cells;
+                    const float highX = -extent + 2.0f * extent * static_cast<float>(x + 1) / cells;
+                    const float lowY = -extent + 2.0f * extent * static_cast<float>(y) / cells;
+                    const float highY = -extent + 2.0f * extent * static_cast<float>(y + 1) / cells;
+
+                    const auto base = static_cast<std::uint32_t>(positions.size());
+                    positions.emplace_back(lowX, lowY, 0.0f);
+                    positions.emplace_back(highX, lowY, 0.0f);
+                    positions.emplace_back(highX, highY, 0.0f);
+                    positions.emplace_back(lowX, highY, 0.0f);
+
+                    // Coplanar, so nothing here is a step in the geometry; only the normal moves.
+                    const float lean = osg::DegreesToRadians((x + y) % 2 == 0 ? tilt : -tilt);
+                    const osg::Vec3f leaning(std::sin(lean), 0.0f, std::cos(lean));
+                    for (int corner = 0; corner < 4; ++corner)
+                        normals.push_back(leaning);
+
+                    for (const std::uint32_t offset : sQuadIndices)
+                        indices.push_back(base + offset);
+                }
+
+            SceneDesc scene;
+            scene.addInstance(MeshInstance{
+                .mTransform = osg::Matrixf::identity(), .mMesh = scene.addMesh(positions, normals, {}, indices) });
+
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(0.0f, -2600.0f, 2600.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+
+            // A sky that changes a great deal between the two tilts, so that two neighbouring cells
+            // really do have different answers and averaging them really is wrong.
+            camera.mSkyHorizon = osg::Vec3f(0.90f, 0.10f, 0.05f);
+            camera.mSkyZenith = osg::Vec3f(0.05f, 0.20f, 0.90f);
+
+            const auto renderSequence = [&](std::uint32_t frames) {
+                mRenderer->resize(size, size);
+                mRenderer->setScene(Rtx::sWorld, scene, {}, SeaState{});
+                mRenderer->resetHistory();
+
+                for (std::uint32_t frame = 0; frame < frames; ++frame)
+                {
+                    Shaders::VisibilityConstants sampled = camera;
+                    sampled.mFrame = frame;
+                    mRenderer->renderFrame(
+                        sampled, FrameOptions{ .mAccumulate = 0, .mFilter = true, .mExposure = 1.0f });
+                }
+
+                std::vector<std::uint8_t> pixels;
+                mRenderer->readPixels(pixels);
+                return pixels;
+            };
+
+            // Unfiltered, because a converged reference has to be the answer and not the filter's
+            // opinion of it.
+            std::vector<std::uint8_t> reference;
+            countHits(scene, {}, camera, size, reference, SeaState{}, 128, false);
+
+            const auto errorAgainstReference = [&](const std::vector<std::uint8_t>& pixels) {
+                double squares = 0.0;
+                std::size_t counted = 0;
+                for (std::size_t i = 0; i < pixels.size(); i += 4)
+                    for (std::size_t channel = 0; channel < 3; ++channel)
+                    {
+                        const std::size_t at = i + channel;
+                        // Only where the grid is: the sky around it is not being filtered.
+                        if (pixels[at] == reference[at] && reference[at] == 0)
+                            continue;
+
+                        const double error = static_cast<double>(decodeSrgb(pixels[at]))
+                            - static_cast<double>(decodeSrgb(reference[at]));
+                        squares += error * error;
+                        ++counted;
+                    }
+
+                return std::sqrt(squares / static_cast<double>(counted));
+            };
+
+            const std::vector<std::uint8_t> settledPixels = renderSequence(Shaders::ACCUMULATE_FRAMES);
+            const double alone = errorAgainstReference(renderSequence(1));
+            const double settled = errorAgainstReference(settledPixels);
+
+            // Measured on this box: 0.00406 against the converged reference with the cascade alone,
+            // 0.00253 once sixteen frames are behind it — a little over a third of the error the
+            // filter cannot reach. Deterministic to the last digit across runs, which is what lets
+            // the bounds below sit this close to the figures.
+            //
+            // **A third is a floor and not a ceiling.** The read-back is eight bits a channel, and
+            // 0.00253 is two thirds of one byte at this brightness — the accumulated frame is at the
+            // edge of what the output format can distinguish, so what is being measured here is
+            // partly the quantiser. What the number establishes is the direction and that it is not
+            // small; a tighter figure needs the float channel a test cannot read yet.
+            EXPECT_GT(alone, 0.003) << "the cascade alone leaves enough error here for the question to mean something: "
+                                    << alone;
+            EXPECT_LT(settled, alone * 0.70)
+                << "and a history of " << Shaders::ACCUMULATE_FRAMES << " frames takes a third of what the cascade "
+                << "cannot: " << alone << " becomes " << settled;
+
+            // **And it converges on the reference rather than on its own opinion.** Quieter is not
+            // the claim — an average that drifted would be quieter too, and wrong.
+            double settledMean = 0.0;
+            double referenceMean = 0.0;
+            std::size_t counted = 0;
+            for (std::size_t i = 0; i < settledPixels.size(); i += 4)
+                for (std::size_t channel = 0; channel < 3; ++channel)
+                {
+                    const std::size_t at = i + channel;
+                    if (settledPixels[at] == reference[at] && reference[at] == 0)
+                        continue;
+
+                    settledMean += static_cast<double>(decodeSrgb(settledPixels[at]));
+                    referenceMean += static_cast<double>(decodeSrgb(reference[at]));
+                    ++counted;
+                }
+
+            ASSERT_GT(counted, 0u);
+            settledMean /= static_cast<double>(counted);
+            referenceMean /= static_cast<double>(counted);
+
+            EXPECT_NEAR(settledMean, referenceMean, referenceMean * 0.02)
+                << "the accumulated mean is " << settledMean << " against a converged " << referenceMean;
+        }
+
         /// A floor meeting a wall, and the filter keeping them apart.
         ///
         /// **Everything else here would pass with a plain blur.** Smoothing noise and preserving a

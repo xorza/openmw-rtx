@@ -146,80 +146,81 @@ Naming this first because a reorganisation is exactly where it gets lost.
 Ordered as `CLAUDE.md` orders them: how it looks, then performance — with plain correctness ahead of
 both, because a wrong pixel is not a trade.
 
-### 4.1 The bounce has a firefly tail, and no way to clamp it that is not a picked number
+### 4.1 The firefly clamp is in and its effect is not counted
 
-Measured on the module this tree builds, as the share of pixels whose one-sample bounce luminance
-exceeds a threshold:
+The clamp lives in the accumulator, at `ACCUMULATE_SIGMAS` from the running mean — the form with no
+constant in it that is about this game, which is why it had to wait for a history. What is not
+established is how much of the tail it actually takes.
+
+The tail it is aimed at, measured before it existed, as the share of pixels whose one-sample bounce
+luminance exceeds a threshold:
 
 | threshold | Seyda Neen ship | Balmora | customs office | canalworks |
 |---|---|---|---|---|
 | 0.5 | 10.8% | 4.9% | 0.046% | 0% |
 | 1 | 0.0037% | 0.0002% | 0.022% | 0% |
-| 2 | 0.0009% | 0.0002% | 0.0016% | 0% |
 | 8 | 0% | 0.0001% | 0.0004% | 0% |
 | 32 | 0% | 0.0001% | 0.0002% | 0% |
 | 64 | 0% | 0% | 0% | 0% |
 
-**The signal ends at about one and the tail is a handful of pixels.** Outdoors the bulk of the bounce
-sits under 0.5 and falls off a cliff at 1, which is a surface seeing a full hemisphere of sky; above
-that is two to thirty-four pixels of nine hundred thousand, reaching somewhere between 32 and 64. The
-interior is the awkward one — two hundred pixels above 1, which is a chandelier doing its job and not
-obviously separable from a bounce that landed on one.
+The signal ends at about one — a surface seeing a full hemisphere of sky — and above it is two to
+thirty-four pixels of nine hundred thousand, reaching between 32 and 64.
 
-`bounceLight` is one cosine-weighted sample, and the à-trous cascade has no variance estimate to
-reject an outlier with, so it spreads each of those over sixty-two pixels rather than removing it.
+**Why an absolute ceiling was never possible.** `falloff` is `window² / (d² + 1)`, so a bounce landing
+on a lamp returns that lamp's intensity, and a lamp's intensity is content. Any number chosen for
+these four cells is a number a modded fifth moves.
 
-**There is no constant here that can be derived rather than picked, which is why this is not fixed
-yet.** The renderer's own scale would give one — `DAYLIGHT`, `EMISSIVE_INTENSITY` — but the value a
-bounce can legitimately reach is set by the brightest lamp in the cell, and a lamp's intensity is
-content: `falloff` is `window² / (d² + 1)`, so a bounce landing on a lamp returns that lamp's
-intensity whatever it is. Any absolute ceiling is a number somebody chose, and a modded cell moves it.
+**What guards it today is that it does not eat real light**: `theHistoryCarriesWhereTheCascadeHasNo
+NeighboursToBorrow` runs it across sixteen frames and the accumulated mean still sits on a converged
+reference to within two per cent, which a clamp firing too eagerly would pull down. Counting what it
+*removes* wants this table taken again through the accumulator, which needs the trace instrumented
+the way it was to produce it.
 
-**The clamp wants to be relative, and 4.2 is what makes that possible.** Against a running mean a
-sample can be rejected for being far from what the same pixel has been seeing, with no scene-
-independent constant anywhere in it. So this is folded into 4.2 rather than standing alone.
+**A NaN was looked for and is not there.** Every channel the trace writes was instrumented and counted
+across seven views and two storms: none. Nor should there be — the tree answers untrusted content at
+the boundary, in `describeClouds`, `fogbuilder`, `shadingmap`, `lightbuilder` and `sceneextractor`,
+each written as `!(x > 0)` so a NaN lands on the safe side, and `Rtx::Camera` guards the normalised
+zero vector. A guard at the five `imageStore`s was written, measured at sixty instructions a pixel,
+and taken out again: it caught a fault that has never occurred and whose source is validated one cell
+at a time rather than one pixel at a time.
 
-**A NaN was looked for and is not there.** Every channel the trace writes was instrumented and
-counted across seven views and two storms: no NaN and no infinity, anywhere. Nor should there be —
-the tree already answers untrusted content at the boundary, in `describeClouds`, `fogbuilder`,
-`shadingmap`, `lightbuilder` and `sceneextractor`, each written as `!(x > 0)` so that a NaN lands on
-the safe side, and `Rtx::Camera` guards the normalised zero vector that would otherwise fill an image
-with them. **That is where this belongs and it is already done.** A guard at the five `imageStore`s
-was written and measured at sixty instructions a pixel — twenty comparisons, twenty selects, twenty
-`abs` — to catch a fault that has never occurred and whose source is validated one cell at a time
-rather than one pixel at a time. It was taken out again.
-
-### 4.2 The temporal half is built and its quality win is not yet measured
+### 4.2 The temporal half, and what it is worth
 
 `AccumulatePass` runs in front of the cascade whenever the wavelet does, and `atrous.comp` has
-SVGF's third edge-stopping term for the first time. What is in place:
+SVGF's third edge-stopping term for the first time. In place: reprojection through the motion vector
+the trace already writes, bilinear over the four pixels it lands between with each tap taken only if
+its stored normal and distance say it is the same surface; a history length per pixel, so the blend
+is an exact mean while short and exponential past `ACCUMULATE_FRAMES`; first and second moments and
+the variance the cascade weighs a tap by; the firefly clamp 4.1 asked for, at `ACCUMULATE_SIGMAS`
+from the running mean, with no constant in it that is about this game; and `biasMask` and a lost
+history as the two reset signals, `historyLost` being one expression both denoisers now read.
 
-- The indirect channel is reprojected through the motion vector the trace already writes, bilinearly
-  over the four pixels it lands between, each tap taken only if its stored normal and distance say
-  it is the same surface.
-- A history length per pixel, so the blend is an exact mean while the history is short and an
-  exponential one past `ACCUMULATE_FRAMES`.
-- First and second moments, and the variance the cascade weighs a tap by. A pixel with no history
-  carries the largest variance there is rather than nought — `E[l²] - E[l]²` over one sample is
-  exactly zero, which a filter reads as *certain* and is the opposite of the truth.
-- The firefly clamp 4.1 asked for, at `ACCUMULATE_SIGMAS` from the running mean, with no constant in
-  it that is about this game.
-- `biasMask` and a lost history are the two reset signals, and `historyLost` is now one expression
-  that both denoisers read.
+**A pixel with no history carries the largest variance there is, not nought.** `E[l²] - E[l]²` over
+one sample is exactly zero, which a filter reads as *certain* and is the opposite of the truth — so
+the variance is written by the accumulator rather than derived by the cascade.
 
-**What is not established is that it makes the picture better.** The scene the filter tests use — a
-grazing sheet under a smooth sky — is already converged by the cascade alone: one filtered frame
-lands within a third of a byte of a sixty-four-sample reference, so there is nothing left for a
-history to take. Five levels of à-trous have every advantage there, because the signal is uniform and
-every neighbour is a valid sample of it.
+**What it is worth: a little over a third of the error the cascade cannot reach.** Measured against a
+128-sample converged reference, on a coplanar grid whose shading normals alternate by forty degrees:
 
-So the test asserts what it can: that sixteen accumulated frames do not cost what the cascade gained,
-and that the accumulated mean sits on the converged one rather than drifting off it — an average that
-dimmed the frame would be quieter and wrong.
+| | RMSE against the reference |
+|---|---|
+| the cascade alone, one frame | 0.00406 |
+| with sixteen frames behind it | 0.00253 |
 
-**The measurement wants a scene the cascade struggles with**: contact regions, small geometry, and
-pixels with few neighbours looking at the same thing. That is the number this entry is still missing,
-and it is what closes it.
+**The scene is the finding.** On the flat sheet the other filter test uses, a history is worth
+nothing at all — every pixel there looks at one surface under one smooth sky, so every pixel has the
+*same* expected bounce, and a hundred and twenty-five taps average a hundred and twenty-five draws
+from one distribution. The cascade lands within a third of a byte on a single frame and there is
+nothing left to remove. Where neighbours genuinely disagree — which is what Morrowind's geometry is —
+the cascade is left with little more than the centre pixel and the history carries the frame.
+
+**And a third is a floor.** The read-back is eight bits a channel and 0.00253 is two thirds of one
+byte at this brightness, so the accumulated frame is already at the edge of what the output format
+can distinguish. A tighter figure needs the float channel a test cannot read yet.
+
+The clamp is guarded by the same test rather than measured on its own: it runs across all sixteen
+frames, and the accumulated mean still sits on the converged one to within two per cent — a clamp
+eating real light would bias it down. That it *removes* fireflies is reasoned and not yet counted.
 
 ### 4.3 Direct lighting is unbounded in the number of lamps
 
@@ -342,32 +343,26 @@ runs of one build, the doll about 0.02% — so those two need a magnitude compar
 control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path and `doll`
 the only transparent-background one.
 
-**1 — measure what the accumulator is worth (4.2).** It is built and it runs; what no test shows is
-a quality win, because the scene the filter tests use is already converged by the cascade alone.
-*Check:* a fixture the cascade does poorly on — a lit corner, or geometry small enough that few
-neighbours share a surface — and the RMSE of one filtered frame against a converged reference,
-against the same with a settled history. The firefly half has its own: the share of pixels above the
-thresholds in 4.1, which must fall without the mean moving.
-
-**2 — bound the shadow rays (4.3).** RIS over the grid cell's candidates, one reservoir, one shadow
-ray. Then temporal reuse through step 1's history, then spatial. *Check:* the same RMSE-against-
+**1 — bound the shadow rays (4.3).** RIS over the grid cell's candidates, one reservoir, one shadow
+ray. Then temporal reuse through the accumulator's history, then spatial. *Check:* the same RMSE-against-
 reference metric, in an interior with a dozen lamps — and a count of shadow rays per pixel, which is
 the thing being bounded.
 
-**3 — opacity micromaps.** The device features are already required and probed; nothing builds a
+**2 — opacity micromaps.** The device features are already required and probed; nothing builds a
 micromap. `alphaPasses` is what stops being invoked. *Check:* the trace timer on a view of foliage,
 which is what M12 measures.
 
-**4 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
+**3 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
 a range the way the light grid is. *Check:* the trace timer at Seyda Neen with 165 emitters, and the
 byte comparison — binning must not change a pixel.
 
-**5 — decide SER (4.5).** After 1 and 2 have changed the live-state picture. Measure occupancy on
+**4 — decide SER (4.5).** After the reservoir and the micromaps have changed the live-state
+picture. Measure occupancy on
 `visibility.comp`; if it is where the megakernel is losing, price the ray-tracing pipeline. Until
 then, `plan.md` §8's SER entry should say it needs one.
 
-1 and 2 are what the frame looks like. 3–5 are M12, and each gets its number written down when it
-lands rather than acted on before.
+1 is what the frame looks like. 2–4 are M12, and each gets its number written down when it lands
+rather than acted on before.
 
 ## 6. Sources
 
