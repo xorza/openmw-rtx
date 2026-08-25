@@ -9,19 +9,14 @@ the vendored SDK's `nvsdk_ngx_helpers_dlssd_vk.h`.
 **The ordering is by dependency, not by size.** Steps 1 and 2 buy nothing on their own; everything
 after them is unjudgeable without them, which is why they come first.
 
-**Steps 5 and 7 are done** — see them for what turned out to be true. The rest stand as written.
-
 ---
 
 ## Where it stands
 
-**The material inputs are done** — what was step 7 has landed, out of order, because it turned out
-not to need a material model after all. Each shading path now reports what it shaded with
-(`SurfaceResponse` in `visibility.comp`): a Lambert solid answers with its own albedo, no specular
-and a roughness of one, and water answers with the wave's normal, the lobe its lost slopes left, and
-its Fresnel term. The transmittance the water and the air took moved off the albedo and onto the
-light it attenuated, so the channel an upscaler demodulates by is the surface alone. The
-permanently-zero specular image is gone.
+**The material inputs are real.** Each shading path reports what it shaded with (`SurfaceResponse`
+in `visibility.comp`), what the water and the air took rides on the light they attenuated rather
+than on the surface they did not, and the specular channel carries water's Fresnel term rather than
+an image cleared once and never written. That is the baseline everything below rests on.
 
 What is left is everything about the frame *in front* of those surfaces. The network is still told
 nothing about the sprites and fog composited over them, and it reprojects every one of those pixels
@@ -98,53 +93,18 @@ network to stop.
 **Done when** a `--weather=Rain` shot at the default upscale stops smearing drops, judged against
 the three-way comparison from step 1.
 
-## 5. Separate the albedo from what the path took — done
+## 5. Stop binding what nothing reads
 
-**Landed with step 7, and it needed no extra channel.** The old `getModulate` was the albedo times
-the water and air transmittance, serving two questions with one number: the composite wanted the
-product, Ray Reconstruction wanted the albedo alone.
-
-The transmittance moved onto the bounce it attenuated rather than onto the surface it did not.
-`direct + (albedo × trans) × F(indirect)` became `direct + albedo × F(indirect × trans)` — the same
-product, one association apart, and with the filter off it is the same arithmetic. What is left in
-the albedo channel is the surface, which is what the upscaler asked for.
-
-Measured on `balmora-mages-guild`, the frame in the tree's fog: leaf edges came back crisper and the
-mottling through the haze went, which is what demodulating by an albedo without the weather in it
-buys.
-
-## 6. Stop binding what nothing reads
-
-**Sixth because 4 and 5 settle which channels exist**, and doing it earlier means doing it twice.
+**Fifth because step 4 settles which channels exist**, and doing it earlier means doing it twice.
 None of this changes the picture; it is bandwidth and memory on the frame path.
 
 - Depth is bound as `RG32F` because the second component serves the wavelet's world-distance test;
   the guide asks for single-channel and the upscaler reads one.
-- `mIndirect` and `mUpscaled` are four-channel and appear to use three. Both albedo channels are
-  already half floats — measured at 0.0014% on a converged reference, against the 0.067% the
-  radiance channels were restored to full floats over.
+- `mIndirect` and `mUpscaled` are four-channel and appear to use three.
 
 **Done when** the upscaler's inputs are the size of what it reads, measured rather than assumed.
 
-## 7. A material model — done, and smaller than it looked
-
-**Landed.** The question was whether roughness and specular albedo needed a material model, since the
-shader's `Surface` carries no roughness, metalness or F0 and the plan has no milestone that would add
-them. It did not: the honest answer was already available and was being thrown away.
-
-- A Lambert solid *is* perfectly rough with no specular half. Reporting that is true, not a
-  placeholder — the placeholder was a cleared image and a file-scope constant standing in for an
-  answer nobody had asked the shading model for.
-- `shadeWater` already computed a wave normal, a roughness (the lobe its lost slopes leave) and a
-  Fresnel term, and discarded all three; the G-buffer was written outside it from the flat quad.
-- The diffuse albedo carried the fog, which was the one unambiguous bug in the group.
-
-What a material model would still buy is a *specular response on solid surfaces* —
-`Surface::Material` carries `mSpecularColour` and `mGlossiness` from `NiMaterialProperty` and
-`GpuMaterial` carries neither, so nothing reaches the shader. That remains a milestone-sized
-question, and it is now the only part of this that is.
-
-## 8. Motion for what is not an opaque surface
+## 6. Motion for what is not an opaque surface
 
 **Last because it is the hardest and step 4 may have made half of it unnecessary.** The trace writes
 one motion vector per pixel, from the surface a primary ray hit or from the sky where it hit nothing.
@@ -156,6 +116,19 @@ Everything in front of that surface inherits its motion.
   reflected in it. The SDK's specular motion vectors and specular hit distance exist for that.
 
 **Done when** a camera panning across water and rain holds together at the default upscale.
+
+---
+
+## Out of the chain: a specular response on solid surfaces
+
+Not a step, because it is not this pipeline's to take. Water is the only surface in the frame with a
+specular half, so the channel Ray Reconstruction demodulates by is nought across every solid — true
+of the shading model as it stands, and not true of the scene. `Surface::Material` carries
+`mSpecularColour` and `mGlossiness` off `NiMaterialProperty`; `GpuMaterial` carries neither, so
+nothing reaches the shader to report.
+
+Closing that is a milestone in the content pipeline rather than a fix in the upscaler's wiring, and
+it is the last placeholder any of the four inputs still holds.
 
 ---
 
