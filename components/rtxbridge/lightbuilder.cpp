@@ -260,14 +260,9 @@ namespace RtxBridge
         return weather < sWeathers.size() ? sWeathers[weather] : std::string_view();
     }
 
-    float windSpeed(std::string_view weather)
-    {
-        return Fallback::Map::getFloat("Weather_" + std::string(weather) + "_Wind_Speed");
-    }
-
     osg::Vec3f stormDirection(std::uint32_t weather, const osg::Vec3f& observer)
     {
-        // `MWWorld::Weather::defaultDirection`, which is due north and what every weather that
+        // `Weather::defaultStormDirection`, which is due north and what every weather that
         // carries nothing still blows along.
         const osg::Vec3f north(0.0f, 1.0f, 0.0f);
         if (weather != Rtx::Shaders::WEATHER_ASHSTORM && weather != Rtx::Shaders::WEATHER_BLIGHT)

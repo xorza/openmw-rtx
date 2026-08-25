@@ -44,10 +44,10 @@ namespace Weather
         float mBaseWindSpeed = 0.f;
 
         /// Whether this weather blows hard enough to turn its effect to face the wind.
+        ///
+        /// Which way it is driving is not here: that is `Precipitation::setStormDirection`, because
+        /// the game turns it as the transition runs rather than settling it with the weather.
         bool mIsStorm = false;
-
-        /// Where that wind is driving, which is what the effect is turned by.
-        osg::Vec3f mStormDirection = defaultStormDirection();
     };
 
     /// What a named weather drives past the eye — snow, a blizzard, ash, blight — or empty where it
@@ -60,8 +60,9 @@ namespace Weather
 
     /// How hard a named weather blows, as the content files record it.
     ///
-    /// A name that is none of the ones the fallbacks carry reads as nothing rather than throwing,
-    /// because `Fallback::Map` whitelists this key.
+    /// **A name that is none of the ten throws**, because `Fallback::Map` will not consider a key it
+    /// does not whitelist — which is why a caller holding a name from outside asks
+    /// `RtxBridge::weatherIndex` first.
     float windSpeed(std::string_view weather);
 
     /// What a named weather drops, read straight off the content files.

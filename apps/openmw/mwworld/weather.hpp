@@ -67,8 +67,6 @@ namespace MWWorld
     class Weather
     {
     public:
-        static osg::Vec3f defaultDirection();
-
         Weather(const ESM::RefId id, const int scriptId, const std::string& name, float stormWindSpeed, float rainSpeed,
             float dlFactor, float dlOffset, const std::string& particleEffect);
 

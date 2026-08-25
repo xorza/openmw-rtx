@@ -1,14 +1,13 @@
 #include "stagedworld.hpp"
 
-#include <components/fallback/fallback.hpp>
-#include <components/weather/downpour.hpp>
-
 #include <span>
 #include <string>
 
 #include <components/esm/util.hpp>
 #include <components/esm3/loadcell.hpp>
+#include <components/fallback/fallback.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/weather/downpour.hpp>
 
 #include "cellscene.hpp"
 #include "world.hpp"
@@ -36,8 +35,11 @@ namespace RtxTool
         // this harness's own rather than the sky's camera-relative transform, because there is no
         // sky manager here — what matters is that the box travels with the eye, and `setEye` is
         // what does that.
-        // Upstream's own default where a content file carries no such setting.
+        // **Both of the weather's constants, read once and where the other one is.** The first is a
+        // game setting and comes from the store; the second is a fallback and comes from the ini,
+        // which is the only reason they are fetched differently.
         mStormWindSpeed = world.findGameSetting("fStromWindSpeed", 50.0f);
+        mRainGravity = Fallback::Map::getFloat("Weather_Precip_Gravity");
 
         mWeatherNode = new osg::PositionAttitudeTransform;
         mWeatherNode->setName("Precipitation");
@@ -137,9 +139,7 @@ namespace RtxTool
 
     void StagedWorld::setFalling(std::string_view weather)
     {
-        static const float gravity = Fallback::Map::getFloat("Weather_Precip_Gravity");
-
-        mPrecipitation->setWeather(Weather::downpourAt(weather, mStormWindSpeed, gravity));
+        mPrecipitation->setWeather(Weather::downpourAt(weather, mStormWindSpeed, mRainGravity));
     }
 
     Crossing StagedWorld::moveTo(const osg::Vec3f& where)

@@ -21,6 +21,7 @@
 #include <components/rtxbridge/texturebuilder.hpp>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/sceneutil/lightutil.hpp>
+#include <components/weather/downpour.hpp>
 
 namespace RtxTool
 {
@@ -333,7 +334,7 @@ namespace RtxTool
                                .mDay = day,
                                .mHour = hour,
                                .mWeather = identity,
-                               .mWindSpeed = RtxBridge::windSpeed(weather),
+                               .mWindSpeed = Weather::windSpeed(weather),
                                .mFog = daylight.mFog },
             .mReport = std::move(report) };
     }

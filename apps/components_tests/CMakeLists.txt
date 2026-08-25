@@ -130,6 +130,7 @@ if (OPENMW_RTX)
         rtx/wavespectrum.cpp
         rtxbridge/fogbuilder.cpp
         sky/skyroll.cpp
+        weather/downpour.cpp
         sky/sun.cpp
 
         rtxbridge/frameimage.cpp

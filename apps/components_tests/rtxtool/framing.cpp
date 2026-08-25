@@ -11,6 +11,7 @@
 #include <components/rtx/error.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/weather/downpour.hpp>
 
 #include <apps/rtxtool/framing.hpp>
 #include <apps/rtxtool/placement.hpp>
@@ -154,7 +155,7 @@ namespace RtxTool
 
             relight(outdoors, "Clear", 0, 12.0f);
             EXPECT_EQ(outdoors.mWeather, Rtx::Shaders::WEATHER_CLEAR);
-            EXPECT_FLOAT_EQ(outdoors.mWindSpeed, RtxBridge::windSpeed("Clear"));
+            EXPECT_FLOAT_EQ(outdoors.mWindSpeed, Weather::windSpeed("Clear"));
             EXPECT_EQ(outdoors.mDaylight.mSkyZenith, RtxBridge::makeDaylight("Clear", 12.0f).mSkyZenith);
             EXPECT_GT(outdoors.mDaylight.mSun.mIrradiance.x(), 0.0f) << "noon has a sun";
 
@@ -173,7 +174,7 @@ namespace RtxTool
             relight(outdoors, "Overcast", 5, 12.0f);
             EXPECT_EQ(outdoors.mWeather, Rtx::Shaders::WEATHER_OVERCAST);
             EXPECT_EQ(outdoors.mDay, 5);
-            EXPECT_FLOAT_EQ(outdoors.mWindSpeed, RtxBridge::windSpeed("Overcast"));
+            EXPECT_FLOAT_EQ(outdoors.mWindSpeed, Weather::windSpeed("Overcast"));
             EXPECT_EQ(outdoors.mDaylight.mSkyZenith, RtxBridge::makeDaylight("Overcast", 12.0f).mSkyZenith);
             EXPECT_GT(outdoors.mFog.mExtinction, 0.0f);
 
@@ -230,8 +231,7 @@ namespace RtxTool
             EXPECT_EQ(ends.mDaylight.mSkyZenith, overcast);
 
             // And the wind crosses with them, which is one of the numbers the engine blends too.
-            EXPECT_FLOAT_EQ(
-                turning.mWindSpeed, 0.5f * (RtxBridge::windSpeed("Clear") + RtxBridge::windSpeed("Overcast")));
+            EXPECT_FLOAT_EQ(turning.mWindSpeed, 0.5f * (Weather::windSpeed("Clear") + Weather::windSpeed("Overcast")));
 
             // **An interior has no sky for a clock to move.** Every field comes back as it went in,
             // including the weather it was never under.

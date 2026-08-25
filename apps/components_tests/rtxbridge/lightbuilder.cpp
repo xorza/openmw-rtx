@@ -8,6 +8,7 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxbridge/lightbuilder.hpp>
 #include <components/sceneutil/util.hpp>
+#include <components/weather/downpour.hpp>
 
 namespace RtxBridge
 {
@@ -180,12 +181,11 @@ namespace RtxBridge
             // in this binary opens the real installation and `Fallback::Map::init` keeps whichever
             // value landed first — so which pair this reads depends on the order the suite ran in,
             // and only the inequality is true of both.
-            EXPECT_GT(windSpeed("Ashstorm"), windSpeed("Clear"));
-            EXPECT_GT(windSpeed("Clear"), 0.0f);
+            EXPECT_GT(Weather::windSpeed("Ashstorm"), Weather::windSpeed("Clear"));
+            EXPECT_GT(Weather::windSpeed("Clear"), 0.0f);
 
             // A name that is none of the ten is not a key the map will even consider, which is why
             // `weatherIndex` is the thing to ask first.
-            EXPECT_THROW(windSpeed("Drizzle"), std::logic_error);
             EXPECT_THROW(makeDaylight("Drizzle", 12.0f), std::logic_error);
         }
 
@@ -319,7 +319,7 @@ namespace RtxBridge
         ///
         /// `apps/openmw/mwworld/weather.cpp:47` takes the direction from the volcano at (25000,
         /// 70000) to the player, flattened to the ground. Every other weather leaves it due north,
-        /// which is `MWWorld::Weather::defaultDirection`.
+        /// which is `Weather::defaultStormDirection`.
         TEST(RtxLightBuilderTest, anAshStormBlowsAwayFromRedMountainAndNothingElseTurnsAtAll)
         {
             const osg::Vec3f north(0.0f, 1.0f, 0.0f);

@@ -5,6 +5,7 @@
 #include <components/rtxbridge/moonbuilder.hpp>
 #include <components/rtxbridge/skybuilder.hpp>
 #include <components/sky/clouds.hpp>
+#include <components/weather/downpour.hpp>
 
 namespace RtxTool
 {
@@ -31,7 +32,7 @@ namespace RtxTool
         lighting.mWeather = RtxBridge::weatherIndex(weather).value();
         lighting.mNextWeather = lighting.mWeather;
         lighting.mWeatherBlend = 0.0f;
-        lighting.mWindSpeed = RtxBridge::windSpeed(weather);
+        lighting.mWindSpeed = Weather::windSpeed(weather);
         lighting.mGlare = RtxBridge::glareView(weather);
         lighting.mCloudSpeed = Sky::cloudSpeed(weather);
     }
@@ -50,7 +51,7 @@ namespace RtxTool
         // The wind is one of the quantities the engine mixes across a transition too, and so are
         // the glare and the deck's speed.
         const auto mix = [blend](float x, float y) { return x * (1.0f - blend) + y * blend; };
-        lighting.mWindSpeed = mix(RtxBridge::windSpeed(from), RtxBridge::windSpeed(to));
+        lighting.mWindSpeed = mix(Weather::windSpeed(from), Weather::windSpeed(to));
         lighting.mGlare = mix(RtxBridge::glareView(from), RtxBridge::glareView(to));
         lighting.mCloudSpeed = mix(Sky::cloudSpeed(from), Sky::cloudSpeed(to));
     }

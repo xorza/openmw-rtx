@@ -159,12 +159,6 @@ namespace RtxBridge
     /// a region whose chances are all zero, since the alternative is a step that goes nowhere.
     std::uint32_t nextRegionWeather(const ESM::Region* region, std::uint32_t weather, bool forward);
 
-    /// How hard the wind blows under a named weather, as the content files record it.
-    ///
-    /// The game interpolates between two of these; the harness, which runs no weather, reads the
-    /// one. A name that is none of the ten throws, so ask `weatherIndex` first.
-    float windSpeed(std::string_view weather);
-
     /// How much of the sun that weather lets through — `Weather_<name>_Glare_View`, which dims a sun
     /// disc under an overcast and keeps the stars in behind one.
     float glareView(std::string_view weather);

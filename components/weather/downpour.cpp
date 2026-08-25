@@ -51,7 +51,6 @@ namespace Weather
             .mWindSpeed = wind,
             .mBaseWindSpeed = wind,
             .mIsStorm = wind > stormWindSpeed,
-            .mStormDirection = defaultStormDirection(),
         };
     }
 }

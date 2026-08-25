@@ -277,7 +277,9 @@ namespace RtxTool
         float mSeconds = 0.0f;
 
         /// `fStromWindSpeed`, above which a weather counts as a storm and turns its effect to face
-        /// the wind. Read once, because it is a game setting and the store does not change.
+        /// the wind, and `Weather_Precip_Gravity`, which every weather's rain falls at. Read once,
+        /// because neither the store nor the ini changes while this runs.
         float mStormWindSpeed = 0.0f;
+        float mRainGravity = 0.0f;
     };
 }

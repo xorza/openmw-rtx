@@ -94,7 +94,6 @@ namespace MWRender
                 .mWindSpeed = weather.mWindSpeed,
                 .mBaseWindSpeed = weather.mBaseWindSpeed,
                 .mIsStorm = weather.mIsStorm,
-                .mStormDirection = weather.mStormDirection,
             };
         }
     }
@@ -105,8 +104,8 @@ namespace MWRender
         , mCamera(camera)
         , mCreated(false)
         , mIsStorm(false)
-        , mStormParticleDirection(MWWorld::Weather::defaultDirection())
-        , mStormDirection(MWWorld::Weather::defaultDirection())
+        , mStormParticleDirection(Weather::defaultStormDirection())
+        , mStormDirection(Weather::defaultStormDirection())
         , mClouds()
         , mNextClouds()
         , mCloudBlendFactor(0.f)
@@ -291,12 +290,12 @@ namespace MWRender
 
         // morrowind rotates each cloud mesh independently
         osg::Quat rotation;
-        rotation.makeRotate(MWWorld::Weather::defaultDirection(), mStormDirection);
+        rotation.makeRotate(Weather::defaultStormDirection(), mStormDirection);
         mCloudMesh->setAttitude(rotation);
 
         if (mNextCloudMesh->getNodeMask())
         {
-            rotation.makeRotate(MWWorld::Weather::defaultDirection(), mNextStormDirection);
+            rotation.makeRotate(Weather::defaultStormDirection(), mNextStormDirection);
             mNextCloudMesh->setAttitude(rotation);
         }
 

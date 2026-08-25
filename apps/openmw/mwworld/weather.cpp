@@ -50,7 +50,7 @@ namespace MWWorld
 
         osg::Vec3f calculateStormDirection(const std::string& particleEffect)
         {
-            osg::Vec3f stormDirection = MWWorld::Weather::defaultDirection();
+            osg::Vec3f stormDirection = ::Weather::defaultStormDirection();
             if (particleEffect == Settings::models().mWeatherashcloud.get()
                 || particleEffect == Settings::models().mWeatherblightcloud.get())
             {
@@ -62,12 +62,6 @@ namespace MWWorld
             }
             return stormDirection;
         }
-    }
-
-    osg::Vec3f Weather::defaultDirection()
-    {
-        static const osg::Vec3f direction = osg::Vec3f(0.f, 1.f, 0.f);
-        return direction;
     }
 
     Weather::Weather(ESM::RefId id, int scriptId, const std::string& name, float stormWindSpeed, float rainSpeed,
@@ -110,7 +104,7 @@ namespace MWWorld
         , mRainMaxHeight(Fallback::Map::getFloat("Weather_" + name + "_Rain_Height_Max"))
         , mParticleEffect(particleEffect)
         , mRainEffect(Fallback::Map::getBool("Weather_" + name + "_Using_Precip") ? "meshes\\raindrop.nif" : "")
-        , mStormDirection(Weather::defaultDirection())
+        , mStormDirection(::Weather::defaultStormDirection())
         , mCloudsMaximumPercent(Fallback::Map::getFloat("Weather_" + name + "_Clouds_Maximum_Percent"))
         , mTransitionDelta(Fallback::Map::getFloat("Weather_" + name + "_Transition_Delta"))
         , mThunderFrequency(Fallback::Map::getFloat("Weather_" + name + "_Thunder_Frequency"))
@@ -345,7 +339,7 @@ namespace MWWorld
         , mNextWindSpeed(0.f)
         , mIsStorm(false)
         , mPrecipitation(false)
-        , mStormDirection(Weather::defaultDirection())
+        , mStormDirection(::Weather::defaultStormDirection())
         , mCurrentRegion()
         , mTimePassed(0)
         , mFastForward(false)

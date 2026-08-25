@@ -410,7 +410,6 @@ namespace Weather
         return false;
     }
 
-
     void Precipitation::setWeather(const Downpour& weather)
     {
         mRainEntranceSpeed = weather.mRainEntranceSpeed;
