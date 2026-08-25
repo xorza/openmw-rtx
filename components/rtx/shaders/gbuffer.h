@@ -14,9 +14,14 @@
 // image, not just the texel being accessed". A whole channel of the frame, silently, on a
 // developer's machine only, because a release build has no layers to say anything at all.
 //
-// **A mask is one float where a byte would do**, and deliberately: `R8_UNORM` is not among the
-// formats Vulkan requires a device to support as a storage image, and a channel this renderer writes
-// every frame is not the place to find that out on somebody else's card. `R32_SFLOAT` is mandatory.
+// **A mask is a byte, because a yes or a no is.** `R8_UNORM` is not among the formats Vulkan
+// *requires* a device to support as a storage image, which is why this was a full float first — and
+// that was a portability argument in a renderer whose whole posture is that it targets two machines
+// and fails loudly on anything either of them cannot do. Measured on the one this is written
+// against, an RTX 4090: storage and sampled, both. A device without it fails at image creation
+// naming the format, which is the answer this project gives to a missing feature everywhere else.
+//
+// The two masks between them go from eight megabytes of render-resolution image at 1080p to two.
 //
 // So the format is a macro rather than a constant: a layout qualifier is a token GLSL reads before
 // it parses anything, and `VK_FORMAT_*` is an enumerator. The preprocessor is the one thing both
@@ -29,7 +34,7 @@
 #define GBUFFER_GUIDE VK_FORMAT_R32G32B32A32_SFLOAT
 #define GBUFFER_MOTION VK_FORMAT_R32G32_SFLOAT
 #define GBUFFER_DEPTH VK_FORMAT_R32G32_SFLOAT
-#define GBUFFER_MASK VK_FORMAT_R32_SFLOAT
+#define GBUFFER_MASK VK_FORMAT_R8_UNORM
 
 #else
 
@@ -38,7 +43,7 @@
 #define GBUFFER_GUIDE rgba32f
 #define GBUFFER_MOTION rg32f
 #define GBUFFER_DEPTH rg32f
-#define GBUFFER_MASK r32f
+#define GBUFFER_MASK r8
 
 #endif
 

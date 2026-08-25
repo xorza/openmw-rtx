@@ -15,6 +15,7 @@
 #include <osg/Vec2f>
 
 #include <components/rtx/camera.hpp>
+#include <components/rtx/error.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxvulkan/commands.hpp>
 #include <components/rtxvulkan/dlss.hpp>
@@ -108,6 +109,13 @@ namespace Rtx
             // the softness is the upscale".
             EXPECT_EQ(dlaa.width, sOutput.width);
             EXPECT_EQ(dlaa.height, sOutput.height);
+
+            // **And the mode that is not one is refused rather than answered.** `Off` used to share
+            // a `switch` arm with `Performance` so the switch was total, which made "build a feature
+            // for the setting that means build no feature" answer with the fastest and softest mode
+            // this renderer has — silently, on the path a frame budget is measured against.
+            EXPECT_THROW(ngx.getRenderSize(sOutput, Upscale::Off), Error)
+                << "the absence of an upscaler names no size to render at";
 
             CommandPool pool(device);
 

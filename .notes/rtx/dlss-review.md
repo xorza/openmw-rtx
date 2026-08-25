@@ -69,34 +69,40 @@ about the frame, and the machinery that fed them was removed with them rather th
 
 ## Contract gaps inside the pass
 
-- [ ] `DlssPass::record` asserts the colour and output extents match what the feature was built for
-      (`dlsspass.cpp:116-117`) and not the five other inputs. A guide, depth, motion or albedo image
-      at the wrong resolution is accepted, and the failure mode the header already warns about for
-      `SAMPLED_BIT` — success returned, nothing logged, wrong picture — applies equally here.
-- [ ] `resourceOf` (`dlsspass.cpp:46`) passes `true` for NGX's read-write flag on every resource
-      including the six that are read-only, on the grounds that they were created with
-      `STORAGE_BIT`. The header comment explains the reasoning, but the flag is what NGX uses to
-      decide barrier behaviour on the resource.
-- [ ] `ngxQualityOf` (`ngx.hpp:45`) maps `Upscale::Off` to `MaxPerf` and relies on a comment that
-      `Off` never reaches it. If it ever does, the renderer upscales at maximum performance instead
-      of refusing.
-- [ ] The load-bearing facts about NGX's conventions exist only as prose in `dlsspass.cpp` — the
-      negated jitter, `MVLowRes` being a description rather than a request, `InUseHWDepth` describing
-      the depth's shape rather than its origin, `DepthInverted` and `AutoExposure` being deliberately
-      absent. Each was found by a failure that reported `FAIL_InvalidParameter` and named no
-      parameter. Nothing pins them but the comments.
+- [ ] The NGX conventions other than the jitter are pinned by nothing but prose. `RtxUpscalerStabilityTest`
+      fails on an inverted jitter offset on either axis, and its bound is calibrated against a
+      measured four-way sweep — but `MVLowRes`, `InUseHWDepth`, and the deliberate absence of
+      `DepthInverted` and `AutoExposure` have no such check. A still camera cannot see them: they are
+      claims about motion and about depth under motion, so what would pin them is a turning camera at
+      an upscaling preset, where render and output differ and the low-resolution claim starts to
+      matter.
+
+**Read-write on every resource is correct, not a gap.** The SDK defines the flag as a statement about
+the image rather than about the call: "true if the resource is available for read and write access…
+for VkImage resources: VkImageUsageFlags for the associated VkImage includes
+`VK_IMAGE_USAGE_STORAGE_BIT`" (`nvsdk_ngx_defs_vk.h`). Every image here carries that bit, so passing
+`false` for the ones an evaluation only reads would answer the question wrongly.
 
 ## Resources are sized beyond what their consumer reads
 
-None of this changes the picture; it is bandwidth and memory on the frame path.
+None of this changes the picture; it is bandwidth and memory on the frame path, which
+`CLAUDE.md` says to measure rather than act on until the frame stops changing shape.
 
-- [ ] `gbuffer.cpp:51` makes the depth channel `VK_FORMAT_R32G32_SFLOAT` and binds the whole image to
-      `pInDepth`. The guide asks for a single-channel depth; the second component exists for the
-      à-trous filter's world-distance test, so the upscaler is fed twice the bandwidth it reads.
-- [ ] `mIndirect` and `mUpscaled` are four-channel and appear to use three. The `w` of the direct
-      image carries coverage and is read; these two are not.
-- [ ] `particleMask` and `biasMask` each carry a yes or a no in a `VK_FORMAT_R32_SFLOAT` — a bit of
-      information in thirty-two, and eight megabytes of render-resolution image between them at
-      1080p. `R8_UNORM` is not among the formats Vulkan requires a device to support as a storage
-      image, which is why they are floats; a support check at startup, or packing the pair into one
-      two-channel image and handing NGX a view of each, would recover most of it.
+- [ ] `gbuffer.cpp` makes the depth channel `VK_FORMAT_R32G32_SFLOAT` and binds the whole image to
+      `pInDepth`, where the guide asks for one channel. **Splitting it saves no memory** — two
+      `R32_SFLOAT` images are the same eight bytes a texel as one `R32G32_SFLOAT` — and the second
+      component is what the a-trous filter's world-distance test reads, so it has to exist
+      somewhere. What is left is NGX sampling four bytes a texel instead of eight, which is a cost
+      inside the feature that nothing here can measure. Not worth a binding until it can be.
+- [ ] `mIndirect` and `mUpscaled` are four-channel and use three, and **there is no three-channel
+      storage format to move them to**: `VK_FORMAT_R32G32B32_SFLOAT` reports neither storage nor
+      sampled support on the device this targets. Narrowing them to halves is the other way, and it
+      is the trade `gbuffer.cpp` already refused for radiance — the converged mean moved 0.067%,
+      against 0.0014% for the albedos that did move.
+
+**The masks are a byte now, and the reason they were not is gone.** They held a yes or a no in a
+`VK_FORMAT_R32_SFLOAT` because `R8_UNORM` is not among the formats Vulkan *requires* — which is a
+portability argument in a renderer whose posture is that it targets two machines and fails loudly on
+anything either cannot do. Measured on the one it is written against: `R8_UNORM` reports storage and
+sampled both. The two masks went from twelve megabytes of render-resolution image at 1080p to four,
+NGX takes them without complaint, and the lamp measurement is unchanged.

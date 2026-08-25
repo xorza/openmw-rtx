@@ -39,14 +39,27 @@ namespace Rtx
         /// measured — bit-identical with them and without.
         constexpr int sCreateFlags = NVSDK_NGX_DLSS_Feature_Flags_IsHDR | NVSDK_NGX_DLSS_Feature_Flags_MVLowRes;
 
-        /// An image as NGX takes one.
+        /// An image as NGX takes one, checked against the size the feature was built for.
         ///
-        /// Read-write because every image here was created with `VK_IMAGE_USAGE_STORAGE_BIT`, which
-        /// is what the flag reports — not a claim that this evaluation writes to it.
-        NVSDK_NGX_Resource_VK resourceOf(const Image& image)
+        /// **Every resource passes through here, which is why the check lives here.** `record` used
+        /// to assert the colour and the output and none of the rest, so a guide, a depth, a motion
+        /// field or a mask at another resolution went to the network unremarked — the same failure
+        /// the `SAMPLED_BIT` assertion below exists for, where NGX returns success, the layers say
+        /// nothing, and the picture is wrong. Asserting at the one place a resource is made means a
+        /// channel added later cannot be the one nobody checked.
+        ///
+        /// **Read-write is a statement about the image and not about this call.** The SDK defines
+        /// the flag as "true if the resource is available for read and write access… for VkImage
+        /// resources: VkImageUsageFlags for the associated VkImage includes
+        /// `VK_IMAGE_USAGE_STORAGE_BIT`" (`nvsdk_ngx_defs_vk.h`), and every image here is created
+        /// with that bit. Passing `false` for the ones this evaluation only reads would be a false
+        /// answer to the question actually asked.
+        NVSDK_NGX_Resource_VK resourceOf(const Image& image, VkExtent2D expected)
         {
             assert((image.getUsage() & VK_IMAGE_USAGE_SAMPLED_BIT) != 0
                 && "DLSS samples its inputs; one it cannot sample reads as zero and nothing reports it");
+            assert(image.getWidth() == expected.width && image.getHeight() == expected.height
+                && "an input at another resolution than the feature was built for, which NGX accepts in silence");
 
             const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
             return NVSDK_NGX_Create_ImageView_Resource_VK(image.getView(), image.getHandle(), whole, image.getFormat(),
@@ -113,21 +126,19 @@ namespace Rtx
 
     void DlssPass::record(VkCommandBuffer commands, const DlssInputs& inputs) const
     {
-        assert(inputs.mColour.getWidth() == mRenderExtent.width && inputs.mColour.getHeight() == mRenderExtent.height);
-        assert(inputs.mOutput.getWidth() == mOutputExtent.width && inputs.mOutput.getHeight() == mOutputExtent.height);
-
         // Held by value across the call: the parameter map keeps the pointers rather than what they
-        // point at, so every one of these has to outlive the evaluation.
-        NVSDK_NGX_Resource_VK colour = resourceOf(inputs.mColour);
-        NVSDK_NGX_Resource_VK diffuse = resourceOf(inputs.mDiffuseAlbedo);
-        NVSDK_NGX_Resource_VK specular = resourceOf(inputs.mSpecularAlbedo);
-        NVSDK_NGX_Resource_VK normals = resourceOf(inputs.mNormalRoughness);
-        NVSDK_NGX_Resource_VK depth = resourceOf(inputs.mDepth);
-        NVSDK_NGX_Resource_VK motion = resourceOf(inputs.mMotion);
-        NVSDK_NGX_Resource_VK target = resourceOf(inputs.mOutput);
-        NVSDK_NGX_Resource_VK reflections = resourceOf(inputs.mReflectionMotion);
-        NVSDK_NGX_Resource_VK particles = resourceOf(inputs.mParticleMask);
-        NVSDK_NGX_Resource_VK bias = resourceOf(inputs.mBiasMask);
+        // point at, so every one of these has to outlive the evaluation. Each is checked against the
+        // extent it belongs to as it is made — `resourceOf` says why there rather than here.
+        NVSDK_NGX_Resource_VK colour = resourceOf(inputs.mColour, mRenderExtent);
+        NVSDK_NGX_Resource_VK diffuse = resourceOf(inputs.mDiffuseAlbedo, mRenderExtent);
+        NVSDK_NGX_Resource_VK specular = resourceOf(inputs.mSpecularAlbedo, mRenderExtent);
+        NVSDK_NGX_Resource_VK normals = resourceOf(inputs.mNormalRoughness, mRenderExtent);
+        NVSDK_NGX_Resource_VK depth = resourceOf(inputs.mDepth, mRenderExtent);
+        NVSDK_NGX_Resource_VK motion = resourceOf(inputs.mMotion, mRenderExtent);
+        NVSDK_NGX_Resource_VK target = resourceOf(inputs.mOutput, mOutputExtent);
+        NVSDK_NGX_Resource_VK reflections = resourceOf(inputs.mReflectionMotion, mRenderExtent);
+        NVSDK_NGX_Resource_VK particles = resourceOf(inputs.mParticleMask, mRenderExtent);
+        NVSDK_NGX_Resource_VK bias = resourceOf(inputs.mBiasMask, mRenderExtent);
 
         NVSDK_NGX_VK_DLSSD_Eval_Params evaluate{};
         evaluate.pInColor = &colour;

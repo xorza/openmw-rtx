@@ -14,6 +14,8 @@
 #include "dlsspass.hpp"
 #endif
 
+#include <components/rtx/shaders/gbuffer.h>
+
 #include "gbuffer.hpp"
 #include "image.hpp"
 #include "physicaldevice.hpp"
@@ -900,6 +902,18 @@ namespace Rtx
 
         std::vector<std::uint8_t> bytes;
         image->read(mPool, VK_IMAGE_LAYOUT_GENERAL, bytes);
+
+        // **A caller asked for floats, and not every channel is stored as one.** The masks hold a
+        // yes or a no in a byte, so what comes back is widened rather than reinterpreted — a
+        // `memcpy` over those would hand back four texels read as one number.
+        if (image->getFormat() == GBUFFER_MASK)
+        {
+            values.resize(bytes.size());
+            for (std::size_t at = 0; at < bytes.size(); ++at)
+                values[at] = static_cast<float>(bytes[at]) / 255.0f;
+
+            return;
+        }
 
         values.resize(bytes.size() / sizeof(float));
         std::memcpy(values.data(), bytes.data(), bytes.size());

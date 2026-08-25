@@ -5,6 +5,7 @@
 #include <nvsdk_ngx_defs.h>
 #include <nvsdk_ngx_defs_dlssd.h>
 
+#include <components/rtx/error.hpp>
 #include <components/rtx/reconstruction.hpp>
 
 #include "dlss.hpp"
@@ -30,12 +31,21 @@ namespace Rtx
 
     /// The quality level an upscale setting is, as NGX numbers them.
     ///
-    /// `Off` never reaches here: it is the absence of an upscaler rather than a mode of one, and the
-    /// renderer answers it by not building a feature at all.
+    /// **`Off` is refused rather than answered.** It is the absence of an upscaler and not a mode of
+    /// one, so there is no quality level it names; the renderer answers it by building no feature at
+    /// all, and anything that got here holding it has already decided to build one. Grouping it with
+    /// `Performance` for the sake of a total switch made a contradiction into the fastest, softest
+    /// mode this renderer has — quietly, and on the path a frame budget is measured against.
+    ///
+    /// Thrown rather than asserted because it is a cold path: the feature is built once, and a build
+    /// that got the mode wrong should say so on every machine rather than only where a developer
+    /// left the asserts in.
     inline NVSDK_NGX_PerfQuality_Value ngxQualityOf(Upscale upscale)
     {
         switch (upscale)
         {
+            case Upscale::Performance:
+                return NVSDK_NGX_PerfQuality_Value_MaxPerf;
             case Upscale::Balanced:
                 return NVSDK_NGX_PerfQuality_Value_Balanced;
             case Upscale::Quality:
@@ -43,11 +53,10 @@ namespace Rtx
             case Upscale::Dlaa:
                 return NVSDK_NGX_PerfQuality_Value_DLAA;
             case Upscale::Off:
-            case Upscale::Performance:
-                return NVSDK_NGX_PerfQuality_Value_MaxPerf;
+                break;
         }
 
-        return NVSDK_NGX_PerfQuality_Value_MaxPerf;
+        throw Error("Ray Reconstruction was asked to build for an upscale mode that is the absence of one");
     }
 
     /// The network a preset selects, as NGX numbers them.
@@ -79,11 +88,14 @@ namespace Rtx
     /// for exactly one of them, so exactly one of these is worth setting; setting the rest would be
     /// stating a preference about features this renderer never creates.
     ///
-    /// `Off` never reaches here, for the reason `ngxQualityOf` gives.
+    /// `Off` is refused here too, for the reason `ngxQualityOf` gives: a preset hint for a feature
+    /// that is not being built names a network nothing will run.
     inline const char* ngxPresetParameterOf(Upscale upscale)
     {
         switch (upscale)
         {
+            case Upscale::Performance:
+                return NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Performance;
             case Upscale::Balanced:
                 return NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Balanced;
             case Upscale::Quality:
@@ -91,10 +103,9 @@ namespace Rtx
             case Upscale::Dlaa:
                 return NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_DLAA;
             case Upscale::Off:
-            case Upscale::Performance:
-                return NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Performance;
+                break;
         }
 
-        return NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Performance;
+        throw Error("Ray Reconstruction was asked for the preset of an upscale mode that is the absence of one");
     }
 }

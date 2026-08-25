@@ -23,6 +23,8 @@ namespace Rtx
         {
             switch (format)
             {
+                case VK_FORMAT_R8_UNORM:
+                    return 1;
                 case VK_FORMAT_R8G8B8A8_UNORM:
                     return 4;
                 case VK_FORMAT_R32_SFLOAT:
