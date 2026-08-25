@@ -97,9 +97,13 @@ namespace Rtx::Shaders
 }
 #endif
 
-// **GLSL alone**, for the reason `colour.h` gives: it is the only side that generates rays from
-// this, and a free function in a header two Metal translation units included would be defined twice.
-#if !defined(RTX_HOST) && !defined(__METAL_VERSION__)
+// What both shading languages read and the host does not, for the reason `RTX_SHADER` gives.
+//
+// **Every result here is built by assigning fields rather than by calling a constructor**, which is
+// the one form both languages have: GLSL has `Ray(offset, direction)` and no brace initialiser,
+// Metal has `Ray{offset, direction}` and no constructor. Writing it the shared way is what lets the
+// Metal backend generate its rays with this rather than with a third copy of the derivation.
+#ifndef RTX_HOST
 
 /// Where a pixel's ray starts relative to the eye, and which way it points.
 ///
@@ -118,12 +122,20 @@ struct Ray
 
 /// The ray through `pixel`, whose `xy` is the integer index and to which the jitter and the half
 /// are added here — added to *one* number, so which way is down cannot be disagreed about.
-Ray rayAt(Camera camera, vec2 pixel)
+RTX_SHADER Ray rayAt(Camera camera, vec2 pixel)
 {
-    const vec2 uv = (pixel + 0.5 + camera.mJitter) / vec2(camera.mWidth, camera.mHeight) * 2.0 - 1.0;
+    const vec2 uv = (pixel + 0.5 + camera.mJitter) / vec2(float(camera.mWidth), float(camera.mHeight)) * 2.0 - 1.0;
 
+    Ray ray;
     if (camera.mOrthographic != 0u)
-        return Ray(camera.mRight * uv.x - camera.mUp * uv.y, normalize(camera.mForward));
+    {
+        ray.mOffset = camera.mRight * uv.x - camera.mUp * uv.y;
+        ray.mDirection = normalize(camera.mForward);
+
+        return ray;
+    }
+
+    ray.mOffset = vec3(0.0);
 
     // **The sum is written out rather than hoisted into a shared term, and that is not an
     // oversight.** Floating-point addition does not associate: `f + (a - b)` and `(f + a) - b`
@@ -132,7 +144,9 @@ Ray rayAt(Camera camera, vec2 pixel)
     // already drifted that way — the trace summed left to right and the wavelet hoisted, so the
     // positions the filter reconstructed were never quite the ones that were shaded. This is the
     // trace's association, because the trace is what everything else is judged against.
-    return Ray(vec3(0.0), normalize(camera.mForward + camera.mRight * uv.x - camera.mUp * uv.y));
+    ray.mDirection = normalize(camera.mForward + camera.mRight * uv.x - camera.mUp * uv.y);
+
+    return ray;
 }
 
 /// How wide a pixel's cone is where the ray starts, and how much wider it gets per unit travelled.
@@ -150,12 +164,13 @@ struct Cone
 /// and reject every filter tap but its own, which is what a map tile used to do. Said once here
 /// because the trace and the wavelet both ask, and a rule two shaders each state is a rule they can
 /// each get wrong.
-Cone coneAt(Camera camera)
+RTX_SHADER Cone coneAt(Camera camera)
 {
-    if (camera.mOrthographic != 0u)
-        return Cone(2.0 * length(camera.mRight) / float(camera.mWidth), 0.0);
+    Cone cone;
+    cone.mWidth = camera.mOrthographic != 0u ? 2.0 * length(camera.mRight) / float(camera.mWidth) : 0.0;
+    cone.mSpread = camera.mOrthographic != 0u ? 0.0 : camera.mSpreadAngle;
 
-    return Cone(0.0, camera.mSpreadAngle);
+    return cone;
 }
 
 /// How far a ray's cone has spread from its axis where it starts, in radians.
@@ -164,7 +179,7 @@ Cone coneAt(Camera camera)
 /// *width* — `resolved` compares it against a wavelength and `coneLod` against a texel area — so a
 /// place that wants an angle from the axis has to take half of it, and a disc whose brightness goes
 /// as one over the radius squared would be four times wrong otherwise.
-float pixelBlur(Camera camera)
+RTX_SHADER float pixelBlur(Camera camera)
 {
     return 0.5 * camera.mSpreadAngle;
 }

@@ -9,7 +9,6 @@
 // **One file, because a binding number is a fact shared with `VisibilityPass` and nothing
 // else here has an opinion about it.** What each channel is *for* is written beside it.
 
-#include "camera.h"
 #include "gbuffer.h"
 #include "scene.h"
 #include "visibility.h"

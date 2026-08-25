@@ -60,8 +60,21 @@ wavelet level), `exposure.comp` (94), `histogram.comp` (64), `composite.comp` (6
   callee comes out bare and the driver may read one lane's descriptor for the whole wave.
   `bindings.glsl` states it beside the array and counts what it cost before the rule existed.
 - **The shared headers are what C++, GLSL and Metal all read**, and they may carry a function as well
-  as a number — `colour.h` holds `brightest` and `camera.h` holds `rayAt`, `coneAt` and
-  `pixelBlur`, all behind a shader-only guard. That is what stops the Metal backend re-copying what it should include.
+  as a number: `colour.h` holds `brightest` and `encodeSrgb`, `visibility.h` holds `skyGradient`,
+  `camera.h` holds `rayAt`, `coneAt` and `pixelBlur`. That is what stops the Metal backend
+  re-copying what it should include, which it did for the display curve and for the sky's gradient.
+  `RTX_SHADER` in `portable.h` is how the two shading languages spell such a function — `inline` for
+  Metal, where two translation units could include one header, and nothing for GLSL, which has one.
+  A function only GLSL can compile takes the narrower guard and says why: `camera.h`'s build their
+  results with GLSL's struct constructor, which Metal does not have.
+- **What every consumer of a lamp must agree on is `lampAt`.** Three places accumulate lamps and they
+  differ in the cosine, the shadow ray and the phase function; the reach test and the falloff are the
+  part they may not, so those are said once and each weighs the result its own way. The air and a
+  puff of smoke ask the same question as each other and share `lampsAt` outright.
+- **The candidate loop is a macro because it cannot be a function.** `glslc` rejects `rayQueryEXT` as
+  an `out` or `inout` parameter, so a traversal cannot be handed across a call; `RTX_RESOLVE_CUTOUTS`
+  is the one construct that survives the restriction, and the alternative was two copies with a
+  comment on one of them warning that any change had to be made in both.
 - **`Camera` carries no origin, no near and no far, and that absence is what makes it shared.** The
   trace needs the eye's place in the world; the wavelet only ever takes *differences* of
   reconstructed positions, and the origin cancels in a subtraction. `VisibilityConstants` is the eye
@@ -199,21 +212,9 @@ Each of these is two or three places that must agree and are not enforced to.
 
 | written | where | how they differ |
 |---|---|---|
-| the lamp loop | `shading.glsl` `gather`, `fog.glsl` `fogLight`, `sprites.glsl` `puffLight` | cosine and shadow ray; `INV_FOUR_PI`; neither |
-| the ray-query candidate loop | `traversal.glsl`, in `occluded` and in `trace` | `trace` carries a cone, `occluded` does not |
 | the transformed UVs | `texturing.glsl`, in `sampleDiffuse` and in `sampleAlbedo` | none — recomputed on purpose, six multiplies |
-| `encodeSrgb` | `tone.comp`, `visibility.metal` | none — "matching term for term" |
-| `skyGlow` | `sky.glsl`, `visibility.metal` | none |
 | the wave-spectrum loop | `sea.glsl`, in `waterSurfaceAt` and in `caustic` | first and second derivative of one field |
 | `0xFFFFFFFF` | `NO_TEXTURE`, `NO_SKY_TEXTURE`, `NO_MOON_FACE` | nothing; three names in two headers |
-
-Two deserve their own note.
-
-**The candidate loop cannot be a function and can be a macro.** `occluded`'s own comment is right that
-`glslc` rejects `rayQueryEXT` as an `out` or `inout` parameter, and it draws the correct conclusion —
-*"any change to the cutout has to be made in both places"* — which is a standing invitation to a bug.
-A preprocessor macro over the loop body is the one construct that survives the restriction, and both
-sites then read the same text.
 
 **The wave loops are not redundant and must not be merged blindly.** `waterSurfaceAt` is evaluated
 at the surface the ray met; `caustic` is evaluated at the bed the light landed on. Different points,
@@ -278,11 +279,6 @@ usually falls, and the tile is worth more per level.
 - `visibility.comp`, in `main` — `atomicAdd(hits, 1)` is telemetry on the release path. Cheap, and
   measured as such where the buffer is declared, but it is a debug facility compiled into the
   shipping kernel.
-- `visibility.metal` is at M0's feature level while `visibility.comp` is at M11's. That is the
-  *stated* policy — each machine develops its own backend — but the two share `skyGlow` and
-  `encodeSrgb` by copy, so the copies drift with no compiler to say so. Whatever is genuinely
-  API-neutral belongs in `components/rtx/shaders/` where both include it, which is exactly what the
-  Metal file's own header comment says is coming.
 - The random streams are split across two files: `RANDOM_STREAMS` and `BLUE_NOISE_EXTENT` are shared
   in `scene.h`, where C++ generates the tile; `STREAM_FOG`, `STREAM_BOUNCE` and `STREAM_TURN` are in
   `random.glsl`. The count is a promise the stream ids have to keep, and a second shader that drew
@@ -317,44 +313,37 @@ runs of one build, the doll about 0.02% — so those two need a magnitude compar
 control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path and `doll`
 the only transparent-background one.
 
-**1 — one lamp loop, one candidate loop, one sRGB curve, one sky gradient.** The lamp accumulator
-takes what differs as parameters; the candidate loop becomes a macro, which is the one construct
-that survives `glslc` rejecting `rayQueryEXT` as a parameter; `encodeSrgb` and `skyGlow` follow
-`brightest` into `components/rtx/shaders/` and `visibility.metal` includes them. *Check:* byte
-comparison, and `components-tests` — the water and fog suites read the constants these touch.
-
-**2 — sanitise the radiance channels (4.1).** NaN rejection at the five `imageStore`s; the firefly
+**1 — sanitise the radiance channels (4.1).** NaN rejection at the five `imageStore`s; the firefly
 ceiling derived from the measured exposure rather than picked, and the derivation written into the
 comment beside it the way `FOG_COVERAGE`'s is. *Check:* a test that traces a lamp at contact range
 and asserts no channel exceeds the ceiling; `shot` on a night exterior for the visual half.
 
-**3 — temporal accumulation (4.2).** The largest step, and the one the priority order puts first.
+**2 — temporal accumulation (4.2).** The largest step, and the one the priority order puts first.
 Reproject the indirect channel through the motion vector it already writes, accumulate with a
 history-length counter, estimate variance, and feed it to the wavelet as SVGF's third edge-stopping
 term. `biasMask` is already the reset signal. *Check:* `openmw-rtxtool shot --accumulate` gives a
 converged reference; the metric is RMSE of one filtered frame against it, before and after, on a
 fixed view. That number is what says it worked.
 
-**4 — bound the shadow rays (4.3).** RIS over the grid cell's candidates, one reservoir, one shadow
-ray. Then temporal reuse through step 3's history, then spatial. *Check:* the same RMSE-against-
+**3 — bound the shadow rays (4.3).** RIS over the grid cell's candidates, one reservoir, one shadow
+ray. Then temporal reuse through step 2's history, then spatial. *Check:* the same RMSE-against-
 reference metric, in an interior with a dozen lamps — and a count of shadow rays per pixel, which is
 the thing being bounded.
 
-**5 — opacity micromaps.** The device features are already required and probed; nothing builds a
+**4 — opacity micromaps.** The device features are already required and probed; nothing builds a
 micromap. `alphaPasses` is what stops being invoked. *Check:* the trace timer on a view of foliage,
 which is what M12 measures.
 
-**6 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
+**5 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
 a range the way the light grid is. *Check:* the trace timer at Seyda Neen with 165 emitters, and the
 byte comparison — binning must not change a pixel.
 
-**7 — decide SER (4.5).** After 3 and 4 have changed the live-state picture. Measure occupancy on
+**6 — decide SER (4.5).** After 2 and 3 have changed the live-state picture. Measure occupancy on
 `visibility.comp`; if it is where the megakernel is losing, price the ray-tracing pipeline. Until
 then, `plan.md` §8's SER entry should say it needs one.
 
-Steps 1 and 2 are consolidation and correctness, and neither changes a pixel except 2, which changes
-only wrong ones. 3 and 4 are what the frame looks like. 5–7 are M12, and each gets its number written
-down when it lands rather than acted on before.
+Step 1 is correctness and changes only wrong pixels. 2 and 3 are what the frame looks like. 4–6 are
+M12, and each gets its number written down when it lands rather than acted on before.
 
 ## 6. Sources
 

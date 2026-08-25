@@ -47,26 +47,18 @@ vec3 gather(vec3 position, vec3 normal, float footprint)
     const uvec2 near = lampsReaching(position);
     for (uint i = near.x; i < near.y; ++i)
     {
-        const GpuLight light = lights[lightIndices[i]];
-
-        const vec3 offset = light.mPosition - position;
-        const float distance = length(offset);
-
-        // An early-out and not a rule: the window below is already exactly zero at and beyond the
-        // light's reach, so this changes no pixel. What it saves is the shadow ray, which is the
-        // expensive half of a light and the reason the test is worth making twice.
-        if (distance >= light.mReach || distance <= 0.0)
+        const Lamp lamp = lampAt(lights[lightIndices[i]], position);
+        if (!(lamp.mReaching > 0.0))
             continue;
 
-        const vec3 towards = offset / distance;
-        const float cosine = dot(normal, towards);
+        const float cosine = dot(normal, lamp.mTowards);
         if (cosine <= 0.0)
             continue;
 
-        if (occluded(position, towards, distance - SHADOW_BIAS))
+        if (occluded(position, lamp.mTowards, lamp.mDistance - SHADOW_BIAS))
             continue;
 
-        radiance += light.mIntensity * (cosine * falloff(distance, light.mReach) * INV_PI);
+        radiance += lamp.mIntensity * (cosine * lamp.mReaching * INV_PI);
     }
 
     return radiance;

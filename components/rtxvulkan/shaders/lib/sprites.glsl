@@ -26,24 +26,12 @@
 /// sky, so a vent in a cave gets none of it without being asked.
 ///
 /// The lamps arrive the way they arrive at the fog — as irradiance spread over the whole sphere —
-/// because a puff is the same kind of thing the fog is, only denser and in one place.
+/// because a puff is the same kind of thing the fog is, only denser and in one place. So it is the
+/// same `lampsAt` and the same one multiply on the sum.
 vec3 puffLight(vec3 position)
 {
-    vec3 light = pathEnd(position) + frame.mSunIrradiance * (INV_PI * daylightReaching(position));
-
-    const uvec2 near = lampsReaching(position);
-    for (uint i = near.x; i < near.y; ++i)
-    {
-        const GpuLight lamp = lights[lightIndices[i]];
-
-        const float distance = length(lamp.mPosition - position);
-        if (distance >= lamp.mReach || distance <= 0.0)
-            continue;
-
-        light += INV_FOUR_PI * lamp.mIntensity * falloff(distance, lamp.mReach);
-    }
-
-    return light;
+    return pathEnd(position) + frame.mSunIrradiance * (INV_PI * daylightReaching(position))
+        + INV_FOUR_PI * lampsAt(position);
 }
 
 /// One sprite's case for owning a pixel's motion vector.

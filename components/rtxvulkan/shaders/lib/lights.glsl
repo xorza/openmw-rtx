@@ -48,4 +48,62 @@ float falloff(float distance, float reach)
     return window * window / (distance * distance + 1.0);
 }
 
+/// One lamp as it arrives at a point.
+///
+/// **The reach test and the falloff, which is the whole of what a lamp is at a distance.** Three
+/// places accumulate lamps — a surface, the air and a puff of smoke — and they differ in the cosine,
+/// the shadow ray and the phase function. This is the part they may not differ in, so it is written
+/// once and each of them weighs it its own way.
+struct Lamp
+{
+    /// Unit, from the point toward the lamp. Zero where the lamp does not reach.
+    vec3 mTowards;
+
+    /// How far, in world units.
+    float mDistance;
+
+    /// The lamp's own intensity, carried so a caller needs nothing but this record.
+    vec3 mIntensity;
+
+    /// What share of that intensity arrives here, or nothing where the lamp does not reach.
+    float mReaching;
+};
+
+Lamp lampAt(GpuLight lamp, vec3 position)
+{
+    const vec3 offset = lamp.mPosition - position;
+    const float distance = length(offset);
+
+    // **An early-out and not a rule**: the window in `falloff` is already exactly zero at and beyond
+    // the reach, so this changes no pixel. What it saves is the shadow ray, which is the expensive
+    // half of a light and the only reason the test is worth making at all. Zero distance is the
+    // other half of it — a lamp standing exactly on the point has no direction to be lit from.
+    if (distance >= lamp.mReach || distance <= 0.0)
+        return Lamp(vec3(0.0), distance, lamp.mIntensity, 0.0);
+
+    return Lamp(offset / distance, distance, lamp.mIntensity, falloff(distance, lamp.mReach));
+}
+
+/// What every lamp reaching a point delivers there, as irradiance and with nothing in the way.
+///
+/// **What the air and a puff of smoke both want**, which is the same question: neither has a normal
+/// to face away from and neither is shadowed, so what is left is the sum. A surface asks a different
+/// one and walks the lamps itself, because it spends a shadow ray on each and needs to stop early.
+///
+/// The isotropic factor is the caller's. It is one multiply on the sum rather than one per lamp,
+/// which is one rounding rather than as many as the cell has lamps.
+vec3 lampsAt(vec3 position)
+{
+    vec3 total = vec3(0.0);
+
+    const uvec2 near = lampsReaching(position);
+    for (uint i = near.x; i < near.y; ++i)
+    {
+        const Lamp lamp = lampAt(lights[lightIndices[i]], position);
+        total += lamp.mIntensity * lamp.mReaching;
+    }
+
+    return total;
+}
+
 #endif

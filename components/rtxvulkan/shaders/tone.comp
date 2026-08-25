@@ -12,6 +12,7 @@
 // Exposure is a multiply and not a curve. There is no tone-mapping operator here yet, so what the
 // sun does above one is still clipped rather than rolled off — see `.notes/rtx/plan.md`.
 
+#include "colour.h"
 #include "tone.h"
 
 layout(local_size_x = TONE_WORKGROUP, local_size_y = TONE_WORKGROUP) in;
@@ -33,18 +34,6 @@ layout(push_constant, scalar) uniform Push
 {
     ToneConstants frame;
 };
-
-/// The sRGB transfer curve, linear radiance to what a display expects of a byte.
-///
-/// The piecewise form and not the 2.2 approximation. The two differ by several per cent in the
-/// darks, which is where a bounce puts most of what it has to say.
-vec3 encodeSrgb(vec3 linear)
-{
-    const bvec3 small = lessThanEqual(linear, vec3(0.0031308));
-    const vec3 low = linear * 12.92;
-    const vec3 high = 1.055 * pow(max(linear, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055;
-    return clamp(mix(high, low, vec3(small)), 0.0, 1.0);
-}
 
 void main()
 {

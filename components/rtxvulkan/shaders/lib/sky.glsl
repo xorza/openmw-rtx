@@ -23,7 +23,7 @@
 /// would pick it up over a quarter of the sky at that.
 vec3 skyGlow(vec3 direction)
 {
-    return mix(frame.mSkyHorizon, frame.mSkyZenith, clamp(direction.z, 0.0, 1.0));
+    return skyGradient(frame.mSkyHorizon, frame.mSkyZenith, direction);
 }
 
 /// How wide one tile of the cloud texture is across the sky.

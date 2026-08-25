@@ -34,4 +34,16 @@ using uvec3 = packed_uint3;
 #define RTX_CONST const
 #endif
 
+// How a shared header spells a function the shaders read and the host does not.
+//
+// **Metal needs `inline` and GLSL has no such keyword.** Two Metal translation units including one
+// header would otherwise define the same function twice and fail to link; GLSL compiles a single
+// translation unit and has nothing to say about it. The host never sees these at all — it has
+// OpenSceneGraph's own vector maths and no use for a shading language's.
+#ifdef __METAL_VERSION__
+#define RTX_SHADER inline
+#else
+#define RTX_SHADER
+#endif
+
 #endif

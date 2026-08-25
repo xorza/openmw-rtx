@@ -417,4 +417,23 @@ namespace Rtx::Shaders
 }
 #endif
 
+// What both shading languages read and the host does not, for the reason `RTX_SHADER` gives.
+#ifndef RTX_HOST
+
+/// The sky's own colour along a direction: the game's horizon fading to its zenith.
+///
+/// **The two colours rather than the frame they sit in**, because a shared header may not name an
+/// address space and Metal's reference to a constant buffer must. What this is about is a gradient
+/// between two colours, which is a thing neither backend has an opinion on.
+///
+/// Morrowind records one colour for the fog and for the sky's lower half because they are the same
+/// thing seen at two distances, so a ray that reaches nothing has to converge on exactly what a ray
+/// through a mile of air does.
+RTX_SHADER vec3 skyGradient(vec3 horizon, vec3 zenith, vec3 direction)
+{
+    return mix(horizon, zenith, clamp(direction.z, 0.0, 1.0));
+}
+
+#endif
+
 #endif

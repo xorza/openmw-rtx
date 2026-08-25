@@ -339,29 +339,16 @@ float fogSunDepth(float extinction)
 /// source's is fixed for a whole march, and a forward peak thousands of times isotropic would be a
 /// firefly waiting for a step to land on the line from the eye through a lantern.
 ///
-/// The loop is `gather`'s without its cosine or its shadow ray — the air has no normal to face away
-/// from, and nothing here is occluded. What the two must agree on is `falloff`, which is the whole
-/// of what a lamp delivers at a distance.
+/// `lampsAt` is `gather` without its cosine or its shadow ray — the air has no normal to face away
+/// from, and nothing here is occluded. What the two may not disagree on is `falloff`, which is the
+/// whole of what a lamp delivers at a distance, and `lampAt` is where that is said.
 ///
 /// @param sun what the sun puts into the air here, with its phase function, its own column of fog
 ///        and any water overhead already taken out of it. It arrives whole because its angle to the
 ///        ray does not change along one, unlike every lamp's.
 vec3 fogLight(vec3 position, vec3 sun)
 {
-    vec3 lamps = vec3(0.0);
-    const uvec2 near = lampsReaching(position);
-    for (uint i = near.x; i < near.y; ++i)
-    {
-        const GpuLight light = lights[lightIndices[i]];
-
-        const float distance = length(light.mPosition - position);
-        if (distance >= light.mReach || distance <= 0.0)
-            continue;
-
-        lamps += light.mIntensity * falloff(distance, light.mReach);
-    }
-
-    return frame.mFogColour + sun + INV_FOUR_PI * lamps;
+    return frame.mFogColour + sun + INV_FOUR_PI * lampsAt(position);
 }
 
 /// What `distance` units of air take out of what is behind them, and what they put in on the way.

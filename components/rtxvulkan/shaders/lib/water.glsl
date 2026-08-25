@@ -9,7 +9,6 @@
 #include "scene.h"
 #include "bindings.glsl"
 #include "camera.h"
-#include "footprint.glsl"
 #include "sea.glsl"
 #include "shading.glsl"
 #include "sky.glsl"

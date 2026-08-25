@@ -29,10 +29,8 @@ namespace Rtx::Shaders
 }
 #endif
 
-// **GLSL alone, because it is the only side that asks.** Metal would compile it and does not use
-// it, and a free function in a header it included from two translation units would be defined
-// twice; the host has `osg::Vec3f` and no need for either.
-#if !defined(RTX_HOST) && !defined(__METAL_VERSION__)
+// What both shading languages read and the host does not, for the reason `RTX_SHADER` gives.
+#ifndef RTX_HOST
 
 /// The largest of a colour's three channels.
 ///
@@ -40,9 +38,31 @@ namespace Rtx::Shaders
 /// something looks and weighs the channels by the eye; this asks how much of a colour there is at
 /// all, which is the question a threshold wants — whether the sun puts more into the air than the
 /// sky does, and how bright to draw a disc whose hue comes from somewhere else.
-float brightest(vec3 colour)
+RTX_SHADER float brightest(vec3 colour)
 {
     return max(colour.x, max(colour.y, colour.z));
+}
+
+/// The sRGB transfer curve, linear radiance to what a display expects of a byte.
+///
+/// The piecewise form and not the 2.2 approximation. The two differ by several per cent in the
+/// darks, which is where a bounce puts most of what it has to say.
+///
+/// **Per component, because the two shading languages spell a vector select differently** — GLSL
+/// picks a side with `mix` over a `bvec3`, Metal with `select`, and a ternary is the one form both
+/// read. Nothing changes by it: a select with a boolean weight picks a side rather than blending
+/// toward one.
+RTX_SHADER float encodeSrgb(float linear)
+{
+    if (linear <= 0.0031308)
+        return linear * 12.92;
+
+    return 1.055 * pow(max(linear, 0.0), 1.0 / 2.4) - 0.055;
+}
+
+RTX_SHADER vec3 encodeSrgb(vec3 linear)
+{
+    return clamp(vec3(encodeSrgb(linear.x), encodeSrgb(linear.y), encodeSrgb(linear.z)), vec3(0.0), vec3(1.0));
 }
 
 #endif

@@ -23,7 +23,6 @@
 
 #include "lib/bindings.glsl"
 #include "lib/fog.glsl"
-#include "lib/footprint.glsl"
 #include "lib/random.glsl"
 #include "lib/reproject.glsl"
 #include "lib/shading.glsl"

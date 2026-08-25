@@ -4,6 +4,8 @@
 using namespace metal;
 using namespace raytracing;
 
+#include "camera.h"
+#include "colour.h"
 #include "scene.h"
 #include "visibility.h"
 
@@ -22,40 +24,23 @@ struct Scene
     device const GpuMaterial* mMaterials;
 };
 
-/// Display encoding, matching `encodeSrgb` in the Vulkan shader term for term.
-static float3 encodeSrgb(float3 linear)
-{
-    const float3 low = linear * 12.92f;
-    const float3 high = 1.055f * pow(max(linear, float3(0.0f)), float3(1.0f / 2.4f)) - 0.055f;
-
-    return clamp(select(high, low, linear <= float3(0.0031308f)), 0.0f, 1.0f);
-}
-
-/// The sky's own colour along a direction: the game's horizon fading to its zenith.
-///
-/// **The sun is not in it.** The Vulkan shader answers a miss with `skyRadiance`, which draws the
-/// disc on top of this and is what puts a sun in a reflection and a glitter path on water; that
-/// arrives with the cone width it is widened by.
-static float3 skyGlow(constant VisibilityConstants& camera, float3 direction)
-{
-    return mix(float3(camera.mSkyHorizon), float3(camera.mSkyZenith), clamp(direction.z, 0.0f, 1.0f));
-}
-
 kernel void visibility(instance_acceleration_structure scene [[buffer(0)]],
     constant VisibilityConstants& camera [[buffer(1)]], constant Scene& tables [[buffer(2)]],
     device atomic_uint* hits [[buffer(3)]], texture2d<float, access::write> target [[texture(0)]],
     uint2 pixel [[thread_position_in_grid]])
 {
-    if (pixel.x >= camera.mWidth || pixel.y >= camera.mHeight)
+    if (pixel.x >= camera.mCamera.mWidth || pixel.y >= camera.mCamera.mHeight)
         return;
 
-    // Pixel centres, and y downwards in the image against z upwards in the world.
-    const float2 uv = (float2(pixel) + 0.5f) / float2(camera.mWidth, camera.mHeight) * 2.0f - 1.0f;
-    const float3 direction
-        = normalize(float3(camera.mForward) + float3(camera.mRight) * uv.x - float3(camera.mUp) * uv.y);
+    // **The Vulkan shader's own `rayAt`, not a second derivation of it.** Pixel centres, the jitter
+    // and both projections all live in `camera.h`, which is written so that both shading languages
+    // can compile it — a ray that differed from the other backend's by half a pixel would be two
+    // renderers rather than one seen twice.
+    const Ray generated = rayAt(camera.mCamera, float2(pixel));
+    const float3 direction = float3(generated.mDirection);
 
     ray probe;
-    probe.origin = float3(camera.mOrigin);
+    probe.origin = float3(camera.mOrigin) + float3(generated.mOffset);
     probe.direction = direction;
     probe.min_distance = 0.0f;
     probe.max_distance = camera.mFar;
@@ -86,7 +71,10 @@ kernel void visibility(instance_acceleration_structure scene [[buffer(0)]],
         atomic_fetch_add_explicit(hits, 1u, memory_order_relaxed);
     }
     else
-        colour = skyGlow(camera, direction);
+        // **The sun is not in it.** The Vulkan shader answers a miss with `skyRadiance`, which
+        // draws the disc on top of this and is what puts a sun in a reflection and a glitter path
+        // on water; that arrives with the cone width it is widened by.
+        colour = skyGradient(camera.mSkyHorizon, camera.mSkyZenith, direction);
 
     target.write(float4(encodeSrgb(colour), 1.0f), pixel);
 }

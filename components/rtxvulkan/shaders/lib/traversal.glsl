@@ -50,11 +50,37 @@ bool alphaPasses(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed, ve
     return texel.a >= material.mAlphaCutoff;
 }
 
-/// Whether anything stands between `from` and a light `reach` away along `towards`.
+/// The candidate loop, run to completion, confirming every hit that lands on the material rather
+/// than in one of its holes.
 ///
-/// The candidate loop is the one `main` runs and it cannot be shared: `glslc` rejects `rayQueryEXT`
-/// as an `out` or `inout` parameter, so a traversal cannot be handed to a function. Any change to
-/// the cutout has to be made in both places.
+/// **A macro because `glslc` rejects `rayQueryEXT` as an `out` or `inout` parameter**, so a
+/// traversal cannot be handed to a function and this cannot be one. It was written out twice, and
+/// the comment above the second copy said what that costs: any change to the cutout had to be made
+/// in both places. The preprocessor is the one construct that survives the restriction.
+///
+/// @param query a traversal already initialised, which this drives to completion.
+/// @param along the direction the ray travels, which the cutout resolves its mip against.
+/// @param cone how wide the ray's cone is *at this candidate*, which is what decides how much of the
+///        mask one pixel is looking at. Nought for a ray that carries no cone, which reads the
+///        finest level — every shadow ray. Substituted textually, so it may name the traversal.
+#define RTX_RESOLVE_CUTOUTS(query, along, cone)                                                              \
+    while (rayQueryProceedEXT(query))                                                                        \
+    {                                                                                                        \
+        if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)      \
+            continue;                                                                                        \
+                                                                                                             \
+        vec3 candidateCorners[3];                                                                            \
+        rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, candidateCorners);                    \
+                                                                                                             \
+        if (alphaPasses(rayQueryGetIntersectionInstanceCustomIndexEXT(query, false),                          \
+                rayQueryGetIntersectionPrimitiveIndexEXT(query, false),                                       \
+                rayQueryGetIntersectionBarycentricsEXT(query, false),                                         \
+                triangleCross(candidateCorners, rayQueryGetIntersectionObjectToWorldEXT(query, false)),       \
+                (along), (cone)))                                                                             \
+            rayQueryConfirmIntersectionEXT(query);                                                            \
+    }
+
+/// Whether anything stands between `from` and a light `reach` away along `towards`.
 ///
 /// No cone here, so the cutout is decided at the finest mip. A shadow ray carries no footprint, and
 /// aliasing in a leaf's shadow is worth far less than aliasing on the leaf.
@@ -72,20 +98,7 @@ bool occluded(vec3 from, vec3 towards, float distance)
     rayQueryEXT query;
     rayQueryInitializeEXT(
         query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT, MASK_SOLID, from, SHADOW_BIAS, towards, distance);
-    while (rayQueryProceedEXT(query))
-    {
-        if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)
-            continue;
-
-        vec3 corners[3];
-        rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, corners);
-
-        if (alphaPasses(rayQueryGetIntersectionInstanceCustomIndexEXT(query, false),
-                rayQueryGetIntersectionPrimitiveIndexEXT(query, false),
-                rayQueryGetIntersectionBarycentricsEXT(query, false),
-                triangleCross(corners, rayQueryGetIntersectionObjectToWorldEXT(query, false)), towards, 0.0))
-            rayQueryConfirmIntersectionEXT(query);
-    }
+    RTX_RESOLVE_CUTOUTS(query, towards, 0.0)
 
     return rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
 }
@@ -151,23 +164,7 @@ Surface trace(vec3 origin, vec3 direction, float tmin, float footprint, float sp
     // whether traversal stops to ask, and forcing opacity here would override them and put every
     // leaf back inside the card it was painted on.
     rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsNoneEXT, mask, origin, tmin, direction, frame.mFar);
-    while (rayQueryProceedEXT(query))
-    {
-        if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)
-            continue;
-
-        // The cone as it is at *this* candidate, which is what decides how much of the mask one
-        // pixel is looking at.
-        vec3 candidateCorners[3];
-        rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, candidateCorners);
-
-        if (alphaPasses(rayQueryGetIntersectionInstanceCustomIndexEXT(query, false),
-                rayQueryGetIntersectionPrimitiveIndexEXT(query, false),
-                rayQueryGetIntersectionBarycentricsEXT(query, false),
-                triangleCross(candidateCorners, rayQueryGetIntersectionObjectToWorldEXT(query, false)), direction,
-                footprint + spread * rayQueryGetIntersectionTEXT(query, false)))
-            rayQueryConfirmIntersectionEXT(query);
-    }
+    RTX_RESOLVE_CUTOUTS(query, direction, footprint + spread * rayQueryGetIntersectionTEXT(query, false))
 
     if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT)
         return surface;
