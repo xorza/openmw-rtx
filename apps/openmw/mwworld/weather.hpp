@@ -349,8 +349,9 @@ namespace MWWorld
         MWBase::Sound* mRainSound{ nullptr };
         ESM::RefId mPlayingRainSoundID;
 
-        void addWeather(
-            const std::string& name, float dlFactor, float dlOffset, const std::string& particleEffect = "");
+        /// The model a storm drives past the eye comes from `Weather::stormEffect`, which is where
+        /// that table lives now that a harness with no weather system reads it too.
+        void addWeather(const std::string& name, float dlFactor, float dlOffset);
 
         void importRegions();
 

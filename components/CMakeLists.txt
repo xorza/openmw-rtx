@@ -397,6 +397,10 @@ add_component_dir (sky
     clouds moonmodel sun skyroll timeofday
     )
 
+add_component_dir (weather
+    downpour precipitation
+    )
+
 add_component_dir (lua_ui
     registerscriptsettings scriptsettings
     properties widget element util layers content alignment resources

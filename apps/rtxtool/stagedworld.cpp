@@ -1,5 +1,8 @@
 #include "stagedworld.hpp"
 
+#include <components/fallback/fallback.hpp>
+#include <components/weather/downpour.hpp>
+
 #include <span>
 #include <string>
 
@@ -28,6 +31,19 @@ namespace RtxTool
         // lighting the frame is described from.
         mWater.emplace(*mRoot);
         mLighting.mWaterLevel = mWater->follow(cell);
+
+        // **The same particle systems the game builds, from the same component.** Under a node of
+        // this harness's own rather than the sky's camera-relative transform, because there is no
+        // sky manager here — what matters is that the box travels with the eye, and `setEye` is
+        // what does that.
+        // Upstream's own default where a content file carries no such setting.
+        mStormWindSpeed = world.findGameSetting("fStromWindSpeed", 50.0f);
+
+        mWeatherNode = new osg::PositionAttitudeTransform;
+        mWeatherNode->setName("Precipitation");
+        mRoot->addChild(mWeatherNode);
+        mPrecipitation
+            = std::make_unique<Weather::Precipitation>(mWeatherNode, *world.getResourceSystem().getSceneManager(), ~0u);
 
         // **The moons' portraits, into the same table the trace reads.** Held rather than named by a
         // material: a moon is drawn by a ray that reached nothing, so no material can speak for its
@@ -70,6 +86,12 @@ namespace RtxTool
         // the camera cannot be derived from bounds that already contain them.
         mPlacement = placeCamera(mScene.getBounds(), request.mFieldOfView, request.mOrigin, request.mTarget);
 
+        // **After the camera is placed and before the first walk.** The box is finite and centred on
+        // the eye, so a shot whose weather arrived while the box still sat at the origin is a shot
+        // of a rainstorm happening somewhere else.
+        setFalling(request.mWeather);
+        setEye(mPlacement.mOrigin);
+
         const std::span<const CellPerson> residents
             = actors.mResidents ? std::span<const CellPerson>(mReport.mPeople) : std::span<const CellPerson>();
 
@@ -103,8 +125,27 @@ namespace RtxTool
         return mExtractor.extract(*mRoot, osg::Matrixf::identity(), 0, frame, mWorld->getTerrainResidency());
     }
 
+    void StagedWorld::setEye(const osg::Vec3f& eye)
+    {
+        mWeatherNode->setPosition(eye);
+        mPrecipitation->setEye(eye);
+
+        // The same question the game asks of the water it owns, asked here of the level this cell
+        // reported. A cell with no water reports minus infinity, so nothing is ever under it.
+        mPrecipitation->setUnderwater(eye.z() < mLighting.mWaterLevel);
+    }
+
+    void StagedWorld::setFalling(std::string_view weather)
+    {
+        static const float gravity = Fallback::Map::getFloat("Weather_Precip_Gravity");
+
+        mPrecipitation->setWeather(Weather::downpourAt(weather, mStormWindSpeed, gravity));
+    }
+
     Crossing StagedWorld::moveTo(const osg::Vec3f& where)
     {
+        setEye(where);
+
         // **Every frame and not only on a crossing**, because the detail a paged world builds at is
         // a distance from the eye rather than a property of the cell: a camera flying across one
         // cell changes what the chunks under it should be without changing which cell it is in.

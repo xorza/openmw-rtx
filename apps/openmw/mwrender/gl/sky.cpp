@@ -33,7 +33,7 @@
 #include "../../mwbase/environment.hpp"
 #include "../../mwbase/world.hpp"
 
-#include "../precipitation.hpp"
+#include <components/weather/precipitation.hpp>
 #include "../renderbin.hpp"
 #include "../util.hpp"
 #include "../vismask.hpp"
@@ -71,6 +71,34 @@ namespace
 
 namespace MWRender
 {
+    namespace
+    {
+        /// The weather's whole answer, narrowed to the part that falls.
+        ///
+        /// **A conversion and not a copy of the fields' meaning.** `WeatherResult` is what the
+        /// game's weather system worked out this moment is, transitions and all; `Weather::Downpour`
+        /// is what a particle system needs to be told. Keeping them separate is what lets the
+        /// harness build the same rain from the content files without a weather system to run.
+        Weather::Downpour falling(const WeatherResult& weather)
+        {
+            return Weather::Downpour{
+                .mRainEffect = weather.mRainEffect,
+                .mParticleEffect = weather.mParticleEffect,
+                .mPrecipitationAlpha = weather.mPrecipitationAlpha,
+                .mRainSpeed = weather.mRainSpeed,
+                .mRainEntranceSpeed = weather.mRainEntranceSpeed,
+                .mRainMaxRaindrops = weather.mRainMaxRaindrops,
+                .mRainDiameter = weather.mRainDiameter,
+                .mRainMinHeight = weather.mRainMinHeight,
+                .mRainMaxHeight = weather.mRainMaxHeight,
+                .mWindSpeed = weather.mWindSpeed,
+                .mBaseWindSpeed = weather.mBaseWindSpeed,
+                .mIsStorm = weather.mIsStorm,
+                .mStormDirection = weather.mStormDirection,
+            };
+        }
+    }
+
     SkyManager::SkyManager(osg::Group* parentNode, osg::Group* rootNode, osg::Camera* camera,
         Resource::SceneManager* sceneManager, bool enableSkyRTT)
         : mSceneManager(sceneManager)
@@ -119,7 +147,7 @@ namespace MWRender
         // subtree along with the world would place every drop where the world's origin is. Whoever
         // wants it asks for it and walks it on its own terms; `Mask_WeatherParticles` is what says
         // which part of it they meant.
-        mPrecipitation = std::make_unique<Precipitation>(mSkyNode, *mSceneManager, camera);
+        mPrecipitation = std::make_unique<Weather::Precipitation>(mSkyNode, *mSceneManager, Mask_WeatherParticles);
 
         mPrecipitationOcclusion = Settings::shaders().mWeatherParticleOcclusion;
         mPrecipitationOccluder = std::make_unique<PrecipitationOccluder>(mSkyRootNode, parentNode, rootNode, camera);
@@ -291,8 +319,7 @@ namespace MWRender
         // which is what the dirty flag makes `setWeather` do rather than finding nothing changed.
         if (!enabled)
         {
-            WeatherResult dry;
-            mPrecipitation->setWeather(dry);
+            mPrecipitation->setWeather(Weather::Downpour{});
             mPrecipitationOccluder->disable();
             mDirtyParticlesEffect = true;
         }
@@ -357,10 +384,10 @@ namespace MWRender
         // **The particles themselves are `MWRender::Precipitation`'s**, because a particle system is
         // a thing both renderers read and this one is only the rasterizer. What is left here is what
         // is genuinely the rasterizer's: the occlusion pass that keeps rain off the inside of a
-        // roof, the cull callback that freezes it under water, and the shader hints a generated
+        // roof, the cull callback that hides it under water, and the shader hints a generated
         // pipeline reads — none of which survive a rebuild, which is what the revision is for.
         const unsigned int was = mPrecipitation->getRevision();
-        mPrecipitation->setWeather(weather);
+        mPrecipitation->setWeather(falling(weather));
         if (mPrecipitation->getRevision() != was || mDirtyParticlesEffect)
         {
             mDirtyParticlesEffect = false;
@@ -528,7 +555,6 @@ namespace MWRender
     void SkyManager::setWaterHeight(float height)
     {
         mUnderwaterSwitch->setWaterLevel(height);
-        mPrecipitation->setWaterLevel(height);
     }
 
     void SkyManager::listAssetsToPreload(
@@ -575,6 +601,5 @@ namespace MWRender
     void SkyManager::setWaterEnabled(bool enabled)
     {
         mUnderwaterSwitch->setEnabled(enabled);
-        mPrecipitation->setWaterEnabled(enabled);
     }
 }

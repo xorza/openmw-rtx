@@ -17,6 +17,7 @@
 #include <osgParticle/Particle>
 #include <osgParticle/ParticleSystem>
 #include <osgParticle/ParticleSystemUpdater>
+#include <osgParticle/RadialShooter>
 #include <osgUtil/UpdateVisitor>
 
 #include <components/rtx/instancerecord.hpp>
@@ -1380,7 +1381,7 @@ namespace RtxBridge
         /// Frozen on cull to start with, because that is how a system arrives from a file and how a
         /// system that has never been drawn stays: `_last_frame` moves in `drawImplementation` and
         /// nowhere else, so nothing here would ever advance it.
-        void drive(Plume& plume, double perSecond)
+        void drive(Plume& plume, double perSecond, bool updaterAbove = true)
         {
             plume.mParticles->setFreezeOnCull(true);
 
@@ -1394,15 +1395,79 @@ namespace RtxBridge
             osg::ref_ptr<osgParticle::ConstantRateCounter> counter = new osgParticle::ConstantRateCounter;
             counter->setNumberOfParticlesPerSecondToCreate(perSecond);
 
+            // Straight up at a fixed speed, so that where a particle has got to is a number this
+            // test can compare rather than a random direction.
+            osg::ref_ptr<osgParticle::RadialShooter> shooter = new osgParticle::RadialShooter;
+            shooter->setThetaRange(0.0f, 0.0f);
+            shooter->setPhiRange(0.0f, 0.0f);
+            shooter->setInitialSpeedRange(100.0f, 100.0f);
+            shooter->setInitialRotationalSpeedRange(osg::Vec3f(), osg::Vec3f());
+
             osg::ref_ptr<osgParticle::ModularEmitter> emitter = new osgParticle::ModularEmitter;
             emitter->setParticleSystem(plume.mParticles);
             emitter->setCounter(counter);
+            emitter->setShooter(shooter);
 
             osg::ref_ptr<osgParticle::ParticleSystemUpdater> updater = new osgParticle::ParticleSystemUpdater;
             updater->addParticleSystem(plume.mParticles);
 
             plume.mRoot->insertChild(0, emitter);
-            plume.mRoot->insertChild(1, updater);
+            if (updaterAbove)
+                plume.mRoot->insertChild(1, updater);
+            else
+                plume.mRoot->addChild(updater);
+        }
+
+        /// Every sprite the scene holds, by height.
+        std::vector<float> spriteHeights(const Rtx::SceneDesc& scene)
+        {
+            std::vector<float> heights;
+            for (const Rtx::Sprite& sprite : scene.getSprites())
+                heights.push_back(sprite.mPosition.z());
+
+            std::sort(heights.begin(), heights.end());
+            return heights;
+        }
+
+        /// Where an emitter's particles have got to does not depend on where its updater sits.
+        ///
+        /// **`osgParticle` splits emission from integration across two sibling nodes**, so a walk
+        /// that reads the particles as it passes them reads a different frame's worth depending on
+        /// which sibling comes first. `NifOsg` puts the updater above the system deliberately and
+        /// every model in the game obeys that, which makes the dependency invisible right up until
+        /// something hand-built does not — and then it is one frame of staleness in a position,
+        /// which nothing will ever notice. Reading after the walk has settled removes the question,
+        /// and this is the assertion that says so.
+        TEST(RtxSceneExtractorTest, spritesAreReadAfterTheWalkRatherThanAsItPassesThem)
+        {
+            const auto run = [](bool updaterAbove) {
+                Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
+                drive(plume, 100.0, updaterAbove);
+
+                Rtx::SceneDesc scene;
+                SceneExtractor extractor(scene);
+
+                // The first turn only starts the clock; the second emits and integrates.
+                for (int turn = 0; turn < 2; ++turn)
+                {
+                    scene.clearPlacement();
+                    extractor.advanceEmitters(0.1);
+                    extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
+                }
+
+                return spriteHeights(scene);
+            };
+
+            const std::vector<float> above = run(true);
+            const std::vector<float> below = run(false);
+
+            ASSERT_EQ(above.size(), 10u);
+            EXPECT_EQ(above, below) << "the graph's order decided what a sprite's position was";
+
+            // **And they have actually moved**, so that the agreement above is two settled reads
+            // rather than two stale ones. A particle shot straight up at a hundred units a second
+            // is at least a whole tenth-second step off the placer's origin, which is ten.
+            EXPECT_GE(above.front(), 10.0f);
         }
 
         /// An emitter runs, and it runs once per turn of the emitter clock however often it is walked.

@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 
-#include <osg/Camera>
 #include <osg/Group>
 #include <osg/Material>
 #include <osg/PositionAttitudeTransform>
@@ -28,12 +27,7 @@
 #include <components/settings/values.hpp>
 #include <components/surface/material.hpp>
 
-#include "../mwworld/weather.hpp"
-
-#include "vismask.hpp"
-#include "weatherresult.hpp"
-
-namespace MWRender
+namespace Weather
 {
     /// Emits at the rate the weather asks for, with a cap on how far one step may jump.
     class RainCounter : public osgParticle::ConstantRateCounter
@@ -79,13 +73,13 @@ namespace MWRender
         class WrapAroundOperator : public osgParticle::Operator
         {
         public:
-            WrapAroundOperator(osg::Camera* camera, const osg::Vec3& wrapRange)
+            WrapAroundOperator(const osg::Vec3f& eye, const osg::Vec3& wrapRange)
                 : osgParticle::Operator()
-                , mCamera(camera)
+                , mEye(eye)
                 , mWrapRange(wrapRange)
                 , mHalfWrapRange(mWrapRange / 2.0)
+                , mPreviousCameraPosition(eye)
             {
-                mPreviousCameraPosition = getCameraPosition();
             }
 
             osg::Object* cloneType() const override { return nullptr; }
@@ -134,12 +128,13 @@ namespace MWRender
             }
 
         protected:
-            osg::Camera* mCamera;
-            osg::Vec3 mPreviousCameraPosition;
+            /// The owner's, so that moving the eye needs no reaching back in here.
+            const osg::Vec3f& mEye;
             osg::Vec3 mWrapRange;
             osg::Vec3 mHalfWrapRange;
+            osg::Vec3 mPreviousCameraPosition;
 
-            osg::Vec3 getCameraPosition() { return mCamera->getInverseViewMatrix().getTrans(); }
+            osg::Vec3 getCameraPosition() { return mEye; }
         };
 
         /// Fades every particle of a system together, as the weather comes and goes.
@@ -246,12 +241,12 @@ namespace MWRender
         const osg::Vec3f sEffectWrapRange(1024, 1024, 800);
     }
 
-    Precipitation::Precipitation(osg::Group* parent, Resource::SceneManager& scenes, osg::Camera* camera)
+    Precipitation::Precipitation(osg::Group* parent, Resource::SceneManager& scenes, osg::Node::NodeMask mask)
         : mSceneManager(scenes)
-        , mCamera(camera)
+        , mMask(mask)
         , mRainRipplesEnabled(Fallback::Map::getBool("Weather_Rain_Ripples"))
         , mSnowRipplesEnabled(Fallback::Map::getBool("Weather_Snow_Ripples"))
-        , mStormDirection(MWWorld::Weather::defaultDirection())
+        , mStormDirection(defaultStormDirection())
     {
         mNode = new osg::Group;
         mNode->setName("Precipitation");
@@ -338,7 +333,7 @@ namespace MWRender
         updater->addParticleSystem(mRainParticleSystem);
 
         osg::ref_ptr<osgParticle::ModularProgram> program = new osgParticle::ModularProgram;
-        program->addOperator(new WrapAroundOperator(mCamera, rainRange));
+        program->addOperator(new WrapAroundOperator(mEye, rainRange));
         program->addOperator(new WeatherAlphaOperator(mPrecipitationAlpha, true));
         program->setParticleSystem(mRainParticleSystem);
         mRainNode->addChild(program);
@@ -353,7 +348,7 @@ namespace MWRender
         mRainNode->addChild(updater);
         mRainNode->addChild(mRainParticleSystem);
 
-        mRainNode->setNodeMask(Mask_WeatherParticles);
+        mRainNode->setNodeMask(mMask);
 
         mNode->addChild(mRainNode);
         ++mRevision;
@@ -415,12 +410,8 @@ namespace MWRender
         return false;
     }
 
-    bool Precipitation::isUnderwater() const
-    {
-        return mWaterEnabled && mCamera->getInverseViewMatrix().getTrans().z() < mWaterLevel;
-    }
 
-    void Precipitation::setWeather(const WeatherResult& weather)
+    void Precipitation::setWeather(const Downpour& weather)
     {
         mRainEntranceSpeed = weather.mRainEntranceSpeed;
         mRainMaxRaindrops = weather.mRainMaxRaindrops;
@@ -471,7 +462,7 @@ namespace MWRender
         if (!mParticleNode)
         {
             mParticleNode = new osg::PositionAttitudeTransform;
-            mParticleNode->setNodeMask(Mask_WeatherParticles);
+            mParticleNode->setNodeMask(mMask);
             mNode->addChild(mParticleNode);
         }
 
@@ -494,7 +485,7 @@ namespace MWRender
 
             osg::ref_ptr<osgParticle::ModularProgram> program = new osgParticle::ModularProgram;
             if (occluded)
-                program->addOperator(new WrapAroundOperator(mCamera, sEffectWrapRange));
+                program->addOperator(new WrapAroundOperator(mEye, sEffectWrapRange));
             program->addOperator(new WeatherAlphaOperator(mPrecipitationAlpha, false));
             program->setParticleSystem(ps);
             mParticleNode->addChild(program);
@@ -512,16 +503,16 @@ namespace MWRender
 
     void Precipitation::update(float duration)
     {
-        // Held where they are rather than hidden: what stops being drawn is the renderer's to
-        // decide, and both ask `isUnderwater` for it.
+        // Held where they are rather than hidden: what stops being *drawn* is the renderer's to
+        // decide, and it is the renderer that said so in the first place.
         if (mRainParticleSystem)
-            mRainParticleSystem->setFrozen(isUnderwater());
+            mRainParticleSystem->setFrozen(mUnderwater);
 
         if (!mIsStorm || !mParticleNode)
             return;
 
         osg::Quat quat;
-        quat.makeRotate(MWWorld::Weather::defaultDirection(), mStormDirection);
+        quat.makeRotate(defaultStormDirection(), mStormDirection);
         // Morrowind deliberately rotates the blizzard mesh, so so should we.
         if (mCurrentParticleEffect == Settings::models().mWeatherblizzard.get())
             quat.makeRotate(osg::Vec3f(-1, 0, 0), mStormDirection);

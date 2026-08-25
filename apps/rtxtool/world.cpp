@@ -1,5 +1,7 @@
 #include "world.hpp"
 
+#include <components/esm3/variant.hpp>
+
 #include <algorithm>
 #include <charconv>
 #include <vector>
@@ -271,6 +273,12 @@ namespace RtxTool
                 return &region;
 
         return nullptr;
+    }
+
+    float World::findGameSetting(std::string_view id, float missing) const
+    {
+        const ESM::Variant value = EsmLoader::getGameSetting(mEsmData.mGameSettings, id);
+        return value.getType() == ESM::VT_Float || value.getType() == ESM::VT_Int ? value.getFloat() : missing;
     }
 
     const ESM::Cell* World::findCell(std::string_view spec) const

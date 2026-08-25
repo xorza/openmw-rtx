@@ -130,8 +130,9 @@ namespace RtxTool
             "when nothing else is in the way");
 
         addOption("weather", bpo::value<std::string>()->default_value("Clear"),
-            "which weather's sun and sky an exterior stands under, named as the content files "
-            "spell it: Clear, Cloudy, Foggy, Overcast, Rain, Thunderstorm, Ashstorm, Blight");
+            "which weather's sun, sky and precipitation an exterior stands under, named as the "
+            "content files spell it: Clear, Cloudy, Foggy, Overcast, Rain, Thunderstorm, Ashstorm, "
+            "Blight, Snow, Blizzard. The ones that drop something drop it here too");
 
         addOption("hour", bpo::value<float>()->default_value(12.0f),
             "what time an exterior's sun is at, on a twenty-four hour clock. An interior is lit "

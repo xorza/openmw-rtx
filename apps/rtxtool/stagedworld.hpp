@@ -6,13 +6,14 @@
 #include <set>
 #include <string>
 
-#include <osg/Vec3f>
-
 #include <osg/Group>
+#include <osg/PositionAttitudeTransform>
+#include <osg/Vec3f>
 
 #include <components/esm/refid.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtxbridge/sceneextractor.hpp>
+#include <components/weather/precipitation.hpp>
 
 #include "cellscene.hpp"
 #include "lighting.hpp"
@@ -99,17 +100,30 @@ namespace RtxTool
         /// a run that flies from the Bitter Coast to the Ashlands leaves one region for another.
         const ESM::RefId& getRegion() const { return mRegion; }
 
+        /// Moves the weather's particles to where the eye now is, and says whether it is under
+        /// water — which is what holds the drops still, exactly as it does in the game.
+        void setEye(const osg::Vec3f& eye);
+
         /// Moves the sky to another moment, without reading the region again.
         ///
         /// **What the window's clock and weather keys turn.** The cells, their lamps and their
         /// water are the same either side of it; what changes is where the sun and the moons stand
         /// and what the air is doing, which `relight` works out from the settings alone.
-        void setSky(std::string_view weather, int day, float hour) { relight(mLighting, weather, day, hour); }
+        void setSky(std::string_view weather, int day, float hour)
+        {
+            relight(mLighting, weather, day, hour);
+            setFalling(weather);
+        }
 
         /// The same, partway between two weathers.
         void setSky(std::string_view from, std::string_view to, float blend, int day, float hour)
         {
             relight(mLighting, from, to, blend, day, hour);
+
+            // **What it is turning into, and not a blend of the two.** A transition's precipitation
+            // fades in rather than crossing, and a harness that has to pick one instant is better
+            // showing the weather that is arriving than half of each.
+            setFalling(blend < 0.5f ? from : to);
         }
         const Placement& getPlacement() const { return mPlacement; }
 
@@ -174,6 +188,9 @@ namespace RtxTool
         /// Moves the world's clock, which is what everything the graph animates is driven by.
         void setSeconds(float seconds);
 
+        /// Tells the precipitation what this weather drops, read straight off the content files.
+        void setFalling(std::string_view weather);
+
         /// The graph the mirror walks, assembled the way the game assembles its own: a group per
         /// cell, a reference under a transform inside it, the terrain hung alongside.
         ///
@@ -221,6 +238,22 @@ namespace RtxTool
         std::optional<WaterPlane> mWater;
         Placement mPlacement;
 
+        /// Where the weather's particles hang, moved to the eye each time it moves.
+        ///
+        /// **The game hangs them under the sky's `CameraRelativeTransform`, which is the same thing
+        /// said in the rasterizer's vocabulary**: a finite box of drops is a rainstorm only because
+        /// it travels with the player. There is no such transform here, so the box is a node this
+        /// puts where the eye is.
+        osg::ref_ptr<osg::PositionAttitudeTransform> mWeatherNode;
+
+        /// The rain and the storm the weather drives, built exactly as the game builds them.
+        ///
+        /// **The reason this exists is that it did not.** Precipitation lived under `apps/openmw/`
+        /// and so was the one part of a frame this harness could not render — and so the one part
+        /// where a wrong traversal mask, a gate read off a cull traversal and an emitter nothing
+        /// ever stepped all survived until somebody opened the game and stood in the rain.
+        std::unique_ptr<Weather::Precipitation> mPrecipitation;
+
         /// What the staging load and the staging walk came to, kept for whoever reports on them.
         CellReport mReport;
         RtxBridge::ExtractionStats mStaged;
@@ -242,5 +275,9 @@ namespace RtxTool
         /// Where the world's clock stands, in seconds. One clock for the whole staged world: an
         /// actor's idle and the flipbook on the brazier beside them are the same second of it.
         float mSeconds = 0.0f;
+
+        /// `fStromWindSpeed`, above which a weather counts as a storm and turns its effect to face
+        /// the wind. Read once, because it is a game setting and the store does not change.
+        float mStormWindSpeed = 0.0f;
     };
 }

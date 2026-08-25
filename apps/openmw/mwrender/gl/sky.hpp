@@ -40,9 +40,13 @@ namespace SceneUtil
     class RTTNode;
 }
 
-namespace MWRender
+namespace Weather
 {
     class Precipitation;
+}
+
+namespace MWRender
+{
 
     ///@brief The SkyManager handles rendering of the sky domes, celestial bodies as well as other objects that need to
     /// be rendered
@@ -105,7 +109,7 @@ namespace MWRender
 
         /// What the weather drops. **Built here and drawn by whoever is drawing**, because a particle
         /// system is not a rasterizer's or a tracer's — it is the world's, and there is one of it.
-        Precipitation* getPrecipitation() { return mPrecipitation.get(); }
+        Weather::Precipitation* getPrecipitation() { return mPrecipitation.get(); }
 
         /// How far the clouds have scrolled and the stars have rolled, which `MWRender::RenderingManager`
         /// turns and hands down. **Not advanced here**: this manager belongs to one of the two
@@ -184,7 +188,7 @@ namespace MWRender
         bool mDirtyParticlesEffect;
 
         /// What falls out of the weather, which both renderers draw and neither owns.
-        std::unique_ptr<Precipitation> mPrecipitation;
+        std::unique_ptr<Weather::Precipitation> mPrecipitation;
 
         /// Hangs this renderer's own concerns back on whatever `mPrecipitation` has just built: the
         /// occlusion pass, the underwater cull callback and the generated shaders' hints.

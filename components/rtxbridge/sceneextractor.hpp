@@ -370,6 +370,24 @@ namespace RtxBridge
         /// so by the time the mirror walks the graph a flame is a list of positions, sizes and
         /// colours. Re-deriving that from the `NiParticleSystemController` would be a second
         /// implementation of the same content, free to disagree with the one the game is running.
+        /// An emitter the walk met, waiting for the walk to finish before its particles are read.
+        struct PendingEmitter
+        {
+            const osgParticle::ParticleSystem* mParticles;
+            osg::Matrixf mPlace;
+            Rtx::Index mTexture;
+            bool mLight;
+
+            /// Kept only to name the texture's format in the stats, which is read once per emitter.
+            const osg::Image* mSprite;
+        };
+
+        /// Reads every emitter the walk collected, now that everything in it has been stepped.
+        void flushEmitters(ExtractionStats& stats);
+
+        /// Reads one of them into the scene.
+        void placeSprites(const PendingEmitter& pending, ExtractionStats& stats);
+
         void addEmitter(const osgParticle::ParticleSystem& particles, std::span<const Shading> shading,
             const osg::Matrixf& place, ExtractionStats& stats);
 
@@ -518,5 +536,9 @@ namespace RtxBridge
         /// One emitter's sprites, refilled per particle system: the count is only known once the
         /// dead ones have been passed over, and a cell holds tens of these every frame.
         std::vector<Rtx::Sprite> mSpriteScratch;
+
+        /// The emitters this walk has met so far. Kept across walks and refilled, because this is
+        /// the frame path and a cell holds tens of them.
+        std::vector<PendingEmitter> mPending;
     };
 }

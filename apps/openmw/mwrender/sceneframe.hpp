@@ -28,9 +28,13 @@ namespace Resource
     class ImageManager;
 }
 
-namespace MWRender
+namespace Weather
 {
     class Precipitation;
+}
+
+namespace MWRender
+{
 
     /// What kind of place the player is standing in, as the cell record says.
     ///
@@ -127,8 +131,8 @@ namespace MWRender
         /// **A node rather than a description**, unlike everything else here. The rest of this
         /// structure is numbers because the two renderers reach them by different routes; the
         /// precipitation is one `osgParticle` system that both walk, so what is carried is where to
-        /// find it. `MWRender::Precipitation` says why it is not the sky manager's.
-        Precipitation* mPrecipitation = nullptr;
+        /// find it. `Weather::Precipitation` says why it is not the sky manager's.
+        Weather::Precipitation* mPrecipitation = nullptr;
 
         /// How far the cloud deck has scrolled and the star sphere has rolled.
         ///

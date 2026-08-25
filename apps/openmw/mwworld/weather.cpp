@@ -1,5 +1,7 @@
 #include "weather.hpp"
 
+#include <components/weather/downpour.hpp>
+
 #include <components/esm/stringrefid.hpp>
 #include <components/settings/values.hpp>
 
@@ -387,10 +389,10 @@ namespace MWWorld
         addWeather("Overcast", 0.7f, 0.0f); // 3
         addWeather("Rain", 0.5f, 10.0f); // 4
         addWeather("Thunderstorm", 0.5f, 20.0f); // 5
-        addWeather("Ashstorm", 0.2f, 50.0f, Settings::models().mWeatherashcloud.get()); // 6
-        addWeather("Blight", 0.2f, 60.0f, Settings::models().mWeatherblightcloud.get()); // 7
-        addWeather("Snow", 0.5f, 40.0f, Settings::models().mWeathersnow.get()); // 8
-        addWeather("Blizzard", 0.16f, 70.0f, Settings::models().mWeatherblizzard.get()); // 9
+        addWeather("Ashstorm", 0.2f, 50.0f); // 6
+        addWeather("Blight", 0.2f, 60.0f); // 7
+        addWeather("Snow", 0.5f, 40.0f); // 8
+        addWeather("Blizzard", 0.16f, 70.0f); // 9
 
         Store<ESM::Region>::iterator it = store.get<ESM::Region>().begin();
         for (; it != store.get<ESM::Region>().end(); ++it)
@@ -793,13 +795,12 @@ namespace MWWorld
         importRegions();
     }
 
-    inline void WeatherManager::addWeather(
-        const std::string& name, float dlFactor, float dlOffset, const std::string& particleEffect)
+    inline void WeatherManager::addWeather(const std::string& name, float dlFactor, float dlOffset)
     {
         static const float fStromWindSpeed = mStore.get<ESM::GameSetting>().find("fStromWindSpeed")->mValue.getFloat();
         ESM::StringRefId id(name);
         Weather weather(id, static_cast<int>(mWeatherSettings.size()), name, fStromWindSpeed, mRainSpeed, dlFactor,
-            dlOffset, particleEffect);
+            dlOffset, std::string(::Weather::stormEffect(name)));
 
         mWeatherSettings.push_back(std::move(weather));
     }

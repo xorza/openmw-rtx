@@ -377,9 +377,45 @@ every count; and a control fifo bounding the recording to the measured frames.
   a number for M12 and is written down here rather than acted on. Three tests pin the mechanism:
   without the cull claim they report zero particles ever created, which was exactly the symptom.
 
-  **What is left:** the harness's own weather. It has no weather system and would build the effect
-  from a name, which needs `Precipitation` and `WeatherResult` in `components/` — they are game-side
-  today, and `apps/rtxtool` links `components` and not `openmw-lib`.
+  **Then the four of them turned out to be one.** Three bugs in one subsystem, every one of them
+  found by launching the game — that is a signature, and what it names is that precipitation lived
+  under `apps/openmw/` and so was the one part of a frame the harness could not build. The harness is
+  how a rendering change is meant to be checked here, so the one part it could not reach is the one
+  part where a wrong mask, a gate read off a cull and an emitter nothing stepped all survived.
+
+  So it moved. `Weather::Precipitation` is in `components/weather/`, with `Weather::Downpour` — what
+  falls, how hard, how fast the wind drives it — as its input instead of the game's whole answer
+  about the sky, and `Weather::downpourAt` reading that off the content files for anyone with no
+  weather system to run. `StagedWorld` owns one, `--weather` feeds it, and `openmw-rtxtool scene
+  --weather=Rain` now reports the same thousand-odd drops the game does. Every weather that drops
+  anything is checkable in about a second, without a window.
+
+  Two things it needed on the way, both the same shape as the bugs themselves: it reached into an
+  `osg::Camera` for the eye, and it kept a water level of its own. Both are facts the caller already
+  has — `MWRender::Camera` and `MWRender::Water` in the game, a viewpoint and a cell's water level in
+  the harness — so both are handed over now. `WorldState::mUnderwater` already carried the second one
+  a line above where the precipitation node was handed over. `Weather::stormEffect` is the table of
+  which weather drives which model; the game's weather manager reads it too, rather than keeping a
+  second copy of four entries.
+
+  **And the mask and the ordering, structurally rather than by correction.**
+
+  - A node mask is AND-ed at every node on the way down, so it can only ever mean "which categories
+    may be seen at all" — a different question from "which subtree am I walking", which is answered
+    by where the walk starts. The weather walk now takes the same exclusion every other walk takes,
+    and the set-and-restore around it is gone: that dance was the shape the mistake arrived in.
+    (An inclusion mask is still right for a camera — the local map wants exactly five categories —
+    which is why this is a rule about walks that choose a root, not about masks.)
+  - Sprites are read after the walk has settled rather than as it passes each system, so where an
+    updater sits among its siblings stops being a question. That one was worse than it looked:
+    reading before integration does not lag a position, it drops the sprite entirely, because a
+    particle's interpolated size and alpha only exist after `Particle::update`. An updater below its
+    system meant no rain at all, not late rain.
+
+  Four tests pin the mechanism, each checked against the code it guards: without the cull claim they
+  report zero particles ever created; without the deferral the wrongly-ordered graph places nothing.
+
+  **What is left:** nothing named here. The harness renders every weather; the game agrees with it.
 
   **What was left before this:** Those nodes hang under `SkyManager`'s `Mask_Sky` root,
   which the extractor's traversal mask excludes, under a `CameraRelativeTransform` that strips the

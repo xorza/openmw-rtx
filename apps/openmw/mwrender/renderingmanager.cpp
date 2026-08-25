@@ -84,7 +84,7 @@
 #include "npcanimation.hpp"
 #include "objectpaging.hpp"
 #include "pathgrid.hpp"
-#include "precipitation.hpp"
+#include <components/weather/precipitation.hpp>
 #include "recastmesh.hpp"
 #include "renderer.hpp"
 #include "sceneframe.hpp"
@@ -694,7 +694,7 @@ namespace MWRender
         mSky->setSecundaState(secunda);
     }
 
-    Precipitation* RenderingManager::getPrecipitation()
+    Weather::Precipitation* RenderingManager::getPrecipitation()
     {
         return mSky->getPrecipitation();
     }
@@ -793,6 +793,13 @@ namespace MWRender
             mSkyRoll.advance(dt, mCloudSpeed,
                 MWBase::Environment::get().getWorld()->getTimeManager()->getGameTimeScale(), Sky::timescaleClouds());
             mSky->setRoll(mSkyRoll);
+
+            // **Where the eye is relative to the water, said once by whoever owns the water.** The
+            // drops hold still under it, and both renderers hide them; deriving that a second time
+            // inside the thing being held is how it came to be read off a cull traversal one of the
+            // two never runs.
+            mSky->getPrecipitation()->setEye(mCamera->getPosition());
+            mSky->getPrecipitation()->setUnderwater(mWater->isUnderwater(mCamera->getPosition()));
             mSky->update(dt);
 
             const MWWorld::Ptr& player = mPlayerAnimation->getPtr();

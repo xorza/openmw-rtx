@@ -86,6 +86,13 @@ namespace RtxTool
         /// caller reads that as "no opinion" rather than "no weather".
         const ESM::Region* findRegion(const ESM::RefId& id) const;
 
+        /// A game setting's number, or `missing` where the content files carry no such setting.
+        ///
+        /// **For the handful of constants that are settings rather than fallbacks.** Most of what
+        /// the weather is made of comes out of `Fallback::Map`, which reads the ini and needs no
+        /// store; `fStromWindSpeed` is the exception and the game reads it from here too.
+        float findGameSetting(std::string_view id, float missing) const;
+
         /// One object a cell places.
         struct Object
         {

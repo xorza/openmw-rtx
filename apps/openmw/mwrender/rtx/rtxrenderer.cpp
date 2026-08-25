@@ -48,7 +48,7 @@
 #include <components/settings/values.hpp>
 
 #include "../offscreenview.hpp"
-#include "../precipitation.hpp"
+#include <components/weather/precipitation.hpp>
 #include "../sceneframe.hpp"
 #include "../stage.hpp"
 #include "../windowsetup.hpp"
@@ -64,14 +64,19 @@ namespace MWRender::Rtx
 {
     namespace
     {
-        /// What the world's own walk takes. The sky is answered by a ray that reached nothing, the
-        /// sun with it, and the simple water is the flat stand-in the real one replaces.
+        /// What every walk this renderer makes takes.
+        ///
+        /// **An exclusion of what the ray tracer draws itself**, and never a selection of what a
+        /// walk is interested in. A node mask is AND-ed at every node on the way down, so the bits
+        /// have to be read as "which categories may be seen at all" — which is a different question
+        /// from "which subtree am I walking", and that one is answered by where the walk starts.
+        ///
+        /// Conflating the two is a silent, total failure: naming `Mask_WeatherParticles` here to
+        /// mean "the weather subtree" extracted every storm in the game with all of its particles
+        /// missing, because `Resource::SceneManager` marks a `ParticleSystem` drawable
+        /// `Mask_ParticleSystem` and a blizzard's own particles are not categorised as weather.
         constexpr osg::Node::NodeMask sWorldTraversal
             = ~static_cast<osg::Node::NodeMask>(Mask_Sky | Mask_Sun | Mask_SimpleWater);
-
-        /// What the weather's own walk takes, which is all of it: it begins at the precipitation
-        /// node and everything below that is precipitation by construction.
-        constexpr osg::Node::NodeMask sWeatherTraversal = ~static_cast<osg::Node::NodeMask>(0);
     }
 
     namespace
@@ -557,24 +562,21 @@ namespace MWRender::Rtx
         // The same systems the rasterizer draws, not a second set of them. `MWRender::Precipitation`
         // owns them and neither renderer does.
         // Nothing falls where the eye is under water. The rasterizer answers this by not culling
-        // the subtree; this renderer answers it by not walking it.
-        if (frame.mWorld.mPrecipitation != nullptr && !frame.mWorld.mPrecipitation->isUnderwater())
+        // the subtree; this renderer answers it by not walking it — off the frame's own answer,
+        // which `RenderingManager` already worked out from the water it owns.
+        if (frame.mWorld.mPrecipitation != nullptr && !frame.mWorld.mUnderwater)
         {
             osg::Vec3d at;
             osg::Vec3d ahead;
             osg::Vec3d skyward;
             frame.mCamera.getViewMatrixAsLookAt(at, ahead, skyward);
 
-            // **Everything under it, because everything under it is precipitation.** The walk
-            // starts at that node, so there is nothing there to select — and naming
-            // `Mask_WeatherParticles` here selected almost nothing: `Resource::SceneManager` stamps
-            // `Mask_ParticleSystem` on the `ParticleSystem` drawable of every model it loads, so a
-            // blizzard's own particles are not marked as weather, and asking for weather alone
-            // extracted the storm with all of its particles missing.
-            mExtractor->setTraversalMask(sWeatherTraversal);
+            // **The same mask as everything else, because there is nothing here to select.** The
+            // walk starts at the precipitation node, so the subtree is already chosen; the mask is
+            // only ever excluding what this renderer draws for itself, and none of that is under
+            // here. A set-and-restore around one walk was the shape the mistake came in.
             mExtractor->extract(
                 *frame.mWorld.mPrecipitation->getNode(), osg::Matrixf::translate(osg::Vec3f(at)), 0, mFrame);
-            mExtractor->setTraversalMask(sWorldTraversal);
         }
 
         const RtxBridge::ExtractionStats found

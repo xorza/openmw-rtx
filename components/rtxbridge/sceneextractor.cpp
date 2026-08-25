@@ -530,6 +530,11 @@ namespace RtxBridge
         if (resident != nullptr)
             resident->collect(*mWalk);
 
+        // **After the whole walk, including whatever the residency brought in.** Everything under it
+        // has been stepped by now, so what the sprites are read from is a settled world rather than
+        // one that depends on where an updater happened to sit among its siblings.
+        flushEmitters(stats);
+
         return stats;
     }
 
@@ -954,7 +959,32 @@ namespace RtxBridge
         }
 
         known->second.mEpoch = mEpoch;
-        const Rtx::Index texture = known->second.mIndex;
+
+        // **Noted now and read when the walk is over.** Whether this system has been integrated
+        // this frame depends on where its `ParticleSystemUpdater` sits among its siblings — above
+        // it in everything `NifOsg` builds, but that is the content's promise and not this walk's.
+        // Reading after the walk has settled is what makes the question stop existing.
+        mPending.push_back(PendingEmitter{
+            .mParticles = &particles,
+            .mPlace = place,
+            .mTexture = known->second.mIndex,
+            .mLight = addsLight(shading),
+            .mSprite = sprite,
+        });
+    }
+
+    void SceneExtractor::flushEmitters(ExtractionStats& stats)
+    {
+        for (const PendingEmitter& pending : mPending)
+            placeSprites(pending, stats);
+
+        mPending.clear();
+    }
+
+    void SceneExtractor::placeSprites(const PendingEmitter& pending, ExtractionStats& stats)
+    {
+        const osgParticle::ParticleSystem& particles = *pending.mParticles;
+        const osg::Matrixf& place = pending.mPlace;
 
         const float scale = scaleOf(place);
 
@@ -994,7 +1024,7 @@ namespace RtxBridge
         if (mSpriteScratch.empty())
             return;
 
-        ++stats.mTextureFormats[describeFormat(*sprite)];
+        ++stats.mTextureFormats[describeFormat(*pending.mSprite)];
 
         // **Which way the quad faces, and `osgParticle` offers two answers.** A `BILLBOARD` system's
         // axes are the screen's and are recomputed into view space every frame, which is a disc
@@ -1013,7 +1043,7 @@ namespace RtxBridge
             upward = osg::Matrixf::transform3x3(particles.getAlignVectorY(), place);
         }
 
-        mScene.addEmitter(mSpriteScratch, texture, addsLight(shading), across, upward);
+        mScene.addEmitter(mSpriteScratch, pending.mTexture, pending.mLight, across, upward);
 
         ++stats.mEmitters;
         stats.mSprites += static_cast<std::uint32_t>(mSpriteScratch.size());
