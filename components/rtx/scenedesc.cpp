@@ -226,10 +226,21 @@ namespace Rtx
         if (--mTextureRefs[texture] > 0)
             return;
 
-        // The path leaves the lookup with the slot, or the next reference to it resolves to a slot
-        // nothing is standing in.
-        mTextureIndex.erase(mTextures[texture]);
-        mTextures[texture] = VFS::Path::Normalized();
+        // The name leaves the lookup with the slot, or the next reference to it resolves to a slot
+        // nothing is standing in. Whichever of the two named it, and never both: a slot is a file or
+        // it is something this renderer made.
+        if (!mTextures[texture].empty())
+        {
+            mTextureIndex.erase(mTextures[texture]);
+            mTextures[texture] = VFS::Path::Normalized();
+        }
+        else
+        {
+            assert(!mBaked[texture].empty() && "a slot with a reference to give back that nothing ever named");
+            mBakedIndex.erase(mBaked[texture]);
+            mBaked[texture].clear();
+        }
+
         mFreeTextures.push_back(texture);
         noteTexture(texture, SlotNews::Freed);
     }
@@ -334,32 +345,53 @@ namespace Rtx
         mSprites.insert(mSprites.end(), sprites.begin(), sprites.end());
     }
 
+    Index SceneDesc::takeTextureSlot()
+    {
+        ++mStructureRevision;
+
+        // One size, so any freed slot will do — the array element it names is written over wherever
+        // it sits, which is what the arrivals list is for.
+        if (mFreeTextures.empty())
+        {
+            mTextures.emplace_back();
+            mBaked.emplace_back();
+            mTextureRefs.push_back(0);
+            return static_cast<Index>(mTextures.size() - 1);
+        }
+
+        const Index index = mFreeTextures.back();
+        mFreeTextures.pop_back();
+        assert(mTextureRefs[index] == 0 && "a free slot something still names");
+
+        return index;
+    }
+
     Index SceneDesc::addTexture(VFS::Path::NormalizedView path)
     {
         const auto known = mTextureIndex.find(path);
         if (known != mTextureIndex.end())
             return known->second;
 
-        ++mStructureRevision;
-
-        // One size, so any freed slot will do — the array element it names is written over wherever
-        // it sits, which is what the arrivals list is for.
-        Index index;
-        if (mFreeTextures.empty())
-        {
-            index = static_cast<Index>(mTextures.size());
-            mTextures.emplace_back(path);
-            mTextureRefs.push_back(0);
-        }
-        else
-        {
-            index = mFreeTextures.back();
-            mFreeTextures.pop_back();
-            mTextures[index] = path;
-            assert(mTextureRefs[index] == 0 && "a free slot something still names");
-        }
+        const Index index = takeTextureSlot();
+        mTextures[index] = path;
 
         mTextureIndex.emplace(path, index);
+        noteTexture(index, SlotNews::Arrived);
+        return index;
+    }
+
+    Index SceneDesc::addBakedTexture(std::string_view key)
+    {
+        assert(!key.empty() && "a baked texture with no key is one nothing can find again");
+
+        const auto known = mBakedIndex.find(key);
+        if (known != mBakedIndex.end())
+            return known->second;
+
+        const Index index = takeTextureSlot();
+        mBaked[index] = key;
+
+        mBakedIndex.emplace(key, index);
         noteTexture(index, SlotNews::Arrived);
         return index;
     }
@@ -581,8 +613,10 @@ namespace Rtx
         mSprites.clear();
         mEmitters.clear();
         mTextures.clear();
+        mBaked.clear();
         mTextureRefs.clear();
         mTextureIndex.clear();
+        mBakedIndex.clear();
         mFreeMeshes.clear();
         mFreeMaterials.clear();
         mFreeTextures.clear();

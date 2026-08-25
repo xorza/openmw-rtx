@@ -705,6 +705,55 @@ namespace Rtx
             EXPECT_TRUE(scene.getTextures()[lone].value().empty());
         }
 
+        /// An image with no file behind it takes a slot like any other and gives it back like any
+        /// other.
+        ///
+        /// **What a composite baked for a distant terrain chunk is.** Nothing can open it — the bytes
+        /// belong to whatever made it — but it is still a slot a material points at and a backend
+        /// uploads into, so it has to live in the one table, on the one free list, under the one
+        /// reference count. A second table would be a second lifetime for a thing that dies the same
+        /// way.
+        TEST(RtxSceneDescTest, anImageThatIsNotAFileTakesASlotAndGivesItBack)
+        {
+            SceneDesc scene;
+
+            const Index baked = scene.addBakedTexture("composite/-3,-2/2");
+            ASSERT_EQ(baked, 0u);
+
+            // Standing, and standing is not free — the path is empty because it has none, which is
+            // the same thing a free slot's path says and not the same fact.
+            EXPECT_FALSE(scene.isTextureFree(baked));
+            EXPECT_TRUE(scene.getTextures()[baked].value().empty()) << "it came from no file";
+            EXPECT_EQ(scene.getBakedTextures()[baked], "composite/-3,-2/2");
+
+            // The key is what makes two chunks that would bake the same image share one slot.
+            EXPECT_EQ(scene.addBakedTexture("composite/-3,-2/2"), baked) << "the same bake took a second slot";
+            EXPECT_EQ(scene.getTextures().size(), 1u);
+
+            // A file beside it, so the free list has to hand back the right one.
+            const Index file = scene.addTexture(VFS::Path::NormalizedView("textures/tx_stone.dds"));
+            ASSERT_EQ(file, 1u);
+
+            scene.holdTexture(baked);
+            scene.dropTexture(baked);
+
+            EXPECT_TRUE(scene.isTextureFree(baked)) << "nothing names it and it is still standing";
+            EXPECT_TRUE(scene.getBakedTextures()[baked].empty());
+            EXPECT_EQ(sorted(scene.getFreedTextures()), (std::vector<Index>{ baked }));
+
+            // And the slot comes back, to a file this time — a freed slot is a row and not a kind.
+            const Index next = scene.addTexture(VFS::Path::NormalizedView("textures/tx_sand.dds"));
+            EXPECT_EQ(next, baked) << "the table grew past a free slot";
+            EXPECT_EQ(scene.getTextures().size(), 2u);
+            EXPECT_EQ(scene.getTextures()[next], VFS::Path::NormalizedView("textures/tx_sand.dds"));
+            EXPECT_TRUE(scene.getBakedTextures()[next].empty()) << "the slot kept what the last tenant was";
+
+            // The key is free again too, or a bake that came back would find a slot somebody else has.
+            const Index again = scene.addBakedTexture("composite/-3,-2/2");
+            EXPECT_EQ(again, 2u) << "a key the table gave back found a slot somebody else has";
+            EXPECT_FALSE(scene.isTextureFree(file)) << "the file beside it was never touched";
+        }
+
         /// A material rewritten gives back what it stopped naming and keeps what it still names.
         ///
         /// **What a flipbook is**: `NifOsg` turns a fire over thirty-two times a second by rewriting
@@ -830,6 +879,7 @@ namespace Rtx
             const Index mesh = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
             const Index material = scene.addMaterial(Material{});
             scene.addTexture(VFS::Path::NormalizedView("textures/tx_stone_01.dds"));
+            scene.addBakedTexture("composite/0,0/1");
             scene.addInstance(
                 MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = mesh, .mMaterial = material });
             scene.updateMesh(mesh, sQuadPositions, {});
@@ -841,6 +891,7 @@ namespace Rtx
             EXPECT_TRUE(scene.getInstances().empty());
             EXPECT_TRUE(scene.getMaterials().empty());
             EXPECT_TRUE(scene.getTextures().empty());
+            EXPECT_TRUE(scene.getBakedTextures().empty());
             EXPECT_TRUE(scene.getPositions().empty());
             EXPECT_TRUE(scene.getDeformed().empty());
             EXPECT_TRUE(scene.getSprites().empty());
@@ -853,6 +904,10 @@ namespace Rtx
             EXPECT_TRUE(scene.getFreedMeshes().empty());
             EXPECT_TRUE(scene.getArrivedTextures().empty());
             EXPECT_TRUE(scene.getFreedTextures().empty());
+
+            // And the lookups with them, or a key from the world before this one finds a slot in the
+            // world after it.
+            EXPECT_EQ(scene.addBakedTexture("composite/0,0/1"), 0u);
         }
     }
 }

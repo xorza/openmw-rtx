@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <functional>
 #include <span>
+#include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -398,6 +400,19 @@ namespace Rtx
 
         void addLight(const Light& light);
 
+        /// Returns the slot of an image this renderer made, adding it only if `key` is not known.
+        ///
+        /// **A texture with no file behind it, which the table has to be able to hold.** A composite
+        /// baked for a distant terrain chunk is an image nothing can open: the bytes belong to
+        /// whatever made it, and what the scene keeps is the slot, because a slot is what a material
+        /// points at and what a backend uploads into. Two chunks that would bake the same image must
+        /// find the same slot, which is what `key` is for and why it has to be stable across frames.
+        ///
+        /// The same slots, the same free list and the same reference counting as a file's — this is a
+        /// second way in and not a second table. `holdTexture` and `dropTexture` do not care which
+        /// kind a slot is.
+        Index addBakedTexture(std::string_view key);
+
         /// Returns the index of `path`, adding it only if it is not already known.
         ///
         /// **The slot is live from here**, before anything names it, and stays live until the last
@@ -423,10 +438,10 @@ namespace Rtx
         /// Whether nothing stands in `slot`: the last thing naming it gave it back, and it is
         /// waiting for the next `addTexture` to take it over.
         ///
-        /// **The path and not the reference count**, which is the same answer except for the window
-        /// between `addTexture` handing a slot out and whatever is about to name it doing so. A
-        /// reader that asked the count would find a texture it was in the middle of building.
-        bool isTextureFree(Index texture) const { return mTextures[texture].empty(); }
+        /// **The name and not the reference count**, which is the same answer except for the window
+        /// between a slot being handed out and whatever is about to name it doing so. A reader that
+        /// asked the count would find a texture it was in the middle of building.
+        bool isTextureFree(Index texture) const { return mTextures[texture].empty() && mBaked[texture].empty(); }
 
         /// Places `instance` in a slot and returns it.
         ///
@@ -608,7 +623,15 @@ namespace Rtx
         std::span<const Sprite> getSprites() const { return mSprites; }
         std::span<const SpriteEmitter> getEmitters() const { return mEmitters; }
         std::span<const float> getMasks() const { return mMasks; }
+        /// The file each slot was read from, empty where it was not read from one.
         std::span<const VFS::Path::Normalized> getTextures() const { return mTextures; }
+
+        /// What made each slot, for the ones nothing opened — empty for every slot that is a file.
+        ///
+        /// **Parallel to `getTextures` and not instead of it**, because the two are different facts
+        /// about a slot and nearly every reader wants only the first. A slot with neither is one
+        /// nothing stands in, which is what `isTextureFree` answers.
+        std::span<const std::string> getBakedTextures() const { return mBaked; }
 
         /// The vertices of one mesh, for a test or a build that wants to read back what it appended.
         std::span<const osg::Vec3f> getMeshPositions(Index mesh) const;
@@ -650,6 +673,10 @@ namespace Rtx
         std::vector<SpriteEmitter> mEmitters;
         std::vector<float> mMasks;
         std::vector<VFS::Path::Normalized> mTextures;
+
+        /// What made each slot, parallel to `mTextures`. Exactly one of the two is set for a slot
+        /// that is standing, and neither for one that is free.
+        std::vector<std::string> mBaked;
 
         std::uint64_t mStructureRevision = 0;
         std::uint64_t mMeshRevision = 0;
@@ -702,6 +729,10 @@ namespace Rtx
         void noteMesh(Index slot, SlotNews what);
         void noteTexture(Index slot, SlotNews what);
 
+        /// Takes a slot for a texture of either kind — a free one where there is one, a new row
+        /// otherwise. The caller names it; this only finds it somewhere to stand.
+        Index takeTextureSlot();
+
         /// Takes and gives back the textures a material names — its three roles and every layer's.
         ///
         /// Only ever called in that pair, and `setMaterial` is why the order between them matters.
@@ -746,5 +777,17 @@ namespace Rtx
         // never have noticed; a worldspace is thousands of both, and load time is not the place to
         // find that out. `VFS::Path::Hash` is transparent, so a lookup by view costs no string.
         std::unordered_map<VFS::Path::Normalized, Index, VFS::Path::Hash, std::equal_to<>> mTextureIndex;
+
+        /// Hashes a key by its characters however it is spelled, so a lookup costs no string of its
+        /// own. `VFS::Path::Hash` is the same idea for the map above.
+        struct BakedHash
+        {
+            using is_transparent = void;
+
+            std::size_t operator()(std::string_view key) const { return std::hash<std::string_view>{}(key); }
+        };
+
+        /// The same for the slots nothing opened, keyed by what made them.
+        std::unordered_map<std::string, Index, BakedHash, std::equal_to<>> mBakedIndex;
     };
 }
