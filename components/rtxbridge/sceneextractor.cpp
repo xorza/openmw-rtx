@@ -845,7 +845,24 @@ namespace RtxBridge
 
         ++stats.mTextureFormats[describeFormat(*sprite)];
 
-        mScene.addEmitter(mSpriteScratch, texture, addsLight(shading));
+        // **Which way the quad faces, and `osgParticle` offers two answers.** A `BILLBOARD` system's
+        // axes are the screen's and are recomputed into view space every frame, which is a disc
+        // facing the eye and needs nothing carried across. A `FIXED` one's are used exactly as they
+        // were authored, so its quad hangs in the world at an orientation of its own — and that is
+        // the mode Morrowind's rain is built on: an X axis squashed to a tenth against a Y pointing
+        // straight down is a falling streak rather than a round drop.
+        //
+        // Rotated into the world by the placement and not normalised, because their length is the
+        // shape rather than a direction.
+        osg::Vec3f across;
+        osg::Vec3f upward;
+        if (particles.getParticleAlignment() == osgParticle::ParticleSystem::FIXED)
+        {
+            across = osg::Matrixf::transform3x3(particles.getAlignVectorX(), place);
+            upward = osg::Matrixf::transform3x3(particles.getAlignVectorY(), place);
+        }
+
+        mScene.addEmitter(mSpriteScratch, texture, addsLight(shading), across, upward);
 
         ++stats.mEmitters;
         stats.mSprites += static_cast<std::uint32_t>(mSpriteScratch.size());

@@ -293,7 +293,8 @@ namespace Rtx
         mLights.push_back(light);
     }
 
-    void SceneDesc::addEmitter(std::span<const Sprite> sprites, Index texture, bool additive)
+    void SceneDesc::addEmitter(std::span<const Sprite> sprites, Index texture, bool additive, const osg::Vec3f& across,
+        const osg::Vec3f& upward)
     {
         if (sprites.empty())
             return;
@@ -301,10 +302,15 @@ namespace Rtx
         // The centre of the sprites' own bounding box rather than their mean, and the reach measured
         // off it: a plume is a handful of parcels strung along one axis, and a mean sits where most
         // of them happen to be at this instant rather than where the extent is.
+        // **A quad's reach is its own diagonal, not its size.** An eye-facing sprite is a disc of
+        // `mRadius`; a fixed one is a rectangle whose axes carry their own lengths, and a rain streak
+        // ten times as tall as it is wide would be cut off by a sphere measured on the width.
+        const float span = across.length2() > 0.0f || upward.length2() > 0.0f ? (across + upward).length() : 1.0f;
+
         osg::BoundingBoxf box;
         for (const Sprite& sprite : sprites)
         {
-            const osg::Vec3f rim(sprite.mRadius, sprite.mRadius, sprite.mRadius);
+            const osg::Vec3f rim(sprite.mRadius * span, sprite.mRadius * span, sprite.mRadius * span);
             box.expandBy(sprite.mPosition - rim);
             box.expandBy(sprite.mPosition + rim);
         }
@@ -312,7 +318,7 @@ namespace Rtx
         const osg::Vec3f centre = box.center();
         float reach = 0.0f;
         for (const Sprite& sprite : sprites)
-            reach = std::max(reach, (sprite.mPosition - centre).length() + sprite.mRadius);
+            reach = std::max(reach, (sprite.mPosition - centre).length() + sprite.mRadius * span);
 
         mEmitters.push_back(SpriteEmitter{
             .mCentre = centre,
@@ -321,6 +327,8 @@ namespace Rtx
             .mCount = static_cast<Index>(sprites.size()),
             .mTexture = texture,
             .mAdditive = additive,
+            .mAcross = across,
+            .mUpward = upward,
         });
 
         mSprites.insert(mSprites.end(), sprites.begin(), sprites.end());

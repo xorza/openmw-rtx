@@ -73,6 +73,8 @@ namespace Rtx
                 .mCount = emitter.mCount,
                 .mTexture = emitter.mTexture,
                 .mAdditive = emitter.mAdditive ? 1u : 0u,
+                .mAcross = emitter.mAcross,
+                .mUpward = emitter.mUpward,
             };
         }
 

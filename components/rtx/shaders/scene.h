@@ -336,6 +336,18 @@ namespace Rtx::Shaders
 
         /// Non-zero for `SRC_ALPHA, ONE`. A flame adds and hides nothing; smoke covers and is lit.
         uint mAdditive;
+
+        /// The quad's own axes in world space, per unit of `GpuSprite::mRadius` — **or two zero
+        /// vectors, which is a sprite that faces the eye and is nearly everything.**
+        ///
+        /// `osgParticle` draws a particle as `position ± axisX * size ± axisY * size`. A billboard's
+        /// axes are the screen's and need nothing carried here; a `FIXED` system's are used as they
+        /// were authored, so its quad hangs in the world at an orientation of its own. Morrowind's
+        /// rain is why the mode exists — an X axis squashed to a tenth against a Y axis pointing
+        /// straight down is a falling streak rather than a round drop, and their *lengths* are that
+        /// shape, so neither is normalised.
+        vec3 mAcross;
+        vec3 mUpward;
     };
 
     struct GpuMaterial
@@ -391,7 +403,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuLayer) == 48, "GpuLayer must be scalar-packed on every side");
     static_assert(sizeof(GpuMaterial) == 68, "GpuMaterial must be scalar-packed on every side");
     static_assert(sizeof(GpuSprite) == 32, "GpuSprite must be scalar-packed on every side");
-    static_assert(sizeof(GpuEmitter) == 32, "GpuEmitter must be scalar-packed on every side");
+    static_assert(sizeof(GpuEmitter) == 56, "GpuEmitter must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

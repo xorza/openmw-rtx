@@ -244,6 +244,51 @@ namespace Rtx
             EXPECT_EQ(scene.getTextures().size(), 1u);
         }
 
+        /// A quad that hangs in the world reaches further than its own width, and its sphere knows.
+        ///
+        /// **Morrowind's rain is why `osgParticle` has a `FIXED` mode at all.** A billboard's axes
+        /// are the screen's and it is a disc of one radius; a fixed one's are authored, and its
+        /// *lengths* are the shape — rain's X is squashed to a tenth against a Y pointing straight
+        /// down, which is a falling streak rather than a round drop.
+        ///
+        /// The reach has to be measured on that, and it is the one thing about the mode that a
+        /// bounding sphere cannot guess: a streak ten times as tall as it is wide, measured on the
+        /// width, is cut off nine tenths of the way up.
+        TEST(RtxSceneDescTest, aFixedSpriteReachesByItsOwnAxesAndAnEyeFacingOneByItsRadius)
+        {
+            SceneDesc scene;
+            const Index texture = scene.addTexture(VFS::Path::NormalizedView("textures/tx_raindrop_01.dds"));
+
+            const std::array one{ Sprite{ .mPosition = osg::Vec3f(), .mRadius = 10.0f } };
+
+            // Facing the eye: a disc, and the reach is the radius.
+            scene.addEmitter(one, texture, false);
+            ASSERT_EQ(scene.getEmitters().size(), 1u);
+            EXPECT_FALSE(scene.getEmitters()[0].isFixed()) << "two zero axes is a billboard";
+            EXPECT_FLOAT_EQ(scene.getEmitters()[0].mReach, 10.0f);
+
+            // Morrowind's own rain axes. The quad runs `+-0.1 * 10` across and `+-1 * 10` down, so
+            // its corner is `|(0.1, 0, -1)| * 10 = 10.0499` from the middle — and that, not the ten,
+            // is what has to fit in the sphere.
+            const osg::Vec3f across(0.1f, 0.0f, 0.0f);
+            const osg::Vec3f upward(0.0f, 0.0f, -1.0f);
+            scene.addEmitter(one, texture, false, across, upward);
+
+            ASSERT_EQ(scene.getEmitters().size(), 2u);
+            const SpriteEmitter& rain = scene.getEmitters()[1];
+            EXPECT_TRUE(rain.isFixed());
+            EXPECT_EQ(rain.mAcross, across) << "carried as authored, because the length is the shape";
+            EXPECT_EQ(rain.mUpward, upward);
+            EXPECT_NEAR(rain.mReach, 10.0499f, 1e-3f);
+            EXPECT_GT(rain.mReach, 10.0f) << "further than the radius alone would have reached";
+
+            // **And an axis of nothing is not an orientation.** A system that named only one of them
+            // is a billboard, which is what the zero state has to mean for a default to be safe.
+            scene.addEmitter(one, texture, false, across, osg::Vec3f());
+            ASSERT_EQ(scene.getEmitters().size(), 3u);
+            EXPECT_FALSE(scene.getEmitters()[2].isFixed());
+        }
+
         /// A triangle, so that a mesh beside the quads has a length of its own to be packed against.
         const std::array sTrianglePositions{
             osg::Vec3f(0.0f, 0.0f, 5.0f),

@@ -2233,21 +2233,64 @@ SpriteLayer spritesAlong(vec3 origin, vec3 direction, float limit)
         // sprite behind this sphere is within `mReach` of the same air.
         const float extinction = fogExtinctionAt(origin + direction * (0.5 * along), max(along, 1.0));
 
+        // **Two zero axes is a sprite that faces the eye**, which is nearly every emitter in the
+        // game; asked once for the emitter rather than once for each of its sprites.
+        // `fixed` is a reserved word in GLSL, which is why this is not called one.
+        const bool oriented = dot(emitter.mAcross, emitter.mAcross) > 0.0 && dot(emitter.mUpward, emitter.mUpward) > 0.0;
+
         for (uint i = emitter.mFirst; i < emitter.mFirst + emitter.mCount; ++i)
         {
             const GpuSprite sprite = sprites[i];
 
             const vec3 toSprite = sprite.mPosition - origin;
-            const float depth = dot(toSprite, direction);
-            if (depth <= 0.0 || depth >= limit)
-                continue;
 
-            // Perpendicular to the ray rather than to the camera's axis, so a sprite at the corner
-            // of the frame faces the eye and not the screen.
-            const vec3 offset = toSprite - direction * depth;
-            const float radial = length(offset);
-            if (radial >= sprite.mRadius)
-                continue;
+            // How far along the ray the quad is, where across it the ray crossed in units of its own
+            // half-extents, and how far out that is as a fraction — the three things the rest needs,
+            // and the only place the two kinds of sprite differ.
+            float depth;
+            vec2 at;
+            float radial;
+
+            if (oriented)
+            {
+                // **A quad that hangs in the world**, so the ray meets a plane rather than a disc.
+                // `osgParticle` uses the authored axes untransformed for a `FIXED` system, which is
+                // what makes rain fall the same way wherever it is looked at from — and what makes
+                // it vanish edge-on, exactly as it does in the renderer this is faithful to.
+                const vec3 across = emitter.mAcross * sprite.mRadius;
+                const vec3 upward = emitter.mUpward * sprite.mRadius;
+                const vec3 normal = cross(across, upward);
+
+                const float facing = dot(normal, direction);
+                if (abs(facing) <= 1.0e-6)
+                    continue;
+
+                depth = dot(toSprite, normal) / facing;
+                if (depth <= 0.0 || depth >= limit)
+                    continue;
+
+                const vec3 offset = direction * depth - toSprite;
+                at = vec2(dot(offset, across) / dot(across, across), dot(offset, upward) / dot(upward, upward));
+                if (max(abs(at.x), abs(at.y)) >= 1.0)
+                    continue;
+
+                radial = length(at);
+            }
+            else
+            {
+                depth = dot(toSprite, direction);
+                if (depth <= 0.0 || depth >= limit)
+                    continue;
+
+                // Perpendicular to the ray rather than to the camera's axis, so a sprite at the
+                // corner of the frame faces the eye and not the screen.
+                const vec3 offset = toSprite - direction * depth;
+                radial = length(offset) / sprite.mRadius;
+                if (radial >= 1.0)
+                    continue;
+
+                at = -vec2(dot(offset, across), dot(offset, upward)) / sprite.mRadius;
+            }
 
             // The sprite is `2 * mRadius` wide where the pixel's cone is `mSpreadAngle * depth`
             // across, and the ratio of the two in texels is the level that resolves it.
@@ -2257,11 +2300,15 @@ SpriteLayer spritesAlong(vec3 origin, vec3 direction, float limit)
 
             // The quad `osgParticle` would have drawn: texture coordinate zero at `-right -up` and
             // one at `+right +up`, about a centre at half.
-            const vec2 uv
-                = vec2(dot(offset, across), dot(offset, upward)) / (2.0 * sprite.mRadius) + 0.5;
+            const vec2 uv = at * 0.5 + 0.5;
 
             const vec4 texel = textureLod(textures[nonuniformEXT(emitter.mTexture)], uv, lod);
-            const float alpha = texel.a * sprite.mAlpha * spriteTaper(radial / sprite.mRadius, lod);
+
+            // **The rim is put back on a disc and left alone on a quad.** What the taper restores is
+            // a round blob the mip chain averaged into the square it was cut to; a rain streak was
+            // authored as that rectangle, and tapering it would round off the drop.
+            const float alpha
+                = texel.a * sprite.mAlpha * (oriented ? 1.0 : spriteTaper(radial, lod));
             if (!(alpha > 0.0))
                 continue;
 

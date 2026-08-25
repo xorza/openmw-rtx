@@ -285,19 +285,40 @@ every count; and a control fifo bounding the recording to the measured frames.
 
 **Content the renderer does not draw yet**
 
-- **Weather effects** (M5's other half): rain, snow, ash and blight storms, blizzards, and a
-  thunderstorm's lightning. The sky over them is drawn — a weather's own cloud deck arrives with it
-  and crosses on its own `Transition_Delta` — but nothing falls out of it. Four of the ten weathers hang a NIF
-  particle system off the sky and rain builds its own in `SkyManager::createRain`, all of it under a
-  node the trace never sees. **Three answers, not one.** The particles are the sprite layer's case and
-  it was written for them — `shaders/scene.h` names a rain streak as the reason that layer is
-  composited rather than denoised — except that `GpuSprite` is an eye-facing disc where rain is
-  `FIXED`-aligned along `(0,0,-1)`, so the layer wants an oriented sprite before it wants anything
-  else. A storm is mostly a **medium**: ash and blight are a change of extinction and phase function
-  in M7's fog, with sprites as the near-field detail on top, and treating them as a curtain of quads
-  is how one ends up a grey wall. And **lightning is a light** — in the light table for the frames it
-  lasts, throwing shadows and reflecting, not `mFlashBrightness` added to the screen. Where it lands
-  is M6's: `Weather_Rain_Ripples` gates `Water::emitRipple`, and ripples already ride the swell.
+- **Weather effects** (M5's other half): rain, snow, ash and blight storms, blizzards. The sky over
+  them is drawn — a weather's own cloud deck arrives with it and crosses on its own
+  `Transition_Delta` — but nothing falls out of it.
+
+  **It is one problem and not three, and reading the rasterizer is what says so.** This entry used to
+  claim otherwise on all three counts:
+
+  - *"A storm is mostly a medium"* — it is not, in this game. Ash, blight, snow and blizzard are each
+    a NIF particle system hung on a camera-relative node (`Weather_<name>_Particle_Effect`), and rain
+    is one `SkyManager` builds itself. Every one of them is `osgParticle`, which is the thing the
+    sprite layer already reads. Drawing them as a medium would be a renderer this one does not have
+    to be.
+  - *"Lightning is a light"* — it is not one there either. `Weather::calculateThunder` decays a flash
+    brightness and `calculateResult` adds it to the fog, the ambient and the sun colour alike
+    (`weather.cpp:955`). **The ray tracer already gets it**, because all three of those reach it
+    through `WorldState` with the flash folded in. Nothing to do.
+  - *"The layer wants an oriented sprite before anything else"* — that part was right, and it is
+    done. `osgParticle` offers `BILLBOARD`, whose axes are the screen's, and `FIXED`, whose are used
+    exactly as authored; rain is `FIXED` with an X axis squashed to a tenth against a Y pointing
+    straight down, which is a falling streak rather than a round drop. `GpuEmitter` carries those two
+    axes, the sprite march meets a plane where they are set and a disc where they are not, and the
+    emitter's sphere is measured on the quad's diagonal rather than its width — a streak ten times as
+    tall as it is wide, measured on the width, is cut off nine tenths of the way up.
+
+  **What is left is reach, not drawing.** Those nodes hang under `SkyManager`'s `Mask_Sky` root,
+  which the extractor's traversal mask excludes, under a `CameraRelativeTransform` that strips the
+  translation — so the walk needs the eye added back and the mask opened. And the construction itself
+  is in `apps/openmw/mwrender/gl/`, which is the wrong home for something both renderers draw: it
+  wants a renderer-neutral `MWRender::Precipitation` that owns the rain system and the effect node,
+  with `SkyManager` keeping only what is actually the rasterizer's — the occlusion pass, the
+  underwater cull callback and the shader hints. Rebuilding the particle systems on the ray tracer's
+  side instead is the one thing not to do; they are the same `osgParticle` objects and there should
+  go on being one of each.
+
 
 **Performance — M12, and none of it is started**
 

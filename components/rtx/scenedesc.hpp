@@ -287,6 +287,25 @@ namespace Rtx
         /// `SRC_ALPHA, ONE`: a flame, which adds light and hides nothing behind it. The rest blend
         /// over, which is smoke and needs its colour ramp to fade it.
         bool mAdditive = false;
+
+        /// The quad's own axes in world space, per unit of `Sprite::mRadius` — or **two zero vectors
+        /// for a sprite that faces the eye**, which is nearly everything.
+        ///
+        /// `osgParticle` draws a particle as `position ± axisX * size ± axisY * size` and offers two
+        /// ways of choosing those axes. A `BILLBOARD` system's are the screen's, transformed into
+        /// view space every frame — that is a disc facing the eye and needs nothing carried here. A
+        /// `FIXED` one's are used untransformed, so the quad hangs in the world at an orientation of
+        /// its own, and Morrowind's rain is the reason the mode exists: an X axis squashed to a tenth
+        /// and a Y axis pointing straight down is a falling streak rather than a round drop.
+        ///
+        /// **Not normalised**, because their length is the shape: it is that tenth that makes a
+        /// raindrop thin.
+        osg::Vec3f mAcross;
+        osg::Vec3f mUpward;
+
+        /// Whether those two mean anything. **The zero state is a billboard**, which is what a
+        /// default-constructed one is and what almost every emitter in the game is.
+        bool isFixed() const { return mAcross.length2() > 0.0f && mUpward.length2() > 0.0f; }
     };
 
     /// Everything the renderer needs to know about a world, with no Vulkan and no scene graph in it.
@@ -434,7 +453,10 @@ namespace Rtx
         /// The sphere is derived here rather than passed in, so the rejection test a ray makes and
         /// the sprites it would then walk cannot disagree about where they are. Nothing is added for
         /// an emitter with no live particles, which is most of them for most of a frame.
-        void addEmitter(std::span<const Sprite> sprites, Index texture, bool additive);
+        /// @param across the quad's own axes in world space, per unit of `Sprite::mRadius`, or two
+        ///        zero vectors for a sprite that faces the eye. `SpriteEmitter::mAcross` says why.
+        void addEmitter(std::span<const Sprite> sprites, Index texture, bool additive,
+            const osg::Vec3f& across = osg::Vec3f(), const osg::Vec3f& upward = osg::Vec3f());
 
         /// Drops every mesh and material the caller did not name.
         ///
