@@ -68,7 +68,7 @@ namespace MWWorld
     {
     public:
         Weather(const ESM::RefId id, const int scriptId, const std::string& name, float stormWindSpeed, float rainSpeed,
-            float dlFactor, float dlOffset, const std::string& particleEffect);
+            float dlFactor, float dlOffset);
 
         ESM::RefId mId;
         int mScriptId;
@@ -89,9 +89,6 @@ namespace MWWorld
 
         // Color modulation for the sun itself during sunset
         osg::Vec4f mSunDiscSunsetColor;
-
-        // Used by scripts to animate signs, etc based on the wind (GetWindSpeed)
-        float mWindSpeed;
 
         // Cloud animation speed multiplier
         float mCloudSpeed;
@@ -115,36 +112,18 @@ namespace MWWorld
 
         std::array<ESM::RefId, 4> mThunderSoundID;
 
-        // Is this an ash storm / blight storm? If so, the following will happen:
-        // - The particles and clouds will be oriented so they appear to come from the Red Mountain.
-        // - Characters will animate their hand to protect eyes from the storm when looking in its direction (idlestorm
-        // animation)
-        // - Slower movement when walking against the storm (fStromWalkMult)
-        bool mIsStorm;
-
-        // How fast does rain travel down?
-        // In Morrowind.ini this is set globally, but we may want to change it per weather later.
-        float mRainSpeed;
-
-        // How often does a new rain mesh spawn?
-        float mRainEntranceSpeed;
-
-        // Maximum count of rain particles
-        int mRainMaxRaindrops;
-
-        // Radius of rain effect
-        float mRainDiameter;
+        /// What this weather drops, how hard, and how fast the wind drives it.
+        ///
+        /// **Read once, by `Weather::downpourAt`, and never spelled out here.** The dozen keys
+        /// behind it used to be read in this constructor and again in that function, which is how
+        /// the wind came to reach the drops through a rule only one of the two applied.
+        ///
+        /// `mIsStorm` in it is also what makes a character shield their eyes and walk slower into
+        /// it (`fStromWalkMult`), and what turns the clouds to come off Red Mountain.
+        ::Weather::Downpour mDownpour;
 
         // Transition threshold to spawn rain
         float mRainThreshold;
-
-        // Height of rain particles spawn
-        float mRainMinHeight;
-        float mRainMaxHeight;
-
-        std::string mParticleEffect;
-
-        std::string mRainEffect;
 
         osg::Vec3f mStormDirection;
 

@@ -31,6 +31,40 @@ namespace Weather
     class RainCounter;
     class RainShooter;
 
+    /// Where the weather is happening, as the frame that is drawing it knows.
+    ///
+    /// **The three things a particle system cannot work out for itself, and one call so that no
+    /// caller can supply only some of them.** They used to be three setters and an `update`, spread
+    /// across `RenderingManager` and the rasterizer's sky manager — and the harness, driving the
+    /// same class from a third place, set two of them and called neither of the others. The result
+    /// was rain that never froze under water and storms that never turned to face the wind, in the
+    /// one tool that exists to catch exactly that.
+    struct Conditions
+    {
+        /// Where the eye is, which is what the box of drops slides along with.
+        ///
+        /// **Handed over rather than read off a camera.** A finite handful of drops is a whole
+        /// rainstorm only because the box follows the player, and the eye is a thing the game keeps
+        /// on `MWRender::Camera` and the harness keeps in a viewpoint — neither of them an
+        /// `osg::Camera` this could have reached into and asked.
+        osg::Vec3f mEye;
+
+        /// Which way a storm drives what it carries, from `Weather::stormDirection`.
+        ///
+        /// **Per frame and not settled with the `Downpour`**, because an ash storm is aimed at
+        /// whoever is watching and the game turns it as the transition runs.
+        osg::Vec3f mStormDirection = defaultStormDirection();
+
+        /// Whether the eye is under the water, which holds the drops where they are.
+        ///
+        /// **Told, and never worked out here.** Where the eye is relative to the water is a
+        /// question the renderer already answers — `MWRender::Water::isUnderwater` in the game, a
+        /// cell's water level in the harness — and it is on the frame before this is asked.
+        /// Deriving it a second time from a water level of its own is how it came to be read off a
+        /// cull traversal that the ray tracer never runs, and answered from the origin ever after.
+        bool mUnderwater = false;
+    };
+
     /// What the weather drops: rain, snow, and the clouds a storm drives past the eye.
     ///
     /// **Renderer-neutral, and in `components/` so that the harness can build one too.** Every one
@@ -63,11 +97,12 @@ namespace Weather
         /// What this weather drops, how hard, and how fast the wind drives it.
         void setWeather(const Downpour& weather);
 
-        /// Turns the storm's own effect to face where it is driving.
-        void update(float duration);
-
-        /// Where the storm drives what it carries, which is what that effect is turned by.
-        void setStormDirection(const osg::Vec3f& direction) { mStormDirection = direction; }
+        /// One frame's worth of driving: slides the box of drops to the eye, holds them still under
+        /// water, and turns the storm's own effect to face where it is driving.
+        ///
+        /// **Every frame, by whoever is drawing.** Nothing under `getNode` moves on its own — the
+        /// particles are stepped by whatever walks the graph, and this is the rest of it.
+        void update(const Conditions& where);
 
         /// Everything it has built, for whoever is drawing.
         osg::Group* getNode() { return mNode.get(); }
@@ -91,23 +126,6 @@ namespace Weather
 
         float getPrecipitationAlpha() const { return mPrecipitationAlpha; }
         float getBaseWindSpeed() const { return mBaseWindSpeed; }
-
-        /// Where the eye is, which is what the rain box slides along with.
-        ///
-        /// **Handed over rather than read off a camera.** A finite handful of drops is a whole
-        /// rainstorm only because the box follows the player, and the eye is a thing the game keeps
-        /// on `MWRender::Camera` and the harness keeps in a viewpoint — neither of them an
-        /// `osg::Camera` this could have reached into and asked.
-        void setEye(const osg::Vec3f& eye) { mEye = eye; }
-
-        /// Holds the drops where they are, which is what being under water does to them.
-        ///
-        /// **Told, and never worked out here.** Where the eye is relative to the water is a question
-        /// the renderer already answers — `MWRender::Water::isUnderwater` in the game, a cell's
-        /// water level in the harness — and it is on the frame before this is asked. Deriving it a
-        /// second time from a water level of its own is how it came to be read off a cull traversal
-        /// that the ray tracer never runs, and answered from the origin ever after.
-        void setUnderwater(bool underwater) { mUnderwater = underwater; }
 
         /// How far a particle travels before the wrap carries it back — the box an occlusion pass
         /// has to cover, which is why anything outside asks.
@@ -157,7 +175,7 @@ namespace Weather
         float mBaseWindSpeed = 0.f;
 
         bool mIsStorm = false;
-        osg::Vec3f mStormDirection;
+        osg::Vec3f mStormDirection = defaultStormDirection();
 
         bool mUnderwater = false;
 

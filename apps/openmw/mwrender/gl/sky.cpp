@@ -33,11 +33,11 @@
 #include "../../mwbase/environment.hpp"
 #include "../../mwbase/world.hpp"
 
-#include <components/weather/precipitation.hpp>
 #include "../renderbin.hpp"
 #include "../util.hpp"
 #include "../vismask.hpp"
 #include "skyutil.hpp"
+#include <components/weather/precipitation.hpp>
 
 namespace
 {
@@ -71,40 +71,12 @@ namespace
 
 namespace MWRender
 {
-    namespace
-    {
-        /// The weather's whole answer, narrowed to the part that falls.
-        ///
-        /// **A conversion and not a copy of the fields' meaning.** `WeatherResult` is what the
-        /// game's weather system worked out this moment is, transitions and all; `Weather::Downpour`
-        /// is what a particle system needs to be told. Keeping them separate is what lets the
-        /// harness build the same rain from the content files without a weather system to run.
-        Weather::Downpour falling(const WeatherResult& weather)
-        {
-            return Weather::Downpour{
-                .mRainEffect = weather.mRainEffect,
-                .mParticleEffect = weather.mParticleEffect,
-                .mPrecipitationAlpha = weather.mPrecipitationAlpha,
-                .mRainSpeed = weather.mRainSpeed,
-                .mRainEntranceSpeed = weather.mRainEntranceSpeed,
-                .mRainMaxRaindrops = weather.mRainMaxRaindrops,
-                .mRainDiameter = weather.mRainDiameter,
-                .mRainMinHeight = weather.mRainMinHeight,
-                .mRainMaxHeight = weather.mRainMaxHeight,
-                .mWindSpeed = weather.mWindSpeed,
-                .mBaseWindSpeed = weather.mBaseWindSpeed,
-                .mIsStorm = weather.mIsStorm,
-            };
-        }
-    }
-
     SkyManager::SkyManager(osg::Group* parentNode, osg::Group* rootNode, osg::Camera* camera,
         Resource::SceneManager* sceneManager, bool enableSkyRTT)
         : mSceneManager(sceneManager)
         , mCamera(camera)
         , mCreated(false)
         , mIsStorm(false)
-        , mStormParticleDirection(Weather::defaultStormDirection())
         , mStormDirection(Weather::defaultStormDirection())
         , mClouds()
         , mNextClouds()
@@ -274,13 +246,14 @@ namespace MWRender
         return mPrecipitation->getPrecipitationAlpha();
     }
 
-    void SkyManager::update(float duration)
+    void SkyManager::update()
     {
         if (!mEnabled)
             return;
 
-        mPrecipitation->setStormDirection(mStormParticleDirection);
-        mPrecipitation->update(duration);
+        // **The precipitation is not driven here.** It is one object both renderers read, and this
+        // manager is one renderer's — so `RenderingManager` drives it, which is also the only place
+        // that holds all three things a frame has to tell it. See `Weather::Conditions`.
 
         // **The deck's scroll and the stars' roll are turned by `RenderingManager` and handed here**,
         // because a ray tracer that draws its own sky has to turn the same one and this manager may
@@ -376,7 +349,7 @@ namespace MWRender
         if (!mCreated)
             return;
 
-        mIsStorm = weather.mIsStorm;
+        mIsStorm = weather.mDownpour.mIsStorm;
         if (mIsStorm)
             mStormDirection = weather.mStormDirection;
 
@@ -386,7 +359,7 @@ namespace MWRender
         // roof, the cull callback that hides it under water, and the shader hints a generated
         // pipeline reads — none of which survive a rebuild, which is what the revision is for.
         const unsigned int was = mPrecipitation->getRevision();
-        mPrecipitation->setWeather(falling(weather));
+        mPrecipitation->setWeather(weather.mDownpour);
         if (mPrecipitation->getRevision() != was || mDirtyParticlesEffect)
         {
             mDirtyParticlesEffect = false;
@@ -515,11 +488,6 @@ namespace MWRender
             return;
 
         mSun->setVisible(false);
-    }
-
-    void SkyManager::setStormParticleDirection(const osg::Vec3f& direction)
-    {
-        mStormParticleDirection = direction;
     }
 
     void SkyManager::setSunDirection(const osg::Vec3f& direction)

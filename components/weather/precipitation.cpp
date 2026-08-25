@@ -500,8 +500,12 @@ namespace Weather
         ++mRevision;
     }
 
-    void Precipitation::update(float duration)
+    void Precipitation::update(const Conditions& where)
     {
+        mEye = where.mEye;
+        mUnderwater = where.mUnderwater;
+        mStormDirection = where.mStormDirection;
+
         // Held where they are rather than hidden: what stops being *drawn* is the renderer's to
         // decide, and it is the renderer that said so in the first place.
         if (mRainParticleSystem)

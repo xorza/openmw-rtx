@@ -84,7 +84,6 @@
 #include "npcanimation.hpp"
 #include "objectpaging.hpp"
 #include "pathgrid.hpp"
-#include <components/weather/precipitation.hpp>
 #include "recastmesh.hpp"
 #include "renderer.hpp"
 #include "sceneframe.hpp"
@@ -92,6 +91,7 @@
 #include "terrainstorage.hpp"
 #include "util.hpp"
 #include "vismask.hpp"
+#include <components/weather/precipitation.hpp>
 
 namespace
 {
@@ -669,7 +669,6 @@ namespace MWRender
     void RenderingManager::setStormParticleDirection(const osg::Vec3f& direction)
     {
         mStormParticleDirection = direction;
-        mSky->setStormParticleDirection(direction);
     }
 
     void RenderingManager::setSunVisible(bool visible)
@@ -794,13 +793,19 @@ namespace MWRender
                 MWBase::Environment::get().getWorld()->getTimeManager()->getGameTimeScale(), Sky::timescaleClouds());
             mSky->setRoll(mSkyRoll);
 
-            // **Where the eye is relative to the water, said once by whoever owns the water.** The
-            // drops hold still under it, and both renderers hide them; deriving that a second time
-            // inside the thing being held is how it came to be read off a cull traversal one of the
-            // two never runs.
-            mSky->getPrecipitation()->setEye(mCamera->getPosition());
-            mSky->getPrecipitation()->setUnderwater(mWater->isUnderwater(mCamera->getPosition()));
-            mSky->update(dt);
+            // **The whole of driving the weather, in one call and from the one place that holds
+            // all three answers.** The eye is the camera's, whether it is submerged is the water's,
+            // and which way a storm blows arrived from the weather system — no other object has
+            // more than one of them, which is why this used to be four calls across two classes and
+            // why the harness reproduced only half of them.
+            const osg::Vec3f eye = mCamera->getPosition();
+            mSky->getPrecipitation()->update(Weather::Conditions{
+                .mEye = eye,
+                .mStormDirection = mStormParticleDirection,
+                .mUnderwater = mWater->isUnderwater(eye),
+            });
+
+            mSky->update();
 
             const MWWorld::Ptr& player = mPlayerAnimation->getPtr();
             osg::Vec3f playerPos(player.getRefData().getPosition().asVec3());

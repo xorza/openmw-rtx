@@ -1,5 +1,7 @@
 #include "downpour.hpp"
 
+#include <algorithm>
+
 #include <components/fallback/fallback.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/settings/values.hpp>
@@ -30,6 +32,36 @@ namespace Weather
         return Fallback::Map::getFloat("Weather_" + std::string(weather) + "_Wind_Speed");
     }
 
+    float gustSpeed(float baseWindSpeed)
+    {
+        return std::min(8.0f * baseWindSpeed, 70.0f);
+    }
+
+    osg::Vec3f stormDirection(std::string_view particleEffect, const osg::Vec3f& observer)
+    {
+        // **Not where Red Mountain is, and upstream moved it there on purpose.** OpenMW aimed ash
+        // at the summit's real position until `e7208bb80e` (bug #4240) replaced (19950, 72032,
+        // 27831) with this rounded, flattened pair — a storm aimed at the mountain's foot rather
+        // than its peak is what makes a character on the coast shield their eyes in the right
+        // direction. Vanilla numbers, kept because they are what the animation was tuned against.
+        constexpr float mountainX = 25000.0f;
+        constexpr float mountainY = 70000.0f;
+
+        if (particleEffect != Settings::models().mWeatherashcloud.get()
+            && particleEffect != Settings::models().mWeatherblightcloud.get())
+            return defaultStormDirection();
+
+        // Flat: a storm drives across the land, and the summit is the only place a height would
+        // change the answer.
+        osg::Vec3f away(observer.x() - mountainX, observer.y() - mountainY, 0.0f);
+
+        // Standing on the summit, where the direction away from it is no direction at all.
+        if (away.normalize() == 0.0f)
+            return defaultStormDirection();
+
+        return away;
+    }
+
     Downpour downpourAt(std::string_view weather, float stormWindSpeed, float rainGravity)
     {
         const std::string name(weather);
@@ -48,7 +80,9 @@ namespace Weather
             .mRainDiameter = Fallback::Map::getFloat("Weather_" + name + "_Rain_Diameter"),
             .mRainMinHeight = Fallback::Map::getFloat("Weather_" + name + "_Rain_Height_Min"),
             .mRainMaxHeight = Fallback::Map::getFloat("Weather_" + name + "_Rain_Height_Max"),
-            .mWindSpeed = wind,
+            // **The gust and the recorded number, and they are not the same.** The first is what
+            // leans the drops; the second is what the world is asked about.
+            .mWindSpeed = gustSpeed(wind),
             .mBaseWindSpeed = wind,
             .mIsStorm = wind > stormWindSpeed,
         };

@@ -58,7 +58,7 @@ namespace MWRender
             Resource::SceneManager* sceneManager, bool enableSkyRTT);
         ~SkyManager();
 
-        void update(float duration);
+        void update();
 
         void setEnabled(bool enabled);
 
@@ -86,8 +86,6 @@ namespace MWRender
         bool getRainRipplesEnabled() const;
 
         float getPrecipitationAlpha() const;
-
-        void setStormParticleDirection(const osg::Vec3f& direction);
 
         void setSunDirection(const osg::Vec3f& direction);
 
@@ -165,7 +163,6 @@ namespace MWRender
         Sky::SkyRoll mRoll;
 
         // particle system rotation is independent of cloud rotation internally
-        osg::Vec3f mStormParticleDirection;
         osg::Vec3f mStormDirection;
         osg::Vec3f mNextStormDirection;
 

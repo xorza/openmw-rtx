@@ -6,6 +6,7 @@
 #include <osg/Vec4f>
 
 #include <components/esm/refid.hpp>
+#include <components/weather/downpour.hpp>
 
 namespace MWRender
 {
@@ -40,8 +41,8 @@ namespace MWRender
         float mDLFogFactor;
         float mDLFogOffset;
 
-        float mWindSpeed;
-        float mBaseWindSpeed;
+        /// The two the transition works in, which are neither weather's settled answer: what each
+        /// side of it is blowing at right now. `mDownpour.mWindSpeed` is what they mix to.
         float mCurrentWindSpeed;
         float mNextWindSpeed;
 
@@ -52,22 +53,18 @@ namespace MWRender
         bool mNight; // use night skybox
         float mNightFade; // fading factor for night skybox
 
-        bool mIsStorm;
-
         ESM::RefId mAmbientLoopSoundID;
         ESM::RefId mRainLoopSoundID;
         float mAmbientSoundVolume;
 
-        std::string mParticleEffect;
-        std::string mRainEffect;
-        float mPrecipitationAlpha;
-
-        float mRainDiameter;
-        float mRainMinHeight;
-        float mRainMaxHeight;
-        float mRainSpeed;
-        float mRainEntranceSpeed;
-        int mRainMaxRaindrops;
+        /// Everything that falls, and it is handed to `Weather::Precipitation` unchanged.
+        ///
+        /// **One struct rather than a dozen fields copied out of one and into another.** These used
+        /// to be spelled out here, spelled out again in `MWWorld::Weather`, copied across four times
+        /// inside the weather manager and converted once more on the way to the particles — and the
+        /// wind was reaching the drops through a rule only one of those copies knew about, so the
+        /// same weather leaned eight times harder in the game than in a shot of it.
+        ::Weather::Downpour mDownpour;
 
         osg::Vec3f mStormDirection;
         osg::Vec3f mNextStormDirection;

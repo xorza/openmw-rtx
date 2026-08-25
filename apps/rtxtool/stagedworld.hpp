@@ -100,9 +100,13 @@ namespace RtxTool
         /// a run that flies from the Bitter Coast to the Ashlands leaves one region for another.
         const ESM::RefId& getRegion() const { return mRegion; }
 
-        /// Moves the weather's particles to where the eye now is, and says whether it is under
-        /// water — which is what holds the drops still, exactly as it does in the game.
-        void setEye(const osg::Vec3f& eye);
+        /// One frame's worth of driving the weather, from where the eye now is.
+        ///
+        /// **The same one call `RenderingManager::update` makes**, which is the point: this used to
+        /// set two of `Weather::Precipitation`'s four inputs and call neither of the others, so a
+        /// shot of a storm showed drops that never froze under water and an ash cloud that never
+        /// turned to face the wind.
+        void driveWeather(const osg::Vec3f& eye);
 
         /// Moves the sky to another moment, without reading the region again.
         ///
@@ -190,6 +194,11 @@ namespace RtxTool
 
         /// Tells the precipitation what this weather drops, read straight off the content files.
         void setFalling(std::string_view weather);
+
+        /// What this weather drives past the eye, kept because `driveWeather` aims it every frame:
+        /// an ash storm blows off Red Mountain at whoever is watching, so where the camera stands
+        /// is half the answer.
+        std::string mStormEffect;
 
         /// The graph the mirror walks, assembled the way the game assembles its own: a group per
         /// cell, a reference under a transform inside it, the terrain hung alongside.

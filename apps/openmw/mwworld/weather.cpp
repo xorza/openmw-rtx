@@ -48,24 +48,21 @@ namespace MWWorld
             return x * (1 - factor) + y * factor;
         }
 
+        /// Which way this weather's effect is driving, aimed at wherever the player is standing.
+        ///
+        /// **The rule is `::Weather::stormDirection` and lives beside the rest of what a weather
+        /// drops**, because a ray tracer aims the same storm at the same observer and a harness
+        /// that renders one aims it at a camera. What is left here is the one thing this file knows
+        /// and neither of those does: which body counts as the observer.
         osg::Vec3f calculateStormDirection(const std::string& particleEffect)
         {
-            osg::Vec3f stormDirection = ::Weather::defaultStormDirection();
-            if (particleEffect == Settings::models().mWeatherashcloud.get()
-                || particleEffect == Settings::models().mWeatherblightcloud.get())
-            {
-                osg::Vec3f playerPos = MWMechanics::getPlayer().getRefData().getPosition().asVec3();
-                playerPos.z() = 0;
-                osg::Vec3f redMountainPos = osg::Vec3f(25000.f, 70000.f, 0.f);
-                stormDirection = (playerPos - redMountainPos);
-                stormDirection.normalize();
-            }
-            return stormDirection;
+            return ::Weather::stormDirection(
+                particleEffect, MWMechanics::getPlayer().getRefData().getPosition().asVec3());
         }
     }
 
     Weather::Weather(ESM::RefId id, int scriptId, const std::string& name, float stormWindSpeed, float rainSpeed,
-        float dlFactor, float dlOffset, const std::string& particleEffect)
+        float dlFactor, float dlOffset)
         : mId(id)
         , mScriptId(scriptId)
         , mName(name)
@@ -91,19 +88,10 @@ namespace MWWorld
               Fallback::Map::getFloat("Weather_" + name + "_Land_Fog_Day_Depth"),
               Fallback::Map::getFloat("Weather_" + name + "_Land_Fog_Night_Depth"))
         , mSunDiscSunsetColor(Fallback::Map::getColour("Weather_" + name + "_Sun_Disc_Sunset_Color"))
-        , mWindSpeed(Fallback::Map::getFloat("Weather_" + name + "_Wind_Speed"))
         , mCloudSpeed(Fallback::Map::getFloat("Weather_" + name + "_Cloud_Speed"))
         , mGlareView(Fallback::Map::getFloat("Weather_" + name + "_Glare_View"))
-        , mIsStorm(mWindSpeed > stormWindSpeed)
-        , mRainSpeed(rainSpeed)
-        , mRainEntranceSpeed(Fallback::Map::getFloat("Weather_" + name + "_Rain_Entrance_Speed"))
-        , mRainMaxRaindrops(Fallback::Map::getInt("Weather_" + name + "_Max_Raindrops"))
-        , mRainDiameter(Fallback::Map::getFloat("Weather_" + name + "_Rain_Diameter"))
+        , mDownpour(::Weather::downpourAt(name, stormWindSpeed, rainSpeed))
         , mRainThreshold(Fallback::Map::getFloat("Weather_" + name + "_Rain_Threshold"))
-        , mRainMinHeight(Fallback::Map::getFloat("Weather_" + name + "_Rain_Height_Min"))
-        , mRainMaxHeight(Fallback::Map::getFloat("Weather_" + name + "_Rain_Height_Max"))
-        , mParticleEffect(particleEffect)
-        , mRainEffect(Fallback::Map::getBool("Weather_" + name + "_Using_Precip") ? "meshes\\raindrop.nif" : "")
         , mStormDirection(::Weather::defaultStormDirection())
         , mCloudsMaximumPercent(Fallback::Map::getFloat("Weather_" + name + "_Clouds_Maximum_Percent"))
         , mTransitionDelta(Fallback::Map::getFloat("Weather_" + name + "_Transition_Delta"))
@@ -123,8 +111,8 @@ namespace MWWorld
         mThunderSoundID[3]
             = ESM::RefId::stringRefId(Fallback::Map::getString("Weather_" + name + "_Thunder_Sound_ID_3"));
 
-        if (!mRainEffect.empty()) // NOTE: in vanilla, the weathers with rain seem to be hardcoded; changing
-                                  // Using_Precip has no effect
+        if (!mDownpour.mRainEffect.empty()) // NOTE: in vanilla, the weathers with rain seem to be hardcoded;
+                                            // changing Using_Precip has no effect
         {
             mRainLoopSoundID
                 = ESM::RefId::stringRefId(Fallback::Map::getString("Weather_" + name + "_Rain_Loop_Sound_ID"));
@@ -501,11 +489,14 @@ namespace MWWorld
 
     float WeatherManager::calculateWindSpeed(int weatherId, float currentSpeed)
     {
-        float targetSpeed = std::min(8.0f * mWeatherSettings[weatherId].mWindSpeed, 70.f);
+        // **What it wanders about is the weather's own settled gust, and the wander is this
+        // function's own.** A harness rendering one instant cannot reproduce a random walk, so what
+        // it shares is where the walk starts — see `::Weather::gustSpeed`.
+        const float targetSpeed = mWeatherSettings[weatherId].mDownpour.mWindSpeed;
         if (currentSpeed == 0.f)
             currentSpeed = targetSpeed;
 
-        float multiplier = mWeatherSettings[weatherId].mRainEffect.empty() ? 1.f : 0.5f;
+        float multiplier = mWeatherSettings[weatherId].mDownpour.mRainEffect.empty() ? 1.f : 0.5f;
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
         float updatedSpeed = (Misc::Rng::rollClosedProbability(prng) - 0.5f) * multiplier * targetSpeed + currentSpeed;
 
@@ -556,18 +547,18 @@ namespace MWWorld
 
         if (!paused)
         {
-            mWindSpeed = mResult.mWindSpeed;
+            mWindSpeed = mResult.mDownpour.mWindSpeed;
             mCurrentWindSpeed = mResult.mCurrentWindSpeed;
             mNextWindSpeed = mResult.mNextWindSpeed;
         }
 
-        mIsStorm = mResult.mIsStorm;
+        mIsStorm = mResult.mDownpour.mIsStorm;
 
         // For some reason Ash Storm is not considered as a precipitation weather in game
-        mPrecipitation = !(mResult.mParticleEffect.empty() && mResult.mRainEffect.empty())
-            && mResult.mParticleEffect != Settings::models().mWeatherashcloud.get();
+        mPrecipitation = !(mResult.mDownpour.mParticleEffect.empty() && mResult.mDownpour.mRainEffect.empty())
+            && mResult.mDownpour.mParticleEffect != Settings::models().mWeatherashcloud.get();
 
-        mStormDirection = calculateStormDirection(mResult.mParticleEffect);
+        mStormDirection = calculateStormDirection(mResult.mDownpour.mParticleEffect);
         mRendering.setStormParticleDirection(mStormDirection);
 
         // Where the sun is, where its light goes, and how much of it there is — one reading, because
@@ -793,8 +784,8 @@ namespace MWWorld
     {
         static const float fStromWindSpeed = mStore.get<ESM::GameSetting>().find("fStromWindSpeed")->mValue.getFloat();
         ESM::StringRefId id(name);
-        Weather weather(id, static_cast<int>(mWeatherSettings.size()), name, fStromWindSpeed, mRainSpeed, dlFactor,
-            dlOffset, std::string(::Weather::stormEffect(name)));
+        Weather weather(
+            id, static_cast<int>(mWeatherSettings.size()), name, fStromWindSpeed, mRainSpeed, dlFactor, dlOffset);
 
         mWeatherSettings.push_back(std::move(weather));
     }
@@ -961,27 +952,19 @@ namespace MWWorld
         mResult.mCloudTexture = current.mCloudTexture;
         mResult.mCloudBlendFactor = 0;
         mResult.mNextWindSpeed = 0;
-        mResult.mWindSpeed = mResult.mCurrentWindSpeed = calculateWindSpeed(weatherID, mWindSpeed);
-        mResult.mBaseWindSpeed = mWeatherSettings[weatherID].mWindSpeed;
+
+        // **The whole of what falls, in one copy.** What is overridden below it is the two things a
+        // settled weather still works out per frame: how hard it is blowing this instant, and that
+        // all of it has arrived.
+        mResult.mDownpour = current.mDownpour;
+        mResult.mDownpour.mWindSpeed = mResult.mCurrentWindSpeed = calculateWindSpeed(weatherID, mWindSpeed);
 
         mResult.mCloudSpeed = current.mCloudSpeed;
         mResult.mGlareView = current.mGlareView;
         mResult.mAmbientLoopSoundID = current.mAmbientLoopSoundID;
         mResult.mRainLoopSoundID = current.mRainLoopSoundID;
         mResult.mAmbientSoundVolume = 1.f;
-        mResult.mPrecipitationAlpha = 1.f;
-
-        mResult.mIsStorm = current.mIsStorm;
-
-        mResult.mRainSpeed = current.mRainSpeed;
-        mResult.mRainEntranceSpeed = current.mRainEntranceSpeed;
-        mResult.mRainDiameter = current.mRainDiameter;
-        mResult.mRainMinHeight = current.mRainMinHeight;
-        mResult.mRainMaxHeight = current.mRainMaxHeight;
-        mResult.mRainMaxRaindrops = current.mRainMaxRaindrops;
-
-        mResult.mParticleEffect = current.mParticleEffect;
-        mResult.mRainEffect = current.mRainEffect;
+        mResult.mDownpour.mPrecipitationAlpha = 1.f;
 
         mResult.mNight = (gameHour < mSunriseTime
             || gameHour
@@ -1003,7 +986,7 @@ namespace MWWorld
             = osg::Vec4f(Sky::sunDiscAt(gameHour, mTimeSettings, current.mSunDiscSunsetColor, mResult.mAmbientColor),
                 Sky::sunShareAt(gameHour, mTimeSettings));
 
-        mResult.mStormDirection = calculateStormDirection(mResult.mParticleEffect);
+        mResult.mStormDirection = calculateStormDirection(mResult.mDownpour.mParticleEffect);
     }
 
     inline void WeatherManager::calculateTransitionResult(const float factor, const float gameHour)
@@ -1032,9 +1015,6 @@ namespace MWWorld
 
         mResult.mCurrentWindSpeed = calculateWindSpeed(mCurrentWeather, mCurrentWindSpeed);
         mResult.mNextWindSpeed = calculateWindSpeed(mNextWeather, mNextWindSpeed);
-        mResult.mBaseWindSpeed = lerp(current.mBaseWindSpeed, other.mBaseWindSpeed, factor);
-
-        mResult.mWindSpeed = lerp(mResult.mCurrentWindSpeed, mResult.mNextWindSpeed, factor);
         mResult.mCloudSpeed = lerp(current.mCloudSpeed, other.mCloudSpeed, factor);
         mResult.mGlareView = lerp(current.mGlareView, other.mGlareView, factor);
         mResult.mNightFade = lerp(current.mNightFade, other.mNightFade, factor);
@@ -1045,38 +1025,24 @@ namespace MWWorld
         if (threshold <= 0.f)
             threshold = 0.5f;
 
-        if (factor < threshold)
-        {
-            mResult.mIsStorm = current.mIsStorm;
-            mResult.mParticleEffect = current.mParticleEffect;
-            mResult.mRainEffect = current.mRainEffect;
-            mResult.mRainSpeed = current.mRainSpeed;
-            mResult.mRainEntranceSpeed = current.mRainEntranceSpeed;
-            mResult.mAmbientSoundVolume = 1.f - factor / threshold;
-            mResult.mPrecipitationAlpha = mResult.mAmbientSoundVolume;
-            mResult.mAmbientLoopSoundID = current.mAmbientLoopSoundID;
-            mResult.mRainLoopSoundID = current.mRainLoopSoundID;
-            mResult.mRainDiameter = current.mRainDiameter;
-            mResult.mRainMinHeight = current.mRainMinHeight;
-            mResult.mRainMaxHeight = current.mRainMaxHeight;
-            mResult.mRainMaxRaindrops = current.mRainMaxRaindrops;
-        }
-        else
-        {
-            mResult.mIsStorm = other.mIsStorm;
-            mResult.mParticleEffect = other.mParticleEffect;
-            mResult.mRainEffect = other.mRainEffect;
-            mResult.mRainSpeed = other.mRainSpeed;
-            mResult.mRainEntranceSpeed = other.mRainEntranceSpeed;
-            mResult.mAmbientSoundVolume = (factor - threshold) / (1 - threshold);
-            mResult.mPrecipitationAlpha = mResult.mAmbientSoundVolume;
-            mResult.mAmbientLoopSoundID = other.mAmbientLoopSoundID;
-            mResult.mRainLoopSoundID = other.mRainLoopSoundID;
+        // **One of the two falls and the other does not, and the threshold is where it changes
+        // over.** A transition's precipitation does not cross-fade between two kinds of weather:
+        // what is falling fades out and what is arriving fades in, so at any instant there is one
+        // `Downpour` and an alpha on it.
+        const MWRender::WeatherResult& falling = factor < threshold ? current : other;
 
-            mResult.mRainDiameter = other.mRainDiameter;
-            mResult.mRainMinHeight = other.mRainMinHeight;
-            mResult.mRainMaxHeight = other.mRainMaxHeight;
-            mResult.mRainMaxRaindrops = other.mRainMaxRaindrops;
-        }
+        mResult.mAmbientSoundVolume
+            = factor < threshold ? 1.f - factor / threshold : (factor - threshold) / (1 - threshold);
+        mResult.mAmbientLoopSoundID = falling.mAmbientLoopSoundID;
+        mResult.mRainLoopSoundID = falling.mRainLoopSoundID;
+
+        mResult.mDownpour = falling.mDownpour;
+        mResult.mDownpour.mPrecipitationAlpha = mResult.mAmbientSoundVolume;
+
+        // **The wind is the one thing that does cross**, because it is the world's rather than the
+        // weather's: a gale does not stop at the moment the rain does.
+        mResult.mDownpour.mWindSpeed = lerp(mResult.mCurrentWindSpeed, mResult.mNextWindSpeed, factor);
+        mResult.mDownpour.mBaseWindSpeed
+            = lerp(current.mDownpour.mBaseWindSpeed, other.mDownpour.mBaseWindSpeed, factor);
     }
 }

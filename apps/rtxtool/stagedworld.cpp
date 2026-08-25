@@ -33,8 +33,8 @@ namespace RtxTool
 
         // **The same particle systems the game builds, from the same component.** Under a node of
         // this harness's own rather than the sky's camera-relative transform, because there is no
-        // sky manager here — what matters is that the box travels with the eye, and `setEye` is
-        // what does that.
+        // sky manager here — what matters is that the box travels with the eye, and `driveWeather`
+        // is what does that.
         // **Both of the weather's constants, read once and where the other one is.** The first is a
         // game setting and comes from the store; the second is a fallback and comes from the ini,
         // which is the only reason they are fetched differently.
@@ -92,7 +92,7 @@ namespace RtxTool
         // the eye, so a shot whose weather arrived while the box still sat at the origin is a shot
         // of a rainstorm happening somewhere else.
         setFalling(request.mWeather);
-        setEye(mPlacement.mOrigin);
+        driveWeather(mPlacement.mOrigin);
 
         const std::span<const CellPerson> residents
             = actors.mResidents ? std::span<const CellPerson>(mReport.mPeople) : std::span<const CellPerson>();
@@ -127,24 +127,35 @@ namespace RtxTool
         return mExtractor.extract(*mRoot, osg::Matrixf::identity(), 0, frame, mWorld->getTerrainResidency());
     }
 
-    void StagedWorld::setEye(const osg::Vec3f& eye)
+    void StagedWorld::driveWeather(const osg::Vec3f& eye)
     {
         mWeatherNode->setPosition(eye);
-        mPrecipitation->setEye(eye);
 
-        // The same question the game asks of the water it owns, asked here of the level this cell
-        // reported. A cell with no water reports minus infinity, so nothing is ever under it.
-        mPrecipitation->setUnderwater(eye.z() < mLighting.mWaterLevel);
+        mPrecipitation->update(Weather::Conditions{
+            .mEye = eye,
+
+            // **Aimed at the camera, because that is the body standing in this weather.** The game
+            // aims an ash storm at the player off Red Mountain; the rule is the same one and the
+            // observer is whoever is looking.
+            .mStormDirection = Weather::stormDirection(mStormEffect, eye),
+
+            // The same question the game asks of the water it owns, asked here of the level this
+            // cell reported. A cell with no water reports minus infinity, so nothing is ever under
+            // it.
+            .mUnderwater = eye.z() < mLighting.mWaterLevel,
+        });
     }
 
     void StagedWorld::setFalling(std::string_view weather)
     {
-        mPrecipitation->setWeather(Weather::downpourAt(weather, mStormWindSpeed, mRainGravity));
+        const Weather::Downpour falling = Weather::downpourAt(weather, mStormWindSpeed, mRainGravity);
+        mStormEffect = falling.mParticleEffect;
+        mPrecipitation->setWeather(falling);
     }
 
     Crossing StagedWorld::moveTo(const osg::Vec3f& where)
     {
-        setEye(where);
+        driveWeather(where);
 
         // **Every frame and not only on a crossing**, because the detail a paged world builds at is
         // a distance from the eye rather than a property of the cell: a camera flying across one

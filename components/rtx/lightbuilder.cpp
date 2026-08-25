@@ -10,6 +10,7 @@
 #include <components/fallback/fallback.hpp>
 #include <components/sky/sun.hpp>
 #include <components/sky/timeofday.hpp>
+#include <components/weather/downpour.hpp>
 
 #include "shaders/scene.h"
 #include "shaders/visibility.h"
@@ -58,11 +59,6 @@ namespace Rtx
             "Snow",
             "Blizzard",
         };
-
-        /// Where the ash comes from, out of `apps/openmw/mwworld/weather.cpp:55`. Flat, because the
-        /// direction it drives is taken on the ground plane and never points up the mountain.
-        constexpr float sRedMountainX = 25000.0f;
-        constexpr float sRedMountainY = 70000.0f;
 
         float channelToLinear(float encoded)
         {
@@ -263,19 +259,11 @@ namespace Rtx
 
     osg::Vec3f stormDirection(std::uint32_t weather, const osg::Vec3f& observer)
     {
-        // `Weather::defaultStormDirection`, which is due north and what every weather that
-        // carries nothing still blows along.
-        const osg::Vec3f north(0.0f, 1.0f, 0.0f);
-        if (weather != Shaders::WEATHER_ASHSTORM && weather != Shaders::WEATHER_BLIGHT)
-            return north;
-
-        osg::Vec3f away(observer.x() - sRedMountainX, observer.y() - sRedMountainY, 0.0f);
-
-        // Standing on the summit, where the direction away from it is no direction at all.
-        if (away.normalize() == 0.0f)
-            return north;
-
-        return away;
+        // **The rule is `Weather::stormDirection` and the index is this function's own.** The game
+        // asks it during a transition and so holds the effect rather than the name; everything here
+        // holds a script id, and the two must not be two rules — they aim the same storm at the
+        // same observer, one for the sky and one for the particles blowing past it.
+        return Weather::stormDirection(Weather::stormEffect(weatherName(weather)), observer);
     }
 
     osg::Vec3f decodeColour(const osg::Vec4f& encoded)
