@@ -195,4 +195,31 @@ namespace Rtx
         for (float& value : mValues)
             value = std::clamp(value / mean, sFloor, sCeiling);
     }
+
+    float paintedLight(std::span<const float> map, float u, float v)
+    {
+        constexpr int extent = static_cast<int>(ShadingMap::sExtent);
+        assert(map.size() == std::size_t{ extent } * extent);
+
+        const auto fraction = [](float value) { return value - std::floor(value); };
+
+        const float x = fraction(u) * extent - 0.5f;
+        const float y = fraction(v) * extent - 0.5f;
+        const auto lowX = static_cast<int>(std::floor(x));
+        const auto lowY = static_cast<int>(std::floor(y));
+        const float acrossX = x - static_cast<float>(lowX);
+        const float acrossY = y - static_cast<float>(lowY);
+
+        // The half-texel back above puts the lowest cell at minus one, which the wrap takes to the
+        // far edge — which is the whole point of a tiling map and the one thing a clamp would lose.
+        const auto wrap = [](int at) { return (at % extent + extent) % extent; };
+        const auto cell = [&](int column, int row) {
+            return map[static_cast<std::size_t>(wrap(row)) * extent + static_cast<std::size_t>(wrap(column))];
+        };
+
+        const float top = std::lerp(cell(lowX, lowY), cell(lowX + 1, lowY), acrossX);
+        const float bottom = std::lerp(cell(lowX, lowY + 1), cell(lowX + 1, lowY + 1), acrossX);
+
+        return std::lerp(top, bottom, acrossY);
+    }
 }

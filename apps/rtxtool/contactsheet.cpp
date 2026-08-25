@@ -4,9 +4,9 @@
 #include <cmath>
 #include <vector>
 
-#include <components/rtx/colourblock.hpp>
 #include <components/rtx/error.hpp>
-#include <components/rtx/shaders/scene.h>
+#include <components/rtx/shadingmap.hpp>
+#include <components/rtx/texelreader.hpp>
 #include <components/rtx/texturedata.hpp>
 
 #include <components/rtx/png.hpp>
@@ -21,70 +21,6 @@ namespace RtxTool
 
         /// How many pairs stand across the sheet.
         constexpr std::uint32_t sColumns = 6;
-
-        /// One texel of a texture's largest level, as it is stored.
-        ///
-        /// Read a texel at a time rather than decoded into a buffer first: a thumbnail asks for one
-        /// texel in a few hundred, so decoding the whole level would be most of the work for none of
-        /// the answer.
-        osg::Vec3f texelAt(const Rtx::TextureData& texture, std::uint32_t x, std::uint32_t y)
-        {
-            const Rtx::MipLevel& level = texture.mLevels.front();
-            const std::uint32_t bytes = blockBytes(texture.mFormat);
-
-            if (bytes == 0)
-            {
-                const std::size_t at = level.mOffset + (std::size_t{ y } * level.mWidth + x) * 4;
-                const auto channel = [&](std::size_t offset) {
-                    return std::to_integer<std::uint32_t>(texture.mBytes[at + offset]) / 255.0f;
-                };
-
-                return osg::Vec3f(channel(0), channel(1), channel(2));
-            }
-
-            const std::uint32_t columns = (level.mWidth + 3) / 4;
-            const std::size_t at = level.mOffset + (std::size_t{ y / 4 } * columns + x / 4) * bytes + (bytes - 8);
-            const Rtx::ColourBlock block = Rtx::ColourBlock::read(
-                texture.mBytes.subspan(at).first<8>(), texture.mFormat == Rtx::TextureFormat::Bc1RgbaSrgb);
-
-            const std::size_t texel = std::size_t{ y % 4 } * 4 + x % 4;
-            return block.mPalette[block.indexAt(texel)];
-        }
-
-        float toLinear(float encoded)
-        {
-            return encoded <= 0.04045f ? encoded / 12.92f : std::pow((encoded + 0.055f) / 1.055f, 2.4f);
-        }
-
-        float toEncoded(float linear)
-        {
-            const float value = linear <= 0.0031308f ? linear * 12.92f
-                                                     : 1.055f * std::pow(std::max(linear, 0.0f), 1.0f / 2.4f) - 0.055f;
-            return std::clamp(value, 0.0f, 1.0f);
-        }
-
-        /// The map at a point, bilinear and wrapping — the shader's `paintedLight`, in C++.
-        float paintedLight(std::span<const float> map, float u, float v)
-        {
-            constexpr int extent = static_cast<int>(Rtx::Shaders::SHADING_EXTENT);
-            const auto fraction = [](float value) { return value - std::floor(value); };
-
-            const float x = fraction(u) * extent - 0.5f;
-            const float y = fraction(v) * extent - 0.5f;
-            const int lowX = static_cast<int>(std::floor(x));
-            const int lowY = static_cast<int>(std::floor(y));
-            const float acrossX = x - static_cast<float>(lowX);
-            const float acrossY = y - static_cast<float>(lowY);
-
-            const auto wrap = [](int at) { return (at % extent + extent) % extent; };
-            const auto cell = [&](int column, int row) {
-                return map[static_cast<std::size_t>(wrap(row)) * extent + static_cast<std::size_t>(wrap(column))];
-            };
-
-            const float top = std::lerp(cell(lowX, lowY), cell(lowX + 1, lowY), acrossX);
-            const float bottom = std::lerp(cell(lowX, lowY + 1), cell(lowX + 1, lowY + 1), acrossX);
-            return std::lerp(top, bottom, acrossY);
-        }
     }
 
     std::uint32_t ContactSheet::getStride()
@@ -142,7 +78,7 @@ namespace RtxTool
                     const auto texelY = std::min(
                         static_cast<std::uint32_t>(v * static_cast<float>(texture.mHeight)), texture.mHeight - 1);
 
-                    const osg::Vec3f stored = texelAt(texture, texelX, texelY);
+                    const osg::Vec3f stored = Rtx::texelAt(texture, texture.mLevels.front(), texelX, texelY);
                     osg::Vec3f corrected = stored;
                     if (!texture.mShading.empty() && strength > 0.0f)
                     {
@@ -150,12 +86,12 @@ namespace RtxTool
                         // bytes are display-encoded and the sampler hands the frame linear values,
                         // so a sheet that divided the bytes would be showing a correction the
                         // renderer never applies — half again too strong in the darks.
-                        const float factor = std::lerp(1.0f, paintedLight(texture.mShading, u, v), strength);
+                        const float factor = std::lerp(1.0f, Rtx::paintedLight(texture.mShading, u, v), strength);
                         const bool srgb = Rtx::isSrgb(texture.mFormat);
                         for (int channel = 0; channel < 3; ++channel)
                         {
-                            const float linear = srgb ? toLinear(stored[channel]) : stored[channel];
-                            corrected[channel] = srgb ? toEncoded(linear / factor) : linear / factor;
+                            const float linear = srgb ? Rtx::toLinear(stored[channel]) : stored[channel];
+                            corrected[channel] = srgb ? Rtx::toEncoded(linear / factor) : linear / factor;
                         }
                     }
 

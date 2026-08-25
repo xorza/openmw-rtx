@@ -66,8 +66,12 @@ set(RTX_FILES
     spanallocator.hpp
     spritetiles.cpp
     spritetiles.hpp
+    terraincomposite.cpp
+    terraincomposite.hpp
     terrainresidency.cpp
     terrainresidency.hpp
+    texelreader.cpp
+    texelreader.hpp
     texturebuilder.cpp
     texturebuilder.hpp
     texturedata.hpp

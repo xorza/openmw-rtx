@@ -188,11 +188,17 @@ frame.
 R1. **Checked:** a test that adds a baked image, sees it is not free though its path is empty, drops
 it, and watches the row come back to a *file* — a freed slot is a row and not a kind.
 
-**2 — bake a layer stack into one texture, in the core.** `Rtx::TerrainComposite` beside
-`AlphaImage`: a stack of diffuse images, transforms and masks in, one `TextureData` out. No device,
-no GL. **Check:** a components test that bakes a two-layer stack with a known mask and asserts exact
-texels at the boundary and in each layer's interior — a bake that got a transform or a mask sense
-backwards is a chunk with its ground types swapped, and only an exact assertion catches it.
+**2 — bake a layer stack into one texture, in the core. Done.** `Rtx::TerrainComposite` takes a span
+of `CompositeLayer` — a decoded diffuse, its painted light, and the two transforms and the mask
+`MaterialLayer` already carries — and hands back one `TextureData` with a chain built down to a
+single texel. **Everything is summed in light**: a texel is decoded, has its painted light divided
+out per tile, is weighed by its mask and only then re-encoded, so half of one ground type and half
+of another land on 188 and not on the 128 a sum of stored bytes gives. The four helpers this needed
+were already written once in `apps/rtxtool/contactsheet.cpp`; they are now `texelreader.{hpp,cpp}`
+and `paintedLight` beside `ShadingMap`, and the sheet reads them. **Checked:** four tests asserting
+exact bytes — the linear sum, the two masks placing their ground types and the chain averaging them,
+an identity transform copying texels while a quarter offset rolls them around the repeat, and the
+delight strength at nought, half and full.
 
 **3 — stop the GL composite being made at all (D1).** Force `composite map level` past the largest
 chunk under RTX. **Check:** `--distant-terrain` past a cell produces chunks whose passes are all
@@ -233,3 +239,14 @@ closes, and both show terrain.
   the acceleration structure, and step 6 should count it separately from the ground.
 - **Groundcover.** Another chunk manager on the same path. Out of scope here; it wants its own
   answer and probably its own distance.
+- **What one bake costs, and so what step 4's queue can be bounded in.** The bake is a trilinear
+  fetch per layer per output texel, so a 256-square composite over a six-layer stack is over a
+  million of them — a dropped frame if a frame does one whole composite. The unit therefore has to
+  be smaller than a composite, rows being the obvious slice, and how large a composite should be in
+  the first place is the same measurement. Both wait on step 3, which is what makes real stacks
+  available to measure against.
+- **A composite is baked at one delight strength and then cached.** The painted light has to come
+  off during the bake, because the estimate repeats with a texture's tiling and a composite has none
+  — which is why `describe()` hands back a neutral shading map and the shader can no longer do it.
+  Changing `delight` at runtime therefore leaves every standing composite at the old strength.
+  Whether that wants a rebake or wants the setting to stop being live is a step 4 question.
