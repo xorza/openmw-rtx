@@ -13,10 +13,12 @@
 
 #include <cstdint>
 
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 
 namespace Rtx::Shaders
 {
+    using vec2 = osg::Vec2f;
     using vec3 = osg::Vec3f;
     using uint = std::uint32_t;
 
@@ -27,9 +29,10 @@ namespace Rtx::Shaders
 
     /// How far apart a level's taps stand, doubling each level: 1, 2, 4, 8, 16.
     ///
-    /// **Five levels reach 32 pixels from a 5×5 kernel.** That is the à-trous trick — the holes
-    /// between taps grow while the tap count does not, so the cost is five passes of twenty-five
-    /// samples rather than one pass of four thousand.
+    /// **Five levels of a 5×5 kernel reach sixty-two pixels.** Each takes two taps at its own
+    /// spacing, so the cascade's support is twice `1 + 2 + 4 + 8 + 16`. That is the à-trous trick —
+    /// the holes between taps grow while the tap count does not, so a hundred and twenty-five
+    /// samples do what a single kernel of that reach would need fifteen thousand for.
     RTX_CONST uint ATROUS_LEVELS = 5;
 
     /// Everything one level reads that is not an image.
@@ -37,18 +40,35 @@ namespace Rtx::Shaders
     /// **The camera is here because the edge tests need world positions and the guide stores a
     /// distance.** A position is `origin + direction * distance`, and the difference between two of
     /// them drops the origin — so the basis is enough and the eye's place in the world is not
-    /// needed. The directions are rebuilt exactly as the trace built them, which is what makes the
-    /// reconstructed positions the ones that were actually shaded.
+    /// needed. The rays are rebuilt exactly as the trace built them, which is what makes the
+    /// reconstructed positions the ones that were actually shaded — and why every field the trace
+    /// used to build one is carried here, not merely the ones a pinhole needs.
     struct AtrousConstants
     {
         vec3 mForward;
         vec3 mRight;
         vec3 mUp;
 
+        /// Non-zero for a parallel projection, meaning exactly what
+        /// `VisibilityConstants::mOrthographic` means: `mRight` and `mUp` are the half-extents of a
+        /// box in world units rather than of the image plane, and a pixel's offset moves where its
+        /// ray *starts* instead of where it points.
+        ///
+        /// **A local map tile is one**, and it reaches this filter like any other traced view.
+        uint mOrthographic;
+
         uint mWidth;
         uint mHeight;
 
+        /// Where inside the pixel the trace sampled, which has to be added back or the positions
+        /// reconstructed here are half a pixel from the ones that were shaded.
+        vec2 mJitter;
+
         /// The angle one pixel subtends, which turns a distance into a footprint.
+        ///
+        /// **Nought under a parallel projection, and that is not a missing answer.** A parallel
+        /// ray's cone never widens; its footprint is one pixel of the box for the whole of its
+        /// length, and `mRight` is what carries half of that.
         float mSpreadAngle;
 
         /// The spacing of this level's taps, in pixels.
@@ -71,7 +91,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #if defined(RTX_HOST) || defined(__METAL_VERSION__)
-    static_assert(sizeof(AtrousConstants) == 60, "AtrousConstants must be scalar-packed on every side");
+    static_assert(sizeof(AtrousConstants) == 72, "AtrousConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

@@ -10,8 +10,14 @@
 // the composite multiplies the texture back in afterwards at full sharpness. Filtering a finished
 // picture instead is what makes a denoiser look like a smear.
 //
-// Dammertz et al. 2010, with SVGF's edge-stopping functions minus the luminance term: that one
-// weighs by the variance of an accumulated history, and there is no history here yet.
+// Dammertz et al. 2010 for the cascade, and SVGF for the normal test and its exponent of 128.
+//
+// **The other two edge-stopping functions are not SVGF's.** Its depth term divides by the depth
+// gradient along the tap, `exp(-|z(p) - z(q)| / (sigma_z * |grad z . (p - q)| + eps))`; what is
+// below is a plane-distance test, which is what the denoisers written since — NRD's among them —
+// settled on, and which handles a grazing floor without needing a derivative that a ray tracer has
+// no rasterizer to hand it. And SVGF's luminance term is missing outright: it weighs by the
+// variance of an accumulated history, and there is no history here yet.
 
 #include "atrous.h"
 
@@ -40,11 +46,22 @@ layout(push_constant, scalar) uniform Push
 /// The B3 spline the wavelet is built from, as its 1D row.
 const float KERNEL[5] = float[](1.0 / 16.0, 1.0 / 4.0, 3.0 / 8.0, 1.0 / 4.0, 1.0 / 16.0);
 
-/// The direction the trace sent through this pixel, rebuilt from the same numbers it used.
-vec3 rayThrough(ivec2 pixel)
+/// Where the trace's ray through `pixel` ended up, `away` along it.
+///
+/// **Rebuilt the way `visibility.comp` builds it, both projections and the jitter included.** A
+/// pinhole fans every ray out of one point, so a pixel's offset turns the direction and the
+/// position is that direction times the distance; a parallel one starts each ray at its own place
+/// on the box and sends them all the same way, so the same offset is a position instead. The eye's
+/// own place drops out of both, because every use of this is a difference between two of them.
+vec3 positionAt(ivec2 pixel, float away)
 {
-    const vec2 uv = (vec2(pixel) + 0.5) / vec2(level.mWidth, level.mHeight) * 2.0 - 1.0;
-    return normalize(level.mForward + level.mRight * uv.x - level.mUp * uv.y);
+    const vec2 uv = (vec2(pixel) + 0.5 + level.mJitter) / vec2(level.mWidth, level.mHeight) * 2.0 - 1.0;
+    const vec3 offset = level.mRight * uv.x - level.mUp * uv.y;
+
+    if (level.mOrthographic != 0u)
+        return offset + normalize(level.mForward) * away;
+
+    return normalize(level.mForward + offset) * away;
 }
 
 void main()
@@ -63,11 +80,18 @@ void main()
     }
 
     const float away = imageLoad(depth, at).g;
-    const vec3 position = rayThrough(at) * away;
+    const vec3 position = positionAt(at, away);
 
     // What one pixel covers where this surface is, which is the scale every plane offset below is
     // measured against. Never zero, or a surface at the eye would reject every neighbour.
-    const float footprint = max(level.mSpreadAngle * away, 1e-4);
+    //
+    // **A parallel projection's is a constant**, one pixel of the box wide for the whole of the
+    // ray, which is the same figure the trace picks its mip level with. Reading `mSpreadAngle` for
+    // it instead lands on nought, and a footprint of nought rejects every tap but the centre — so a
+    // map tile used to run five levels of this and come out exactly as it went in.
+    const float footprint = level.mOrthographic != 0u
+        ? max(2.0 * length(level.mRight) / float(level.mWidth), 1e-4)
+        : max(level.mSpreadAngle * away, 1e-4);
 
     vec3 sum = vec3(0.0);
     float weight = 0.0;
@@ -87,7 +111,7 @@ void main()
             // plane. Both tests are needed: a facing test alone joins two parallel walls a room
             // apart, and a plane test alone joins a floor to the wall standing on it.
             const float facing = pow(max(dot(normal, facingThere), 0.0), level.mNormalPower);
-            const float offset = abs(dot(normal, rayThrough(tap) * imageLoad(depth, tap).g - position));
+            const float offset = abs(dot(normal, positionAt(tap, imageLoad(depth, tap).g) - position));
             const float coplanar = exp(-offset / (level.mPlaneSigma * footprint));
 
             const float w = KERNEL[x + 2] * KERNEL[y + 2] * facing * coplanar;

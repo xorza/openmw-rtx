@@ -26,9 +26,13 @@ namespace Rtx
         /// How sharply a tap's normal has to agree with the centre's, and how far off its plane it
         /// may sit.
         ///
-        /// SVGF's own numbers. They are here rather than in a setting because nothing yet knows
-        /// what to set them to: the reference mode is what will say, and a dial offered before then
-        /// is a dial nobody can turn on evidence.
+        /// The exponent is SVGF's own; the sigma is not, because the test it scales is not SVGF's
+        /// either — that paper divides by a depth gradient and this measures a distance off a
+        /// plane, so two is a figure in pixel footprints rather than in its units.
+        ///
+        /// Both are here rather than in a setting because nothing yet knows what to set them to:
+        /// the reference mode is what will say, and a dial offered before then is a dial nobody can
+        /// turn on evidence.
         constexpr float sNormalPower = 128.0f;
         constexpr float sPlaneSigma = 2.0f;
     }
@@ -66,8 +70,10 @@ namespace Rtx
             .mForward = camera.mForward,
             .mRight = camera.mRight,
             .mUp = camera.mUp,
+            .mOrthographic = camera.mOrthographic,
             .mWidth = camera.mWidth,
             .mHeight = camera.mHeight,
+            .mJitter = camera.mJitter,
             .mSpreadAngle = camera.mSpreadAngle,
             .mStep = 1,
             .mNormalPower = sNormalPower,

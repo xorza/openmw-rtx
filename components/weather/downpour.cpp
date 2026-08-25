@@ -56,6 +56,13 @@ namespace Weather
         osg::Vec3f away(observer.x() - mountainX, observer.y() - mountainY, 0.0f);
 
         // Standing on the summit, where the direction away from it is no direction at all.
+        //
+        // **The one place this does not answer what upstream answers.** `MWWorld` normalised
+        // without asking, and `osg::Vec3f::normalize` leaves a zero vector zero — so a player at
+        // exactly (25000, 70000) got a storm blowing nowhere, and whatever `makeRotate` does with
+        // that. The ray tracer's own copy of this rule already guarded, so unifying the two had to
+        // keep one behaviour or the other; north is the answer every weather that names no
+        // direction gets, and the input is a point in the middle of Red Mountain's caldera.
         if (away.normalize() == 0.0f)
             return defaultStormDirection();
 
