@@ -406,36 +406,104 @@ with the index the hardware reads it at, transcribed from the specification's ow
 - **Which mask a mesh is classified against.** A micromap belongs to a bottom-level structure, so it
   belongs to a *mesh*; a cutout belongs to a *material*, and `MeshInstance` pairs the two per
   placement. In practice the pairing is one to one — a mesh is keyed on its drawable and a drawable
-  carries one state set — but nothing enforces it, and a mesh named by two different cutout materials
-  can only have a micromap for one of them. Scan the placements, and build none for a mesh that more
-  than one cutout material names: no micromap is always correct, and it is what the whole cell does
-  today.
-- **Where the bounds are cached.** `AlphaBounds` is built per texture *and cutoff* — the counts in it
-  are of texels already compared — and it is a summed-area table over the finest level, so it is
-  worth a few megabytes for as long as a build runs and is not worth building twice. A cell's meshes share a handful of masks
-  between them; the build wants a map from that pair to one bound, alive for exactly as long as the
-  `SceneTextures` whose bytes it was decoded from.
+  carries one state set — but nothing enforces it, and a mesh named by two different cutout
+  materials can only have a micromap for one of them. Scan the placements, and build none for a mesh
+  that more than one cutout material names: no micromap is always correct, and it is what the whole
+  cell does today.
+- **Where the bounds are cached.** `AlphaBounds` is built per texture *and cutoff* — the counts in
+  it are of texels already compared — and it is a summed-area table over the finest level, so it is
+  worth a few megabytes for as long as a build runs and is not worth building twice. A cell's meshes
+  share a handful of masks between them; the build wants a map from that pair to one bound, alive
+  for exactly as long as the `SceneTextures` whose bytes it was decoded from.
 
 **The check is a byte comparison, and that is the whole answer to the ordering risk.** A correct
 micromap removes work and changes no pixel: every microtriangle it resolves is one `alphaPasses`
-would have resolved the same way, at every level. So foliage rendered before and after must come back
-byte for byte, and a wrong ordering, a wrong subdivision or a bound that was not conservative all
-show up as a differing frame rather than as something to be reasoned about. The trace timer on the
-same view is what says it was worth doing, and `Micromap::getTally` is what says how much of the
+would have resolved the same way, at every level. So foliage rendered before and after must come
+back byte for byte, and a wrong ordering, a wrong subdivision or a bound that was not conservative
+all show up as a differing frame rather than as something to be reasoned about. The trace timer on
+the same view is what says it was worth doing, and `Micromap::getTally` is what says how much of the
 surface stopped asking.
 
 **2 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
 a range the way the light grid is. *Check:* the trace timer at Seyda Neen with 165 emitters, and the
 byte comparison — binning must not change a pixel.
 
-**3 — decide SER (4.5).** After the reservoir and the micromaps have changed the live-state
-picture. Measure occupancy on
-`visibility.comp`; if it is where the megakernel is losing, price the ray-tracing pipeline. Until
-then, `plan.md` §8's SER entry should say it needs one.
+**3 — say each thing once, and stop the game carrying what only the harness wants (4.4, 4.9).** The
+consolidation this review was for, and the last of it. The wave spectrum is evaluated at two
+different points — the surface a ray met and the bed its light landed on — so the two *loops* cannot
+merge; what is one thing said twice is the structure inside them, `drifted` and `sampleWave` and the
+phase whose `sin` one caller wants and whose `cos` the other does, and that belongs in one place a
+change to the spectrum reaches both from. Beside it: `0xFFFFFFFF` under three names across two
+headers, and the random stream ids split between `scene.h`, where C++ generates the tile, and
+`random.glsl` — where the count is a promise the ids have to keep, so a second shader that drew
+would have to know which ones to avoid. And `atomicAdd(hits, 1)` is a debug facility compiled into
+the shipping kernel; a specialization constant the harness sets and the game does not leaves one
+module serving both.
 
-All three are M12, and each gets its number written down when it lands rather than acted on before.
-What reuse would add to 4.3 is queued behind them, because it now buys quality rather than repaying
-a cost.
+*Check:* the byte comparison, because none of this may move a pixel — and `shot` still printing its
+hit fraction, because the specialization is only correct if the number it reports is the same one.
+
+**4 — a linear channel the harness can read (4.1, 4.2).** Both measurements below are up against
+eight bits. 4.2's figure of 0.00253 is already two thirds of a byte at that brightness, so the
+accumulated frame sits at the edge of what the read-back can distinguish and a tighter number cannot
+be had at all; 4.1's tail is counted in bounce luminance, which the tone curve has spent by the time
+`OffscreenTrace` sees it. What both want is the image before the curve, in the format it was traced
+in.
+
+*Check:* the filter tests reproduce their present figures through the new channel to within what the
+eight-bit path could resolve. A channel that disagreed with the one it replaces is a channel
+measuring something else.
+
+**5 — count what the firefly clamp removes (4.1).** The tail table in 4.1 was taken before the clamp
+existed, on the one-sample bounce; what is not established is how much of it the clamp actually
+takes once a history is behind it. That wants the same instrumentation the table came from, run
+through `AccumulatePass` this time, on the same four cells.
+
+*Check:* the table again, per view, with the clamp on and off — and the guard that already exists
+still holding: the accumulated mean stays on the converged reference to within two per cent, which a
+clamp eating real light would pull down.
+
+**6 — the temporal half, off the floor (4.2).** "A little over a third of the error the cascade
+cannot reach" is a floor and not a figure, for the reason step 4 exists. Recompute it where the
+format can hold the answer.
+
+*Check:* the same pair of RMSEs against a 128-sample reference on the same coplanar grid — the
+cascade alone, and the cascade with sixteen frames behind it. The ratio is the answer; the absolute
+numbers are what the eight-bit path could not give.
+
+**7 — carry the reservoir (4.3).** Temporal through the motion vector first, spatial across
+neighbours after. This is the one item here that changes the picture rather than the frame time: it
+brings the previous frame's *traced visibility* into a target function that cannot otherwise have
+it, so the lamp that is kept is the lamp that was actually reaching. 4.3 closed the cost argument,
+so it is queued on its own merits and nothing is waiting on it.
+
+*Check:* the bias check 4.3 already has — converged with reuse against converged exhaustive, at a
+pinned exposure, which must stay at the fifth decimal — and beside it the first-frame RMSE, which is
+what reuse is for and which has to *fall*.
+
+**8 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
+neighbourhood every thread in the workgroup shares. Held until 6 has said what the cascade is still
+worth, because a temporal denoiser usually needs fewer levels and the tile is worth more per level.
+
+*Check:* the byte comparison — a tile is a cache and must change nothing — and the atrous timer
+against the level count it was measured at.
+
+**9 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel, after 1 and 7
+have changed what is live: micromaps take a texture fetch and a candidate loop out of the hot path,
+and a carried reservoir puts a buffer into it. Nothing in 4.6 is to be *acted* on before this — that
+is `CLAUDE.md`'s rule and it holds — and the split into `lib/` is what makes a cheaper variant a
+one-line edit once the number says which one to try.
+
+*Check:* the number itself, written down beside the register count and the live-state inventory 4.6
+lists, and nothing else changed.
+
+**10 — decide SER (4.5).** With 9's number in hand: if occupancy is where the megakernel is losing,
+price the ray-tracing pipeline that `reorderThreadEXT` requires, against what ray query and the
+register-resident megakernel are worth. Until it is decided, `plan.md` §8's SER entry should say it
+needs one.
+
+Every one of these is M12, and each gets its number written down when it lands rather than acted on
+before.
 
 ## 6. Sources
 
