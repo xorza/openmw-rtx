@@ -55,8 +55,12 @@ namespace Rtx
         ///        the same numbers whatever is being looked at.
         /// @param textureLayout the layout of the bindless array this will be handed at record
         ///        time. Needed here because a pipeline layout names every set it will ever see.
+        /// @param countHits whether the trace counts the primary rays that hit anything. A harness
+        ///        facility: `shot` prints it and a test asserts on it, and nothing in the game reads
+        ///        it — so it is specialized away rather than branched on, and the game's module
+        ///        carries no atomic at all.
         VisibilityPass(const Device& device, Batch& batch, const std::filesystem::path& shaderDirectory,
-            VkDescriptorSetLayout textureLayout);
+            VkDescriptorSetLayout textureLayout, bool countHits);
 
         VisibilityPass(const VisibilityPass&) = delete;
         VisibilityPass& operator=(const VisibilityPass&) = delete;
@@ -79,6 +83,10 @@ namespace Rtx
         /// in queue order, which is what lets one buffer serve every frame without a second copy to
         /// keep the host and the device apart.
         Buffer mConstants;
+
+        /// **Declared before the pipeline it specializes**, because the pipeline reads it during its
+        /// own construction and members are built in declaration order.
+        std::uint32_t mCountHits = 0;
 
         ComputePipeline mPipeline;
     };

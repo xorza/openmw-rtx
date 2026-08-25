@@ -33,7 +33,7 @@ namespace Rtx
         /// its sheet is laid at, where it fades, and the six patches painted across it.
         NightSky mNight;
 
-        /// What the shader takes for a weather, or `NO_SKY_TEXTURE`.
+        /// What the shader takes for a weather, or `NO_TEXTURE`.
         std::uint32_t cloudsOf(std::uint32_t weather) const;
     };
 

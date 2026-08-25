@@ -191,8 +191,8 @@ namespace Rtx
             textures.mClouds[Rtx::Shaders::WEATHER_CLEAR] = 3;
 
             EXPECT_EQ(textures.cloudsOf(Rtx::Shaders::WEATHER_CLEAR), 3u);
-            EXPECT_EQ(textures.cloudsOf(Rtx::Shaders::WEATHER_ASHSTORM), Rtx::Shaders::NO_SKY_TEXTURE);
-            EXPECT_EQ(textures.cloudsOf(Rtx::Shaders::WEATHER_COUNT + 4u), Rtx::Shaders::NO_SKY_TEXTURE)
+            EXPECT_EQ(textures.cloudsOf(Rtx::Shaders::WEATHER_ASHSTORM), Rtx::Shaders::NO_TEXTURE);
+            EXPECT_EQ(textures.cloudsOf(Rtx::Shaders::WEATHER_COUNT + 4u), Rtx::Shaders::NO_TEXTURE)
                 << "and an index past the ten is not a lookup";
 
             const osg::Vec4f fog(0.4f, 0.4f, 0.5f, 1.0f);
@@ -201,7 +201,7 @@ namespace Rtx
                 Rtx::Shaders::WEATHER_ASHSTORM, Rtx::Shaders::WEATHER_ASHSTORM, 0.0f, fog, north, 0.0f, textures);
 
             EXPECT_EQ(none.mOpacity, 0.0f) << "nothing to draw, said the way an interior says it";
-            EXPECT_EQ(none.mTexture, Rtx::Shaders::NO_SKY_TEXTURE);
+            EXPECT_EQ(none.mTexture, Rtx::Shaders::NO_TEXTURE);
         }
 
         /// The stars go out when the weather keeps them in, and the sheet is not even named then.
@@ -219,7 +219,7 @@ namespace Rtx
 
             // A thunderstorm's `Glare_View` is nought, and under one there are no stars at all.
             EXPECT_EQ(describeStars(1.0f, 0.0f, 0.0f, textures).mFade, 0.0f);
-            EXPECT_EQ(describeStars(1.0f, 0.0f, 0.0f, textures).mTexture, Rtx::Shaders::NO_SKY_TEXTURE)
+            EXPECT_EQ(describeStars(1.0f, 0.0f, 0.0f, textures).mTexture, Rtx::Shaders::NO_TEXTURE)
                 << "and a sheet nobody can see is one nothing has to sample";
 
             // Nor by day, whatever the weather is doing.
@@ -238,7 +238,7 @@ namespace Rtx
             SkyTextures unread;
             unread.mClouds.fill(Rtx::sNoIndex);
             unread.mNight.mField = 8;
-            EXPECT_EQ(describeStars(1.0f, 1.0f, 0.0f, unread).mTexture, Rtx::Shaders::NO_SKY_TEXTURE);
+            EXPECT_EQ(describeStars(1.0f, 1.0f, 0.0f, unread).mTexture, Rtx::Shaders::NO_TEXTURE);
         }
 
         /// The camera's half is left exactly as it was found.
@@ -291,10 +291,10 @@ namespace Rtx
             EXPECT_EQ(constants.mSunIrradiance, osg::Vec3f()) << "no sun, and so no disc of one";
             EXPECT_EQ(constants.mSunDiscColour, osg::Vec3f(1.0f, 1.0f, 1.0f)) << "a plain white one when there is";
             EXPECT_EQ(constants.mMoons[0].mAlpha, 0.0f) << "and no moons";
-            EXPECT_EQ(constants.mMoons[0].mFace, Rtx::Shaders::NO_MOON_FACE) << "and no portrait to draw";
+            EXPECT_EQ(constants.mMoons[0].mFace, Rtx::Shaders::NO_TEXTURE) << "and no portrait to draw";
             EXPECT_EQ(constants.mClouds.mOpacity, 0.0f) << "and no deck over it";
-            EXPECT_EQ(constants.mClouds.mTexture, Rtx::Shaders::NO_SKY_TEXTURE);
-            EXPECT_EQ(constants.mStars.mTexture, Rtx::Shaders::NO_SKY_TEXTURE) << "and no stars in it";
+            EXPECT_EQ(constants.mClouds.mTexture, Rtx::Shaders::NO_TEXTURE);
+            EXPECT_EQ(constants.mStars.mTexture, Rtx::Shaders::NO_TEXTURE) << "and no stars in it";
             EXPECT_EQ(constants.mMoons[1].mAlpha, 0.0f);
             EXPECT_EQ(constants.mFogExtinction, 0.0f) << "and air that costs nothing";
 

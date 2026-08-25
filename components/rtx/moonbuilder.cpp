@@ -70,7 +70,7 @@ namespace Rtx
             .mAngularRadius = placement.mAngularRadius,
             .mPhaseAngle = placement.mPhaseAngle,
             .mAlpha = placement.mAlpha,
-            .mFace = placement.mFace == sNoIndex ? Shaders::NO_MOON_FACE : static_cast<std::uint32_t>(placement.mFace),
+            .mFace = placement.mFace == sNoIndex ? Shaders::NO_TEXTURE : static_cast<std::uint32_t>(placement.mFace),
         };
     }
 

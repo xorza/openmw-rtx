@@ -10,7 +10,7 @@ namespace Rtx
 {
     ComputePipeline::ComputePipeline(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
         std::uint32_t pushConstantBytes, std::span<const VkDescriptorSetLayout> laterSets,
-        const std::filesystem::path& module, std::string_view name)
+        const std::filesystem::path& module, std::string_view name, std::span<const std::uint32_t> specialization)
         : mDevice(device)
     {
         // The renderer's only hand-written unwind, and the reason this type exists: three handles
@@ -51,6 +51,20 @@ namespace Rtx
                 "vkCreatePipelineLayout");
 
             const ShaderModule compiled(mDevice, module);
+            // One entry per word, at its own index's offset. Built here rather than by the caller
+            // because it is the same table every time and its contents are the caller's indices.
+            std::vector<VkSpecializationMapEntry> entries(specialization.size());
+            for (std::uint32_t at = 0; at < entries.size(); ++at)
+                entries[at] = VkSpecializationMapEntry{ at, at * static_cast<std::uint32_t>(sizeof(std::uint32_t)),
+                    sizeof(std::uint32_t) };
+
+            const VkSpecializationInfo constants{
+                .mapEntryCount = static_cast<std::uint32_t>(entries.size()),
+                .pMapEntries = entries.data(),
+                .dataSize = specialization.size_bytes(),
+                .pData = specialization.data(),
+            };
+
             const VkComputePipelineCreateInfo pipeline{
                 .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
                 .stage = {
@@ -58,6 +72,7 @@ namespace Rtx
                     .stage = VK_SHADER_STAGE_COMPUTE_BIT,
                     .module = compiled.getHandle(),
                     .pName = "main",
+                    .pSpecializationInfo = specialization.empty() ? nullptr : &constants,
                 },
                 .layout = mLayout,
             };

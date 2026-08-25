@@ -6,6 +6,7 @@
 
 #include "camera.h"
 #include "portable.h"
+#include "scene.h"
 
 // Included verbatim by both the shader and the C++ that fills it in, so the two cannot disagree
 // about a field. Scalar block layout is what makes that possible: a `vec3` is twelve bytes on both
@@ -50,10 +51,6 @@ namespace Rtx::Shaders
     RTX_CONST uint WEATHER_SNOW = 8u;
     RTX_CONST uint WEATHER_BLIZZARD = 9u;
     RTX_CONST uint WEATHER_COUNT = 10u;
-
-    /// What a sky texture slot holds where nothing was loaded for it — a weather with no cloud
-    /// texture recorded, or a frame with no star sheet.
-    RTX_CONST uint NO_SKY_TEXTURE = 0xFFFFFFFFu;
 
     /// Morrowind's cloud deck, as a ray that reached nothing finds it.
     ///
@@ -144,10 +141,6 @@ namespace Rtx::Shaders
         uint mTexture;
     };
 
-    /// What `MoonDisc::mFace` holds where no portrait was loaded: the disc is then its mean colour
-    /// with the shading law over it, which is what a moon looked like before the faces arrived.
-    RTX_CONST uint NO_MOON_FACE = 0xFFFFFFFFu;
-
     /// One of the two moons, as a disc a ray that reached nothing can find.
     ///
     /// **A disc and not a body**, for the reason the sun is: nothing puts a sphere in an
@@ -183,7 +176,9 @@ namespace Rtx::Shaders
         /// moon that is not there, and the whole disc is skipped for it.
         float mAlpha;
 
-        /// The painted face, in the bindless array, or `NO_MOON_FACE` where none was loaded.
+        /// The painted face, in the bindless array, or `NO_TEXTURE` where none was loaded — the disc
+        /// is then its mean colour with the shading law over it, which is what a moon looked like
+        /// before the faces arrived.
         ///
         /// **The `full` portrait and only that one.** The game ships eight per moon and this draws
         /// the terminator itself, so what is wanted from the file is the maria and the silhouette —

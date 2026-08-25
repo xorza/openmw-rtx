@@ -32,15 +32,6 @@ float hashToUnit(ivec3 at)
     return float(h >> 16u) / 65535.0;
 }
 
-/// Which channel of the tile each draw takes. A pair costs two, which is why the bounce leaves a gap.
-///
-/// **A channel apiece, not a salt on a shared one.** Every draw a pixel makes has to be uncorrelated
-/// with every other, and the fog's march offset and the bounce's elevation were literally the same
-/// number until the streams were separated — a pixel whose fog started late also bounced near its
-/// normal.
-const uint STREAM_FOG = 0u;
-const uint STREAM_BOUNCE = 1u;
-
 /// Which sequence a lamp reservoir draws on. **One per depth, because a path shades twice** — the
 /// hit the eye found and the hit its bounce found — and two reservoirs stepping the same sequence
 /// would choose correlated lamps at both ends of it. These are seeds for `randomSeed` rather than
@@ -64,6 +55,12 @@ const uint SEED_LAMPS_FOAM = 0x55u;
 ///
 /// A rational step would close into a cycle and the frames after it would resample what the ones
 /// before had already asked.
+///
+/// **The one part of the stream table that stays here**, because a constant array is spelled
+/// `float[](...)` in GLSL and `{...}` in C++ and there is no third spelling both compile. It is
+/// `RANDOM_STREAMS` long by declaration, so the count still binds it; what a second shader needs to
+/// know — which channels are taken — is `STREAM_FOG` and `STREAM_BOUNCE`, and those sit with the
+/// count in `scene.h`.
 const float STREAM_TURN[RANDOM_STREAMS] = float[](0.6180340, 0.7548777, 0.5698403);
 
 /// One number in `[0, 1)` for `pixel`, from this frame's `stream`th draw.

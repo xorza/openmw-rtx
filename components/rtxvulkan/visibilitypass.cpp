@@ -65,13 +65,14 @@ namespace Rtx
     }
 
     VisibilityPass::VisibilityPass(const Device& device, Batch& batch, const std::filesystem::path& shaderDirectory,
-        VkDescriptorSetLayout textureLayout)
+        VkDescriptorSetLayout textureLayout, bool countHits)
         : mBlueNoise(uploadBuffer(device, batch, BlueNoise::shared().getValues(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT))
         , mConstants(device, sizeof(Shaders::VisibilityConstants),
               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-        , mPipeline(
-              device, sBindings, 0, std::span(&textureLayout, 1), shaderDirectory / "visibility.comp.spv", "visibility")
+        , mCountHits(countHits ? 1u : 0u)
+        , mPipeline(device, sBindings, 0, std::span(&textureLayout, 1), shaderDirectory / "visibility.comp.spv",
+              "visibility", std::span(&mCountHits, 1))
     {
     }
 

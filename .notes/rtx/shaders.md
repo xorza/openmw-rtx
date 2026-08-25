@@ -286,21 +286,23 @@ vector brings last frame's *traced visibility* into a target function that canno
 which is worth having — but it is no longer paying for anything, and it goes in the queue on its own
 merits rather than ahead of them.
 
-### 4.4 The same computation is written more than once
+### 4.4 The same computation is written more than once — closed, and it was one thing and not three
 
-Each of these is two or three places that must agree and are not enforced to.
+Of the three rows this finding carried, **only one was a defect**, and reading the code to fix the
+others is what established that:
 
-| written | where | how they differ |
-|---|---|---|
-| the transformed UVs | `texturing.glsl`, in `sampleDiffuse` and in `sampleAlbedo` | none — recomputed on purpose, six multiplies |
-| the wave-spectrum loop | `sea.glsl`, in `waterSurfaceAt` and in `caustic` | first and second derivative of one field |
-| `0xFFFFFFFF` | `NO_TEXTURE`, `NO_SKY_TEXTURE`, `NO_MOON_FACE` | nothing; three names in two headers |
-
-**The wave loops are not redundant and must not be merged blindly.** `waterSurfaceAt` is evaluated
-at the surface the ray met; `caustic` is evaluated at the bed the light landed on. Different points,
-so one loop cannot serve both. What *is* shared is the structure — `drifted`, `sampleWave`, and a
-phase whose `sin` one caller wants and whose `cos` the other does — and it belongs in one place
-where a change to the spectrum reaches both.
+- **The transformed UVs**, recomputed in `sampleDiffuse` and again in `sampleAlbedo`: six multiplies,
+  deliberate, and the comment beside them already said so.
+- **The wave-spectrum loop** in `waterSurfaceAt` and in `caustic`: `drifted` and `sampleWave` are
+  functions both call, and the phase is computed once inside `sampleWave` for one caller to take the
+  `sin` of and the other the `cos`. **The structure was already in one place** — the finding's own
+  prose said it *belongs* there and was read as saying it did not. The two loops differ in being the
+  first and second derivative of one field, which is a reason they cannot merge rather than a thing
+  to fix.
+- **`0xFFFFFFFF` under three names** — `NO_TEXTURE`, `NO_SKY_TEXTURE`, `NO_MOON_FACE`. This one was
+  real. A cloud deck, a star sheet and a moon's face index the same bindless array a diffuse map
+  does, so *nothing loaded* is one value with one meaning; it is `NO_TEXTURE` now, and `visibility.h`
+  includes `scene.h` to reach it, because that array's sentinel belongs with the array.
 
 ### 4.5 SER is unreachable from the current architecture
 
@@ -399,76 +401,25 @@ The standard shape is one shared-memory tile per workgroup, loaded once. Whether
 depends on 4.2 — if the cascade becomes the spatial half of a temporal denoiser, its level count
 usually falls, and the tile is worth more per level.
 
-### 4.9 Small things
+### 4.9 Small things — closed
 
-- `visibility.comp`, in `main` — `atomicAdd(hits, 1)` is telemetry on the release path. Cheap, and
-  measured as such where the buffer is declared, but it is a debug facility compiled into the
-  shipping kernel.
-- The random streams are split across two files: `RANDOM_STREAMS` and `BLUE_NOISE_EXTENT` are shared
-  in `scene.h`, where C++ generates the tile; `STREAM_FOG`, `STREAM_BOUNCE` and `STREAM_TURN` are in
-  `random.glsl`. The count is a promise the stream ids have to keep, and a second shader that drew
-  would have to know the ids to avoid.
+- **`atomicAdd(hits, 1)` is gone from the game's kernel.** `COUNT_HITS` is a specialization constant
+  on `visibility.comp`; `RendererOptions::mCountHits` defaults to *on* and the game is the one place
+  that clears it, because a reader who forgets the flag gets a silent nought where a writer who
+  forgets it pays for a number nobody looks at — and a wrong figure is worse than a slow one.
+  `ComputePipeline` takes a span of words now, one per `constant_id`, and builds the map entries
+  itself.
 
-### 4.10 Opacity micromaps are built — closed
-
-`Rtx::Micromap` classifies and `SceneAcceleration` builds: one `VkMicromapEXT` per mesh, in the same
-submit as the bottom levels that reference it and separated from them by a barrier, chained on with
-`VkAccelerationStructureTrianglesOpacityMicromapEXT` at `VK_INDEX_TYPE_NONE_KHR` — a triangle's
-micromap entry is its own position in the geometry.
-
-**A micromapped mesh is built non-opaque and its instances stop forcing.**
-`VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR` overrides what a micromap decided, so keeping it
-would have handed the whole saving back at the instance; the geometry's `VK_GEOMETRY_OPAQUE_BIT_KHR`
-is cleared alongside it, which is not redundant but a choice of failure mode. A micromap that went
-missing over a geometry still claiming opacity turns a canopy into a solid card; over one that does
-not claim it, every hit becomes a candidate — which is what the whole cell did before.
-
-**A mesh only qualifies where every placement standing on it names the same cutout material.** A
-micromap belongs to the structure and so to the mesh, a cutout belongs to the material, and a mesh
-two materials disagree about has no one answer to give.
-
-**The check passed: nine views, byte for byte, before and after.** `map` and `doll` were run as well
-and drew what they drew before.
-
-| view | cutout instances | micromapped | opaque | transparent | still asking |
-|---|---|---|---|---|---|
-| Seyda Neen shore | 3322 | 3322 | 12.5% | 2.4% | 85.0% |
-| Vivec | 4727 | 4679 | 46.3% | 1.3% | 52.4% |
-| Balmora | 2588 | 2588 | 13.6% | 4.5% | 81.9% |
-| Dagon Fel | 473 | 397 | 34.4% | 3.9% | 61.8% |
-
-**And the trace did not move.** GPU trace-zone medians, before against after:
-
-| view | before | after |
-|---|---|---|
-| Vivec | 2.183 ms | 2.173 ms |
-| Seyda Neen shore | 0.884 ms | 0.883 ms |
-| Balmora | 1.894 ms | 1.897 / 1.920 / 1.900 ms |
-
-Written down rather than acted on, which is `CLAUDE.md`'s rule for an M12 number. What it says is
-that the candidate loop is not where these frames spend their trace: between a sixth and a half of
-the micromapped surface stopped asking and nothing measurable came back. The reading to be careful
-with is Balmora, whose first after-run came in at 2.945 ms — with the *upscale* zone moved by the
-same proportion, which no micromap can touch. Three more runs settled it. **A zone that cannot have
-changed moving with the one under test is the signal that a reading is contaminated**, and it
-belongs beside `--validation` and `--exposure` in the list of things that have produced false
-answers here.
-
-**What the coverage column says is that the conservatism lands on the foliage.** *Transparent* is
-the verdict that skips a triangle outright, and a canopy gets one to four per cent of it — for the
-reason in §3, which is the mip chain and not the search. *Opaque* does far better, and Vivec is why:
-a city of windows, grates and banners is mostly solid mask, and averaging a solid region leaves it
-solid.
-
-**Micromaps cost 492 KiB of structure storage at Seyda Neen**, 17281 KiB against 17773.
-
-**One gap, named.** `buildMicromaps` classifies against the texture descriptions the scene was
-handed, which on an `extend` are the ones that arrived with it — so a mesh appearing beside an image
-already resident has nothing to classify against and goes on asking until the next reset. Every
-reset builds the world's, which is every cell load, door and travel. Closing it means the
-classification moving into the core beside `SceneTextures`, where an image manager can resolve a
-mask that did not arrive, and that is a widening of `Renderer::setScene` to pay for a case worth
-measuring first.
+  **And it was not costing anything, which is worth writing down so that nobody credits this with a
+  saving.** Vivec at a hundred per cent hit rate: 2.231 ms counting against 2.245 silent; Balmora at
+  99.4%: 1.917 against 1.914. The hardware aggregates the atomic per wave, so a million lanes hitting
+  one counter are twenty-nine thousand increments. The argument for taking it out is that a debug
+  write does not belong in a shipping kernel, and that is the whole of the argument.
+- **The random streams are one fact again.** `STREAM_FOG` and `STREAM_BOUNCE` sit with
+  `RANDOM_STREAMS` in `scene.h`, so the count and the ids that have to keep it are together and a
+  second shader that drew can see which channels are taken. `STREAM_TURN` stays in `random.glsl`: a
+  constant array is `float[](...)` in GLSL and `{...}` in C++ and there is no third spelling both
+  compile, so it is declared `RANDOM_STREAMS` long and says why it stayed.
 
 ## 5. Steps
 
@@ -494,27 +445,20 @@ layers change the timing enough to change the upscaled frame — a validation-on
 validation-off shots reads as 14% of channels differing with nothing wrong at all. Use
 `--validation=0` on both, which is also four times faster.
 
+**The formatter on this box is not the one the tree was written with.** CI pins clang-format 14 and
+Arch ships 22, and they disagree — about where a wrapped `= 0;` goes on a pure virtual, about how a
+ternary inside a designated initializer indents. So `clang-format -i` on a file rewrites regions the
+change never touched, with the wrong version, and it has slipped through three times. The guard is
+cheap and mechanical: after formatting, take `git diff -U0`, strip the leading sign, collapse runs of
+whitespace, and look for a line that appears on both sides. Anything that does is a line the change
+did not make.
+
 `map` and `doll` are **not** deterministic — the map runs about 0.11% of channels apart between two
 runs of one build, the doll about 0.02% — so those two need a magnitude compared against a
 same-build control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path
 and `doll` the only transparent-background one.
 
-**1 — say each thing once, and stop the game carrying what only the harness wants (4.4, 4.9).** The
-consolidation this review was for, and the last of it. The wave spectrum is evaluated at two
-different points — the surface a ray met and the bed its light landed on — so the two *loops* cannot
-merge; what is one thing said twice is the structure inside them, `drifted` and `sampleWave` and the
-phase whose `sin` one caller wants and whose `cos` the other does, and that belongs in one place a
-change to the spectrum reaches both from. Beside it: `0xFFFFFFFF` under three names across two
-headers, and the random stream ids split between `scene.h`, where C++ generates the tile, and
-`random.glsl` — where the count is a promise the ids have to keep, so a second shader that drew
-would have to know which ones to avoid. And `atomicAdd(hits, 1)` is a debug facility compiled into
-the shipping kernel; a specialization constant the harness sets and the game does not leaves one
-module serving both.
-
-*Check:* the byte comparison, because none of this may move a pixel — and `shot` still printing its
-hit fraction, because the specialization is only correct if the number it reports is the same one.
-
-**2 — a linear channel the harness can read (4.1, 4.2).** Both measurements below are up against
+**1 — a linear channel the harness can read (4.1, 4.2).** Both measurements below are up against
 eight bits. 4.2's figure of 0.00253 is already two thirds of a byte at that brightness, so the
 accumulated frame sits at the edge of what the read-back can distinguish and a tighter number cannot
 be had at all; 4.1's tail is counted in bounce luminance, which the tone curve has spent by the time
@@ -525,7 +469,7 @@ in.
 eight-bit path could resolve. A channel that disagreed with the one it replaces is a channel
 measuring something else.
 
-**3 — count what the firefly clamp removes (4.1).** The tail table in 4.1 was taken before the clamp
+**2 — count what the firefly clamp removes (4.1).** The tail table in 4.1 was taken before the clamp
 existed, on the one-sample bounce; what is not established is how much of it the clamp actually
 takes once a history is behind it. That wants the same instrumentation the table came from, run
 through `AccumulatePass` this time, on the same four cells.
@@ -534,15 +478,15 @@ through `AccumulatePass` this time, on the same four cells.
 still holding: the accumulated mean stays on the converged reference to within two per cent, which a
 clamp eating real light would pull down.
 
-**4 — the temporal half, off the floor (4.2).** "A little over a third of the error the cascade
-cannot reach" is a floor and not a figure, for the reason step 2 exists. Recompute it where the
+**3 — the temporal half, off the floor (4.2).** "A little over a third of the error the cascade
+cannot reach" is a floor and not a figure, for the reason step 1 exists. Recompute it where the
 format can hold the answer.
 
 *Check:* the same pair of RMSEs against a 128-sample reference on the same coplanar grid — the
 cascade alone, and the cascade with sixteen frames behind it. The ratio is the answer; the absolute
 numbers are what the eight-bit path could not give.
 
-**5 — carry the reservoir (4.3).** Temporal through the motion vector first, spatial across
+**4 — carry the reservoir (4.3).** Temporal through the motion vector first, spatial across
 neighbours after. This is the one item here that changes the picture rather than the frame time: it
 brings the previous frame's *traced visibility* into a target function that cannot otherwise have
 it, so the lamp that is kept is the lamp that was actually reaching. 4.3 closed the cost argument,
@@ -552,14 +496,14 @@ so it is queued on its own merits and nothing is waiting on it.
 pinned exposure, which must stay at the fifth decimal — and beside it the first-frame RMSE, which is
 what reuse is for and which has to *fall*.
 
-**6 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
-neighbourhood every thread in the workgroup shares. Held until 4 has said what the cascade is still
+**5 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
+neighbourhood every thread in the workgroup shares. Held until 3 has said what the cascade is still
 worth, because a temporal denoiser usually needs fewer levels and the tile is worth more per level.
 
 *Check:* the byte comparison — a tile is a cache and must change nothing — and the atrous timer
 against the level count it was measured at.
 
-**7 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel, after 5 has
+**6 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel, after 4 has
 changed what is live: the micromaps already took a texture fetch and a candidate loop off part of
 the hot path, and a carried reservoir puts a buffer into it. Nothing in 4.6 is to be *acted* on
 before this — that is `CLAUDE.md`'s rule and it holds — and the split into `lib/` is what makes a
@@ -568,7 +512,7 @@ cheaper variant a one-line edit once the number says which one to try.
 *Check:* the number itself, written down beside the register count and the live-state inventory 4.6
 lists, and nothing else changed.
 
-**8 — decide SER (4.5).** With 7's number in hand: if occupancy is where the megakernel is losing,
+**7 — decide SER (4.5).** With 6's number in hand: if occupancy is where the megakernel is losing,
 price the ray-tracing pipeline that `reorderThreadEXT` requires, against what ray query and the
 register-resident megakernel are worth. Until it is decided, `plan.md` §8's SER entry should say it
 needs one.

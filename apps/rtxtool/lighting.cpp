@@ -82,7 +82,7 @@ namespace RtxTool
         };
 
         // **The sky's own two layers, and an interior has neither.** A room has no deck over it and
-        // no stars in it, and the defaults are what say so — a texture slot of `NO_SKY_TEXTURE` and
+        // no stars in it, and the defaults are what say so — a texture slot of `NO_TEXTURE` and
         // a fade of nothing, which the shader skips before it samples anything.
         if (lighting.mOutdoors)
         {

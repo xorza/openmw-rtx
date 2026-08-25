@@ -148,6 +148,10 @@ namespace Rtx
 
         std::filesystem::path mShaderDirectory;
 
+        /// Whether the trace this builds counts its hits. `RendererOptions::mCountHits` says why the
+        /// game's does not.
+        bool mCountHits = false;
+
         /// Fixed at construction: an upscaler is brought up once, and there is nothing to switch
         /// to at runtime that would not mean rebuilding every target anyway.
         Upscale mUpscale = Upscale::Off;

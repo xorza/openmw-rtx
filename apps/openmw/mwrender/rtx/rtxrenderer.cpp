@@ -167,6 +167,12 @@ namespace MWRender
         options.mWindow = mWindow;
         options.mValidation.mEnabled = Settings::rtx().mValidation;
 
+        // **The one place that clears it.** The hit count is a harness figure — `shot` prints it,
+        // `bench` reports it, tests assert on it — and nothing in the game ever reads it, so the
+        // trace this builds is specialized without the atomic rather than writing a number to a
+        // buffer nobody looks at, once per pixel that hit anything, for the life of the session.
+        options.mCountHits = false;
+
         // **Said once, where it is decided.** What reconstructs the frame does not change while the
         // session runs, so it does not belong in the periodic line; what that line carries is the
         // one word a reader of any single line needs, and the rest — which network, at what pair of
@@ -784,7 +790,7 @@ namespace MWRender
             .mStormDirection = world.mStormDirection,
 
             // **The two layers of sky over everything else, and an interior has neither.** Left at
-            // their defaults indoors, which is a texture slot of `NO_SKY_TEXTURE` and a fade of
+            // their defaults indoors, which is a texture slot of `NO_TEXTURE` and a fade of
             // nothing — the shader skips both before it samples anything.
             .mClouds = world.isOutdoors()
                 ? Rtx::describeClouds(static_cast<std::uint32_t>(world.mWeatherId),
@@ -792,12 +798,12 @@ namespace MWRender
                                                      : static_cast<std::uint32_t>(world.mWeatherId),
                     world.mCloudBlend, world.mAir.mColour, world.mStormDirection, world.mSkyRoll.mClouds, mSkyTextures)
                 : Rtx::Shaders::CloudDeck{ .mOpacity = 0.0f,
-                    .mTexture = Rtx::Shaders::NO_SKY_TEXTURE,
-                    .mNext = Rtx::Shaders::NO_SKY_TEXTURE },
+                    .mTexture = Rtx::Shaders::NO_TEXTURE,
+                    .mNext = Rtx::Shaders::NO_TEXTURE },
 
             .mStars = world.isOutdoors()
                 ? Rtx::describeStars(world.mNightFade, world.mSunGlare, world.mSkyRoll.mStars, mSkyTextures)
-                : Rtx::Shaders::StarField{ .mTexture = Rtx::Shaders::NO_SKY_TEXTURE },
+                : Rtx::Shaders::StarField{ .mTexture = Rtx::Shaders::NO_TEXTURE },
         };
 
         for (std::size_t moon = 0; moon < described.mMoons.size(); ++moon)

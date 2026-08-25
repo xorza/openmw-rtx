@@ -59,7 +59,7 @@ const float CLOUD_HORIZON = 0.28;
 vec3 cloudDeck(vec3 direction, out float covered)
 {
     covered = 0.0;
-    if (!(frame.mClouds.mOpacity > 0.0) || frame.mClouds.mTexture == NO_SKY_TEXTURE || direction.z <= 0.0)
+    if (!(frame.mClouds.mOpacity > 0.0) || frame.mClouds.mTexture == NO_TEXTURE || direction.z <= 0.0)
         return vec3(0.0);
 
     // Into the haze rather than off an edge, for the reason `CLOUD_HORIZON` gives.
@@ -80,7 +80,7 @@ vec3 cloudDeck(vec3 direction, out float covered)
     // from neighbouring lanes, which a ray tracer does not have. The horizon fade is what stands in:
     // it takes the texture out over exactly the band where the compression would alias.
     const vec4 near = textureLod(textures[nonuniformEXT(frame.mClouds.mTexture)], uv, 0.0);
-    const vec4 far = frame.mClouds.mNext == NO_SKY_TEXTURE
+    const vec4 far = frame.mClouds.mNext == NO_TEXTURE
         ? near
         : textureLod(textures[nonuniformEXT(frame.mClouds.mNext)], uv, 0.0);
 
@@ -111,7 +111,7 @@ vec3 skyPatches(vec3 direction)
 
         // The hemisphere test is not optional: the offsets below are the same for a direction and
         // its opposite, so without it every ray pointing away lands in the middle of the face.
-        if (sheet.mTexture == NO_SKY_TEXTURE || dot(direction, sheet.mDirection) <= 0.0)
+        if (sheet.mTexture == NO_TEXTURE || dot(direction, sheet.mDirection) <= 0.0)
             continue;
 
         // Where across the face, in units of its radius — the moons' own mapping, for the reason
@@ -145,7 +145,7 @@ vec3 skyPatches(vec3 direction)
 /// and thief constellations, each over its own band of sky.
 vec3 starField(vec3 direction)
 {
-    if (!(frame.mStars.mFade > 0.0) || frame.mStars.mTexture == NO_SKY_TEXTURE || direction.z <= 0.0)
+    if (!(frame.mStars.mFade > 0.0) || frame.mStars.mTexture == NO_TEXTURE || direction.z <= 0.0)
         return vec3(0.0);
 
     const float elevation = asin(clamp(direction.z, -1.0, 1.0));
@@ -229,7 +229,7 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
     // the maria and the silhouette, `MOON_RADIANCE` decides how bright a full moon is, and neither
     // is scaling the other.
     vec3 base = moon.mColour;
-    if (moon.mFace != NO_MOON_FACE)
+    if (moon.mFace != NO_TEXTURE)
     {
         // `u` runs with the face's right and `v` against its up, which is the Y-down convention the
         // quad the game draws is authored in.

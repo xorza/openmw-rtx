@@ -84,10 +84,8 @@ namespace Rtx
 
         /// The cloud deck and the star field, already in the units the shader takes: `describeClouds`
         /// and `describeStars` are what both renderers reach them through.
-        Shaders::CloudDeck mClouds{
-            .mOpacity = 0.0f, .mTexture = Shaders::NO_SKY_TEXTURE, .mNext = Shaders::NO_SKY_TEXTURE
-        };
-        Shaders::StarField mStars{ .mTexture = Shaders::NO_SKY_TEXTURE };
+        Shaders::CloudDeck mClouds{ .mOpacity = 0.0f, .mTexture = Shaders::NO_TEXTURE, .mNext = Shaders::NO_TEXTURE };
+        Shaders::StarField mStars{ .mTexture = Shaders::NO_TEXTURE };
 
         /// The nebulae and constellations painted across the star sphere. `describePatches` fills
         /// them; a default leaves every one with no texture, which is a room's night sky.

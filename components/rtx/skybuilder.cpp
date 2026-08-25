@@ -16,7 +16,7 @@ namespace Rtx
     std::uint32_t SkyTextures::cloudsOf(std::uint32_t weather) const
     {
         if (weather >= mClouds.size() || mClouds[weather] == sNoIndex)
-            return Shaders::NO_SKY_TEXTURE;
+            return Shaders::NO_TEXTURE;
 
         return static_cast<std::uint32_t>(mClouds[weather]);
     }
@@ -77,7 +77,7 @@ namespace Rtx
         return Shaders::CloudDeck{
             // A weather whose deck was never loaded has no deck, which is the same thing an interior
             // has and is said the same way.
-            .mOpacity = slot == Shaders::NO_SKY_TEXTURE ? 0.0f : 1.0f,
+            .mOpacity = slot == Shaders::NO_TEXTURE ? 0.0f : 1.0f,
 
             .mColour = decodeColour(Sky::cloudColour(fog)),
             .mBlend = mixed,
@@ -107,7 +107,7 @@ namespace Rtx
 
             // A sheet nobody can see is one nothing has to sample, and saying so here is what keeps
             // the test out of the shader's hot path.
-            .mTexture = drawn ? static_cast<std::uint32_t>(textures.mNight.mField) : Shaders::NO_SKY_TEXTURE,
+            .mTexture = drawn ? static_cast<std::uint32_t>(textures.mNight.mField) : Shaders::NO_TEXTURE,
         };
     }
 
@@ -120,7 +120,7 @@ namespace Rtx
             .mRight = osg::Vec3f(1.0f, 0.0f, 0.0f),
             .mUp = osg::Vec3f(0.0f, 1.0f, 0.0f),
             .mAngularRadius = 0.0f,
-            .mTexture = Shaders::NO_SKY_TEXTURE };
+            .mTexture = Shaders::NO_TEXTURE };
 
         for (std::size_t patch = 0; patch < patches.size(); ++patch)
         {

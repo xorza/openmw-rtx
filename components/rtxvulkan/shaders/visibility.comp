@@ -32,6 +32,16 @@
 #include "lib/underwater.glsl"
 #include "lib/water.glsl"
 
+/// Whether the trace counts the primary rays that hit something.
+///
+/// **A specialization constant, so the game's module does not carry the atomic at all.** The count
+/// is a harness facility — `shot` prints it, `bench` reports it, and a test asserts on it — and
+/// nothing in the game ever reads it, so an unconditional `atomicAdd` was a debug write compiled
+/// into the shipping kernel. Specialized rather than branched on a uniform because the branch is
+/// what has to go, not just the write: with this false the constant folds away and the buffer is
+/// never touched.
+layout(constant_id = 0) const bool COUNT_HITS = false;
+
 layout(local_size_x = VISIBILITY_WORKGROUP, local_size_y = VISIBILITY_WORKGROUP) in;
 
 void main()
@@ -122,7 +132,7 @@ void main()
     shaded = shaded * particles.mTransmittance + particles.mRadiance;
     transmittance *= particles.mTransmittance;
 
-    if (surface.mHit)
+    if (COUNT_HITS && surface.mHit)
         atomicAdd(hits, 1);
 
     const ivec2 at = ivec2(pixel);

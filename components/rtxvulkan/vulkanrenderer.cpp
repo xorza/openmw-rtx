@@ -56,6 +56,7 @@ namespace Rtx
         , mPool(mDevice)
         , mTimer(mDevice)
         , mShaderDirectory(options.mShaderDirectory)
+        , mCountHits(options.mCountHits)
         , mUpscale(options.mUpscale)
         , mPreset(options.mPreset)
         , mAccumulate(mDevice, options.mShaderDirectory)
@@ -292,7 +293,8 @@ namespace Rtx
         // A doll can be the first thing this renderer ever builds — a race preview stands in front
         // of a game that has no world yet — and the pass belongs to neither scene.
         if (mPass == nullptr)
-            mPass = std::make_unique<VisibilityPass>(mDevice, setup, mShaderDirectory, held.mTextures->getLayout());
+            mPass = std::make_unique<VisibilityPass>(
+                mDevice, setup, mShaderDirectory, held.mTextures->getLayout(), mCountHits);
 
         // By hand rather than left to the destructor, so a submit that fails throws out of here
         // instead of being logged on the way past.
@@ -560,9 +562,15 @@ namespace Rtx
             = mLastFrameAt.has_value() ? std::chrono::duration<float, std::milli>(now - *mLastFrameAt).count() : 0.0f;
         mLastFrameAt = now;
 
-        // The count is an atomic sum over the frame, so it starts each one at nothing.
-        *static_cast<std::uint32_t*>(mHitCount.map()) = 0;
-        mHitCount.unmap();
+        // The count is an atomic sum over the frame, so it starts each one at nothing — and it is
+        // not started at all where the trace was specialized to write nothing into it, which is the
+        // other half of taking the counter out of the game: the atomic went with `COUNT_HITS`, and
+        // this is the two mappings a frame it never reads was still paying for.
+        if (mCountHits)
+        {
+            *static_cast<std::uint32_t*>(mHitCount.map()) = 0;
+            mHitCount.unmap();
+        }
 
         // **What reconstructs this frame, decided once and by one rule.** Every switch below reads
         // this rather than working the interaction out again; the same value goes back in the frame
@@ -745,8 +753,12 @@ namespace Rtx
         // where inside a pixel this frame sampled, not where the eye was.
         mPreviousCamera = camera;
 
-        const std::uint32_t hits = *static_cast<const std::uint32_t*>(mHitCount.map());
-        mHitCount.unmap();
+        std::uint32_t hits = 0;
+        if (mCountHits)
+        {
+            hits = *static_cast<const std::uint32_t*>(mHitCount.map());
+            mHitCount.unmap();
+        }
 
         // Read after the last of the frame's submits has been waited on, which every one of them
         // has: the pool fences each before it returns.

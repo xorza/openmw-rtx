@@ -78,6 +78,15 @@ namespace Rtx
         SDL_Window* mWindow = nullptr;
 
         ValidationOptions mValidation;
+
+        /// Whether the trace counts the primary rays that hit anything.
+        ///
+        /// **On by default, and the game is the one place that clears it.** Nothing in the game
+        /// reads `FrameResult::mHits`, so its trace is specialized without the atomic — but the
+        /// default is the other way round on purpose: a reader who forgets this would get a silent
+        /// nought, where a writer who forgets it pays for a number nobody looks at. A wrong figure
+        /// is worse than a slow one.
+        bool mCountHits = true;
     };
 
     /// One vertex of the GUI: a position already in clip space, a colour packed a byte a channel,
@@ -308,6 +317,8 @@ namespace Rtx
     {
         /// Primary rays that hit something, which is what tells "the cell rendered" from "the camera
         /// faced away from it" without anyone opening the image.
+        /// **Nought where `RendererOptions::mCountHits` was cleared**, which the game does and
+        /// nothing else should: the trace is then specialized without the atomic entirely.
         std::uint32_t mHits = 0;
 
         /// The submit and the wait for it. Timed by the backend because only it knows where that

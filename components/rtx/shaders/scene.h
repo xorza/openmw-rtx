@@ -33,7 +33,12 @@ namespace Rtx::Shaders
 
 #endif
 
-    /// A material with no texture in a slot stores this.
+    /// A slot of the bindless texture array that is not one.
+    ///
+    /// **Every slot, and not only a material's.** A cloud deck, a star sheet and a moon's face index
+    /// the same array a diffuse map does, so what stands for *nothing loaded* is the same value with
+    /// the same meaning — and it used to be that value under three names in two headers, which is a
+    /// reader having to check that they agreed.
     RTX_CONST uint NO_TEXTURE = 0xFFFFFFFFu;
 
     /// Elements in one block of the shared vertex buffers, and of the index buffer.
@@ -128,6 +133,20 @@ namespace Rtx::Shaders
     /// stream nobody reads is nothing — which is a value frozen for the life of the process, waiting
     /// for whoever reaches for it next.
     RTX_CONST uint RANDOM_STREAMS = 3;
+
+    /// Which channel of the tile each draw takes. A pair costs two, which is why the bounce leaves
+    /// a gap.
+    ///
+    /// **A channel apiece, not a salt on a shared one.** Every draw a pixel makes has to be
+    /// uncorrelated with every other, and the fog's march offset and the bounce's elevation were
+    /// literally the same number until the streams were separated — a pixel whose fog started late
+    /// also bounced near its normal.
+    ///
+    /// **Here rather than beside the sampler**, because the count above is a promise these ids have
+    /// to keep and the two were a header apart: a second shader that drew would have had to find
+    /// this list to know which channels were already spoken for, and nothing pointed at it.
+    RTX_CONST uint STREAM_FOG = 0u;
+    RTX_CONST uint STREAM_BOUNCE = 1u;
 
     /// Edge of the blue-noise tile, in pixels.
     ///

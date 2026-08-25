@@ -34,9 +34,15 @@ namespace Rtx
         ///        reads one. A pipeline layout has to name every set it will ever be handed.
         /// @param module the compiled SPIR-V the build wrote, by path.
         /// @param name what a capture calls the pipeline.
+        /// @param specialization one word per specialization constant, `constant_id` `i` taking
+        ///        `specialization[i]`. Words because that is what every constant this renderer
+        ///        specializes on is — a `bool` reaches SPIR-V as a 32-bit value like a `uint` does —
+        ///        and because the alternative is a caller building map entries for a table whose
+        ///        offsets are its own indices.
         ComputePipeline(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
             std::uint32_t pushConstantBytes, std::span<const VkDescriptorSetLayout> laterSets,
-            const std::filesystem::path& module, std::string_view name);
+            const std::filesystem::path& module, std::string_view name,
+            std::span<const std::uint32_t> specialization = {});
         ~ComputePipeline();
 
         ComputePipeline(const ComputePipeline&) = delete;

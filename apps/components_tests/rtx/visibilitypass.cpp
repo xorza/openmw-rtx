@@ -3622,7 +3622,7 @@ namespace Rtx
             const SceneBuffers buffers(device, setup, scene, records);
 
             const TextureArray textures(device, setup, 0, {});
-            const VisibilityPass pass(device, setup, Testing::getShaderDirectory(), textures.getLayout());
+            const VisibilityPass pass(device, setup, Testing::getShaderDirectory(), textures.getLayout(), true);
             setup.flush();
             const VisibilityInputs inputs{
                 .mScene = acceleration.getTopLevel(),
