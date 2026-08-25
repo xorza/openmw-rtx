@@ -89,7 +89,29 @@ foreach (shader ${RTX_SHADERS})
     list(APPEND RTX_SHADER_OUTPUTS "${spv}")
 endforeach()
 
-add_custom_target(openmw-rtx-vulkan-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS} SOURCES ${RTX_SHADERS})
+# What `visibility.comp` is made of. Included rather than compiled — there is one entry point over
+# all of them, and glslc's depfile is what makes editing one rebuild it. Named here so an IDE lists
+# them beside the shader they belong to, which is the only thing the build wants them for.
+set(RTX_SHADER_LIB
+    shaders/lib/bindings.glsl
+    shaders/lib/fog.glsl
+    shaders/lib/footprint.glsl
+    shaders/lib/geometry.glsl
+    shaders/lib/lights.glsl
+    shaders/lib/random.glsl
+    shaders/lib/reproject.glsl
+    shaders/lib/sea.glsl
+    shaders/lib/shading.glsl
+    shaders/lib/sky.glsl
+    shaders/lib/sprites.glsl
+    shaders/lib/texturing.glsl
+    shaders/lib/traversal.glsl
+    shaders/lib/underwater.glsl
+    shaders/lib/water.glsl
+)
+
+add_custom_target(openmw-rtx-vulkan-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS}
+                  SOURCES ${RTX_SHADERS} ${RTX_SHADER_LIB})
 
 set(RTX_VULKAN_FILES
     atrouspass.cpp
