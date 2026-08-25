@@ -3,6 +3,8 @@
 #include <array>
 #include <cassert>
 
+#include <components/rtx/shaders/gbuffer.h>
+
 #include "gbuffer.hpp"
 
 namespace Rtx
@@ -50,7 +52,7 @@ namespace Rtx
             return;
 
         mScratch = std::make_unique<Image>(
-            mDevice, width, height, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT, "atrous-scratch");
+            mDevice, width, height, GBUFFER_RADIANCE, VK_IMAGE_USAGE_STORAGE_BIT, "atrous-scratch");
     }
 
     const Image& AtrousPass::record(

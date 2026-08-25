@@ -15,6 +15,7 @@
 // positions come back out of the acceleration structure through position fetch, so the only vertex
 // data bound here is what that cannot give: normals and texture coordinates.
 
+#include "gbuffer.h"
 #include "scene.h"
 #include "visibility.h"
 
@@ -22,7 +23,7 @@ layout(local_size_x = VISIBILITY_WORKGROUP, local_size_y = VISIBILITY_WORKGROUP)
 
 layout(set = 0, binding = 0) uniform accelerationStructureEXT sceneTop;
 /// Everything already resolved: direct light, emission, the sky, water, and the fog over all of it.
-layout(set = 0, binding = 1, rgba32f) uniform writeonly image2D direct;
+layout(set = 0, binding = 1, GBUFFER_RADIANCE) uniform writeonly image2D direct;
 
 // One atomic per hit on a single address, which looks like contention and measures as nothing: at
 // 3840x2160 over Seyda Neen the trace runs 0.57-0.79 ms, and a subgroup reduction in place of this
@@ -136,7 +137,7 @@ layout(set = 0, binding = 16, scalar) readonly buffer BlueNoiseTile
 
 /// Clip depth in `r`, for whatever upscales the frame, and the distance from the eye in `g`, for
 /// whatever filters it. Two questions, and one number cannot answer both.
-layout(set = 0, binding = 22, rg32f) uniform writeonly image2D depth;
+layout(set = 0, binding = 22, GBUFFER_DEPTH) uniform writeonly image2D depth;
 
 /// Where the lamps were binned, which is scene geometry rather than camera geometry.
 layout(set = 0, binding = 21, scalar) readonly buffer LightGridBlock
@@ -145,7 +146,7 @@ layout(set = 0, binding = 21, scalar) readonly buffer LightGridBlock
 };
 
 /// Where each surface stood on the previous frame's screen, less where it stands on this one.
-layout(set = 0, binding = 20, rg32f) uniform writeonly image2D motion;
+layout(set = 0, binding = 20, GBUFFER_MOTION) uniform writeonly image2D motion;
 
 /// What each texture already has painted into it, `SHADING_EXTENT` squared factors apiece and one
 /// texture after another. A texture with no estimate holds ones.
@@ -166,21 +167,21 @@ layout(set = 0, binding = 19, scalar) readonly buffer ShadingMaps
 /// goes into `direct` and `a` belongs to whichever term it attenuated, which is this one. Putting
 /// it on the albedo instead made that channel a product of a surface and a path, and an upscaler
 /// asking what the surface is got the weather in the answer.
-layout(set = 0, binding = 15, rgba32f) uniform writeonly image2D indirect;
+layout(set = 0, binding = 15, GBUFFER_RADIANCE) uniform writeonly image2D indirect;
 
 /// The surface's own diffuse albedo, and nothing else.
 ///
 /// What the composite multiplies the bounce back in by, and what Ray Reconstruction demodulates the
 /// diffuse half of a pixel by. Zero where there is no diffuse response at all — the sky, and the
 /// water, which answers a ray with a reflection and a refraction and no Lambert term.
-layout(set = 0, binding = 17, rgba32f) uniform writeonly image2D albedo;
+layout(set = 0, binding = 17, GBUFFER_ALBEDO) uniform writeonly image2D albedo;
 
 /// The shading normal in `xyz` and the surface's roughness in `w`.
 ///
 /// **The normal the shading actually used**, which for water is the wave's rather than the plane's
 /// — a rippled surface described as a flat one is reconstructed as a flat one. A ray that hit
 /// nothing writes a zero normal, which no surface can be mistaken for.
-layout(set = 0, binding = 18, rgba32f) uniform writeonly image2D guide;
+layout(set = 0, binding = 18, GBUFFER_GUIDE) uniform writeonly image2D guide;
 
 /// The specular albedo, which is what an upscaler demodulates the mirrored half of a pixel by.
 ///
@@ -189,7 +190,7 @@ layout(set = 0, binding = 18, rgba32f) uniform writeonly image2D guide;
 /// specular lobe except the water, so nothing else has a specular albedo to report. Half floats,
 /// because an albedo is a fraction that is never accumulated — the argument for full floats on the
 /// radiance channels does not reach here.
-layout(set = 0, binding = 26, rgba16f) uniform writeonly image2D specular;
+layout(set = 0, binding = 26, GBUFFER_ALBEDO) uniform writeonly image2D specular;
 
 /// Every live particle in the scene, one emitter's run after another's.
 layout(set = 0, binding = 23, scalar) readonly buffer Sprites

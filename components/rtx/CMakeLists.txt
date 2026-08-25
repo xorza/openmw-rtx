@@ -69,6 +69,7 @@ set(RTX_FILES
 set(RTX_SHADER_HEADERS
     shaders/atrous.h
     shaders/composite.h
+    shaders/gbuffer.h
     shaders/portable.h
     shaders/scene.h
     shaders/visibility.h

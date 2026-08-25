@@ -12,18 +12,19 @@
 // and the light falling on the wall is not.
 
 #include "composite.h"
+#include "gbuffer.h"
 
 layout(local_size_x = COMPOSITE_WORKGROUP, local_size_y = COMPOSITE_WORKGROUP) in;
 
 /// Everything already resolved: direct light, emission, the sky, water, and the fog over all of it.
-layout(set = 0, binding = 0, rgba32f) uniform readonly image2D direct;
+layout(set = 0, binding = 0, GBUFFER_RADIANCE) uniform readonly image2D direct;
 
 /// One bounce with the albedo divided out, times whatever the water and the air took off it on the
 /// way to the eye — the only channel a filter is allowed to touch.
-layout(set = 0, binding = 1, rgba32f) uniform readonly image2D indirect;
+layout(set = 0, binding = 1, GBUFFER_RADIANCE) uniform readonly image2D indirect;
 
 /// What to put back: the surface's own albedo, and nothing of the path.
-layout(set = 0, binding = 2, rgba32f) uniform readonly image2D albedo;
+layout(set = 0, binding = 2, GBUFFER_ALBEDO) uniform readonly image2D albedo;
 
 /// The running sum, when `mAccumulate` asks for one.
 layout(set = 0, binding = 3, rgba32f) uniform image2D history;

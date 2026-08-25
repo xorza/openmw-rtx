@@ -1,5 +1,7 @@
 #include "gbuffer.hpp"
 
+#include <components/rtx/shaders/gbuffer.h>
+
 namespace Rtx
 {
     namespace
@@ -17,11 +19,11 @@ namespace Rtx
         ///
         /// Measured: the converged mean of a flat surface came out 0.096% low, against a tolerance
         /// of 0.067% that the test derives from what the format can show. Full floats put it back.
-        constexpr VkFormat sRadiance = VK_FORMAT_R32G32B32A32_SFLOAT;
+        constexpr VkFormat sRadiance = GBUFFER_RADIANCE;
 
         /// The guide is full floats so that a normal stays a normal after three of its components
         /// have been quantised; the roughness beside it would fit in anything.
-        constexpr VkFormat sGuide = VK_FORMAT_R32G32B32A32_SFLOAT;
+        constexpr VkFormat sGuide = GBUFFER_GUIDE;
 
         /// **Half floats, because an albedo is a fraction and is never accumulated.** The argument
         /// above is about summing a thousand frames into a reference; a specular albedo is a guide
@@ -37,16 +39,16 @@ namespace Rtx
         /// Measured on a sixty-four sample reference of the mages guild, where the indirect share is
         /// as high as this renderer gets indoors: the converged mean moved by 0.0014%, against the
         /// 0.067% the radiance channels were put back to full floats over. Fifty times inside it.
-        constexpr VkFormat sAlbedo = VK_FORMAT_R16G16B16A16_SFLOAT;
+        constexpr VkFormat sAlbedo = GBUFFER_ALBEDO;
 
         /// Two full floats, for the reason `getMotion` gives.
-        constexpr VkFormat sMotion = VK_FORMAT_R32G32_SFLOAT;
+        constexpr VkFormat sMotion = GBUFFER_MOTION;
 
         /// Two, and full floats rather than halves: a clip depth puts most of its precision within a
         /// few units of the eye, so what is left at the far end of a Morrowind view is exactly where
         /// a coarse format would run out, and the distance beside it runs past thirty thousand units
         /// where a half's steps are thirty-two units wide.
-        constexpr VkFormat sDepth = VK_FORMAT_R32G32_SFLOAT;
+        constexpr VkFormat sDepth = GBUFFER_DEPTH;
 
         /// **`SAMPLED` on all of them, and it is not decoration.** DLSS samples every input it is
         /// handed; one without the bit reads as zero, NGX returns success and the validation layers

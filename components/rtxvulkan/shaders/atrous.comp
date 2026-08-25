@@ -23,23 +23,24 @@
 // variance of an accumulated history, and there is no history here yet.
 
 #include "atrous.h"
+#include "gbuffer.h"
 
 layout(local_size_x = ATROUS_WORKGROUP, local_size_y = ATROUS_WORKGROUP) in;
 
 /// One bounce, albedo divided out, as the last level left it.
-layout(set = 0, binding = 0, rgba32f) uniform readonly image2D source;
+layout(set = 0, binding = 0, GBUFFER_RADIANCE) uniform readonly image2D source;
 
 /// Where this level puts what it made of it.
-layout(set = 0, binding = 1, rgba32f) uniform writeonly image2D filtered;
+layout(set = 0, binding = 1, GBUFFER_RADIANCE) uniform writeonly image2D filtered;
 
 /// The shading normal in `xyz`. A ray that hit nothing left a zero normal, which no surface can
 /// match, so the sky neither contributes nor gets filtered. `w` is roughness, which this does not
 /// read: the edge tests are about where a surface is, not what it is made of.
-layout(set = 0, binding = 2, rgba32f) uniform readonly image2D guide;
+layout(set = 0, binding = 2, GBUFFER_GUIDE) uniform readonly image2D guide;
 
 /// Clip depth in `r` and the distance from the eye in `g`. This reads the second, in world units,
 /// because a tolerance against a clip value would mean something different at every distance.
-layout(set = 0, binding = 3, rg32f) uniform readonly image2D depth;
+layout(set = 0, binding = 3, GBUFFER_DEPTH) uniform readonly image2D depth;
 
 layout(push_constant, scalar) uniform Push
 {
