@@ -44,6 +44,10 @@ namespace RtxTool
         /// works. It denoises for itself, so `mFilter` stops meaning anything once this is on.
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
 
+        /// Which network it runs. Pinned rather than left to the library, whose own default has
+        /// moved between SDK versions, so that two runs are comparable.
+        Rtx::Preset mPreset = Rtx::Preset::D;
+
         /// How much of the lighting painted into each texture to divide back out, from zero to one.
         /// Zero shows the textures as they were drawn, with their lighting still in them.
         float mDelight = 1.0f;

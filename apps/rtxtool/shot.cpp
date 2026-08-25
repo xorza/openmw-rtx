@@ -54,6 +54,7 @@ namespace RtxTool
                 .mWidth = request.mWidth,
                 .mHeight = request.mHeight,
                 .mUpscale = request.mUpscale,
+                .mPreset = request.mPreset,
                 .mValidation = validation,
             },
             reason);
@@ -111,6 +112,7 @@ namespace RtxTool
         Rtx::GpuBreakdown gpu;
 
         std::uint32_t hits = 0;
+        Rtx::Reconstruction reconstruction;
 
         // **A `do` and not a `for`, for the reason `summarise` takes its argument by reference.** The
         // bound below is `max(..., 1)` and a `for` over it still leaves the compiler unable to prove
@@ -138,6 +140,7 @@ namespace RtxTool
             traces.push_back(result.mTraceMs);
             gpu.add(result.mGpu);
             hits = result.mHits;
+            reconstruction = result.mReconstruction;
             ++frame;
         } while (frame < frames);
 
@@ -158,6 +161,20 @@ namespace RtxTool
         // traced at and the file gives no hint of it.
         if (extents.mRenderWidth != extents.mOutputWidth || extents.mRenderHeight != extents.mOutputHeight)
             out << ", traced at " << extents.mRenderWidth << 'x' << extents.mRenderHeight;
+
+        // **What put the frame back together, said out loud.** Two of the switches that reach this
+        // renderer do not decide on their own — an upscaler denoises for itself and jitters
+        // regardless — so a run that named `--filter` or `--jitter` and got neither used to comply
+        // in silence, and nothing anywhere said which of the two denoisers had made the picture a
+        // comparison was about to be drawn from.
+        out << '\n' << "reconstruct: " << Rtx::denoiserName(reconstruction.mDenoiser);
+        if (reconstruction.mDenoiser == Rtx::Denoiser::RayReconstruction)
+            out << ", preset " << Rtx::presetName(reconstruction.mPreset) << ", "
+                << Rtx::upscaleName(reconstruction.mUpscale);
+        if (reconstruction.mFilterSuppressed)
+            out << "; --filter did not apply, the upscaler denoises for itself";
+        if (reconstruction.mJitterForced)
+            out << "; jittered regardless, an upscaler always does";
 
         out << '\n'
             << "camera:     " << placement.mOrigin.x() << ", " << placement.mOrigin.y() << ", " << placement.mOrigin.z()

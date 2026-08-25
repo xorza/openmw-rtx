@@ -54,13 +54,23 @@ namespace Rtx
         }
     }
 
-    DlssPass::DlssPass(const Dlss& ngx, VkCommandBuffer commands, VkExtent2D render, VkExtent2D output, Upscale upscale)
+    DlssPass::DlssPass(
+        const Dlss& ngx, VkCommandBuffer commands, VkExtent2D render, VkExtent2D output, Upscale upscale, Preset preset)
         : mRenderExtent(render)
         , mOutputExtent(output)
     {
         const NVSDK_NGX_Result allocated = NVSDK_NGX_VULKAN_AllocateParameters(&mParameters);
         if (NVSDK_NGX_FAILED(allocated) || mParameters == nullptr)
             throw Error("NGX would not allocate a parameter map: " + describeNgxResult(allocated));
+
+        // **Set on the map before the feature is built, because it is read while it is built.** The
+        // create parameters carry no preset field; the hint is one of the values NGX picks up off
+        // the map it is handed, and setting it afterwards would name a network for a feature that
+        // already exists. Left unset, the installed library picks — and what it picks has changed
+        // between SDK versions and between the convolutional and transformer models, so two runs on
+        // two machines are not the same measurement.
+        NVSDK_NGX_Parameter_SetUI(
+            mParameters, ngxPresetParameterOf(upscale), static_cast<unsigned int>(ngxPresetOf(preset)));
 
         NVSDK_NGX_DLSSD_Create_Params create{};
         create.InDenoiseMode = NVSDK_NGX_DLSS_Denoise_Mode_DLUnified;

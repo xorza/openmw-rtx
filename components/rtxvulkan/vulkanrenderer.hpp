@@ -146,6 +146,7 @@ namespace Rtx
         /// Fixed at construction: an upscaler is brought up once, and there is nothing to switch
         /// to at runtime that would not mean rebuilding every target anyway.
         Upscale mUpscale = Upscale::Off;
+        Preset mPreset = Preset::Default;
 
         /// What the trace runs at, and so what every G-buffer channel and the composite are sized
         /// to. Equal to the output extent wherever nothing upscales.

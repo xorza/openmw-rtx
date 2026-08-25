@@ -4,6 +4,8 @@
 
 #include <osg/Vec2f>
 
+#include <components/rtx/reconstruction.hpp>
+
 #include "dlss.hpp"
 
 // NGX's own, forward-declared for the reason `dlss.hpp` gives.
@@ -74,7 +76,8 @@ namespace Rtx
         ///        per frame.
         ///
         /// Throws `Error` where NGX will not build it.
-        DlssPass(const Dlss& ngx, VkCommandBuffer commands, VkExtent2D render, VkExtent2D output, Upscale upscale);
+        DlssPass(const Dlss& ngx, VkCommandBuffer commands, VkExtent2D render, VkExtent2D output, Upscale upscale,
+            Preset preset);
         ~DlssPass();
 
         DlssPass(const DlssPass&) = delete;

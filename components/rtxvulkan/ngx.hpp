@@ -3,6 +3,9 @@
 #include <string>
 
 #include <nvsdk_ngx_defs.h>
+#include <nvsdk_ngx_defs_dlssd.h>
+
+#include <components/rtx/reconstruction.hpp>
 
 #include "dlss.hpp"
 
@@ -45,5 +48,53 @@ namespace Rtx
         }
 
         return NVSDK_NGX_PerfQuality_Value_MaxPerf;
+    }
+
+    /// The network a preset selects, as NGX numbers them.
+    ///
+    /// **Ray Reconstruction's own enum, and not super-resolution's.** `nvsdk_ngx_defs_dlssd.h`
+    /// retires A through C and names D and E; the enum of the same shape in `nvsdk_ngx_defs.h`
+    /// retires D as well and names J through M. They are different networks reached through
+    /// different parameters, and a value from one handed to the other is a preset the library does
+    /// not recognise — which it answers by reverting to the default, silently, which is the state
+    /// this exists to leave.
+    inline NVSDK_NGX_RayReconstruction_Hint_Render_Preset ngxPresetOf(Preset preset)
+    {
+        switch (preset)
+        {
+            case Preset::D:
+                return NVSDK_NGX_RayReconstruction_Hint_Render_Preset_D;
+            case Preset::E:
+                return NVSDK_NGX_RayReconstruction_Hint_Render_Preset_E;
+            case Preset::Default:
+                return NVSDK_NGX_RayReconstruction_Hint_Render_Preset_Default;
+        }
+
+        return NVSDK_NGX_RayReconstruction_Hint_Render_Preset_Default;
+    }
+
+    /// Which parameter carries the preset hint for a quality level.
+    ///
+    /// **One hint per quality level, because NGX keeps one network per level.** The feature is built
+    /// for exactly one of them, so exactly one of these is worth setting; setting the rest would be
+    /// stating a preference about features this renderer never creates.
+    ///
+    /// `Off` never reaches here, for the reason `ngxQualityOf` gives.
+    inline const char* ngxPresetParameterOf(Upscale upscale)
+    {
+        switch (upscale)
+        {
+            case Upscale::Balanced:
+                return NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Balanced;
+            case Upscale::Quality:
+                return NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Quality;
+            case Upscale::Dlaa:
+                return NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_DLAA;
+            case Upscale::Off:
+            case Upscale::Performance:
+                return NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Performance;
+        }
+
+        return NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Performance;
     }
 }

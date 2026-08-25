@@ -126,6 +126,7 @@ namespace RtxTool
                 .mWidth = request.mWidth,
                 .mHeight = request.mHeight,
                 .mUpscale = request.mUpscale,
+                .mPreset = request.mPreset,
                 .mWindow = window.getHandle(),
                 .mValidation = validation,
             },

@@ -7,6 +7,7 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/reconstruction.hpp>
 #include <components/rtx/upscale.hpp>
 
 #include "cellscene.hpp"
@@ -69,6 +70,10 @@ namespace RtxTool
         /// Whether Ray Reconstruction stands between the trace and the window, and how hard it
         /// works. It denoises for itself, so `mFilter` stops meaning anything once this is on.
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
+
+        /// Which network it runs. Pinned rather than left to the library, whose own default has
+        /// moved between SDK versions, so that two runs are comparable.
+        Rtx::Preset mPreset = Rtx::Preset::D;
 
         /// Filled in from the cell once it has been read, which is why both commands take their
         /// request by value.

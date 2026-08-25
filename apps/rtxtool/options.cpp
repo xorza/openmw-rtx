@@ -120,6 +120,14 @@ namespace RtxTool
             "needs. --accumulate turns it off unless this is named, because a reference cannot be "
             "built through a denoiser");
 
+        addOption("preset", bpo::value<std::string>()->default_value("d"),
+            "which Ray Reconstruction network to run: default, d or e. Ray Reconstruction keeps its "
+            "own presets, and they are not super-resolution's -- A through C are retired, d is the "
+            "default transformer model and e is the latest. `default` hands the choice to the "
+            "installed library, which has changed between SDK versions and between the "
+            "convolutional and transformer models, so two runs under it are not the same "
+            "measurement. Pinned to d so that they are");
+
         addOption("exposure", bpo::value<std::string>()->default_value("auto"),
             "what to scale the frame by before the display curve: auto measures it off the frame, "
             "and a number holds it there. A pixel test and a converged reference want it held, "

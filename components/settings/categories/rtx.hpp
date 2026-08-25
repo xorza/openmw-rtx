@@ -33,6 +33,13 @@ namespace Settings
         /// A name rather than a number, and unrecognised is refused rather than defaulted — see
         /// `Rtx::upscaleNamed`.
         SettingValue<std::string> mUpscale{ mIndex, "RTX", "upscale" };
+
+        /// Which Ray Reconstruction network runs, where one runs at all.
+        ///
+        /// A name rather than a number, refused rather than defaulted when unrecognised — see
+        /// `Rtx::presetNamed`. Ray Reconstruction keeps its own presets, which are not
+        /// super-resolution's.
+        SettingValue<std::string> mPreset{ mIndex, "RTX", "preset" };
     };
 }
 

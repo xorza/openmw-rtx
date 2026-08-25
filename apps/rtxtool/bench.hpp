@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include <components/rtx/reconstruction.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/upscale.hpp>
 
@@ -74,6 +75,10 @@ namespace RtxTool
         bool mWindow = true;
 
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
+
+        /// Which network it runs. Pinned rather than left to the library, whose own default has
+        /// moved between SDK versions, so that two runs are comparable.
+        Rtx::Preset mPreset = Rtx::Preset::D;
         float mDelight = 1.0f;
         bool mFilter = true;
         std::optional<float> mExposure;

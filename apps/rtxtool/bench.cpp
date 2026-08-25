@@ -107,6 +107,7 @@ namespace RtxTool
                  << std::format(R"(  "output": [{}, {}],)", extents.mOutputWidth, extents.mOutputHeight) << '\n'
                  << std::format(R"(  "render": [{}, {}],)", extents.mRenderWidth, extents.mRenderHeight) << '\n'
                  << std::format(R"(  "upscale": "{}",)", Rtx::upscaleName(request.mUpscale)) << '\n'
+                 << std::format(R"(  "preset": "{}",)", Rtx::presetName(request.mPreset)) << '\n'
                  << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", request.getMeasured(),
                         request.getWarmup(), validating)
                  << '\n'
@@ -188,6 +189,7 @@ namespace RtxTool
                 .mWidth = request.mWidth,
                 .mHeight = request.mHeight,
                 .mUpscale = request.mUpscale,
+                .mPreset = request.mPreset,
                 .mWindow = window == nullptr ? nullptr : window->getHandle(),
                 .mValidation = validation,
             },
@@ -208,7 +210,8 @@ namespace RtxTool
         if (extents.mRenderWidth != extents.mOutputWidth || extents.mRenderHeight != extents.mOutputHeight)
             out() << std::format(" traced at {}x{}", extents.mRenderWidth, extents.mRenderHeight);
 
-        out() << std::format(", upscale {}", Rtx::upscaleName(request.mUpscale));
+        out() << std::format(
+            ", upscale {}, preset {}", Rtx::upscaleName(request.mUpscale), Rtx::presetName(request.mPreset));
 
         // **Said before the run rather than after it.** A figure measured under the layers is not
         // one to compare against anything, and finding that out at the end is finding it out after

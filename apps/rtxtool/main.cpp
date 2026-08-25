@@ -132,6 +132,15 @@ namespace RtxTool
             return *named;
         }
 
+        Rtx::Preset parsePreset(std::string_view text)
+        {
+            const std::optional<Rtx::Preset> named = Rtx::presetNamed(text);
+            if (!named.has_value())
+                throw std::runtime_error("not a Ray Reconstruction preset: " + std::string(text));
+
+            return *named;
+        }
+
         /// What `--exposure` asked for: a number to hold it at, or nothing to measure it.
         std::optional<float> parseExposure(std::string_view text)
         {
@@ -618,6 +627,7 @@ namespace RtxTool
                 request.mFrames = variables["frames"].as<std::uint32_t>();
                 request.mWindow = variables["window"].as<bool>();
                 request.mUpscale = parseUpscale(variables["upscale"].as<std::string>());
+                request.mPreset = parsePreset(variables["preset"].as<std::string>());
                 request.mDelight = variables["delight"].as<float>();
                 request.mFilter = variables["filter"].as<bool>();
                 request.mExposure = parseExposure(variables["exposure"].as<std::string>());
@@ -685,6 +695,7 @@ namespace RtxTool
                     request.mFilter = variables["filter"].as<bool>();
                     request.mExposure = parseExposure(variables["exposure"].as<std::string>());
                     request.mUpscale = parseUpscale(variables["upscale"].as<std::string>());
+                    request.mPreset = parsePreset(variables["preset"].as<std::string>());
                     request.mDelight = variables["delight"].as<float>();
                     request.mWeather = variables["weather"].as<std::string>();
                     request.mHour = variables["hour"].as<float>();
@@ -710,6 +721,7 @@ namespace RtxTool
                 request.mHour = variables["hour"].as<float>();
                 request.mDay = variables["day"].as<int>();
                 request.mUpscale = parseUpscale(variables["upscale"].as<std::string>());
+                request.mPreset = parsePreset(variables["preset"].as<std::string>());
 
                 // **A reference cannot be built through a denoiser.** `--accumulate` averages frames
                 // towards the truth and Ray Reconstruction resolves each of them towards its own

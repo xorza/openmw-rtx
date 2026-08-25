@@ -114,9 +114,14 @@ namespace Rtx
             // Building uploads the network's weights, so this is the first call that does real work
             // on the device rather than answering from a table — and the first place a wrong
             // parameter map shows up as anything other than a query result.
+            // **Built for a named preset, which is the first thing a wrong parameter map would refuse.**
+            // A hint set under the wrong name is not an error to NGX — it reverts to whatever the
+            // installed library defaults to and says nothing — so what this proves is only that the
+            // build accepts one. That the network actually changes with it is a picture question and
+            // is measured with `shot --preset`.
             std::unique_ptr<DlssPass> pass;
             pool.submitAndWait([&](VkCommandBuffer commands) {
-                pass = std::make_unique<DlssPass>(ngx, commands, render, sOutput, Upscale::Performance);
+                pass = std::make_unique<DlssPass>(ngx, commands, render, sOutput, Upscale::Performance, Preset::D);
             });
 
             const std::unique_ptr<Image> colour

@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "reconstruction.hpp"
 #include "shaders/visibility.h"
 #include "texturedata.hpp"
 #include "upscale.hpp"
@@ -57,6 +58,13 @@ namespace Rtx
         /// Fixed for the renderer's lifetime: an upscaler is brought up once and sized per
         /// resolution, and a build that has none refuses anything but `Off` at construction.
         Upscale mUpscale = Upscale::Off;
+
+        /// Which network the upscaler runs, where one runs at all.
+        ///
+        /// **Pinned rather than left to the library**, which is what makes two runs comparable: the
+        /// default has changed between SDK versions and again between the convolutional and
+        /// transformer models, so a frame reconstructed under it is a frame nobody can reproduce.
+        Preset mPreset = Preset::D;
 
         /// Where the frame is shown, or null for a renderer that only reads pixels back.
         ///
@@ -284,6 +292,13 @@ namespace Rtx
         /// **Borrowed from the renderer and valid until the next frame**, because a frame path that
         /// allocated a vector to report its own cost would be measuring itself.
         std::span<const GpuSpan> mGpu;
+
+        /// What put this frame back together, as the renderer resolved it.
+        ///
+        /// **Reported by the thing that did it.** The alternative was for a caller to work the same
+        /// rule out a second time from what it had asked for, which is two copies of a rule that had
+        /// already been wrong once by being invisible.
+        Reconstruction mReconstruction;
     };
 
     /// One traced image, whichever API produced it.

@@ -42,6 +42,7 @@ set(RTX_FILES
     png.cpp
     png.hpp
     posecull.hpp
+    reconstruction.hpp
     renderer.hpp
     scenedesc.cpp
     scenedesc.hpp

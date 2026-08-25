@@ -55,6 +55,7 @@ namespace Rtx
         , mTimer(mDevice)
         , mShaderDirectory(options.mShaderDirectory)
         , mUpscale(options.mUpscale)
+        , mPreset(options.mPreset)
         , mFilter(mDevice, options.mShaderDirectory)
         , mViewFilter(mDevice, options.mShaderDirectory)
         , mComposite(mDevice, mPool, options.mShaderDirectory)
@@ -164,7 +165,7 @@ namespace Rtx
             // once per frame.
             mPool.submitAndWait([&](VkCommandBuffer commands) {
                 mUpscaler = std::make_unique<DlssPass>(
-                    *mNgx, commands, render, VkExtent2D{ mOutputWidth, mOutputHeight }, mUpscale);
+                    *mNgx, commands, render, VkExtent2D{ mOutputWidth, mOutputHeight }, mUpscale, mPreset);
             });
         }
 #endif
@@ -534,16 +535,17 @@ namespace Rtx
         *static_cast<std::uint32_t*>(mHitCount.map()) = 0;
         mHitCount.unmap();
 
+        // **What reconstructs this frame, decided once and by one rule.** Every switch below reads
+        // this rather than working the interaction out again; the same value goes back in the frame
+        // result, so what a run reports and what it did are one answer.
+        const Reconstruction reconstruction = Reconstruction::resolve(mUpscale,
+            ReconstructionRequest{ .mFilter = options.mFilter, .mJitter = options.mJitter, .mPreset = mPreset });
+
         // The camera as the caller wrote it, plus where in the pixel this frame samples. Filled
         // here rather than by the caller because the sequence belongs to the frame index, which is
         // the renderer's to walk.
-        // **An upscaler always jitters, whatever was asked for.** Reconstruction across several
-        // frames of the same sample point is reconstruction from one sample, and there is nothing in
-        // `FrameOptions` a caller could set that would make that a reasonable frame to produce.
-        const bool upscaling = mUpscale != Upscale::Off;
-
         Shaders::VisibilityConstants sampled = camera;
-        if (options.mJitter || upscaling)
+        if (reconstruction.mJitter)
             sampled.mJitter = haltonJitter(camera.mFrame);
 
         // **The one subtraction of two world points, and it happens here.** Two camera positions a
@@ -608,8 +610,9 @@ namespace Rtx
 
             // Where the bounce ended up: the filter's last level, or the channel the trace wrote
             // when nothing filtered it. **Ray Reconstruction is itself the denoiser**, and handing
-            // it a frame the wavelet already blurred is asking it to recover what was thrown away.
-            const bool filtering = options.mFilter && !upscaling;
+            // it a frame the wavelet already blurred is asking it to recover what was thrown away —
+            // which is why `resolve` never answers with both.
+            const bool filtering = reconstruction.mDenoiser == Denoiser::Wavelet;
             if (filtering)
                 mTimer.open(commands, "filter");
 
@@ -689,7 +692,9 @@ namespace Rtx
 
         // Read after the last of the frame's submits has been waited on, which every one of them
         // has: the pool fences each before it returns.
-        return FrameResult{ .mHits = hits, .mTraceMs = ms, .mGpu = mTimer.resolve() };
+        return FrameResult{
+            .mHits = hits, .mTraceMs = ms, .mGpu = mTimer.resolve(), .mReconstruction = reconstruction
+        };
     }
 
     std::uint32_t VulkanRenderer::addViewScene()

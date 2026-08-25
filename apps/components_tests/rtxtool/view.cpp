@@ -68,8 +68,8 @@ namespace RtxTool
 
             EXPECT_EQ(describeProfile(request, validation, origin, target, 2560, 1440),
                 "--cell=\"Balmora, Guild of Fighters\" --pos=-19216.5,-14896.25,160 --look=-19323,-13903,109.5"
-                " --fov=60 --size=2560x1440 --weather=Ashstorm --hour=17.25 --day=0 --exposure=auto --filter=false "
-                "--validation=true"
+                " --fov=60 --size=2560x1440 --weather=Ashstorm --hour=17.25 --day=0 --exposure=auto"
+                " --upscale=off --preset=d --filter=false --validation=true"
                 " --sync-validation=true --gpu-validation=false");
         }
 
@@ -91,7 +91,7 @@ namespace RtxTool
         /// Each of the fields that is a flag rather than a value, since a line that dropped one
         /// would reproduce a different frame — or the same frame at a different price — while
         /// looking correct.
-        TEST(RtxProfileLineTest, theAlbedoViewAndTheLayersEachChangeTheLine)
+        TEST(RtxProfileLineTest, everySwitchThatChangesTheFrameChangesTheLine)
         {
             ViewRequest shaded = makeRequest();
             ViewRequest albedo = makeRequest();
@@ -109,6 +109,18 @@ namespace RtxTool
             EXPECT_NE(describeProfile(shaded, off, at, to, 8, 8), describeProfile(denoised, off, at, to, 8, 8));
             EXPECT_NE(describeProfile(shaded, off, at, to, 8, 8), describeProfile(shaded, gpu, at, to, 8, 8));
             EXPECT_TRUE(describeProfile(albedo, off, at, to, 8, 8).ends_with(" --albedo"));
+
+            // **The two the line used to leave out.** `shot` upscales at quality unless told
+            // otherwise, so a window flown with neither of these named profiled into a command that
+            // rendered at another mode through another network — the same line, a different frame,
+            // and a different price.
+            ViewRequest upscaled = makeRequest();
+            upscaled.mUpscale = Rtx::Upscale::Performance;
+            ViewRequest latest = makeRequest();
+            latest.mPreset = Rtx::Preset::E;
+
+            EXPECT_NE(describeProfile(shaded, off, at, to, 8, 8), describeProfile(upscaled, off, at, to, 8, 8));
+            EXPECT_NE(describeProfile(shaded, off, at, to, 8, 8), describeProfile(latest, off, at, to, 8, 8));
         }
 
         Viewpoint makeSpot()

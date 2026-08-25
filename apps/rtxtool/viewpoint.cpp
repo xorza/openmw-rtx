@@ -93,16 +93,22 @@ namespace RtxTool
         // The cell is the only field quoted, because it is the only one that can hold a space.
         // A measured exposure is a different frame *and* a different cost from a held one, which is
         // both reasons a field is in this line.
+        //
+        // **The reconstruction is named for the same two reasons, and it was the omission that made
+        // this line not reproduce a frame.** `shot` upscales at quality unless told otherwise, so a
+        // window flown at another mode profiled into a command that rendered something else; and
+        // the network is a picture and a cost that the installed library was free to change out
+        // from under a corpus that never said which one it meant.
         const std::string exposure
             = request.mExposure.has_value() ? std::format("{}", *request.mExposure) : std::string("auto");
 
         return std::format(
             "--cell=\"{}\" --pos={},{},{} --look={},{},{} --fov={} --size={}x{} --weather={}"
-            " --hour={} --day={} --exposure={} --filter={} --validation={} --sync-validation={}"
-            " --gpu-validation={}{}",
+            " --hour={} --day={} --exposure={} --upscale={} --preset={} --filter={} --validation={}"
+            " --sync-validation={} --gpu-validation={}{}",
             request.mCell, origin.x(), origin.y(), origin.z(), target.x(), target.y(), target.z(), request.mFieldOfView,
-            width, height, request.mWeather, request.mHour, request.mDay, exposure, request.mFilter,
-            validation.mEnabled, validation.mSynchronization, validation.mGpuAssisted,
-            request.mShowAlbedo ? " --albedo" : "");
+            width, height, request.mWeather, request.mHour, request.mDay, exposure, Rtx::upscaleName(request.mUpscale),
+            Rtx::presetName(request.mPreset), request.mFilter, validation.mEnabled, validation.mSynchronization,
+            validation.mGpuAssisted, request.mShowAlbedo ? " --albedo" : "");
     }
 }

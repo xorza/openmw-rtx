@@ -153,13 +153,26 @@ namespace MWRender
         if (!upscale.has_value())
             throw std::runtime_error('"' + wanted + "\" is not one of off, performance, balanced, quality or dlaa");
 
+        const std::string wantedPreset = Settings::rtx().mPreset;
+        const std::optional<Rtx::Preset> preset = Rtx::presetNamed(wantedPreset);
+        if (!preset.has_value())
+            throw std::runtime_error('"' + wantedPreset + "\" is not one of default, d or e");
+
         Rtx::RendererOptions options;
         options.mShaderDirectory = spec.mResourceDir / "rtx" / "shaders";
         options.mWidth = mWidth;
         options.mHeight = mHeight;
         options.mUpscale = *upscale;
+        options.mPreset = *preset;
         options.mWindow = mWindow;
         options.mValidation.mEnabled = Settings::rtx().mValidation;
+
+        // **Said once, where it is decided.** What reconstructs the frame does not change while the
+        // session runs, so it does not belong in the periodic line; what that line carries is the
+        // one word a reader of any single line needs, and the rest — which network, at what pair of
+        // sizes — is here, where it was chosen.
+        Log(Debug::Info) << "Ray tracing: upscale " << Rtx::upscaleName(*upscale) << ", Ray Reconstruction preset "
+                         << Rtx::presetName(*preset);
 
         std::string reason;
         mRenderer = Rtx::createRenderer(options, reason);
@@ -832,7 +845,9 @@ namespace MWRender
             Log(Debug::Info) << "Ray tracing: " << mSpentMs / mTimed << " ms a frame over the last " << mTimed
                              << ", tracing " << mScene.getPlacedCount() << " instances and "
                              << mScene.getEmitters().size() << " emitters holding " << mScene.getSprites().size()
-                             << " sprites at " << extents.mRenderWidth << "x" << extents.mRenderHeight;
+                             << " sprites at " << extents.mRenderWidth << "x" << extents.mRenderHeight
+                             << ", reconstructed by " << Rtx::denoiserName(result.mReconstruction.mDenoiser) << " to "
+                             << extents.mOutputWidth << "x" << extents.mOutputHeight;
             mSpentMs = 0.0;
             mTimed = 0;
         }

@@ -127,6 +127,7 @@ if (OPENMW_RTX)
         rtx/offscreentrace.cpp
         rtx/pipelinecache.cpp
         rtx/probe.cpp
+        rtx/reconstruction.cpp
         rtx/requirements.cpp
         rtx/scenedesc.cpp
         rtx/sceneextractor.cpp
