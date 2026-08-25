@@ -21,9 +21,11 @@
 /// was held, which is its own weight over the total, so a dim lamp that happens to win still speaks
 /// for the whole cell.
 ///
-/// It is a record rather than four locals because it is also the thing that gets carried — a
-/// reservoir from the previous frame, or from a neighbour, combines with this one by the same rule
-/// that built it (`.notes/rtx/shaders.md` §4.3).
+/// A record rather than four locals because it is what would get carried, if carrying it were worth
+/// anything: a reservoir from the previous frame or from a neighbour combines with this one by the
+/// same rule that built it. **Measured before it was built and it is not worth building** — spending
+/// a shadow ray on every lamp instead of choosing one is 0.03% better at Seyda Neen's customs office
+/// and 0.32% at Wolverine Hall, and perfect selection cannot beat that.
 struct Reservoir
 {
     /// What the lamp held would deliver here with nothing in the way.

@@ -54,7 +54,7 @@ components/rtxvulkan/    openmw-rtx-vulkan    links Vulkan::Vulkan
 components/rtxmetal/     openmw-rtx-metal     links Metal, QuartzCore
 ```
 
-> Since written: `components/rtxbridge` folded into `components/rtx` (`.notes/rtx/merge.md` §1).
+> Since written: `components/rtxbridge` folded into `components/rtx`.
 > The seam this section argues for is the graphics API and the linker still enforces it; the OSG
 > boundary the fourth row implied was never a link boundary and had the same consumers on both
 > sides. Read "the bridge" below as the half of `openmw-rtx` that walks a scene graph.

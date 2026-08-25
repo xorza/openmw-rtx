@@ -32,10 +32,10 @@ namespace Rtx::Shaders
     ///
     /// **Sixteen is chosen for the lag and not yet measured for the noise**, and saying so is the
     /// point: it is a quarter of a second at sixty frames, which is inside what a player reads as
-    /// "the light is on the wall" rather than as a fade. What it is worth against the noise is the
-    /// sweep `.notes/rtx/shaders.md` §4.2 is still missing — the scene the filter tests use is
-    /// already converged by the spatial cascade alone, so it cannot answer. Until it does, this is a
-    /// number picked from the half of the trade that can be reasoned about.
+    /// "the light is on the wall" rather than as a fade. What it is worth against the noise wants a
+    /// sweep nobody has run: measured on the grid the filter tests use, sixteen frames take 44% of
+    /// the error the spatial cascade cannot reach, but no other count has been tried against it.
+    /// Until one is, this is a number picked from the half of the trade that can be reasoned about.
     RTX_CONST float ACCUMULATE_FRAMES = 16.0f;
 
     /// How far above the running mean a sample may sit before it is taken as an outlier rather than
@@ -43,9 +43,14 @@ namespace Rtx::Shaders
     ///
     /// **A count of sigmas and not a radiance, which is the whole reason this waited for a history.**
     /// An absolute ceiling on the bounce cannot be derived — a lamp's intensity is content, and
-    /// `falloff` hands a bounce that lands on one whatever that lamp was given (`.notes/rtx/shaders.md`
-    /// §4.1). Against a mean and a variance the same question has a scene-independent answer: a
-    /// sample this far from what the pixel has been seeing is not what the pixel is looking at.
+    /// `falloff` hands a bounce that lands on one whatever that lamp was given. Against a mean and a
+    /// variance the same question has a scene-independent answer: a sample this far from what the
+    /// pixel has been seeing is not what the pixel is looking at.
+    ///
+    /// **Measured, with `shot --tail`**: sixteen accumulated frames take Seyda Neen's tail from 176
+    /// pixels over 0.5 to ten, and the clamp takes those ten to three. Where it declines to fire is
+    /// an interior full of lamps, because a pixel that sees a bright thing *consistently* raises the
+    /// mean to meet it and is never an outlier — which is the design working, not failing.
     ///
     /// Four sigma leaves a Gaussian tail of one sample in sixteen thousand, which at sixteen frames
     /// of history is a clamp that fires on nothing that is really there.

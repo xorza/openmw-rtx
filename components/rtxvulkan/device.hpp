@@ -74,7 +74,7 @@ namespace Rtx
         ///
         /// **An occupancy figure is a register count and a workgroup size**, and the register count
         /// exists only inside the driver: no offline compiler has it, because the allocation is the
-        /// driver's, and this is why `.notes/rtx/shaders.md` §4.6 needed no external profiler.
+        /// driver's — which is what lets an occupancy figure be had here with no external profiler.
         ///
         /// **Here rather than on either pipeline class**, because it is the device's compiler being
         /// asked and both classes ask it: the entry points are already members, and a copy apiece

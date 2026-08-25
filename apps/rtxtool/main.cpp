@@ -499,7 +499,6 @@ namespace RtxTool
                 const Chosen chosen = chooseView(variables, resources);
                 World world(config, variables, resources);
                 world.pageTerrain(variables["distant-terrain"].as<bool>());
-                world.pageTerrain(variables["distant-terrain"].as<bool>());
 
                 const ESM::Cell* cell = findCellOrComplain(world, chosen.mCell);
                 if (cell == nullptr)
@@ -558,7 +557,6 @@ namespace RtxTool
                 const Chosen chosen = chooseView(variables, resources);
                 World world(config, variables, resources);
                 world.pageTerrain(variables["distant-terrain"].as<bool>());
-                world.pageTerrain(variables["distant-terrain"].as<bool>());
 
                 const ESM::Cell* cell = findCellOrComplain(world, chosen.mCell);
                 if (cell == nullptr)
@@ -602,7 +600,6 @@ namespace RtxTool
                     = asked ? validationFrom(variables, false) : Rtx::ValidationOptions{};
 
                 World world(config, variables, resources);
-                world.pageTerrain(variables["distant-terrain"].as<bool>());
                 world.pageTerrain(variables["distant-terrain"].as<bool>());
 
                 return runVerify(world, validation, request);
@@ -655,7 +652,6 @@ namespace RtxTool
 
                 World world(config, variables, resources);
                 world.pageTerrain(variables["distant-terrain"].as<bool>());
-                world.pageTerrain(variables["distant-terrain"].as<bool>());
 
                 return runBench(world, validation, request);
             }
@@ -673,7 +669,6 @@ namespace RtxTool
                 const ActorRequest actors = actorsFrom(variables);
 
                 World world(config, variables, resources);
-                world.pageTerrain(variables["distant-terrain"].as<bool>());
                 world.pageTerrain(variables["distant-terrain"].as<bool>());
 
                 if (command == "view")

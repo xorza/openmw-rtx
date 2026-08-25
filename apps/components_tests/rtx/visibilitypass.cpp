@@ -3988,7 +3988,7 @@ namespace Rtx
             // where five levels of à-trous have every advantage, since the signal is uniform and
             // every neighbour is a valid sample of it. What the history is for is the case this
             // scene does not have: contact regions, small geometry, and pixels with few neighbours
-            // looking at the same thing. See `.notes/rtx/shaders.md` for what is not yet measured.
+            // looking at the same thing, which is what the test below this one is for.
             EXPECT_LE(settled, after * 1.02f)
                 << "the history does not cost what the cascade gained: " << after << " becomes " << settled;
 

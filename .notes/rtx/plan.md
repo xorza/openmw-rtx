@@ -43,8 +43,10 @@ Consequences, as they settled:
   Inheriting them was the defect — an actor outside the frustum mirrored in a stale pose, distant
   ground absent from reflections.
 - **The mirror is incremental.** A full rebuild per frame will not hold a frame budget: instance
-  transforms change every frame, geometry rarely, materials almost never. `.notes/rtx/mirror.md` is
-  the measurement and the shape that replaced it.
+  transforms change every frame, geometry rarely, materials almost never. `SceneExtractor` is the
+  shape that answers it and `SceneDesc` carries the argument — a placement is addressed by a slot it
+  keeps for as long as it stands, so a world of fifty thousand placements and three hundred movers
+  costs three hundred.
 - **Draw-order tricks do not come across.** `RenderBin` ordering, the transparent-pass hack, the
   distortion pass, `pingpongcull` are rasterizer workarounds; the RT path answers the same questions
   with rays.
@@ -100,10 +102,10 @@ The linker holds the first half; nothing but taste holds the second. It is testa
 scenes with no game data present, which is what makes the allocation test and the pass tests fast and
 hermetic.
 
-**OpenSceneGraph was never that seam**, and `.notes/rtx/merge.md` §1 is why the separate
-`openmw-rtx-bridge` folded back in: the scene arrives as an `osg::Node` graph and the maths types are
-OSG's, so a wall between the half that reads a graph and the half that does not had the same
-consumers on both sides and duplicated code across itself. What a backend is handed is `SceneDesc`
+**OpenSceneGraph was never that seam**, which is why the separate `openmw-rtx-bridge` folded back
+in: the scene arrives as an `osg::Node` graph and the maths types are OSG's, so a wall between the
+half that reads a graph and the half that does not had the same consumers on both sides and
+duplicated code across itself. What a backend is handed is `SceneDesc`
 either way.
 
 Every shader is compiled by `glslc` at build time and **validated by `spirv-val` in the same custom
@@ -439,16 +441,23 @@ every count; and a control fifo bounding the recording to the measured frames.
 - **SER** (`VK_EXT_ray_tracing_invocation_reorder`). **Needs a ray-tracing pipeline**, because
   `reorderThreadEXT` exists in ray generation shaders only — but it does *not* need payloads, hit
   shaders or a real binding table: a `.rgen` can hold `rayQueryEXT` and `reorderThreadEXT` together,
-  which is compiled and checked in `shaders.md` §4.5. So the megakernel body survives the move and
-  what changes is the stage, a one-group pipeline and `vkCmdTraceRaysKHR`. The device reports
-  `reorders` rather than `none`.
+  which was compiled and checked — the SPIR-V carries `OpCapability RayQueryKHR` and
+  `OpReorderThreadWithHintEXT` side by side. So the megakernel body survives the move and what
+  changes is the stage, a one-group pipeline and `vkCmdTraceRaysKHR`. `VK_KHR_ray_tracing_pipeline`
+  is already required and its three entry points are already loaded in `Device`. The device reports
+  `reorders` rather than `none`, which `openmw-rtxtool info` prints.
 
   **Deferred, and the argument for it is weaker than it looked.** The occupancy case is gone —
   `visibility.comp` runs at 50%, bound equally by 80 registers and by the 8,448 bytes the ray query
   traversal stack costs, so shrinking live state does not move it. What is left is coherence, and
-  this frame is largely screen-coherent; on top of that SER costs in proportion to the live state
-  carried across the reorder, and this kernel carries a great deal. `shaders.md` §4.5 has the whole
-  of it and the day's experiment that would settle it.
+  this frame is largely screen-coherent — a claim nobody has measured — and on top of that SER costs
+  in proportion to the live state carried across the reorder, which this kernel has a great deal of.
+
+  **What would settle it is a day**: port `visibility.comp` to a raygen shader with *no* reorder call
+  at all, hold the byte comparison, and compare registers, occupancy and the trace timer. The risk is
+  the port and not the reorder — a raygen shader has a different scheduling and stack model, and a
+  288 KB megakernel may spill where it does not today. If the port alone regresses, the reorder never
+  has to be argued.
 - **Opacity micromaps for cutout foliage.** The device features are required and probed; nothing
   builds a micromap.
 - **BLAS compaction**, and **cluster acceleration structures** if they earn their place.
