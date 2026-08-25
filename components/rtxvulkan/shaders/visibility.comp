@@ -17,6 +17,7 @@
 // positions come back out of the acceleration structure through position fetch, so the only vertex
 // data bound here is what that cannot give: normals and texture coordinates.
 
+#include "camera.h"
 #include "scene.h"
 #include "visibility.h"
 
@@ -37,29 +38,17 @@ layout(local_size_x = VISIBILITY_WORKGROUP, local_size_y = VISIBILITY_WORKGROUP)
 void main()
 {
     const uvec2 pixel = gl_GlobalInvocationID.xy;
-    if (pixel.x >= camera.mWidth || pixel.y >= camera.mHeight)
+    if (pixel.x >= frame.mCamera.mWidth || pixel.y >= frame.mCamera.mHeight)
         return;
 
-    // Pixel centres, and y downwards in the image against z upwards in the world. The jitter is
-    // added to the index rather than to the direction so it cannot disagree with which way is down.
-    const vec2 uv
-        = (vec2(pixel) + 0.5 + camera.mJitter) / vec2(camera.mWidth, camera.mHeight) * 2.0 - 1.0;
+    // The same rays the wavelet rebuilds, from the same `rayAt` — a filter reconstructing positions
+    // from a ray that differed by half a pixel would be filtering somewhere the surface is not.
+    const Ray ray = rayAt(frame.mCamera, vec2(pixel));
+    const vec3 origin = frame.mOrigin + ray.mOffset;
+    const vec3 direction = ray.mDirection;
 
-    // **Where the ray starts is what tells the two projections apart, not where it points.** A
-    // pinhole fans every ray out of one point; a parallel one sends them all the same way from
-    // wherever on the box the pixel sits.
-    const bool parallel = camera.mOrthographic != 0u;
-    const vec3 origin = parallel ? camera.mOrigin + camera.mRight * uv.x - camera.mUp * uv.y : camera.mOrigin;
-    const vec3 direction
-        = normalize(parallel ? camera.mForward : camera.mForward + camera.mRight * uv.x - camera.mUp * uv.y);
-
-    // A parallel ray's cone never widens, and it is not a point either: it is one pixel of the box
-    // wide for its whole length, which is what `mRight` carries half of. Without that every texture
-    // in a map tile would be read at level zero.
-    const float footprint = parallel ? 2.0 * length(camera.mRight) / float(camera.mWidth) : 0.0;
-    const float spread = parallel ? 0.0 : camera.mSpreadAngle;
-
-    const Surface surface = trace(origin, direction, 0.0, footprint, spread, MASK_SOLID | MASK_WATER);
+    const Cone cone = coneAt(frame.mCamera);
+    const Surface surface = trace(origin, direction, 0.0, cone.mWidth, cone.mSpread, MASK_SOLID | MASK_WATER);
 
     // Three channels rather than a colour: what is finished, what a filter may still work on, and
     // what puts the two back together. Only an ordinary lit surface has a second of them — the sky
@@ -80,10 +69,10 @@ void main()
     WaterMirror mirror = WaterMirror(vec3(0.0), vec3(0.0), 0u, false);
 
     if (!surface.mHit)
-        shaded = camera.mTransparentBackground != 0u ? vec3(0.0) : skyRadiance(direction, pixelBlur());
+        shaded = frame.mTransparentBackground != 0u ? vec3(0.0) : skyRadiance(direction, pixelBlur(frame.mCamera));
     else if (surface.mWater)
         shaded = shadeWater(surface, direction, response, mirror);
-    else if (camera.mShowAlbedo != 0u)
+    else if (frame.mShowAlbedo != 0u)
     {
         // **The colour is replaced and the surface is not.** What this view changes is what a pixel
         // is painted with; the thing under it is the same Lambert surface, and saying otherwise
@@ -105,7 +94,7 @@ void main()
     //
     // Applied to the whole colour rather than to the albedo alone — what the depth took is a
     // property of the path, so it belongs to the modulation and not to the material.
-    if (origin.z < camera.mWaterLevel && !(surface.mHit && surface.mWater))
+    if (origin.z < frame.mWaterLevel && !(surface.mHit && surface.mWater))
     {
         transmittance *= waterTransmittance(surface.mDistance);
         shaded = absorbedByWater(shaded, surface.mDistance);
@@ -141,7 +130,7 @@ void main()
 
     // **Coverage rides in the direct channel's alpha**, which every pass after this carries
     // through untouched: it is one everywhere but in a picture that has to say where it stops.
-    const float coverage = (camera.mTransparentBackground != 0u && !surface.mHit) ? 0.0 : 1.0;
+    const float coverage = (frame.mTransparentBackground != 0u && !surface.mHit) ? 0.0 : 1.0;
     imageStore(direct, at, vec4(shaded, coverage));
 
     // **The bounce carries what the path took off it, and the albedo carries only the surface.**

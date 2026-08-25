@@ -192,7 +192,7 @@ float fogShape(vec3 position, float spacing)
         const float held = octave == 0 ? 1.0 : resolved(FOG_GRAIN / frequency, spacing);
         const float used = amplitude * held;
         if (used > 0.0)
-            total += used * fogNoise((position * frequency + FOG_CHURN[octave] * camera.mTime) / FOG_GRAIN);
+            total += used * fogNoise((position * frequency + FOG_CHURN[octave] * frame.mTime) / FOG_GRAIN);
 
         weight += used;
         squares += used * used;
@@ -214,7 +214,7 @@ float fogShape(vec3 position, float spacing)
 /// rather than putting the layer infinitely far below the world.
 float fogBase()
 {
-    return isinf(camera.mWaterLevel) ? FOG_BASE : camera.mWaterLevel;
+    return isinf(frame.mWaterLevel) ? FOG_BASE : frame.mWaterLevel;
 }
 
 /// The fog's extinction at a point, per world unit.
@@ -227,7 +227,7 @@ float fogExtinctionAt(vec3 position, float spacing)
     // it, and a point below the surface already has the water's own absorption over it — fog there
     // would be a second medium laid on the first, putting grey between the eye and the seabed twice
     // over. `mWaterLevel - z` is never positive for a dry cell, so this costs one nothing.
-    if (camera.mWaterLevel - position.z > 0.0)
+    if (frame.mWaterLevel - position.z > 0.0)
         return 0.0;
 
     const float height = exp(-max(position.z - fogBase(), 0.0) / FOG_HEIGHT);
@@ -241,11 +241,11 @@ float fogExtinctionAt(vec3 position, float spacing)
     // outright, and a field it then multiplies by nothing was costing it forty hashes a step for an
     // answer it discards — measured at 2.0 ms of a 2.1 ms trace.
     float coverage = 1.0;
-    if (camera.mFogUniform < 1.0)
+    if (frame.mFogUniform < 1.0)
         coverage = mix(smoothstep(FOG_CLEARING, FOG_SOLID, fogShape(position, spacing)) / FOG_COVERAGE, 1.0,
-            camera.mFogUniform);
+            frame.mFogUniform);
 
-    return camera.mFogExtinction * height * coverage;
+    return frame.mFogExtinction * height * coverage;
 }
 
 /// Where along the ray the step ending at `fraction` of the way through reaches.
@@ -323,7 +323,7 @@ float fogPhase(float cosine)
 float fogSunDepth(float extinction)
 {
     // A sun on the horizon lights an infinite column of fog; the floor is what keeps that finite.
-    return extinction * FOG_HEIGHT / max(camera.mSunPosition.z, 1.0e-3);
+    return extinction * FOG_HEIGHT / max(frame.mSunPosition.z, 1.0e-3);
 }
 
 /// What the air at a point sends toward the eye, per unit of light it takes out of the beam.
@@ -361,7 +361,7 @@ vec3 fogLight(vec3 position, vec3 sun)
         lamps += light.mIntensity * falloff(distance, light.mReach);
     }
 
-    return camera.mFogColour + sun + INV_FOUR_PI * lamps;
+    return frame.mFogColour + sun + INV_FOUR_PI * lamps;
 }
 
 /// What `distance` units of air take out of what is behind them, and what they put in on the way.
@@ -383,7 +383,7 @@ vec4 fogAlong(vec3 origin, vec3 direction, float distance, float offset)
 {
     // No air is the frame untouched, and it has to be exactly that: a lit surface with fog over it
     // is a differently lit one, and the tests that measure radiance turn this off.
-    if (!(camera.mFogExtinction > 0.0))
+    if (!(frame.mFogExtinction > 0.0))
         return vec4(0.0, 0.0, 0.0, 1.0);
 
     const float span = min(distance, FOG_REACH);
@@ -399,13 +399,13 @@ vec4 fogAlong(vec3 origin, vec3 direction, float distance, float offset)
     // through air; one with nothing at the end of it lights up the night sky around a sun that is
     // not there. Nothing here has to know what hour it is — `mSunIrradiance` is zero exactly when
     // there is no sun, and it fades to that across dusk rather than stepping.
-    const bool sunlit = camera.mSunIrradiance != vec3(0.0);
+    const bool sunlit = frame.mSunIrradiance != vec3(0.0);
     const vec3 sunward
-        = sunlit ? camera.mSunIrradiance * fogPhase(dot(direction, camera.mSunPosition)) : vec3(0.0);
+        = sunlit ? frame.mSunIrradiance * fogPhase(dot(direction, frame.mSunPosition)) : vec3(0.0);
 
     // **Only where a shaft could be seen.** The gate is what keeps the rays off every interior and
     // off everything but the sunward part of an exterior, which is most of a frame.
-    const bool shafts = brightest(sunward) > FOG_SHAFT_FLOOR * brightest(camera.mFogColour);
+    const bool shafts = brightest(sunward) > FOG_SHAFT_FLOOR * brightest(frame.mFogColour);
 
     float transmittance = 1.0;
     vec3 scattered = vec3(0.0);
@@ -422,7 +422,7 @@ vec4 fogAlong(vec3 origin, vec3 direction, float distance, float offset)
             const float reach = fogDepth(float((stretch + 1u) * FOG_STEPS_PER_RAY) / float(FOG_STEPS)) * span;
             const vec3 probe = origin + direction * mix(behind, reach, offset);
 
-            visible = occluded(probe, camera.mSunPosition, camera.mFar) ? 0.0 : 1.0;
+            visible = occluded(probe, frame.mSunPosition, frame.mFar) ? 0.0 : 1.0;
         }
 
         for (uint k = 0u; k < FOG_STEPS_PER_RAY; ++k)

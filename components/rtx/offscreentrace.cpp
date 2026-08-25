@@ -112,7 +112,7 @@ namespace Rtx
 
         // `setRowOrder` says why the GUI's copy comes out the other way up.
         if (mRowOrder == RowOrder::BottomFirst)
-            camera.mUp = -camera.mUp;
+            camera.mCamera.mUp = -camera.mCamera.mUp;
 
         camera.mSunPosition = mSunPosition;
         camera.mSunIrradiance = mSunIrradiance;
@@ -190,7 +190,7 @@ namespace Rtx
             return false;
 
         const Shaders::VisibilityConstants camera = describeCamera();
-        const osg::Vec3f direction = camera.mForward + camera.mRight * x - camera.mUp * y;
+        const osg::Vec3f direction = camera.mCamera.mForward + camera.mCamera.mRight * x - camera.mCamera.mUp * y;
 
         osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector = new osgUtil::LineSegmentIntersector(
             osgUtil::Intersector::MODEL, camera.mOrigin + direction * mNear, camera.mOrigin + direction * mFar);

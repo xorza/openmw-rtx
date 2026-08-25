@@ -9,6 +9,7 @@
 // **One file, because a binding number is a fact shared with `VisibilityPass` and nothing
 // else here has an opinion about it.** What each channel is *for* is written beside it.
 
+#include "camera.h"
 #include "gbuffer.h"
 #include "scene.h"
 #include "visibility.h"
@@ -216,7 +217,7 @@ layout(set = 0, binding = 23, scalar) readonly buffer Sprites
     GpuSprite sprites[];
 };
 
-/// One sphere and one run of sprites per particle system. `camera.mEmitterCount` says how many are
+/// One sphere and one run of sprites per particle system. `frame.mEmitterCount` says how many are
 /// real: the buffer never shrinks, so its length outlives the cell that filled it.
 layout(set = 0, binding = 24, scalar) readonly buffer Emitters
 {
@@ -246,7 +247,7 @@ layout(set = 1, binding = 0) uniform sampler2D textures[];
 // way the push constants it replaces were, where a storage buffer is a memory read like any other.
 layout(set = 0, binding = 25, scalar) uniform Frame
 {
-    VisibilityConstants camera;
+    VisibilityConstants frame;
 };
 
 #endif

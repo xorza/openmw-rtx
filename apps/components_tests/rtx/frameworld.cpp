@@ -250,14 +250,14 @@ namespace Rtx
         {
             Rtx::Shaders::VisibilityConstants constants{};
             constants.mOrigin = osg::Vec3f(1.0f, 2.0f, 3.0f);
-            constants.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
-            constants.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
-            constants.mUp = osg::Vec3f(0.0f, 0.0f, 1.0f);
-            constants.mWidth = 1280;
-            constants.mHeight = 720;
+            constants.mCamera.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
+            constants.mCamera.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
+            constants.mCamera.mUp = osg::Vec3f(0.0f, 0.0f, 1.0f);
+            constants.mCamera.mWidth = 1280;
+            constants.mCamera.mHeight = 720;
             constants.mNear = 1.0f;
             constants.mFar = 12000.0f;
-            constants.mSpreadAngle = 0.001f;
+            constants.mCamera.mSpreadAngle = 0.001f;
             constants.mFrame = 42;
             constants.mDelight = 0.5f;
             constants.mShowAlbedo = 1;
@@ -267,14 +267,14 @@ namespace Rtx
             applyWorld(distinct(), constants);
 
             EXPECT_EQ(constants.mOrigin, osg::Vec3f(1.0f, 2.0f, 3.0f));
-            EXPECT_EQ(constants.mForward, osg::Vec3f(0.0f, 1.0f, 0.0f));
-            EXPECT_EQ(constants.mRight, osg::Vec3f(1.0f, 0.0f, 0.0f));
-            EXPECT_EQ(constants.mUp, osg::Vec3f(0.0f, 0.0f, 1.0f));
-            EXPECT_EQ(constants.mWidth, 1280u);
-            EXPECT_EQ(constants.mHeight, 720u);
+            EXPECT_EQ(constants.mCamera.mForward, osg::Vec3f(0.0f, 1.0f, 0.0f));
+            EXPECT_EQ(constants.mCamera.mRight, osg::Vec3f(1.0f, 0.0f, 0.0f));
+            EXPECT_EQ(constants.mCamera.mUp, osg::Vec3f(0.0f, 0.0f, 1.0f));
+            EXPECT_EQ(constants.mCamera.mWidth, 1280u);
+            EXPECT_EQ(constants.mCamera.mHeight, 720u);
             EXPECT_EQ(constants.mNear, 1.0f);
             EXPECT_EQ(constants.mFar, 12000.0f);
-            EXPECT_EQ(constants.mSpreadAngle, 0.001f);
+            EXPECT_EQ(constants.mCamera.mSpreadAngle, 0.001f);
             EXPECT_EQ(constants.mFrame, 42u);
             EXPECT_EQ(constants.mDelight, 0.5f);
             EXPECT_EQ(constants.mShowAlbedo, 1u);

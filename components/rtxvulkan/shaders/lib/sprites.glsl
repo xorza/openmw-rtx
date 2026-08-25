@@ -29,7 +29,7 @@
 /// because a puff is the same kind of thing the fog is, only denser and in one place.
 vec3 puffLight(vec3 position)
 {
-    vec3 light = pathEnd(position) + camera.mSunIrradiance * (INV_PI * daylightReaching(position));
+    vec3 light = pathEnd(position) + frame.mSunIrradiance * (INV_PI * daylightReaching(position));
 
     const uvec2 near = lampsReaching(position);
     for (uint i = near.x; i < near.y; ++i)
@@ -135,10 +135,10 @@ SpriteLayer spritesAlong(vec3 origin, vec3 direction, float limit)
 
     // The screen's own axes, for reading a sprite's texture the way the quad would have been cut.
     // Hoisted because they are the camera's and not the sprite's.
-    const vec3 across = normalize(camera.mRight);
-    const vec3 upward = normalize(camera.mUp);
+    const vec3 across = normalize(frame.mCamera.mRight);
+    const vec3 upward = normalize(frame.mCamera.mUp);
 
-    for (uint e = 0u; e < camera.mEmitterCount; ++e)
+    for (uint e = 0u; e < frame.mEmitterCount; ++e)
     {
         const GpuEmitter emitter = emitters[e];
 
@@ -239,7 +239,7 @@ SpriteLayer spritesAlong(vec3 origin, vec3 direction, float limit)
             // across, and the ratio of the two in texels is the level that resolves it.
             const vec2 size = vec2(textureSize(textures[nonuniformEXT(emitter.mTexture)], 0));
             const float lod
-                = max(0.0, log2(max(size.x, size.y) * camera.mSpreadAngle * depth / (2.0 * sprite.mRadius)));
+                = max(0.0, log2(max(size.x, size.y) * frame.mCamera.mSpreadAngle * depth / (2.0 * sprite.mRadius)));
 
             // The quad `osgParticle` would have drawn: texture coordinate zero at `-right -up` and
             // one at `+right +up`, about a centre at half.

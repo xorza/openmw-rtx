@@ -60,9 +60,9 @@ namespace RtxTool
             const Rtx::Shaders::VisibilityConstants framed = makeFrameConstants(makeFraming(), sExtents);
 
             EXPECT_EQ(framed.mOrigin, aimed.mOrigin);
-            EXPECT_EQ(framed.mForward, aimed.mForward);
-            EXPECT_EQ(framed.mRight, aimed.mRight);
-            EXPECT_EQ(framed.mUp, aimed.mUp);
+            EXPECT_EQ(framed.mCamera.mForward, aimed.mCamera.mForward);
+            EXPECT_EQ(framed.mCamera.mRight, aimed.mCamera.mRight);
+            EXPECT_EQ(framed.mCamera.mUp, aimed.mCamera.mUp);
             EXPECT_EQ(framed.mFar, aimed.mFar);
         }
 
@@ -78,7 +78,7 @@ namespace RtxTool
                     .mRenderWidth = 720, .mRenderHeight = 720, .mOutputWidth = 1920, .mOutputHeight = 1080 });
 
             // 16:9 spreads the same vertical half-angle over 16/9 as much width; 1:1 does not.
-            EXPECT_NEAR(framed.mRight.length() / square.mRight.length(), 16.0f / 9.0f, 1e-5f);
+            EXPECT_NEAR(framed.mCamera.mRight.length() / square.mCamera.mRight.length(), 16.0f / 9.0f, 1e-5f);
         }
 
         /// Every switch reaches the constants, and each one changes the frame.

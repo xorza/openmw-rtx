@@ -23,7 +23,7 @@
 /// would pick it up over a quarter of the sky at that.
 vec3 skyGlow(vec3 direction)
 {
-    return mix(camera.mSkyHorizon, camera.mSkyZenith, clamp(direction.z, 0.0, 1.0));
+    return mix(frame.mSkyHorizon, frame.mSkyZenith, clamp(direction.z, 0.0, 1.0));
 }
 
 /// How wide one tile of the cloud texture is across the sky.
@@ -59,7 +59,7 @@ const float CLOUD_HORIZON = 0.28;
 vec3 cloudDeck(vec3 direction, out float covered)
 {
     covered = 0.0;
-    if (!(camera.mClouds.mOpacity > 0.0) || camera.mClouds.mTexture == NO_SKY_TEXTURE || direction.z <= 0.0)
+    if (!(frame.mClouds.mOpacity > 0.0) || frame.mClouds.mTexture == NO_SKY_TEXTURE || direction.z <= 0.0)
         return vec3(0.0);
 
     // Into the haze rather than off an edge, for the reason `CLOUD_HORIZON` gives.
@@ -68,26 +68,26 @@ vec3 cloudDeck(vec3 direction, out float covered)
         return vec3(0.0);
 
     // Turned about the zenith first, so the deck runs the way the weather drives it.
-    const float turn = camera.mClouds.mTurn;
+    const float turn = frame.mClouds.mTurn;
     const vec2 bearing = vec2(cos(turn), sin(turn));
     const vec2 along
         = vec2(direction.x * bearing.x - direction.y * bearing.y, direction.x * bearing.y + direction.y * bearing.x);
 
-    const vec2 uv = along / (direction.z * CLOUD_TILE) + vec2(0.0, camera.mClouds.mScroll);
+    const vec2 uv = along / (direction.z * CLOUD_TILE) + vec2(0.0, frame.mClouds.mScroll);
 
     // **The top mip and no cone.** A deck seen edge-on compresses without bound, so the right level
     // is whatever the gradient says — and the gradient is what the hardware works out for itself
     // from neighbouring lanes, which a ray tracer does not have. The horizon fade is what stands in:
     // it takes the texture out over exactly the band where the compression would alias.
-    const vec4 near = textureLod(textures[nonuniformEXT(camera.mClouds.mTexture)], uv, 0.0);
-    const vec4 far = camera.mClouds.mNext == NO_SKY_TEXTURE
+    const vec4 near = textureLod(textures[nonuniformEXT(frame.mClouds.mTexture)], uv, 0.0);
+    const vec4 far = frame.mClouds.mNext == NO_SKY_TEXTURE
         ? near
-        : textureLod(textures[nonuniformEXT(camera.mClouds.mNext)], uv, 0.0);
+        : textureLod(textures[nonuniformEXT(frame.mClouds.mNext)], uv, 0.0);
 
-    const vec4 cloud = mix(near, far, camera.mClouds.mBlend);
+    const vec4 cloud = mix(near, far, frame.mClouds.mBlend);
 
-    covered = cloud.a * reaches * camera.mClouds.mOpacity;
-    return camera.mClouds.mColour * covered;
+    covered = cloud.a * reaches * frame.mClouds.mOpacity;
+    return frame.mClouds.mColour * covered;
 }
 
 /// What the nebulae and the constellations send back along a ray.
@@ -107,7 +107,7 @@ vec3 skyPatches(vec3 direction)
     // `patch` is a reserved word in GLSL, which is why this is not called one.
     for (uint layer = 0u; layer < SKY_PATCH_COUNT; ++layer)
     {
-        const SkyPatch sheet = camera.mSkyPatches[layer];
+        const SkyPatch sheet = frame.mSkyPatches[layer];
 
         // The hemisphere test is not optional: the offsets below are the same for a direction and
         // its opposite, so without it every ray pointing away lands in the middle of the face.
@@ -145,20 +145,20 @@ vec3 skyPatches(vec3 direction)
 /// and thief constellations, each over its own band of sky.
 vec3 starField(vec3 direction)
 {
-    if (!(camera.mStars.mFade > 0.0) || camera.mStars.mTexture == NO_SKY_TEXTURE || direction.z <= 0.0)
+    if (!(frame.mStars.mFade > 0.0) || frame.mStars.mTexture == NO_SKY_TEXTURE || direction.z <= 0.0)
         return vec3(0.0);
 
     const float elevation = asin(clamp(direction.z, -1.0, 1.0));
     const float reaches
-        = camera.mStars.mHorizon > 0.0 ? clamp(elevation / camera.mStars.mHorizon, 0.0, 1.0) : 1.0;
+        = frame.mStars.mHorizon > 0.0 ? clamp(elevation / frame.mStars.mHorizon, 0.0, 1.0) : 1.0;
     if (reaches <= 0.0)
         return vec3(0.0);
 
     // The roll is a turn of the sphere, which in this unwrap is a shift along `u` and nothing else.
-    const float azimuth = atan(direction.y, direction.x) - camera.mStars.mTurn;
-    const vec2 uv = vec2(azimuth, 0.25 * TAU - elevation) / camera.mStars.mTile;
+    const float azimuth = atan(direction.y, direction.x) - frame.mStars.mTurn;
+    const vec2 uv = vec2(azimuth, 0.25 * TAU - elevation) / frame.mStars.mTile;
 
-    return (camera.mStars.mFade * reaches) * textureLod(textures[nonuniformEXT(camera.mStars.mTexture)], uv, 0.0).rgb;
+    return (frame.mStars.mFade * reaches) * textureLod(textures[nonuniformEXT(frame.mStars.mTexture)], uv, 0.0).rgb;
 }
 
 /// What a moon's lit face sends back along a ray, and how much of the sky it stands in front of.
@@ -204,7 +204,7 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
     const vec2 face = at / max(across, 1.0);
     const vec3 normal = vec3(face, sqrt(max(1.0 - dot(face, face), 0.0)));
 
-    const vec2 toward = vec2(dot(camera.mSunPosition, moon.mRight), dot(camera.mSunPosition, moon.mUp));
+    const vec2 toward = vec2(dot(frame.mSunPosition, moon.mRight), dot(frame.mSunPosition, moon.mUp));
     const float turn = dot(toward, toward) > 0.0 ? atan(toward.y, toward.x) : 0.0;
     const vec3 light
         = vec3(sin(moon.mPhaseAngle) * cos(turn), sin(moon.mPhaseAngle) * sin(turn), cos(moon.mPhaseAngle));
@@ -274,7 +274,7 @@ vec3 skyRadiance(vec3 direction, float blur)
     // sky is actually stacked in: a star is on the celestial sphere, the clouds are a couple of
     // kilometres up, and the moons and the sun are between them. So the stars go on first, the deck
     // takes its share of whatever is behind it at the end, and the two discs are added in between.
-    colour += camera.mStars.mFade > 0.0 ? starField(direction) + camera.mStars.mFade * skyPatches(direction)
+    colour += frame.mStars.mFade > 0.0 ? starField(direction) + frame.mStars.mFade * skyPatches(direction)
                                          : vec3(0.0);
 
     // **Added to the sky rather than composited over it**, because what stands between the eye and
@@ -284,7 +284,7 @@ vec3 skyRadiance(vec3 direction, float blur)
     for (uint moon = 0u; moon < 2u; ++moon)
     {
         float covered;
-        colour += moonFace(camera.mMoons[moon], direction, blur, covered);
+        colour += moonFace(frame.mMoons[moon], direction, blur, covered);
         hidden = max(hidden, covered);
     }
 
@@ -298,7 +298,7 @@ vec3 skyRadiance(vec3 direction, float blur)
     // second field saying whether to draw the disc is what once let a sun shadow out of an empty
     // sky, and there is no longer one to disagree with.
     const float edge = 2.0 * sin(0.5 * (SUN_ANGULAR_RADIUS + blur));
-    if (camera.mSunIrradiance != vec3(0.0) && length(direction - camera.mSunPosition) < edge)
+    if (frame.mSunIrradiance != vec3(0.0) && length(direction - frame.mSunPosition) < edge)
     {
         // **The sun's radiance is five orders of magnitude above the sky's** and this does not
         // pretend otherwise, so it saturates until there is an exposure stage to bring it down.
@@ -312,12 +312,12 @@ vec3 skyRadiance(vec3 direction, float blur)
         // peak leaves a white disc at white and lets a weather's sunset tint both redden and dim
         // it, which is what air does to a sun on the horizon — it takes the blue out rather than
         // putting red in.
-        const float radiance = brightest(camera.mSunIrradiance) / (0.5 * TAU * edge * edge);
+        const float radiance = brightest(frame.mSunIrradiance) / (0.5 * TAU * edge * edge);
 
         // **Dimmed by whatever stands in front of it, which is the whole of an eclipse.** Masser is
         // nineteen degrees across against the sun's half a degree, so on the rare crossing it is
         // total, and it costs one multiply on the frames it is not.
-        colour += ((1.0 - hidden) * radiance) * camera.mSunDiscColour;
+        colour += ((1.0 - hidden) * radiance) * frame.mSunDiscColour;
     }
 
     // Last, and over everything: the deck is nearer than any of it.

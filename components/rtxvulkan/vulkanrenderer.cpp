@@ -530,7 +530,7 @@ namespace Rtx
     FrameResult VulkanRenderer::renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options)
     {
         assert(mPass != nullptr && "renderFrame before setScene");
-        assert(camera.mWidth == mRenderWidth && camera.mHeight == mRenderHeight
+        assert(camera.mCamera.mWidth == mRenderWidth && camera.mCamera.mHeight == mRenderHeight
             && "the camera has to be built for the render extent; ask getExtents");
 
         // **Coverage and an upscaler do not meet, and the interface says so rather than the code
@@ -566,15 +566,15 @@ namespace Rtx
         // the renderer's to walk.
         Shaders::VisibilityConstants sampled = camera;
         if (reconstruction.mJitter)
-            sampled.mJitter = haltonJitter(camera.mFrame);
+            sampled.mCamera.mJitter = haltonJitter(camera.mFrame);
 
         // **The one subtraction of two world points, and it happens here.** Two camera positions a
         // step apart subtract exactly in a float; the same difference taken on the device, between
         // coordinates six figures long, would be rounding.
         sampled.mCameraMotion = camera.mOrigin - mPreviousCamera.mOrigin;
-        sampled.mPreviousForward = mPreviousCamera.mForward;
-        sampled.mPreviousRight = mPreviousCamera.mRight;
-        sampled.mPreviousUp = mPreviousCamera.mUp;
+        sampled.mPreviousForward = mPreviousCamera.mCamera.mForward;
+        sampled.mPreviousRight = mPreviousCamera.mCamera.mRight;
+        sampled.mPreviousUp = mPreviousCamera.mCamera.mUp;
 
         const VisibilityInputs inputs{
             .mScene = mWorld.mAcceleration->getTopLevel(),
@@ -637,7 +637,7 @@ namespace Rtx
                 mTimer.open(commands, "filter");
 
             const Image& indirect
-                = filtering ? mFilter.record(commands, *mChannels, sampled) : mChannels->getIndirect();
+                = filtering ? mFilter.record(commands, *mChannels, sampled.mCamera) : mChannels->getIndirect();
             if (filtering)
                 mTimer.close(commands);
 
@@ -673,7 +673,7 @@ namespace Rtx
                         .mParticleMask = mChannels->getParticleMask(),
                         .mBiasMask = mChannels->getBiasMask(),
                         .mOutput = *mUpscaled,
-                        .mJitter = sampled.mJitter,
+                        .mJitter = sampled.mCamera.mJitter,
                         .mFrameDeltaMs = sinceLastMs,
                         // **A history is worthless after a jump no motion vector can describe.** A
                         // zero basis catches the frames that have no past at all — a resize, a
@@ -681,7 +681,7 @@ namespace Rtx
                         // door left the previous camera intact and Ray Reconstruction reprojected
                         // one room onto another. `mHistoryStale` is the other half, and it is the
                         // signal the renderer was already being sent.
-                        .mReset = mHistoryStale || mPreviousCamera.mForward.length2() <= 0.0f,
+                        .mReset = mHistoryStale || mPreviousCamera.mCamera.mForward.length2() <= 0.0f,
                     });
 
                 // What NGX recorded is its own; nothing here knows which stages it used.
@@ -774,7 +774,7 @@ namespace Rtx
         std::uint32_t texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options)
     {
         assert(mPass != nullptr && "traceGuiTexture before any scene was built");
-        assert(camera.mWidth == options.mWidth && camera.mHeight == options.mHeight
+        assert(camera.mCamera.mWidth == options.mWidth && camera.mCamera.mHeight == options.mHeight
             && "the camera has to be built for the part of the texture it fills");
 
         const bool ofTheWorld = options.mScene == sWorld;
@@ -815,7 +815,7 @@ namespace Rtx
             mPass->record(commands, inputs, *mViewChannels, mHitCount, camera);
             mViewChannels->handOver(commands);
 
-            const Image& indirect = mViewFilter.record(commands, *mViewChannels, camera);
+            const Image& indirect = mViewFilter.record(commands, *mViewChannels, camera.mCamera);
 
             mComposite.record(commands, *mViewChannels, indirect, nullptr, *mViewColour,
                 Shaders::CompositeConstants{

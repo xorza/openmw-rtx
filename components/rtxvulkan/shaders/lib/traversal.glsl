@@ -143,14 +143,14 @@ Surface trace(vec3 origin, vec3 direction, float tmin, float footprint, float sp
     surface.mAlbedo = vec3(0.0);
     surface.mEmissiveColour = vec3(0.0);
     surface.mEmitted = vec3(0.0);
-    surface.mDistance = camera.mFar;
+    surface.mDistance = frame.mFar;
     surface.mFootprint = 0.0;
 
     rayQueryEXT query;
     // No blanket opaque flag: the per-instance bits the build set from each material are what decide
     // whether traversal stops to ask, and forcing opacity here would override them and put every
     // leaf back inside the card it was painted on.
-    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsNoneEXT, mask, origin, tmin, direction, camera.mFar);
+    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsNoneEXT, mask, origin, tmin, direction, frame.mFar);
     while (rayQueryProceedEXT(query))
     {
         if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)

@@ -24,7 +24,7 @@
 /// White above the surface, and for a cell with no water at all.
 vec3 daylightReaching(vec3 position)
 {
-    const float depth = camera.mWaterLevel - position.z;
+    const float depth = frame.mWaterLevel - position.z;
     if (!(depth > 0.0))
         return vec3(1.0);
 
@@ -42,16 +42,16 @@ vec3 daylightReaching(vec3 position)
 /// White above the surface, and for a cell with no water at all.
 vec3 sunThroughWater(vec3 position, float footprint)
 {
-    const float depth = camera.mWaterLevel - position.z;
+    const float depth = frame.mWaterLevel - position.z;
     if (!(depth > 0.0))
         return vec3(1.0);
 
     // Refracted at a *flat* surface: what the waves do to the sun's direction averages out over the
     // path, and what they do to its distribution is the caustic.
-    const vec3 downward = refract(-camera.mSunPosition, vec3(0.0, 0.0, 1.0), 1.0 / WATER_IOR);
+    const vec3 downward = refract(-frame.mSunPosition, vec3(0.0, 0.0, 1.0), 1.0 / WATER_IOR);
     const float path = depth / max(-downward.z, 0.05);
 
-    return exp(-WATER_EXTINCTION * path) * caustic(position.xy, depth, camera.mTime, footprint);
+    return exp(-WATER_EXTINCTION * path) * caustic(position.xy, depth, frame.mTime, footprint);
 }
 
 /// What is left of `radiance` after `path` units of water, plus what the water scattered back.
@@ -71,7 +71,7 @@ vec3 absorbedByWater(vec3 radiance, float path)
     const vec3 transmittance = waterTransmittance(path);
     const vec3 scattered = (1.0 - transmittance * transmittance) * 0.5;
 
-    return radiance * transmittance + WATER_SCATTER * scattered * camera.mAmbient;
+    return radiance * transmittance + WATER_SCATTER * scattered * frame.mAmbient;
 }
 
 #endif

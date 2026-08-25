@@ -96,7 +96,7 @@ float paintedLight(uint slot, vec2 at)
 vec3 sampleAlbedo(uint slot, vec2 uv[3], vec3 weight, vec4 transform, vec3 crossed, vec3 direction, float coneWidth)
 {
     const vec3 texel = sampleDiffuse(slot, uv, weight, transform, crossed, direction, coneWidth).rgb;
-    if (camera.mDelight <= 0.0)
+    if (frame.mDelight <= 0.0)
         return texel;
 
     // The same point `sampleDiffuse` read, worked out again rather than handed back: it is six
@@ -107,7 +107,7 @@ vec3 sampleAlbedo(uint slot, vec2 uv[3], vec3 weight, vec4 transform, vec3 cross
     const vec2 uv2 = uv[2] * transform.xy + transform.zw;
     const vec2 at = uv0 * weight.x + uv1 * weight.y + uv2 * weight.z;
 
-    return texel / mix(1.0, paintedLight(slot, at), camera.mDelight);
+    return texel / mix(1.0, paintedLight(slot, at), frame.mDelight);
 }
 
 /// How much of a terrain layer shows at `uv`, from its grid of weights.

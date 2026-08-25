@@ -80,9 +80,9 @@ namespace Rtx
             const Shaders::VisibilityConstants camera
                 = makeCamera(osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 90.0f, 100, 100, 1000.0f);
 
-            EXPECT_NEAR(camera.mForward.y(), 1.0f, 1e-5f);
-            EXPECT_NEAR(camera.mRight.x(), 1.0f, 1e-5f);
-            EXPECT_NEAR(camera.mUp.z(), 1.0f, 1e-5f);
+            EXPECT_NEAR(camera.mCamera.mForward.y(), 1.0f, 1e-5f);
+            EXPECT_NEAR(camera.mCamera.mRight.x(), 1.0f, 1e-5f);
+            EXPECT_NEAR(camera.mCamera.mUp.z(), 1.0f, 1e-5f);
         }
 
         TEST(RtxCameraTest, aWiderImageWidensTheHorizontalExtentAndLeavesTheVerticalAlone)
@@ -90,8 +90,8 @@ namespace Rtx
             const Shaders::VisibilityConstants wide
                 = makeCamera(osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 90.0f, 200, 100, 1000.0f);
 
-            EXPECT_NEAR(wide.mRight.x(), 2.0f, 1e-5f);
-            EXPECT_NEAR(wide.mUp.z(), 1.0f, 1e-5f);
+            EXPECT_NEAR(wide.mCamera.mRight.x(), 2.0f, 1e-5f);
+            EXPECT_NEAR(wide.mCamera.mUp.z(), 1.0f, 1e-5f);
         }
 
         /// These come off a command line, so they are input and get a message rather than an assert
@@ -121,13 +121,13 @@ namespace Rtx
             for (int axis = 0; axis < 3; ++axis)
             {
                 EXPECT_NEAR(viewed.mOrigin[axis], aimed.mOrigin[axis], 1e-3f) << "origin " << axis;
-                EXPECT_NEAR(viewed.mForward[axis], aimed.mForward[axis], 1e-5f) << "forward " << axis;
-                EXPECT_NEAR(viewed.mRight[axis], aimed.mRight[axis], 1e-5f) << "right " << axis;
-                EXPECT_NEAR(viewed.mUp[axis], aimed.mUp[axis], 1e-5f) << "up " << axis;
+                EXPECT_NEAR(viewed.mCamera.mForward[axis], aimed.mCamera.mForward[axis], 1e-5f) << "forward " << axis;
+                EXPECT_NEAR(viewed.mCamera.mRight[axis], aimed.mCamera.mRight[axis], 1e-5f) << "right " << axis;
+                EXPECT_NEAR(viewed.mCamera.mUp[axis], aimed.mCamera.mUp[axis], 1e-5f) << "up " << axis;
             }
 
-            EXPECT_EQ(viewed.mOrthographic, 0u);
-            EXPECT_NEAR(viewed.mSpreadAngle, aimed.mSpreadAngle, 1e-7f);
+            EXPECT_EQ(viewed.mCamera.mOrthographic, 0u);
+            EXPECT_NEAR(viewed.mCamera.mSpreadAngle, aimed.mCamera.mSpreadAngle, 1e-7f);
         }
 
         /// Straight down, which is the viewpoint `makeCamera` has no roll for and refuses — and it
@@ -143,16 +143,16 @@ namespace Rtx
             const Shaders::VisibilityConstants camera
                 = makeOrthographicCameraFromView(view, 200.0f, 100.0f, 64, 32, 5.0f, 400.0f);
 
-            EXPECT_EQ(camera.mOrthographic, 1u);
+            EXPECT_EQ(camera.mCamera.mOrthographic, 1u);
 
             EXPECT_NEAR(camera.mOrigin.z(), 100.0f, 1e-4f);
-            EXPECT_NEAR(camera.mForward.z(), -1.0f, 1e-5f);
-            EXPECT_NEAR(camera.mRight.x(), 100.0f, 1e-4f);
-            EXPECT_NEAR(camera.mUp.y(), 50.0f, 1e-4f);
+            EXPECT_NEAR(camera.mCamera.mForward.z(), -1.0f, 1e-5f);
+            EXPECT_NEAR(camera.mCamera.mRight.x(), 100.0f, 1e-4f);
+            EXPECT_NEAR(camera.mCamera.mUp.y(), 50.0f, 1e-4f);
 
             // No angle, because a parallel ray's cone does not widen; the shader takes the pixel's
             // constant footprint off `mRight` instead.
-            EXPECT_EQ(camera.mSpreadAngle, 0.0f);
+            EXPECT_EQ(camera.mCamera.mSpreadAngle, 0.0f);
 
             // What `makeCamera` says to the same viewpoint, and why this function exists.
             EXPECT_THROW(makeCamera(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(), 60.0f, 64, 32, 400.0f), Error);
@@ -652,7 +652,7 @@ namespace Rtx
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
             const auto covered = [&](float acrossX) {
-                camera.mJitter = osg::Vec2f(acrossX, 0.0f);
+                camera.mCamera.mJitter = osg::Vec2f(acrossX, 0.0f);
 
                 std::vector<std::uint8_t> pixels;
                 return countHits(scene, {}, camera, size, pixels);
@@ -3021,12 +3021,12 @@ namespace Rtx
                 // A pixel's solid angle is its side squared at these angles: the frame is two
                 // degrees across in one case and twenty in the other, where the cos-cubed the exact
                 // form carries is a part in two thousand.
-                Disc disc{ .mPeak = 0.0f, .mTotal = 0.0f, .mSpreadAngle = camera.mSpreadAngle };
+                Disc disc{ .mPeak = 0.0f, .mTotal = 0.0f, .mSpreadAngle = camera.mCamera.mSpreadAngle };
                 for (std::size_t i = 0; i < std::size_t{ size } * size; ++i)
                 {
                     const float radiance = decodeSrgb(pixels[i * 4]);
                     disc.mPeak = std::max(disc.mPeak, radiance);
-                    disc.mTotal += radiance * camera.mSpreadAngle * camera.mSpreadAngle;
+                    disc.mTotal += radiance * camera.mCamera.mSpreadAngle * camera.mCamera.mSpreadAngle;
                 }
                 return disc;
             };
@@ -3185,7 +3185,7 @@ namespace Rtx
             // reflection does, so what is seen *through* a rough surface is blurred that much less.
             const auto coneAtBed = [&](float lobe) {
                 const float bent = lobe * (1.0f - 1.0f / Shaders::WATER_IOR);
-                return camera.mSpreadAngle * height + (camera.mSpreadAngle + 2.0f * bent) * depth;
+                return camera.mCamera.mSpreadAngle * height + (camera.mCamera.mSpreadAngle + 2.0f * bent) * depth;
             };
 
             const SeaState fine{ .mSignificantHeight = 3.0f, .mPeakWavelength = 64.0f };

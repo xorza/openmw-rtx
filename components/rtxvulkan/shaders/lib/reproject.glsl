@@ -48,29 +48,29 @@ vec2 reprojected(uvec2 pixel, vec3 was)
     // **No answer under a parallel projection.** The inverse below divides by the distance along
     // the view axis, which is the perspective divide and not this camera's projection. Nothing that
     // traces one reprojects: a map tile is one frame with no frame before it.
-    if (camera.mOrthographic != 0u)
+    if (frame.mCamera.mOrthographic != 0u)
         return vec2(0.0);
 
     // Behind the previous eye there is no answer, and the divide below would fold such a point back
     // into the frame as a plausible coordinate.
-    const float ahead = dot(was, camera.mPreviousForward);
+    const float ahead = dot(was, frame.mPreviousForward);
     if (!(ahead > 0.0))
         return vec2(0.0);
 
     // The inverse of the ray generation. The basis carries the image plane's half extents, so
     // dividing by each vector's own square undoes the direction and the scale together.
-    const float across = dot(was, camera.mPreviousRight) / dot(camera.mPreviousRight, camera.mPreviousRight);
-    const float down = -dot(was, camera.mPreviousUp) / dot(camera.mPreviousUp, camera.mPreviousUp);
+    const float across = dot(was, frame.mPreviousRight) / dot(frame.mPreviousRight, frame.mPreviousRight);
+    const float down = -dot(was, frame.mPreviousUp) / dot(frame.mPreviousUp, frame.mPreviousUp);
 
-    const vec2 before = (vec2(across, down) / ahead * 0.5 + 0.5) * vec2(camera.mWidth, camera.mHeight);
-    return before - (vec2(pixel) + 0.5 + camera.mJitter);
+    const vec2 before = (vec2(across, down) / ahead * 0.5 + 0.5) * vec2(frame.mCamera.mWidth, frame.mCamera.mHeight);
+    return before - (vec2(pixel) + 0.5 + frame.mCamera.mJitter);
 }
 
 vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint instance)
 {
     const vec3 point = origin + direction * distance;
 
-    return reprojected(pixel, direction * distance + camera.mCameraMotion + movedBy(instance, point));
+    return reprojected(pixel, direction * distance + frame.mCameraMotion + movedBy(instance, point));
 }
 
 /// Where the sprite that owns a pixel stood on the previous frame's screen, in pixels.
@@ -80,7 +80,7 @@ vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
 /// the mask beside it is what says not to trust the pixel anyway.
 vec2 spriteMotionOf(uvec2 pixel, SpriteClaim claim)
 {
-    return reprojected(pixel, claim.mToward + camera.mCameraMotion - claim.mMoved);
+    return reprojected(pixel, claim.mToward + frame.mCameraMotion - claim.mMoved);
 }
 
 /// Where what a water surface reflects stood on the previous frame's screen, in pixels.
@@ -95,7 +95,7 @@ vec2 spriteMotionOf(uvec2 pixel, SpriteClaim claim)
 /// were still — which is what a mirrored reprojection can describe, and is why the wave's own
 /// scatter is left to the mask beside it.
 ///
-/// The plane is `camera.mWaterLevel`, which every frame with water in it names: the surface this
+/// The plane is `frame.mWaterLevel`, which every frame with water in it names: the surface this
 /// reflects about is the one the water geometry lies in, and not the facet the ray happened to
 /// bounce off.
 vec2 mirrorMotionOf(uvec2 pixel, vec3 origin, WaterMirror mirror)
@@ -109,10 +109,10 @@ vec2 mirrorMotionOf(uvec2 pixel, vec3 origin, WaterMirror mirror)
 
     // The plane's own reflection, which is linear on differences: the constant cancels in the
     // subtraction below, so only `z` changes sign.
-    const vec3 seen = vec3(mirror.mAt.xy, 2.0 * camera.mWaterLevel - mirror.mAt.z);
+    const vec3 seen = vec3(mirror.mAt.xy, 2.0 * frame.mWaterLevel - mirror.mAt.z);
     const vec3 went = movedBy(mirror.mInstance, mirror.mAt);
 
-    return reprojected(pixel, seen - origin + camera.mCameraMotion + vec3(went.xy, -went.z));
+    return reprojected(pixel, seen - origin + frame.mCameraMotion + vec3(went.xy, -went.z));
 }
 
 /// Where the sky a ray found stood on the previous frame's screen, in pixels.
@@ -141,17 +141,17 @@ vec2 skyMotionOf(uvec2 pixel, vec3 direction)
 /// A miss writes one: nothing is further away than the end of the world.
 float clipDepth(vec3 direction, float along)
 {
-    const float z = dot(direction, camera.mForward) * along;
+    const float z = dot(direction, frame.mCamera.mForward) * along;
 
     // A parallel projection's depth is linear in that distance; it is the perspective divide that
     // makes the expression below the shape it is.
-    if (camera.mOrthographic != 0u)
-        return clamp((z - camera.mNear) / (camera.mFar - camera.mNear), 0.0, 1.0);
+    if (frame.mCamera.mOrthographic != 0u)
+        return clamp((z - frame.mNear) / (frame.mFar - frame.mNear), 0.0, 1.0);
 
-    if (!(z > camera.mNear))
+    if (!(z > frame.mNear))
         return 0.0;
 
-    return camera.mFar / (camera.mFar - camera.mNear) * (1.0 - camera.mNear / z);
+    return frame.mFar / (frame.mFar - frame.mNear) * (1.0 - frame.mNear / z);
 }
 
 #endif

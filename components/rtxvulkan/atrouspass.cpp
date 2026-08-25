@@ -56,7 +56,7 @@ namespace Rtx
     }
 
     const Image& AtrousPass::record(
-        VkCommandBuffer commands, const GBuffer& buffer, const Shaders::VisibilityConstants& camera) const
+        VkCommandBuffer commands, const GBuffer& buffer, const Shaders::Camera& camera) const
     {
         assert(mScratch != nullptr && "record before resize");
         assert(mScratch->getWidth() >= camera.mWidth && mScratch->getHeight() >= camera.mHeight);
@@ -68,15 +68,12 @@ namespace Rtx
             VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
             VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
 
+        // **One assignment and not eight.** These used to be copied a field at a time out of the
+        // frame's own description, which is how the filter's rays and the trace's could have come to
+        // differ; they are one struct now, this pass is handed only that struct, and the shader
+        // rebuilds the rays with the trace's own `rayAt`.
         Shaders::AtrousConstants level{
-            .mForward = camera.mForward,
-            .mRight = camera.mRight,
-            .mUp = camera.mUp,
-            .mOrthographic = camera.mOrthographic,
-            .mWidth = camera.mWidth,
-            .mHeight = camera.mHeight,
-            .mJitter = camera.mJitter,
-            .mSpreadAngle = camera.mSpreadAngle,
+            .mCamera = camera,
             .mStep = 1,
             .mNormalPower = sNormalPower,
             .mPlaneSigma = sPlaneSigma,

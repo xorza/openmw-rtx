@@ -60,8 +60,20 @@ wavelet level), `exposure.comp` (94), `histogram.comp` (64), `composite.comp` (6
   callee comes out bare and the driver may read one lane's descriptor for the whole wave.
   `bindings.glsl` states it beside the array and counts what it cost before the rule existed.
 - **The shared headers are what C++, GLSL and Metal all read**, and they may carry a function as well
-  as a number — `colour.h` holds `brightest` behind a shader-only guard. That is what stops the Metal
-  backend re-copying what it should include.
+  as a number — `colour.h` holds `brightest` and `camera.h` holds `rayAt`, `coneAt` and
+  `pixelBlur`, all behind a shader-only guard. That is what stops the Metal backend re-copying what it should include.
+- **`Camera` carries no origin, no near and no far, and that absence is what makes it shared.** The
+  trace needs the eye's place in the world; the wavelet only ever takes *differences* of
+  reconstructed positions, and the origin cancels in a subtraction. `VisibilityConstants` is the eye
+  and the world around it; `Camera` is how a pixel becomes a ray, and `AtrousConstants` is that plus
+  three numbers of its own.
+- **Floating-point addition does not associate, and `rayAt` writes its sum out rather than hoisting
+  a shared term.** `f + (a - b)` and `(f + a) - b` differ in the last place, and a direction that
+  differs in the last place is a hit a texel over once it has been carried thirty thousand units.
+  The trace and the wavelet had already drifted that way — the trace summed left to right and the
+  wavelet hoisted — so the positions the filter reconstructed were never quite the ones that were
+  shaded. Measured: swapping the association changes the traced frame. `rayAt` keeps the trace's,
+  because the trace is what everything else is judged against.
 
 Compiled, `visibility.comp` is still one SPIR-V function: `glslc -O` inlines everything, and the
 module is 10,988 instructions with sixteen ray-query traversal loops, forty-four texture samples and
@@ -189,21 +201,13 @@ Each of these is two or three places that must agree and are not enforced to.
 |---|---|---|
 | the lamp loop | `shading.glsl` `gather`, `fog.glsl` `fogLight`, `sprites.glsl` `puffLight` | cosine and shadow ray; `INV_FOUR_PI`; neither |
 | the ray-query candidate loop | `traversal.glsl`, in `occluded` and in `trace` | `trace` carries a cone, `occluded` does not |
-| the ray generator | `visibility.comp` `main`, `atrous.comp` `positionAt` | none — `atrous.comp` exists to rebuild it exactly |
 | the transformed UVs | `texturing.glsl`, in `sampleDiffuse` and in `sampleAlbedo` | none — recomputed on purpose, six multiplies |
 | `encodeSrgb` | `tone.comp`, `visibility.metal` | none — "matching term for term" |
 | `skyGlow` | `sky.glsl`, `visibility.metal` | none |
 | the wave-spectrum loop | `sea.glsl`, in `waterSurfaceAt` and in `caustic` | first and second derivative of one field |
 | `0xFFFFFFFF` | `NO_TEXTURE`, `NO_SKY_TEXTURE`, `NO_MOON_FACE` | nothing; three names in two headers |
 
-Three deserve their own note.
-
-**The ray generator is duplicated by design and `AtrousConstants` is the evidence.** That struct
-carries `mForward`, `mRight`, `mUp`, `mOrthographic`, `mWidth`, `mHeight`, `mJitter` and
-`mSpreadAngle` — eight fields copied from `VisibilityConstants` for no reason but that
-`atrous.comp` has to rebuild the trace's rays *exactly*, jitter and projection included, or the
-positions it reconstructs are not the ones that were shaded. Its own comment says as much. A shared
-`Camera` sub-struct and one `rayAt()` both files include is the same fact stated once.
+Two deserve their own note.
 
 **The candidate loop cannot be a function and can be a macro.** `occluded`'s own comment is right that
 `glslc` rejects `rayQueryEXT` as an `out` or `inout` parameter, and it draws the correct conclusion —
@@ -303,52 +307,53 @@ done
 cmp /tmp/before-$v.png /tmp/after-$v.png
 ```
 
-`map` and `doll` are **not** deterministic — measured at 0.08% of channels differing before-and-after
-against 0.11% between two runs of one build — so those two need a magnitude compared against a
-same-build control, never `cmp`.
+**Both sides must pass the same `--validation`.** DLSS is handed a wall-clock frame delta, and the
+layers change the timing enough to change the upscaled frame — a validation-on baseline against
+validation-off shots reads as 14% of channels differing with nothing wrong at all. Use
+`--validation=0` on both, which is also four times faster.
 
-**1 — one ray generator.** A `Camera` sub-struct in a shared header, `rayAt()` in a new
-`lib/camera.glsl` that `atrous.comp` includes too, `AtrousConstants` reduced to its own three fields
-plus that struct. *Check:* the byte comparison, plus a map tile (`openmw-rtxtool map`) — the
-orthographic path is the one the duplication was most likely to have got wrong.
+`map` and `doll` are **not** deterministic — the map runs about 0.11% of channels apart between two
+runs of one build, the doll about 0.02% — so those two need a magnitude compared against a same-build
+control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path and `doll`
+the only transparent-background one.
 
-**2 — one lamp loop, one candidate loop, one sRGB curve, one sky gradient.** The lamp accumulator
+**1 — one lamp loop, one candidate loop, one sRGB curve, one sky gradient.** The lamp accumulator
 takes what differs as parameters; the candidate loop becomes a macro, which is the one construct
 that survives `glslc` rejecting `rayQueryEXT` as a parameter; `encodeSrgb` and `skyGlow` follow
 `brightest` into `components/rtx/shaders/` and `visibility.metal` includes them. *Check:* byte
 comparison, and `components-tests` — the water and fog suites read the constants these touch.
 
-**3 — sanitise the radiance channels (4.1).** NaN rejection at the five `imageStore`s; the firefly
+**2 — sanitise the radiance channels (4.1).** NaN rejection at the five `imageStore`s; the firefly
 ceiling derived from the measured exposure rather than picked, and the derivation written into the
 comment beside it the way `FOG_COVERAGE`'s is. *Check:* a test that traces a lamp at contact range
 and asserts no channel exceeds the ceiling; `shot` on a night exterior for the visual half.
 
-**4 — temporal accumulation (4.2).** The largest step, and the one the priority order puts first.
+**3 — temporal accumulation (4.2).** The largest step, and the one the priority order puts first.
 Reproject the indirect channel through the motion vector it already writes, accumulate with a
 history-length counter, estimate variance, and feed it to the wavelet as SVGF's third edge-stopping
 term. `biasMask` is already the reset signal. *Check:* `openmw-rtxtool shot --accumulate` gives a
 converged reference; the metric is RMSE of one filtered frame against it, before and after, on a
 fixed view. That number is what says it worked.
 
-**5 — bound the shadow rays (4.3).** RIS over the grid cell's candidates, one reservoir, one shadow
-ray. Then temporal reuse through step 4's history, then spatial. *Check:* the same RMSE-against-
+**4 — bound the shadow rays (4.3).** RIS over the grid cell's candidates, one reservoir, one shadow
+ray. Then temporal reuse through step 3's history, then spatial. *Check:* the same RMSE-against-
 reference metric, in an interior with a dozen lamps — and a count of shadow rays per pixel, which is
 the thing being bounded.
 
-**6 — opacity micromaps.** The device features are already required and probed; nothing builds a
+**5 — opacity micromaps.** The device features are already required and probed; nothing builds a
 micromap. `alphaPasses` is what stops being invoked. *Check:* the trace timer on a view of foliage,
 which is what M12 measures.
 
-**7 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
+**6 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
 a range the way the light grid is. *Check:* the trace timer at Seyda Neen with 165 emitters, and the
 byte comparison — binning must not change a pixel.
 
-**8 — decide SER (4.5).** After 4 and 5 have changed the live-state picture. Measure occupancy on
+**7 — decide SER (4.5).** After 3 and 4 have changed the live-state picture. Measure occupancy on
 `visibility.comp`; if it is where the megakernel is losing, price the ray-tracing pipeline. Until
 then, `plan.md` §8's SER entry should say it needs one.
 
-Steps 1–3 are consolidation and correctness, and none of them changes a pixel except 3, which changes
-only wrong ones. 4 and 5 are what the frame looks like. 6–8 are M12, and each gets its number written
+Steps 1 and 2 are consolidation and correctness, and neither changes a pixel except 2, which changes
+only wrong ones. 3 and 4 are what the frame looks like. 5–7 are M12, and each gets its number written
 down when it lands rather than acted on before.
 
 ## 6. Sources

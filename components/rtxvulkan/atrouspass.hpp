@@ -7,7 +7,6 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/shaders/atrous.h>
-#include <components/rtx/shaders/visibility.h>
 
 #include "computepipeline.hpp"
 #include "image.hpp"
@@ -51,8 +50,7 @@ namespace Rtx
         /// @param buffer must have been handed over, so the trace's writes are visible here. Its
         ///        indirect channel is the input and may be written by an even-numbered level.
         /// @param camera the one the frame was traced with; the edge tests rebuild its rays.
-        const Image& record(
-            VkCommandBuffer commands, const GBuffer& buffer, const Shaders::VisibilityConstants& camera) const;
+        const Image& record(VkCommandBuffer commands, const GBuffer& buffer, const Shaders::Camera& camera) const;
 
     private:
         const Device& mDevice;

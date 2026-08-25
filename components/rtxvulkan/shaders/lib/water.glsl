@@ -8,6 +8,7 @@
 
 #include "scene.h"
 #include "bindings.glsl"
+#include "camera.h"
 #include "footprint.glsl"
 #include "sea.glsl"
 #include "shading.glsl"
@@ -84,7 +85,7 @@ struct WaterPath
 WaterPath waterRay(vec3 origin, vec3 direction, float footprint, float lobe)
 {
     const Surface hit
-        = trace(origin, direction, WATER_BIAS, footprint, camera.mSpreadAngle + 2.0 * lobe, MASK_SOLID);
+        = trace(origin, direction, WATER_BIAS, footprint, frame.mCamera.mSpreadAngle + 2.0 * lobe, MASK_SOLID);
 
     WaterPath path;
     path.mPosition = hit.mPosition;
@@ -92,7 +93,8 @@ WaterPath waterRay(vec3 origin, vec3 direction, float footprint, float lobe)
     path.mDistance = hit.mHit ? hit.mDistance : WATER_MAX_PATH;
     path.mGeometric = hit.mHit ? hit.mGeometric : vec3(0.0, 0.0, 1.0);
     path.mRadiance
-        = hit.mHit ? shadeSurface(hit, pathEnd(hit.mPosition)) : skyRadiance(direction, pixelBlur() + lobe);
+        = hit.mHit ? shadeSurface(hit, pathEnd(hit.mPosition))
+                   : skyRadiance(direction, pixelBlur(frame.mCamera) + lobe);
 
     return path;
 }
@@ -166,7 +168,7 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response, ou
 
     // Keyed off world position rather than anything interpolated, so one cell's surface continues
     // into the next without a seam at the boundary.
-    const WaterSurface sea = waterSurfaceAt(surface.mPosition.xy, camera.mTime, surface.mFootprint);
+    const WaterSurface sea = waterSurfaceAt(surface.mPosition.xy, frame.mTime, surface.mFootprint);
 
     // A normal tilting by an angle turns its reflection by twice that, so the lobe the lost slopes
     // leave behind is twice their root mean square.

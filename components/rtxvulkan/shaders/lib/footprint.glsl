@@ -3,14 +3,11 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_FOOTPRINT_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_FOOTPRINT_GLSL
 
-// How wide the thing doing the looking is, which is the one question a wave, a fog octave,
-// a mip level and a sun's disc all answer to.
+// Whether a sampler can still see a field, which a wave, a fog octave and a sprite rim all ask.
 //
-// **`resolved` is the whole idea**: a field finer than the sampler looking at it is not
-// detail, it is noise dressed as detail. What `footprint` means is whatever is looking —
-// a ray cone against a wavelength, a march step against an octave.
-
-#include "bindings.glsl"
+// **A field finer than the sampler looking at it is not detail, it is noise dressed as detail.**
+// What `footprint` means is whatever is doing the looking — a ray cone against a wavelength, a
+// march step against an octave. How wide the looking *is* comes off the camera; see `coneAt`.
 
 /// How much of something that long a sampler this wide can still tell apart, from none of it to all.
 ///
@@ -24,17 +21,6 @@
 float resolved(float wavelength, float footprint)
 {
     return 1.0 - smoothstep(0.25 * wavelength, 0.75 * wavelength, footprint);
-}
-
-/// How far a primary ray's cone has spread from its axis where it starts, in radians.
-///
-/// **Half of `mSpreadAngle`, and the half matters.** Everywhere else that number grows a cone's
-/// *width* — `resolved` above compares it against a wavelength and `coneLod` against a texel area
-/// — so a place that wants an angle from the axis has to take half of it, and a disc whose
-/// brightness goes as one over the radius squared would be four times wrong otherwise.
-float pixelBlur()
-{
-    return 0.5 * camera.mSpreadAngle;
 }
 
 #endif

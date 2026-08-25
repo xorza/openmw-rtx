@@ -4,6 +4,7 @@
 #ifndef OPENMW_COMPONENTS_RTX_SHADERS_VISIBILITY_H
 #define OPENMW_COMPONENTS_RTX_SHADERS_VISIBILITY_H
 
+#include "camera.h"
 #include "portable.h"
 
 // Included verbatim by both the shader and the C++ that fills it in, so the two cannot disagree
@@ -14,13 +15,11 @@
 
 #include <cstdint>
 
-#include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec3ui>
 
 namespace Rtx::Shaders
 {
-    using vec2 = osg::Vec2f;
     using vec3 = osg::Vec3f;
     using uvec3 = osg::Vec3ui;
     using uint = std::uint32_t;
@@ -197,30 +196,18 @@ namespace Rtx::Shaders
         uint mFace;
     };
 
-    /// The camera, as a ray generator.
+    /// What the frame is: where the eye stands, how it turns a pixel into a ray, and everything
+    /// about the world that a ray needs to be answered.
     ///
-    /// `mRight` and `mUp` are already scaled by the half-extents of the image plane at unit distance,
-    /// so a ray is `mForward + mRight * x - mUp * y` for `x` and `y` in [-1, 1] and no trigonometry
-    /// in the shader. **`y` runs down the image**, because it is the pixel index the jitter is added
-    /// to, which is why it is subtracted: `mUp` points the other way.
+    /// **The ray generator is `Camera` and is separate**, because the wavelet builds the same rays
+    /// and needs none of the rest of this. What is left here is the world.
     struct VisibilityConstants
     {
         vec3 mOrigin;
-        vec3 mForward;
-        vec3 mRight;
-        vec3 mUp;
 
-        /// Non-zero for a parallel projection rather than a pinhole one.
-        ///
-        /// **What a map is, and what a viewpoint straight down needs.** With this set, `mRight` and
-        /// `mUp` carry the half-extents of a box in world units rather than of the image plane at
-        /// unit distance; a pixel's ray starts at `mOrigin + mRight * x - mUp * y` and every one of
-        /// them travels along `mForward`. The eye is then a plane and not a point, which is why the
-        /// motion vector has no answer under it.
-        uint mOrthographic;
-
-        uint mWidth;
-        uint mHeight;
+        /// How a pixel becomes a ray. The eye's own place is `mOrigin` above and not in here, for
+        /// the reason `Camera` gives.
+        Camera mCamera;
 
         /// Where the depth buffer's zero sits, in world units from the eye.
         ///
@@ -235,26 +222,6 @@ namespace Rtx::Shaders
         /// The world's own size, near enough: a primary ray that reaches this has left it, and so
         /// has the sun's shadow ray, which is the same question asked from the other end.
         float mFar;
-
-        /// Where inside its pixel the primary ray is sent, in pixels, `(0, 0)` being the centre.
-        ///
-        /// **The same axes the pixel index uses**: x to the right and y *down* the image. That is
-        /// not the world's up, and writing it the other way round is the mistake to make here — the
-        /// reference implementation shipped this with the sign wrong on both axes and the frame
-        /// looked entirely plausible, because a wrong jitter still antialiases. It rides along with
-        /// the pixel index in the shader for exactly that reason: added to the same number, it
-        /// cannot disagree with it.
-        ///
-        /// Zero is a ray through the pixel's centre, which is every frame that is not being
-        /// upscaled or averaged.
-        vec2 mJitter;
-
-        /// The angle one pixel subtends, in radians.
-        ///
-        /// A primary ray is the axis of a cone this wide, and the cone's width where it lands is
-        /// what decides which mip a texture is read from. Without it every fetch is level zero, the
-        /// mip chains are carried and never read, and everything in the distance crawls.
-        float mSpreadAngle;
 
         /// Non-zero to write the albedo straight out, with no shading over it. What a test asserting
         /// "this pixel is that texel" needs, and what makes a texture problem visible as itself.

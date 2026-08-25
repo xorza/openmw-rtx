@@ -76,15 +76,17 @@ namespace Rtx
 
         return Shaders::VisibilityConstants{
             .mOrigin = basis.mOrigin,
-            .mForward = basis.mForward,
-            .mRight = basis.mRight * halfWidth,
-            .mUp = basis.mUp * halfHeight,
-            .mOrthographic = 0,
-            .mWidth = width,
-            .mHeight = height,
+            .mCamera = {
+                .mForward = basis.mForward,
+                .mRight = basis.mRight * halfWidth,
+                .mUp = basis.mUp * halfHeight,
+                .mSpreadAngle = std::atan(2.0f * halfHeight / static_cast<float>(height)),
+                .mOrthographic = 0,
+                .mWidth = width,
+                .mHeight = height,
+            },
             .mNear = near,
             .mFar = far,
-            .mSpreadAngle = std::atan(2.0f * halfHeight / static_cast<float>(height)),
             .mWaterLevel = -std::numeric_limits<float>::infinity(),
         };
     }
@@ -101,18 +103,20 @@ namespace Rtx
 
         return Shaders::VisibilityConstants{
             .mOrigin = basis.mOrigin,
-            .mForward = basis.mForward,
-            .mRight = basis.mRight * (worldWidth * 0.5f),
-            .mUp = basis.mUp * (worldHeight * 0.5f),
-            .mOrthographic = 1,
-            .mWidth = width,
-            .mHeight = height,
+            .mCamera = {
+                .mForward = basis.mForward,
+                .mRight = basis.mRight * (worldWidth * 0.5f),
+                .mUp = basis.mUp * (worldHeight * 0.5f),
+                .mSpreadAngle = 0.f,
+                .mOrthographic = 1,
+                .mWidth = width,
+                .mHeight = height,
+            },
             .mNear = near,
             .mFar = far,
             // **Zero, and not for want of an answer.** A parallel ray's cone does not widen with
             // distance; what it has instead is a footprint one pixel of the box wide for its whole
             // length, which the shader works out from `mRight` rather than carry twice.
-            .mSpreadAngle = 0.f,
             .mWaterLevel = -std::numeric_limits<float>::infinity(),
         };
     }
@@ -165,17 +169,19 @@ namespace Rtx
 
         return Shaders::VisibilityConstants{
             .mOrigin = origin,
-            .mForward = forward,
-            .mRight = right * halfWidth,
-            .mUp = up * halfHeight,
-            .mOrthographic = 0,
-            .mWidth = width,
-            .mHeight = height,
+            .mCamera = {
+                .mForward = forward,
+                .mRight = right * halfWidth,
+                .mUp = up * halfHeight,
+                .mSpreadAngle = spread,
+                .mOrthographic = 0,
+                .mWidth = width,
+                .mHeight = height,
+            },
             // A quarter of a Morrowind foot. Nothing is clipped against it — see `mNear` — so it
             // only has to be nearer than anything the eye can find itself inside of.
             .mNear = 1.0f,
             .mFar = far,
-            .mSpreadAngle = spread,
             // Not zero, which would be sea level: a world with no water has to answer "how deep is
             // this point" with never, and only an infinity does that without a second question.
             .mWaterLevel = -std::numeric_limits<float>::infinity(),

@@ -36,10 +36,10 @@ vec3 gather(vec3 position, vec3 normal, float footprint)
     // mostly lights: refraction at a level surface moves no flux across a horizontal patch, so the
     // irradiance on one below is the irradiance above times whatever the path took. A tilted
     // underwater surface would want the refracted direction and gets this one.
-    const float sunCosine = dot(normal, camera.mSunPosition);
-    if (sunCosine > 0.0 && camera.mSunIrradiance != vec3(0.0)
-        && !occluded(position, camera.mSunPosition, camera.mFar))
-        radiance += camera.mSunIrradiance * sunThroughWater(position, footprint) * (sunCosine * INV_PI);
+    const float sunCosine = dot(normal, frame.mSunPosition);
+    if (sunCosine > 0.0 && frame.mSunIrradiance != vec3(0.0)
+        && !occluded(position, frame.mSunPosition, frame.mFar))
+        radiance += frame.mSunIrradiance * sunThroughWater(position, footprint) * (sunCosine * INV_PI);
 
     // A lamp loses nothing to the water, where the sun and the sky both lose the column above the
     // point: it is usually standing in the same water as what it lights, and the depth over the two
@@ -84,7 +84,7 @@ vec3 gather(vec3 position, vec3 normal, float footprint)
 /// the sky uses.
 vec3 pathEnd(vec3 position)
 {
-    return camera.mAmbient * daylightReaching(position);
+    return frame.mAmbient * daylightReaching(position);
 }
 
 /// What a shading model made of a surface, in the terms a temporal upscaler demodulates by.

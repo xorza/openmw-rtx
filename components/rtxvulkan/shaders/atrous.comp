@@ -23,6 +23,7 @@
 // variance of an accumulated history, and there is no history here yet.
 
 #include "atrous.h"
+#include "camera.h"
 #include "gbuffer.h"
 
 layout(local_size_x = ATROUS_WORKGROUP, local_size_y = ATROUS_WORKGROUP) in;
@@ -52,26 +53,20 @@ const float KERNEL[5] = float[](1.0 / 16.0, 1.0 / 4.0, 3.0 / 8.0, 1.0 / 4.0, 1.0
 
 /// Where the trace's ray through `pixel` ended up, `away` along it.
 ///
-/// **Rebuilt the way `visibility.comp` builds it, both projections and the jitter included.** A
-/// pinhole fans every ray out of one point, so a pixel's offset turns the direction and the
-/// position is that direction times the distance; a parallel one starts each ray at its own place
-/// on the box and sends them all the same way, so the same offset is a position instead. The eye's
-/// own place drops out of both, because every use of this is a difference between two of them.
+/// **The trace's own `rayAt`, so these are the rays that were actually shaded.** The eye's place
+/// drops out because every use of this is a difference between two of them, which is why `Camera`
+/// does not carry one.
 vec3 positionAt(ivec2 pixel, float away)
 {
-    const vec2 uv = (vec2(pixel) + 0.5 + level.mJitter) / vec2(level.mWidth, level.mHeight) * 2.0 - 1.0;
-    const vec3 offset = level.mRight * uv.x - level.mUp * uv.y;
+    const Ray ray = rayAt(level.mCamera, vec2(pixel));
 
-    if (level.mOrthographic != 0u)
-        return offset + normalize(level.mForward) * away;
-
-    return normalize(level.mForward + offset) * away;
+    return ray.mOffset + ray.mDirection * away;
 }
 
 void main()
 {
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
-    if (at.x >= int(level.mWidth) || at.y >= int(level.mHeight))
+    if (at.x >= int(level.mCamera.mWidth) || at.y >= int(level.mCamera.mHeight))
         return;
 
     const vec3 normal = imageLoad(guide, at).xyz;
@@ -93,9 +88,8 @@ void main()
     // ray, which is the same figure the trace picks its mip level with. Reading `mSpreadAngle` for
     // it instead lands on nought, and a footprint of nought rejects every tap but the centre — so a
     // map tile used to run five levels of this and come out exactly as it went in.
-    const float footprint = level.mOrthographic != 0u
-        ? max(2.0 * length(level.mRight) / float(level.mWidth), 1e-4)
-        : max(level.mSpreadAngle * away, 1e-4);
+    const Cone cone = coneAt(level.mCamera);
+    const float footprint = max(cone.mWidth + cone.mSpread * away, 1e-4);
 
     vec3 sum = vec3(0.0);
     float weight = 0.0;
@@ -104,7 +98,7 @@ void main()
         for (int x = -2; x <= 2; ++x)
         {
             const ivec2 tap = at + ivec2(x, y) * int(level.mStep);
-            if (tap.x < 0 || tap.y < 0 || tap.x >= int(level.mWidth) || tap.y >= int(level.mHeight))
+            if (tap.x < 0 || tap.y < 0 || tap.x >= int(level.mCamera.mWidth) || tap.y >= int(level.mCamera.mHeight))
                 continue;
 
             const vec3 facingThere = imageLoad(guide, tap).xyz;

@@ -76,7 +76,7 @@ namespace Rtx
     void VisibilityPass::record(VkCommandBuffer commands, const VisibilityInputs& inputs, const GBuffer& buffer,
         const Buffer& hitCount, const Shaders::VisibilityConstants& constants) const
     {
-        assert(buffer.getWidth() >= constants.mWidth && buffer.getHeight() >= constants.mHeight);
+        assert(buffer.getWidth() >= constants.mCamera.mWidth && buffer.getHeight() >= constants.mCamera.mHeight);
 
         // **How many emitters there are is the scene's answer and not the camera's.** The table
         // never shrinks, so its length says nothing about this frame; taking the count off the
@@ -227,7 +227,7 @@ namespace Rtx
             commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getLayout(), 0, filled, writes.data());
         vkCmdBindDescriptorSets(
             commands, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline.getLayout(), 1, 1, &inputs.mTextures, 0, nullptr);
-        vkCmdDispatch(commands, groupsFor(constants.mWidth), groupsFor(constants.mHeight), 1);
+        vkCmdDispatch(commands, groupsFor(constants.mCamera.mWidth), groupsFor(constants.mCamera.mHeight), 1);
     }
 
 }
