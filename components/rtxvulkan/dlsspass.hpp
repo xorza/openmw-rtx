@@ -26,7 +26,12 @@ namespace Rtx
         /// away.
         const Image& mColour;
 
+        /// The surface's own albedo, with nothing of the path in it — this is divided out of the
+        /// colour above, so anything folded into it comes back out of the light.
         const Image& mDiffuseAlbedo;
+
+        /// Its reflectance at the angle it was seen from. Zero over anything shaded by a Lambert
+        /// model, which is every solid surface this renderer has.
         const Image& mSpecularAlbedo;
 
         /// Shading normal in `xyz`, roughness in `w` — the feature is built for the packed layout,

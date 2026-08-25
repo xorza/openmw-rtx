@@ -10,6 +10,9 @@
 // the composite multiplies the texture back in afterwards at full sharpness. Filtering a finished
 // picture instead is what makes a denoiser look like a smear.
 //
+// The channel also carries what the water and the air took off that light on the way to the eye,
+// which varies as slowly as fog does and so averages without harm.
+//
 // Dammertz et al. 2010 for the cascade, and SVGF for the normal test and its exponent of 128.
 //
 // **The other two edge-stopping functions are not SVGF's.** Its depth term divides by the depth

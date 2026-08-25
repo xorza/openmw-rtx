@@ -154,25 +154,42 @@ layout(set = 0, binding = 19, scalar) readonly buffer ShadingMaps
     float shading[];
 };
 
-/// One bounce, with the albedo divided out — the only channel a filter is allowed to touch.
+/// One bounce with the albedo divided out, times whatever the path took off it on the way to the
+/// eye — the only channel a filter is allowed to touch.
 ///
 /// **Demodulated because a blur must not touch texture.** What varies slowly across a wall is the
 /// light landing on it; what varies fast is the wall. Dividing the albedo out leaves only the first,
 /// and the composite multiplies the second back in at full sharpness.
+///
+/// **And the water and the air ride here rather than with the albedo.** Both are `colour * a + b`
+/// over everything in front of the eye, so applying them to a sum applies them to each term: `b`
+/// goes into `direct` and `a` belongs to whichever term it attenuated, which is this one. Putting
+/// it on the albedo instead made that channel a product of a surface and a path, and an upscaler
+/// asking what the surface is got the weather in the answer.
 layout(set = 0, binding = 15, rgba32f) uniform writeonly image2D indirect;
 
-/// What the composite must put back: the albedo, less what the water and the air took after it.
+/// The surface's own diffuse albedo, and nothing else.
 ///
-/// **The whole of the affine part, folded into one factor.** Both the water's absorption and the
-/// fog are `colour * a + b` over everything in front of the eye, so applying them to a sum is
-/// applying them to each term — `b` goes into `direct` and `a` comes here, and the filter in between
-/// needs to know about neither.
-layout(set = 0, binding = 17, rgba32f) uniform writeonly image2D modulate;
+/// What the composite multiplies the bounce back in by, and what Ray Reconstruction demodulates the
+/// diffuse half of a pixel by. Zero where there is no diffuse response at all — the sky, and the
+/// water, which answers a ray with a reflection and a refraction and no Lambert term.
+layout(set = 0, binding = 17, rgba32f) uniform writeonly image2D albedo;
 
 /// The shading normal in `xyz` and the surface's roughness in `w`.
 ///
-/// A ray that hit nothing writes a zero normal, which no surface can be mistaken for.
+/// **The normal the shading actually used**, which for water is the wave's rather than the plane's
+/// — a rippled surface described as a flat one is reconstructed as a flat one. A ray that hit
+/// nothing writes a zero normal, which no surface can be mistaken for.
 layout(set = 0, binding = 18, rgba32f) uniform writeonly image2D guide;
+
+/// The specular albedo, which is what an upscaler demodulates the mirrored half of a pixel by.
+///
+/// **Zero wherever the shading was Lambert, which is every solid surface this renderer has.** That
+/// is a statement about the shading model and not a placeholder: nothing here answers a ray with a
+/// specular lobe except the water, so nothing else has a specular albedo to report. Half floats,
+/// because an albedo is a fraction that is never accumulated — the argument for full floats on the
+/// radiance channels does not reach here.
+layout(set = 0, binding = 26, rgba16f) uniform writeonly image2D specular;
 
 /// Every live particle in the scene, one emitter's run after another's.
 layout(set = 0, binding = 23, scalar) readonly buffer Sprites
@@ -1893,6 +1910,44 @@ vec3 pathEnd(vec3 position)
 ///        hit the eye found, and `pathEnd` at the hit that hemisphere found. **One statement of what
 ///        a diffuse surface does with light, used at both depths** — writing it twice is how the two
 ///        would come to disagree.
+/// What a shading model made of a surface, in the terms a temporal upscaler demodulates by.
+///
+/// **Reported by whatever shaded the pixel rather than guessed after it.** Ray Reconstruction
+/// separates a noisy pixel into a diffuse and a specular half using the albedos and the roughness it
+/// is handed, so those three have to describe what this renderer actually did — and only the
+/// function that did it knows. The frame used to answer with a constant roughness of one, a
+/// permanently zero specular albedo and the *flat quad's* normal for water, which is a description
+/// of a renderer nobody wrote.
+struct SurfaceResponse
+{
+    /// The normal the shading used, which for water is the wave's and not the plane's.
+    vec3 mNormal;
+
+    /// What the diffuse half is multiplied by, and nothing else: the surface's own albedo, with
+    /// none of what the path took off it between here and the eye.
+    vec3 mDiffuse;
+
+    /// What the specular half is multiplied by — the surface's reflectance at this angle.
+    vec3 mSpecular;
+
+    /// Nought for a mirror and one for Lambert.
+    float mRoughness;
+};
+
+/// A pixel with no surface behind it: the sky, or a ray that reached nothing.
+SurfaceResponse noResponse()
+{
+    return SurfaceResponse(vec3(0.0), vec3(0.0), vec3(0.0), 1.0);
+}
+
+/// What `shadeSurface` does, said in those terms. Perfectly rough and perfectly diffuse, because
+/// that is exactly what a Lambert model is — and until there is a material model saying otherwise,
+/// it is the true answer rather than a stand-in for one.
+SurfaceResponse lambertResponse(Surface surface)
+{
+    return SurfaceResponse(surface.mNormal, surface.mAlbedo, vec3(0.0), 1.0);
+}
+
 vec3 shadeSurface(Surface surface, vec3 incoming)
 {
     // The emissive colour joins the light rather than the albedo, which is where the original engine
@@ -1960,7 +2015,7 @@ vec3 absorbedByWater(vec3 radiance, float path)
 }
 
 /// What the water sends back along the ray that found it.
-vec3 shadeWater(Surface surface, vec3 incident)
+vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response)
 {
     // **Which side of the water a ray is on is a question about the plane, not about a wave.** At a
     // glancing angle a facet can tilt far enough to face away from the ray, and reading that as "the
@@ -1994,6 +2049,13 @@ vec3 shadeWater(Surface surface, vec3 incident)
 
     const float cosine = clamp(dot(-incident, normal), 0.0, 1.0);
     const float fresnel = WATER_F0 + (1.0 - WATER_F0) * pow(1.0 - cosine, 5.0);
+
+    // **Said here rather than at any of the returns below, because there are five of them.** The
+    // wave's normal and not the quad's, the lobe the lost slopes left as the roughness, and the
+    // Fresnel term as the specular albedo — which is what it is: the fraction of this pixel that is
+    // a reflection. Water is the only surface in this renderer with a specular half at all, so it is
+    // the only one that reports one.
+    response = SurfaceResponse(normal, vec3(0.0), vec3(fresnel), lobe);
 
     // Offset along the *plane*, not the facet: what a ray has to clear to avoid finding this surface
     // again is the quad, and only the plane's normal is guaranteed to take it off that.
@@ -2441,7 +2503,6 @@ vec2 skyMotionOf(uvec2 pixel, vec3 direction)
 /// **A constant, and it is written rather than left out** — Ray Reconstruction is built for the
 /// packed layout and reads the guide's fourth channel whatever is in it, so the honest answer for a
 /// renderer with no specular lobe is "fully diffuse" rather than whatever the channel held last.
-const float SURFACE_ROUGHNESS = 1.0;
 
 /// The depth a rasterizer would have written for a hit `along` units down `direction`.
 ///
@@ -2500,19 +2561,33 @@ void main()
     // bounce, so both arrive here already resolved and pass through the filter untouched.
     vec3 shaded;
     vec3 bounced = vec3(0.0);
-    vec3 tint = vec3(0.0);
+
+    // **What the surface is, kept apart from what the path did to it.** These two used to be one
+    // channel: the albedo was multiplied by every transmittance on the way to the eye, which is what
+    // the composite wants back and is not what an upscaler demodulates by. A foggy wall reported an
+    // albedo with the fog in it, so Ray Reconstruction divided the light by the wrong number
+    // wherever there was weather — which outdoors is nearly everywhere.
+    SurfaceResponse response = noResponse();
+    vec3 transmittance = vec3(1.0);
 
     if (!surface.mHit)
         shaded = camera.mTransparentBackground != 0u ? vec3(0.0) : skyRadiance(direction, pixelBlur());
     else if (surface.mWater)
-        shaded = shadeWater(surface, direction);
+        shaded = shadeWater(surface, direction, response);
     else if (camera.mShowAlbedo != 0u)
+    {
+        // **The colour is replaced and the surface is not.** What this view changes is what a pixel
+        // is painted with; the thing under it is the same Lambert surface, and saying otherwise
+        // hands every reader of the guide a frame with no normals in it — which the wavelet reads as
+        // "no surface anywhere" and the upscaler reconstructs accordingly.
         shaded = surface.mAlbedo;
+        response = lambertResponse(surface);
+    }
     else
     {
         shaded = shadeSurface(surface, vec3(0.0));
         bounced = bounceLight(surface, pixel);
-        tint = surface.mAlbedo;
+        response = lambertResponse(surface);
     }
 
     // A camera under the surface sees everything through the water in front of it. Only a hit that
@@ -2523,7 +2598,7 @@ void main()
     // property of the path, so it belongs to the modulation and not to the material.
     if (origin.z < camera.mWaterLevel && !(surface.mHit && surface.mWater))
     {
-        tint *= waterTransmittance(surface.mDistance);
+        transmittance *= waterTransmittance(surface.mDistance);
         shaded = absorbedByWater(shaded, surface.mDistance);
     }
 
@@ -2533,7 +2608,7 @@ void main()
     // clamps to the distance past which air stops mattering.
     const vec4 fog = fogAlong(origin, direction, surface.mDistance, randomAt(pixel, STREAM_FOG));
     shaded = shaded * fog.w + fog.xyz;
-    tint *= fog.w;
+    transmittance *= fog.w;
 
     // The particles in front of all of it, each already dimmed by the air between it and the eye —
     // which is why this composites over a frame the fog has finished with rather than before it.
@@ -2544,7 +2619,7 @@ void main()
     const SpriteLayer particles = spritesAlong(origin, direction, surface.mDistance);
 
     shaded = shaded * particles.mTransmittance + particles.mRadiance;
-    tint *= particles.mTransmittance;
+    transmittance *= particles.mTransmittance;
 
     if (surface.mHit)
         atomicAdd(hits, 1);
@@ -2555,9 +2630,17 @@ void main()
     // through untouched: it is one everywhere but in a picture that has to say where it stops.
     const float coverage = (camera.mTransparentBackground != 0u && !surface.mHit) ? 0.0 : 1.0;
     imageStore(direct, at, vec4(shaded, coverage));
-    imageStore(indirect, at, vec4(bounced, 1.0));
-    imageStore(modulate, at, vec4(tint, 1.0));
-    imageStore(guide, at, vec4(surface.mHit ? surface.mNormal : vec3(0.0), SURFACE_ROUGHNESS));
+
+    // **The bounce carries what the path took off it, and the albedo carries only the surface.**
+    // The composite still multiplies the two, so the picture is the same product it always was; what
+    // moved is which of the two the water and the air are folded into. They belong to the light,
+    // which is what they attenuated — and the channel that is left is then the albedo an upscaler
+    // asks for. Filtering the bounce with the transmittance already in it averages a quantity that
+    // varies as slowly as fog does, which is to say it changes nothing.
+    imageStore(indirect, at, vec4(bounced * transmittance, 1.0));
+    imageStore(albedo, at, vec4(response.mDiffuse, 1.0));
+    imageStore(specular, at, vec4(response.mSpecular, 1.0));
+    imageStore(guide, at, vec4(response.mNormal, response.mRoughness));
 
     // **The sky moves too, and only its turn moves it.** `skyMotionOf` says why storing nothing here
     // was a smear across every camera rotation.

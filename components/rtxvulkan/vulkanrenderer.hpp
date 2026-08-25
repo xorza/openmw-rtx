@@ -264,11 +264,6 @@ namespace Rtx
         /// What it writes: the frame at the output extent, still in linear radiance.
         std::unique_ptr<Image> mUpscaled;
 
-        /// **Zero, and a whole image of it.** Ray Reconstruction demodulates the specular lobe out
-        /// of the colour it is given, and this renderer has no specular lobe to demodulate — no
-        /// material model, no roughness, no F0. Saying zero is the honest answer; saying nothing is
-        /// not an option, because the input is not one NGX treats as optional.
-        std::unique_ptr<Image> mNoSpecular;
 #endif
     };
 

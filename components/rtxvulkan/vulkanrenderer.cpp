@@ -160,26 +160,9 @@ namespace Rtx
             mUpscaled = std::make_unique<Image>(mDevice, mOutputWidth, mOutputHeight, VK_FORMAT_R32G32B32A32_SFLOAT,
                 VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "upscaled");
 
-            mNoSpecular = std::make_unique<Image>(mDevice, mRenderWidth, mRenderHeight, VK_FORMAT_R32G32B32A32_SFLOAT,
-                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                "no-specular");
-
-            // Building uploads the network's weights, and the zero specular albedo is cleared in the
-            // same submit — both are once per resolution rather than once per frame.
+            // Building uploads the network's weights, which is once per resolution rather than
+            // once per frame.
             mPool.submitAndWait([&](VkCommandBuffer commands) {
-                mNoSpecular->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_CLEAR_BIT,
-                    VK_ACCESS_2_TRANSFER_WRITE_BIT);
-
-                const VkClearColorValue nothing{};
-                const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-                vkCmdClearColorImage(
-                    commands, mNoSpecular->getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &nothing, 1, &whole);
-
-                mNoSpecular->transition(commands, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
-                    VK_PIPELINE_STAGE_2_CLEAR_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                    VK_ACCESS_2_MEMORY_READ_BIT);
-
                 mUpscaler = std::make_unique<DlssPass>(
                     *mNgx, commands, render, VkExtent2D{ mOutputWidth, mOutputHeight }, mUpscale);
             });
@@ -658,12 +641,8 @@ namespace Rtx
                 mUpscaler->record(commands,
                     DlssInputs{
                         .mColour = *mColour,
-                        // **A stand-in, and one worth naming.** What Ray Reconstruction wants is the
-                        // albedo alone; what this is, is the albedo times whatever the water and the
-                        // air took on the way to the eye. The two part company in fog, and they stop
-                        // parting company when there is a material model to separate them.
-                        .mDiffuseAlbedo = mChannels->getModulate(),
-                        .mSpecularAlbedo = *mNoSpecular,
+                        .mDiffuseAlbedo = mChannels->getAlbedo(),
+                        .mSpecularAlbedo = mChannels->getSpecular(),
                         .mNormalRoughness = mChannels->getGuide(),
                         .mDepth = mChannels->getDepth(),
                         .mMotion = mChannels->getMotion(),

@@ -23,6 +23,22 @@ namespace Rtx
         /// have been quantised; the roughness beside it would fit in anything.
         constexpr VkFormat sGuide = VK_FORMAT_R32G32B32A32_SFLOAT;
 
+        /// **Half floats, because an albedo is a fraction and is never accumulated.** The argument
+        /// above is about summing a thousand frames into a reference; a specular albedo is a guide
+        /// an upscaler divides by once and never adds to, so eleven bits of mantissa across zero to
+        /// one is more resolution than the quantity has meaning at.
+        ///
+        /// **The diffuse albedo takes it too, and that needed measuring rather than arguing.** The
+        /// case against is the one above: an albedo is a per-pixel constant, so quantising it is a
+        /// systematic error on every frame's indirect term and systematic error is exactly what an
+        /// average does not remove. The case for is that it multiplies only the bounce, which is a
+        /// small share of a frame.
+        ///
+        /// Measured on a sixty-four sample reference of the mages guild, where the indirect share is
+        /// as high as this renderer gets indoors: the converged mean moved by 0.0014%, against the
+        /// 0.067% the radiance channels were put back to full floats over. Fifty times inside it.
+        constexpr VkFormat sAlbedo = VK_FORMAT_R16G16B16A16_SFLOAT;
+
         /// Two full floats, for the reason `getMotion` gives.
         constexpr VkFormat sMotion = VK_FORMAT_R32G32_SFLOAT;
 
@@ -35,7 +51,7 @@ namespace Rtx
         /// **`SAMPLED` on all of them, and it is not decoration.** DLSS samples every input it is
         /// handed; one without the bit reads as zero, NGX returns success and the validation layers
         /// say nothing, so the whole frame comes back black with nothing pointing at the cause. It
-        /// costs no memory, so every channel carries it rather than only the four DLSS reads today.
+        /// costs no memory, so every channel carries it rather than only the five DLSS reads today.
         constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
         /// The motion and depth channels are also read back, which nothing else here is.
@@ -45,7 +61,8 @@ namespace Rtx
     GBuffer::GBuffer(const Device& device, std::uint32_t width, std::uint32_t height)
         : mDirect(device, width, height, sRadiance, sUsage, "g-direct")
         , mIndirect(device, width, height, sRadiance, sUsage, "g-indirect")
-        , mModulate(device, width, height, sRadiance, sUsage, "g-modulate")
+        , mAlbedo(device, width, height, sAlbedo, sUsage, "g-albedo")
+        , mSpecular(device, width, height, sAlbedo, sUsage, "g-specular")
         , mGuide(device, width, height, sGuide, sUsage, "g-guide")
         , mMotion(device, width, height, sMotion, sReadable, "g-motion")
         , mDepth(device, width, height, sDepth, sReadable, "g-depth")
@@ -54,7 +71,7 @@ namespace Rtx
 
     void GBuffer::begin(VkCommandBuffer commands) const
     {
-        // From undefined, because every pixel of all four is written before any is read and there is
+        // From undefined, because every pixel of all of them is written before any is read and there is
         // nothing in them worth carrying across a frame. Keeping the old contents would cost a
         // decompress on some hardware and buy a guarantee nothing here wants.
         //
@@ -64,7 +81,7 @@ namespace Rtx
         // previous frame is still running. Sourcing the barrier at the compute stage is the whole of
         // what a write-after-read needs; nothing has to be made visible, only ordered. Discarding
         // from `TOP_OF_PIPE` waits for nothing at all, and buys a torn frame for a barrier saved.
-        for (const Image* image : { &mDirect, &mIndirect, &mModulate, &mGuide, &mMotion, &mDepth })
+        for (const Image* image : { &mDirect, &mIndirect, &mAlbedo, &mSpecular, &mGuide, &mMotion, &mDepth })
             image->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
@@ -72,7 +89,7 @@ namespace Rtx
 
     void GBuffer::handOver(VkCommandBuffer commands) const
     {
-        for (const Image* image : { &mDirect, &mIndirect, &mModulate, &mGuide, &mMotion, &mDepth })
+        for (const Image* image : { &mDirect, &mIndirect, &mAlbedo, &mSpecular, &mGuide, &mMotion, &mDepth })
             image->transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);

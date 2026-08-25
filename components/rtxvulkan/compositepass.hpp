@@ -34,9 +34,9 @@ namespace Rtx
 
         /// @param buffer must have been handed over, so its writes are visible to this read. Its
         ///        indirect channel is not read: `indirect` says where the bounce actually is.
-        /// @param indirect the bounce to modulate — the filter's output, or the buffer's own
-        ///        channel where nothing filtered it. Whose image it is depends on how many wavelet
-        ///        levels ran, which is why it is named rather than assumed.
+        /// @param indirect the bounce to put the albedo back into — the filter's output, or the
+        ///        buffer's own channel where nothing filtered it. Whose image it is depends on how
+        ///        many wavelet levels ran, which is why it is named rather than assumed.
         /// @param history the running sum, at least as large as `target` and in
         ///        `VK_IMAGE_LAYOUT_GENERAL`. Null where `mAccumulate` is zero, which is every frame
         ///        that is not building a reference.

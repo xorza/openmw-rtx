@@ -22,7 +22,7 @@ namespace Rtx
     /// So the trace writes what it knows in the form the next pass can use, and the composite puts
     /// it back together:
     ///
-    ///     colour = direct + modulate * filter(indirect)
+    ///     colour = direct + albedo * filter(indirect * transmittance)
     ///
     /// **And this is the same buffer Ray Reconstruction reads.** It asks for exactly this —
     /// demodulated radiance, the albedo to put back, normals and depth — so the split earns its
@@ -35,11 +35,28 @@ namespace Rtx
         /// Direct light, emission, the sky and water, with the fog already over all of it.
         const Image& getDirect() const { return mDirect; }
 
-        /// One bounce with the albedo divided out. The only channel a filter may touch.
+        /// One bounce with the albedo divided out, times whatever the water and the air took off it
+        /// on the way to the eye. The only channel a filter may touch.
         const Image& getIndirect() const { return mIndirect; }
 
-        /// The albedo, times whatever the water and the air took off the way to the eye.
-        const Image& getModulate() const { return mModulate; }
+        /// The surface's own diffuse albedo, with nothing of the path in it.
+        ///
+        /// **Two questions were being answered by one number.** The composite wants the albedo times
+        /// what the path took, so that multiplying the bounce by it puts both back at once; Ray
+        /// Reconstruction wants the albedo alone, because it is dividing the light by it. Folding
+        /// the transmittance in here answered the first and quietly failed the second, and the
+        /// upscaler demodulated by a foggy albedo everywhere there was weather. The transmittance
+        /// now rides with the light it attenuated, on `getIndirect`.
+        const Image& getAlbedo() const { return mAlbedo; }
+
+        /// The surface's specular albedo — its reflectance at the angle it was seen from.
+        ///
+        /// **Zero over every solid surface, and that is the shading model speaking.** Nothing here
+        /// answers a ray with a specular lobe except the water, so nothing else has a specular half
+        /// for an upscaler to separate out. This used to be a full-precision image cleared to zero
+        /// once and sampled every frame ever after, which is a different thing: a placeholder for an
+        /// answer rather than the answer.
+        const Image& getSpecular() const { return mSpecular; }
 
         /// The shading normal in `xyz` and the surface's roughness in `w`.
         ///
@@ -47,6 +64,9 @@ namespace Rtx
         /// resource fewer to write and to bind than handing it a separate image. The distance a
         /// filter compares edges by used to live in `w` and is now the depth channel's second
         /// component, because two different questions were being answered by one number.
+        ///
+        /// Both halves are what the shading actually used: the wave's normal over water rather than
+        /// the plane's, and one over anything Lambert rather than one over everything.
         const Image& getGuide() const { return mGuide; }
 
         /// Where each surface stood on the previous frame's screen, less where it stands on this
@@ -71,7 +91,7 @@ namespace Rtx
         std::uint32_t getWidth() const { return mDirect.getWidth(); }
         std::uint32_t getHeight() const { return mDirect.getHeight(); }
 
-        /// Discards the contents and makes all four writable, which is how a frame starts.
+        /// Discards the contents and makes every channel writable, which is how a frame starts.
         ///
         /// Waits for the previous frame's composite to have read them, so that one set of channels
         /// can serve a window that keeps several frames in flight.
@@ -83,7 +103,8 @@ namespace Rtx
     private:
         Image mDirect;
         Image mIndirect;
-        Image mModulate;
+        Image mAlbedo;
+        Image mSpecular;
         Image mGuide;
         Image mMotion;
         Image mDepth;

@@ -24,11 +24,11 @@ namespace Rtx
         constexpr auto sStorage = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         constexpr auto sImage = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 
-        /// The structure, the four channels it writes, the tables a hit reads and the frame itself,
-        /// in the order the shader declares them. The channels are at one, fifteen, seventeen and eighteen because
-        /// they grew onto the end of a layout that already existed rather than renumbering the
+        /// The structure, the channels it writes, the tables a hit reads and the frame itself, in the
+        /// order the shader declares them. The channels are scattered through the numbering because
+        /// each grew onto the end of a layout that already existed rather than renumbering the
         /// tables under them.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 26> sBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 27> sBindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 1, sImage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 2, sStorage, 1, sCompute },
@@ -55,6 +55,7 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 23, sStorage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 24, sStorage, 1, sCompute },
             VkDescriptorSetLayoutBinding{ 25, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, sCompute },
+            VkDescriptorSetLayoutBinding{ 26, sImage, 1, sCompute },
         };
     }
 
@@ -128,16 +129,17 @@ namespace Rtx
             .accelerationStructureCount = 1,
             .pAccelerationStructures = &inputs.mScene,
         };
-        const std::array<VkDescriptorImageInfo, 6> channels{
+        const std::array<VkDescriptorImageInfo, 7> channels{
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getDirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getIndirect().getView(), VK_IMAGE_LAYOUT_GENERAL },
-            VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getModulate().getView(), VK_IMAGE_LAYOUT_GENERAL },
+            VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getAlbedo().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getGuide().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getMotion().getView(), VK_IMAGE_LAYOUT_GENERAL },
             VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getDepth().getView(), VK_IMAGE_LAYOUT_GENERAL },
+            VkDescriptorImageInfo{ VK_NULL_HANDLE, buffer.getSpecular().getView(), VK_IMAGE_LAYOUT_GENERAL },
         };
-        // In `sBindings`' order, which is where those six numbers are explained.
-        constexpr std::array<std::uint32_t, 6> channelBindings{ 1, 15, 17, 18, 20, 22 };
+        // In `sBindings`' order, which is where those numbers are explained.
+        constexpr std::array<std::uint32_t, 7> channelBindings{ 1, 15, 17, 18, 20, 22, 26 };
 
         // Bindings two upwards are all storage buffers, in the order the shader declares them.
         const std::array<VkDescriptorBufferInfo, 13> buffers{
@@ -162,7 +164,7 @@ namespace Rtx
         const VkDescriptorBufferInfo emitterWrite{ inputs.mBuffers->getEmitters(), 0, VK_WHOLE_SIZE };
         const VkDescriptorBufferInfo frameWrite{ mConstants.getHandle(), 0, VK_WHOLE_SIZE };
 
-        std::array<VkWriteDescriptorSet, 26> writes{};
+        std::array<VkWriteDescriptorSet, 27> writes{};
         writes[0] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = &sceneWrite,
@@ -179,49 +181,49 @@ namespace Rtx
                 .pImageInfo = &channels[i],
             };
         for (std::uint32_t i = 0; i < buffers.size(); ++i)
-            writes[i + 7] = VkWriteDescriptorSet{
+            writes[i + 8] = VkWriteDescriptorSet{
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 .dstBinding = i + 2,
                 .descriptorCount = 1,
                 .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 .pBufferInfo = &buffers[i],
             };
-        writes[20] = VkWriteDescriptorSet{
+        writes[21] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstBinding = 16,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             .pBufferInfo = &noiseWrite,
         };
-        writes[21] = VkWriteDescriptorSet{
+        writes[22] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstBinding = 19,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             .pBufferInfo = &shadingWrite,
         };
-        writes[22] = VkWriteDescriptorSet{
+        writes[23] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstBinding = 21,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             .pBufferInfo = &gridWrite,
         };
-        writes[23] = VkWriteDescriptorSet{
+        writes[24] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstBinding = 23,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             .pBufferInfo = &spriteWrite,
         };
-        writes[24] = VkWriteDescriptorSet{
+        writes[25] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstBinding = 24,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             .pBufferInfo = &emitterWrite,
         };
-        writes[25] = VkWriteDescriptorSet{
+        writes[26] = VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstBinding = 25,
             .descriptorCount = 1,

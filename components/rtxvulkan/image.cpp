@@ -27,6 +27,8 @@ namespace Rtx
                     return 4;
                 case VK_FORMAT_R32_SFLOAT:
                     return 4;
+                case VK_FORMAT_R16G16B16A16_SFLOAT:
+                    return 8;
                 case VK_FORMAT_R32G32_SFLOAT:
                     return 8;
                 case VK_FORMAT_R32G32B32A32_SFLOAT:

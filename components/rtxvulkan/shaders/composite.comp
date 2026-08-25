@@ -18,11 +18,12 @@ layout(local_size_x = COMPOSITE_WORKGROUP, local_size_y = COMPOSITE_WORKGROUP) i
 /// Everything already resolved: direct light, emission, the sky, water, and the fog over all of it.
 layout(set = 0, binding = 0, rgba32f) uniform readonly image2D direct;
 
-/// One bounce, with the albedo divided out — the only channel a filter is allowed to touch.
+/// One bounce with the albedo divided out, times whatever the water and the air took off it on the
+/// way to the eye — the only channel a filter is allowed to touch.
 layout(set = 0, binding = 1, rgba32f) uniform readonly image2D indirect;
 
-/// What to put back: the albedo, times whatever the water and the air took off the way to the eye.
-layout(set = 0, binding = 2, rgba32f) uniform readonly image2D modulate;
+/// What to put back: the surface's own albedo, and nothing of the path.
+layout(set = 0, binding = 2, rgba32f) uniform readonly image2D albedo;
 
 /// The running sum, when `mAccumulate` asks for one.
 layout(set = 0, binding = 3, rgba32f) uniform image2D history;
@@ -44,7 +45,7 @@ void main()
 
     const ivec2 at = ivec2(pixel);
     const vec4 lit = imageLoad(direct, at);
-    vec3 resolved = lit.rgb + imageLoad(modulate, at).rgb * imageLoad(indirect, at).rgb;
+    vec3 resolved = lit.rgb + imageLoad(albedo, at).rgb * imageLoad(indirect, at).rgb;
 
     // In linear, which is what everything downstream of here now works in. Summing an encoded frame
     // would add up rounded numbers and clip every sample past the display's range to the same value
