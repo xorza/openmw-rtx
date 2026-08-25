@@ -354,21 +354,53 @@ others is what established that:
   does, so *nothing loaded* is one value with one meaning; it is `NO_TEXTURE` now, and `visibility.h`
   includes `scene.h` to reach it, because that array's sentinel belongs with the array.
 
-### 4.5 SER is unreachable from the current architecture
+### 4.5 SER is cheaper to reach than this entry assumed, and the occupancy case for it is gone
 
-`plan.md` §8 lists SER as an unstarted M12 item. It cannot be started as things stand:
-`reorderThreadEXT` exists in ray generation shaders only, by deliberate design of the extension, and
-this renderer traces from a compute shader with `GL_EXT_ray_query`.
+`plan.md` §8 lists SER as an unstarted M12 item. `reorderThreadEXT` exists in ray generation shaders
+only, by deliberate design of the extension, and this renderer traces from a compute shader with
+`GL_EXT_ray_query` — so a ray-tracing pipeline is required. What this entry got wrong is what that
+costs.
 
-That is not an argument for moving. Ray query is the faster traversal on this hardware, the megakernel
-keeps everything in registers with no payload hand-off, and there is no shader binding table worth
-having here. It is an argument for the M12 entry to say what it costs: **SER requires a ray-tracing
-pipeline, and the decision is whether the reordering is worth the rewrite.** The way to answer it is
-to shrink live state first (4.6) and measure occupancy, because that is where most of what SER
-recovers already is.
+**Ray query and SER coexist in one raygen shader.** Compiled and checked: a `.rgen` holding
+`rayQueryEXT` traversals and `reorderThreadEXT` emits `OpCapability RayQueryKHR` and
+`OpReorderThreadWithHintEXT` side by side.
 
-Opacity micromaps are the item to take from M12 instead. They work under ray query, this shader's
-`alphaPasses` runs on every candidate of every cutout, and the published measurements are large.
+```
+OpCapability RayQueryKHR
+OpCapability ShaderInvocationReorderEXT
+OpExtension "SPV_EXT_shader_invocation_reorder"
+OpReorderThreadWithHintEXT %61 %uint_8
+```
+
+So the move is **not** a rewrite onto payloads, hit shaders and a shader binding table. The megakernel
+body survives whole, every traversal stays a ray query, and what changes is:
+
+- `visibility.comp` becomes `visibility.rgen`, with `gl_LaunchIDEXT` for `gl_GlobalInvocationID` and
+  one reorder call after the primary trace,
+- a ray-tracing pipeline with a single raygen group and the smallest possible binding table,
+- `vkCmdTraceRaysKHR` for `vkCmdDispatch`.
+
+`VK_KHR_ray_tracing_pipeline` is already a required extension and `vkCreateRayTracingPipelinesKHR`,
+`vkGetRayTracingShaderGroupHandlesKHR` and `vkCmdTraceRaysKHR` are already loaded in `Device`. Half
+the plumbing exists.
+
+**The device does reorder.** `rayTracingInvocationReorderReorderingHint` reads `reorders` rather than
+`none`, which `openmw-rtxtool info` prints — so this is not hardware that would accept the call and
+ignore it.
+
+**But the occupancy argument for it is dead.** 4.6 was to be the case for SER: shrink live state,
+watch occupancy rise, and if it does not, reorder. Occupancy is 50% and bound *equally* by 80
+registers and by the 8,448 bytes of shared memory the ray query traversal stack costs — so live state
+is not the lever, and a raygen launch does not obviously improve either constraint. What is left is
+coherence, which is a separate claim: the frame is largely screen-coherent, the divergent shading is
+`shadeWater` against `shadeSurface` at a shoreline and the cutout loops the micromaps have already
+thinned, and the bounce's own shading is `pathEnd` and trivial.
+
+**The open risk is the port itself, not the reorder.** A raygen shader on this hardware has a
+different scheduling and stack model from a compute one, and a 288 KB megakernel may spill where it
+does not today. That is measurable in a day — port with *no* reorder call, compare registers,
+occupancy and the trace timer, and hold the byte comparison — and the reorder only has to be argued
+if the port is not a regression.
 
 ### 4.6 One kernel, one register budget — measured, and registers are only half of it
 
