@@ -149,7 +149,13 @@ Naming this first because a reorganisation is exactly where it gets lost.
   because that is what a bilinear read at that level reaches. Nothing here is a dilation wide enough
   to guess at: the ring is derived per level, and one coarse level disagreeing is enough to send a
   microtriangle back to asking. That is what makes the micromap *remove work and change no pixel*,
-  which is the only thing it is allowed to do.
+  which is the only thing it is allowed to do — nine views, byte for byte, before and after.
+  **And the bound is asymmetric in practice, which 4.10 measured.** *Opaque* survives the chain
+  wherever a mask is mostly solid, because averaging a solid region leaves it solid; *transparent*
+  mostly does not, because the three-by-three at level *l* spans `3 · 2^l` of the finest level's
+  texels and reaches a leaf long before the chain runs out. So the verdict that costs traversal the
+  least is the one a canopy gets least of, and that is a property of the mip chain rather than
+  something a wider search would recover.
 
 ## 4. Findings
 
@@ -358,14 +364,75 @@ usually falls, and the tile is worth more per level.
   `random.glsl`. The count is a promise the stream ids have to keep, and a second shader that drew
   would have to know the ids to avoid.
 
+### 4.10 Opacity micromaps are built — closed
+
+`Rtx::Micromap` classifies and `SceneAcceleration` builds: one `VkMicromapEXT` per mesh, in the same
+submit as the bottom levels that reference it and separated from them by a barrier, chained on with
+`VkAccelerationStructureTrianglesOpacityMicromapEXT` at `VK_INDEX_TYPE_NONE_KHR` — a triangle's
+micromap entry is its own position in the geometry.
+
+**A micromapped mesh is built non-opaque and its instances stop forcing.**
+`VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR` overrides what a micromap decided, so keeping it
+would have handed the whole saving back at the instance; the geometry's `VK_GEOMETRY_OPAQUE_BIT_KHR`
+is cleared alongside it, which is not redundant but a choice of failure mode. A micromap that went
+missing over a geometry still claiming opacity turns a canopy into a solid card; over one that does
+not claim it, every hit becomes a candidate — which is what the whole cell did before.
+
+**A mesh only qualifies where every placement standing on it names the same cutout material.** A
+micromap belongs to the structure and so to the mesh, a cutout belongs to the material, and a mesh
+two materials disagree about has no one answer to give.
+
+**The check passed: nine views, byte for byte, before and after.** `map` and `doll` were run as well
+and drew what they drew before.
+
+| view | cutout instances | micromapped | opaque | transparent | still asking |
+|---|---|---|---|---|---|
+| Seyda Neen shore | 3322 | 3322 | 12.5% | 2.4% | 85.0% |
+| Vivec | 4727 | 4679 | 46.3% | 1.3% | 52.4% |
+| Balmora | 2588 | 2588 | 13.6% | 4.5% | 81.9% |
+| Dagon Fel | 473 | 397 | 34.4% | 3.9% | 61.8% |
+
+**And the trace did not move.** GPU trace-zone medians, before against after:
+
+| view | before | after |
+|---|---|---|
+| Vivec | 2.183 ms | 2.173 ms |
+| Seyda Neen shore | 0.884 ms | 0.883 ms |
+| Balmora | 1.894 ms | 1.897 / 1.920 / 1.900 ms |
+
+Written down rather than acted on, which is `CLAUDE.md`'s rule for an M12 number. What it says is
+that the candidate loop is not where these frames spend their trace: between a sixth and a half of
+the micromapped surface stopped asking and nothing measurable came back. The reading to be careful
+with is Balmora, whose first after-run came in at 2.945 ms — with the *upscale* zone moved by the
+same proportion, which no micromap can touch. Three more runs settled it. **A zone that cannot have
+changed moving with the one under test is the signal that a reading is contaminated**, and it
+belongs beside `--validation` and `--exposure` in the list of things that have produced false
+answers here.
+
+**What the coverage column says is that the conservatism lands on the foliage.** *Transparent* is
+the verdict that skips a triangle outright, and a canopy gets one to four per cent of it — for the
+reason in §3, which is the mip chain and not the search. *Opaque* does far better, and Vivec is why:
+a city of windows, grates and banners is mostly solid mask, and averaging a solid region leaves it
+solid.
+
+**Micromaps cost 492 KiB of structure storage at Seyda Neen**, 17281 KiB against 17773.
+
+**One gap, named.** `buildMicromaps` classifies against the texture descriptions the scene was
+handed, which on an `extend` are the ones that arrived with it — so a mesh appearing beside an image
+already resident has nothing to classify against and goes on asking until the next reset. Every
+reset builds the world's, which is every cell load, door and travel. Closing it means the
+classification moving into the core beside `SceneTextures`, where an image manager can resolve a
+mask that did not arrive, and that is a widening of `Renderer::setScene` to pay for a case worth
+measuring first.
+
 ## 5. Steps
 
 Each step is checkable on its own and leaves the tree working. The check is named because *"it
 compiled"* is not one. As one lands it is deleted from here, so step 1 is always what to do next.
 
-**The byte comparison is the check for anything that must not change a pixel.** `openmw-rtxtool shot`
-is deterministic — `mFrame` and `mTime` are zero under it and every draw is keyed on them — so an
-identical frame is an identical file and one differing byte means something moved that should not
+**The byte comparison is the check for anything that must not change a pixel.** `openmw-rtxtool
+shot` is deterministic — `mFrame` and `mTime` are zero under it and every draw is keyed on them — so
+an identical frame is an identical file and one differing byte means something moved that should not
 have. Nine views cover the cases that matter:
 
 ```sh
@@ -383,52 +450,15 @@ validation-off shots reads as 14% of channels differing with nothing wrong at al
 `--validation=0` on both, which is also four times faster.
 
 `map` and `doll` are **not** deterministic — the map runs about 0.11% of channels apart between two
-runs of one build, the doll about 0.02% — so those two need a magnitude compared against a same-build
-control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path and `doll`
-the only transparent-background one.
+runs of one build, the doll about 0.02% — so those two need a magnitude compared against a
+same-build control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path
+and `doll` the only transparent-background one.
 
-**1 — build the micromaps.** The classifier is done and nothing calls it. `Rtx::AlphaImage` decodes
-a texture's alpha at every level the file carried; `Rtx::AlphaBounds` collapses that chain into what
-a trilinear read could return and answers *opaque / transparent / neither* for a patch of it;
-`Rtx::subdivideTriangle` cuts a triangle into the `4^level` microtriangles of a level and pairs each
-with the index the hardware reads it at, transcribed from the specification's own reference code;
-`Rtx::Micromap` puts the three together into the states and the per-triangle levels a
-`VkMicromapEXT` is built from. What is left is the Vulkan half:
-
-- **The build.** One `VkMicromapEXT` per mesh from `Micromap::getData` and `getTriangles`, sized by
-  `vkGetMicromapBuildSizesEXT` from `getUsage`, recorded with `vkCmdBuildMicromapsEXT` in the same
-  submit as the bottom levels it feeds, and chained onto the geometry through
-  `VkAccelerationStructureTrianglesOpacityMicromapEXT`. Instances keep
-  `VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR`, because an unknown microtriangle still has to ask.
-  The storage wants the same treatment `StructureStorage` gives the bottom levels — one buffer at
-  offsets, a slot given back when a mesh goes — because a cell is hundreds of meshes and a device
-  allocation each is what that type exists to avoid.
-- **Which mask a mesh is classified against.** A micromap belongs to a bottom-level structure, so it
-  belongs to a *mesh*; a cutout belongs to a *material*, and `MeshInstance` pairs the two per
-  placement. In practice the pairing is one to one — a mesh is keyed on its drawable and a drawable
-  carries one state set — but nothing enforces it, and a mesh named by two different cutout
-  materials can only have a micromap for one of them. Scan the placements, and build none for a mesh
-  that more than one cutout material names: no micromap is always correct, and it is what the whole
-  cell does today.
-- **Where the bounds are cached.** `AlphaBounds` is built per texture *and cutoff* — the counts in
-  it are of texels already compared — and it is a summed-area table over the finest level, so it is
-  worth a few megabytes for as long as a build runs and is not worth building twice. A cell's meshes
-  share a handful of masks between them; the build wants a map from that pair to one bound, alive
-  for exactly as long as the `SceneTextures` whose bytes it was decoded from.
-
-**The check is a byte comparison, and that is the whole answer to the ordering risk.** A correct
-micromap removes work and changes no pixel: every microtriangle it resolves is one `alphaPasses`
-would have resolved the same way, at every level. So foliage rendered before and after must come
-back byte for byte, and a wrong ordering, a wrong subdivision or a bound that was not conservative
-all show up as a differing frame rather than as something to be reasoned about. The trace timer on
-the same view is what says it was worth doing, and `Micromap::getTally` is what says how much of the
-surface stopped asking.
-
-**2 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
+**1 — bin the emitters (4.7).** A tile pass over emitter spheres, written before the trace, read as
 a range the way the light grid is. *Check:* the trace timer at Seyda Neen with 165 emitters, and the
 byte comparison — binning must not change a pixel.
 
-**3 — say each thing once, and stop the game carrying what only the harness wants (4.4, 4.9).** The
+**2 — say each thing once, and stop the game carrying what only the harness wants (4.4, 4.9).** The
 consolidation this review was for, and the last of it. The wave spectrum is evaluated at two
 different points — the surface a ray met and the bed its light landed on — so the two *loops* cannot
 merge; what is one thing said twice is the structure inside them, `drifted` and `sampleWave` and the
@@ -443,7 +473,7 @@ module serving both.
 *Check:* the byte comparison, because none of this may move a pixel — and `shot` still printing its
 hit fraction, because the specialization is only correct if the number it reports is the same one.
 
-**4 — a linear channel the harness can read (4.1, 4.2).** Both measurements below are up against
+**3 — a linear channel the harness can read (4.1, 4.2).** Both measurements below are up against
 eight bits. 4.2's figure of 0.00253 is already two thirds of a byte at that brightness, so the
 accumulated frame sits at the edge of what the read-back can distinguish and a tighter number cannot
 be had at all; 4.1's tail is counted in bounce luminance, which the tone curve has spent by the time
@@ -454,7 +484,7 @@ in.
 eight-bit path could resolve. A channel that disagreed with the one it replaces is a channel
 measuring something else.
 
-**5 — count what the firefly clamp removes (4.1).** The tail table in 4.1 was taken before the clamp
+**4 — count what the firefly clamp removes (4.1).** The tail table in 4.1 was taken before the clamp
 existed, on the one-sample bounce; what is not established is how much of it the clamp actually
 takes once a history is behind it. That wants the same instrumentation the table came from, run
 through `AccumulatePass` this time, on the same four cells.
@@ -463,15 +493,15 @@ through `AccumulatePass` this time, on the same four cells.
 still holding: the accumulated mean stays on the converged reference to within two per cent, which a
 clamp eating real light would pull down.
 
-**6 — the temporal half, off the floor (4.2).** "A little over a third of the error the cascade
-cannot reach" is a floor and not a figure, for the reason step 4 exists. Recompute it where the
+**5 — the temporal half, off the floor (4.2).** "A little over a third of the error the cascade
+cannot reach" is a floor and not a figure, for the reason step 3 exists. Recompute it where the
 format can hold the answer.
 
 *Check:* the same pair of RMSEs against a 128-sample reference on the same coplanar grid — the
 cascade alone, and the cascade with sixteen frames behind it. The ratio is the answer; the absolute
 numbers are what the eight-bit path could not give.
 
-**7 — carry the reservoir (4.3).** Temporal through the motion vector first, spatial across
+**6 — carry the reservoir (4.3).** Temporal through the motion vector first, spatial across
 neighbours after. This is the one item here that changes the picture rather than the frame time: it
 brings the previous frame's *traced visibility* into a target function that cannot otherwise have
 it, so the lamp that is kept is the lamp that was actually reaching. 4.3 closed the cost argument,
@@ -481,23 +511,23 @@ so it is queued on its own merits and nothing is waiting on it.
 pinned exposure, which must stay at the fifth decimal — and beside it the first-frame RMSE, which is
 what reuse is for and which has to *fall*.
 
-**8 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
-neighbourhood every thread in the workgroup shares. Held until 6 has said what the cascade is still
+**7 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
+neighbourhood every thread in the workgroup shares. Held until 5 has said what the cascade is still
 worth, because a temporal denoiser usually needs fewer levels and the tile is worth more per level.
 
 *Check:* the byte comparison — a tile is a cache and must change nothing — and the atrous timer
 against the level count it was measured at.
 
-**9 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel, after 1 and 7
-have changed what is live: micromaps take a texture fetch and a candidate loop out of the hot path,
-and a carried reservoir puts a buffer into it. Nothing in 4.6 is to be *acted* on before this — that
-is `CLAUDE.md`'s rule and it holds — and the split into `lib/` is what makes a cheaper variant a
-one-line edit once the number says which one to try.
+**8 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel, after 6 has
+changed what is live: the micromaps already took a texture fetch and a candidate loop off part of
+the hot path, and a carried reservoir puts a buffer into it. Nothing in 4.6 is to be *acted* on
+before this — that is `CLAUDE.md`'s rule and it holds — and the split into `lib/` is what makes a
+cheaper variant a one-line edit once the number says which one to try.
 
 *Check:* the number itself, written down beside the register count and the live-state inventory 4.6
 lists, and nothing else changed.
 
-**10 — decide SER (4.5).** With 9's number in hand: if occupancy is where the megakernel is losing,
+**9 — decide SER (4.5).** With 8's number in hand: if occupancy is where the megakernel is losing,
 price the ray-tracing pipeline that `reorderThreadEXT` requires, against what ray query and the
 register-resident megakernel are worth. Until it is decided, `plan.md` §8's SER entry should say it
 needs one.

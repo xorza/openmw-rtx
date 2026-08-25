@@ -1,6 +1,7 @@
 #include "structurestorage.hpp"
 
 #include <string>
+#include <utility>
 
 #include <components/rtx/error.hpp>
 
@@ -14,13 +15,16 @@ namespace Rtx
         /// unit the allocator hands out. Vulkan fixes it at 256.
         constexpr VkDeviceSize sAlignment = 256;
 
-        constexpr VkBufferUsageFlags sStorageUsage
-            = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-
         std::uint32_t unitsFor(VkDeviceSize bytes)
         {
             return static_cast<std::uint32_t>((bytes + sAlignment - 1) / sAlignment);
         }
+    }
+
+    StructureStorage::StructureStorage(VkBufferUsageFlags usage, std::string name)
+        : mUsage(usage)
+        , mName(std::move(name))
+    {
     }
 
     StructureRoom StructureStorage::take(const Device& device, VkDeviceSize bytes, VkDeviceSize least)
@@ -47,10 +51,9 @@ namespace Rtx
 
         Block& block = mBlocks.emplace_back();
         block.mUnits = made;
-        block.mBuffer
-            = Buffer(device, VkDeviceSize{ made } * sAlignment, sStorageUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        block.mBuffer = Buffer(device, VkDeviceSize{ made } * sAlignment, mUsage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         device.setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(block.mBuffer.getHandle()),
-            "bottom level structures " + std::to_string(mBlocks.size() - 1));
+            mName + " " + std::to_string(mBlocks.size() - 1));
 
         return StructureRoom{ static_cast<std::uint32_t>(mBlocks.size() - 1), block.mRuns.allocate(units) };
     }

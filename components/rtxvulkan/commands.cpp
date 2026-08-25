@@ -122,6 +122,11 @@ namespace Rtx
         mStaging.push_back(std::move(staging));
     }
 
+    void Batch::keep(HostBuffer&& staging)
+    {
+        mHostStaging.push_back(std::move(staging));
+    }
+
     void Batch::flush()
     {
         if (mCommands == VK_NULL_HANDLE)
@@ -129,6 +134,7 @@ namespace Rtx
             // Staging with nothing recorded is a caller that kept a buffer and then decided against
             // the copy; it has no reader either way.
             mStaging.clear();
+            mHostStaging.clear();
             return;
         }
 
@@ -136,6 +142,7 @@ namespace Rtx
         // time `endAndWait` returns, so this is where a staging buffer stops being read.
         mPool.endAndWait(std::exchange(mCommands, VK_NULL_HANDLE));
         mStaging.clear();
+        mHostStaging.clear();
     }
 
     Buffer uploadBuffer(const Device& device, Batch& batch, std::span<const std::byte> bytes, VkBufferUsageFlags usage)

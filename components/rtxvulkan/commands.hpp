@@ -7,6 +7,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "buffer.hpp"
+#include "hostbuffer.hpp"
 
 namespace Rtx
 {
@@ -101,6 +102,11 @@ namespace Rtx
         /// Holds `staging` until this batch has been submitted and waited on.
         void keep(Buffer&& staging);
 
+        /// The same for a buffer the host wrote into directly, which is what a build input the
+        /// device reads once and never again is: written before the submit, read inside it, and of
+        /// no use to anyone afterwards.
+        void keep(HostBuffer&& staging);
+
         /// Submits what has been recorded and waits for it, then releases the staging. Does nothing
         /// where nothing was recorded, so a batch nobody used costs nothing.
         void flush();
@@ -109,6 +115,7 @@ namespace Rtx
         CommandPool& mPool;
         VkCommandBuffer mCommands = VK_NULL_HANDLE;
         std::vector<Buffer> mStaging;
+        std::vector<HostBuffer> mHostStaging;
     };
 
     /// A device-local buffer holding `bytes`, staged through host-visible memory.

@@ -33,7 +33,9 @@ namespace Rtx
                 GTEST_SKIP() << reason;
 
             const Device& device = *harness->mDevice;
-            StructureStorage storage;
+            StructureStorage storage(
+                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                "test structures");
 
             const StructureRoom first = storage.take(device, 1024, sBlock);
             const StructureRoom second = storage.take(device, 2048, sBlock);
@@ -79,7 +81,9 @@ namespace Rtx
                 GTEST_SKIP() << reason;
 
             const Device& device = *harness->mDevice;
-            StructureStorage storage;
+            StructureStorage storage(
+                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                "test structures");
 
             const StructureRoom big = storage.take(device, 5 * sBlock, sBlock);
             EXPECT_EQ(big.mBlock, 0u);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
@@ -42,6 +43,13 @@ namespace Rtx
     class StructureStorage
     {
     public:
+        /// @param usage what a block is created with. The two things stored this way — bottom-level
+        ///        structures and opacity micromaps — differ in one usage bit and in nothing else:
+        ///        both are opaque objects the driver places at a 256-byte offset in a buffer the
+        ///        application owns.
+        /// @param name what a block is called in a capture, numbered from there.
+        StructureStorage(VkBufferUsageFlags usage, std::string name);
+
         /// Room for a structure of `bytes`, taken from the first block that has it.
         ///
         /// @param least how large to make a new block where none of the existing ones can hold it.
@@ -72,5 +80,8 @@ namespace Rtx
         };
 
         std::vector<Block> mBlocks;
+
+        VkBufferUsageFlags mUsage = 0;
+        std::string mName;
     };
 }

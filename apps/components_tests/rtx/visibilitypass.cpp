@@ -3618,7 +3618,7 @@ namespace Rtx
             std::vector<InstanceRecord> records;
             makeInstanceRecords(scene, records);
             Batch setup(pool);
-            const SceneAcceleration acceleration(device, setup, scene, records);
+            const SceneAcceleration acceleration(device, setup, scene, records, {});
             const SceneBuffers buffers(device, setup, scene, records);
 
             const TextureArray textures(device, setup, 0, {});

@@ -275,7 +275,7 @@ namespace Rtx
         // be its own round trip, and Balmora's are 367 of them.
         Batch setup(mPool);
 
-        held.mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, scene, mRecordScratch);
+        held.mAcceleration = std::make_unique<SceneAcceleration>(mDevice, setup, scene, mRecordScratch, textures);
         held.mBuffers = std::make_unique<SceneBuffers>(mDevice, setup, scene, mRecordScratch, sea);
         held.mTextures = std::make_unique<TextureArray>(
             mDevice, setup, static_cast<std::uint32_t>(scene.getTextures().size()), textures);
@@ -302,6 +302,8 @@ namespace Rtx
             mStats = SceneStats{
                 .mInstances = held.mAcceleration->getInstanceCount(),
                 .mCutoutInstances = held.mAcceleration->getCutoutInstanceCount(),
+                .mMicromappedInstances = held.mAcceleration->getMicromappedInstanceCount(),
+                .mMicromapTally = held.mAcceleration->getMicromapTally(),
                 .mStructureBytes = held.mAcceleration->getStructureBytes(),
                 .mTableBytes = held.mBuffers->getBytes(),
                 .mTextureCount = held.mTextures->getCount(),
@@ -329,7 +331,7 @@ namespace Rtx
         if (scene.getMeshRevision() != held.mBuiltMeshes)
         {
             held.mBuffers->extend(scene);
-            held.mAcceleration->extend(setup, scene);
+            held.mAcceleration->extend(setup, scene, arrived);
             held.mBuiltMeshes = scene.getMeshRevision();
         }
 
@@ -349,6 +351,8 @@ namespace Rtx
             mStats = SceneStats{
                 .mInstances = held.mAcceleration->getInstanceCount(),
                 .mCutoutInstances = held.mAcceleration->getCutoutInstanceCount(),
+                .mMicromappedInstances = held.mAcceleration->getMicromappedInstanceCount(),
+                .mMicromapTally = held.mAcceleration->getMicromapTally(),
                 .mStructureBytes = held.mAcceleration->getStructureBytes(),
                 .mTableBytes = held.mBuffers->getBytes(),
                 .mTextureCount = held.mTextures->getCount(),
@@ -415,6 +419,8 @@ namespace Rtx
 
         mStats.mInstances = held.mAcceleration->getInstanceCount();
         mStats.mCutoutInstances = held.mAcceleration->getCutoutInstanceCount();
+        mStats.mMicromappedInstances = held.mAcceleration->getMicromappedInstanceCount();
+        mStats.mMicromapTally = held.mAcceleration->getMicromapTally();
         mStats.mTableBytes = held.mBuffers->getBytes();
 
         // A frame whose instances moved is not one the last frame reprojects onto.

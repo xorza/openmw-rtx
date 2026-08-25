@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "micromap.hpp"
 #include "reconstruction.hpp"
 #include "shaders/visibility.h"
 #include "texturedata.hpp"
@@ -158,6 +159,24 @@ namespace Rtx
         /// number, so a material change that marks half a cell non-opaque shows up before a frame
         /// time does.
         std::uint32_t mCutoutInstances = 0;
+
+        /// How many of those an opacity micromap answers for, so traversal stops only where the mask
+        /// actually straddles the cutoff.
+        ///
+        /// **The number that says the micromaps are doing anything.** It falls short of
+        /// `mCutoutInstances` by the meshes whose mask could not be classified — one two materials
+        /// disagree about, or one whose image was not among the descriptions the scene was handed.
+        std::uint32_t mMicromappedInstances = 0;
+
+        /// How much of the surface those micromaps cover came out each way, in triangles.
+        ///
+        /// **The number that says a micromap is worth its memory, and no other one can.** A build
+        /// that resolved nothing and a build the driver never consulted trace alike and draw the
+        /// same frame; only the share that stopped asking tells them apart.
+        ///
+        /// In triangles rather than as three fractions, because that carries both — the shares are a
+        /// division a reader can do, and the totals say how much surface the shares are *of*.
+        MicromapTally mMicromapTally;
 
         std::uint64_t mStructureBytes = 0;
         std::uint64_t mTableBytes = 0;
