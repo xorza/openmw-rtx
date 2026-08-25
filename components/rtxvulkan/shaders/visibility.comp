@@ -762,7 +762,9 @@ float foamBreaking(WaterSurface surface, float depth)
 /// @param depth how deep the still water is under this point, in world units.
 /// @param fall how fast the bed falls away toward deep water, as a tangent — measured over the
 ///        run-out rather than read off the surface here, for the reason `bedFall` gives.
-float foamReaching(WaterSurface surface, float depth, float fall)
+/// @param runout what `foamRunout` said, handed in because the caller measured `fall` across it and
+///        the two have to be the same number.
+float foamReaching(WaterSurface surface, float depth, float fall, float runout)
 {
     const float breaking = breakingDepth(surface);
 
@@ -774,7 +776,7 @@ float foamReaching(WaterSurface surface, float depth, float fall)
     // wide the surf zone is, is a question about the beach and does not.
     const float crossed = max(breaking - depth, 0.0) / max(fall, 1.0e-4);
 
-    return exp(-crossed / foamRunout(surface));
+    return exp(-crossed / runout);
 }
 
 /// What is left of the daylight by the time it reaches a point, as a fraction per channel.
@@ -2021,8 +2023,8 @@ struct WaterPath
     ///
     /// **Carried because the bed's gradient is what places a surf zone**, and the ray that measures
     /// the depth has already resolved it — asking separately would traverse the same ray twice.
-    /// Level where nothing was found — a value nothing then turns on, because the distance has
-    /// already put such a point outside any surf zone.
+    /// Level where nothing was found, which is the one answer that cannot invent a shore: a level
+    /// bed has no downhill, and `bedFall` reads that as ground a wave never came across.
     vec3 mGeometric;
 };
 
@@ -2182,13 +2184,13 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response)
 
     // Refraction bends by a third of what reflection does, so what is seen *through* the surface is
     // blurred correspondingly less by the same lost slopes.
-    const WaterPath bed = waterRay(leaving, through, surface.mFootprint, lobe * WATER_REFRACTION_BEND);
-    const vec3 refracted = fromBelow ? bed.mRadiance : absorbedByWater(bed.mRadiance, bed.mDistance);
+    const WaterPath behind = waterRay(leaving, through, surface.mFootprint, lobe * WATER_REFRACTION_BEND);
+    const vec3 refracted = fromBelow ? behind.mRadiance : absorbedByWater(behind.mRadiance, behind.mDistance);
 
     // With no water left between the surface and the ground, this is the ground. Only from above:
     // seen from under it, the path is a distance through air and says nothing about a shore.
-    const float shore = fromBelow ? 1.0 : smoothstep(0.0, WATER_SHORE_FADE, bed.mDistance);
-    const vec3 water = mix(bed.mRadiance, mix(refracted, reflected, fresnel), shore);
+    const float shore = fromBelow ? 1.0 : smoothstep(0.0, WATER_SHORE_FADE, behind.mDistance);
+    const vec3 water = mix(behind.mRadiance, mix(refracted, reflected, fresnel), shore);
     if (fromBelow)
         return water;
 
@@ -2197,7 +2199,7 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response)
     // point — enough to put the surf line in a different place depending on where it is watched
     // from, which is the one thing a shoreline may not do. The drop is the path times its own
     // vertical share, which is exact.
-    const float under = bed.mDistance * max(-through.z, 0.0);
+    const float under = behind.mDistance * max(-through.z, 0.0);
 
     // **Not faded out with the water, which is the one composition that looked obvious and is
     // wrong.** `shore` exists to hide the plane cutting the terrain, and at this sea state it covers
@@ -2214,8 +2216,11 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response)
     // **The one place a ray is spent on foam, and it is spent only where there could be foam.**
     // Every pixel of open sea reaches the line above and stops there; what gets this far is the
     // shallows, which is a thin band of any frame.
-    const float fall = bedFall(surface.mPosition, bed.mGeometric, under, foamRunout(sea));
-    const float covered = breaks * foamReaching(sea, under, fall);
+    // How far the probe looks and how far foam lasts are one number, so the model never asks about
+    // ground whose answer it would have discounted anyway.
+    const float runout = foamRunout(sea);
+    const float fall = bedFall(surface.mPosition, behind.mGeometric, under, runout);
+    const float covered = breaks * foamReaching(sea, under, fall, runout);
     if (!(covered > 0.0))
         return water;
 

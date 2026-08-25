@@ -91,6 +91,11 @@ namespace Rtx
         //
         // **The inverse is taken here and never on the device.** A shader that inverted a transform
         // per hit would do it a million times a frame for an answer that changes once an instance.
+        //
+        // **Built from the placements the scene gave rather than the dropped ones**, and the sea's
+        // drop falls out of the answer rather than being ignored by it: this is
+        // `inverse(current) * previous`, so a translation applied to both cancels — but only while
+        // the placement carries no rotation, which the sea's does not and a rotating one would.
         const std::span<const osg::Matrixf> previous = scene.getPrevious();
         for (const Index slot : scene.getMoved())
         {

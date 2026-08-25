@@ -2469,7 +2469,27 @@ namespace Rtx
             // before the bed was consulted it rendered as solid surf from edge to edge.
             const std::array<int, 3> pan = look(makeFlooded(4000.0f, 2.0f), 40.0f);
             EXPECT_LT(pan[0], surf[0]) << "no foam on water no wave reaches";
-            EXPECT_EQ(pan[0], calm[0]) << "and what is left is the bed, exactly as the calm sea left it";
+            EXPECT_EQ(pan[0], calm[0])
+                << "and what is left is the bed, which the shelving leg has to agree with: these two "
+                   "beds lie at different angles and nothing here is lit by anything but an ambient, "
+                   "which no angle changes";
+
+            // **And the share is the one the arithmetic names, not merely more than none.** The sea
+            // breaks in `40 / 0.78 = 51.28` units and there are two here, so the wave broke 49.28
+            // units of depth back — down a bed falling at one, 49.28 units away. Foam is carried
+            // `3.5 * sqrt(627.1 * 51.28) = 627.7` units before it has gone, so
+            // `exp(-49.28 / 627.7) = 0.9245` of what broke is still here, lying over the same bed
+            // the calm leg read.
+            //
+            // **One byte of slack, and it is named.** The water under the foam is a thirteenth of
+            // the answer and the calm leg measured it under a different sea, so it stands in for
+            // that thirteenth rather than being it. As the two seas stand the substitution costs
+            // nothing at all and this lands on the byte exactly; the slack is for the day one of
+            // them moves, not for the arithmetic.
+            constexpr float covered = 0.9245f;
+            const float mixed = covered * Shaders::WATER_FOAM_ALBEDO
+                + (1.0f - covered) * decodeSrgb(static_cast<std::uint8_t>(calm[0]));
+            EXPECT_NEAR(surf[0], encodeSrgb(mixed), 1) << "the run-out term's own value, not just its sign";
         }
 
         /// The same column of water has to look the same from either side of it.
