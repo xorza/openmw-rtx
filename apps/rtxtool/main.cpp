@@ -714,6 +714,7 @@ namespace RtxTool
                 request.mTarget = chosen.mTarget;
                 request.mShowAlbedo = variables["albedo"].as<bool>();
                 request.mTail = variables["tail"].as<bool>();
+                request.mDump = variables["dump"].as<std::string>();
                 request.mJitter = variables["jitter"].as<bool>();
                 request.mFilter = variables["filter"].as<bool>();
                 request.mExposure = parseExposure(variables["exposure"].as<std::string>());

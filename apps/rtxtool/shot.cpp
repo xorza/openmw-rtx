@@ -2,12 +2,14 @@
 
 #include "framing.hpp"
 #include "placement.hpp"
+#include <components/rtx/error.hpp>
 #include <components/rtx/frametimes.hpp>
 #include <components/rtx/png.hpp>
 #include <components/rtx/shaders/colour.h>
 
 #include <array>
 #include <chrono>
+#include <fstream>
 #include <memory>
 #include <ostream>
 #include <span>
@@ -158,6 +160,25 @@ namespace RtxTool
         const Rtx::MicromapTally& tally = stats.mMicromapTally;
         const double covered = tally.mOpaque + tally.mTransparent + tally.mUnknown;
         const auto share = [covered](double part) { return covered > 0.0 ? part / covered * 100.0 : 0.0; };
+
+        // **The frame a measurement is taken on**, which is not the frame a picture is looked at.
+        // Raw floats and no container: what reads this is a script computing an error against
+        // another one, and every image format that carries floats would have to be decoded first.
+        if (!request.mDump.empty())
+        {
+            std::vector<float> radiance;
+            renderer->readChannel(Rtx::Channel::Radiance, radiance);
+
+            std::ofstream file(request.mDump, std::ios::binary);
+            file.write(reinterpret_cast<const char*>(radiance.data()),
+                static_cast<std::streamsize>(radiance.size() * sizeof(float)));
+
+            // **Thrown and not reported**, the way `writePng` above answers the same failure. A
+            // measurement whose output did not get written and whose command still succeeded is a
+            // script comparing against whatever was at that path before.
+            if (!file)
+                throw Rtx::Error("could not write " + Files::pathToUnicodeString(request.mDump));
+        }
 
         // **The bounce's tail, in radiance and not in bytes.** A firefly is a bounce far enough
         // above what the pixel has been seeing to be an outlier, and that is a statement about

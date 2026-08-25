@@ -133,6 +133,10 @@ namespace RtxTool
             "and a number holds it there. A pixel test and a converged reference want it held, "
             "because a measured exposure makes every value depend on the whole frame");
 
+        addOption("dump", bpo::value<std::string>()->default_value(""),
+            "with `shot`, also write the frame in linear radiance to this path: four floats a pixel, "
+            "raw, at the render extent. What a measurement is taken on, where the PNG is what a "
+            "picture is looked at as");
         addOption("tail", bpo::bool_switch(),
             "with `shot`, report what share of the frame's bounce is far enough above the mean to be "
             "a firefly. Wants --upscale=off and an --accumulate long enough to settle the history");

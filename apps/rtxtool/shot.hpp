@@ -79,6 +79,14 @@ namespace RtxTool
         /// off until.
         bool mTail = false;
 
+        /// Where to write the frame in linear radiance, or empty for none.
+        ///
+        /// **Four floats a pixel, raw, at the render extent.** A PNG is what a picture is looked at
+        /// as; this is what one is *measured* against, and the two are not the same file — eight bits
+        /// after the display curve is where the filter figures stopped being figures. `readPixels`
+        /// gives the first and `Channel::Radiance` the second.
+        std::filesystem::path mDump;
+
         /// What to scale the frame by before the display curve, or nothing to measure it off the
         /// frame. A picture wants it measured; a reference wants it held still.
         std::optional<float> mExposure;

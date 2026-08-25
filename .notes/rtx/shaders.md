@@ -282,18 +282,25 @@ is no screen-space arrangement of a sequence to arrange.
 About a fifth of the trace in the lamp-heavy interior, a twentieth in the fort, and nothing where
 there was never more than one lamp to walk — which is the shape the change predicts.
 
-**Unbiased, and the cost to the picture is under a per cent.** Against a 256-frame converged
-reference at a fixed exposure:
+**Unbiased, and what it costs the picture is below what the read-back could see.** Against a
+converged exhaustive reference at a pinned exposure, on `Channel::Radiance`:
 
-| | customs office | wolverine hall |
+| | customs office (23 lamps) | Wolverine Hall (28) |
 |---|---|---|
-| converged with a reservoir, against converged exhaustive | RMSE 0.00005 | 0.00000 |
-| one filtered frame, walking every lamp | RMSE 0.05973 | 0.01260 |
-| one filtered frame, one reservoir | RMSE 0.05985 | 0.01268 |
+| converged with a reservoir, against converged exhaustive | RMSE 0.0000150 | 0.0000019 |
+| one filtered frame, walking every lamp | 0.0942673 | 0.0029341 |
+| one filtered frame, one reservoir | 0.0942993 | 0.0029435 |
 
-The first row is the bias check and it passes: resampling converges on the same answer. The other two
-are what a player sees on the first frame, and the reservoir costs 0.2% and 0.6% of the error the
-denoiser already leaves — which is to say the filter absorbs the variance the estimator adds.
+The first row is the bias check and it passes: resampling converges on the same answer, to five and
+six decimals. The other two are what a player sees on the first frame, and the reservoir costs 0.03%
+and 0.32% of the error the denoiser already leaves — the filter absorbs the variance the estimator
+adds.
+
+**Taken again on floats, because the byte pair that stood here was the quantiser.** It read 0.05973
+against 0.05985 and 0.01260 against 0.01268 — a difference of 0.00012, which is a twentieth of one
+byte at that brightness and so a number the eight-bit path could not have resolved. The magnitudes
+differ as well as the precision: `decodeSrgb` of a tone-mapped byte clamps at one and throws away
+what a lamp does above it, where these are unclamped linear radiance.
 
 **The exposure is why an earlier reading said otherwise.** Comparing two runs whose exposure was each
 measured from its own frame put 12% of the customs office's channels apart with a worst case of 170,
@@ -301,10 +308,33 @@ and none of it was the estimator: auto-exposure had simply landed in two differe
 comparison of two renders here has to pin `--exposure` on both sides, the way it has to pin
 `--validation`.
 
-**Reuse is now a quality improvement rather than a debt.** Carrying a reservoir through the motion
-vector brings last frame's *traced visibility* into a target function that cannot otherwise have it,
-which is worth having — but it is no longer paying for anything, and it goes in the queue on its own
-merits rather than ahead of them.
+**Reuse was measured before it was built, and it is not worth building.** Carrying a reservoir
+through the motion vector brings last frame's traced visibility into the target function, so the lamp
+that is kept is more often the lamp that was actually reaching. What that can win is bounded above by
+never having to choose at all — by spending a shadow ray on every lamp, which is what the reservoir
+replaced — and that bound is the whole of the question. Measured on `Channel::Radiance` against a
+128-frame converged exhaustive reference, one filtered frame:
+
+| view | lamps | one frame, exhaustive | one frame, reservoir | the whole headroom |
+|---|---|---|---|---|
+| Seyda Neen customs office | 23 | 0.0942673 | 0.0942993 | 0.0000320 — **0.03%** |
+| Wolverine Hall | 28 | 0.0029341 | 0.0029435 | 0.0000093 — **0.32%** |
+
+**A third of a per cent, in the two cells the reservoir exists for.** Perfect lamp selection cannot
+beat a ray per lamp, and a ray per lamp is a third of a per cent better than choosing one at random
+in proportion to what it would deliver unshadowed. The estimator is simply already close to the best
+it can be: every lamp is enumerated and weighed, so what is left to win is not the *choice* but the
+*visibility*, and the filter behind it absorbs nearly all of that. A per-pixel history buffer, a
+reprojection, a combine rule and the bias risk that comes with all three, to recover thirty
+millionths.
+
+**And the bias check passes on floats**, which is the other half of what these dumps were for:
+converged with a reservoir against converged exhaustive is 0.0000150 at the customs office and
+0.0000019 at Wolverine Hall.
+
+**The headroom is the last two rows of the table above, read as a difference rather than as a
+ratio** — the same measurement asked the other way round, and the reason it had to be taken on floats
+is written beside it.
 
 ### 4.4 The same computation is written more than once — closed, and it was one thing and not three
 
@@ -478,17 +508,7 @@ runs of one build, the doll about 0.02% — so those two need a magnitude compar
 same-build control, never `cmp`. Both are worth running anyway: `map` is the only orthographic path
 and `doll` the only transparent-background one.
 
-**1 — carry the reservoir (4.3).** Temporal through the motion vector first, spatial across
-neighbours after. This is the one item here that changes the picture rather than the frame time: it
-brings the previous frame's *traced visibility* into a target function that cannot otherwise have
-it, so the lamp that is kept is the lamp that was actually reaching. 4.3 closed the cost argument,
-so it is queued on its own merits and nothing is waiting on it.
-
-*Check:* the bias check 4.3 already has — converged with reuse against converged exhaustive, at a
-pinned exposure, which must stay at the fifth decimal — and beside it the first-frame RMSE, which is
-what reuse is for and which has to *fall*.
-
-**2 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
+**1 — the shared-memory guide tile (4.8).** 250 image loads and 125 normalizes a pixel over a
 neighbourhood every thread in the workgroup shares. It was held until the temporal half had a real
 figure, and now it has one: the history takes 44% of what the cascade cannot reach (4.2), so the
 cascade is still carrying the majority of the error and its level count is not about to collapse.
@@ -497,16 +517,16 @@ The tile is worth what it was worth.
 *Check:* the byte comparison — a tile is a cache and must change nothing — and the atrous timer
 against the level count it was measured at.
 
-**3 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel, after 1 has
-changed what is live: the micromaps already took a texture fetch and a candidate loop off part of
-the hot path, and a carried reservoir puts a buffer into it. Nothing in 4.6 is to be *acted* on
-before this — that is `CLAUDE.md`'s rule and it holds — and the split into `lib/` is what makes a
-cheaper variant a one-line edit once the number says which one to try.
+**2 — measure occupancy on `visibility.comp` (4.6).** Nsight against the megakernel. The micromaps
+already took a texture fetch and a candidate loop off part of the hot path, and nothing queued
+behind this adds to what is live — 4.3 settled that the reservoir is not being carried. Nothing in
+4.6 is to be *acted* on before this — that is `CLAUDE.md`'s rule and it holds — and the split into
+`lib/` is what makes a cheaper variant a one-line edit once the number says which one to try.
 
 *Check:* the number itself, written down beside the register count and the live-state inventory 4.6
 lists, and nothing else changed.
 
-**4 — decide SER (4.5).** With 3's number in hand: if occupancy is where the megakernel is losing,
+**3 — decide SER (4.5).** With 2's number in hand: if occupancy is where the megakernel is losing,
 price the ray-tracing pipeline that `reorderThreadEXT` requires, against what ray query and the
 register-resident megakernel are worth. Until it is decided, `plan.md` §8's SER entry should say it
 needs one.
