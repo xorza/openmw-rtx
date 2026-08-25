@@ -33,48 +33,36 @@ the game report it. The three-way comparison the steps below are argued from —
 wavelet, and Ray Reconstruction — is one command each, and the network is pinned rather than
 whatever the installed library felt like.
 
+**And what a run reports is what a change is judged by.** `shot --repeat` sequences the frame index
+whenever an upscaler is on, so it accumulates history exactly as the game does: that is how the
+colour-pair guides were shown to stop a lamp's highlight converging, and it is the measurement any
+change to a DLSS input owes.
+
 ---
 
-## 1. The three cheap correctness items
+## 1. The two cheap correctness items
 
 **First because each changes results and none needs anything built**, and because a run reports the
-reconstruction now, so each change is visible as it lands. Before step 2, so that step 2 is measured
-against a correct baseline.
+reconstruction now, so each change is visible as it lands.
 
-- `InReset` fires only when the previous camera basis is zero — a resize or a renderer rebuild. Its
-  own doc comment names cell loads, teleports and cuts, and none of those reach it. The renderer
-  already learns about scene replacement through `setScene`.
-- `DlssPass::record` asserts the colour and output extents and not the other five. A guide, depth,
+- `DlssPass::record` asserts the colour and output extents and not the others. A guide, depth,
   motion or albedo at the wrong size is accepted silently — the same failure mode the header already
   warns about for `SAMPLED_BIT`.
 - `ngxQualityOf` answers `Off` with `MaxPerf` and relies on a comment that `Off` never arrives.
 
-**Done when** walking through a door stops ghosting, and a mismatched input is a failed assertion
-rather than a wrong picture.
+**Done when** a mismatched input is a failed assertion rather than a wrong picture.
 
-## 2. Hand over the two guides the frame already computes
+The third of these has landed: `InReset` now follows `Rtx::Renderer::resetHistory`, which the
+simulation calls through `RenderingManager::notifyWorldSpaceChanged`. The route this document
+originally proposed — that "the renderer already learns about scene replacement through `setScene`" —
+turned out not to exist. `SceneDesc::clear` is never called on the world scene: the mirror grows and
+recycles its slots, so `setScene` fires once at startup and a cell load looks exactly like a step
+across a room.
 
-**Second because it is the largest gain available with no new scope.** `visibility.comp` composites
-fog and then a sprite layer over the finished frame, and holds both sides of each composite in local
-variables before discarding the distinction. Those are exactly `pInColorBeforeFog` /
-`pInColorAfterFog` and `pInColorBeforeParticles` / `pInColorAfterParticles`, which exist so that
-transparent effects are not reconstructed as if they were the surface behind them.
+## 2. Stop binding what nothing reads
 
-This is where the rain lives. A rainstorm is a thousand sprites crossing the frame at their own
-velocity, reprojected with the motion of the wall behind them; the guide pair is what tells the
-network to stop.
-
-- The two colour pairs, and `pInBiasCurrentColorMask` for the same population of pixels.
-- `pInIsParticleMask` as well, which costs nothing to fill: `spritesAlong` already returns the
-  transmittance each sprite left, so which pixels one covered is known where the composite happens.
-- Two more render-resolution images and the composite handing over what it already has.
-
-**Done when** a `--weather=Rain` shot at the default upscale stops smearing drops, judged against
-the three-way comparison a run can now be asked for.
-
-## 3. Stop binding what nothing reads
-
-**Third because step 2 settles which channels exist**, and doing it earlier means doing it twice.
+**Second because the channels have stopped moving.** The colour-pair work added two and took them
+away again, which is exactly the "doing it twice" this step waits to avoid.
 None of this changes the picture; it is bandwidth and memory on the frame path.
 
 - Depth is bound as `RG32F` because the second component serves the wavelet's world-distance test;
@@ -83,14 +71,14 @@ None of this changes the picture; it is bandwidth and memory on the frame path.
 
 **Done when** the upscaler's inputs are the size of what it reads, measured rather than assumed.
 
-## 4. Motion for what is not an opaque surface
+## 3. Motion for what is not an opaque surface
 
-**Last because it is the hardest and step 2 may have made half of it unnecessary.** The trace writes
+**Last because it is the hardest.** The trace writes
 one motion vector per pixel, from the surface a primary ray hit or from the sky where it hit nothing.
 Everything in front of that surface inherits its motion.
 
 - Sprites move independently of the geometry behind them and have no previous position to difference
-  against; the bias mask from step 2 may be the whole answer, and if it is, this shrinks to water.
+  against. The masks and the sprites' own travel have landed, so what is left here is water.
 - Water is shaded on the primary hit, so a reflection moves with the surface rather than with what is
   reflected in it. **Not by the route the guide names**: it asks for specular motion vectors, and the
   vendored header has no such parameter — it offers `pInSpecularHitDistance` with
@@ -130,5 +118,9 @@ it is the last placeholder any of the four inputs still holds.
   warning for the half of it that is now pinned in code; the rest is only here. They state opposite
   conventions for `InMVScale{X,Y}`; the guide lists specular motion vectors among the required
   inputs and the header has no such parameter; and the guide's optional set is a transparency layer
-  with SSS and depth-of-field guides where the header's is the fog and particle pairs step 2 uses.
+  with SSS and depth-of-field guides where the header's is a set of fog and particle colour pairs.
   A future reader who finds the guide first will conclude the code is wrong on all three.
+- **The colour-pair guides are not an oversight and must not be "fixed".** Both pairs were wired
+  correctly and both made the picture worse, independently of their content —
+  `.notes/rtx/dlss-review.md` and the comment in `dlsspass.cpp` carry the numbers. They are the one
+  place in this pipeline where the header's "research purposes" is load-bearing.

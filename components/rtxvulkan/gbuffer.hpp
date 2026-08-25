@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 
 #include <vulkan/vulkan_core.h>
@@ -127,6 +128,15 @@ namespace Rtx
         void handOver(VkCommandBuffer commands) const;
 
     private:
+        /// Every channel this holds, so the two barrier sweeps below cannot name different sets.
+        ///
+        /// **They did.** The list was written out twice and a channel added to one of them was left
+        /// out of the other, which is a frame reading an image nothing had transitioned — reported
+        /// by the layers as a layout the descriptor did not expect, and by nothing at all in a build
+        /// without them.
+        static constexpr std::size_t sChannels = 10;
+        std::array<const Image*, sChannels> everyChannel() const;
+
         Image mDirect;
         Image mIndirect;
         Image mAlbedo;

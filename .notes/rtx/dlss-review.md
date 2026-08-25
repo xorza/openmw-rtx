@@ -34,20 +34,24 @@ The rest of it went with `SpriteClaim` and `mirrorMotionOf`. A sprite owns its p
 by either of the two ways a sprite can own a pixel — covering most of it, or outshining what is left
 of the surface behind — so a flame is caught as well as a raindrop. And water writes a second motion
 field for what it reflects, mirrored about the water plane, which `pInMotionVectorsReflections`
-takes. One item is left, and it is the one whose parameters the SDK itself marks research-only.
+takes. **All four colour-pair guides are deliberately unset, and that is a measurement rather than a gap.**
+`pInColorBeforeFog` / `pInColorAfterFog` and `pInColorBeforeParticles` / `pInColorAfterParticles`
+all sit in the block the header marks `/*** OPTIONAL - only for research purposes ***/`. They were
+wired correctly — the trace kept each stage's direct light and its transmittance, the composite put
+the albedo and the bounce back at each one — and both pairs made the picture worse:
 
----
+- The **sprite pair** nearly triples the horizontal smear down a turning camera's edge bands:
+  neither pair 0.537, fog pair alone 0.339, sprite pair alone 1.385, both 1.385.
+- The **fog pair** stops a lamp's highlight converging. Balmora at one in the morning, peak byte over
+  frames of history: with the pair 83, 98, 111, 137, 149 at 1, 4, 16, 64 and 128 — still climbing.
+  Without it: 101, 137, 161, 177, 179, settled by sixty-four. The renderer's own answer with no
+  upscaler is 243 and does not move with frame count at all.
 
-## What the frame composites over the top
-
-- [ ] The colour-pair guides are unset. `pInColorBeforeFog` / `pInColorAfterFog` and
-      `pInColorBeforeParticles` / `pInColorAfterParticles` are all inside the block the header marks
-      `/*** OPTIONAL - only for research purposes ***/`, and they are not the cheap win they look:
-      the trace holds both sides of each composite in the *direct* channel only, while `pInColor` is
-      the composited frame — `direct + albedo * indirect` — so handing over what is already in hand
-      would compare quantities that differ by the whole indirect term. Doing it honestly means the
-      fog and sprite transmittances coming off the indirect channel and reaching the composite pass
-      instead, which changes what the wavelet filters and wants its own measurement.
+**Neither is about content.** Handing the fog pair two identical images — "the fog did nothing",
+which cannot be wrong — fails the same way (58, 104, 156). Pointing the sprite pair's second
+parameter at an image that is not `pInColor`, ruling out resource aliasing, reproduces its number to
+the last digit. These select a different path through the network rather than answer a question
+about the frame, and the machinery that fed them was removed with them rather than left dead.
 
 ## The specular albedo is real but is not the quantity that was asked for
 

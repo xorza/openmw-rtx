@@ -210,6 +210,7 @@ layout(set = 0, binding = 28, GBUFFER_MASK) uniform writeonly image2D biasMask;
 /// that is not water reflecting a surface.
 layout(set = 0, binding = 29, GBUFFER_MOTION) uniform writeonly image2D reflectionMotion;
 
+
 /// Every live particle in the scene, one emitter's run after another's.
 layout(set = 0, binding = 23, scalar) readonly buffer Sprites
 {
@@ -2148,10 +2149,14 @@ struct WaterMirror
     /// Where the reflected surface stands, in world units.
     vec3 mAt;
 
+    /// The direction the reflection left along, for the case where it found no surface at all.
+    vec3 mAlong;
+
     /// Which instance row it came off, so the frame can ask where that used to be.
     uint mInstance;
 
-    /// False where the reflection found no surface to describe.
+    /// False where the reflection reached the sky, which is a reflection with no distance to it and
+    /// not a reflection of nothing: `mAlong` is the whole of the answer there.
     bool mFound;
 };
 
@@ -2161,7 +2166,7 @@ struct WaterMirror
 ///        underneath — neither is a thing a mirrored reprojection has an answer for.
 vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response, out WaterMirror mirror)
 {
-    mirror = WaterMirror(vec3(0.0), 0u, false);
+    mirror = WaterMirror(vec3(0.0), vec3(0.0), 0u, false);
 
     // **Which side of the water a ray is on is a question about the plane, not about a wave.** At a
     // glancing angle a facet can tilt far enough to face away from the ray, and reading that as "the
@@ -2212,12 +2217,13 @@ vec3 shadeWater(Surface surface, vec3 incident, out SurfaceResponse response, ou
     // travelled no water at all. Attenuating the wrong one turns that window green.
     const vec3 leaving = surface.mPosition + plane * WATER_BIAS;
 
-    const WaterPath bounced = waterRay(leaving, reflect(incident, normal), surface.mFootprint, lobe);
+    const vec3 away = reflect(incident, normal);
+    const WaterPath bounced = waterRay(leaving, away, surface.mFootprint, lobe);
     vec3 reflected = bounced.mRadiance;
     if (fromBelow)
         reflected = absorbedByWater(reflected, bounced.mDistance);
-    else if (bounced.mDistance < WATER_MAX_PATH)
-        mirror = WaterMirror(bounced.mPosition, bounced.mInstance, true);
+    else
+        mirror = WaterMirror(bounced.mPosition, away, bounced.mInstance, bounced.mDistance < WATER_MAX_PATH);
 
     const vec3 through = refract(incident, normal, fromBelow ? WATER_IOR : 1.0 / WATER_IOR);
     if (dot(through, through) < 1e-6)
@@ -2735,6 +2741,13 @@ vec2 spriteMotionOf(uvec2 pixel, SpriteClaim claim)
 /// bounce off.
 vec2 mirrorMotionOf(uvec2 pixel, vec3 origin, WaterMirror mirror)
 {
+    // **The sky reflected is still a reflection that moves**, and writing nought for it says the
+    // opposite. It has no distance, so the eye's own walk does not carry it and its turn is the
+    // whole of it — the argument `skyMotionOf` makes, about a direction that is mirrored because
+    // what is being watched is the image and not the sky.
+    if (!mirror.mFound)
+        return reprojected(pixel, vec3(mirror.mAlong.xy, -mirror.mAlong.z));
+
     // The plane's own reflection, which is linear on differences: the constant cancels in the
     // subtraction below, so only `z` changes sign.
     const vec3 seen = vec3(mirror.mAt.xy, 2.0 * camera.mWaterLevel - mirror.mAt.z);
@@ -2825,7 +2838,7 @@ void main()
     vec3 transmittance = vec3(1.0);
 
     // Filled only by water, and only where the water reflects a surface rather than the sky.
-    WaterMirror mirror = WaterMirror(vec3(0.0), 0u, false);
+    WaterMirror mirror = WaterMirror(vec3(0.0), vec3(0.0), 0u, false);
 
     if (!surface.mHit)
         shaded = camera.mTransparentBackground != 0u ? vec3(0.0) : skyRadiance(direction, pixelBlur());
@@ -2896,8 +2909,10 @@ void main()
     // The composite still multiplies the two, so the picture is the same product it always was; what
     // moved is which of the two the water and the air are folded into. They belong to the light,
     // which is what they attenuated — and the channel that is left is then the albedo an upscaler
-    // asks for. Filtering the bounce with the transmittance already in it averages a quantity that
-    // varies as slowly as fog does, which is to say it changes nothing.
+    // asks for.
+    //
+    // Filtering the bounce with the transmittance already in it averages a quantity that varies as
+    // slowly as fog does, which is to say it changes nothing.
     imageStore(indirect, at, vec4(bounced * transmittance, 1.0));
     imageStore(albedo, at, vec4(response.mDiffuse, 1.0));
     imageStore(specular, at, vec4(response.mSpecular, 1.0));
@@ -2909,12 +2924,23 @@ void main()
     const bool sprited = particles.mTransmittance < 1.0 || any(greaterThan(particles.mRadiance, vec3(0.0)));
     imageStore(particleMask, at, vec4(sprited ? 1.0 : 0.0));
 
-    // **Water joins them because it is shaded where it is seen, not where it reflects.** A
-    // reflection moves with the surface carrying it rather than with the thing reflected, so what a
-    // history accumulates over water is a history of the wrong thing. Told apart from the sprites
-    // rather than folded in with them: this says do not trust the past here, which is a different
-    // question from what is a particle.
-    const bool untrusted = sprited || (surface.mHit && surface.mWater);
+    // Which sprite owns this pixel's motion, if any does — the mask below and the vector further
+    // down are the same question asked twice, so it is answered once.
+    const SpriteClaim claim = spriteClaim(beforeParticles, particles);
+
+    // **What no motion vector here describes, which is far less than what moves.** This says stop
+    // accumulating, so everything it names is a pixel reconstructed from one sample — and a mask
+    // that names a third of the frame is a third of the frame held at the noise the trace left.
+    //
+    // Water is not on it. Water is shaded where it is seen and shows what is somewhere else, which
+    // is a real problem and is the one `reflectionMotion` answers: the surface has its vector and
+    // what it reflects has another, and NGX weighs the two by the specular albedo it was given.
+    // Marking it untrustworthy as well would throw away the answer for the sake of the question.
+    //
+    // What is left is the pixel a sprite reached and did not win: the vector written for it is the
+    // surface's, and some share of what the pixel shows is a particle that went somewhere else.
+    // Where the sprite *did* win, the vector is the sprite's own and the pixel is described.
+    const bool untrusted = sprited && !(claim.mWeight > 0.0);
     imageStore(biasMask, at, vec4(untrusted ? 1.0 : 0.0));
 
     // **The sky moves too, and only its turn moves it.** `skyMotionOf` says why storing nothing here
@@ -2927,7 +2953,6 @@ void main()
     // wall was reprojected as though it were the wall — which is what `particleMask` was reduced to
     // apologising for. `spriteClaim` says which sprite owns the pixel, by either of the two ways a
     // sprite can own one — which covers a flame as well as a raindrop.
-    const SpriteClaim claim = spriteClaim(beforeParticles, particles);
     if (claim.mWeight > 0.0)
         moved = spriteMotionOf(pixel, claim);
     imageStore(motion, at, vec4(moved, 0.0, 0.0));
@@ -2936,7 +2961,7 @@ void main()
     // shaded where it is seen, so the vector above describes the surface and not what is in it; this
     // is the other one, and the upscaler weighs the two by the specular albedo it was already given.
     imageStore(reflectionMotion, at,
-        vec4(mirror.mFound ? mirrorMotionOf(pixel, origin, mirror) : vec2(0.0), 0.0, 0.0));
+        vec4(surface.mWater ? mirrorMotionOf(pixel, origin, mirror) : vec2(0.0), 0.0, 0.0));
 
     // A miss is as far away as anything can be, and `mDistance` already carries `mFar` for it.
     imageStore(depth, at,

@@ -1,4 +1,6 @@
 #include "gbuffer.hpp"
+#include <algorithm>
+#include <cassert>
 
 #include <components/rtx/shaders/gbuffer.h>
 
@@ -79,6 +81,20 @@ namespace Rtx
     {
     }
 
+    std::array<const Image*, GBuffer::sChannels> GBuffer::everyChannel() const
+    {
+        const std::array<const Image*, sChannels> every{ &mDirect, &mIndirect, &mAlbedo, &mSpecular, &mGuide, &mMotion,
+            &mDepth, &mReflectionMotion, &mParticleMask, &mBiasMask };
+
+        // **Too many is a compiler error and too few is not**, which is the direction that hurts: an
+        // aggregate short of its size fills the rest with null and every sweep below then walks off
+        // one. Naming one more than the list has says so at build time; naming one fewer says so
+        // here.
+        assert(std::find(every.begin(), every.end(), nullptr) == every.end() && "a channel slot the list did not fill");
+
+        return every;
+    }
+
     void GBuffer::begin(VkCommandBuffer commands) const
     {
         // From undefined, because every pixel of all of them is written before any is read and there is
@@ -91,8 +107,7 @@ namespace Rtx
         // previous frame is still running. Sourcing the barrier at the compute stage is the whole of
         // what a write-after-read needs; nothing has to be made visible, only ordered. Discarding
         // from `TOP_OF_PIPE` waits for nothing at all, and buys a torn frame for a barrier saved.
-        for (const Image* image : { &mDirect, &mIndirect, &mAlbedo, &mSpecular, &mGuide, &mMotion, &mDepth,
-                 &mReflectionMotion, &mParticleMask, &mBiasMask })
+        for (const Image* image : everyChannel())
             image->transition(commands, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
@@ -100,8 +115,7 @@ namespace Rtx
 
     void GBuffer::handOver(VkCommandBuffer commands) const
     {
-        for (const Image* image : { &mDirect, &mIndirect, &mAlbedo, &mSpecular, &mGuide, &mMotion, &mDepth,
-                 &mReflectionMotion, &mParticleMask, &mBiasMask })
+        for (const Image* image : everyChannel())
             image->transition(commands, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                 VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);

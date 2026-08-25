@@ -2515,38 +2515,33 @@ namespace Rtx
             EXPECT_NEAR(surf[0], encodeSrgb(mixed), 1) << "the run-out term's own value, not just its sign";
         }
 
-        /// What the frame composites in front of its surfaces, which one motion vector per pixel
-        /// cannot describe.
+        /// What each mask names, and what neither of them does.
         ///
-        /// **A sprite has no motion of its own in this renderer.** The trace writes one vector from
-        /// the surface a primary ray hit, so rain, smoke and every other emitter is reprojected with
-        /// whatever wall stands behind it. The two masks are what tells an upscaler so: one
-        /// identifies the pixels that are not the base pass, the other says where the past must not
-        /// be carried forward at all.
+        /// **A mask that says stop accumulating is a mask that says keep the noise**, so what it
+        /// names has to be only what no motion vector describes. It once named all water as well, on
+        /// the reasoning that a reflection moves with the surface carrying it — which was true, and
+        /// stopped being the answer the moment water got a reflection vector of its own. A third of
+        /// a Balmora frame was being held at one sample for a question that had been answered.
         ///
-        /// **They are not the same population, and that is the point of having two.** Water carries
-        /// no particle and is still untrustworthy — it is shaded where it is seen rather than where
-        /// it reflects, so a history accumulated over it is a history of the wrong thing.
-        TEST_F(RtxVisibilityTest, eachMaskNamesItsOwnPopulationAndTheyAreNotTheSameOne)
+        /// What is left is the pixel a sprite reached and did not win: some share of what it shows
+        /// went somewhere the vector written for it does not point.
+        TEST_F(RtxVisibilityTest, theBiasMaskNamesOnlyWhatNoMotionVectorDescribes)
         {
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = std::size_t{ size / 2 } * size + size / 2;
 
-            // Water under the camera, and one sprite hanging over the left of the frame. The sprite
-            // needs a texture with alpha in it — a sprite whose texel is transparent is one that
-            // reached nothing, which is exactly what the mask should then say.
+            // The ladder's first level is 40 of 255, so a sprite cut from it covers a sixth of what
+            // is behind it — it reaches the pixel and comes nowhere near owning it.
             TestTexture ladder;
             makeMipLadder(ladder);
             const std::span<const TextureData> textures(&ladder.mData, 1);
 
             SceneDesc scene = makeFlooded(4000.0f, 40.0f);
-            const Index sheet = scene.addTexture(VFS::Path::NormalizedView("sprite.dds"));
+            const Index cut = scene.addTexture(VFS::Path::NormalizedView("sprite.dds"));
             const std::array<Sprite, 1> sprites{ Sprite{
                 .mPosition = osg::Vec3f(-80.0f, 0.0f, 200.0f), .mRadius = 40.0f, .mAlpha = 1.0f } };
-            scene.addEmitter(sprites, sheet, false);
+            scene.addEmitter(sprites, cut, false);
 
-            // Straight down at the water, as every other water test looks, so the frame is water from
-            // edge to edge and the sprite hangs over one side of it.
             Shaders::VisibilityConstants camera = makeCamera(
                 osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
             camera.mAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
@@ -2560,27 +2555,23 @@ namespace Rtx
             mRenderer->readChannel(Channel::ParticleMask, particles);
             mRenderer->readChannel(Channel::BiasMask, bias);
             ASSERT_EQ(particles.size(), std::size_t{ size } * size);
-            ASSERT_EQ(bias.size(), particles.size());
 
-            // Somewhere a sprite reached, which the mask is what finds.
             const auto sprited = std::find(particles.begin(), particles.end(), 1.0f);
             ASSERT_NE(sprited, particles.end()) << "the emitter reached no pixel at all";
             const std::size_t covered = static_cast<std::size_t>(sprited - particles.begin());
 
-            EXPECT_EQ(particles[covered], 1.0f) << "a sprite reached here";
-            EXPECT_EQ(bias[covered], 1.0f) << "so the past is worth nothing here";
+            EXPECT_EQ(bias[covered], 1.0f) << "a sixth of a pixel of sprite wins no vector and is described by none";
 
-            // The centre looks past the sprite at open water.
+            // **The centre is water and nothing else**, which is the whole of the fix: it reflects,
+            // it has a vector for what it reflects, and it is not on either mask.
             EXPECT_EQ(particles[centre], 0.0f) << "no sprite over the middle of the frame";
-            EXPECT_EQ(bias[centre], 1.0f) << "and water is untrustworthy without one";
+            EXPECT_EQ(bias[centre], 0.0f) << "and water is described rather than given up on";
 
-            // **Every pixel is one of the two here**, which is what says the masks are written
-            // rather than left at whatever the image was cleared to.
-            EXPECT_EQ(std::count(bias.begin(), bias.end(), 1.0f), static_cast<std::ptrdiff_t>(bias.size()))
-                << "the frame is water from edge to edge, so all of it is biased";
-            EXPECT_LT(
-                std::count(particles.begin(), particles.end(), 1.0f), static_cast<std::ptrdiff_t>(particles.size()))
-                << "and the sprite is not the whole frame, so the two masks differ";
+            // The two are still different populations, and both are a small part of the frame.
+            const std::ptrdiff_t marked = std::count(bias.begin(), bias.end(), 1.0f);
+            EXPECT_GT(marked, 0);
+            EXPECT_LT(marked, static_cast<std::ptrdiff_t>(bias.size()) / 4)
+                << "a bias mask over a quarter of a frame is a quarter of a frame held at one sample";
         }
 
         /// A pixel a sprite mostly is moves the way that sprite did, and not the way the wall
@@ -2748,6 +2739,24 @@ namespace Rtx
                 << "and what it reflects has its image three hundred under, so it moves a third as far";
             EXPECT_LT(std::abs(mirrored[centre * 2]), std::abs(moved[centre * 2]))
                 << "which is the whole point: the two are not the same vector";
+
+            // **And the sky reflected is a reflection too.** Take the ceiling away and every one of
+            // these rays reaches the sky instead, which has no distance and still moves when the
+            // camera turns — writing nought there says the mirrored horizon is nailed to the screen.
+            const SceneDesc bare = makeOpenWater(4000.0f);
+            const auto turn = [&](float sideways) {
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(0.0f, -1.0f, 100.0f), osg::Vec3f(sideways, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                camera.mWaterLevel = 0.0f;
+                return camera;
+            };
+
+            countHits(bare, {}, turn(0.0f), size, pixels, still);
+            mRenderer->renderFrame(turn(40.0f), FrameOptions{});
+            mRenderer->readChannel(Channel::ReflectionMotion, mirrored);
+
+            EXPECT_GT(std::abs(mirrored[centre * 2]), 1.0f) << "the mirrored sky slid when the camera turned";
+            EXPECT_LT(std::abs(mirrored[centre * 2]), static_cast<float>(size)) << "and stayed on screen";
         }
 
         /// The same column of water has to look the same from either side of it.

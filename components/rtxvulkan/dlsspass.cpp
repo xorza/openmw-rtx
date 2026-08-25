@@ -138,18 +138,29 @@ namespace Rtx
         evaluate.pInSpecularAlbedo = &specular;
         evaluate.pInNormals = &normals;
 
-        // **What the frame composites in front of its surfaces, which nothing else here describes.**
-        // One motion vector is written per pixel, from the surface a primary ray hit, so every
-        // sprite is reprojected with whatever stands behind it. These two are the header's own
-        // remedy: the first identifies "which pixels contains particles, essentially that are not
-        // drawn as part of base pass", the second marks what must not be accumulated across frames.
+        // **What one motion vector per pixel cannot describe.** The vector is written from the
+        // surface a primary ray hit, so what the frame reflects and what it composites in front of
+        // that surface both need saying separately: where a reflection went, which pixels are
+        // "not drawn as part of base pass", and which must not be accumulated across frames at all.
         //
-        // Both sit in the block the header marks optional and neither is in the one it marks
-        // research; the colour-pair guides for fog and particles are in that second block, which is
-        // why they are not here.
+        // All three sit in the block the header marks optional rather than the one it marks
+        // research, and all three measured neutral or better on a lamp's convergence.
         evaluate.pInMotionVectorsReflections = &reflections;
         evaluate.pInIsParticleMask = &particles;
         evaluate.pInBiasCurrentColorMask = &bias;
+
+        // **The four colour-pair guides are deliberately unset, and that is measured.** All of them
+        // sit in the block the header marks `/*** OPTIONAL - only for research purposes ***/`, and
+        // both pairs make the picture worse. The sprite pair nearly triples the horizontal smear
+        // down a turning camera's edge bands; the fog pair stops a lamp's highlight converging at
+        // all — over a hundred and twenty-eight frames of history it was still climbing, where with
+        // the pair unset it settles by sixty-four.
+        //
+        // **Not their content.** Handing the fog pair two identical images — "the fog did nothing",
+        // which cannot be wrong — fails the same way, and pointing the sprite pair's second
+        // parameter at an image that is not `pInColor` reproduces its number to the last digit.
+        // These select a different path through the network rather than answer a question about the
+        // frame. `.notes/rtx/dlss-review.md` carries the figures.
 
         // **Negated, on both axes.** The trace adds the offset to the *sample coordinate* — it moves
         // where inside its pixel a ray is fired — where NGX wants the offset as applied to the
