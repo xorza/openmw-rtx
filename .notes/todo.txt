@@ -6,3 +6,7 @@ distant view
 rtx bridge- do we need it?
 
 cnn or transformer dlss
+
+specular
+
+rr 4.5
