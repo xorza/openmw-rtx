@@ -149,8 +149,16 @@ bytes the core already owns, keyed by something stable, with the same reference 
 same slot reuse every other texture gets — because a distant chunk comes and goes as the player
 moves and its composite has to go with it.
 
-The narrow shape: a second way in that takes a description and a key, with the existing path-keyed
-call written in terms of it. Not a second table, and not a parallel lifetime.
+**Landed.** `SceneDesc::addBakedTexture(key)` sits beside `addTexture` and both take their row from
+one `takeTextureSlot`: one table, one free list, one reference count, and a
+`holdTexture`/`dropTexture` pair that does not know which kind a slot is.
+
+Not the shape first proposed here. Writing `addTexture` in terms of a keyed description means
+changing what `getTextures()` hands back, and around thirty readers compare its elements against a
+`VFS::Path::NormalizedView` for a distinction only the uploader needs. So a slot carries two
+parallel facts instead — the file it came from, empty where it came from none, and what made it,
+empty for every file. Neither on its own means free; both empty does, which is what `isTextureFree`
+now answers.
 
 ### R2 — `resolveTerrainMaterial` gains a decision it does not have
 
@@ -175,10 +183,10 @@ Each leaves the tree working and names its own check. The frame changes shape at
 distant ground first arrives textured, so any figure taken before it is a figure about a different
 frame.
 
-**1 — let the scene hold an image that is not a file (R1).** The table gains a keyed description and
-`addTexture` is written in terms of it; reference counting, slot reuse and the freed-slot list are
-unchanged. **Check:** the existing texture tests still pass, plus one that adds a described image,
-drops it, and sees the slot reused.
+**1 — let the scene hold an image that is not a file (R1). Done.** `addBakedTexture` beside
+`addTexture`, one slot allocator under both, the lifetime unchanged; the shape it settled on is in
+R1. **Checked:** a test that adds a baked image, sees it is not free though its path is empty, drops
+it, and watches the row come back to a *file* — a freed slot is a row and not a kind.
 
 **2 — bake a layer stack into one texture, in the core.** `Rtx::TerrainComposite` beside
 `AlphaImage`: a stack of diffuse images, transforms and masks in, one `TextureData` out. No device,
@@ -193,9 +201,11 @@ that says no render target reached the uploader.
 
 **4 — choose the bake at distance (R2, D2).** `resolveTerrainMaterial` takes the chunk's size and
 either builds the stack or asks for the composite. Bakes go on a queue drained a bounded amount per
-frame; a chunk with no composite yet shades from its stack. **Check:** the byte comparison on the
-nine views is unchanged — the active grid must not move a pixel — and distant ground is textured
-rather than grey.
+frame; a chunk with no composite yet shades from its stack. `SceneTextures::describe`
+(`texturebuilder.cpp:161`) is the reader that has to learn: it resolves every slot it does not think
+free through `ImageManager`, so a baked one reaches it today as a grey stand-in logged against an
+empty path. **Check:** the byte comparison on the nine views is unchanged — the active grid must not
+move a pixel — and distant ground is textured rather than grey.
 
 **5 — give the radius its own setting (D3).** `[RTX] distant land cells`, default 4, in the game and
 the harness — a knob rather than a constant, because four is where this starts and not where the
