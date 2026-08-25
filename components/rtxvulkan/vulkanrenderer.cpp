@@ -533,6 +533,16 @@ namespace Rtx
         assert(camera.mWidth == mRenderWidth && camera.mHeight == mRenderHeight
             && "the camera has to be built for the render extent; ask getExtents");
 
+        // **Coverage and an upscaler do not meet, and the interface says so rather than the code
+        // noticing.** `traceGuiTexture` is where a picture that stops where nothing was hit is
+        // traced — "not the frame's chain", as `Renderer::traceGuiTexture` puts it, with nothing
+        // upscaling. This path carries coverage through the alpha of `direct` and the composite, and
+        // then hands the frame to NGX, which writes the upscaled image itself and was never given
+        // `pInAlpha`: what came back would be the feature's alpha rather than the frame's. It is one
+        // everywhere today because nothing asks for the other thing here.
+        assert((camera.mTransparentBackground == 0 || mUpscale == Upscale::Off)
+            && "a frame that stops where nothing was hit belongs to traceGuiTexture, which does not upscale");
+
         // **How long since the last one, which a motion vector cannot say.** A vector carries a
         // distance; how fast that was depends on the time it took, and the upscaler tunes how hard
         // it denoises against exactly that.

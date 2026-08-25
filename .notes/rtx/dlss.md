@@ -6,8 +6,13 @@ it reads and the frame wiring in `vulkanrenderer.cpp`, against NVIDIA's [DLSS-RR
 guide](https://github.com/NVIDIAGameWorks/Streamline/blob/main/docs/ProgrammingGuideDLSS_RR.md) and
 the vendored SDK's `nvsdk_ngx_helpers_dlssd_vk.h`.
 
-`.notes/rtx/dlss-review.md` holds the findings themselves, as a checklist to be deleted from. This
-file is the order to take them in and nothing else.
+**The findings themselves are gone, and where they went matters.** They lived in
+`.notes/rtx/dlss-review.md` as a checklist to be deleted from, and it emptied: what was true went
+into the code beside the thing it is true about — why the colour pairs are unset in `dlsspass.cpp`,
+what the depth's second channel costs in `gbuffer.cpp`, why a mask is a byte in `gbuffer.h`, why the
+specular albedo is a Fresnel term and not an environment BRDF in `visibility.comp`, which preset enum
+belongs to Ray Reconstruction in `ngx.hpp`. A note nobody reads at the moment they need it is worth
+less than a comment they cannot miss. What is left is below.
 
 **The ordering is by dependency, not by size.** What made the two steps that have gone come first
 was that nothing after them could be judged until a run said what had reconstructed it and which
@@ -40,24 +45,31 @@ change to a DLSS input owes.
 
 ---
 
-## 1. The two cheap correctness items
+## 1. Pin the conventions a still camera cannot see
 
-**First because each changes results and none needs anything built**, and because a run reports the
-reconstruction now, so each change is visible as it lands.
+**First because it is what makes the rest measurable**, and because every one of the mistakes this
+document has caught so far was found by a measurement rather than by reading.
 
-- `DlssPass::record` asserts the colour and output extents and not the others. A guide, depth,
-  motion or albedo at the wrong size is accepted silently — the same failure mode the header already
-  warns about for `SAMPLED_BIT`.
-- `ngxQualityOf` answers `Off` with `MaxPerf` and relies on a comment that `Off` never arrives.
+- A turning camera at an upscaling preset, which is the check the NGX conventions are missing.
+  `RtxUpscalerStabilityTest` fails on an inverted jitter offset on either axis and its bound is
+  calibrated against a measured four-way sweep — but `MVLowRes`, `InUseHWDepth` and the deliberate
+  absence of `DepthInverted` and `AutoExposure` have nothing. A still camera cannot see them: they
+  are claims about motion, and about depth under motion. The harness for it exists — a turning
+  sequence measured against the vertical gradient down the edge bands is how the sprite colour pair
+  was caught — and it wants render and output to differ, so that the low-resolution claim is one the
+  frame can be wrong about.
 
-**Done when** a mismatched input is a failed assertion rather than a wrong picture.
+**Done when** a mismatched input is a failed assertion rather than a wrong picture, and a motion
+convention cannot be changed without a test saying so.
 
-The third of these has landed: `InReset` now follows `Rtx::Renderer::resetHistory`, which the
-simulation calls through `RenderingManager::notifyWorldSpaceChanged`. The route this document
-originally proposed — that "the renderer already learns about scene replacement through `setScene`" —
-turned out not to exist. `SceneDesc::clear` is never called on the world scene: the mirror grows and
-recycles its slots, so `setScene` fires once at startup and a cell load looks exactly like a step
-across a room.
+The three items this step opened with have landed. `InReset` now follows
+`Rtx::Renderer::resetHistory`, which the simulation calls through
+`RenderingManager::notifyWorldSpaceChanged` — the route originally proposed here, that "the renderer
+already learns about scene replacement through `setScene`", turned out not to exist, because
+`SceneDesc::clear` is never called on the world scene and a cell load looks exactly like a step
+across a room. Every input's extent is checked where the resource is made rather than at two of
+seven in `record`. And `Off` is refused by `ngxQualityOf` rather than answered with the fastest,
+softest mode the renderer has.
 
 ## 2. Stop binding what nothing reads
 
@@ -126,5 +138,5 @@ environment BRDF would divide by a number nothing ever multiplied.
   A future reader who finds the guide first will conclude the code is wrong on all three.
 - **The colour-pair guides are not an oversight and must not be "fixed".** Both pairs were wired
   correctly and both made the picture worse, independently of their content —
-  `.notes/rtx/dlss-review.md` and the comment in `dlsspass.cpp` carry the numbers. They are the one
+  the comment in `dlsspass.cpp` carries the numbers. They are the one
   place in this pipeline where the header's "research purposes" is load-bearing.

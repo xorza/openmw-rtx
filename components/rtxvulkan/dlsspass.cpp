@@ -171,7 +171,11 @@ namespace Rtx
         // which cannot be wrong — fails the same way, and pointing the sprite pair's second
         // parameter at an image that is not `pInColor` reproduces its number to the last digit.
         // These select a different path through the network rather than answer a question about the
-        // frame. `.notes/rtx/dlss-review.md` carries the figures.
+        // frame. The figures, on a turning camera through Balmora with sixteen frames of history,
+        // as the vertical gradient down the edge bands: neither pair 0.537, fog pair alone 0.339,
+        // sprite pair alone 1.385, both 1.385. And a lamp's peak byte over 1, 4, 16, 64 and 128
+        // frames: 83, 98, 111, 137, 149 with the fog pair, still climbing, against 101, 137, 161,
+        // 177, 179 without it, settled by sixty-four.
 
         // **Negated, on both axes.** The trace adds the offset to the *sample coordinate* — it moves
         // where inside its pixel a ray is fired — where NGX wants the offset as applied to the
