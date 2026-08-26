@@ -221,7 +221,7 @@ namespace RtxTool
             "registers under `object paging`. **Off is the A/B that says what they cost**: the same "
             "ground with nothing on it, which is also every run of this harness before they arrived");
 
-        addOption("distant-cells", bpo::value<float>()->default_value(7.0f),
+        addOption("distant-cells", bpo::value<float>()->default_value(5.0f),
             "with `--distant-terrain`, how far out the quad tree may make ground, in cells. Past a "
             "cell a chunk's layer stack is flattened into one baked texture, so this is also what "
             "decides whether that path is reached at all. Zero hands `viewing distance` back the "

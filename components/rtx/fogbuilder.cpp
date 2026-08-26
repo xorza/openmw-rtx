@@ -16,7 +16,6 @@ namespace Rtx
         if (!(depth > 0.0f))
             return 0.0f;
 
-        // return 0.0;
         return std::log(2.0f) / (over * (1.0f - 0.5f * depth));
     }
 
