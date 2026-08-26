@@ -46,6 +46,23 @@ namespace Rtx
         constexpr float sReachScale = 2.0f;
         constexpr float sReachBonus = 128.0f;
 
+        /// How much of a lamp's recorded radius is actually alight, which is what its shadows are
+        /// soft by.
+        ///
+        /// **The record says how far a lamp reaches and not how big it is** — but the two are
+        /// already tied here, and by the line above rather than by this one. The intensity scales
+        /// with the *square* of the recorded radius, which is the law for an emitter of fixed
+        /// radiance whose area grows with its size; reading that same radius as a size again is
+        /// that statement kept rather than a second one made, so a candle and a brazier come to
+        /// differ in how soft their shadows are for the reason they already differ in how bright
+        /// they are.
+        ///
+        /// A sixteenth across Morrowind's interior range of 64 to 256 units is a source four to
+        /// sixteen units in radius — eleven to forty-six centimetres across at seventy units to the
+        /// metre, which is a candle flame and a brazier's bowl. Wider and a lamp dissolves its own
+        /// fixture into the shadow it casts; narrower and it is a point again.
+        constexpr float sSourceFraction = 1.0f / 16.0f;
+
         /// Morrowind's ten weathers, in `MWWorld::WeatherManager`'s registration order — which is
         /// what a script id counts along and what a `Weather_<name>_*` key spells. The shader names
         /// the same order as `WEATHER_*`; this is the only place the spellings live.
@@ -298,6 +315,7 @@ namespace Rtx
             .mPosition = position,
             .mIntensity = colour * (radius * radius * sIntensity),
             .mReach = radius * sReachScale + sReachBonus,
+            .mRadius = radius * sSourceFraction,
         };
     }
 

@@ -67,6 +67,14 @@ struct Lamp
 
     /// What share of that intensity arrives here, or nothing where the lamp does not reach.
     float mReaching;
+
+    /// How big the glowing part is, in world units — carried for the one consumer that traces.
+    ///
+    /// **Visibility only, which is why it is beside the falloff rather than in it.** A surface
+    /// draws its shadow ray from somewhere on a source this wide instead of from its centre; the
+    /// air and a puff of smoke trace nothing and read past this, and all three still agree about
+    /// the reach and the falloff, which is the whole point of the record.
+    float mRadius;
 };
 
 Lamp lampAt(GpuLight lamp, vec3 position)
@@ -79,9 +87,9 @@ Lamp lampAt(GpuLight lamp, vec3 position)
     // half of a light and the only reason the test is worth making at all. Zero distance is the
     // other half of it — a lamp standing exactly on the point has no direction to be lit from.
     if (distance >= lamp.mReach || distance <= 0.0)
-        return Lamp(vec3(0.0), distance, lamp.mIntensity, 0.0);
+        return Lamp(vec3(0.0), distance, lamp.mIntensity, 0.0, lamp.mRadius);
 
-    return Lamp(offset / distance, distance, lamp.mIntensity, falloff(distance, lamp.mReach));
+    return Lamp(offset / distance, distance, lamp.mIntensity, falloff(distance, lamp.mReach), lamp.mRadius);
 }
 
 /// What every lamp reaching a point delivers there, as irradiance and with nothing in the way.

@@ -339,6 +339,14 @@ namespace Rtx::Shaders
         vec3 mPosition;
         vec3 mIntensity;
         float mReach;
+
+        /// How big the glowing part is, in world units — which is the whole of what its shadows are
+        /// soft by. Zero is a point, and a point casts an edge.
+        ///
+        /// **Read for visibility and not for radiometry.** The falloff above is a point light's and
+        /// stays one, because the air and a puff of smoke evaluate the same falloff and neither can
+        /// sample an area; what this changes is where the one shadow ray leaves from.
+        float mRadius;
     };
 
     /// Where the lamps were binned, so a shader can find the few that reach a point.
@@ -492,7 +500,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuWave) == 20, "GpuWave must be scalar-packed on every side");
     static_assert(sizeof(GpuMesh) == 8, "GpuMesh must be scalar-packed on every side");
     static_assert(sizeof(GpuInstance) == 56, "GpuInstance must be scalar-packed on every side");
-    static_assert(sizeof(GpuLight) == 28, "GpuLight must be scalar-packed on every side");
+    static_assert(sizeof(GpuLight) == 32, "GpuLight must be scalar-packed on every side");
     static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 48, "GpuLayer must be scalar-packed on every side");
     static_assert(sizeof(GpuMaterial) == 68, "GpuMaterial must be scalar-packed on every side");

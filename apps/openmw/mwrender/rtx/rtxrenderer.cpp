@@ -35,6 +35,7 @@
 #include <components/rtx/camera.hpp>
 #include <components/rtx/distantland.hpp>
 #include <components/rtx/error.hpp>
+#include <components/rtx/fogbuilder.hpp>
 #include <components/rtx/frameimage.hpp>
 #include <components/rtx/frameworld.hpp>
 #include <components/rtx/lightbuilder.hpp>
@@ -736,7 +737,14 @@ namespace MWRender
         // half gone: the ramp at the midpoint of start and end, an exponential at `ln(2) / sigma`.
         // The same derivation `Rtx::fogExtinction` makes from a recorded depth, reached instead
         // from the distances the game has already computed.
-        const float half = 0.5f * (world.mAir.mStart + world.mAir.mEnd);
+        //
+        // **A room is stretched past that and the open air is not**, because indoors the match
+        // over-delivers: the ramp is clear across the whole of a room where the medium is not, and
+        // the medium is lit by every lamp in it where the ramp was only a colour. The one number
+        // that says by how much is `Rtx::interiorFogReach`, so the harness and this cannot come to
+        // haze one room two ways.
+        const float midpoint = 0.5f * (world.mAir.mStart + world.mAir.mEnd);
+        const float half = world.isInteriorCell() ? Rtx::interiorFogReach(midpoint) : midpoint;
 
         // **The sun is not assembled here.** Everything the world says about it goes to the one
         // builder that decides what a sun may be — which is what keeps the game and the harness

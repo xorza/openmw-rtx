@@ -202,6 +202,14 @@ namespace Rtx
         /// ambient term filled the room. Here the ambient is real light and the lamps have to be
         /// what lights the place, so the reach is stretched while the brightness is not.
         float mReach = 0.0f;
+
+        /// How big the glowing part is, in world units, which is what its shadows are soft by.
+        ///
+        /// **Not the recorded radius either**, and for once not a stretched version of it: this is
+        /// the flame rather than the room it lights. `makeLight` is the one place it is derived and
+        /// says what from; zero, which is what a light built by hand carries, is a point source and
+        /// casts the edge a point source casts.
+        float mRadius = 0.0f;
     };
 
     /// The sun, as a directional light and as something to look at.

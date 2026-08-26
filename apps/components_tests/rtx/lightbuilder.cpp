@@ -63,11 +63,15 @@ namespace Rtx
             EXPECT_NEAR(decodeColour(osg::Vec4f(128.0f / 255.0f, 0.0f, 0.0f, 1.0f)).x(), 0.21586f, 1e-5f);
         }
 
-        /// Brightness and reach both come off the one number the record carries, and part company.
+        /// Brightness, reach and the size of the flame all come off the one number the record
+        /// carries, and part company.
         ///
         /// Intensity stays on the recorded radius, because that is what the lamp *is*. Only the
         /// falloff's run is stretched, because Morrowind's radii were tuned for a renderer where an
-        /// ambient term lit the room and a lamp only had to light its own post.
+        /// ambient term lit the room and a lamp only had to light its own post. And the glowing part
+        /// is a fraction of it, which is the same reading of the record as the intensity's: an
+        /// emitter of fixed radiance is brighter by its area, so a lamp that is four times as bright
+        /// is twice as wide and its shadows are twice as soft.
         TEST(RtxLightBuilderTest, intensityScalesWithTheRecordedRadiusAndReachIsStretchedPastIt)
         {
             const std::optional<Rtx::Light> light = makeLight(makeRecord(100, 0x00FFFFFF, 0), osg::Vec3f(1, 2, 3));
@@ -82,12 +86,24 @@ namespace Rtx
             // 100 * 2 + 128.
             EXPECT_FLOAT_EQ(light->mReach, 328.0f);
 
-            // Doubling the radius quadruples the brightness and rather less than doubles the reach:
-            // 200 * 200 * 0.25 * pi = 31415.9, and 200 * 2 + 128 = 528.
+            // A sixteenth of the record: 6.25 units, which is nine centimetres across at seventy
+            // units to the metre — a flame, and not the metre and a half the reach describes.
+            EXPECT_FLOAT_EQ(light->mRadius, 6.25f);
+
+            // Doubling the radius quadruples the brightness, doubles the flame and rather less than
+            // doubles the reach: 200 * 200 * 0.25 * pi = 31415.9, 200 / 16 = 12.5, and
+            // 200 * 2 + 128 = 528.
             const std::optional<Rtx::Light> larger = makeLight(makeRecord(200, 0x00FFFFFF, 0), osg::Vec3f());
             ASSERT_TRUE(larger.has_value());
             EXPECT_NEAR(larger->mIntensity.x(), 31415.9f, 0.1f);
             EXPECT_FLOAT_EQ(larger->mReach, 528.0f);
+            EXPECT_FLOAT_EQ(larger->mRadius, 12.5f);
+
+            // The two readings of the record are one reading: an emitter of fixed radiance is
+            // brighter by its area, so the brightness has to be the square of the size for a candle
+            // and a brazier to be the same fire at two scales rather than two arbitrary lamps.
+            EXPECT_NEAR(larger->mIntensity.x() / light->mIntensity.x(),
+                (larger->mRadius / light->mRadius) * (larger->mRadius / light->mRadius), 1e-4f);
         }
 
         /// The sun's arc, which is the engine's own and not an approximation of it.

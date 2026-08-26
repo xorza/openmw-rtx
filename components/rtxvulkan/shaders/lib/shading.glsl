@@ -31,14 +31,56 @@ struct Reservoir
     /// What the lamp held would deliver here with nothing in the way.
     vec3 mRadiance;
 
-    /// Where it stands, for the one shadow ray this buys.
+    /// Where it stands, for the one shadow ray this buys, and how big it is — which is what that
+    /// ray is aimed *somewhere on* rather than *at*.
     vec3 mTowards;
     float mDistance;
+    float mRadius;
 
     /// The held lamp's own weight, and the weight of every candidate including it.
     float mWeight;
     float mTotal;
 };
+
+/// A unit vector square to `axis`, to build a basis on.
+///
+/// Any vector not parallel to it will do, and which one is arbitrary — so the only thing this owes
+/// a caller is that the cross product it takes never collapses.
+vec3 tangentTo(vec3 axis)
+{
+    const vec3 aside = abs(axis.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+    return normalize(cross(aside, axis));
+}
+
+/// A direction inside the cone about `axis` that a source subtends, drawn evenly over its solid
+/// angle.
+///
+/// **This is the whole of what a soft shadow is.** A source with a size is not one direction but a
+/// cone of them, and a shadow ray drawn from somewhere in that cone rather than down its axis puts
+/// a penumbra under every occluder whose width is the source's own size seen from it. Evenly over
+/// the solid angle is evenly in the cosine, which is the right draw for a disc of uniform radiance
+/// and leaves nothing to weigh the sample by.
+///
+/// @param sine the sine of the cone's half-angle: the source's radius over its distance, and for
+///        the sun a constant. Zero is a point source and returns `axis` exactly, which is what
+///        keeps a light with no size casting the edge it used to.
+vec3 coneDirection(vec3 axis, float sine, vec2 u)
+{
+    const float cosine = sqrt(max(1.0 - sine * sine, 0.0));
+
+    // `1 - cos(half-angle)`, written so that it is never a subtraction of two numbers that are
+    // nearly equal. The sun is half a degree across and its cosine is 0.99999, so taking that from
+    // one spends five of a float's seven digits before the draw has begun — and every one of them
+    // is a step of the penumbra it is about to place.
+    const float versine = sine * sine / (1.0 + cosine);
+
+    const float drop = u.x * versine;
+    const float radius = sqrt(drop * (2.0 - drop));
+    const float turn = TAU * u.y;
+
+    const vec3 tangent = tangentTo(axis);
+    return tangent * (radius * cos(turn)) + cross(axis, tangent) * (radius * sin(turn)) + axis * (1.0 - drop);
+}
 
 /// The *direct* light arriving at a point and turning back out of it, per unit albedo.
 ///
@@ -58,6 +100,15 @@ vec3 gather(vec3 position, vec3 normal, float footprint, uint seed)
 {
     vec3 radiance = vec3(0.0);
 
+    uint state = randomSeed(seed);
+
+    // **Where on a source a shadow ray leaves from is drawn before anything is weighed**, so that it
+    // does not depend on how many lamps the cell happened to hold: the two pairs sit at a fixed
+    // place in the sequence and the reservoir's own draws follow them. Otherwise a lamp arriving in
+    // the next cell along would move the penumbra of the one already there.
+    const vec2 sunDraw = vec2(randomNext(state), randomNext(state));
+    const vec2 lampDraw = vec2(randomNext(state), randomNext(state));
+
     // The sun, which is one direction everywhere and needs none of the machinery below: no falloff,
     // no reach, and a shadow ray that runs until it leaves the world rather than until it arrives.
     //
@@ -65,9 +116,15 @@ vec3 gather(vec3 position, vec3 normal, float footprint, uint seed)
     // mostly lights: refraction at a level surface moves no flux across a horizontal patch, so the
     // irradiance on one below is the irradiance above times whatever the path took. A tilted
     // underwater surface would want the refracted direction and gets this one.
+    //
+    // **The disc is sampled for visibility and not for radiometry**, and that is the sharper of the
+    // two estimators rather than a saving. Across half a degree the cosine varies by parts in a
+    // million, so drawing it as well would put variance into a term that has none and leave the
+    // penumbra — the only part of the integral the disc is wide enough to matter to — no better
+    // resolved for it.
     const float sunCosine = dot(normal, frame.mSunPosition);
     if (sunCosine > 0.0 && frame.mSunIrradiance != vec3(0.0)
-        && !occluded(position, frame.mSunPosition, frame.mFar))
+        && !occluded(position, coneDirection(frame.mSunPosition, sin(SUN_ANGULAR_RADIUS), sunDraw), frame.mFar))
         radiance += frame.mSunIrradiance * sunThroughWater(position, footprint) * (sunCosine * INV_PI);
 
     // A lamp loses nothing to the water, where the sun and the sky both lose the column above the
@@ -85,12 +142,11 @@ vec3 gather(vec3 position, vec3 normal, float footprint, uint seed)
     //
     // **With one lamp in the cell it is exactly the arithmetic that was here before**: the sum is
     // that lamp's weight, the ratio is one, and what is left is the term that was always there.
-    uint state = randomSeed(seed);
-
     Reservoir kept;
     kept.mRadiance = vec3(0.0);
     kept.mTowards = vec3(0.0);
     kept.mDistance = 0.0;
+    kept.mRadius = 0.0;
     kept.mWeight = 0.0;
     kept.mTotal = 0.0;
 
@@ -122,14 +178,23 @@ vec3 gather(vec3 position, vec3 normal, float footprint, uint seed)
             kept.mRadiance = unshadowed;
             kept.mTowards = lamp.mTowards;
             kept.mDistance = lamp.mDistance;
+            kept.mRadius = lamp.mRadius;
             kept.mWeight = weight;
         }
     }
 
-    // **The one ray.** Nothing is traced where every lamp was faced away from or out of reach, which
-    // is most of the frame.
-    if (kept.mWeight > 0.0 && !occluded(position, kept.mTowards, kept.mDistance - SHADOW_BIAS))
-        radiance += kept.mRadiance * (kept.mTotal / kept.mWeight);
+    // **The one ray**, aimed somewhere on the lamp rather than at it. Nothing is traced where every
+    // lamp was faced away from or out of reach, which is most of the frame.
+    //
+    // It stops at whichever is further back from the centre — the lamp's own surface, or the unit
+    // of clearance every shadow ray already keeps — so a source with a size never reaches inside
+    // itself and one without behaves exactly as it did.
+    if (kept.mWeight > 0.0)
+    {
+        const vec3 towards = coneDirection(kept.mTowards, min(kept.mRadius / kept.mDistance, 1.0), lampDraw);
+        if (!occluded(position, towards, kept.mDistance - max(kept.mRadius, SHADOW_BIAS)))
+            radiance += kept.mRadiance * (kept.mTotal / kept.mWeight);
+    }
 
     return radiance;
 }
@@ -230,9 +295,7 @@ vec3 cosineDirection(vec3 normal, vec2 u)
     const float radius = sqrt(u.x);
     const float angle = TAU * u.y;
 
-    // Any vector not parallel to the normal will do to build a basis from.
-    const vec3 aside = abs(normal.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
-    const vec3 tangent = normalize(cross(aside, normal));
+    const vec3 tangent = tangentTo(normal);
 
     return tangent * (radius * cos(angle)) + cross(normal, tangent) * (radius * sin(angle))
         + normal * sqrt(max(1.0 - u.x, 0.0));

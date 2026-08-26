@@ -51,6 +51,36 @@ namespace Rtx
     ///        cellar from clearing because the sky got bigger.
     float fogExtinction(float depth, float over);
 
+    /// The distance a room's air is measured over, against the one the original engine measured it
+    /// against.
+    ///
+    /// **The two shapes cannot be reconciled indoors, and `fogExtinction` above says only half of
+    /// why.** A ramp is *clear* until `view * (1 - depth)` — 1792 units for the Seyda Neen customs
+    /// office, which is further off than any wall in it — so the original draws that room with no
+    /// fog whatsoever, where a medium matched at its half-life puts a tenth of one between the eye
+    /// and the far wall. A medium has no clear zone to answer that with.
+    ///
+    /// **And a tenth of a medium is not a tenth of a blend.** The ramp mixes a pixel toward a
+    /// colour; this air is *lit*, by every lamp that reaches it — `fogLight` — so a room with two
+    /// dozen candles in it scatters far more than the recorded colour ever stood for. The two are
+    /// not the same quantity, which is why matching one over-delivers the other. Measured in that
+    /// customs office, the air lifts the frame's black level from 1 of 255 to 48.
+    ///
+    /// **Six, and it is the one number here set by eye.** What it was set against is not: the same
+    /// black level comes to 27, which is a room with candlelight still hanging in the air under the
+    /// chandelier and no longer a grey floor under everything else. Twelve takes it to 18 and the
+    /// air stops reading as anything at all; three leaves it at 36 and the wash is still there.
+    ///
+    /// **Nothing outdoors is stretched.** Aerial perspective does start at the eye, there is no
+    /// clear zone to reproduce, and what the air scatters there is the sky — which is the colour the
+    /// record already names.
+    ///
+    /// @param measured the distance the record's ramp was written against — the view range for the
+    ///        harness, and for the game the midpoint of the ramp `MWRender::FogManager` has already
+    ///        built. **One number and two callers**: a room hazed one way in a screenshot and
+    ///        another in play is two renderers.
+    float interiorFogReach(float measured);
+
     /// An interior's own fog, out of its `AMBI` record. Only interiors carry one; an exterior's air
     /// belongs to the weather.
     Fog interiorFog(const ESM::Cell& cell);

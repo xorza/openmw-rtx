@@ -51,6 +51,7 @@ namespace Rtx
                 .mPosition = light.mPosition,
                 .mIntensity = light.mIntensity,
                 .mReach = light.mReach,
+                .mRadius = light.mRadius,
             };
         }
 

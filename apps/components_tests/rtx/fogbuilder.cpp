@@ -45,5 +45,42 @@ namespace Rtx
             EXPECT_NEAR(fogExtinction(0.69f, 4.0f * 8192.0f) / fogExtinction(0.69f, view), view / 32768.0f, 1e-5f)
                 << "the air did not stretch with the world";
         }
+
+        /// A room's air is thinner than the conversion above makes it, and by one shared number.
+        ///
+        /// **The ramp and the medium part company indoors** — `interiorFogReach` says at length why,
+        /// and the short of it is that the ramp is clear across the whole of a room where a medium
+        /// cannot be, and that a lit medium is not a colour a pixel is mixed toward. What is checked
+        /// here is that the stretch is applied and that it is the *only* thing separating a room's
+        /// extinction from the raw conversion, since the game reaches the same number by a different
+        /// route and the two may not drift.
+        TEST(RtxFogTest, aRoomsAirIsStretchedPastTheRangeItsRecordWasWrittenAgainst)
+        {
+            constexpr float view = 7168.0f;
+
+            // Six times the range is a sixth of the extinction: an exponential's half-life is
+            // exactly the distance it is measured over.
+            EXPECT_FLOAT_EQ(interiorFogReach(view), 6.0f * view);
+            EXPECT_NEAR(fogExtinction(0.69f, interiorFogReach(view)) / fogExtinction(0.69f, view), 1.0f / 6.0f, 1e-6f)
+                << "a room is thinner than the ramp it came from, by the stretch and by nothing else";
+
+            // The Seyda Neen customs office, whose depth of 0.75 is what the numbers in
+            // `interiorFogReach` were measured against:
+            //
+            //   sigma = ln(2) / (6 * 7168 * (1 - 0.375)) = 2.5787e-5 per unit
+            //
+            // against the 1.5472e-4 the unstretched conversion gives, which is what put a tenth of a
+            // lamp-lit medium between the eye and a wall seven hundred units away.
+            EXPECT_NEAR(fogExtinction(0.75f, interiorFogReach(view)), 2.5787e-5f, 1e-9f);
+
+            // **Proportional and not a floor**, so a denser room is still the denser one: foggy's
+            // 1.0 against clear's 0.69 keeps exactly the ratio it had before the stretch.
+            EXPECT_NEAR(fogExtinction(1.0f, interiorFogReach(view)) / fogExtinction(0.69f, interiorFogReach(view)),
+                fogExtinction(1.0f, view) / fogExtinction(0.69f, view), 1e-5f);
+
+            // And a room the record gives no fog at all still has none, however far it is measured
+            // over — the stretch scales an extinction and never creates one.
+            EXPECT_EQ(fogExtinction(0.0f, interiorFogReach(view)), 0.0f);
+        }
     }
 }
