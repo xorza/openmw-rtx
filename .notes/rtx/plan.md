@@ -245,6 +245,22 @@ surface is — and the reflection and refraction rays under it are still traced 
 where it covers. Removing those would want the depth before the refraction that measures it, which
 is the circle to break if it ever matters.
 
+**Distant land is measured in memory rather than in milliseconds**, which is why it is not in the
+table: what it costs is the size of the world, and the frame time that follows from that is M12's to
+take against a finished frame. Balmora, `--distant-cells=4`, against the same view with none:
+
+| what | textures | structures | triangles | scene build |
+|---|---|---|---|---|
+| no distance | 377 | 19 MiB | 199,821 | 577 ms |
+| four cells of ground | 450 | 40 MiB | 502,157 | 2685 ms |
+| and its statics | 619 | 165 MiB | 2,252,922 | 5822 ms |
+
+The acceleration structure is where the statics land — four times over — because a merged chunk is
+real geometry at full detail wherever no `_dist` mesh exists for it. Textures barely move against
+that, since a distant building is made of the files the near cells already loaded. **73 composites,
+28.5 ms each**, which is why the bake is drained sixteen rows a frame rather than done where it is
+asked for.
+
 The trace is the cheap half of the sprites and the sphere test is why: an emitter is a few units
 across and one rejection throws it away for almost every pixel. The window's six milliseconds are not
 the sprites — they are the 185 extra deforming drawables the instanced props bring, refit once a
@@ -489,11 +505,23 @@ every count; and a control fifo bounding the recording to the measured frames.
 - **Groundcover.** Grass is alpha-cutout and enormous in instance count. Particles were the other
   half of this question and are answered: a sprite goes in a table beside the lights and is marched
   against the primary ray, never into an acceleration structure.
-- **Distant land.** OpenMW's object paging and terrain LOD were tuned for a rasterizer's silhouette
-  budget, not a BVH's, and the renderer now asks for them by distance rather than inheriting them.
-  What distance is right is unmeasured — **and it cannot be measured in the harness yet**, which
-  pages terrain and nothing else: the game's `ObjectPaging` and its groundcover are not placed there,
-  so distant land is a different scene in the two.
+- **Distant land — built, and none of it tuned.** The feature landed whole: ground past a cell is
+  flattened into one baked texture on the CPU, distant statics arrive through
+  `Terrain::ObjectPaging` in both worlds, and `[RTX] distant land cells` is the one number the
+  ground and the air are both measured against. What distance is *right* is still unmeasured, and
+  so is everything the bake trades:
+  - **How large a composite should be.** `sCompositeExtent` is 512 and one costs 28.5 ms; the cost
+    falls with the square, so 256 is a quarter of it and a blurrier hillside. Nothing has looked at
+    where that trades.
+  - **How many layers a large chunk's stack has** once composites are off. `createPasses` gathers
+    what the area holds; twenty passes on an eight-cell chunk would not break the bake but would
+    make the shading before it lands expensive enough to want a coarser ancestor instead.
+  - **A composite is baked at one delight strength and then cached**, because the painted light has
+    to come off per tile while the tiling is still known. Changing `delight` at runtime therefore
+    leaves every standing composite at the old strength — whether that wants a rebake or wants the
+    setting to stop being live is unanswered.
+  - **Groundcover is the third chunk manager and neither world registers it.** It wants its own
+    distance and probably its own answer; see the entry above.
 
 - **The harness's people are a posed row, not the game's.** `PosedActors` stands creatures and NPCs
   in front of the camera and steps their animation by a clock, which exercises skinning, rigs and the

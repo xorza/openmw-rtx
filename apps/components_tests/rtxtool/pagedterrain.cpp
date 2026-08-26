@@ -429,7 +429,7 @@ namespace RtxTool
         /// is after.
         ///
         /// A radius barely past the grid, because every composite in the scene is baked here and each
-        /// one costs tens of milliseconds — the figure `distantland.md` records.
+        /// one costs tens of milliseconds — the figure `plan.md` §6 records.
         TEST(RtxPagedTerrainTest, groundPastACellIsFlattenedIntoOneTextureTheUploaderCanRead)
         {
             Files::ConfigurationManager config;
