@@ -248,6 +248,11 @@ namespace MWRender
         return true;
     }
 
+    bool RtxRenderer::wantsPagedActiveGrid() const
+    {
+        return false;
+    }
+
     float RtxRenderer::getTerrainCompositeMapLevel() const
     {
         return Terrain::sNoCompositeMap;
@@ -272,6 +277,9 @@ namespace MWRender
     void RtxRenderer::setSceneRoot(osg::Group& root)
     {
         mSceneRoot = &root;
+
+        // Which is also what puts the root under the camera an intersection visitor is accepted on;
+        // see `Stage::setSceneRoot`.
         mStage.setSceneRoot(root);
     }
 

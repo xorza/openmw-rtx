@@ -72,6 +72,9 @@ namespace MWRender
         /// top have to land above that too.
         osg::Group& getSceneRoot() const;
 
+        /// Also parents `root` under the camera, which is what makes the world reachable to an
+        /// intersection visitor and so to everything that asks what the player is looking at.
+        ///
         /// Set through `Renderer::setSceneRoot`, so that the renderer and the stage cannot disagree
         /// about what is topmost.
         void setSceneRoot(osg::Group& root);
