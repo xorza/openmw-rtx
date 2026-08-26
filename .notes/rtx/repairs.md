@@ -1,111 +1,90 @@
-# Four repairs
+# Three repairs
 
-The four entries standing in `ISSUES.md`, each traced to a cause and given a fix that removes the
-class rather than the symptom. Companion to `distantland.md`, which owns the feature these were
-found while building.
+What is left in `ISSUES.md`, each traced to a cause and given a fix that removes the class rather
+than the occurrence. The four repairs this file used to carry are done and gone from it; what they
+settled is written where it belongs — `distantland.md` §3.4 and §3.5 for the fog and the swept
+ground, and the tests named below for the rest.
 
-Everything below was measured or read, and each claim says which. Nothing here is a guess about what
-the code probably does.
+Everything here was read or measured, and each claim says which.
 
-## 1. A view with no camera frames the ocean
+## 1. A table with nothing in it is bound to the shader as nothing at all
 
-**What you see.** `seyda-neen-shore`, `sadrith-mora` and `dagon-fel` render a bare water quad
-against fog. They are exactly the three entries in `files/rtx/views.cfg` that give a cell and no
-`pos`.
+**What you see.** `RtxFrameCostTest.aSteadyFrameDoesNotTouchTheHeap` fails with
+`VK_ERROR_DEVICE_LOST` about five seconds in, on a scene of one wall at 64 by 64. Intermittent over
+hours — four runs passing and four failing the same session — and reliable while it lasts.
 
-**The cause.** `placeCamera` (`placement.cpp:23`) puts the eye back far enough to fit the scene's
-bounding sphere in the field of view:
+**The cause, which the validation layers name outright.** That test is the only one in the tree that
+takes an *unvalidated* device: it counts allocations, and the layers allocate. Run the same test
+against the validated harness and they say it in one line:
 
-```cpp
-const float distance = bounds.radius() / std::tan(radians(fov) * 0.5f) * 1.15f;
+```
+binding 19, "ShadingMaps"        is using VkBuffer 0x0 that is invalid or has been destroyed
+binding 30, "SpriteTileOffsets"  is using VkBuffer 0x0 that is invalid or has been destroyed
+binding 31, "SpriteTileIndices"  is using VkBuffer 0x0 that is invalid or has been destroyed
 ```
 
-`WaterPlane` is a sheet **a hundred and fifty cells across** (`waterplane.cpp:20`), because that is
-what the game builds and agreeing with the game about what the sea *is* was worth more than the
-quads. So the scene's bounds are the sea's, the radius is most of a million units, and the camera
-goes there.
+Three null buffers bound to descriptors the shader declares, then dispatched through. Whether that
+faults is up to the driver, which is the whole of the intermittency.
 
-Measured: `--view=seyda-neen-shore` places the eye at **(1119060, 1061720, 662450)** looking at
-(-12288, -69632, 2496) — 1.5 million units out. At that distance a cell is a speck and the sheet is
-the picture.
+**Why they are null.** Every growable table in this renderer is written the same way — grow if what
+is wanted does not fit:
 
-**The fix.** The sea is a backdrop and not content: it is unbounded by construction, it is placed by
-the world rather than by any cell, and it must not get a vote in what the camera is pointed at.
-Framing asks what the cell holds.
+```cpp
+if (held.getSize() >= bytes)     // scenebuffers.cpp:176
+    return;
+if (mShading.getSize() >= values.size_bytes())   // texture.cpp:443
+    return false;
+```
 
-`SceneDesc` already knows which materials are water — `MaterialKind::Water` is what
-`resolveWaterMaterial` stamps and what `InstanceRecord` reads to lower the sheet. So the bounds a
-camera is placed from are the bounds of everything that is not it. That is one predicate, in the
-place that already owns the answer, and it fixes every future backdrop the same way — a sky dome
-would otherwise do this again.
+**Nothing wanted is not too big, so nothing is made.** A scene with no textures asks for nought
+bytes
+of shading maps and gets no buffer; the same for a frame with no sprites. There are seven of these
+sites and the rule is identical in all of them.
+
+It is already known to be wrong in exactly one place. `binSprites` carries a hand-written stand-in:
+
+```cpp
+// Nothing may be bound to a descriptor a shader declares, and a frame with no sprites in it
+// has an empty list — the offsets are all nought, so the shader reads none of this.
+static constexpr std::uint32_t noIndex = 0;
+```
+
+One table was noticed and patched; the other two were not, and the rule that let it happen was left
+alone.
+
+**The fix.** The growth rule guarantees a buffer rather than a size. A table asked for nothing gets
+the smallest one that can be bound, because *a descriptor a shader declares must have something in
+it* — that is a property of the pipeline, not of any one table, and every table gets it from the
+same
+line. The stand-in in `binSprites` then has nothing to stand in for and goes.
 
 **Steps**
 
-1. **Done, and it needed both halves.** `SceneDesc::getContentBoundsWithin(region)` leaves the
-   backdrops out *and* clips to the region asked for. Leaving out the sea alone was not enough: with
-   distant land on, everything-that-is-not-sea still reached four cells past the one being looked
-   at,
-   and the eye went two hundred thousand units out to frame it. `getBounds` is untouched — a far
-   plane wants everything there is, and three callers ask it for exactly that. **Checked:**
-   `RtxSceneDescTest.aRegionsExtentLeavesOutTheSeaAndStopsAtItsOwnEdge` — a unit square and a ten
-   thousand unit sheet, asserting the extent is the square's; a chunk straddling the edge clipped to
-   it; and a region with nothing in it coming back invalid rather than as a box at the origin.
-2. **Done.** `StagedWorld` places the camera from the square `readRegion` staged, and an interior
-   still frames everything it holds — a room has no backdrop and no region beyond itself.
-   **Checked:** the three views place the eye about 32,000 units out at 14,000 up instead of 1.5
-   million, and the views that give a `pos` are byte-identical, because an explicit camera never
-   consulted the bounds at all.
-3. **Done.** `seyda-neen-shore` renders what its note names — islands, a shoreline, the seabed
-   through the water, and land at the horizon.
-
-## 2. An unbounded fence wait turns a stall into a hang
-
-**What you see.** `RtxFrameCostTest.aSteadyFrameDoesNotTouchTheHeap` stops after printing its two
-pipeline lines, with the GPU at 100%, and never returns. It reproduced on a clean tree several times
-running, then passed four times in a row an hour later. It is intermittent.
-
-**The cause of the hang, which is not the cause of the stall.** The test submits forty frames and
-waits on each with no timeout (`visibilitypass.cpp:3738`):
-
-```cpp
-vkWaitForFences(device.getHandle(), 1, &finished, VK_TRUE, ~std::uint64_t{ 0 });
-```
-
-A device that will never signal and a device still working are the same thing to that call, forever.
-There are three such waits — the two above and `commands.cpp:93`, which is the shared submit path
-every test and the renderer itself go through, plus `presenter.cpp:175`.
-
-**Why the device stalled is still open**, and the point of this repair is that the next occurrence
-leaves evidence instead of a wedged process. A bounded wait cannot fix a lost device; it can turn
-"the suite never finishes" into "this submit did not complete in N seconds", which names the pass,
-fails one test, and lets the rest of the suite run.
-
-**The fix.** The shared submit path waits with a deadline and throws naming what it waited on. The
-test stops rolling its own submit and uses it. A deadline generous enough that no honest frame
-reaches it — seconds, not milliseconds — because this is a canary and not a budget.
-
-**Steps**
-
-1. **Done.** `awaitVk` sits beside `checkVk` — one bounded wait, throwing `Error` naming what was
-   waited on — and `CommandPool::endAndWait`, the presenter's image wait and the swapchain's acquire
-   all go through it. Ten seconds, which no honest submit approaches. **Checked:**
-   `RtxDeviceTest.aWaitOnADeviceThatNeverAnswersEndsAndNamesItself` waits on a fence nothing submits
-   against and gets the error rather than a hang; the deadline is a parameter so the test reaches
-   the
-   failure in a millisecond instead of sitting out the real one.
-2. **Done, and not as written.** The frame-cost test keeps its own submit — a command buffer reused
-   against a fence is the shape it exists to measure, and `submitAndWait` allocates a buffer per
-   call
-   — but its wait is now `awaitVk`. **Checked:** the allocation count it asserts is unchanged.
-3. **The stall is named, and it is a device loss.** With the deadline in place the test fails in
-   about
-   five seconds with `VK_ERROR_DEVICE_LOST` rather than hanging. That is a real fault on a scene of
+1. The growth rule floors its request rather than returning early, so no path leaves a null handle.
+   **Check:** a components test that builds `SceneBuffers` and a `TextureArray` from an empty scene
+   and asserts every handle it hands out is non-null — which is the assertion that would have failed
+   for three of them.
+2. `binSprites` drops its one-element stand-in. **Check:** the sprite tests still pass, and a frame
+   with no sprites still reads nothing.
+3. The frame-cost test runs against the layers once to confirm they are quiet. It keeps its
+   unvalidated device — the allocation count is the point of it — but it stops being the only place
+   nothing is watching: **step 4.**
+4. A sibling test builds the same scene and the same passes on the *validated* harness and traces
    one
-   wall at 64 by 64, not a slow frame, and it is its own investigation — recorded in `ISSUES.md`
-   with
-   what it says now that it says anything.
+   frame. **What makes step 1 stay fixed**: the allocation test cannot see invalid usage by
+   construction, so the usage is checked next to it rather than in it.
 
-## 3. Distant statics never exist in the harness
+**Also found by the same run, and neither is the device loss.**
+
+- The frame-cost test's own target is `VK_FORMAT_R8G8B8A8_UNORM` where the shader declares
+  `Rgba32f`.
+  The layers call it undefined for the whole image. The renderer's own colour target is the wider
+  format; the test made a narrower one and nothing said so.
+- `vkDestroyDevice(): VkDevice has 1 leaked object`. One object outliving the device in that test.
+
+Both are that test's, both were invisible without the layers, and both belong to step 4.
+
+## 2. Distant statics never exist in the harness
 
 **What you see.** Past the loaded cells the ground arrives bare — no buildings, no trees, no rocks —
 where the same hillside inside the grid carries all three.
@@ -120,76 +99,57 @@ for (QuadTreeWorld::ChunkManager* m : mChunkManagers)
 ```
 
 The game registers `ObjectPaging` beside the terrain's own manager (`renderingmanager.cpp:1445`,
-gated on `object paging = true`, which is the shipped default). The harness registers nothing:
-`apps/rtxtool/world.cpp` builds the quad tree and stops. With no manager to ask, no distant static
-can arrive — the ground is the only thing that answers.
+under `object paging = true`, the shipped default) and `Groundcover` after it. The harness registers
+neither: `apps/rtxtool/world.cpp` builds the quad tree and stops. With nothing to ask, only ground
+can answer.
 
-`distantland.md` §2 says distant statics "arrive through the same call", and that is true of the
-game and was never true of the harness. This is the correction.
+`distantland.md` §2 says distant statics "arrive through the same call". That is true of the game
+and
+was never true of the harness; this is the correction.
 
-**The fix.** The harness builds the world the game builds. It already takes the terrain settings
-from the same place; the chunk managers come from the same place too, so the two worlds cannot drift
-into answering different questions — which is the whole reason the harness exists.
+**The fix.** The harness builds the world the game builds. It already takes the terrain's numbers
+from
+the settings the game reads; the chunk managers come from the same place, so the two worlds cannot
+answer different questions — which is the whole reason the harness exists.
 
 **Steps**
 
-1. `World` builds an `ObjectPaging` under the same setting the game reads and registers it, and
-   registers it with the resource system as the game does. **Check:** a components test asserting a
-   paged region places merged statics past the active grid, and that a grid world places none.
+1. `World` builds an `ObjectPaging` under the setting the game reads, registers it with the quad
+   tree
+   and with the resource system, exactly as `RenderingManager` does. **Check:** a components test
+   asserting a paged region places merged statics past the active grid, and that a grid world places
+   none.
 2. What it costs is measured the moment it lands — triangles, structure bytes, textures, scene build
-   — and written into `distantland.md` §7 beside the bake's figure. **Nothing is tuned on it yet**;
-   distant statics are real files, so §3.2's render-target problem does not touch them.
+   — and written into `distantland.md` §7 beside the bake's figure. **Nothing is tuned on it yet.**
+   Distant statics are real files, so §3.2's render-target problem does not touch them.
 3. Groundcover is the third manager the game registers and stays out of scope, as `distantland.md`
    §7
-   already says: it wants its own distance.
+   already says: it wants its own distance and probably its own answer.
 
-## 4. An actor does not know which cell placed it
+## 3. Whether the game leaves creatures standing is answered, by reading
 
-**What you see.** Creatures stay standing after the camera leaves the cells that hold them.
+**What was open.** The harness left residents posed and placed after their cell unloaded. That is
+fixed — an actor hangs under the group its cell hangs under, so it leaves when the cell does. What
+was not known is whether the game does the same.
 
-**The cause.** `PosedActors` keeps `std::vector<std::unique_ptr<Actor>> mActors` — a flat list with
-no cell on it. `CellPerson` (`cellscene.hpp:34`) carries a record and a transform and no cell
-either, so the association is lost before the actor is built. Their nodes are added to the **run's
-root** rather than to the cell's group, so `dropCellsOutside` — which takes the cell's node off the
-root and unloads its terrain — has nothing that would take them, and nothing to tell.
-
-The ground and the statics leave correctly because both are under the cell's group. The actors are
-the one thing placed beside it.
-
-**The fix.** An actor belongs to the cell that placed it, and saying so once is what makes it leave
-with everything else. Parent an actor's node under its cell's group rather than the root: the drop
-already removes that group, `PosedActors` walks the whole root and so still finds and poses whoever
-is left, and no second lifetime is invented for a thing that already had one.
-
-Where that turns out not to hold — an actor that must outlive its cell — the fallback is the weaker
-statement: record the cell on the actor and have the drop tell `PosedActors`. It is worth trying the
-first, because the second adds a rule someone has to remember, which is the shape of the bug that
-swept the paged ground.
+**Read, not measured.** `MWWorld::Scene::unloadCell` calls `mRendering.removeCell(store)`, and
+`RenderingManager::removeCell` calls `mObjects->removeCell(store)`, which takes the cell's objects —
+actors among them — off the graph. The mirror then retires whatever a walk did not meet, which is
+`RtxRenderer`'s `advance` and `retire` every frame. So the game removes them from the graph and the
+sweep drops them, by the same rule that made the harness wrong when its actors hung somewhere else.
 
 **Steps**
 
-1. **Done.** `CellPerson` and `CellProp` carry the group their cell hangs under, and
-   `PosedActors::add` parents each actor there rather than on the run's own root — so the node
-   leaves
-   when the cell does, which is what unloading already means for everything else. The two parallel
-   vectors became one `Resident` record carrying the actor, its phase, whether it is a prop and the
-   cell that placed it: every field is indexed by the same actor, and a resident that leaves takes
-   all of them at once. `forgetDeparted` drops the records, reading the graph rather than being told
-   — a group with no parent is a cell that has gone, the same signal `QuadTreeWorld::collect` reads.
-   **Checked:** `RtxCrossingTest.theResidentsOfACellLeaveWithIt` stages a town, crosses out of it
-   and
-   asserts the count falls. It covers the record and not the node: a count cannot see a transform
-   left hanging on the root, and both halves are needed.
-2. **Not done, and it is the open half.** Whether the game does the same is unknown;
-   `MWWorld::Scene`
-   unloads a cell's references through its own path and may already be correct. `ISSUES.md` now says
-   that rather than claiming a bug in it.
-3. The harness half of the entry is closed.
+1. Confirm it once in the game rather than leaving it on a reading: walk out of a town with
+   `[RTX] enabled` and watch the instance count fall. **One run, and then the entry goes.**
+2. If it does not fall, the cause is `mObjects->removeCell` and not the mirror, and it earns an
+   entry
+   of its own.
 
 ## Order
 
-**2 first**, because a suite that can hang has to stop hanging before anything else is trusted to
-have been run. **Then 1**, which is small and makes three views usable for looking at the others.
-**Then 4**, which is a lifetime bug and cheap. **3 last**, because it is the one that changes what a
-frame contains, and `distantland.md`'s remaining steps — the bake queue especially — want a frame
-that is not about to grow buildings.
+**1 first.** A renderer that binds null buffers is one whose every other measurement is taken on a
+device that may be about to fall over, and the fix is small. **Then 3**, which is one run and closes
+an entry. **2 last**, because it is the one that changes what a frame contains, and
+`distantland.md`'s
+remaining steps — the bake queue especially — want a frame that is not about to grow buildings.
