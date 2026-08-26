@@ -109,19 +109,18 @@ namespace Rtx
         VkDeviceSize getBytes() const;
 
     private:
+        /// Grows one of this object's tables, which all take the same device and the same usage.
+        ///
+        /// A thin name over `growTo` — the rule that a table is never nothing lives there, and this
+        /// only saves every call site from repeating what is the same for all of them.
+        void reserve(HostBuffer& held, VkDeviceSize bytes);
+
         /// Reserves room for the scene's attributes, copies in the runs `meshes` names, and rewrites
         /// the per-mesh row table.
         ///
         /// **Per mesh and not per scene**, because that is what an arrival is: the blocks already
         /// hold everything else, and rewriting them would be rewriting what nothing changed.
         void writeMeshes(const SceneDesc& scene, std::span<const Index> meshes);
-
-        /// Makes `held` at least `bytes` long, keeping it where it is already big enough.
-        ///
-        /// A frame that placed more than the last one is a cell that arrived, and that goes through
-        /// `setScene` — so this is the rare path and never shrinks. Growing rather than sizing
-        /// exactly is what keeps a light appearing from reallocating every buffer behind it.
-        void reserve(HostBuffer& held, VkDeviceSize bytes);
 
         /// Rewrites the shading tables if the scene says they have changed, and nothing otherwise.
         void shade(const SceneDesc& scene);

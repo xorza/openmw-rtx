@@ -908,8 +908,7 @@ namespace Rtx
         // **Written where the builder reads it.** These are rewritten whole every frame, so staging
         // them was a buffer made, a copy recorded, a submit and a wait on the queue for a memcpy.
         const std::span<const VkAccelerationStructureInstanceKHR> rows(mRowScratch);
-        if (mInstances.getSize() < rows.size_bytes())
-            mInstances = HostBuffer(mDevice, rows.size_bytes(), sBuildInputUsage);
+        growTo(mInstances, mDevice, rows.size_bytes(), sBuildInputUsage);
 
         mInstances.write(rows);
 

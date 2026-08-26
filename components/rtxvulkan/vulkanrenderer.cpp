@@ -483,8 +483,7 @@ namespace Rtx
         if (vertices.empty() || batches.empty())
             return;
 
-        if (mGuiVertices.getSize() < vertices.size_bytes())
-            mGuiVertices = HostBuffer(mDevice, vertices.size_bytes(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+        growTo(mGuiVertices, mDevice, vertices.size_bytes(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
         mGuiVertices.write(vertices);
 

@@ -1,5 +1,8 @@
 #include "visibilitypass.hpp"
 
+#include <algorithm>
+#include <cassert>
+
 #include <array>
 #include <cassert>
 #include <span>
@@ -174,6 +177,17 @@ namespace Rtx
         const VkDescriptorBufferInfo tileOffsetWrite{ inputs.mBuffers->getSpriteTileOffsets(), 0, VK_WHOLE_SIZE };
         const VkDescriptorBufferInfo tileIndexWrite{ inputs.mBuffers->getSpriteTileIndices(), 0, VK_WHOLE_SIZE };
         const VkDescriptorBufferInfo frameWrite{ mConstants.getHandle(), 0, VK_WHOLE_SIZE };
+
+        // **Nothing bound here may be nothing.** A descriptor the shader declares and a null handle
+        // is undefined at the dispatch: the driver may fault, may not, and says nothing either way —
+        // it cost this renderer a device and five seconds of a wedged process before the layers were
+        // asked. Every one of these is a table an owner promises to have opened or an input a caller
+        // promises to pass, so a null is a broken promise and not a state to handle.
+        [[maybe_unused]] const auto bound
+            = [](const VkDescriptorBufferInfo& write) { return write.buffer != VK_NULL_HANDLE; };
+        assert(std::all_of(buffers.begin(), buffers.end(), bound) && "a table bound as nothing");
+        assert(bound(noiseWrite) && bound(shadingWrite) && bound(gridWrite) && bound(spriteWrite) && bound(emitterWrite)
+            && bound(tileOffsetWrite) && bound(tileIndexWrite) && bound(frameWrite) && "an input bound as nothing");
 
         // **Appended rather than indexed.** Every one of these used to name its own slot — channels
         // at `1 + i`, buffers at `i + 8`, then twenty-one through twenty-six by hand — so adding a

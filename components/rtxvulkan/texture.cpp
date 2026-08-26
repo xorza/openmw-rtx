@@ -275,6 +275,11 @@ namespace Rtx
             throw Error("a scene with " + std::to_string(slots) + " textures is past the "
                 + std::to_string(sMaxTextures) + " this array holds");
 
+        // **The shading table exists from here.** An array with no textures in it is asked for none
+        // and would grow to nothing, and the descriptor the shader declares would be bound to a null
+        // handle — which is undefined at the dispatch and cost this renderer a device.
+        growTo(mShading, device, 0, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
         const VkSamplerCreateInfo sampler{
             .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
             .magFilter = VK_FILTER_LINEAR,
@@ -446,7 +451,10 @@ namespace Rtx
         constexpr std::size_t slack = 128 * sShadingCells;
         const std::size_t room = ((values.size() + slack - 1) / slack) * slack;
 
-        mShading = HostBuffer(mDevice, room * sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        // **`growTo` and not a constructor, because an array with no textures in it still has this
+        // descriptor.** Sized to nought it was never made at all, and the null handle reached
+        // `vkCmdDispatch` — undefined, and the device this renderer lost.
+        growTo(mShading, mDevice, room * sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
         mShading.write(values);
         return true;
     }

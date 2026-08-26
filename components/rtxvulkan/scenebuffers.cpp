@@ -99,6 +99,15 @@ namespace Rtx
         mNormals.open(device, sTableUsage, "normals");
         mTexCoords.open(device, sTableUsage, "uvs");
 
+        // **Every table exists from here, whether or not anything has been written to it.** A pass
+        // binds all of them and the shader declares all of them; what fills one is a later call that
+        // a frame may never make — a scene with no sprites never bins any, and the tiles were then
+        // bound as nothing at all. Growing on write cannot carry that guarantee, because the write is
+        // exactly what does not happen.
+        for (HostBuffer* table : { &mMaterials, &mLayers, &mMasks, &mMeshes, &mInstances, &mLights, &mLightOffsets,
+                 &mGrid, &mLightIndices, &mWaves, &mSprites, &mEmitters, &mSpriteTileOffsets, &mSpriteTileIndices })
+            growTo(*table, device, 0, sTableUsage);
+
         // Every mesh the scene holds, which is the same path an arrival takes with a shorter list.
         std::vector<Index> every(scene.getMeshes().size());
         for (std::size_t at = 0; at < every.size(); ++at)
@@ -153,30 +162,22 @@ namespace Rtx
         mDevice->setName(VK_OBJECT_TYPE_BUFFER, reinterpret_cast<std::uint64_t>(mMeshes.getHandle()), "meshes");
     }
 
+    void SceneBuffers::reserve(HostBuffer& held, const VkDeviceSize bytes)
+    {
+        growTo(held, *mDevice, bytes, sTableUsage);
+    }
+
     void SceneBuffers::binSprites(const osg::Vec3f& origin, const Shaders::Camera& camera)
     {
         mSpriteTiles.rebuild(mSpriteScratch, mEmitterScratch, origin, camera);
 
-        // Nothing may be bound to a descriptor a shader declares, and a frame with no sprites in it
-        // has an empty list — the offsets are all nought, so the shader reads none of this.
-        static constexpr std::uint32_t noIndex = 0;
-        const std::span<const std::uint32_t> indices = mSpriteTiles.getIndices().empty()
-            ? std::span<const std::uint32_t>(&noIndex, 1)
-            : mSpriteTiles.getIndices();
-
+        // A frame with no sprites has an empty list, and the offsets are all nought — so the shader
+        // reads none of this and `growTo` is what makes sure there is something for it not to read.
         reserve(mSpriteTileOffsets, mSpriteTiles.getOffsets().size_bytes());
-        reserve(mSpriteTileIndices, indices.size_bytes());
+        reserve(mSpriteTileIndices, mSpriteTiles.getIndices().size_bytes());
 
         mSpriteTileOffsets.write(mSpriteTiles.getOffsets());
-        mSpriteTileIndices.write(indices);
-    }
-
-    void SceneBuffers::reserve(HostBuffer& held, const VkDeviceSize bytes)
-    {
-        if (held.getSize() >= bytes)
-            return;
-
-        held = HostBuffer(*mDevice, bytes, sTableUsage);
+        mSpriteTileIndices.write(mSpriteTiles.getIndices());
     }
 
     void SceneBuffers::shade(const SceneDesc& scene)
@@ -292,27 +293,16 @@ namespace Rtx
 
         mLightGrid.rebuild(scene.getLights());
 
-        // Nothing may be bound to a descriptor a shader declares, so an empty table is one element.
-        const Shaders::GpuLight noLight{};
-        static constexpr std::uint32_t noIndex = 0;
-
+        // **The tables go over as they are, empty ones included.** Something has to be bound to a
+        // descriptor the shader declares, and `growTo` is what guarantees it — each of these used to
+        // carry a one-element stand-in of its own to say the same thing, five of them, and the one
+        // table that had none is what cost a device. What stops the shader reading an empty table is
+        // its count, exactly as it always was.
         const std::span<const Shaders::GpuInstance> instances(mInstanceScratch);
-        const std::span<const Shaders::GpuLight> lights = mLightScratch.empty()
-            ? std::span<const Shaders::GpuLight>(&noLight, 1)
-            : std::span<const Shaders::GpuLight>(mLightScratch);
-        const std::span<const std::uint32_t> indices
-            = mLightGrid.getIndices().empty() ? std::span<const std::uint32_t>(&noIndex, 1) : mLightGrid.getIndices();
-
-        // A cell with no emitters in it still has to bind something, and the count is what stops the
-        // shader reading these placeholders.
-        const Shaders::GpuSprite noSprite{};
-        const Shaders::GpuEmitter noEmitter{};
-        const std::span<const Shaders::GpuSprite> sprites = mSpriteScratch.empty()
-            ? std::span<const Shaders::GpuSprite>(&noSprite, 1)
-            : std::span<const Shaders::GpuSprite>(mSpriteScratch);
-        const std::span<const Shaders::GpuEmitter> emitters = mEmitterScratch.empty()
-            ? std::span<const Shaders::GpuEmitter>(&noEmitter, 1)
-            : std::span<const Shaders::GpuEmitter>(mEmitterScratch);
+        const std::span<const Shaders::GpuLight> lights(mLightScratch);
+        const std::span<const std::uint32_t> indices = mLightGrid.getIndices();
+        const std::span<const Shaders::GpuSprite> sprites(mSpriteScratch);
+        const std::span<const Shaders::GpuEmitter> emitters(mEmitterScratch);
 
         const Shaders::GpuLightGrid geometry{
             .mOrigin = mLightGrid.getOrigin(),

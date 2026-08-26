@@ -7,82 +7,57 @@ ground, and the tests named below for the rest.
 
 Everything here was read or measured, and each claim says which.
 
-## 1. A table with nothing in it is bound to the shader as nothing at all
+## 1. A table with nothing in it was bound to the shader as nothing at all — fixed
 
-**What you see.** `RtxFrameCostTest.aSteadyFrameDoesNotTouchTheHeap` fails with
-`VK_ERROR_DEVICE_LOST` about five seconds in, on a scene of one wall at 64 by 64. Intermittent over
-hours — four runs passing and four failing the same session — and reliable while it lasts.
+**What it was.** `RtxFrameCostTest.aSteadyFrameDoesNotTouchTheHeap` failed with
+`VK_ERROR_DEVICE_LOST` about five seconds in, intermittently over hours, on a scene of one wall at
+64
+by 64.
 
-**The cause, which the validation layers name outright.** That test is the only one in the tree that
-takes an *unvalidated* device: it counts allocations, and the layers allocate. Run the same test
-against the validated harness and they say it in one line:
+**What said so.** That test is the only one in the tree taking an *unvalidated* device — it counts
+allocations, and the layers allocate. Run against the validated harness they named it at once: three
+storage descriptors, `ShadingMaps`, `SpriteTileOffsets` and `SpriteTileIndices`, bound to
+`VkBuffer 0x0` and then dispatched through. Whether that faults is the driver's to decide, which is
+the whole of the intermittency.
 
-```
-binding 19, "ShadingMaps"        is using VkBuffer 0x0 that is invalid or has been destroyed
-binding 30, "SpriteTileOffsets"  is using VkBuffer 0x0 that is invalid or has been destroyed
-binding 31, "SpriteTileIndices"  is using VkBuffer 0x0 that is invalid or has been destroyed
-```
+**Why they were null, which is not where the fix went.** Every growable table was written the same
+way — grow if what is wanted does not fit — and nothing wanted is not too big, so nothing was made.
+But flooring the request was not enough: the tables that were null are filled by calls a frame may
+never make. A scene with no sprites never bins any, so `binSprites` never runs, so the buffer it
+would have grown never exists. **Growth on write cannot carry the guarantee, because the write is
+exactly what does not happen.**
 
-Three null buffers bound to descriptors the shader declares, then dispatched through. Whether that
-faults is up to the driver, which is the whole of the intermittency.
+**The fix.** The owner opens every table when it is built. `SceneBuffers` opens all fourteen in its
+constructor and `TextureArray` opens its shading maps in its, so a table exists from the moment the
+object does and growth only ever enlarges it. `growTo` is the one rule that grows one, and it floors
+at a byte because Vulkan has no zero-sized buffer.
 
-**Why they are null.** Every growable table in this renderer is written the same way — grow if what
-is wanted does not fit:
-
-```cpp
-if (held.getSize() >= bytes)     // scenebuffers.cpp:176
-    return;
-if (mShading.getSize() >= values.size_bytes())   // texture.cpp:443
-    return false;
-```
-
-**Nothing wanted is not too big, so nothing is made.** A scene with no textures asks for nought
-bytes
-of shading maps and gets no buffer; the same for a frame with no sprites. There are seven of these
-sites and the rule is identical in all of them.
-
-It is already known to be wrong in exactly one place. `binSprites` carries a hand-written stand-in:
-
-```cpp
-// Nothing may be bound to a descriptor a shader declares, and a frame with no sprites in it
-// has an empty list — the offsets are all nought, so the shader reads none of this.
-static constexpr std::uint32_t noIndex = 0;
-```
-
-One table was noticed and patched; the other two were not, and the rule that let it happen was left
-alone.
-
-**The fix.** The growth rule guarantees a buffer rather than a size. A table asked for nothing gets
-the smallest one that can be bound, because *a descriptor a shader declares must have something in
-it* — that is a property of the pipeline, not of any one table, and every table gets it from the
-same
-line. The stand-in in `binSprites` then has nothing to stand in for and goes.
+**What that deleted.** Five hand-written stand-ins — a one-element `noLight`, `noIndex`, `noSprite`,
+`noEmitter` and a second `noIndex` — each existing to say "an empty table is one element" for one
+table. They were the symptom being patched a table at a time; the one table nobody had noticed is
+what cost the device. The tables now go over as they are, and what stops the shader reading an empty
+one is its count, exactly as it always was.
 
 **Steps**
 
-1. The growth rule floors its request rather than returning early, so no path leaves a null handle.
-   **Check:** a components test that builds `SceneBuffers` and a `TextureArray` from an empty scene
-   and asserts every handle it hands out is non-null — which is the assertion that would have failed
-   for three of them.
-2. `binSprites` drops its one-element stand-in. **Check:** the sprite tests still pass, and a frame
-   with no sprites still reads nothing.
-3. The frame-cost test runs against the layers once to confirm they are quiet. It keeps its
-   unvalidated device — the allocation count is the point of it — but it stops being the only place
-   nothing is watching: **step 4.**
-4. A sibling test builds the same scene and the same passes on the *validated* harness and traces
-   one
-   frame. **What makes step 1 stay fixed**: the allocation test cannot see invalid usage by
-   construction, so the usage is checked next to it rather than in it.
+1. **Done.** `growTo` in `hostbuffer`, used by every host-buffer growth site, and both owners open
+   their tables at construction. **Checked:**
+   `RtxSceneTableTest.aSceneWithNothingInItStillBindsATableForEverythingDeclared` builds a
+   `SceneBuffers` and a `TextureArray` from an empty scene and asserts every handle is non-null —
+   ten of them, because the rule was the same for all and only three were ever noticed.
+2. **Done.** The five stand-ins are gone.
+3. **Done.** The frame-cost test runs clean against the layers, and passes three times running on
+   its
+   own unvalidated device where it failed four times running before.
+4. **Done differently.** The pass asserts that nothing it binds is null, which names the table
+   rather
+   than losing a device — and `RtxVisibilityTest` already traces frames against the layers and
+   collects what they say, so the usage is watched next to the test that cannot watch it. **The
+   assert is debug-only**; the construction test above is what holds in a release build.
 
-**Also found by the same run, and neither is the device loss.**
-
-- The frame-cost test's own target is `VK_FORMAT_R8G8B8A8_UNORM` where the shader declares
-  `Rgba32f`.
-  The layers call it undefined for the whole image. The renderer's own colour target is the wider
-  format; the test made a narrower one and nothing said so.
-- `vkDestroyDevice(): VkDevice has 1 leaked object`. One object outliving the device in that test.
-
-Both are that test's, both were invisible without the layers, and both belong to step 4.
+**Two more the same run found, both that test's own and both now fixed.** Its target was
+`VK_FORMAT_R8G8B8A8_UNORM` where the shader declares `Rgba32f` — undefined for the whole image — and
+it never passed the shading table it had built, which is where the third null came from.
 
 ## 2. Distant statics never exist in the harness
 

@@ -641,6 +641,65 @@ namespace Rtx
         /// units at that distance rather than two hundred, so the sheet covers an eighth of each
         /// axis: `p` in 28..35, **64 hits**. That the two differ is the point — a parallel ray that
         /// quietly fanned out would still fill a plausible-looking image.
+        /// A scene with nothing in it still binds a buffer for everything the shader declares.
+        ///
+        /// **A null handle at a descriptor is undefined at the dispatch**, and undefined here meant a
+        /// lost device five seconds in, intermittently, with no message — the loop waited forever on
+        /// a fence that would never signal. Three tables were doing it: a scene with no textures
+        /// asked for no shading maps and a frame with no sprites asked for no tiles, and the rule
+        /// every table was grown by read "grow if what is wanted does not fit", which never makes one
+        /// at all when nothing is wanted.
+        ///
+        /// The fix is that the owner opens every table when it is built rather than when something
+        /// writes to one, because the write is exactly what does not happen. This is the assertion
+        /// that says so, and it is the one that would have caught it.
+        TEST(RtxSceneTableTest, aSceneWithNothingInItStillBindsATableForEverythingDeclared)
+        {
+            std::string reason;
+            Testing::Harness* harness = Testing::getHarness(reason);
+            if (harness == nullptr)
+                GTEST_SKIP() << reason;
+
+            Device& device = *harness->mDevice;
+            CommandPool pool(device);
+
+            const SceneDesc empty;
+            Batch setup(pool);
+
+            // No textures, so no shading maps; no sprites, so no tiles. Both tables used to come out
+            // as `VK_NULL_HANDLE`.
+            const TextureArray textures(device, setup, 0, {});
+            const SceneBuffers buffers(device, setup, empty, {}, SeaState{});
+            setup.flush();
+
+            EXPECT_NE(textures.getShading(), VK_NULL_HANDLE) << "the shading maps";
+
+            // **Every table this hands out, and not the three that were caught.** The rule was the
+            // same for all of them; which ones happened to be empty on the day is not what decides
+            // whether they are covered.
+            const std::array<std::pair<const char*, VkBuffer>, 16> tables{ {
+                { "the normal blocks", buffers.getNormalBlocks() },
+                { "the texture coordinate blocks", buffers.getTexCoordBlocks() },
+                { "the meshes", buffers.getMeshes() },
+                { "the instance rows", buffers.getInstances() },
+                { "the materials", buffers.getMaterials() },
+                { "the terrain layers", buffers.getLayers() },
+                { "the blend masks", buffers.getMasks() },
+                { "the lights", buffers.getLights() },
+                { "the light grid's offsets", buffers.getLightOffsets() },
+                { "the light grid's indices", buffers.getLightIndices() },
+                { "the sprites", buffers.getSprites() },
+                { "the emitters", buffers.getEmitters() },
+                { "the sprite tile offsets", buffers.getSpriteTileOffsets() },
+                { "the sprite tile indices", buffers.getSpriteTileIndices() },
+                { "the light grid's geometry", buffers.getGrid() },
+                { "the wave spectrum", buffers.getWaves() },
+            } };
+
+            for (const auto& [what, table] : tables)
+                EXPECT_NE(table, VK_NULL_HANDLE) << what;
+        }
+
         TEST_F(RtxVisibilityTest, anOrthographicCameraSendsItsRaysParallelRatherThanThroughAnEye)
         {
             constexpr std::uint32_t size = 64;
@@ -3675,11 +3734,15 @@ namespace Rtx
                 .mBuffers = &buffers,
                 .mIndexBlocks = acceleration.getIndexBlocks(),
                 .mTextures = textures.getSet(),
+                .mShading = textures.getShading(),
             };
 
             const GBuffer channels(device, size, size);
             const CompositePass composite(device, pool, Testing::getShaderDirectory());
-            Image target(device, size, size, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT, "cost-target");
+
+            // The format the shader declares for `colour`. A narrower one makes every load and store
+            // through it undefined for the whole image, which the layers say and nothing else does.
+            Image target(device, size, size, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT, "cost-target");
             const Buffer hits(device, sizeof(std::uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 

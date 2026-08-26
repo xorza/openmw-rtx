@@ -90,4 +90,17 @@ namespace Rtx
 
         bool mAddressable = false;
     };
+
+    /// Grows `held` so it can hold `bytes`, and never leaves it holding nothing.
+    ///
+    /// **A descriptor a shader declares must have something bound to it**, and a table with nothing
+    /// in it is still declared. Written the obvious way — grow if what is wanted does not fit — a
+    /// table asked for nought bytes is never made at all, and the null handle reaches
+    /// `vkCmdDispatch`: undefined, intermittent, and a lost device with no message. Three of these
+    /// were doing it, one of them had a hand-written stand-in for it, and the rule that allowed it
+    /// was the same in all seven places. It is this one now.
+    ///
+    /// Keeps whatever it already has where that is big enough, so a table settles at its high-water
+    /// mark rather than being made again every frame.
+    void growTo(HostBuffer& held, const Device& device, VkDeviceSize bytes, VkBufferUsageFlags usage);
 }
