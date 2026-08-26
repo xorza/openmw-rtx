@@ -1581,6 +1581,19 @@ namespace MWRender
         }
     }
 
+    float RenderingManager::getTerrainReach() const
+    {
+        if (!mRenderer.wantsPagedTerrain())
+            return 0.f;
+
+        // **Straight ahead, and not the corners of a frustum.** `getTerrainViewDistance` widens the
+        // rasterizer's answer by the field of view, because its fog is not radial and the corners
+        // reach further than the middle — which is about where ground has to be *built* and not
+        // about how much world there is. A zero angle is the width this question actually has, and
+        // it is what leaves the rasterizer's map exactly the size upstream draws it.
+        return mRenderer.getTerrainViewDistance(mViewDistance, 0.0f);
+    }
+
     void RenderingManager::setViewDistance(float distance, bool delay)
     {
         mViewDistance = distance;

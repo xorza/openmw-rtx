@@ -267,6 +267,15 @@ namespace MWRender
         float getNearClipDistance() const { return mNearClip; }
         float getViewDistance() const { return mViewDistance; }
 
+        /// How far from the eye the world's ground is built, in units, or nought where it reaches no
+        /// further than the cells the simulation has loaded.
+        ///
+        /// **What the local map is a map of.** Upstream sizes it from `distant terrain` and
+        /// `viewing distance`, which are the rasterizer's two answers to this one question. A ray
+        /// tracer pages whatever the first says and measures itself against `distant land cells`
+        /// rather than the second, so a map built from the settings shows less ground than there is.
+        float getTerrainReach() const;
+
         void setViewDistance(float distance, bool delay = false);
 
         float getTerrainHeightAt(const osg::Vec3f& pos, ESM::RefId worldspace);

@@ -22,6 +22,8 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
+#include "../mwrender/renderingmanager.hpp"
+
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/player.hpp"
@@ -92,10 +94,14 @@ namespace MWGui
     {
         if (!Settings::map().mAllowZooming)
             return Constants::CellGridRadius;
-        if (!Settings::terrain().mDistantTerrain)
-            return Constants::CellGridRadius;
-        const int viewingDistanceInCells
-            = static_cast<int>(Settings::camera().mViewingDistance / Constants::CellSizeInUnits);
+        // **How much world there is, which is the renderer's answer and not a setting's.**
+        // Upstream reads `distant terrain` and `viewing distance`; those are the rasterizer's two
+        // answers to this one question and the ray tracer's are different ones, so asking for the
+        // distance itself is what keeps the map the size of the world under both. A world that
+        // reaches no further than the loaded cells answers nought, which the clamp below turns back
+        // into the grid radius upstream returned outright.
+        const float reach = MWBase::Environment::get().getWorld()->getRenderingManager()->getTerrainReach();
+        const int viewingDistanceInCells = static_cast<int>(reach / Constants::CellSizeInUnits);
         return std::clamp(
             viewingDistanceInCells, Constants::CellGridRadius, Settings::map().mMaxLocalViewingDistance.get());
     }
