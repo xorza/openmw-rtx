@@ -69,6 +69,7 @@ namespace MWRender
 
         int getMaxTextureUnits() const override { return mMaxTextureUnits; }
 
+        bool wantsPagedTerrain() const override;
         float getTerrainCompositeMapLevel() const override;
         float getTerrainViewDistance(float cameraDistance, float fov) const override;
         SDL_Window* getWindow() const override { return mWindow; }

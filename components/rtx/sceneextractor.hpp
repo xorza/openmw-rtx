@@ -460,15 +460,6 @@ namespace Rtx
 
         Index resolveTerrainMaterial(const Terrain::TerrainDrawable& terrain, ExtractionStats& stats);
 
-        /// Names the composite a chunk's stack would bake into, in `mCompositeKey`.
-        ///
-        /// **The same identity the material cache is keyed on**, so a chunk met again finds the
-        /// composite it already had rather than baking a second one for the same ground.
-        ///
-        /// The view is the scratch itself and the next call overwrites it, which is all a caller
-        /// handing it straight to `SceneDesc::addBakedTexture` needs.
-        std::string_view nameComposite(const osg::StateSet& identity);
-
         SceneDesc& mScene;
 
         /// An entry in one of the identity maps, and when it was last met.
@@ -572,10 +563,6 @@ namespace Rtx
         /// One terrain material's layers, refilled per chunk: a run is allocated by length and the
         /// length is only known once the passes with no texture on them have been passed over.
         std::vector<MaterialLayer> mLayerScratch;
-
-        /// Refilled by `nameComposite` rather than built afresh: a cell arriving is the frame that
-        /// can least afford a string per chunk.
-        std::string mCompositeKey;
 
         /// One emitter's sprites, refilled per particle system: the count is only known once the
         /// dead ones have been passed over, and a cell holds tens of these every frame.

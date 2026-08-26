@@ -111,6 +111,14 @@ namespace MWRender
         /// business and read it; what is bound to it is not theirs to know.
         virtual SDL_Window* getWindow() const = 0;
 
+        /// Whether the world's ground is paged into a quad tree rather than built a cell at a time.
+        ///
+        /// **Not a preference where rays are what reach it.** `TerrainGrid` makes the cells the
+        /// simulation has loaded and nothing else, so a renderer answering no has no distant land at
+        /// any radius — which is why this is asked of the renderer and not read from `distant
+        /// terrain`, whose default is off and whose business is what a rasterizer can afford to draw.
+        virtual bool wantsPagedTerrain() const = 0;
+
         /// Chunk size, in cells, past which the terrain flattens a chunk's layer stack into one
         /// composite map — or `Terrain::sNoCompositeMap` for a renderer that will never ask for one.
         ///

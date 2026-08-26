@@ -33,10 +33,23 @@ namespace Rtx
     {
         const bool mine = recognises(renderer, slot, scene, renderer.getTextureCount(slot));
 
+        // **Before anything reads what arrived, because finishing a bake is an arrival.** The queue
+        // takes on whatever the walk marked for flattening and gets a bounded slice of it done; a
+        // composite that finished here took a texture slot on the way, so the upload below carries
+        // it without knowing it was ever waiting.
+        mComposites.gather(scene, images);
+
+        std::size_t baked = 0;
+        do
+            baked += mComposites.drain(scene, mStaged ? sCompositeExtent : sBakeRowsPerDrain);
+        while (mStaged && mComposites.getWaitingCount() > 0);
+
         // Geometry the walk has not met before has no bottom-level structure and no uploaded
         // texture. **Which is a cell change and a load, not a frame** — a door opening moves
         // instances the walk already knows.
-        const bool arrived = !mine || scene.getStructureRevision() != mBuilt;
+        // A frame that only finished a bake has no new geometry and a new texture, which is an
+        // arrival for everything below even though nothing was walked.
+        const bool arrived = !mine || scene.getStructureRevision() != mBuilt || baked > 0;
 
         // **Grown, or replaced?** `clear` empties every table and starts the indices again, so
         // everything built from them has to be built again; anything short of that is an append, and
@@ -59,6 +72,11 @@ namespace Rtx
             // until something arrived to take the slots over.
             renderer.placeScene(slot, scene, sea);
             scene.clearArrivals();
+
+            // **After the upload and not before.** Between the drain and here, what the queue holds is
+            // the only copy of a composite's bytes; a region's worth is fifty megabytes, and keeping
+            // them past the frame that read them would be paying for one picture twice.
+            mComposites.releaseFinished();
             return left;
         }
 
@@ -68,8 +86,8 @@ namespace Rtx
         // **Everything on a reset and the arrivals otherwise.** A reset builds the array from
         // nothing, so what it wants is the table in its own order; a frame that grew wants the slots
         // that were written and no others, wherever in the table they sit.
-        const SceneTextures textures
-            = reset ? SceneTextures(scene, images) : SceneTextures(scene, images, scene.getArrivedTextures());
+        const SceneTextures textures = reset ? SceneTextures(scene, images, &mComposites)
+                                             : SceneTextures(scene, images, scene.getArrivedTextures(), &mComposites);
 
         SceneUpload done;
         done.mDescribed = textures.getDescriptions().size();

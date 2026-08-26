@@ -144,7 +144,10 @@ namespace RtxTool
                 return 1;
             }
 
+            // **Staged and not streamed**: this renders the region once, so every composite has to be
+            // finished here rather than drained over frames that will never come.
             Rtx::SceneUploader uploader;
+            uploader.setStaged(true);
             uploader.hand(*renderer, Rtx::sWorld, staged.getScene(), world.getImageManager(), Rtx::SeaState{});
 
             Framing framing = Framing::lookingFrom(staged.getPlacement());

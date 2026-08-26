@@ -368,6 +368,11 @@ namespace MWRender
         mStage.getEvents().getCurrentEventState()->setWindowRectangle(
             0, 0, graphicsWindow->getTraits()->width, graphicsWindow->getTraits()->height);
     }
+    bool GlRenderer::wantsPagedTerrain() const
+    {
+        return Settings::terrain().mDistantTerrain;
+    }
+
     float GlRenderer::getTerrainCompositeMapLevel() const
     {
         return static_cast<float>(std::pow(2, Settings::terrain().mCompositeMapLevel.get()));

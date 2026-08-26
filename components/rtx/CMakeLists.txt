@@ -68,6 +68,8 @@ set(RTX_FILES
     spanallocator.hpp
     spritetiles.cpp
     spritetiles.hpp
+    compositequeue.cpp
+    compositequeue.hpp
     terraincomposite.cpp
     terraincomposite.hpp
     terrainresidency.cpp

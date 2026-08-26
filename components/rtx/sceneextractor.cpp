@@ -1152,7 +1152,7 @@ namespace Rtx
 
         if (mLayerScratch.size() > 1 && across >= sCompositeFrom)
         {
-            material.mDiffuse = mScene.addBakedTexture(nameComposite(*identity));
+            material.mFlatten = true;
             ++stats.mComposites;
         }
 
@@ -1160,20 +1160,6 @@ namespace Rtx
         mMaterials.emplace(identity, Known{ .mIndex = index, .mEpoch = mEpoch });
         ++stats.mMaterialsAdded;
         return index;
-    }
-
-    std::string_view SceneExtractor::nameComposite(const osg::StateSet& identity)
-    {
-        // Hexadecimal into a fixed buffer, so refilling the key costs no allocation once the string
-        // has the capacity — the address is the identity and its spelling only has to be unique.
-        std::array<char, sizeof(std::uintptr_t) * 2> digits{};
-        const auto value = reinterpret_cast<std::uintptr_t>(&identity);
-        const auto written = std::to_chars(digits.data(), digits.data() + digits.size(), value, 16);
-
-        mCompositeKey.assign("chunk/");
-        mCompositeKey.append(digits.data(), written.ptr);
-
-        return mCompositeKey;
     }
 
     Index SceneExtractor::resolveMesh(

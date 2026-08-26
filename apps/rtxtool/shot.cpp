@@ -75,7 +75,10 @@ namespace RtxTool
         // derived from it.
         const Rtx::FrameExtents extents = renderer->getExtents();
 
+        // **Staged and not streamed**: this renders the region once, so every composite has to be
+        // finished here rather than drained over frames that will never come.
         Rtx::SceneUploader uploader;
+        uploader.setStaged(true);
 
         const Clock::time_point buildStart = Clock::now();
         uploader.hand(*renderer, Rtx::sWorld, scene, images, Rtx::SeaState{});

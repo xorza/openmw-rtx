@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <span>
 #include <vector>
 
@@ -89,7 +90,13 @@ namespace Rtx
     class TerrainComposite
     {
     public:
-        /// Bakes the stack at `extent` square.
+        /// Takes the stack on at `extent` square, and bakes none of it.
+        ///
+        /// **Everything the bake reads is copied in here**, which is what lets `bake` be spread over
+        /// as many frames as the caller likes: each layer's diffuse is decoded to the two levels the
+        /// whole bake will ever read, and its mask and painted light — a few hundred floats between
+        /// them — are taken by value. Nothing it reads afterwards belongs to anyone else, so a chunk
+        /// that leaves the world part way through a bake takes nothing out from under it.
         ///
         /// @param extent a power of two, so the chain below halves exactly and ends at one texel.
         /// @param delight how much of each layer's painted light to divide out, matching the frame
@@ -98,24 +105,51 @@ namespace Rtx
         ///        the last point at which the tiling is still known.
         TerrainComposite(std::span<const CompositeLayer> layers, std::uint32_t extent, float delight);
 
+        ~TerrainComposite();
+
         /// Moved and never copied, like every other description that hands out spans of itself: two
         /// composites holding the same texels under one key is two answers to a question with one.
         TerrainComposite(const TerrainComposite&) = delete;
         TerrainComposite& operator=(const TerrainComposite&) = delete;
-        TerrainComposite(TerrainComposite&&) = default;
-        TerrainComposite& operator=(TerrainComposite&&) = default;
+        TerrainComposite(TerrainComposite&&) noexcept;
+        TerrainComposite& operator=(TerrainComposite&&) noexcept;
+
+        /// Bakes at most `rows` more rows of the composite, and answers whether it is finished.
+        ///
+        /// **The unit a caller drains, and it has to be smaller than a whole composite.** One of
+        /// these costs 28.5 ms; a frame that bakes one is a dropped frame however good the average
+        /// is, and a cell boundary bringing eight is a quarter of a second. A row is the obvious
+        /// slice because the sum is per output texel and the rows are independent.
+        ///
+        /// The mip chain is built by the call that finishes the last row, which is cheap beside it:
+        /// a box filter over a third as many texels again, and no layer sampled at all.
+        ///
+        /// Calling this on a finished composite does nothing and says so.
+        bool bake(std::uint32_t rows);
+
+        /// Whether every row is summed and the chain built. **The chain is the record of it**:
+        /// only the call that finishes the last row builds one, so there is no flag to disagree with.
+        bool isDone() const;
+
+        /// How many rows of the sum are baked, which is how a caller draining several composites
+        /// knows what its budget went on.
+        std::uint32_t getBakedRows() const;
 
         /// The baked image, spanning storage this object owns and carrying a neutral shading map.
         ///
         /// `mSlot` and `mName` are the caller's to fill: the scene decides where a composite goes
-        /// and what key found it.
+        /// and what key found it. Only a finished composite has anything to describe.
         TextureData describe() const;
 
-        std::uint32_t getLevelCount() const { return static_cast<std::uint32_t>(mLevels.size()); }
+        std::uint32_t getLevelCount() const;
 
     private:
-        std::vector<std::byte> mBytes;
-        std::vector<MipLevel> mLevels;
+        void buildChain();
+
+        /// What the bake reads and writes, out of line so this header names none of it.
+        struct Prepared;
+        std::unique_ptr<Prepared> mPrepared;
+
         std::uint32_t mExtent = 0;
     };
 }

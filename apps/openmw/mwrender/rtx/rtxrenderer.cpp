@@ -255,6 +255,11 @@ namespace MWRender
         MWRender::setWindowIcon(*mWindow, resourceDir);
     }
 
+    bool RtxRenderer::wantsPagedTerrain() const
+    {
+        return true;
+    }
+
     float RtxRenderer::getTerrainCompositeMapLevel() const
     {
         return Terrain::sNoCompositeMap;

@@ -119,6 +119,15 @@ namespace Rtx
         Index mLayerOffset = 0;
         Index mLayerCount = 0;
 
+        /// Whether this chunk is wide enough that its stack is worth flattening into one texture.
+        ///
+        /// **Asked for here and answered later, which is the whole of why it is a flag.** A
+        /// composite costs tens of milliseconds and a cell boundary wants several, so the bake
+        /// cannot be done by the walk that meets the chunk. Until one arrives `mDiffuse` stays
+        /// unset and the chunk shades from the stack below — the branch the shader already takes for
+        /// every near chunk — so the picture is right throughout and only the cost per hit differs.
+        bool mFlatten = false;
+
         /// Two materials are the same when every field is.
         ///
         /// **For telling a rewrite from a no-op.** A state set with a controller on it is re-read

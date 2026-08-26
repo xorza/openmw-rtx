@@ -208,61 +208,149 @@ namespace Rtx
         }
     }
 
+    /// What the bake reads and writes, from the moment the stack is taken on until the last row.
+    ///
+    /// **Owned outright, every field of it.** A composite baked over several frames outlives the
+    /// walk that described it, so borrowing a mask or a shading map would be reading a chunk that
+    /// may have left the world two frames ago.
+    struct TerrainComposite::Prepared
+    {
+        /// One layer, decoded and copied. `mLayer`'s spans point into this object's own vectors,
+        /// which survive the vector below reallocating: a moved `std::vector` keeps its buffer.
+        struct Held
+        {
+            Sampled mGround;
+            std::vector<float> mShading;
+            std::vector<float> mMask;
+            CompositeLayer mLayer;
+        };
+
+        std::vector<Held> mLayers;
+        float mDelight = 0.0f;
+
+        /// The sum so far, in light, one entry a texel of the finest level.
+        std::vector<osg::Vec3f> mLight;
+
+        /// How many rows of `mLight` are summed. The whole of the bake's progress.
+        std::uint32_t mRow = 0;
+
+        std::vector<std::byte> mBytes;
+        std::vector<MipLevel> mLevels;
+    };
+
     TerrainComposite::TerrainComposite(std::span<const CompositeLayer> layers, std::uint32_t extent, float delight)
-        : mExtent(extent)
+        : mPrepared(std::make_unique<Prepared>())
+        , mExtent(extent)
     {
         assert(!layers.empty() && "a composite of no layers is a chunk with no ground at all");
         assert(extent > 0 && std::has_single_bit(extent) && "a composite extent the chain cannot halve to one texel");
 
-        std::vector<Sampled> ground(layers.size());
-        for (std::size_t i = 0; i < layers.size(); ++i)
-            ground[i] = prepare(layers[i], extent);
+        mPrepared->mDelight = delight;
+        mPrepared->mLayers.reserve(layers.size());
 
-        std::vector<osg::Vec3f> light(std::size_t{ extent } * extent);
-        for (std::uint32_t y = 0; y < extent; ++y)
-            for (std::uint32_t x = 0; x < extent; ++x)
+        for (const CompositeLayer& layer : layers)
+        {
+            Prepared::Held held;
+            held.mGround = prepare(layer, extent);
+            held.mShading.assign(layer.mShading.begin(), layer.mShading.end());
+            held.mMask.assign(layer.mMask.begin(), layer.mMask.end());
+
+            held.mLayer = layer;
+            held.mLayer.mDiffuse = TextureData{};
+            held.mLayer.mShading = held.mShading;
+            held.mLayer.mMask = held.mMask;
+
+            mPrepared->mLayers.push_back(std::move(held));
+        }
+
+        mPrepared->mLight.assign(std::size_t{ extent } * extent, osg::Vec3f());
+    }
+
+    TerrainComposite::~TerrainComposite() = default;
+    TerrainComposite::TerrainComposite(TerrainComposite&&) noexcept = default;
+    TerrainComposite& TerrainComposite::operator=(TerrainComposite&&) noexcept = default;
+
+    std::uint32_t TerrainComposite::getBakedRows() const
+    {
+        return mPrepared->mRow;
+    }
+
+    bool TerrainComposite::isDone() const
+    {
+        return !mPrepared->mLevels.empty();
+    }
+
+    bool TerrainComposite::bake(const std::uint32_t rows)
+    {
+        Prepared& prepared = *mPrepared;
+        if (isDone())
+            return true;
+
+        const std::uint32_t until = std::min(prepared.mRow + rows, mExtent);
+        for (; prepared.mRow < until; ++prepared.mRow)
+        {
+            const float v = (static_cast<float>(prepared.mRow) + 0.5f) / static_cast<float>(mExtent);
+
+            for (std::uint32_t x = 0; x < mExtent; ++x)
             {
-                const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(extent);
-                const float v = (static_cast<float>(y) + 0.5f) / static_cast<float>(extent);
+                const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(mExtent);
 
                 osg::Vec3f sum;
-                for (std::size_t i = 0; i < layers.size(); ++i)
+                for (const Prepared::Held& held : prepared.mLayers)
                 {
-                    const CompositeLayer& layer = layers[i];
-                    const float showing = maskWeight(layer, u, v);
+                    const float showing = maskWeight(held.mLayer, u, v);
                     if (showing <= 0.0f)
                         continue;
 
-                    const float atU = u * layer.mDiffuseTransform.x() + layer.mDiffuseTransform.z();
-                    const float atV = v * layer.mDiffuseTransform.y() + layer.mDiffuseTransform.w();
+                    const osg::Vec4f& transform = held.mLayer.mDiffuseTransform;
+                    const float atU = u * transform.x() + transform.z();
+                    const float atV = v * transform.y() + transform.w();
 
-                    osg::Vec3f colour = sampleLinear(ground[i], atU, atV);
+                    osg::Vec3f colour = sampleLinear(held.mGround, atU, atV);
 
                     // **The layer's own texel, at the layer's own tiled coordinates.** The estimate
                     // repeats with the texture and this is the last point at which that tiling is
                     // still known — dividing the finished sum, at the chunk's coordinates, would be
                     // correcting a texture that no longer exists by a map that never described it.
-                    if (delight > 0.0f && !layer.mShading.empty())
-                        colour /= std::lerp(1.0f, paintedLight(layer.mShading, atU, atV), delight);
+                    if (prepared.mDelight > 0.0f && !held.mLayer.mShading.empty())
+                        colour /= std::lerp(1.0f, paintedLight(held.mLayer.mShading, atU, atV), prepared.mDelight);
 
                     sum += colour * showing;
                 }
 
-                light[std::size_t{ y } * extent + x] = sum;
+                prepared.mLight[std::size_t{ prepared.mRow } * mExtent + x] = sum;
             }
+        }
 
-        const auto count = static_cast<std::uint32_t>(std::countr_zero(extent)) + 1;
+        if (prepared.mRow < mExtent)
+            return false;
+
+        buildChain();
+        return true;
+    }
+
+    /// Reduces the summed light to a mip chain of encoded bytes, which is what a backend uploads.
+    ///
+    /// **Not sliced, because it is not what costs.** The whole chain is a third as many texels again
+    /// as one row of the sum is layers deep, and it samples nothing: leaving it to the call that
+    /// finishes the last row is cheaper than carrying the state to spread it.
+    void TerrainComposite::buildChain()
+    {
+        Prepared& prepared = *mPrepared;
+
+        const auto count = static_cast<std::uint32_t>(std::countr_zero(mExtent)) + 1;
 
         std::size_t total = 0;
-        for (std::uint32_t at = 0, side = extent; at < count; ++at, side /= 2)
+        for (std::uint32_t at = 0, side = mExtent; at < count; ++at, side /= 2)
             total += std::size_t{ side } * side * 4;
 
-        mBytes.resize(total);
-        mLevels.reserve(count);
+        prepared.mBytes.resize(total);
+        prepared.mLevels.reserve(count);
 
+        std::vector<osg::Vec3f>& light = prepared.mLight;
         std::vector<osg::Vec3f> coarser;
         std::uint32_t offset = 0;
-        for (std::uint32_t at = 0, side = extent; at < count; ++at, side /= 2)
+        for (std::uint32_t at = 0, side = mExtent; at < count; ++at, side /= 2)
         {
             if (at > 0)
             {
@@ -282,12 +370,12 @@ namespace Rtx
                 light.swap(coarser);
             }
 
-            mLevels.push_back(MipLevel{ offset, side, side });
+            prepared.mLevels.push_back(MipLevel{ offset, side, side });
 
             for (std::size_t texel = 0; texel < std::size_t{ side } * side; ++texel)
             {
                 const osg::Vec3f& colour = light[texel];
-                std::byte* into = mBytes.data() + offset + texel * 4;
+                std::byte* into = prepared.mBytes.data() + offset + texel * 4;
 
                 into[0] = encodeByte(colour.x());
                 into[1] = encodeByte(colour.y());
@@ -297,10 +385,21 @@ namespace Rtx
 
             offset += side * side * 4;
         }
+
+        // The sum is spent: every level was reduced out of it and nothing reads it again.
+        light.clear();
+        light.shrink_to_fit();
+    }
+
+    std::uint32_t TerrainComposite::getLevelCount() const
+    {
+        return static_cast<std::uint32_t>(mPrepared->mLevels.size());
     }
 
     TextureData TerrainComposite::describe() const
     {
+        assert(isDone() && "a composite described before its last row was baked");
+
         // **Neutral, and one grid shared by every composite there will ever be.** A texture with no
         // map at all reads whatever the array's stand-in holds, and there is nothing left for a real
         // one to say: the light painted into the ground came off per tile during the bake, which is
@@ -311,8 +410,8 @@ namespace Rtx
             .mFormat = TextureFormat::Rgba8Srgb,
             .mWidth = mExtent,
             .mHeight = mExtent,
-            .mBytes = mBytes,
-            .mLevels = mLevels,
+            .mBytes = mPrepared->mBytes,
+            .mLevels = mPrepared->mLevels,
             .mShading = sNeutral.getValues(),
         };
     }

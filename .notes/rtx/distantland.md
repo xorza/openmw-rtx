@@ -337,41 +337,50 @@ which still hands `RenderingManager::setViewDistance` the camera setting
 produce visibly more ground, and the trace timer and structure bytes are reported at each so the
 shape of the growth is on record before anyone raises the default.
 
-**6 — hold the frame flat.** Chunks arriving and leaving must not spike. Two of its three parts
-are already true and were true before it was written: the structures append and recycle slots, and a
-composite is reference-counted with the ground that names it, so it is released with its chunk.
-**What is left is the bake queue**, and it is the whole of the step.
+**6 — hold the frame flat. Done.** Two of its three parts were true before it was written: the
+structures append and recycle slots, and a composite is reference-counted with the ground that names
+it, so it is released with its chunk. **The bake queue was the whole of the step.**
 
-**Where the spike is.** `SceneUploader::hand` runs every frame, and on an `Extended` or `Rebuilt`
-upload it builds a `SceneTextures`, whose constructor bakes every composite among the arriving slots
-before it returns. A boundary bringing eight distant chunks is eight times 28.5 ms in one frame.
-**It cannot be seen from the harness**, which stages its world once: the figure comes out as `build`
-on a load rather than as a frame, which is why this step's own check is a walk in the game.
+**Where the spike was.** `SceneUploader::hand` runs every frame, and on an `Extended` or `Rebuilt`
+upload it built a `SceneTextures`, whose constructor flattened every composite among the arriving
+slots before it returned. A boundary bringing eight distant chunks was eight times 28.5 ms in one
+frame. **It cannot be seen from the harness**, which stages its world once: the figure comes out as
+`build` on a load rather than as a frame.
 
-**Two things found while scoping it, neither obvious from here.**
+**What a chunk shows while it waits, which is the reason none of this needs a placeholder.** The
+shader already has the branch: a terrain material naming no diffuse sums its layer stack at the hit,
+which is what every near chunk does. So a chunk asks for flattening by setting `Material::mFlatten`
+and keeps `mDiffuse` unset until a composite arrives — the picture is right from the first frame and
+what the bake buys is the cost of the hit, not the sight of the ground. Half a second of a near
+chunk's shading cost, against a quarter-second hitch.
 
-- **`components/rtx/` is single-threaded throughout** — no work queue, no thread, no mutex. So "off
-  the frame path", which is what the tree's rule asks for when work cannot be made cheap, is not a
-  matter of moving a call: it is a decision about where threads enter the API-neutral core, and it
-  wants making deliberately rather than as a side effect of this. The doc's own answer — draining
-  rows, an incremental slice smaller than one composite — needs none of that, and is the reason it
-  is the answer.
-- **The recipe's lifetime is the real work, not the slicing.** A bake spread over frames has to hold
-  what it is baking from: the layer images (cheap — `osg::ref_ptr`s the manager already keeps), the
-  chunk's masks (owned by the scene, which outlives the chunk), and each layer's `ShadingMap` —
-  which today is a local in `SceneTextures::bakeComposites`, built per call and thrown away. Giving
-  those an owner that survives a frame is most of the change; `TerrainComposite` gaining a
-  `bake(rows)` beside its constructor is the small half.
+**The shape.** `TerrainComposite` no longer bakes in its constructor: it takes the stack on, copying
+everything it will read — each layer decoded to the two levels the bake ever touches, and its mask
+and painted light by value — so a chunk that leaves the world mid-bake takes nothing out from under
+it. `bake(rows)` advances the sum a row at a time and builds the mip chain on the call that finishes
+the last one. `Rtx::CompositeQueue` owns what is waiting, gathers off the shading revision, and
+drains `sBakeRowsPerDrain` — sixteen rows, about 0.9 ms, putting a composite thirty frames out.
+It lives on `SceneUploader` because that is the once-a-frame call and because a bake spread over
+frames has to outlive the walk that asked for it.
 
-**And what a chunk shows meanwhile** is the other open question: a placeholder — its top layer's
-diffuse is the honest candidate, being real ground already decoded — or the chunk simply not placed
-until its composite is ready, which needs no placeholder and one more frame of delay on ground that
-has only just arrived.
+**A harness has no next frame**, so `setStaged` says so and `hand` drains to the end — `shot`,
+`picture`, `verify` and the offscreen traces all stage once and render. Without it every reference
+picture would show ground shading from its stack, which is a picture no player ever sees.
 
-**Check:** the worst frame and the p99 across a walk that crosses several cell boundaries, beside
-the median — the tree's rule is that a spike is a dropped frame however good the average is. **That
-check waits for M12**, because the tree also says not to bench until the renderer draws everything
-the game has. The implementation does not wait for it; only the number does.
+**Checked.** `RtxTerrainCompositeTest.bakingInSlicesReachesTheSameTexelsAsBakingItAtOnce` bakes one
+composite three rows at a time and one in a single call and compares every texel of every level —
+the whole permission to slice at all. `groundPastACellIsFlattenedIntoOneTextureTheUploaderCanRead`
+now drives the real pipeline: it asserts nothing is flattened by the walk that meets it, that the
+queue takes on exactly the chunks that asked, and that draining finishes all of them. And the
+staged Balmora picture at four cells is **byte-identical** across the change, which is what caught
+the one real bug in it — a `ShadingMap` destroyed at the end of a loop iteration while the layer
+stack still spanned it, worth 15% of the frame's pixels and up to 36 of 255.
+
+**What was not done: the measurement.** The worst frame and the p99 across a walk that crosses
+several cell boundaries, beside the median, is step 6's own check and it **waits for M12** — the
+tree does not bench until the renderer draws everything the game has. The spike is invisible from
+the harness besides. What can be said without a number is what changed: no frame now does more than
+sixteen rows of a bake, where one used to do eight whole composites.
 
 **7 — settle the two views (R3). Done.** `seyda-neen-shore` and `dagon-fel` are the views this
 feature is visible in, and both used to render a bare water quad. Both now come up with ground to

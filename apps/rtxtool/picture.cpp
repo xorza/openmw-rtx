@@ -196,7 +196,10 @@ namespace RtxTool
         if (renderer == nullptr)
             return 1;
 
+        // **Staged and not streamed**: this renders the region once, so every composite has to be
+        // finished here rather than drained over frames that will never come.
         Rtx::SceneUploader uploader;
+        uploader.setStaged(true);
         uploader.hand(*renderer, Rtx::sWorld, scene, world.getImageManager(), Rtx::SeaState{});
 
         const osg::Vec4f clear(0.0f, 0.0f, 0.0f, 1.0f);

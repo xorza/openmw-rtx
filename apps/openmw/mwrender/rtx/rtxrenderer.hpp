@@ -87,6 +87,10 @@ namespace MWRender
 
         int getMaxTextureUnits() const override { return mMaxTextureUnits; }
 
+        /// Always. A trace has no frustum to cull against, so how much world exists is the whole
+        /// question — and `TerrainGrid` answers it with the cells the simulation happens to hold.
+        bool wantsPagedTerrain() const override;
+
         /// Never, because this path initialises no OpenGL at all: a composite map is a render
         /// target, and `Rtx::TerrainComposite` bakes the flattened texture on the CPU instead.
         float getTerrainCompositeMapLevel() const override;

@@ -18,6 +18,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/constants.hpp>
+#include <components/rtx/compositequeue.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtx/sceneextractor.hpp>
 #include <components/rtx/terraincomposite.hpp>
@@ -421,9 +422,14 @@ namespace RtxTool
         /// can open, so what says it worked is that `SceneTextures` describes it rather than
         /// counting it unreadable and drawing the stand-in.
         ///
+        /// **And the queue is what bakes it, drained here to the end.** A chunk asks by setting
+        /// `Material::mFlatten` and shades from its layer stack until one arrives, which is what
+        /// keeps a cell boundary from spending a quarter of a second flattening eight of them: this
+        /// asserts both halves, that nothing is flattened before the queue runs and that everything
+        /// is after.
+        ///
         /// A radius barely past the grid, because every composite in the scene is baked here and each
-        /// one costs tens of milliseconds — the figure `distantland.md` records and step 6 has to
-        /// build a queue around.
+        /// one costs tens of milliseconds — the figure `distantland.md` records.
         TEST(RtxPagedTerrainTest, groundPastACellIsFlattenedIntoOneTextureTheUploaderCanRead)
         {
             Files::ConfigurationManager config;
@@ -441,16 +447,39 @@ namespace RtxTool
             Rtx::SceneDesc scene;
             placeOutdoors(*world, *cell, scene, true);
 
-            std::vector<Rtx::Index> flattened;
+            const auto flattenedSlots = [&] {
+                std::vector<Rtx::Index> slots;
+                for (const Rtx::Material& material : scene.getMaterials())
+                    if (material.mKind == Rtx::MaterialKind::Terrain && material.mDiffuse != Rtx::sNoIndex)
+                        slots.push_back(material.mDiffuse);
+                return slots;
+            };
+
+            std::uint32_t asked = 0;
             for (const Rtx::Material& material : scene.getMaterials())
-            {
-                if (material.mKind == Rtx::MaterialKind::Terrain && material.mDiffuse != Rtx::sNoIndex)
-                    flattened.push_back(material.mDiffuse);
-            }
+                if (material.mKind == Rtx::MaterialKind::Terrain && material.mFlatten)
+                    ++asked;
 
-            ASSERT_FALSE(flattened.empty()) << "no chunk was wide enough to be flattened";
+            ASSERT_GT(asked, 0u) << "no chunk was wide enough to be flattened";
+            EXPECT_TRUE(flattenedSlots().empty()) << "a chunk was flattened by the walk that met it";
 
-            const Rtx::SceneTextures described(scene, world->getImageManager());
+            // **A second queue that never drains**, so there is still something waiting when the
+            // scene is cleared at the end of this test.
+            Rtx::CompositeQueue holding;
+            holding.gather(scene, world->getImageManager());
+            ASSERT_EQ(holding.getWaitingCount(), asked);
+
+            Rtx::CompositeQueue queue;
+            queue.gather(scene, world->getImageManager());
+            EXPECT_EQ(queue.getWaitingCount(), asked);
+
+            while (queue.getWaitingCount() > 0)
+                queue.drain(scene, Rtx::sBakeRowsPerDrain);
+
+            const std::vector<Rtx::Index> flattened = flattenedSlots();
+            ASSERT_EQ(flattened.size(), asked) << "the queue drained without finishing what it took on";
+
+            const Rtx::SceneTextures described(scene, world->getImageManager(), &queue);
             EXPECT_EQ(described.getUnreadable(), 0u) << "a composite the uploader would draw grey";
 
             // The whole chunk in one texel, per composite. Different ground averages to a different
@@ -483,6 +512,14 @@ namespace RtxTool
                 = [&](std::uint32_t colour) { return averages.empty() || colour == averages.front(); };
             EXPECT_FALSE(std::all_of(averages.begin(), averages.end(), sameAsFirst))
                 << "every chunk in the region averages to one colour, so nothing was read from the masks";
+
+            // **Last, because it empties the scene.** `SceneDesc::clear` renumbers the material
+            // table and a bake takes tens of frames, so a worldspace change with one in flight
+            // leaves an entry holding an index into a table that no longer has it — and reading
+            // that index is past the end of an emptied span, which is the quietest kind of wrong.
+            scene.clear();
+            holding.gather(scene, world->getImageManager());
+            EXPECT_EQ(holding.getWaitingCount(), 0u) << "a cleared scene left a bake waiting on a material it forgot";
         }
     }
 }

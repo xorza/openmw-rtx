@@ -1,13 +1,11 @@
 #pragma once
 
 #include <span>
-#include <unordered_map>
 #include <vector>
 
 #include <osg/Image>
 
 #include "scenedesc.hpp"
-#include "terraincomposite.hpp"
 #include "texturedata.hpp"
 
 namespace Resource
@@ -17,6 +15,8 @@ namespace Resource
 
 namespace Rtx
 {
+    class CompositeQueue;
+
     /// Describes one image for a backend's uploader without copying a byte of it.
     ///
     /// Levels are **appended** to `levels`, and the returned description spans the ones it added —
@@ -27,6 +27,12 @@ namespace Rtx
     /// compressed with its mip chain already built, and inventing a conversion path for something no
     /// content file contains is how a renderer grows code nothing runs.
     TextureData describeImage(const osg::Image& image, std::vector<MipLevel>& levels);
+
+    /// The image at `path`, or null where nothing could be read there.
+    ///
+    /// **Null and not an exception**, because a live scene graph names textures that were never
+    /// files and a renderer that fell over on one would fall over on a cell.
+    osg::ref_ptr<const osg::Image> openImage(Resource::ImageManager& images, const VFS::Path::Normalized& path);
 
     /// Every live texture a scene names, described, and the storage those descriptions point into.
     ///
@@ -48,7 +54,12 @@ namespace Rtx
         ///
         /// For a backend building an array from nothing. The free slots are not among them, so the
         /// array has to be sized to the scene's table rather than to what comes out of here.
-        SceneTextures(const SceneDesc& scene, Resource::ImageManager& images);
+        /// @param composites where a chunk's flattened ground comes from, or null for a caller
+        ///        that bakes none. A terrain slot the queue has no composite for is one whose bake
+        ///        has not finished, and it is passed over rather than described — nothing points at
+        ///        it until it has bytes.
+        SceneTextures(
+            const SceneDesc& scene, Resource::ImageManager& images, const CompositeQueue* composites = nullptr);
 
         /// The same, for `slots` and nothing else.
         ///
@@ -60,7 +71,8 @@ namespace Rtx
         /// **A list and not an offset**, because a slot a departing cell freed is taken over
         /// wherever it sits: what arrived is no longer the end of the table. Each description
         /// carries the slot it belongs to, and a slot that has since been given back is skipped.
-        SceneTextures(const SceneDesc& scene, Resource::ImageManager& images, std::span<const Index> slots);
+        SceneTextures(const SceneDesc& scene, Resource::ImageManager& images, std::span<const Index> slots,
+            const CompositeQueue* composites = nullptr);
 
         SceneTextures(const SceneTextures&) = delete;
         SceneTextures& operator=(const SceneTextures&) = delete;
@@ -80,13 +92,8 @@ namespace Rtx
         std::uint32_t getUnreadable() const { return mUnreadable; }
 
     private:
-        void describe(const SceneDesc& scene, Resource::ImageManager& images, std::span<const Index> slots);
-
-        /// Flattens the layer stack of every chunk among `kept` wide enough to have asked for one.
-        ///
-        /// @param expected how many baked slots `kept` holds, so the tables below are reserved once.
-        void bakeComposites(
-            const SceneDesc& scene, Resource::ImageManager& images, std::span<const Index> kept, std::size_t expected);
+        void describe(const SceneDesc& scene, Resource::ImageManager& images, std::span<const Index> slots,
+            const CompositeQueue* composites);
 
         std::vector<osg::ref_ptr<const osg::Image>> mImages;
 
@@ -101,13 +108,6 @@ namespace Rtx
         std::vector<MipLevel> mLevels;
 
         std::vector<TextureData> mDescriptions;
-
-        /// The ground this baked, by the slot it belongs to.
-        ///
-        /// **Owned here because a description spans it**, and thrown away with the rest when the
-        /// upload has read it: a composite that is still standing was copied to the device on the
-        /// frame it arrived, and only a reset asks for it again — which asks for everything again.
-        std::unordered_map<Index, TerrainComposite> mComposites;
 
         std::uint32_t mUnreadable = 0;
     };

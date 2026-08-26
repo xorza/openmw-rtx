@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "compositequeue.hpp"
 #include "renderer.hpp"
 #include "wavespectrum.hpp"
 
@@ -72,6 +73,16 @@ namespace Rtx
         SceneUpload hand(Renderer& renderer, std::uint32_t slot, SceneDesc& scene, Resource::ImageManager& images,
             const SeaState& sea = SeaState{});
 
+        /// Whether this serves a world staged once rather than a game that keeps running.
+        ///
+        /// **A caller with no next frame cannot leave a bake unfinished.** Flattening a chunk's
+        /// ground costs 28.5 ms, so a running game drains a slice of it per frame and the chunk
+        /// shades from its layer stack until one arrives — half a second of a cost per hit instead of
+        /// a quarter-second hitch. A harness that stages a region, renders one frame and stops has
+        /// nowhere to put the rest, and would photograph a picture no player ever sees. Told once,
+        /// because it is a fact about the caller and not about the frame.
+        void setStaged(bool staged) { mStaged = staged; }
+
     private:
         /// **Whether the pair in front of it is the pair it last built, and appending is only
         /// allowed onto that.**
@@ -87,6 +98,15 @@ namespace Rtx
         /// pointers are what stop a coincidence in it from mattering.
         bool recognises(
             const Renderer& renderer, std::uint32_t slot, const SceneDesc& scene, std::uint32_t textures) const;
+
+        bool mStaged = false;
+
+        /// The distant chunks waiting for their ground to be flattened.
+        ///
+        /// **Here because this is the once-a-frame call**, and because a bake spread over frames has
+        /// to outlive the one that asked for it. `SceneTextures` is built and thrown away inside
+        /// `hand`; what is waiting cannot be.
+        CompositeQueue mComposites;
 
         const Renderer* mRenderer = nullptr;
         const SceneDesc* mScene = nullptr;

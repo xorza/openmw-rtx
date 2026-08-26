@@ -1419,9 +1419,9 @@ namespace MWRender
 
         const float lodFactor = Settings::terrain().mLodFactor;
         const bool groundcover = Settings::groundcover().mEnabled && worldspace == ESM::Cell::sDefaultWorldspaceId;
-        const bool distantTerrain = Settings::terrain().mDistantTerrain;
+        const bool paged = mRenderer.wantsPagedTerrain();
         const double expiryDelay = Settings::cells().mCacheExpiryDelay;
-        if (distantTerrain || groundcover)
+        if (paged || groundcover)
         {
             const int compMapResolution = Settings::terrain().mCompositeMapResolution;
 
