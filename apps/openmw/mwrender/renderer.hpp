@@ -111,6 +111,22 @@ namespace MWRender
         /// business and read it; what is bound to it is not theirs to know.
         virtual SDL_Window* getWindow() const = 0;
 
+        /// Chunk size, in cells, past which the terrain flattens a chunk's layer stack into one
+        /// composite map — or `Terrain::sNoCompositeMap` for a renderer that will never ask for one.
+        ///
+        /// **A composite map is a render target**, which is a thing a renderer either draws into or
+        /// has no way to make. Asking the terrain to build one for a renderer that cannot is how a
+        /// chunk ends up carrying a texture nothing can open.
+        virtual float getTerrainCompositeMapLevel() const = 0;
+
+        /// How far from the eye ground is made at all, in units.
+        ///
+        /// **A frustum's reach and a radius are different questions**, and only the renderer knows
+        /// which one it is asking. What is culled needs the corners of the frustum covered, so
+        /// `cameraDistance` is widened by `fov`; what is traced needs to know how much world exists,
+        /// which is a property of the structure rays are cast against and of no camera at all.
+        virtual float getTerrainViewDistance(float cameraDistance, float fov) const = 0;
+
         /// The world exists; build whatever goes between it and the screen.
         ///
         /// **A second phase because it cannot be a first one.** The renderer is made before there is

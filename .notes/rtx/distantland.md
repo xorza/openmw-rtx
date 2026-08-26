@@ -337,15 +337,46 @@ which still hands `RenderingManager::setViewDistance` the camera setting
 produce visibly more ground, and the trace timer and structure bytes are reported at each so the
 shape of the growth is on record before anyone raises the default.
 
-**6 — hold the frame flat.** Chunks arriving and leaving must not spike: the bake queue is bounded,
-the structures append and recycle slots as they already do, and composites are released with their
-chunks. **Check:** the worst frame and the p99 across a walk that crosses several cell boundaries,
-beside the median — the tree's rule is that a spike is a dropped frame however good the average is.
+**6 — hold the frame flat.** Chunks arriving and leaving must not spike. Two of its three parts
+are already true and were true before it was written: the structures append and recycle slots, and a
+composite is reference-counted with the ground that names it, so it is released with its chunk.
+**What is left is the bake queue**, and it is the whole of the step.
+
+**Where the spike is.** `SceneUploader::hand` runs every frame, and on an `Extended` or `Rebuilt`
+upload it builds a `SceneTextures`, whose constructor bakes every composite among the arriving slots
+before it returns. A boundary bringing eight distant chunks is eight times 28.5 ms in one frame.
+**It cannot be seen from the harness**, which stages its world once: the figure comes out as `build`
+on a load rather than as a frame, which is why this step's own check is a walk in the game.
+
+**Two things found while scoping it, neither obvious from here.**
+
+- **`components/rtx/` is single-threaded throughout** — no work queue, no thread, no mutex. So "off
+  the frame path", which is what the tree's rule asks for when work cannot be made cheap, is not a
+  matter of moving a call: it is a decision about where threads enter the API-neutral core, and it
+  wants making deliberately rather than as a side effect of this. The doc's own answer — draining
+  rows, an incremental slice smaller than one composite — needs none of that, and is the reason it
+  is the answer.
+- **The recipe's lifetime is the real work, not the slicing.** A bake spread over frames has to hold
+  what it is baking from: the layer images (cheap — `osg::ref_ptr`s the manager already keeps), the
+  chunk's masks (owned by the scene, which outlives the chunk), and each layer's `ShadingMap` —
+  which today is a local in `SceneTextures::bakeComposites`, built per call and thrown away. Giving
+  those an owner that survives a frame is most of the change; `TerrainComposite` gaining a
+  `bake(rows)` beside its constructor is the small half.
+
+**And what a chunk shows meanwhile** is the other open question: a placeholder — its top layer's
+diffuse is the honest candidate, being real ground already decoded — or the chunk simply not placed
+until its composite is ready, which needs no placeholder and one more frame of delay on ground that
+has only just arrived.
+
+**Check:** the worst frame and the p99 across a walk that crosses several cell boundaries, beside
+the median — the tree's rule is that a spike is a dropped frame however good the average is. **That
+check waits for M12**, because the tree also says not to bench until the renderer draws everything
+the game has. The implementation does not wait for it; only the number does.
 
 **7 — settle the two views (R3). Done.** `seyda-neen-shore` and `dagon-fel` are the views this
 feature is visible in, and both used to render a bare water quad. Both now come up with ground to
-the horizon and what stands on it: the village, the shoreline and the hills behind Seyda Neen, the
-whole island and its rock stacks at Dagon Fel.
+the horizon and what stands on it: the village, the shoreline and the hills behind Seyda Neen, and
+the whole island with its rock stacks at Dagon Fel.
 
 **Nothing was aimed at them, which is the point of them.** They were fixed by §3.4's fog, §3.5's
 sweep and distant statics arriving — three changes made for other reasons, none of which could say
@@ -359,11 +390,12 @@ interim shading before a bake lands is not, and step 4's fallback has to be a co
 rather than the live stack.
 - **Groundcover.** Another chunk manager on the same path. Out of scope here; it wants its own
 answer and probably its own distance.
-- **How large a composite should be.** What one costs is measured — 28.5 ms at 256 square, in §6
-step 4 — and that is a dropped frame, so step 6's queue has to be bounded in something smaller than
-a whole composite, rows being the obvious slice. What is still open is the size itself: a smaller
-composite is a cheaper bake and a blurrier hillside, and nothing has yet looked at where that
-trades.
+- **How large a composite should be.** `sCompositeExtent` is 512, and one costs 28.5 ms there —
+measured in §6 step 4 — which is a dropped frame, so step 6's queue has to be bounded in something
+smaller than a whole composite, rows being the obvious slice. What is still open is the extent
+itself: it falls with the square, so 256 is a quarter of the cost and a blurrier hillside, and
+nothing has yet looked at where that trades. **Tuning, and therefore M12's** — the shape of the
+queue should not be chosen to make a number look better before the frame is finished.
 - **A composite is baked at one delight strength and then cached.** The painted light has to come
 off during the bake, because the estimate repeats with a texture's tiling and a composite has none —
 which is why `describe()` hands back a neutral shading map and the shader can no longer do it.

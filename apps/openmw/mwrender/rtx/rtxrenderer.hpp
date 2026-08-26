@@ -86,6 +86,14 @@ namespace MWRender
         ~RtxRenderer() override;
 
         int getMaxTextureUnits() const override { return mMaxTextureUnits; }
+
+        /// Never, because this path initialises no OpenGL at all: a composite map is a render
+        /// target, and `Rtx::TerrainComposite` bakes the flattened texture on the CPU instead.
+        float getTerrainCompositeMapLevel() const override;
+
+        /// The distant land radius, which is also what the fog is built to. `cameraDistance` and
+        /// `fov` are a frustum's answer and no ray has one.
+        float getTerrainViewDistance(float cameraDistance, float fov) const override;
         SDL_Window* getWindow() const override { return mWindow; }
 
         void attachWorld(RenderingManager& world, osg::Group& worldRoot) override;

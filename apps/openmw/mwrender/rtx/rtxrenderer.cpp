@@ -32,6 +32,7 @@
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/rtx/camera.hpp>
+#include <components/rtx/distantland.hpp>
 #include <components/rtx/frameimage.hpp>
 #include <components/rtx/frameworld.hpp>
 #include <components/rtx/lightbuilder.hpp>
@@ -46,6 +47,7 @@
 #include <components/sceneutil/screencapture.hpp>
 #include <components/sdlutil/imagetosurface.hpp>
 #include <components/settings/values.hpp>
+#include <components/terrain/chunkmanager.hpp>
 
 #include "../offscreenview.hpp"
 #include "../sceneframe.hpp"
@@ -251,6 +253,16 @@ namespace MWRender
             throw std::runtime_error(std::string("failed to create SDL window: ") + SDL_GetError());
 
         MWRender::setWindowIcon(*mWindow, resourceDir);
+    }
+
+    float RtxRenderer::getTerrainCompositeMapLevel() const
+    {
+        return Terrain::sNoCompositeMap;
+    }
+
+    float RtxRenderer::getTerrainViewDistance(float, float) const
+    {
+        return Rtx::distantLandReach();
     }
 
     void RtxRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot)

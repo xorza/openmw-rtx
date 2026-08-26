@@ -1,6 +1,7 @@
 #include "glrenderer.hpp"
 
 #include <atomic>
+#include <cmath>
 #include <fstream>
 #include <ostream>
 #include <sstream>
@@ -367,6 +368,19 @@ namespace MWRender
         mStage.getEvents().getCurrentEventState()->setWindowRectangle(
             0, 0, graphicsWindow->getTraits()->width, graphicsWindow->getTraits()->height);
     }
+    float GlRenderer::getTerrainCompositeMapLevel() const
+    {
+        return static_cast<float>(std::pow(2, Settings::terrain().mCompositeMapLevel.get()));
+    }
+
+    float GlRenderer::getTerrainViewDistance(const float cameraDistance, const float fov) const
+    {
+        // Since our fog is not radial yet, we should take FOV in account, otherwise terrain near viewing distance may
+        // disappear. Limit FOV here just for sure, otherwise viewing distance can be too high.
+        const float distanceMult = std::cos(osg::DegreesToRadians(std::min(fov, 140.f)) / 2.f);
+        return cameraDistance * (distanceMult ? 1.f / distanceMult : 1.f);
+    }
+
     void GlRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot)
     {
         mResources = world.getResourceSystem();

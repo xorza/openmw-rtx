@@ -48,7 +48,6 @@
 
 #include <components/misc/constants.hpp>
 
-#include <components/terrain/chunkmanager.hpp>
 #include <components/terrain/objectpaging.hpp>
 #include <components/terrain/quadtreeworld.hpp>
 #include <components/terrain/terraingrid.hpp>
@@ -1370,10 +1369,7 @@ namespace MWRender
             setScreenRes(width, height);
         }
 
-        // Since our fog is not radial yet, we should take FOV in account, otherwise terrain near viewing distance may
-        // disappear. Limit FOV here just for sure, otherwise viewing distance can be too high.
-        float distanceMult = std::cos(osg::DegreesToRadians(std::min(fov, 140.f)) / 2.f);
-        mTerrain->setViewDistance(mViewDistance * (distanceMult ? 1.f / distanceMult : 1.f));
+        mTerrain->setViewDistance(mRenderer.getTerrainViewDistance(mViewDistance, fov));
     }
 
     void RenderingManager::setScreenRes(int width, int height)
@@ -1429,14 +1425,11 @@ namespace MWRender
         {
             const int compMapResolution = Settings::terrain().mCompositeMapResolution;
 
-            // **The ray tracer never asks for a composite map.** It is a render target, and that
-            // path initialises no OpenGL at all — so the level goes past every chunk the quad tree
-            // can build, each one arrives as its layer stack, and `Rtx::TerrainComposite` bakes the
-            // flattened texture a distant chunk wants on the CPU instead. Forced rather than left to
-            // `composite map level`: here it is not a tuning knob but a statement about the path.
-            const float compMapLevel = Settings::rtx().mEnabled
-                ? Terrain::sNoCompositeMap
-                : static_cast<float>(std::pow(2, Settings::terrain().mCompositeMapLevel.get()));
+            // **Whether a composite map can be made at all is the renderer's to say**, not a
+            // tuning knob's: it is a render target, and the ray tracing path initialises no OpenGL.
+            // `Terrain::sNoCompositeMap` is what that one answers, so every chunk arrives as its
+            // layer stack and `Rtx::TerrainComposite` bakes the flattened texture on the CPU.
+            const float compMapLevel = mRenderer.getTerrainCompositeMapLevel();
             const int vertexLodMod = Settings::terrain().mVertexLodMod;
             const float maxCompGeometrySize = Settings::terrain().mMaxCompositeGeometrySize;
             const bool debugChunks = Settings::terrain().mDebugChunks;
@@ -1467,8 +1460,7 @@ namespace MWRender
                 mTerrainStorage.get(), Mask_Terrain, worldspace, expiryDelay, Mask_PreCompile, Mask_Debug);
 
         newChunkMgr.mTerrain->setTargetFrameRate(Settings::cells().mTargetFramerate);
-        float distanceMult = std::cos(osg::DegreesToRadians(std::min(mFieldOfView, 140.f)) / 2.f);
-        newChunkMgr.mTerrain->setViewDistance(mViewDistance * (distanceMult ? 1.f / distanceMult : 1.f));
+        newChunkMgr.mTerrain->setViewDistance(mRenderer.getTerrainViewDistance(mViewDistance, mFieldOfView));
         newChunkMgr.mTerrain->enableHeightCullCallback(Settings::terrain().mWaterCulling);
 
         return mWorldspaceChunks.emplace(worldspace, std::move(newChunkMgr)).first->second;

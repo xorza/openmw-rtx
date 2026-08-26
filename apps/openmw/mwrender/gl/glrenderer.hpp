@@ -68,6 +68,9 @@ namespace MWRender
         ~GlRenderer() override;
 
         int getMaxTextureUnits() const override { return mMaxTextureUnits; }
+
+        float getTerrainCompositeMapLevel() const override;
+        float getTerrainViewDistance(float cameraDistance, float fov) const override;
         SDL_Window* getWindow() const override { return mWindow; }
 
         void attachWorld(RenderingManager& world, osg::Group& worldRoot) override;
