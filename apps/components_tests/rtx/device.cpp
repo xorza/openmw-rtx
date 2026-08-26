@@ -10,6 +10,7 @@
 #include <components/rtxvulkan/instance.hpp>
 #include <components/rtxvulkan/physicaldevice.hpp>
 #include <components/rtxvulkan/requirements.hpp>
+#include <components/rtxvulkan/result.hpp>
 #include <components/rtxvulkan/shadermodule.hpp>
 
 #include "harness.hpp"
@@ -62,6 +63,38 @@ namespace Rtx
 #else
             EXPECT_FALSE(instance.hasDebugUtils());
 #endif
+        }
+
+        /// A wait on a device that never answers ends, and says which wait it was.
+        ///
+        /// **The alternative cannot be told from success.** `vkWaitForFences` with no timeout makes a
+        /// device that will never signal and one still working the same call, and a stalled submit
+        /// took the whole suite with it — a wedged process, a GPU at full tilt, and no message. Every
+        /// wait in this renderer now has a deadline; this is the one that proves the deadline fires
+        /// rather than being a number nobody has ever reached.
+        ///
+        /// A fence nothing submits against, and a patience short enough that the test does not sit
+        /// out the real one.
+        TEST_F(RtxDeviceTest, aWaitOnADeviceThatNeverAnswersEndsAndNamesItself)
+        {
+            const VkFenceCreateInfo unsignalled{ .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+
+            VkFence fence = VK_NULL_HANDLE;
+            ASSERT_EQ(vkCreateFence(mHarness->mDevice->getHandle(), &unsignalled, nullptr, &fence), VK_SUCCESS);
+
+            try
+            {
+                awaitVk(mHarness->mDevice->getHandle(), fence, "a submit nobody made", 1'000'000ull);
+                ADD_FAILURE() << "the wait returned, so a device that never answers still looks like success";
+            }
+            catch (const Error& e)
+            {
+                // Named, because a count says a frame is stuck and nothing about which one.
+                EXPECT_NE(std::string(e.what()).find("a submit nobody made"), std::string::npos) << e.what();
+                EXPECT_NE(std::string(e.what()).find("stopped answering"), std::string::npos) << e.what();
+            }
+
+            vkDestroyFence(mHarness->mDevice->getHandle(), fence, nullptr);
         }
 
         TEST_F(RtxDeviceTest, theValidationLayerIsLoaded)

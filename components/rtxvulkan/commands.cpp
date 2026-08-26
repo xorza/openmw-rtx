@@ -90,7 +90,7 @@ namespace Rtx
 
         checkVk(vkResetFences(mDevice.getHandle(), 1, &mFence), "vkResetFences");
         checkVk(vkQueueSubmit2(mDevice.getQueue(), 1, &submit, mFence), "vkQueueSubmit2");
-        checkVk(vkWaitForFences(mDevice.getHandle(), 1, &mFence, VK_TRUE, UINT64_MAX), "vkWaitForFences");
+        awaitVk(mDevice.getHandle(), mFence, "a one-off submit");
 
         vkFreeCommandBuffers(mDevice.getHandle(), mHandle, 1, &commands);
     }

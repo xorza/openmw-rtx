@@ -172,7 +172,7 @@ namespace Rtx
         // the moment a newer one replaces it, so an image can come back round before the present
         // that queued it has consumed its semaphore — the case a count of frames in flight does not
         // cover, because it counts frames rather than images.
-        checkVk(vkWaitForFences(mDevice.getHandle(), 1, &mPresenting[index], VK_TRUE, UINT64_MAX), "vkWaitForFences");
+        awaitVk(mDevice.getHandle(), mPresenting[index], "the present that last used this image");
         checkVk(vkResetFences(mDevice.getHandle(), 1, &mPresenting[index]), "vkResetFences");
 
         const VkCommandBuffer commands = mCommands[index];

@@ -141,11 +141,17 @@ namespace Rtx
 
     bool Swapchain::acquire(VkSemaphore ready, std::uint32_t& index)
     {
+        // **Bounded for the reason `awaitVk` is**, and this is the wait a window is most likely to
+        // sit in: a compositor that stops handing images back is indistinguishable from one that is
+        // merely slow, and forever is not an answer a frame loop can act on.
         const VkResult result
-            = vkAcquireNextImageKHR(mDevice.getHandle(), mHandle, UINT64_MAX, ready, VK_NULL_HANDLE, &index);
+            = vkAcquireNextImageKHR(mDevice.getHandle(), mHandle, sPatience, ready, VK_NULL_HANDLE, &index);
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR)
             return false;
+
+        if (result == VK_TIMEOUT)
+            throw Error(timedOut("the presentation engine's next image", sPatience));
 
         // Suboptimal still produces a usable image; taking it and rebuilding after the present keeps
         // the semaphore that was just signalled from being left dangling.

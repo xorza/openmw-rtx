@@ -19,6 +19,7 @@
 #include <components/rtxvulkan/compositepass.hpp>
 #include <components/rtxvulkan/gbuffer.hpp>
 #include <components/rtxvulkan/image.hpp>
+#include <components/rtxvulkan/result.hpp>
 #include <components/rtxvulkan/sceneacceleration.hpp>
 #include <components/rtxvulkan/scenebuffers.hpp>
 #include <components/rtxvulkan/texture.hpp>
@@ -3735,7 +3736,13 @@ namespace Rtx
                     .pCommandBufferInfos = &buffer,
                 };
                 vkQueueSubmit2(device.getQueue(), 1, &submit, finished);
-                vkWaitForFences(device.getHandle(), 1, &finished, VK_TRUE, ~std::uint64_t{ 0 });
+
+                // **Its own submit, but not its own wait.** The shape above is the point of the test
+                // — a command buffer reused against a fence is what a frame is — so it does not go
+                // through `submitAndWait`, which allocates a buffer per call. The wait is another
+                // matter: forty of them with no deadline is what turned one stalled submit into a
+                // suite that never finished and a process that had to be killed.
+                Rtx::awaitVk(device.getHandle(), finished, "a measured frame");
                 vkResetFences(device.getHandle(), 1, &finished);
             };
 

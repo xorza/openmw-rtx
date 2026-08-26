@@ -86,4 +86,24 @@ namespace Rtx
         message += ')';
         throw Error(message);
     }
+
+    std::string timedOut(const char* what, std::uint64_t patience)
+    {
+        return std::string(what) + " did not complete within " + std::to_string(patience / 1'000'000ull)
+            + " ms; the device has stopped answering";
+    }
+
+    void awaitVk(VkDevice device, VkFence fence, const char* what, std::uint64_t patience)
+    {
+        const VkResult result = vkWaitForFences(device, 1, &fence, VK_TRUE, patience);
+        if (result == VK_SUCCESS)
+            return;
+
+        // Named apart from the other failures, because it is the one that says nothing about what
+        // the device thought was wrong — only that it stopped saying anything at all.
+        if (result == VK_TIMEOUT)
+            throw Error(timedOut(what, patience));
+
+        checkVk(result, what);
+    }
 }

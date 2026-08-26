@@ -77,14 +77,24 @@ reaches it — seconds, not milliseconds — because this is a canary and not a 
 
 **Steps**
 
-1. `CommandPool::submitAndWait` and the presenter wait against a deadline and `throw Error` naming
+1. **Done.** `awaitVk` sits beside `checkVk` — one bounded wait, throwing `Error` naming what was
+   waited on — and `CommandPool::endAndWait`, the presenter's image wait and the swapchain's acquire
+   all go through it. Ten seconds, which no honest submit approaches. **Checked:**
+   `RtxDeviceTest.aWaitOnADeviceThatNeverAnswersEndsAndNamesItself` waits on a fence nothing submits
+   against and gets the error rather than a hang; the deadline is a parameter so the test reaches
    the
-   submit. **Check:** a components test that waits on a fence nothing signals and gets the error
-   rather than a hang.
-2. The frame-cost test submits through the shared path. **Check:** it still measures what it
-   measured
-   — the allocation count is unchanged — and its own `vkWaitForFences` is gone.
-3. The stall itself stays in `ISSUES.md` until it is next seen, now with a message attached.
+   failure in a millisecond instead of sitting out the real one.
+2. **Done, and not as written.** The frame-cost test keeps its own submit — a command buffer reused
+   against a fence is the shape it exists to measure, and `submitAndWait` allocates a buffer per
+   call
+   — but its wait is now `awaitVk`. **Checked:** the allocation count it asserts is unchanged.
+3. **The stall is named, and it is a device loss.** With the deadline in place the test fails in
+   about
+   five seconds with `VK_ERROR_DEVICE_LOST` rather than hanging. That is a real fault on a scene of
+   one
+   wall at 64 by 64, not a slow frame, and it is its own investigation — recorded in `ISSUES.md`
+   with
+   what it says now that it says anything.
 
 ## 3. Distant statics never exist in the harness
 
