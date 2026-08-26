@@ -63,13 +63,12 @@ namespace Rtx
     /// **And a tenth of a medium is not a tenth of a blend.** The ramp mixes a pixel toward a
     /// colour; this air is *lit*, by every lamp that reaches it — `fogLight` — so a room with two
     /// dozen candles in it scatters far more than the recorded colour ever stood for. The two are
-    /// not the same quantity, which is why matching one over-delivers the other. Measured in that
-    /// customs office, the air lifts the frame's black level from 1 of 255 to 48.
+    /// not the same quantity, which is why matching one over-delivers the other.
     ///
-    /// **Six, and it is the one number here set by eye.** What it was set against is not: the same
-    /// black level comes to 27, which is a room with candlelight still hanging in the air under the
-    /// chandelier and no longer a grey floor under everything else. Twelve takes it to 18 and the
-    /// air stops reading as anything at all; three leaves it at 36 and the wash is still there.
+    /// **Ten, and it is the one number here set by eye.** What it was set against is not: unstretched,
+    /// the air in that customs office lifts the frame's black level to 48 of 255 and lays a grey wash
+    /// over the whole room; at ten it comes to 22, which is candlelight still hanging in the air
+    /// under the chandelier and nothing on the floor beneath it.
     ///
     /// **Nothing outdoors is stretched.** Aerial perspective does start at the eye, there is no
     /// clear zone to reproduce, and what the air scatters there is the sky — which is the colour the

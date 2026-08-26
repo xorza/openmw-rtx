@@ -2227,6 +2227,74 @@ namespace Rtx
             EXPECT_EQ(render(spent, osg::Vec3f(), false), 0) << "and one whose reach ends at the wall";
         }
 
+        /// Which side of a surface the light may come from is the triangle's plane's answer, and a
+        /// vertex normal that disagrees does not get to overrule it.
+        ///
+        /// **Morrowind's vertex normals point clean through their own triangles.** A stretch of the
+        /// floor in the Seyda Neen customs office interpolates to one aimed at the ground, on a quad
+        /// whose plane is level to a hundredth — and a normal merely turned to face the *ray* is
+        /// left pointing down there, because at a shallow enough view it already does face the eye.
+        /// A floor with its normal under it drops every lamp overhead on the cosine and sends its
+        /// bounce into itself, which came out as a black band that slid about as the camera moved.
+        ///
+        /// The wall is met at fourteen degrees to its own plane, which is what makes that possible:
+        /// the camera stands at `(200, -50, 0)`, so the ray travels `(-0.970, 0.243, 0)` and a normal
+        /// of `(0.6, 0.8, 0)` — pointing through the wall, away from the lamp — still meets it at
+        /// `-0.388` and passes for facing it.
+        ///
+        /// Three renders, and the arithmetic is the falloff from the lamp test with a cosine on it:
+        ///
+        ///   falloff  = (1 - (50 / 500)^4)^2 / (50^2 + 1)      = 3.99760e-4
+        ///   plane    = 4000 * 0.5 * 1.0 * falloff / pi        = 0.254491 -> 138 of 255
+        ///   tilted   = 4000 * 0.5 * 0.8 * falloff / pi        = 0.203593 -> 125 of 255
+        ///
+        /// The tilted normal is *used* — 125 is its own cosine of 0.8 and not the plane's one — and
+        /// only which side it sits on is taken from the plane. Turned to face the ray instead it
+        /// meets the lamp at minus 0.8 and the pixel is black, which is the whole of the defect.
+        TEST_F(RtxVisibilityTest, aVertexNormalMayTiltAShadingModelButNotChooseWhichSideIsLit)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = (std::size_t{ size / 2 } * size + size / 2) * 4;
+
+            // Fourteen degrees off the wall's own plane, and the centre ray lands exactly on the
+            // origin — so the cosines below are the shading normal's and nothing else's.
+            Shaders::VisibilityConstants camera = makeCamera(
+                osg::Vec3f(200.0f, -50.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+
+            const Light lamp{
+                .mPosition = osg::Vec3f(0.0f, -50.0f, 0.0f),
+                .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
+                .mReach = 500.0f,
+            };
+
+            const auto render = [&](std::span<const osg::Vec3f> normals) {
+                SceneDesc scene;
+                scene.addInstance(MeshInstance{ .mTransform = osg::Matrixf::identity(),
+                    .mMesh = scene.addMesh(sWallQuad, normals, {}, sQuadIndices) });
+                scene.addLight(lamp);
+
+                std::vector<std::uint8_t> pixels;
+                EXPECT_GT(countHits(scene, {}, camera, size, pixels), 0u);
+                return pixels[centre];
+            };
+
+            // No vertex normals at all, so the plane is the whole answer and meets the lamp square.
+            EXPECT_EQ(render({}), 138) << "the plane alone";
+
+            // The same quad with a normal tilted through it, which is the case that was black.
+            const osg::Vec3f through(0.6f, 0.8f, 0.0f);
+            const std::array tilted{ through, through, through, through };
+            EXPECT_EQ(render(tilted), 125) << "a normal authored through its own triangle still lights this side";
+
+            // **And the authored side carries no meaning**, which is what makes the plane the only
+            // thing deciding: negating every vertex normal is the same surface and has to be the
+            // same pixel, to the byte.
+            const std::array flipped{ -through, -through, -through, -through };
+            EXPECT_EQ(render(flipped), render(tilted)) << "which way the normals were authored is not information";
+        }
+
         /// A source with a size casts a penumbra, where a point casts an edge.
         ///
         /// **The whole of a soft shadow is where the shadow ray leaves from.** A lamp is a flame and

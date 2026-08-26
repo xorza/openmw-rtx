@@ -115,8 +115,10 @@ struct Surface
 
     vec3 mPosition;
 
-    /// The shading normal, turned to face the ray. Morrowind's sheet geometry is lit from both
-    /// faces, so the side a ray arrived on is not information.
+    /// The shading normal, turned to the side of the triangle's plane the ray arrived on.
+    /// Morrowind's sheet geometry is lit from both faces, so which side that is carries no meaning
+    /// beyond where the light may come from — and the *plane* is what decides it, never the
+    /// interpolated normal, which on this content routinely points through its own triangle.
     vec3 mNormal;
 
     /// The triangle's own plane, unturned — which is what a question about *sides* has to ask.
@@ -193,7 +195,24 @@ Surface trace(vec3 origin, vec3 direction, float tmin, float footprint, float sp
     const vec3 shading
         = normalAt(corner.x) * weight.x + normalAt(corner.y) * weight.y + normalAt(corner.z) * weight.z;
     const vec3 normal = dot(shading, shading) > 1e-8 ? normalize(mat3(toWorld) * shading) : surface.mGeometric;
-    surface.mNormal = faceforward(normal, direction, normal);
+
+    // **Which side the ray met is the plane's answer, and the shading normal is not allowed to give
+    // a different one.** Morrowind's vertex normals are authored coarsely enough to point clean
+    // through their own triangle: a stretch of the floor in the Seyda Neen customs office
+    // interpolates to one aimed at the ground, on a quad whose plane is level to a hundredth. Turned
+    // to face the *ray* that normal is left pointing down — it already does face a camera looking
+    // along the floor — and a floor with a normal under it drops every lamp overhead on the cosine
+    // and sends its bounce into itself. That is the black band, and it slid about as the camera
+    // moved because which way a bad normal is turned depended on where the eye was.
+    //
+    // So the plane is turned to the ray first, and the shading normal is brought to the side it
+    // names. **Sheets still light from both faces**, which is what the turn is for at all: a
+    // tapestry met from behind has its plane turned toward the ray like anything else, and its
+    // normal follows. And the winding drops out — flipping it flips the plane, which the turn
+    // undoes — so the two hundredths of a percent of triangles wound against their own normals are
+    // not a case this has to be right about.
+    const vec3 facing = faceforward(surface.mGeometric, direction, surface.mGeometric);
+    surface.mNormal = dot(normal, facing) < 0.0 ? -normal : normal;
 
     const GpuMaterial material = materials[instance.mMaterial];
     surface.mWater = material.mKind == KIND_WATER;

@@ -58,20 +58,20 @@ namespace Rtx
         {
             constexpr float view = 7168.0f;
 
-            // Six times the range is a sixth of the extinction: an exponential's half-life is
+            // Ten times the range is a tenth of the extinction: an exponential's half-life is
             // exactly the distance it is measured over.
-            EXPECT_FLOAT_EQ(interiorFogReach(view), 6.0f * view);
-            EXPECT_NEAR(fogExtinction(0.69f, interiorFogReach(view)) / fogExtinction(0.69f, view), 1.0f / 6.0f, 1e-6f)
+            EXPECT_FLOAT_EQ(interiorFogReach(view), 10.0f * view);
+            EXPECT_NEAR(fogExtinction(0.69f, interiorFogReach(view)) / fogExtinction(0.69f, view), 0.1f, 1e-6f)
                 << "a room is thinner than the ramp it came from, by the stretch and by nothing else";
 
             // The Seyda Neen customs office, whose depth of 0.75 is what the numbers in
             // `interiorFogReach` were measured against:
             //
-            //   sigma = ln(2) / (6 * 7168 * (1 - 0.375)) = 2.5787e-5 per unit
+            //   sigma = ln(2) / (10 * 7168 * (1 - 0.375)) = 1.5472e-5 per unit
             //
             // against the 1.5472e-4 the unstretched conversion gives, which is what put a tenth of a
             // lamp-lit medium between the eye and a wall seven hundred units away.
-            EXPECT_NEAR(fogExtinction(0.75f, interiorFogReach(view)), 2.5787e-5f, 1e-9f);
+            EXPECT_NEAR(fogExtinction(0.75f, interiorFogReach(view)), 1.5472e-5f, 1e-9f);
 
             // **Proportional and not a floor**, so a denser room is still the denser one: foggy's
             // 1.0 against clear's 0.69 keeps exactly the ratio it had before the stretch.
