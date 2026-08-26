@@ -6,6 +6,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -52,6 +53,10 @@ namespace Rtx
         /// Distinct geometry met for the first time, so one new entry in the scene each.
         std::uint32_t mMeshesAdded = 0;
         std::uint32_t mMaterialsAdded = 0;
+
+        /// Ground wide enough that its layer stack is baked into one texture rather than shaded a
+        /// layer at a time. Distant chunks and nothing else — see `sCompositeFrom`.
+        std::uint32_t mComposites = 0;
 
         /// Drawables that resolved to something already known. A count of lookups, not of meshes:
         /// a hundred crates sharing one model contribute a hundred here and one above.
@@ -433,6 +438,15 @@ namespace Rtx
         /// passes are read back into layers and summed there instead.
         Index resolveTerrainMaterial(const Terrain::TerrainDrawable& terrain, ExtractionStats& stats);
 
+        /// Names the composite a chunk's stack would bake into, in `mCompositeKey`.
+        ///
+        /// **The same identity the material cache is keyed on**, so a chunk met again finds the
+        /// composite it already had rather than baking a second one for the same ground.
+        ///
+        /// The view is the scratch itself and the next call overwrites it, which is all a caller
+        /// handing it straight to `SceneDesc::addBakedTexture` needs.
+        std::string_view nameComposite(const osg::StateSet& identity);
+
         SceneDesc& mScene;
 
         /// An entry in one of the identity maps, and when it was last met.
@@ -533,6 +547,10 @@ namespace Rtx
         /// One terrain material's layers, refilled per chunk: a run is allocated by length and the
         /// length is only known once the passes with no texture on them have been passed over.
         std::vector<MaterialLayer> mLayerScratch;
+
+        /// Refilled by `nameComposite` rather than built afresh: a cell arriving is the frame that
+        /// can least afford a string per chunk.
+        std::string mCompositeKey;
 
         /// One emitter's sprites, refilled per particle system: the count is only known once the
         /// dead ones have been passed over, and a cell holds tens of these every frame.

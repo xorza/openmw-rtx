@@ -15,6 +15,7 @@
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/constants.hpp>
 #include <components/platform/platform.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/fogbuilder.hpp>
@@ -176,6 +177,22 @@ namespace RtxTool
         /// Who stands in the region, from the command line. **One reading of it**, because a
         /// report that described a differently populated cell than the one `shot` renders is the
         /// drift this tool exists to catch.
+        /// Applies both terrain options at once.
+        ///
+        /// **Together, because they are read together everywhere.** Paging without distance is a
+        /// quad tree that barely leaves the active grid, and a command that set one and forgot the
+        /// other would be rendering a different world from the one its line asked for.
+        void pageTerrainFrom(World& world, const bpo::variables_map& variables)
+        {
+            world.pageTerrain(variables["distant-terrain"].as<bool>());
+
+            // Zero leaves `viewing distance` in charge, which is what everything not looking for
+            // distance gets.
+            const float cells = variables["distant-cells"].as<float>();
+            if (cells > 0.0f)
+                world.setTerrainViewDistance(cells * static_cast<float>(Constants::CellSizeInUnits));
+        }
+
         ActorRequest actorsFrom(const bpo::variables_map& variables)
         {
             return ActorRequest{
@@ -498,7 +515,7 @@ namespace RtxTool
             {
                 const Chosen chosen = chooseView(variables, resources);
                 World world(config, variables, resources);
-                world.pageTerrain(variables["distant-terrain"].as<bool>());
+                pageTerrainFrom(world, variables);
 
                 const ESM::Cell* cell = findCellOrComplain(world, chosen.mCell);
                 if (cell == nullptr)
@@ -543,7 +560,7 @@ namespace RtxTool
                 const PictureRequest request = pictureFrom(variables, resources, 1024, 1024);
 
                 World world(config, variables, resources);
-                world.pageTerrain(variables["distant-terrain"].as<bool>());
+                pageTerrainFrom(world, variables);
 
                 const ESM::Cell* cell = findCellOrComplain(world, chosen.mCell);
                 if (cell == nullptr)
@@ -556,7 +573,7 @@ namespace RtxTool
             {
                 const Chosen chosen = chooseView(variables, resources);
                 World world(config, variables, resources);
-                world.pageTerrain(variables["distant-terrain"].as<bool>());
+                pageTerrainFrom(world, variables);
 
                 const ESM::Cell* cell = findCellOrComplain(world, chosen.mCell);
                 if (cell == nullptr)
@@ -600,7 +617,7 @@ namespace RtxTool
                     = asked ? validationFrom(variables, false) : Rtx::ValidationOptions{};
 
                 World world(config, variables, resources);
-                world.pageTerrain(variables["distant-terrain"].as<bool>());
+                pageTerrainFrom(world, variables);
 
                 return runVerify(world, validation, request);
             }
@@ -651,7 +668,7 @@ namespace RtxTool
                     = asked ? validationFrom(variables, request.mWindow) : Rtx::ValidationOptions{};
 
                 World world(config, variables, resources);
-                world.pageTerrain(variables["distant-terrain"].as<bool>());
+                pageTerrainFrom(world, variables);
 
                 return runBench(world, validation, request);
             }
@@ -669,7 +686,7 @@ namespace RtxTool
                 const ActorRequest actors = actorsFrom(variables);
 
                 World world(config, variables, resources);
-                world.pageTerrain(variables["distant-terrain"].as<bool>());
+                pageTerrainFrom(world, variables);
 
                 if (command == "view")
                 {

@@ -214,6 +214,13 @@ namespace RtxTool
             "them to nothing, so this is the only way anything headless can see whether the ground "
             "is reached at all");
 
+        addOption("distant-cells", bpo::value<float>()->default_value(0.0f),
+            "with `--distant-terrain`, how far out the quad tree may make ground, in cells. Zero "
+            "leaves `viewing distance` in charge, which is 7168 against a cell of 8192 and so "
+            "barely leaves the active grid. **The only way to look at distant land**: past a cell a "
+            "chunk's layer stack is flattened into one baked texture, and nothing else reaches that "
+            "path");
+
         addOption("against", bpo::value<std::string>()->default_value(""),
             "with `verify`, a directory a previous `verify` wrote, to subtract this run from. The "
             "reference is always a run of the previous build on this machine and never a corpus in "

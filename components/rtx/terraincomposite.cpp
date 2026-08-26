@@ -72,12 +72,57 @@ namespace Rtx
             return std::lerp(top, bottom, down.mAcross);
         }
 
-        /// One level of a texture at a point, bilinear, repeating and in light.
+        /// One level of a layer's diffuse, decoded to linear once.
+        ///
+        /// **Decoded up front rather than a block per tap.** The level a bake reads is the one whose
+        /// texels are the size of one composite texel, so for ground tiling sixty times across a
+        /// chunk it is a handful of texels square — while the composite takes a quarter of a million
+        /// samples from it. Reading a compressed block at every tap made a chunk cost 56 ms; reading
+        /// each level once makes every tap an array lookup and changes not one texel of the answer.
+        struct Decoded
+        {
+            std::vector<osg::Vec3f> mTexels;
+            std::uint32_t mWidth = 0;
+            std::uint32_t mHeight = 0;
+
+            bool isEmpty() const { return mTexels.empty(); }
+        };
+
+        Decoded decodeLevel(const TextureData& texture, const MipLevel& level)
+        {
+            Decoded made;
+            made.mWidth = level.mWidth;
+            made.mHeight = level.mHeight;
+            made.mTexels.reserve(std::size_t{ level.mWidth } * level.mHeight);
+
+            const bool encoded = isSrgb(texture.mFormat);
+            for (std::uint32_t y = 0; y < level.mHeight; ++y)
+                for (std::uint32_t x = 0; x < level.mWidth; ++x)
+                {
+                    const osg::Vec3f stored = texelAt(texture, level, x, y);
+                    made.mTexels.push_back(encoded
+                            ? osg::Vec3f(toLinear(stored.x()), toLinear(stored.y()), toLinear(stored.z()))
+                            : stored);
+                }
+
+            return made;
+        }
+
+        /// One layer's diffuse, reduced to the two levels the whole bake will read and how far it
+        /// sits between them.
+        struct Sampled
+        {
+            Decoded mFine;
+            Decoded mCoarse;
+            float mBetween = 0.0f;
+        };
+
+        /// One decoded level at a point, bilinear and repeating.
         ///
         /// Repeating because the ground tiles and the one sampler every texture in this scene shares
         /// repeats with it — a bake that clamped would smear the last row of a ground texture across
         /// the whole of the chunk it runs off the edge of.
-        osg::Vec3f bilinear(const TextureData& texture, const MipLevel& level, float u, float v)
+        osg::Vec3f bilinear(const Decoded& level, float u, float v)
         {
             const Between across = between(u, level.mWidth);
             const Between down = between(v, level.mHeight);
@@ -92,13 +137,8 @@ namespace Rtx
             const std::uint32_t firstY = wrap(down.mLow, level.mHeight);
             const std::uint32_t secondY = wrap(down.mLow + 1, level.mHeight);
 
-            const bool encoded = isSrgb(texture.mFormat);
-            const auto fetch = [&](std::uint32_t column, std::uint32_t row) {
-                const osg::Vec3f stored = texelAt(texture, level, column, row);
-                if (!encoded)
-                    return stored;
-
-                return osg::Vec3f(toLinear(stored.x()), toLinear(stored.y()), toLinear(stored.z()));
+            const auto fetch = [&](std::uint32_t column, std::uint32_t row) -> const osg::Vec3f& {
+                return level.mTexels[std::size_t{ row } * level.mWidth + column];
             };
 
             const osg::Vec3f top
@@ -109,40 +149,36 @@ namespace Rtx
             return top * (1.0f - down.mAcross) + bottom * down.mAcross;
         }
 
-        /// A texture at a point and a fractional level, trilinear between the two around it.
-        osg::Vec3f sampleLinear(const TextureData& texture, float level, float u, float v)
+        /// A prepared layer at a point, trilinear between the two levels it kept.
+        osg::Vec3f sampleLinear(const Sampled& layer, float u, float v)
         {
-            if (texture.mLevels.empty())
+            if (layer.mFine.isEmpty())
                 return osg::Vec3f();
 
-            const auto deepest = static_cast<std::uint32_t>(texture.mLevels.size() - 1);
-            const float at = std::clamp(level, 0.0f, static_cast<float>(deepest));
-            const auto fine = static_cast<std::uint32_t>(at);
-            const std::uint32_t coarse = std::min(fine + 1, deepest);
-            const float deeper = at - static_cast<float>(fine);
+            if (layer.mBetween <= 0.0f || layer.mCoarse.isEmpty())
+                return bilinear(layer.mFine, u, v);
 
-            if (deeper <= 0.0f || coarse == fine)
-                return bilinear(texture, texture.mLevels[fine], u, v);
-
-            return bilinear(texture, texture.mLevels[fine], u, v) * (1.0f - deeper)
-                + bilinear(texture, texture.mLevels[coarse], u, v) * deeper;
+            return bilinear(layer.mFine, u, v) * (1.0f - layer.mBetween)
+                + bilinear(layer.mCoarse, u, v) * layer.mBetween;
         }
 
-        /// The level of a layer's diffuse whose texels are the size of one composite texel.
+        /// Decodes the two levels of a layer's diffuse whose texels are the size of a composite
+        /// texel, which is all of it the bake will ever read.
         ///
         /// **A point sample of a tiling texture is noise at this scale.** A chunk several cells
         /// across tiles its ground hundreds of times, so one output texel covers hundreds of input
         /// ones; reading the finest level picks an arbitrary one of them and the chunk comes out
         /// speckled rather than the colour the ground averages to.
         ///
-        /// Constant across the whole composite, because the transform is: worked out once a layer
-        /// rather than once a texel, for an answer that cannot change.
-        float levelFor(const CompositeLayer& layer, std::uint32_t extent)
+        /// The level is constant across the whole composite because the transform is, which is what
+        /// makes decoding it once possible at all.
+        Sampled prepare(const CompositeLayer& layer, std::uint32_t extent)
         {
-            if (layer.mDiffuse.mLevels.empty())
-                return 0.0f;
+            const TextureData& texture = layer.mDiffuse;
+            if (texture.mLevels.empty())
+                return Sampled{};
 
-            const MipLevel& finest = layer.mDiffuse.mLevels.front();
+            const MipLevel& finest = texture.mLevels.front();
             const float texelsAcross = std::abs(layer.mDiffuseTransform.x()) * static_cast<float>(finest.mWidth);
             const float texelsDown = std::abs(layer.mDiffuseTransform.y()) * static_cast<float>(finest.mHeight);
 
@@ -151,7 +187,19 @@ namespace Rtx
             const float footprint
                 = std::max({ texelsAcross, texelsDown, static_cast<float>(extent) }) / static_cast<float>(extent);
 
-            return std::log2(footprint);
+            const auto deepest = static_cast<std::uint32_t>(texture.mLevels.size() - 1);
+            const float wanted = std::clamp(std::log2(footprint), 0.0f, static_cast<float>(deepest));
+            const auto fine = static_cast<std::uint32_t>(wanted);
+            const std::uint32_t coarse = std::min(fine + 1, deepest);
+
+            Sampled made;
+            made.mFine = decodeLevel(texture, texture.mLevels[fine]);
+            made.mBetween = wanted - static_cast<float>(fine);
+
+            if (made.mBetween > 0.0f && coarse != fine)
+                made.mCoarse = decodeLevel(texture, texture.mLevels[coarse]);
+
+            return made;
         }
 
         std::byte encodeByte(float linear)
@@ -166,9 +214,9 @@ namespace Rtx
         assert(!layers.empty() && "a composite of no layers is a chunk with no ground at all");
         assert(extent > 0 && std::has_single_bit(extent) && "a composite extent the chain cannot halve to one texel");
 
-        std::vector<float> levels(layers.size());
+        std::vector<Sampled> ground(layers.size());
         for (std::size_t i = 0; i < layers.size(); ++i)
-            levels[i] = levelFor(layers[i], extent);
+            ground[i] = prepare(layers[i], extent);
 
         std::vector<osg::Vec3f> light(std::size_t{ extent } * extent);
         for (std::uint32_t y = 0; y < extent; ++y)
@@ -188,7 +236,7 @@ namespace Rtx
                     const float atU = u * layer.mDiffuseTransform.x() + layer.mDiffuseTransform.z();
                     const float atV = v * layer.mDiffuseTransform.y() + layer.mDiffuseTransform.w();
 
-                    osg::Vec3f colour = sampleLinear(layer.mDiffuse, levels[i], atU, atV);
+                    osg::Vec3f colour = sampleLinear(ground[i], atU, atV);
 
                     // **The layer's own texel, at the layer's own tiled coordinates.** The estimate
                     // repeats with the texture and this is the last point at which that tiling is

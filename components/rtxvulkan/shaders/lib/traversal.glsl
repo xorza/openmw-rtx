@@ -203,11 +203,16 @@ Surface trace(vec3 origin, vec3 direction, float tmin, float footprint, float sp
     triangleUvs(corner, uv);
 
     vec3 albedo = NO_TEXTURE_ALBEDO;
-    if (material.mKind == KIND_TERRAIN)
+
+    // **Ground that kept its stack**, which is every chunk near enough to be worth the sharpness.
+    // A chunk wide enough to be distant had the whole stack flattened into one texture in its own
+    // coordinates instead, and falls through to the single fetch below — which is what it now is.
+    // `Rtx::sCompositeFrom` is where the two swap over.
+    if (material.mKind == KIND_TERRAIN && material.mDiffuse == NO_TEXTURE)
     {
-        // Ground. Each layer is a tiling texture masked by its own grid of weights, and the stack
-        // sums to one where the masks were built to — the same sum the rasterizer reaches by drawing
-        // the layers over each other with additive blending and one pass apiece.
+        // Each layer is a tiling texture masked by its own grid of weights, and the stack sums to
+        // one where the masks were built to — the same sum the rasterizer reaches by drawing the
+        // layers over each other with additive blending and one pass apiece.
         albedo = vec3(0.0);
         const vec2 chunkUv = interpolate(uv, weight);
         for (uint i = 0u; i < material.mLayerCount; ++i)

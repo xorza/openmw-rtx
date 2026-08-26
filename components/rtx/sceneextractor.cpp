@@ -5,6 +5,7 @@
 
 #include "lightbuilder.hpp"
 #include "posecull.hpp"
+#include "terraincomposite.hpp"
 
 #include <osg/BlendFunc>
 #include <osg/FrameStamp>
@@ -20,6 +21,8 @@
 
 #include <array>
 #include <cassert>
+#include <charconv>
+#include <cstdint>
 #include <functional>
 #include <span>
 
@@ -1124,10 +1127,41 @@ namespace Rtx
         material.mLayerOffset = run.mOffset;
         material.mLayerCount = run.mCount;
 
+        // **A chunk this wide is a shading question and not only a texturing one.** It covers whole
+        // cells and carries every ground type in them, so shading it live costs a mask lookup and a
+        // texture fetch per layer at every hit — and once there is distance to look at, distant hits
+        // are most of the pixels. Past a cell the stack is flattened into one texture and a hit
+        // takes a single fetch; the layers stay, because they are the recipe the bake reads.
+        //
+        // **A single layer is already a single fetch**, and flattening one would do nothing but
+        // resample a tiling ground texture into something coarser than the file it came from.
+        const osg::BoundingBox& bounds = terrain.getBoundingBox();
+        const float across = std::max(bounds.xMax() - bounds.xMin(), bounds.yMax() - bounds.yMin());
+
+        if (mLayerScratch.size() > 1 && across >= sCompositeFrom)
+        {
+            material.mDiffuse = mScene.addBakedTexture(nameComposite(*identity));
+            ++stats.mComposites;
+        }
+
         const Index index = mScene.addMaterial(material);
         mMaterials.emplace(identity, Known{ .mIndex = index, .mEpoch = mEpoch });
         ++stats.mMaterialsAdded;
         return index;
+    }
+
+    std::string_view SceneExtractor::nameComposite(const osg::StateSet& identity)
+    {
+        // Hexadecimal into a fixed buffer, so refilling the key costs no allocation once the string
+        // has the capacity — the address is the identity and its spelling only has to be unique.
+        std::array<char, sizeof(std::uintptr_t) * 2> digits{};
+        const auto value = reinterpret_cast<std::uintptr_t>(&identity);
+        const auto written = std::to_chars(digits.data(), digits.data() + digits.size(), value, 16);
+
+        mCompositeKey.assign("chunk/");
+        mCompositeKey.append(digits.data(), written.ptr);
+
+        return mCompositeKey;
     }
 
     Index SceneExtractor::resolveMesh(

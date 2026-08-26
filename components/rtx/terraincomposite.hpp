@@ -7,10 +7,36 @@
 
 #include <osg/Vec4f>
 
+#include <components/misc/constants.hpp>
+
 #include "texturedata.hpp"
 
 namespace Rtx
 {
+    /// How wide a chunk has to be before its stack is flattened rather than shaded live.
+    ///
+    /// **One cell, which is the same answer the rasterizer reaches** — `chunkSize >= 1` is what
+    /// `ChunkManager` composites at, and a quad tree only builds a chunk that wide once distance has
+    /// already cost it its geometric detail. Shading detail going with it is consistent rather than
+    /// arbitrary.
+    inline constexpr float sCompositeFrom = static_cast<float>(Constants::CellSizeInUnits);
+
+    /// How large a baked composite is, square.
+    ///
+    /// The rasterizer's `composite map resolution` in all but name, and its default; stated here
+    /// rather than read from it because this path forces that setting past every chunk and would be
+    /// taking a number from a knob it has just declared meaningless.
+    inline constexpr std::uint32_t sCompositeExtent = 512;
+
+    /// How much painted light a bake divides out.
+    ///
+    /// **Full, because that is what every frame asks for.** The strength is a frame constant the
+    /// shader reads, and a composite cannot be corrected later — the estimate repeats with a
+    /// texture's tiling and a composite has none. `--delight` therefore reaches the near field and
+    /// not distant ground, which is a diagnostic knob telling half a story rather than a wrong
+    /// picture.
+    inline constexpr float sCompositeDelight = 1.0f;
+
     /// One layer of the stack a chunk's ground is drawn from, as a bake needs it.
     ///
     /// The same four facts `MaterialLayer` carries, with the images themselves in place of the slots
@@ -52,10 +78,14 @@ namespace Rtx
     /// divided out, is weighted by its mask and only then re-encoded — the same order the shader
     /// reaches at a hit, and the reason a half-and-half blend comes out at 188 rather than 128.
     ///
-    /// **Not on the frame path.** The cost is one trilinear fetch per layer per output texel, which
-    /// for a large chunk and a full stack is millions of them; a frame that bakes one is a dropped
-    /// frame however good the average is. What the unit of incremental work should be is the
-    /// question the caller has to answer.
+    /// **Not on the frame path, and the number says why.** A chunk of a four-cell region costs
+    /// **28.5 ms** to flatten, measured over the 73 of them Balmora produces at that radius. A frame
+    /// that bakes one is a dropped frame however good the average is, and a cell boundary bringing
+    /// eight is a quarter of a second — so the unit of incremental work a caller drains has to be
+    /// smaller than a whole composite.
+    ///
+    /// It was twice that until the sampling below stopped decoding a compressed block at every tap;
+    /// what is left is a quarter of a million output texels, each summing the stack.
     class TerrainComposite
     {
     public:

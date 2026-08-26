@@ -18,6 +18,8 @@
 #include <components/misc/constants.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtx/sceneextractor.hpp>
+#include <components/rtx/terraincomposite.hpp>
+#include <components/rtx/texturebuilder.hpp>
 
 #include <apps/rtxtool/cellscene.hpp>
 #include <apps/rtxtool/world.hpp>
@@ -239,6 +241,78 @@ namespace RtxTool
                         << "a ground layer whose diffuse came from no file";
                 }
             }
+        }
+
+        /// Ground past a cell is drawn from one baked texture, and the uploader can read it.
+        ///
+        /// **The other half of `sNoCompositeMap`.** Refusing the render target left a distant chunk
+        /// with its whole layer stack, which is a mask lookup and a texture fetch per layer at every
+        /// hit; flattening it is what turns that back into one fetch. The slot is an image nothing
+        /// can open, so what says it worked is that `SceneTextures` describes it rather than
+        /// counting it unreadable and drawing the stand-in.
+        ///
+        /// A radius barely past the grid, because every composite in the scene is baked here and each
+        /// one costs tens of milliseconds — the figure `distantland.md` records and step 6 has to
+        /// build a queue around.
+        TEST(RtxPagedTerrainTest, groundPastACellIsFlattenedIntoOneTextureTheUploaderCanRead)
+        {
+            Files::ConfigurationManager config;
+            bpo::variables_map variables;
+            const std::unique_ptr<World> world = openWorld(config, variables);
+            if (world == nullptr)
+                GTEST_SKIP() << "no Morrowind installation configured";
+
+            const ESM::Cell* cell = world->findCell(std::string(sOutdoors));
+            ASSERT_NE(cell, nullptr);
+
+            world->pageTerrain(true);
+            world->setTerrainViewDistance(1.25f * sCellSize);
+
+            Rtx::SceneDesc scene;
+            placeOutdoors(*world, *cell, scene, true);
+
+            std::vector<Rtx::Index> flattened;
+            for (const Rtx::Material& material : scene.getMaterials())
+            {
+                if (material.mKind == Rtx::MaterialKind::Terrain && material.mDiffuse != Rtx::sNoIndex)
+                    flattened.push_back(material.mDiffuse);
+            }
+
+            ASSERT_FALSE(flattened.empty()) << "no chunk was wide enough to be flattened";
+
+            const Rtx::SceneTextures described(scene, world->getImageManager());
+            EXPECT_EQ(described.getUnreadable(), 0u) << "a composite the uploader would draw grey";
+
+            // The whole chunk in one texel, per composite. Different ground averages to a different
+            // colour, so a bake that read no mask — or read the same layer every time — comes back
+            // with one answer for all of them.
+            std::vector<std::uint32_t> averages;
+            std::uint32_t found = 0;
+
+            for (const Rtx::TextureData& data : described.getDescriptions())
+            {
+                if (std::find(flattened.begin(), flattened.end(), data.mSlot) == flattened.end())
+                    continue;
+
+                ++found;
+                EXPECT_EQ(data.mFormat, Rtx::TextureFormat::Rgba8Srgb);
+                EXPECT_EQ(data.mWidth, Rtx::sCompositeExtent);
+                EXPECT_EQ(data.mHeight, Rtx::sCompositeExtent);
+                ASSERT_EQ(data.mLevels.size(), 10u) << "512 square down to a single texel";
+
+                const Rtx::MipLevel& last = data.mLevels.back();
+                ASSERT_EQ(last.mWidth, 1u);
+                averages.push_back(std::to_integer<std::uint32_t>(data.mBytes[last.mOffset]) << 16
+                    | std::to_integer<std::uint32_t>(data.mBytes[last.mOffset + 1]) << 8
+                    | std::to_integer<std::uint32_t>(data.mBytes[last.mOffset + 2]));
+            }
+
+            EXPECT_EQ(found, flattened.size()) << "a composite the scene names and the uploader never described";
+
+            const auto sameAsFirst
+                = [&](std::uint32_t colour) { return averages.empty() || colour == averages.front(); };
+            EXPECT_FALSE(std::all_of(averages.begin(), averages.end(), sameAsFirst))
+                << "every chunk in the region averages to one colour, so nothing was read from the masks";
         }
     }
 }

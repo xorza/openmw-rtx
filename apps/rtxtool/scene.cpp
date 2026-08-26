@@ -58,6 +58,7 @@ namespace RtxTool
             << "  lights:               " << staged.getScene().getLights().size() << " casting, ambient "
             << report.mAmbient.x() << ", " << report.mAmbient.y() << ", " << report.mAmbient.z() << '\n'
             << "  deforming drawables:  " << stats.mDeformed << '\n'
+            << "  flattened ground:     " << stats.mComposites << " chunks past a cell\n"
             << "  emitters:             " << stats.mEmitters << " holding " << stats.mSprites << " live particles\n"
             << "  residents:            " << staged.getActorCount() << " posed, " << staged.getPropCount()
             << " live props\n";

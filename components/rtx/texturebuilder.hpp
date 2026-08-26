@@ -1,11 +1,13 @@
 #pragma once
 
 #include <span>
+#include <unordered_map>
 #include <vector>
 
 #include <osg/Image>
 
 #include "scenedesc.hpp"
+#include "terraincomposite.hpp"
 #include "texturedata.hpp"
 
 namespace Resource
@@ -80,6 +82,12 @@ namespace Rtx
     private:
         void describe(const SceneDesc& scene, Resource::ImageManager& images, std::span<const Index> slots);
 
+        /// Flattens the layer stack of every chunk among `kept` wide enough to have asked for one.
+        ///
+        /// @param expected how many baked slots `kept` holds, so the tables below are reserved once.
+        void bakeComposites(
+            const SceneDesc& scene, Resource::ImageManager& images, std::span<const Index> kept, std::size_t expected);
+
         std::vector<osg::ref_ptr<const osg::Image>> mImages;
 
         /// Every texture's estimated lighting, back to back and `SHADING_EXTENT` squared apiece.
@@ -93,6 +101,14 @@ namespace Rtx
         std::vector<MipLevel> mLevels;
 
         std::vector<TextureData> mDescriptions;
+
+        /// The ground this baked, by the slot it belongs to.
+        ///
+        /// **Owned here because a description spans it**, and thrown away with the rest when the
+        /// upload has read it: a composite that is still standing was copied to the device on the
+        /// frame it arrived, and only a reset asks for it again — which asks for everything again.
+        std::unordered_map<Index, TerrainComposite> mComposites;
+
         std::uint32_t mUnreadable = 0;
     };
 }

@@ -223,18 +223,50 @@ measurable. **Checked:** two placements of one cell differing only in how far th
 asserting that distance adds no placement with nothing to point at, and that every ground layer's
 diffuse names a real file. Against the unforced tree it fails on exactly that count — 5 against 32.
 
-**4 — choose the bake at distance (R2, D2).** `resolveTerrainMaterial` takes the chunk's size and
-either builds the stack or asks for the composite. Bakes go on a queue drained a bounded amount per
-frame; a chunk with no composite yet shades from its stack. `SceneTextures::describe`
-(`texturebuilder.cpp:161`) is the reader that has to learn: it resolves every slot it does not think
-free through `ImageManager`, so a baked one reaches it today as a grey stand-in logged against an
-empty path. **Check:** the byte comparison on the nine views is unchanged — the active grid must not
-move a pixel — and distant ground is textured rather than grey.
+**4 — choose the bake at distance (R2, D2). Done.** `resolveTerrainMaterial` builds the stack as
+before and, for a chunk at least a cell across with more than one layer, also takes a baked slot and
+puts it on `material.mDiffuse`. The layers stay: they are the recipe. `SceneTextures` is where the
+bake happens, because that is where a texture becomes bytes — it resolves the layer diffuses through
+the same `ImageManager`, estimates each one's painted light, and hands the stack to
+`TerrainComposite`. **No new lifetime**: `holdMaterialTextures` already holds `mDiffuse`, so a
+composite is reference-counted with the ground that names it and freed when the chunk goes. **No new
+GPU field**: a flattened chunk falls through to the same single-fetch branch as any other surface,
+because that is what it now is. The harness gained `--distant-cells`, which is the only way to reach
+the path at all and which step 5 folds into a setting.
+
+**Not R2 as written.** The doc had `resolveTerrainMaterial` taking the chunk's size as a parameter;
+it reads the drawable's own bounding box instead, so nothing above it had to learn to pass anything
+down.
+
+**Checked:** the three byte-compared views are unchanged — the near field builds no composite, so it
+must not and does not move a pixel — and a components test bakes a region's worth, asserts
+`SceneTextures` describes every one rather than counting it unreadable, and asserts they do not all
+average to the same colour.
+
+**What it costs, measured at Balmora with `--distant-cells=4`** against the same view with none,
+both `--distant-terrain`:
+
+| | textures | texture bytes | structures | scene build |
+|---|---|---|---|---|
+| no distance | 377 | 15 MiB | 19 MiB | 530 ms |
+| four cells | 450 | 67 MiB | 40 MiB | 2613 ms |
+
+**73 composites, 2083 ms — 28.5 ms each**, and 52 MiB of texture memory. It was 56 ms each until the
+bake stopped decoding a compressed block at every tap: the level it reads is the one whose texels
+are the size of a composite texel, which for ground tiling sixty times across a chunk is a handful
+of texels square, so both levels are now decoded once up front and every tap is an array lookup.
+Byte-identical, and the only optimisation taken — the rest waits for M12 and a finished frame.
+
+**28.5 ms is still a dropped frame**, which is what step 6 exists to answer. It is stated here
+rather than acted on: a cell boundary bringing eight distant chunks is a quarter of a second, so the
+queue has to be bounded in something smaller than a whole composite.
 
 **5 — give the radius its own setting (D3).** `[RTX] distant land cells`, default 4, in the game and
 the harness — a knob rather than a constant, because four is where this starts and not where the
-hardware stops. **Check:** 1, 2 and 4 cells each produce visibly more ground, and the trace timer and
-structure bytes are reported at each so the shape of the growth is on record before anyone raises the
+hardware stops. **Check:** 1, 2 and 4 cells each produce visibly more ground, and the trace timer
+and
+structure bytes are reported at each so the shape of the growth is on record before anyone raises
+the
 default.
 
 **6 — hold the frame flat.** Chunks arriving and leaving must not spike: the bake queue is bounded,

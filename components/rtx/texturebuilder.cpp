@@ -58,6 +58,23 @@ namespace Rtx
 
     namespace
     {
+        /// The decoded image behind a path, or null where the world does not have one.
+        ///
+        /// **Null and a throw are both answers here.** A path that names nothing, and a decoder that
+        /// will not have it, are the world's business rather than a broken contract — and the caller
+        /// has to carry on either way, because what it is building is a description of every slot.
+        osg::ref_ptr<const osg::Image> openImage(Resource::ImageManager& images, const VFS::Path::Normalized& path)
+        {
+            try
+            {
+                return images.getImage(path);
+            }
+            catch (const std::exception&)
+            {
+                return nullptr;
+            }
+        }
+
         /// What a texture that could not be read is drawn as.
         ///
         /// **Mid grey and not magenta.** A live graph's unreadable textures are mostly things that
@@ -141,6 +158,8 @@ namespace Rtx
         kept.reserve(slots.size());
         mImages.reserve(slots.size());
 
+        std::size_t composites = 0;
+
         for (const Index slot : slots)
         {
             // **A free slot is not a texture.** `SceneDesc` empties one the last thing naming it
@@ -153,18 +172,14 @@ namespace Rtx
             // Already decoded and still resident: the scene manager keeps image data on the CPU
             // after apply, so this is a cache hit and a memcpy rather than a second decode.
             //
-            // **Null and a throw are both answers here.** A path that names nothing, and a decoder
-            // that will not have it, are the world's business rather than a broken contract — and
-            // the entry has to exist either way, because the description below is built from it.
+            // A slot this renderer made rather than opened has no file to be asked for. The entry
+            // still has to exist, because the description below is built from it, and
+            // `bakeComposites` is what fills it in.
             osg::ref_ptr<const osg::Image> image;
-            try
-            {
-                image = images.getImage(scene.getTextures()[slot]);
-            }
-            catch (const std::exception&)
-            {
-                image = nullptr;
-            }
+            if (scene.getBakedTextures()[slot].empty())
+                image = openImage(images, scene.getTextures()[slot]);
+            else
+                ++composites;
 
             kept.push_back(slot);
             mImages.push_back(std::move(image));
@@ -177,6 +192,12 @@ namespace Rtx
         for (const osg::ref_ptr<const osg::Image>& image : mImages)
             levels += image != nullptr ? image->getNumMipmapLevels() : 1u;
         mLevels.reserve(levels);
+
+        // **Before the descriptions, because a composite is one.** The bake reads the layers' own
+        // images through the same manager and owns its bytes for as long as this does, so by the
+        // loop below every slot has something to describe or is one that could not be read.
+        if (composites > 0)
+            bakeComposites(scene, images, kept, composites);
 
         mDescriptions.reserve(mImages.size());
         for (std::size_t at = 0; at < mImages.size(); ++at)
@@ -195,6 +216,10 @@ namespace Rtx
                     described.reset();
                 }
             }
+            else if (const auto baked = mComposites.find(kept[at]); baked != mComposites.end())
+            {
+                described = baked->second.describe();
+            }
 
             if (!described.has_value())
             {
@@ -203,7 +228,11 @@ namespace Rtx
                 // Named rather than tallied, because a count says a texture is grey and nothing
                 // about which one. On the frame a cell arrives, which is a load and not a frame
                 // path.
-                Log(Debug::Warning) << "Texture \"" << scene.getTextures()[kept[at]].value()
+                // **Whichever of the two named the slot**, or a composite that could not be
+                // flattened reports itself as a file with no name — the one thing that would not
+                // help in finding it.
+                const std::string_view baked = scene.getBakedTextures()[kept[at]];
+                Log(Debug::Warning) << "Texture \"" << (baked.empty() ? scene.getTextures()[kept[at]].value() : baked)
                                     << "\" could not be read; drawing the stand-in";
 
                 described = standIn(mLevels);
@@ -227,5 +256,103 @@ namespace Rtx
 
         for (std::size_t i = 0; i < mDescriptions.size(); ++i)
             mDescriptions[i].mShading = std::span(mShading).subspan(i * cells, cells);
+    }
+
+    void SceneTextures::bakeComposites(
+        const SceneDesc& scene, Resource::ImageManager& images, std::span<const Index> kept, std::size_t expected)
+    {
+        // **Which ground each composite belongs to, by one pass over the materials.** A composite is
+        // baked from the layer stack of the material that names it, and that stack is the only
+        // record of what it is made of — but nearly every slot in the table is a file, and carrying
+        // a recipe on all of them to serve a handful would be a field the rest never read.
+        std::unordered_map<Index, Index> ground;
+        ground.reserve(expected);
+
+        const std::span<const Material> materials = scene.getMaterials();
+        for (Index at = 0; at < materials.size(); ++at)
+        {
+            if (materials[at].mKind == MaterialKind::Terrain && materials[at].mDiffuse != sNoIndex)
+                ground.emplace(materials[at].mDiffuse, at);
+        }
+
+        std::vector<CompositeLayer> stack;
+        std::vector<MipLevel> levels;
+        std::vector<osg::ref_ptr<const osg::Image>> sources;
+
+        // **Shared across every chunk baked here, because neighbours are made of the same ground.**
+        // Estimating a texture's painted light reads every texel of its largest level — the 5% of
+        // the game's CPU this file's header names — and a cell's worth of chunks draws on a handful
+        // of ground textures between them. A node-based map because every layer below spans the
+        // values of one of these, and a vector would move them out from under it.
+        std::unordered_map<Index, ShadingMap> painted;
+
+        mComposites.reserve(expected);
+
+        for (const Index slot : kept)
+        {
+            const auto owner = ground.find(slot);
+            if (owner == ground.end())
+                continue;
+
+            const Material& material = materials[owner->second];
+            const std::span<const MaterialLayer> layers
+                = scene.getLayers().subspan(material.mLayerOffset, material.mLayerCount);
+
+            sources.clear();
+            sources.reserve(layers.size());
+            for (const MaterialLayer& layer : layers)
+            {
+                assert(layer.mDiffuse != sNoIndex && "a ground layer the extractor should never have kept");
+                sources.push_back(openImage(images, scene.getTextures()[layer.mDiffuse]));
+            }
+
+            std::size_t count = 0;
+            for (const osg::ref_ptr<const osg::Image>& image : sources)
+                count += image != nullptr ? image->getNumMipmapLevels() : 0;
+
+            // **Cleared and reserved exactly before anything points into them.** Every description
+            // below spans `levels`, so a reallocation part way through would leave the bake reading
+            // the storage the earlier layers used to be in.
+            levels.clear();
+            levels.reserve(count);
+            stack.clear();
+            stack.reserve(layers.size());
+
+            for (std::size_t at = 0; at < layers.size(); ++at)
+            {
+                if (sources[at] == nullptr)
+                    continue;
+
+                std::optional<TextureData> described;
+                try
+                {
+                    described = describeImage(*sources[at], levels);
+                }
+                catch (const Error&)
+                {
+                    continue;
+                }
+
+                const auto estimate = painted.try_emplace(layers[at].mDiffuse, *described).first;
+
+                stack.push_back(CompositeLayer{
+                    .mDiffuse = *described,
+                    .mShading = estimate->second.getValues(),
+                    .mDiffuseTransform = layers[at].mDiffuseTransform,
+                    .mMask = scene.getMasks().subspan(
+                        layers[at].mMaskOffset, std::size_t{ layers[at].mMaskWidth } * layers[at].mMaskHeight),
+                    .mMaskWidth = layers[at].mMaskWidth,
+                    .mMaskHeight = layers[at].mMaskHeight,
+                    .mMaskTransform = layers[at].mMaskTransform,
+                });
+            }
+
+            // Every layer unreadable is a chunk with nothing to flatten, which the loop that called
+            // this then treats as any other texture it could not read.
+            if (stack.empty())
+                continue;
+
+            mComposites.emplace(slot, TerrainComposite(stack, sCompositeExtent, sCompositeDelight));
+        }
     }
 }
