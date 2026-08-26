@@ -1036,6 +1036,89 @@ namespace Rtx
             EXPECT_EQ(scene.getMeshes()[1].mVertexCount, 4u);
         }
 
+        /// A cell that unloads takes its creatures with it, and the cell beside it keeps its own.
+        ///
+        /// **The shape the game makes, which `aSweepDropsWhatTheWalkNoLongerFindsAndCarriesTheRest`
+        /// is not.** That one hands the walk a smaller graph; this one keeps the root and takes a
+        /// child off it, because that is all `MWWorld::Scene` unloading a cell does to the picture.
+        /// `MWRender::Objects` parents every reference in a cell — actors among them — to one group
+        /// under the scene root, and `Objects::removeCell` takes that group off. The root never
+        /// changes, so nothing announces that a cell has gone: what drops the actors that left with
+        /// it is the sweep, and only the sweep.
+        ///
+        /// **Actors and not crates, because an actor goes on costing after it is out of reach.** A
+        /// deforming drawable is a bottom-level structure rebuilt from a pose every frame, so a
+        /// creature the sweep missed is not only a body standing in an unloaded town but the price
+        /// of one — which is why the one that leaves is posed again after it has.
+        TEST(RtxSceneExtractorTest, aCellTakenOffTheRootTakesItsActorsAndLeavesItsNeighboursStanding)
+        {
+            RiggedQuad leaves;
+            RiggedQuad stays;
+
+            // Told apart by their poses, so the survivor is recognised by what came out of it
+            // rather than by being the only one left.
+            leaves.mBone->setMatrix(osg::Matrix::translate(0.0, 0.0, 3.0));
+            stays.mBone->setMatrix(osg::Matrix::translate(0.0, 0.0, 11.0));
+            leaves.update(1);
+            stays.update(1);
+
+            // Two "Cell Root" groups, as `Objects::insertBegin` makes them: an actor and a crate in
+            // the cell being walked away from, an actor in the one still under the player.
+            osg::ref_ptr<osg::Group> unloading = new osg::Group;
+            unloading->addChild(leaves.mSkeleton);
+            unloading->addChild(makeQuad());
+
+            osg::ref_ptr<osg::Group> loaded = new osg::Group;
+            loaded->addChild(stays.mSkeleton);
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            root->addChild(unloading);
+            root->addChild(loaded);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+
+            // `RtxRenderer::renderFrame`'s own order, because what this guards against lives
+            // between one frame and the next: clear, walk the world, close the frame, sweep.
+            scene.clearPlacement();
+            const ExtractionStats arrived = extractor.extractWorld(*root, osg::Matrixf::identity(), 0, 1);
+            extractor.advance();
+            ASSERT_TRUE(extractor.retire().empty()) << "the walk that found them is the epoch they survive";
+
+            EXPECT_EQ(arrived.mMeshesAdded, 3u);
+            EXPECT_EQ(arrived.mDeformed, 2u);
+            ASSERT_EQ(scene.getPlacedCount(), 3u);
+
+            // The whole of what `Objects::removeCell` does to the graph.
+            root->removeChild(unloading);
+
+            // **Both, and the departed one first.** The game stops updating an actor whose cell has
+            // gone, so posing this one is the harsher case: what decides a creature has left is
+            // that the walk did not reach it, never that it stopped moving.
+            leaves.update(2);
+            stays.update(2);
+
+            scene.clearPlacement();
+            const ExtractionStats after = extractor.extractWorld(*root, osg::Matrixf::identity(), 0, 2);
+            extractor.advance();
+            const Retirement went = extractor.retire();
+
+            EXPECT_EQ(after.mInstances, 1u);
+            EXPECT_EQ(after.mMeshesAdded, 0u) << "the cell that stayed was mirrored again rather than recognised";
+            EXPECT_EQ(after.mDeformed, 1u) << "an actor out of the walk's reach was still posed for a structure";
+            EXPECT_EQ(went.mMeshes, 2u) << "the crate leaves with the creature";
+            EXPECT_EQ(went.mMaterials, 0u) << "an untextured quad has no state set and so no material";
+
+            ASSERT_EQ(scene.getPlacedCount(), 1u);
+
+            const auto instances = scene.getInstances();
+            const auto standing = std::find_if(
+                instances.begin(), instances.end(), [](const MeshInstance& slot) { return slot.isPlaced(); });
+            ASSERT_NE(standing, instances.end());
+            EXPECT_EQ(scene.getMeshPositions(standing->mMesh)[2], osg::Vec3f(1.0f, 1.0f, 11.0f))
+                << "the sweep kept the actor from the cell that unloaded";
+        }
+
         /// The sea is named by a node mask, and only the drawables that carry it become water.
         ///
         /// **The engine is the only thing that knows.** Water reaches the mirror as a blended quad

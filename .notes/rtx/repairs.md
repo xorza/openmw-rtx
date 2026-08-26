@@ -1,9 +1,11 @@
 # Three repairs
 
-What is left in `ISSUES.md`, each traced to a cause and given a fix that removes the class rather
-than the occurrence. The four repairs this file used to carry are done and gone from it; what they
-settled is written where it belongs — `distantland.md` §3.4 and §3.5 for the fog and the swept
-ground, and the tests named below for the rest.
+What was left in `ISSUES.md` when this was written, each traced to a cause and given a fix that
+removes the class rather than the occurrence. One is still open — **2**, and it is the only entry
+`ISSUES.md` still carries. The other two are done and kept here for their record until it lands, at
+which point this file goes the way of the four it used to carry: what they settled is written where
+it belongs, in `distantland.md` §3.4 and §3.5 for the fog and the swept ground, and in the tests
+named below for the rest.
 
 Everything here was read or measured, and each claim says which.
 
@@ -101,30 +103,41 @@ answer different questions — which is the whole reason the harness exists.
    §7
    already says: it wants its own distance and probably its own answer.
 
-## 3. Whether the game leaves creatures standing is answered, by reading
+## 3. The game does not leave creatures standing — read end to end, and the sweep is pinned
 
 **What was open.** The harness left residents posed and placed after their cell unloaded. That is
 fixed — an actor hangs under the group its cell hangs under, so it leaves when the cell does. What
 was not known is whether the game does the same.
 
-**Read, not measured.** `MWWorld::Scene::unloadCell` calls `mRendering.removeCell(store)`, and
-`RenderingManager::removeCell` calls `mObjects->removeCell(store)`, which takes the cell's objects —
-actors among them — off the graph. The mirror then retires whatever a walk did not meet, which is
-`RtxRenderer`'s `advance` and `retire` every frame. So the game removes them from the graph and the
-sweep drops them, by the same rule that made the harness wrong when its actors hung somewhere else.
+**The chain, read.** `MWWorld::Scene::unloadCell` calls `mRendering.removeCell(store)`, and
+`RenderingManager::removeCell` calls `mObjects->removeCell(store)`. Every reference in a cell —
+actors among them — hangs under one `Cell Root` group that `Objects::insertBegin` makes per
+`CellStore` and parents to the root `Objects` was built with; `removeCell` takes that group off its
+parent. That root is `mSceneRoot` (`renderingmanager.cpp:291`), and `mSceneRoot` is what the frame
+hands the mirror as `mScene` (`renderingmanager.cpp:897`) — the same node, so the group the walk
+stops reaching is exactly the group that left. The sweep drops what the walk did not meet.
 
-**Steps**
+**And nothing holds them outside the graph, which is the half the reading was missing.** Residency
+is what made the harness wrong in the first place: geometry offered to a walk rather than parented
+into it outlives a graph that let go of it. The game's is a `Rtx::TerrainResidency`
+(`renderingmanager.hpp:382`) — ground and nothing else — so no actor can be held that way, and the
+graph is the only thing keeping one alive.
 
-1. Confirm it once in the game rather than leaving it on a reading: walk out of a town with
-   `[RTX] enabled` and watch the instance count fall. **One run, and then the entry goes.**
-2. If it does not fall, the cause is `mObjects->removeCell` and not the mirror, and it earns an
-   entry
-   of its own.
+**What that leaves.** The upstream half is three plain calls. The half this fork owns is the sweep,
+and it is now a test rather than a reading:
+`RtxSceneExtractorTest.aCellTakenOffTheRootTakesItsActorsAndLeavesItsNeighboursStanding` builds the
+shape the game builds — a root that stays, two cell groups under it, an actor in each — takes one
+group off exactly as `Objects::removeCell` does, and asserts the sweep drops that cell's actor and
+its crate while the neighbour keeps its own. **The departed actor is posed again first**, so what
+retires it is that the walk did not reach it and never that it stopped moving. Checked by leaving
+the detach out: four assertions fail.
+
+**Not done: the run in the game**, because nothing here can walk out of a town. If it is wanted,
+`[RTX] enabled` already says what a sweep took — `Ray tracing dropped N meshes and M materials the
+world no longer has` — with the placed instance count beside it every `sReportEvery` frames.
 
 ## Order
 
-**1 first.** A renderer that binds null buffers is one whose every other measurement is taken on a
-device that may be about to fall over, and the fix is small. **Then 3**, which is one run and closes
-an entry. **2 last**, because it is the one that changes what a frame contains, and
-`distantland.md`'s
-remaining steps — the bake queue especially — want a frame that is not about to grow buildings.
+**1 and 3 are done.** What is left is **2**, which is the one that changes what a frame contains,
+and `distantland.md`'s remaining steps — the bake queue especially — want a frame that is not about
+to grow buildings.
