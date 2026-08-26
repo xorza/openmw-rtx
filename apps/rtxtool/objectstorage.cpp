@@ -31,6 +31,12 @@ namespace RtxTool
 
         out.clear();
 
+        const auto typeOf = [&](const ESM::RefId& id) {
+            const auto found = std::lower_bound(
+                mContent->mRefIdTypes.begin(), mContent->mRefIdTypes.end(), id, EsmLoader::LessById{});
+            return found == mContent->mRefIdTypes.end() || found->mId != id ? 0 : static_cast<int>(found->mType);
+        };
+
         // **Its own, because chunks are built on the paging's working threads.** A cache shared with
         // the caller would be two threads seeking one file handle. The game's implementation does
         // the same, for the same reason.
@@ -45,6 +51,14 @@ namespace RtxTool
                     continue;
 
                 const ESM::Cell& cell = *found->second;
+
+                // **What a later content file moved out of this cell.** Only that file carries the
+                // `MVRF`, so a block written by an earlier one still stands the reference where it
+                // used to be — and a chunk that merged it there would have a building in two places.
+                const auto departed = [&](const ESM::RefNum& refNum) {
+                    return std::find(cell.mMovedRefs.begin(), cell.mMovedRefs.end(), refNum) != cell.mMovedRefs.end();
+                };
+
                 for (std::size_t i = 0; i < cell.mContextList.size(); ++i)
                 {
                     try
@@ -63,15 +77,10 @@ namespace RtxTool
                             if (moved)
                                 continue;
 
-                            const auto type = std::lower_bound(mContent->mRefIdTypes.begin(),
-                                mContent->mRefIdTypes.end(), ref.mRefID, EsmLoader::LessById{});
-                            const int recordType = (type == mContent->mRefIdTypes.end() || type->mId != ref.mRefID)
-                                ? 0
-                                : static_cast<int>(type->mType);
-
+                            const int recordType = typeOf(ref.mRefID);
                             if (!Terrain::pagedType(recordType, size >= 2))
                                 continue;
-                            if (deleted)
+                            if (deleted || departed(ref.mRefNum))
                             {
                                 out.erase(ref.mRefNum);
                                 continue;
@@ -94,6 +103,30 @@ namespace RtxTool
                                             << "\": " << e.what();
                         continue;
                     }
+                }
+
+                // **And what one moved in**, which this cell's own reference blocks never mention.
+                for (const auto& [leased, deleted] : cell.mLeasedRefs)
+                {
+                    if (deleted)
+                    {
+                        out.erase(leased.mRefNum);
+                        continue;
+                    }
+
+                    const int recordType = typeOf(leased.mRefID);
+                    if (!Terrain::pagedType(recordType, size >= 2))
+                        continue;
+
+                    out.insert_or_assign(leased.mRefNum,
+                        Terrain::PagedCellRef{
+                            .mRefId = leased.mRefID,
+                            .mRefNum = leased.mRefNum,
+                            .mPosition = leased.mPos.asVec3(),
+                            .mRotation = leased.mPos.asRotationVec3(),
+                            .mScale = leased.mScale,
+                            .mType = recordType,
+                        });
                 }
             }
         }

@@ -405,6 +405,21 @@ namespace RtxTool
         // gathered and reduced by reference number before any of them is drawn. Skipping this draws
         // the mod's version of an object on top of the original's.
         EsmLoader::Records<PlacedRef> gathered;
+
+        // **What a later file moved out of this cell, which no block below can say.** Only the file
+        // that moved a reference carries the `MVRF`, so reading an earlier file's block finds it
+        // exactly where it used to stand — and drawing it there is the same object twice, once in
+        // each cell.
+        const auto departed = [&](const ESM::RefNum& refNum) {
+            return std::find(cell.mMovedRefs.begin(), cell.mMovedRefs.end(), refNum) != cell.mMovedRefs.end();
+        };
+
+        const auto typeOf = [&](const ESM::RefId& id) {
+            const auto found
+                = std::lower_bound(mEsmData.mRefIdTypes.begin(), mEsmData.mRefIdTypes.end(), id, EsmLoader::LessById{});
+            return found == mEsmData.mRefIdTypes.end() || found->mId != id ? ESM::RecNameInts{} : found->mType;
+        };
+
         for (std::size_t i = 0; i < cell.mContextList.size(); ++i)
         {
             const ESM::ReadersCache::BusyItem reader
@@ -415,15 +430,21 @@ namespace RtxTool
             bool deleted = false;
             while (ESM::Cell::getNextRef(*reader, ref, deleted))
             {
-                const auto type = std::lower_bound(
-                    mEsmData.mRefIdTypes.begin(), mEsmData.mRefIdTypes.end(), ref.mRefID, EsmLoader::LessById{});
-                const ESM::RecNameInts recordType = (type == mEsmData.mRefIdTypes.end() || type->mId != ref.mRefID)
-                    ? ESM::RecNameInts{}
-                    : type->mType;
+                if (departed(ref.mRefNum))
+                    continue;
 
                 gathered.emplace_back(
-                    deleted, PlacedRef{ ref.mRefNum, std::move(ref.mRefID), recordType, ref.mPos, ref.mScale });
+                    deleted, PlacedRef{ ref.mRefNum, std::move(ref.mRefID), typeOf(ref.mRefID), ref.mPos, ref.mScale });
             }
+        }
+
+        // **And what a later file moved in, which this cell's own blocks never mention.** The
+        // reference belongs to the cell it came from as far as every block is concerned; the only
+        // record that it stands here is the lease the loader attached.
+        for (const auto& [leased, deleted] : cell.mLeasedRefs)
+        {
+            gathered.emplace_back(
+                deleted, PlacedRef{ leased.mRefNum, leased.mRefID, typeOf(leased.mRefID), leased.mPos, leased.mScale });
         }
 
         const std::vector<PlacedRef> refs = EsmLoader::prepareRecords(

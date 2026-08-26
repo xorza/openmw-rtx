@@ -85,6 +85,85 @@ namespace EsmLoader
             records.emplace_back(deleted, std::move(record));
         }
 
+        /// Where the record for the exterior cell at these coordinates is, adding an empty one if
+        /// the content files never authored a `CELL` for it.
+        ///
+        /// **A moved reference can land in wilderness nobody wrote a record for**, and it still has
+        /// to land there. `MWWorld::Store<ESM::Cell>::searchOrCreate` invents the same cell, down to
+        /// the water it gives it.
+        std::size_t exteriorAt(CellRecords& records, int x, int y)
+        {
+            const std::pair<int, int> position(x, y);
+            const auto it = records.mByPosition.find(position);
+            if (it != records.mByPosition.end())
+                return it->second;
+
+            ESM::Cell created;
+            created.mData.mX = x;
+            created.mData.mY = y;
+            created.mData.mFlags = ESM::Cell::HasWater;
+            created.updateId();
+
+            const std::size_t at = records.mValues.size();
+            records.mByPosition.emplace_hint(it, position, at);
+            records.mValues.emplace_back(false, std::move(created));
+            return at;
+        }
+
+        /// Records the references a content file moves out of this cell and into another.
+        ///
+        /// **Where a moved reference lives is split across two cells, and neither says so alone.**
+        /// The cell that used to hold it carries an `MVRF` naming the destination; the destination's
+        /// own reference block never mentions it. So the source has to record that the reference
+        /// left, or every reader goes on placing it where it used to be, and the destination has to
+        /// be handed the reference itself, or nothing places it at all.
+        ///
+        /// **Merged across the files rather than read out of one**, because only the file that did
+        /// the moving carries the `MVRF`: a reader walking an earlier file's block finds the
+        /// reference exactly where it was first placed and nothing in that block says otherwise.
+        ///
+        /// This is `MWWorld::Store<ESM::Cell>::handleMovedCellRefs` against this loader's cell table,
+        /// and it must stay that: a world assembled here and one assembled by the game disagreeing
+        /// about where a reference stands is the whole class of bug both are meant to rule out.
+        ///
+        /// **By index and not by reference**, because the destination may be a cell nothing has
+        /// authored: adding it can reallocate the very vector the source lives in.
+        ///
+        /// The reader must be positioned where `loadCell` left it, and is put back.
+        void handleMovedRefs(ESM::ESMReader& reader, std::size_t source, CellRecords& records)
+        {
+            const ESM::ESM_Context context = reader.getContext();
+
+            ESM::CellRef ref;
+            ESM::MovedCellRef movedRef;
+            bool deleted = false;
+            bool moved = false;
+
+            while (
+                ESM::Cell::getNextRef(reader, ref, deleted, movedRef, moved, ESM::Cell::GetNextRefMode::LoadOnlyMoved))
+            {
+                if (!moved)
+                    continue;
+
+                const std::size_t target = exteriorAt(records, movedRef.mTarget[0], movedRef.mTarget[1]);
+                records.mValues[source].mValue.mMovedRefs.push_back(movedRef);
+
+                ESM::CellRefTracker& leased = records.mValues[target].mValue.mLeasedRefs;
+
+                // **Written over rather than appended to**, because a later content file may move
+                // the same reference again and the destination must end up holding one of it.
+                const auto held = std::find_if(leased.begin(), leased.end(), ESM::CellRefTrackerPredicate(ref.mRefNum));
+                if (held == leased.end())
+                    leased.emplace_back(std::move(ref), deleted);
+                else
+                    *held = std::make_pair(std::move(ref), deleted);
+
+                movedRef.mRefNum.mIndex = 0;
+            }
+
+            reader.restoreContext(context);
+        }
+
         void loadRecord(ESM::ESMReader& reader, CellRecords& records)
         {
             ESM::Cell record;
@@ -93,6 +172,9 @@ namespace EsmLoader
 
             if ((record.mData.mFlags & ESM::Cell::Interior) != 0)
             {
+                // **No moved references, because an interior is never the destination of one** — the
+                // content file format has nowhere to write anything but a pair of exterior
+                // coordinates. The game reads interiors the same way and for the same reason.
                 const auto it = records.mByName.find(record.mName);
                 if (it == records.mByName.end())
                 {
@@ -106,24 +188,39 @@ namespace EsmLoader
                     old.mValue.mData = record.mData;
                     old.mValue.loadCell(reader, true);
                 }
+
+                return;
+            }
+
+            const std::pair<int, int> position(record.mData.mX, record.mData.mY);
+            const auto it = records.mByPosition.find(position);
+            std::size_t at = 0;
+
+            if (it == records.mByPosition.end())
+            {
+                at = records.mValues.size();
+                records.mByPosition.emplace_hint(it, position, at);
+                records.mValues.emplace_back(deleted, std::move(record));
             }
             else
             {
-                const std::pair<int, int> position(record.mData.mX, record.mData.mY);
-                const auto it = records.mByPosition.find(position);
-                if (it == records.mByPosition.end())
-                {
-                    record.loadCell(reader, true);
-                    records.mByPosition.emplace_hint(it, position, records.mValues.size());
-                    records.mValues.emplace_back(deleted, std::move(record));
-                }
-                else
-                {
-                    Record<ESM::Cell>& old = records.mValues[it->second];
-                    old.mValue.mData = record.mData;
-                    old.mValue.loadCell(reader, true);
-                }
+                at = it->second;
+                Record<ESM::Cell>& old = records.mValues[at];
+                old.mValue.mData = record.mData;
+
+                // **The name too, which the merge used to drop.** An entry standing here may be one
+                // `exteriorAt` invented for a reference moved into it, and that one has no name at
+                // all until the file that authored the cell arrives.
+                old.mValue.mName = record.mName;
             }
+
+            // **Between the two halves of loading a cell, which is the only place it fits.** The walk
+            // starts where the reference block starts and `postLoad` is what records that position,
+            // so the moved references are read before it and the reader put back afterwards. Anything
+            // that reallocated `mValues` in between is why every step re-indexes.
+            records.mValues[at].mValue.loadCell(reader, false);
+            handleMovedRefs(reader, at, records);
+            records.mValues[at].mValue.postLoad(reader);
         }
 
         template <class T>
