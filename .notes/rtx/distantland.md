@@ -285,11 +285,12 @@ unreadable, and asserts they do not all average to the same colour. The end-to-e
 confirmed by instrumentation: at twelve cells the scene carries 4046 placed instances against 3974
 at none, and the top level is built with every one of them.
 
-**No picture shows it, and §3.4 and §3.5 are why.** Fog is tuned to `viewing distance`, so ground
-past seven thousand units is invisible however much of it exists; and paged terrain loses ground the
-grid renders, at any radius. Step 4's own check asked for "distant ground textured rather than grey"
-and what can honestly be said is that it is described, uploaded and traced — not that it has been
-seen. Both blockers were found by chasing exactly that gap.
+**No picture showed it, and §3.4 and §3.5 are why.** Fog was tuned to `viewing distance`, so
+ground past seven thousand units was invisible however much of it existed; and a paged world lost
+the ground it made to the sweep, at any radius. Step 4's own check asked for "distant ground
+textured rather than grey", and for a while the honest answer was that it was described, uploaded
+and traced — not that it had been seen. Both blockers were found by chasing exactly that gap, and
+both are fixed; step 7 is where the picture finally arrives.
 
 **What it costs, measured at Balmora with `--distant-cells=4`** against the same view with none,
 both `--distant-terrain`:
@@ -341,9 +342,14 @@ the structures append and recycle slots as they already do, and composites are r
 chunks. **Check:** the worst frame and the p99 across a walk that crosses several cell boundaries,
 beside the median — the tree's rule is that a spike is a dropped frame however good the average is.
 
-**7 — settle the two views (R3).** `seyda-neen-shore` and `dagon-fel` are the views this feature is
-visible in and both currently render a bare water quad. **Check:** the open issue in `ISSUES.md`
-closes, and both show terrain.
+**7 — settle the two views (R3). Done.** `seyda-neen-shore` and `dagon-fel` are the views this
+feature is visible in, and both used to render a bare water quad. Both now come up with ground to
+the horizon and what stands on it: the village, the shoreline and the hills behind Seyda Neen, the
+whole island and its rock stacks at Dagon Fel.
+
+**Nothing was aimed at them, which is the point of them.** They were fixed by §3.4's fog, §3.5's
+sweep and distant statics arriving — three changes made for other reasons, none of which could say
+whether it had worked. A view with no camera is what says so.
 
 ## 7. What is not known yet
 
@@ -353,12 +359,11 @@ interim shading before a bake lands is not, and step 4's fallback has to be a co
 rather than the live stack.
 - **Groundcover.** Another chunk manager on the same path. Out of scope here; it wants its own
 answer and probably its own distance.
-- **What one bake costs, and so what step 4's queue can be bounded in.** The bake is a trilinear
-fetch per layer per output texel, so a 256-square composite over a six-layer stack is over a million
-of them — a dropped frame if a frame does one whole composite. The unit therefore has to be smaller
-than a composite, rows being the obvious slice, and how large a composite should be in the first
-place is the same measurement. Both wait on step 3, which is what makes real stacks available to
-measure against.
+- **How large a composite should be.** What one costs is measured — 28.5 ms at 256 square, in §6
+step 4 — and that is a dropped frame, so step 6's queue has to be bounded in something smaller than
+a whole composite, rows being the obvious slice. What is still open is the size itself: a smaller
+composite is a cheaper bake and a blurrier hillside, and nothing has yet looked at where that
+trades.
 - **A composite is baked at one delight strength and then cached.** The painted light has to come
 off during the bake, because the estimate repeats with a texture's tiling and a composite has none —
 which is why `describe()` hands back a neutral shading map and the shader can no longer do it.
