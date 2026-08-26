@@ -143,7 +143,11 @@ namespace RtxTool
         // thing. The lights are among what it refills — they are `LightSource` nodes in the graph,
         // exactly as the game has them.
         mScene.clearPlacement();
-        return mExtractor.extract(mRoot, osg::Matrixf::identity(), 0);
+
+        // **The world walk and not a subtree's**, because this is the same root `StagedWorld` walks
+        // and the sweep after it is global: a walk that missed what the graph does not parent
+        // retires it.
+        return mExtractor.extractWorld(mRoot, osg::Matrixf::identity(), 0);
     }
 
     void PosedActors::unplace()

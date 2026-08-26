@@ -39,7 +39,11 @@ namespace RtxTool
         constexpr float sCellSize = static_cast<float>(Constants::CellSizeInUnits);
 
         /// Places one cell's worth of world into `scene`, with or without the residency asked for.
-        void placeOutdoors(World& world, const ESM::Cell& cell, Rtx::SceneDesc& scene, bool ask)
+        ///
+        /// @param walks how many times the world is walked, each followed by the sweep a live frame
+        ///        runs. One is a load; more than one is what a frame that keeps rendering does.
+        void placeOutdoors(
+            World& world, const ESM::Cell& cell, Rtx::SceneDesc& scene, bool ask, std::uint32_t walks = 1)
         {
             osg::ref_ptr<osg::Group> root = new osg::Group;
             LoadedCells loaded;
@@ -48,7 +52,18 @@ namespace RtxTool
             readRegion(world, cell, *root, scene, extractor, loaded, /*liveProps=*/false);
             world.setTerrainViewPoint(osg::Vec3f(cell.getGridX() * sCellSize, cell.getGridY() * sCellSize, 0.0f));
 
-            extractor.extract(*root, osg::Matrixf::identity(), 0, 0, ask ? world.getTerrainResidency() : nullptr);
+            extractor.follow(ask ? world.getTerrainResidency() : nullptr);
+
+            for (std::uint32_t at = 0; at < walks; ++at)
+            {
+                scene.clearPlacement();
+                extractor.extractWorld(*root, osg::Matrixf::identity(), 0);
+
+                // What a live frame does after a walk, and what makes the walk before it load-bearing:
+                // anything the sweep did not meet is dropped.
+                extractor.advance();
+                extractor.retire();
+            }
         }
 
         /// What one placement came to, for the things a run of this file compares between two.
@@ -241,6 +256,44 @@ namespace RtxTool
                         << "a ground layer whose diffuse came from no file";
                 }
             }
+        }
+
+        /// A second walk of the same world keeps the ground the graph does not parent.
+        ///
+        /// **The sweep is global, so a walk that did not ask for the hidden chunks retires them.**
+        /// The residency used to be an argument to `extract`, and one frame is walked by more than
+        /// one owner: the harness's actor stepper and the game's precipitation pass both walk from
+        /// the same extractor, and the one that walks the world without handing over what a quad tree
+        /// keeps out of the graph swept every chunk the other had placed. The ground reached the
+        /// mirror on the first frame and was gone on the second — a town standing on open sea, with
+        /// a scene, a top level and an instance count that all looked correct.
+        ///
+        /// `follow` is what makes it structural: the residency is the extractor's, so no walk can be
+        /// the one that forgets. This is the test that says a second walk does not undo the first.
+        TEST(RtxPagedTerrainTest, aSecondWorldWalkKeepsTheGroundTheGraphDoesNotParent)
+        {
+            Files::ConfigurationManager config;
+            bpo::variables_map variables;
+            const std::unique_ptr<World> world = openWorld(config, variables);
+            if (world == nullptr)
+                GTEST_SKIP() << "no Morrowind installation configured";
+
+            const ESM::Cell* cell = world->findCell(std::string(sOutdoors));
+            ASSERT_NE(cell, nullptr);
+
+            world->pageTerrain(true);
+
+            Rtx::SceneDesc once;
+            placeOutdoors(*world, *cell, once, true, 1);
+            const GroundTally loaded = tallyGround(once);
+            ASSERT_GT(loaded.mChunks, 0u) << "no paged ground was placed at all";
+
+            Rtx::SceneDesc again;
+            placeOutdoors(*world, *cell, again, true, 3);
+            const GroundTally standing = tallyGround(again);
+
+            EXPECT_EQ(standing.mChunks, loaded.mChunks) << "walking the world again swept the ground a quad tree hides";
+            EXPECT_GE(standing.mWidest, loaded.mWidest) << "the coarse chunks went and the near ones stayed";
         }
 
         /// Ground past a cell is drawn from one baked texture, and the uploader can read it.

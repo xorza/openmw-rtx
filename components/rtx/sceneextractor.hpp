@@ -297,12 +297,29 @@ namespace Rtx
         /// @param frame which of a `SceneUtil::LightSource`'s two buffers to read. The game passes
         ///        the viewer's frame number, which is the one update has just finished writing;
         ///        anything with no `LightManager` in its graph can leave it.
-        /// @param resident geometry the graph does not parent, walked with the same visitor after
-        ///        the graph and inside the same walk — so what it places is counted, dated and swept
-        ///        with everything else. Null where there is none, which is every caller but the
-        ///        game's.
-        ExtractionStats extract(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,
-            std::size_t frame = 0, Residency* resident = nullptr);
+        ///
+        /// **A subtree, and it never reaches the residency.** What hides its geometry is a property
+        /// of the world and not of any node under it, so a walk that starts part way down must not
+        /// bring it in — the precipitation node would otherwise place the ground a second time.
+        /// `extractWorld` is the call that means the whole of it.
+        ExtractionStats extract(
+            const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame = 0);
+
+        /// The same, for the walk that is the whole world — the one `retire` is sound after.
+        ///
+        /// **The residency comes from `follow` rather than from an argument, and that is the point.**
+        /// The sweep is global: anything a walk did not meet is dropped. So a frame walked by two
+        /// owners, only one of which remembered to hand over what the graph does not parent, retires
+        /// the other's placements — which is how a paged world's chunks reached the mirror on the
+        /// first frame and were swept on every one after it, leaving a town standing on open sea.
+        /// Held on the extractor, no caller can be the one that forgets.
+        ExtractionStats extractWorld(
+            const osg::Node& root, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame = 0);
+
+        /// What the graph does not parent, walked with every world walk from here on.
+        ///
+        /// Null where nothing hides, which is every world whose ground is in the graph.
+        void follow(Residency* resident) { mResident = resident; }
 
         /// Ends a frame: what was placed becomes what was placed before.
         ///
@@ -436,6 +453,11 @@ namespace Rtx
         /// the last across the same triangles, because that is how a rasterizer draws a blend it
         /// cannot sample in one go. A ray tracer hits the ground once and shades it once, so the
         /// passes are read back into layers and summed there instead.
+        /// What both `extract` and `extractWorld` are, differing only in whether the world's hidden
+        /// geometry is asked for.
+        ExtractionStats walk(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,
+            std::size_t frame, Residency* hidden);
+
         Index resolveTerrainMaterial(const Terrain::TerrainDrawable& terrain, ExtractionStats& stats);
 
         /// Names the composite a chunk's stack would bake into, in `mCompositeKey`.
@@ -519,6 +541,9 @@ namespace Rtx
         /// Which drawables are the sea. Zero means none of them, which is every caller that has not
         /// said otherwise.
         osg::Node::NodeMask mWaterMask = 0;
+
+        /// Geometry no node parents, asked of every world walk. See `follow`.
+        Residency* mResident = nullptr;
 
         /// The sea's material and when it was last met. Not in `mMaterials`, because what identifies
         /// it is the node mask rather than any state set — see `resolveWaterMaterial`.

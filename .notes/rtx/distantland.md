@@ -116,13 +116,26 @@ because a room is measured against what the original engine measured it against 
 not clear because the sky got bigger; `arkngthand` is byte-identical across the change and both
 exteriors are not, which is what says the split is where it should be.
 
-### 3.5 Paged terrain loses ground the grid renders
+### 3.5 A world walked twice swept the ground a quad tree hides
 
-Separately, and older than any of this: with `--distant-terrain` the harness draws less ground than
-without it. At Ald-ruhn from a camera inside the staged cell the paged world shows the sea plane
-where the street is; at Balmora the near ground survives and the distant hills do not. It happens at
-`--distant-cells=0`, so it is not the composite path. Recorded in `ISSUES.md`; it has to be settled
-before any picture of distant land means anything.
+Fixed, and it is the reason none of the above could be seen. `SceneExtractor::extract` took the
+residency as an argument, and a frame is walked by more than one owner: the harness's actor stepper
+and `StagedWorld` walk the same root from the same extractor, and the game walks its precipitation
+node beside its world. The sweep is global — anything a walk did not meet is retired — so the walk
+that did not hand over what the graph does not parent dropped every chunk the other had placed. The
+ground reached the mirror on the first frame and was gone by the second, which reads as a town
+standing on open sea while the scene, the top level and the instance count all look correct.
+
+**The residency now belongs to the extractor.** `follow` says once what hides its geometry,
+`extractWorld` is the walk that means the whole of it, and `extract` is a subtree that cannot reach
+the residency — which is what the precipitation node needs, since bringing it in would place the
+ground twice. No caller can be the one that forgets, because there is no longer an argument to
+forget.
+
+`RtxCrossingTest.aPagedWorldsGroundSurvivesTheFramesAfterIt` is what says so: residents on and
+terrain paged, it counted 60 chunks at frame one and 0 at frame two before the change. Its sibling
+walks a region with nobody in it, which is exactly why this went unseen — with no actors the stepper
+is the one that always carried the residency.
 
 ## 4. The design
 

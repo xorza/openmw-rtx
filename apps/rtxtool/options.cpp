@@ -207,14 +207,15 @@ namespace RtxTool
             "with `scene`, print the world position of every object whose model path contains this. "
             "How the coordinates in a view are found.");
 
-        addOption("distant-terrain", bpo::bool_switch(),
+        addOption("distant-terrain", bpo::value<bool>()->default_value(true)->implicit_value(true),
             "page the terrain the way the game does with `distant terrain` on, through "
             "Terrain::QuadTreeWorld instead of Terrain::TerrainGrid. **The one terrain a mirror "
             "cannot find by walking**: a quad tree resolves its chunks inside a cull and parents "
             "them to nothing, so this is the only way anything headless can see whether the ground "
-            "is reached at all");
+            "is reached at all. On by default, since a radius means nothing without it; "
+            "`--distant-terrain=false` puts the staged cells back");
 
-        addOption("distant-cells", bpo::value<float>()->default_value(14.0f),
+        addOption("distant-cells", bpo::value<float>()->default_value(7.0f),
             "with `--distant-terrain`, how far out the quad tree may make ground, in cells. Past a "
             "cell a chunk's layer stack is flattened into one baked texture, so this is also what "
             "decides whether that path is reached at all. Zero hands `viewing distance` back the "

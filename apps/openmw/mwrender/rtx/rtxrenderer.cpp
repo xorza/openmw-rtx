@@ -593,9 +593,13 @@ namespace MWRender
                 *frame.mWorld.mPrecipitation->getNode(), osg::Matrixf::translate(osg::Vec3f(at)), 0, mFrame);
         }
 
+        // Told once a frame, because what a paged world hides is the frame's to say. Every world
+        // walk asks it from here, and the precipitation walk above cannot: it is a subtree.
+        mExtractor->follow(frame.mResident);
+
         const Rtx::ExtractionStats found
             // One walk over the whole graph, where every path is already distinct.
-            = mExtractor->extract(frame.mScene, osg::Matrixf::identity(), 0, mFrame, frame.mResident);
+            = mExtractor->extractWorld(frame.mScene, osg::Matrixf::identity(), 0, mFrame);
 
         // **Traced or not, the frame is presented.** A walk that placed nothing and an eye with no
         // roll are both reasons to leave the target holding whatever it last held; neither is a
@@ -794,12 +798,13 @@ namespace MWRender
             // nothing — the shader skips both before it samples anything.
             .mClouds = world.isOutdoors()
                 ? Rtx::describeClouds(static_cast<std::uint32_t>(world.mWeatherId),
-                    world.mNextWeatherId.has_value() ? static_cast<std::uint32_t>(*world.mNextWeatherId)
-                                                     : static_cast<std::uint32_t>(world.mWeatherId),
-                    world.mCloudBlend, world.mAir.mColour, world.mStormDirection, world.mSkyRoll.mClouds, mSkyTextures)
+                      world.mNextWeatherId.has_value() ? static_cast<std::uint32_t>(*world.mNextWeatherId)
+                                                       : static_cast<std::uint32_t>(world.mWeatherId),
+                      world.mCloudBlend, world.mAir.mColour, world.mStormDirection, world.mSkyRoll.mClouds,
+                      mSkyTextures)
                 : Rtx::Shaders::CloudDeck{ .mOpacity = 0.0f,
-                    .mTexture = Rtx::Shaders::NO_TEXTURE,
-                    .mNext = Rtx::Shaders::NO_TEXTURE },
+                      .mTexture = Rtx::Shaders::NO_TEXTURE,
+                      .mNext = Rtx::Shaders::NO_TEXTURE },
 
             .mStars = world.isOutdoors()
                 ? Rtx::describeStars(world.mNightFade, world.mSunGlare, world.mSkyRoll.mStars, mSkyTextures)

@@ -51,7 +51,7 @@ namespace RtxTool
             readRegion(world, centre, root, scene, extractor, loaded, /*liveProps=*/false);
             const std::uint32_t went = dropCellsOutside(world, centre, root, scene, extractor, loaded);
 
-            extractor.extract(root, osg::Matrixf::identity(), 0);
+            extractor.extractWorld(root, osg::Matrixf::identity(), 0);
             extractor.advance();
 
             if (went > 0)
@@ -208,6 +208,57 @@ namespace RtxTool
                 EXPECT_TRUE(staged.getMotion()->step(frame)) << "a walk always has to be handed over";
                 EXPECT_EQ(staged.getScene().getLights().size(), lights) << "at frame " << frame;
                 EXPECT_EQ(staged.getScene().getPlacedCount(), placed) << "at frame " << frame;
+            }
+        }
+
+        /// The ground a quad tree hides is still there on the frames after the one that placed it.
+        ///
+        /// **The sibling above walks a region with nobody in it, and that is why this was missed.**
+        /// A world with residents steps through their own stepper instead, and that walked the same
+        /// root without asking for what the graph does not parent — so the sweep after it retired
+        /// every chunk a paged world had handed over. The ground reached the mirror on the first
+        /// frame and was gone by the second, which reads as a town standing on open sea while the
+        /// scene, the top level and the instance count all look right.
+        ///
+        /// Residents on, paged terrain on: the two conditions together are the bug.
+        TEST(RtxCrossingTest, aPagedWorldsGroundSurvivesTheFramesAfterIt)
+        {
+            Files::ConfigurationManager config;
+            bpo::variables_map variables;
+            const std::unique_ptr<World> world = openWorld(config, variables);
+            if (world == nullptr)
+                GTEST_SKIP() << "no Morrowind installation configured";
+
+            const ESM::Cell* from = world->findCell(std::string(sFrom));
+            ASSERT_NE(from, nullptr);
+
+            world->pageTerrain(true);
+
+            StagedWorld staged(*world, *from, StagingRequest{}, ActorRequest{});
+            ASSERT_FALSE(staged.empty());
+            ASSERT_GT(staged.getActorCount(), std::size_t{ 0 }) << "no residents, so the stepper under test never runs";
+            ASSERT_NE(staged.getMotion(), nullptr);
+
+            const auto chunks = [&] {
+                const Rtx::SceneDesc& scene = staged.getScene();
+                std::size_t found = 0;
+                for (const Rtx::MeshInstance& instance : scene.getInstances())
+                {
+                    if (!instance.isPlaced() || instance.mMaterial == Rtx::sNoIndex)
+                        continue;
+                    if (scene.getMaterials()[instance.mMaterial].mKind == Rtx::MaterialKind::Terrain)
+                        ++found;
+                }
+                return found;
+            };
+
+            const std::size_t placed = chunks();
+            ASSERT_GT(placed, std::size_t{ 0 }) << "no paged ground was placed at all";
+
+            for (std::uint32_t frame = 1; frame <= 4; ++frame)
+            {
+                EXPECT_TRUE(staged.getMotion()->step(frame));
+                EXPECT_EQ(chunks(), placed) << "the ground a quad tree hides was swept at frame " << frame;
             }
         }
 

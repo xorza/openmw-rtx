@@ -81,6 +81,11 @@ namespace RtxTool
         const osg::Vec3f middle((cell.getGridX() + 0.5f) * cellSize, (cell.getGridY() + 0.5f) * cellSize, 0.0f);
         mWorld->setTerrainViewPoint(request.mOrigin.value_or(middle));
 
+        // **After the terrain exists and before the first walk**, because a paged world only has a
+        // residency once it has been built. Every world walk from here asks it, whoever makes the
+        // walk.
+        mExtractor.follow(mWorld->getTerrainResidency());
+
         // The first walk. Everything after this is the same walk again, once a frame.
         mStaged = mirror(0);
 
@@ -153,10 +158,11 @@ namespace RtxTool
         // it showed the moment they became `LightSource` nodes the walk meets.
         mScene.clearPlacement();
 
-        // **The residency is asked inside the same walk**, so the chunks a paged world keeps out of
-        // the graph are dated, counted and swept with everything the graph does hold. Null where
-        // nothing pages, which is every run that did not ask for it.
-        return mExtractor.extract(*mRoot, osg::Matrixf::identity(), 0, frame, mWorld->getTerrainResidency());
+        // **The world walk, so the chunks a paged world keeps out of the graph are dated, counted
+        // and swept with everything the graph does hold.** What it follows was set when the terrain
+        // was built; it is not passed here, because the actors' own stepper walks this same root and
+        // an argument only one of the two remembered is what left a town standing on open sea.
+        return mExtractor.extractWorld(*mRoot, osg::Matrixf::identity(), 0, frame);
     }
 
     void StagedWorld::driveWeather(const osg::Vec3f& eye)

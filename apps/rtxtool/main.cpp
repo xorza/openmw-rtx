@@ -186,14 +186,28 @@ namespace RtxTool
         /// other would be rendering a different world from the one its line asked for.
         void pageTerrainFrom(World& world, const bpo::variables_map& variables)
         {
-            world.pageTerrain(variables["distant-terrain"].as<bool>());
-
             // **Written to the setting and not only handed to the terrain**, because the air reads
             // the same number. Fog is a half-life measured across some distance; tuned to seven
             // thousand units it swallows a world built to thirty, and a ring of ground four cells
             // out then renders identically to one built none — which is how this came to be one
-            // number rather than two. Zero hands both back to `viewing distance`.
-            Settings::rtx().mDistantLandCells.set(variables["distant-cells"].as<float>());
+            // number rather than two.
+            const float cells = variables["distant-cells"].as<float>();
+
+            // **Still asked for explicitly, and that is deliberate.** A radius means nothing without
+            // the paged world — `TerrainGrid` builds the staged cells and nothing else, which is the
+            // three-cell square of ground with sea to the horizon a run without this flag shows. But
+            // the paged world currently renders no ground at all (`ISSUES.md`), so it is not the
+            // default until that is settled: a harness whose ordinary run has no terrain in it is
+            // worse than one that stops at three cells.
+            const bool paged = variables["distant-terrain"].as<bool>();
+            world.pageTerrain(paged);
+
+            // **The air follows the world that is actually built, and the grid does not honour a
+            // radius.** `TerrainGrid` makes the staged cells and nothing else, so a run without the
+            // paged world left at four cells of reach would see clearly to thirty thousand units and
+            // find the edge of a three-cell square there. Zero hands the air back to `viewing
+            // distance`, which is what that square was always lit for.
+            Settings::rtx().mDistantLandCells.set(paged ? cells : 0.0f);
             world.setTerrainViewDistance(Rtx::distantLandReach());
         }
 

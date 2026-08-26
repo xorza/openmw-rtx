@@ -513,8 +513,20 @@ namespace Rtx
         mWalk->stepOnly(node);
     }
 
-    ExtractionStats SceneExtractor::extract(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,
-        std::size_t frame, Residency* resident)
+    ExtractionStats SceneExtractor::extract(
+        const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame)
+    {
+        return walk(node, transform, anchor, frame, nullptr);
+    }
+
+    ExtractionStats SceneExtractor::extractWorld(
+        const osg::Node& root, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame)
+    {
+        return walk(root, transform, anchor, frame, mResident);
+    }
+
+    ExtractionStats SceneExtractor::walk(
+        const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame, Residency* hidden)
     {
         ExtractionStats stats;
         mAnchor = anchor;
@@ -530,8 +542,8 @@ namespace Rtx
         // **Inside the same walk, not beside it.** The chunks a quad tree keeps out of the graph are
         // part of the same frame as everything else — the same epoch, the same stats, the same
         // sweep — and a second `begin` would date them apart from it.
-        if (resident != nullptr)
-            resident->collect(*mWalk);
+        if (hidden != nullptr)
+            hidden->collect(*mWalk);
 
         // **After the whole walk, including whatever the residency brought in.** Everything under it
         // has been stepped by now, so what the sprites are read from is a settled world rather than
