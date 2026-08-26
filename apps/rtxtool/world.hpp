@@ -169,6 +169,18 @@ namespace RtxTool
         /// The terrain's chunks where the graph does not parent them, or null where it does.
         Rtx::Residency* getTerrainResidency() { return mResident.get(); }
 
+        /// How far out a paged world produces chunks at all, in world units.
+        ///
+        /// **`viewing distance` is the rasterizer's fog-and-visibility knob**, and its default of
+        /// 7168 is smaller than the 8192 a cell is — so a paged world left alone produces nothing
+        /// outside the active grid, whatever the LOD would have done with it. What a ray tracer
+        /// needs is how much world exists, which is a property of the structure rays are cast
+        /// against and not of the camera.
+        ///
+        /// Never called leaves `viewing distance` in charge, which is what everything not looking
+        /// for distance gets.
+        void setTerrainViewDistance(float units);
+
         /// Where a paged world chooses its detail from. Ignored where nothing pages.
         void setTerrainViewPoint(const osg::Vec3f& where);
 
@@ -227,6 +239,9 @@ namespace RtxTool
         osg::ref_ptr<osg::Group> mCompileRoot;
         std::unique_ptr<Terrain::World> mTerrain;
         bool mPagedTerrain = false;
+
+        /// Unset until something asks for distance, and `viewing distance` stands in for it.
+        std::optional<float> mTerrainViewDistance;
 
         /// Non-null only for a paged world, which is the only one that hides its chunks.
         std::unique_ptr<Rtx::TerrainResidency> mResident;

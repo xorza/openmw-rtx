@@ -49,13 +49,19 @@ narrower than it looks.
 
 `viewing distance = 7168.0` (`settings-default.cfg:19`) against a cell of 8192 units.
 `mViewDistance` is what `isSufficientDetail` cuts traversal at, and the active grid is exempt from
-the cut — so **nothing outside the active grid is ever produced**, and paging is doing no work at
-all.
+the cut — so **how much appears outside the active grid depends on how wide that grid is**, and in
+the game it is almost nothing: a 3×3 grid reaches 1.5 cells from its centre, which 7168 units barely
+leaves.
 
-Measured: `--distant-terrain` at Balmora renders the same 199,821 triangles as without it, and the
-frame differs in 940 pixels out of 2,073,600 — the difference being the same ground packed into
-quadtree chunks rather than grid chunks (84 fewer materials, 144 fewer instances). No distance
-appears because none is asked for.
+Measured at Balmora, where the grid is the game's: `--distant-terrain` renders the same 199,821
+triangles as without it, and the frame differs in 940 pixels out of 2,073,600 — the difference being
+the same ground packed into quadtree chunks rather than grid chunks (84 fewer materials, 144 fewer
+instances). No distance appears because none is asked for.
+
+**The harness stages one cell at a time**, so its grid is one cell wide and 7168 units leaves it at
+once. One staged cell at the default distance already produces 45 chunks, the widest of them a whole
+cell across — which is exactly the size §3.2 is about, and is why that section bites today rather
+than in the future.
 
 ### 3.2 Distant chunks are textured by an OpenGL render target
 
@@ -71,12 +77,20 @@ is textured by one composite map**. A composite map is an `osg::Texture2D` with 
 through OpenGL.
 
 **The RTX path has no GL context.** That is the fork's central decision, not an oversight: with
-`[RTX] enabled` there is no `osgViewer` graphics window and no interop. So a composite map arrives
-with nothing to upload, `describeImage` cannot read it, and the chunk gets the mid-grey stand-in
-`SceneTextures::getUnreadable` counts.
+`[RTX] enabled` there is no `osgViewer` graphics window and no interop.
 
-This does not bite today only because §3.1 means no chunk is ever a cell across. It is the whole of
-the work.
+What that costs was measured rather than assumed, and it is not what it looks like.
+`Surface::Material::setTexture` clears a role an imageless texture was bound to, so the composite
+pass describes no diffuse at all; `resolveTerrainMaterial` skips the layer, runs out of layers, and
+returns `sNoIndex`; and the chunk is **placed carrying no material**. Nothing ever reaches the
+texture table, so `SceneTextures::getUnreadable` counts none of it — the number this section first
+expected to watch never moves.
+
+**Measured, before it was fixed:** one staged cell at the default view distance places five of
+these, and four cells of distance places thirty-two. `instancerecord.cpp:63` turns a missing
+material into a null one, so nothing reads past the material buffer — the chunk simply draws
+untextured, which is grey ground reached by a different route than the stand-in texture this section
+first guessed at.
 
 ### 3.3 Nothing is culled, so distance is paid for in full
 
@@ -200,10 +214,14 @@ exact bytes — the linear sum, the two masks placing their ground types and the
 an identity transform copying texels while a quarter offset rolls them around the repeat, and the
 delight strength at nought, half and full.
 
-**3 — stop the GL composite being made at all (D1).** Force `composite map level` past the largest
-chunk under RTX. **Check:** `--distant-terrain` past a cell produces chunks whose passes are all
-readable files; `SceneTextures::getUnreadable` stays at whatever it was before, which is the number
-that says no render target reached the uploader.
+**3 — stop the GL composite being made at all (D1). Done.** `Terrain::sNoCompositeMap` — infinity,
+declared beside the `chunkSize >= mCompositeMapLevel` it defeats — is what the harness always passes
+and what the game passes when `[RTX] enabled`. With RTX off the expression yields exactly what it
+did before, so the rasterizer is not compiled around, merely not asked. The harness also gained
+`World::setTerrainViewDistance`, which steps 4 and 5 need and which is what made §3.1 and §3.2
+measurable. **Checked:** two placements of one cell differing only in how far the quad tree may go,
+asserting that distance adds no placement with nothing to point at, and that every ground layer's
+diffuse names a real file. Against the unforced tree it fails on exactly that count — 5 against 32.
 
 **4 — choose the bake at distance (R2, D2).** `resolveTerrainMaterial` takes the chunk's size and
 either builds the stack or asks for the composite. Bakes go on a queue drained a bounded amount per

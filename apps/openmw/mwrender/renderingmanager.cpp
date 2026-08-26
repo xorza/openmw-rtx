@@ -48,6 +48,7 @@
 
 #include <components/misc/constants.hpp>
 
+#include <components/terrain/chunkmanager.hpp>
 #include <components/terrain/quadtreeworld.hpp>
 #include <components/terrain/terraingrid.hpp>
 
@@ -1426,8 +1427,15 @@ namespace MWRender
         if (distantTerrain || groundcover)
         {
             const int compMapResolution = Settings::terrain().mCompositeMapResolution;
-            const int compMapPower = Settings::terrain().mCompositeMapLevel;
-            const float compMapLevel = static_cast<float>(std::pow(2, compMapPower));
+
+            // **The ray tracer never asks for a composite map.** It is a render target, and that
+            // path initialises no OpenGL at all — so the level goes past every chunk the quad tree
+            // can build, each one arrives as its layer stack, and `Rtx::TerrainComposite` bakes the
+            // flattened texture a distant chunk wants on the CPU instead. Forced rather than left to
+            // `composite map level`: here it is not a tuning knob but a statement about the path.
+            const float compMapLevel = Settings::rtx().mEnabled
+                ? Terrain::sNoCompositeMap
+                : static_cast<float>(std::pow(2, Settings::terrain().mCompositeMapLevel.get()));
             const int vertexLodMod = Settings::terrain().mVertexLodMod;
             const float maxCompGeometrySize = Settings::terrain().mMaxCompositeGeometrySize;
             const bool debugChunks = Settings::terrain().mDebugChunks;
