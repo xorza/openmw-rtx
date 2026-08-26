@@ -106,6 +106,9 @@ namespace RtxTool
         /// set two of `Weather::Precipitation`'s four inputs and call neither of the others, so a
         /// shot of a storm showed drops that never froze under water and an ash cloud that never
         /// turned to face the wind.
+        /// Where a camera goes when nothing leads into the cell: a view of the place from outside it.
+        Placement frame(const ESM::Cell& cell, const StagingRequest& request) const;
+
         void driveWeather(const osg::Vec3f& eye);
 
         /// Moves the sky to another moment, without reading the region again.

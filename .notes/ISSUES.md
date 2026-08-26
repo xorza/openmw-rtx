@@ -1,9 +1,5 @@
 # Open issues
 
-The three views in `resources/rtx/views.cfg` that give a cell and no camera — `seyda-neen-shore`,
-`sadrith-mora` and `dagon-fel` — render a bare water quad against fog. No terrain, and nothing the
-cell holds, against descriptions that name a shoreline, a seabed and a village.
-
 `RtxFrameCostTest.aSteadyFrameDoesNotTouchTheHeap` loses the device. Its frame loop fails with
 `VK_ERROR_DEVICE_LOST` after about five seconds, on a scene of one wall at 64 by 64. It is
 intermittent over hours — four runs in a row passed, and four in a row failed later the same session

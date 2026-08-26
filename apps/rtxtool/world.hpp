@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -14,6 +15,7 @@
 #include <components/esm3/readerscache.hpp>
 #include <components/esmloader/esmdata.hpp>
 #include <components/files/collections.hpp>
+#include <components/misc/strings/algorithm.hpp>
 #include <components/toutf8/toutf8.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -52,6 +54,7 @@ namespace osg
 
 namespace ESM
 {
+    struct Position;
     struct Light;
     struct Cell;
     struct NPC;
@@ -127,6 +130,21 @@ namespace RtxTool
 
         /// Calls `handle` for every object the cell places that has a model to draw.
         SkippedObjects forEachObject(const ESM::Cell& cell, const std::function<void(const Object&)>& handle);
+
+        /// Where the game would stand a character who walked into `destination`, if anything leads
+        /// there.
+        ///
+        /// **The arrival a door names, and not the door itself.** A teleporting reference carries the
+        /// position its far side puts you at, so what says where an interior is entered is the door
+        /// *outside* it — the one in the cell you came from, whose destination is this one. A camera
+        /// placed from the interior's own door stands at the way out and looks back in, which is a
+        /// different place and, in a winding cave, a wall.
+        ///
+        /// **Found by walking the world's references, and only when asked.** Nothing indexes this at
+        /// load: it would cost every run a pass over every reference in the game to answer a question
+        /// only a view with no camera ever asks. The walk stops at the first door that names
+        /// `destination`, and what it found is kept for the rest of the run.
+        std::optional<ESM::Position> findArrival(const ESM::Cell& destination);
 
         /// Loads an exterior cell's terrain and returns the graph it went into. Null for an
         /// interior, and for an exterior with no land record.
@@ -249,5 +267,11 @@ namespace RtxTool
         /// The square of cells the paged world is told to hold, grown as cells are loaded. A grid
         /// nothing has been put in yet holds no ground at all.
         std::optional<osg::Vec4i> mActiveGrid;
+
+        /// Arrivals found so far, by the cell they lead to. Nothing here holds a reference to
+        /// anything above, so it sits outside the ordering the comment at the top of these members
+        /// is about. A walk that found nothing is remembered as nothing, so a second ask for the
+        /// same cell does not walk the world again.
+        std::map<std::string, std::optional<ESM::Position>, Misc::StringUtils::CiComp> mArrivals;
     };
 }

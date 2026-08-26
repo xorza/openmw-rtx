@@ -670,14 +670,16 @@ namespace Rtx
         return static_cast<std::uint32_t>(mIndices.size() / 3);
     }
 
-    osg::BoundingBoxf SceneDesc::getBounds() const
+    template <class Visit>
+    void SceneDesc::forEachPlacement(Visit&& visit) const
     {
+        // **Each mesh's local box carried through its instances**, rather than every vertex of every
+        // instance — the difference between eight transforms per instance and several hundred.
         std::vector<osg::BoundingBoxf> local(mMeshes.size());
         for (std::size_t i = 0; i < mMeshes.size(); ++i)
             for (const osg::Vec3f& position : getMeshPositions(static_cast<Index>(i)))
                 local[i].expandBy(position);
 
-        osg::BoundingBoxf bounds;
         for (const MeshInstance& instance : mInstances)
         {
             if (!instance.isPlaced())
@@ -687,9 +689,40 @@ namespace Rtx
             if (!box.valid())
                 continue;
 
+            osg::BoundingBoxf placed;
             for (unsigned int corner = 0; corner < 8; ++corner)
-                bounds.expandBy(box.corner(corner) * instance.mTransform);
+                placed.expandBy(box.corner(corner) * instance.mTransform);
+
+            visit(instance, placed);
         }
+    }
+
+    osg::BoundingBoxf SceneDesc::getBounds() const
+    {
+        osg::BoundingBoxf bounds;
+        forEachPlacement([&](const MeshInstance&, const osg::BoundingBoxf& box) { bounds.expandBy(box); });
+
+        return bounds;
+    }
+
+    osg::BoundingBoxf SceneDesc::getContentBoundsWithin(const osg::BoundingBoxf& region) const
+    {
+        osg::BoundingBoxf bounds;
+        forEachPlacement([&](const MeshInstance& instance, const osg::BoundingBoxf& box) {
+            // An instance with no material is not a backdrop — the untextured test scenes place
+            // those, and a caller framing one means to see it.
+            if (instance.mMaterial != sNoIndex && mMaterials[instance.mMaterial].mKind == MaterialKind::Water)
+                return;
+
+            if (!box.intersects(region))
+                return;
+
+            // The part inside, so a chunk straddling the edge contributes where it overlaps rather
+            // than dragging the answer out by its whole width.
+            bounds.expandBy(osg::BoundingBoxf(std::max(box.xMin(), region.xMin()), std::max(box.yMin(), region.yMin()),
+                std::max(box.zMin(), region.zMin()), std::min(box.xMax(), region.xMax()),
+                std::min(box.yMax(), region.yMax()), std::min(box.zMax(), region.zMax())));
+        });
 
         return bounds;
     }

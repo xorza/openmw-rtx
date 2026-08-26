@@ -644,7 +644,27 @@ namespace Rtx
         /// Computed from each mesh's local box carried through its instances rather than from every
         /// vertex of every instance, which is the difference between eight transforms per instance
         /// and several hundred.
+        ///
+        /// **Backdrops included, and a far plane is what wants that**: a ray has to reach the sea,
+        /// so what the frame must span is everything there is. `getContentBounds` is the other
+        /// question.
         osg::BoundingBoxf getBounds() const;
+
+        /// The extent of what stands inside `region`, backdrops left out. Invalid where nothing does.
+        ///
+        /// **What a camera is placed from, and neither half of it is optional.** The sea is one sheet
+        /// a hundred and fifty cells across and the ground now reaches four cells past the one being
+        /// looked at, so a camera framing the whole scene went a million and a half units out and
+        /// photographed water — and framing everything that is not the sea would still go two hundred
+        /// thousand out and photograph a region. A view of a place is a view of that place.
+        ///
+        /// `region` is asked in world units and clips what it meets, so a chunk straddling its edge
+        /// contributes the part inside it rather than dragging the answer a cell wide. Its height is
+        /// the caller's to leave open: how high the ground is there is exactly what this is for.
+        ///
+        /// Water is the only backdrop today and `MaterialKind` is what says so; a sky dome would join
+        /// it here rather than teaching every caller a second exception.
+        osg::BoundingBoxf getContentBoundsWithin(const osg::BoundingBoxf& region) const;
 
         /// Bytes held by the vertex and index buffers. What the upload at M3 will cost.
         std::size_t getGeometryBytes() const;
@@ -724,6 +744,10 @@ namespace Rtx
             Arrived,
             Freed,
         };
+
+        /// Calls `visit(instance, worldBox)` for every placement, which is what both extents walk.
+        template <class Visit>
+        void forEachPlacement(Visit&& visit) const;
 
         /// Records `slot` as having arrived or gone, in the lists for its table.
         void noteMesh(Index slot, SlotNews what);

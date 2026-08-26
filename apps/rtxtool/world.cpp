@@ -229,7 +229,7 @@ namespace RtxTool
         const osg::Vec4i square(cell.getGridX(), cell.getGridY(), cell.getGridX() + 1, cell.getGridY() + 1);
         mActiveGrid = mActiveGrid.has_value()
             ? osg::Vec4i(std::min(mActiveGrid->x(), square.x()), std::min(mActiveGrid->y(), square.y()),
-                std::max(mActiveGrid->z(), square.z()), std::max(mActiveGrid->w(), square.w()))
+                  std::max(mActiveGrid->z(), square.z()), std::max(mActiveGrid->w(), square.w()))
             : square;
         mTerrain->setActiveGrid(*mActiveGrid);
         mTerrain->enable(true);
@@ -319,6 +319,61 @@ namespace RtxTool
                 return &cell;
 
         return nullptr;
+    }
+
+    std::optional<ESM::Position> World::findArrival(const ESM::Cell& destination)
+    {
+        // An exterior has no name to be named by, and nothing teleports to one by name.
+        if (destination.isExterior())
+            return std::nullopt;
+
+        if (const auto known = mArrivals.find(destination.mName); known != mArrivals.end())
+            return known->second;
+
+        // **From outside if anything leads in from outside.** A room is entered from the street far
+        // more often than from the room behind it, and a back door lands you facing the wrong way
+        // through a building. An interior source is taken only where no exterior one exists at all.
+        std::optional<ESM::Position> arrival;
+        std::optional<ESM::Position> fromInside;
+
+        for (const ESM::Cell& cell : mEsmData.mCells)
+        {
+            if (arrival.has_value())
+                break;
+
+            for (std::size_t i = 0; i < cell.mContextList.size() && !arrival.has_value(); ++i)
+            {
+                const ESM::ReadersCache::BusyItem reader
+                    = mReaders.get(static_cast<std::size_t>(cell.mContextList[i].index));
+                cell.restore(*reader, static_cast<int>(i));
+
+                ESM::CellRef ref;
+                bool deleted = false;
+                while (ESM::Cell::getNextRef(*reader, ref, deleted))
+                {
+                    // **The flag and not the name.** A reference carries a destination cell whether
+                    // or not it is a way through — an ordinary door in a house names the room it
+                    // belongs to — and only a teleporting one puts anybody anywhere.
+                    if (deleted || !ref.mTeleport || !Misc::StringUtils::ciEqual(ref.mDestCell, destination.mName))
+                        continue;
+
+                    if (cell.isExterior())
+                    {
+                        arrival = ref.mDoorDest;
+                        break;
+                    }
+
+                    if (!fromInside.has_value())
+                        fromInside = ref.mDoorDest;
+                }
+            }
+        }
+
+        if (!arrival.has_value())
+            arrival = fromInside;
+
+        mArrivals.emplace(destination.mName, arrival);
+        return arrival;
     }
 
     World::SkippedObjects World::forEachObject(const ESM::Cell& cell, const std::function<void(const Object&)>& handle)

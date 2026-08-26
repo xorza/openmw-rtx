@@ -41,13 +41,22 @@ would otherwise do this again.
 
 **Steps**
 
-1. `SceneDesc::getBounds` grows a companion that skips water-kind instances — or takes what to skip,
-   if a second traversal is worth avoiding. **Check:** a components test placing one small mesh and
-   one enormous water sheet, asserting the framing bounds are the mesh's.
-2. `placeCamera`'s caller passes those. **Check:** the three views place a camera inside their cell
-   rather than a million units outside it, and the other thirteen — which all give a `pos` — are
-   byte-identical, because an explicit camera never consulted the bounds.
-3. The three views are looked at. **Check:** `ISSUES.md`'s first entry closes.
+1. **Done, and it needed both halves.** `SceneDesc::getContentBoundsWithin(region)` leaves the
+   backdrops out *and* clips to the region asked for. Leaving out the sea alone was not enough: with
+   distant land on, everything-that-is-not-sea still reached four cells past the one being looked
+   at,
+   and the eye went two hundred thousand units out to frame it. `getBounds` is untouched — a far
+   plane wants everything there is, and three callers ask it for exactly that. **Checked:**
+   `RtxSceneDescTest.aRegionsExtentLeavesOutTheSeaAndStopsAtItsOwnEdge` — a unit square and a ten
+   thousand unit sheet, asserting the extent is the square's; a chunk straddling the edge clipped to
+   it; and a region with nothing in it coming back invalid rather than as a box at the origin.
+2. **Done.** `StagedWorld` places the camera from the square `readRegion` staged, and an interior
+   still frames everything it holds — a room has no backdrop and no region beyond itself.
+   **Checked:** the three views place the eye about 32,000 units out at 14,000 up instead of 1.5
+   million, and the views that give a `pos` are byte-identical, because an explicit camera never
+   consulted the bounds at all.
+3. **Done.** `seyda-neen-shore` renders what its note names — islands, a shoreline, the seabed
+   through the water, and land at the horizon.
 
 ## 2. An unbounded fence wait turns a stall into a hang
 

@@ -8,6 +8,8 @@
 
 #include <osg/Math>
 
+#include <components/esm/position.hpp>
+
 namespace RtxTool
 {
     Placement placeCamera(const osg::BoundingBoxf& bounds, float verticalFovDegrees,
@@ -25,6 +27,30 @@ namespace RtxTool
         return Placement{
             .mOrigin = origin.value_or(centre + direction * distance),
             .mTarget = target.value_or(centre),
+        };
+    }
+
+    Placement placeOnArrival(
+        const ESM::Position& arrival, const std::optional<osg::Vec3f>& origin, const std::optional<osg::Vec3f>& target)
+    {
+        // About how high a Dunmer's eyes are above the floor they stand on. The arrival is where the
+        // feet go.
+        constexpr float sEye = 80.0f;
+
+        // How far down the heading the camera looks. Past the far wall of most rooms, which is what
+        // a direction wants: the point is where the eye is aimed, not what it stops at.
+        constexpr float sAlong = 2048.0f;
+
+        const osg::Vec3f eye(arrival.pos[0], arrival.pos[1], arrival.pos[2] + sEye);
+
+        // **The heading the game would give the player**, which is a Z rotation and measured the way
+        // the engine measures it: clockwise from north rather than counter-clockwise from east.
+        const float heading = arrival.rot[2];
+        const osg::Vec3f ahead(std::sin(heading), std::cos(heading), 0.0f);
+
+        return Placement{
+            .mOrigin = origin.value_or(eye),
+            .mTarget = target.value_or(eye + ahead * sAlong),
         };
     }
 

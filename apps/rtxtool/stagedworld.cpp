@@ -3,6 +3,7 @@
 #include <span>
 #include <string>
 
+#include <components/esm/position.hpp>
 #include <components/esm/util.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/fallback/fallback.hpp>
@@ -91,7 +92,14 @@ namespace RtxTool
 
         // **Before anyone goes in.** A row of actors stands relative to where the camera ends up, so
         // the camera cannot be derived from bounds that already contain them.
-        mPlacement = placeCamera(mScene.getBounds(), request.mFieldOfView, request.mOrigin, request.mTarget);
+        //
+        // **An interior is entered rather than framed.** Where something in the world teleports here,
+        // the camera stands and faces exactly as the game would stand and face a character who had
+        // just walked in — see `World::findArrival`. Framing is what is left for a cell nothing leads
+        // to, and for every exterior.
+        const std::optional<ESM::Position> arrival = mWorld->findArrival(cell);
+        mPlacement
+            = arrival.has_value() ? placeOnArrival(*arrival, request.mOrigin, request.mTarget) : frame(cell, request);
 
         // **After the camera is placed and before the first walk.** The box is finite and centred on
         // the eye, so a shot whose weather arrived while the box still sat at the origin is a shot
@@ -163,6 +171,29 @@ namespace RtxTool
         // was built; it is not passed here, because the actors' own stepper walks this same root and
         // an argument only one of the two remembered is what left a town standing on open sea.
         return mExtractor.extractWorld(*mRoot, osg::Matrixf::identity(), 0, frame);
+    }
+
+    Placement StagedWorld::frame(const ESM::Cell& cell, const StagingRequest& request) const
+    {
+        if (!cell.isExterior())
+            return placeCamera(mScene.getBounds(), request.mFieldOfView, request.mOrigin, request.mTarget);
+
+        // **The square that was staged, and not everything the scene reaches.** Framing the whole of
+        // it put the eye a million and a half units out and photographed the sea — the sheet is a
+        // hundred and fifty cells across — and leaving only the sea out still framed the four cells
+        // of distant ground. A view names a place, so the camera is placed from that place. The
+        // height is left open because how high the ground stands there is what is being asked.
+        //
+        // A far plane still wants everything there is; see `SceneDesc::getBounds`.
+        const auto side = static_cast<float>(ESM::getCellSize(ESM::Cell::sDefaultWorldspaceId));
+        const auto reach = static_cast<float>(Constants::CellGridRadius);
+        const osg::BoundingBoxf staged((static_cast<float>(cell.getGridX()) - reach) * side,
+            (static_cast<float>(cell.getGridY()) - reach) * side, -std::numeric_limits<float>::max(),
+            (static_cast<float>(cell.getGridX()) + reach + 1.0f) * side,
+            (static_cast<float>(cell.getGridY()) + reach + 1.0f) * side, std::numeric_limits<float>::max());
+
+        return placeCamera(
+            mScene.getContentBoundsWithin(staged), request.mFieldOfView, request.mOrigin, request.mTarget);
     }
 
     void StagedWorld::driveWeather(const osg::Vec3f& eye)

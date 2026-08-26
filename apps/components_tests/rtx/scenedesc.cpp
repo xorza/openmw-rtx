@@ -909,5 +909,56 @@ namespace Rtx
             // world after it.
             EXPECT_EQ(scene.addBakedTexture("composite/0,0/1"), 0u);
         }
+
+        /// A camera is placed from what stands in a region, and the sea is not among it.
+        ///
+        /// **Two failures, one call.** The sea is one sheet a hundred and fifty cells across, laid
+        /// down by the world rather than by any cell, so framing everything placed put the eye a
+        /// million and a half units from a village. And the ground now reaches four cells past the
+        /// one being looked at, so framing everything that is not the sea still framed a region. A
+        /// view names a place; this is the extent of that place.
+        TEST(RtxSceneDescTest, aRegionsExtentLeavesOutTheSeaAndStopsAtItsOwnEdge)
+        {
+            SceneDesc scene;
+
+            const Index quad = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
+            const Index ground = scene.addMaterial(Material{ .mKind = MaterialKind::Terrain });
+            const Index sea = scene.addMaterial(Material{ .mKind = MaterialKind::Water });
+
+            // One unit square at the origin, and a sheet ten thousand across under everything.
+            scene.addInstance(
+                MeshInstance{ .mTransform = osg::Matrixf::identity(), .mMesh = quad, .mMaterial = ground });
+            scene.addInstance(MeshInstance{
+                .mTransform = osg::Matrixf::scale(10000.0f, 10000.0f, 1.0f), .mMesh = quad, .mMaterial = sea });
+
+            // Everything, which is what a far plane asks for and why the sea is still in the table.
+            EXPECT_FLOAT_EQ(scene.getBounds().xMax(), 10000.0f);
+
+            const osg::BoundingBoxf everywhere(-1e9f, -1e9f, -1e9f, 1e9f, 1e9f, 1e9f);
+            const osg::BoundingBoxf content = scene.getContentBoundsWithin(everywhere);
+
+            ASSERT_TRUE(content.valid());
+            EXPECT_FLOAT_EQ(content.xMax(), 1.0f) << "the sea was framed";
+            EXPECT_FLOAT_EQ(content.yMax(), 1.0f);
+
+            // **And the region clips.** A chunk straddling the edge contributes where it overlaps
+            // rather than dragging the answer out by its whole width, which is what keeps a view of
+            // one cell from framing the four cells of ground that reach into it.
+            const Index wide = scene.addMesh(sQuadPositions, {}, {}, sQuadIndices);
+            scene.addInstance(MeshInstance{
+                .mTransform = osg::Matrixf::scale(100.0f, 1.0f, 1.0f), .mMesh = wide, .mMaterial = ground });
+
+            const osg::BoundingBoxf narrow(-1.0f, -1.0f, -1.0f, 4.0f, 4.0f, 4.0f);
+            const osg::BoundingBoxf clipped = scene.getContentBoundsWithin(narrow);
+
+            ASSERT_TRUE(clipped.valid());
+            EXPECT_FLOAT_EQ(clipped.xMax(), 4.0f) << "a chunk reaching past the edge widened the region";
+
+            // Nothing stands out there, and an empty answer is what says so rather than a box at the
+            // origin that a camera would then be placed from.
+            EXPECT_FALSE(scene.getContentBoundsWithin(osg::BoundingBoxf(500.0f, 500.0f, 500.0f, 600.0f, 600.0f, 600.0f))
+                    .valid());
+        }
+
     }
 }
