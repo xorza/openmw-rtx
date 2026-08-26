@@ -36,6 +36,14 @@ namespace RtxTool
         /// Points into the loaded content, which outlives the run.
         const ESM::NPC* mRecord = nullptr;
         osg::Matrixf mTransform;
+
+        /// The group this cell's references hang under, which is what an actor has to hang under
+        /// too.
+        ///
+        /// **A person leaves with their cell or stands in an empty street.** Everything else a cell
+        /// brings is under this node, so taking it off the root is the whole of unloading; actors
+        /// went under the run's own root instead and outlived the town around them.
+        osg::ref_ptr<osg::Group> mParent;
     };
 
     /// One reference a cell places whose model is not still, and where it stands.
@@ -47,6 +55,9 @@ namespace RtxTool
     {
         VFS::Path::Normalized mModel;
         osg::Matrixf mTransform;
+
+        /// The group this cell's references hang under. See `CellPerson::mParent`.
+        osg::ref_ptr<osg::Group> mParent;
     };
 
     /// Which cells are in the graph, and the group each one's references hang under.

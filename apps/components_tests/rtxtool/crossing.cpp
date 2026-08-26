@@ -15,6 +15,7 @@
 #include <components/debug/debugging.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/files/configurationmanager.hpp>
+#include <components/misc/constants.hpp>
 #include <components/rtx/scenedesc.hpp>
 #include <components/rtx/sceneextractor.hpp>
 #include <components/rtx/sceneuploader.hpp>
@@ -260,6 +261,41 @@ namespace RtxTool
                 EXPECT_TRUE(staged.getMotion()->step(frame));
                 EXPECT_EQ(chunks(), placed) << "the ground a quad tree hides was swept at frame " << frame;
             }
+        }
+
+        /// The people who stood in a cell leave with it.
+        ///
+        /// **An actor used to hang on the run's own root.** Everything else a cell brings is under a
+        /// group, so taking that node off the root is the whole of unloading — and the residents,
+        /// parented beside it rather than under it, stayed posed and placed in a street that was no
+        /// longer there. They now hang under the cell that placed them and go when it goes.
+        ///
+        /// This counts them. That their geometry went with them is the parenting itself, which no
+        /// count can see: a record dropped while the node stays hung on the root leaves a creature
+        /// standing with nothing owning it, and both halves are needed.
+        TEST(RtxCrossingTest, theResidentsOfACellLeaveWithIt)
+        {
+            Files::ConfigurationManager config;
+            bpo::variables_map variables;
+            const std::unique_ptr<World> world = openWorld(config, variables);
+            if (world == nullptr)
+                GTEST_SKIP() << "no Morrowind installation configured";
+
+            const ESM::Cell* from = world->findCell(std::string(sFrom));
+            ASSERT_NE(from, nullptr);
+
+            StagedWorld staged(*world, *from, StagingRequest{}, ActorRequest{});
+            const std::size_t standing = staged.getActorCount();
+            ASSERT_GT(standing, std::size_t{ 0 }) << "a town with nobody in it cannot show anyone leaving";
+
+            // Far enough that every cell the run started in is behind the ring: a step of one column
+            // keeps two of the three, and what is under test is a cell actually going.
+            const auto side = static_cast<float>(Constants::CellSizeInUnits);
+            const osg::Vec3f away((static_cast<float>(from->getGridX()) + 4.5f) * side,
+                (static_cast<float>(from->getGridY()) + 0.5f) * side, 0.0f);
+
+            ASSERT_GT(staged.moveTo(away).mDeparted, std::uint32_t{ 0 }) << "nothing was unloaded";
+            EXPECT_LT(staged.getActorCount(), standing) << "the residents outlived the cell that placed them";
         }
 
         /// The lamps are still burning after the crossing that swept the scene.

@@ -168,18 +168,23 @@ swept the paged ground.
 
 **Steps**
 
-1. `CellPerson` and `CellProp` carry the cell they came from, and `PosedActors::addResidents`
-   parents
-   each actor under that cell's group. **Check:** a components test that stages a region, crosses
-   out
-   of a cell, and asserts the actors that stood in it are gone and the rest still stand.
-2. **Whether the game does the same is not known** and is checked before anything is concluded from
-   the harness: `MWWorld::Scene` unloads a cell's references through its own path, and the mirror
-   may
-   already lose them correctly.
-3. `ISSUES.md`'s fourth entry closes on the harness, and the game either needs nothing or gets its
-   own
-   entry.
+1. **Done.** `CellPerson` and `CellProp` carry the group their cell hangs under, and
+   `PosedActors::add` parents each actor there rather than on the run's own root — so the node
+   leaves
+   when the cell does, which is what unloading already means for everything else. The two parallel
+   vectors became one `Resident` record carrying the actor, its phase, whether it is a prop and the
+   cell that placed it: every field is indexed by the same actor, and a resident that leaves takes
+   all of them at once. `forgetDeparted` drops the records, reading the graph rather than being told
+   — a group with no parent is a cell that has gone, the same signal `QuadTreeWorld::collect` reads.
+   **Checked:** `RtxCrossingTest.theResidentsOfACellLeaveWithIt` stages a town, crosses out of it
+   and
+   asserts the count falls. It covers the record and not the node: a count cannot see a transform
+   left hanging on the root, and both halves are needed.
+2. **Not done, and it is the open half.** Whether the game does the same is unknown;
+   `MWWorld::Scene`
+   unloads a cell's references through its own path and may already be correct. `ISSUES.md` now says
+   that rather than claiming a bug in it.
+3. The harness half of the entry is closed.
 
 ## Order
 

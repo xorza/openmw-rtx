@@ -222,7 +222,8 @@ namespace RtxTool
             const World::SkippedObjects skipped = world.forEachObject(cell, [&](const World::Object& object) {
                 if (object.mPerson != nullptr)
                 {
-                    report.mPeople.push_back(CellPerson{ .mRecord = object.mPerson, .mTransform = object.mTransform });
+                    report.mPeople.push_back(
+                        CellPerson{ .mRecord = object.mPerson, .mTransform = object.mTransform, .mParent = group });
                     return;
                 }
 
@@ -258,7 +259,8 @@ namespace RtxTool
                 // The model goes in first where it is going in at all, so that `addLight` below can
                 // find an `AttachLight` node inside it.
                 if (prop)
-                    report.mProps.push_back(CellProp{ .mModel = object.mModel, .mTransform = object.mTransform });
+                    report.mProps.push_back(
+                        CellProp{ .mModel = object.mModel, .mTransform = object.mTransform, .mParent = group });
                 else
                     where->addChild(node);
 

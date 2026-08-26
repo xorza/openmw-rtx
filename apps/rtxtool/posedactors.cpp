@@ -2,6 +2,7 @@
 
 #include <osg/MatrixTransform>
 
+#include <algorithm>
 #include <cmath>
 
 #include <components/debug/debuglog.hpp>
@@ -45,19 +46,42 @@ namespace RtxTool
     // Out of line because `Actor` is only forward declared in the header.
     PosedActors::~PosedActors() = default;
 
-    void PosedActors::add(ActorModel model, const osg::Matrixf& transform)
+    void PosedActors::add(ActorModel model, const osg::Matrixf& transform, osg::Group* cell, bool prop)
     {
-        mActors.push_back(std::make_unique<Actor>(mWorld, std::move(model), transform));
+        auto actor = std::make_unique<Actor>(mWorld, std::move(model), transform);
 
-        // Into the graph, under its own transform, the way a cell's references go in. From here the
-        // walk that mirrors the world mirrors this too, and posing is all this class still does.
+        // **Under the cell that placed it, the way its references go in.** From here the walk that
+        // mirrors the world mirrors this too, and posing is all this class still does — and the node
+        // leaves when the cell does, which is what unloading a cell means. An actor nobody's cell
+        // placed hangs on the run's own root, because there is nothing for it to leave with.
         osg::ref_ptr<osg::MatrixTransform> where = new osg::MatrixTransform(osg::Matrixd(transform));
-        where->addChild(&mActors.back()->getRoot());
-        mRoot.addChild(where);
+        where->addChild(&actor->getRoot());
+        (cell != nullptr ? *cell : mRoot).addChild(where);
 
-        // Nudged per actor as well as per position, so a row in front of a camera — spread along one
-        // axis, which walks the offset in step — comes out scattered rather than in a wave.
-        mPhases.push_back(phaseAt(transform) + static_cast<float>(mActors.size()) * 0.137f);
+        mResidents.push_back(Resident{
+            .mActor = std::move(actor),
+
+            // Nudged per actor as well as per position, so a row in front of a camera — spread along
+            // one axis, which walks the offset in step — comes out scattered rather than in a wave.
+            .mPhase = phaseAt(transform) + static_cast<float>(mResidents.size() + 1) * 0.137f,
+            .mProp = prop,
+            .mCell = cell,
+        });
+    }
+
+    void PosedActors::forgetDeparted()
+    {
+        std::erase_if(mResidents, [](const Resident& resident) {
+            // A group that has left the root is a cell that has been unloaded. Null is an actor no
+            // cell placed, which stays for as long as the run does.
+            return resident.mCell != nullptr && resident.mCell->getNumParents() == 0;
+        });
+    }
+
+    std::size_t PosedActors::getPropCount() const
+    {
+        return static_cast<std::size_t>(std::count_if(
+            mResidents.begin(), mResidents.end(), [](const Resident& resident) { return resident.mProp; }));
     }
 
     void PosedActors::addRow(const ActorRequest& request, const Placement& placement)
@@ -70,12 +94,12 @@ namespace RtxTool
         //
         // Counted off what has actually been added, so somebody nobody has a record for leaves no
         // gap in the row.
-        const std::size_t first = mActors.size();
+        const std::size_t first = mResidents.size();
         const auto next
-            = [&] { return placeActor(placement.mOrigin, placement.mTarget, mActors.size() - first, wanted); };
+            = [&] { return placeActor(placement.mOrigin, placement.mTarget, mResidents.size() - first, wanted); };
 
         for (const std::string& model : request.mCreatures)
-            add(loadCreature(mWorld, VFS::Path::Normalized(model)), next());
+            add(loadCreature(mWorld, VFS::Path::Normalized(model)), next(), nullptr);
 
         for (const std::string& id : request.mPeople)
         {
@@ -86,7 +110,7 @@ namespace RtxTool
                 continue;
             }
 
-            add(buildNpc(mWorld, *who, mClothes), next());
+            add(buildNpc(mWorld, *who, mClothes), next(), nullptr);
         }
     }
 
@@ -94,7 +118,7 @@ namespace RtxTool
     {
         for (const CellPerson& person : people)
             if (person.mRecord != nullptr)
-                add(buildNpc(mWorld, *person.mRecord, mClothes), person.mTransform);
+                add(buildNpc(mWorld, *person.mRecord, mClothes), person.mTransform, person.mParent.get());
     }
 
     void PosedActors::addProps(std::span<const CellProp> props)
@@ -103,15 +127,13 @@ namespace RtxTool
         {
             try
             {
-                add(loadProp(mWorld, prop.mModel), prop.mTransform);
+                add(loadProp(mWorld, prop.mModel), prop.mTransform, prop.mParent.get(), /*prop=*/true);
             }
             catch (const std::exception& failed)
             {
                 Log(Debug::Warning) << "Cannot instance " << prop.mModel << ": " << failed.what();
                 continue;
             }
-
-            ++mProps;
         }
     }
 
@@ -123,7 +145,7 @@ namespace RtxTool
 
     bool PosedActors::advanceTo(float seconds)
     {
-        if (mActors.empty())
+        if (mResidents.empty())
             return false;
 
         place(seconds);
@@ -142,6 +164,10 @@ namespace RtxTool
         // The game's frame, and now this one: empty the lists a walk refills, then walk the whole
         // thing. The lights are among what it refills — they are `LightSource` nodes in the graph,
         // exactly as the game has them.
+        // **Before the walk, because the walk is what would still find them.** A cell unloaded
+        // since the last frame took its group off the root; anyone who was standing in it goes now.
+        forgetDeparted();
+
         mScene.clearPlacement();
 
         // **The world walk and not a subtree's**, because this is the same root `StagedWorld` walks
@@ -166,11 +192,8 @@ namespace RtxTool
 
     void PosedActors::posedAt(float seconds, float elapsed)
     {
-        for (std::size_t at = 0; at < mActors.size(); ++at)
-        {
-            const std::unique_ptr<Actor>& actor = mActors[at];
-            actor->pose(seconds + mPhases[at] * actor->getDuration(), elapsed);
-        }
+        for (const Resident& resident : mResidents)
+            resident.mActor->pose(seconds + resident.mPhase * resident.mActor->getDuration(), elapsed);
     }
 
     Rtx::ExtractionStats PosedActors::place(float seconds)

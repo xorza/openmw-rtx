@@ -131,13 +131,24 @@ namespace RtxTool
         const Rtx::ExtractionStats& getPlaced() const { return mPlaced; }
 
         /// Everything being posed, props included.
-        std::size_t getCount() const { return mActors.size(); }
+        std::size_t getCount() const { return mResidents.size(); }
 
         /// How many of those are props rather than people or creatures.
-        std::size_t getPropCount() const { return mProps; }
+        std::size_t getPropCount() const;
 
     private:
-        void add(ActorModel model, const osg::Matrixf& transform);
+        /// @param cell the group to hang it under, or null to hang it on the run's own root — which
+        ///        is what an actor a request asked for gets, since no cell placed it.
+        /// @param prop a candle or a fire rather than a person: posed identically, counted apart.
+        void add(ActorModel model, const osg::Matrixf& transform, osg::Group* cell, bool prop = false);
+
+        /// Drops everyone whose cell has left the graph.
+        ///
+        /// **Read off the graph rather than told.** Unloading a cell is taking its group off the
+        /// root, so a group with no parent is a cell that has gone — the same signal
+        /// `QuadTreeWorld::collect` reads to know its terrain is disabled. Nothing has to remember
+        /// to call anything, which is what kept the residents standing after their town was swept.
+        void forgetDeparted();
         Rtx::ExtractionStats place(float seconds);
 
         /// Poses everyone at `seconds`, having advanced the world by `elapsed`, without walking
@@ -161,16 +172,39 @@ namespace RtxTool
         /// more of it.
         osg::Group& mRoot;
 
-        /// The world's own lights, which `clearPlacement` empties every frame and only this can
-        /// put back — a light on the graph belongs to whatever is carrying it.
-
-        std::vector<std::unique_ptr<Actor>> mActors;
-
-        /// How far into their own animation each of them is, on top of the clock.
+        /// One thing being posed, and what it belongs to.
         ///
-        /// **Without it a town breathes in unison**, which reads as a rank of automata rather than
-        /// as people: everyone plays the same idle and nothing in the content offsets them.
-        std::vector<float> mPhases;
+        /// **One record rather than vectors side by side**, because every field here is indexed by
+        /// the same actor and a resident that leaves takes all of them with it. Kept apart, a
+        /// removal has to remember each one.
+        struct Resident
+        {
+            std::unique_ptr<Actor> mActor;
+
+            /// How far into its own animation it is, on top of the clock.
+            ///
+            /// **Without it a town breathes in unison**, which reads as a rank of automata rather
+            /// than as people: everyone plays the same idle and nothing in the content offsets them.
+            float mPhase = 0.0f;
+
+            /// A prop rather than a person or a creature. Posed exactly the same way — the emitters
+            /// hang off update callbacks, which is what the traversal is for — and only counted
+            /// apart.
+            bool mProp = false;
+
+            /// The cell group this hangs under, or null for the actors a request asked for rather
+            /// than a cell. **What says when it should go**: the group leaves the root when its cell
+            /// is unloaded, and a resident under a group with no parent is standing in a street that
+            /// is no longer there.
+            ///
+            /// **Owning, which is what makes that question askable.** `LoadedCells` lets go of the
+            /// group when the cell leaves; without a reference here the node would be freed and the
+            /// parent count read off memory nobody owns. It holds the departed cell's subtree until
+            /// the next walk, which is one frame and the price of not being told.
+            osg::ref_ptr<osg::Group> mCell;
+        };
+
+        std::vector<Resident> mResidents;
 
         Rtx::ExtractionStats mPlaced;
         float mSeconds = 0.0f;
@@ -178,10 +212,5 @@ namespace RtxTool
 
         /// The animation time the last frame ran at, so the next can say how much time has passed.
         float mLastSeconds = 0.0f;
-
-        /// How many of `mActors` are props. They are posed exactly as an actor is — the emitters
-        /// hang off update callbacks, which is what the traversal is for — so they are not kept
-        /// apart, only counted.
-        std::size_t mProps = 0;
     };
 }
