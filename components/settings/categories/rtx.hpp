@@ -19,6 +19,16 @@ namespace Settings
 
         SettingValue<bool> mEnabled{ mIndex, "RTX", "enabled" };
 
+        /// How far out from the eye the world is built, in cells.
+        ///
+        /// **How much world exists, which is a property of the structure rays are cast against and
+        /// not of the camera.** `viewing distance` is the rasterizer's fog-and-visibility knob and
+        /// means something else: at 7168 against a cell of 8192 it barely leaves the active grid.
+        ///
+        /// The air is tuned to this as well as the ground, because fog measured in one distance over
+        /// a world built to another is a world you cannot see — see `Rtx::distantLandReach`.
+        SettingValue<float> mDistantLandCells{ mIndex, "RTX", "distant land cells" };
+
         /// Loads the Vulkan validation layers and refuses to start on anything they object to.
         ///
         /// **No control offers this, on purpose.** It is a developer's diagnostic: it costs a large

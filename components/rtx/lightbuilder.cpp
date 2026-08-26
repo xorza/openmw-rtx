@@ -1,5 +1,7 @@
 #include "lightbuilder.hpp"
 
+#include "distantland.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -163,7 +165,7 @@ namespace Rtx
                 // crosses on the `Stars` window rather than the sky's: they outlast the sunset and
                 // are gone before the sun is up. Nothing but night has any of it.
                 .mStarFade = Sky::TimeOfDayInterpolator<float>(0.0f, 0.0f, 0.0f, 1.0f).getValue(hour, times, "Stars"),
-                .mFog = { .mColour = haze, .mExtinction = fogExtinction(read.mFogDepth) },
+                .mFog = { .mColour = haze, .mExtinction = fogExtinction(read.mFogDepth, distantLandReach()) },
             };
         }
     }

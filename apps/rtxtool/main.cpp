@@ -18,6 +18,7 @@
 #include <components/misc/constants.hpp>
 #include <components/platform/platform.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/rtx/distantland.hpp>
 #include <components/rtx/fogbuilder.hpp>
 #include <components/rtx/lightbuilder.hpp>
 #include <components/rtx/renderer.hpp>
@@ -27,6 +28,7 @@
 #include <components/rtx/upscale.hpp>
 
 #include <components/settings/settings.hpp>
+#include <components/settings/values.hpp>
 #include <limits>
 
 #include "actor.hpp"
@@ -186,11 +188,13 @@ namespace RtxTool
         {
             world.pageTerrain(variables["distant-terrain"].as<bool>());
 
-            // Zero hands the decision back to `viewing distance`, which is the escape hatch rather
-            // than the default: a paged world is asked for in order to look at distance.
-            const float cells = variables["distant-cells"].as<float>();
-            if (cells > 0.0f)
-                world.setTerrainViewDistance(cells * static_cast<float>(Constants::CellSizeInUnits));
+            // **Written to the setting and not only handed to the terrain**, because the air reads
+            // the same number. Fog is a half-life measured across some distance; tuned to seven
+            // thousand units it swallows a world built to thirty, and a ring of ground four cells
+            // out then renders identically to one built none — which is how this came to be one
+            // number rather than two. Zero hands both back to `viewing distance`.
+            Settings::rtx().mDistantLandCells.set(variables["distant-cells"].as<float>());
+            world.setTerrainViewDistance(Rtx::distantLandReach());
         }
 
         ActorRequest actorsFrom(const bpo::variables_map& variables)

@@ -23,6 +23,8 @@ set(RTX_FILES
     colourblock.cpp
     colourblock.hpp
     error.hpp
+    distantland.cpp
+    distantland.hpp
     fogbuilder.cpp
     fogbuilder.hpp
     frameimage.cpp

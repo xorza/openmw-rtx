@@ -42,7 +42,14 @@ namespace Rtx
     /// **And it is the same conversion indoors**, because the original engine uses the same view
     /// range in both. A room is faint because it is small, not because its dial means something
     /// different — which is the answer a separate indoor scale was standing in for.
-    float fogExtinction(float depth);
+    ///
+    /// @param over the distance the half-life is measured across. **A parameter and not the
+    ///        rasterizer's `viewing distance`**, because outdoors this path builds a world to its
+    ///        own reach and air tuned to a shorter one swallows every bit of it — a ring of ground
+    ///        four cells out then renders identically to one none. Indoors it stays `viewing
+    ///        distance`, which is what the original engine measured a room against and what keeps a
+    ///        cellar from clearing because the sky got bigger.
+    float fogExtinction(float depth, float over);
 
     /// An interior's own fog, out of its `AMBI` record. Only interiors carry one; an exterior's air
     /// belongs to the weather.

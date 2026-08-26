@@ -9,14 +9,15 @@
 
 namespace Rtx
 {
-    float fogExtinction(float depth)
+    float fogExtinction(float depth, float over)
     {
         // The original engine reads a depth of zero as no fog at all rather than as a ramp starting
         // at the view distance, and so does this.
         if (!(depth > 0.0f))
             return 0.0f;
 
-        return std::log(2.0f) / (Settings::camera().mViewingDistance * (1.0f - 0.5f * depth));
+        // return 0.0;
+        return std::log(2.0f) / (over * (1.0f - 0.5f * depth));
     }
 
     Fog interiorFog(const ESM::Cell& cell)
@@ -26,7 +27,10 @@ namespace Rtx
 
         return Fog{
             .mColour = decodeColour(cell.mAmbi.mFog),
-            .mExtinction = fogExtinction(cell.mAmbi.mFogDensity),
+            // A room is measured against the view range the original engine measured it against, and not
+            // against how much world is built outside it: a cellar does not clear because the sky
+            // got bigger.
+            .mExtinction = fogExtinction(cell.mAmbi.mFogDensity, Settings::camera().mViewingDistance),
 
             // A room is smaller than one bank of fog, and its air is still.
             .mUniform = 1.0f,

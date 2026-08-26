@@ -9,9 +9,9 @@ Everything in §2 and §3 was read or measured rather than assumed, and each cla
 ## 1. What is being asked for
 
 - The active grid keeps exactly what it has now: full-detail chunks, real ground textures, blend
-  masks, every static and every actor.
+masks, every static and every actor.
 - Beyond it, out to **four cells** in every direction, ground exists and is drawn at decreasing
-  detail. That is a 9×9 block of cells against the 3×3 the game processes.
+detail. That is a 9×9 block of cells against the 3×3 the game processes.
 - Distant statics come with it, because a hillside with no towers on it is not distant land.
 - It costs what LOD is supposed to cost. Nine times the area must not be nine times the frame.
 
@@ -100,6 +100,29 @@ acceleration structure whether or not it is behind the eye. Nine times the area 
 it holds: four cells is known affordable and is a starting radius rather than a ceiling. What this
 does mean is that the radius is paid for in full at every camera angle, so it is a memory and
 structure question rather than a visibility one, and §6 step 6 is where that is held flat.
+
+### 3.4 Fog was derived from the viewing distance, so distance could not be seen
+
+`fogbuilder.cpp` measured extinction as a half-life across `Settings::camera().mViewingDistance`, so
+light from beyond about 7168 units was gone whatever the acceleration structure held. **Ground built
+four cells out then rendered identically to none at all** — which is what step 4 measured before
+this was found: 0, 4 and 12 cells all gave 67.7778% of primary rays hitting, and the frames differed
+by at most 30 of 255, which is the light grid moving rather than land appearing.
+
+**Landed.** `fogExtinction` takes the distance its half-life is measured across, and
+`Rtx::distantLandReach()` is the one number both the ground and the air are built to — `distant land
+cells` in units, or `viewing distance` where that is zero. **Interiors keep `viewing distance`**,
+because a room is measured against what the original engine measured it against and a cellar must
+not clear because the sky got bigger; `arkngthand` is byte-identical across the change and both
+exteriors are not, which is what says the split is where it should be.
+
+### 3.5 Paged terrain loses ground the grid renders
+
+Separately, and older than any of this: with `--distant-terrain` the harness draws less ground than
+without it. At Ald-ruhn from a camera inside the staged cell the paged world shows the sea plane
+where the street is; at Balmora the near ground survives and the distant hills do not. It happens at
+`--distant-cells=0`, so it is not the composite path. Recorded in `ISSUES.md`; it has to be settled
+before any picture of distant land means anything.
 
 ## 4. The design
 
@@ -238,10 +261,18 @@ the path at all and which step 5 folds into a setting.
 it reads the drawable's own bounding box instead, so nothing above it had to learn to pass anything
 down.
 
-**Checked:** the three byte-compared views are unchanged — the near field builds no composite, so it
-must not and does not move a pixel — and a components test bakes a region's worth, asserts
-`SceneTextures` describes every one rather than counting it unreadable, and asserts they do not all
-average to the same colour.
+**Checked, and the check is weaker than it looks.** The three byte-compared views are unchanged —
+the near field builds no composite, so it must not and does not move a pixel — and a components test
+bakes a region's worth, asserts `SceneTextures` describes every one rather than counting it
+unreadable, and asserts they do not all average to the same colour. The end-to-end path was then
+confirmed by instrumentation: at twelve cells the scene carries 4046 placed instances against 3974
+at none, and the top level is built with every one of them.
+
+**No picture shows it, and §3.4 and §3.5 are why.** Fog is tuned to `viewing distance`, so ground
+past seven thousand units is invisible however much of it exists; and paged terrain loses ground the
+grid renders, at any radius. Step 4's own check asked for "distant ground textured rather than grey"
+and what can honestly be said is that it is described, uploaded and traced — not that it has been
+seen. Both blockers were found by chasing exactly that gap.
 
 **What it costs, measured at Balmora with `--distant-cells=4`** against the same view with none,
 both `--distant-terrain`:
@@ -261,12 +292,13 @@ Byte-identical, and the only optimisation taken — the rest waits for M12 and a
 rather than acted on: a cell boundary bringing eight distant chunks is a quarter of a second, so the
 queue has to be bounded in something smaller than a whole composite.
 
-**5 — give the radius its own setting (D3).** `[RTX] distant land cells`, default 4, in the game —
-the harness half is done, `--distant-cells` defaulting to four so that asking for a paged world is
-asking to see distance. A knob rather than a constant, because four is where this starts and not
-where the hardware stops. **Check:** 1, 2 and 4 cells each produce visibly more ground, and the
-trace timer and structure bytes are reported at each so the shape of the growth is on record before
-anyone raises the default.
+**5 — give the radius its own setting (D3). Mostly done.** `[RTX] distant land cells` exists,
+defaults to four, and is what `Rtx::distantLandReach()` answers with; `--distant-cells` writes it,
+so the harness's terrain and its air are one number rather than two. **What is left is the game**,
+which still hands `RenderingManager::setViewDistance` the camera setting
+(`renderingmanager.cpp:1504`) and has to hand it this instead. **Check:** 1, 2 and 4 cells each
+produce visibly more ground, and the trace timer and structure bytes are reported at each so the
+shape of the growth is on record before anyone raises the default.
 
 **6 — hold the frame flat.** Chunks arriving and leaving must not spike: the bake queue is bounded,
 the structures append and recycle slots as they already do, and composites are released with their
@@ -280,22 +312,22 @@ closes, and both show terrain.
 ## 7. What is not known yet
 
 - **How many layers a large chunk's stack has** once composites are off. `createPasses` gathers what
-  the area holds; if an eight-cell chunk comes back with twenty passes, the bake is still fine but
-  the interim shading before a bake lands is not, and step 4's fallback has to be a coarser ancestor
-  rather than the live stack.
+the area holds; if an eight-cell chunk comes back with twenty passes, the bake is still fine but the
+interim shading before a bake lands is not, and step 4's fallback has to be a coarser ancestor
+rather than the live stack.
 - **What object paging costs at radius 4.** It arrives through the same `collect` and is merged
-  geometry, so its textures are real files and nothing in §3.2 applies to it — but it is geometry in
-  the acceleration structure, and step 6 should count it separately from the ground.
+geometry, so its textures are real files and nothing in §3.2 applies to it — but it is geometry in
+the acceleration structure, and step 6 should count it separately from the ground.
 - **Groundcover.** Another chunk manager on the same path. Out of scope here; it wants its own
-  answer and probably its own distance.
+answer and probably its own distance.
 - **What one bake costs, and so what step 4's queue can be bounded in.** The bake is a trilinear
-  fetch per layer per output texel, so a 256-square composite over a six-layer stack is over a
-  million of them — a dropped frame if a frame does one whole composite. The unit therefore has to
-  be smaller than a composite, rows being the obvious slice, and how large a composite should be in
-  the first place is the same measurement. Both wait on step 3, which is what makes real stacks
-  available to measure against.
+fetch per layer per output texel, so a 256-square composite over a six-layer stack is over a million
+of them — a dropped frame if a frame does one whole composite. The unit therefore has to be smaller
+than a composite, rows being the obvious slice, and how large a composite should be in the first
+place is the same measurement. Both wait on step 3, which is what makes real stacks available to
+measure against.
 - **A composite is baked at one delight strength and then cached.** The painted light has to come
-  off during the bake, because the estimate repeats with a texture's tiling and a composite has none
-  — which is why `describe()` hands back a neutral shading map and the shader can no longer do it.
-  Changing `delight` at runtime therefore leaves every standing composite at the old strength.
-  Whether that wants a rebake or wants the setting to stop being live is a step 4 question.
+off during the bake, because the estimate repeats with a texture's tiling and a composite has none —
+which is why `describe()` hands back a neutral shading map and the shader can no longer do it.
+Changing `delight` at runtime therefore leaves every standing composite at the old strength. Whether
+that wants a rebake or wants the setting to stop being live is a step 4 question.
