@@ -261,13 +261,12 @@ Byte-identical, and the only optimisation taken — the rest waits for M12 and a
 rather than acted on: a cell boundary bringing eight distant chunks is a quarter of a second, so the
 queue has to be bounded in something smaller than a whole composite.
 
-**5 — give the radius its own setting (D3).** `[RTX] distant land cells`, default 4, in the game and
-the harness — a knob rather than a constant, because four is where this starts and not where the
-hardware stops. **Check:** 1, 2 and 4 cells each produce visibly more ground, and the trace timer
-and
-structure bytes are reported at each so the shape of the growth is on record before anyone raises
-the
-default.
+**5 — give the radius its own setting (D3).** `[RTX] distant land cells`, default 4, in the game —
+the harness half is done, `--distant-cells` defaulting to four so that asking for a paged world is
+asking to see distance. A knob rather than a constant, because four is where this starts and not
+where the hardware stops. **Check:** 1, 2 and 4 cells each produce visibly more ground, and the
+trace timer and structure bytes are reported at each so the shape of the growth is on record before
+anyone raises the default.
 
 **6 — hold the frame flat.** Chunks arriving and leaving must not spike: the bake queue is bounded,
 the structures append and recycle slots as they already do, and composites are released with their

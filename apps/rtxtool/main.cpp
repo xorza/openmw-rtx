@@ -186,8 +186,8 @@ namespace RtxTool
         {
             world.pageTerrain(variables["distant-terrain"].as<bool>());
 
-            // Zero leaves `viewing distance` in charge, which is what everything not looking for
-            // distance gets.
+            // Zero hands the decision back to `viewing distance`, which is the escape hatch rather
+            // than the default: a paged world is asked for in order to look at distance.
             const float cells = variables["distant-cells"].as<float>();
             if (cells > 0.0f)
                 world.setTerrainViewDistance(cells * static_cast<float>(Constants::CellSizeInUnits));
