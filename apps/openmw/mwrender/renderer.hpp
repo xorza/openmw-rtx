@@ -119,17 +119,6 @@ namespace MWRender
         /// terrain`, whose default is off and whose business is what a rasterizer can afford to draw.
         virtual bool wantsPagedTerrain() const = 0;
 
-        /// Whether the cells the simulation has loaded are merged into chunks too, or only the
-        /// distance beyond them.
-        ///
-        /// **Whoever says yes owes the other half of the bargain.** `MWWorld::Scene` asks
-        /// `getPagedRefnums` which references a chunk swallowed and stands up only the rest — and it
-        /// asks the moment the grid changes, when the only chunks that exist are the ones a cull has
-        /// already built. A renderer that builds its chunks later than that answers the question with
-        /// nothing, every reference is stood up as well as merged, and the active grid is drawn
-        /// twice: two copies of every static, placed by two different rotation conventions.
-        virtual bool wantsPagedActiveGrid() const = 0;
-
         /// Chunk size, in cells, past which the terrain flattens a chunk's layer stack into one
         /// composite map — or `Terrain::sNoCompositeMap` for a renderer that will never ask for one.
         ///

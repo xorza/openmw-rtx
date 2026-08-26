@@ -373,11 +373,6 @@ namespace MWRender
         return Settings::terrain().mDistantTerrain;
     }
 
-    bool GlRenderer::wantsPagedActiveGrid() const
-    {
-        return Settings::terrain().mObjectPagingActiveGrid;
-    }
-
     float GlRenderer::getTerrainCompositeMapLevel() const
     {
         return static_cast<float>(std::pow(2, Settings::terrain().mCompositeMapLevel.get()));

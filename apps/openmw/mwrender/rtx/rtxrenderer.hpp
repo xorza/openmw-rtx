@@ -91,11 +91,6 @@ namespace MWRender
         /// question — and `TerrainGrid` answers it with the cells the simulation happens to hold.
         bool wantsPagedTerrain() const override;
 
-        /// Never. Chunks are built when the residency is collected, which is inside the frame and
-        /// long after `MWWorld::Scene` asked what to skip — so the distance is paged and the loaded
-        /// cells are stood up one reference at a time, which is what they were anyway.
-        bool wantsPagedActiveGrid() const override;
-
         /// Never, because this path initialises no OpenGL at all: a composite map is a render
         /// target, and `Rtx::TerrainComposite` bakes the flattened texture on the CPU instead.
         float getTerrainCompositeMapLevel() const override;

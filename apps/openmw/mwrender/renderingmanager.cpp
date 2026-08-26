@@ -1439,7 +1439,7 @@ namespace MWRender
             if (Settings::terrain().mObjectPaging)
             {
                 newChunkMgr.mObjectPaging = std::make_unique<Terrain::ObjectPaging>(mResourceSystem->getSceneManager(),
-                    mObjectStorage, worldspace, Mask_Static, mRenderer.wantsPagedActiveGrid());
+                    mObjectStorage, worldspace, Mask_Static, Settings::terrain().mObjectPagingActiveGrid);
                 quadTreeWorld->addChunkManager(newChunkMgr.mObjectPaging.get());
                 mResourceSystem->addResourceManager(newChunkMgr.mObjectPaging.get());
             }

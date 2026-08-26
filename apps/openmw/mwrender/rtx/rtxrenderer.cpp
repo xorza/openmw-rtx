@@ -248,11 +248,6 @@ namespace MWRender
         return true;
     }
 
-    bool RtxRenderer::wantsPagedActiveGrid() const
-    {
-        return false;
-    }
-
     float RtxRenderer::getTerrainCompositeMapLevel() const
     {
         return Terrain::sNoCompositeMap;
