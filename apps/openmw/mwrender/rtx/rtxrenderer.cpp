@@ -6,6 +6,7 @@
 #include <format>
 #include <limits>
 #include <numbers>
+#include <optional>
 #include <stdexcept>
 
 #include <SDL.h>
@@ -33,6 +34,7 @@
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/rtx/camera.hpp>
 #include <components/rtx/distantland.hpp>
+#include <components/rtx/error.hpp>
 #include <components/rtx/frameimage.hpp>
 #include <components/rtx/frameworld.hpp>
 #include <components/rtx/lightbuilder.hpp>
@@ -86,6 +88,10 @@ namespace MWRender
         /// Far enough to cross any cell. A primary ray that reaches this has left the world.
         constexpr float sFar = 200000.0f;
 
+        /// A quarter of a Morrowind foot. Nothing is clipped against it — see `mNear` — so it only
+        /// has to be nearer than anything the eye can find itself inside of.
+        constexpr float sNear = 1.0f;
+
         /// How often the trace's running average is reported. Five seconds at sixty frames.
         constexpr std::uint32_t sReportEvery = 300;
 
@@ -93,24 +99,6 @@ namespace MWRender
         /// because the alternative to a cap is filling a disk with a run somebody forgot about.
         constexpr std::uint32_t sKeepAtMost = 16;
 
-        /// Whether `makeCameraAlong` can be built from this direction at all.
-        ///
-        /// **Asked here rather than caught there.** A camera with no roll is a contract
-        /// `makeCameraAlong` asserts by throwing, and it is right to: nothing can render from one.
-        /// But the game hands over whatever its own camera is doing — including the frames of a
-        /// cutscene where it looks straight down — and a frame the tracer cannot draw is a frame to
-        /// skip, not a reason to take the game down with it.
-        bool canLookAlong(const osg::Vec3f& forward)
-        {
-            if (!(forward.length2() > 0.0f))
-                return false;
-
-            osg::Vec3f along = forward;
-            along.normalize();
-
-            // The same test `makeCameraAlong` makes: the cross product with the world's up vanishes.
-            return (along ^ osg::Vec3f(0.0f, 0.0f, 1.0f)).length2() > 1e-6f;
-        }
     }
 
     RtxRenderer::RtxRenderer(const RendererSpec& spec)
@@ -690,45 +678,42 @@ namespace MWRender
         // cannot look along is no reason to leave a map tile blank.
         drawDeferredViews();
 
-        // **In double, and the direction reduced to one before either is narrowed.** OSG hands back
-        // a point one unit ahead of the eye, and Morrowind's cells are far enough out that a float
-        // ulp there is a hundredth of a unit: differencing two such points names a direction a fifth
-        // of a degree wide, and it lands somewhere else every time the eye moves. Where the eye is
-        // survives the narrowing — a hundredth of a unit is a fifth of a millimetre — but which way
-        // it faces does not.
-        osg::Vec3d at;
-        osg::Vec3d ahead;
-        osg::Vec3d skyward;
-        camera.getViewMatrixAsLookAt(at, ahead, skyward);
+        const Rtx::FrameExtents extents = mRenderer->getExtents();
 
-        osg::Vec3d direction = ahead - at;
-        direction.normalize();
-
-        const osg::Vec3f eye(at);
-        const osg::Vec3f forward(direction);
-
-        if (!canLookAlong(forward))
+        // **The matrix and not a look-at, which is what lets the player look at their own feet.**
+        // `getViewMatrixAsLookAt` hands back a point one unit ahead of the eye, and Morrowind's
+        // cells are far enough out that a float ulp there is a hundredth of a unit: differencing two
+        // such points names a direction a fifth of a degree wide that lands somewhere else every
+        // time the eye moves. And a direction on its own carries no roll, so it has to borrow the
+        // world's up — which has no answer at all for an eye looking straight up or down. The game
+        // does both, every time somebody looks at the sky or the floor, and every one of those
+        // frames was skipped: the picture stopped and the last one stayed on the screen. A view
+        // matrix carries its own basis and neither problem survives it.
+        //
+        // **The frame's field of view and not the setting's.** `WorldState` carries the one the
+        // world settled on, which is the override wherever something asked for one — a zoom, a
+        // cutscene, a script — and the setting only where nothing did.
+        std::optional<Rtx::Shaders::VisibilityConstants> viewpoint;
+        try
         {
-            // Once, because a frame the tracer cannot draw is usually a cutscene and occasionally a
-            // camera nobody has filled in — and the two look identical from here until it is said
-            // out loud how often it happens.
+            viewpoint = Rtx::makeCameraFromView(
+                camera.getViewMatrix(), world.mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, sNear, sFar);
+        }
+        catch (const Rtx::Error& what)
+        {
+            // **Asked of the builder rather than tested for here**, which is how the test this
+            // replaced came to reject a camera that was perfectly good: it was a copy of a contract
+            // that then had two places to be right. Once, because a camera nobody filled in and a
+            // real defect look identical from here until it is said how often it happens.
             if (!mComplained)
             {
                 mComplained = true;
-                Log(Debug::Warning) << "Ray tracing skipped a frame: the camera at " << eye.x() << ", " << eye.y()
-                                    << ", " << eye.z() << " looks along " << forward.x() << ", " << forward.y() << ", "
-                                    << forward.z();
+                Log(Debug::Warning) << "Ray tracing skipped a frame: " << what.what();
             }
             return false;
         }
 
-        const Rtx::FrameExtents extents = mRenderer->getExtents();
-
-        // **The frame's field of view and not the setting's.** `WorldState` carries the one the
-        // world settled on, which is the override wherever something asked for one — a zoom, a
-        // cutscene, a script — and the setting only where nothing did.
-        Rtx::Shaders::VisibilityConstants constants
-            = Rtx::makeCameraAlong(eye, forward, world.mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, sFar);
+        Rtx::Shaders::VisibilityConstants constants = *viewpoint;
         // **Decoded here, because the world does not know what a transport is.** Every colour on
         // the frame is a content file's three bytes over 255 and no transfer function; the
         // rasterizer samples them as they are and this light transport is linear, so the conversion
