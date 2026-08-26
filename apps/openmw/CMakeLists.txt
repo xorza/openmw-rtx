@@ -21,7 +21,7 @@ add_openmw_dir (mwrender
     actors objects renderingmanager animation rotatecontroller npcanimation esm4npcanimation vismask
     creatureanimation effectmanager util renderinginterface pathgrid rendermode weaponanimation
     bulletdebugdraw globalmap characterpreview camera localmap terrainstorage
-    renderbin actoranimation landmanager navmesh actorspaths recastmesh fogmanager objectpaging groundcover
+    renderbin actoranimation landmanager navmesh actorspaths recastmesh fogmanager objectstorage groundcover
     actorutil animationpriority bonegroup blendmask animblendcontroller stage renderer windowsetup
     screenshotwriter
     )

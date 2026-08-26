@@ -32,9 +32,13 @@ view, so the reflection and the primary ray cannot disagree about a chunk's leve
 `aPagedWorldsGroundReachesTheMirrorAndOnlyBecauseItWasAskedFor`, with the converse test that a
 `TerrainGrid` offers no residency so the ground is never placed twice.
 
-**Distant statics arrive through the same call.** `loadRenderingNode` walks `mChunkManagers` and
-asks each for its chunk, so `ObjectPaging`'s merged statics and groundcover come back from `collect`
-alongside the ground.
+**Distant statics arrive through the same call — once something is registered to answer it.**
+`loadRenderingNode` walks `mChunkManagers` and asks each for its chunk, so merged statics and
+groundcover come back from `collect` alongside the ground. That was true of the game and, for a
+while, quietly false of the harness, which registered no manager at all and so had only ground to
+show: `Terrain::ObjectPaging` is a component now, reading the world through `Terrain::ObjectStorage`
+so that a running game and a headless harness answer it out of their own containers. Groundcover is
+the manager still missing from both sides of that, and stays out of scope below.
 
 **The extractor already understands a layer stack.** `resolveTerrainMaterial` reads a
 `TerrainDrawable`'s passes into `MaterialKind::Terrain` with a `MaterialLayer` apiece — diffuse,
@@ -305,6 +309,25 @@ Byte-identical, and the only optimisation taken — the rest waits for M12 and a
 rather than acted on: a cell boundary bringing eight distant chunks is a quarter of a second, so the
 queue has to be bounded in something smaller than a whole composite.
 
+**What the statics on that ground cost, measured the same way.** The row above is ground with
+nothing standing on it, which is what every run of this harness was until `Terrain::ObjectPaging`
+was registered. The same view and the same radius, with `--distant-statics` the only difference:
+
+| | textures | texture bytes | structures | triangles | vertex+index | scene build |
+|---|---|---|---|---|---|---|
+| ground alone | 450 | 67 MiB | 40 MiB | 502,157 | 16 MiB | 2685 ms |
+| and its statics | 619 | 72 MiB | 165 MiB | 2,252,922 | 90 MiB | 5822 ms |
+
+**The acceleration structure is where they land: 40 MiB to 165 MiB, four times over.** Triangles go
+up four and a half times and the vertex and index buffers nearly six, which is the same fact told
+three ways — a merged chunk is real geometry at full detail wherever no `_dist` mesh exists for it.
+Textures barely move, +5 MiB against +125 MiB of structure, because a distant building is made of
+the files the near cells already loaded.
+
+**Nothing is tuned on this.** It is four times the structure for the thing that makes a hillside a
+place rather than a colour, and the answer to the size of it is `object paging min size`, LOD meshes
+and M12 — not a smaller radius chosen before the frame is finished.
+
 **5 — give the radius its own setting (D3). Mostly done.** `[RTX] distant land cells` exists,
 defaults to four, and is what `Rtx::distantLandReach()` answers with; `--distant-cells` writes it,
 so the harness's terrain and its air are one number rather than two. **What is left is the game**,
@@ -328,9 +351,6 @@ closes, and both show terrain.
 the area holds; if an eight-cell chunk comes back with twenty passes, the bake is still fine but the
 interim shading before a bake lands is not, and step 4's fallback has to be a coarser ancestor
 rather than the live stack.
-- **What object paging costs at radius 4.** It arrives through the same `collect` and is merged
-geometry, so its textures are real files and nothing in §3.2 applies to it — but it is geometry in
-the acceleration structure, and step 6 should count it separately from the ground.
 - **Groundcover.** Another chunk manager on the same path. Out of scope here; it wants its own
 answer and probably its own distance.
 - **What one bake costs, and so what step 4's queue can be bounded in.** The bake is a trilinear

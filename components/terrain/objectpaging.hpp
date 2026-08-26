@@ -1,8 +1,9 @@
-#ifndef OPENMW_MWRENDER_OBJECTPAGING_H
-#define OPENMW_MWRENDER_OBJECTPAGING_H
+#ifndef OPENMW_COMPONENTS_TERRAIN_OBJECTPAGING_H
+#define OPENMW_COMPONENTS_TERRAIN_OBJECTPAGING_H
 
 #include <components/esm3/refnum.hpp>
 #include <components/resource/resourcemanager.hpp>
+#include <components/terrain/objectstorage.hpp>
 #include <components/terrain/quadtreeworld.hpp>
 
 #include <mutex>
@@ -12,15 +13,27 @@ namespace Resource
     class SceneManager;
 }
 
-namespace MWRender
+namespace Terrain
 {
 
     typedef std::tuple<osg::Vec2f, float, bool> ChunkId; // Center, Size, ActiveGrid
 
-    class ObjectPaging : public Resource::GenericResourceManager<ChunkId>, public Terrain::QuadTreeWorld::ChunkManager
+    class ObjectPaging : public Resource::GenericResourceManager<ChunkId>, public QuadTreeWorld::ChunkManager
     {
     public:
-        ObjectPaging(Resource::SceneManager* sceneManager, ESM::RefId worldspace);
+        /// @param storage what the content files say stands where. Borrowed, and must outlive this.
+        /// @param nodeMask what the chunks this builds are drawn under — the caller's own static
+        ///        mask, because a component has no opinion about the renderer's bins.
+        /// @param pageActiveGrid whether the cells the caller has loaded are merged into chunks too,
+        ///        rather than only the distance. **The caller's to state and not a setting's to
+        ///        decide**, because whoever says yes owes the other half of the bargain: the
+        ///        references a chunk swallowed must not also be stood up one by one, and only the
+        ///        caller knows how it stands them. The game reads its setting and asks
+        ///        `getPagedRefnums` to find out what to skip; a caller with no such machinery says
+        ///        no here and keeps the paging to the distance, which is the same picture by a
+        ///        different route.
+        ObjectPaging(Resource::SceneManager* sceneManager, const ObjectStorage& storage, ESM::RefId worldspace,
+            unsigned int nodeMask, bool pageActiveGrid);
         ~ObjectPaging() = default;
 
         osg::ref_ptr<osg::Node> getChunk(float size, const osg::Vec2f& center, unsigned char lod, unsigned int lodFlags,
@@ -49,6 +62,8 @@ namespace MWRender
 
     private:
         Resource::SceneManager* mSceneManager;
+        const ObjectStorage* mStorage;
+        unsigned int mNodeMask;
         bool mActiveGrid;
         bool mDebugBatches;
         float mMergeFactor;
@@ -95,7 +110,7 @@ namespace MWRender
             , mNumVertices(copy.mNumVertices)
         {
         }
-        META_Object(MWRender, RefnumMarker)
+        META_Object(Terrain, RefnumMarker)
 
         ESM::RefNum mRefnum;
         unsigned int mNumVertices;

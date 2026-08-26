@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <span>
@@ -7,6 +8,7 @@
 
 #include <osg/Group>
 #include <osg/Matrixf>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 
 #include <gtest/gtest.h>
@@ -35,10 +37,18 @@ namespace RtxTool
         /// An exterior with a lot of open ground in it, so the chunks are most of what is placed.
         constexpr std::string_view sOutdoors = "-2,-9";
 
+        /// An exterior with a town in it and more of one around it, so a chunk past the active grid
+        /// has something to stand on its ground.
+        constexpr std::string_view sBuiltUp = "-3,-2";
+
         /// One cell across, in world units.
         constexpr float sCellSize = static_cast<float>(Constants::CellSizeInUnits);
 
-        /// Places one cell's worth of world into `scene`, with or without the residency asked for.
+        /// Places a region into `scene`, with or without the residency asked for.
+        ///
+        /// **A three-by-three grid around `cell` and not the cell alone**, because that is what
+        /// `readRegion` loads and therefore what the active grid comes to — which is what anything
+        /// measuring "past the grid" has to measure against.
         ///
         /// @param walks how many times the world is walked, each followed by the sweep a live frame
         ///        runs. One is a load; more than one is what a frame that keeps rendering does.
@@ -102,6 +112,44 @@ namespace RtxTool
             }
 
             return std::max(most.x() - least.x(), most.y() - least.y());
+        }
+
+        /// Placed instances that are not ground and stand more than `reach` from `middle`, by the
+        /// wider of the two horizontal axes.
+        ///
+        /// **Outside the active grid is the whole assertion.** This harness stands the references of
+        /// the cell it loaded itself, one at a time; past that cell nothing but a chunk manager puts
+        /// anything down, so a count here is a count of what the paging built. Chebyshev and not
+        /// Euclidean, because the grid it is measured against is a square.
+        std::uint32_t standingBeyond(const Rtx::SceneDesc& scene, const osg::Vec2f& middle, float reach)
+        {
+            std::uint32_t beyond = 0;
+
+            for (const Rtx::MeshInstance& instance : scene.getInstances())
+            {
+                if (!instance.isPlaced() || instance.mMaterial == Rtx::sNoIndex)
+                    continue;
+                if (scene.getMaterials()[instance.mMaterial].mKind == Rtx::MaterialKind::Terrain)
+                    continue;
+
+                const osg::Vec3f at = instance.mTransform.getTrans();
+                if (std::abs(at.x() - middle.x()) > reach || std::abs(at.y() - middle.y()) > reach)
+                    ++beyond;
+            }
+
+            return beyond;
+        }
+
+        /// How far the active grid reaches from the middle of the cell a region was staged around.
+        ///
+        /// **One and a half cells, because `readRegion` loads three by three.** Anything further out
+        /// than this was put there by a chunk manager and by nothing else.
+        constexpr float sGridReach = 1.5f * sCellSize;
+
+        /// The middle of a cell, in world units.
+        osg::Vec2f middleOf(const ESM::Cell& cell)
+        {
+            return osg::Vec2f((cell.getGridX() + 0.5f) * sCellSize, (cell.getGridY() + 0.5f) * sCellSize);
         }
 
         GroundTally tallyGround(const Rtx::SceneDesc& scene)
@@ -186,6 +234,75 @@ namespace RtxTool
 
             EXPECT_EQ(world->getTerrainResidency(), nullptr);
             EXPECT_GT(scene.getPlacedCount(), 0u) << "a grid world's ground is found by walking, and was not";
+        }
+
+        /// The ground past the active grid carries what the content files stand on it, and only a
+        /// world that pages objects carries any.
+        ///
+        /// **What a hillside is made of, and the thing this harness quietly did not have.**
+        /// `QuadTreeWorld::loadRenderingNode` asks every registered chunk manager for its chunk and
+        /// adds whatever comes back; the game registers `Terrain::ObjectPaging` beside the terrain's
+        /// own under `object paging`, and this world registered nothing. With nothing to ask, only
+        /// ground could answer — so a hillside a few cells out arrived bare where the same hillside
+        /// inside the grid carried a town.
+        ///
+        /// **Three worlds and not one**, because `pageTerrain` and `pageStatics` are read when the
+        /// terrain is built and a world that has built it ignores both. The three are the same cell:
+        /// paged with its statics, paged without them, and the grid that pages nothing.
+        TEST(RtxPagedTerrainTest, aPagedWorldStandsStaticsPastTheActiveGridAndAGridWorldStandsNone)
+        {
+            Files::ConfigurationManager config;
+            bpo::variables_map variables;
+
+            const std::unique_ptr<World> paged = openWorld(config, variables);
+            if (paged == nullptr)
+                GTEST_SKIP() << "no Morrowind installation configured";
+
+            const ESM::Cell* cell = paged->findCell(std::string(sBuiltUp));
+            ASSERT_NE(cell, nullptr);
+
+            const osg::Vec2f middle = middleOf(*cell);
+
+            // Just past the grid, because every chunk wider than a cell is baked on the way in and
+            // each bake costs tens of milliseconds. What is under test is that anything at all
+            // arrives out there, which one ring of chunks answers as well as ten.
+            paged->pageTerrain(true);
+            paged->setTerrainViewDistance(2.0f * sCellSize);
+
+            Rtx::SceneDesc withStatics;
+            placeOutdoors(*paged, *cell, withStatics, true);
+            ASSERT_NE(paged->getTerrainResidency(), nullptr) << "the run did not page its terrain";
+
+            const std::uint32_t stood = standingBeyond(withStatics, middle, sGridReach);
+            EXPECT_GT(stood, 0u) << "the distant ground came up bare";
+
+            const std::unique_ptr<World> bare = openWorld(config, variables);
+            ASSERT_NE(bare, nullptr);
+
+            bare->pageTerrain(true);
+            bare->pageStatics(false);
+            bare->setTerrainViewDistance(2.0f * sCellSize);
+
+            Rtx::SceneDesc withoutStatics;
+            placeOutdoors(*bare, *cell, withoutStatics, true);
+
+            EXPECT_EQ(standingBeyond(withoutStatics, middle, sGridReach), 0u)
+                << "something stood out there with the paging switched off";
+
+            // **The same ground under both**, which is what makes the count above the statics'
+            // rather than a second world's worth of everything.
+            EXPECT_EQ(tallyGround(withStatics).mChunks, tallyGround(withoutStatics).mChunks);
+
+            const std::unique_ptr<World> grid = openWorld(config, variables);
+            ASSERT_NE(grid, nullptr);
+
+            grid->pageTerrain(false);
+
+            Rtx::SceneDesc gridded;
+            placeOutdoors(*grid, *cell, gridded, true);
+
+            EXPECT_EQ(standingBeyond(gridded, middle, sGridReach), 0u)
+                << "a grid world reaches no further than the cells it was given";
         }
 
         /// No chunk is textured by a render target, however large the quad tree makes it.

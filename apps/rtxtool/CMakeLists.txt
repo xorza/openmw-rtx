@@ -32,6 +32,8 @@ set(RTXTOOL_FILES
     motion.hpp
     npc.cpp
     npc.hpp
+    objectstorage.cpp
+    objectstorage.hpp
     posedactors.cpp
     posedactors.hpp
     options.cpp

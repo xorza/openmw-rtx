@@ -2,6 +2,7 @@
 #define OPENMW_MWRENDER_RENDERINGMANAGER_H
 
 #include "objects.hpp"
+#include "objectstorage.hpp"
 #include "renderinginterface.hpp"
 #include "rendermode.hpp"
 #include "sceneframe.hpp"
@@ -52,6 +53,7 @@ namespace Fx
 
 namespace Terrain
 {
+    class ObjectPaging;
     class World;
 }
 
@@ -112,7 +114,6 @@ namespace MWRender
     class NavMesh;
     class ActorsPaths;
     class RecastMesh;
-    class ObjectPaging;
     class Groundcover;
     class PostProcessor;
     class Renderer;
@@ -337,7 +338,7 @@ namespace MWRender
         struct WorldspaceChunkMgr
         {
             std::unique_ptr<Terrain::World> mTerrain;
-            std::unique_ptr<ObjectPaging> mObjectPaging;
+            std::unique_ptr<Terrain::ObjectPaging> mObjectPaging;
             std::unique_ptr<Groundcover> mGroundcover;
         };
 
@@ -382,7 +383,11 @@ namespace MWRender
         Rtx::TerrainResidency mResident;
 
         std::unique_ptr<TerrainStorage> mTerrainStorage;
-        ObjectPaging* mObjectPaging;
+
+        // What the paging reads the world out of. Held here because every worldspace's paging
+        // borrows it, and it outlives all of them.
+        ObjectStorage mObjectStorage;
+        Terrain::ObjectPaging* mObjectPaging;
         Groundcover* mGroundcover;
         std::unique_ptr<SkyManager> mSky;
         std::unique_ptr<FogManager> mFog;

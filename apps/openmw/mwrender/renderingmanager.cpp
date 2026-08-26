@@ -49,6 +49,7 @@
 #include <components/misc/constants.hpp>
 
 #include <components/terrain/chunkmanager.hpp>
+#include <components/terrain/objectpaging.hpp>
 #include <components/terrain/quadtreeworld.hpp>
 #include <components/terrain/terraingrid.hpp>
 
@@ -83,7 +84,6 @@
 #include "groundcover.hpp"
 #include "navmesh.hpp"
 #include "npcanimation.hpp"
-#include "objectpaging.hpp"
 #include "pathgrid.hpp"
 #include "recastmesh.hpp"
 #include "renderer.hpp"
@@ -1004,7 +1004,7 @@ namespace MWRender
 
         auto test = [&](const osgUtil::LineSegmentIntersector::Intersection& intersection) {
             PtrHolder* ptrHolder = nullptr;
-            std::vector<RefnumMarker*> refnumMarkers;
+            std::vector<Terrain::RefnumMarker*> refnumMarkers;
             bool hitNonObjectWorld = false;
             for (osg::Node* node : intersection.nodePath)
             {
@@ -1024,7 +1024,8 @@ namespace MWRender
                             ptrHolder = p;
                         }
                     }
-                    if (RefnumMarker* r = dynamic_cast<RefnumMarker*>(userDataContainer->getUserObject(i)))
+                    if (Terrain::RefnumMarker* r
+                        = dynamic_cast<Terrain::RefnumMarker*>(userDataContainer->getUserObject(i)))
                     {
                         refnumMarkers.push_back(r);
                     }
@@ -1444,8 +1445,8 @@ namespace MWRender
                 lodFactor, vertexLodMod, maxCompGeometrySize, debugChunks, worldspace, expiryDelay);
             if (Settings::terrain().mObjectPaging)
             {
-                newChunkMgr.mObjectPaging
-                    = std::make_unique<ObjectPaging>(mResourceSystem->getSceneManager(), worldspace);
+                newChunkMgr.mObjectPaging = std::make_unique<Terrain::ObjectPaging>(mResourceSystem->getSceneManager(),
+                    mObjectStorage, worldspace, Mask_Static, Settings::terrain().mObjectPagingActiveGrid);
                 quadTreeWorld->addChunkManager(newChunkMgr.mObjectPaging.get());
                 mResourceSystem->addResourceManager(newChunkMgr.mObjectPaging.get());
             }

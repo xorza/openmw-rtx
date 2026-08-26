@@ -14,24 +14,12 @@
 #include <osgParticle/ParticleSystemUpdater>
 #include <osgUtil/IncrementalCompileOperation>
 
-#include <components/esm/path.hpp>
-#include <components/esm3/esmreader.hpp>
-#include <components/esm3/loadacti.hpp>
-#include <components/esm3/loadcell.hpp>
-#include <components/esm3/loadcont.hpp>
-#include <components/esm3/loaddoor.hpp>
-#include <components/esm3/loadstat.hpp>
-#include <components/esm3/readerscache.hpp>
-#include <components/esm4/loadacti.hpp>
-#include <components/esm4/loadcont.hpp>
-#include <components/esm4/loaddoor.hpp>
-#include <components/esm4/loadfurn.hpp>
-#include <components/esm4/loadstat.hpp>
-#include <components/esm4/loadtree.hpp>
+#include <components/esm/util.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
 #include <components/nifosg/autotransform.hpp>
+#include <components/nifosg/nifloader.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
@@ -43,78 +31,8 @@
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwbase/world.hpp"
-#include "apps/openmw/mwclass/esm4base.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
-
-#include "vismask.hpp"
-
-namespace MWRender
+namespace Terrain
 {
-
-    namespace
-    {
-        bool typeFilter(int type, bool far)
-        {
-            switch (type)
-            {
-                case ESM::REC_STAT:
-                case ESM::REC_ACTI:
-                case ESM::REC_DOOR:
-                case ESM::REC_STAT4:
-                case ESM::REC_DOOR4:
-                case ESM::REC_TREE4:
-                    return true;
-                case ESM::REC_CONT:
-                case ESM::REC_ACTI4:
-                case ESM::REC_CONT4:
-                case ESM::REC_FURN4:
-                    return !far;
-
-                default:
-                    return false;
-            }
-        }
-
-        template <typename Record>
-        VFS::Path::Normalized getEsm4Model(const Record& record)
-        {
-            if (MWClass::ESM4Impl::isMarkerModel(record->mModel.getOriginal()))
-                return {};
-            return record->mModel.getNormalized();
-        }
-
-        VFS::Path::Normalized getModel(int type, ESM::RefId id, const MWWorld::ESMStore& store)
-        {
-            switch (type)
-            {
-                case ESM::REC_STAT:
-                    return store.get<ESM::Static>().searchStatic(id)->mModel.getNormalized();
-                case ESM::REC_ACTI:
-                    return store.get<ESM::Activator>().searchStatic(id)->mModel.getNormalized();
-                case ESM::REC_DOOR:
-                    return store.get<ESM::Door>().searchStatic(id)->mModel.getNormalized();
-                case ESM::REC_CONT:
-                    return store.get<ESM::Container>().searchStatic(id)->mModel.getNormalized();
-                case ESM::REC_STAT4:
-                    return getEsm4Model(store.get<ESM4::Static>().searchStatic(id));
-                case ESM::REC_DOOR4:
-                    return getEsm4Model(store.get<ESM4::Door>().searchStatic(id));
-                case ESM::REC_TREE4:
-                    return getEsm4Model(store.get<ESM4::Tree>().searchStatic(id));
-                case ESM::REC_ACTI4:
-                    return getEsm4Model(store.get<ESM4::Activator>().searchStatic(id));
-                case ESM::REC_CONT4:
-                    return getEsm4Model(store.get<ESM4::Container>().searchStatic(id));
-                case ESM::REC_FURN4:
-                    return getEsm4Model(store.get<ESM4::Furniture>().searchStatic(id));
-                default:
-                    return {};
-            }
-        }
-    }
-
     osg::ref_ptr<osg::Node> ObjectPaging::getChunk(float size, const osg::Vec2f& center, unsigned char /*lod*/,
         unsigned int lodFlags, bool activeGrid, const osg::Vec3f& viewPoint, bool compile)
     {
@@ -327,7 +245,7 @@ namespace MWRender
                 : mRefnums(copy.mRefnums)
             {
             }
-            META_Object(MWRender, RefnumSet)
+            META_Object(Terrain, RefnumSet)
             std::vector<ESM::RefNum> mRefnums;
         };
 
@@ -462,11 +380,14 @@ namespace MWRender
         };
     }
 
-    ObjectPaging::ObjectPaging(Resource::SceneManager* sceneManager, ESM::RefId worldspace)
+    ObjectPaging::ObjectPaging(Resource::SceneManager* sceneManager, const ObjectStorage& storage,
+        ESM::RefId worldspace, unsigned int nodeMask, bool pageActiveGrid)
         : GenericResourceManager<ChunkId>(nullptr, Settings::cells().mCacheExpiryDelay)
-        , Terrain::QuadTreeWorld::ChunkManager(worldspace)
+        , QuadTreeWorld::ChunkManager(worldspace)
         , mSceneManager(sceneManager)
-        , mActiveGrid(Settings::terrain().mObjectPagingActiveGrid)
+        , mStorage(&storage)
+        , mNodeMask(nodeMask)
+        , mActiveGrid(pageActiveGrid)
         , mDebugBatches(Settings::terrain().mDebugChunks)
         , mMergeFactor(Settings::terrain().mObjectPagingMergeFactor)
         , mMinSize(Settings::terrain().mObjectPagingMinSize)
@@ -476,165 +397,13 @@ namespace MWRender
     {
     }
 
-    namespace
-    {
-        struct PagedCellRef
-        {
-            ESM::RefId mRefId;
-            ESM::RefNum mRefNum;
-            osg::Vec3f mPosition;
-            osg::Vec3f mRotation;
-            float mScale;
-        };
-
-        PagedCellRef makePagedCellRef(const ESM::CellRef& value)
-        {
-            return PagedCellRef{
-                .mRefId = value.mRefID,
-                .mRefNum = value.mRefNum,
-                .mPosition = value.mPos.asVec3(),
-                .mRotation = value.mPos.asRotationVec3(),
-                .mScale = value.mScale,
-            };
-        }
-
-        PagedCellRef makePagedCellRef(const ESM4::Reference& value)
-        {
-            return PagedCellRef{
-                .mRefId = value.mBaseObj,
-                .mRefNum = value.mId,
-                .mPosition = value.mPos.asVec3(),
-                .mRotation = value.mPos.asRotationVec3(),
-                .mScale = value.mScale,
-            };
-        }
-
-        std::map<ESM::RefNum, PagedCellRef> collectESM3References(
-            float size, const osg::Vec2i& startCell, const MWWorld::ESMStore& store)
-        {
-            std::map<ESM::RefNum, PagedCellRef> refs;
-            ESM::ReadersCache readers;
-            for (int cellX = startCell.x(); cellX < startCell.x() + size; ++cellX)
-            {
-                for (int cellY = startCell.y(); cellY < startCell.y() + size; ++cellY)
-                {
-                    const ESM::Cell* cell = store.get<ESM::Cell>().searchStatic(cellX, cellY);
-                    if (!cell)
-                        continue;
-                    for (size_t i = 0; i < cell->mContextList.size(); ++i)
-                    {
-                        try
-                        {
-                            const std::size_t index = static_cast<std::size_t>(cell->mContextList[i].index);
-                            const ESM::ReadersCache::BusyItem reader = readers.get(index);
-                            cell->restore(*reader, i);
-                            ESM::CellRef ref;
-                            ESM::MovedCellRef cMRef;
-                            bool deleted = false;
-                            bool moved = false;
-                            while (ESM::Cell::getNextRef(
-                                *reader, ref, deleted, cMRef, moved, ESM::Cell::GetNextRefMode::LoadOnlyNotMoved))
-                            {
-                                if (moved)
-                                    continue;
-
-                                if (std::find(cell->mMovedRefs.begin(), cell->mMovedRefs.end(), ref.mRefNum)
-                                    != cell->mMovedRefs.end())
-                                    continue;
-
-                                int type = store.findStatic(ref.mRefID);
-                                if (!typeFilter(type, size >= 2))
-                                    continue;
-                                if (deleted)
-                                {
-                                    refs.erase(ref.mRefNum);
-                                    continue;
-                                }
-                                refs.insert_or_assign(ref.mRefNum, makePagedCellRef(ref));
-                            }
-                        }
-                        catch (const std::exception& e)
-                        {
-                            Log(Debug::Warning) << "Failed to collect references from cell \"" << cell->getDescription()
-                                                << "\": " << e.what();
-                            continue;
-                        }
-                    }
-                    for (const auto& [ref, deleted] : cell->mLeasedRefs)
-                    {
-                        if (deleted)
-                        {
-                            refs.erase(ref.mRefNum);
-                            continue;
-                        }
-                        int type = store.findStatic(ref.mRefID);
-                        if (!typeFilter(type, size >= 2))
-                            continue;
-                        refs.insert_or_assign(ref.mRefNum, makePagedCellRef(ref));
-                    }
-                }
-            }
-            return refs;
-        }
-
-        std::map<ESM::RefNum, PagedCellRef> collectESM4References(
-            float size, const osg::Vec2i& startCell, ESM::RefId worldspace)
-        {
-            std::map<ESM::RefNum, PagedCellRef> refs;
-            const auto& store = MWBase::Environment::get().getWorld()->getStore();
-            for (int cellX = startCell.x(); cellX < startCell.x() + size; ++cellX)
-            {
-                for (int cellY = startCell.y(); cellY < startCell.y() + size; ++cellY)
-                {
-                    const ESM4::Cell* cell
-                        = store.get<ESM4::Cell>().searchExterior(ESM::ExteriorCellLocation(cellX, cellY, worldspace));
-                    if (!cell)
-                        continue;
-                    for (const ESM4::Reference* ref4 : store.get<ESM4::Reference>().getByCell(cell->mId))
-                    {
-                        if (ref4->mFlags & ESM4::Rec_Disabled)
-                            continue;
-                        int type = store.findStatic(ref4->mBaseObj);
-                        if (!typeFilter(type, size >= 2))
-                            continue;
-                        if (!ref4->mEsp.parent.isZeroOrUnset())
-                        {
-                            const ESM4::Reference* parentRef
-                                = store.get<ESM4::Reference>().searchStatic(ref4->mEsp.parent);
-                            if (parentRef)
-                            {
-                                bool parentDisabled = parentRef->mFlags & ESM4::Rec_Disabled;
-                                bool inversed = ref4->mEsp.flags & ESM4::EnableParent::Flag_Inversed;
-                                if (parentDisabled != inversed)
-                                    continue;
-                            }
-                        }
-                        refs.insert_or_assign(ref4->mId, makePagedCellRef(*ref4));
-                    }
-                }
-            }
-            return refs;
-        }
-    }
-
     osg::ref_ptr<osg::Node> ObjectPaging::createChunk(float size, const osg::Vec2f& center, bool activeGrid,
         const osg::Vec3f& viewPoint, bool compile, unsigned char lod)
     {
         const osg::Vec2i startCell(static_cast<int>(std::floor(center.x() - size / 2.f)),
             static_cast<int>(std::floor(center.y() - size / 2.f)));
-        const MWBase::World& world = *MWBase::Environment::get().getWorld();
-        const MWWorld::ESMStore& store = world.getStore();
-
         std::map<ESM::RefNum, PagedCellRef> refs;
-
-        if (mWorldspace == ESM::Cell::sDefaultWorldspaceId)
-        {
-            refs = collectESM3References(size, startCell, store);
-        }
-        else
-        {
-            refs = collectESM4References(size, startCell, mWorldspace);
-        }
+        mStorage->collectReferences(size, startCell, mWorldspace, refs);
 
         if (activeGrid && !refs.empty())
         {
@@ -667,11 +436,12 @@ namespace MWRender
         NodeMap nodes;
         const osg::ref_ptr<RefnumSet> refnumSet = activeGrid ? new RefnumSet : nullptr;
 
-        // Mask_UpdateVisitor is used in such cases in NIF loader:
-        // 1. For collision nodes, which is not supposed to be rendered.
-        // 2. For nodes masked via Flag_Hidden (VisController can change this flag value at runtime).
-        // Since ObjectPaging does not handle VisController, we can just ignore both types of nodes.
-        constexpr auto copyMask = ~Mask_UpdateVisitor;
+        // **What the loader hid, and asked from the loader.** A NIF loader marks two kinds of node
+        // as not-to-be-drawn — collision shapes, and anything a `VisController` may hide at runtime
+        // — with a mask its owner chose. This paging runs no such controller, so both are simply
+        // left out of the copy, and asking the loader is what keeps a second world from choosing a
+        // different bit and copying a town's collision meshes into its distant hills.
+        const auto copyMask = ~NifOsg::Loader::getHiddenNodeMask();
 
         const int cellSize = getCellSize(mWorldspace);
         const float smallestDistanceToChunk = (size > 1 / 8.f) ? (size * cellSize) : 0.f;
@@ -706,8 +476,8 @@ namespace MWRender
             if (Misc::ResourceHelpers::isHiddenMarker(ref.mRefId))
                 continue;
 
-            const int type = store.findStatic(ref.mRefId);
-            VFS::Path::Normalized model = getModel(type, ref.mRefId, store);
+            const int type = ref.mType;
+            VFS::Path::Normalized model = mStorage->getModel(type, ref.mRefId);
             if (model.empty())
                 continue;
             model = Misc::ResourceHelpers::correctMeshPath(model);
@@ -736,7 +506,7 @@ namespace MWRender
                 else
                     model = mLODNameCache
                                 .emplace_hint(found, std::move(key),
-                                    Misc::ResourceHelpers::getLODMeshName(world.getESMVersions()[refNum.mContentFile],
+                                    Misc::ResourceHelpers::getLODMeshName(mStorage->getEsmVersion(refNum.mContentFile),
                                         model, *mSceneManager->getVFS(), lod))
                                 ->second;
             }
@@ -929,7 +699,7 @@ namespace MWRender
         }
 
         group->getBound();
-        group->setNodeMask(Mask_Static);
+        group->setNodeMask(mNodeMask);
         osg::UserDataContainer* udc = group->getOrCreateUserDataContainer();
         if (activeGrid)
         {
@@ -946,7 +716,7 @@ namespace MWRender
 
     unsigned int ObjectPaging::getNodeMask()
     {
-        return Mask_Static;
+        return mNodeMask;
     }
 
     namespace
@@ -995,7 +765,7 @@ namespace MWRender
     bool ObjectPaging::enableObject(
         int type, ESM::RefNum refnum, const osg::Vec3f& pos, const osg::Vec2i& cell, bool enabled)
     {
-        if (!typeFilter(type, false))
+        if (!pagedType(type, false))
             return false;
 
         {
@@ -1019,7 +789,7 @@ namespace MWRender
 
     bool ObjectPaging::blacklistObject(int type, ESM::RefNum refnum, const osg::Vec3f& pos, const osg::Vec2i& cell)
     {
-        if (!typeFilter(type, false))
+        if (!pagedType(type, false))
             return false;
 
         {
@@ -1071,7 +841,7 @@ namespace MWRender
                 : mOutput(output)
             {
             }
-            void operator()(MWRender::ChunkId chunkId, osg::Object* obj)
+            void operator()(ChunkId chunkId, osg::Object* obj)
             {
                 if (!std::get<2>(chunkId))
                     return;

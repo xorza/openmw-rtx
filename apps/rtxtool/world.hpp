@@ -22,6 +22,7 @@
 
 #include <components/rtx/terrainresidency.hpp>
 
+#include "objectstorage.hpp"
 #include "terrainstorage.hpp"
 
 namespace boost::program_options
@@ -43,6 +44,7 @@ namespace Resource
 
 namespace Terrain
 {
+    class ObjectPaging;
     class World;
 }
 
@@ -184,6 +186,14 @@ namespace RtxTool
         /// harness building only `Terrain::TerrainGrid` meant nothing here could see that.
         void pageTerrain(bool paged) { mPagedTerrain = paged; }
 
+        /// Whether the distant ground carries what stands on it — the buildings, trees and rocks the
+        /// game merges into a chunk through `Terrain::ObjectPaging`.
+        ///
+        /// **The A/B that says what they cost**, which is the whole reason this is separable from
+        /// the ground it stands on. Ignored where nothing pages, and where the game's own
+        /// `object paging` is off.
+        void pageStatics(bool paged) { mPagedStatics = paged; }
+
         /// The terrain's chunks where the graph does not parent them, or null where it does.
         Rtx::Residency* getTerrainResidency() { return mResident.get(); }
 
@@ -253,10 +263,17 @@ namespace RtxTool
         // The grid deregisters itself from the resource system, so it must go first; the storage
         // holds pointers into `mEsmData`, so it must go before that.
         std::unique_ptr<TerrainStorage> mTerrainStorage;
+
+        // What the paging reads the world out of, and the paging itself. The quad tree holds a bare
+        // pointer to the latter as one of its chunk managers, so it has to outlive the tree — which
+        // is what putting it above `mTerrain` says.
+        ObjectStorage mObjectStorage;
         osg::ref_ptr<osg::Group> mTerrainParent;
         osg::ref_ptr<osg::Group> mCompileRoot;
+        std::unique_ptr<Terrain::ObjectPaging> mObjectPaging;
         std::unique_ptr<Terrain::World> mTerrain;
         bool mPagedTerrain = false;
+        bool mPagedStatics = true;
 
         /// Unset until something asks for distance, and `viewing distance` stands in for it.
         std::optional<float> mTerrainViewDistance;

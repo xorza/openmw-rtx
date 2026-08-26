@@ -30,6 +30,7 @@
 #include <components/settings/values.hpp>
 #include <components/shader/shadermanager.hpp>
 #include <components/terrain/chunkmanager.hpp>
+#include <components/terrain/objectpaging.hpp>
 #include <components/terrain/quadtreeworld.hpp>
 #include <components/terrain/terraingrid.hpp>
 #include <components/vfs/registerarchives.hpp>
@@ -145,6 +146,7 @@ namespace RtxTool
         : mEncoder(makeEncoder(variables))
         , mFileCollections(makeFileCollections(config, variables, resourcePath))
         , mEsmData(loadContent(variables, mFileCollections, mReaders, mEncoder))
+        , mObjectStorage(mEsmData)
     {
         Fallback::Map::init(variables["fallback"].as<Fallback::FallbackMap>().mMap);
 
@@ -210,6 +212,27 @@ namespace RtxTool
                         Terrain::sNoCompositeMap, Settings::terrain().mLodFactor, Settings::terrain().mVertexLodMod,
                         Settings::terrain().mMaxCompositeGeometrySize, false, ESM::Cell::sDefaultWorldspaceId,
                         sExpiryDelay);
+
+                // **The chunk managers the game registers, from the setting the game reads.** A
+                // quad tree asks every one of them for its chunk and adds what comes back, so a
+                // world that registered none produces ground and nothing else — which is why the
+                // harness's distant hillsides arrived bare while the same hillside inside the
+                // active grid carried a town. Groundcover is the third the game registers and is
+                // not here: it wants its own distance and probably its own answer.
+                if (mPagedStatics && Settings::terrain().mObjectPaging)
+                {
+                    // **The distance only, because this world stands its own active grid.**
+                    // `readRegion` places every reference a loaded cell carries, one at a time; a
+                    // paging that also merged those cells would stand each of them twice. The game
+                    // avoids that by asking `getPagedRefnums` what a chunk swallowed and skipping
+                    // it, which needs a `Scene` and chunks already built — neither of which exists
+                    // here. Past the active grid, which is what this is for, the two worlds build
+                    // the same thing.
+                    mObjectPaging = std::make_unique<Terrain::ObjectPaging>(mResourceSystem->getSceneManager(),
+                        mObjectStorage, ESM::Cell::sDefaultWorldspaceId, ~0u, /*pageActiveGrid=*/false);
+                    paged->addChunkManager(mObjectPaging.get());
+                    mResourceSystem->addResourceManager(mObjectPaging.get());
+                }
 
                 mResident = std::make_unique<Rtx::TerrainResidency>();
                 mResident->follow(paged.get());

@@ -176,14 +176,14 @@ namespace RtxTool
                   << options;
         }
 
-        /// Who stands in the region, from the command line. **One reading of it**, because a
-        /// report that described a differently populated cell than the one `shot` renders is the
-        /// drift this tool exists to catch.
-        /// Applies both terrain options at once.
+        /// Applies every terrain option at once: whether the world pages, how far, and whether
+        /// the distant ground carries anything.
         ///
         /// **Together, because they are read together everywhere.** Paging without distance is a
-        /// quad tree that barely leaves the active grid, and a command that set one and forgot the
-        /// other would be rendering a different world from the one its line asked for.
+        /// quad tree that barely leaves the active grid, distance without paging is a radius
+        /// `TerrainGrid` ignores, and statics without either are statics on ground that does not
+        /// exist — so a command that set one and forgot the rest would be rendering a different
+        /// world from the one its line asked for.
         void pageTerrainFrom(World& world, const bpo::variables_map& variables)
         {
             // **Written to the setting and not only handed to the terrain**, because the air reads
@@ -193,14 +193,14 @@ namespace RtxTool
             // number rather than two.
             const float cells = variables["distant-cells"].as<float>();
 
-            // **Still asked for explicitly, and that is deliberate.** A radius means nothing without
-            // the paged world — `TerrainGrid` builds the staged cells and nothing else, which is the
-            // three-cell square of ground with sea to the horizon a run without this flag shows. But
-            // the paged world currently renders no ground at all (`ISSUES.md`), so it is not the
-            // default until that is settled: a harness whose ordinary run has no terrain in it is
-            // worse than one that stops at three cells.
+            // **On by default, and still nameable.** A radius means nothing without the paged
+            // world — `TerrainGrid` builds the staged cells and nothing else, which is the
+            // three-cell square of ground with sea to the horizon `--distant-terrain=false` puts
+            // back. That is what the flag is for now: an A/B against the world the game builds,
+            // rather than a way to reach ground that only the grid could make.
             const bool paged = variables["distant-terrain"].as<bool>();
             world.pageTerrain(paged);
+            world.pageStatics(variables["distant-statics"].as<bool>());
 
             // **The air follows the world that is actually built, and the grid does not honour a
             // radius.** `TerrainGrid` makes the staged cells and nothing else, so a run without the
@@ -211,6 +211,9 @@ namespace RtxTool
             world.setTerrainViewDistance(Rtx::distantLandReach());
         }
 
+        /// Who stands in the region, from the command line. **One reading of it**, because a
+        /// report that described a differently populated cell than the one `shot` renders is the
+        /// drift this tool exists to catch.
         ActorRequest actorsFrom(const bpo::variables_map& variables)
         {
             return ActorRequest{
