@@ -13,6 +13,7 @@ set(RTX_TEST_FILES
     rtx/camera.cpp
     rtx/cellgrid.cpp
     rtx/cellring.cpp
+    rtx/dailycanary.cpp
     rtx/cloudshell.cpp
     rtx/colour.cpp
     rtx/compositequeue.cpp
