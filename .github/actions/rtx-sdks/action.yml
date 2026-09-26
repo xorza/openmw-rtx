@@ -93,6 +93,7 @@ runs:
       # left out, or one that needs a library it did not bring, stops here by name and not in the
       # middle of a configure.
       shell: bash
+      # zizmor: ignore[github-env] every value written is a path on the runner, which nothing a pull request writes reaches
       run: |
         if [ "$RUNNER_OS" = Linux ]; then
           sdk="${RUNNER_TEMP}/vulkan-sdk/x86_64"
@@ -141,4 +142,5 @@ runs:
 
     - name: NGX_ROOT, the one way FindNGX is pointed at a checkout
       shell: bash
+      # zizmor: ignore[github-env] the workspace's path, which nothing a pull request writes reaches
       run: echo "NGX_ROOT=${GITHUB_WORKSPACE}/dlss" >> "$GITHUB_ENV"
