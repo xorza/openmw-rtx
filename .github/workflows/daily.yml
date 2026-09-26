@@ -23,8 +23,13 @@ on:
   # dispatch cannot reach before it is on master. Removed before the merge.
   pull_request:
 
-permissions:
-  contents: read
+# Nothing by default, and each job names what it needs.
+permissions: {}
+
+env:
+  # A filter that matches nothing is a failure and not a pass, on a Google Test that reads this;
+  # an older one ignores it.
+  GTEST_FAIL_IF_NO_TEST_SELECTED: "1"
 
 concurrency:
   group: daily
@@ -34,6 +39,8 @@ jobs:
   sanitizers:
     name: sanitizers
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     timeout-minutes: 180
     defaults:
       run:
@@ -51,16 +58,24 @@ jobs:
         with:
           key: sanitizers
           max-size: 1000M
+          # Saved by master and the schedule, and only read by a pull request: ten gigabytes hold
+          # every job's cache once, and not once more for every branch.
+          save: ${{ github.event_name != 'pull_request' }}
 
       - name: Build
         run: apps/rtxtool/rtx asan build
 
-      - name: Test, upstream's suites whole beside the fork's
-        run: apps/rtxtool/rtx asan test --without-device --all
+      - name: Test, upstream's suites whole beside the fork's, in a shuffled order
+        # Shuffled, so a test that leans on what an earlier one left behind fails here: the seed is in
+        # the log, and `--gtest_random_seed` takes it back. A test that captured stderr and never gave
+        # it back broke every later death test in its binary, and ran in upstream's order for years.
+        run: apps/rtxtool/rtx asan test --without-device --all --gtest_shuffle
 
   package:
     name: package (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     timeout-minutes: 180
     strategy:
       fail-fast: false
@@ -82,6 +97,9 @@ jobs:
         with:
           key: package-${{ matrix.os }}
           max-size: 1000M
+          # Saved by master and the schedule, and only read by a pull request: ten gigabytes hold
+          # every job's cache once, and not once more for every branch.
+          save: ${{ github.event_name != 'pull_request' }}
 
       - name: Package, as a release does
         run: apps/rtxtool/rtx package archive daily

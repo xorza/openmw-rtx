@@ -4,6 +4,11 @@
 name: OpenMW dependencies
 description: The packages a build of the tree needs, per system.
 
+inputs:
+  cache:
+    description: Whether to restore and save the Windows dependency cache; false for a release.
+    default: "true"
+
 runs:
   using: composite
   steps:
@@ -23,7 +28,7 @@ runs:
       # The key names the tags upstream pins and the file `rtx` pins the rest in, so a bump of either
       # saves afresh; an older cache is restored all the same, because `rtx` judges each set by the
       # directory it leaves and fetches only what a bump changed.
-      if: runner.os == 'Windows'
+      if: runner.os == 'Windows' && inputs.cache == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: deps

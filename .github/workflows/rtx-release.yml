@@ -6,8 +6,8 @@
 # published. `ci.yml` has already built and tested the commit the tag names.
 #
 # The packaging can be tried without a tag: run this by hand, and the archives come back as
-# artifacts, in the one zip GitHub wraps around each. `daily.yml` does that every day, and keeps
-# nothing.
+# artifacts, in the one zip GitHub wraps around each. `daily.yml` does that every day, with its
+# caches, and keeps nothing.
 name: Release
 
 on:
@@ -15,13 +15,15 @@ on:
     tags: [rtx-v*]
   workflow_dispatch:
 
-permissions:
-  contents: read
+# Nothing by default, and each job names what it needs.
+permissions: {}
 
 jobs:
   package:
     name: package (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     timeout-minutes: 180
     strategy:
       fail-fast: false
@@ -40,14 +42,15 @@ jobs:
         with:
           persist-credentials: false
 
+      # **No cache of any kind**: what a release ships is built from what this run fetched and
+      # checked, and not from objects another run left where this one reads them.
       - uses: ./.github/actions/openmw-deps
+        with:
+          cache: "false"
 
       - uses: ./.github/actions/rtx-sdks
-
-      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
-          key: package-${{ matrix.os }}
-          max-size: 1000M
+          cache: "false"
 
       - name: Package
         # Named after the ref, so a tag names its archives and a run by hand names the branch.
