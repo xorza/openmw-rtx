@@ -60,5 +60,7 @@ namespace
         EXPECT_TRUE(aValue.is<bool>());
         bValue = registry.valueOfType("b", LuaUtil::InputAction::Type::Boolean);
         EXPECT_TRUE(bValue.is<bool>() && bValue.as<bool>() == aValue.as<bool>());
+        // Given back, or every later capture in the binary, a death test's among them, aborts.
+        testing::internal::GetCapturedStderr();
     }
 }
