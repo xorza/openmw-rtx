@@ -402,8 +402,9 @@ FetchContent_MakeAvailable(VulkanMemoryAllocator)
 target_link_libraries(openmw-rtx-vulkan PRIVATE GPUOpen::VulkanMemoryAllocator)
 
 # Object names cost one call per object created, never per frame, and an unreadable capture is a
-# debugging session that does not happen.
-target_compile_definitions(openmw-rtx-vulkan PUBLIC $<$<NOT:$<CONFIG:Release>>:OPENMW_RTX_DEBUG_NAMES>)
+# debugging session that does not happen. Defined in every build, as 0 or 1, so the one place that
+# reads it, `Rtx::sDebugNames`, needs no `#ifdef`.
+target_compile_definitions(openmw-rtx-vulkan PUBLIC OPENMW_RTX_DEBUG_NAMES=$<IF:$<CONFIG:Release>,0,1>)
 
 if (OPENMW_RTX_DLSS)
     # The static half is the target; the shared half is the feature library it loads at runtime,
@@ -411,7 +412,6 @@ if (OPENMW_RTX_DLSS)
     # beside every binary of the build and goes with the binaries an install ships. The SDK's own
     # name is kept, version and all: it is what NGX asks the directory for.
     target_link_libraries(openmw-rtx-vulkan PRIVATE NGX::NGX)
-    target_compile_definitions(openmw-rtx-vulkan PUBLIC OPENMW_RTX_DLSS)
     get_filename_component(_ngx_feature_name "${NGX_FEATURE_LIBRARY}" NAME)
     copy_resource_file("${NGX_FEATURE_LIBRARY}" "${OpenMW_BINARY_DIR}" "${_ngx_feature_name}")
     install(FILES "${NGX_FEATURE_LIBRARY}" DESTINATION "${CMAKE_INSTALL_BINDIR}")

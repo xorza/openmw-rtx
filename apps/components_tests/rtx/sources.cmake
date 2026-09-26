@@ -149,7 +149,6 @@ set(RTX_GPU_TEST_FILES
     rtx/computepipeline.cpp
     rtx/device.cpp
     rtx/digestpass.cpp
-    rtx/dlss.cpp
     rtx/framering.cpp
     rtx/frames.cpp
     rtx/gputimer.cpp
@@ -191,6 +190,16 @@ set(RTX_GPU_TEST_FILES
 
 
 # What is read off a fifo, where the platform has one.
+# Ray Reconstruction's tests where this build has DLSS, and the one skipped test that says it has not
+# where it has not: one or the other, and both named for the check that every file is.
+set(RTX_GPU_TEST_FILES_DLSS rtx/dlss.cpp)
+set(RTX_GPU_TEST_FILES_NO_DLSS rtx/nodlss.cpp)
+if (OPENMW_RTX_DLSS)
+    list(APPEND RTX_GPU_TEST_FILES ${RTX_GPU_TEST_FILES_DLSS})
+else()
+    list(APPEND RTX_GPU_TEST_FILES ${RTX_GPU_TEST_FILES_NO_DLSS})
+endif()
+
 set(RTX_TEST_FILES_FIFO rtxtool/perffifo.cpp)
 if (NOT WIN32)
     list(APPEND RTX_TEST_FILES ${RTX_TEST_FILES_FIFO})

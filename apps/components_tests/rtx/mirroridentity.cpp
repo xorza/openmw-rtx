@@ -110,9 +110,8 @@ namespace Rtx
             nextEpoch();
             EXPECT_TRUE(mKept.whole()) << "the held entry is the whole map";
 
-#ifndef NDEBUG
-            Testing::expectDies([&] { mKept.abandon(mKept.find(2)); }, "an entry abandoned while something holds it");
-#endif
+            Testing::expectAssertDies(
+                [&] { mKept.abandon(mKept.find(2)); }, "an entry abandoned while something holds it");
         }
     }
 }

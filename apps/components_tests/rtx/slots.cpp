@@ -169,7 +169,6 @@ namespace Rtx
             EXPECT_EQ(spares.size(), 1u) << "nothing was made for the second take";
         }
 
-#ifndef NDEBUG
         /// **A sweep consumes its mark, and a take or a free spoils it.** A second sweep on one
         /// mark freed every row twice and handed one slot to two arrivals; a sweep after a take
         /// would free by a mark made of rows that were not there.
@@ -180,13 +179,12 @@ namespace Rtx
             rows.take(2);
             rows.mark({});
             EXPECT_EQ(rows.sweep([](const Index, int&) {}), 2u);
-            Testing::expectDies([&] { rows.sweep([](const Index, int&) {}); }, "a call out of its turn");
+            Testing::expectAssertDies([&] { rows.sweep([](const Index, int&) {}); }, "a call out of its turn");
 
             rows.mark({});
             rows.take(3);
-            Testing::expectDies([&] { rows.sweep([](const Index, int&) {}); }, "a call out of its turn");
+            Testing::expectAssertDies([&] { rows.sweep([](const Index, int&) {}); }, "a call out of its turn");
         }
-#endif
 
         /// **The pool knows which slots it holds.** A slot freed is on the list, a slot taken is
         /// not, and the two questions every table asks of it read the same byte.
@@ -210,7 +208,6 @@ namespace Rtx
             EXPECT_EQ(pool.take(), sNoIndex);
         }
 
-#ifndef NDEBUG
         /// **A slot freed twice is the pool's assert**, and not two entries on the heap handing one
         /// slot to two takers — which `VulkanRenderer::dropViewScene` could reach with a drop of a
         /// slot already dropped.
@@ -218,7 +215,7 @@ namespace Rtx
         {
             SlotPool pool;
             pool.free(2);
-            Testing::expectDies([&] { pool.free(2); }, "a slot freed twice");
+            Testing::expectAssertDies([&] { pool.free(2); }, "a slot freed twice");
         }
 
         /// **An object given back twice is the pool's assert**, and not two entries on the spare
@@ -231,8 +228,7 @@ namespace Rtx
             reading.reuse();
             spares.give(reading);
             reading.reuse();
-            Testing::expectDies([&] { spares.give(reading); }, "an object given back twice");
+            Testing::expectAssertDies([&] { spares.give(reading); }, "an object given back twice");
         }
-#endif
     }
 }

@@ -11,6 +11,12 @@
 
 namespace Rtx
 {
+    /// Whether this build names its Vulkan objects, labels its command buffers and sets checkpoints:
+    /// every build but Release. Read here, where what the build asks of the driver is decided, and
+    /// asked by a caller before it builds a name, or a release run spends a heap allocation per
+    /// texture on a name nothing can read.
+    inline constexpr bool sDebugNames = OPENMW_RTX_DEBUG_NAMES;
+
     /// The Vulkan version the renderer is written against — a floor, not a negotiation, and push
     /// descriptors alone, core in 1.4, are worth it.
     inline constexpr std::uint32_t sApiVersion = VK_API_VERSION_1_4;

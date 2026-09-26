@@ -627,11 +627,14 @@ endif()
 
 add_library(components STATIC ${COMPONENT_FILES})
 
-if (OPENMW_RTX)
-    # `Settings::sRayTracingBuilt` reads this. The option is a fact about the binary and every
-    # program in this tree links this library.
-    target_compile_definitions(components PUBLIC OPENMW_RTX)
+# `Settings::sRayTracingBuilt` and `Rtx::sUpscalerBuilt` read these: facts about the binary, and
+# every program in this tree links this library, the settings menu that reads `upscale.hpp` in a
+# build without the ray tracer included. Defined in every build, as 0 or 1, so each constant needs
+# no `#ifdef`.
+target_compile_definitions(components PUBLIC OPENMW_RTX=$<BOOL:${OPENMW_RTX}>
+                                             OPENMW_RTX_DLSS=$<BOOL:$<AND:$<BOOL:${OPENMW_RTX}>,$<BOOL:${OPENMW_RTX_DLSS}>>>)
 
+if (OPENMW_RTX)
     # What `platform/libraryposix.cpp` opens a shared library with, on the C libraries that keep
     # it out of libc. Empty where libc has it.
     target_link_libraries(components ${CMAKE_DL_LIBS})

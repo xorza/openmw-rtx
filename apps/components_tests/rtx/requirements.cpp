@@ -116,11 +116,7 @@ namespace Rtx
             // Checkpoints are set where the build names things, and taken only there.
             for (const OptionalExtensions& option : options)
             {
-#ifdef OPENMW_RTX_DEBUG_NAMES
-                EXPECT_TRUE(option.mRead);
-#else
-                EXPECT_EQ(option.mRead, option.mOption != DeviceOption::Checkpoints);
-#endif
+                EXPECT_EQ(option.mRead, sDebugNames || option.mOption != DeviceOption::Checkpoints);
             }
 
             const std::span<const RequiredExtension> required = getRequiredDeviceExtensions();

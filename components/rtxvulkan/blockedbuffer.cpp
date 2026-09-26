@@ -10,6 +10,7 @@
 #include "graveyard.hpp"
 #include "imageuse.hpp"
 #include "memory.hpp"
+#include "requirements.hpp"
 
 namespace Rtx
 {
@@ -26,7 +27,7 @@ namespace Rtx
 
         // Kept only where a capture could read them: a release build names nothing, and building
         // them is a trip to the heap apiece.
-        if constexpr (Device::wantsNames())
+        if constexpr (sDebugNames)
         {
             mName = name;
             mTableName = std::string(name) + " blocks";
@@ -45,7 +46,7 @@ namespace Rtx
         while (mBlocks.size() < wanted)
         {
             std::string name;
-            if constexpr (Device::wantsNames())
+            if constexpr (sDebugNames)
                 name = mName + " " + std::to_string(mBlocks.size());
 
             Buffer made = Buffer::deviceLocal(*mDevice, getBlockBytes(), mUsage, name);

@@ -223,7 +223,7 @@ namespace Rtx::Testing
             // What one texture is allowed, and what it is spent on. Two images, each a `unique_ptr`
             // the host holds for a device object; the staging buffer its bytes travel in; and the
             // names those carry, which a build that names objects makes strings for and a release
-            // build does not — `Device::wantsNames`. Measured at five apiece with names on.
+            // build does not — `Rtx::sDebugNames`. Measured at five apiece with names on.
             //
             // The sixth is the batch's own list of what it is keeping alive and the graveyard's, both
             // of which grow as any vector does. Nothing here may grow per texture: that is what the

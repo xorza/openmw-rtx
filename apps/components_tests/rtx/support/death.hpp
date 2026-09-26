@@ -49,4 +49,24 @@ namespace Rtx::Testing
             },
             std::string(message));
     }
+
+    /// Whether this build keeps `assert`: the one place a test asks, so a test that checks an
+    /// assert compiles in every build.
+#ifdef NDEBUG
+    inline constexpr bool sAssertsOn = false;
+#else
+    inline constexpr bool sAssertsOn = true;
+#endif
+
+    /// `expectDies` for a contract only `assert` checks. Where asserts are off there is nothing to
+    /// die of: the statement is not run, as a death test never runs it in this process either, and
+    /// the test is marked skipped, so a build without asserts does not report the check as made.
+    inline void expectAssertDies(const std::function<void()>& statement, std::string_view message,
+        std::source_location where = std::source_location::current())
+    {
+        if constexpr (!sAssertsOn)
+            GTEST_SKIP() << "asserts are off, so " << message << " is not checked";
+        else
+            expectDies(statement, message, where);
+    }
 }

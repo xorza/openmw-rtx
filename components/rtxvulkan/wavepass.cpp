@@ -19,6 +19,7 @@
 #include "formats.hpp"
 #include "imageuse.hpp"
 #include "pipeline.hpp"
+#include "requirements.hpp"
 
 namespace Rtx
 {
@@ -54,7 +55,7 @@ namespace Rtx
         /// the formatting is a trip to the heap for a name that goes nowhere.
         std::string tileName([[maybe_unused]] std::string_view what, [[maybe_unused]] std::size_t cascade)
         {
-            if constexpr (Device::wantsNames())
+            if constexpr (sDebugNames)
                 return std::format("wave {} {}", what, cascade);
             else
                 return {};

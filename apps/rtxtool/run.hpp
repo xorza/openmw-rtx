@@ -118,11 +118,7 @@ namespace RtxTool
     /// `-DOPENMW_RTX_DLSS=OFF` refuses every mode but `off` by name, so a run of that build has to
     /// ask for what it can have. Quality rather than Performance where there is a choice, so a
     /// plain run is the renderer with everything on and not one that quietly quartered its pixels.
-#ifdef OPENMW_RTX_DLSS
-    inline constexpr Rtx::Upscale sUpscaleByDefault = Rtx::Upscale::Quality;
-#else
-    inline constexpr Rtx::Upscale sUpscaleByDefault = Rtx::Upscale::Off;
-#endif
+    inline constexpr Rtx::Upscale sUpscaleByDefault = Rtx::sUpscalerBuilt ? Rtx::Upscale::Quality : Rtx::Upscale::Off;
 
     /// Where a hosted run's frames are presented: what goes into the settings the engine makes its
     /// window from, and nothing the renderer is made with.

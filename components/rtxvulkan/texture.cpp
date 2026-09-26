@@ -30,6 +30,7 @@
 #include "imageuse.hpp"
 #include "mipchainpass.hpp"
 #include "physicaldevice.hpp"
+#include "requirements.hpp"
 #include "result.hpp"
 #include "shadingpass.hpp"
 #include "spritelightpass.hpp"
@@ -47,7 +48,7 @@ namespace Rtx
             // concatenation is past what a short string holds — so building it anyway is one trip
             // to the heap per texture, for a name that goes nowhere.
             std::string shadingName;
-            if constexpr (Device::wantsNames())
+            if constexpr (sDebugNames)
                 shadingName = std::string(name) + " shading";
 
             return Image::tryMake(use, device, Shaders::SHADING_EXTENT, Shaders::SHADING_EXTENT,
@@ -644,7 +645,7 @@ namespace Rtx
         // because a slot number is short enough that this never reaches the heap; the one that
         // does is the map's, inside `Texture`.
         std::string name;
-        if constexpr (Device::wantsNames())
+        if constexpr (sDebugNames)
             name = "texture " + std::to_string(texture.mSlot);
 
         // Why the slot draws the stand-in, or nothing where the texture stands. A file the device

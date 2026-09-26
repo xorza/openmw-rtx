@@ -63,11 +63,7 @@ namespace Rtx
         // Object names and command-buffer labels are what make a capture readable, and a capture is
         // most wanted on a run that is not carrying the layers, so the extension is asked for
         // whenever this build names anything.
-#ifdef OPENMW_RTX_DEBUG_NAMES
-        const bool wantDebugUtils = true;
-#else
-        const bool wantDebugUtils = options.mLevel != ValidationLevel::Off;
-#endif
+        const bool wantDebugUtils = sDebugNames || options.mLevel != ValidationLevel::Off;
         // The extended question of a surface, which surface maintenance rests on and which the
         // driver's pacing answers through (`LatencyPacer`). Taken with any surface where the
         // loader has it, so each of the two can stand without the other.

@@ -9,6 +9,7 @@
 
 #include "device.hpp"
 #include "memory.hpp"
+#include "requirements.hpp"
 
 namespace Rtx
 {
@@ -41,7 +42,7 @@ namespace Rtx
                 // Named only where a capture could read it: a release build names nothing, and
                 // the concatenation is a trip to the heap for a name that goes nowhere.
                 std::string name;
-                if constexpr (Device::wantsNames())
+                if constexpr (sDebugNames)
                     name = mName + " " + std::to_string(slot);
 
                 const auto make = [&](const std::uint32_t capacity) {

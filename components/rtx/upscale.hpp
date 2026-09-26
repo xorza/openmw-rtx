@@ -9,6 +9,10 @@
 
 namespace Rtx
 {
+    /// Whether this build carries an upscaler, which a build without one refuses every mode but
+    /// `Off` for.
+    inline constexpr bool sUpscalerBuilt = OPENMW_RTX_DLSS;
+
     /// How the frame gets from the size it is traced at to the size it is shown at — a quality
     /// level rather than a ratio, because the ratio is the upscaler's to choose. A build without an
     /// upscaler refuses anything but `Off`.

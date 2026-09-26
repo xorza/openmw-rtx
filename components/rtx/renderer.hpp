@@ -88,11 +88,7 @@ namespace Rtx
     /// there because they cost half the frame rate and allocate on the frame path. The build decides
     /// and no setting does, because a setting would put a developer's diagnostic in a player's
     /// configuration file.
-#ifdef OPENMW_RTX_VALIDATION_BY_DEFAULT
-    inline constexpr bool sValidationByDefault = true;
-#else
-    inline constexpr bool sValidationByDefault = false;
-#endif
+    inline constexpr bool sValidationByDefault = OPENMW_RTX_VALIDATION_BY_DEFAULT;
 
     struct RendererOptions
     {
