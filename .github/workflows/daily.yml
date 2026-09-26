@@ -109,7 +109,7 @@ jobs:
     # says nothing about the tree.
     name: report
     needs: [sanitizers, package]
-    if: always() && !cancelled() && github.event_name != 'pull_request'
+    if: always() && !cancelled()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
