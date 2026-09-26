@@ -1,0 +1,123 @@
+# What is too slow for every push and too important to leave to a tag, once a day: the tests under
+# the sanitizers, and the packaging, so the archive a release takes does not decay between releases.
+#
+# **A failure is an issue, and a pass after it closes the issue.** Nobody reads a scheduled run that
+# nobody started, so the last job opens one issue labelled `daily-ci` where any job failed, comments
+# on it where one is already open, and comments and closes it on the first run that passes again. One
+# issue for one breakage however many days it lasts, and never an issue for a run that was only
+# cancelled.
+#
+# The sanitizers are upstream's, from its GitLab pipeline: AddressSanitizer and
+# UndefinedBehaviorSanitizer over its suites, with a finding a failure. Here the fork's `asan` flavour,
+# which carries both, over upstream's suites and the fork's own, without a device as every hosted run
+# is. The packaging is `rtx package archive`, which a release runs, on both systems.
+name: Daily
+
+on:
+  schedule:
+    # Every day at 03:00 UTC, ahead of the upstream merge at 05:00, so a merge lands on a tree whose
+    # daily state is known. GitHub runs a schedule from the default branch alone, and late under load.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily
+  cancel-in-progress: false
+
+jobs:
+  sanitizers:
+    name: sanitizers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/openmw-deps
+
+      - uses: ./.github/actions/rtx-sdks
+
+      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          key: sanitizers
+          max-size: 1000M
+
+      - name: Build
+        run: apps/rtxtool/rtx asan build
+
+      - name: Test, upstream's suites whole beside the fork's
+        run: apps/rtxtool/rtx asan test --without-device --all
+
+  package:
+    name: package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/openmw-deps
+
+      - uses: ./.github/actions/rtx-sdks
+
+      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          key: package-${{ matrix.os }}
+          max-size: 1000M
+
+      - name: Package, as a release does
+        run: apps/rtxtool/rtx package archive daily
+
+  report:
+    # After both, whatever they came to, and never for a run that was cancelled: a cancelled run
+    # says nothing about the tree.
+    name: report
+    needs: [sanitizers, package]
+    if: always() && !cancelled()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open, update or close the daily issue
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NEEDS: ${{ toJSON(needs) }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          failed=$(jq -r '[to_entries[] | select(.value.result != "success") | .key] | join(", ")' <<< "$NEEDS")
+          open=$(gh issue list --state open --label daily-ci --limit 1 --json number --jq '.[0].number // empty')
+
+          if [ -z "$failed" ]; then
+            if [ -n "$open" ]; then
+              gh issue comment "$open" --body "Passed again: $RUN_URL"
+              gh issue close "$open"
+            fi
+            exit 0
+          fi
+
+          body="The daily run failed in: $failed. $RUN_URL"
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "$body"
+          else
+            # Made where it is not there yet, so the first failure of a fresh fork files as well.
+            gh label create daily-ci --color B60205 --description "The daily run failed" --force
+            gh issue create --title "The daily run fails" --label daily-ci --body "$body"
+          fi
