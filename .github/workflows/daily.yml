@@ -19,6 +19,9 @@ on:
     # daily state is known. GitHub runs a schedule from the default branch alone, and late under load.
     - cron: "0 3 * * *"
   workflow_dispatch:
+  # TEMPORARY: runs the daily jobs on the pull request that brings this file, which a schedule and a
+  # dispatch cannot reach before it is on master. Removed before the merge.
+  pull_request:
 
 permissions:
   contents: read
@@ -88,7 +91,7 @@ jobs:
     # says nothing about the tree.
     name: report
     needs: [sanitizers, package]
-    if: always() && !cancelled()
+    if: always() && !cancelled() && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
