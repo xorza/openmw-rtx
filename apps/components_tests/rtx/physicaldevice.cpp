@@ -8,6 +8,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/upscale.hpp>
 #include <components/rtxvulkan/physicaldevice.hpp>
 #include <components/rtxvulkan/requirements.hpp>
 #include <components/rtxvulkan/upscaler.hpp>
@@ -222,12 +223,10 @@ namespace Rtx
                 foreign.mProperties.mVulkan12.driverID = VK_DRIVER_ID_AMD_PROPRIETARY;
                 std::erase(foreign.mExtensions, VK_NVX_BINARY_IMPORT_EXTENSION_NAME);
                 std::erase(foreign.mExtensions, VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME);
-#ifdef OPENMW_RTX_DLSS
                 EXPECT_EQ(foreign.profile().mObstacle,
-                    "missing extensions DLSS Ray Reconstruction needs: VK_NVX_binary_import, VK_NVX_image_view_handle");
-#else
-                EXPECT_EQ(foreign.profile().mObstacle, "");
-#endif
+                    sUpscalerBuilt ? "missing extensions DLSS Ray Reconstruction needs: VK_NVX_binary_import, "
+                                     "VK_NVX_image_view_handle"
+                                   : "");
             }
             {
                 // NGX names the buffer address extension, whose feature is core here and which the

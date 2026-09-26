@@ -56,6 +56,9 @@ if (OPENMW_RTX)
         list(APPEND OPENMW_RTX_SOURCES mwrender/${name}.cpp)
     endforeach()
     openmw_rtx_sources(ERRORS_ONLY ${OPENMW_RTX_SOURCES})
+else()
+    # `createRtxRenderer` for a build without the ray tracer, so the factory names no build flag.
+    add_openmw_dir (mwrender nortxrenderer)
 endif()
 
 add_openmw_dir (mwinput

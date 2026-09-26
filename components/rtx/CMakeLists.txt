@@ -237,6 +237,6 @@ target_link_libraries(openmw-rtx PUBLIC components)
 # **`PUBLIC`, because the constant it decides is in a header both hosts read.** The layers are on
 # unless this is a Release build, the same condition the debug object names use, and
 # `Rtx::sValidationByDefault` is where that lands. Here rather than on each host, so the game and the
-# harness cannot come to disagree about when a frame is being checked.
-target_compile_definitions(openmw-rtx PUBLIC
-                           $<$<NOT:$<CONFIG:Release>>:OPENMW_RTX_VALIDATION_BY_DEFAULT>)
+# harness cannot come to disagree about when a frame is being checked. Defined in every build, as 0
+# or 1, so the constant that reads it needs no `#ifdef`.
+target_compile_definitions(openmw-rtx PUBLIC OPENMW_RTX_VALIDATION_BY_DEFAULT=$<IF:$<CONFIG:Release>,0,1>)

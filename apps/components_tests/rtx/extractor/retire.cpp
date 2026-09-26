@@ -717,7 +717,6 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.materials().getRows()[0].mDiffuse, Rtx::sNoIndex) << "the stone's row was kept";
         }
 
-#ifndef NDEBUG
         /// **A walked scene is handed over after its sweep and never before it.** Between the two
         /// the scene still holds every slot the walk stopped finding, where the last frame left it,
         /// and a backend handed that traces it once more: the world's frame swept after its trace,
@@ -733,11 +732,11 @@ namespace Rtx::Testing
             mScene.clearPlacement();
 
             walk(*quad);
-            expectDies([&] { mScene.orderLights(); }, "a call out of its turn");
+            expectAssertDies([&] { mScene.orderLights(); }, "a call out of its turn");
             mScene.clearPlacement();
             {
                 SCOPED_TRACE("a clear settled the sweep");
-                expectDies([&] { mScene.orderLights(); }, "a call out of its turn");
+                expectAssertDies([&] { mScene.orderLights(); }, "a call out of its turn");
             }
 
             ASSERT_TRUE(mExtractor.retire().empty());
@@ -747,10 +746,9 @@ namespace Rtx::Testing
             // And a walk on the frame after: the same again.
             mScene.clearPlacement();
             walk(*quad, 0, 1);
-            expectDies([&] { mScene.orderLights(); }, "a call out of its turn");
+            expectAssertDies([&] { mScene.orderLights(); }, "a call out of its turn");
             ASSERT_TRUE(mExtractor.retire().empty());
             mScene.orderLights();
         }
-#endif
     }
 }

@@ -9,6 +9,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "physicaldevice.hpp"
+#include "requirements.hpp"
 
 namespace Rtx
 {
@@ -217,59 +218,43 @@ namespace Rtx
         void reportPipeline(
             VkPipeline pipeline, std::string_view name, std::optional<double> compileMs = std::nullopt) const;
 
-        /// Whether a name handed to `setName` or `beginLabel` reaches anything at all — what a
-        /// caller asks before it builds one, or a release run spends a heap allocation per texture
-        /// on a name nothing can read.
-        static constexpr bool wantsNames()
-        {
-#ifdef OPENMW_RTX_DEBUG_NAMES
-            return true;
-#else
-            return false;
-#endif
-        }
-
         /// Attaches a name to a Vulkan object so captures and validation messages name it. Compiled
         /// to nothing in release: an unreadable capture is a debugging session that does not
         /// happen, and a released build has no captures.
         template <class Handle>
         void setName([[maybe_unused]] Handle handle, [[maybe_unused]] std::string_view name) const
         {
-#ifdef OPENMW_RTX_DEBUG_NAMES
             // Terminated here and nowhere else, so a release build constructs nothing at all — and a
             // caller may hand over a literal or a view into a path it is already holding.
-            setNameImpl(
-                ObjectTypeOf<Handle>::value, reinterpret_cast<std::uint64_t>(handle), std::string(name).c_str());
-#endif
+            if constexpr (sDebugNames)
+                setNameImpl(
+                    ObjectTypeOf<Handle>::value, reinterpret_cast<std::uint64_t>(handle), std::string(name).c_str());
         }
 
         /// Opens a named region in `commands`, so a capture shows what each stretch of the frame is.
         /// Compiled to nothing in release.
-        void beginLabel([[maybe_unused]] VkCommandBuffer commands, [[maybe_unused]] std::string_view name) const
+        void beginLabel(VkCommandBuffer commands, std::string_view name) const
         {
-#ifdef OPENMW_RTX_DEBUG_NAMES
-            if (mBeginLabel != nullptr)
-                beginLabelImpl(commands, std::string(name).c_str());
-#endif
+            if constexpr (sDebugNames)
+                if (mBeginLabel != nullptr)
+                    beginLabelImpl(commands, std::string(name).c_str());
         }
 
-        void endLabel([[maybe_unused]] VkCommandBuffer commands) const
+        void endLabel(VkCommandBuffer commands) const
         {
-#ifdef OPENMW_RTX_DEBUG_NAMES
-            if (mEndLabel != nullptr)
-                mEndLabel(commands);
-#endif
+            if constexpr (sDebugNames)
+                if (mEndLabel != nullptr)
+                    mEndLabel(commands);
         }
 
         /// Marks the queue's progress with `checkpoint`, which the queue reports as the last one
         /// each stage passed if the device is lost. Compiled to nothing in release, like the
         /// labels, and nothing where the driver offers no `VK_NV_device_diagnostic_checkpoints`.
-        void checkpoint([[maybe_unused]] VkCommandBuffer commands, [[maybe_unused]] const Checkpoint* checkpoint) const
+        void checkpoint(VkCommandBuffer commands, const Checkpoint* checkpoint) const
         {
-#ifdef OPENMW_RTX_DEBUG_NAMES
-            if (mCmdSetCheckpoint != nullptr)
-                mCmdSetCheckpoint(commands, checkpoint);
-#endif
+            if constexpr (sDebugNames)
+                if (mCmdSetCheckpoint != nullptr)
+                    mCmdSetCheckpoint(commands, checkpoint);
         }
 
         /// Blocks until the queue has signalled `value` on the timeline, and then lets go of what
@@ -290,10 +275,7 @@ namespace Rtx
         // Read by the tests and by nothing else.
         /// Whether the driver offers `VK_EXT_device_fault` with its feature, and so whether
         /// `describeFault` has anything to ask.
-        bool canDescribeFault() const
-        {
-            return mGetDeviceFaultInfo != nullptr;
-        }
+        bool canDescribeFault() const { return mGetDeviceFaultInfo != nullptr; }
 
         /// What the device says about why it was lost, as lines for the message that reports it.
         /// Nothing where the driver offers no `VK_EXT_device_fault`. After a loss and never before,

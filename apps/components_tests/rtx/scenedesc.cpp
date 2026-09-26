@@ -1756,7 +1756,6 @@ namespace Rtx
             EXPECT_TRUE(scene.textures().getRows()[layerNormal].mPath.value().empty());
         }
 
-#ifndef NDEBUG
         /// **The per-frame lists are open until the hand-over and closed until the next clear.** A
         /// light added between the two is one the backend was not handed and the next frame's
         /// clear throws away — or, on a frame that hands over again without clearing, one it
@@ -1769,13 +1768,12 @@ namespace Rtx
 
             scene.addLight(*light);
             scene.orderLights();
-            Testing::expectDies([&] { scene.addLight(*light); }, "a call out of its turn");
+            Testing::expectAssertDies([&] { scene.addLight(*light); }, "a call out of its turn");
 
             scene.clearPlacement();
             scene.addLight(*light);
             EXPECT_EQ(scene.lights().size(), 1u);
         }
-#endif
 
         static_assert(std::is_move_constructible_v<SceneDesc> && std::is_move_assignable_v<SceneDesc>,
             "a description is moved whole; a table holding a reference to a sibling forbids the assignment");

@@ -1,55 +1,49 @@
+#include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <gtest/gtest.h>
 
+#include <osg/Math>
 #include <osg/Matrixf>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/camera.hpp>
+#include <components/rtx/error.hpp>
 #include <components/rtx/mesh.hpp>
 #include <components/rtx/reconstruction.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/runs.hpp>
+#include <components/rtx/scenedesc.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/slot.hpp>
 #include <components/rtx/sprite.hpp>
 #include <components/rtx/texturedata.hpp>
 #include <components/rtx/upscale.hpp>
-#include <components/rtxvulkan/formats.hpp>
-#include <components/vfs/pathutil.hpp>
-
-#include "support/device/harness.hpp"
-#include "support/geometry.hpp"
-
-#ifdef OPENMW_RTX_DLSS
-
-#include <array>
-#include <cmath>
-#include <cstring>
-#include <vector>
-
-#include <osg/Math>
-#include <osg/Vec2f>
-
-#include <components/rtx/camera.hpp>
-#include <components/rtx/error.hpp>
-#include <components/rtx/scenedesc.hpp>
-#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtxvulkan/commands.hpp>
 #include <components/rtxvulkan/dlss.hpp>
 #include <components/rtxvulkan/dlsspass.hpp>
+#include <components/rtxvulkan/formats.hpp>
 #include <components/rtxvulkan/image.hpp>
 #include <components/rtxvulkan/imageuse.hpp>
 #include <components/rtxvulkan/upscaler.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
+#include <components/vfs/pathutil.hpp>
 
 #include "support/death.hpp"
+#include "support/device/harness.hpp"
 #include "support/device/readback.hpp"
+#include "support/geometry.hpp"
 #include "support/testcamera.hpp"
 #include "support/testtexture.hpp"
 
@@ -660,23 +654,3 @@ namespace Rtx
         }
     }
 }
-
-#else
-
-namespace
-{
-    /// **Skipped rather than absent**, so a build with no DLSS says so instead of quietly running
-    /// fewer tests.
-    ///
-    /// One test for the file rather than a stub per test above, because a stub written per name is
-    /// a list that stops matching the moment a test is added on the other side of the `#ifdef`.
-    /// Over the device fixture, as every test of this binary is (`RtxSourceTreeTest`).
-    using RtxDlss = Rtx::Testing::DeviceTest;
-
-    TEST_F(RtxDlss, thisBuildHasNoRayReconstruction)
-    {
-        GTEST_SKIP() << "this build has no DLSS; configure with -DOPENMW_RTX_DLSS=ON";
-    }
-}
-
-#endif

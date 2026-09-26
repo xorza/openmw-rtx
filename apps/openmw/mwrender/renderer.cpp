@@ -25,10 +25,6 @@
 
 #include "glrenderer.hpp"
 
-#ifdef OPENMW_RTX
-#include "rtx/rtxrenderer.hpp"
-#endif
-
 namespace MWRender
 {
     Renderer::Renderer() = default;
@@ -201,10 +197,9 @@ namespace MWRender
         if (name == "opengl")
             return std::make_unique<GlRenderer>(spec);
 
-#ifdef OPENMW_RTX
         if (name == "raytrace")
-            return std::make_unique<RtxRenderer>(spec);
-#endif
+            if (std::unique_ptr<Renderer> rtx = createRtxRenderer(spec))
+                return rtx;
 
         // **Named rather than fallen back from.** A renderer that quietly became a different one
         // answers "why does it look like that" with silence, and a build without the one asked for

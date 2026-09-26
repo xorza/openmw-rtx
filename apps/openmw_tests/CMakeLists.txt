@@ -27,6 +27,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwrender/localmap.cpp
     mwrender/pixels.cpp
+    mwrender/renderer.cpp
 )
 
 if (MSVC)
@@ -49,7 +50,6 @@ if (OPENMW_RTX)
         mwrender/frametimer.cpp
         mwrender/precipitation.cpp
         mwrender/readworld.cpp
-        mwrender/renderer.cpp
         mwrender/rtxrenderer.cpp
         mwrender/rtxsettings.cpp
         mwrender/tracedterrain.cpp
@@ -57,7 +57,10 @@ if (OPENMW_RTX)
         mwrender/worldmirror.cpp
     )
     list(APPEND UNITTEST_SRC_FILES ${RTX_TEST_FILES})
-    openmw_rtx_sources(${RTX_TEST_FILES})
+
+    # The seam's tests stand in the list above, because a build without the ray tracer has the seam
+    # too, and take the fork's flags here.
+    openmw_rtx_sources(${RTX_TEST_FILES} mwrender/renderer.cpp)
 endif()
 
 source_group(apps\\openmw-tests FILES ${UNITTEST_SRC_FILES})

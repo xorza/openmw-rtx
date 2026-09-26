@@ -9,11 +9,7 @@ namespace Settings
 {
     /// Whether this binary was built with the ray tracing renderer. The settings below exist either
     /// way, so a configuration file survives moving between builds.
-#ifdef OPENMW_RTX
-    inline constexpr bool sRayTracingBuilt = true;
-#else
-    inline constexpr bool sRayTracingBuilt = false;
-#endif
+    inline constexpr bool sRayTracingBuilt = OPENMW_RTX;
 
     /// The experimental ray tracing renderer. Which renderer draws is read once, before the window
     /// exists; the rest are read as they are wanted.

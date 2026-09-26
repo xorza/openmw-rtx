@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <components/rtxvulkan/instance.hpp>
+#include <components/rtxvulkan/requirements.hpp>
 #include <components/rtxvulkan/validation.hpp>
 
 #include "support/instanceobstacle.hpp"
@@ -25,11 +26,7 @@ namespace Rtx
             const Instance instance{ ValidationOptions{}, std::span<const char* const>{} };
 
             EXPECT_EQ(instance.getValidationLog(), nullptr);
-#ifdef OPENMW_RTX_DEBUG_NAMES
-            EXPECT_TRUE(instance.hasDebugUtils());
-#else
-            EXPECT_FALSE(instance.hasDebugUtils());
-#endif
+            EXPECT_EQ(instance.hasDebugUtils(), sDebugNames);
         }
     }
 }

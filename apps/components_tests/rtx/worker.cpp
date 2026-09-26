@@ -22,9 +22,7 @@ namespace Rtx
             });
             other.join();
 
-#ifndef NDEBUG
-            Testing::expectDies([&] { owner.check(); }, "a member touched from the wrong thread");
-#endif
+            Testing::expectAssertDies([&] { owner.check(); }, "a member touched from the wrong thread");
 
             owner.adopt();
             owner.check();

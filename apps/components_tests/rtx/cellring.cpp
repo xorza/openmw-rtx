@@ -962,17 +962,15 @@ namespace Rtx::Testing
                 "a storage that cannot be read");
         }
 
-#ifndef NDEBUG
         /// **A walk that was not told where the world is dies where it happens**, rather than
         /// standing last frame's rings under this frame's eye.
         TEST_F(RtxCellRingTest, aWalkThatWasNotToldWhereTheWorldIsDies)
         {
             start();
             walk(mWalked++);
-            expectDies([&] { mExtractor.extractWorld(*mEmpty, osg::Matrixf::identity(), 0, mWalked, mRing); },
+            expectAssertDies([&] { mExtractor.extractWorld(*mEmpty, osg::Matrixf::identity(), 0, mWalked, mRing); },
                 "a call out of its turn");
         }
-#endif
 
         /// Content whose one template is a morph the reader refuses: three vertices over a base
         /// target of two, which `MeshReader::read` throws on.

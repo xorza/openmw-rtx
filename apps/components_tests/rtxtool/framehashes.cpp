@@ -331,9 +331,7 @@ namespace RtxTool
             FrameHashes half;
             half.note("somewhere", 1, 7, partsOf(100));
             const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-half.csv");
-#ifndef NDEBUG
             Rtx::Testing::expectDies([&] { half.write(file); }, "frames were noted and never pictured");
-#endif
             std::filesystem::remove(file);
         }
 
