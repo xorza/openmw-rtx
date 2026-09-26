@@ -6,6 +6,8 @@
 #include <string>
 #include <string_view>
 
+#include <components/platform/sharedmemory.hpp>
+
 namespace Crash
 {
     /// How many bytes of the game's log path the page holds, as UTF-8. A longer path is not
@@ -50,14 +52,7 @@ namespace Crash
         /// The monitor's side of the page `process` made. Null where it is gone or never was.
         static SharedPage open(std::uint32_t process);
 
-        SharedPage() = default;
-        SharedPage(SharedPage&& other) noexcept;
-        SharedPage& operator=(SharedPage&& other) noexcept;
-        SharedPage(const SharedPage&) = delete;
-        SharedPage& operator=(const SharedPage&) = delete;
-        ~SharedPage();
-
-        Heartbeat* get() const { return mPage; }
+        Heartbeat* get() const { return static_cast<Heartbeat*>(mMemory.data()); }
 
         /// Hands the monitor the game's log, `log` in UTF-8, or says it cannot: no page, or a path
         /// longer than `sLogPathCapacity`. Once, from the thread that sets up the log.
@@ -67,11 +62,6 @@ namespace Crash
         std::string getLogPath() const;
 
     private:
-        Heartbeat* mPage = nullptr;
-        void* mHandle = nullptr;
-
-        /// The game's id where this side made the page, whose name it gives back if the monitor
-        /// never took it: a monitor that did not start leaves it to the game.
-        std::uint32_t mMadeFor = 0;
+        Platform::SharedMemory mMemory;
     };
 }

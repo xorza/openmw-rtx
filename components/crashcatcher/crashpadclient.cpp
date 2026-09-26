@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <atomic>
-#include <csignal>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -20,17 +19,8 @@
 
 #include "crashmonitorarguments.hpp"
 #include "crashnote.hpp"
+#include "crashpadclientsystem.hpp"
 #include "crashpage.hpp"
-
-#if defined(_WIN32)
-#include <components/misc/windows.hpp>
-#elif defined(__APPLE__)
-#include <mach-o/dyld.h>
-#endif
-
-#if !defined(_WIN32)
-#include <pthread.h>
-#endif
 
 namespace Crash
 {
@@ -45,33 +35,6 @@ namespace Crash
         SharedPage sPage;
         std::atomic<bool> sInstalled{ false };
 
-        /// This executable, which the monitor is started from: the running file, not `argv[0]`,
-        /// which a shell may have given as a bare name or a relative path.
-        std::filesystem::path executable()
-        {
-#if defined(_WIN32)
-            std::wstring path(MAX_PATH, L'\0');
-            for (;;)
-            {
-                const DWORD length = GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size()));
-                if (length < path.size())
-                {
-                    path.resize(length);
-                    return path;
-                }
-                path.resize(path.size() * 2);
-            }
-#elif defined(__APPLE__)
-            std::uint32_t size = 0;
-            _NSGetExecutablePath(nullptr, &size);
-            std::string path(size, '\0');
-            _NSGetExecutablePath(path.data(), &size);
-            return std::filesystem::canonical(path.c_str());
-#else
-            return std::filesystem::read_symlink("/proc/self/exe");
-#endif
-        }
-
         /// A dump of every thread and a summary, after which the game goes on. Nothing where a
         /// report is already being written: that one is already a dump of every thread, and this
         /// one would write over what it says.
@@ -83,130 +46,38 @@ namespace Crash
             CRASHPAD_SIMULATE_CRASH();
             endReport();
         }
+    }
 
-        /// A hang report, asked for by the monitor, which knows how long the game stood still.
-        void reportHang()
-        {
-            reportAndContinue(ReportKind::Hang, {});
-        }
+    void Client::reportHang()
+    {
+        reportAndContinue(ReportKind::Hang, {});
+    }
 
-#if defined(_WIN32)
-        /// A crash reported the way the system's own would not be: Crashpad dumps the process as it
-        /// stands and returns, and the process ends here.
-        [[noreturn]] void reportAndEnd(std::string_view reason)
+    void Client::onTerminate()
+    {
+        std::string reason = "std::terminate";
+        if (const std::exception_ptr current = std::current_exception())
         {
-            finalReport(ReportKind::Crash, reason);
-            CRASHPAD_SIMULATE_CRASH();
-            std::_Exit(3);
-        }
-
-        // Three ways MSVC's runtime ends a process without an exception the filter sees: `abort`
-        // raises SIGABRT and then fails fast, and a pure virtual call and an invalid parameter go
-        // to handlers of their own.
-        void onAbort(int)
-        {
-            reportAndEnd("abort()");
-        }
-
-        void onPureCall()
-        {
-            reportAndEnd("a pure virtual function was called");
-        }
-
-        void onInvalidParameter(const wchar_t*, const wchar_t*, const wchar_t*, unsigned int, uintptr_t)
-        {
-            reportAndEnd("the C runtime was given an invalid parameter");
-        }
-
-        DWORD WINAPI hangEntry(LPVOID)
-        {
-            reportHang();
-            return 0;
-        }
-#else
-        void onHangSignal(int)
-        {
-            reportHang();
-        }
-#endif
-
-        /// A crash for `reason`, taken here, whose dump is the stacks as they stand.
-        [[noreturn]] void endAsCrash(std::string_view reason)
-        {
-#if defined(_WIN32)
-            reportAndEnd(reason);
-#else
-            // **The hang request blocked on this thread first**, so it cannot land here between the
-            // report saying what it is and the abort; on another thread it finds the gate taken.
-            // Crashpad's own handler takes the abort, as it takes every fatal signal.
-            sigset_t hang;
-            sigemptyset(&hang);
-            sigaddset(&hang, SIGUSR2);
-            pthread_sigmask(SIG_BLOCK, &hang, nullptr);
-
-            finalReport(ReportKind::Crash, reason);
-            std::abort();
-#endif
-        }
-
-        /// **`std::terminate`, with the exception that called it**, which the fault it ends in
-        /// names nothing of.
-        void onTerminate()
-        {
-            std::string reason = "std::terminate";
-            if (const std::exception_ptr current = std::current_exception())
+            try
             {
-                try
-                {
-                    std::rethrow_exception(current);
-                }
-                catch (const std::exception& error)
-                {
-                    reason += " on an uncaught exception: ";
-                    reason += error.what();
-                }
-                catch (...)
-                {
-                    reason += " on an uncaught exception that is no std::exception";
-                }
+                std::rethrow_exception(current);
             }
-            endAsCrash(reason);
+            catch (const std::exception& error)
+            {
+                reason += " on an uncaught exception: ";
+                reason += error.what();
+            }
+            catch (...)
+            {
+                reason += " on an uncaught exception that is no std::exception";
+            }
         }
+        endAsCrash(reason);
+    }
 
-#if defined(_MSC_VER)
-        /// **The terminate hook on every thread**, because MSVC's runtime keeps one per thread and a
-        /// new one starts with the default, which aborts. The loader calls this in each thread it
-        /// starts, before the thread's own function; a thread started before `install` keeps the
-        /// runtime's.
-        void NTAPI onThreadStart(PVOID, DWORD reason, PVOID)
-        {
-            if (reason == DLL_THREAD_ATTACH && sInstalled.load(std::memory_order_acquire))
-                std::set_terminate(onTerminate);
-        }
-#endif
-
-        void hookEveryEnd()
-        {
-            std::set_terminate(onTerminate);
-#if defined(_WIN32)
-            _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
-            std::signal(SIGABRT, onAbort);
-            _set_purecall_handler(onPureCall);
-            _set_invalid_parameter_handler(onInvalidParameter);
-            std::atomic_ref(sPage.get()->mHangEntry)
-                .store(reinterpret_cast<std::uint64_t>(&hangEntry), std::memory_order_release);
-#else
-            // On the thread's own stack and not the alternate one Crashpad sizes for its own fault
-            // handler: a request arrives on a sound stack, and a whole dump taken inside a signal
-            // frame outgrows the alternate one where the processor's saved state makes the frame
-            // large.
-            struct sigaction action = {};
-            action.sa_handler = onHangSignal;
-            action.sa_flags = SA_RESTART;
-            sigemptyset(&action.sa_mask);
-            sigaction(SIGUSR2, &action, nullptr);
-#endif
-        }
+    bool Client::isInstalled()
+    {
+        return sInstalled.load(std::memory_order_acquire);
     }
 
     std::optional<std::string> install(const Settings& settings)
@@ -239,7 +110,7 @@ namespace Crash
         // 4 MiB; on Linux and macOS it keeps what the registers point at.
         info->set_gather_indirectly_referenced_memory(crashpad::TriState::kEnabled, 4 << 20);
 
-        if (!sClient.StartHandler(base::FilePath(executable().native()),
+        if (!sClient.StartHandler(base::FilePath(Client::executable().native()),
                 base::FilePath(settings.mReportFolder.native()), base::FilePath(), std::string(), std::string(),
                 { { "product", settings.mApplication } }, monitor.write(), false, false))
         {
@@ -247,12 +118,9 @@ namespace Crash
             return "its monitor did not start";
         }
 
-#if defined(__linux__)
-        // Every thread made after this gets its own through `pthread_create_linux.cc`; the one
-        // installing is older than that.
-        crashpad::CrashpadClient::InitializeSignalStackForThread();
-#endif
-        hookEveryEnd();
+        Client::prepareInstallingThread();
+        std::set_terminate(Client::onTerminate);
+        Client::hookEveryEnd(*sPage.get());
         sInstalled = true;
         return {};
     }
@@ -304,20 +172,6 @@ namespace Crash
             std::abort();
         }
 
-        endAsCrash(reason);
+        Client::endAsCrash(reason);
     }
 }
-
-#if defined(_MSC_VER)
-// The loader calls every pointer in `.CRT$XL*` at each thread's start. The two names keep the
-// linker from dropping the table and the entry, which nothing else refers to.
-#if defined(_M_IX86)
-#pragma comment(linker, "/INCLUDE:__tls_used")
-#pragma comment(linker, "/INCLUDE:_openmwCrashThreadStart")
-#else
-#pragma comment(linker, "/INCLUDE:_tls_used")
-#pragma comment(linker, "/INCLUDE:openmwCrashThreadStart")
-#endif
-#pragma section(".CRT$XLY", long, read)
-extern "C" __declspec(allocate(".CRT$XLY")) const PIMAGE_TLS_CALLBACK openmwCrashThreadStart = Crash::onThreadStart;
-#endif

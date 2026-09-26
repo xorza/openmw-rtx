@@ -7,18 +7,7 @@
 #include <thread>
 #include <type_traits>
 
-#if defined(_WIN32)
-#include <components/misc/windows.hpp>
-#elif defined(__linux__)
-#include <sys/syscall.h>
-#include <unistd.h>
-#elif defined(__APPLE__)
-#include <pthread.h>
-#elif defined(__FreeBSD__)
-#include <pthread_np.h>
-#else
-#include <functional>
-#endif
+#include <components/platform/process.hpp>
 
 namespace Crash
 {
@@ -104,23 +93,6 @@ namespace Crash
         }
     }
 
-    std::uint64_t currentThread()
-    {
-#if defined(_WIN32)
-        return GetCurrentThreadId();
-#elif defined(__linux__)
-        return static_cast<std::uint64_t>(syscall(SYS_gettid));
-#elif defined(__APPLE__)
-        std::uint64_t thread = 0;
-        pthread_threadid_np(nullptr, &thread);
-        return thread;
-#elif defined(__FreeBSD__)
-        return static_cast<std::uint64_t>(pthread_getthreadid_np());
-#else
-        return std::hash<std::thread::id>{}(std::this_thread::get_id()) | 1;
-#endif
-    }
-
     namespace
     {
         /// The calling thread's slot, claimed on its first note and not before, so a thread that
@@ -130,7 +102,7 @@ namespace Crash
         {
             thread_local Claim claim;
             if (claim.mSlot == nullptr)
-                claim.mSlot = claimSlot(currentThread());
+                claim.mSlot = claimSlot(Platform::Process::currentThreadId());
             return claim.mSlot;
         }
 

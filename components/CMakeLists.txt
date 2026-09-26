@@ -410,8 +410,15 @@ add_component_dir (crashcatcher
 if (OPENMW_CRASHPAD)
     add_component_dir (crashcatcher
         crashpadclient
+        crashpadclientsystem
         crashpadmonitor
+        crashpadmonitorsystem
     )
+    if (WIN32)
+        add_component_dir (crashcatcher crashpadclientwin32 crashpadmonitorwin32)
+    else()
+        add_component_dir (crashcatcher crashpadclientposix crashpadmonitorposix)
+    endif()
 else()
     add_component_dir (crashcatcher
         crashunsupported
@@ -515,6 +522,7 @@ add_component_dir(platform
     platform
     file
     process
+    sharedmemory
     memory
     )
 
@@ -525,12 +533,14 @@ if (WIN32)
         filewin32
         processwin32
         memorywin32
+        sharedmemorywin32
         )
 elseif (UNIX)
     add_component_dir(platform
         fileposix
         processposix
         memoryposix
+        sharedmemoryposix
         )
 else ()
     add_component_dir(platform
@@ -645,6 +655,7 @@ if (OPENMW_RTX)
     openmw_rtx_sources(
         platform/fifoposix.cpp platform/fifowin32.cpp platform/libraryposix.cpp platform/librarywin32.cpp
         platform/memoryposix.cpp platform/memorywin32.cpp platform/processposix.cpp platform/processwin32.cpp
+        platform/sharedmemoryposix.cpp platform/sharedmemorywin32.cpp
         sceneutil/paintedtexture.cpp sky/sundisc.cpp sky/timeofday.cpp
         )
 endif()
@@ -744,9 +755,11 @@ if (OPENMW_CRASHPAD)
         target_link_libraries(components crashpad_getopt)
     endif()
 
-    # What Crashpad defines for its own directory and its headers read: the two files that include
-    # them see what its library was built with.
+    # What Crashpad defines for its own directory and its headers read: the files that include them
+    # see what its library was built with.
     set_property(SOURCE crashcatcher/crashpadclient.cpp crashcatcher/crashpadmonitor.cpp
+        crashcatcher/crashpadclientposix.cpp crashcatcher/crashpadclientwin32.cpp
+        crashcatcher/crashpadmonitorposix.cpp crashcatcher/crashpadmonitorwin32.cpp
         APPEND PROPERTY COMPILE_DEFINITIONS CRASHPAD_FLOCK_ALWAYS_SUPPORTED=1)
 
     if (CMAKE_SYSTEM_NAME STREQUAL "Linux")

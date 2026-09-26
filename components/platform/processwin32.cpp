@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <string>
+#include <string_view>
 
 #include <components/misc/windows.hpp>
 
@@ -25,4 +27,26 @@ namespace Platform::Process
     {
         return static_cast<std::uint32_t>(GetCurrentProcessId());
     }
+
+    std::uint64_t currentThreadId()
+    {
+        return GetCurrentThreadId();
+    }
+
+    bool startedFromTerminal()
+    {
+        return false;
+    }
+
+    std::string shellWord(std::string_view text)
+    {
+        return '"' + std::string(text) + '"';
+    }
+
+    CommandEnd runShell(const std::string& line)
+    {
+        return CommandEnd{ .mExitCode = static_cast<std::uint32_t>(std::system(('"' + line + '"').c_str())) };
+    }
+
+    void disableCoreDump() {}
 }

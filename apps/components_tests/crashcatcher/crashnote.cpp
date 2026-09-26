@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include <components/crashcatcher/crashnote.hpp>
+#include <components/platform/process.hpp>
 
 namespace
 {
@@ -21,7 +22,7 @@ namespace
     Crash::NotesRead readAll()
     {
         Crash::NotesRead read;
-        Crash::readNotes(Crash::noteTable(), Crash::currentThread(), read);
+        Crash::readNotes(Crash::noteTable(), Platform::Process::currentThreadId(), read);
         return read;
     }
 
@@ -42,7 +43,7 @@ namespace
             const Crash::NotesRead read = readAll();
             ASSERT_GT(read.mCount, 0u);
             EXPECT_EQ(std::string_view(read.mNotes[0].mText), "describing the texture \"textures/tx_a_rock.dds\"");
-            EXPECT_EQ(read.mNotes[0].mThread, Crash::currentThread());
+            EXPECT_EQ(read.mNotes[0].mThread, Platform::Process::currentThreadId());
             EXPECT_TRUE(read.mNotes[0].mWhole);
         }
 
@@ -62,7 +63,7 @@ namespace
         std::latch read(1);
         std::uint64_t other = 0;
         std::thread worker([&] {
-            other = Crash::currentThread();
+            other = Platform::Process::currentThreadId();
             const Crash::NoteScope staging("staging the texture \"{}\"", "textures/tx_b.dds");
             noted.count_down();
             read.wait();
@@ -70,11 +71,11 @@ namespace
 
         noted.wait();
         const Crash::NotesRead both = readAll();
-        const Crash::NoteCopy* const mine = findThread(both, Crash::currentThread());
+        const Crash::NoteCopy* const mine = findThread(both, Platform::Process::currentThreadId());
         const Crash::NoteCopy* const theirs = findThread(both, other);
         ASSERT_NE(mine, nullptr);
         ASSERT_NE(theirs, nullptr);
-        EXPECT_NE(other, Crash::currentThread());
+        EXPECT_NE(other, Platform::Process::currentThreadId());
         EXPECT_EQ(std::string_view(mine->mText), "uploading");
         EXPECT_EQ(std::string_view(theirs->mText), "staging the texture \"textures/tx_b.dds\"");
 
@@ -146,7 +147,7 @@ namespace
     {
         const auto mine = [] {
             const Crash::NotesRead read = readAll();
-            const Crash::NoteCopy* const note = findThread(read, Crash::currentThread());
+            const Crash::NoteCopy* const note = findThread(read, Platform::Process::currentThreadId());
             return note == nullptr ? std::string("(no line)") : std::string(note->mText);
         };
 
@@ -216,7 +217,7 @@ namespace
         std::latch noted(1);
         std::latch copied(1);
         std::thread worker([&] {
-            other = Crash::currentThread();
+            other = Platform::Process::currentThreadId();
             const Crash::NoteScope walking("walking the cell \"{}\"", "Seyda Neen");
             noted.count_down();
             copied.wait();

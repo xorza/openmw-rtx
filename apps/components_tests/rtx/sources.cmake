@@ -200,6 +200,16 @@ else()
     list(APPEND RTX_GPU_TEST_FILES ${RTX_GPU_TEST_FILES_NO_DLSS})
 endif()
 
+# `Platform::Process` as each system's shell answers it: one file a system, so neither asks which
+# system it is on.
+set(RTX_TEST_FILES_PROCESS_POSIX platform/processposix.cpp)
+set(RTX_TEST_FILES_PROCESS_WIN32 platform/processwin32.cpp)
+if (WIN32)
+    list(APPEND RTX_TEST_FILES ${RTX_TEST_FILES_PROCESS_WIN32})
+else()
+    list(APPEND RTX_TEST_FILES ${RTX_TEST_FILES_PROCESS_POSIX})
+endif()
+
 set(RTX_TEST_FILES_FIFO rtxtool/perffifo.cpp)
 if (NOT WIN32)
     list(APPEND RTX_TEST_FILES ${RTX_TEST_FILES_FIFO})

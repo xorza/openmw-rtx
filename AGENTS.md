@@ -90,6 +90,16 @@ the posture behind them does.
   is the one exception to `#pragma once`, and `portable.h` says why.
 - **Include what you name.** A file that spells `std::size_t` includes `<cstddef>`. A `.cpp` may
   lean on its own header for what that header's interface already needs, and on nothing else.
+- **The preprocessor switches only where nothing else can.** What systems spell differently goes
+  in a `…posix.cpp` and `…win32.cpp` pair that CMake chooses, behind one header: a general fact in
+  `components/platform` (`Platform::Process`, `Platform::SharedMemory`), the crash catcher's own
+  in its `…system.hpp`. A build flag is defined in every build as `0` or `1` and read once into a
+  `constexpr bool` (`Rtx::sDebugNames`, `Settings::sRayTracingBuilt`), which code asks with
+  `if constexpr`. Code only one build has is a file CMake chooses (`noupscaler.cpp`,
+  `nortxrenderer.cpp`, `nodlss.cpp`), never an `#ifdef` around it. A test of an `assert` calls
+  `Testing::expectAssertDies`, not `#ifndef NDEBUG`. What stays: a chain inside the one file that
+  owns a system's difference (Linux beside macOS in a POSIX file), an include only one system has,
+  and the headers GLSL and C++ both read, whose differences `shaders/portable.h` holds.
 - **Comments say _why_**: an invariant, a workaround and its cause, a trade-off against the obvious
   alternative — never a restatement of the line under it. No decorative dividers.
 - **Fix stale narration in code you are already editing.** Sweeping files you are not otherwise in

@@ -16,6 +16,8 @@
 #include <apps/rtxtool/film.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/run.hpp>
+#include <components/files/conversion.hpp>
+#include <components/platform/process.hpp>
 #include <components/rtx/skylight.hpp>
 #include <components/testing/util.hpp>
 
@@ -340,15 +342,19 @@ namespace RtxTool
             EXPECT_EQ(frameName(42), "000042.png");
         }
 
-#if !defined(_WIN32)
-        /// Each path is one word to the shell, a quote inside one included.
+        /// Each path is one word to the shell, as `Platform::Process::shellWord` makes one: the frames'
+        /// pattern under their folder, and the video, a quote in its name included.
         TEST(RtxFilmTest, theEncoderIsHandedEachPathAsOneWord)
         {
+            const auto word = [](const std::filesystem::path& path) {
+                return Platform::Process::shellWord(Files::pathToUnicodeString(path));
+            };
             EXPECT_EQ(encodeCommand("/tmp/film/frames", "/tmp/it's here/tour.mp4", 60.0f),
-                "ffmpeg -hide_banner -loglevel warning -y -framerate 60 -i '/tmp/film/frames/%06d.png' "
-                "-vf \"pad=ceil(iw/2)*2:ceil(ih/2)*2\" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p "
-                "-movflags +faststart '/tmp/it'\\''s here/tour.mp4'");
+                "ffmpeg -hide_banner -loglevel warning -y -framerate 60 -i "
+                    + word(std::filesystem::path("/tmp/film/frames") / "%06d.png")
+                    + " -vf \"pad=ceil(iw/2)*2:ceil(ih/2)*2\" -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p "
+                      "-movflags +faststart "
+                    + word("/tmp/it's here/tour.mp4"));
         }
-#endif
     }
 }

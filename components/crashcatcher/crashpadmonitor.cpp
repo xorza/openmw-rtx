@@ -38,112 +38,14 @@
 
 #include "crashmonitorarguments.hpp"
 #include "crashpackage.hpp"
+#include "crashpadmonitorsystem.hpp"
 #include "crashpage.hpp"
 #include "crashsummary.hpp"
-
-#if defined(_WIN32)
-#include <components/misc/windows.hpp>
-
-#include <shellapi.h>
-#else
-#include <csignal>
-#include <sys/types.h>
-#endif
-
-#if defined(__linux__)
-#include <sys/syscall.h>
-#include <unistd.h>
-#endif
 
 namespace Crash
 {
     namespace
     {
-        /// The game itself, held from the monitor's start, so a hang request and an End reach the
-        /// process that started the monitor and never one that took its id after it ended: a
-        /// pidfd on Linux and a handle on Windows. macOS acts on the id.
-        class Client
-        {
-        public:
-            explicit Client(std::uint32_t id)
-                : mId(id)
-            {
-#if defined(_WIN32)
-                mHandle = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION
-                        | PROCESS_VM_WRITE | PROCESS_VM_READ | PROCESS_TERMINATE | SYNCHRONIZE,
-                    FALSE, static_cast<DWORD>(id));
-#elif defined(__linux__) && defined(SYS_pidfd_open)
-                mDescriptor = static_cast<int>(syscall(SYS_pidfd_open, static_cast<pid_t>(id), 0));
-#endif
-            }
-
-            Client(const Client&) = delete;
-            Client& operator=(const Client&) = delete;
-
-            ~Client()
-            {
-#if defined(_WIN32)
-                if (mHandle != nullptr)
-                    CloseHandle(mHandle);
-#elif defined(__linux__)
-                if (mDescriptor >= 0)
-                    close(mDescriptor);
-#endif
-            }
-
-            /// Has the game write a hang report: a signal on POSIX, and on Windows, which has no
-            /// signal to take it on, a thread of the game's own started at the function it named, as
-            /// a debugger starts one; the game's frames are untouched.
-            void requestHangReport(Heartbeat& page) const
-            {
-#if defined(_WIN32)
-                const auto entry = std::atomic_ref(page.mHangEntry).load();
-                if (mHandle == nullptr || entry == 0)
-                    return;
-
-                if (const HANDLE thread = CreateRemoteThread(
-                        mHandle, nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(entry), nullptr, 0, nullptr))
-                    CloseHandle(thread);
-#else
-                (void)page;
-                send(SIGUSR2);
-#endif
-            }
-
-            /// Ends the game, and says whether it was there to be ended.
-            bool end() const
-            {
-#if defined(_WIN32)
-                if (mHandle == nullptr || WaitForSingleObject(mHandle, 0) == WAIT_OBJECT_0)
-                    return false;
-                return TerminateProcess(mHandle, 3) != FALSE;
-#else
-                return send(SIGKILL);
-#endif
-            }
-
-        private:
-#if !defined(_WIN32)
-            bool send(int number) const
-            {
-#if defined(__linux__) && defined(SYS_pidfd_send_signal)
-                // No descriptor is a kernel older than 5.3, where nothing is sent rather than
-                // something sent to whatever process has the id now.
-                return mDescriptor >= 0 && syscall(SYS_pidfd_send_signal, mDescriptor, number, nullptr, 0) == 0;
-#else
-                return kill(static_cast<pid_t>(mId), number) == 0;
-#endif
-            }
-#endif
-
-            [[maybe_unused]] std::uint32_t mId = 0;
-#if defined(_WIN32)
-            HANDLE mHandle = nullptr;
-#elif defined(__linux__)
-            int mDescriptor = -1;
-#endif
-        };
-
         /// What the last report of a session was, which an issue is filled in with.
         struct LastReport
         {
@@ -152,9 +54,9 @@ namespace Crash
         };
 
         /// What the game told the monitor on its command line, and what the monitor learnt since.
-        struct Monitor : MonitorArguments
+        struct MonitorState : MonitorArguments
         {
-            explicit Monitor(MonitorArguments arguments)
+            explicit MonitorState(MonitorArguments arguments)
                 : MonitorArguments(std::move(arguments))
                 , mPage(SharedPage::open(mClient))
                 , mGame(mClient)
@@ -165,7 +67,7 @@ namespace Crash
             std::filesystem::path getLog() const { return Files::pathFromUnicodeString(mPage.getLogPath()); }
 
             SharedPage mPage;
-            Client mGame;
+            Monitor::GameProcess mGame;
 
             /// How long the game stood still when the watch asked for a hang report.
             std::atomic<std::uint32_t> mStalledFor{ 0 };
@@ -193,21 +95,10 @@ namespace Crash
             bool mEnded = false;
         };
 
-        std::tm localTime(std::time_t seconds)
-        {
-            std::tm local{};
-#if defined(_WIN32)
-            localtime_s(&local, &seconds);
-#else
-            localtime_r(&seconds, &local);
-#endif
-            return local;
-        }
-
         std::string stamp()
         {
             const auto now = std::chrono::system_clock::now();
-            const std::tm local = localTime(std::chrono::system_clock::to_time_t(now));
+            const std::tm local = Monitor::localTime(std::chrono::system_clock::to_time_t(now));
             const auto milliseconds
                 = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000;
             char text[32];
@@ -218,7 +109,7 @@ namespace Crash
 
         /// Appends `lines` to the game's log, stamped as the log stamps its own. The game holds the
         /// file open, and shares its writing.
-        void appendToLog(Monitor& monitor, const std::vector<std::string>& lines)
+        void appendToLog(MonitorState& monitor, const std::vector<std::string>& lines)
         {
             // Before the game has set its log up there is none, and a summary is in its dump alone.
             const std::filesystem::path path = monitor.getLog();
@@ -232,105 +123,6 @@ namespace Crash
                 log << at << line << '\n';
         }
 
-        std::string hex(std::uint64_t value)
-        {
-            char text[20];
-            std::snprintf(text, sizeof(text), "0x%llx", static_cast<unsigned long long>(value));
-            return text;
-        }
-
-        using Names = std::span<const std::pair<std::uint32_t, std::string_view>>;
-
-        /// `code`'s name in `names`, or `otherwise` where it has none.
-        std::string nameOf(Names names, std::uint32_t code, std::string otherwise)
-        {
-            const auto named
-                = std::find_if(names.begin(), names.end(), [&](const auto& one) { return one.first == code; });
-            return named != names.end() ? std::string(named->second) : std::move(otherwise);
-        }
-
-        /// The exception as the system names it, or nothing where the dump was asked for rather
-        /// than raised by a fault.
-        std::string describe(const crashpad::ExceptionSnapshot& exception, std::uint32_t process)
-        {
-            const std::uint32_t code = exception.Exception();
-#if defined(_WIN32)
-            (void)process;
-            if (code == 0x517a7ed)
-                return {};
-
-            static constexpr std::array<std::pair<std::uint32_t, std::string_view>, 12> sNames{ {
-                { EXCEPTION_ACCESS_VIOLATION, "EXCEPTION_ACCESS_VIOLATION" },
-                { EXCEPTION_IN_PAGE_ERROR, "EXCEPTION_IN_PAGE_ERROR" },
-                { EXCEPTION_STACK_OVERFLOW, "EXCEPTION_STACK_OVERFLOW" },
-                { EXCEPTION_ILLEGAL_INSTRUCTION, "EXCEPTION_ILLEGAL_INSTRUCTION" },
-                { EXCEPTION_PRIV_INSTRUCTION, "EXCEPTION_PRIV_INSTRUCTION" },
-                { EXCEPTION_INT_DIVIDE_BY_ZERO, "EXCEPTION_INT_DIVIDE_BY_ZERO" },
-                { EXCEPTION_INT_OVERFLOW, "EXCEPTION_INT_OVERFLOW" },
-                { EXCEPTION_DATATYPE_MISALIGNMENT, "EXCEPTION_DATATYPE_MISALIGNMENT" },
-                { EXCEPTION_BREAKPOINT, "EXCEPTION_BREAKPOINT" },
-                { EXCEPTION_NONCONTINUABLE_EXCEPTION, "EXCEPTION_NONCONTINUABLE_EXCEPTION" },
-                { 0xC0000374, "STATUS_HEAP_CORRUPTION" },
-                { 0xC0000409, "STATUS_STACK_BUFFER_OVERRUN" },
-            } };
-            std::string text = nameOf(sNames, code, "exception " + hex(code));
-
-            const std::vector<std::uint64_t>& codes = exception.Codes();
-            if ((code == EXCEPTION_ACCESS_VIOLATION || code == EXCEPTION_IN_PAGE_ERROR) && codes.size() >= 2)
-                text += std::string(codes[0] == 0 ? " reading "
-                                : codes[0] == 1   ? " writing "
-                                                  : " executing ")
-                    + hex(codes[1]);
-            return text;
-#elif defined(__APPLE__)
-            (void)process;
-
-            // `kMachExceptionSimulated`, 'CPsx'.
-            if (code == 0x43507378u)
-                return {};
-
-            static constexpr std::array<std::pair<std::uint32_t, std::string_view>, 6> sNames{ {
-                { 1, "EXC_BAD_ACCESS" },
-                { 2, "EXC_BAD_INSTRUCTION" },
-                { 3, "EXC_ARITHMETIC" },
-                { 6, "EXC_BREAKPOINT" },
-                { 10, "EXC_CRASH" },
-                { 12, "EXC_GUARD" },
-            } };
-            std::string text = nameOf(sNames, code, "Mach exception " + std::to_string(code));
-            if (code == 1)
-                text += " at " + hex(exception.ExceptionAddress());
-            return text;
-#else
-            if (code == 0xFFFFFFFFu)
-                return {};
-
-            static constexpr std::array<std::pair<std::uint32_t, std::string_view>, 7> sNames{ {
-                { SIGSEGV, "SIGSEGV" },
-                { SIGBUS, "SIGBUS" },
-                { SIGILL, "SIGILL" },
-                { SIGFPE, "SIGFPE" },
-                { SIGABRT, "SIGABRT" },
-                { SIGTRAP, "SIGTRAP" },
-                { SIGSYS, "SIGSYS" },
-            } };
-            std::string text = nameOf(sNames, code, "signal " + std::to_string(code));
-
-            // A code of nought or less is a signal sent rather than a fault, `kill` or `raise`, whose
-            // address is no fault's. Crashpad keeps the sender's id first among the codes of the
-            // signals that carry one: the game's own, as `abort` sends it, says nothing more.
-            if (static_cast<std::int32_t>(exception.ExceptionInfo()) <= 0)
-            {
-                const std::vector<std::uint64_t>& codes = exception.Codes();
-                if (!codes.empty() && codes[0] != process)
-                    text += " sent by process " + std::to_string(codes[0]);
-            }
-            else if (code == SIGSEGV || code == SIGBUS)
-                text += " at " + hex(exception.ExceptionAddress());
-            return text;
-#endif
-        }
-
         /// The module an address lies in, and the offset in it: "openmw.exe+0x112a9a7".
         std::string locate(const std::vector<const crashpad::ModuleSnapshot*>& modules, std::uint64_t address)
         {
@@ -340,7 +132,7 @@ namespace Crash
                     const std::string path = module->Name();
                     const std::size_t slash = path.find_last_of("/\\");
                     return (slash == std::string::npos ? path : path.substr(slash + 1)) + "+"
-                        + hex(address - module->Address());
+                        + Monitor::hex(address - module->Address());
                 }
 
             return {};
@@ -429,7 +221,7 @@ namespace Crash
         class SummarySource final : public crashpad::UserStreamDataSource
         {
         public:
-            explicit SummarySource(Monitor& monitor)
+            explicit SummarySource(MonitorState& monitor)
                 : mMonitor(monitor)
             {
             }
@@ -452,7 +244,7 @@ namespace Crash
 
                 if (exception != nullptr)
                 {
-                    facts.mException = describe(*exception, mMonitor.mClient);
+                    facts.mException = Monitor::describeException(*exception, mMonitor.mClient);
                     if (const crashpad::CPUContext* const context = exception->Context())
                     {
                         facts.mWhere = locate(snapshot->Modules(), context->InstructionPointer());
@@ -468,11 +260,8 @@ namespace Crash
 
                 crashpad::UUID report;
                 snapshot->ReportID(&report);
-#if defined(_WIN32)
-                const std::filesystem::path dump = mMonitor.mDatabase / "reports" / (report.ToString() + ".dmp");
-#else
-                const std::filesystem::path dump = mMonitor.mDatabase / "pending" / (report.ToString() + ".dmp");
-#endif
+                const std::filesystem::path dump
+                    = mMonitor.mDatabase / Monitor::dumpFolder() / (report.ToString() + ".dmp");
                 facts.mDump = Files::pathToUnicodeString(dump);
 
                 std::vector<std::string> lines;
@@ -493,11 +282,11 @@ namespace Crash
             }
 
         private:
-            Monitor& mMonitor;
+            MonitorState& mMonitor;
         };
 
         /// Whether the player chose to end a game that stands still.
-        bool askToEnd(const Monitor& monitor, std::uint32_t seconds)
+        bool askToEnd(const MonitorState& monitor, std::uint32_t seconds)
         {
             // **A harness's answer, where nobody is at the box**: End, after this many milliseconds,
             // which is what lets a test end a game that recovered, or ended, while it was asked.
@@ -525,7 +314,7 @@ namespace Crash
         /// Ends the game where it still stands where it stood when the player was asked: the box
         /// stands for as long as the player takes over it, and the game may have drawn again, or
         /// ended, in that time. Says in the log what it did.
-        void endIfStillStalled(Monitor& monitor, std::uint64_t stalledAt)
+        void endIfStillStalled(MonitorState& monitor, std::uint64_t stalledAt)
         {
             bool ended = false;
             {
@@ -548,7 +337,7 @@ namespace Crash
         /// **The hang watch**, once a second: a frame counter that stops for the limit is a hang,
         /// reported once until it moves again. It begins at the first frame, so a start that
         /// draws nothing for a while is not one.
-        void watch(Monitor& monitor)
+        void watch(MonitorState& monitor)
         {
             Heartbeat* const page = monitor.mPage.get();
             if (page == nullptr)
@@ -597,10 +386,10 @@ namespace Crash
 
         /// **The package, said in the log** and on the monitor's errors, which a game started from a
         /// shell shares. Where it is, and empty where none was written.
-        std::filesystem::path packageSession(Monitor& monitor, std::span<const std::filesystem::path> dumps)
+        std::filesystem::path packageSession(MonitorState& monitor, std::span<const std::filesystem::path> dumps)
         {
-            const SessionPackage package = writeSessionPackage(
-                monitor.mDatabase, monitor.mApplication, monitor.getLog(), dumps, localTime(std::time(nullptr)));
+            const SessionPackage package = writeSessionPackage(monitor.mDatabase, monitor.mApplication,
+                monitor.getLog(), dumps, Monitor::localTime(std::time(nullptr)));
 
             std::vector<std::string> lines;
             for (const std::filesystem::path& missing : package.mMissing)
@@ -623,7 +412,7 @@ namespace Crash
         /// reporting: it opens a new issue filled in with the report, then the folder, which opens
         /// over the browser, so the file is there to be dragged in. A message box closes on any
         /// button, so one that does it all needs no second showing.
-        void tellPlayer(const Monitor& monitor, bool crashed, std::span<const std::filesystem::path> dumps,
+        void tellPlayer(const MonitorState& monitor, bool crashed, std::span<const std::filesystem::path> dumps,
             const std::filesystem::path& package, const LastReport& report)
         {
             const std::string title = monitor.mApplication + (crashed ? " has crashed" : " was ended");
@@ -671,30 +460,6 @@ namespace Crash
                 SDL_OpenURL(newIssueUrl(monitor.mIssues, report.mTitle, report.mSummary, attach).c_str());
             SDL_OpenURL(folderUrl(folder).c_str());
         }
-
-        /// The command line as UTF-8, which is what Crashpad's own entry hands `HandlerMain`: on
-        /// Windows from the wide one, because `argv` is in the system's code page there.
-        std::vector<std::string> commandLine(int argc, char** argv)
-        {
-            std::vector<std::string> arguments;
-#if defined(_WIN32)
-            (void)argc;
-            (void)argv;
-            int count = 0;
-            wchar_t** const wide = CommandLineToArgvW(GetCommandLineW(), &count);
-            for (int i = 0; i < count; ++i)
-            {
-                const int size = WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, nullptr, 0, nullptr, nullptr);
-                std::string one(static_cast<std::size_t>(std::max(size, 1)) - 1, '\0');
-                WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, one.data(), size, nullptr, nullptr);
-                arguments.push_back(std::move(one));
-            }
-            LocalFree(wide);
-#else
-            arguments.assign(argv, argv + argc);
-#endif
-            return arguments;
-        }
     }
 
     void runMonitorIfAsked(int argc, char** argv)
@@ -703,7 +468,7 @@ namespace Crash
             return;
 
         std::vector<std::string> handler;
-        Monitor monitor(MonitorArguments::read(commandLine(argc, argv), handler));
+        MonitorState monitor(MonitorArguments::read(Monitor::commandLine(argc, argv), handler));
 
         crashpad::UserStreamDataSources sources;
         sources.push_back(std::make_unique<SummarySource>(monitor));

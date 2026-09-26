@@ -21,6 +21,7 @@
 #include <components/files/fixedpath.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/misc/strings/lower.hpp>
+#include <components/platform/process.hpp>
 
 #ifdef _WIN32
 #include <components/misc/windows.hpp>
@@ -457,10 +458,8 @@ namespace Debug
             const char* const reports = std::getenv("OPENMW_CRASH_REPORTS");
             settings.mReportFolder = reports != nullptr ? Files::pathFromUnicodeString(reports)
                                                         : Files::FixedPath<>("openmw").getUserDataPath() / "crashes";
-#if (defined(__APPLE__) || defined(__linux) || defined(__unix) || defined(__posix))
             // As the fatal error box below: none for whoever started the game from a shell.
-            settings.mDialog = !isatty(fileno(stdin));
-#endif
+            settings.mDialog = !Platform::Process::startedFromTerminal();
             // And none where a harness asks, which a box waiting for a click would stop.
             if (const char* const dialog = std::getenv("OPENMW_CRASH_DIALOG"))
                 settings.mDialog = Misc::StringUtils::toNumeric<int>(dialog, 1) != 0;

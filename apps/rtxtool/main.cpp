@@ -3,7 +3,6 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <format>
@@ -892,7 +891,7 @@ namespace RtxTool
             }
 
             out() << "\nencoding: " << encode << '\n' << std::flush;
-            if (std::system(encode.c_str()) != 0)
+            if (!Platform::Process::runShell(encode).succeeded())
             {
                 out() << "the encoder failed; the frames are in " << Files::pathToUnicodeString(frames) << '\n';
                 return 1;
