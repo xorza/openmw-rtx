@@ -44,11 +44,11 @@ jobs:
 
       # **No cache of any kind**: what a release ships is built from what this run fetched and
       # checked, and not from objects another run left where this one reads them.
-      - uses: ./.github/actions/openmw-deps
+      - uses: $/.github/actions/openmw-deps
         with:
           cache: "false"
 
-      - uses: ./.github/actions/rtx-sdks
+      - uses: $/.github/actions/rtx-sdks
         with:
           cache: "false"
 
@@ -92,8 +92,10 @@ jobs:
           done
           ls -l
 
-      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
-        with:
-          draft: true
-          files: dist/*
-          fail_on_unmatched_files: true
+      - name: The draft release
+        # `gh`, which every runner carries, rather than an action that wraps it.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" --draft --verify-tag --title "$TAG" dist/*

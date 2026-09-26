@@ -9,6 +9,10 @@ updates:
       - /.github/actions/*
     schedule:
       interval: weekly
+    # A week before a new release is taken: a release that was itself the attack is usually found and
+    # pulled within days.
+    cooldown:
+      default-days: 7
     groups:
       actions:
         patterns:

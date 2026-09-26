@@ -96,9 +96,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/openmw-deps
+      - uses: $/.github/actions/openmw-deps
 
-      - uses: ./.github/actions/rtx-sdks
+      - uses: $/.github/actions/rtx-sdks
 
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
@@ -175,9 +175,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/openmw-deps
+      - uses: $/.github/actions/openmw-deps
 
-      - uses: ./.github/actions/rtx-sdks
+      - uses: $/.github/actions/rtx-sdks
 
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
@@ -219,7 +219,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/openmw-deps
+      - uses: $/.github/actions/openmw-deps
 
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
@@ -269,9 +269,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/openmw-deps
+      - uses: $/.github/actions/openmw-deps
 
-      - uses: ./.github/actions/rtx-sdks
+      - uses: $/.github/actions/rtx-sdks
 
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
@@ -314,7 +314,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/openmw-deps
+      - uses: $/.github/actions/openmw-deps
 
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
