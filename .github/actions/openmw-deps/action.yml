@@ -1,0 +1,31 @@
+# What every build of the tree takes from its system before `rtx` configures it: upstream's
+# package list on Linux, plus what `rtx` asks for there, and on Windows the cache of what `rtx`
+# fetches into deps/ — upstream's prebuilt set, SDL's own package and Qt — at its first configure.
+name: OpenMW dependencies
+description: The packages a build of the tree needs, per system.
+
+runs:
+  using: composite
+  steps:
+    - name: Linux packages
+      # Upstream's own list, plus what rtx asks for: Ninja and the system Google Test, and for the
+      # archive, Qt's Wayland platform and zsync — a few seconds on every run, so a job that packages
+      # needs nothing of its own.
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo add-apt-repository -y ppa:openmw/openmw
+        sudo apt-get update
+        sudo CI/install_debian_deps.sh gcc openmw-deps openmw-deps-dynamic
+        sudo apt-get install -y ninja-build libgtest-dev libgmock-dev qt6-wayland zsync
+
+    - name: Windows dependencies cache
+      # The key names the tags upstream pins and the file `rtx` pins the rest in, so a bump of either
+      # saves afresh; an older cache is restored all the same, because `rtx` judges each set by the
+      # directory it leaves and fetches only what a bump changed.
+      if: runner.os == 'Windows'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: deps
+        key: deps-${{ runner.os }}-${{ hashFiles('CI/deps_versions.msvc.sh', 'apps/rtxtool/pins.sh') }}
+        restore-keys: deps-${{ runner.os }}-

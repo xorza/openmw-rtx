@@ -1,0 +1,338 @@
+# The fork's CI, and the whole of it: what upstream's GitHub workflows proved and what the fork's own
+# proved, in one run, through the same `rtx` script the desk uses.
+#
+# **Three builds of the tree, on the systems each is for.** The fork's own binary, the ray tracer
+# built in, on Ubuntu with GCC and with Clang and on Windows with MSVC. The tree without it,
+# `rtx plain`, on Ubuntu and Windows: the stub renderer and `OPENMW_RTX=0`, every program upstream
+# builds, the CS among them, and upstream's three suites whole — what upstream's `push.yml` and
+# `windows.yml` proved here before this replaced them. macOS, which the ray tracer does not run on,
+# is compiled and nothing more: no tests, and no disk image, whose `hdiutil` failed runs on the
+# runner's own "Resource busy" and says nothing about the code.
+#
+# **Upstream's checks from its GitLab pipeline, which never ran on GitHub, where they cost little**:
+# the three source checks beside clang-format, `-Werror` on upstream's code in the plain Ubuntu
+# build as upstream's GitLab builds it, a Clang build, and upstream's integration tests — the game
+# under Xvfb with the example suite — run on the fork's own binary with the OpenGL renderer, which is
+# the seam's other half in what the fork ships. What costs hours, or needs upstream's own services,
+# stays out: clang-tidy, coverage, Coverity. The sanitizers and the packaging are `daily.yml`'s.
+#
+# No hosted runner has a GPU, so the ray tracer's tests name `--without-device`: `rtx-gpu-tests`,
+# which refuses to start without a device, is left out, and the gate stays on a box with a card.
+#
+# **The job names are the `master` ruleset's required checks**, which the upstream merge waits on:
+# a job renamed here is a check the ruleset waits for and never sees.
+#
+# Every action is pinned to a full commit, with the release it belongs to beside it: a tag is
+# whatever its owner last pointed it at. The token can only read and is not left in the checkout, and
+# a newer push cancels the run it supersedes.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A push supersedes the push before it on the same ref. A run asked for by hand stands alone: it is
+# wanted whole, and a push in the meantime must neither cancel it nor be cancelled by it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'workflow_dispatch' && format('-{0}', github.run_id) || '' }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: clang-format 14, the version upstream pins, and Qt's lupdate
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-14 qt6-l10n-tools
+
+      - name: clang-format
+        run: CLANG_FORMAT=clang-format-14 CI/check_clang_format.sh
+
+      - name: CMake files indented with spaces
+        run: CI/check_cmake_format.sh
+
+      - name: File names
+        run: CI/check_file_names.sh
+
+      - name: Qt translations
+        # Upstream's own check: the translation sources are regenerated and must not change.
+        run: LUPDATE=/usr/lib/qt6/bin/lupdate CI/check_qt_translations.sh
+
+  linux:
+    name: linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/openmw-deps
+
+      - uses: ./.github/actions/rtx-sdks
+
+      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          key: linux
+          max-size: 1000M
+
+      - name: Build every target
+        run: apps/rtxtool/rtx debug build all
+
+      - name: Test, upstream's suites whole beside the fork's
+        run: apps/rtxtool/rtx debug test --without-device --all
+
+      - name: The backend without DLSS
+        run: apps/rtxtool/rtx nodlss build openmw-rtx-vulkan
+
+      - name: Integration tests
+        # Upstream's, from its GitLab pipeline: the game under Xvfb, the example suite at the revision
+        # upstream pins, and the Lua suites the tree carries. The fork's binary with the ray tracer off,
+        # which is the setting's default, so the OpenGL half of the seam in what the fork ships is what
+        # runs. No crash dialog: a box waiting for a click under Xvfb is a job that never ends.
+        env:
+          EXAMPLE_SUITE_REVISION: a1ba6fc9d7315c2158ef4c60349fc4e71b7ca343
+          OPENMW_CRASH_DIALOG: "0"
+        run: |
+          sudo apt-get install -y xvfb git-lfs
+          git init -q example-suite
+          git -C example-suite remote add origin https://gitlab.com/OpenMW/example-suite.git
+          git -C example-suite fetch -q --depth=1 origin "$EXAMPLE_SUITE_REVISION"
+          git -C example-suite checkout -q FETCH_HEAD
+          suite="$GITHUB_WORKSPACE/example-suite"
+          cd build-debug
+          xvfb-run --auto-servernum --server-args='-screen 0 640x480x24x60' \
+            python3 "$GITHUB_WORKSPACE/scripts/integration_tests.py" \
+              --verbose \
+              --omw ./openmw \
+              --workdir "$GITHUB_WORKSPACE/integration_tests_output" \
+              --config "$suite" \
+              --data "$suite/game_template/data" \
+              --data "$suite/example_animated_creature/data" \
+              --data "$suite/the_hub/data" \
+              --data "$suite/integration_tests/data" \
+              --data "$suite/example_static_props/data" \
+              "$GITHUB_WORKSPACE/scripts/data/integration_tests"
+
+      - name: Logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-linux-${{ github.sha }}
+          path: |
+            build-debug/CMakeCache.txt
+            build-debug/**/*.log
+            build-nodlss/CMakeCache.txt
+            integration_tests_output/**/*.log
+            integration_tests_output/**/*.cfg
+
+  linux-clang:
+    name: linux-clang
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: bash
+    env:
+      CC: clang
+      CXX: clang++
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/openmw-deps
+
+      - uses: ./.github/actions/rtx-sdks
+
+      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          key: linux-clang
+          max-size: 1000M
+
+      - name: Build every target
+        # Compiled and not run: Clang's warnings are what GCC's and MSVC's are not, and the fork's
+        # own files turn every one into an error.
+        run: apps/rtxtool/rtx debug build all
+
+      - name: Logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-linux-clang-${{ github.sha }}
+          path: |
+            build-debug/CMakeCache.txt
+            build-debug/**/*.log
+
+  linux-plain:
+    name: linux-plain
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: bash
+    env:
+      # Upstream's GitLab build: its own code with every warning an error, and the libraries it takes
+      # in left alone.
+      OPENMW_CXX_FLAGS: -Werror -Werror=implicit-fallthrough
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/openmw-deps
+
+      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          key: linux-plain
+          max-size: 1000M
+
+      - name: Build every program
+        run: apps/rtxtool/rtx plain build
+
+      - name: Test, upstream's three suites whole
+        run: apps/rtxtool/rtx plain test
+
+      - name: Benchmarks, run once each as upstream runs them
+        working-directory: build-plain
+        run: |
+          ./openmw_detournavigator_navmeshtilescache_benchmark
+          ./openmw_esm_refid_benchmark
+          ./openmw_settings_access_benchmark
+
+      - name: Install
+        run: cmake --install build-plain --prefix "$RUNNER_TEMP/install"
+
+      - name: Logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-linux-plain-${{ github.sha }}
+          path: |
+            build-plain/CMakeCache.txt
+            build-plain/**/*.log
+
+  windows:
+    name: windows
+    runs-on: windows-2022
+    timeout-minutes: 150
+    defaults:
+      run:
+        # Git Bash, so every `run` is the one script on both systems.
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/openmw-deps
+
+      - uses: ./.github/actions/rtx-sdks
+
+      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          key: windows
+          max-size: 1000M
+
+      - name: Build every target
+        run: apps/rtxtool/rtx debug build all
+
+      - name: Test, upstream's suites whole beside the fork's
+        run: apps/rtxtool/rtx debug test --without-device --all
+
+      - name: The backend without DLSS
+        run: apps/rtxtool/rtx nodlss build openmw-rtx-vulkan
+
+      - name: Logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-windows-${{ github.sha }}
+          path: |
+            build-debug/CMakeCache.txt
+            build-debug/**/*.log
+            build-nodlss/CMakeCache.txt
+
+  windows-plain:
+    name: windows-plain
+    runs-on: windows-2022
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/openmw-deps
+
+      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          key: windows-plain
+          max-size: 1000M
+
+      - name: Build every program
+        run: apps/rtxtool/rtx plain build
+
+      - name: Test, upstream's three suites whole
+        run: apps/rtxtool/rtx plain test
+
+      - name: Benchmarks, run once each as upstream runs them
+        working-directory: build-plain
+        run: |
+          ./openmw_detournavigator_navmeshtilescache_benchmark.exe
+          ./openmw_esm_refid_benchmark.exe
+          ./openmw_settings_access_benchmark.exe
+
+      - name: Install
+        run: cmake --install build-plain --prefix "$RUNNER_TEMP/install"
+
+      - name: Logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: logs-windows-plain-${{ github.sha }}
+          path: |
+            build-plain/CMakeCache.txt
+            build-plain/**/*.log
+
+  macos:
+    name: macos
+    runs-on: macos-15
+    timeout-minutes: 150
+    env:
+      CMAKE_BUILD_TYPE: RelWithDebInfo
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Dependencies
+        run: CI/before_install.macos.sh
+
+      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          key: macos
+          max-size: 1000M
+
+      - name: Configure
+        run: CI/before_script.macos.sh -C
+
+      - name: Build
+        run: CI/macos/build.sh

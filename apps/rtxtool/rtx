@@ -6,7 +6,9 @@
 #                                        targets named
 #   rtx <flavour> test [gtest args]      components-tests Rtx* Sky* Crash*, the crash matrix,
 #                                        rtx-gpu-tests, then openmw-tests Rtx*; `--without-device`
-#                                        leaves the GPU binary out, for a box with no driver
+#                                        leaves the GPU binary out, for a box with no driver, and
+#                                        `--all` runs the two suites whole, upstream's tests with
+#                                        the fork's; the plain flavour runs its three suites whole
 #   rtx <flavour> game [args]            openmw on the quicksave
 #   rtx <flavour> setup <morrowind dir>  write the openmw.cfg a fresh box has none of
 #   rtx <flavour> repeat [--pairs=N] [bench args]
@@ -28,11 +30,14 @@
 #                                validation: the everyday build
 #   release   build-release      -O3 -DNDEBUG, no layers, line tables and frame pointers so perf can
 #                                name a line: the build a number is quoted from
-#   asan      build-asan         debug under AddressSanitizer; `LSAN=1` turns the leak check back on
+#   asan      build-asan         debug under AddressSanitizer and UndefinedBehaviorSanitizer; `LSAN=1`
+#                                turns the leak check back on
 #   nodlss    build-nodlss       debug with -DOPENMW_RTX_DLSS=OFF: the other binary, whose upscaler
 #                                refuses every mode by name and whose DLSS test skips
 #   package   build-package      release with the launcher, the wizard and the importers, in the
 #                                portable layout a release archive holds; `build` builds it all
+#   plain     build-plain        the tree without the ray tracer, as upstream builds it: every
+#                                program, the CS among them, and upstream's three suites whole
 #
 # **One grammar for five builds**, because three scripts carried three: one had verbs only, one
 # had tests by default and `tool` in front of a verb, and none built the game. What differed
@@ -48,8 +53,8 @@
 # once opened a window and profiled nothing.
 #
 # **The same grammar under Git Bash on Windows, with MSVC.** Upstream's prebuilt dependency set is
-# fetched into `deps/` the way `windows.yml` fetches it, and the compiler is found through vswhere
-# and its environment captured into this shell. `rtx.cmd` beside this is what a Windows shell
+# fetched into `deps/` the way upstream's Windows workflow fetches it, and the compiler is found
+# through vswhere and its environment captured into this shell. `rtx.cmd` beside this is what a Windows shell
 # resolves `apps/rtxtool/rtx` to, and it starts this script in Git's bash — so an editor task
 # names one command on both systems. The Vulkan SDK, CMake and Ninja are the installers' and stay
 # on the PATH they put themselves on; `NGX_ROOT` names the checkout as it does anywhere. `asan` is
@@ -94,6 +99,7 @@ describeFlavour() {
     flavour="$1"
     build="$root/build-$flavour"
     targets=(openmw-rtxtool openmw)
+    testTargets=(components-tests crash-tests rtx-gpu-tests openmw-tests)
     case "$flavour" in
         debug | nodlss) ;;
         release) ;;
@@ -118,12 +124,19 @@ describeFlavour() {
                 options="$options:detect_leaks=0"
             fi
             export ASAN_OPTIONS="$options${ASAN_OPTIONS:+:$ASAN_OPTIONS}"
+
+            # A finding is a failure, with the stack that led to it, as upstream runs its tests.
+            export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1${UBSAN_OPTIONS:+:$UBSAN_OPTIONS}"
             ;;
         package)
             targets=(all)
             ;;
+        plain)
+            targets=(all)
+            testTargets=(components-tests crash-tests openmw-tests openmw-cs-tests)
+            ;;
         *)
-            echo "rtx: no flavour is called '$flavour' — debug, release, asan, nodlss or package" >&2
+            echo "rtx: no flavour is called '$flavour' — debug, release, asan, nodlss, package or plain" >&2
             exit 2
             ;;
     esac
@@ -213,8 +226,8 @@ fetchChecked() {
     mv "$file.partial" "$file"
 }
 
-# **Upstream's prebuilt dependency set, the way `windows.yml` gets it.** A manifest on
-# `openmw-deps` names the archive and its SHA-512 for the tag `CI/deps_versions.msvc.sh` pins —
+# **Upstream's prebuilt dependency set, the way upstream's Windows workflow gets it.** A manifest
+# on `openmw-deps` names the archive and its SHA-512 for the tag `CI/deps_versions.msvc.sh` pins —
 # the 2022 set, which upstream's own script links against Visual Studio 2026 as well. The
 # archive is fetched, checked, and unpacked beside its final name, which it takes only once the
 # whole of it is there: a run cut off mid-way leaves nothing a later run mistakes for a set.
@@ -298,10 +311,10 @@ fetchWindowsSdl() {
     rm -rf "$sdl.partial" "$package"
 }
 
-# **Qt, for the one flavour that builds the launcher and the wizard.** The dependency set carries
-# none, so it comes the way `windows.yml` takes it: aqt, pinned by release and checksum, installs
-# the version `CI/deps_versions.msvc.sh` names into deps/Qt, and the preset reads that version
-# through `QT_VER`. Once, judged by the directory the install leaves.
+# **Qt, for the flavours that build the launcher, the wizard and the CS.** The dependency set
+# carries none, so it comes the way upstream's Windows workflow takes it: aqt, pinned by release and
+# checksum, installs the version `CI/deps_versions.msvc.sh` names into deps/Qt, and the preset reads
+# that version through `QT_VER`. Once, judged by the directory the install leaves.
 fetchWindowsQt() {
     local version="${QT_VER:?}"
     qt="$root/deps/Qt/$version/msvc2019_64"
@@ -360,6 +373,11 @@ cacheEntries() {
 # What the platform supplies, and what each flavour asks, is the preset's to say. Windows's names
 # the dependency set and SDL's package by version, through `VCPKG_TAG` and `RTX_SDL2_VERSION` in
 # the environment, and both are fetched first.
+# The flavours that build the programs Qt draws: the launcher and the wizard, and the CS.
+wantsQt() {
+    [ "$flavour" = package ] || [ "$flavour" = plain ]
+}
+
 configureIfNeeded() {
     local digest configuredFrom="$build/rtx-preset.sha256"
     digest="$(presetDigest)"
@@ -377,7 +395,7 @@ configureIfNeeded() {
     if onWindows; then
         fetchWindowsDeps
         fetchWindowsSdl
-        if [ "$flavour" = package ]; then
+        if wantsQt; then
             fetchWindowsQt
         fi
     fi
@@ -386,7 +404,7 @@ configureIfNeeded() {
 
     if onWindows; then
         placeWindowsRuntime
-        if [ "$flavour" = package ]; then
+        if wantsQt; then
             placeWindowsQt
         fi
     fi
@@ -407,9 +425,10 @@ placeWindowsRuntime() {
     cp "$bin"/osgPlugins-3.6.5/*.dll "$build/osgPlugins-3.6.5/"
 }
 
-# **What the launcher and the wizard load, the list `windows.yml` places.** Qt's own deploy tool
+# **What the Qt programs load, the list upstream's Windows workflow places.** Qt's own deploy tool
 # would bring the whole of what it guesses at; upstream's list is the seven libraries and four
-# plugins the two programs reach, and the package installs every DLL the build directory holds.
+# plugins the launcher, the wizard and the CS reach, and the package installs every DLL the build
+# directory holds.
 placeWindowsQt() {
     local lib
     for lib in Core Gui Network OpenGL OpenGLWidgets Widgets Svg; do
@@ -448,8 +467,6 @@ cacheValue() {
         cacheEntries | sed -n "s/^$1:[A-Z]*=\(.*\)$/\1/p"
     fi
 }
-
-testTargets=(components-tests crash-tests rtx-gpu-tests openmw-tests)
 
 # **Whether this build has the tests, asked of its own build graph**: not of the flavour's name,
 # and not of a binary on disk. A binary on disk is only what some earlier build left there, and a
@@ -597,15 +614,24 @@ compileWithoutDlss() {
 # work one frame at a time, so a shard only adds a device and a renderer of its own to wait
 # beside the others — one process took 18 s, and three shards of it 21 s.
 runTests() {
-    local withDevice=1 args=()
+    local withDevice=1 whole=0 args=()
     for arg in "$@"; do
         case "$arg" in
             --without-device) withDevice=0 ;;
+            --all) whole=1 ;;
             *) args+=("$arg") ;;
         esac
     done
 
-    (cd "$build" && ./components-tests --gtest_filter='Rtx*:Sky*:Crash*' "${args[@]}") || return 1
+    # The fork's tests by default, which are what a change here moves; the suites whole where asked
+    # or where the flavour is upstream's own build. Upstream's 1600 take four seconds.
+    local fork=(--gtest_filter='Rtx*:Sky*:Crash*') game=(--gtest_filter='Rtx*')
+    if [ "$whole" -eq 1 ] || [ "$flavour" = plain ]; then
+        fork=()
+        game=()
+    fi
+
+    (cd "$build" && ./components-tests "${fork[@]}" "${args[@]}") || return 1
 
     # Every way a game ends, each in a process of its own with the real catcher, and what it left
     # checked: `apps/components_tests/crashcatcher/crashtests.cpp`. Its reports go in a folder of
@@ -618,13 +644,29 @@ runTests() {
     fi
     rm -rf "${reports:?}"
 
-    if [ "$withDevice" -eq 1 ]; then
-        (cd "$build" && ./rtx-gpu-tests "${args[@]}") || return 1
-    else
-        echo "rtx-gpu-tests: left out, as --without-device asked"
+    if hasTestTarget rtx-gpu-tests; then
+        if [ "$withDevice" -eq 1 ]; then
+            (cd "$build" && ./rtx-gpu-tests "${args[@]}") || return 1
+        else
+            echo "rtx-gpu-tests: left out, as --without-device asked"
+        fi
     fi
 
-    (cd "$build" && ./openmw-tests --gtest_filter='Rtx*' "${args[@]}")
+    (cd "$build" && ./openmw-tests "${game[@]}" "${args[@]}") || return 1
+
+    if hasTestTarget openmw-cs-tests; then
+        (cd "$build" && ./openmw-cs-tests "${args[@]}") || return 1
+    fi
+}
+
+hasTestTarget() {
+    local target
+    for target in "${testTargets[@]}"; do
+        if [ "$target" = "$1" ]; then
+            return 0
+        fi
+    done
+    return 1
 }
 
 # **Two processes and not two stops of one.** A second stop starts from the world the first one

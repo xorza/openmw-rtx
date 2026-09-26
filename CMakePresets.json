@@ -132,13 +132,15 @@
             "hidden": true,
             "inherits": [ "debug", "no-tools" ],
             "$comment": [
-                "The debug flavour under AddressSanitizer. Linux only: MSVC has a sanitizer, and nobody has",
-                "measured this tree under it. The ASAN_OPTIONS without which there is no device are `rtx`'s."
+                "The debug flavour under AddressSanitizer and UndefinedBehaviorSanitizer, the two upstream runs",
+                "its tests under. Linux only: MSVC has a sanitizer, and nobody has measured this tree under it.",
+                "The ASAN_OPTIONS without which there is no device, and the UBSAN_OPTIONS that make a finding a",
+                "failure, are `rtx`'s."
             ],
             "binaryDir": "${sourceDir}/build-asan",
             "cacheVariables": {
-                "CMAKE_C_FLAGS_INIT": "-fsanitize=address -fno-omit-frame-pointer",
-                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=address -fno-omit-frame-pointer"
+                "CMAKE_C_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer",
+                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer"
             }
         },
         {
@@ -148,12 +150,39 @@
             "$comment": [
                 "The debug flavour without the SDK, which is a different binary and not the same one with a",
                 "feature skipped: `noupscaler.cpp` links where `dlss*.cpp` did, and every file that reaches NGX",
-                "has to be behind the `#ifdef`. The gate compiles it so that a symbol reached from the wrong side",
-                "is found here and not by whoever next configures without the SDK."
+                "has to be one of those CMake leaves out. The gate compiles it so that a symbol reached from the",
+                "wrong side is found here and not by whoever next configures without the SDK."
             ],
             "binaryDir": "${sourceDir}/build-nodlss",
             "cacheVariables": {
                 "OPENMW_RTX_DLSS": "OFF"
+            }
+        },
+        {
+            "name": "plain",
+            "hidden": true,
+            "$comment": [
+                "The tree without the ray tracer, as upstream builds it: every program, the CS and its tests",
+                "among them, the three test suites and the benchmarks. What proves that the tree still builds and",
+                "passes upstream's own suites where the fork's renderer is not built, with the stub renderer and",
+                "`OPENMW_RTX=0` in place of the ray tracer. `OPENMW_CXX_FLAGS` comes from the environment, where CI",
+                "puts upstream's `-Werror` and a desk with a newer compiler puts nothing. Listed first among what",
+                "a visible preset inherits, so what it turns on beats what `rtx` and `windows` turn off."
+            ],
+            "binaryDir": "${sourceDir}/build-plain",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "OPENMW_RTX": "OFF",
+                "BUILD_OPENCS": "ON",
+                "BUILD_OPENCS_TESTS": "ON",
+                "BUILD_WIZARD": "ON",
+                "BUILD_LAUNCHER": "ON",
+                "BUILD_ESSIMPORTER": "ON",
+                "BUILD_MWINIIMPORTER": "ON",
+                "BUILD_COMPONENTS_TESTS": "ON",
+                "BUILD_OPENMW_TESTS": "ON",
+                "BUILD_BENCHMARKS": "ON",
+                "OPENMW_CXX_FLAGS": "$env{OPENMW_CXX_FLAGS}"
             }
         },
         {
@@ -229,6 +258,19 @@
         {
             "name": "nodlss-windows",
             "inherits": [ "nodlss", "windows", "rtx" ]
+        },
+        {
+            "name": "plain-linux",
+            "inherits": [ "plain", "linux", "rtx" ]
+        },
+        {
+            "name": "plain-windows",
+            "inherits": [ "plain", "windows", "rtx" ],
+            "$comment": "Qt for the CS, the launcher and the wizard, and the link-time optimisation upstream's Windows build takes.",
+            "cacheVariables": {
+                "CMAKE_PREFIX_PATH": "${sourceDir}/deps/Qt/$env{QT_VER}/msvc2019_64",
+                "OPENMW_LTO_BUILD": "ON"
+            }
         },
         {
             "name": "package-linux",
