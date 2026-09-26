@@ -22,7 +22,7 @@ namespace Crash
         /// Terminated.
         char mText[sNoteCapacity];
 
-        /// The system's id of the thread that wrote it, as `currentThread` gives it.
+        /// The system's id of the thread that wrote it, as `Platform::Process::currentThreadId` gives it.
         std::uint64_t mThread;
 
         /// Whether the text is one note, and not a note half written over by the next.
@@ -111,10 +111,6 @@ namespace Crash
 
     /// Whether a report is being written, or the process is ending on one.
     bool isReporting();
-
-    /// The system's id of the calling thread: what a crash dump and a debugger number threads by.
-    /// Safe inside a signal handler.
-    std::uint64_t currentThread();
 
     /// The table's bytes where they lie, for the monitor to read out of this process.
     std::span<const std::byte> noteTable();

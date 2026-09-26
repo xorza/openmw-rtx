@@ -13,6 +13,7 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
+#include <components/platform/process.hpp>
 #include <components/rtx/skylight.hpp>
 
 #include "model/benchrecord.hpp"
@@ -379,38 +380,16 @@ namespace RtxTool
         return doomed.size();
     }
 
-    namespace
-    {
-        /// `path` as one word of the system's shell: in single quotes for a POSIX one, where
-        /// nothing inside them is expanded, and in double quotes for `cmd`, which has no others.
-        std::string shellWord(const std::filesystem::path& path)
-        {
-            const std::string text = Files::pathToUnicodeString(path);
-#if defined(_WIN32)
-            return '"' + text + '"';
-#else
-            std::string word = "'";
-            for (const char c : text)
-                word += c == '\'' ? std::string("'\\''") : std::string(1, c);
-            return word + "'";
-#endif
-        }
-    }
-
     std::string encodeCommand(
         const std::filesystem::path& frames, const std::filesystem::path& video, const float framesPerSecond)
     {
-        const std::string line = std::format(
+        const auto word = [](const std::filesystem::path& path) {
+            return Platform::Process::shellWord(Files::pathToUnicodeString(path));
+        };
+        return std::format(
             "ffmpeg -hide_banner -loglevel warning -y -framerate {:g} -i {} -vf \"pad=ceil(iw/2)*2:ceil(ih/2)*2\" "
             "-c:v {} -preset slow -crf {} -pix_fmt {} -movflags +faststart {}",
-            framesPerSecond, shellWord(frames / std::format("%0{}d{}", sFrameDigits, sFrameExtension)), sVideoCodec,
-            sVideoQuality, sVideoPixels, shellWord(video));
-
-#if defined(_WIN32)
-        // `cmd /c` takes the whole line in one more pair of quotes.
-        return '"' + line + '"';
-#else
-        return line;
-#endif
+            framesPerSecond, word(frames / std::format("%0{}d{}", sFrameDigits, sFrameExtension)), sVideoCodec,
+            sVideoQuality, sVideoPixels, word(video));
     }
 }

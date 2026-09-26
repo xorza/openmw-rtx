@@ -200,16 +200,15 @@ namespace
     }
 
     /// A space, a character outside ASCII and a '#' are escaped, as UTF-8 bytes; the separators, a
-    /// drive's colon and the unreserved characters are kept.
+    /// drive's colon and the unreserved characters are kept. A POSIX path and a drive's path both,
+    /// on every system: the address is made of the path's text, which forward slashes spell alike
+    /// everywhere, and a path that does not begin with one is given it.
     TEST(CrashPackageUrlTest, aFolderIsAFileUrl)
     {
-#if defined(_WIN32)
-        EXPECT_EQ(Crash::folderUrl(Files::pathFromUnicodeString("C:\\Users\\x\\My Games\\ü#1_a-b.c~")),
-            "file:///C:/Users/x/My%20Games/%C3%BC%231_a-b.c~");
-#else
         EXPECT_EQ(Crash::folderUrl(Files::pathFromUnicodeString("/home/x/My Games/ü#1_a-b.c~")),
             "file:///home/x/My%20Games/%C3%BC%231_a-b.c~");
-#endif
+        EXPECT_EQ(
+            Crash::folderUrl(Files::pathFromUnicodeString("C:/Users/x/My Games")), "file:///C:/Users/x/My%20Games");
     }
 
     /// The text a percent-encoded query value stands for, and nothing where a byte is left bare that
