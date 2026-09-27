@@ -1,6 +1,6 @@
 ---
 name: shader-review
-description: Review the ray tracer's shaders (components/rtxvulkan/shaders, components/rtx/shaders) for correctness, physically based shading, ray tracing and Vulkan performance, and simplification, then apply every surviving finding and verify it. Use when asked to review, audit, optimise or simplify a shader, a shader library, a shared shader header, or a shader diff.
+description: Review every ray tracer shader (components/rtxvulkan/shaders, components/rtx/shaders), whole files regardless of git state, for correctness, physically based shading, ray tracing and Vulkan performance, and simplification, then apply every surviving finding and verify it. Use when asked to review, audit, optimise or simplify the shaders, a shader, a shader library or a shared shader header.
 ---
 
 # Shader review
@@ -11,10 +11,17 @@ unchanged. This skill adds the checklists and the tree's shader facts that
 
 ## Scope
 
-The paths given, or else the uncommitted diff under the two shader directories. If
-both are empty, ask. Also read, not review: every included definition the scope calls,
-and the host side of what it reads (the shared struct and its writer, the pipeline's
-specialization constants, the host tests of shared functions).
+Every file under `components/rtx/shaders` and `components/rtxvulkan/shaders`, whole:
+`git ls-files` over both, plus any untracked file there. The ray tracer has no shader
+outside them. Git state does not choose the scope: committed code is reviewed like
+uncommitted code, and a clean tree is no reason to stop or ask. Only paths the user
+names narrow it. Also read, not review: the host side of what the shaders read (the
+shared struct and its writer, the pipeline's specialization constants, the host tests
+of shared functions).
+
+No file is sampled or skipped. `<scratch>/findings.md` opens with the file list and
+marks each file once its every function is walked. The review ends when every mark
+is set.
 
 ## Procedure
 
@@ -37,10 +44,10 @@ specialization constants, the host tests of shared functions).
    every moved tuple belongs to a finding; a simplification or speed-up moves no
    picture unless a named rounding explains it; a correctness fix moves only its
    target pictures, toward the reference.
-7. Report: the result first, then one line per finding (checklist, `file:line`,
+7. Report: the result first with the count of files reviewed, then one line per finding (checklist, `file:line`,
    change, evidence), then what was reported but not built, and trades that lost.
 
-Never commit. A clean scope is a normal result.
+Never commit. A review with no findings is a normal result.
 
 ## Facts about this tree
 
