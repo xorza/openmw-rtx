@@ -131,7 +131,9 @@ namespace MWRender
             const Clock::duration limit
                 = std::chrono::duration_cast<Clock::duration>(std::chrono::duration<float>(1.0f / 200.0f));
 
-            renderer.awaitFrame();
+            // The first frame after the limit was set, which nothing before it can have made late:
+            // on a Windows runner a 5 ms sleep came back 5.9 ms later, so a second frame measured
+            // after a first one had nothing left to sleep.
             const Clock::time_point began = Clock::now();
             const Clock::duration stood = renderer.awaitFrame();
             const Clock::duration slept = Clock::now() - began;
