@@ -6,6 +6,8 @@ set(RTXTOOL_FILES
     compare.hpp
     film.cpp
     film.hpp
+    homekey.cpp
+    homekey.hpp
     instruments/cardwatch.cpp
     instruments/cardwatch.hpp
     instruments/contactsheet.cpp

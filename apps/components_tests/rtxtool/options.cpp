@@ -102,7 +102,7 @@ namespace RtxTool
             // An option written twice is worth one complaint.
             const bpo::parsed_options twice = parse(options, { "--out=a", "--out=b" });
             EXPECT_EQ(options.complainAbout(twice, Verbs::Bench),
-                "`bench` does not read --out, which belongs to `shot`, `check` and `film`.\n");
+                "`bench` does not read --out, which belongs to every command but `info`, `scene` and `bench`.\n");
         }
 
         /// Every option says which commands read it, and the ones that say "all of them" say it.

@@ -98,9 +98,14 @@ namespace RtxTool
         return std::format("{},{},{},{}", air.mSky.mSeconds, air.mSky.mCloudScroll, air.mCarried.x(), air.mCarried.y());
     }
 
+    std::string describeId(const Stop& stop)
+    {
+        return slugOf(stop.mName);
+    }
+
     std::string describeBlock(const Stop& stop)
     {
-        std::string block = std::format("[{}]\n", slugOf(stop.mName));
+        std::string block = std::format("[{}]\n", describeId(stop));
 
         if (!stop.mNote.empty())
             block += std::format("note = {}\n", stop.mNote);

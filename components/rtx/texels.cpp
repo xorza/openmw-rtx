@@ -4,7 +4,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
+#include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <osg/GL>
@@ -14,18 +17,48 @@
 #include <osg/ref_ptr>
 #include <osgDB/Options>
 #include <osgDB/ReadFile>
+#include <osgDB/Registry>
 #include <osgDB/WriteFile>
+#include <zlib.h>
 
 #include <components/files/conversion.hpp>
 
 #include "alphaimage.hpp"
 #include "colour.hpp"
+#include "contract.hpp"
 #include "error.hpp"
 #include "result.hpp"
 #include "texturebuilder.hpp"
 
 namespace Rtx
 {
+    namespace
+    {
+        void appendBigEndian(std::string& bytes, const std::uint32_t value)
+        {
+            for (int shift = 24; shift >= 0; shift -= 8)
+                bytes += static_cast<char>((value >> shift) & 0xffu);
+        }
+
+        /// A PNG's `iTXt` chunk saying `text` under `keyword`: uncompressed, and no language, so the
+        /// text is UTF-8 and read as written. The CRC covers the type and the data, not the length.
+        std::string textChunk(const std::string_view keyword, const std::string_view text)
+        {
+            std::string body = "iTXt";
+            body += keyword;
+            body += std::string_view("\0\0\0\0\0", 5);
+            body += text;
+
+            std::string chunk;
+            appendBigEndian(chunk, static_cast<std::uint32_t>(body.size() - 4));
+            chunk += body;
+            appendBigEndian(chunk,
+                static_cast<std::uint32_t>(crc32(crc32(0L, nullptr, 0), reinterpret_cast<const Bytef*>(body.data()),
+                    static_cast<uInt>(body.size()))));
+            return chunk;
+        }
+    }
+
     osg::Vec3f texelAt(const TextureData& texture, const MipLevel& level, std::uint32_t x, std::uint32_t y)
     {
         assert(x < level.mWidth && y < level.mHeight);
@@ -239,7 +272,7 @@ namespace Rtx
     }
 
     void writePng(const std::filesystem::path& path, std::uint32_t width, std::uint32_t height,
-        std::span<const std::uint8_t> pixels)
+        std::span<const std::uint8_t> pixels, const std::string_view description)
     {
         osg::ref_ptr<osg::Image> image = new osg::Image;
         image->allocateImage(static_cast<int>(width), static_cast<int>(height), 1, GL_RGBA, GL_UNSIGNED_BYTE);
@@ -251,7 +284,32 @@ namespace Rtx
         // zlib's fastest level: a 1080p frame in 60 ms against 260 at the plugin's default, for a
         // file a fifth larger — and a run that keeps every frame writes hundreds of them.
         const osg::ref_ptr<osgDB::Options> options = new osgDB::Options("PNG_COMPRESSION 1");
-        if (!osgDB::writeImageFile(*image, Files::pathToUnicodeString(path), options.get()))
+        if (description.empty())
+        {
+            if (!osgDB::writeImageFile(*image, Files::pathToUnicodeString(path), options.get()))
+                throw InputError("cannot write " + Files::pathToUnicodeString(path));
+            return;
+        }
+
+        // **Encoded in memory and the chunk put in before the end**, because OSG's plugin writes no
+        // text of its own. Before `IEND`, which is the last twelve bytes of every PNG and after
+        // which a decoder reads nothing.
+        osgDB::ReaderWriter* const png = osgDB::Registry::instance()->getReaderWriterForExtension("png");
+        if (png == nullptr)
+            throw InputError("cannot write " + Files::pathToUnicodeString(path) + ": no PNG plugin");
+
+        std::ostringstream encoded(std::ios::binary);
+        if (!png->writeImage(*image, encoded, options.get()).success())
+            throw InputError("cannot write " + Files::pathToUnicodeString(path));
+
+        std::string bytes = std::move(encoded).str();
+        constexpr std::size_t endChunk = 12;
+        contract(bytes.size() > endChunk && bytes.compare(bytes.size() - 8, 4, "IEND") == 0,
+            "the PNG plugin wrote a file that does not end in IEND");
+        bytes.insert(bytes.size() - endChunk, textChunk("Description", description));
+
+        std::ofstream file(path, std::ios::binary);
+        if (!file.write(bytes.data(), static_cast<std::streamsize>(bytes.size())))
             throw InputError("cannot write " + Files::pathToUnicodeString(path));
     }
 

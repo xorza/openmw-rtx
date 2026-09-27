@@ -97,6 +97,7 @@ set(RTX_TEST_FILES
     rtxtool/framehashes.cpp
     rtxtool/frametimes.cpp
     rtxtool/gpuclock.cpp
+    rtxtool/homekey.cpp
     rtxtool/options.cpp
     rtxtool/run.cpp
     rtxtool/scenedigest.cpp
@@ -120,6 +121,7 @@ set(RTX_TEST_SUPPORT
     rtx/support/instanceobstacle.hpp
     rtx/support/layers.hpp
     rtx/support/lobeintegrals.hpp
+    rtx/support/pngtext.hpp
     rtx/support/spritelightbake.cpp
     rtx/support/spritelightbake.hpp
     rtx/support/statistics.hpp
