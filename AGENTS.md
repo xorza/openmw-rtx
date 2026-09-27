@@ -26,6 +26,8 @@ them.
 - Performance matters. Compute nothing twice; compute as early as possible.
 - Target hardware: NVIDIA RTX 20 series and later.
 - One binary ships both renderers, and the one not chosen never starts.
+- Opacity micromaps (`VK_EXT_opacity_micromap`) for the cutouts were tried and declined: the
+  trace did not get faster, and building the maps only added loading time. Do not propose them again.
 - Keep the diff against upstream minimal, but never at the cost of reuse or of the abstraction's
   quality. The `[RTX]` settings pages and their translations are a fine price, and so is
   `components/crashcatcher`: upstream's crash catcher is replaced whole by the fork's own, a
