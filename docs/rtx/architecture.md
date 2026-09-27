@@ -739,7 +739,9 @@ it.
 
 **The upscaler.** `Upscaler` (`upscaler.hpp`) is the one seam to DLSS. The build links
 `DlssUpscaler` or `noupscaler.cpp`, whose `makeUpscaler` refuses every mode by name. The
-runtime is raised on the first mode that wants one and outlives a mode being turned off.
+runtime is raised on the first mode that wants one and outlives a mode being turned off. It is
+`Dlss`, one per device — NGX starts once per device and `Shutdown1` ends that device's alone —
+and it is ended only once its device is idle, which the programming guide makes the owner's.
 
 **The shaders** (`shaders/`):
 

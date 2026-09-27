@@ -1,9 +1,11 @@
 #include "dlss.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <system_error>
+#include <vector>
 
 #include <nvsdk_ngx_defs.h>
 #include <nvsdk_ngx_defs_dlssd.h>
@@ -17,6 +19,7 @@
 #include "device.hpp"
 #include "ngx.hpp"
 #include "physicaldevice.hpp"
+#include "result.hpp"
 
 namespace Rtx
 {
@@ -64,6 +67,19 @@ namespace Rtx
             return std::getenv("OPENMW_RTX_NGX_LOG") != nullptr ? NVSDK_NGX_LOGGING_LEVEL_ON
                                                                 : NVSDK_NGX_LOGGING_LEVEL_OFF;
         }
+
+        /// Ends NGX on `device`, once nothing of NGX's is in flight there.
+        ///
+        /// **The programming guide makes that the caller's** (5.6: no work associated with the
+        /// runtime still in flight), and a runtime that built no feature still leaves work of its
+        /// own on the device it was started on. Shut down under that work, the device is lost the
+        /// next time the process destroys a device, any device — `vkDeviceWaitIdle` answers
+        /// `VK_ERROR_DEVICE_LOST` with an invalid write, even for a runtime only asked a render size.
+        void shutDown(const Device& device)
+        {
+            tearDown("the device would not finish before NGX was shut down", [&] { device.waitIdle(); });
+            NVSDK_NGX_VULKAN_Shutdown1(device.getHandle());
+        }
     }
 
     std::span<const char* const> Dlss::getInstanceExtensions()
@@ -96,28 +112,23 @@ namespace Rtx
 
     DlssSupport Dlss::probe(const Device& device, VkInstance instance)
     {
-        if (sLive != nullptr)
-        {
-            if (sLive->mDevice != device.getHandle())
-                return DlssSupport{ false, "NGX is up on another device, and it keeps one runtime per process" };
-
-            return DlssSupport{ sLive->mAvailable, sLive->mObstacle };
-        }
+        if (const Dlss* const live = liveOn(device.getHandle()))
+            return DlssSupport{ live->mAvailable, live->mObstacle };
 
         // Stood up and taken down inside this call, which is what makes it safe to ask from
-        // anywhere: nothing outside holds a runtime that this could be ending, because the branch
-        // above is what happens when something does.
+        // anywhere: nothing outside holds a runtime on this device that this could be ending,
+        // because the branch above is what happens when something does.
         const Dlss asked(device, instance);
         return DlssSupport{ asked.mAvailable, asked.mObstacle };
     }
 
     Dlss::Dlss(const Device& device, VkInstance instance)
-        : mDevice(device.getHandle())
+        : mDevice(device)
     {
         // Before anything is started, so a refusal leaves the runtime that is up untouched. A
         // constructor that threw after `Init` would have shut the first one down on the way out.
-        if (sLive != nullptr)
-            throw Unsupported("NGX keeps one runtime per process and one is already up");
+        if (liveOn(device.getHandle()) != nullptr)
+            throw Unsupported("NGX starts once per device and is already up on this one");
 
         const wchar_t* const searched[] = { featurePath() };
 
@@ -133,8 +144,8 @@ namespace Rtx
         // This fork's own, and the engine is `CUSTOM` because OpenMW is not one NVIDIA knows.
         const Crash::NoteScope noted("starting NGX");
         const NVSDK_NGX_Result started = NVSDK_NGX_VULKAN_Init_with_ProjectID("c541dbdf-6e4f-4476-ad27-15d2b4a231f4",
-            NVSDK_NGX_ENGINE_TYPE_CUSTOM, "0.52", dataPath(), instance, device.getPhysicalDevice().getHandle(), mDevice,
-            vkGetInstanceProcAddr, vkGetDeviceProcAddr, &common, NVSDK_NGX_Version_API);
+            NVSDK_NGX_ENGINE_TYPE_CUSTOM, "0.52", dataPath(), instance, device.getPhysicalDevice().getHandle(),
+            device.getHandle(), vkGetInstanceProcAddr, vkGetDeviceProcAddr, &common, NVSDK_NGX_Version_API);
 
         if (NVSDK_NGX_FAILED(started))
             throw Unsupported("NGX would not start: " + describeNgxResult(started));
@@ -145,7 +156,7 @@ namespace Rtx
             // A constructor that throws gets no destructor, and NGX is up: leaving it that way
             // would refuse every later attempt for a reason that is no longer true.
             NVSDK_NGX_VULKAN_DestroyParameters(mCapabilities);
-            NVSDK_NGX_VULKAN_Shutdown1(mDevice);
+            shutDown(device);
             throw Unsupported("NGX started and would not say what it can do: " + describeNgxResult(asked));
         }
 
@@ -161,9 +172,9 @@ namespace Rtx
                                          : "this device does not offer Ray Reconstruction";
         }
 
-        // Last, so that only a runtime that came all the way up claims the process. Everything
-        // above throws on failure, and a constructor that threw gets no destructor to clear this.
-        sLive = this;
+        // Last, so that only a runtime that came all the way up claims its device. Everything above
+        // throws on failure, and a constructor that threw gets no destructor to clear this.
+        sLive.push_back(this);
     }
 
     VkExtent2D Dlss::getRenderSize(VkExtent2D output, Upscale upscale) const
@@ -195,7 +206,7 @@ namespace Rtx
 
     Dlss::~Dlss()
     {
-        sLive = nullptr;
+        std::erase(sLive, this);
 
         // Destroyed, and it is not NGX's to reclaim. The SDK tells `GetCapabilityParameters`
         // apart from the deprecated `GetParameters` on exactly this: a capability map is the
@@ -203,6 +214,18 @@ namespace Rtx
         NVSDK_NGX_VULKAN_DestroyParameters(mCapabilities);
         mCapabilities = nullptr;
 
-        NVSDK_NGX_VULKAN_Shutdown1(mDevice);
+        shutDown(mDevice);
+    }
+
+    VkDevice Dlss::getDevice() const
+    {
+        return mDevice.getHandle();
+    }
+
+    const Dlss* Dlss::liveOn(const VkDevice device)
+    {
+        const auto found = std::find_if(
+            sLive.begin(), sLive.end(), [device](const Dlss* live) { return live->getDevice() == device; });
+        return found != sLive.end() ? *found : nullptr;
     }
 }

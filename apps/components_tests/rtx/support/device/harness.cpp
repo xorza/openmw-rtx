@@ -42,46 +42,48 @@ namespace Rtx::Testing
             static Once<VulkanRenderer> sPlain;
             return validation ? sValidated : sPlain;
         }
+    }
 
-        std::unique_ptr<Harness> build(bool validation)
-        {
-            if (const std::string obstacle = findInstanceObstacle(); !obstacle.empty())
-                throw std::runtime_error(obstacle);
+    std::unique_ptr<Harness> makeHarness(bool validation)
+    {
+        if (const std::string obstacle = findInstanceObstacle(); !obstacle.empty())
+            throw std::runtime_error(obstacle);
 
-            // Tests provoke errors deliberately and assert on them; aborting would take the suite
-            // down with the first one. Synchronization validation is **the same switch
-            // `describeRenderer` sets, for the same reason**: a test that drives Vulkan directly
-            // supplies its own ordering with a submit and a wait, so a missing barrier in the code
-            // under it shows as nothing at all — and a suite validated one way through the renderer
-            // and another way beside it answers a different question in each file. It costs no
-            // measurable time here either.
-            const ValidationOptions options{
-                .mLevel = validation ? ValidationLevel::Sync : ValidationLevel::Off,
-                .mAbortOnError = false,
-            };
+        // Tests provoke errors deliberately and assert on them; aborting would take the suite
+        // down with the first one. Synchronization validation is **the same switch
+        // `describeRenderer` sets, for the same reason**: a test that drives Vulkan directly
+        // supplies its own ordering with a submit and a wait, so a missing barrier in the code
+        // under it shows as nothing at all — and a suite validated one way through the renderer
+        // and another way beside it answers a different question in each file. It costs no
+        // measurable time here either.
+        const ValidationOptions options{
+            .mLevel = validation ? ValidationLevel::Sync : ValidationLevel::Off,
+            .mAbortOnError = false,
+        };
 
-            auto harness = std::make_unique<Harness>();
-            harness->mInstance = std::make_unique<Instance>(options, std::span<const char* const>{});
+        auto harness = std::make_unique<Harness>();
+        harness->mInstance = std::make_unique<Instance>(options, std::span<const char* const>{});
 
-            std::uint32_t count = 0;
-            if (vkEnumeratePhysicalDevices(harness->mInstance->getHandle(), &count, nullptr) != VK_SUCCESS
-                || count == 0)
-                throw std::runtime_error("no Vulkan device is installed");
+        std::uint32_t count = 0;
+        if (vkEnumeratePhysicalDevices(harness->mInstance->getHandle(), &count, nullptr) != VK_SUCCESS || count == 0)
+            throw std::runtime_error("no Vulkan device is installed");
 
-            harness->mDevice = std::make_unique<Device>(
-                *harness->mInstance, PhysicalDevice::select(harness->mInstance->getHandle()), getPipelineCacheSpec());
-            if (ValidationLog* log = harness->mInstance->getValidationLog(); log != nullptr)
-                log->takeErrorsOnThisThread(harness->mMadeWith);
+        harness->mDevice = std::make_unique<Device>(
+            *harness->mInstance, PhysicalDevice::select(harness->mInstance->getHandle()), getPipelineCacheSpec());
+        if (ValidationLog* log = harness->mInstance->getValidationLog(); log != nullptr)
+            log->takeErrorsOnThisThread(harness->mMadeWith);
 
-            return harness;
-        }
+        return harness;
+    }
 
+    namespace
+    {
         /// **The flag reaches the cache and the build together**, so the two cannot come apart: a
         /// device built unvalidated and filed under the validated key would be handed to every test
         /// in the suite.
         Harness& cachedHarness(bool validation)
         {
-            return harnessCache(validation).get([validation] { return build(validation); });
+            return harnessCache(validation).get([validation] { return makeHarness(validation); });
         }
 
         /// What the layers raised while the validated renderer was made: the other loads none.

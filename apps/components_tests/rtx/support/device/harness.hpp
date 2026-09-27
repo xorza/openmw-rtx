@@ -74,6 +74,10 @@ namespace Rtx::Testing
     /// else is validated, so this second device is only built if something asks for it.
     Harness& getUnvalidatedHarness();
 
+    /// A device of the caller's own, closed when it lets go: what a test about a device coming and
+    /// going holds, since the two above live for the whole binary.
+    std::unique_ptr<Harness> makeHarness(bool validation);
+
     /// Where the build wrote the compiled shaders.
     std::filesystem::path getShaderDirectory();
 

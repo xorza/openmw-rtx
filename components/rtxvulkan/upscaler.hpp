@@ -62,9 +62,9 @@ namespace Rtx
     };
 
     /// What the frame asks of whatever reconstructs it across frames: what to trace at, and the
-    /// frame at the output extent. Ray Reconstruction is the one behind it, and one runtime per
-    /// process; a build without it has `makeUpscaler` refuse by name, and nothing else in the
-    /// frame path knows which build it is.
+    /// frame at the output extent. Ray Reconstruction is the one behind it, one runtime per device;
+    /// a build without it has `makeUpscaler` refuse by name, and nothing else in the frame path
+    /// knows which build it is.
     class Upscaler
     {
     public:
@@ -104,8 +104,8 @@ namespace Rtx
     /// build without it, or what the library says this machine lacks.
     std::unique_ptr<Upscaler> makeUpscaler(const Device& device, VkInstance instance);
 
-    /// One line for `info`: available, or why not — asked without standing a runtime up, because
-    /// the runtime is one per process and its shutdown is unconditional.
+    /// One line for `info`: available, or why not — asked without leaving a runtime up, because a
+    /// device has one runtime, and one stood up to ask with would end the renderer's as it went.
     std::string describeUpscaling(const Device& device, VkInstance instance);
 
     /// What the runtime needs enabled on the instance and on the device, asked before either
