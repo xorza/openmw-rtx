@@ -67,6 +67,7 @@ namespace Rtx
             const Material::Traversed& worn = row.mWorn;
             const PlacedTraversal traversed = worn.placedAt(instance.mOpacity);
             const bool water = worn.mKind == MaterialKind::Water;
+            const FoldedShape& shape = scene.meshes().getRows()[instance.mMesh].mShape;
 
             // Here because this is the one funnel every water surface reaches the device through;
             // `WATER_TIE_BREAK` says why the sea is dropped at all. On the placement rather than the
@@ -95,7 +96,7 @@ namespace Rtx
                 .mCutout = traversed.mCutout,
                 .mTranslucent = traversed.mTranslucent,
                 .mAdditive = traversed.mAdditive,
-                .mTwoSided = worn.mTwoSided || scene.meshes().getRows()[instance.mMesh].mShape.mFolded,
+                .mTwoSided = worn.mTwoSided || shape.mFolded || shape.mPocketed,
                 .mPlaced = true,
             };
         }

@@ -74,8 +74,9 @@ namespace Rtx
 
         /// Whether both faces of this placement are drawn, so that a ray that draws may not cull
         /// it — `facingFor`. Morrowind states it two ways and either is enough: the content turns
-        /// `GL_CULL_FACE` off, which is `Material::mTwoSided`, or it doubles the shape for its
-        /// back, which is `FoldedShape::mFolded`.
+        /// `GL_CULL_FACE` off, which is `Material::mTwoSided`, or it models the shape's back, which
+        /// the fold took away — a twin, `FoldedShape::mFolded`, or a pocket's wall,
+        /// `FoldedShape::mPocketed`.
         bool mTwoSided = false;
 
         /// Whether the slot this record sits in holds a placement. Records are addressed by slot

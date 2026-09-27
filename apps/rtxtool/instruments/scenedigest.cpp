@@ -391,7 +391,7 @@ namespace RtxTool
 
     /// The same, for the field types the lists above hand over as one value each.
     static_assert(sizeof(Rtx::Run) == 8, "Rtx::Run is read whole and must have no padding");
-    static_assert(sizeof(Rtx::FoldedShape) == 3, "Rtx::FoldedShape is read whole and must have no padding");
+    static_assert(sizeof(Rtx::FoldedShape) == 4, "Rtx::FoldedShape is read whole and must have no padding");
     static_assert(sizeof(osg::BoundingBoxf) == 24, "a bounding box is read whole and must have no padding");
     static_assert(sizeof(osg::Matrixf) == 64, "a transform is read whole and must have no padding");
 

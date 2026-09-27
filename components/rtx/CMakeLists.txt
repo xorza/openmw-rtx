@@ -110,6 +110,8 @@ set(RTX_FILES
     parallel.hpp
     placementtable.cpp
     placementtable.hpp
+    pockettree.cpp
+    pockettree.hpp
     poseupdate.hpp
     prepared.hpp
     radicalinverse.hpp

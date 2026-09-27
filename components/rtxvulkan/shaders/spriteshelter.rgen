@@ -40,7 +40,7 @@ void main()
         return;
 
     // To the top of the box the map was drawn from, and nothing for a drop already above it: a
-    // ray whose end is behind its beginning is undefined, as `lightThrough` says.
+    // ray whose end is behind its beginning is undefined, as `throughToward` says.
     const float limit = frame.mOrigin.z + frame.mShelterHeight - sprite.mPosition.z;
     if (limit <= 0.0)
         return;
