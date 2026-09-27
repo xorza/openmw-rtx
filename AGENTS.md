@@ -49,8 +49,8 @@ backend ever arrives.
   with — the frame times, the card's clock, perf's fifo, the driver's cache, a frame hash, a scene
   digest and a texture sheet, none of which knows a world.
   `MWRender::Renderer` — the seam, and `GlRenderer` beside upstream's files in `mwrender/`.
-- `docs/rtx/architecture.md` — the whole of the above as a reader meets it: the seam, the
-  entities, who owns whom, who calls whom, and the order a frame is computed in.
+- `docs/rtx/architecture.md` — the shape of the above as a reader meets it: the seam, the
+  layers, who owns whom, and the order a frame is computed in. The headers hold the detail.
 
 ## Verification
 
