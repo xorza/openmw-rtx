@@ -1187,7 +1187,9 @@ and what every thread was doing.
 `openmw-rtxtool <verb>` drives a real game headless: `info`, `scene`, `shot`, `view`, `bench`,
 `check`, `film`. `RtxTool::Session` (`apps/rtxtool/session.hpp`) is both the `OMW::EngineHost` and
 the `MWRender::RtxRun`: it makes the renderer with itself installed, states the frame step, holds
-the air a stop names until the stop's first counted frame, closes every menu a script opens in a run
+the game's clock through a take whose track states the hour (the time scale runs on, and with it
+the sky and every AI package's hours), holds the air a stop names until the stop's first counted
+frame, closes every menu a script opens in a run
 nobody plays (a menu pauses the world), and sequences four parts — the `Stager` puts the world where
 a stop stands (a teleport, the clock and the sky, god mode, the walls), the `CameraDriver` moves the
 camera a frame at a time (a flown route, a followed track, a turned sky, the aim), the

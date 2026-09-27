@@ -63,6 +63,11 @@ namespace RtxTool
         /// game has a world to stand in.
         void beforeFrame() override;
 
+        /// Through every frame of a take, whose track states the hour (`CameraDriver::step`). A clock
+        /// left running would carry it past the track's, half a game second on every frame of sixty
+        /// at a time scale of thirty, and the driver only ever runs the clock forward.
+        bool holdsGameClock() const override;
+
         /// Measures the frame, and asks the game to quit once the last stop is done.
         void frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report) override;
 

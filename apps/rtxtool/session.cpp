@@ -186,6 +186,11 @@ namespace RtxTool
         mCamera.aim(currentStop());
     }
 
+    bool Session::holdsGameClock() const
+    {
+        return !mDone && mStarted && currentStop().mSchedule.mTrack.has_value();
+    }
+
     void Session::frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report)
     {
         if (mDone || !mStarted)

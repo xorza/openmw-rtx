@@ -163,11 +163,8 @@ namespace RtxTool
         {
             // **A take's body goes where its camera flies, through whatever is in the way**, so the
             // cells stream in around the camera and not around a body stopped by a hill it flew
-            // over. **The game's clock stops**, because the track states the hour on every frame:
-            // at the game's time scale of thirty, a clock left running adds half a second of world
-            // time to every frame of sixty.
+            // over.
             turnCollisionOff(world);
-            world.getTimeManager()->setGameTimeScale(0.0f);
         }
 
         // **The navmesh whole before the first frame.** Its tiles are built on a thread of their
