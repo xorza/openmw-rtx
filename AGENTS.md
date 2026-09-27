@@ -54,7 +54,8 @@ backend ever arrives.
 
 ## Verification
 
-- Build the targets you touched, run the covering test binary with a filter, then format.
+- Build the targets you touched, run the covering test binary with a filter, then `./omw format`,
+  which rewrites the tree; `./omw format --check` changes nothing and is what the gate runs.
   Compiling is not verifying.
 - `./omw` at the root is the one way in, `omw [flavour] <verb>`, and `./omw help` lists both; the
   flavour is `debug` unless named. `./omw test <binary> --gtest_filter=...` builds and runs one

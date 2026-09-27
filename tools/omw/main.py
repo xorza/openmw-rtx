@@ -25,8 +25,8 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                two runs of one binary walk one place and must agree
   kernels [--against=<file>]   one digest per shader and tuple of its constants; against an earlier
                                listing, which tuples moved
-  gate                         format, the driver's tests, build, the release and no-DLSS compiles,
-                               test, check, repeat — stops at the first failure
+  gate                         format check, the driver's tests, build, the release and no-DLSS
+                               compiles, test, check, repeat — stops at the first failure
   exec <command> [args]        a command in the build directory, under the flavour's environment
   archive [name]               the release archive into dist/, with its symbols: the package flavour
   profile [args]               the harness's CPU side under perf: the release flavour
@@ -35,7 +35,8 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
 
   crash <dump> [symbols]       a player's crash dump, every thread named and lined, against a
                                release's -symbols.zip or the newest in dist/; no flavour
-  format                       clang-format 14 over the working tree; no flavour
+  format [--check]             clang-format 14 over the working tree: rewrites it, or with --check
+                               changes nothing and says what it would; no flavour
   bootstrap                    the pinned Vulkan SDK and NGX into deps/; no flavour
 
   flavour   directory       what it is
@@ -98,11 +99,11 @@ def _bootstrap(args: list[str]) -> int:
     return 0
 
 
-# Verbs no build is configured for: reading a dump or checking the format needs none, and a verb
+# Verbs no build is configured for: reading a dump or formatting the tree needs none, and a verb
 # that configured one first fetched a dependency set and started MSVC to read a file.
 BUILDLESS_VERBS: dict[str, Callable[[list[str]], int]] = {
     "crash": crash.read_crash,
-    "format": formatting.check_format,
+    "format": formatting.format_tree,
     "bootstrap": _bootstrap,
 }
 

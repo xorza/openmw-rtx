@@ -17,6 +17,7 @@ class ParseTest(unittest.TestCase):
             (["profile", "--offcpu"], Line("release", "profile", ["--offcpu"])),
             (["crash", "a.dmp"], Line(None, "crash", ["a.dmp"])),
             (["format"], Line(None, "format", [])),
+            (["format", "--check"], Line(None, "format", ["--check"])),
             (["plain", "exec", "ls", "-l"], Line("plain", "exec", ["ls", "-l"])),
         ]
         for argv, expected in cases:
