@@ -608,9 +608,9 @@ namespace Rtx
             EXPECT_EQ(near.mEdge, 4.0f * cell);
             EXPECT_FLOAT_EQ(near.mExtinction, fogExtinction(0.69f, 4.0f * cell));
 
-            // **Banked out of doors**, which is the third field the reach decides: only a landscape
-            // is larger than one bank of fog.
-            EXPECT_EQ(near.mUniform, 0.0f);
+            // **Banked out of doors**, over an even share of the air: only a landscape is larger than
+            // one bank of fog.
+            EXPECT_EQ(near.mUniform, Shaders::FOG_EXTERIOR_EVEN);
 
             const Fog far = exteriorFog(haze, 0.69f, 0.0f, 8.0f * cell);
             EXPECT_EQ(far.mEdge, 8.0f * cell);

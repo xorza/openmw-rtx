@@ -23,6 +23,7 @@
 #include <components/rtx/fogbuilder.hpp>
 #include <components/rtx/frameworld.hpp>
 #include <components/rtx/moonbuilder.hpp>
+#include <components/rtx/shaders/look.h>
 #include <components/rtx/skybuilder.hpp>
 #include <components/sky/skyclock.hpp>
 #include <components/vfs/manager.hpp>
@@ -137,7 +138,7 @@ namespace MWRender
             const Rtx::Fog& air = quasi.mDaylight.mFog;
             EXPECT_EQ(air.mColour, open.mDaylight.mFog.mColour);
             EXPECT_EQ(air.mExtinction, open.mDaylight.mFog.mExtinction);
-            EXPECT_EQ(air.mUniform, 0.0f) << "banked, as every other weather's air is";
+            EXPECT_EQ(air.mUniform, Rtx::Shaders::FOG_EXTERIOR_EVEN) << "banked, as every other weather's air is";
             EXPECT_EQ(air.mLift, open.mDaylight.mFog.mLift) << "and standing as high";
             EXPECT_EQ(air.mWind, open.mDaylight.mFog.mWind);
 
