@@ -83,7 +83,8 @@ def msvc_environment(env: dict[str, str]) -> dict[str, str]:
     if env.get(environment_key("VSCMD_VER")):
         return env
 
-    installer = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "Microsoft Visual Studio" / "Installer"
+    programs = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"))
+    installer = programs / "Microsoft Visual Studio" / "Installer"
     vswhere = installer / "vswhere.exe"
     if not vswhere.is_file():
         raise Refusal(f"no Visual Studio installer at {installer}, so no vswhere to find a compiler with")

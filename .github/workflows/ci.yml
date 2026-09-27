@@ -82,10 +82,10 @@ jobs:
           python-version: "3.11"
 
       - name: The driver, linted and type-checked
-        # Ruff's default rules, the errors a Python file can have without failing to import, and mypy,
-        # both pinned, both against the oldest Python `omw` supports.
+        # Ruff's default rules at the tree's 120 columns, and mypy, both pinned, both against the oldest
+        # Python `omw` supports.
         run: |
-          pipx run ruff==0.16.9 check --target-version py311 tools/omw omw
+          pipx run ruff==0.16.9 check --line-length 120 --target-version py311 tools/omw omw
           MYPYPATH=tools pipx run mypy==2.3.1 --python-version 3.11 -p omw
 
       - name: The driver's own tests

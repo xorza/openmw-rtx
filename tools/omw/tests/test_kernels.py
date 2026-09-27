@@ -43,9 +43,8 @@ class SpecBoolsTest(unittest.TestCase):
         cut = module()[:-4]
         cases = [b"", b"\0" * 21, struct.pack("<5I", 1, 0, 0, 0, 0), cut]
         for data in cases:
-            with self.subTest(length=len(data)):
-                with self.assertRaises(Refusal):
-                    spec_bools(data)
+            with self.subTest(length=len(data)), self.assertRaises(Refusal):
+                spec_bools(data)
 
 
 class SettingsTest(unittest.TestCase):

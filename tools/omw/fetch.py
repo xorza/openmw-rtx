@@ -14,7 +14,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 from omw.pins import Pin
-from omw.system import Refusal, WINDOWS, run
+from omw.system import WINDOWS, Refusal, run
 
 
 class _HttpsOnly(urllib.request.HTTPRedirectHandler):
@@ -27,6 +27,8 @@ class _HttpsOnly(urllib.request.HTTPRedirectHandler):
 
 
 _opener = urllib.request.build_opener(_HttpsOnly)
+# A name for the driver, since LunarG answers Python's own with 403 Forbidden.
+_opener.addheaders = [("User-Agent", "omw (https://github.com/xorza/openmw-rtx)")]
 
 
 def partial_of(path: Path) -> Path:
@@ -39,8 +41,9 @@ def digest_of(path: Path, algorithm: str) -> str:
 
 
 def download(url: str, file: Path, *, sha256: str | None = None, sha512: str | None = None) -> None:
-    """`url` into `file`, checked against the digest given; three tries against a network that
-    fails once in a while, and none against a checksum that fails."""
+    """`url` into `file`, checked against the digest given; three tries against a network or a server
+    that fails once in a while, and one against an answer that says the file is not there, or a
+    checksum that fails."""
     if not url.startswith("https://"):
         raise Refusal(f"{url} is not HTTPS")
     print(f"fetching {file.name}", file=sys.stderr)
@@ -52,7 +55,8 @@ def download(url: str, file: Path, *, sha256: str | None = None, sha512: str | N
                 shutil.copyfileobj(response, out, 1 << 20)
             break
         except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
-            if attempt == 2:
+            refused = isinstance(error, urllib.error.HTTPError) and error.code < 500
+            if refused or attempt == 2:
                 partial.unlink(missing_ok=True)
                 raise Refusal(f"could not fetch {url}: {error}") from error
             time.sleep(2 ** attempt)
@@ -109,8 +113,7 @@ def extract_member(archive: Path, name: str, into: Path) -> Path:
             if member is None:
                 raise Refusal(f"{archive.name} holds no {name}")
             source = opened.extractfile(member)
-            if source is None:
-                raise Refusal(f"{name} in {archive.name} is no file")
+            assert source is not None, "a regular member always has contents"
             with source, open(target, "wb") as out:
                 shutil.copyfileobj(source, out)
     if not WINDOWS:

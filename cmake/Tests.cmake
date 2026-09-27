@@ -19,7 +19,9 @@ function(openmw_add_test name target)
         set(filter "--gtest_filter=${TEST_FILTER}")
     endif()
     add_test(NAME ${name} COMMAND ${target} ${filter} ${TEST_ARGS} WORKING_DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}")
-    set_tests_properties(${name} PROPERTIES LABELS "${TEST_LABELS}")
+    # The target, by name, for whatever builds before it runs: CTest names no command for a test
+    # whose binary is not built yet.
+    set_tests_properties(${name} PROPERTIES LABELS "${TEST_LABELS}" OPENMW_TARGET ${target})
 endfunction()
 
 set(OPENMW_FORK_TESTS "Rtx*:Sky*:Crash*")

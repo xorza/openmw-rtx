@@ -158,14 +158,16 @@ def kernels(build: Build, args: list[str]) -> int:
             optimized = subprocess.run(
                 [optimizer, "--target-env=vulkan1.4", "--scalar-block-layout", *specialize, "--freeze-spec-const",
                  "--fold-spec-const-op-composite", "-O", "--eliminate-dead-const", "--strip-debug",
-                 "--strip-nonsemantic", module, "-o", specialized], capture_output=True)
+                 "--strip-nonsemantic", module, "-o", specialized], capture_output=True, check=False)
             if optimized.returncode != 0:
-                raise Refusal(f"spirv-opt refused {module.name} at {label}: {optimized.stderr.decode(errors='replace')}")
+                said = optimized.stderr.decode(errors="replace")
+                raise Refusal(f"spirv-opt refused {module.name} at {label}: {said}")
             disassembly = subprocess.run([disassembler, "--raw-id", "--no-header", specialized],
                                          capture_output=True, check=True).stdout
-        hashed = subprocess.run([program_digest], input=disassembly, capture_output=True)
+        hashed = subprocess.run([program_digest], input=disassembly, capture_output=True, check=False)
         if hashed.returncode != 0:
-            raise Refusal(f"{module.name} at {label} could not be digested: {hashed.stderr.decode(errors='replace')}")
+            said = hashed.stderr.decode(errors="replace")
+            raise Refusal(f"{module.name} at {label} could not be digested: {said}")
         return f"{module.name.removesuffix('.spv')} {label} {hashed.stdout.decode().strip()}"
 
     with ThreadPoolExecutor(max_workers=jobs()) as pool:

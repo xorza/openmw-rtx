@@ -64,7 +64,7 @@ def profile(build: Build, args: list[str]) -> int:
     if tui:
         if not data.is_file():
             raise Refusal(f"no recording at {data}: run `omw profile` without --tui first")
-        return subprocess.run(["perf", "report", "-i", str(data), "--no-inline"]).returncode
+        return subprocess.run(["perf", "report", "-i", str(data), "--no-inline"], check=False).returncode
 
     build.build(["openmw-rtxtool"])
 
@@ -113,7 +113,7 @@ def profile(build: Build, args: list[str]) -> int:
 
 
 def _perf_report(*args: str) -> str:
-    return subprocess.run(["perf", "report", *args], capture_output=True, text=True).stdout
+    return subprocess.run(["perf", "report", *args], capture_output=True, text=True, check=False).stdout
 
 
 def _narrow(line: str, width: int = 86) -> str:
@@ -175,7 +175,8 @@ def _report(data: Path, out: Path, slug: str, blocked: bool) -> None:
     folders = [("inferno-collapse-perf", "inferno-flamegraph"), ("stackcollapse-perf.pl", "flamegraph.pl")]
     folder = next((pair for pair in folders if shutil.which(pair[0])), None)
     if folder is not None:
-        script = subprocess.run(["perf", "script", "-i", str(data), "--no-inline"], capture_output=True).stdout
+        script = subprocess.run(["perf", "script", "-i", str(data), "--no-inline"], capture_output=True,
+                                check=False).stdout
         folded = subprocess.run([folder[0]], input=script, capture_output=True, check=True).stdout
         (out / f"{slug}.folded").write_bytes(folded)
         graph = subprocess.run([folder[1], "--title", slug], input=folded, capture_output=True, check=True).stdout
@@ -185,8 +186,11 @@ def _report(data: Path, out: Path, slug: str, blocked: bool) -> None:
     if lost not in (None, "0"):
         print(f"  {lost} samples lost — the ring buffer overflowed, lower --freq")
     if nanoseconds is not None and wall > 0:
-        label, unit = ("blocked ", "thread-seconds of waiting per second") if blocked else ("on-CPU  ", "cores busy, all the time")
-        print(f"  {label} {float(nanoseconds) / 1e9 / wall:6.2f} {unit}")
+        share = float(nanoseconds) / 1e9 / wall
+        if blocked:
+            print(f"  blocked  {share:6.2f} thread-seconds of waiting per second")
+        else:
+            print(f"  on-CPU   {share:6.2f} cores busy, all the time")
 
     # **Pass-through frames come out.** A frame that spent nothing itself and cost what the frame
     # above it cost is a link in a chain, not a place the time went. Dropping them starts the list
@@ -249,7 +253,7 @@ def _record_offcpu(build: Build, record: list[str], bench: list[str], data: Path
     throughout, where it has a home, a Wayland socket and a GPU, and perf attaches to it."""
     elevate: list[str] = []
     perf = shutil.which("perf") or "perf"
-    capabilities = subprocess.run(["getcap", perf], capture_output=True, text=True).stdout
+    capabilities = subprocess.run(["getcap", perf], capture_output=True, text=True, check=False).stdout
     if "cap_bpf" not in capabilities:
         print("profile: perf carries no cap_bpf — it runs under sudo, and the harness does not")
         elevate = ["sudo"]

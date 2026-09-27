@@ -3,6 +3,7 @@
 from omw.build import Build
 from omw.system import ROOT, Refusal
 
+
 def test(build: Build, args: list[str]) -> int:
     """**The fork's tests by default**, which are what a change here moves: the `fork` label, the
     crash matrix and the GPU binary among them. `--all` adds upstream's, which the plain flavour
