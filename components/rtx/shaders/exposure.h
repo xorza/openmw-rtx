@@ -53,7 +53,7 @@ namespace Rtx::Shaders
         uint mPixels;
 
         /// Seconds since the previous measurement, which is what makes the approach a rate rather
-        /// than a fraction per frame.
+        /// than a fraction per frame. Nought moves nothing: a frame with no past is `mReset`.
         float mElapsed;
 
         /// One where there is no previous exposure to move away from — the first frame, and any

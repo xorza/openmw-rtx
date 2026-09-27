@@ -171,7 +171,7 @@ namespace MWRender
 
         /// The deck scrolls and the fog churns by the reader's own clock, which the frame steps
         /// and the frame does not carry: one frame at the shipped scale under the fastest deck
-        /// moves the scroll and the seconds by that frame.
+        /// moves the scroll and the seconds by that frame. The water's clock is another.
         TEST(RtxReadWorldTest, theDeckAndTheFogReadTheSkysClock)
         {
             constexpr float step = 1.0f / 60.0f;
@@ -189,6 +189,14 @@ namespace MWRender
                 = reader.read(standing.mSky, standing.mWorld, falling.mPrecipitation, 0.0f, sReach);
             EXPECT_FLOAT_EQ(stepped.mClouds.mScroll, step);
             EXPECT_DOUBLE_EQ(stepped.mSkySeconds, static_cast<double>(step));
+
+            // **And the water reads the simulation's own seconds, never the sky's**: the sky's
+            // clock stands where it stood on a frame with no sky, which is every interior, and the
+            // water in one still moves.
+            const Rtx::WorldReading indoors
+                = reader.read(standing.mSky, standing.mWorld, falling.mPrecipitation, 12.5, sReach);
+            EXPECT_EQ(indoors.mSeconds, 12.5);
+            EXPECT_DOUBLE_EQ(indoors.mSkySeconds, static_cast<double>(step));
         }
 
         /// A room is lit by its own record, and the record is the only thing that decides it.

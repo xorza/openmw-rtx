@@ -199,11 +199,6 @@ namespace Rtx
         /// own: the chain's, `TraceChain::resetHistory`, and the display's.
         bool mUpscalerStale = false;
 
-        /// When the last frame was recorded, so the next can say how long ago that was. Measured
-        /// here rather than asked of the caller, because this is the function the frames the
-        /// upscaler reconstructs across pass through.
-        std::optional<std::chrono::steady_clock::time_point> mLastFrameAt;
-
         /// The frame as bytes at the output extent, which is what anything outside this reads: two
         /// images, swapped by every present, and the one the last present read. It is also where
         /// that extent is stated — `PresentTargets::getExtent` — rather than beside it in a pair

@@ -53,8 +53,8 @@ namespace MWRender
 
         placement.fit(mWindow.get());
 
-        // Read once here, and `mAskedSince` left at nought, so the first `fit` acts on a size that
-        // counts as settled rather than waiting the settle out with no viewport set.
+        // Read once here, so `apply` has a size before the first frame; `mAskedSince` is left at
+        // never, so the first `fit` does not wait the settle out.
         std::uint32_t width = 0;
         std::uint32_t height = 0;
         readSize(width, height);
@@ -71,10 +71,8 @@ namespace MWRender
         height = static_cast<std::uint32_t>(std::max(high, 1));
     }
 
-    void RtxWindow::fit(Rtx::Renderer& renderer, osg::Camera& camera)
+    void RtxWindow::fit(Rtx::Renderer& renderer, osg::Camera& camera, const double now)
     {
-        const osg::Timer_t now = osg::Timer::instance()->tick();
-
         std::uint32_t width = 0;
         std::uint32_t height = 0;
         readSize(width, height);
@@ -85,9 +83,14 @@ namespace MWRender
             mAskedSince = now;
         }
 
-        if (osg::Timer::instance()->delta_s(mAskedSince, now) < sSettleSeconds)
+        if (now - mAskedSince < sSettleSeconds)
             return;
 
+        apply(renderer, camera);
+    }
+
+    void RtxWindow::apply(Rtx::Renderer& renderer, osg::Camera& camera) const
+    {
         renderer.resize(mAskedWidth, mAskedHeight);
 
         // **The renderer's own extent and not SDL's.** A windowed backend sizes itself to the

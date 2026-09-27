@@ -31,8 +31,13 @@ namespace Rtx
     /// tiles' own layout. `shaders/ripple.h` says whose field this is.
     ///
     /// **State across frames, and deterministic.** The field is what the steps and the impulses
-    /// made of it, and both are the run's own — the step by the sky's clock, the impulses by the
+    /// made of it, and both are the run's own — the step by the water's clock, the impulses by the
     /// simulation — so two runs of one build stand the same field on every frame.
+    ///
+    /// **The water's clock, `Shaders::VisibilityConstants::mWaterTime`, and not the sky's**: the
+    /// simulation's seconds, which upstream's `RipplesSurface::updateState` steps by and the waves
+    /// run on. The sky's clock stands still wherever no sky is shown, which is every interior with
+    /// water in it, and races under a sped-up `timescale`.
     class RipplePass
     {
     public:
@@ -40,7 +45,7 @@ namespace Rtx
         /// Submits and waits.
         RipplePass(const Device& device, const std::filesystem::path& shaderDirectory);
 
-        /// Steps the field once where a sixtieth has accrued on `skySeconds` since the last step,
+        /// Steps the field once where a sixtieth has accrued on `waterSeconds` since the last step,
         /// presses `impulses`, and unpacks the tiles. The window follows `eye` by whole texels.
         /// Nothing at all where no step is due and nothing is pressed, which leaves the tiles as
         /// they were.
@@ -49,7 +54,7 @@ namespace Rtx
         /// @param timer where the step's zone goes, or nothing where nobody is counting. Opened
         ///        only on a frame that steps, so a frame that stands still reports no zone.
         void record(VkCommandBuffer commands, FrameSlot slot, std::span<const RippleImpulse> impulses,
-            const osg::Vec2f& eye, double skySeconds, GpuTimer* timer);
+            const osg::Vec2f& eye, double waterSeconds, GpuTimer* timer);
 
         /// Drops what the field holds, for a world that was replaced rather than moved through.
         void reset() { mReset = true; }
@@ -98,7 +103,7 @@ namespace Rtx
         osg::Vec2i mWindow;
         osg::Vec2f mOrigin;
 
-        /// The sky's clock at the last step, in whole sixtieths.
+        /// The water's clock at the last step, in whole sixtieths.
         std::int64_t mSteppedTick = 0;
         bool mReset = true;
     };

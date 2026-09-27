@@ -110,10 +110,9 @@ namespace Rtx
         /// Points the walk at a root, at where it stands, and at the frame it is mirroring.
         void begin(const osg::Matrixf& root, std::size_t frame, unsigned int traversal, std::size_t identity);
 
-        osg::FrameStamp& getStamp() { return *mStamp; }
-
-        /// Moves the emitter clock on by one frame. See `mEmitterStamp`.
-        void advanceEmitters(double elapsed);
+        /// Stands the world's clock at `seconds` and moves the emitter clock on by the gap since
+        /// the last call. See `SceneExtractor::setSimulationTime`.
+        void setSimulationTime(double seconds);
 
         void apply(osg::Node& node) override;
         void apply(osg::Transform& node) override;
@@ -169,6 +168,9 @@ namespace Rtx
         osg::ref_ptr<osg::FrameStamp> mEmitterStamp = new osg::FrameStamp;
         double mEmitterSeconds = 0.0;
         unsigned int mEmitterFrame = 0;
+
+        /// Where the world's clock stood at the last `setSimulationTime`, nothing before the first.
+        std::optional<double> mWorldSeconds;
 
         /// The class the innermost root over the node being walked stated: everything under an
         /// actor's root is the actor. Carried down the subtree rather than read off each drawable,
@@ -369,10 +371,16 @@ namespace Rtx
         return true;
     }
 
-    void MirrorTraversal::advanceEmitters(double elapsed)
+    void MirrorTraversal::setSimulationTime(const double seconds)
     {
+        mStamp->setSimulationTime(seconds);
+        mStamp->setReferenceTime(seconds);
+
         // The cap the game's own frame loop uses, and `MWRender::RainCounter` after it.
         constexpr double longest = 0.2;
+
+        const double elapsed = mWorldSeconds.has_value() ? seconds - *mWorldSeconds : 0.0;
+        mWorldSeconds = seconds;
 
         mEmitterSeconds += std::clamp(elapsed, 0.0, longest);
         mEmitterStamp->setSimulationTime(mEmitterSeconds);
@@ -471,14 +479,7 @@ namespace Rtx
 
     void SceneExtractor::setSimulationTime(double seconds)
     {
-        osg::FrameStamp& stamp = mWalk->getStamp();
-        stamp.setSimulationTime(seconds);
-        stamp.setReferenceTime(seconds);
-    }
-
-    void SceneExtractor::advanceEmitters(double elapsed)
-    {
-        mWalk->advanceEmitters(elapsed);
+        mWalk->setSimulationTime(seconds);
     }
 
     ExtractionStats SceneExtractor::extract(

@@ -125,17 +125,18 @@ namespace Rtx
         void setEye(const std::optional<ViewBasis>& eye) { mEye = eye; }
         const std::optional<ViewBasis>& getEye() const { return mEye; }
 
-        /// The world's clock, in seconds, which everything the graph animates is driven by.
-        /// `SceneUtil::FrameTimeSource` reads the simulation time off the visitor's frame stamp, so
-        /// a mirror with a clock of its own would run the game's fires while the game is paused.
+        /// The world's clock, in seconds, once per frame: what everything the graph animates is
+        /// driven by. `SceneUtil::FrameTimeSource` reads the simulation time off the visitor's frame
+        /// stamp, so a mirror with a clock of its own would run the game's fires while the game is
+        /// paused.
+        ///
+        /// **And the emitters' clock, moved on by the gap since the last call**, clamped to the two
+        /// tenths the game's own frame loop caps a step at, and never backwards: `osgParticle`
+        /// integrates the gap between one frame stamp and the last, so a loading screen or frames
+        /// nobody walked would put every plume in the cell on its own ceiling at once. The first
+        /// call only starts it. Also the sequence every emitter's once-per-frame guard is kept
+        /// against, so however many walks reach one, exactly one of them steps it.
         void setSimulationTime(double seconds);
-
-        /// Moves the emitters on by `elapsed` seconds, once per frame. Separate from the world's
-        /// clock and only ever forwards: `osgParticle` integrates the gap between one frame stamp
-        /// and the last, so a loading screen or a paused window would put every plume in the cell
-        /// on its own ceiling at once. Also the sequence every emitter's once-per-frame guard is
-        /// kept against, so however many walks reach one, exactly one of them steps it.
-        void advanceEmitters(double elapsed);
 
         /// Walks `node` and places what it finds by `transform`, under `anchor`. A subtree, and it
         /// never reaches the ring: the precipitation node would otherwise place the ground a

@@ -317,12 +317,11 @@ namespace Rtx
             EXPECT_EQ(constants.mWaterTime, splitSeconds(read.mSeconds)) << "the game wrote this nowhere either";
             EXPECT_EQ(constants.mRainOnWater, read.mRainOnWater);
             EXPECT_EQ(constants.mShelterHeight, read.mShelterHeight);
-            // And beside the constants, what the display chain and the ripples take: the glare as the
-            // reading stated it, the sky's clock, and the hour's bias.
+            // And beside the constants, what the display chain takes: the glare as the reading
+            // stated it, and the hour's bias.
             EXPECT_EQ(options.mGlare.mColour, read.mSunGlare.mColour);
             EXPECT_EQ(options.mGlare.mAngleMax, read.mSunGlare.mAngleMax);
             EXPECT_EQ(options.mGlare.mStrength, read.mSunGlare.mStrength);
-            EXPECT_EQ(options.mSkySeconds, read.mSkySeconds);
             EXPECT_EQ(options.mExposureBias, light.mExposureBias);
 
             // The deck and the stars come out of the builders both hosts share, and this is the one
@@ -443,7 +442,8 @@ namespace Rtx
             constexpr double hundredHours = 360000.123;
             const osg::Vec2f split = splitSeconds(hundredHours);
             EXPECT_EQ(split.x(), 360000.125f);
-            EXPECT_NEAR(static_cast<double>(split.x()) + static_cast<double>(split.y()), hundredHours, 1e-9);
+            EXPECT_NEAR(joinSeconds(split), hundredHours, 1e-9);
+            EXPECT_EQ(joinSeconds(splitSeconds(12.25)), 12.25);
         }
 
         /// Each scale of the fog is read from where the churn and the turned drift moved it, as a

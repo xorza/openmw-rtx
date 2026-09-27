@@ -11,8 +11,8 @@ namespace Misc
     /// `CellPreloader::isTerrainLoaded` decide by the reference time, so two runs on two clocks
     /// are handed different worlds. A measured run states a step and what ages is the frame
     /// index; a played session is handed the wall, so a stall ages a player's caches and not a
-    /// benchmark's. How long since the last *traced* frame is `Rtx::FrameOptions::mSinceLast`,
-    /// because a loading screen drives frames that draw no world.
+    /// benchmark's. How long since the last *traced* frame is `Rtx::FrameOptions::mSinceLast`, the
+    /// difference of two `getNow`s, because a loading screen drives frames that draw no world.
     class FrameClock
     {
     public:
@@ -44,8 +44,8 @@ namespace Misc
         double getNow() const { return mNow; }
 
         /// The step a run stated, or nothing where the wall decides — what says the run repeats
-        /// itself, and what `Rtx::FrameOptions::mSinceLast` takes. The absence is the information:
-        /// `getStep` answers either way, and only this says which.
+        /// itself. The absence is the information: `getStep` answers either way, and only this says
+        /// which.
         std::optional<float> getStatedStep() const { return mFixed; }
 
     private:

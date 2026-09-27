@@ -53,9 +53,9 @@ namespace Rtx
     }
 
     void TraceMedia::stepRipples(const VkCommandBuffer commands, const FrameSlot slot, const osg::Vec2f& eye,
-        const double skySeconds, GpuTimer* const timer)
+        const double waterSeconds, GpuTimer* const timer)
     {
-        mRipples.record(commands, slot, mImpulses, eye, skySeconds, timer);
+        mRipples.record(commands, slot, mImpulses, eye, waterSeconds, timer);
     }
 
     void TraceMedia::placeRipples(Shaders::VisibilityConstants& sampled) const

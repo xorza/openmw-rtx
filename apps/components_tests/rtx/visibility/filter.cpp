@@ -314,8 +314,9 @@ namespace Rtx::Testing
         /// exterior from an exposure of order tens to exactly one between two frames.
         ///
         /// Two skies a factor of thirty-two apart and nothing else in the picture, so the histogram
-        /// is the only thing that changed. Both halves are claimed: told it has no past, the eye
-        /// arrives at once; told it has one, it has barely moved a frame later.
+        /// is the only thing that changed. Every case is claimed: told it has no past, the eye
+        /// arrives at once; told it has one, it has barely moved a frame later; told no time passed,
+        /// it has not moved at all.
         ///
         /// **Driven frame by frame rather than through `shoot`**, because that helper calls
         /// `setScene` every time and a new scene clears the previous camera — which is a reset, and
@@ -350,9 +351,10 @@ namespace Rtx::Testing
                 return counted > 0 ? sum / static_cast<double>(counted) : 0.0;
             };
 
-            // The exposure measured rather than pinned, which is the whole subject.
-            const auto shot = [&](const Shaders::VisibilityConstants& camera) {
-                mRenderer.renderFrame(camera, FrameOptions{ .mExposure = ExposureRule{} });
+            // The exposure measured rather than pinned, which is the whole subject, `since` after the
+            // last frame.
+            const auto shot = [&](const Shaders::VisibilityConstants& camera, const float since = 1.0f / 60.0f) {
+                mRenderer.renderFrame(camera, FrameOptions{ .mSinceLast = since, .mExposure = ExposureRule{} });
                 mRenderer.readPixels(pixels);
                 return meanByte();
             };
@@ -366,9 +368,13 @@ namespace Rtx::Testing
             ASSERT_GT(lit, 0.0) << "the bright sky rendered as black";
 
             // The same sky thirty-two times darker, one frame later and with a past to move from.
-            // The eye has had a few milliseconds against a time constant of a second and a half, so
-            // it has gone almost nowhere — a stall of a third of a second would still leave it so.
+            // The eye has had a sixtieth of a second against a time constant of a second and a half,
+            // so it has gone almost nowhere.
             const double justAfter = shot(dim);
+
+            // No time at all after that, and the eye has had none to move in: the exposure a reset
+            // takes outright is the reset's to take, and a frame that stood for nothing is no reset.
+            EXPECT_EQ(shot(dim, 0.0f), justAfter) << "the eye moved in no time";
 
             // And the same sky again with no past, which is where it is headed.
             mRenderer.resetHistory();

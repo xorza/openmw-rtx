@@ -150,6 +150,9 @@ namespace Rtx
     /// hours.
     osg::Vec2f splitSeconds(double seconds);
 
+    /// `splitSeconds` undone: the double the two floats carry, for a reader on the host.
+    double joinSeconds(const osg::Vec2f& split);
+
     /// Where each scale of the fog's field is read from, `Shaders::VisibilityConstants::mFogOffsets`:
     /// the churn over `skySeconds` and the air `carried` downwind, turned as the scale is turned,
     /// reduced against the scale's tile in double and handed over as a fraction of it.

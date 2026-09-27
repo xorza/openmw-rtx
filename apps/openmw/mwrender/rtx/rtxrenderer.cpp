@@ -221,7 +221,7 @@ namespace MWRender
 
         Log(Debug::Info) << "Ray tracing on " << mRenderer->describeDevice();
 
-        mWindow.fit(*mRenderer, getCamera());
+        mWindow.apply(*mRenderer, getCamera());
 
         // **The negative test, and it is the whole claim of this path in one line.** Nothing above
         // here may have made a GL context: not the window, not a realize operation, not an
@@ -775,7 +775,7 @@ namespace MWRender
 
         // **Ahead of the trace and not after the present**, so the frame this draws is the one the
         // window's own extent asked for rather than the one behind it.
-        mWindow.fit(*mRenderer, getCamera());
+        mWindow.fit(*mRenderer, getCamera(), getFrameClock().getNow());
 
         // **A frame with the world hidden is the interface and nothing else.** No walk, because the
         // update traversal did not run either, and no trace, because the interface covers every
@@ -982,12 +982,16 @@ namespace MWRender
         const Rtx::WorldReading read = mSky.read(
             frame.mSky, frame.mWorld, frame.mPrecipitation, frame.mWhen.getSimulationTime(), mMirror.getReach());
 
+        const double now = getFrameClock().getNow();
+        const float sinceLast = mTracedAt.has_value() ? static_cast<float>(now - *mTracedAt) : 0.0f;
+        mTracedAt = now;
+
         // **The schedule's and not the profile's**, because a warm-up is not averaged in — a picture
         // of a half-built cell in the sum is what `RtxRun::getAccumulated` exists to keep out.
         // Nothing of the profile is handed back: the backend reads its own.
         Rtx::FrameOptions options{
             .mAccumulate = mRun.getAccumulated(),
-            .mSinceLast = getFrameClock().getStatedStep(),
+            .mSinceLast = sinceLast,
             .mReadBack = mRun.wantsFrameCopy(),
         };
 

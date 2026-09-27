@@ -13,6 +13,7 @@
 #include <osg/Vec3f>
 
 #include <components/rtx/camera.hpp>
+#include <components/rtx/frameworld.hpp>
 #include <components/rtx/material.hpp>
 #include <components/rtx/mesh.hpp>
 #include <components/rtx/renderer.hpp>
@@ -84,10 +85,11 @@ namespace Rtx
         };
 
         /// Draws one frame and waits for it, so what comes back is that frame's own report.
-        Drawn draw(Renderer& renderer, const Shaders::VisibilityConstants& camera, double skySeconds = 0.0)
+        Drawn draw(Renderer& renderer, Shaders::VisibilityConstants camera, double waterSeconds = 0.0)
         {
+            camera.mWaterTime = splitSeconds(waterSeconds);
             const auto start = std::chrono::steady_clock::now();
-            renderer.renderFrame(camera, FrameOptions{ .mSkySeconds = skySeconds });
+            renderer.renderFrame(camera, FrameOptions{});
             const std::optional<FrameResult> result = renderer.finishFrame();
             const double wallMs
                 = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();

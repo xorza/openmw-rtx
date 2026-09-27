@@ -65,7 +65,7 @@ namespace Rtx
         ///
         /// @param timer null where the run is not being timed.
         void stepRipples(
-            VkCommandBuffer commands, FrameSlot slot, const osg::Vec2f& eye, double skySeconds, GpuTimer* timer);
+            VkCommandBuffer commands, FrameSlot slot, const osg::Vec2f& eye, double waterSeconds, GpuTimer* timer);
 
         /// Tells `sampled` where the wake's field lies, as the last step left it.
         void placeRipples(Shaders::VisibilityConstants& sampled) const;
