@@ -60,11 +60,6 @@ namespace Sky
 
             mSunriseTransitions[type] = setting;
         }
-
-        /// The whole of it, out of the `Weather_*` fallback settings: the assembly the weather
-        /// manager's constructor used to do, so that a harness with no weather manager ramps its
-        /// dawn on the same hours as the game.
-        static TimeOfDaySettings fromFallback();
     };
 
     /// Interpolates between 4 data points (sunrise, day, sunset, night) based on the time of day.
