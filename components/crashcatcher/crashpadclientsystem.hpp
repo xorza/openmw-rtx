@@ -15,7 +15,9 @@ namespace Crash::Client
     std::filesystem::path executable();
 
     /// What the installing thread needs that every thread started after the catcher gets by itself:
-    /// on Linux an alternate signal stack, which Crashpad's `pthread_create` gives the later ones.
+    /// room to handle its own stack overflow. On Linux an alternate signal stack, which Crashpad's
+    /// `pthread_create` gives the later ones; on Windows a stack guarantee, which the thread-start
+    /// callback gives them.
     void prepareInstallingThread();
 
     /// Hooks every way this system ends a process that neither a fault nor `std::terminate` reaches,
