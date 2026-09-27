@@ -15,6 +15,7 @@
 #include "buffer.hpp"
 #include "commands.hpp"
 #include "frameslots.hpp"
+#include "graphicspipeline.hpp"
 #include "image.hpp"
 #include "imageuse.hpp"
 
@@ -51,6 +52,15 @@ namespace Rtx
         /// Records the copy of what `lend` handed out. Nothing has run when this returns.
         void send(GuiSlot slot);
 
+        /// What the texture in `slot` holds: straight until a writer through `writeWith` says
+        /// otherwise, which is how the pass knows to lay a traced picture down premultiplied.
+
+        AlphaForm alphaOf(GuiSlot slot) const
+        {
+            assert(holds(slot) && "the form of a slot nothing holds");
+            return mForms[slot.get()];
+        }
+
         void drop(GuiSlot slot);
 
         /// Opens an interface frame: takes the staging that frame's fence has just freed. Once per
@@ -69,8 +79,10 @@ namespace Rtx
         /// `record(image, layout)` is called with it ready to be written and the layout it is in,
         /// and the scope opened around what is recorded is every transfer stage. Ordering *within*
         /// what is recorded stays the caller's.
+        ///
+        /// @param form what the caller writes, which the slot then holds — `alphaOf`.
         template <class Record>
-        void writeWith(GuiSlot slot, VkCommandBuffer commands, Record&& record)
+        void writeWith(GuiSlot slot, AlphaForm form, VkCommandBuffer commands, Record&& record)
         {
             // First, and whatever the caller has already recorded into `commands`: what is pending
             // here writes this image, and left in the batch it would reach the queue after the
@@ -80,6 +92,7 @@ namespace Rtx
             assert(holds(slot) && "a write to a slot nothing holds");
 
             const Image& image = mImages[slot.get()];
+            mForms[slot.get()] = form;
 
             image.transition(commands, Use::sFragmentSample, Use::sTransferWrite);
 
@@ -120,6 +133,8 @@ namespace Rtx
         const Device& mDevice;
 
         std::vector<Image> mImages;
+
+        std::vector<AlphaForm> mForms;
 
         /// What a trace left for the host, per slot: the buffer, and the timeline value of the
         /// submit that carried the copy into it — the same clock every other resource is stamped

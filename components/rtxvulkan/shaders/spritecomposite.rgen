@@ -80,7 +80,7 @@ void gatherLit(ivec2 tap, uvec2 tracedExtent, float near, inout vec3 lit, inout 
 
 /// Composites the puffs over one shown pixel, whose centre falls in `traced`.
 ///
-/// @param arms whether the trace found the arms at `traced`, whose eye the pixel's ray then leaves.
+/// @param arms whether the trace drew `traced` on an arm, whose eye the pixel's ray then leaves.
 void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bool arms)
 {
     const vec2 across = vec2(tracedExtent) / vec2(extent);
@@ -168,15 +168,12 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
     const float opacity = 1.0 - layer.mTransmittance;
 
     // **The puffs' transmittance rides in the frame's alpha**, for the display pass to draw the
-    // star field through — where the alpha is not already spoken for: a picture with a transparent
-    // background keeps its coverage there, and its stars are not drawn through anything.
-    const bool coverAlpha = frame.mTransparentBackground == 0u;
+    // backdrop through: the star field, or the interface a picture is laid over.
     const vec4 before = imageLoad(shown, ivec2(pixel));
 
     if (!(opacity > 0.0) && !any(greaterThan(layer.mAdded, vec3(0.0))))
     {
-        if (coverAlpha)
-            imageStore(shown, ivec2(pixel), vec4(before.rgb, 1.0));
+        imageStore(shown, ivec2(pixel), vec4(before.rgb, 1.0));
         return;
     }
 
@@ -190,7 +187,22 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
     const vec3 composited
         = airBefore + layer.mColour * opacity + layer.mAdded + layer.mTransmittance * max(before.rgb - airBefore, vec3(0.0));
 
-    imageStore(shown, ivec2(pixel), vec4(composited, coverAlpha ? layer.mTransmittance : before.a));
+    // **Behind a see-through arm, the world's puffs are laid down by what the arms let through.**
+    // The rasterizer draws the arms after every particle, so the smoke behind a Chameleon's hand is
+    // seen through the hand as the room is — and the frame here holds the two already blended, the
+    // arms' share `A` over `t` of the world `W`. Putting the puffs between them exactly wants `A`,
+    // which the reconstruction has mixed into the frame at a resolution the trace never ran at. So
+    // the whole frame is taken for the world behind the arms, and the puffs are laid over it by
+    // `t`: exact where no arm stands and where one lets nothing through, and elsewhere off by
+    // `t (1 - T) (A - (1 - t) W)` — nothing where the arm is the colour of what it stands over, and
+    // at `t` of a half no more than a quarter of the puff's opacity times that contrast. A puff
+    // between the eye and a see-through hand is laid down behind it the same way, by `t` and not
+    // whole. Selected and not mixed where no arm stands, so the world's own pixel is the composite
+    // to the bit.
+    const float armsThrough = arms ? 1.0 : imageLoad(backdrop, ivec2(traced)).a;
+    const vec3 laid = armsThrough < 1.0 ? mix(before.rgb, composited, armsThrough) : composited;
+
+    imageStore(shown, ivec2(pixel), vec4(laid, layer.mTransmittance));
 }
 
 void main()
@@ -199,8 +211,8 @@ void main()
     const uvec2 tracedExtent = gl_LaunchSizeEXT.xy;
     const uvec2 extent = uvec2(picture.mShownWidth, picture.mShownHeight);
 
-    // Which eye the trace cast this pixel's ray from — the arms' where the arms were found, so the
-    // march here runs along the same ray the trace lit them on.
+    // Which eye the trace cast this pixel's ray from — the arms' where it drew the pixel on an arm,
+    // so the march here runs along the same ray the trace lit them on.
     const bool arms = puffsOnArms(imageLoad(puffs, ivec2(traced)));
 
     // **Nothing to draw and nothing to write.** The curve makes the same test and reads a one

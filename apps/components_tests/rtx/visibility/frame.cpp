@@ -508,12 +508,13 @@ namespace Rtx::Testing
                 EXPECT_NEAR(motion[centre * 2 + 1], 0.0f, 1e-3f);
             }
 
-            // **And the sky seen past a see-through arm, through the same eye.** The arms faded to
-            // half and nothing behind them, under a still camera: the sky did not move. The centre
-            // pixel's ray leans `0.5 / 32` of the arms' half width `tan(45)` off the axis on each
-            // side, and read through the world's plane that is `(1 / 64) / tan(30)` = 0.0271 of a
-            // half width, or `0.0271 * 32` = 0.866 of a pixel where the ray's own centre is 0.5 —
-            // the 0.366 of a pixel the sky's miss stored before it was told which eye it was.
+            // **And the sky seen past a see-through arm is the world's eye's.** The arms faded to
+            // half and nothing behind them, under a still camera: the sky did not move. Carried on
+            // along the arms' ray, the centre pixel's sky leaned `0.5 / 32` of the arms' half width
+            // `tan(45)` off the axis on each side, which read through the world's plane is
+            // `(1 / 64) / tan(30)` = 0.0271 of a half width, or `0.0271 * 32` = 0.866 of a pixel
+            // where the ray's own centre is 0.5 — a motion of 0.366 of a pixel under a camera that
+            // stood still.
             {
                 SceneDesc scene;
                 scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene, wallAt(200.0f)),
@@ -843,6 +844,12 @@ namespace Rtx::Testing
         /// whose centre looks seventy units across at that depth — is the pane, red and at the
         /// pane's own distance, with the wall a hundred units nearer along the world's ray. The
         /// middle of the frame is the wall either way.
+        ///
+        /// **And behind a see-through arm is the world the eye sees beside it**, which is the
+        /// rasterizer's blend of the arms over what the world's own projection drew. The pane faded
+        /// to half: column 26 finds the wall along the thirty-degree eye's ray, to the bit, where the
+        /// arms' ray carried on past the pane would have found nothing at all behind it — and every
+        /// other pixel's depth is the depth the frame has with no arm in it.
         TEST_F(RtxVisibilityTest, theArmsAreSeenThroughTheirOwnEyeAndInFrontOfEverything)
         {
             constexpr std::uint32_t size = 33;
@@ -862,16 +869,21 @@ namespace Rtx::Testing
                 osg::Vec3f(60.0f, 100.0f, 20.0f),
             };
 
-            SceneDesc scene;
-            const Index grey = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
-            const Index red = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
-            scene.addInstance(MeshInstance{ .mMesh
-                = scene.addMesh(MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
-                .mMaterial = scene.addMaterial(Material{ .mDiffuse = grey }) });
-            scene.addInstance(MeshInstance{ .mMesh
-                = scene.addMesh(MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
-                .mMaterial = scene.addMaterial(Material{ .mDiffuse = red }),
-                .mClass = InstanceClass::FirstPerson });
+            const auto sceneWith = [&](float fade) {
+                SceneDesc scene;
+                const Index grey = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
+                const Index red = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
+                scene.addInstance(
+                    MeshInstance{ .mMesh = scene.addMesh(MeshArrays{
+                                      .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                        .mMaterial = scene.addMaterial(Material{ .mDiffuse = grey }) });
+                scene.addInstance(MeshInstance{ .mMesh
+                    = scene.addMesh(MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMaterial = scene.addMaterial(Material{ .mDiffuse = red }),
+                    .mOpacity = fade,
+                    .mClass = InstanceClass::FirstPerson });
+                return scene;
+            };
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 30.0f, size, size, 10000.0f);
@@ -882,24 +894,27 @@ namespace Rtx::Testing
                 std::array<std::uint8_t, 3> mMiddle;
                 float mArmDistance;
                 float mMiddleDistance;
+
+                /// Two floats a pixel: clip depth, then distance from the eye.
+                std::vector<float> mDepth;
             };
 
-            const auto seenWith = [&](const Shaders::Camera& arms) {
+            const auto seenWith = [&](const Shaders::Camera& arms, float fade = 1.0f) {
                 camera.mArms = arms;
 
-                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mShow = SurfaceView::Albedo });
+                const Frame frame
+                    = shoot(sceneWith(fade), textures, camera, size, Shot{ .mShow = SurfaceView::Albedo });
                 EXPECT_EQ(frame.mHits, size * size);
 
-                // Two floats a pixel: clip depth, then distance from the eye.
-                std::vector<float> depth;
-                mRenderer.readChannel(Channel::Depth, depth);
-
-                return Seen{
+                Seen seen{
                     .mArm = { frame.byte(arm * 4), frame.byte(arm * 4 + 1), frame.byte(arm * 4 + 2) },
                     .mMiddle = { frame.byte(centre * 4), frame.byte(centre * 4 + 1), frame.byte(centre * 4 + 2) },
-                    .mArmDistance = depth[arm * 2 + 1],
-                    .mMiddleDistance = depth[centre * 2 + 1],
                 };
+                mRenderer.readChannel(Channel::Depth, seen.mDepth);
+                seen.mArmDistance = seen.mDepth[arm * 2 + 1];
+                seen.mMiddleDistance = seen.mDepth[centre * 2 + 1];
+
+                return seen;
             };
 
             const Seen narrow = seenWith(camera.mCamera);
@@ -917,6 +932,12 @@ namespace Rtx::Testing
             const float across = ((26.5f / 33.0f) * 2.0f - 1.0f) * std::tan(osg::DegreesToRadians(30.0f));
             EXPECT_NEAR(wide.mArmDistance, 200.0f * std::sqrt(1.0f + across * across), 0.05f)
                 << "the pane stands a hundred units behind the wall, and is drawn in front of it";
+
+            const Seen faded = seenWith(cameraAtFieldOfView(camera.mCamera, 60.0f), 0.5f);
+            EXPECT_EQ(faded.mArmDistance, narrow.mArmDistance)
+                << "the world behind a see-through arm was not the world's eye's";
+            EXPECT_EQ(faded.mDepth, narrow.mDepth) << "the arm moved the world behind it";
+            EXPECT_NE(faded.mArm, narrow.mArm) << "the faded arm was not drawn at all";
         }
 
         /// A glossy surface of the player's arms reflects through the arms' own cone, whatever the

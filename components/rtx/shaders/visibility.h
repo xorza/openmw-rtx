@@ -52,9 +52,13 @@ namespace Rtx::Shaders
     /// is the one statement of what each holds.
     struct HitRecord
     {
-        /// Which layer of the peel the shader is standing at, counting the eye's own hit as nought.
-        /// `PEEL_LAYERS` is the one past the last pane the launch peels, and a surface found there is
-        /// drawn as the solid it stands in for whatever its own opacity says.
+        /// Which layer of the peel the shader is standing at, counting the pixel's first surface as
+        /// nought. `PEEL_LAYERS` is the one past the last pane the launch peels, and a surface found
+        /// there is drawn as the solid it stands in for whatever its own opacity says.
+        ///
+        /// **One budget a pixel, whichever eye spends it.** The world's ray behind a see-through arm
+        /// starts at the layer the arms' stack ended on, so a pixel peels `PEEL_LAYERS` panes in all
+        /// and traces no more than a pixel with no arms in front of it.
         uint mLayer;
 
         /// One where the ray was cast through `VisibilityConstants::mArms` and nought through
@@ -93,31 +97,13 @@ namespace Rtx::Shaders
     }
 #endif
 
-    /// What a miss record carries after its handle: which eye cast the ray, as `HitRecord::mArms`
-    /// says it for a hit.
+    /// The sky, which is the only miss record the trace has.
     ///
-    /// **The sky is the one miss shader, and it stands behind one record per eye**, which a trace
-    /// names by the eye's own number. A ray through the arms' eye reaches the sky wherever it peels
-    /// past a see-through arm, and read at the world eye's pixel that sky reprojected through the
-    /// world's image plane — a still camera stored motion for it — and blurred at a pixel it was not.
-    struct MissRecord
-    {
-        uint mArms;
-    };
-
-    const uint MISS_RECORD_COUNT = HIT_RECORD_EYES;
-
-#ifdef RTX_HOST
-    /// The whole miss table: what `VisibilityPass` hands the pipeline.
-    inline std::array<MissRecord, MISS_RECORD_COUNT> missRecordTable()
-    {
-        std::array<MissRecord, MISS_RECORD_COUNT> records{};
-        for (uint arms = 0; arms < HIT_RECORD_EYES; ++arms)
-            records[arms] = MissRecord{ .mArms = arms };
-
-        return records;
-    }
-#endif
+    /// **Seen through the world's eye alone.** The arms' eye traces the arms and nothing else, and a
+    /// ray of it that finds no arm is never shaded: the world's own ray is traced there instead, so
+    /// whatever reaches the sky reached it through `mCamera`.
+    const uint MISS_RECORD_SKY = 0u;
+    const uint MISS_RECORD_COUNT = 1u;
 
     /// What `lib/variants.glsl`'s `REORDER` constant may be, which is `Rtx::Reorder` as the host
     /// spells it: no sort, a sort on the shader the hit names, or on that and the hit material's
@@ -184,13 +170,18 @@ namespace Rtx::Shaders
         uint mShow;
 
         /// Non-zero where there is no sky behind the subject: a ray that hits nothing comes back
-        /// with no radiance **and no coverage**, so the pixel is transparent rather than the
-        /// horizon's colour.
+        /// with no radiance and the whole of the backdrop shown, so the pixel is the interface
+        /// behind the picture rather than the horizon's colour.
         ///
         /// **What a picture inside the interface is.** The inventory doll and a map tile are
         /// composited over the window behind them rather than filling it, so what they do not cover
-        /// has to be nothing at all. Zero is a frame that fills a window, where the sky is the
-        /// answer and every pixel is opaque.
+        /// has to be nothing at all — and what a pane or a puff covers over nothing, only that
+        /// much: `BACKDROP_INTERFACE` is how the curve says so. Zero is a frame that fills a window,
+        /// where the sky is the answer and every pixel is opaque.
+        ///
+        /// **No air and no water in such a picture**, which `PictureTracer` asserts: the backdrop
+        /// is one number a pixel, the picture's alpha, and a medium in front of it would ask for
+        /// three.
         uint mTransparentBackground;
 
         /// The sun as a light: where it stands, unit; how much of its light arrives on a surface
@@ -493,8 +484,9 @@ namespace Rtx::Shaders
         uint mFrame;
 
         /// Non-zero where this scene holds the player's arms and this camera draws them:
-        /// `visibility.rgen` traces `mArms`'s ray on `MASK_FIRST_PERSON` ahead of the world's, and a picture with no
-        /// arms in it — every third-person frame, every picture inside the interface — pays no second trace.
+        /// `visibility.rgen` traces `mArms`'s ray on `MASK_FIRST_PERSON` ahead of the world's, and a
+        /// picture with no arms in it — every third-person frame, every picture inside the
+        /// interface — pays no second trace.
         uint mArmsInFrame;
 
         /// Which classes of instance this camera draws — the rasterizer's cull mask, in the bits

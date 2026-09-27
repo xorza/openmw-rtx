@@ -451,6 +451,66 @@ namespace Rtx::Testing
             EXPECT_GT(seenAt(true)[1], 0.25f) << "the sprite in front of the hand was not found";
         }
 
+        /// A puff behind a see-through arm is laid down by what the arm lets through.
+        ///
+        /// **The rasterizer draws the arms after every particle**, so the smoke behind a faded hand
+        /// is seen through the hand as the room is. A white ball a hundred units ahead over a black
+        /// sky, and a black first-person pane twenty ahead across the whole picture, faded to a
+        /// quarter: the pane lets `0.75` through, held in a byte as `191 / 255`, and over a world
+        /// with no light in it the puff's own light `P` is all there is — so the pixel is
+        /// `191 / 255 * P`, the pane adding nothing of its own. The composite's weighing is exact
+        /// there, since the arm is the colour of what it stands over. Laid over the frame whole, the
+        /// puff would come through at `P` and the hand would hide none of it.
+        TEST_F(RtxVisibilityTest, aPuffBehindASeeThroughArmIsLaidDownByWhatTheArmLetsThrough)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+            const std::array<TextureData, 1> textures{ describeTexel(white, 0) };
+
+            const auto seenWith = [&](bool sprited, bool armed) {
+                SceneDesc scene;
+                const Index puff = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+
+                // Behind the eye, so the scene holds something and the picture is the sky.
+                addQuad(scene, uprightQuadAt(50.0f, -1000.0f));
+
+                if (armed)
+                    scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene, uprightQuadAt(50.0f, -80.0f)),
+                        .mMaterial = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f() }),
+                        .mOpacity = 0.25f,
+                        .mClass = InstanceClass::FirstPerson });
+
+                if (sprited)
+                {
+                    const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(),
+                        .mRadius = 10.0f,
+                        .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                        .mAlpha = 1.0f } };
+                    scene.addEmitter(sprites, puff, false);
+                }
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f(0.5f, 0.5f, 0.5f);
+                camera.mAmbientFromSky = 0.0f;
+
+                // The last of three frames, for the reason the arms' test above gives.
+                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mFrames = 3, .mAverage = false });
+                return frame.at(centre + 1);
+            };
+
+            const float lit = seenWith(true, false);
+            ASSERT_GT(lit, 0.01f) << "the puff was not lit";
+            ASSERT_EQ(seenWith(false, true), 0.0f) << "the pane added light of its own";
+            EXPECT_NEAR(seenWith(true, true), 191.0f / 255.0f * lit, 1e-4f)
+                << "the puff behind the arm was not laid down by what the arm let through";
+        }
+
         /// A room's fill reaches a puff from every side, and what stands near takes it away.
         ///
         /// **A puff is a point in a medium and has no face to turn away from**, so what it sees of

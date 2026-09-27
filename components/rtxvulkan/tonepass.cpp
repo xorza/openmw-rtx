@@ -24,7 +24,7 @@ namespace Rtx
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::TONE_BINDINGS> sBindings{
             computeBinding(Shaders::TONE_BIND_COLOUR, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
             computeBinding(Shaders::TONE_BIND_TARGET, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
-            computeBinding(Shaders::TONE_BIND_STARS_SHOWN, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::TONE_BIND_BACKDROP, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
             computeBinding(Shaders::TONE_BIND_EXPOSURE, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
             computeBinding(Shaders::TONE_BIND_BLOOM, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER),
             computeBinding(Shaders::TONE_BIND_SUN_GLARE, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
@@ -46,7 +46,7 @@ namespace Rtx
         const Image& colour = what.mColour;
         const Buffer& exposure = what.mExposure;
         const Buffer& sunGlare = what.mSunGlare;
-        const Image& starsShown = what.mStarsShown;
+        const Image& backdrop = what.mBackdrop;
         const Image& puffs = what.mPuffs;
         const Image* const bloom = what.mBloom;
         const VkDescriptorSet textures = what.mTextures;
@@ -66,7 +66,7 @@ namespace Rtx
         DescriptorWrites<Shaders::TONE_BINDINGS> writes;
         writes.image(Shaders::TONE_BIND_COLOUR, colour.describeStorage());
         writes.image(Shaders::TONE_BIND_TARGET, target.describeStorage());
-        writes.image(Shaders::TONE_BIND_STARS_SHOWN, starsShown.describeStorage());
+        writes.image(Shaders::TONE_BIND_BACKDROP, backdrop.describeStorage());
         writes.buffer(Shaders::TONE_BIND_EXPOSURE, exposure.describe());
         writes.image(Shaders::TONE_BIND_BLOOM, spread.describeSampled(mSampler.get()),
             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);

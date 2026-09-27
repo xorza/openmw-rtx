@@ -14,11 +14,13 @@
 // image, not just the texel being accessed". A whole channel of the frame, silently, on a
 // developer's machine only, because a release build has no layers to say anything at all.
 //
-// **What the star field is drawn through is three bytes, because every term of it is a
-// fraction.** What is left of the field at a pixel is a product of coverages and transmittances,
-// each of them from nought to one by construction, so `R8G8B8A8_UNORM` holds the whole range at
-// 1/255 steps. Fog thick enough for that step to show is fog no star is visible through. Four
-// megabytes at 1080p against the sixteen a half-float image would take for the same three numbers.
+// **What the backdrop is drawn through is four bytes, because every term of it is a fraction.**
+// What is left of the star field or the interface at a pixel is a product of coverages and
+// transmittances, and so is what the arms let through beside it, each of them from nought to one by
+// construction, so `R8G8B8A8_UNORM` holds the whole range at 1/255 steps — the step a picture's
+// alpha is written at anyway. Fog thick enough for that step to show is fog no star is visible
+// through. Four megabytes at 1080p against the sixteen a half-float image would take for the same
+// four numbers.
 //
 // **And a motion vector is a half, because a reprojection is now bounded.** It could not be while
 // `previousScreen` divided by a distance that approaches nought, which has no bound at all and
@@ -57,7 +59,7 @@
 #define GBUFFER_MOTION STORAGE_RG16F
 #define GBUFFER_DEPTH STORAGE_RG32F
 #define GBUFFER_LAYER STORAGE_RGBA16F
-#define GBUFFER_STARS STORAGE_RGBA8
+#define GBUFFER_BACKDROP STORAGE_RGBA8
 
 // Which binding of `SET_CHANNELS` each channel is.
 //
@@ -91,8 +93,9 @@ namespace Rtx::Shaders
     const uint CHANNEL_DEPTH = 6;
     const uint CHANNEL_REFLECTION_MOTION = 7;
 
-    /// How much of the star field a pixel still shows, for the pass that draws it.
-    const uint CHANNEL_STARS_SHOWN = 8;
+    /// How much of the backdrop a pixel still shows, for the pass that draws it, and what the arms
+    /// let through, for the puffs' composite.
+    const uint CHANNEL_BACKDROP = 8;
 
     /// The sprites the trace found in front of the surface, kept apart from it and lit where they
     /// stand: their colour, what they let through, and which eye the pixel's ray left — `packPuffs`.

@@ -24,23 +24,17 @@ namespace Rtx
         std::span<const std::uint32_t> mSpecialization;
     };
 
-    /// Which shader stands at each record of a trace's shader binding table. A miss shader stands
-    /// behind `mMissRecordsPerShader` records in turn, so a missed hit object naming index `i` runs
-    /// entry `i / mMissRecordsPerShader` of `mMiss`. A closest-hit shader stands behind
-    /// `mHitRecordsPerShader` records in turn, so a hit object naming index `i` runs entry
-    /// `i / mHitRecordsPerShader` of `mHit`. Which index an instance names is the shader-table
-    /// record offset its acceleration structure carries, plus whatever the trace adds.
+    /// Which shader stands at each record of a trace's shader binding table. One miss record
+    /// apiece, in the order given: a missed hit object naming index `i` runs entry
+    /// `i` of `mMiss`. A closest-hit shader stands behind `mHitRecordsPerShader` records in turn, so
+    /// a hit object naming index `i` runs entry `i / mHitRecordsPerShader` of `mHit`. Which index an
+    /// instance names is the shader-table record offset its acceleration structure carries, plus
+    /// whatever the trace adds.
     struct TraceShaders
     {
         std::filesystem::path mRaygen;
         std::span<const std::filesystem::path> mMiss;
         std::span<const HitShader> mHit;
-
-        /// How many records each miss shader stands behind.
-        std::uint32_t mMissRecordsPerShader = 1;
-
-        /// What each miss record carries after its handle, in the form `mHitRecordData` takes.
-        std::span<const std::byte> mMissRecordData;
 
         /// How many records each closest-hit shader stands behind.
         std::uint32_t mHitRecordsPerShader = 1;

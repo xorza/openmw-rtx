@@ -32,10 +32,10 @@ namespace Rtx
         /// `SunGlarePass::getShare`, or its `getNoShare` for a picture inside the interface.
         const Buffer& mSunGlare;
 
-        /// What the star field has to be drawn through, in `VK_IMAGE_LAYOUT_GENERAL`, at the
-        /// extent the trace ran at. `ToneConstants::mStars` says why this pass cannot work it out
-        /// for itself.
-        const Image& mStarsShown;
+        /// What the backdrop is seen through, in `VK_IMAGE_LAYOUT_GENERAL`, at the extent the trace
+        /// ran at. `ToneConstants::mBackdrop` says what the backdrop is, and `ToneConstants::mStars`
+        /// why this pass cannot work it out for itself.
+        const Image& mBackdrop;
 
         /// What the trace left of the puffs at the same extent, whose arms' flag
         /// `puffsCoverNothing` reads.

@@ -9,6 +9,11 @@
 
 layout(set = SET_PASS, binding = 0) uniform sampler2D uTexture;
 
+/// Whether the texture holds its colour already weighed by its alpha, `Rtx::AlphaForm`: a traced
+/// picture. The blend then takes the colour as it is, so the vertex's own alpha — a window fading
+/// out — has to weigh it here.
+layout(constant_id = 0) const bool PREMULTIPLIED = false;
+
 layout(location = 0) in vec4 inColour;
 layout(location = 1) in vec2 inTexCoord;
 
@@ -16,5 +21,6 @@ layout(location = 0) out vec4 outColour;
 
 void main()
 {
-    outColour = texture(uTexture, inTexCoord) * inColour;
+    const vec4 tint = PREMULTIPLIED ? vec4(inColour.rgb * inColour.a, inColour.a) : inColour;
+    outColour = texture(uTexture, inTexCoord) * tint;
 }

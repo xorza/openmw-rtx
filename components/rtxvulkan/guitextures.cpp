@@ -47,10 +47,12 @@ namespace Rtx
         if (const Index taken = mFree.take(); taken != sNoIndex)
         {
             mImages[taken] = std::move(image);
+            mForms[taken] = AlphaForm::Straight;
             return GuiSlot::at(taken);
         }
 
         mImages.push_back(std::move(image));
+        mForms.push_back(AlphaForm::Straight);
         mCopies.emplace_back();
         return GuiSlot::at(static_cast<std::uint32_t>(mImages.size() - 1));
     }
@@ -59,6 +61,7 @@ namespace Rtx
     {
         assert(mLentSlot.isNone() && "a second lend before the first was sent");
         assert(holds(slot) && "a write to a slot nothing holds");
+        assert(mForms[slot.get()] == AlphaForm::Straight && "host bytes into a slot a trace fills");
         assert(region.mX + region.mWidth <= mImages[slot.get()].getWidth()
             && region.mY + region.mHeight <= mImages[slot.get()].getHeight()
             && "a region past the edge of the texture");

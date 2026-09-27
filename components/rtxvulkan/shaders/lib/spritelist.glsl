@@ -87,8 +87,9 @@ uint spriteTileOf(uvec2 pixel, uint width)
 }
 
 /// What the trace leaves at a pixel for the puffs' composite and the curve, `CHANNEL_PUFFS`: the
-/// sprites' colour lit where they stand, what they let through, and whether the arms were found
-/// there — whose eye the composite marches the pixel's ray from again.
+/// sprites' colour lit where they stand, what they let through, and whether the pixel is drawn on
+/// an arm — whose eye the composite marches the pixel's ray from again. Not on a see-through arm the
+/// world is seen past, whose ray is the world's.
 ///
 /// **The flag rides in the sign of the transmittance**, which a transmittance never spends: a half
 /// float keeps its sign bit, nought's included, so `abs` gives the transmittance back exactly and
@@ -134,7 +135,7 @@ uint presenceAt(SpriteTileList list, SpritePresence presence, uint tracedWidth, 
 /// **Of the tile alone, and of nothing a ray through the pixel found**, so the answer is the same
 /// whichever point of the pixel the trace sampled.
 ///
-/// @param arms whether the trace found the arms at the pixel, `puffsOnArms`.
+/// @param arms whether the trace drew the pixel on an arm, `puffsOnArms`.
 bool puffsCoverNothing(SpriteTileList list, SpritePresence presence, uint tracedWidth, uvec2 traced, bool arms)
 {
     if (list.at[0] == SPRITE_LIST_UNBINNED || arms)

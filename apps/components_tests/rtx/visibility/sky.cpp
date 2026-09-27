@@ -464,7 +464,7 @@ namespace Rtx::Testing
 
             // **And a moon puts the field out, which is the one thing this pass cannot see.** The
             // sky is composited in `skyRadiance` and the field is drawn after the upscaler, so what
-            // the moons and the deck left of it has to travel with the pixel — `GBuffer::getStarsShown`
+            // the moons and the deck left of it has to travel with the pixel — `Channel::Backdrop`
             // is that number. A disc of black, so what is measured is the covering and not the face.
             const float root = std::sqrt(0.5f);
             Shaders::MoonDisc covering{};

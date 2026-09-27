@@ -23,10 +23,11 @@ namespace Rtx
         std::uint32_t mFirstVertex = 0;
         std::uint32_t mVertexCount = 0;
 
-        /// Which of the pass's two pipelines draws it. Runs are recorded in the order given and the
-        /// pipeline is bound again only where it changes, so a caller that keeps like with like
-        /// pays for one bind.
+        /// Which of the pass's pipelines draws it: how it reaches what is there, and what its
+        /// texture holds. Runs are recorded in the order given and the pipeline is bound again only
+        /// where it changes, so a caller that keeps like with like pays for one bind.
         Blend mBlend = Blend::Over;
+        AlphaForm mSource = AlphaForm::Straight;
     };
 
     /// The GUI, over the finished picture — after tone mapping, because MyGUI picked its colours
@@ -49,11 +50,16 @@ namespace Rtx
             VkCommandBuffer commands, const Image& target, VkBuffer vertices, std::span<const GuiDraw> draws) const;
 
     private:
-        /// Two, because a blend mode is baked into a pipeline. The alternative is
-        /// `VK_EXT_extended_dynamic_state3`, which is a device feature to require and a driver
-        /// path to trust for something that is two objects compiled once at startup.
+        const GraphicsPipeline& pipelineFor(const GuiDraw& draw) const;
+
+        /// Four, because a blend mode is baked into a pipeline: over or added, of a straight texture
+        /// or a premultiplied one. The alternative is `VK_EXT_extended_dynamic_state3`, which is a
+        /// device feature to require and a driver path to trust for something that is four objects
+        /// compiled once at startup.
         GraphicsPipeline mOver;
         GraphicsPipeline mAdditive;
+        GraphicsPipeline mOverPremultiplied;
+        GraphicsPipeline mAdditivePremultiplied;
 
         /// Clamped, because a widget's atlas entry runs to the edge of what it was given and
         /// wrapping would fetch the glyph next to it.

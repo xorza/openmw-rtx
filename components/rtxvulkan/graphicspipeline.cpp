@@ -6,6 +6,7 @@
 
 #include <components/crashcatcher/crashnote.hpp>
 
+#include "computepipeline.hpp"
 #include "device.hpp"
 #include "handles.hpp"
 #include "image.hpp"
@@ -23,6 +24,7 @@ namespace Rtx
         const Crash::NoteScope noted("compiling the pipeline \"{}\"", options.mName);
         const ShaderModule vertex = loadShaderModule(device, options.mVertexModule);
         const ShaderModule fragment = loadShaderModule(device, options.mFragmentModule);
+        const Specialization constants(options.mSpecialization);
 
         const std::array<VkPipelineShaderStageCreateInfo, 2> stages{
             VkPipelineShaderStageCreateInfo{
@@ -30,12 +32,14 @@ namespace Rtx
                 .stage = VK_SHADER_STAGE_VERTEX_BIT,
                 .module = vertex.get(),
                 .pName = "main",
+                .pSpecializationInfo = constants.getInfo(),
             },
             VkPipelineShaderStageCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                 .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
                 .module = fragment.get(),
                 .pName = "main",
+                .pSpecializationInfo = constants.getInfo(),
             },
         };
 
@@ -81,7 +85,8 @@ namespace Rtx
 
         const VkPipelineColorBlendAttachmentState attachment{
             .blendEnable = options.mBlend != Blend::None ? VK_TRUE : VK_FALSE,
-            .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+            .srcColorBlendFactor
+            = options.mSource == AlphaForm::Premultiplied ? VK_BLEND_FACTOR_ONE : VK_BLEND_FACTOR_SRC_ALPHA,
             .dstColorBlendFactor = destination,
             .colorBlendOp = VK_BLEND_OP_ADD,
             .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
