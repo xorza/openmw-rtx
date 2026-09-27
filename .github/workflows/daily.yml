@@ -19,9 +19,6 @@ on:
     # daily state is known. GitHub runs a schedule from the default branch alone, and late under load.
     - cron: "0 3 * * *"
   workflow_dispatch:
-  # TEMPORARY: runs the daily jobs on the pull request that brings this file, which a schedule and a
-  # dispatch cannot reach before it is on master. Removed before the merge.
-  pull_request:
 
 # Nothing by default, and each job names what it needs.
 permissions: {}
@@ -31,11 +28,10 @@ env:
   # an older one ignores it.
   GTEST_FAIL_IF_NO_TEST_SELECTED: "1"
 
-# A scheduled run is never cancelled: it is the day's answer, and the next one comes a day later. A
-# run on a pull request is superseded by the next push to it, which frees its runners.
+# A run is never cancelled, since it is the day's answer; one asked for by hand waits its turn.
 concurrency:
-  group: daily-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: daily
+  cancel-in-progress: false
 
 jobs:
   sanitizers:
@@ -58,9 +54,6 @@ jobs:
         with:
           key: sanitizers
           max-size: 1000M
-          # Saved by master and the schedule, and only read by a pull request: ten gigabytes hold
-          # every job's cache once, and not once more for every branch.
-          save: ${{ github.event_name != 'pull_request' }}
 
       - name: Build
         run: python omw asan build
@@ -98,9 +91,6 @@ jobs:
         with:
           key: package-${{ matrix.os }}
           max-size: 1000M
-          # Saved by master and the schedule, and only read by a pull request: ten gigabytes hold
-          # every job's cache once, and not once more for every branch.
-          save: ${{ github.event_name != 'pull_request' }}
 
       - name: Package, as a release does
         run: python omw archive daily
