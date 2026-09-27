@@ -162,9 +162,11 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: logs-linux-${{ github.sha }}
+          # The crash matrix keeps each mode's reports in the build, which go with the runner.
           path: |
             build-debug/CMakeCache.txt
             build-debug/**/*.log
+            build-debug/crash-matrix/
             build-nodlss/CMakeCache.txt
             integration_tests_output/**/*.log
             integration_tests_output/**/*.cfg
@@ -264,6 +266,7 @@ jobs:
           path: |
             build-plain/CMakeCache.txt
             build-plain/**/*.log
+            build-plain/crash-matrix/
 
   windows:
     name: windows
@@ -307,6 +310,7 @@ jobs:
           path: |
             build-debug/CMakeCache.txt
             build-debug/**/*.log
+            build-debug/crash-matrix/
             build-nodlss/CMakeCache.txt
 
   windows-plain:
@@ -359,6 +363,7 @@ jobs:
           path: |
             build-plain/CMakeCache.txt
             build-plain/**/*.log
+            build-plain/crash-matrix/
 
   macos:
     name: macos
