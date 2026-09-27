@@ -45,7 +45,7 @@ namespace SceneUtil
         const std::uint32_t now = mPaints;
         const std::uint32_t behind = now - seen;
         if (behind == 0)
-            return Painted{ .mPaints = now };
+            return Painted{ .mRegion = {}, .mPaints = now };
 
         if (behind > sRemembered)
             return Painted{ .mRegion = whole(), .mPaints = now };
