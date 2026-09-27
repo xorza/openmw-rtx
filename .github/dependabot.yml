@@ -1,0 +1,19 @@
+# The pins of every action the workflows and the local actions use, moved forward once a week in one
+# pull request: a pin that never moves keeps whatever flaw its commit had. Dependabot keeps the
+# release comment beside each pin in step with it, and CI runs on the pull request as on any other.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/*
+    schedule:
+      interval: weekly
+    # A week before a new release is taken: a release that was itself the attack is usually found and
+    # pulled within days.
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"

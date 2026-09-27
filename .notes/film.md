@@ -21,9 +21,9 @@ video.
 ## 2. How it is used
 
 ```
-rtx release view --keys=tour.keys        # fly; each Home press appends one key to tour.keys
-rtx release film --keys=tour.keys --plan # print the takes, the segments and their lengths, and stop
-rtx release film --keys=tour.keys        # render film/frames/000000.png..., then film/tour.mp4
+./omw release view --keys=tour.keys        # fly; each Home press appends one key to tour.keys
+./omw release film --keys=tour.keys --plan # print the takes, the segments and their lengths, and stop
+./omw release film --keys=tour.keys        # render film/frames/000000.png..., then film/tour.mp4
 ```
 
 The keys file is the block that Home already prints. A person can also paste the Home output of

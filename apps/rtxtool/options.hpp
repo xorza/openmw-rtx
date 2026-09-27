@@ -52,6 +52,11 @@ namespace RtxTool
     /// command line, which only the executable has: `sync` outside a Release build, `off` in one.
     ToolOptions makeOptions(Rtx::ValidationLevel validationByDefault);
 
+    /// What `--hold` asked for, in milliseconds: a number, or `check` for the hold `check` runs under,
+    /// so `omw repeat` holds its second leg as far as `check` does without a copy of the number.
+    /// Throws `std::runtime_error` for anything else, a negative hold among it.
+    double parseHold(std::string_view text);
+
     /// Where the engine's own state goes when this tool drives it: the settings it saves on its
     /// way out, its log, its key bindings, its Lua storage. Under the cache path, because every
     /// byte of it is regenerable and the next run overrides it again.

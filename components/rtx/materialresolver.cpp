@@ -266,8 +266,10 @@ namespace Rtx
             if (own.mAnimated)
             {
                 HeldMaterial& held = known->second;
+                // From a value, since Clang asks whether `Worn` is default-constructible while the
+                // class it is nested in is still incomplete, and keeps the answer no.
                 if (!held.mWorn.has_value())
-                    held.mWorn.emplace();
+                    held.mWorn.emplace(Worn{});
                 mScene.setMaterial(held.mIndex, readMaterial(shading, &*held.mWorn));
             }
 

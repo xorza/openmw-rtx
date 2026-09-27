@@ -1,8 +1,10 @@
 #include "options.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <cstdint>
 #include <format>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -326,12 +328,12 @@ namespace RtxTool
                 Rtx::sReorderNames.list())
                 .c_str());
 
-        option(sFramed, "hold", bpo::value<double>()->default_value(0.0),
-            std::format("hold the queue this many milliseconds behind the host after every frame's trace; "
-                        "`check` holds {} unless told otherwise. The other leg of `repeat` runs under it, "
-                        "and a `shot --against` its own unheld pictures is the same question of a still: a "
-                        "picture that is a function of the frames alone comes out the same however far the "
-                        "device trails, and one that read the clock does not",
+        option(sFramed, "hold", bpo::value<std::string>()->default_value("0"),
+            std::format("hold the queue this many milliseconds behind the host after every frame's trace, or "
+                        "`check` for the hold `check` takes: `check` holds {} unless told otherwise. The other leg "
+                        "of `repeat` runs under it, and a `shot --against` its own unheld pictures is the same "
+                        "question of a still: a picture that is a function of the frames alone comes out the same "
+                        "however far the device trails, and one that read the clock does not",
                 sCheckHoldMs));
 
         option(Verbs::Bench, "json", bpo::value<std::string>()->default_value(""),
@@ -346,7 +348,7 @@ namespace RtxTool
         option(Verbs::Bench, "perf-control", bpo::value<std::string>()->default_value(""),
             "turn a `perf record --delay=-1 --control=fifo:<path>` on around each "
             "place's measured frames, so the profile holds those frames and not the cell being "
-            "loaded either side of them. profile.sh passes this");
+            "loaded either side of them. `omw profile` passes this");
 
         option(Verbs::Shot, "repeat", bpo::value<std::uint32_t>()->default_value(8),
             "trace the frame this many times and report the best. One submit times "
@@ -517,6 +519,19 @@ namespace RtxTool
     namespace
     {
         namespace bpo = boost::program_options;
+    }
+
+    double parseHold(std::string_view text)
+    {
+        if (text == "check")
+            return sCheckHoldMs;
+
+        double value = 0.0;
+        const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+        if (error != std::errc() || end != text.data() + text.size() || !(value >= 0.0))
+            throw std::runtime_error("not a hold: " + std::string(text));
+
+        return value;
     }
 
     std::filesystem::path ownConfigDirectory(const Files::ConfigurationManager& config)

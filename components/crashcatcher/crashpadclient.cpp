@@ -21,6 +21,7 @@
 #include "crashnote.hpp"
 #include "crashpadclientsystem.hpp"
 #include "crashpage.hpp"
+#include "crashsummary.hpp"
 
 namespace Crash
 {
@@ -55,24 +56,7 @@ namespace Crash
 
     void Client::onTerminate()
     {
-        std::string reason = "std::terminate";
-        if (const std::exception_ptr current = std::current_exception())
-        {
-            try
-            {
-                std::rethrow_exception(current);
-            }
-            catch (const std::exception& error)
-            {
-                reason += " on an uncaught exception: ";
-                reason += error.what();
-            }
-            catch (...)
-            {
-                reason += " on an uncaught exception that is no std::exception";
-            }
-        }
-        endAsCrash(reason);
+        endAsCrash(terminateReason());
     }
 
     bool Client::isInstalled()

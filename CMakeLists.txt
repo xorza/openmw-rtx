@@ -773,6 +773,8 @@ if (BUILD_OPENMW_TESTS)
     add_subdirectory(apps/openmw_tests)
 endif()
 
+include(cmake/Tests.cmake)
+
 if (WIN32)
     if (MSVC)
 
