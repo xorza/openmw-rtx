@@ -6,6 +6,7 @@
 
 #include <osg/Vec3f>
 
+#include "shaders/colour.h"
 #include "shaders/scene.h"
 
 namespace Rtx
@@ -242,7 +243,7 @@ namespace Rtx
     osg::Vec3f fogColour(const osg::Vec3f& skyMean, const osg::Vec3f& hue)
     {
         const float brightest = std::max({ hue.x(), hue.y(), hue.z(), 1e-4f });
-        return osg::componentMultiply(skyMean, hue / brightest);
+        return hue * ((skyMean * Shaders::LUMINANCE_WEIGHTS) / brightest);
     }
 
     Fog exteriorFog(const osg::Vec3f& colour, float depth, float wind, float reach)

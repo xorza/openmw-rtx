@@ -512,24 +512,49 @@ namespace Rtx
             Settings::camera().mViewingDistance.set(7168.0f);
         }
 
-        /// The air is the sky's own light in the weather's colour, and never brighter than the sky.
+        /// The air is as bright as the sky and in the weather's colour, and no channel of it is
+        /// brighter than the light that lit it.
+        ///
+        /// **The sky's luminance and not its colour**, because the record is the horizon and holds
+        /// the sky's colour already. A sky of (2, 3, 4) has a luminance of
+        /// `0.2126 * 2 + 0.7152 * 3 + 0.0722 * 4 = 2.8586`, which is the air's brightest channel.
         ///
         /// **Normalised by the brightest channel and not by the luminance.** Blight's `Fog Day Color`
         /// is (128, 19, 19): its luminance is a twentieth of its red, so dividing by that made the
         /// red four times the light that lit it. Against the maximum the red is exactly the sky's
-        /// red and the other two are a seventh of it, which is a deep red darker than a clear day.
-        TEST(RtxFogTest, theAirIsTheSkysLightInTheWeathersColour)
+        /// luminance and the other two are a seventh of it, which is a deep red darker than a clear
+        /// day.
+        TEST(RtxFogTest, theAirIsAsBrightAsTheSkyInTheWeathersColour)
         {
             const osg::Vec3f sky(2.0f, 3.0f, 4.0f);
+            constexpr float level = 0.2126f * 2.0f + 0.7152f * 3.0f + 0.0722f * 4.0f;
 
-            // A grey record hands the sky back untouched: every channel is the brightest.
-            EXPECT_EQ(fogColour(sky, osg::Vec3f(0.5f, 0.5f, 0.5f)), sky);
+            // A grey record is a grey air at the sky's luminance: the sky's blue is not the air's.
+            const osg::Vec3f grey = fogColour(sky, osg::Vec3f(0.5f, 0.5f, 0.5f));
+            EXPECT_FLOAT_EQ(grey.x(), level);
+            EXPECT_FLOAT_EQ(grey.y(), level);
+            EXPECT_FLOAT_EQ(grey.z(), level);
 
             // Blight, as the file records it: 128, 19, 19 over 255.
             const osg::Vec3f blight = fogColour(sky, osg::Vec3f(128.0f, 19.0f, 19.0f) / 255.0f);
-            EXPECT_FLOAT_EQ(blight.x(), 2.0f) << "the brightest channel is the sky's own";
-            EXPECT_FLOAT_EQ(blight.y(), 3.0f * 19.0f / 128.0f);
-            EXPECT_FLOAT_EQ(blight.z(), 4.0f * 19.0f / 128.0f);
+            EXPECT_FLOAT_EQ(blight.x(), level) << "the brightest channel is the sky's luminance";
+            EXPECT_FLOAT_EQ(blight.y(), level * 19.0f / 128.0f);
+            EXPECT_FLOAT_EQ(blight.z(), level * 19.0f / 128.0f);
+
+            // **The record's own colour, and not the record's times the sky's.** Clear noon's record
+            // (0.617, 0.768, 1) under a dome whose mean is (0.283, 0.417, 0.731) keeps its own blue
+            // to red, 1.62, where the product of the two came to 4.18.
+            const osg::Vec3f clearHue(0.617f, 0.768f, 1.0f);
+            const osg::Vec3f clear = fogColour(osg::Vec3f(0.283f, 0.417f, 0.731f), clearHue);
+            EXPECT_FLOAT_EQ(clear.z() / clear.x(), clearHue.z() / clearHue.x());
+
+            // And a grey sky of the same luminance lights it exactly as the blue one does.
+            const osg::Vec3f greySky(level, level, level);
+            const osg::Vec3f underGrey = fogColour(greySky, clearHue);
+            const osg::Vec3f underBlue = fogColour(sky, clearHue);
+            EXPECT_FLOAT_EQ(underGrey.x(), underBlue.x()) << "the sky's colour reached the air";
+            EXPECT_FLOAT_EQ(underGrey.y(), underBlue.y());
+            EXPECT_FLOAT_EQ(underGrey.z(), underBlue.z());
 
             // A record of nothing at all lights nothing rather than dividing by it.
             EXPECT_EQ(fogColour(sky, osg::Vec3f()), osg::Vec3f());
