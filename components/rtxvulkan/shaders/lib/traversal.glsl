@@ -70,8 +70,9 @@ float surfaceOpacity(GpuInstance instance, GpuMaterial material)
 ///
 /// **A ray that draws shows what the rasterizer shows.** OpenMW draws the world with
 /// `GL_CULL_FACE` on, so the content states which face of a surface is there, and a ray standing in
-/// for that pass states it the same way. A ray that carries light meets a surface from either
-/// side instead: a wall met from behind that stopped nothing would leak the light behind it.
+/// for that pass states it the same way. A bounce, which carries light, meets a surface from either
+/// side instead: a wall met from behind that stopped nothing would leak the light behind it. A ray
+/// to a light has a rule of its own, `lightThrough`.
 ///
 /// `SceneAcceleration::placeRow` is where a row says it is drawn from both faces, and
 /// `InstanceRecord::mTwoSided` is what the content said.
@@ -404,7 +405,8 @@ Hit committedHit(
     return hit;
 }
 
-/// How much of a light `reach` away along `towards` reaches `from`.
+/// How much of what stands `distance` away along `towards` reaches `from`, past the surfaces whose
+/// faces `faces` does not cull — `lightThrough` and `ambientThrough`, which say which.
 ///
 /// No cone here, so the cutout is decided at the finest mip. A shadow ray carries no footprint, and
 /// aliasing in a leaf's shadow is worth far less than aliasing on the leaf.
@@ -427,7 +429,10 @@ Hit committedHit(
 ///
 /// **`TerminateOnFirstHit` stays.** A translucent candidate is never confirmed, so traversal walks
 /// past it and keeps the early out for the first thing that does stop the ray.
-float lightThrough(vec3 from, vec3 towards, float distance)
+///
+/// @param faces the ray flags that cull one face or none. **A literal at every call**, so each
+///        caller's traversal is compiled for its own.
+float throughToward(vec3 from, vec3 towards, float distance, uint faces)
 {
     if (distance <= SHADOW_BIAS)
         return 1.0;
@@ -435,15 +440,43 @@ float lightThrough(vec3 from, vec3 towards, float distance)
     uint blocked = 0u;
 
     rayQueryEXT query;
-    rayQueryInitializeEXT(
-        query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT, solidMask(frame.mRayMask), from, SHADOW_BIAS, towards,
-        distance);
+    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT | faces, solidMask(frame.mRayMask), from,
+        SHADOW_BIAS, towards, distance);
     RTX_RESOLVE(query, towards, 0.0, blocked, true)
 
     if (rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT)
         return 0.0;
 
     return throughBlocked(blocked);
+}
+
+/// How much of a light `distance` away along `towards` reaches `from`: the sun, a moon or a lamp.
+///
+/// **Only a face turned toward the light casts, which is the rasterizer's rule.** Its shadow map is
+/// drawn from the light with the scene's own back-face culling, so what stops the light there is
+/// what faces it; this ray runs the other way, from the lit point, and meets those same faces from
+/// behind — so it culls the front faces. Culling nothing, a thin shell whose sheets cross stops
+/// the light on itself: the ship's sail folds its back sheet in front of its front one, where the
+/// back sheet's outer face looks at the front sheet a few units off, and every ray leaving the
+/// front sheet on that side ends on it — black patches fixed to the mesh whatever the hour. The
+/// eye culls that face and never sees it, so neither does the light. A two-sided placement casts
+/// from either side, since its row turns culling off (`SceneAcceleration::placeRow`), and that
+/// includes every doubled card, which the fold made one.
+float lightThrough(vec3 from, vec3 towards, float distance)
+{
+    return throughToward(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT);
+}
+
+/// How much of the ambient along `towards` reaches `from`, past whatever stands within `distance`.
+///
+/// **Every face stops it, the one turned toward `from` included.** What this asks is not a light's
+/// question but whether anything stands over the point — the pillow over the sheet, the floor
+/// under a lid — and the rasterizer, which has no such term, has no rule to follow. A surface met
+/// from the side it faces stands over the point as much as one met from behind, so this culls
+/// neither face where the lights cull one (`lightThrough`).
+float ambientThrough(vec3 from, vec3 towards, float distance)
+{
+    return throughToward(from, towards, distance, gl_RayFlagsNoneEXT);
 }
 
 /// How far the nearest surface that stops a ray is along it, at most `reach` away.

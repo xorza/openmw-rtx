@@ -182,7 +182,7 @@ TexturePoint spherePoint(vec3 normal[3], vec3 shading, vec3 direction, SurfaceCo
 /// slot, and the array's owner writes it beside the descriptor — `GpuTables::mTextureTexels`. The
 /// logarithm stays here, over the same integer, so no level moves.
 ///
-/// **The early answer is a read and not an arithmetic saving.** `lightThrough` says why a shadow
+/// **The early answer is a read and not an arithmetic saving.** `throughToward` says why a shadow
 /// ray takes level zero, and what it saves is the load this makes; on a shadow ray the width is a
 /// literal nought and the test folds.
 float coneLod(uint slot, TexturePoint point)

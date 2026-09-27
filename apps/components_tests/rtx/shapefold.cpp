@@ -1,6 +1,9 @@
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <numbers>
 #include <random>
 #include <span>
 #include <tuple>
@@ -11,6 +14,7 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/pockettree.hpp>
 #include <components/rtx/shapefold.hpp>
 
 namespace Rtx
@@ -96,6 +100,153 @@ namespace Rtx
             std::vector<std::uint32_t> none;
             EXPECT_FALSE(fold.fold(sCard, none).mSheet);
             EXPECT_TRUE(none.empty());
+        }
+
+        /// A shape built out of quads, for the pocket cases: positions and the triangles over them.
+        struct QuadShape
+        {
+            std::vector<osg::Vec3f> mPositions;
+            std::vector<std::uint32_t> mIndices;
+
+            /// The quad `a`, `b`, `c`, `d`, wound so it faces along `facing`.
+            void addQuad(const osg::Vec3f& a, const osg::Vec3f& b, const osg::Vec3f& c, const osg::Vec3f& d,
+                const osg::Vec3f& facing)
+            {
+                const bool turned = ((b - a) ^ (c - a)) * facing < 0.0f;
+                const auto base = static_cast<std::uint32_t>(mPositions.size());
+                for (const osg::Vec3f& corner : turned ? std::array{ a, d, c, b } : std::array{ a, b, c, d })
+                    mPositions.push_back(corner);
+                mIndices.insert(mIndices.end(), { base, base + 1, base + 2, base, base + 2, base + 3 });
+            }
+
+            /// A square `side` across in the plane z = `height`, facing along z by `facing`'s sign.
+            void addLevel(float side, float height, float facing)
+            {
+                const float h = 0.5f * side;
+                addQuad(osg::Vec3f(-h, -h, height), osg::Vec3f(h, -h, height), osg::Vec3f(h, h, height),
+                    osg::Vec3f(-h, h, height), osg::Vec3f(0.0f, 0.0f, facing));
+            }
+
+            /// A closed box from `low` to `high`, every face turned out.
+            void addBox(const osg::Vec3f& low, const osg::Vec3f& high)
+            {
+                const auto at = [&](bool x, bool y, bool z) {
+                    return osg::Vec3f(x ? high.x() : low.x(), y ? high.y() : low.y(), z ? high.z() : low.z());
+                };
+                for (const bool side : { false, true })
+                {
+                    const float out = side ? 1.0f : -1.0f;
+                    addQuad(at(side, false, false), at(side, true, false), at(side, true, true), at(side, false, true),
+                        osg::Vec3f(out, 0.0f, 0.0f));
+                    addQuad(at(false, side, false), at(true, side, false), at(true, side, true), at(false, side, true),
+                        osg::Vec3f(0.0f, out, 0.0f));
+                    addQuad(at(false, false, side), at(true, false, side), at(true, true, side), at(false, true, side),
+                        osg::Vec3f(0.0f, 0.0f, out));
+                }
+            }
+        };
+
+        /// A pocket loses the wall the file wrote second, and nothing else that faces itself does.
+        ///
+        /// **A pocket is two walls facing into a gap that is inside out**: the winding number at its
+        /// middle is minus one, because each wall covers nearly a hemisphere of it and faces it. A
+        /// slot is the same two walls with the solid behind each — the winding there is nought — and
+        /// a plank's two faces turn away from each other, so no ray leaving either finds the other.
+        /// Two quads a hundred across, two apart, are a pocket; the same pair ten across is a small
+        /// thing's form, since its reach is five hundredths of its 14.3-unit diagonal, 0.72 units;
+        /// and twelve apart is wider than the eight units any pocket stands.
+        TEST(RtxShapeFoldTest, aPocketLosesItsLaterWallAndASlotOrAPlankKeepsBoth)
+        {
+            struct Case
+            {
+                const char* mName;
+                QuadShape mShape;
+                std::vector<std::uint32_t> mKept;
+            };
+
+            std::vector<Case> cases;
+
+            const auto pocket = [](float side, float gap, bool upperFirst) {
+                QuadShape shape;
+                if (upperFirst)
+                    shape.addLevel(side, gap, -1.0f);
+                shape.addLevel(side, 0.0f, 1.0f);
+                if (!upperFirst)
+                    shape.addLevel(side, gap, -1.0f);
+                return shape;
+            };
+
+            cases.push_back(
+                { "a pocket keeps the wall written first", pocket(100.0f, 2.0f, false), { 0, 1, 2, 0, 2, 3 } });
+            cases.push_back({ "whichever wall that is", pocket(100.0f, 2.0f, true), { 0, 1, 2, 0, 2, 3 } });
+
+            QuadShape slot;
+            slot.addBox(osg::Vec3f(-50.0f, -50.0f, -50.0f), osg::Vec3f(-1.0f, 50.0f, 50.0f));
+            slot.addBox(osg::Vec3f(1.0f, -50.0f, -50.0f), osg::Vec3f(50.0f, 50.0f, 50.0f));
+            cases.push_back({ "a slot between two solids", slot, slot.mIndices });
+
+            QuadShape plank;
+            plank.addBox(osg::Vec3f(-50.0f, -50.0f, 0.0f), osg::Vec3f(50.0f, 50.0f, 2.0f));
+            cases.push_back({ "a plank", plank, plank.mIndices });
+
+            const QuadShape small = pocket(10.0f, 2.0f, false);
+            cases.push_back({ "a small thing's two walls", small, small.mIndices });
+
+            const QuadShape wide = pocket(100.0f, 12.0f, false);
+            cases.push_back({ "two walls further apart than a pocket", wide, wide.mIndices });
+
+            ShapeFold fold;
+            for (Case& test : cases)
+            {
+                const bool dropping = test.mKept.size() != test.mShape.mIndices.size();
+                const FoldedShape shape = fold.fold(test.mShape.mPositions, test.mShape.mIndices);
+
+                EXPECT_EQ(test.mShape.mIndices, test.mKept) << test.mName;
+                EXPECT_EQ(shape.mPocketed, dropping) << test.mName << ": the wall left answers for both faces";
+                EXPECT_FALSE(shape.mFolded) << test.mName << ": no twin went";
+                EXPECT_FALSE(shape.mSheet) << test.mName;
+            }
+        }
+
+        /// The tree's winding number against the closed form, near a shape and far from it.
+        ///
+        /// **A closed box is one inside and nought outside**, exactly, and far enough off that every
+        /// node answers by its dipole the dipoles of a closed shape sum to nought as well. **An open
+        /// square is the solid angle it subtends**: a hundred across and one above its centre,
+        /// `4 asin(a^2 / (a^2 + 4h^2))` = 4 asin(10000 / 10004) = 6.1700, over 4 pi, 0.49101 — negative,
+        /// because it faces the point. And the first facing wall a ray meets is the one across from
+        /// it, two units off, and not a wall turned the same way.
+        TEST(RtxPocketTreeTest, theWindingNumberIsTheClosedFormAndARayMeetsTheWallAcross)
+        {
+            PocketTree tree;
+
+            QuadShape box;
+            box.addBox(osg::Vec3f(-50.0f, -50.0f, -50.0f), osg::Vec3f(50.0f, 50.0f, 50.0f));
+            tree.build(box.mPositions, box.mIndices);
+            EXPECT_NEAR(tree.windingAt(osg::Vec3f(10.0f, -20.0f, 5.0f)), 1.0, 1e-9) << "inside";
+            EXPECT_NEAR(tree.windingAt(osg::Vec3f(60.0f, 0.0f, 0.0f)), 0.0, 1e-9) << "outside, near";
+            EXPECT_NEAR(tree.windingAt(osg::Vec3f(5000.0f, 300.0f, 0.0f)), 0.0, 1e-9) << "outside, far";
+
+            QuadShape square;
+            square.addLevel(100.0f, 0.0f, 1.0f);
+            tree.build(square.mPositions, square.mIndices);
+            const double expected = -4.0 * std::asin(10000.0 / 10004.0) / (4.0 * std::numbers::pi);
+            EXPECT_NEAR(tree.windingAt(osg::Vec3f(0.0f, 0.0f, 1.0f)), expected, 1e-6);
+            EXPECT_NEAR(tree.windingAt(osg::Vec3f(0.0f, 0.0f, -1.0f)), -expected, 1e-6) << "and behind it";
+
+            // Floor facing up, a ceiling two above facing down, and a second floor four above facing
+            // up, which the ray passes: only a wall turned against the ray is across from it.
+            QuadShape walls;
+            walls.addLevel(100.0f, 0.0f, 1.0f);
+            walls.addLevel(100.0f, 4.0f, 1.0f);
+            walls.addLevel(100.0f, 2.0f, -1.0f);
+            tree.build(walls.mPositions, walls.mIndices);
+            const PocketTree::Facing met = tree.firstFacing(0, osg::Vec3f(10.0f, 10.0f, 0.0f), 1e-3f, 8.0f, -0.5f);
+            EXPECT_FLOAT_EQ(met.mDistance, 2.0f);
+            EXPECT_GE(met.mTriangle, 4u) << "a triangle of the ceiling, the third quad";
+            EXPECT_EQ(tree.firstFacing(0, osg::Vec3f(10.0f, 10.0f, 0.0f), 1e-3f, 1.5f, -0.5f).mDistance,
+                std::numeric_limits<float>::infinity())
+                << "and nothing short of it";
         }
 
         /// A shape is closed when every edge of what survives the fold carries a triangle each way.

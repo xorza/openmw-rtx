@@ -7,6 +7,8 @@
 
 #include <osg/Vec3f>
 
+#include "pockettree.hpp"
+
 namespace Rtx
 {
     /// What a shape's triangles turned out to be, once its reversed twins were folded away. Two
@@ -31,6 +33,11 @@ namespace Rtx
         /// settles.
         bool mFolded = false;
 
+        /// A wall of a pocket went, so the wall across from it now answers for both faces of the
+        /// cloth — what `ShapeFold` says a pocket is. Apart from `mFolded` because it is another
+        /// finding and a report counts it apart; a ray that draws spares the mesh for either.
+        bool mPocketed = false;
+
         /// Every edge of what survives carries a triangle each way, so the shape has no boundary and
         /// a ray that enters it leaves through the far side. Which of a surface's two normals is
         /// lying depends on this: a boulder's interpolated normals describe it and its facets do
@@ -47,13 +54,26 @@ namespace Rtx
     /// that carries light meets both faces of everything, so it meets both copies at the same depth
     /// and light passing through the card would be taken off twice. A shape that was nothing but
     /// pairs is a sheet, which is what lets a leaf carry the light that falls on its far side.
+    ///
+    /// **And a pocket's second wall goes too**, which is the same card modelled less exactly. The
+    /// content also builds cloth and plaster as a thin shell whose two sheets cross, so that in
+    /// places the back sheet stands a few units in front of the front one and faces it: a gap that
+    /// is inside out, whose two walls each face into it. The rasterizer culls each wall from the
+    /// side the other is seen from, so it only ever shows one; a ray that leaves either wall meets
+    /// the other face on — the ship's sail went black wherever a bounce left it. Such a pair is
+    /// the card's two faces, and the fold keeps the wall the file wrote first, as it does for a
+    /// twin. What tells a pocket from a slot, whose walls face each other the same way, is the
+    /// generalized winding number at the gap's middle (Jacobson, Kavan and Sorkine-Hornung,
+    /// "Robust Inside-Outside Segmentation using Generalized Winding Numbers", 2013): minus one
+    /// inside out, nought in a slot, which is outside the solid.
     class ShapeFold
     {
     public:
-        /// Drops the second of every reversed pair, compacting `indices` in place, and says what
-        /// the shape came to. Exact equality of positions, because the twin is a copy and not a
-        /// remodel; a copy wound the same way is not a twin and is left. One pass and no allocation
-        /// per triangle, because a cell crossing folds tens of thousands of triangles a second.
+        /// Drops the second of every reversed pair and then the later wall of every pocket,
+        /// compacting `indices` in place, and says what the shape came to. A twin is matched by
+        /// exact equality of positions, because it is a copy and not a remodel; a copy wound the
+        /// same way is not a twin and is left. No allocation per triangle, because a cell crossing
+        /// folds tens of thousands of triangles a second.
         FoldedShape fold(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices);
 
     private:
@@ -91,6 +111,10 @@ namespace Rtx
 
         static Corners canonical(const osg::Vec3f& a, const osg::Vec3f& b, const osg::Vec3f& c);
 
+        /// Drops the later wall of every pocket in `indices`, compacting it in place, and says
+        /// whether any went. See the class's own doc.
+        bool dropPockets(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices);
+
         /// Whether every edge of `indices` carries one triangle each way. See `FoldedShape::mClosed`.
         /// Its own pass over three times as many entries as the fold, and its own buffers, because
         /// the fold's are still holding what the pairing wrote.
@@ -116,5 +140,15 @@ namespace Rtx
         /// `closes`'s own table and edge list. A slot holds an index into `mEdges`.
         std::vector<std::uint32_t> mEdgeTable;
         std::vector<Edge> mEdges;
+
+        PocketTree mTree;
+
+        /// `dropPockets`'s own, kept between shapes: how many of a triangle's samples opened on a
+        /// pocket, the walls across from each triangle as one run per triangle with a trailing end,
+        /// and which triangles went.
+        std::vector<std::uint8_t> mPocketSamples;
+        std::vector<std::uint32_t> mAcrossStarts;
+        std::vector<std::uint32_t> mAcross;
+        std::vector<std::uint8_t> mPocketDropped;
     };
 }

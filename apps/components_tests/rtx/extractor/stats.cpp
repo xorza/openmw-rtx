@@ -94,7 +94,6 @@ namespace Rtx::Testing
             ExtractionStats stats;
             stats.mMeshesAdded = from + 1;
             stats.mMaterialsAdded = from + 2;
-            stats.mSheets = from + 3;
             stats.mDistantStatics = from + 4;
             stats.mMeshesReused = from + 5;
             stats.mMaterialsReused = from + 6;
@@ -125,7 +124,6 @@ namespace Rtx::Testing
 
             EXPECT_EQ(sum.mMeshesAdded, 102u);
             EXPECT_EQ(sum.mMaterialsAdded, 104u);
-            EXPECT_EQ(sum.mSheets, 106u);
             EXPECT_EQ(sum.mDistantStatics, 108u);
             EXPECT_EQ(sum.mMeshesReused, 110u);
             EXPECT_EQ(sum.mMaterialsReused, 112u);

@@ -501,7 +501,8 @@ already uploaded. That is what makes the mirror incremental.
   the walks were the whole world.
 - `MeshResolver` (keyed on the drawable; poses what deforms), `MaterialResolver` (keyed on the
   state set), `EmitterResolver` (keyed on the particle system; reads the engine's own
-  simulation). `ShapeFold` folds the reversed twin every sheet in the game is doubled with.
+  simulation). `ShapeFold` folds the reversed twin every sheet in the game is doubled with, and
+  the later wall of every pocket, which `PocketTree` finds.
 - The extractor implements `SceneAdopter` privately. The ring reaches four calls through it:
   adopt and release a mesh or a material.
 

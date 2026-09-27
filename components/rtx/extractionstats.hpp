@@ -17,10 +17,6 @@ namespace Rtx
         /// building and its neighbour a crate.
         double mFoldMs = 0.0;
 
-        /// Of those, the meshes that were nothing but reversed pairs and left here as one copy
-        /// each. `ShapeFold` says what a sheet is; a cell with foliage in it has hundreds.
-        std::uint32_t mSheets = 0;
-
         /// Drawables that resolved to something already known. A count of lookups, not of meshes:
         /// a hundred crates sharing one model contribute a hundred here and one above.
         std::uint32_t mMeshesReused = 0;

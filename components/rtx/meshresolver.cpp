@@ -138,9 +138,6 @@ namespace Rtx
         if (read.mRig != nullptr && read.mDeform == Deform::None)
             ++stats.mUnskinned;
 
-        if (reading.mShape.mSheet)
-            ++stats.mSheets;
-
         mMeshes.add(&drawable, Known{ .mIndex = mesh });
         ++stats.mMeshesAdded;
 
@@ -192,9 +189,6 @@ namespace Rtx
         }
         else
         {
-            if (reading.mShape.mSheet)
-                ++stats.mSheets;
-
             const Index mesh = mScene.addMesh(reading.mArrays, reading.mShape);
             known = mMeshes.add(&drawable, Known{ .mIndex = mesh });
             ++stats.mMeshesAdded;

@@ -891,8 +891,8 @@ namespace Rtx::Testing
         ///
         /// Eight vertices and four triangles, because that is how a leaf is spelled in the files:
         /// the back has vertices of its own, so the pair is found by position and not by index.
-        /// `ShapeFold` says why the copy goes; this says the extractor asks it, keeps its answer on
-        /// the mesh, and counts it.
+        /// `ShapeFold` says why the copy goes; this says the extractor asks it and keeps its answer
+        /// on the mesh.
         TEST_F(RtxSceneExtractorTest, aCardDoubledForItsBackIsFoldedToOneCopyAndMarkedASheet)
         {
             osg::ref_ptr<osg::Geometry> card = new osg::Geometry;
@@ -909,9 +909,8 @@ namespace Rtx::Testing
             card->addPrimitiveSet(makeTriangles({ 0, 1, 2, 0, 2, 3, 6, 5, 4, 7, 6, 4 }));
             colours(*card->getOrCreateStateSet());
 
-            const ExtractionStats stats = walk(*card);
+            walk(*card);
 
-            EXPECT_EQ(stats.mSheets, 1u);
             ASSERT_EQ(mScene.meshes().getRows().size(), 1u);
             EXPECT_TRUE(mScene.meshes().getRows()[0].mShape.mSheet);
             EXPECT_EQ(mScene.meshes().getRows()[0].getTriangleCount(), 2u) << "the back is gone";
@@ -923,7 +922,7 @@ namespace Rtx::Testing
 
             Rtx::SceneDesc plain;
             SceneExtractor other(plain);
-            EXPECT_EQ(other.extract(*quad, osg::Matrixf::identity(), 0).mSheets, 0u);
+            other.extract(*quad, osg::Matrixf::identity(), 0);
             EXPECT_FALSE(plain.meshes().getRows()[0].mShape.mSheet);
             EXPECT_EQ(plain.meshes().getRows()[0].getTriangleCount(), 2u);
         }

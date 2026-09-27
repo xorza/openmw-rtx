@@ -13,7 +13,6 @@ namespace Rtx
         constexpr std::array sCounters{
             &ExtractionStats::mMeshesAdded,
             &ExtractionStats::mMaterialsAdded,
-            &ExtractionStats::mSheets,
             &ExtractionStats::mMeshesReused,
             &ExtractionStats::mMaterialsReused,
             &ExtractionStats::mInstances,

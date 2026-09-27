@@ -223,10 +223,12 @@ namespace RtxTool
         }
 
         std::uint32_t sheets = 0;
+        std::uint32_t pocketed = 0;
         std::uint32_t tangentMeshes = 0;
         for (const Rtx::MeshRange& mesh : scene.meshes().getRows())
         {
             sheets += mesh.mShape.mSheet ? 1 : 0;
+            pocketed += mesh.mShape.mPocketed ? 1 : 0;
             tangentMeshes += std::ranges::any_of(mesh.mVertices.in(scene.meshes().getTangents()),
                                  [](const std::uint32_t word) { return word != 0; })
                 ? 1
@@ -253,8 +255,10 @@ namespace RtxTool
                         "  unskinned rigs:       {} met before an update found their skeleton\n"
                         "  empty geometry:       {}\n"
                         "  undescribed surfaces: {} drawn as a default material\n"
-                        "  sheets:               {} of the meshes, doubled for their backs\n",
-                stats.mSkippedUnknown, stats.mUnskinned, stats.mSkippedEmpty, stats.mUndescribedSurfaces, sheets));
+                        "  sheets:               {} of the meshes, doubled for their backs\n"
+                        "  pockets:              {} of the meshes, a wall of an inside-out gap dropped\n",
+                stats.mSkippedUnknown, stats.mUnskinned, stats.mSkippedEmpty, stats.mUndescribedSurfaces, sheets,
+                pocketed));
 
         // Every refusal the scene was handed since it was made, by kind: what the log names one by
         // one, counted where a run is compared.

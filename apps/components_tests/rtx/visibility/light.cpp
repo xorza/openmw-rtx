@@ -79,15 +79,34 @@ namespace Rtx::Testing
 
             const std::array occluder = uprightQuadAt(10.0f, -25.0f);
 
+            // The occluder as each of the three faces a shadow ray can meet: facing the sun, facing
+            // the wall it stands in front of, and facing the wall on a placement drawn from both sides.
+            enum class Occluder
+            {
+                None,
+                FacingTheSun,
+                FacingTheWall,
+                TwoSidedFacingTheWall,
+            };
+
+            // `uprightQuadAt` faces along -Y, back toward the sun that travels along +Y, so as built
+            // it faces the sun. Turned about Z where it stands, it faces the wall instead.
+            const osg::Matrixf turned = osg::Matrixf::translate(0.0f, 25.0f, 0.0f)
+                * osg::Matrixf::rotate(std::numbers::pi_v<float>, osg::Vec3f(0.0f, 0.0f, 1.0f))
+                * osg::Matrixf::translate(0.0f, -25.0f, 0.0f);
+
             // **A sky rather than the cell's ambient, because that is what fills a wall now.** The
             // ambient terminates a path one bounce further along; what a surface the eye can see
             // gathers is its own hemisphere, and a sky of one radiance makes that gather exact —
             // every direction returns the same number, so one sample is the whole answer.
-            const auto render = [&](const osg::Vec3f& direction, const osg::Vec3f& irradiance, bool blocked,
+            const auto render = [&](const osg::Vec3f& direction, const osg::Vec3f& irradiance, Occluder blocked,
                                     const osg::Vec3f& sky = osg::Vec3f()) {
                 SceneDesc scene = makeWall();
-                if (blocked)
-                    addQuad(scene, occluder);
+                if (blocked != Occluder::None)
+                    addQuad(scene, occluder,
+                        blocked == Occluder::TwoSidedFacingTheWall ? scene.addMaterial(Material{ .mTwoSided = true })
+                                                                   : sNoIndex,
+                        blocked == Occluder::FacingTheSun ? osg::Matrixf::identity() : turned);
 
                 Shaders::VisibilityConstants camera = base;
                 camera.mSun = Shaders::sunSource(-direction, irradiance);
@@ -104,24 +123,30 @@ namespace Rtx::Testing
             const osg::Vec3f onto(0.0f, 1.0f, 0.0f);
             const osg::Vec3f bright(2.0f, 2.0f, 2.0f);
 
-            EXPECT_EQ(render(onto, bright, false), 153) << "square to the sun";
-            EXPECT_EQ(render(onto, bright, true), 0) << "and with something standing in the way";
+            EXPECT_EQ(render(onto, bright, Occluder::None), 153) << "square to the sun";
+            EXPECT_EQ(render(onto, bright, Occluder::FacingTheSun), 0) << "and with something standing in the way";
+
+            // **The rasterizer's shadow map, which sees what faces the light.** A single-sided occluder
+            // turned toward the wall is a face the light meets from behind, so it casts nothing and
+            // the wall is as bright as with nothing there; drawn from both sides, it casts again.
+            EXPECT_EQ(render(onto, bright, Occluder::FacingTheWall), 153) << "a face turned away from the sun";
+            EXPECT_EQ(render(onto, bright, Occluder::TwoSidedFacingTheWall), 0) << "the same face, drawn both ways";
 
             // A sun travelling out of the wall rather than into it reaches its back, and is dropped
             // rather than arithmetically applied. Asserted against the sky, because a negative
             // contribution clamps to black as well and the two only tell apart against something:
             // 0.5 * 0.4 = 0.2 linear, which encodes to 124 of 255.
-            EXPECT_EQ(render(-onto, bright, false, osg::Vec3f(0.4f, 0.4f, 0.4f)), 124)
+            EXPECT_EQ(render(-onto, bright, Occluder::None, osg::Vec3f(0.4f, 0.4f, 0.4f)), 124)
                 << "a sun behind the wall lights nothing";
 
             // Half the irradiance is nowhere near half the byte, because the encoding is not
             // linear: 0.5 * 1.0 / pi = 0.159155, which encodes to 0.435542, or 111 of 255.
-            EXPECT_EQ(render(onto, osg::Vec3f(1.0f, 1.0f, 1.0f), false), 111) << "and half as much sun";
+            EXPECT_EQ(render(onto, osg::Vec3f(1.0f, 1.0f, 1.0f), Occluder::None), 111) << "and half as much sun";
 
             // At sixty degrees off square the cosine is exactly a half, so this is the same radiance
             // the half-irradiance case gave — the same 111, reached the other way.
             const osg::Vec3f slanted(std::sqrt(3.0f) * 0.5f, 0.5f, 0.0f);
-            EXPECT_EQ(render(slanted, bright, false), 111) << "or the same again from a slant";
+            EXPECT_EQ(render(slanted, bright, Occluder::None), 111) << "or the same again from a slant";
         }
 
         /// The eye sees through the nearest pane to what stands behind it.

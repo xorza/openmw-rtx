@@ -1,7 +1,12 @@
 #include "shapefold.hpp"
 
 #include <algorithm>
+#include <array>
 #include <bit>
+#include <limits>
+
+#include <osg/BoundingBox>
+#include <osg/Vec3f>
 
 namespace Rtx
 {
@@ -38,6 +43,62 @@ namespace Rtx
             seed ^= seed >> 32;
 
             return static_cast<std::size_t>(seed);
+        }
+
+        /// How far apart a pocket's two walls stand at most, in the mesh's own units. **The ship's
+        /// sail is what set it**: along each face's normal its sheets part by no more than this over
+        /// ninety-nine hundredths of its area, and a quarter of it at four. A wall of cloth or
+        /// plaster seen from its two sides is that thin; a gap wider than this is the shape.
+        constexpr float sPocketReach = 8.0f;
+
+        /// And no more than this share of the shape's diagonal, so a small thing keeps its form: a
+        /// tankard twenty units tall whose inner wall stood eight inside the outer one is a vessel and
+        /// not a pocket. Across the game's meshes the vessels, helmets and heads the reach alone took
+        /// for pockets all fall under this.
+        constexpr float sPocketShare = 0.05f;
+
+        /// How far two walls may lean apart and still face each other: a hundred and twenty degrees,
+        /// the cosine of which is this. A crease in the cloth leans them; a wall at right angles to
+        /// the ray is not across from it.
+        constexpr float sFacing = -0.5f;
+
+        /// The winding number at a gap's middle below which the gap is inside out. **Minus one is a
+        /// pocket and nought is a slot**, and the halves between are what open sheets add near their
+        /// edges: an unbacked card contributes a half on its face, so the cut sits between minus one
+        /// and minus a half.
+        constexpr double sInsideOut = -0.75;
+
+        /// Where on a triangle its rays leave from, as the weights of its corners: the centroid and a
+        /// point toward each corner, so a triangle half across a pocket's edge is seen on both sides
+        /// of it.
+        constexpr std::array<std::array<float, 3>, 4> sPocketSamples{ {
+            { 1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f },
+            { 0.5f, 0.25f, 0.25f },
+            { 0.25f, 0.5f, 0.25f },
+            { 0.25f, 0.25f, 0.5f },
+        } };
+
+        /// How many of its samples have to open on a pocket for a triangle to be one of its walls, its
+        /// centroid first among them: half, so a triangle that only grazes one stays.
+        constexpr std::uint8_t sWallSamples = 2;
+
+        /// Keeps the triangles of `indices` that `dropped` does not name, in their order, compacting
+        /// it in place.
+        template <class Dropped>
+        void compactTriangles(std::vector<std::uint32_t>& indices, Dropped&& dropped)
+        {
+            const std::size_t count = indices.size() / 3;
+            std::size_t kept = 0;
+            for (std::size_t t = 0; t < count; ++t)
+            {
+                if (dropped(t))
+                    continue;
+                if (kept != t)
+                    std::copy_n(indices.begin() + static_cast<std::ptrdiff_t>(3 * t), 3,
+                        indices.begin() + static_cast<std::ptrdiff_t>(3 * kept));
+                ++kept;
+            }
+            indices.resize(kept * 3);
         }
     }
 
@@ -141,6 +202,96 @@ namespace Rtx
         return true;
     }
 
+    bool ShapeFold::dropPockets(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices)
+    {
+        const std::size_t count = indices.size() / 3;
+        if (count < 2)
+            return false;
+
+        mTree.build(positions, indices);
+        const osg::BoundingBoxf& bounds = mTree.getBounds();
+        if (!bounds.valid())
+            return false;
+
+        const float diagonal = (bounds._max - bounds._min).length();
+        const float reach = std::min(sPocketReach, sPocketShare * diagonal);
+        if (!(reach > 0.0f))
+            return false;
+
+        // A ray this short meets its own triangle's neighbours in the rounding and nothing else.
+        const float nearest = 1.0e-5f * diagonal;
+
+        const auto sampleOf = [&](std::size_t t, const std::array<float, 3>& weights) {
+            return positions[indices[3 * t]] * weights[0] + positions[indices[3 * t + 1]] * weights[1]
+                + positions[indices[3 * t + 2]] * weights[2];
+        };
+
+        mPocketSamples.assign(count, 0);
+        mAcrossStarts.assign(count + 1, 0);
+        mAcross.clear();
+        for (std::uint32_t t = 0; t < count; ++t)
+        {
+            const osg::Vec3f& normal = mTree.getNormal(t);
+
+            // **The centroid first, and the rest only where it opened on a pocket**, since a wall is
+            // a triangle whose centroid opens on one and at least one more sample with it — most
+            // triangles meet nothing within the reach and cost one ray.
+            const osg::Vec3f centroid = sampleOf(t, sPocketSamples[0]);
+            const PocketTree::Facing wall = normal != osg::Vec3f()
+                ? mTree.firstFacing(t, centroid, nearest, reach, sFacing)
+                : PocketTree::Facing{ std::numeric_limits<float>::infinity(), 0 };
+            if (wall.mDistance <= reach && mTree.windingAt(centroid + normal * (0.5f * wall.mDistance)) < sInsideOut)
+            {
+                mPocketSamples[t] = 1;
+                mAcross.push_back(wall.mTriangle);
+
+                for (std::size_t sample = 1; sample < sPocketSamples.size(); ++sample)
+                {
+                    const osg::Vec3f from = sampleOf(t, sPocketSamples[sample]);
+                    const PocketTree::Facing met = mTree.firstFacing(t, from, nearest, reach, sFacing);
+                    if (met.mDistance > reach)
+                        continue;
+
+                    // **The same two faces bound the same gap**, and a winding number holds over a
+                    // region no surface crosses: a surface across this one's would have been met
+                    // first. So a sample that meets the centroid's wall is in its pocket, and only
+                    // one that meets another is asked again.
+                    if (met.mTriangle == wall.mTriangle
+                        || mTree.windingAt(from + normal * (0.5f * met.mDistance)) < sInsideOut)
+                    {
+                        ++mPocketSamples[t];
+                        mAcross.push_back(met.mTriangle);
+                    }
+                }
+            }
+            mAcrossStarts[t + 1] = static_cast<std::uint32_t>(mAcross.size());
+        }
+
+        // In file order, so of two walls across from each other the one the file wrote first is
+        // the one that stays, as a twin's does.
+        mPocketDropped.assign(count, 0);
+        bool dropped = false;
+        for (std::size_t t = 0; t < count; ++t)
+        {
+            if (mPocketSamples[t] < sWallSamples)
+                continue;
+            for (std::uint32_t at = mAcrossStarts[t]; at < mAcrossStarts[t + 1]; ++at)
+            {
+                const std::uint32_t other = mAcross[at];
+                if (other < t && mPocketSamples[other] >= sWallSamples && mPocketDropped[other] == 0)
+                {
+                    mPocketDropped[t] = 1;
+                    dropped = true;
+                    break;
+                }
+            }
+        }
+
+        if (dropped)
+            compactTriangles(indices, [&](std::size_t t) { return mPocketDropped[t] != 0; });
+        return dropped;
+    }
+
     FoldedShape ShapeFold::fold(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices)
     {
         const std::size_t count = indices.size() / 3;
@@ -226,27 +377,23 @@ namespace Rtx
             }
         }
 
-        std::size_t kept = 0;
         bool sheet = true;
         bool folded = false;
-        for (std::size_t t = 0; t < count; ++t)
+        for (const Fate fate : mFates)
         {
-            if (mFates[t] == Fate::Dropped)
-                continue;
-            if (mFates[t] == Fate::Alone)
-                sheet = false;
-            else
-                folded = true;
-
-            if (kept != t)
-                std::copy_n(indices.begin() + static_cast<std::ptrdiff_t>(3 * t), 3,
-                    indices.begin() + static_cast<std::ptrdiff_t>(3 * kept));
-            ++kept;
+            sheet = sheet && fate != Fate::Alone;
+            folded = folded || fate != Fate::Alone;
         }
-        indices.resize(kept * 3);
+        compactTriangles(indices, [&](std::size_t t) { return mFates[t] == Fate::Dropped; });
+
+        // After the twins, so a doubled card's copy is never taken for a pocket's wall: it stands
+        // at no distance at all, where a pocket's stands a few units off.
+        const bool pocketed = dropPockets(positions, indices);
 
         // On what survives, because that is what a ray will meet. A doubled card folds to one
         // quad, which has a boundary; a shape with no twins folds to itself and is whatever it was.
-        return FoldedShape{ .mSheet = sheet, .mFolded = folded, .mClosed = closes(positions, indices) };
+        return FoldedShape{
+            .mSheet = sheet, .mFolded = folded, .mPocketed = pocketed, .mClosed = closes(positions, indices)
+        };
     }
 }
