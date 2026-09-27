@@ -1,6 +1,6 @@
 """`omw format [--check]`: every C++ source in the working tree through the clang-format CI pins,
 rewritten in place — or, with `--check`, left alone and every difference reported, which is what the
-gate and CI ask."""
+gate asks."""
 
 import shutil
 import subprocess
@@ -12,7 +12,7 @@ from omw.system import ROOT, WINDOWS, Refusal, jobs, output
 
 def format_tree(args: list[str]) -> int:
     """**Rewrites unless asked to check**, as `cargo fmt` does, so the verb does the work its name
-    says; the check is the gate's and CI's.
+    says; the check is the gate's.
 
     **Every source in the working tree, and not every one git tracks.** CI's own script walks
     `git ls-files`, which names a file a move has deleted and misses one it has created — so a tree

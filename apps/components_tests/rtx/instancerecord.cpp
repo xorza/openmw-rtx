@@ -176,30 +176,44 @@ namespace Rtx
 
             const Transform3x4 still = toTransform3x4(osg::Matrixf::identity());
 
-            // A move: the motion appears on the frame of the move and goes on the frame after.
+            // A move: the motion appears on the frame of the move and goes on the frame after. The
+            // sea is stood a cell over, as a change of the player's cell stands it, and its surface
+            // is where it was: water is shaded off its world position, so a step along itself is no
+            // motion at all.
             scene.placements().advance();
             scene.placements().move(leaf, osg::Matrixf::translate(1.0f, 0.0f, 5.0f));
+            scene.placements().move(water, osg::Matrixf::translate(8192.0f, 0.0f, 0.0f));
             updateInstanceRecords(scene, kept, changed);
             expectSame(kept, scene, "moved");
             EXPECT_FALSE(kept[leaf].mMotion == still) << "a mover carried no motion";
-            // The four the build placed, settling for the first time, and then the leaf again for
-            // its move: a slot in both lists is a row written twice, which costs one row twice.
-            EXPECT_EQ(changed, (std::vector<Index>{ leaf, pane, water, chunk, cloud, glow, leaf }))
+            EXPECT_TRUE(kept[water].mMotion == still) << "the sea stood a cell over moved its surface";
+            // The six the build placed, settling for the first time, and then the two that moved: a
+            // slot in both lists is a row written twice, which costs one row twice.
+            EXPECT_EQ(changed, (std::vector<Index>{ leaf, pane, water, chunk, cloud, glow, leaf, water }))
                 << "the slots written, in order";
 
             scene.placements().advance();
             updateInstanceRecords(scene, kept, changed);
             expectSame(kept, scene, "settled");
             EXPECT_TRUE(kept[leaf].mMotion == still) << "the frame after a move carried the motion on";
-            EXPECT_EQ(changed, (std::vector<Index>{ leaf })) << "a settling slot is a row a backend rewrites";
+            EXPECT_EQ(changed, (std::vector<Index>{ leaf, water })) << "a settling slot is a row a backend rewrites";
 
             // A fade re-classes the row and moves nothing. The cloud's is counted out and back in,
             // and stays in the present set once; the sheet moves, and its sphere with it.
             scene.placements().fade(leaf, 0.5f);
             scene.placements().fade(cloud, 0.25f);
             scene.placements().move(glow, osg::Matrixf::translate(-40.0f, 7.0f, 2.0f));
+            scene.placements().move(water, osg::Matrixf::translate(8192.0f, 0.0f, 50.0f));
             updateInstanceRecords(scene, kept, changed);
             expectSame(kept, scene, "faded");
+
+            // The motion maps where a point stands now to where it stood: the sheet's step sideways
+            // is the whole of it, `(-4, 0, 2) - (-40, 7, 2)`, and the water's rise is the whole of
+            // its own, fifty units back down.
+            EXPECT_TRUE(kept[glow].mMotion == toTransform3x4(osg::Matrixf::translate(36.0f, -7.0f, 0.0f)))
+                << "a surface that is not water moves along itself";
+            EXPECT_TRUE(kept[water].mMotion == toTransform3x4(osg::Matrixf::translate(0.0f, 0.0f, -50.0f)))
+                << "water rising is motion";
             EXPECT_TRUE(kept[leaf].mTranslucent);
             EXPECT_FALSE(kept[leaf].mCutout)
                 << "a faded leaf is asked how much of it there is, not whether it is a hole";
