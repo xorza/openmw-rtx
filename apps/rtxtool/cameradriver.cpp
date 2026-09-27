@@ -30,6 +30,11 @@ namespace RtxTool
 
         if (stop.mSchedule.mFreeCamera || !stop.mStand.mEye.has_value())
         {
+            // **A window's picture is its body's own camera**, and the stager stood the body's feet
+            // where the eye goes and let the ground take it: the eye stood a head's height over
+            // wherever the feet landed. The body is put under the eye over the frames that follow.
+            if (stop.mSchedule.mFreeCamera && stop.mStand.mEye.has_value())
+                mSettling = *stop.mStand.mEye;
             standWhereThePlayerIs();
             return;
         }
@@ -47,6 +52,9 @@ namespace RtxTool
 
     void CameraDriver::step(const Stop& stop, const std::optional<std::uint32_t> measured, const float seconds)
     {
+        if (mSettling.has_value())
+            settleBody();
+
         if (stop.mSchedule.mTrack.has_value())
         {
             const TrackPose pose = stop.mSchedule.mTrack->pose(measured.value_or(0u));
@@ -161,6 +169,27 @@ namespace RtxTool
 
         const osg::Vec3f eye(stood.pos[0], stood.pos[1], stood.pos[2]);
         standAt(eye, eye + Stand::forwardOf(osg::Vec3f(stood.rot[0], stood.rot[1], stood.rot[2])));
+    }
+
+    void CameraDriver::settleBody()
+    {
+        // **Measured off the camera and moved by the difference, because the camera is the body's
+        // own and follows it an update behind.** Where the first-person eye stands over the feet is
+        // the head's, and it turns with the body's facing: at the pier, the first correction lifts
+        // the eye 162 units and leaves it five units aside, and the second puts it on the stop's
+        // eye to the bit. **Ended where it is exact, or where a correction brought it no closer** —
+        // then something else is moving the body, which in a window is the player, whose it is.
+        MWBase::World& world = *MWBase::Environment::get().getWorld();
+        const osg::Vec3f off = *mSettling - osg::Vec3f(world.getRenderingManager()->getCamera()->getPosition());
+        const float left = off.length2();
+        if (left == 0.0f || !(left < mSettleLeft))
+        {
+            mSettling.reset();
+            return;
+        }
+
+        mSettleLeft = left;
+        world.moveObjectBy(world.getPlayerPtr(), off, true);
     }
 
     void CameraDriver::moveBodyTo(const osg::Vec3f& eye)

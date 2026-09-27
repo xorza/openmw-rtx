@@ -184,12 +184,6 @@ namespace RtxTool
         // **After the camera has stepped and on every frame, warm-up included.** `CameraDriver::aim`
         // says why once is not enough; the warm-up frames stand at the route's start.
         mCamera.aim(currentStop());
-
-        // **After the schedule has moved, because the note is of the frame about to be drawn.** The
-        // route flies the eye and the turn crosses the sky above it, both between this call and the
-        // trace — so a note taken before them describes a camera under a sky that no frame ever
-        // used. The last one taken is what `RunRecord::describe` publishes.
-        mNote.take();
     }
 
     void Session::frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report)
@@ -197,7 +191,11 @@ namespace RtxTool
         if (mDone || !mStarted)
             return;
 
-        mNote.takeAir(report.mAir);
+        // **The frame just drawn, which is the one on the screen**: the camera the player turned
+        // during the frame's own update, the eye the route flew and the sky the turn crossed, and
+        // the air the renderer stepped. Taken before the frame, the note would be a camera one update
+        // behind the picture. The last one taken is what `RunRecord::describe` publishes.
+        mNote.take(report.mAir);
         mNote.printIfAsked(mRequest.mKeys);
 
         switch (mMeasurer.frame(currentStop(), context, report, mCamera.hasArrived()))

@@ -834,6 +834,19 @@ namespace Rtx::Testing
             EXPECT_LT(std::abs(mirrored[centre * 2]), std::abs(moved[centre * 2]))
                 << "which is the whole point: the two are not the same vector";
 
+            // **And a surface is a surface however far off it stands.** A ceiling 2200 up has its
+            // image 2300 under the eye, so the step moves it `33 * 10 / (2 * 2300 * tan 30°)` =
+            // 0.1243 pixels — past the 2000 units a ray that found nothing is said to have gone, so a
+            // shader that tests for a miss by that length writes no mirrored vector at all.
+            constexpr float farImage = size * step / (2.0f * 2300.0f * halfHeight);
+            SceneDesc far = makeOpenWater(40000.0f);
+            addQuad(far, sheetAt(40000.0f, 2200.0f), far.addMaterial(Material{ .mTwoSided = true }));
+            frame = shoot(far, {}, look(0.0f), size, { .mSea = still });
+            mRenderer.renderFrame(look(step), FrameOptions{});
+            mRenderer.readChannel(Channel::ReflectionMotion, mirrored);
+            EXPECT_NEAR(std::abs(mirrored[centre * 2]), farImage, 0.01f)
+                << "a ceiling past 2000 units reflects an image that moves";
+
             // **And the sky reflected is a reflection too.** Take the ceiling away and every one of
             // these rays reaches the sky instead, which has no distance and still moves when the
             // camera turns — writing nought there says the mirrored horizon is nailed to the screen.

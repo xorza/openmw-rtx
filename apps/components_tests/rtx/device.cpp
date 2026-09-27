@@ -87,8 +87,7 @@ namespace Rtx
             for (const std::string& error : mHarness.mMadeWith)
                 ADD_FAILURE() << "making the device: " << error;
 
-            // Made by the first ask, which may be this one.
-            Testing::getRenderer();
+            // Made before any test ran, by `DeviceEnvironment`.
             for (const std::string& error : Testing::getRendererMadeWith())
                 ADD_FAILURE() << "making the renderer: " << error;
         }

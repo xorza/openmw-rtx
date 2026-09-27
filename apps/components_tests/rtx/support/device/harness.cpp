@@ -20,6 +20,7 @@
 #include <components/rtxvulkan/validation.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 
+#include "../death.hpp"
 #include "../instanceobstacle.hpp"
 
 namespace Rtx::Testing
@@ -126,10 +127,13 @@ namespace Rtx::Testing
         /// and a green run of nothing per suite. This binary holds only the tests that need a device,
         /// so the first thing it does is ask for it, and every fixture after it holds a reference.
         ///
-        /// **The device and not the renderer**, because a death test's child runs this again: the
-        /// renderer costs such a child three and a half seconds, and a device `PhysicalDevice::select`
-        /// accepted is one the renderer is built on. A renderer that still cannot be built throws
-        /// out of `getRenderer`, which fails the test that asked.
+        /// **And the validated renderer beside the device, before any test is timed.** It is three
+        /// and a half seconds of pipelines even out of a warm driver cache, and made on the first
+        /// ask it would be charged to whichever test asked first. A renderer that cannot be built fails the binary the
+        /// way a missing device does, since every test that draws would fail on it one by one.
+        ///
+        /// **Not in a death test's child**, which runs this again for one statement that aborts and
+        /// needs the device at most: `inDeathChild` says how it knows.
         class DeviceEnvironment : public ::testing::Environment
         {
             void SetUp() override
@@ -143,6 +147,18 @@ namespace Rtx::Testing
                 catch (const std::exception& obstacle)
                 {
                     FAIL() << "rtx-gpu-tests needs a device and this machine has none: " << obstacle.what();
+                }
+
+                if (Testing::inDeathChild())
+                    return;
+
+                try
+                {
+                    getRenderer();
+                }
+                catch (const std::exception& obstacle)
+                {
+                    FAIL() << "rtx-gpu-tests cannot make its renderer: " << obstacle.what();
                 }
             }
 
@@ -272,6 +288,12 @@ namespace Rtx::Testing
     void RendererTest::SetUp()
     {
         forgetErrors(mRenderer);
+
+        // **And nothing a previous test's frames left**, for the same reason: the renderer is the
+        // binary's, and what it carries from one frame to the next — the denoiser's and the air's
+        // histories, the exposure, the ripples on the water — is state a test did not draw: a
+        // footfall one test presses into the water bends the next test's still sea.
+        mRenderer.resetHistory();
     }
 
     void RendererTest::TearDown()
