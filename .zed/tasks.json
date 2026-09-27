@@ -53,6 +53,65 @@
     "reveal": "always",
     "tags": ["rtx-view"]
   },
+  // A film per profile: the record task opens a window where Home appends a key, and the render
+  // task prints the plan, then flies the keys into frames and an mp4. Both live under
+  // ~/Videos/openmw-rtx, out of the tree and out of every build directory, because a keys file is
+  // the person's work and a build directory is thrown away. Absolute, because `omw` runs the
+  // harness from the build directory.
+  {
+    "label": "Film: record keys, vanilla (release)",
+    "command": "mkdir -p \"$HOME/Videos/openmw-rtx/vanilla\" && ./omw release view --size=2560x1440 --view=seyda-neen-ship --keys=\"$HOME/Videos/openmw-rtx/vanilla/tour.keys\"",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "tags": ["rtx-film"]
+  },
+  {
+    "label": "Film: render, vanilla (release)",
+    "command": "./omw release film --keys=\"$HOME/Videos/openmw-rtx/vanilla/tour.keys\" --plan && ./omw release film --size=3840x2160 --keys=\"$HOME/Videos/openmw-rtx/vanilla/tour.keys\" --out=\"$HOME/Videos/openmw-rtx/vanilla\"",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "tags": ["rtx-film"]
+  },
+  {
+    "label": "Film: record keys, M[FR] (release)",
+    "command": "mkdir -p \"$HOME/Videos/openmw-rtx/mfr\" && ./omw release view --size=2560x1440 --view=seyda-neen-ship --replace=config --config=\"$HOME/.config/openmw-mfr\" --keys=\"$HOME/Videos/openmw-rtx/mfr/tour.keys\"",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "tags": ["rtx-film"]
+  },
+  {
+    "label": "Film: render, M[FR] (release)",
+    "command": "./omw release film --replace=config --config=\"$HOME/.config/openmw-mfr\" --keys=\"$HOME/Videos/openmw-rtx/mfr/tour.keys\" --plan && ./omw release film --size=3840x2160 --replace=config --config=\"$HOME/.config/openmw-mfr\" --keys=\"$HOME/Videos/openmw-rtx/mfr/tour.keys\" --out=\"$HOME/Videos/openmw-rtx/mfr\"",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "tags": ["rtx-film"]
+  },
+  {
+    "label": "Film: record keys, PBR mods (release)",
+    "command": "mkdir -p \"$HOME/Videos/openmw-rtx/pbr\" && ./omw release view --size=2560x1440 --view=seyda-neen-ship --replace=config --config=\"$HOME/.config/openmw-pbr\" --keys=\"$HOME/Videos/openmw-rtx/pbr/tour.keys\"",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "tags": ["rtx-film"]
+  },
+  {
+    "label": "Film: render, PBR mods (release)",
+    "command": "./omw release film --replace=config --config=\"$HOME/.config/openmw-pbr\" --keys=\"$HOME/Videos/openmw-rtx/pbr/tour.keys\" --plan && ./omw release film --size=3840x2160 --replace=config --config=\"$HOME/.config/openmw-pbr\" --keys=\"$HOME/Videos/openmw-rtx/pbr/tour.keys\" --out=\"$HOME/Videos/openmw-rtx/pbr\"",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "tags": ["rtx-film"]
+  },
   {
     "label": "Build: everything",
     "command": "cmake --build . -j32",
