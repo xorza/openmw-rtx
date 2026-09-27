@@ -10,6 +10,7 @@
 #include "scene.h"
 #include "basis.glsl"
 #include "bindings.glsl"
+#include "fog.glsl"
 #include "random.glsl"
 #include "records.glsl"
 #include "sea.glsl"
@@ -47,6 +48,10 @@ struct WaterPath
 
     /// How far it went to find that, or `WATER_MAX_PATH` where it found nothing.
     float mDistance;
+
+    /// Whether it found a surface, which a distance cannot say: a surface further off than the
+    /// sentinel is a surface and not sky.
+    bool mFound;
 
     /// Where it landed, in world units, and which instance row that surface came off. Both nought
     /// where nothing was found.
@@ -92,6 +97,7 @@ WaterPath waterRay(vec3 origin, vec3 direction, float footprint, float spread, f
     WaterPath path;
     path.mPosition = hit.mPosition;
     path.mInstance = hit.mInstance;
+    path.mFound = hit.mHit;
 
     if (hit.mHit)
     {
@@ -125,6 +131,13 @@ WaterPath waterRay(vec3 origin, vec3 direction, float footprint, float spread, f
     path.mRadiance = skyRadiance(origin, direction, blur, shown) + starField(frame.mStars, sceneTexels(), direction, blur) * shown;
 
     return path;
+}
+
+/// How far a ray that left the water into the air crossed it: to what it found, or as far as the
+/// eye's own ray carries air where it found nothing — `FOG_REACH`, which a sky ray is charged over.
+float airSpan(WaterPath path)
+{
+    return path.mFound ? path.mDistance : FOG_REACH;
 }
 
 /// What a water surface answers with: what it sends back along the ray, what it is in the
@@ -238,6 +251,10 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
             solidWithin(
                 leaving, vec3(0.0, 0.0, -1.0), SHADOW_BIAS, WATER_SHORE_FADE, surface.mFootprint, cone.mSpread));
 
+    // How far the eye's own ray had come, which a leg leaving into the air carries on from:
+    // `fogAlongLeg` says why it asks.
+    const float before = distance(surface.mPosition, frame.mOrigin);
+
     const vec3 away = reflect(incident, normal);
     const WaterPath bounced = waterRay(leaving, away, surface.mFootprint, cone.mSpread, lobe, key + SEED_LAMPS_MIRROR);
     vec3 reflected = bounced.mRadiance;
@@ -245,7 +262,10 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
         reflected = throughWater(reflected,
             waterColumn(leaving, away, bounced.mDistance, surface.mFootprint, marchOffset));
     else
+    {
+        reflected = throughAir(reflected, fogAlongLeg(leaving, away, airSpan(bounced), before));
         shaded.mMirror = WaterMirror(bounced.mPosition, away, bounced.mInstance, bounced.mDistance < WATER_MAX_PATH);
+    }
 
     const vec3 bent = refract(incident, normal, fromBelow ? WATER_IOR : 1.0 / WATER_IOR);
     if (dot(bent, bent) < 1e-6)
@@ -274,7 +294,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const WaterPath behind = waterRay(
         leaving, through, surface.mFootprint, cone.mSpread, lobe * WATER_REFRACTION_BEND, key + SEED_LAMPS_THROUGH);
     const vec3 refracted = fromBelow
-        ? behind.mRadiance
+        ? throughAir(behind.mRadiance, fogAlongLeg(leaving, through, airSpan(behind), before))
         : throughWater(behind.mRadiance,
               waterColumn(leaving, through, behind.mDistance, surface.mFootprint, marchOffset));
 

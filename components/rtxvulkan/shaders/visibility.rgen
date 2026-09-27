@@ -85,7 +85,7 @@ MediumAhead mediumAhead(uvec2 pixel, vec3 origin, vec3 direction, float air, flo
 
     const vec4 fog = fogAlong(pixel, origin, direction, air);
 
-    ahead.mScattered = ahead.mScattered * fog.w + fog.xyz;
+    ahead.mScattered = throughAir(ahead.mScattered, fog);
     ahead.mThrough *= fog.w;
 
     return ahead;
