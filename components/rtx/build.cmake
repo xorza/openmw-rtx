@@ -11,7 +11,7 @@ if (APPLE)
 endif()
 
 # **CMake 3.31, for the presets.** `CMakePresets.json` is where a build of this fork is described —
-# `apps/rtxtool/rtx` configures through it and so does an IDE — and a presets file of that version
+# `omw` configures through it and so does an IDE — and a presets file of that version
 # is the first that can carry a `$comment` beside each decision, which is how everything in this
 # tree is written. Upstream's own floor stays where it is: this is asked only of a ray-tracing build.
 if (CMAKE_VERSION VERSION_LESS 3.31)
@@ -197,7 +197,7 @@ add_subdirectory (components/myguirtx)
 add_subdirectory (apps/rtxtool)
 
 # **Every target of this fork's own, by one name**: what `openmw_rtx_target` was handed, so a
-# target added later is in it without anybody listing it. What `rtx` compiles without asserts.
+# target added later is in it without anybody listing it. What `omw gate` compiles without asserts.
 add_custom_target(openmw-rtx-all)
 get_property(_openmw_rtx_targets GLOBAL PROPERTY OPENMW_RTX_TARGETS)
 add_dependencies(openmw-rtx-all ${_openmw_rtx_targets})

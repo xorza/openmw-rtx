@@ -1,7 +1,8 @@
 # Line endings a file has to have whatever a clone's `core.autocrlf` says. Git for Windows installs
-# with it on, and bash reads a carriage return as part of the line: `apps/rtxtool/rtx` stopped at
+# with it on, and bash reads a carriage return as part of the line: a bash driver stopped at
 # `set -euo pipefail` with "invalid option name", and every value a sourced file set carried one.
+# `omw` is started through its first line, where a carriage return would name another program.
 # A batch file is cmd's, which reads its lines as CR LF.
-apps/rtxtool/rtx text eol=lf
+omw text eol=lf
 *.sh text eol=lf
 *.cmd text eol=crlf

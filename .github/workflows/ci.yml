@@ -1,9 +1,9 @@
 # The fork's CI, and the whole of it: what upstream's GitHub workflows proved and what the fork's own
-# proved, in one run, through the same `rtx` script the desk uses.
+# proved, in one run, through the same `omw` driver the desk uses.
 #
 # **Three builds of the tree, on the systems each is for.** The fork's own binary, the ray tracer
 # built in, on Ubuntu with GCC and with Clang and on Windows with MSVC. The tree without it,
-# `rtx plain`, on Ubuntu and Windows: the stub renderer and `OPENMW_RTX=0`, every program upstream
+# `omw plain`, on Ubuntu and Windows: the stub renderer and `OPENMW_RTX=0`, every program upstream
 # builds, the CS among them, and upstream's three suites whole — what upstream's `push.yml` and
 # `windows.yml` proved here before this replaced them. macOS, which the ray tracer does not run on,
 # is compiled and nothing more: no tests, and no disk image, whose `hdiutil` failed runs on the
@@ -77,6 +77,20 @@ jobs:
         # Upstream's own check: the translation sources are regenerated and must not change.
         run: LUPDATE=/usr/lib/qt6/bin/lupdate CI/check_qt_translations.sh
 
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: The driver, linted and type-checked
+        # Ruff's default rules, the errors a Python file can have without failing to import, and mypy,
+        # both pinned, both against the oldest Python `omw` supports.
+        run: |
+          pipx run ruff==0.16.9 check --target-version py311 tools/omw omw
+          MYPYPATH=tools pipx run mypy==2.3.1 --python-version 3.11 -p omw
+
+      - name: The driver's own tests
+        run: python -m unittest discover -s tools/omw/tests -t tools
+
       - name: The workflows, audited
         # zizmor, pinned, offline: template injection, credentials left in a checkout, unpinned
         # actions, caches a release reads, permissions wider than a job uses. A finding is a failure.
@@ -98,8 +112,6 @@ jobs:
 
       - uses: $/.github/actions/openmw-deps
 
-      - uses: $/.github/actions/rtx-sdks
-
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           key: linux
@@ -109,13 +121,13 @@ jobs:
           save: ${{ github.event_name != 'pull_request' }}
 
       - name: Build every target
-        run: apps/rtxtool/rtx debug build all
+        run: python omw debug build all
 
       - name: Test, upstream's suites whole beside the fork's
-        run: apps/rtxtool/rtx debug test --without-device --all
+        run: python omw debug test --without-device --all
 
       - name: The backend without DLSS
-        run: apps/rtxtool/rtx nodlss build openmw-rtx-vulkan
+        run: python omw nodlss build openmw-rtx-vulkan
 
       - name: Integration tests
         # Upstream's, from its GitLab pipeline: the game under Xvfb, the example suite at the revision
@@ -132,8 +144,7 @@ jobs:
           git -C example-suite fetch -q --depth=1 origin "$EXAMPLE_SUITE_REVISION"
           git -C example-suite checkout -q FETCH_HEAD
           suite="$GITHUB_WORKSPACE/example-suite"
-          cd build-debug
-          xvfb-run --auto-servernum --server-args='-screen 0 640x480x24x60' \
+          python omw debug exec xvfb-run --auto-servernum --server-args='-screen 0 640x480x24x60' \
             python3 "$GITHUB_WORKSPACE/scripts/integration_tests.py" \
               --verbose \
               --omw ./openmw \
@@ -177,8 +188,6 @@ jobs:
 
       - uses: $/.github/actions/openmw-deps
 
-      - uses: $/.github/actions/rtx-sdks
-
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           key: linux-clang
@@ -190,7 +199,7 @@ jobs:
       - name: Build every target
         # Compiled and not run: Clang's warnings are what GCC's and MSVC's are not, and the fork's
         # own files turn every one into an error.
-        run: apps/rtxtool/rtx debug build all
+        run: python omw debug build all
 
       - name: Logs
         if: failure()
@@ -220,6 +229,8 @@ jobs:
           persist-credentials: false
 
       - uses: $/.github/actions/openmw-deps
+        with:
+          sdks: "false"
 
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
@@ -230,10 +241,10 @@ jobs:
           save: ${{ github.event_name != 'pull_request' }}
 
       - name: Build every program
-        run: apps/rtxtool/rtx plain build
+        run: python omw plain build
 
       - name: Test, upstream's three suites whole
-        run: apps/rtxtool/rtx plain test
+        run: python omw plain test
 
       - name: Benchmarks, run once each as upstream runs them
         working-directory: build-plain
@@ -271,8 +282,6 @@ jobs:
 
       - uses: $/.github/actions/openmw-deps
 
-      - uses: $/.github/actions/rtx-sdks
-
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           key: windows
@@ -282,13 +291,13 @@ jobs:
           save: ${{ github.event_name != 'pull_request' }}
 
       - name: Build every target
-        run: apps/rtxtool/rtx debug build all
+        run: python omw debug build all
 
       - name: Test, upstream's suites whole beside the fork's
-        run: apps/rtxtool/rtx debug test --without-device --all
+        run: python omw debug test --without-device --all
 
       - name: The backend without DLSS
-        run: apps/rtxtool/rtx nodlss build openmw-rtx-vulkan
+        run: python omw nodlss build openmw-rtx-vulkan
 
       - name: Logs
         if: failure()
@@ -315,6 +324,8 @@ jobs:
           persist-credentials: false
 
       - uses: $/.github/actions/openmw-deps
+        with:
+          sdks: "false"
 
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
@@ -325,10 +336,10 @@ jobs:
           save: ${{ github.event_name != 'pull_request' }}
 
       - name: Build every program
-        run: apps/rtxtool/rtx plain build
+        run: python omw plain build
 
       - name: Test, upstream's three suites whole
-        run: apps/rtxtool/rtx plain test
+        run: python omw plain test
 
       - name: Benchmarks, run once each as upstream runs them
         working-directory: build-plain

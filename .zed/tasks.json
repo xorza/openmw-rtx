@@ -1,7 +1,6 @@
-// Every task that runs a renderer goes through `apps/rtxtool/rtx <flavour>`, which owns the four
-// build directories — `debug` -> build-debug, `asan` -> build-asan, `release` -> build-release,
-// `nodlss` -> build-nodlss, with `profile.sh` on release — and configures each through
-// CMakePresets.json. A task that ran cmake itself would be a second copy of all of it.
+// Every task that runs a renderer goes through `./omw [flavour]`, which owns the build directories,
+// `build-<flavour>`, and configures each through CMakePresets.json. A task that ran cmake itself
+// would be a second copy of all of it.
 [
   {
     "label": "RTX: the game, on the quicksave (release)",
@@ -14,7 +13,7 @@
   },
   {
     "label": "RTX: seyda-neen-ship (release)",
-    "command": "apps/rtxtool/rtx release view --size=2560x1440 --view=seyda-neen-ship",
+    "command": "./omw release view --size=2560x1440 --view=seyda-neen-ship",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": true,
@@ -25,7 +24,7 @@
   // `--replace=config` keeps the vanilla profile's content list out of it.
   {
     "label": "RTX: seyda-neen-ship, M[FR] (release)",
-    "command": "apps/rtxtool/rtx release view --size=2560x1440 --view=seyda-neen-ship --replace=config --config=\"$HOME/.config/openmw-mfr\"",
+    "command": "./omw release view --size=2560x1440 --view=seyda-neen-ship --replace=config --config=\"$HOME/.config/openmw-mfr\"",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": true,
@@ -36,7 +35,7 @@
   // the town stands in, so no region id is named here.
   {
     "label": "RTX: Nivalis in snow, M[FR] (release)",
-    "command": "apps/rtxtool/rtx release view --size=2560x1440 --cell=Nivalis --weather=Snow --replace=config --config=\"$HOME/.config/openmw-mfr\"",
+    "command": "./omw release view --size=2560x1440 --cell=Nivalis --weather=Snow --replace=config --config=\"$HOME/.config/openmw-mfr\"",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": true,
@@ -47,7 +46,7 @@
   // `~/.config/openmw-pbr` stacks in load order over that folder's `Data Files`.
   {
     "label": "RTX: seyda-neen-ship, PBR mods (release)",
-    "command": "apps/rtxtool/rtx release view --size=2560x1440 --view=seyda-neen-ship --replace=config --config=\"$HOME/.config/openmw-pbr\"",
+    "command": "./omw release view --size=2560x1440 --view=seyda-neen-ship --replace=config --config=\"$HOME/.config/openmw-pbr\"",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": true,
@@ -64,7 +63,7 @@
   },
   {
     "label": "Test: RTX only",
-    "command": "apps/rtxtool/rtx debug test",
+    "command": "./omw test",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
@@ -72,8 +71,8 @@
   },
   {
     "label": "Test: everything",
-    "command": "cmake --build . -j32 --target components-tests openmw-tests && ./components-tests && ./openmw-tests",
-    "cwd": "$ZED_WORKTREE_ROOT/build-debug",
+    "command": "./omw test --all",
+    "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
     "reveal": "always"

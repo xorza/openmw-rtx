@@ -10,7 +10,7 @@
 # The sanitizers are upstream's, from its GitLab pipeline: AddressSanitizer and
 # UndefinedBehaviorSanitizer over its suites, with a finding a failure. Here the fork's `asan` flavour,
 # which carries both, over upstream's suites and the fork's own, without a device as every hosted run
-# is. The packaging is `rtx package archive`, which a release runs, on both systems.
+# is. The packaging is `omw archive`, which a release runs, on both systems.
 name: Daily
 
 on:
@@ -52,8 +52,6 @@ jobs:
 
       - uses: $/.github/actions/openmw-deps
 
-      - uses: $/.github/actions/rtx-sdks
-
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           key: sanitizers
@@ -63,13 +61,16 @@ jobs:
           save: ${{ github.event_name != 'pull_request' }}
 
       - name: Build
-        run: apps/rtxtool/rtx asan build
+        run: python omw asan build
 
       - name: Test, upstream's suites whole beside the fork's, in a shuffled order
         # Shuffled, so a test that leans on what an earlier one left behind fails here: the seed is in
-        # the log, and `--gtest_random_seed` takes it back. A test that captured stderr and never gave
-        # it back broke every later death test in its binary, and ran in upstream's order for years.
-        run: apps/rtxtool/rtx asan test --without-device --all --gtest_shuffle
+        # a failing test's log, and `--gtest_random_seed` takes it back. A test that captured stderr
+        # and never gave it back broke every later death test in its binary, and ran in upstream's
+        # order for years. Google Test reads its flags from the environment as well as the line.
+        env:
+          GTEST_SHUFFLE: "1"
+        run: python omw asan test --without-device --all
 
   package:
     name: package (${{ matrix.os }})
@@ -91,8 +92,6 @@ jobs:
 
       - uses: $/.github/actions/openmw-deps
 
-      - uses: $/.github/actions/rtx-sdks
-
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           key: package-${{ matrix.os }}
@@ -102,7 +101,7 @@ jobs:
           save: ${{ github.event_name != 'pull_request' }}
 
       - name: Package, as a release does
-        run: apps/rtxtool/rtx package archive daily
+        run: python omw archive daily
 
   report:
     # After both, whatever they came to, and never for a run that was cancelled: a cancelled run

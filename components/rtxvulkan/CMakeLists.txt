@@ -45,7 +45,7 @@ unset(_openmw_spirv_fma)
 # library the tests reach into, and the tool the build runs on each module. It links nothing of the
 # renderer's, because every shader waits for the tool and the renderer waits for the shaders; and the
 # tool stays in this directory's build tree, which no install and no archive reads. **Beside it, the
-# digest `rtx <flavour> kernels` names each specialized kernel by** (`spirvdigest.hpp`), in the same
+# digest `omw kernels` names each specialized kernel by** (`spirvdigest.hpp`), in the same
 # library and the same tree for the same reasons.
 set(RTX_SPIRV_PIN_FILES spirvpin.cpp spirvpin.hpp spirvdigest.cpp spirvdigest.hpp)
 openmw_rtx_library(openmw-rtx-spirv ${RTX_SPIRV_PIN_FILES})
