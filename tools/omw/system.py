@@ -110,14 +110,14 @@ def msvc_environment(env: dict[str, str]) -> dict[str, str]:
 def documents_folder() -> Path:
     """The Documents folder the system names, which is not `~/Documents` on a box where OneDrive
     has moved it."""
-    assert sys.platform == "win32"
-    import ctypes
+    if sys.platform == "win32":
+        import ctypes
 
-    buffer = ctypes.create_unicode_buffer(260)
-    personal = 5  # CSIDL_PERSONAL
-    if ctypes.windll.shell32.SHGetFolderPathW(None, personal, None, 0, buffer) != 0:
-        raise Refusal("the system names no Documents folder")
-    return Path(buffer.value)
+        buffer = ctypes.create_unicode_buffer(260)
+        personal = 5  # CSIDL_PERSONAL
+        if ctypes.windll.shell32.SHGetFolderPathW(None, personal, None, 0, buffer) == 0:
+            return Path(buffer.value)
+    raise Refusal("the system names no Documents folder")
 
 
 def user_config_dir() -> Path:

@@ -1,6 +1,7 @@
 #include "crashsummary.hpp"
 
 #include <cstddef>
+#include <exception>
 #include <string_view>
 
 namespace Crash
@@ -66,6 +67,28 @@ namespace Crash
                 title += "no exception was recorded";
             return title;
         }
+    }
+
+    std::string terminateReason()
+    {
+        std::string reason = "std::terminate";
+        if (const std::exception_ptr current = std::current_exception())
+        {
+            try
+            {
+                std::rethrow_exception(current);
+            }
+            catch (const std::exception& error)
+            {
+                reason += " on an uncaught exception: ";
+                reason += error.what();
+            }
+            catch (...)
+            {
+                reason += " on an uncaught exception that is no std::exception";
+            }
+        }
+        return reason;
     }
 
     std::string title(const CrashFacts& facts)

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <chrono>
 #include <condition_variable>
+#include <exception>
 #include <functional>
 #include <mutex>
 #include <stop_token>
@@ -32,7 +33,13 @@ namespace Rtx
             if (mThread.joinable())
                 return false;
 
-            mThread = std::jthread(std::move(work));
+            // **The thread ends the way the one that started it would.** MSVC keeps a terminate
+            // handler per thread and starts each new one on the default, which aborts and says
+            // nothing; elsewhere there is one for the process, and this changes nothing.
+            mThread = std::jthread([onTerminate = std::get_terminate(), work = std::move(work)](std::stop_token stop) {
+                std::set_terminate(onTerminate);
+                work(std::move(stop));
+            });
             return true;
         }
 
