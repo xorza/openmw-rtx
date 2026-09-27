@@ -116,8 +116,8 @@ jobs:
         with:
           key: linux
           max-size: 1000M
-          # Saved by master and the schedule, and only read by a pull request: ten gigabytes hold
-          # every job's cache once, and not once more for every branch.
+          # Saved by master's runs and only read by a pull request's: ten gigabytes hold every job's
+          # cache once, and not once more for every branch.
           save: ${{ github.event_name != 'pull_request' }}
 
       - name: Build every target
@@ -192,8 +192,8 @@ jobs:
         with:
           key: linux-clang
           max-size: 1000M
-          # Saved by master and the schedule, and only read by a pull request: ten gigabytes hold
-          # every job's cache once, and not once more for every branch.
+          # Saved by master's runs and only read by a pull request's: ten gigabytes hold every job's
+          # cache once, and not once more for every branch.
           save: ${{ github.event_name != 'pull_request' }}
 
       - name: Build every target
@@ -236,8 +236,8 @@ jobs:
         with:
           key: linux-plain
           max-size: 1000M
-          # Saved by master and the schedule, and only read by a pull request: ten gigabytes hold
-          # every job's cache once, and not once more for every branch.
+          # Saved by master's runs and only read by a pull request's: ten gigabytes hold every job's
+          # cache once, and not once more for every branch.
           save: ${{ github.event_name != 'pull_request' }}
 
       - name: Build every program
@@ -286,8 +286,8 @@ jobs:
         with:
           key: windows
           max-size: 1000M
-          # Saved by master and the schedule, and only read by a pull request: ten gigabytes hold
-          # every job's cache once, and not once more for every branch.
+          # Saved by master's runs and only read by a pull request's: ten gigabytes hold every job's
+          # cache once, and not once more for every branch.
           save: ${{ github.event_name != 'pull_request' }}
 
       - name: Build every target
@@ -331,8 +331,8 @@ jobs:
         with:
           key: windows-plain
           max-size: 1000M
-          # Saved by master and the schedule, and only read by a pull request: ten gigabytes hold
-          # every job's cache once, and not once more for every branch.
+          # Saved by master's runs and only read by a pull request's: ten gigabytes hold every job's
+          # cache once, and not once more for every branch.
           save: ${{ github.event_name != 'pull_request' }}
 
       - name: Build every program
@@ -380,8 +380,8 @@ jobs:
         with:
           key: macos
           max-size: 1000M
-          # Saved by master and the schedule, and only read by a pull request: ten gigabytes hold
-          # every job's cache once, and not once more for every branch.
+          # Saved by master's runs and only read by a pull request's: ten gigabytes hold every job's
+          # cache once, and not once more for every branch.
           save: ${{ github.event_name != 'pull_request' }}
 
       - name: Configure
