@@ -1,13 +1,14 @@
 {
     "version": 10,
     "$comment": [
-        "How a build of the ray tracer is configured, in the form CMake and every IDE read. `apps/rtxtool/rtx` is",
-        "the one way in on the desk and in CI: it configures through these, fetches what a system lacks first,",
-        "and knows what each flavour is for once it is built. A visible preset is a flavour on a system, named",
-        "`<flavour>-<system>`, and inherits the flavour, the system and the common ground, in that order: the",
-        "earlier preset wins a variable both name. The hidden presets are the parts and build nothing alone,",
-        "and each flavour's names its directory, `build-<flavour>`, which is where `rtx` looks for it.",
-        "Version 10, because it is the first that can carry a `$comment` beside each decision."
+        "How a build of the ray tracer is configured, and how its tests run, in the form CMake and every IDE",
+        "read. `omw` is the one way in on the desk and in CI: it configures through these, fetches what a",
+        "system lacks first, and knows what each flavour is for once it is built. A visible preset is a",
+        "flavour on a system, named `<flavour>-<system>`, and inherits the flavour, the system and the common",
+        "ground, in that order: the earlier preset wins a variable both name. The hidden presets are the parts",
+        "and build nothing alone, and each flavour's names its directory, `build-<flavour>`, which is where",
+        "`omw` looks for it. Version 10, because it is the first that can carry a `$comment` beside each",
+        "decision."
     ],
     "configurePresets": [
         {
@@ -17,7 +18,7 @@
             "$comment": [
                 "Common to every flavour. The content tools upstream builds by default stay off where no flavour",
                 "reads them: the CS, the wizard and the two importers are Qt and ESM code this fork does not touch.",
-                "`rtx setup` turns the ini importer on for the one build that writes an openmw.cfg. ccache drives",
+                "`omw setup` turns the ini importer on for the one build that writes an openmw.cfg. ccache drives",
                 "GCC and MSVC alike, and the compile database is what an editor reads."
             ],
             "cacheVariables": {
@@ -53,18 +54,18 @@
             "hidden": true,
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
             "$comment": [
-                "What Windows supplies: upstream's prebuilt vcpkg set, which `rtx` fetches into deps/ at the tag",
+                "What Windows supplies: upstream's prebuilt vcpkg set, which `omw` fetches into deps/ at the tag",
                 "CI/deps_versions.msvc.sh pins and names here through VCPKG_TAG. The set carries neither",
                 "recastnavigation, Google Test, SQLite nor yaml-cpp, so CMake fetches those, and no Qt, so the",
                 "launcher stays unbuilt. Its SDL2 is built without Vulkan and refuses the renderer's window at",
                 "runtime, so SDL's own package of the same version stands in, fetched beside the set and named",
                 "through RTX_SDL2_VERSION; vcpkg's copying of DLLs beside a binary is off, since it would put its",
-                "SDL2 back over SDL's on every link, and `rtx` copies the runtime once. Upstream's precompiled",
+                "SDL2 back over SDL's on every link, and `omw` copies the runtime once. Upstream's precompiled",
                 "headers are off because ccache cannot see through them: with them on, 593 of 623 compiles of the",
                 "backend were 'could not use precompiled header' and the cache held nothing. `RelWithDebInfo` is",
                 "`-O2 -Z7`, MSVC's `-O2 -g`: MSVC's own carries `/DNDEBUG` exactly as GCC's carries `-DNDEBUG`,",
                 "and `-Z7` writes the debug data into the object, which is the one form ccache can cache.",
-                "Alone, without `rtx` exporting the two versions, the paths below name nothing."
+                "Alone, without `omw` exporting the two versions, the paths below name nothing."
             ],
             "cacheVariables": {
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/scripts/buildsystems/vcpkg.cmake",
@@ -132,13 +133,15 @@
             "hidden": true,
             "inherits": [ "debug", "no-tools" ],
             "$comment": [
-                "The debug flavour under AddressSanitizer. Linux only: MSVC has a sanitizer, and nobody has",
-                "measured this tree under it. The ASAN_OPTIONS without which there is no device are `rtx`'s."
+                "The debug flavour under AddressSanitizer and UndefinedBehaviorSanitizer, the two upstream runs",
+                "its tests under. Linux only: MSVC has a sanitizer, and nobody has measured this tree under it.",
+                "The ASAN_OPTIONS without which there is no device, and the UBSAN_OPTIONS that make a finding a",
+                "failure, are its test preset's."
             ],
             "binaryDir": "${sourceDir}/build-asan",
             "cacheVariables": {
-                "CMAKE_C_FLAGS_INIT": "-fsanitize=address -fno-omit-frame-pointer",
-                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=address -fno-omit-frame-pointer"
+                "CMAKE_C_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer",
+                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer"
             }
         },
         {
@@ -148,12 +151,39 @@
             "$comment": [
                 "The debug flavour without the SDK, which is a different binary and not the same one with a",
                 "feature skipped: `noupscaler.cpp` links where `dlss*.cpp` did, and every file that reaches NGX",
-                "has to be behind the `#ifdef`. The gate compiles it so that a symbol reached from the wrong side",
-                "is found here and not by whoever next configures without the SDK."
+                "has to be one of those CMake leaves out. The gate compiles it so that a symbol reached from the",
+                "wrong side is found here and not by whoever next configures without the SDK."
             ],
             "binaryDir": "${sourceDir}/build-nodlss",
             "cacheVariables": {
                 "OPENMW_RTX_DLSS": "OFF"
+            }
+        },
+        {
+            "name": "plain",
+            "hidden": true,
+            "$comment": [
+                "The tree without the ray tracer, as upstream builds it: every program, the CS and its tests",
+                "among them, the three test suites and the benchmarks. What proves that the tree still builds and",
+                "passes upstream's own suites where the fork's renderer is not built, with the stub renderer and",
+                "`OPENMW_RTX=0` in place of the ray tracer. `OPENMW_CXX_FLAGS` comes from the environment, where CI",
+                "puts upstream's `-Werror` and a desk with a newer compiler puts nothing. Listed first among what",
+                "a visible preset inherits, so what it turns on beats what `rtx` and `windows` turn off."
+            ],
+            "binaryDir": "${sourceDir}/build-plain",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "OPENMW_RTX": "OFF",
+                "BUILD_OPENCS": "ON",
+                "BUILD_OPENCS_TESTS": "ON",
+                "BUILD_WIZARD": "ON",
+                "BUILD_LAUNCHER": "ON",
+                "BUILD_ESSIMPORTER": "ON",
+                "BUILD_MWINIIMPORTER": "ON",
+                "BUILD_COMPONENTS_TESTS": "ON",
+                "BUILD_OPENMW_TESTS": "ON",
+                "BUILD_BENCHMARKS": "ON",
+                "OPENMW_CXX_FLAGS": "$env{OPENMW_CXX_FLAGS}"
             }
         },
         {
@@ -231,10 +261,23 @@
             "inherits": [ "nodlss", "windows", "rtx" ]
         },
         {
+            "name": "plain-linux",
+            "inherits": [ "plain", "linux", "rtx" ]
+        },
+        {
+            "name": "plain-windows",
+            "inherits": [ "plain", "windows", "rtx" ],
+            "$comment": "Qt for the CS, the launcher and the wizard, and the link-time optimisation upstream's Windows build takes.",
+            "cacheVariables": {
+                "CMAKE_PREFIX_PATH": "${sourceDir}/deps/Qt/$env{QT_VER}/msvc2019_64",
+                "OPENMW_LTO_BUILD": "ON"
+            }
+        },
+        {
             "name": "package-linux",
             "inherits": [ "package", "linux", "rtx" ],
             "$comment": [
-                "`-g1`, function names and line tables and nothing else, for the symbols `rtx package archive`",
+                "`-g1`, function names and line tables and nothing else, for the symbols `omw archive`",
                 "publishes beside the AppImage: a player's crash dump then names a function and a line. It costs",
                 "nothing at runtime."
             ],
@@ -247,10 +290,10 @@
             "name": "package-windows",
             "inherits": [ "package", "windows", "rtx" ],
             "$comment": [
-                "Qt, which the set has none of and the launcher and the wizard are made of: the one `rtx` fetches",
+                "Qt, which the set has none of and the launcher and the wizard are made of: the one `omw` fetches",
                 "into deps/ for this flavour, by the version CI/deps_versions.msvc.sh pins and exports as QT_VER.",
                 "`-Z7` with `-DEBUG` at link writes each executable's PDB beside it in the build, for the symbols",
-                "`rtx package archive` publishes beside the folder; the install rules leave the PDBs behind."
+                "`omw archive` publishes beside the folder; the install rules leave the PDBs behind."
             ],
             "cacheVariables": {
                 "CMAKE_C_FLAGS_INIT": "-Z7",
@@ -259,5 +302,44 @@
                 "CMAKE_PREFIX_PATH": "${sourceDir}/deps/Qt/$env{QT_VER}/msvc2019_64"
             }
         }
+    ],
+    "testPresets": [
+        {
+            "name": "tests",
+            "hidden": true,
+            "$comment": [
+                "What every run of the suites `cmake/Tests.cmake` registers shares: a failing test's output on the",
+                "page, and a build that registers none a failure rather than a pass. `omw test` picks the labels."
+            ],
+            "output": { "outputOnFailure": true },
+            "execution": { "noTestsAction": "error" }
+        },
+        {
+            "name": "sanitizers",
+            "hidden": true,
+            "$comment": [
+                "**`protect_shadow_gap=0` is not a preference: without it there is no device at all.** The NVIDIA",
+                "driver maps its own enormous address ranges, ASan's shadow gap is mapped `PROT_NONE` across part of",
+                "what it wants, and `vkCreateDevice` comes back `VK_ERROR_INITIALIZATION_FAILED`, which every RTX",
+                "test would read as a skip. What it costs is the guard page that catches a wild pointer landing in",
+                "the gap. **The leak check is off, since the driver's allocations are not this fork's**: the",
+                "driver, the loader, the layers and dbus keep a heap for the life of the process, and each would be",
+                "reported with a stack the fork does not appear in. A finding is a failure, with the stack that led",
+                "to it, as upstream runs its tests. What the caller's own environment names comes last and wins:",
+                "`ASAN_OPTIONS=detect_leaks=1` turns the leak check back on. `omw` runs every program of the asan",
+                "flavour under this, and not the tests alone."
+            ],
+            "environment": {
+                "ASAN_OPTIONS": "protect_shadow_gap=0:detect_leaks=0:$penv{ASAN_OPTIONS}",
+                "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1:$penv{UBSAN_OPTIONS}"
+            }
+        },
+        { "name": "debug-linux", "configurePreset": "debug-linux", "inherits": [ "tests" ] },
+        { "name": "debug-windows", "configurePreset": "debug-windows", "inherits": [ "tests" ] },
+        { "name": "asan-linux", "configurePreset": "asan-linux", "inherits": [ "tests", "sanitizers" ] },
+        { "name": "nodlss-linux", "configurePreset": "nodlss-linux", "inherits": [ "tests" ] },
+        { "name": "nodlss-windows", "configurePreset": "nodlss-windows", "inherits": [ "tests" ] },
+        { "name": "plain-linux", "configurePreset": "plain-linux", "inherits": [ "tests" ] },
+        { "name": "plain-windows", "configurePreset": "plain-windows", "inherits": [ "tests" ] }
     ]
 }

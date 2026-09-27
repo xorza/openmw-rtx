@@ -52,19 +52,22 @@ backend ever arrives.
 
 - Build the targets you touched, run the covering test binary with a filter, then format.
   Compiling is not verifying.
-- `components-tests --gtest_filter='Rtx*'`, `rtx-gpu-tests` and `openmw-tests
-  --gtest_filter='Rtx*'` once before saying it works; `rtx debug test` runs the three, and the
-  crash matrix, `crash-tests --matrix`. The GPU
-  binary fails without a device rather than skipping, so a green run means a device ran it. `rtx debug gate` once at the end: format check, build, no-assert and no-DLSS
-  compiles, tests, `check`, one repeat pair. Never a gate beside a build or another gate.
+- `./omw` at the root is the one way in, `omw [flavour] <verb>`, and `./omw help` lists both; the
+  flavour is `debug` unless named. `./omw test <binary> --gtest_filter=...` builds and runs one
+  test binary with a filter.
+- `./omw test` once before saying it works: the fork's half of `components-tests` and
+  `openmw-tests`, `rtx-gpu-tests`, and the crash matrix, through CTest. The GPU binary fails
+  without a device rather than skipping, so a green run means a device ran it. `./omw gate` once
+  at the end: format check, the driver's tests, build, no-assert and no-DLSS compiles, tests,
+  `check`, one repeat pair. Never a gate beside a build or another gate.
 - Do not open the game window to check a rendering change. `shot --views=all --map
 --against=<dir>` says which pictures a change moved. `scene` reports what the renderer was
   handed. `check` asserts the tree's claims at every place of its suite. `bench` has the moving
   camera. `view` is for what only a window shows.
-- `rtx <flavour> kernels > before.txt` ahead of a shader change and `--against=before.txt` after
+- `./omw kernels > before.txt` ahead of a shader change and `--against=before.txt` after
   it names the kernels the change moved, per tuple of their constants; a tuple it did not name
   draws what it drew.
-- `rtx debug repeat --pairs=10` after touching anything a frame reads. A run is the same run
+- `./omw repeat --pairs=10` after touching anything a frame reads. A run is the same run
   twice, and a pair that finds nothing has found nothing. Read a difference with `--exposure=1`
   and `--pictures=<dir>`.
 - Measure on a hot card, back to back, never with a sleep between runs. Take a throwaway
@@ -74,7 +77,7 @@ backend ever arrives.
   moves with it — the host rows by half, the zone shares by a tenth, the tail by 4 ms. Start the
   run in the background and end the turn; the report's `card` lines say whether that held, and
   `--frame-times=<dir>` writes the series behind a tail.
-- Profiling: `apps/rtxtool/profile.sh` for the CPU, `nsys profile ./openmw-rtxtool bench ...`
+- Profiling: `./omw profile` for the CPU, `nsys profile ./openmw-rtxtool bench ...`
   for the GPU. `ncu` is not installed.
 
 ## Conventions

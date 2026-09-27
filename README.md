@@ -85,7 +85,7 @@ so the file can be dragged into the issue. Inside it:
 * The dump: every thread's stack.
 
 Each release publishes its symbols, `-symbols.zip`, beside its archive, and
-`rtx package crash <dump> <symbols>` reads a dump against them. `[General] crash hang seconds`
+`./omw crash <dump> <symbols>` reads a dump against them. `[General] crash hang seconds`
 sets the hang limit, and `OPENMW_DISABLE_CRASH_CATCHER=1` turns the catcher off.
 
 License

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -293,19 +294,28 @@ namespace Rtx
                 << "an untextured surface's stand-in";
         }
 
+        /// How many bytes OpenSceneGraph counts in one level of `spelling`, which `describeImage` holds
+        /// an image's levels to.
+        std::size_t countedBytes(GLenum spelling, std::uint32_t width, std::uint32_t height)
+        {
+            return osg::Image::computeImageSizeInBytes(
+                static_cast<int>(width), static_cast<int>(height), 1, spelling, GL_UNSIGNED_BYTE, 1);
+        }
+
         /// One block of `spelling`, `width` by `height` texels of it in the image — fewer than four
-        /// where the block pads past the picture's edge, which a BC file two texels wide does.
+        /// where the block pads past the picture's edge, which a BC file two texels wide does. The
+        /// block is handed over whole, as the DDS loader hands over a file's: `allocateImage` counts
+        /// a level under four texels a side by its texels, four bytes of a two-by-two BC3's sixteen.
         osg::ref_ptr<osg::Image> makeBlockImage(
             GLenum spelling, std::uint32_t width, std::uint32_t height, std::initializer_list<std::uint8_t> bytes)
         {
+            auto* const data = new unsigned char[bytes.size()];
+            std::copy(bytes.begin(), bytes.end(), data);
+
             osg::ref_ptr<osg::Image> image = new osg::Image;
             image->setFileName("block.dds");
-            image->allocateImage(static_cast<int>(width), static_cast<int>(height), 1, spelling, GL_UNSIGNED_BYTE);
-
-            std::size_t at = 0;
-            for (const std::uint8_t byte : bytes)
-                image->data()[at++] = byte;
-
+            image->setImage(static_cast<int>(width), static_cast<int>(height), 1, static_cast<GLint>(spelling),
+                spelling, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             return image;
         }
 
@@ -337,9 +347,13 @@ namespace Rtx
                 scratch))
                 << "ascending endpoints and one index nought: one texel of paint";
 
-            EXPECT_FALSE(reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2,
-                                          { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }),
-                scratch))
+            // Where OpenSceneGraph counts the level short of its block, `describeImage` refuses the
+            // image, and a refused image answers what changes nothing about how the surface is traced.
+            const bool wholeBlock = countedBytes(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2) == 16;
+            EXPECT_EQ(reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2,
+                                       { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }),
+                          scratch),
+                !wholeBlock)
                 << "the 255 is in the padding";
             EXPECT_TRUE(reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4,
                                          { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }),

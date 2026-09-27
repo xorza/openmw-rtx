@@ -52,10 +52,14 @@ namespace Rtx
         // cell full of them costs, once per doubling.
         const VkDeviceSize bind = VkDeviceSize{ deformers.getBindVertexCount() } * sizeof(osg::Vec3f);
         const VkDeviceSize bindWords = VkDeviceSize{ deformers.getBindVertexCount() } * sizeof(std::uint32_t);
-        const bool bindMoved
-            = outgrow(mBindPositions, device, BufferKind::DeviceLocal, bind, sTableFilledUsage, "bind positions")
-            | outgrow(mBindNormals, device, BufferKind::DeviceLocal, bind, sTableFilledUsage, "bind normals")
-            | outgrow(mBindTangents, device, BufferKind::DeviceLocal, bindWords, sTableFilledUsage, "bind tangents");
+        // Each grown whether or not another moved, so three calls and not a short-circuit.
+        const bool positionsMoved
+            = outgrow(mBindPositions, device, BufferKind::DeviceLocal, bind, sTableFilledUsage, "bind positions");
+        const bool normalsMoved
+            = outgrow(mBindNormals, device, BufferKind::DeviceLocal, bind, sTableFilledUsage, "bind normals");
+        const bool tangentsMoved
+            = outgrow(mBindTangents, device, BufferKind::DeviceLocal, bindWords, sTableFilledUsage, "bind tangents");
+        const bool bindMoved = positionsMoved || normalsMoved || tangentsMoved;
         writeBind(batch, scene, scene.meshes().getArrived(), bindMoved);
 
         const Moved moved{

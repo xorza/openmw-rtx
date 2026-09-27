@@ -114,6 +114,25 @@ namespace Rtx
                 result->accept(find);
                 return find.mFound;
             }
+
+            /// A stencil property that draws `mode` with its test off, as a vanilla two-sided mesh
+            /// carries one. Every field is set, since the loader reads `mEnabled` and the record's
+            /// own constructor gives it no value.
+            static Nif::NiStencilProperty makeStencil(Nif::NiStencilProperty::DrawMode mode)
+            {
+                Nif::NiStencilProperty stencil;
+                init(static_cast<Nif::NiObjectNET&>(stencil));
+                stencil.mRecordType = Nif::RC_NiStencilProperty;
+                stencil.mEnabled = false;
+                stencil.mTestFunction = Nif::NiStencilProperty::TestFunc::Always;
+                stencil.mStencilRef = 0;
+                stencil.mStencilMask = ~0u;
+                stencil.mFailAction = Nif::NiStencilProperty::Action::Keep;
+                stencil.mZFailAction = Nif::NiStencilProperty::Action::Keep;
+                stencil.mPassAction = Nif::NiStencilProperty::Action::Keep;
+                stencil.mDrawMode = mode;
+                return stencil;
+            }
         };
 
         /// A shape carries what its properties said, and not only what they compiled to.
@@ -143,14 +162,7 @@ namespace Rtx
             alpha.mFlags = Nif::NiAlphaProperty::Flag_Testing | (4 << 10);
             alpha.mThreshold = 128;
 
-            Nif::NiStencilProperty stencil;
-            init(static_cast<Nif::NiObjectNET&>(stencil));
-            stencil.mRecordType = Nif::RC_NiStencilProperty;
-            stencil.mDrawMode = Nif::NiStencilProperty::DrawMode::Both;
-            stencil.mTestFunction = Nif::NiStencilProperty::TestFunc::Always;
-            stencil.mFailAction = Nif::NiStencilProperty::Action::Keep;
-            stencil.mZFailAction = Nif::NiStencilProperty::Action::Keep;
-            stencil.mPassAction = Nif::NiStencilProperty::Action::Keep;
+            Nif::NiStencilProperty stencil = makeStencil(Nif::NiStencilProperty::DrawMode::Both);
 
             const std::optional<Rtx::SurfaceDescription> found = describeTriangle({ &colours, &alpha, &stencil });
             ASSERT_TRUE(found.has_value()) << "a shape with a material is described";
@@ -196,14 +208,7 @@ namespace Rtx
                 colours.mRecordType = Nif::RC_NiMaterialProperty;
                 colours.mDiffuse = osg::Vec3f(0.5f, 0.5f, 0.5f);
 
-                Nif::NiStencilProperty stencil;
-                init(static_cast<Nif::NiObjectNET&>(stencil));
-                stencil.mRecordType = Nif::RC_NiStencilProperty;
-                stencil.mDrawMode = drawMode.value_or(DrawMode::Default);
-                stencil.mTestFunction = Nif::NiStencilProperty::TestFunc::Always;
-                stencil.mFailAction = Nif::NiStencilProperty::Action::Keep;
-                stencil.mZFailAction = Nif::NiStencilProperty::Action::Keep;
-                stencil.mPassAction = Nif::NiStencilProperty::Action::Keep;
+                Nif::NiStencilProperty stencil = makeStencil(drawMode.value_or(DrawMode::Default));
 
                 const std::optional<Rtx::SurfaceDescription> found
                     = drawMode.has_value() ? describeTriangle({ &colours, &stencil }) : describeTriangle({ &colours });

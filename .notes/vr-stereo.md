@@ -235,7 +235,7 @@ Requirements and practice (OpenXR specification, the OpenXR tutorial, `hello_xr`
 
 ## 6. Implementation plan
 
-Each phase ends with `rtx debug test`, `shot --views=all --map --against=<before>` (flat pictures unchanged), `rtx debug repeat --pairs=10` and `rtx debug gate`.
+Each phase ends with `./omw test`, `shot --views=all --map --against=<before>` (flat pictures unchanged), `./omw repeat --pairs=10` and `./omw gate`.
 
 ### Phase 0: decisions — done
 

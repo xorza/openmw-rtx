@@ -336,9 +336,9 @@ namespace RtxTool
         /// Writes `text` to a scratch view file, reads it back, and removes the file.
         ///
         /// **In this run's own directory, `TestingOpenMW::outputDir`, and never under a fixed name
-        /// in the temp directory**: `rtx test` runs the suite as concurrent shards and gtest deals
-        /// a fixture's tests out to different ones, so a file two tests share by name is a file
-        /// one shard removes under the other.
+        /// in the temp directory**: a run sharded with `GTEST_TOTAL_SHARDS` deals a fixture's tests
+        /// out to concurrent processes, so a file two tests share by name is a file one shard
+        /// removes under the other.
         std::vector<RtxTool::Stop> readViews(std::string_view text)
         {
             const std::filesystem::path file = TestingOpenMW::outputFilePath("route-test.cfg");

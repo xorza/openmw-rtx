@@ -416,16 +416,14 @@ namespace Rtx
         class RtxSkinnedMeshTest : public ::testing::Test
         {
         protected:
-            /// An upward normal per corner, so a pose that rewrote one would be read.
-            static std::array<osg::Vec3f, 4> upward()
-            {
-                return {
-                    osg::Vec3f(0.0f, 0.0f, 1.0f),
-                    osg::Vec3f(0.0f, 0.0f, 1.0f),
-                    osg::Vec3f(0.0f, 0.0f, 1.0f),
-                    osg::Vec3f(0.0f, 0.0f, 1.0f),
-                };
-            }
+            /// An upward normal per corner, so a pose that rewrote one would be read. Outliving every
+            /// mesh made of it, because `MeshArrays` holds spans and `addMesh` copies from them.
+            inline static const std::array<osg::Vec3f, 4> sUpward{
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+                osg::Vec3f(0.0f, 0.0f, 1.0f),
+            };
 
             /// The first skin brings the rig; every one after stands on it.
             DeformedMesh addFirstSkin() { return Testing::addOneBoneBody(mScene, quad()); }
@@ -446,7 +444,7 @@ namespace Rtx
             static MeshArrays quad()
             {
                 return MeshArrays{
-                    .mPositions = Testing::sUnitQuad, .mNormals = upward(), .mIndices = Testing::sQuadIndices
+                    .mPositions = Testing::sUnitQuad, .mNormals = sUpward, .mIndices = Testing::sQuadIndices
                 };
             }
 

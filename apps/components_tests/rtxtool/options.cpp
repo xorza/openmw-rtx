@@ -1,6 +1,7 @@
 #include <array>
 #include <filesystem>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -176,6 +177,16 @@ namespace RtxTool
             EXPECT_NE(lineFor("cut-distance").find(": 2 exterior cells by default"), std::string::npos);
             EXPECT_NE(lineFor("encode").find("with libx264 at CRF 18 in yuv420p"), std::string::npos);
             EXPECT_EQ(lineFor("warmup").find("forty-five"), std::string::npos) << "the settle it described is gone";
+        }
+
+        /// `check` is the hold `check` runs under, and a hold is a non-negative number of milliseconds.
+        TEST(RtxToolOptionsTest, aHoldIsMillisecondsOrCheckOwn)
+        {
+            EXPECT_EQ(parseHold("check"), sCheckHoldMs);
+            EXPECT_EQ(parseHold("0"), 0.0);
+            EXPECT_EQ(parseHold("2.5"), 2.5);
+            for (const std::string_view refused : { "-1", "", "8ms", "checks", "nan" })
+                EXPECT_THROW(parseHold(refused), std::runtime_error) << refused;
         }
 
         /// The names the two tables share: an option's owner and the dispatch's row are the same
