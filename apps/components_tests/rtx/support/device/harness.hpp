@@ -121,11 +121,12 @@ namespace Rtx::Testing
     /// the trace can need costs three seconds, and every `resize`, `setScene`, `renderFrame` and
     /// `readPixels` after that costs between one and fifteen milliseconds. So a test that traces
     /// through this one is free and a test that stands up its own costs the suite three seconds.
-    /// Only an upscaler needs its own, because the mode is fixed when the renderer is built.
+    /// Only an upscaler needs its own, because the mode is fixed when the renderer is built. Made
+    /// before any test runs, by the environment that makes the device.
     VulkanRenderer& getRenderer();
 
     /// What the layers raised while `getRenderer`'s renderer was made, for the reason
-    /// `Harness::mMadeWith` gives. Empty until `getRenderer` has made one.
+    /// `Harness::mMadeWith` gives.
     const std::vector<std::string>& getRendererMadeWith();
 
     /// The same, with no validation layers loaded, for the one test that counts allocations.
@@ -169,7 +170,8 @@ namespace Rtx::Testing
     ///
     /// **The validation errors are drained before the test and reported after it**, so a hazard the
     /// layers caught fails the test that caused it: whatever a previous test left behind is not this
-    /// one's to report.
+    /// one's to report. **And the renderer's histories are reset before it**, so it draws nothing a
+    /// previous test's frames left either.
     class RendererTest : public ::testing::Test
     {
     protected:

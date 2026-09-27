@@ -47,7 +47,7 @@ namespace RtxTool
         mNotedCell = ESM::RefId();
     }
 
-    void StandingNote::take()
+    void StandingNote::take(const Rtx::AirClock& air)
     {
         MWBase::World& world = *MWBase::Environment::get().getWorld();
         const MWRender::Camera& camera = *world.getRenderingManager()->getCamera();
@@ -87,11 +87,8 @@ namespace RtxTool
         const int arriving = world.getNextWeatherScriptId();
         mArriving = arriving < 0 ? std::string_view() : Rtx::weatherName(static_cast<std::uint32_t>(arriving));
         mCrossed = 1.0f - world.getWeatherTransition();
-    }
 
-    void StandingNote::takeAir(const Rtx::AirClock& air)
-    {
-        mStood->mSky.mAir = air;
+        stood.mSky.mAir = air;
     }
 
     void StandingNote::printIfAsked(const std::filesystem::path& keys)
@@ -117,17 +114,16 @@ namespace RtxTool
 
     std::string_view StandingNote::describeTitle()
     {
-        // Nothing before a stop's first note: `begin` makes the note empty and `take` fills it on the
-        // frame after, so the title of the frame a stop begins on carries nothing rather than a
-        // place the run has not stood in yet. The two halves are one note, so the hour standing is
-        // the weather standing.
-        if (!mStood.has_value() || !mStood->mSky.mHour.has_value())
+        // Nothing before a stop's first frame is drawn, rather than a place the run has not stood in
+        // yet. `take` writes the eye, the hour and the weather together, so a note with one has all.
+        const Stop* const left = getLeft();
+        if (left == nullptr)
             return {};
 
         return writeSkyNote(mTitleNote,
-            SkyNote{ .mWeather = mStood->mSky.mWeather.value(),
+            SkyNote{ .mWeather = left->mSky.mWeather.value(),
                 .mArriving = mArriving,
                 .mCrossed = mCrossed,
-                .mHour = *mStood->mSky.mHour });
+                .mHour = left->mSky.mHour.value() });
     }
 }

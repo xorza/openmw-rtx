@@ -20,10 +20,11 @@
 #include "traversal.glsl"
 #include "underwater.glsl"
 
-/// How far a ray that found nothing at all is taken to have travelled.
+/// How far a ray that went up and found nothing at all is taken to have travelled.
 ///
-/// **A sentinel and not a length.** What it stands for is *no surface*, which is what
-/// `WaterMirror::mFound` reads it back as. Nothing measures water with it: a ray that went down and
+/// **A length for a miss and never the test for one**, which is `WaterPath::mFound`: read as the
+/// test, it takes every surface further off than this for sky, and a reflection of a far shore
+/// for one with no vector to reproject it by. Nothing measures water with it: a ray that went down and
 /// found nothing took `WATER_UNBOUNDED_PATH` instead.
 const float WATER_MAX_PATH = 2000.0;
 
@@ -264,7 +265,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     else
     {
         reflected = throughAir(reflected, fogAlongLeg(leaving, away, airSpan(bounced), before));
-        shaded.mMirror = WaterMirror(bounced.mPosition, away, bounced.mInstance, bounced.mDistance < WATER_MAX_PATH);
+        shaded.mMirror = WaterMirror(bounced.mPosition, away, bounced.mInstance, bounced.mFound);
     }
 
     const vec3 bent = refract(incident, normal, fromBelow ? WATER_IOR : 1.0 / WATER_IOR);

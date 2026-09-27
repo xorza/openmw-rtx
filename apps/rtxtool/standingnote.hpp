@@ -26,12 +26,9 @@ namespace RtxTool
         /// frame's, from the next `take`.
         void begin(const Stop& stop);
 
-        /// Notes where the eye stands and the sky over it, of the frame about to be drawn.
-        void take();
-
-        /// Notes where the air's clocks stood for the frame just drawn, which is the frame `take`
-        /// noted: they are the renderer's, and stand where they stand only once it has stepped them.
-        void takeAir(const Rtx::AirClock& air);
+        /// Notes the frame just drawn: where the eye stood, the sky over it, and `air`, where the
+        /// renderer's clocks stood for it.
+        void take(const Rtx::AirClock& air);
 
         /// Prints the note, whole, on the frame Home goes down: what a window prints where it was
         /// left, printed now, so a frame somebody is looking at can be drawn again without closing
@@ -45,8 +42,11 @@ namespace RtxTool
         std::string_view describeTitle();
 
         /// Where the run was left, as a stop that would put a camera back there, or null where no
-        /// stop began.
-        const Stop* getLeft() const { return mStood.has_value() ? &*mStood : nullptr; }
+        /// frame of a stop was noted.
+        const Stop* getLeft() const
+        {
+            return mStood.has_value() && mStood->mStand.mEye.has_value() ? &*mStood : nullptr;
+        }
 
     private:
         /// The note itself. The weather is assigned per frame into room the string already has.

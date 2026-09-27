@@ -15,6 +15,22 @@
 
 namespace Rtx::Testing
 {
+    /// What a death test's child finds in its environment, which is how it knows it is one.
+    ///
+    /// **gtest runs the whole binary again in the child**, its global set-up included, and says so
+    /// only through a flag of its own that it tells user code not to read. A set-up that builds what
+    /// every test shares — `rtx-gpu-tests`'s renderer, three and a half seconds — would build it
+    /// again for a statement that aborts. `expectDies` sets this before its child starts; the parent
+    /// keeps it too and never reads it again, having set itself up before any test ran.
+    inline constexpr const char* sDeathChildVariable = "RTX_TESTS_DEATH_CHILD";
+
+    /// Whether this process is a death test's child, `sDeathChildVariable`.
+    inline bool inDeathChild()
+    {
+        const char* const value = std::getenv(sDeathChildVariable);
+        return value != nullptr && std::string_view(value) == "1";
+    }
+
     /// Expects `statement` to end the process with `message`, the way a failed `assert` does.
     ///
     /// **The child leaves no core**, by `Platform::Process::disableCoreDump`, and the binary itself
@@ -29,6 +45,8 @@ namespace Rtx::Testing
         std::source_location where = std::source_location::current())
     {
         const ::testing::ScopedTrace trace(where.file_name(), static_cast<int>(where.line()), "expectDies");
+
+        Platform::Process::setEnvironment(sDeathChildVariable, "1");
 
         EXPECT_DEATH(
             {

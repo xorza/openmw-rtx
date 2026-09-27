@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 
 #include <osg/Vec3f>
@@ -64,6 +65,10 @@ namespace RtxTool
         /// Puts the player's body at `eye`, where a route or a track has the camera this frame.
         static void moveBodyTo(const osg::Vec3f& eye);
 
+        /// Moves the body by however far its camera stands from `mSettling`, once a frame, until it
+        /// stands there.
+        void settleBody();
+
         /// Stands the game's camera at `eye` facing `rotation`, `Stand::getRotation`'s angles, for
         /// as long as nothing else moves it.
         static void aimCamera(const osg::Vec3f& eye, const osg::Vec3f& rotation);
@@ -83,6 +88,11 @@ namespace RtxTool
         /// The game's clock at a track's first frame, in hours since the game began: what the
         /// track's hours run on from.
         double mClockFrom = 0.0;
+
+        /// Where a window's own camera has to come to stand, while the body is still being put
+        /// under it, and how far off it stood at the last correction, squared: `settleBody`.
+        std::optional<osg::Vec3f> mSettling;
+        float mSettleLeft = std::numeric_limits<float>::infinity();
 
         bool mArrived = false;
 
