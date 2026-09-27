@@ -14,7 +14,6 @@
 
 #include <components/esm3/refnum.hpp>
 #include <components/rtx/frameimage.hpp>
-#include <components/rtx/frameworld.hpp>
 #include <components/rtx/pacing.hpp>
 #include <components/rtx/reconstruction.hpp>
 #include <components/rtx/shaders/visibility.h>
@@ -346,13 +345,16 @@ namespace MWRender
         /// picture through two differently answered renderers.
         RtxRun& mRun;
 
-        /// Whether each walk waits for the cell it adopts, where the run says: the one thing
-        /// `RunSetup` states that outlives the construction it is spent in, because what it
+        /// Whether each walk waits for the cell it adopts, where the run says: one of the two things
+        /// `RunSetup` states that outlive the construction they are spent in, because what it
         /// falls back on is the clock's stated step, which the host hands over after. The step
         /// itself is the clock's (`getFrameClock`), and what a frame reads about how the picture is
         /// made is the backend's `getProfile`, which a setting may move and a record made before the
         /// backend may not.
         std::optional<bool> mSettled;
+
+        /// `RunSetup::mInterface`, the other: read by every frame's `drawGui`.
+        bool mInterface;
 
         /// Before the backend, whose surface is on it: the members below die first.
         RtxWindow mWindow;
@@ -391,10 +393,6 @@ namespace MWRender
         /// What the last walk found, and what a second walk added. Kept because a report is written
         /// at the end of a stop and the walks are over by then.
         WalkReport mWalked;
-
-        /// How far the air has been carried since the run began: the one world fact that is an
-        /// integral over the frames rather than a reading of one, so it lives beside the clock.
-        Rtx::FogDrift mFogDrift;
 
         /// Where this frame began and ended inside this renderer, what it presented, and the frame
         /// rate the window's title says: the only instrument on this path, and the number that says

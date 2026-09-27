@@ -87,6 +87,13 @@ namespace RtxTool
 
         /// Whether every measured frame is hashed, whatever the line asks.
         bool mHashes = false;
+
+        /// Whether somebody plays the session, so the interface is the game's — its menus, its
+        /// console, a script's window — and `--hud` decides the bars alone. Everywhere else a
+        /// picture is of the world: the run closes any menu a script opens (`Stager::closeMenus`),
+        /// and `--hud` decides whether anything of the interface is drawn over it
+        /// (`MWRender::RunSetup::mInterface`).
+        bool mPlayed = false;
     };
 
     /// The row of `one`, which is one command.

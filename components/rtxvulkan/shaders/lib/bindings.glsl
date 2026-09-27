@@ -117,15 +117,10 @@ layout(set = SET_CHANNELS, binding = CHANNEL_REFLECTION_MOTION, GBUFFER_MOTION)
 /// for the same pass. Nought on every pixel that hit something, which is also how that pass knows.
 layout(set = SET_CHANNELS, binding = CHANNEL_STARS_SHOWN, GBUFFER_STARS) uniform writeonly image2D starsShown;
 
-/// The puffs in front of the surface, sprites and cloud shells as one layer: their straight colour
-/// lit where they stand and already fog-attenuated, and what the layer lets through in `a`. Read
-/// back by `spritecomposite.rgen`, which is why it is not `writeonly`.
+/// The sprites in front of the surface: their straight colour lit where they stand and already
+/// fog-attenuated, and what they let through in `a` with the arms' flag in its sign — `packPuffs`.
+/// Read back by `spritecomposite.rgen`, which is why it is not `writeonly`.
 layout(set = SET_CHANNELS, binding = CHANNEL_PUFFS, GBUFFER_LAYER) uniform image2D puffs;
-
-/// How far along the ray that layer stood, coverage-weighted, in `r` — where the air is split
-/// when it is composited — and what the shells alone let through in `g`, because the composite
-/// marches the sprites' own shape again at the shown extent and the shells' it cannot.
-layout(set = SET_CHANNELS, binding = CHANNEL_PUFFS_DEPTH, GBUFFER_PUFF_DEPTH) uniform image2D puffsDepth;
 
 // One atomic per hit on a single address, which looks like contention and costs nothing a subgroup
 // reduction in its place gives back: few rays hit, and the reduction would cost the device a
@@ -445,9 +440,7 @@ layout(set = SET_PASS, binding = BIND_FOG_FIELD) uniform sampler3D fogField;
 layout(set = SET_VOLUME, binding = BIND_FOG_WAS_SCATTER) uniform sampler3D fogWasScatter;
 layout(set = SET_VOLUME, binding = BIND_FOG_WAS_SUNWARD) uniform sampler3D fogWasSunward;
 
-/// The same two as this frame's scatter pass wrote them, which is what its integrate pass reads —
-/// and what a puff of smoke reads at a point, `puffLight` being the one thing in the trace that
-/// wants a froxel's own answer rather than a column's integral of it.
+/// The same two as this frame's scatter pass wrote them, which is what its integrate pass reads.
 layout(set = SET_VOLUME, binding = BIND_FOG_SCATTER) uniform sampler3D fogScatter;
 layout(set = SET_VOLUME, binding = BIND_FOG_SUNWARD) uniform sampler3D fogSunward;
 
@@ -466,7 +459,13 @@ layout(set = SET_VOLUME, binding = BIND_FOG_AIR_SUNWARD) uniform sampler3D fogVo
 layout(set = SET_VOLUME, binding = BIND_FOG_SLICE) uniform sampler3D fogSlice;
 layout(set = SET_VOLUME, binding = BIND_FOG_SLICE_SUNWARD) uniform sampler3D fogSliceSunward;
 
-/// The same seven, as the pass that fills each one writes it.
+/// The three answers `fogSunward` holds, with the neighbours across the screen averaged in exactly
+/// as the integrate pass averages them for the air — its `sliceAt` says why — which is what a puff
+/// of smoke is lit by at a point, `puffLight` being the one thing in the trace that wants a
+/// froxel's own answer rather than a column's integral of it.
+layout(set = SET_VOLUME, binding = BIND_FOG_SEEING) uniform sampler3D fogSeeing;
+
+/// The same eight, as the pass that fills each one writes it.
 layout(set = SET_VOLUME, binding = BIND_FOG_SCATTER_TARGET, FOG_VOLUME_FORMAT)
     uniform writeonly image3D fogScatterTarget;
 layout(set = SET_VOLUME, binding = BIND_FOG_SUNWARD_TARGET, FOG_VOLUME_FORMAT)
@@ -478,6 +477,7 @@ layout(set = SET_VOLUME, binding = BIND_FOG_AIR_SUNWARD_TARGET, FOG_SUNWARD_FORM
 layout(set = SET_VOLUME, binding = BIND_FOG_SLICE_TARGET, FOG_VOLUME_FORMAT) uniform writeonly image3D fogSliceTarget;
 layout(set = SET_VOLUME, binding = BIND_FOG_SLICE_SUNWARD_TARGET, FOG_SUNWARD_FORMAT)
     uniform writeonly image3D fogSliceSunwardTarget;
+layout(set = SET_VOLUME, binding = BIND_FOG_SEEING_TARGET, FOG_VOLUME_FORMAT) uniform writeonly image3D fogSeeingTarget;
 
 /// How far each column's ray runs before it meets a surface, which `fogdepth.rgen` writes and the
 /// scatter pass reads. **One storage binding for both**, because neither samples it: a column reads

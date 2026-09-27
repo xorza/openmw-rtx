@@ -289,6 +289,25 @@ namespace Rtx
             EXPECT_NEAR(drift.get().y(), 504.0, 1e-3);
             expectOffsets(becalmed, drift.get(), still.mSkySeconds);
 
+            // **A held air is the air, and the wind carries it on from there**: what a run naming a
+            // moment stands in. Held behind the clock the drift had reached, because a moment
+            // somebody saw is as often earlier in a session as later. The reading at the held clock
+            // moves nothing, and one a second on blows the same (378, 504) from the held point.
+            const osg::Vec2d held(-12345.5, 6789.25);
+            drift.hold(held, 0.5);
+            WorldReading moment = later;
+            moment.mSkySeconds = 0.5;
+            Shaders::VisibilityConstants standing{};
+            describe(moment, drift, standing);
+            EXPECT_EQ(drift.get(), held);
+            expectOffsets(standing, held, 0.5);
+
+            moment.mSkySeconds = 1.5;
+            Shaders::VisibilityConstants carried{};
+            describe(moment, drift, carried);
+            EXPECT_NEAR(drift.get().x(), held.x() + 378.0, 1e-3);
+            EXPECT_NEAR(drift.get().y(), held.y() + 504.0, 1e-3);
+
             // **The one field that does not pass through, and it is meant not to.** What the shader
             // is told is where the surface actually is, and the surface is placed a hair under its
             // nominal level so that ground authored at sea level is not fighting it —

@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include <components/rtx/cellworld.hpp>
+#include <components/rtx/frameworld.hpp>
 #include <components/rtx/pacing.hpp>
 #include <components/rtx/reconstruction.hpp>
 #include <components/rtx/renderer.hpp>
@@ -52,6 +53,12 @@ namespace MWRender
 
         /// Whether the window stays hidden, which saves a present per frame and nothing else.
         bool mHeadless = false;
+
+        /// Whether the interface is drawn over the frame: the played game's and a watched window's.
+        /// A run that writes a picture of the world draws none unless it asks, because whatever a
+        /// script puts on the screen lands in the picture — a mod's notice in a window of its own,
+        /// which no switch of the HUD's reaches.
+        bool mInterface = true;
 
         /// How long every frame stands for, in seconds, or nothing to time each one off the wall.
         /// Everything the world animates steps by it, so ten seconds of world is six hundred frames
@@ -115,6 +122,12 @@ namespace MWRender
         /// which a run that hashes every frame asks for and nothing a player does ever does.
         virtual bool wantsFrameCopy() const = 0;
 
+        /// Where the air's clocks are to stand this frame, in place of where they ran to, or nothing
+        /// to let them run: what a stop naming a moment holds them at until its first counted
+        /// frame, so a picture of the air somebody saw is drawn at the moment they saw it rather
+        /// than at wherever this session's frames happened to carry it.
+        virtual std::optional<Rtx::AirClock> getHeldAir() const = 0;
+
         /// Takes one traced frame, and with it whatever the device answered for an earlier one —
         /// `FrameReport::mResult`, set where an answer came back this frame. Every traced frame and
         /// not only the answered ones, because an answer comes back a frame later or two by
@@ -139,6 +152,7 @@ namespace MWRender
         std::uint32_t getAccumulated() const override { return 0; }
         bool wantsSecondWalk() const override { return false; }
         bool wantsFrameCopy() const override { return false; }
+        std::optional<Rtx::AirClock> getHeldAir() const override { return std::nullopt; }
         void frame(const FrameContext& context, const FrameReport& report) override {}
         std::string_view describeTitle() override { return {}; }
     };

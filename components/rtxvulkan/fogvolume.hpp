@@ -70,10 +70,11 @@ namespace Rtx
         void depthTaken(VkCommandBuffer commands) const;
 
         /// Orders the pass that fills the froxels against the pass that integrates the columns, and
-        /// against the trace, which reads a point for a puff of smoke (`puffLight`).
+        /// against the trace, which reads what the lamps deliver to a puff of smoke (`puffLight`).
         void scattered(VkCommandBuffer commands, FrameSlot trace) const;
 
-        /// Orders the dispatch that wrote the accumulation and the slices against the trace.
+        /// Orders the dispatch that wrote the accumulation, the slices and the averaged seeing against
+        /// the trace.
         void handOver(VkCommandBuffer commands) const;
 
     private:
@@ -110,6 +111,11 @@ namespace Rtx
         /// through from the last edge it passed to where its surface stands.
         Image mSlice;
         Image mSliceSunward;
+
+        /// `mSunward`'s three answers with the neighbours across the screen averaged in, as the
+        /// integrate pass averages them for the air: what a puff of smoke is lit by (`puffLight`).
+        /// Written by that pass and not over `mSunward`, which is the next trace's history.
+        Image mSeeing;
 
         /// How far each column's ray runs this frame before it meets a surface, in world units.
         Image mColumnDepth;

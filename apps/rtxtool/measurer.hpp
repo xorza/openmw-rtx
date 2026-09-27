@@ -115,6 +115,12 @@ namespace RtxTool
             std::array<FilmFrame, 4> mFilmFrames{};
             std::size_t mFilmPending = 0;
 
+            /// How many measured frames the world stood paused on, and what paused it on the first
+            /// of them — `Stager::describePause` says what that names. Noted once and not per frame,
+            /// so a stop paused throughout allocates the one string.
+            std::uint32_t mPausedFrames = 0;
+            std::string mPausedBy;
+
             /// The cell the last measured frame was drawn in, so a change of it is a boundary
             /// crossed. Compared as an address and never read, which is all an identity needs.
             const void* mCell = nullptr;

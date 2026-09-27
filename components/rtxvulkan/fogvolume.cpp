@@ -112,6 +112,7 @@ namespace Rtx
         , mSlice(device, mColumns, mRows, sFormat, sUsage, "fog slice", 1, Shaders::FOG_VOLUME_SLICES)
         , mSliceSunward(device, mColumns, mRows, toVulkanFormat(FOG_SUNWARD_FORMAT), sUsage, "fog slice sunward", 1,
               Shaders::FOG_VOLUME_SLICES)
+        , mSeeing(device, mColumns, mRows, sFormat, sUsage, "fog seeing", 1, Shaders::FOG_VOLUME_SLICES)
         , mColumnDepth(device, mColumns, mRows, toVulkanFormat(FOG_DEPTH_FORMAT),
               VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, "fog column depth")
         , mColumnMoons(device, mColumns, mRows, toVulkanFormat(FOG_MOONS_FORMAT),
@@ -137,6 +138,7 @@ namespace Rtx
             named[Shaders::BIND_FOG_AIR_SUNWARD] = &mAirSunward;
             named[Shaders::BIND_FOG_SLICE] = &mSlice;
             named[Shaders::BIND_FOG_SLICE_SUNWARD] = &mSliceSunward;
+            named[Shaders::BIND_FOG_SEEING] = &mSeeing;
             named[Shaders::BIND_FOG_SCATTER_TARGET] = &mScatter[written];
             named[Shaders::BIND_FOG_SUNWARD_TARGET] = &mSunward[written];
             named[Shaders::BIND_FOG_LAMPS_TARGET] = &mLamps;
@@ -144,6 +146,7 @@ namespace Rtx
             named[Shaders::BIND_FOG_AIR_SUNWARD_TARGET] = &mAirSunward;
             named[Shaders::BIND_FOG_SLICE_TARGET] = &mSlice;
             named[Shaders::BIND_FOG_SLICE_SUNWARD_TARGET] = &mSliceSunward;
+            named[Shaders::BIND_FOG_SEEING_TARGET] = &mSeeing;
             named[Shaders::BIND_FOG_COLUMN_DEPTH] = &mColumnDepth;
             named[Shaders::BIND_FOG_COLUMN_MOONS] = &mColumnMoons;
 
@@ -165,7 +168,7 @@ namespace Rtx
             constexpr VkClearColorValue nothing{ .float32 = { 0.0f, 0.0f, 0.0f, 0.0f } };
 
             for (const Image* image : { &mScatter[0], &mScatter[1], &mSunward[0], &mSunward[1], &mLamps, &mAir,
-                     &mAirSunward, &mSlice, &mSliceSunward, &mColumnDepth, &mColumnMoons })
+                     &mAirSunward, &mSlice, &mSliceSunward, &mSeeing, &mColumnDepth, &mColumnMoons })
                 image->clear(commands, Use::sUndefined, nothing, Use::sAnyGeneral);
         });
     }
@@ -176,15 +179,15 @@ namespace Rtx
 
         // Discarded, because every texel of it is written before any is read; the other half of
         // the pair is this frame's history and survives. The point pair, the lamps and the column
-        // images are written by the two launches, the integrated ones by the dispatch after them.
-        // The last frame's readers are behind the head barrier `CommandPool::begin` recorded — and
-        // so is the launch that wrote the history, which is why the history takes no barrier of
-        // its own: it rests in `GENERAL`, and the head barrier made the write visible to every
-        // read after it.
+        // images are written by the two launches, the integrated ones and the averaged seeing by the
+        // dispatch after them. The last frame's readers are behind the head barrier
+        // `CommandPool::begin` recorded — and so is the launch that wrote the history, which is why
+        // the history takes no barrier of its own: it rests in `GENERAL`, and the head barrier made
+        // the write visible to every read after it.
         Barriers barriers(commands);
         for (const Image* image : { &mScatter[written], &mSunward[written], &mLamps, &mColumnDepth, &mColumnMoons })
             barriers.add(image->describeTransition(Use::sUndefined, Use::sTraceWrite));
-        for (const Image* image : { &mAir, &mAirSunward, &mSlice, &mSliceSunward })
+        for (const Image* image : { &mAir, &mAirSunward, &mSlice, &mSliceSunward, &mSeeing })
             barriers.add(image->describeTransition(Use::sUndefined, Use::sComputeWrite));
 
         barriers.flush();
@@ -205,8 +208,8 @@ namespace Rtx
         const std::size_t written = trace.get();
 
         // `GENERAL` to `GENERAL`, so what this orders is the writes against the reads and nothing
-        // else. Against the trace as well as the integrate pass, because a puff of smoke reads two
-        // of these at a point (`puffLight`).
+        // else. Against the trace as well as the integrate pass, because a puff of smoke reads what
+        // the lamps deliver at a point (`puffLight`).
         Barriers barriers(commands);
         for (const Image* image : { &mScatter[written], &mSunward[written], &mLamps })
             barriers.add(image->describeTransition(Use::sTraceWrite, Use::sShaderSample));
@@ -217,7 +220,7 @@ namespace Rtx
     void FogVolume::handOver(VkCommandBuffer commands) const
     {
         Barriers barriers(commands);
-        for (const Image* image : { &mAir, &mAirSunward, &mSlice, &mSliceSunward })
+        for (const Image* image : { &mAir, &mAirSunward, &mSlice, &mSliceSunward, &mSeeing })
             barriers.add(image->describeTransition(Use::sComputeWrite, Use::sShaderSample));
 
         barriers.flush();

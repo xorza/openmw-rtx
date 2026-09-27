@@ -7,6 +7,7 @@
 
 #include <components/rtx/extractionstats.hpp>
 #include <components/rtx/framespend.hpp>
+#include <components/rtx/frameworld.hpp>
 #include <components/rtx/latencyreport.hpp>
 #include <components/rtx/reconstruction.hpp>
 #include <components/rtx/renderer.hpp>
@@ -70,6 +71,10 @@ namespace MWRender
         /// What the frame was traced with beside the scene — the camera, the sky, the air, the sea
         /// and the sample — for the run's hashes to name when a picture moves and the scene did not.
         Rtx::Shaders::VisibilityConstants mConstants{};
+
+        /// Where the air's clocks stood for this frame — what the constants' drift and churn were
+        /// taken off, kept whole because the constants hold them reduced against the fog's tiles.
+        Rtx::AirClock mAir;
 
         WalkReport mWalked;
 

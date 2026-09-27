@@ -27,7 +27,7 @@
 // Which binding of `SET_VOLUME` each image is, for the shaders that declare them and the owner that
 // writes them.
 //
-// **Ten images and seventeen bindings, seven of them named twice**, because Vulkan has no
+// **Eleven images and nineteen bindings, eight of them named twice**, because Vulkan has no
 // descriptor a shader may both sample and store through — and every one but a pair's history is
 // written by one pass and read by the next. The column depth is named once: both passes reach it
 // through the one storage binding.
@@ -46,8 +46,7 @@ namespace Rtx::Shaders
     const uint BIND_FOG_WAS_SCATTER = 0;
     const uint BIND_FOG_WAS_SUNWARD = 1;
 
-    /// The same two as this frame's scatter pass wrote them, which its integrate pass reads — and
-    /// what a puff of smoke reads at a point rather than as a column's integral.
+    /// The same two as this frame's scatter pass wrote them, which its integrate pass reads.
     const uint BIND_FOG_SCATTER = 2;
     const uint BIND_FOG_SUNWARD = 3;
 
@@ -63,18 +62,23 @@ namespace Rtx::Shaders
     const uint BIND_FOG_SLICE = 7;
     const uint BIND_FOG_SLICE_SUNWARD = 8;
 
-    /// The same seven, as the pass that fills each one writes it.
-    const uint BIND_FOG_SCATTER_TARGET = 9;
-    const uint BIND_FOG_SUNWARD_TARGET = 10;
-    const uint BIND_FOG_LAMPS_TARGET = 11;
-    const uint BIND_FOG_AIR_TARGET = 12;
-    const uint BIND_FOG_AIR_SUNWARD_TARGET = 13;
-    const uint BIND_FOG_SLICE_TARGET = 14;
-    const uint BIND_FOG_SLICE_SUNWARD_TARGET = 15;
+    /// The three answers of `BIND_FOG_SUNWARD` with their neighbours across the screen averaged in,
+    /// as the integrate pass averaged them for the air: what a puff of smoke is lit by at a point.
+    const uint BIND_FOG_SEEING = 9;
+
+    /// The same eight, as the pass that fills each one writes it.
+    const uint BIND_FOG_SCATTER_TARGET = 10;
+    const uint BIND_FOG_SUNWARD_TARGET = 11;
+    const uint BIND_FOG_LAMPS_TARGET = 12;
+    const uint BIND_FOG_AIR_TARGET = 13;
+    const uint BIND_FOG_AIR_SUNWARD_TARGET = 14;
+    const uint BIND_FOG_SLICE_TARGET = 15;
+    const uint BIND_FOG_SLICE_SUNWARD_TARGET = 16;
+    const uint BIND_FOG_SEEING_TARGET = 17;
 
     /// How far each column's ray runs before it meets a surface, which every reader reaches through
     /// this one storage binding because none of them samples it.
-    const uint BIND_FOG_COLUMN_DEPTH = 16;
+    const uint BIND_FOG_COLUMN_DEPTH = 18;
 
     /// What each moon puts into the air along each column's ray, before its slant through the fog:
     /// one layer a moon, in `MoonDisc` order. `fogdepth.rgen` writes it once a column and the
@@ -84,7 +88,7 @@ namespace Rtx::Shaders
     /// **The sun is not one of them.** Its irradiance and its phase are functions of the direction
     /// alone, and `fogscatter.rgen` says why the trace puts both back at the pixel's own angle
     /// rather than the column's — so a third layer held the sun's term and no pass ever read it.
-    const uint BIND_FOG_COLUMN_MOONS = 17;
+    const uint BIND_FOG_COLUMN_MOONS = 19;
 
     /// Where the sampled bindings end and the storage ones begin, and how many the set declares.
     const uint FOG_SAMPLED_COUNT = BIND_FOG_SCATTER_TARGET;

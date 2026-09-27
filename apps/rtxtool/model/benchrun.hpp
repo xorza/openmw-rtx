@@ -11,6 +11,7 @@
 #include <osg/Vec3f>
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
+#include <components/rtx/frameworld.hpp>
 #include <components/rtx/renderer.hpp>
 
 #include "benchrecord.hpp"
@@ -153,6 +154,14 @@ namespace RtxTool
         /// immediately, so a stop stands under it from its first frame.
         std::optional<std::string> mWeather;
 
+        /// Where the air's clocks stand at the stop's first counted frame, or nothing to leave them
+        /// wherever the session's frames carried them. The fog drifts and churns on these and the
+        /// deck scrolls on them, so without it a place is drawn under the air of however many
+        /// frames the run happened to have drawn: a window flown for an hour stands in one fog and
+        /// a run started fresh stands in another. Held until that frame and free after it, as
+        /// `MWRender::RtxRun::getHeldAir` says.
+        std::optional<Rtx::AirClock> mAir;
+
         /// Weathers to turn the sky through while the stop runs, in order and round again, as
         /// transitions: what the renderer has to survive is an emitter freed on an ordinary frame.
         /// Asking for it stops the run being a benchmark.
@@ -280,8 +289,14 @@ namespace RtxTool
         /// because a run measures or writes a picture unless somebody is watching it.
         MWRender::RunSetup mSetup{ .mHeadless = true, .mStep = MWRender::sStepSeconds };
 
-        /// Whether the game's HUD is drawn over the picture. Off by default: a picture is of the
-        /// world, and the bars and the compass are the played game's.
+        /// Whether somebody plays the session (`VerbPolicy::mPlayed`): the menus are theirs to open
+        /// and close. Otherwise the run closes any a script opens, and draws the interface only
+        /// where `mHud` asks.
+        bool mPlayed = false;
+
+        /// Whether the game's HUD is drawn over the picture, and for a session nobody plays whether
+        /// anything of the interface is. Off by default: a picture is of the world, and the bars and
+        /// the compass are the played game's.
         bool mHud = false;
 
         /// Whether the played game's vanity camera may take over — the orbit round the player

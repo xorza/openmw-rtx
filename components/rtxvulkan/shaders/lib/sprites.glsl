@@ -71,7 +71,9 @@ PuffShape streakPuff(vec3 along)
 /// flip between neighbouring pixels wherever the layer straddles a shadow edge, and draw that one
 /// puff's silhouette into the picture — a black disc through a drain's splash at Vivec and through
 /// the blight cloud at Dagoth Ur. A field the sampler interpolates cannot draw a silhouette, and one
-/// accumulated over frames cannot speckle.
+/// averaged over frames and across its neighbours cannot speckle — over frames alone it could:
+/// M[FR]'s ground mist, lit by the sun at a card's worth, showed each froxel's draw as a warm blotch
+/// a column wide, which is why this reads `fogSeeing` and not what the scatter pass wrote.
 ///
 /// **The three terms are the ones a puff always had**, and the arithmetic is `pathEnd`'s with the
 /// visibilities read rather than traced: the frame's ambient by what the point sees of it, the sun
@@ -98,7 +100,7 @@ vec3 puffLight(uvec2 pixel, vec3 direction, float seen, PuffShape wrapped)
     // reason `fogSliceAt` gives.
     const vec3 at = vec3(fogVolumeAcross(vec2(pixel) + 0.5, frame.mFogColumns), fogDepthInverse(seen));
 
-    const FogSeeing seeing = unpackFogSeeing(textureLod(fogSunward, at, 0.0));
+    const FogSeeing seeing = unpackFogSeeing(textureLod(fogSeeing, at, 0.0));
     const vec3 lamps = textureLod(fogLamps, at, 0.0).xyz;
 
     const vec3 daylight = daylightReaching(frame.mOrigin + direction * seen);

@@ -9,6 +9,8 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
+#include <components/sky/skyclock.hpp>
+
 #include "frameoptions.hpp"
 #include "moonbuilder.hpp"
 #include "shaders/sky.h"
@@ -120,11 +122,26 @@ namespace Rtx
 
         const osg::Vec2d& get() const { return mCarried; }
 
+        /// Stands the air at `carried` as of `seconds` of the sky's clock, so the next `advance` at
+        /// that clock moves nothing and the one after carries it on from there.
+        void hold(const osg::Vec2d& carried, double seconds);
+
     private:
         /// In double, because it grows without bound: after ten hours of storm a float's step
         /// across it is two units against the twelve a frame carries it.
         osg::Vec2d mCarried;
         std::optional<double> mLastSeconds;
+    };
+
+    /// Where the clocks the air runs on stand: the sky's own, which the deck scrolls by and the fog
+    /// churns by, and how far `FogDrift` has carried the fog along it. What a frame's air is a
+    /// function of beside the weather and the hour — so a moment somebody saw can be stood in
+    /// again. Neither is derived from the other: the carry is the wind integrated over the clock,
+    /// and every change of weather on the way changed the wind.
+    struct AirClock
+    {
+        Sky::SkyClock mSky;
+        osg::Vec2d mCarried;
     };
 
     /// `seconds` as two floats whose sum is it, for a shader to reduce exactly (`turnsAt`): the

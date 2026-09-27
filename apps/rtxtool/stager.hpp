@@ -17,7 +17,9 @@ namespace RtxTool
     /// Puts the world where a stop stands, once, at its start: the player in the stop's cell, the
     /// clock and the sky, the seed, the rate the clock runs at, god mode, the interface, and the walls
     /// where the camera is flown or followed rather than walked. What moves while the stop runs is
-    /// `CameraDriver`'s.
+    /// `CameraDriver`'s. The statics are what the session asks of the world every frame, because the
+    /// game undoes a stop between frames: the history the first uncounted frames leave, a menu a
+    /// script opens, and whether the world stands paused for any other reason.
     class Stager
     {
     public:
@@ -28,6 +30,19 @@ namespace RtxTool
 
         /// Tells the renderer that nothing before this frame describes where it now stands.
         static void forgetHistory();
+
+        /// Leaves every menu open, as a player closing each would. For a run nobody plays, every
+        /// frame: a menu pauses the world, and nobody is at the keys to close one a script opens —
+        /// M[FR]'s hotkey notice opens one on every new game, and every run under it measured a
+        /// world with its clock, its particles and its air standing still.
+        static void closeMenus();
+
+        /// Whether the world stands paused this frame, for any of the game's reasons.
+        static bool isWorldPaused();
+
+        /// What holds the world paused, as a report names it: the pause tags a script set — the
+        /// interface's `ui` among them, which a menu sets — and the game's own reasons beside them.
+        static std::string describePause();
 
         /// Puts the sky under the weather called `name` over the player's region, as `changeweather`
         /// would, and warns for a name that is none of the ten.

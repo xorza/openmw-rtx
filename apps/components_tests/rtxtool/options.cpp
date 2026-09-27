@@ -218,26 +218,26 @@ namespace RtxTool
         }
 
         /// What each command does with a place is one row: which freeze the world, which fly a
-        /// route, which follow a track, which measure without the layers and which hash every frame.
-        /// **Every command has one**, so a command added to the names and forgotten here stops at
-        /// the first run rather than running with a row it never had.
+        /// route, which follow a track, which measure without the layers, which hash every frame and
+        /// which somebody plays. **Every command has one**, so a command added to the names and
+        /// forgotten here stops at the first run rather than running with a row it never had.
         TEST(RtxVerbsTest, everyCommandHasOneRowOfPolicy)
         {
             const auto row = [](Verbs verb) {
                 const VerbPolicy& policy = policyOf(verb);
                 return std::array{ policy.mFreezes, policy.mFliesRoutes, policy.mFollowsTracks, policy.mMeasures,
-                    policy.mHashes };
+                    policy.mHashes, policy.mPlayed };
             };
 
-            //                                     freezes routes tracks measures hashes
-            EXPECT_EQ(row(Verbs::Info), (std::array{ false, false, false, false, false }));
-            EXPECT_EQ(row(Verbs::Scene), (std::array{ true, false, false, false, false }));
-            EXPECT_EQ(row(Verbs::Shot), (std::array{ true, true, false, false, true }));
-            EXPECT_EQ(row(Verbs::View), (std::array{ false, false, false, false, false }))
-                << "a window takes no route: somebody is flying it";
-            EXPECT_EQ(row(Verbs::Bench), (std::array{ false, true, false, true, false }));
-            EXPECT_EQ(row(Verbs::Check), (std::array{ true, true, false, false, false }));
-            EXPECT_EQ(row(Verbs::Film), (std::array{ false, false, true, true, false }));
+            //                                     freezes routes tracks measures hashes played
+            EXPECT_EQ(row(Verbs::Info), (std::array{ false, false, false, false, false, false }));
+            EXPECT_EQ(row(Verbs::Scene), (std::array{ true, false, false, false, false, false }));
+            EXPECT_EQ(row(Verbs::Shot), (std::array{ true, true, false, false, true, false }));
+            EXPECT_EQ(row(Verbs::View), (std::array{ false, false, false, false, false, true }))
+                << "a window takes no route and keeps the game's interface: somebody is flying it";
+            EXPECT_EQ(row(Verbs::Bench), (std::array{ false, true, false, true, false, false }));
+            EXPECT_EQ(row(Verbs::Check), (std::array{ true, true, false, false, false, false }));
+            EXPECT_EQ(row(Verbs::Film), (std::array{ false, false, true, true, false, false }));
         }
     }
 

@@ -12,6 +12,7 @@
 #include <boost/program_options/variables_map.hpp>
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
+#include <components/rtx/frameworld.hpp>
 #include <components/rtx/upscale.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 
@@ -35,6 +36,11 @@ namespace RtxTool
     /// round-tripping, as a `#` comment either file format takes. A run that opened a window prints
     /// this and `describeBlock` where the eye was left, so a place found by flying can be pasted.
     std::string describeSpot(const Stop& stop);
+
+    /// The air's clocks as the `air` field and `--air` take them back: shortest-round-trip numbers,
+    /// so what is read is what was written, to the bit, and no spaces, so the command line's is one
+    /// argument unquoted.
+    std::string describeAir(const Rtx::AirClock& air);
 
     /// The whole `views.cfg` section for `stop`, ready to paste, under a slug of its name. The whole
     /// section, because a block with no `cell` is one the view file refuses to load; and
@@ -204,12 +210,13 @@ namespace RtxTool
     inline constexpr float sDefaultHour = 12.0f;
     inline constexpr std::string_view sDefaultWeather = "Clear";
 
-    /// One stop from a view file entry and whatever the command line named. A view id names one
+    /// One stop from a view file entry and the sky the command line named. A view id names one
     /// frame, so a place measured at dawn says so in `mSky.mHour`; the command line still wins, as
-    /// it does for `pos` and `look`. What comes back has both conditions settled, so nothing
-    /// downstream asks which won. `day` is only for the moons.
-    Stop stopFor(
-        const Stop& view, const std::optional<float>& hour, const std::optional<std::string>& weather, int day);
+    /// it does for `pos` and `look` — for the hour, the weather and the air, each where it names
+    /// one. What comes back has the hour and the weather settled, so nothing downstream asks which
+    /// won. The day is the line's, since a view names none, and is only for the moons; what the
+    /// sky is turned through is not a condition of the place and stays the caller's.
+    Stop stopFor(const Stop& view, const StopSky& given);
 
     /// Reads the view file. Throws when it is missing or malformed, rather than quietly rendering
     /// somewhere else.

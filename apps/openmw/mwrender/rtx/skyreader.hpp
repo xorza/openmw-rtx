@@ -39,7 +39,8 @@ namespace MWRender
     ///
     /// Apart from `WorldMirror`, which is the walk and the hand-over: what this holds is read off
     /// the content once and never off the graph, and `read` is a function of the frame's records
-    /// and the one clock this keeps.
+    /// and the one clock this keeps. The air's moment is this clock and the fog's drift beside it,
+    /// so both are kept here and a run that holds one holds the other (`holdAir`).
     class SkyReader
     {
     public:
@@ -69,12 +70,21 @@ namespace MWRender
         /// steps its own.
         void step(float seconds, float timeScale, float cloudSpeed) { mClock.step(seconds, timeScale, cloudSpeed); }
 
+        /// Stands the air's clocks at `air`, in place of wherever this session's frames carried them:
+        /// the sky's own and the fog's carry together, because they are one moment.
+        void holdAir(const Rtx::AirClock& air);
+
         /// @param falling what the weather drops, for how much of it rings the water and how high
         ///        a roof shelters from it.
         /// @param seconds the world's clock, which the sea is animated by.
         /// @param reach how far the world is built, in units, which the open air closes over.
         Rtx::WorldReading read(const SkyState& sky, const WorldState& world, const Precipitation& falling,
             double seconds, float reach) const;
+
+        /// Writes the world's half of the frame off `reading` (`Rtx::describeWorld`), carrying the
+        /// fog on by the reading's clock, and answers where the air's clocks stood for the frame.
+        Rtx::AirClock describe(
+            const Rtx::WorldReading& reading, Rtx::Shaders::VisibilityConstants& constants, Rtx::FrameOptions& options);
 
     private:
         /// The sky's own meshes, as the settings name them.
@@ -87,6 +97,10 @@ namespace MWRender
         /// The deck and the fog's seconds, this renderer's own: the dome keeps its own deck and
         /// neither reads the other's.
         Sky::SkyClock mClock;
+
+        /// How far the air has been carried since the run began: the one world fact that is an
+        /// integral over the frames rather than a reading of one, so it lives beside the clock.
+        Rtx::FogDrift mDrift;
 
         /// What a script paints Secunda, `Moons_Script_Color` decoded, read once as the
         /// rasterizer's `SkyManager` reads it. `WorldState::mMoonRed` says when.

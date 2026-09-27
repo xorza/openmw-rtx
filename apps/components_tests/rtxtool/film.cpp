@@ -11,6 +11,7 @@
 #include <gtest/gtest.h>
 
 #include <osg/Math>
+#include <osg/Vec2d>
 #include <osg/Vec3f>
 
 #include <apps/rtxtool/film.hpp>
@@ -18,6 +19,7 @@
 #include <apps/rtxtool/run.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
+#include <components/rtx/frameworld.hpp>
 #include <components/rtx/skylight.hpp>
 #include <components/testing/util.hpp>
 
@@ -72,7 +74,11 @@ namespace RtxTool
                 .mStand = { .mCell = "-3,-2",
                     .mEye = osg::Vec3f(-18075.145f, -17586.46f, 638.41016f),
                     .mLook = osg::Vec3f(-18625.098f, -16765.438f, 485.20374f) },
-                .mSky = { .mHour = 6.5f, .mDay = 2, .mWeather = "Overcast" } };
+                .mSky = { .mHour = 6.5f,
+                    .mDay = 2,
+                    .mWeather = "Overcast",
+                    .mAir = Rtx::AirClock{ .mSky = { .mSeconds = 36000.123456789, .mCloudScroll = 0.5f },
+                        .mCarried = osg::Vec2d(-123456.78901234, 0.1) } } };
             RtxTool::Stop noon = dawn;
             noon.mSky = { .mHour = 12.0f, .mDay = 0, .mWeather = "Clear" };
 
@@ -88,6 +94,12 @@ namespace RtxTool
             EXPECT_EQ(keys[0].getWeather(), "Overcast");
             EXPECT_FALSE(keys[0].mStop.mSky.mDay.has_value())
                 << "the block has no day; the command line beside it is a comment";
+
+            ASSERT_TRUE(keys[0].mStop.mSky.mAir.has_value()) << "a take begins in the air its first key saw";
+            EXPECT_EQ(keys[0].mStop.mSky.mAir->mSky.mSeconds, dawn.mSky.mAir->mSky.mSeconds);
+            EXPECT_EQ(keys[0].mStop.mSky.mAir->mSky.mCloudScroll, dawn.mSky.mAir->mSky.mCloudScroll);
+            EXPECT_EQ(keys[0].mStop.mSky.mAir->mCarried, dawn.mSky.mAir->mCarried);
+            EXPECT_FALSE(keys[1].mStop.mSky.mAir.has_value());
 
             EXPECT_EQ(keys[1].getHour(), sDefaultHour);
             EXPECT_EQ(keys[1].getWeather(), sDefaultWeather);

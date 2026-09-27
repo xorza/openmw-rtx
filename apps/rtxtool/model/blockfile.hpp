@@ -11,6 +11,8 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/frameworld.hpp>
+
 namespace RtxTool
 {
     struct Stop;
@@ -24,6 +26,13 @@ namespace RtxTool
     /// anything else, empty text included. **It writes no refusal**: the caller knows what was
     /// being read and where, and quotes the text it was given whole.
     std::optional<osg::Vec3f> parseVec3(std::string_view text);
+
+    /// The air's clocks `seconds, scroll, x, y` spells — the sky's seconds from nought, the deck's
+    /// scroll from nought up to but not including the four texture units it wraps at, and how far
+    /// the fog was carried east and north — or nothing where the text is anything else. Read at
+    /// double precision where the clock keeps one, so a moment written by `describeAir` is read
+    /// back to the bit. Writes no refusal, as `parseVec3` writes none.
+    std::optional<Rtx::AirClock> parseAir(std::string_view text);
 
     /// `text` without the spaces, tabs and carriage returns around it.
     std::string_view trimmed(std::string_view text);
@@ -107,6 +116,9 @@ namespace RtxTool
         /// Three numbers separated by commas; an empty value is no point, and not one left unsaid.
         osg::Vec3f point(const BlockField& field) const;
 
+        /// The air's clocks, as `parseAir` reads them.
+        Rtx::AirClock air(const BlockField& field) const;
+
         /// `true` or `false`, which is how the settings spell one, so a block file and a settings
         /// file agree.
         bool boolean(const BlockField& field) const;
@@ -115,7 +127,7 @@ namespace RtxTool
         int day(const BlockField& field) const;
 
         /// Reads `field` into `stop` where it is one of the fields every place states — `cell`,
-        /// `pos`, `look`, `note`, `hour` and `weather` — and says whether it was: what a view and a
+        /// `pos`, `look`, `note`, `hour`, `weather` and `air` — and says whether it was: what a view and a
         /// film's key have in common is a stop.
         bool readPlace(const BlockField& field, Stop& stop) const;
 

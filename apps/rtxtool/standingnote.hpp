@@ -6,6 +6,7 @@
 #include <string_view>
 
 #include <components/esm/refid.hpp>
+#include <components/rtx/frameworld.hpp>
 
 #include "model/benchrun.hpp"
 
@@ -28,9 +29,14 @@ namespace RtxTool
         /// Notes where the eye stands and the sky over it, of the frame about to be drawn.
         void take();
 
+        /// Notes where the air's clocks stood for the frame just drawn, which is the frame `take`
+        /// noted: they are the renderer's, and stand where they stand only once it has stepped them.
+        void takeAir(const Rtx::AirClock& air);
+
         /// Prints the note, whole, on the frame Home goes down: what a window prints where it was
         /// left, printed now, so a frame somebody is looking at can be drawn again without closing
         /// the window on it — and appends it to `keys` as a film's key, where that names a file.
+        /// Once a frame is drawn, so the note is of the frame on the screen, air and all.
         void printIfAsked(const std::filesystem::path& keys);
 
         /// The weather and the hour the run stands under, `Thunderstorm, 14:32`, and which weather
