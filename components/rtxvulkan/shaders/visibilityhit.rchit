@@ -74,9 +74,10 @@ uvec2 stagePixel()
 /// Whether the launch has still to peel what this stage found: a surface whose resolved opacity is
 /// under one, on a record short of the peel's budget.
 ///
-/// **Decided here, because this is where the number is.** The opacity is a texture read `resolve`
-/// has just made — the launch would have to be handed the material row and read it again. What the
-/// launch is handed instead is `mOpacity`, which is the whole of what it needs to peel.
+/// **Decided here, because this is where the number is, and only here.** The opacity is a texture
+/// read `resolve` has just made — the launch would have to be handed the material row and read it
+/// again. What the launch is handed instead is the answer, `Answer::mPane`, and `mOpacity` to
+/// composite by.
 ///
 /// **The launch peels `PEEL_LAYERS` of them and the one after that is a solid.** Without that a
 /// shader would look at its own opacity, find one more pane, and shade it as a pane however deep the
@@ -102,6 +103,7 @@ void answerPane(inout Answer answer, Surface surface)
 {
     const uint key = pixelKey(stagePixel());
 
+    answer.mPane = true;
     answer.mOpacity = surface.mOpacity;
     answer.mRadiance
         = shadeAtPathEnd(surface, key + paneAmbientSeed(record.mLayer), key + paneSeed(record.mLayer), PATH_SEEN);
@@ -165,7 +167,7 @@ void answerWater(inout Answer answer, Surface surface)
     // **The one surface in the frame that shows something standing somewhere else.** Water is
     // shaded where it is seen, so its own motion describes the surface and not what is in it; this
     // is the other one, and the upscaler weighs the two by the specular albedo it is handed.
-    answer.mMirrorMotion = mirrorMotionOf(pixel, origin, water.mMirror);
+    answer.mMirrorMotion = mirrorMotionOf(pixel, origin, water.mMirror, stageSpread());
 
     const float shore = water.mShore;
     if (shore >= 1.0)

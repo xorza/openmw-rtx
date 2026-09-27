@@ -28,12 +28,20 @@ namespace Rtx
     {
         const Crash::NoteScope noted("compiling the pipeline \"{}\"", name);
         const bool anyHitWanted = !shaders.mAnyHit.empty();
+        const std::size_t missRecords = shaders.mMiss.size() * shaders.mMissRecordsPerShader;
         const std::size_t hitRecords = shaders.mHit.size() * shaders.mHitRecordsPerShader;
 
+        assert(shaders.mMissRecordsPerShader > 0 && "a miss shader with no record to stand behind");
         assert(shaders.mHitRecordsPerShader > 0 && "a closest-hit shader with no record to stand behind");
-        assert((hitRecords == 0 ? shaders.mHitRecordData.empty() : shaders.mHitRecordData.size() % hitRecords == 0)
-            && "hit record data that does not divide into one block per record");
-        const std::size_t hitRecordBytes = hitRecords == 0 ? 0 : shaders.mHitRecordData.size() / hitRecords;
+
+        // How many bytes each record of a region carries after its handle, every record alike.
+        const auto recordBytes = [](std::span<const std::byte> data, std::size_t records) -> std::size_t {
+            assert((records == 0 ? data.empty() : data.size() % records == 0)
+                && "record data that does not divide into one block per record");
+            return records == 0 ? 0 : data.size() / records;
+        };
+        const std::size_t missRecordBytes = recordBytes(shaders.mMissRecordData, missRecords);
+        const std::size_t hitRecordBytes = recordBytes(shaders.mHitRecordData, hitRecords);
 
         // A stage is not a group: one any-hit is compiled and every hit group names it, and one
         // closest-hit stage stands behind a run of groups. The handles come back in group order,
@@ -51,7 +59,7 @@ namespace Rtx
         std::vector<VkPipelineShaderStageCreateInfo> stages;
         std::vector<VkRayTracingShaderGroupCreateInfoKHR> groups;
         stages.reserve(compiled.capacity());
-        groups.reserve(1 + shaders.mMiss.size() + hitRecords);
+        groups.reserve(1 + missRecords + hitRecords);
 
         const auto addStage = [&](VkShaderStageFlagBits stage, const std::filesystem::path& module,
                                   const VkSpecializationInfo* specialized) {
@@ -81,7 +89,11 @@ namespace Rtx
 
         addGeneral(addStage(VK_SHADER_STAGE_RAYGEN_BIT_KHR, shaders.mRaygen, constants.getInfo()));
         for (const std::filesystem::path& module : shaders.mMiss)
-            addGeneral(addStage(VK_SHADER_STAGE_MISS_BIT_KHR, module, constants.getInfo()));
+        {
+            const std::uint32_t miss = addStage(VK_SHADER_STAGE_MISS_BIT_KHR, module, constants.getInfo());
+            for (std::uint32_t record = 0; record < shaders.mMissRecordsPerShader; ++record)
+                addGeneral(miss);
+        }
 
         const std::uint32_t anyHit = anyHitWanted
             ? addStage(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, shaders.mAnyHit, constants.getInfo())
@@ -165,18 +177,17 @@ namespace Rtx
             = device.getPhysicalDevice().getProperties().mRayTracingPipeline;
 
         // One record per group, in the order the groups were appended, packed at the handle's own
-        // alignment. What separates the three regions is the coarser base alignment below.
-        const VkDeviceSize stride = alignUp(limits.shaderGroupHandleSize, limits.shaderGroupHandleAlignment);
-
-        // A hit record is its handle and then its data, and the region's stride is what the data
-        // adds, rounded back up to the handle's alignment.
-        const VkDeviceSize hitStride
-            = alignUp(limits.shaderGroupHandleSize + hitRecordBytes, limits.shaderGroupHandleAlignment);
+        // alignment. What separates the three regions is the coarser base alignment below. A record
+        // is its handle and then its data, and the region's stride is what the data adds, rounded
+        // back up to the handle's alignment.
+        const auto strideWith = [&](std::size_t bytes) -> VkDeviceSize {
+            return alignUp(limits.shaderGroupHandleSize + bytes, limits.shaderGroupHandleAlignment);
+        };
 
         // A region's size is its stride for the ray generation stage, and both are aligned to
         // the base alignment rather than the handle's, which is what makes that one record longer
         // than the two kinds beside it.
-        const VkDeviceSize raygenStride = alignUp(stride, limits.shaderGroupBaseAlignment);
+        const VkDeviceSize raygenStride = alignUp(strideWith(0), limits.shaderGroupBaseAlignment);
 
         const auto region = [&](VkDeviceSize& at, VkDeviceSize each, std::size_t count) {
             at = alignUp(at, limits.shaderGroupBaseAlignment);
@@ -192,8 +203,8 @@ namespace Rtx
 
         VkDeviceSize at = 0;
         mRaygen = region(at, raygenStride, 1);
-        mMiss = region(at, stride, shaders.mMiss.size());
-        mHit = region(at, hitStride, hitRecords);
+        mMiss = region(at, strideWith(missRecordBytes), missRecords);
+        mHit = region(at, strideWith(hitRecordBytes), hitRecords);
 
         mTable = Buffer::hostWritten(
             device, at, VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, name);
@@ -205,11 +216,12 @@ namespace Rtx
             "vkGetRayTracingShaderGroupHandlesKHR");
 
         // Each region's records, in the order their groups were made: the handles came back packed
-        // at the handle size and go out at the stride the region was laid out with, a hit record's
-        // data right after its handle. The regions still hold offsets here, which is what a write
-        // into the table wants.
+        // at the handle size and go out at the stride the region was laid out with, a record's data
+        // right after its handle. The regions still hold offsets here, which is what a write into
+        // the table wants.
         std::uint32_t group = 0;
-        const auto fill = [&](const VkStridedDeviceAddressRegionKHR& into, std::size_t count, std::size_t bytes) {
+        const auto fill = [&](const VkStridedDeviceAddressRegionKHR& into, std::size_t count, std::size_t bytes,
+                              std::span<const std::byte> data) {
             for (std::size_t record = 0; record < count; ++record, ++group)
             {
                 const VkDeviceSize address = into.deviceAddress + record * into.stride;
@@ -217,13 +229,12 @@ namespace Rtx
                     std::span<const std::uint8_t>(
                         handles.data() + group * limits.shaderGroupHandleSize, limits.shaderGroupHandleSize));
                 if (bytes > 0)
-                    mTable.writeAt(
-                        address + limits.shaderGroupHandleSize, shaders.mHitRecordData.subspan(record * bytes, bytes));
+                    mTable.writeAt(address + limits.shaderGroupHandleSize, data.subspan(record * bytes, bytes));
             }
         };
-        fill(mRaygen, 1, 0);
-        fill(mMiss, shaders.mMiss.size(), 0);
-        fill(mHit, hitRecords, hitRecordBytes);
+        fill(mRaygen, 1, 0, {});
+        fill(mMiss, missRecords, missRecordBytes, shaders.mMissRecordData);
+        fill(mHit, hitRecords, hitRecordBytes, shaders.mHitRecordData);
 
         // Each `Buffer` is its own allocation bound at offset zero, so its address is the
         // allocation's — which every driver hands back far more coarsely aligned than this. Asserted

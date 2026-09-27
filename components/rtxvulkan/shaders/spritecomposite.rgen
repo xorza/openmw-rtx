@@ -86,7 +86,7 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
     const vec2 across = vec2(tracedExtent) / vec2(extent);
 
     // The traced camera on this grid — `cameraOnGrid` says why it is the same basis.
-    const Camera camera = cameraOnGrid(arms ? frame.mArms : frame.mCamera, extent.x, extent.y);
+    const Camera camera = cameraOnGrid(eyeOf(uint(arms)), extent.x, extent.y);
 
     const Ray ray = rayAt(camera, vec2(pixel));
     const vec3 origin = frame.mOrigin + ray.mOffset;

@@ -9,11 +9,13 @@ namespace Rtx
     namespace
     {
         /// The hit table says, at every record, the eye and the layer the launch reaches that
-        /// record for: three kinds, each standing behind two eyes' runs of five layers.
+        /// record for: three kinds, each standing behind two eyes' runs of five layers. The miss
+        /// table says the eye alone, at the index the launch names the eye by.
         ///
         /// **Hand-placed: thirty records, and the water's arms' fourth layer is the twenty-ninth.**
         /// `2 * 10 + 1 * 5 + 3` is 28, which the instance's offset for water, `hitRecordOffset`
-        /// for the arms and the launch's layer reach between them.
+        /// for the arms and the launch's layer reach between them. The sky's two records are the
+        /// world's at nought and the arms' at one.
         TEST(RtxHitRecordTest, everyRecordSaysTheEyeAndTheLayerTheLaunchReachesItFor)
         {
             const auto table = Shaders::hitRecordTable();
@@ -33,6 +35,11 @@ namespace Rtx
                         EXPECT_EQ(record.mArms, arms) << "kind " << kind << " layer " << layer;
                         EXPECT_EQ(record.mLayer, layer) << "kind " << kind << " arms " << arms;
                     }
+
+            const auto sky = Shaders::missRecordTable();
+            ASSERT_EQ(sky.size(), 2u);
+            EXPECT_EQ(sky[0].mArms, 0u) << "the world's eye";
+            EXPECT_EQ(sky[1].mArms, 1u) << "the arms' eye";
         }
     }
 }

@@ -93,9 +93,31 @@ namespace Rtx::Shaders
     }
 #endif
 
-    /// The sky, which is the only miss record the trace has.
-    const uint MISS_RECORD_SKY = 0u;
-    const uint MISS_RECORD_COUNT = 1u;
+    /// What a miss record carries after its handle: which eye cast the ray, as `HitRecord::mArms`
+    /// says it for a hit.
+    ///
+    /// **The sky is the one miss shader, and it stands behind one record per eye**, which a trace
+    /// names by the eye's own number. A ray through the arms' eye reaches the sky wherever it peels
+    /// past a see-through arm, and read at the world eye's pixel that sky reprojected through the
+    /// world's image plane — a still camera stored motion for it — and blurred at a pixel it was not.
+    struct MissRecord
+    {
+        uint mArms;
+    };
+
+    const uint MISS_RECORD_COUNT = HIT_RECORD_EYES;
+
+#ifdef RTX_HOST
+    /// The whole miss table: what `VisibilityPass` hands the pipeline.
+    inline std::array<MissRecord, MISS_RECORD_COUNT> missRecordTable()
+    {
+        std::array<MissRecord, MISS_RECORD_COUNT> records{};
+        for (uint arms = 0; arms < HIT_RECORD_EYES; ++arms)
+            records[arms] = MissRecord{ .mArms = arms };
+
+        return records;
+    }
+#endif
 
     /// What `lib/variants.glsl`'s `REORDER` constant may be, which is `Rtx::Reorder` as the host
     /// spells it: no sort, a sort on the shader the hit names, or on that and the hit material's
@@ -104,11 +126,6 @@ namespace Rtx::Shaders
     const uint REORDER_SHADER = 1u;
     const uint REORDER_TEXTURE = 2u;
 
-    /// What the frame is: where the eye stands, how it turns a pixel into a ray, and everything
-    /// about the world that a ray needs to be answered.
-    ///
-    /// **The ray generator is `Camera` and is separate**, because the wavelet builds the same rays
-    /// and needs none of the rest of this. What is left here is the world.
     /// What a pixel is painted with: the light, or one input of the surface written straight out —
     /// `Rtx::SurfaceView`, which says what each is.
     const uint SHOW_SHADED = 0u;
@@ -117,6 +134,11 @@ namespace Rtx::Shaders
     const uint SHOW_ROUGHNESS = 3u;
     const uint SHOW_SPECULAR = 4u;
 
+    /// What the frame is: where the eye stands, how it turns a pixel into a ray, and everything
+    /// about the world that a ray needs to be answered.
+    ///
+    /// **The ray generator is `Camera` and is separate**, because the wavelet builds the same rays
+    /// and needs none of the rest of this. What is left here is the world.
     struct VisibilityConstants
     {
         vec3 mOrigin;

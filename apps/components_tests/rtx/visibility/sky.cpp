@@ -502,10 +502,19 @@ namespace Rtx::Testing
         /// and the query then counts nothing seen and the wash is nothing; and a strength of nought
         /// is a frame with no fader in it. A fresh history on every shot, so the share is what
         /// this frame's rays found and not an easing from the shot before.
+        ///
+        /// **The player's arms over the left half of the disc leave half of it seen, whatever
+        /// their own field of view.** The disc is the sun's quad on the screen, and an even frame
+        /// splits it between two columns into mirror halves: `0.4 * 0.5 * 255 = 51`. Counted along
+        /// the arms' own ninety-degree eye under the world's sixty, an arm pixel lies `tan(45) /
+        /// tan(30)` = 1.73 times as far off the axis, so the disc's six pixels on the arms' side
+        /// counted as two, and the share read `6 / 8`.
         TEST_F(RtxVisibilityTest, theSunGlareFaderWashesByWhatTheEyeSeesOfTheSun)
         {
             constexpr std::uint32_t size = 32;
-            constexpr std::size_t corner = 0;
+
+            // The top right, which the arms below leave open.
+            constexpr std::size_t corner = (size - 1) * 4;
 
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             const std::array<TextureData, 1> sheet{ describeTexel(white) };
@@ -516,12 +525,18 @@ namespace Rtx::Testing
                 std::uint8_t mGreen;
             };
 
-            const auto washed = [&](float strength, float offAxisDegrees, bool walled) {
+            /// @param armsDegrees where not nought, the arms' field of view, and the arms a card over
+            ///        the left half of the picture five hundred units out.
+            const auto washed = [&](float strength, float offAxisDegrees, bool walled, float armsDegrees = 0.0f) {
                 SceneDesc scene;
                 scene.textures().add(VFS::Path::NormalizedView("white.dds"));
                 addQuad(scene, sheetAt(4000.0f, -400.0f));
                 if (walled)
                     addQuad(scene, wallAt(500.0f));
+                if (armsDegrees > 0.0f)
+                    scene.addInstance(MeshInstance{
+                        .mMesh = addQuadMesh(scene, uprightQuadAt(4000.0f, -1500.0f, osg::Vec2f(-4000.0f, 0.0f))),
+                        .mClass = InstanceClass::FirstPerson });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -2000.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
@@ -532,6 +547,8 @@ namespace Rtx::Testing
                 const float off = osg::DegreesToRadians(offAxisDegrees);
                 camera.mSun
                     = Shaders::sunSource(osg::Vec3f(std::sin(off), std::cos(off), 0.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+                if (armsDegrees > 0.0f)
+                    camera.mArms = cameraAtFieldOfView(camera.mCamera, armsDegrees);
 
                 const SunGlare fader{ .mColour = osg::Vec3f(1.0f, 0.0f, 0.0f),
                     .mAngleMax = osg::DegreesToRadians(90.0f),
@@ -559,6 +576,14 @@ namespace Rtx::Testing
             const Read none = washed(0.0f, 0.0f, false);
             EXPECT_EQ(none.mRed, 0);
             EXPECT_EQ(none.mGreen, 0);
+
+            const Read armsAsWide = washed(0.4f, 0.0f, false, 60.0f);
+            EXPECT_EQ(armsAsWide.mRed, 51) << "arms over half the disc";
+            EXPECT_EQ(armsAsWide.mGreen, 0);
+
+            const Read armsWider = washed(0.4f, 0.0f, false, 90.0f);
+            EXPECT_EQ(armsWider.mRed, 51) << "the disc counted along the arms' own eye";
+            EXPECT_EQ(armsWider.mGreen, 0);
         }
 
         /// The world's edge is nothing over the ground the player stands on and total at the last

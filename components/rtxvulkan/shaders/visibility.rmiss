@@ -13,6 +13,11 @@
 // **What the star field shows through is this shader's to say.** `mSkyShown` is how much of the
 // field the sky's own layers left, and the display pass cannot work it out for itself —
 // `starsShown` in `bindings.glsl` says why.
+//
+// **Seen through the eye its record names**, which is the world's or the arms': `MissRecord` says
+// how a ray through the arms reaches the sky and what reading it at the world's eye did.
+
+#include "visibility.h"
 
 #include "lib/bindings.glsl"
 #include "lib/counts.glsl"
@@ -23,6 +28,11 @@
 #include "lib/variants.glsl"
 
 layout(location = RTX_PAYLOAD) rayPayloadInEXT VisibilityPayload packed;
+
+layout(shaderRecordEXT, scalar) buffer MissRecordBlock
+{
+    MissRecord record;
+};
 
 void main()
 {
@@ -38,13 +48,13 @@ void main()
     // **The sky moves too, and only its turn moves it** — `skyMotionOf` says why storing nothing
     // here is a smear across every camera rotation. Whatever the answer below: the water a ray
     // finds under the surface and a picture's background turn with the eye as the sky does.
-    answer.mMotion = skyMotionOf(gl_LaunchIDEXT.xy, direction);
+    answer.mMotion = skyMotionOf(gl_LaunchIDEXT.xy, direction, eyeSpread(record.mArms));
 
     // **A ray that goes down from under the surface and finds nothing found water, and water is not
     // the sky.** `waterUnbounded` is the whole argument, and the launch asks it again for the column
     // the pixel is then seen through. A picture's background is nothing as well.
     if (!waterUnbounded(false, origin, direction) && frame.mTransparentBackground == 0u)
-        answer.mRadiance = skyRadiance(origin, direction, pixelBlur(frame.mCamera), answer.mSkyShown);
+        answer.mRadiance = skyRadiance(origin, direction, pixelBlur(eyeOf(record.mArms)), answer.mSkyShown);
 
     packed = packAnswer(answer);
 }

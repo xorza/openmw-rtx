@@ -508,6 +508,35 @@ namespace Rtx::Testing
                 EXPECT_NEAR(motion[centre * 2 + 1], 0.0f, 1e-3f);
             }
 
+            // **And the sky seen past a see-through arm, through the same eye.** The arms faded to
+            // half and nothing behind them, under a still camera: the sky did not move. The centre
+            // pixel's ray leans `0.5 / 32` of the arms' half width `tan(45)` off the axis on each
+            // side, and read through the world's plane that is `(1 / 64) / tan(30)` = 0.0271 of a
+            // half width, or `0.0271 * 32` = 0.866 of a pixel where the ray's own centre is 0.5 —
+            // the 0.366 of a pixel the sky's miss stored before it was told which eye it was.
+            {
+                SceneDesc scene;
+                scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene, wallAt(200.0f)),
+                    .mOpacity = 0.5f,
+                    .mClass = InstanceClass::FirstPerson });
+
+                Shaders::VisibilityConstants still
+                    = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
+                still.mArms = cameraAtFieldOfView(still.mCamera, 90.0f);
+                shoot(scene, {}, still, size);
+                mRenderer.renderFrame(still, FrameOptions{});
+
+                std::vector<float> motion;
+                mRenderer.readChannel(Channel::Motion, motion);
+                std::vector<float> depth;
+                mRenderer.readChannel(Channel::Depth, depth);
+
+                EXPECT_EQ(depth[centre * 2], 0.0f) << "the ray peeled the arm and found nothing behind it";
+                EXPECT_NEAR(motion[centre * 2], 0.0f, 1e-3f)
+                    << "the sky past the arms reprojected through the world's plane";
+                EXPECT_NEAR(motion[centre * 2 + 1], 0.0f, 1e-3f);
+            }
+
             // **A camera that only turns**, about its own position and by the same angle whichever
             // wall it is looking at. Distance has no say in what a rotation does.
             {

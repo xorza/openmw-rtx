@@ -104,13 +104,14 @@ MediumAhead mediumAhead(uvec2 pixel, WorldRay ray, float air, float water, float
 ///
 /// @param object filled in with what the ray found, and left readable: the launch takes the ray
 ///        and the distance back off it rather than carrying them.
-/// @param record which record of its kind's block the hit lands on — `hitRecordOffset` of the eye
-///        the ray is cast through and the layer of the peel it is for — added to the instance's
-///        shader-table offset. `HitRecord` in `visibility.h` says why the two travel that way and
-///        not in the payload.
-#define RTX_TRACE(object, from, tmin, along, mask, record)                                                  \
-    hitObjectTraceRayEXT(object, sceneTop, facingFor(true), (mask), (record), 0u, MISS_RECORD_SKY, (from),  \
-        (tmin), (along), frame.mFar, RTX_TRAVERSAL_PAYLOAD);
+/// @param arms,layer which eye the ray is cast through, one for the arms' and nought for the
+///        world's, and the layer of the peel it is for. A hit lands on `hitRecordOffset` of the two
+///        in its kind's block, added to the instance's shader-table offset, and a miss on the sky's
+///        record for the eye. `HitRecord` and `MissRecord` in `visibility.h` say why the two travel
+///        that way and not in the payload, and why the sky has one record per eye.
+#define RTX_TRACE(object, from, tmin, along, mask, arms, layer)                                             \
+    hitObjectTraceRayEXT(object, sceneTop, facingFor(true), (mask), hitRecordOffset((arms), (layer)), 0u,   \
+        (arms), (from), (tmin), (along), frame.mFar, RTX_TRAVERSAL_PAYLOAD);
 
 /// Runs the shader the hit object names, sorted first where the build asked.
 ///
@@ -129,9 +130,9 @@ MediumAhead mediumAhead(uvec2 pixel, WorldRay ray, float air, float water, float
         hitObjectExecuteShaderEXT(object, RTX_PAYLOAD);                                                     \
     }
 
-#define RTX_TRACE_AND_SHADE(object, from, tmin, along, mask, record)                                        \
+#define RTX_TRACE_AND_SHADE(object, from, tmin, along, mask, arms, layer)                                   \
     {                                                                                                       \
-        RTX_TRACE(object, from, tmin, along, mask, record)                                                  \
+        RTX_TRACE(object, from, tmin, along, mask, arms, layer)                                             \
         RTX_SHADE(object)                                                                                   \
     }
 
@@ -171,15 +172,13 @@ void main()
     if (frame.mArmsInFrame != 0u)
     {
         const Ray ray = rayAt(frame.mArms, vec2(pixel));
-        RTX_TRACE(found, frame.mOrigin + ray.mOffset, 0.0, ray.mDirection, frame.mRayMask & MASK_FIRST_PERSON,
-            hitRecordOffset(1u, 0u))
+        RTX_TRACE(found, frame.mOrigin + ray.mOffset, 0.0, ray.mDirection, frame.mRayMask & MASK_FIRST_PERSON, 1u, 0u)
         arms = hitObjectIsHitEXT(found);
     }
     if (!arms)
     {
         const Ray ray = rayAt(frame.mCamera, vec2(pixel));
-        RTX_TRACE(found, frame.mOrigin + ray.mOffset, 0.0, ray.mDirection, worldMask(frame.mRayMask),
-            hitRecordOffset(0u, 0u))
+        RTX_TRACE(found, frame.mOrigin + ray.mOffset, 0.0, ray.mDirection, worldMask(frame.mRayMask), 0u, 0u)
     }
     RTX_SHADE(found)
     Answer answer = unpackAnswer(packed);
@@ -200,7 +199,7 @@ void main()
     // **Made before the peel, because each layer of it is charged the medium in front of itself.**
     // Both are the eye's own and neither moves as the ray carries on past a layer: the cone is the
     // eye's the ray was cast from, and what stands over the eye is what the eye stands in.
-    const Cone cone = arms ? coneAt(frame.mArms) : coneAt(frame.mCamera);
+    const Cone cone = coneAt(eyeOf(uint(arms)));
     const bool submerged = waterOver(origin) > 0.0;
 
     // **The surfaces the eye is looking through, peeled off nearest first and kept.** A pane of
@@ -242,7 +241,7 @@ void main()
     // stack is measured against below. Nothing at all where nothing was peeled.
     vec3 peeledScattered = vec3(0.0);
 
-    for (uint layer = 0u; layer < PEEL_LAYERS && hit && !answer.mWater && isSeenThrough(answer.mOpacity); ++layer)
+    for (uint layer = 0u; layer < PEEL_LAYERS && answer.mPane; ++layer)
     {
         const MediumAhead ahead = mediumAhead(
             pixel, WorldRay(origin, direction), distance, distance, cone.mWidth + cone.mSpread * distance, submerged);
@@ -258,8 +257,12 @@ void main()
         // The layer this trace is for, which on the last one the budget allows is the record that
         // says whatever it finds is to be shaded as a solid — in the block of the eye the ray was
         // cast through, because this is that ray carried on.
-        RTX_TRACE_AND_SHADE(found, origin, distance + SHADOW_BIAS, direction, peelMask,
-            hitRecordOffset(uint(arms), layer + 1u))
+        //
+        // **Held at the clip**, where a pane within the bias of it would start the ray past its own
+        // end: a trace with its `tmin` over its `tmax` is undefined, and one with the two equal is
+        // the miss the clip says it is.
+        RTX_TRACE_AND_SHADE(found, origin, min(distance + SHADOW_BIAS, frame.mFar), direction, peelMask,
+            uint(arms), layer + 1u)
         answer = unpackAnswer(packed);
 
         origin = hitObjectGetWorldRayOriginEXT(found);
@@ -352,7 +355,13 @@ void main()
     // the quad's disc counts itself, and again where nothing that writes depth stood in front of
     // the sky — the water writes none, and a pane peeled off the ray does. `glare.h` says whose
     // disc this is and `tone.comp` reads the pair back.
-    if (sunUp() && insideCap(direction, frame.mSun.mDirection, capChord(SUN_GLARE_QUERY_RADIUS)))
+    //
+    // **Whether a pixel is inside the disc is asked through the world's eye**, because the disc is
+    // the sun's quad on the screen: a pixel on the arms looks along the arms' own eye, and a disc
+    // counted that way held as many of their pixels as a first-person field of view left in it.
+    if (sunUp()
+        && insideCap(arms ? rayAt(frame.mCamera, vec2(pixel)).mDirection : direction, frame.mSun.mDirection,
+            capChord(SUN_GLARE_QUERY_RADIUS)))
     {
         atomicAdd(sunGlare.mTotal, 1u);
         if (!(hit && !answer.mWater) && paneThrough >= 1.0)
