@@ -35,7 +35,8 @@ namespace Rtx
         /// How fast it swallows what is behind it, per world unit. Zero is a cell with no fog.
         float mExtinction = 0.0f;
 
-        /// One where the air is an even haze rather than banked, which is what a room holds.
+        /// How much of the air is an even haze rather than banked: all of it in a room, and
+        /// `Shaders::FOG_EXTERIOR_EVEN` of it out of doors.
         float mUniform = 0.0f;
 
         /// How deep the layer stands, against the bank clear weather makes in dead still air

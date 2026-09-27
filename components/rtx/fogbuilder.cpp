@@ -7,6 +7,7 @@
 #include <osg/Vec3f>
 
 #include "shaders/colour.h"
+#include "shaders/look.h"
 #include "shaders/scene.h"
 
 namespace Rtx
@@ -251,7 +252,7 @@ namespace Rtx
         return Fog{
             .mColour = colour,
             .mExtinction = fogExtinction(depth, reach),
-            .mUniform = 0.0f,
+            .mUniform = Shaders::FOG_EXTERIOR_EVEN,
 
             // The same record read a second time: `fogExtinction` reads it as the view-range ramp
             // and takes a half-life, this reads it as a *depth* and takes a layer height.

@@ -382,7 +382,8 @@ namespace Rtx::Shaders
         vec3 mFogColour;
         float mFogExtinction;
 
-        /// One where the air is an even haze, zero where it is banked.
+        /// How much of the air is an even haze rather than banked: one in a room, and
+        /// `FOG_EXTERIOR_EVEN` out of doors.
         ///
         /// **A room is not a small valley.** Banks are what weather does to a landscape, and a cell
         /// smaller than one bank running the outdoor coverage field reads as a rendering fault

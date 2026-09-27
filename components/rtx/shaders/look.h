@@ -563,13 +563,14 @@ namespace Rtx::Shaders
     /// How large one cell of the coarsest scale is, in world units, and so how wide the whole tile is
     /// laid out at that scale.
     ///
-    /// **Nine hundred, which is the renderer this is ported from settling the same question twice.**
-    /// Its §8.40 made the grain *coarser* — 1,400 to 3,000 units — because structure finer than the
-    /// march's step aliased, and got fog whose shape was visible only from a ridge. Its §8.41 found
-    /// the diagnosis wrong: sampling finely where the fog is thin buys nothing, because what the eye
-    /// reads over a distant hillside is thousands of units of integration and structure at any scale
-    /// averages out of it. Fog has visible shape where it is optically thick over a *short* distance,
-    /// so the grain came back down to 900 and stayed there.
+    /// **Eighteen hundred, twice the grain the renderer this is ported from settled at.** Its §8.40
+    /// made the grain *coarser* — 1,400 to 3,000 units — because structure finer than the march's
+    /// step aliased, and got fog whose shape was visible only from a ridge. Its §8.41 found that
+    /// diagnosis wrong, since aliasing is not the limit, and took the grain back down to 900. That
+    /// was a look and not a bound: seen from a street at nine hundred, a bank was a puff a few
+    /// metres across and the air read as clots rather than as weather. Twice that is a bank the
+    /// width of a house, and fog still has its shape where it is optically thick over a short
+    /// distance, which is §8.41's own argument.
     ///
     /// **The other half of that finding is free here.** Its fix was *sparse and dense rather than
     /// uniform and thin* — a band clearing more of the volume, with the extinction doubled by hand to
@@ -581,7 +582,7 @@ namespace Rtx::Shaders
     /// hashed at every step hands anything finer than the step between two samples over as noise, and
     /// the only defence is a grain too coarse to have any; `fogFieldAt` picks a level from the march's
     /// own stride instead, so the field is filtered rather than aliased.
-    const float FOG_GRAIN = 900.0f;
+    const float FOG_GRAIN = 1800.0f;
     const float FOG_TILE = FOG_GRAIN * float(FOG_FIELD_CELLS);
 
     /// The standard deviation of the sideways displacement the finer scales are read at, in world units.
@@ -597,7 +598,7 @@ namespace Rtx::Shaders
     /// A displacement much larger than the feature it moves is not a curl, it is a second draw of the
     /// same field at an unrelated place — so a figure fixed in world units would stop warping and
     /// start scrambling the moment the grain moved. Half is the ratio the renderer this is ported
-    /// from settled at: 450 units over a grain of 900.
+    /// from settled at: 450 units over its grain of 900.
     const float FOG_WARP = FOG_GRAIN * 0.5f;
 
     /// The step between them. Not two, so the tiles never realign and repeat.
@@ -679,13 +680,23 @@ namespace Rtx::Shaders
     /// **So the noise redistributes the air rather than removing it.** The extinction the host derived
     /// is what a ray should cross on average — it is Morrowind's own view distance, turned into a
     /// coefficient — and a band that clears two thirds of the ground would silently make the world three
-    /// times clearer than the game says. Normalised, a bank is 2.9 times the derived extinction against
-    /// a gap of nothing, and the average is what it was.
+    /// times clearer than the game says. Normalised, the band's bank is `1 / FOG_COVERAGE`, 2.8 times
+    /// the derived extinction, against a gap of nothing, and the average is what it was —
+    /// `FOG_EXTERIOR_EVEN` says what the open air lays under it.
     ///
     /// **Measured, and it must be re-measured if the band or the field moves.**
     /// `theCoverageBandLeavesTheShareTheDensityIsDividedBy` computes it off the baked field to four
     /// figures, and `theBankedFieldHoldsAsMuchAirAsAnEvenOne` checks the frame agrees.
     const float FOG_COVERAGE = 0.3563f;
+
+    /// How much of the open air is laid evenly, against the share the band banks.
+    ///
+    /// **Banked whole, a gap held no air at all and a bank 2.8 times the mean**, so every stretch of
+    /// a street read as clear or as a wall. Real radiation fog is thinner between its banks and not
+    /// gone: this share stands everywhere, and the band spreads the rest. The mean is untouched,
+    /// since both halves are normalised to it — a gap holds 0.4 of the air the weather records and a
+    /// bank `0.4 + 0.6 / FOG_COVERAGE`, 2.1 times it. A room is even whole, `roomFog`.
+    const float FOG_EXTERIOR_EVEN = 0.4f;
 
     /// The mean diameter of the fog's water droplets, in micrometres.
     ///

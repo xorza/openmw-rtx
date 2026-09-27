@@ -465,21 +465,21 @@ namespace Rtx
         /// Each scale of the fog is read from where the churn and the turned drift moved it, as a
         /// fraction of its own tile, and a hundred hours in that fraction is still exact.
         ///
-        /// By hand: at one second of the sky and no drift, the coarse tile is `FOG_TILE`, 7200 units,
-        /// and its churn of (11, 7, 0) a second is (11, 7, 0) / 7200 of it. Carried 100 units along +x
-        /// at nought seconds, the middle scale reads from upwind, (-100, 0), which its 3-4-5 turn
+        /// By hand: at one second of the sky and no drift, the coarse tile is `FOG_TILE`, 14400 units,
+        /// and its churn of (11, 7, 0) a second is (11, 7, 0) / 14400 of it. Carried 100 units along
+        /// +x at nought seconds, the middle scale reads from upwind, (-100, 0), which its 3-4-5 turn
         /// takes to (-80, -60): negative, so the fraction is one less 80 and 60 of its tile,
-        /// 7200 / 2.27. The coarse scale takes the same drift unturned.
+        /// 14400 / 2.27. The coarse scale takes the same drift unturned.
         TEST(RtxFrameWorldTest, theFogIsReadFromWhereTheChurnAndTheDriftMovedItReducedToItsTile)
         {
             const std::array<osg::Vec3f, Shaders::FOG_SCALES> churned = fogOffsets(osg::Vec2d(), 1.0);
-            EXPECT_FLOAT_EQ(churned[0].x(), 11.0f / 7200.0f);
-            EXPECT_FLOAT_EQ(churned[0].y(), 7.0f / 7200.0f);
+            EXPECT_FLOAT_EQ(churned[0].x(), 11.0f / 14400.0f);
+            EXPECT_FLOAT_EQ(churned[0].y(), 7.0f / 14400.0f);
             EXPECT_EQ(churned[0].z(), 0.0f);
 
             const float middleTile = Shaders::FOG_TILE / Shaders::FOG_LACUNARITY;
             const std::array<osg::Vec3f, Shaders::FOG_SCALES> carried = fogOffsets(osg::Vec2d(100.0, 0.0), 0.0);
-            EXPECT_FLOAT_EQ(carried[0].x(), 1.0f - 100.0f / 7200.0f);
+            EXPECT_FLOAT_EQ(carried[0].x(), 1.0f - 100.0f / 14400.0f);
             EXPECT_EQ(carried[0].y(), 0.0f);
             EXPECT_FLOAT_EQ(carried[1].x(), 1.0f - 80.0f / middleTile);
             EXPECT_FLOAT_EQ(carried[1].y(), 1.0f - 60.0f / middleTile);
