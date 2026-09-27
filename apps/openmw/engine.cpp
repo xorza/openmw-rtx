@@ -195,7 +195,8 @@ bool OMW::Engine::frame(unsigned frameNumber, float frametime)
 
                 if (!paused)
                 {
-                    double hours = (frametime * mWorld->getTimeManager()->getGameTimeScale()) / 3600.0;
+                    const bool held = mHost != nullptr && mHost->holdsGameClock();
+                    double hours = held ? 0.0 : (frametime * mWorld->getTimeManager()->getGameTimeScale()) / 3600.0;
                     mWorld->advanceTime(hours, true);
                     mWorld->rechargeItems(frametime, true);
                 }

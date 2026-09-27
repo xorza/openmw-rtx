@@ -130,6 +130,12 @@ namespace OMW
         /// simulation. From `Engine::frame` and from nowhere else, because a loading screen drives
         /// frames of its own and a teleport made from inside one re-enters it.
         virtual void beforeFrame() {}
+
+        /// Whether the host stated the game's hour itself in this frame's `beforeFrame`, so the
+        /// engine's clock leaves it where the host put it. **The clock and not its time scale**,
+        /// which everything paced in game time reads as well — an AI package's hours, the sky's own
+        /// clock — and which a world whose hour is posed keeps running as the played game does.
+        virtual bool holdsGameClock() const { return false; }
     };
 
     /// \brief Main engine class, that brings together all the components of OpenMW
