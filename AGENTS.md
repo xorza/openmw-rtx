@@ -57,33 +57,50 @@ backend ever arrives.
 - Build the targets you touched, run the covering test binary with a filter, then `./omw format`,
   which rewrites the tree; `./omw format --check` changes nothing and is what the gate runs.
   Compiling is not verifying.
-- `./omw` at the root is the one way in, `omw [flavour] <verb>`, and `./omw help` lists both; the
-  flavour is `debug` unless named. `./omw test <binary> --gtest_filter=...` builds and runs one
-  test binary with a filter.
-- `./omw test` once before saying it works: the fork's half of `components-tests` and
-  `openmw-tests`, `rtx-gpu-tests`, and the crash matrix, through CTest. The GPU binary fails
-  without a device rather than skipping, so a green run means a device ran it. `./omw gate` once
-  at the end: format check, the driver's tests, build, no-assert and no-DLSS compiles, tests,
-  `check`, one repeat pair. Never a gate beside a build or another gate.
-- Do not open the game window to check a rendering change. `shot --views=all --map
---against=<dir>` says which pictures a change moved. `scene` reports what the renderer was
-  handed. `check` asserts the tree's claims at every place of its suite. `bench` has the moving
-  camera. `view` is for what only a window shows.
+- `./omw` at the root is the one way in, `omw [flavour] <verb>`, and `./omw help` lists both. The
+  flavour is `debug` unless named: every assert and the tests. `release` is the build a number is
+  quoted from, and `profile` runs in it whatever is named. `asan` adds the sanitizers, `nodlss` is
+  the other binary, `plain` is upstream's tree with its suites whole, and `package` is the one
+  `archive` puts into `dist/`.
+- `./omw test <binary> --gtest_filter=...` builds and runs one test binary with a filter.
+- `./omw test` once before saying it works: the `fork` label of CTest — the fork's half of
+  `components-tests` and `openmw-tests`, `rtx-gpu-tests`, and the crash matrix. `--all` adds
+  upstream's suites. The GPU binary fails without a device rather than skipping, so a green run
+  means a device ran it; `--without-device` leaves it out on a box with no driver.
+- `./omw gate` once at the end: format check, the driver's tests, build, the release and no-DLSS
+  compiles, tests, `check`, one repeat pair, stopping at the first failure. Never a gate beside a
+  build or another gate.
+- Do not open the game window to check a rendering change. The harness's verbs go through the
+  driver, which builds `openmw-rtxtool` and runs it in the flavour's directory:
+  `./omw [flavour] info|scene|shot|view|bench|check|film`, and `./omw exec ./openmw-rtxtool --help`
+  for their options. The places are `files/rtx/views.cfg`, the suites `files/rtx/benches.cfg`.
+- `./omw shot --views=all --map --out=<dir>` ahead of a change and `--against=<dir>` after it says
+  which pictures the change moved. `scene` reports what the renderer was handed. `check` asserts
+  the tree's claims at every place of its suite. `bench` has the moving camera. `view` is for what
+  only a window shows, and `film` flies through the keys `view --keys` wrote.
 - `./omw kernels > before.txt` ahead of a shader change and `--against=before.txt` after
   it names the kernels the change moved, per tuple of their constants; a tuple it did not name
   draws what it drew.
-- `./omw repeat --pairs=10` after touching anything a frame reads. A run is the same run
-  twice, and a pair that finds nothing has found nothing. Read a difference with `--exposure=1`
-  and `--pictures=<dir>`.
-- Measure on a hot card, back to back, never with a sleep between runs. Take a throwaway
-  warm-up leg first. No frame times until the renderer draws everything the game has.
+- `./omw repeat --pairs=10` after touching anything a frame reads: two processes walk
+  `one-cell-walk` for six seconds with the upscaler and the denoiser off, the second with the queue
+  held behind the host, and must agree frame for frame; `--views=` and `--seconds=` move the walk.
+  A run is the same run twice, and a pair that finds nothing has found nothing. Read a difference
+  with `--exposure=1` and `--pictures=<dir>`.
+- Measure with `./omw release bench`, on a hot card, back to back, never with a sleep between
+  runs. Take a throwaway warm-up leg first. No frame times until the renderer draws everything the
+  game has.
 - Measure on a quiet desktop. A bench started from this session's foreground runs under Claude
   Code's spinner, which Zed redraws and KWin composites nine times a second, and every figure
   moves with it — the host rows by half, the zone shares by a tenth, the tail by 4 ms. Start the
   run in the background and end the turn; the report's `card` lines say whether that held, and
   `--frame-times=<dir>` writes the series behind a tail.
-- Profiling: `./omw profile` for the CPU, `nsys profile ./openmw-rtxtool bench ...`
-  for the GPU. `ncu` is not installed.
+- Profiling: `./omw profile` for the CPU — the measured frames alone, at `seyda-neen-ship` unless
+  `--view=` or `--suite=` names another, into `build-release/perf/`. `--offcpu` says where it
+  waits, `--dwarf` unwinds without the frame pointers, and `--tui` walks the last recording.
+  `./omw release exec nsys profile ./openmw-rtxtool bench ...` for the GPU. `ncu` is not installed.
+- `./omw crash <dump>` reads a player's crash dump against a release's `-symbols.zip`, or the
+  newest in `dist/`. `./omw game` is the game on the newest quicksave. A fresh box takes
+  `./omw bootstrap` for the pinned Vulkan SDK and NGX, and `./omw setup <morrowind dir>`.
 
 ## Conventions
 

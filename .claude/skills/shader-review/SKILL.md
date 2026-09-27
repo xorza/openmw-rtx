@@ -63,7 +63,7 @@ Never commit. A review with no findings is a normal result.
   every vanilla view unchanged. Each new tuple is one more pipeline to compile cold.
 - **`visibility.rgen` holds hit objects: a subgroup operation there loses the device.**
   `reorderThreadEXT` is only in `RTX_SHADE`, under `REORDER`.
-- The payload is fifteen packed words with one boundary (`packAnswer`,
+- The payload is fourteen packed words with one boundary (`packAnswer`,
   `unpackAnswer`); traversal has its own small payload. Hit shaders trace with ray
   queries, so `maxPipelineRayRecursionDepth` is 1; a `traceRayEXT` there needs it raised.
 - Harness-only writes sit behind `COUNTING`. Every loop's bound is a shader constant
