@@ -9,6 +9,7 @@
 #include "visibility.h"
 
 #include "bindings.glsl"
+#include "frame.glsl"
 
 layout(shaderRecordEXT, scalar) buffer HitRecordBlock
 {
@@ -24,14 +25,13 @@ layout(shaderRecordEXT, scalar) buffer HitRecordBlock
 /// shader and never comes through here. A select on a record field, which is uniform per record.
 Cone stageCone()
 {
-    return coneAt(record.mArms != 0u ? frame.mArms : frame.mCamera);
+    return coneAt(eyeOf(record.mArms));
 }
 
-/// How much wider the image plane of that eye is than the world eye's, per axis, which is what a
-/// point the stage found reprojects through: `frame.mArmsSpread` for the arms, and one for the world.
+/// The image plane a point the stage found reprojects through, `eyeSpread`.
 vec2 stageSpread()
 {
-    return record.mArms != 0u ? frame.mArmsSpread : vec2(1.0);
+    return eyeSpread(record.mArms);
 }
 
 #endif

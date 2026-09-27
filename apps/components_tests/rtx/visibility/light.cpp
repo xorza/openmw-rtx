@@ -15,6 +15,7 @@
 #include <osg/Vec4f>
 
 #include <components/rtx/camera.hpp>
+#include <components/rtx/frameimage.hpp>
 #include <components/rtx/lightbuilder.hpp>
 #include <components/rtx/material.hpp>
 #include <components/rtx/mesh.hpp>
@@ -289,6 +290,29 @@ namespace Rtx::Testing
             EXPECT_EQ(litThroughPane(pane, black, bright, 0.5f), 111);
 
             EXPECT_EQ(litThroughPane(pane, black, bright, 0.0f), 153) << "an actor faded away entirely";
+
+            // **A fade a hair short of one is peeled like any other.** The launch was handed the
+            // opacity as a half, and `1 - 2^-13` is a half's one: the hit answered a pane, with no
+            // response and no motion, and the launch asked the half again and kept that pane whole,
+            // so the guides said there was no surface there. Peeled, the pixel's guides are the
+            // wall's behind it, to the bit — the byte is black either way, which is why the guide.
+            const auto guideThrough = [&](std::optional<float> fade) {
+                constexpr std::uint32_t size = 33;
+
+                SceneDesc scene = makeWall();
+                if (fade.has_value())
+                    addPane(scene, pane, black, *fade);
+                shoot(scene, {}, wallCamera(size, bright), size);
+
+                std::vector<float> guide;
+                mRenderer.readChannel(Channel::Guide, guide);
+                const std::size_t at = centreValueOf(size);
+                return osg::Vec4f(guide[at], guide[at + 1], guide[at + 2], guide[at + 3]);
+            };
+
+            const osg::Vec4f wall = guideThrough(std::nullopt);
+            ASSERT_GT(wall.length2(), 0.0f) << "the wall's own guide";
+            EXPECT_EQ(guideThrough(1.0f - 0x1p-13f), wall) << "a fade that rounds to one as a half was not peeled";
         }
 
         /// A translucent occluder dims the sun rather than stopping it.

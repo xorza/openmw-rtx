@@ -99,6 +99,9 @@ namespace Rtx
         /// the peel it stands at. `hitRecordTable` is the one statement of it.
         const auto sHitRecords = Shaders::hitRecordTable();
 
+        /// What each of the sky's records carries: the eye a ray that reached it was cast through.
+        const auto sMissRecords = Shaders::missRecordTable();
+
         /// The one hit module under its three settings, in `MaterialKind` order, which is the
         /// order traversal indexes them by: which albedo `resolve` may build, and whether the hit
         /// is shaded as water. Constants five and six, after the frame's tuple.
@@ -299,8 +302,7 @@ namespace Rtx
         {
             case Kernel::Visibility:
             {
-                const std::array<std::filesystem::path, Shaders::MISS_RECORD_COUNT> miss{ shaders
-                    / "visibility.rmiss.spv" };
+                const std::array<std::filesystem::path, 1> miss{ shaders / "visibility.rmiss.spv" };
                 const std::filesystem::path hitModule = shaders / "visibilityhit.rchit.spv";
                 const std::array<HitShader, Shaders::HIT_SHADER_COUNT> hit{
                     HitShader{ .mModule = hitModule, .mSpecialization = sSurfaceHit },
@@ -314,6 +316,8 @@ namespace Rtx
                             .mRaygen = shaders / "visibility.rgen.spv",
                             .mMiss = miss,
                             .mHit = hit,
+                            .mMissRecordsPerShader = Shaders::MISS_RECORD_COUNT,
+                            .mMissRecordData = std::as_bytes(std::span(sMissRecords)),
                             .mHitRecordsPerShader = Shaders::HIT_RECORDS_PER_SHADER,
                             .mHitRecordData = std::as_bytes(std::span(sHitRecords)),
                             .mAnyHit = shaders / "visibility.rahit.spv",

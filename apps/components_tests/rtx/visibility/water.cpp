@@ -864,6 +864,30 @@ namespace Rtx::Testing
 
             EXPECT_GT(std::abs(mirrored[centre * 2]), 1.0f) << "the mirrored sky slid when the camera turned";
             EXPECT_LT(std::abs(mirrored[centre * 2]), static_cast<float>(size)) << "and stayed on screen";
+
+            // **And water seen past a see-through arm reflects through the arms' own eye.** The
+            // ceiling's scene again, with a card of the player's arms faded to half between the eye
+            // and the water, seen at ninety degrees under the world's sixty, and a still camera: the
+            // image did not move. Column 30 of the middle row looks `30.5 / 33 * 2 - 1` = 0.8485 of
+            // the arms' half width `tan(45)` across, and read through the world's plane that is
+            // `0.8485 / tan(30)` = 1.4697 of a half width — column 40.75, which is the 10.25 pixels
+            // the reflection stored before it was told which eye it was seen through.
+            SceneDesc armed = makeOpenWater(4000.0f);
+            addQuad(armed, sheetAt(4000.0f, 200.0f), armed.addMaterial(Material{ .mTwoSided = true }));
+            armed.addInstance(MeshInstance{ .mMesh = addQuadMesh(armed, sheetAt(4000.0f, 50.0f)),
+                .mOpacity = 0.5f,
+                .mClass = InstanceClass::FirstPerson });
+
+            Shaders::VisibilityConstants armsWider = look(0.0f);
+            armsWider.mArms = cameraAtFieldOfView(armsWider.mCamera, 90.0f);
+            frame = shoot(armed, {}, armsWider, size, { .mSea = still });
+            mRenderer.renderFrame(armsWider, FrameOptions{});
+            mRenderer.readChannel(Channel::ReflectionMotion, mirrored);
+
+            const std::size_t aside = std::size_t{ size / 2 } * size + 30;
+            EXPECT_NEAR(mirrored[aside * 2], 0.0f, 0.01f)
+                << "the reflection past the arms reprojected through the world's plane";
+            EXPECT_NEAR(mirrored[aside * 2 + 1], 0.0f, 0.01f);
         }
     }
 }

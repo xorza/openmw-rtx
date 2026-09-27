@@ -62,4 +62,18 @@ bool waterUnbounded(bool found, vec3 origin, vec3 direction)
     return !found && direction.z < 0.0 && waterOver(origin) > 0.0;
 }
 
+/// The eye a ray the launch cast went through: `frame.mArms` where `arms` is one, the world's
+/// `frame.mCamera` where it is nought. What a hit or miss record's `mArms` names.
+Camera eyeOf(uint arms)
+{
+    return arms != 0u ? frame.mArms : frame.mCamera;
+}
+
+/// How much wider that eye's image plane is than the world eye's, per axis, which is what a point
+/// seen through it reprojects through: `frame.mArmsSpread` for the arms, and one for the world.
+vec2 eyeSpread(uint arms)
+{
+    return arms != 0u ? frame.mArmsSpread : vec2(1.0);
+}
+
 #endif

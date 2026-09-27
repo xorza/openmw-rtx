@@ -117,11 +117,6 @@ vec2 reprojected(uvec2 pixel, vec3 was, vec2 spread)
     return before - (vec2(pixel) + 0.5 + frame.mCamera.mJitter);
 }
 
-vec2 reprojected(uvec2 pixel, vec3 was)
-{
-    return reprojected(pixel, was, vec2(1.0));
-}
-
 /// How far a point of a deforming mesh moved between the last frame and this one, in world
 /// units, past what its instance's rigid motion says: the pose's own step, carried into the
 /// world by the instance's basis and into the previous frame by its motion's.
@@ -189,21 +184,24 @@ vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
 /// The plane is `frame.mWaterLevel`, which every frame with water in it names: the surface this
 /// reflects about is the one the water geometry lies in, and not the facet the ray happened to
 /// bounce off.
-vec2 mirrorMotionOf(uvec2 pixel, vec3 origin, WaterMirror mirror)
+///
+/// @param spread which image plane the image projects through, as `motionOf` takes it: the water
+///        a ray through the arms' eye finds past a see-through arm is seen through that eye.
+vec2 mirrorMotionOf(uvec2 pixel, vec3 origin, WaterMirror mirror, vec2 spread)
 {
     // **The sky reflected is still a reflection that moves**, and writing nought for it says the
     // opposite. It has no distance, so the eye's own walk does not carry it and its turn is the
     // whole of it — the argument `skyMotionOf` makes, about a direction that is mirrored because
     // what is being watched is the image and not the sky.
     if (!mirror.mFound)
-        return reprojected(pixel, vec3(mirror.mAlong.xy, -mirror.mAlong.z));
+        return reprojected(pixel, vec3(mirror.mAlong.xy, -mirror.mAlong.z), spread);
 
     // The plane's own reflection, which is linear on differences: the constant cancels in the
     // subtraction below, so only `z` changes sign.
     const vec3 seen = vec3(mirror.mAt.xy, 2.0 * frame.mWaterLevel - mirror.mAt.z);
     const vec3 went = movedBy(instanceAt(mirror.mInstance), mirror.mAt);
 
-    return reprojected(pixel, seen - origin + frame.mCameraMotion + vec3(went.xy, -went.z));
+    return reprojected(pixel, seen - origin + frame.mCameraMotion + vec3(went.xy, -went.z), spread);
 }
 
 /// Where the sky a ray found stood on the previous frame's screen, in pixels.
@@ -216,9 +214,11 @@ vec2 mirrorMotionOf(uvec2 pixel, vec3 origin, WaterMirror mirror)
 ///
 /// The same reprojection a surface gets, with the translation left out: at infinity `mCameraMotion`
 /// is nothing beside the direction, and dropping it is what says so exactly rather than nearly.
-vec2 skyMotionOf(uvec2 pixel, vec3 direction)
+///
+/// @param spread which image plane the direction projects through, as `motionOf` takes it.
+vec2 skyMotionOf(uvec2 pixel, vec3 direction, vec2 spread)
 {
-    return reprojected(pixel, direction);
+    return reprojected(pixel, direction, spread);
 }
 
 /// The depth a rasterizer would have written for a hit `along` units down `direction`.

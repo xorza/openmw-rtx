@@ -8,7 +8,7 @@
 // `hitObjectIsHitEXT`, `hitObjectGetRayTMaxEXT` and the ray's own getters, so not one word here is
 // spent on them.
 //
-// **What crosses the execute is what it costs**, and this is it: fifteen words. Every field the
+// **What crosses the execute is what it costs**, and this is it: fourteen words. Every field the
 // tail reads travels, and travels as small as the frame keeps it — the two albedos, the scalars and
 // the two motion vectors as halves, which is the width of the channels they are stored in, and the
 // normal as one word of octahedral halves. What stays whole is the two radiances, because a
@@ -68,11 +68,17 @@ struct Answer
     /// The sky only: how much of the star field the pixel shows through what the sky drew.
     float mSkyShown;
 
-    /// How much of the surface the ray met is there, which is what the launch peels a pane on.
+    /// How much of the surface the ray met is there: what the launch composites a pane by.
     float mOpacity;
 
-    /// Whether what was shaded is water, which the peel stops at and the glare's query counts as
-    /// nothing that writes depth.
+    /// Whether the launch peels what was shaded — `peeled` in the hit shader, decided there on the
+    /// opacity at full precision. **Carried and not asked again of `mOpacity`**, which crosses as
+    /// a half: an opacity within 2^-12 of one rounds up to it, and a launch that asked the half
+    /// kept, whole, a pane the hit had already answered with no motion and no response.
+    bool mPane;
+
+    /// Whether what was shaded is water, which the glare's query counts as nothing that writes
+    /// depth.
     bool mWater;
 };
 
@@ -91,14 +97,16 @@ Answer noAnswer()
     answer.mMirrorMotion = vec2(0.0);
     answer.mSkyShown = 0.0;
     answer.mOpacity = 1.0;
+    answer.mPane = false;
     answer.mWater = false;
 
     return answer;
 }
 
-/// The record as it crosses the execute: fifteen words, laid out once here.
+/// The record as it crosses the execute: fourteen words, laid out once here.
 ///
-/// The flags word carries two facts: whether the surface is water, and whether the response
+/// The flags word carries the stars' share as a half in its high bits, and three facts in its low
+/// ones: whether the launch peels the surface, whether it is water, and whether the response
 /// carries a normal at all. The last is what a pane and the sky leave nought, and nought has no
 /// direction to pack.
 struct VisibilityPayload
@@ -109,9 +117,6 @@ struct VisibilityPayload
     /// The response's diffuse and specular, then its roughness beside the opacity: six halves and
     /// two more in four words.
     uvec4 mHalves;
-
-    /// The stars' share, a half in the low bits; the high half is spare.
-    uint mSkyShown;
 
     /// The response's normal, `packDirection`.
     uint mNormal;
@@ -125,6 +130,7 @@ struct VisibilityPayload
 
 const uint ANSWER_WATER = 1u << 0u;
 const uint ANSWER_HAS_NORMAL = 1u << 1u;
+const uint ANSWER_PANE = 1u << 2u;
 
 VisibilityPayload packAnswer(Answer answer)
 {
@@ -137,11 +143,11 @@ VisibilityPayload packAnswer(Answer answer)
         packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mResponse.mSpecular.r)),
         packHalf2x16(answer.mResponse.mSpecular.gb),
         packHalf2x16(vec2(answer.mResponse.mRoughness, answer.mOpacity)));
-    packed.mSkyShown = packHalf2x16(vec2(answer.mSkyShown, 0.0));
     packed.mNormal = hasNormal ? packDirection(answer.mResponse.mNormal) : 0u;
     packed.mMotion = packHalf2x16(answer.mMotion);
     packed.mMirrorMotion = packHalf2x16(answer.mMirrorMotion);
-    packed.mFlags = (answer.mWater ? ANSWER_WATER : 0u) | (hasNormal ? ANSWER_HAS_NORMAL : 0u);
+    packed.mFlags = packHalf2x16(vec2(0.0, answer.mSkyShown)) | (answer.mWater ? ANSWER_WATER : 0u)
+        | (hasNormal ? ANSWER_HAS_NORMAL : 0u) | (answer.mPane ? ANSWER_PANE : 0u);
 
     return packed;
 }
@@ -161,8 +167,9 @@ Answer unpackAnswer(VisibilityPayload packed)
         vec3(diffuseRg, diffuseBSpecularR.x), vec3(diffuseBSpecularR.y, specularGb), roughnessOpacity.x);
     answer.mMotion = unpackHalf2x16(packed.mMotion);
     answer.mMirrorMotion = unpackHalf2x16(packed.mMirrorMotion);
-    answer.mSkyShown = unpackHalf2x16(packed.mSkyShown).x;
+    answer.mSkyShown = unpackHalf2x16(packed.mFlags).y;
     answer.mOpacity = roughnessOpacity.y;
+    answer.mPane = (packed.mFlags & ANSWER_PANE) != 0u;
     answer.mWater = (packed.mFlags & ANSWER_WATER) != 0u;
 
     return answer;
