@@ -3,3 +3,4 @@
 
 - fsr and other denoisers and upscalers
 - physical brightness
+- weather change speed and in film
