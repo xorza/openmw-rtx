@@ -142,8 +142,9 @@ namespace RtxTool
         // a report says so: the figures of a world standing still look like any other place's. A
         // menu a script opened paused every run under M[FR]'s hotkey notice until the session
         // learnt to close one (`Stager::closeMenus`), and the console, a message box waiting for an
-        // answer or a script's own tag pause it the same way.
-        if (Stager::isWorldPaused() && mProgress.mPausedFrames++ == 0)
+        // answer or a script's own tag pause it the same way. The frame's own flag, which is the
+        // one it was drawn under. Not in a session somebody plays, whose pauses are theirs.
+        if (report.mPaused && !mRequest.mPlayed && mProgress.mPausedFrames++ == 0)
             mProgress.mPausedBy = Stager::describePause();
 
         // The driver's own figure of the newest frame it finished, kept where there is one: a
