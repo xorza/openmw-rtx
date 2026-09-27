@@ -24,7 +24,7 @@ def gate(build: Build, args: list[str]) -> int:
         raise Refusal("gate takes no arguments")
     if build.flavour == "plain":
         raise Refusal("the gate is the ray tracer's, and the plain build has none: `omw plain test`")
-    if formatting.check_format([]) != 0:
+    if formatting.format_tree(["--check"]) != 0:
         return 1
     if not self_test():
         return 1
