@@ -271,10 +271,9 @@ vec3 skyPatches(vec3 direction)
 /// `sqrt(1 - x² - y²)` on a unit sphere. One square root buys a terminator that curves the way a
 /// real one does and moves continuously, where a selector between eight painted phases would step.
 ///
-/// **The lit share is the game's and the direction it faces is the sky's.** Morrowind advances a
-/// phase on a three-day clock that owes nothing to where its sun actually is, so the share has to
-/// come from `mPhaseAngle`; but a crescent that did not point at the sun would read as a mistake, so
-/// the terminator is turned toward it. The two answers are independent and neither can be dropped.
+/// **The light's direction and the law's blend are the frame's**, so they arrive in the disc —
+/// `MoonDisc::mLitFrom` says why a crescent turns toward the sun, and `MoonDisc::mLunar` how much of
+/// McEwen's law the phase keeps.
 ///
 /// @param covered how much of what lies behind the moon it hides — the star sheet, the painted
 ///        patches, the sun, and the other moon.
@@ -304,12 +303,7 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
     const vec2 face = at / max(across, 1.0);
     const vec3 normal = vec3(face, sqrt(max(1.0 - dot(face, face), 0.0)));
 
-    const vec2 toward = vec2(dot(frame.mSun.mDirection, moon.mRight), dot(frame.mSun.mDirection, moon.mUp));
-    const float turn = dot(toward, toward) > 0.0 ? atan(toward.y, toward.x) : 0.0;
-    const vec3 light
-        = vec3(sin(moon.mPhaseAngle) * cos(turn), sin(moon.mPhaseAngle) * sin(turn), cos(moon.mPhaseAngle));
-
-    const float incidence = max(dot(normal, light), 0.0);
+    const float incidence = max(dot(normal, moon.mLitFrom), 0.0);
     const float emission = max(normal.z, 1.0e-4);
 
     // **McEwen's lunar-Lambert, because a Lambertian sphere does not look like a moon.** A rough
@@ -317,12 +311,8 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
     // disc rather than a lit ball, and Lommel-Seeliger's `mu0 / (mu0 + mu)` is that in one divide.
     // Alone it puts the sunward limb at exactly twice the middle at every phase but full — its
     // emission cosine goes to zero there while the incidence cosine does not — so it is blended
-    // toward a Lambertian term, whose cosine does vanish. The polynomial is McEwen's own, in the
-    // phase angle in degrees.
-    const float phase = degrees(moon.mPhaseAngle);
-    const float lunar
-        = clamp(1.0 - 0.019 * phase + 0.000242 * phase * phase - 1.46e-6 * phase * phase * phase, 0.0, 1.0);
-    const float shade = lunar * 2.0 * incidence / (incidence + emission) + (1.0 - lunar) * incidence;
+    // toward a Lambertian term, whose cosine does vanish, by the share the phase keeps.
+    const float shade = moon.mLunar * 2.0 * incidence / (incidence + emission) + (1.0 - moon.mLunar) * incidence;
 
     // **The portrait where there is one, its mean where there is not.** `mColour` carries the mean
     // so the two paths land at the same brightness and only the detail differs — the file decides

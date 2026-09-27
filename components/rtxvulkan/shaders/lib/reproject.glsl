@@ -163,8 +163,13 @@ vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
     const GpuInstance placed = instanceAt(instance);
     const GpuMesh mesh = meshAt(placed.mMesh);
 
+    // **One fused step for the offset, and a product of its own.** The hit shader that calls this
+    // has made `point` already, as `origin + direction * distance` fused into one rounding; the same
+    // product written out here would be one value with two readers, which no build fuses, and the
+    // surface's whole shading would take the rounding that leaves. `fma` is its own operation and
+    // shares nothing, and it rounds this sum once where a product and an add round twice.
     return reprojected(pixel,
-        direction * distance + frame.mCameraMotion + movedBy(placed, point)
+        fma(direction, vec3(distance), frame.mCameraMotion) + movedBy(placed, point)
             + deformedBy(placed, mesh, primitive, bary, toWorld),
         spread);
 }

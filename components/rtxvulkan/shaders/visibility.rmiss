@@ -18,6 +18,7 @@
 #include "lib/counts.glsl"
 #include "lib/frame.glsl"
 #include "lib/payload.glsl"
+#include "lib/reproject.glsl"
 #include "lib/sky.glsl"
 #include "lib/variants.glsl"
 
@@ -25,7 +26,7 @@ layout(location = RTX_PAYLOAD) rayPayloadInEXT VisibilityPayload packed;
 
 void main()
 {
-    // Before either early return: a ray that found water from under it, or a picture's background,
+    // Whatever the answer below: a ray that found water from under it, or a picture's background,
     // reached nothing all the same.
     countMiss();
 
@@ -33,6 +34,11 @@ void main()
 
     const vec3 origin = gl_WorldRayOriginEXT;
     const vec3 direction = gl_WorldRayDirectionEXT;
+
+    // **The sky moves too, and only its turn moves it** — `skyMotionOf` says why storing nothing
+    // here is a smear across every camera rotation. Whatever the answer below: the water a ray
+    // finds under the surface and a picture's background turn with the eye as the sky does.
+    answer.mMotion = skyMotionOf(gl_LaunchIDEXT.xy, direction);
 
     // **A ray that goes down from under the surface and finds nothing found water, and water is not
     // the sky.** `waterUnbounded` is the whole argument, and the launch asks it again for the column

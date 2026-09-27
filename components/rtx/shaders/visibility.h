@@ -537,8 +537,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1168, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1352, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1192, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1376, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

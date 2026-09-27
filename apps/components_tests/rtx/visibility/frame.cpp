@@ -361,6 +361,13 @@ namespace Rtx::Testing
         /// `(s / d) / tan(30)` in a coordinate running -1 to 1 across the frame, and 32 pixels to
         /// the unit over 64: `55.426 * s / d`. Four units at two hundred is 1.1085 pixels, at four
         /// hundred 0.5543.
+        ///
+        /// **Through the arms' own eye, the step reprojects through the arms' own plane.** The same
+        /// four units at two hundred, on a wall placed as first person and seen through arms at
+        /// ninety degrees under a sixty-degree world: the arms' half width is `tan(45)` against the
+        /// world's `tan(30)`, so `mArmsSpread` is `1 / tan(30)` and the old screen position is
+        /// `(s / d) / tan(30) / (1 / tan(30)) = s / d`, which at 32 pixels to the unit is 0.64 —
+        /// where the world's plane would read 1.1085.
         TEST_F(RtxVisibilityTest, aMotionVectorSaysWhereItsSurfaceWasAndNotWhereTheWorldIs)
         {
             constexpr std::uint32_t size = 64;
@@ -472,6 +479,33 @@ namespace Rtx::Testing
                     = motionFrom(somewhere, 200.0f, osg::Vec3f(4.0f, 0.0f, 0.0f), osg::Vec3f(4.0f, 100.0f, 0.0f)).x();
 
                 EXPECT_NEAR(near, 1.1085f, 0.02f) << "the same two hundred units, a long way from the origin";
+            }
+
+            {
+                SceneDesc scene;
+                scene.addInstance(
+                    MeshInstance{ .mMesh = addQuadMesh(scene, wallAt(200.0f)), .mClass = InstanceClass::FirstPerson });
+
+                Shaders::VisibilityConstants first
+                    = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
+                first.mArms = cameraAtFieldOfView(first.mCamera, 90.0f);
+                shoot(scene, {}, first, size);
+
+                Shaders::VisibilityConstants stepped = Testing::makeCamera(
+                    osg::Vec3f(4.0f, 0.0f, 0.0f), osg::Vec3f(4.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
+                stepped.mArms = cameraAtFieldOfView(stepped.mCamera, 90.0f);
+                mRenderer.renderFrame(stepped, FrameOptions{});
+
+                std::vector<float> motion;
+                mRenderer.readChannel(Channel::Motion, motion);
+                std::vector<float> depth;
+                mRenderer.readChannel(Channel::Depth, depth);
+
+                // The centre pixel's ray leans `0.5 / 32` of the half width off the axis either way,
+                // which at ninety degrees is `200 sqrt(1 + 2 (1 / 64)^2)` = 200.0488 units.
+                EXPECT_NEAR(depth[centre * 2 + 1], 200.0488f, 0.01f) << "the arms' eye did not find the wall";
+                EXPECT_NEAR(motion[centre * 2], 0.64f, 0.02f) << "the arms reprojected through the world's plane";
+                EXPECT_NEAR(motion[centre * 2 + 1], 0.0f, 1e-3f);
             }
 
             // **A camera that only turns**, about its own position and by the same angle whichever

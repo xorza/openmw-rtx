@@ -58,7 +58,6 @@ struct WaterPath
     /// where nothing was found.
     vec3 mPosition;
     uint mInstance;
-
 };
 
 /// What a ray sees along `ray` after leaving the water, and what it found to see it on.
@@ -142,6 +141,26 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint seed)
 float airSpan(WaterPath path)
 {
     return path.mFound ? path.mDistance : FOG_REACH;
+}
+
+/// What a leg the surface sent out brings back to it: what it found, through the medium it crossed
+/// to find it — the water's own column under the surface, the air over it.
+///
+/// **One statement for the reflection and the refraction, because which medium each crosses flips
+/// with the side.** Seen from above, the refraction dives in and the reflection leaves into air;
+/// from below, the reflection stays under and the refraction is the sky through Snell's window,
+/// which has travelled no water at all. Attenuating the wrong one turns that window green.
+///
+/// @param footprint,offset what the column's march is read at and where in its first step it
+///        starts: the pixel's own, and one draw for both legs, since both leave the same point.
+/// @param before how far the eye's own ray had come, which a leg into the air carries on from —
+///        `fogAlongLeg` says why it asks.
+vec3 alongLeg(WaterPath path, WorldRay leg, bool underwater, float footprint, float offset, float before)
+{
+    if (underwater)
+        return throughWater(path.mRadiance, waterColumn(leg.mFrom, leg.mAlong, path.mDistance, footprint, offset));
+
+    return throughAir(path.mRadiance, fogAlongLeg(leg.mFrom, leg.mAlong, airSpan(path), before));
 }
 
 /// What a water surface answers with: what it sends back along the ray, what it is in the
@@ -229,11 +248,6 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
 
     // Offset along the *plane*, not the facet: what a ray has to clear to avoid finding this surface
     // again is the quad, and only the plane's normal is guaranteed to take it off that.
-    //
-    // **Absorption follows whichever ray went into the water, and that flips with the side.** Seen
-    // from above, the refraction dives in and the reflection leaves into air; from below, the
-    // reflection stays under and the refraction is the sky through Snell's window, which has
-    // travelled no water at all. Attenuating the wrong one turns that window green.
     const vec3 leaving = surface.mPosition + plane * SHADOW_BIAS;
 
     // **How much water is under *this pixel*, which is the whole of what a shore is.** Straight
@@ -255,22 +269,15 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
             solidWithin(WorldRay(leaving, vec3(0.0, 0.0, -1.0)), SHADOW_BIAS, WATER_SHORE_FADE,
                 Cone(surface.mFootprint, cone.mSpread)));
 
-    // How far the eye's own ray had come, which a leg leaving into the air carries on from:
-    // `fogAlongLeg` says why it asks.
+    // How far the eye's own ray had come, which a leg leaving into the air carries on from.
     const float before = distance(surface.mPosition, frame.mOrigin);
 
-    const vec3 away = reflect(incident, normal);
-    const WaterPath bounced
-        = waterRay(WorldRay(leaving, away), Cone(surface.mFootprint, cone.mSpread), lobe, key + SEED_LAMPS_MIRROR);
-    vec3 reflected = bounced.mRadiance;
-    if (fromBelow)
-        reflected = throughWater(reflected,
-            waterColumn(leaving, away, bounced.mDistance, surface.mFootprint, marchOffset));
-    else
-    {
-        reflected = throughAir(reflected, fogAlongLeg(leaving, away, airSpan(bounced), before));
-        shaded.mMirror = WaterMirror(bounced.mPosition, away, bounced.mInstance, bounced.mFound);
-    }
+    // The reflection stays on the eye's side of the plane, and the refraction crosses it.
+    const WorldRay mirrored = WorldRay(leaving, reflect(incident, normal));
+    const WaterPath bounced = waterRay(mirrored, Cone(surface.mFootprint, cone.mSpread), lobe, key + SEED_LAMPS_MIRROR);
+    const vec3 reflected = alongLeg(bounced, mirrored, fromBelow, surface.mFootprint, marchOffset, before);
+    if (!fromBelow)
+        shaded.mMirror = WaterMirror(bounced.mPosition, mirrored.mAlong, bounced.mInstance, bounced.mFound);
 
     const vec3 bent = refract(incident, normal, fromBelow ? WATER_IOR : 1.0 / WATER_IOR);
     if (dot(bent, bent) < 1e-6)
@@ -296,12 +303,10 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
 
     // Refraction bends by a third of what reflection does, so what is seen *through* the surface is
     // blurred correspondingly less by the same lost slopes.
-    const WaterPath behind = waterRay(WorldRay(leaving, through), Cone(surface.mFootprint, cone.mSpread),
-        lobe * WATER_REFRACTION_BEND, key + SEED_LAMPS_THROUGH);
-    const vec3 refracted = fromBelow
-        ? throughAir(behind.mRadiance, fogAlongLeg(leaving, through, airSpan(behind), before))
-        : throughWater(behind.mRadiance,
-              waterColumn(leaving, through, behind.mDistance, surface.mFootprint, marchOffset));
+    const WorldRay across = WorldRay(leaving, through);
+    const WaterPath behind
+        = waterRay(across, Cone(surface.mFootprint, cone.mSpread), lobe * WATER_REFRACTION_BEND, key + SEED_LAMPS_THROUGH);
+    const vec3 refracted = alongLeg(behind, across, !fromBelow, surface.mFootprint, marchOffset, before);
 
     shaded.mRadiance = mix(refracted, reflected, fresnel);
     return shaded;

@@ -27,4 +27,11 @@ Cone stageCone()
     return coneAt(record.mArms != 0u ? frame.mArms : frame.mCamera);
 }
 
+/// How much wider the image plane of that eye is than the world eye's, per axis, which is what a
+/// point the stage found reprojects through: `frame.mArmsSpread` for the arms, and one for the world.
+vec2 stageSpread()
+{
+    return record.mArms != 0u ? frame.mArmsSpread : vec2(1.0);
+}
+
 #endif

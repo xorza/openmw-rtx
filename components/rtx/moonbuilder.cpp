@@ -9,6 +9,7 @@
 #include <osg/Image>
 #include <osg/Math>
 #include <osg/Quat>
+#include <osg/Vec2f>
 #include <osg/ref_ptr>
 
 #include "refusals.hpp"
@@ -84,6 +85,30 @@ namespace Rtx
 
             return std::pow(10.0f, -0.4f * dim);
         }
+
+        /// Which way the light falls on `placement`'s face, in the face's own frame, under a sun
+        /// toward `towardSun`: tilted out of the eye by the phase, and turned about it until the lit
+        /// limb points at the sun. A sun along the moon's own line has no side to point at, and the
+        /// limb stays on `mRight`.
+        osg::Vec3f litFrom(const MoonPlacement& placement, const osg::Vec3f& towardSun)
+        {
+            const osg::Vec2f toward(towardSun * placement.mRight, towardSun * placement.mUp);
+            const float length = toward.length();
+            const osg::Vec2f turn = length > 0.0f ? toward / length : osg::Vec2f(1.0f, 0.0f);
+            const float lean = std::sin(placement.mPhaseAngle);
+
+            return osg::Vec3f(lean * turn.x(), lean * turn.y(), std::cos(placement.mPhaseAngle));
+        }
+
+        /// McEwen's weight of lunar-Lambert against Lambert at `phaseAngle`: his own cubic, in the
+        /// phase in degrees, held between nought and one.
+        float lunarShare(float phaseAngle)
+        {
+            const float phase = osg::RadiansToDegrees(phaseAngle);
+
+            return std::clamp(
+                1.0f - 0.019f * phase + 0.000242f * phase * phase - 1.46e-6f * phase * phase * phase, 0.0f, 1.0f);
+        }
     }
 
     MoonFaces addMoonFaces(SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes)
@@ -123,7 +148,7 @@ namespace Rtx
         scene.textures().drop(faces.mSecunda);
     }
 
-    Shaders::MoonDisc describeMoon(const MoonPlacement& placement)
+    Shaders::MoonDisc describeMoon(const MoonPlacement& placement, const osg::Vec3f& towardSun)
     {
         return Shaders::MoonDisc{
             .mSource
@@ -131,7 +156,8 @@ namespace Rtx
             .mRight = placement.mRight,
             .mUp = placement.mUp,
             .mColour = placement.mColour,
-            .mPhaseAngle = placement.mPhaseAngle,
+            .mLitFrom = litFrom(placement, towardSun),
+            .mLunar = lunarShare(placement.mPhaseAngle),
             .mAlpha = placement.mAlpha,
             .mThroughAir = placement.mThroughAir,
             .mPaint = placement.mPaint,

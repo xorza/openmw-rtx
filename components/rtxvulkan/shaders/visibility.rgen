@@ -46,12 +46,6 @@ layout(location = RTX_PAYLOAD) rayPayloadEXT VisibilityPayload packed;
 /// the execute runs, and this is how small.
 layout(location = RTX_TRAVERSAL_PAYLOAD) rayPayloadEXT uint traversed;
 
-/// Where on its triangle the hit object's ray landed, read back off the object for the motion
-/// vector of a surface that deforms: `hitObjectGetAttributesEXT` writes here and nowhere else.
-/// A literal at the call, as `RTX_PAYLOAD` is.
-#define RTX_LANDED 0
-layout(location = RTX_LANDED) hitObjectAttributeEXT vec2 landed;
-
 /// What the media in front of a point along the ray scattered in, and what they let through.
 struct MediumAhead
 {
@@ -108,8 +102,8 @@ MediumAhead mediumAhead(uvec2 pixel, WorldRay ray, float air, float water, float
 /// **Drawn, so back faces culled** — `facingFor`. Culling nothing, the peel walked through the far
 /// wall of a ghost's robe as well as the near one and composited its alpha twice.
 ///
-/// @param object filled in with what the ray found, and left readable: the launch takes the ray,
-///        the distance and the instance row back off it rather than carrying them.
+/// @param object filled in with what the ray found, and left readable: the launch takes the ray
+///        and the distance back off it rather than carrying them.
 /// @param record which record of its kind's block the hit lands on — `hitRecordOffset` of the eye
 ///        the ray is cast through and the layer of the peel it is for — added to the instance's
 ///        shader-table offset. `HitRecord` in `visibility.h` says why the two travel that way and
@@ -202,7 +196,6 @@ void main()
 
     bool hit = hitObjectIsHitEXT(found);
     float distance = hitObjectGetRayTMaxEXT(found);
-    uint instance = hitObjectGetInstanceCustomIndexEXT(found);
 
     // **Made before the peel, because each layer of it is charged the medium in front of itself.**
     // Both are the eye's own and neither moves as the ray carries on past a layer: the cone is the
@@ -274,7 +267,6 @@ void main()
 
         hit = hitObjectIsHitEXT(found);
         distance = hitObjectGetRayTMaxEXT(found);
-        instance = hitObjectGetInstanceCustomIndexEXT(found);
     }
 
     // **The last shader's answer, unpacked once.** `answer` holds what the surface behind the
@@ -387,29 +379,10 @@ void main()
     RTX_STORE_COUNTED(specular, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mSpecular, 1.0))
     RTX_STORE_COUNTED(guide, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mNormal, answer.mResponse.mRoughness))
 
-    // **The sky moves too, and only its turn moves it.** `skyMotionOf` says why storing nothing here
-    // is a smear across every camera rotation. The frame's own vector, always: no puff is in the
-    // frame, so nothing in it moves with a puff.
-    // Projected through the eye it was found by: the arms' plane is wider than the world's by
-    // `mArmsSpread`, and a point on them reprojects through that.
-    // A deforming surface says where its own triangle stood, off the hit object: the primitive,
-    // the barycentrics and the instance's basis all ride on it, so nothing crosses the payload.
-    vec2 moved;
-    if (hit)
-    {
-        hitObjectGetAttributesEXT(found, RTX_LANDED);
-        moved = motionOf(pixel, origin, direction, distance, instance, uint(hitObjectGetPrimitiveIndexEXT(found)),
-            landed, hitObjectGetObjectToWorldEXT(found), arms ? frame.mArmsSpread : vec2(1.0));
-    }
-    else
-        moved = skyMotionOf(pixel, direction);
-    RTX_STORE_COUNTED(motion, at, BOUNDARY_GUIDE, vec4(moved, 0.0, 0.0))
-
-    // **The one surface in this frame that shows something standing somewhere else.** Water is
-    // shaded where it is seen, so the vector above describes the surface and not what is in it; this
-    // is the other one, and the upscaler weighs the two by the specular albedo it was already given.
-    RTX_STORE_COUNTED(reflectionMotion, at, BOUNDARY_GUIDE,
-        vec4(answer.mWater ? mirrorMotionOf(pixel, origin, answer.mMirror) : vec2(0.0), 0.0, 0.0))
+    // **Both vectors as the shader that answered worked them out**: where the surface, the sky or
+    // what the water reflects stood last frame. `Answer::mMotion` says whose and why there.
+    RTX_STORE_COUNTED(motion, at, BOUNDARY_GUIDE, vec4(answer.mMotion, 0.0, 0.0))
+    RTX_STORE_COUNTED(reflectionMotion, at, BOUNDARY_GUIDE, vec4(answer.mMirrorMotion, 0.0, 0.0))
 
     // **What the display pass has to draw the star field through**, which is everything this frame
     // put between the field and the eye: the sky's own layers in `skyShown`, and the pane, the

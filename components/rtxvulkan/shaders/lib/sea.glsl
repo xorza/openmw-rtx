@@ -269,7 +269,6 @@ WaterSurface waterSurfaceAt(vec2 at, float footprint)
 
     surface.mNormal = normalize(vec3(-slope, 1.0));
     return surface;
-
 }
 
 /// How much the sunlight reaching `depth` below the surface has been gathered, as a multiplier.

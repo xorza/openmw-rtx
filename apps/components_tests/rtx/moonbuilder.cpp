@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <limits>
 #include <string>
+#include <string_view>
 
 #include <gtest/gtest.h>
 
@@ -185,7 +186,7 @@ namespace Rtx
             EXPECT_EQ(unsized.mAngularRadius, 0.0f);
             EXPECT_EQ(unsized.mAlpha, 0.0f) << "the one test the sky makes before it divides by the limb";
             EXPECT_EQ(unsized.mIrradiance, osg::Vec3f()) << "and a disc of no size lights nothing";
-            EXPECT_EQ(describeMoon(unsized).mSource.mLimb, 0.0f);
+            EXPECT_EQ(describeMoon(unsized, osg::Vec3f(0.0f, 0.0f, 1.0f)).mSource.mLimb, 0.0f);
 
             // **Nought until it is on its arc**, which the engine states by leaving the angle there
             // until a moon rises and returning it there once it sets.
@@ -266,6 +267,54 @@ namespace Rtx
             EXPECT_FLOAT_EQ(lit(angleOf(Sky::MoonPhase::Full)), 1.0f);
             EXPECT_NEAR(lit(angleOf(Sky::MoonPhase::ThirdQuarter)), 0.5f, 1e-6f);
             EXPECT_NEAR(lit(angleOf(Sky::MoonPhase::New)), 0.0f, 1e-6f);
+        }
+
+        /// The disc is handed the light it is shaded by: tilted out of the eye by the phase, turned
+        /// until the lit limb points at the sun, and McEwen's share of the law at that phase.
+        ///
+        /// **The turn is the sun's across the face.** A face along `x` and `y`, and a sun toward
+        /// `(0.6, 0.8, 0)`, which lies across the face at `(0.6, 0.8)` and is unit already: at a
+        /// quarter the light falls from there edge-on, `(0.6, 0.8, cos 90°)`; at the other quarter
+        /// the sine turns it to the other limb; full is straight out of the face whatever the sun.
+        /// A sun toward `(0.8, -0.6, 0)` turns the same quarter a quarter turn round, and a sun
+        /// along the moon's own line has no side, which leaves the limb on `x`.
+        ///
+        /// **McEwen's cubic, `1 - 0.019 a + 0.000242 a^2 - 1.46e-6 a^3` in degrees**: one at full;
+        /// at 45°, `1 - 0.855 + 0.49005 - 0.1330425 = 0.5020075`; at 90°,
+        /// `1 - 1.71 + 1.9602 - 1.06434 = 0.18586`; and past its root, at new, nought.
+        TEST(RtxMoonBuilderTest, theDiscIsHandedTheLightThePhaseAndTheSunMake)
+        {
+            MoonPlacement moon;
+            moon.mDirection = osg::Vec3f(0.0f, 0.0f, 1.0f);
+            moon.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
+            moon.mUp = osg::Vec3f(0.0f, 1.0f, 0.0f);
+
+            const osg::Vec3f sun(0.6f, 0.8f, 0.0f);
+            const auto described = [&](float phaseAngle, const osg::Vec3f& towardSun) {
+                moon.mPhaseAngle = phaseAngle;
+                return describeMoon(moon, towardSun);
+            };
+            const auto expectNear = [](const osg::Vec3f& got, const osg::Vec3f& expected, std::string_view what) {
+                for (int axis = 0; axis < 3; ++axis)
+                    EXPECT_NEAR(got[axis], expected[axis], 1e-6f) << what << ", axis " << axis;
+            };
+
+            const Shaders::MoonDisc full = described(0.0f, sun);
+            expectNear(full.mLitFrom, osg::Vec3f(0.0f, 0.0f, 1.0f), "full");
+            EXPECT_EQ(full.mLunar, 1.0f);
+
+            const Shaders::MoonDisc quarter = described(0.5f * osg::PIf, sun);
+            expectNear(quarter.mLitFrom, osg::Vec3f(0.6f, 0.8f, 0.0f), "a quarter");
+            EXPECT_NEAR(quarter.mLunar, 0.18586f, 1e-5f);
+
+            expectNear(described(1.5f * osg::PIf, sun).mLitFrom, osg::Vec3f(-0.6f, -0.8f, 0.0f), "the other quarter");
+            expectNear(described(0.5f * osg::PIf, osg::Vec3f(0.8f, -0.6f, 0.0f)).mLitFrom,
+                osg::Vec3f(0.8f, -0.6f, 0.0f), "a quarter under another sun");
+            expectNear(described(0.5f * osg::PIf, osg::Vec3f(0.0f, 0.0f, 1.0f)).mLitFrom, osg::Vec3f(1.0f, 0.0f, 0.0f),
+                "a sun behind the moon");
+
+            EXPECT_NEAR(described(0.25f * osg::PIf, sun).mLunar, 0.5020075f, 1e-5f);
+            EXPECT_EQ(described(osg::PIf, sun).mLunar, 0.0f) << "new";
         }
 
         /// A full Masser delivers what a lit disc of its size and albedo delivers, and no more.
@@ -404,12 +453,12 @@ namespace Rtx
         {
             MoonPlacement secunda
                 = placeMoon(configured(), Moon::Secunda, 90.0f, 50.0f, Sky::MoonPhase::Full, /*alpha=*/1.0f);
-            const Shaders::MoonDisc plain = describeMoon(secunda);
+            const Shaders::MoonDisc plain = describeMoon(secunda, osg::Vec3f(0.0f, 0.0f, 1.0f));
             EXPECT_EQ(plain.mPaint, osg::Vec3f(1.0f, 1.0f, 1.0f));
             EXPECT_EQ(plain.mSource.mIrradiance, secunda.mIrradiance);
 
             secunda.mPaint = osg::Vec3f(1.0f, 0.25f, 0.0f);
-            const Shaders::MoonDisc painted = describeMoon(secunda);
+            const Shaders::MoonDisc painted = describeMoon(secunda, osg::Vec3f(0.0f, 0.0f, 1.0f));
             EXPECT_EQ(painted.mPaint, secunda.mPaint);
             EXPECT_EQ(painted.mSource.mIrradiance, osg::componentMultiply(secunda.mIrradiance, secunda.mPaint));
             EXPECT_EQ(painted.mSource.mIrradiance.z(), 0.0f) << "a moon painted with no blue lights with none";
