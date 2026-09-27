@@ -212,11 +212,8 @@ namespace MWRender
             && "the loader hides with a bit the walk's mask does not exclude");
 
         // The world's clock and not this renderer's, or the controllers would run while the game
-        // was paused; the emitters by the gap between frames, which the extractor clamps, because
-        // they integrate it rather than read the hour.
+        // was paused.
         mExtractor.setSimulationTime(frame.mWhen.getSimulationTime());
-        mExtractor.advanceEmitters(frame.mWhen.getSimulationTime() - mLastSimulationTime);
-        mLastSimulationTime = frame.mWhen.getSimulationTime();
 
         // What goes is the lists a walk refills wholesale; the meshes, materials and textures stay
         // because the structures were built from them, and the placements because they are

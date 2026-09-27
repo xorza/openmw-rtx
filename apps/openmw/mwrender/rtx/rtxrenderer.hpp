@@ -399,6 +399,10 @@ namespace MWRender
         /// whether this is playable.
         FrameTimer mTimer;
 
+        /// Where the host's clock stood at the last trace, nothing before the first: what
+        /// `Rtx::FrameOptions::mSinceLast` is measured from.
+        std::optional<double> mTracedAt;
+
         /// Whether a camera the builder refused has already been reported. `describeTrace` says why
         /// once is the whole of it.
         bool mComplained = false;

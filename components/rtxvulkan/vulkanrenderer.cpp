@@ -18,6 +18,7 @@
 #include <components/rtx/frameimage.hpp>
 #include <components/rtx/frameoptions.hpp>
 #include <components/rtx/framesampling.hpp>
+#include <components/rtx/frameworld.hpp>
 #include <components/rtx/kernelprogress.hpp>
 #include <components/rtx/memoryreport.hpp>
 #include <components/rtx/reconstruction.hpp>
@@ -631,14 +632,7 @@ namespace Rtx
         // The frame `placeScene` opened, or a new one where nothing was placed.
         FrameRecord& frame = mRing.begin();
 
-        // How long since the last one, which the upscaler tunes its denoising against and the
-        // exposure adapts over. Off the wall only where the caller has no schedule, because a run
-        // that reads the clock for this is a run whose pictures depend on how fast it drew them.
-        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        const float sinceLastMs = options.mSinceLast.has_value()
-            ? *options.mSinceLast * 1000.0f
-            : (mLastFrameAt.has_value() ? std::chrono::duration<float, std::milli>(now - *mLastFrameAt).count() : 0.0f);
-        mLastFrameAt = now;
+        const float sinceLastMs = options.mSinceLast * 1000.0f;
 
         // The miss count is an atomic sum over the frame, so the block starts each one at nothing
         // — and it is not started at all where nothing reads it back, which is the other half of
@@ -687,7 +681,7 @@ namespace Rtx
         if (inputs.mSea)
         {
             mMedia.stepRipples(commands, mRing.getRecordingSlot(), osg::Vec2f(camera.mOrigin.x(), camera.mOrigin.y()),
-                options.mSkySeconds, &timer);
+                joinSeconds(camera.mWaterTime), &timer);
             mMedia.placeRipples(sampled);
         }
 

@@ -22,6 +22,7 @@
 
 #include <components/rtx/camera.hpp>
 #include <components/rtx/debuglines.hpp>
+#include <components/rtx/frameworld.hpp>
 #include <components/rtx/material.hpp>
 #include <components/rtx/mesh.hpp>
 #include <components/rtx/moonbuilder.hpp>
@@ -323,11 +324,11 @@ namespace Rtx::Testing
         /// derived through `shoot` must not have, since those are about what the trace computed.
         std::optional<float> mExposure = 1.0f;
 
-        /// How far the sky's clock moves a frame, which is what the ripple field steps by. A step
-        /// of nought stands the field still, which is what every test that is not about it wants.
-        /// What disturbs the water is the scene's own list, `SceneDesc::addRipple`, read when the
-        /// scene is set and pressed on every frame of the run.
-        float mSkyStep = 0.0f;
+        /// How far the water's clock moves a frame, which is what the ripple field steps by and the
+        /// waves run on. A step of nought stands the field still, which is what every test that is
+        /// not about it wants. What disturbs the water is the scene's own list,
+        /// `SceneDesc::addRipple`, read when the scene is set and pressed on every frame of the run.
+        float mWaterStep = 0.0f;
 
         /// What the debug modes drew, over the picture. Nothing, for every test not about it.
         DebugLines mDebug;
@@ -386,9 +387,10 @@ namespace Rtx::Testing
                 Shaders::VisibilityConstants sampled = camera;
                 if (shot.mFrames > 0)
                     sampled.mFrame = shot.mFirstFrame + at;
+                if (shot.mWaterStep > 0.0f)
+                    sampled.mWaterTime = splitSeconds(static_cast<double>(at) * static_cast<double>(shot.mWaterStep));
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = shot.mFrames > 0 && shot.mAverage ? at + 1 : 0,
-                        .mSkySeconds = static_cast<double>(at) * static_cast<double>(shot.mSkyStep),
                         .mGlare = shot.mGlare,
                         .mReconstruction = ReconstructionRequest{ .mFilter = shot.mFilter,
                             .mJitter = shot.mJitter,

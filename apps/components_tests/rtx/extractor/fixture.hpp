@@ -134,8 +134,16 @@ namespace Rtx::Testing
             return mExtractor.extract(node, osg::Matrixf::identity(), anchor, frame);
         }
 
+        /// Moves the world's clock on by `seconds`, and the emitters' with it.
+        void runWorld(double seconds)
+        {
+            mWorldSeconds += seconds;
+            mExtractor.setSimulationTime(mWorldSeconds);
+        }
+
         Rtx::SceneDesc mScene;
         SceneExtractor mExtractor{ mScene };
+        double mWorldSeconds = 0.0;
     };
 
     /// Where the walk put instance `index`: the origin of its own space, carried through the

@@ -188,9 +188,6 @@ namespace MWRender
         /// ground to flatten.
         Rtx::CompositeQueue mComposites;
 
-        /// Where the world's clock stood on the last frame, so the emitters are given the gap.
-        double mLastSimulationTime = 0.0;
-
         float mReach;
         osg::Vec3f mEye;
         Rtx::SpecularLayout mSpecularLayout;

@@ -3,4 +3,3 @@
 
 - fsr and other denoisers and upscalers
 - physical brightness
-- time source consolidation

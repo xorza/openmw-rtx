@@ -503,7 +503,7 @@ namespace Rtx::Testing
                 for (int turn = 0; turn < 2; ++turn)
                 {
                     scene.clearPlacement();
-                    extractor.advanceEmitters(0.1);
+                    extractor.setSimulationTime(0.1 * (turn + 1));
                     extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
                 }
 
@@ -537,14 +537,14 @@ namespace Rtx::Testing
             // **The first turn only starts the clock.** `ParticleProcessor` keeps the last time it
             // saw and has none yet, so it records one and steps nothing — which is also why a
             // renderer that walks a cell once and shows it has to warm its emitters first.
-            mExtractor.advanceEmitters(0.1);
+            runWorld(0.1);
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 0u);
 
             EXPECT_FALSE(plume.mParticles->getFreezeOnCull())
                 << "freeze-on-cull asks whether the draw has touched this, and nothing here draws";
 
             // A tenth of a second at a hundred a second is ten.
-            mExtractor.advanceEmitters(0.1);
+            runWorld(0.1);
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 10u);
 
             // **The same ten, and not another ten.** Every walk that reaches an emitter says it is a
@@ -554,7 +554,7 @@ namespace Rtx::Testing
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 10u);
 
             // Ten more on the next turn, so the guard is a guard and not a stop.
-            mExtractor.advanceEmitters(0.1);
+            runWorld(0.1);
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u);
         }
 
@@ -568,16 +568,16 @@ namespace Rtx::Testing
             Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
             drive(plume, 100.0);
 
-            mExtractor.advanceEmitters(0.1);
+            runWorld(0.1);
             walk(*plume.mRoot);
 
             // Clamped to the two tenths the game's own frame loop caps a step at: twenty, not
             // 360,000.
-            mExtractor.advanceEmitters(3600.0);
+            runWorld(3600.0);
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u);
 
             // And a step backwards is not a step backwards, it is no step at all.
-            mExtractor.advanceEmitters(-10.0);
+            runWorld(-10.0);
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u);
         }
 
@@ -593,7 +593,7 @@ namespace Rtx::Testing
             std::uint32_t seen = 0;
             for (int turn = 0; turn < 3; ++turn)
             {
-                mExtractor.advanceEmitters(0.1);
+                runWorld(0.1);
                 seen = walk(*plume.mRoot).mSprites;
             }
             EXPECT_EQ(seen, 20u);

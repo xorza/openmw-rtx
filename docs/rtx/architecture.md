@@ -1019,12 +1019,25 @@ Lua worker; `RenderingManager::renderFrame` → `RtxRenderer::renderFrame(frame)
 | d    | Placing | `handOver`: `WorldMirror::hand` → `SceneUploader::hand` (11.4)                                                            | `Place` = `Bake` + `Textures` + `Upload` |
 | e    | Views   | `drawViews()`: every subject picture and up to three world pictures (section 6.5)                                          | `Views`    |
 | f    | Tracing | `describeTrace`: `makeCameraFromView(view, fov, renderW, renderH, near 1, far 200000)`, the arms' camera, `rayMaskOf(viewMask)`, the sample index from the run or the frame number. A view with no basis is refused, said once, and the frame its placements opened is closed with no trace (`Rtx::Renderer::skipFrame`) |  |
-| g    | Tracing | `trace`: `SkyReader::read` → `WorldReading`; the schedule's `FrameOptions`; `describeWorld` → the world's constants and the exposure bias, the sky's clock and the glare in the options; `DebugWalk::walk`; `Renderer::renderFrame(constants, options)` | `Trace` |
+| g    | Tracing | `trace`: `SkyReader::read` → `WorldReading`; the schedule's `FrameOptions`, with the time since the last trace on the host's clock; `describeWorld` → the world's constants and the exposure bias and the glare in the options; `DebugWalk::walk`; `Renderer::renderFrame(constants, options)` | `Trace` |
 | h    | Run     | the report is closed and handed to `RtxRun::frame`; the window title once a second                                        |            |
+
+Every behaviour of the frame runs on one of four clocks, each with one source:
+
+| clock | source | what reads it |
+|-------|--------|---------------|
+| host time | `Misc::FrameClock::getNow`: the wall in a played session, the frames times the step in a measured run | the frame stamp's reference time (the caches' ages), the interface's step, the window's resize settle, and `FrameOptions::mSinceLast` — the difference between two traces, which the exposure, the glare and the upscaler adapt over |
+| simulation time | the host's step times the simulation's scale, summed over unpaused frames: `FrameStamp::getSimulationTime` and `SceneFrame::mDeltaTime` | the graph's controllers and flipbooks, the lamps' flicker, the emitters (by the clamped gap), and the water: `VisibilityConstants::mWaterTime`, which the waves and the ripples both step by |
+| game time | `DateTimeManager`: the hour and the days passed | the sun, the moons and the stars |
+| the sky's clock | simulation time times `timescale / 30`, summed by `SkyReader` over unpaused frames with a sky (`Sky::skyStep`) | the cloud deck's scroll, the fog's churn and its drift (`AirClock`) |
+
+The wall is read beside them only to measure: the frame's timing rows, the device's waits, the
+bakes.
 
 ### 11.3 The walk: `WorldMirror::mirror`
 
-1. The extractor is told the simulation time and advances its emitters by the gap.
+1. The extractor is told the simulation time, and moves its emitters on by the gap since the last
+   walk, clamped.
 2. `SceneDesc::clearPlacement()`.
 3. The eye and its basis come from the inverse view; every billboard is told where to face.
 4. The rain and the driven effect are walked as roots of their own, stood at the eye, marked

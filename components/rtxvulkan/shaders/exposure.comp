@@ -81,8 +81,9 @@ void main()
 
     // **A frame with no past takes the target outright**, which is the first frame of a run and any
     // frame the renderer was told to reconstruct without one. The buffer holds whatever it held, and
-    // on the very first frame that is uninitialised device memory.
-    if (frame.mReset != 0u || !(frame.mElapsed > 0.0))
+    // on the very first frame that is uninitialised device memory. The reset says so and nothing
+    // else does: a frame no time after the last is a frame the eye had no time to move in.
+    if (frame.mReset != 0u)
     {
         exposure = target;
         return;

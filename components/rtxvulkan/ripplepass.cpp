@@ -39,7 +39,7 @@ namespace Rtx
 
         constexpr std::uint32_t sGrid = Shaders::RIPPLE_GRID;
 
-        /// Which sixtieth of the sky's clock `seconds` falls in.
+        /// Which sixtieth of the water's clock `seconds` falls in.
         ///
         /// **A count and not a remainder, so the arithmetic cannot drift.** A remainder carried
         /// in floating point fell a few ulps short of a sixtieth every so often and skipped the
@@ -111,7 +111,7 @@ namespace Rtx
     }
 
     void RipplePass::record(const VkCommandBuffer commands, const FrameSlot slot,
-        const std::span<const RippleImpulse> impulses, const osg::Vec2f& eye, const double skySeconds,
+        const std::span<const RippleImpulse> impulses, const osg::Vec2f& eye, const double waterSeconds,
         GpuTimer* const timer)
     {
         // A field that was reset, or never started, stands still where the eye is now and owes
@@ -119,7 +119,7 @@ namespace Rtx
         if (mReset)
         {
             standWindow(windowOf(eye));
-            mSteppedTick = tickOf(skySeconds);
+            mSteppedTick = tickOf(waterSeconds);
             mReset = false;
 
             // The tiles too, because the step below is due only on the next tick and the trace
@@ -141,7 +141,7 @@ namespace Rtx
         // One step where a sixtieth has passed, as `RipplesSurface::updateState` steps: a frame
         // that comes round before one is due neither steps nor moves the window, and a frame that
         // took several steps a second still steps once. A clock that ran backwards stands still.
-        const std::int64_t tick = tickOf(skySeconds);
+        const std::int64_t tick = tickOf(waterSeconds);
         if (tick <= mSteppedTick)
             return;
 

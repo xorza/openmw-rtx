@@ -217,7 +217,7 @@ namespace Rtx::Testing
                     Shot{ .mSea = SeaState{ .mSignificantHeight = 0.0f },
                         .mFrames = 30,
                         .mAverage = false,
-                        .mSkyStep = 1.0f / Shaders::RIPPLE_STEP_RATE })
+                        .mWaterStep = 1.0f / Shaders::RIPPLE_STEP_RATE })
                              .bytes();
             };
 

@@ -26,16 +26,14 @@ namespace Rtx
         /// the sun's disc.
         std::uint32_t mAccumulate = 0;
 
-        /// How long this frame stands for, in seconds, or nothing to take it off the wall clock. The
-        /// eye adapts and the upscaler tunes itself by it, so a measured run states it
-        /// (`Misc::FrameClock`) or two runs of one build draw different pictures.
-        std::optional<float> mSinceLast = std::nullopt;
-
-        /// How long the sky has been running, in seconds of its own clock (`Sky::skyStep`), which the
-        /// ripple field steps by, sixty ticks to one of these. Here and not in the constants, because
-        /// only the host reads it, and in double, because a tick is a sixtieth and ten hours in a
-        /// float resolve a quarter of one.
-        double mSkySeconds = 0.0;
+        /// How long since the frame before this one was traced, in seconds of the host's clock
+        /// (`Misc::FrameClock::getNow`): what the eye adapts over, the glare fades over and the
+        /// upscaler tunes itself by. Nought is a frame with nothing before it, which adapts nothing.
+        ///
+        /// **The host's and never the wall read here**, so a measured run, whose clock counts
+        /// frames, draws the same pictures however fast it drew them; and one rule in both modes,
+        /// so frames nobody traced — a menu over a hidden world — are time the eye had.
+        float mSinceLast = 0.0f;
 
         /// What to multiply the measured exposure by: the hour, which the histogram cannot see
         /// (`Rtx::Skylight::mExposureBias`). A fixed exposure is not touched by it.

@@ -1,10 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 #include <memory>
 
 #include <SDL_video.h>
-#include <osg/Timer>
 
 namespace osg
 {
@@ -35,11 +35,17 @@ namespace MWRender
         std::uint32_t getWidth() const { return mAskedWidth; }
         std::uint32_t getHeight() const { return mAskedHeight; }
 
-        /// Sizes the trace, the surface and the viewport to the window once its size has settled.
-        /// Asked every frame, because a Wayland surface has no size of its own — its `currentExtent`
-        /// is `0xFFFFFFFF` by specification — so a present succeeds for ever and the compositor
-        /// stretches the picture to whatever the window became.
-        void fit(Rtx::Renderer& renderer, osg::Camera& camera);
+        /// Sizes the trace, the surface and the viewport to the window once its size has settled,
+        /// `now` being the host's clock (`Misc::FrameClock::getNow`). Asked every frame, because a
+        /// Wayland surface has no size of its own — its `currentExtent` is `0xFFFFFFFF` by
+        /// specification — so a present succeeds for ever and the compositor stretches the picture
+        /// to whatever the window became.
+        void fit(Rtx::Renderer& renderer, osg::Camera& camera, double now);
+
+        /// Sizes the trace, the surface and the viewport to the size the window last reported, now:
+        /// what `fit` does once the size settles, and what a renderer just made does before any
+        /// frame has a clock.
+        void apply(Rtx::Renderer& renderer, osg::Camera& camera) const;
 
         /// Writes the title, where somebody can see it: a hidden window keeps whatever it had.
         void setTitle(const char* title);
@@ -50,11 +56,11 @@ namespace MWRender
 
         std::unique_ptr<SDL_Window, void (*)(SDL_Window*)> mWindow{ nullptr, SDL_DestroyWindow };
 
-        /// The size the window last reported and the moment it first reported it — not the extent
-        /// anything is drawn at, which `Rtx::FrameExtents` says. A tick of nought is further back
-        /// than any tick, which is what makes the first fit act rather than wait.
+        /// The size the window last reported and when it first reported it — not the extent
+        /// anything is drawn at, which `Rtx::FrameExtents` says. Never is further back than any
+        /// moment, which is what makes the first fit act rather than wait.
         std::uint32_t mAskedWidth = 0;
         std::uint32_t mAskedHeight = 0;
-        osg::Timer_t mAskedSince = 0;
+        double mAskedSince = -std::numeric_limits<double>::infinity();
     };
 }
