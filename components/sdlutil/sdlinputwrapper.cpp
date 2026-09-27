@@ -257,7 +257,8 @@ namespace SDLUtil
                 updateMouseSettings();
                 break;
             case SDL_WINDOWEVENT_MOVED:
-                // Nobody drawing needs the position, and following it slows window movement
+                // I'm not sure what OSG is using the window position for, but I don't think it's needed,
+                // so we ignore window moved events (improves window movement performance)
                 break;
             case SDL_WINDOWEVENT_SIZE_CHANGED:
                 int w, h;

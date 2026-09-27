@@ -102,7 +102,6 @@ set(RTX_TEST_FILES
     rtxtool/scenedigest.cpp
     sky/skyclock.cpp
     sky/sundisc.cpp
-    sky/timeofday.cpp
 )
 
 set(RTX_TEST_SUPPORT

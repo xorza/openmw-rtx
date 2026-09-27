@@ -2,8 +2,6 @@
 
 #include <string>
 
-#include <components/fallback/fallback.hpp>
-
 namespace Sky
 {
     namespace
@@ -17,37 +15,6 @@ namespace Sky
         {
             return x * (1 - factor) + y * factor;
         }
-    }
-
-    TimeOfDaySettings TimeOfDaySettings::fromFallback()
-    {
-        const float sunrise = Fallback::Map::getFloat("Weather_Sunrise_Time");
-        const float sunset = Fallback::Map::getFloat("Weather_Sunset_Time");
-
-        TimeOfDaySettings settings;
-        settings.mSunriseDuration = Fallback::Map::getFloat("Weather_Sunrise_Duration");
-        settings.mNightStart = sunset + Fallback::Map::getFloat("Weather_Sunset_Duration");
-        settings.mNightEnd = sunrise;
-        settings.mDayStart = sunrise + settings.mSunriseDuration;
-        settings.mDayEnd = sunset;
-
-        settings.addSetting("Sky");
-        settings.addSetting("Ambient");
-        settings.addSetting("Fog");
-        settings.addSetting("Sun");
-
-        // Morrowind handles stars settings differently for other ones
-        settings.mStarsPostSunsetStart = Fallback::Map::getFloat("Weather_Stars_Post-Sunset_Start");
-        settings.mStarsPreSunriseFinish = Fallback::Map::getFloat("Weather_Stars_Pre-Sunrise_Finish");
-        settings.mStarsFadingDuration = Fallback::Map::getFloat("Weather_Stars_Fading_Duration");
-
-        WeatherSetting starSetting
-            = { settings.mStarsPreSunriseFinish, settings.mStarsFadingDuration - settings.mStarsPreSunriseFinish,
-                  settings.mStarsPostSunsetStart, settings.mStarsFadingDuration - settings.mStarsPostSunsetStart };
-
-        settings.mSunriseTransitions["Stars"] = starSetting;
-
-        return settings;
     }
 
     template <typename T>

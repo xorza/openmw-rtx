@@ -55,9 +55,7 @@ namespace MWRender
 
     protected:
         virtual bool renderHeadOnly() { return false; }
-
         void setBlendMode();
-
         virtual void onSetup();
 
         Resource::ResourceSystem* mResourceSystem;
