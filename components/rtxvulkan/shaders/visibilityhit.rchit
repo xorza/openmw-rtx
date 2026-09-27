@@ -161,8 +161,8 @@ void answerWater(inout Answer answer, Surface surface)
         return;
 
     // Drawn, because this is what the eye sees through the water.
-    const Surface bed = trace(origin, direction, max(surface.mDistance - SHADOW_BIAS, 0.0), cone.mWidth,
-        cone.mSpread, solidMask(frame.mRayMask), true);
+    const Surface bed = trace(
+        WorldRay(origin, direction), max(surface.mDistance - SHADOW_BIAS, 0.0), cone, solidMask(frame.mRayMask), true);
     if (!bed.mHit)
         return;
 

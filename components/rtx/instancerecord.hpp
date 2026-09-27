@@ -49,11 +49,19 @@ namespace Rtx
         /// instead of the shader reading a material row.
         MaterialKind mKind = MaterialKind::Surface;
 
-        /// Which rays are interested: the class bit `InstanceClass` gives it, or `MASK_WATER` for a
-        /// surface a shadow ray must pass straight through, or every shallow in the game goes
-        /// black; `MASK_MEDIUM` beside either; or `MASK_ADDITIVE` alone, for a surface no shading
-        /// ray meets. Said in the mask, because a candidate loop waving shadow rays past costs half
-        /// the frame rate.
+        /// What the placement is to a camera's cull mask: the class bit `InstanceClass` gives it,
+        /// `MASK_WATER` for water, or `MASK_ADDITIVE` for a surface that adds.
+        std::uint32_t mClass = 0;
+
+        /// Which rays meet it in traversal: `mClass`, or `MASK_MEDIUM` alone for a medium.
+        ///
+        /// **Water's own bit** is what lets a shadow ray pass straight through it, or every shallow in
+        /// the game goes black. **An additive surface's** is met by no shading ray. **A medium's** is
+        /// met only by the rays that sum it, `throughToward` and `mediumAlong`: every other ray
+        /// walked past it after an any-hit test and a row load apiece, and the sum's own rays ask
+        /// `GpuInstance::mClass` for the class the structure's mask no longer carries. Said in the
+        /// mask, because a candidate loop waving rays past costs traversal what the mask costs
+        /// nothing.
         std::uint32_t mMask = 0;
 
         /// Whether traversal must stop and ask the shader whether a hit is a hole. Without it the

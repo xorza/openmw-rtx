@@ -61,7 +61,7 @@ struct WaterPath
 
 };
 
-/// What a ray sees along `direction` after leaving the water, and what it found to see it on.
+/// What a ray sees along `ray` after leaving the water, and what it found to see it on.
 ///
 /// **The pixel's own cone, not a bounce's.** A reflection and a refraction are specular: they carry
 /// the footprint the primary ray had, where a diffuse bounce spreads over a hemisphere and wants the
@@ -83,17 +83,20 @@ struct WaterPath
 ///
 /// @param seed which draw sequence the lamp reservoir at the far end of this ray steps. The
 ///        reflection and the refraction take different ones, or both keep the same lamp.
-/// @param spread how fast the pixel's own cone opens, `Cone::mSpread`, which the lobe widens.
+/// @param cone the pixel's own cone where the ray leaves, whose spread the lobe widens.
 /// @param lobe the rms angle those slopes deflect this ray by — a *radius*, which is why the cone
-///        it traces is widened by twice it. Everything `spread` feeds is a width: `resolved` compares
+///        it traces is widened by twice it. Everything a spread feeds is a width: `resolved` compares
 ///        it against a wavelength and `coneLod` against a texel area, and `mSpreadAngle` is the whole
 ///        angle a pixel covers rather than half of one. The sky's disc takes the same number
 ///        unhalved, because a disc is named by its radius.
-WaterPath waterRay(vec3 origin, vec3 direction, float footprint, float spread, float lobe, uint seed)
+WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint seed)
 {
+    const vec3 origin = ray.mFrom;
+    const vec3 direction = ray.mAlong;
+
     // Drawn, because a reflection is a picture of the world and shows the faces the world shows.
     const Surface hit
-        = trace(origin, direction, SHADOW_BIAS, footprint, spread + 2.0 * lobe, solidMask(frame.mRayMask), true);
+        = trace(ray, SHADOW_BIAS, Cone(cone.mWidth, cone.mSpread + 2.0 * lobe), solidMask(frame.mRayMask), true);
 
     WaterPath path;
     path.mPosition = hit.mPosition;
@@ -249,15 +252,16 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     shaded.mShore = 1.0;
     if (!fromBelow)
         shaded.mShore = smoothstep(0.0, WATER_SHORE_FADE,
-            solidWithin(
-                leaving, vec3(0.0, 0.0, -1.0), SHADOW_BIAS, WATER_SHORE_FADE, surface.mFootprint, cone.mSpread));
+            solidWithin(WorldRay(leaving, vec3(0.0, 0.0, -1.0)), SHADOW_BIAS, WATER_SHORE_FADE,
+                Cone(surface.mFootprint, cone.mSpread)));
 
     // How far the eye's own ray had come, which a leg leaving into the air carries on from:
     // `fogAlongLeg` says why it asks.
     const float before = distance(surface.mPosition, frame.mOrigin);
 
     const vec3 away = reflect(incident, normal);
-    const WaterPath bounced = waterRay(leaving, away, surface.mFootprint, cone.mSpread, lobe, key + SEED_LAMPS_MIRROR);
+    const WaterPath bounced
+        = waterRay(WorldRay(leaving, away), Cone(surface.mFootprint, cone.mSpread), lobe, key + SEED_LAMPS_MIRROR);
     vec3 reflected = bounced.mRadiance;
     if (fromBelow)
         reflected = throughWater(reflected,
@@ -292,8 +296,8 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
 
     // Refraction bends by a third of what reflection does, so what is seen *through* the surface is
     // blurred correspondingly less by the same lost slopes.
-    const WaterPath behind = waterRay(
-        leaving, through, surface.mFootprint, cone.mSpread, lobe * WATER_REFRACTION_BEND, key + SEED_LAMPS_THROUGH);
+    const WaterPath behind = waterRay(WorldRay(leaving, through), Cone(surface.mFootprint, cone.mSpread),
+        lobe * WATER_REFRACTION_BEND, key + SEED_LAMPS_THROUGH);
     const vec3 refracted = fromBelow
         ? throughAir(behind.mRadiance, fogAlongLeg(leaving, through, airSpan(behind), before))
         : throughWater(behind.mRadiance,

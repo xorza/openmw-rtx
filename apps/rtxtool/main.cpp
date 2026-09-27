@@ -279,6 +279,8 @@ namespace RtxTool
                               : shippedDefault(command.mConfig, "Terrain", "object paging") == "true",
                 .mObjectPagingMinSize = Settings::terrain().mObjectPagingMinSize,
                 .mSpecularMapLayout = Settings::rtx().mSpecularMapLayout.get(),
+                .mAnisotropy = watched ? Settings::general().mAnisotropy.get()
+                                       : std::stoi(shippedDefault(command.mConfig, "General", "anisotropy")),
             });
             framed.mSetup.mLatency = derived.mLatency;
             framed.mSetup.mMirror = derived.mMirror;
@@ -292,6 +294,7 @@ namespace RtxTool
 
             Rtx::RenderProfile& profile = framed.mSetup.mProfile;
             profile.mUpscaling = derived.mUpscaling;
+            profile.mAnisotropy = derived.mAnisotropy;
             profile.mDelight = variables["delight"].as<float>();
             profile.mReconstruction.mFilter = variables["filter"].as<bool>();
             profile.mShow = Rtx::sSurfaceViewNames.require(variables["show"].as<std::string>(), "a surface view");

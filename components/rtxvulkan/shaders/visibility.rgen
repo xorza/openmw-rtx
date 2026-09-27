@@ -71,19 +71,19 @@ struct MediumAhead
 /// @param water,width the stretch of water the column march takes and how wide the ray's cone is at
 ///        the end of it. Not the same as `air` for a ray that escaped, which carries `mFar` for its
 ///        distance and no cone at all — `WATER_UNBOUNDED_PATH` is what such a ray crossed.
-MediumAhead mediumAhead(uvec2 pixel, vec3 origin, vec3 direction, float air, float water, float width, bool submerged)
+MediumAhead mediumAhead(uvec2 pixel, WorldRay ray, float air, float water, float width, bool submerged)
 {
     MediumAhead ahead = MediumAhead(vec3(0.0), vec3(1.0));
 
     if (submerged)
     {
-        const WaterColumn column = waterColumn(origin, direction, water, width, randomAt(pixel, STREAM_WATER));
+        const WaterColumn column = waterColumn(ray.mFrom, ray.mAlong, water, width, randomAt(pixel, STREAM_WATER));
 
         ahead.mScattered = column.mScattered;
         ahead.mThrough = column.mTransmittance;
     }
 
-    const vec4 fog = fogAlong(pixel, origin, direction, air);
+    const vec4 fog = fogAlong(pixel, ray, air);
 
     ahead.mScattered = throughAir(ahead.mScattered, fog);
     ahead.mThrough *= fog.w;
@@ -252,7 +252,7 @@ void main()
     for (uint layer = 0u; layer < PEEL_LAYERS && hit && !answer.mWater && isSeenThrough(answer.mOpacity); ++layer)
     {
         const MediumAhead ahead = mediumAhead(
-            pixel, origin, direction, distance, distance, cone.mWidth + cone.mSpread * distance, submerged);
+            pixel, WorldRay(origin, direction), distance, distance, cone.mWidth + cone.mSpread * distance, submerged);
 
         // The stretch of medium since the layer in front of this one, and then this layer over
         // everything short of it — both behind whatever the layers in front of it left.
@@ -312,7 +312,7 @@ void main()
     const float crossed = unbounded ? WATER_UNBOUNDED_PATH : distance;
     const float width = hit || unbounded ? cone.mWidth + cone.mSpread * crossed : 0.0;
 
-    const MediumAhead whole = mediumAhead(pixel, origin, direction, distance, crossed, width, submerged);
+    const MediumAhead whole = mediumAhead(pixel, WorldRay(origin, direction), distance, crossed, width, submerged);
 
     shaded = shaded * whole.mThrough + whole.mScattered;
     transmittance *= whole.mThrough;
@@ -420,5 +420,5 @@ void main()
 
     // A miss is as far away as anything can be, and the hit object already carries `mFar` for it.
     // The arms' depth is the eye's own: `clipDepth` measures along the forward the two share.
-    RTX_STORE_COUNTED(depth, at, BOUNDARY_GUIDE, vec4(hit ? clipDepth(direction, distance) : 1.0, distance, 0.0, 0.0))
+    RTX_STORE_COUNTED(depth, at, BOUNDARY_GUIDE, vec4(hit ? clipDepth(direction, distance) : 0.0, distance, 0.0, 0.0))
 }

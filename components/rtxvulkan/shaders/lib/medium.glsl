@@ -71,7 +71,8 @@ struct Crossing
 /// The crossing a candidate names.
 ///
 /// @param coneWidth how wide the ray's cone is at the crossing, which picks the texel's level.
-Crossing crossingOf(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed, vec3 direction, float coneWidth)
+Crossing crossingOf(
+    uint instanceIndex, uint primitive, vec2 bary, TriangleEdges edges, vec3 direction, float coneWidth)
 {
     Crossing crossing;
     crossing.mInstance = instanceAt(instanceIndex);
@@ -80,7 +81,7 @@ Crossing crossingOf(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed,
     crossing.mBary = bary;
 
     const TexturePoint point
-        = candidatePoint(crossing.mCorner, crossing.mMaterial, crossing.mBary, crossed, direction, coneWidth);
+        = candidatePoint(crossing.mCorner, crossing.mMaterial, crossing.mBary, edges, direction, coneWidth, false);
 
     // One path: an untextured shell names `TEXTURE_NEUTRAL`, which reads as the grey it stood for.
     crossing.mTexel = sampleDiffuse(crossing.mMaterial.mDiffuse, point);
@@ -180,10 +181,11 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
 
         vec3 corners[3];
         rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, corners);
-        const vec3 crossed = triangleCross(corners, rayQueryGetIntersectionObjectToWorldEXT(query, false));
+        const TriangleEdges edges = triangleEdges(corners, rayQueryGetIntersectionObjectToWorldEXT(query, false));
+        const vec3 crossed = cross(edges.mFirst, edges.mSecond);
 
         const Crossing crossing
-            = crossingOf(instanceIndex, primitive, bary, crossed, direction, cone.mWidth + cone.mSpread * at);
+            = crossingOf(instanceIndex, primitive, bary, edges, direction, cone.mWidth + cone.mSpread * at);
         const GpuMaterial material = crossing.mMaterial;
         const vec4 texel = crossing.mTexel;
 

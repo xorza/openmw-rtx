@@ -62,6 +62,10 @@ struct Gloss
     /// The directional albedo the lobe reflects toward the eye, compensated: what the upscaler
     /// demodulates the specular half by.
     vec3 mAlbedo;
+
+    /// The surface's diffuse albedo, `Surface::mAlbedo`: what a light's weight reads beside the lobe
+    /// (`surfaceCandidate`), carried here because every asker of the one asks the other.
+    vec3 mDiffuse;
 };
 
 /// The surface's specular half, or a record whose `mGlossy` is false.
@@ -77,6 +81,7 @@ Gloss glossOf(Surface surface)
     gloss.mAlpha = 1.0;
     gloss.mCompensation = vec3(1.0);
     gloss.mAlbedo = vec3(0.0);
+    gloss.mDiffuse = surface.mAlbedo;
 
     if (!HAS_MAPS || !(max(max(surface.mSpecular.r, surface.mSpecular.g), surface.mSpecular.b) > 0.0))
         return gloss;

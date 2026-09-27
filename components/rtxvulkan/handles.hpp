@@ -55,6 +55,13 @@ namespace Rtx
     Sampler makeTargetSampler(const Device& device, std::string_view name);
     Sampler makeContentSampler(const Device& device, std::string_view name, TextureWrap wrap = TextureWrap::Repeat);
 
+    /// Content as `makeContentSampler` reads it, filtered anisotropically by up to `anisotropy`, or
+    /// the most the device takes where that is less: for a read that states its footprint
+    /// (`textureGrad`), and for no read that names a level, which the filtering moves. One or less
+    /// filters isotropically, at the level of the footprint's long axis.
+    Sampler makeFootprintSampler(
+        const Device& device, std::string_view name, TextureWrap wrap, std::uint32_t anisotropy);
+
     /// Linear over the whole chain and nothing past the edge: a field that ends in still water
     /// reads as still water beyond it.
     Sampler makeBorderSampler(const Device& device, std::string_view name);

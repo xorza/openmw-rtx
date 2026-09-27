@@ -110,6 +110,11 @@ namespace Rtx
             RequiredFeature{
                 "shaderInt64", +[](DeviceFeatures& f) -> VkBool32& { return f.mFeatures2.features.shaderInt64; } },
 
+            // What lets a surface the eye sees be read along its footprint's long axis rather than
+            // blurred to it: `textureGrad` through a sampler with anisotropy on (`makeFootprintSampler`).
+            RequiredFeature{ "samplerAnisotropy",
+                +[](DeviceFeatures& f) -> VkBool32& { return f.mFeatures2.features.samplerAnisotropy; } },
+
             // What lets `composite.comp` read one binding that is two formats. The bounce it
             // composites is the trace's own channel where nothing denoised the frame and the
             // cascade's where something did, and those are `rgba32f` and `rgba16f` — so the shader

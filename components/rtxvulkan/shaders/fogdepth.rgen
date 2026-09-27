@@ -61,7 +61,7 @@ void main()
     // in front, which a column that runs on to the wall behind holds just the same.
     const Cone cone = coneAt(frame.mCamera);
     const float surface = surfaceWithin(
-        origin, ray.mDirection, 0.0, frame.mFar, cone.mWidth, cone.mSpread, worldMask(frame.mRayMask), true, true);
+        WorldRay(origin, ray.mDirection), 0.0, frame.mFar, cone, RayRule(worldMask(frame.mRayMask), true, true));
 
     imageStore(fogColumnDepth, column, vec4(surface, 0.0, 0.0, 0.0));
 

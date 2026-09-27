@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string_view>
 
 #include <components/rtx/cellworld.hpp>
@@ -25,9 +26,10 @@ namespace MWRender
         bool mObjectPaging = true;
         float mObjectPagingMinSize = 0.0f;
         std::string_view mSpecularMapLayout;
+        int mAnisotropy = 0;
 
-        /// `[RTX]`, `[Camera] viewing distance` and `[Terrain]`'s paging: the one place the game
-        /// reads these settings.
+        /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging and `[General] anisotropy`: the
+        /// one place the game reads these settings.
         static RtxSettingValues fromRegistry();
     };
 
@@ -37,6 +39,9 @@ namespace MWRender
         Rtx::Upscaling mUpscaling;
         Rtx::LatencyMode mLatency = Rtx::LatencyMode::Off;
         Rtx::MirrorKnobs mMirror;
+
+        /// `RenderProfile::mAnisotropy`: the setting, where nought means what one does.
+        std::uint32_t mAnisotropy = 1;
 
         /// Throws `Rtx::InputError` for a spelling that names no mode: a setting refused rather
         /// than defaulted, so a typo is said at once and not traced under for a session.

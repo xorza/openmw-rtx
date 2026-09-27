@@ -9,6 +9,7 @@
 
 #include "look.h"
 #include "scene.h"
+#include "basis.glsl"
 #include "bindings.glsl"
 #include "geometry.glsl"
 #include "ground.glsl"
@@ -31,17 +32,46 @@ struct SurfaceCone
     /// A surface seen edge-on covers more of itself per pixel, and the cone's footprint on it grows
     /// by the same factor. Floored, because a grazing hit sends it to infinity.
     float mFacing;
+
+    /// How the second and the third corner's weights change across the triangle's plane, per world
+    /// unit: what carries a step on the surface onto the texture, as `t1 dot(step, mToSecond) +
+    /// t2 dot(step, mToThird)` for the texture's two edges `t1` and `t2`.
+    vec3 mToSecond;
+    vec3 mToThird;
+
+    /// The ellipse a cone one unit wide makes on the surface: its short axis across the ray, one unit
+    /// long, and its long axis along the ray's shadow on the plane, `1 / mFacing` long.
+    ///
+    /// **What `mFacing` folds into one level, kept apart.** An isotropic read has to take the long
+    /// axis for both, so a surface seen at a grazing angle — most of the ground in most exterior
+    /// frames — is blurred across the ray by the stretch along it. A read along both axes keeps the
+    /// short one sharp (Akenine-Möller et al., *Improved Shader and Texture Level of Detail Using Ray
+    /// Cones*, JCGT 10(1) 2021).
+    vec3 mAcross;
+    vec3 mAlong;
 };
 
-/// @param crossed the triangle's edge cross product, whose length is twice its area. The texel area
-///        in `coneLod` is doubled the same way, so the two cancel in the ratio.
-SurfaceCone surfaceConeAt(vec3 crossed, vec3 direction)
+/// @param edges the triangle's two edges in the world. Their cross product's length is twice its
+///        area; the texel area in `coneLod` is doubled the same way, so the two cancel in the ratio.
+SurfaceCone surfaceConeAt(TriangleEdges edges, vec3 direction)
 {
+    const vec3 crossed = cross(edges.mFirst, edges.mSecond);
     const float area = length(crossed);
     if (!(area > 0.0))
-        return SurfaceCone(0.0, 1.0);
+        return SurfaceCone(0.0, 1.0, vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
 
-    return SurfaceCone(area, max(abs(dot(crossed / area, direction)), 1e-3));
+    const vec3 normal = crossed / area;
+    const float facing = max(abs(dot(normal, direction)), 1e-3);
+
+    // Where the ray's shadow on the plane is nothing, the ray meets the plane square and the ellipse
+    // is a circle: any axis in the plane serves.
+    const vec3 shadow = direction - normal * dot(direction, normal);
+    const float shadowLength = length(shadow);
+    const vec3 along = shadowLength > 1e-6 ? shadow / shadowLength : tangentTo(normal);
+
+    const float squared = area * area;
+    return SurfaceCone(area, facing, cross(edges.mSecond, crossed) / squared, cross(crossed, edges.mFirst) / squared,
+        cross(normal, along), along / facing);
 }
 
 /// A base at or below which every texture reads its finest level, whatever its own resolution adds.
@@ -101,17 +131,47 @@ struct TexturePoint
     /// again — eight floats through the call chain for one scalar that is the same for every map on
     /// the triangle, and a surface reads three of them.
     float mBase;
+
+    /// The footprint's two axes in the texture's own coordinates, for `textureGrad`, and whether the
+    /// read is along them: a surface the eye sees (`texturePoint`'s `anisotropic`). The frame's
+    /// level bias is in their length.
+    vec2 mAcross;
+    vec2 mAlong;
+    bool mAnisotropic;
 };
 
 /// @param transform mesh texture coordinates to this texture's, as `uv * xy + zw`.
-TexturePoint texturePoint(vec2 uv[3], vec2 bary, vec4 transform, SurfaceCone cone, float coneWidth)
+/// @param anisotropic whether the texture is read along the footprint's two axes rather than at the
+///        level of its long one: a surface the eye sees — `resolveFor`'s `detailed` — and the cutout
+///        the eye's own traversal tests, so a hole and the leaf around it are read at one footprint.
+///        **A literal at every call**, so the other reads compile as they were.
+TexturePoint texturePoint(vec2 uv[3], vec2 bary, vec4 transform, SurfaceCone cone, float coneWidth, bool anisotropic)
 {
     const vec2 corner0 = uv[0] * transform.xy + transform.zw;
     const vec2 corner1 = uv[1] * transform.xy + transform.zw;
     const vec2 corner2 = uv[2] * transform.xy + transform.zw;
 
-    return TexturePoint(
-        acrossTriangle(corner0, corner1, corner2, bary), coneBase(corner0, corner1, corner2, cone, coneWidth));
+    TexturePoint point;
+    point.mAt = acrossTriangle(corner0, corner1, corner2, bary);
+    point.mBase = coneBase(corner0, corner1, corner2, cone, coneWidth);
+    point.mAcross = vec2(0.0);
+    point.mAlong = vec2(0.0);
+
+    // **One path whatever the lane has**: a ray with no cone, or a triangle with no area on the
+    // surface or on the texture, comes out with no gradient at all, which is level nought — what
+    // `coneBase` gives it as the finest.
+    point.mAnisotropic = anisotropic;
+    if (anisotropic)
+    {
+        const vec2 second = corner1 - corner0;
+        const vec2 third = corner2 - corner0;
+        const float width = coneWidth * exp2(frame.mLevelBias);
+
+        point.mAcross = (second * dot(cone.mAcross, cone.mToSecond) + third * dot(cone.mAcross, cone.mToThird)) * width;
+        point.mAlong = (second * dot(cone.mAlong, cone.mToSecond) + third * dot(cone.mAlong, cone.mToThird)) * width;
+    }
+
+    return point;
 }
 
 /// Where a sphere-mapped sheet is read, and how coarse a level the ray's cone can tell apart
@@ -159,7 +219,7 @@ TexturePoint spherePoint(vec3 normal[3], vec3 shading, vec3 direction, SurfaceCo
     const float shortest
         = min(min(dot(normal[0], normal[0]), dot(normal[1], normal[1])), dot(normal[2], normal[2]));
     if (!(shortest > 1e-8))
-        return TexturePoint(at, TEXTURE_FINEST_BASE);
+        return TexturePoint(at, TEXTURE_FINEST_BASE, vec2(0.0), vec2(0.0), false);
 
     const vec3 tip = normalize(normal[0]);
     const vec3 spread = cross(normalize(normal[1]) - tip, normalize(normal[2]) - tip);
@@ -168,7 +228,7 @@ TexturePoint spherePoint(vec3 normal[3], vec3 shading, vec3 direction, SurfaceCo
     // the reflections span is `4 cos` of that, and a sixteenth of it is sheet area.
     const float sheetArea = 0.25 * abs(dot(direction, shading)) * length(spread);
 
-    return TexturePoint(at, coneBaseOf(sheetArea, cone, coneWidth));
+    return TexturePoint(at, coneBaseOf(sheetArea, cone, coneWidth), vec2(0.0), vec2(0.0), false);
 }
 
 /// Which mip one texture on that sheet should be read from.
@@ -211,6 +271,9 @@ vec2 parallaxShift(vec3 eye, float height)
 /// different places.
 vec4 sampleDiffuse(uint slot, TexturePoint point)
 {
+    if (point.mAnisotropic)
+        return textureGrad(texturesAlong[nonuniformEXT(slot)], point.mAt, point.mAcross, point.mAlong);
+
     return textureLod(textures[nonuniformEXT(slot)], point.mAt, coneLod(slot, point));
 }
 
@@ -238,11 +301,11 @@ vec2 sampleSpecularMap(uint slot, TexturePoint point)
     return sampleDiffuse(slot, point).rg;
 }
 
-/// The albedo a hit landed on, read at the level its cone can resolve, with the light painted
-/// into the texture divided back out by the run's `mDelight` — `sampleAlbedoLod` says why.
+/// The albedo a hit landed on, read as `sampleDiffuse` reads it, with the light painted into the
+/// texture divided back out by the run's `mDelight` — `delitTexel` says why.
 vec3 sampleAlbedo(uint slot, TexturePoint point)
 {
-    return sampleAlbedoLod(slot, point.mAt, coneLod(slot, point), frame.mDelight);
+    return delitTexel(slot, point.mAt, sampleDiffuse(slot, point).rgb, frame.mDelight);
 }
 
 /// How much of a terrain layer shows at `uv`, from the scene's grid of weights — `maskWeightIn`.

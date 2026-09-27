@@ -249,7 +249,10 @@ rays meet. `Static` is `Mask_Object | Mask_Static | Mask_Terrain | Mask_Groundco
 is `Mask_Actor | Mask_Player`, `Effect` is `Mask_Effect`, `FirstPerson` is `Mask_FirstPerson`.
 Water and particle masks become `MASK_WATER` and `MASK_PARTICLE`. The world walk excludes
 `Mask_Sky`, `Mask_Sun`, `Mask_SimpleWater` and `Mask_Terrain`, which the ray tracer draws
-itself.
+itself. A medium — a cloud shell, a haze — is placed under `MASK_MEDIUM` alone, and its class goes
+in `GpuInstance::mClass`: only the shadow ray and the medium walk cast against that bit, and they
+test the class in the candidate loop, so the eye, the bounce, the water rays and the fog depth
+never meet a medium they would have walked past.
 
 ---
 
@@ -418,8 +421,8 @@ The slider's and the spin box's range come from `Settings::RTXCategory`'s
 `sMinDistantLandCellsInMenu` and `sMaxDistantLandCells`, and the launcher writes the reach only
 when the player moved it. `off` is not offered for the upscaler, because Ray Reconstruction is
 the denoiser. The upscale
-mode, the Reflex mode and the reach take effect at once through `processChangedSettings`; the
-rest at the next start. The strings are `OMWEngine:RayTracing*` — with the Reflex box's off and
+mode, the Reflex mode, the reach and `[General] anisotropy` take effect at once through
+`processChangedSettings`; the rest at the next start. The strings are `OMWEngine:RayTracing*` — with the Reflex box's off and
 on the vsync box's own `Interface:Off` and `Interface:On`, so one page spells a toggle one way
 — and the launcher's `.ts` files.
 
@@ -447,6 +450,7 @@ which scene: the world's, or one `addViewScene` handed out.
 | `addViewScene()`, `dropViewScene(slot)` | a scene of its own for a picture inside the interface                             |
 | `resetHistory()`                        | the next frame has no usable past                                                 |
 | `resize`, `setUpscale`, `setVerticalSync` | the presented extent; the upscaler, which decides the traced extent; the swapchain |
+| `setAnisotropy(level)`                  | how far the eye's texture reads filter along a footprint; every set rewritten at its next placement |
 | `renderFrame(camera, options)`          | trace one frame; returns before the device drew it; two frames in flight at most   |
 | `finishFrame()`, `collectFrame()`       | the oldest unreported frame: wait for it, or wait only where the ring is full       |
 | `presentFrame()`                        | show the frame                                                                    |
@@ -684,7 +688,9 @@ picture's, the same objects for both. `InstanceRecord`s (one row per slot, every
 taken), `SceneAcceleration` (the top level, the refit over deforming meshes with one of them
 built whole again each placement on a rota of `sRebuildEvery`, the `BottomLevelStore` in
 blocks nothing moves), `SceneBuffers` (the attribute blocks and the tables a hit reads),
-`SkinTables`, `TextureArray` (bindless, sRGB). Every table has `sFrameSlots` (two) copies, and
+`SkinTables`, `TextureArray` (bindless, sRGB: the textures, their shading maps, and the textures
+again through anisotropic samplers for the eye's reads along a footprint, which a read that names
+its level never goes through). Every table has `sFrameSlots` (two) copies, and
 `getSlot()` says which copy the last placement wrote. The copy a frame does not trace holds
 every pose as of the frame before, by the account `SlotBlocks` keeps, and the trace reads it for
 where a deforming triangle stood (`GpuTables::mPreviousPoseBlocks`).
@@ -1112,7 +1118,7 @@ submit, then places.
 | `trace`                | `visibility.rgen`: one ray per pixel, the ten channels                                              |
 | `accumulate`, `filter` | only where the wavelet runs                                                                        |
 | `composite`            | the channels back into one picture; the albedo multiplied back in; the running sum where asked      |
-| `digest`, `upscale`    | the frame hash for a run that asks; DLSS Ray Reconstruction from colour, albedo, specular, guide, depth, motion, jitter, delta, reset |
+| `digest`, `upscale`    | the frame hash for a run that asks; DLSS Ray Reconstruction from colour, albedo, specular, guide, reversed depth, motion, jitter, delta, reset |
 | `puffs`, `bloom`, `exposure`, `glare`, `tone`, `lines` | the display chain                                                  |
 | `stress`               | a hold of the queue, under a stress profile only                                                    |
 |                        | the read-back copy where asked; `FrameRing::submit`; the previous camera kept                      |
@@ -1135,7 +1141,8 @@ the presenter whether the swapchain wants a rebuild before it compares the exten
 - `processChangedSettings`: `[RTX] upscale` → `setUpscale`, and a refused mode is written back
   to the setting; `[RTX] reflex` → `setPacing`, a swapchain rebuild where the present mode
   moves with it; `[RTX] distant land cells` or `[Camera] viewing distance` →
-  `WorldMirror::setReach`. `setVSync` → `setVerticalSync`, a swapchain rebuild.
+  `WorldMirror::setReach`; `[General] anisotropy` → `setAnisotropy`. `setVSync` →
+  `setVerticalSync`, a swapchain rebuild.
 
 ---
 

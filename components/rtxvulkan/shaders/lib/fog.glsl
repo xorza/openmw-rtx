@@ -808,7 +808,7 @@ vec4 fogAlongLeg(vec3 origin, vec3 direction, float span, float before)
 /// **The edge stands beyond the weather and not in front of it**, which is where its air actually
 /// is: its density is nothing until the last quarter of the reach, so what it scatters has the
 /// whole of the weather's air in front of it and arrives dimmed by exactly that.
-vec4 fogAlong(uvec2 pixel, vec3 origin, vec3 direction, float distance)
+vec4 fogAlong(uvec2 pixel, WorldRay ray, float distance)
 {
     // **Air only, and an eye under the surface has none of it in front of it.** Every ray from a
     // submerged eye ends at the water or short of it — `MASK_WATER` stops the trace and stops
@@ -823,16 +823,16 @@ vec4 fogAlong(uvec2 pixel, vec3 origin, vec3 direction, float distance)
     // it — `fogintegrate.comp` says why it keeps them. A pixel reaching past its own column's
     // surface read those: along the waterline, where one column looks up at the surface and the
     // pixel beside it looks away down the seabed, that drew a band of weather under the water.
-    if (waterOver(origin) > 0.0)
+    if (waterOver(ray.mFrom) > 0.0)
         return vec4(0.0, 0.0, 0.0, 1.0);
 
     // **The volume, whatever kind of air this is.** A room could read a closed form instead — its
     // field is even, so the transmittance integrates exactly and only the shadow rays are left to
     // march — but that is a lamp reservoir and a ray *per pixel*, where the volume walks the lamps
     // once per froxel and hands this two fetches, which costs an interior less.
-    const vec4 weather = fogVolumeAlong(pixel, direction, distance);
+    const vec4 weather = fogVolumeAlong(pixel, ray.mAlong, distance);
 
-    const vec4 edge = fogEdgeAlong(origin, direction, distance);
+    const vec4 edge = fogEdgeAlong(ray.mFrom, ray.mAlong, distance);
 
     return vec4(weather.xyz + weather.w * edge.xyz, weather.w * edge.w);
 }

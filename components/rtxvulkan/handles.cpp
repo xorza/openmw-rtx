@@ -1,5 +1,6 @@
 #include "handles.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -116,6 +117,25 @@ namespace Rtx
             device.setName(handle.get(), name);
             return handle;
         }
+
+        /// Linear over the whole chain, addressed as the file said: `makeContentSampler`'s shape.
+        VkSamplerCreateInfo describeContent(const TextureWrap wrap)
+        {
+            return VkSamplerCreateInfo{
+                .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+                .magFilter = VK_FILTER_LINEAR,
+                .minFilter = VK_FILTER_LINEAR,
+                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+                .addressModeU = clampsS(wrap) ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .addressModeV = clampsT(wrap) ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                // Off, and not an oversight: every fetch through a content sampler names its own
+                // level, and the device moves an explicit level under anisotropic filtering —
+                // `makeFootprintSampler` turns it on for the reads that state a footprint instead.
+                .anisotropyEnable = VK_FALSE,
+                .maxLod = VK_LOD_CLAMP_NONE,
+            };
+        }
     }
 
     Sampler makeTargetSampler(const Device& device, std::string_view name)
@@ -136,19 +156,18 @@ namespace Rtx
 
     Sampler makeContentSampler(const Device& device, std::string_view name, const TextureWrap wrap)
     {
-        const VkSamplerCreateInfo describe{
-            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-            .magFilter = VK_FILTER_LINEAR,
-            .minFilter = VK_FILTER_LINEAR,
-            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-            .addressModeU = clampsS(wrap) ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : VK_SAMPLER_ADDRESS_MODE_REPEAT,
-            .addressModeV = clampsT(wrap) ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : VK_SAMPLER_ADDRESS_MODE_REPEAT,
-            .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-            // Off, and not an oversight: every fetch names its own level, and anisotropic filtering
-            // only applies to the implicit and gradient forms. A cone is isotropic by construction.
-            .anisotropyEnable = VK_FALSE,
-            .maxLod = VK_LOD_CLAMP_NONE,
-        };
+        return createSampler(device, describeContent(wrap), name);
+    }
+
+    Sampler makeFootprintSampler(
+        const Device& device, std::string_view name, const TextureWrap wrap, const std::uint32_t anisotropy)
+    {
+        const float most
+            = device.getPhysicalDevice().getProperties().mProperties2.properties.limits.maxSamplerAnisotropy;
+
+        VkSamplerCreateInfo describe = describeContent(wrap);
+        describe.anisotropyEnable = anisotropy > 1 ? VK_TRUE : VK_FALSE;
+        describe.maxAnisotropy = std::min(static_cast<float>(anisotropy), most);
 
         return createSampler(device, describe, name);
     }

@@ -24,6 +24,7 @@ namespace MWRender
                 .mObjectPaging = false,
                 .mObjectPagingMinSize = 0.025f,
                 .mSpecularMapLayout = "metal roughness",
+                .mAnisotropy = 8,
             };
         }
 
@@ -64,11 +65,16 @@ namespace MWRender
             EXPECT_FALSE(derived.mMirror.mDistantStatics);
             EXPECT_EQ(derived.mMirror.mMinSize, 0.025f);
             EXPECT_EQ(derived.mMirror.mSpecularLayout, Rtx::SpecularLayout::MetalRoughness);
+            EXPECT_EQ(derived.mAnisotropy, 8u);
 
             RtxSettingValues handedBack = valid();
             handedBack.mDistantLandCells = 0.0f;
             EXPECT_EQ(RtxSettings::derive(handedBack).mMirror.mReach, 7168.0f)
                 << "nought cells hands the reach to the viewing distance";
+
+            RtxSettingValues unfiltered = valid();
+            unfiltered.mAnisotropy = 0;
+            EXPECT_EQ(RtxSettings::derive(unfiltered).mAnisotropy, 1u) << "nought filters as one does";
         }
 
         /// A spelling that names no mode is refused rather than defaulted, whichever of the three

@@ -186,12 +186,15 @@ float throughBlocked(uint blocked)
 
 /// Where on its material's texture a candidate was crossed, at the level `coneWidth` resolves: what
 /// the cutout test reads its alpha through and a medium's crossing its texel.
-TexturePoint candidatePoint(
-    uvec3 corners, GpuMaterial material, vec2 bary, vec3 crossed, vec3 direction, float coneWidth)
+///
+/// @param detailed whether the candidate is read along its footprint, as `texturePoint` says.
+TexturePoint candidatePoint(uvec3 corners, GpuMaterial material, vec2 bary, TriangleEdges edges, vec3 direction,
+    float coneWidth, bool detailed)
 {
     vec2 uv[3];
     triangleUvs(corners, uv);
-    return texturePoint(uv, bary, material.mTextureTransform, surfaceConeAt(crossed, direction), coneWidth);
+    return texturePoint(
+        uv, bary, material.mTextureTransform, surfaceConeAt(edges, direction), coneWidth, detailed);
 }
 
 /// Whether a candidate hit stops the ray, and what it lets past where it does not.
@@ -216,8 +219,10 @@ TexturePoint candidatePoint(
 ///        otherwise, which the compiler folds away with `seeThrough`.
 /// @param seeThrough whether a see-through candidate is walked past or taken against its cutoff like
 ///        any other. **A literal at every call**, so the whole branch folds.
-bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed, vec3 direction, float coneWidth,
-    bool seeThrough, inout uint blocked)
+/// @param detailed whether the ray draws the picture, so its cutout is read along the footprint the
+///        surface it cuts is read along — `texturePoint`. A literal at every call as well.
+bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, TriangleEdges edges, vec3 direction,
+    float coneWidth, bool seeThrough, bool detailed, inout uint blocked)
 {
     const GpuInstance instance = instanceAt(instanceIndex);
     const GpuMaterial material = materialAt(instance.mMaterial);
@@ -234,6 +239,13 @@ bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed,
     if (!walkPast && isMedium(material))
         return false;
 
+    // **A medium reaches a ray by `MASK_MEDIUM`, and its class is asked here.** The structure's mask
+    // carries the medium bit alone (`InstanceRecord::mMask` says why), so the class test the mask
+    // made for every other surface is this one. The one ray that walks past a medium and keeps what
+    // it let through is `throughToward`, which casts with the camera's `solidMask`.
+    if (walkPast && isMedium(material) && (instance.mClass & solidMask(frame.mRayMask)) == 0u)
+        return false;
+
     // **Met and not tested where there is nothing to test.** A material with no mask arrives here
     // because forcing an instance non-opaque says nothing about its material: a pane of glass is
     // forced for its own alpha, and an actor is forced for the fade its placement carries. Neither
@@ -245,7 +257,7 @@ bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed,
         return true;
 
     const TexturePoint point = candidatePoint(
-        triangleCorners(meshAt(instance.mMesh), primitive), material, bary, crossed, direction, coneWidth);
+        triangleCorners(meshAt(instance.mMesh), primitive), material, bary, edges, direction, coneWidth, detailed);
 
     if (walkPast)
     {
@@ -274,7 +286,8 @@ bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed,
 ///        ray that sees through cannot commit the surface it saw through, so a caller with no use
 ///        for `blocked` must say false and get the surface. The shadow ray says true — it wants a
 ///        sum, and the sum does not depend on the order they arrived in.
-#define RTX_RESOLVE(query, along, cone, blocked, seeThrough)                                                \
+/// @param detailed handed to `candidateStops` as well: whether the ray draws the picture.
+#define RTX_RESOLVE(query, along, cone, blocked, seeThrough, detailed)                                      \
     while (rayQueryProceedEXT(query))                                                                       \
     {                                                                                                       \
         if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)    \
@@ -286,11 +299,11 @@ bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, vec3 crossed,
                                                                                                             \
         vec3 candidateCorners[3];                                                                           \
         rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, candidateCorners);                  \
-        const vec3 candidateCross                                                                           \
-            = triangleCross(candidateCorners, rayQueryGetIntersectionObjectToWorldEXT(query, false));       \
+        const TriangleEdges candidateEdges                                                                  \
+            = triangleEdges(candidateCorners, rayQueryGetIntersectionObjectToWorldEXT(query, false));       \
                                                                                                             \
-        if (candidateStops(candidateInstance, candidatePrimitive, candidateBary, candidateCross, (along),   \
-                (cone), (seeThrough), (blocked)))                                                           \
+        if (candidateStops(candidateInstance, candidatePrimitive, candidateBary, candidateEdges, (along),   \
+                (cone), (seeThrough), (detailed), (blocked)))                                               \
             rayQueryConfirmIntersectionEXT(query);                                                          \
     }
 
@@ -326,12 +339,13 @@ struct Hit
     /// How wide the ray's cone was where it landed.
     float mFootprint;
 
-    /// Twice the area of the triangle, as a vector along its plane's normal, in world space.
+    /// The triangle's two edges in world space, whose cross product is twice its area along its
+    /// plane's normal.
     ///
     /// **Made here rather than carried as three corners**, because the corners come out of the query
-    /// through position fetch and nothing past the traversal wants them: one cross product is three
-    /// floats where they are nine, and `resolve` needs only what the cross says.
-    vec3 mCrossed;
+    /// through position fetch and nothing past the traversal wants them. Two edges and not their
+    /// cross, because a footprint is mapped onto the texture through the edges themselves.
+    TriangleEdges mEdges;
 
     /// The vertex normal interpolated across the triangle, in world space — or nought where the
     /// mesh carries none, which `resolve` reads as "use the plane".
@@ -359,7 +373,7 @@ Hit noHit()
     hit.mBary = vec2(0.0);
     hit.mDistance = frame.mReach;
     hit.mFootprint = 0.0;
-    hit.mCrossed = vec3(0.0);
+    hit.mEdges = TriangleEdges(vec3(0.0), vec3(0.0));
     hit.mShading = vec3(0.0);
     hit.mTangent = vec4(0.0);
 
@@ -378,7 +392,7 @@ Hit committedHit(
     hit.mBary = bary;
     hit.mDistance = distance;
     hit.mFootprint = footprint;
-    hit.mCrossed = triangleCross(corners, toWorld);
+    hit.mEdges = triangleEdges(corners, toWorld);
 
     // **The one vertex fetch a traversal does, and it is here so that the transform need not
     // survive the call.** The test is on the mesh's own normal rather than on the transformed one:
@@ -440,9 +454,11 @@ float throughToward(vec3 from, vec3 towards, float distance, uint faces)
     uint blocked = 0u;
 
     rayQueryEXT query;
-    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT | faces, solidMask(frame.mRayMask), from,
-        SHADOW_BIAS, towards, distance);
-    RTX_RESOLVE(query, towards, 0.0, blocked, true)
+    // **And the mediums**, which only this ray and `mediumAlong` meet: a medium dims the light that
+    // crosses it, and `candidateStops` asks its class in place of the mask.
+    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT | faces,
+        solidMask(frame.mRayMask) | MASK_MEDIUM, from, SHADOW_BIAS, towards, distance);
+    RTX_RESOLVE(query, towards, 0.0, blocked, true, false)
 
     if (rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT)
         return 0.0;
@@ -479,6 +495,31 @@ float ambientThrough(vec3 from, vec3 towards, float distance)
     return throughToward(from, towards, distance, gl_RayFlagsNoneEXT);
 }
 
+/// A ray in the world: where it leaves from and which way it goes, unit. `Ray` in `camera.h` is a
+/// pixel's ray relative to the eye; this is one any shader traces from anywhere.
+struct WorldRay
+{
+    vec3 mFrom;
+    vec3 mAlong;
+};
+
+/// Which surfaces an asker's ray meets and how, for `surfaceWithin`.
+struct RayRule
+{
+    /// Which instances stop the ray.
+    uint mMask;
+
+    /// Whether a surface the eye would see through is walked past rather than stopped at, which is
+    /// the eye's own rule: `visibility.rgen` peels those and commits what stands behind them. An asker
+    /// whose question is "where does the picture end" wants this, and one asking "what is the nearest
+    /// thing there" does not. **A literal at every call**, so `RTX_RESOLVE`'s branch folds.
+    bool mSeeThrough;
+
+    /// The same division again, and the same two askers — `facingFor`. Where the picture ends is where
+    /// the eye's own ray ends, and the eye culls.
+    bool mDraws;
+};
+
 /// How far the nearest surface that stops a ray is along it, at most `reach` away.
 ///
 /// **Traversal and the cutout, and no material resolved at all.** An asker that wants a distance
@@ -490,23 +531,18 @@ float ambientThrough(vec3 from, vec3 towards, float distance)
 /// that only cares whether anything stands within a band hands over the band, and reads a miss as
 /// *no nearer than that*. Nothing here runs to `mReach` unless a caller asks it to.
 ///
-/// @param mask which surfaces stop the ray. `solidWithin` asks for solids alone.
-/// @param seeThrough whether a surface the eye would see through is walked past rather than stopped
-///        at, which is the eye's own rule: `visibility.rgen` peels those and commits what stands
-///        behind them. An asker whose question is "where does the picture end" wants this, and one
-///        asking "what is the nearest thing there" does not.
-/// @param draws the same division again, and the same two askers — `facingFor`. Where the picture
-///        ends is where the eye's own ray ends, and the eye culls.
-float surfaceWithin(vec3 origin, vec3 direction, float tmin, float reach, float footprint, float spread, uint mask,
-    bool seeThrough, bool draws)
+/// @param rule which surfaces stop the ray and how it meets them — `RayRule`. `solidWithin` asks for
+///        solids alone, met as nearest things and from either face.
+float surfaceWithin(WorldRay ray, float tmin, float reach, Cone cone, RayRule rule)
 {
     rayQueryEXT query;
-    rayQueryInitializeEXT(query, sceneTop, facingFor(draws), mask, origin, tmin, direction, reach);
+    rayQueryInitializeEXT(query, sceneTop, facingFor(rule.mDraws), rule.mMask, ray.mFrom, tmin, ray.mAlong, reach);
 
     // An lvalue the macro needs and nothing here reads: what a surface walked past let through is
     // a question for whoever wants the picture, and this ray wants the distance.
     uint blocked = 0u;
-    RTX_RESOLVE(query, direction, footprint + spread * rayQueryGetIntersectionTEXT(query, false), blocked, seeThrough)
+    RTX_RESOLVE(query, ray.mAlong, cone.mWidth + cone.mSpread * rayQueryGetIntersectionTEXT(query, false), blocked,
+        rule.mSeeThrough, rule.mDraws)
 
     if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT)
         return reach;
@@ -514,9 +550,9 @@ float surfaceWithin(vec3 origin, vec3 direction, float tmin, float reach, float 
     return rayQueryGetIntersectionTEXT(query, true);
 }
 
-float solidWithin(vec3 origin, vec3 direction, float tmin, float reach, float footprint, float spread)
+float solidWithin(WorldRay ray, float tmin, float reach, Cone cone)
 {
-    return surfaceWithin(origin, direction, tmin, reach, footprint, spread, solidMask(frame.mRayMask), false, false);
+    return surfaceWithin(ray, tmin, reach, cone, RayRule(solidMask(frame.mRayMask), false, false));
 }
 
 /// What a ray found, resolved down to the inputs shading needs.
@@ -688,12 +724,12 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
     // The plane the traversal already gave: position fetch has the corners and no buffer has to be
     // bound for them, where the vertices' own normals are a fetch and are better where they are.
-    const vec3 crossed = hit.mCrossed;
+    const vec3 crossed = cross(hit.mEdges.mFirst, hit.mEdges.mSecond);
     surface.mGeometric = dot(crossed, crossed) > 0.0 ? normalize(crossed) : vec3(0.0, 0.0, 1.0);
 
     // Every texture read below shares this hit's triangle and this ray: a chunk's whole layer stack,
     // the opacity a pane pays for, and the emissive map.
-    const SurfaceCone cone = surfaceConeAt(crossed, direction);
+    const SurfaceCone cone = surfaceConeAt(hit.mEdges, direction);
 
     const vec3 normal = dot(hit.mShading, hit.mShading) > 0.0 ? normalize(hit.mShading) : surface.mGeometric;
 
@@ -739,7 +775,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
     // Where the hit lands on the material's own sheet, which the albedo, the opacity and the
     // emissive map all read at. A terrain layer has a transform of its own and makes its own.
-    TexturePoint point = texturePoint(uv, hit.mBary, material.mTextureTransform, cone, surface.mFootprint);
+    TexturePoint point = texturePoint(uv, hit.mBary, material.mTextureTransform, cone, surface.mFootprint, detailed);
 
     // **A normal map, read through the tangents the mesh carries**, in the frame `normals.glsl`
     // builds: the tangent unit, the bitangent `cross(N, T) * w`, and the interpolated normal, with
@@ -829,12 +865,13 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
             // Shifted as `terrain.frag` shifts the layer, before any read of it, by the height read
             // where the layer was.
-            TexturePoint at = texturePoint(uv, hit.mBary, layer.mDiffuseTransform, cone, surface.mFootprint);
+            TexturePoint at = texturePoint(uv, hit.mBary, layer.mDiffuseTransform, cone, surface.mFootprint, detailed);
             if (HAS_MAPS && detailed && (layer.mFlags & LAYER_PARALLAX) != 0u && holdsTexture(layer.mNormal))
                 at.mAt += parallaxShift(layerEye, sampleDiffuse(layer.mNormal, at).a);
 
             const bool authored = HAS_MAPS && layerAuthored(layer, sceneTexels());
-            const vec4 shown = layerTexel(layer, at.mAt, coneLod(layer.mDiffuse, at), frame.mDelight, authored);
+            const vec4 shown
+                = layerTexel(layer, at.mAt, sampleDiffuse(layer.mDiffuse, at), frame.mDelight, authored);
             albedo += showing * shown.rgb;
 
             if (HAS_MAPS)
@@ -927,7 +964,8 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
         {
             vec2 second[3];
             triangleSecondUvs(mesh, corner, second);
-            darkPoint = texturePoint(second, hit.mBary, vec4(1.0, 1.0, 0.0, 0.0), cone, surface.mFootprint);
+            darkPoint
+                = texturePoint(second, hit.mBary, vec4(1.0, 1.0, 0.0, 0.0), cone, surface.mFootprint, detailed);
         }
 
         const vec4 dark = sampleDiffuse(material.mDark, darkPoint);
@@ -990,23 +1028,24 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool draws)
 
 /// Traverses, and answers with what the query committed.
 ///
-/// @param footprint how wide the ray's cone starts, which for a primary ray is nothing and for a
-///        reflection is whatever the pixel had already spread to at the water.
-/// @param spread how much wider that cone gets per unit travelled.
+/// @param cone how wide the ray's cone starts — nothing for a primary ray, and for a reflection
+///        whatever the pixel had already spread to at the water — and how much wider it gets per
+///        unit travelled.
 /// @param draws whether this ray draws the picture — `facingFor`. A reflection and the bed under a
 ///        waterline pixel do; a bounce carries light and does not.
-Hit traverse(vec3 origin, vec3 direction, float tmin, float footprint, float spread, uint mask, bool draws)
+Hit traverse(WorldRay ray, float tmin, Cone cone, uint mask, bool draws)
 {
     // No blanket opaque flag: the per-instance bits the build set from each material are what decide
     // whether traversal stops to ask, and forcing opacity here would override them and put every leaf
     // back inside the card it was painted on.
     rayQueryEXT query;
-    rayQueryInitializeEXT(query, sceneTop, facingFor(draws), mask, origin, tmin, direction, frame.mReach);
+    rayQueryInitializeEXT(query, sceneTop, facingFor(draws), mask, ray.mFrom, tmin, ray.mAlong, frame.mReach);
 
     // An lvalue the resolve needs and nothing here reads: a ray that keeps what it passed through
     // cannot commit the surface it passed through, and this one commits.
     uint blocked = 0u;
-    RTX_RESOLVE(query, direction, footprint + spread * rayQueryGetIntersectionTEXT(query, false), blocked, false)
+    RTX_RESOLVE(query, ray.mAlong, cone.mWidth + cone.mSpread * rayQueryGetIntersectionTEXT(query, false), blocked,
+        false, draws)
 
     if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT)
         return noHit();
@@ -1017,16 +1056,16 @@ Hit traverse(vec3 origin, vec3 direction, float tmin, float footprint, float spr
     const float distance = rayQueryGetIntersectionTEXT(query, true);
     return committedHit(rayQueryGetIntersectionInstanceCustomIndexEXT(query, true),
         rayQueryGetIntersectionPrimitiveIndexEXT(query, true), rayQueryGetIntersectionBarycentricsEXT(query, true),
-        distance, footprint + spread * distance, corners, rayQueryGetIntersectionObjectToWorldEXT(query, true));
+        distance, cone.mWidth + cone.mSpread * distance, corners, rayQueryGetIntersectionObjectToWorldEXT(query, true));
 }
 
 /// Traverses, and resolves whatever it hit.
 ///
 /// **The two halves back to back, for every ray but the eye's own.** Only the primary ray has
 /// anything to put between them, and `visibility.rgen` is where it does.
-Surface trace(vec3 origin, vec3 direction, float tmin, float footprint, float spread, uint mask, bool draws)
+Surface trace(WorldRay ray, float tmin, Cone cone, uint mask, bool draws)
 {
-    return resolve(traverse(origin, direction, tmin, footprint, spread, mask, draws), origin, direction, draws);
+    return resolve(traverse(ray, tmin, cone, mask, draws), ray.mFrom, ray.mAlong, draws);
 }
 
 #endif

@@ -271,6 +271,34 @@ Reservoir noLamps()
     return Reservoir(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), 0u, 0.0, 0.0);
 }
 
+/// What a surface's diffuse half needs to take a light: which way it faces, which side a light has
+/// to stand on, and what light on its far side is worth.
+///
+/// **Which side is one vector's answer and how much is another's.** Four hits in a hundred carry a
+/// normal more than sixty degrees off its own triangle, so the two disagree often enough that picking
+/// wrongly is visible either way — and which of them is lying depends on what the surface is. An open
+/// shape is a plane whose normals lean off it: read off the normal, a wall panel takes a lamp standing
+/// behind it as a lamp in front, and having no far side for the shadow ray to stop in it glows through
+/// itself. A closed shape is a solid the content faceted, and its *facets* lean off the normals: read
+/// off the plane, whole triangles of a boulder go black under a light its surface plainly faces.
+/// `Surface::mClosed` is what tells them apart, and `facingOf` is where it is read.
+struct Facing
+{
+    vec3 mNormal;
+
+    /// What decides which side of the surface a light has to stand on — `Surface::mSmooth` for a
+    /// closed shape and `Surface::mGeometric` for an open one.
+    vec3 mSide;
+
+    /// What the far side of a sheet is worth, `Surface::mTransmission`. Nought for a solid.
+    float mTransmission;
+};
+
+Facing facingOf(Surface surface)
+{
+    return Facing(surface.mNormal, surface.mClosed ? surface.mSmooth : surface.mGeometric, surface.mTransmission);
+}
+
 /// The cosine a diffuse surface takes a light at, with what a sheet takes from its far side.
 ///
 /// **One statement of what "facing" means, used by the sun, the moons and every lamp.** A solid
@@ -278,22 +306,11 @@ Reservoir noLamps()
 /// at `SHEET_TRANSMISSION` of the near, `MESH_SHEET` having said so. Never both at once: a
 /// direction is on one side of a surface or the other.
 ///
-/// **Which side is one vector's answer and how much is another's, and the caller says which.** Four
-/// hits in a hundred carry a normal more than sixty degrees off its own triangle, so the two
-/// disagree often enough that picking wrongly is visible either way — and which of them is lying
-/// depends on what the surface is. An open shape is a plane whose normals lean off it: read off the
-/// normal, a wall panel takes a lamp standing behind it as a lamp in front, and having no far side
-/// for the shadow ray to stop in it glows through itself. A closed shape is a solid the content
-/// faceted, and its *facets* lean off the normals: read off the plane, whole triangles of a boulder
-/// go black under a light its surface plainly faces. `Surface::mClosed` is what tells them apart.
-///
-/// @param side what decides which side of the surface a light has to stand on — `Surface::mSmooth`
-///        for a closed shape and `Surface::mGeometric` for an open one. Zero has no meaning here:
-///        an asker with no sides does not ask.
-float litCosine(vec3 normal, vec3 side, vec3 towards, float transmission)
+/// `Facing` says which vector answers which half of it. An asker with no sides does not ask.
+float litCosine(Facing facing, vec3 towards)
 {
-    const float cosine = dot(normal, towards);
-    return dot(side, towards) > 0.0 ? max(cosine, 0.0) : transmission * max(-cosine, 0.0);
+    const float cosine = dot(facing.mNormal, towards);
+    return dot(facing.mSide, towards) > 0.0 ? max(cosine, 0.0) : facing.mTransmission * max(-cosine, 0.0);
 }
 
 /// Which of three weights one draw picks, and what that pick is worth.
@@ -376,9 +393,7 @@ struct LightCandidate
 ///        here the one way, the moons' pick flipped at a boundary and moved a night's pixels.
 /// @param arriving the light's irradiance square to its direction, which the lobe reflects.
 /// @param side what decides which side a light has to stand on, as `reflectionAt` takes it.
-/// @param diffuse the surface's diffuse albedo.
-LightCandidate surfaceCandidate(
-    vec3 unshadowed, float plain, vec3 arriving, vec3 towards, Gloss gloss, vec3 side, vec3 diffuse)
+LightCandidate surfaceCandidate(vec3 unshadowed, float plain, vec3 arriving, vec3 towards, Gloss gloss, vec3 side)
 {
     LightCandidate candidate = LightCandidate(unshadowed, vec3(0.0), vec3(0.0), plain);
     if (gloss.mGlossy)
@@ -386,7 +401,7 @@ LightCandidate surfaceCandidate(
         const Reflection reflected = reflectionAt(gloss, side, towards);
         candidate.mSpecular = arriving * reflected.mLobe;
         candidate.mFresnel = reflected.mFresnel;
-        candidate.mWeight = dot(unshadowed * diffuse * (1.0 - reflected.mFresnel) + candidate.mSpecular,
+        candidate.mWeight = dot(unshadowed * gloss.mDiffuse * (1.0 - reflected.mFresnel) + candidate.mSpecular,
             LUMINANCE_WEIGHTS);
     }
 
@@ -427,18 +442,17 @@ struct SkyChoice
 ///
 /// @param asked whether this source is one the caller wants at all — a sun that is down, or a moon
 ///        a bounce does not ask for.
-/// @param diffuse the surface's diffuse albedo, which a glossy surface's weight reads.
-SkyChoice skyChoiceAt(uint source, vec3 normal, vec3 side, float transmission, bool asked, Gloss gloss, vec3 diffuse)
+SkyChoice skyChoiceAt(uint source, Facing facing, bool asked, Gloss gloss)
 {
     const SkySource sky = skySourceAt(source);
-    const float cosine = asked ? litCosine(normal, side, sky.mDirection, transmission) : 0.0;
+    const float cosine = asked ? litCosine(facing, sky.mDirection) : 0.0;
 
     // A source the surface does not face weighs nought and is never drawn, and its lobe is not worth
     // evaluating: in daylight that is both moons.
     LightCandidate light = LightCandidate(vec3(0.0), vec3(0.0), vec3(0.0), 0.0);
     if (cosine > 0.0)
         light = surfaceCandidate(sky.mIrradiance * (cosine * INV_PI), cosine * dot(sky.mIrradiance, LUMINANCE_WEIGHTS),
-            sky.mIrradiance, sky.mDirection, gloss, side, diffuse);
+            sky.mIrradiance, sky.mDirection, gloss, facing.mSide);
 
     return SkyChoice(sky, cosine, light);
 }
@@ -479,20 +493,15 @@ void considerLamp(inout Reservoir kept, inout uint state, vec3 from, LightCandid
 /// along a ray, and the two feed one rule, `considerLamp`, so what unbiased means cannot come apart
 /// between them.
 ///
-/// @param normal the surface's, or nothing at all for a point in the air, which has no direction to
-///        face away from, so every lamp reaching it counts whole.
-/// @param side what decides which side a lamp has to stand on, beside the normal and going with it:
-///        `litCosine` says why that is not always the same vector. Nothing at all where `normal` is.
+/// @param facing the surface's, or a normal of nothing for a point in the air, which has no direction
+///        to face away from, so every lamp reaching it counts whole.
 /// @param scale what this asker's own share of a lamp is worth: `INV_PI` for a Lambert surface,
 ///        `INV_FOUR_PI` times a step's weight for the air.
-/// @param transmission what the far side of a sheet is worth, out of `Surface::mTransmission`.
-///        Nought for a solid and for a point in a medium, which has no far side.
-/// @param gloss the surface's specular half, and `diffuse` its diffuse albedo, which weigh a lamp as
+/// @param gloss the surface's specular half, with its diffuse albedo, which weigh a lamp as
 ///        `surfaceCandidate` says.
-void weighLamps(inout Reservoir kept, inout uint state, vec3 from, vec3 normal, vec3 side, float scale,
-    float transmission, Gloss gloss, vec3 diffuse)
+void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing, float scale, Gloss gloss)
 {
-    const bool sided = dot(normal, normal) > 0.0;
+    const bool sided = dot(facing.mNormal, facing.mNormal) > 0.0;
 
     const uvec2 near = lampsWithin(lampsReaching(from));
     for (uint i = near.x; i < near.y; ++i)
@@ -512,7 +521,7 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, vec3 normal, 
         // weight of nought; two branches inside a loop of up to `LAMPS_AT_A_POINT` saved one dot
         // and one luminance apiece. The depth is selected and not divided for such a lamp, whose
         // distance is nought over a source that may be a point.
-        const float faced = sided ? litCosine(normal, side, lamp.mTowards, transmission) : 1.0;
+        const float faced = sided ? litCosine(facing, lamp.mTowards) : 1.0;
         const float depth = lamp.mReaching > 0.0
             ? float(held.mFill) * clamp(1.0 - lamp.mDistance / held.mSourceRadius, 0.0, 1.0)
             : 0.0;
@@ -521,7 +530,7 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, vec3 normal, 
 
         considerLamp(kept, state, from,
             surfaceCandidate(unshadowed, dot(unshadowed, LUMINANCE_WEIGHTS), held.mIntensity * lamp.mReaching,
-                lamp.mTowards, gloss, side, diffuse),
+                lamp.mTowards, gloss, facing.mSide),
             row);
     }
 }

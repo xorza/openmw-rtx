@@ -52,7 +52,7 @@ void main()
     // An lvalue the macro needs and nothing here reads: the ray stops at the first surface and
     // sees through none.
     uint blocked = 0u;
-    RTX_RESOLVE(query, UP, 0.0, blocked, false)
+    RTX_RESOLVE(query, UP, 0.0, blocked, false, false)
 
     if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT)
         return;
