@@ -31,9 +31,11 @@ env:
   # an older one ignores it.
   GTEST_FAIL_IF_NO_TEST_SELECTED: "1"
 
+# A scheduled run is never cancelled: it is the day's answer, and the next one comes a day later. A
+# run on a pull request is superseded by the next push to it, which frees its runners.
 concurrency:
-  group: daily
-  cancel-in-progress: false
+  group: daily-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   sanitizers:

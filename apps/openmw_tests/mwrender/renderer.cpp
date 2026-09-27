@@ -151,7 +151,8 @@ namespace MWRender
         /// **A nested frame is opened as the loop opens its own**: held to the limit, and a wall
         /// clock moved on by what it stood for, so a loading screen or a message box stamps and
         /// steps the interface by its own time and not the outer frame's. At 200 frames a second the
-        /// hold is 5 ms, which is the step the frame answers and the clock takes.
+        /// hold is 5 ms, so the step is never less, and the frame answers the step the clock took.
+        /// How much more is the system's sleep: on a Windows runner, a frame held for 5 ms stood for 10.5.
         ///
         /// **A clock that states its step moves by the loop's frames alone**: a nested frame of a
         /// measured run stands for nothing and leaves the clock where the loop put it, because how
@@ -164,8 +165,9 @@ namespace MWRender
             Misc::FrameClock wall;
             renderer.setFrameClock(wall);
             renderer.awaitFrame();
-            EXPECT_FLOAT_EQ(renderer.openNestedFrame(), 0.005f);
-            EXPECT_DOUBLE_EQ(wall.getStep(), 0.005);
+            const float step = renderer.openNestedFrame();
+            EXPECT_EQ(step, static_cast<float>(wall.getStep()));
+            EXPECT_GE(wall.getStep(), 0.005);
 
             Misc::FrameClock stated(1.0f / 60.0f);
             renderer.setFrameClock(stated);

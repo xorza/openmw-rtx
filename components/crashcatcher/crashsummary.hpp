@@ -46,6 +46,10 @@ namespace Crash
     /// What the report is, as the summary's first line says it without the thread: an issue's title.
     std::string title(const CrashFacts& facts);
 
+    /// Why `std::terminate` ran, as a report names it: the uncaught exception's message where there
+    /// is one. Called from inside a terminate handler, where the exception is still current.
+    std::string terminateReason();
+
     /// The summary of `facts`, a line each into `lines`, each without the log's time stamp or a
     /// line end. The same lines on every system, whichever of them wrote the report.
     void summarise(const CrashFacts& facts, std::vector<std::string>& lines);

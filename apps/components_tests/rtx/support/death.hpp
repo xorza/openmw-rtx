@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdio>
+#include <cstdlib>
+#include <exception>
 #include <functional>
 #include <source_location>
 #include <string>
@@ -7,6 +10,7 @@
 
 #include <gtest/gtest.h>
 
+#include <components/crashcatcher/crashsummary.hpp>
 #include <components/platform/process.hpp>
 
 namespace Rtx::Testing
@@ -15,6 +19,10 @@ namespace Rtx::Testing
     ///
     /// **The child leaves no core**, by `Platform::Process::disableCoreDump`, and the binary itself
     /// still leaves one where it really crashes.
+    ///
+    /// **An uncaught exception says what the crash catcher's report would**, `Crash::terminateReason`,
+    /// on the standard error the test reads. There is no catcher here, and MSVC's own terminate
+    /// handler aborts without a word where libstdc++'s names the exception.
     ///
     /// @param where the caller's own line, never passed, so a failure reports there.
     inline void expectDies(const std::function<void()>& statement, std::string_view message,
@@ -25,6 +33,10 @@ namespace Rtx::Testing
         EXPECT_DEATH(
             {
                 Platform::Process::disableCoreDump();
+                std::set_terminate([] {
+                    std::fprintf(stderr, "%s\n", Crash::terminateReason().c_str());
+                    std::abort();
+                });
                 statement();
             },
             std::string(message));

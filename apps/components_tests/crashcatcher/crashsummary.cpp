@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <cstring>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -98,5 +99,31 @@ namespace
         Crash::summarise(nothing, lines);
         EXPECT_EQ(lines[0], "Crash: no exception was recorded");
         EXPECT_EQ(Crash::title(nothing), "Crash: no exception was recorded");
+    }
+
+    /// What a terminate handler reports, for each thing that can be current: the message of a
+    /// `std::exception`, a word for anything else thrown, and the bare call where nothing is.
+    TEST(CrashSummaryTest, aTerminateNamesWhatWasThrown)
+    {
+        try
+        {
+            throw std::runtime_error("a storage that cannot be read");
+        }
+        catch (...)
+        {
+            EXPECT_EQ(
+                Crash::terminateReason(), "std::terminate on an uncaught exception: a storage that cannot be read");
+        }
+
+        try
+        {
+            throw 4;
+        }
+        catch (...)
+        {
+            EXPECT_EQ(Crash::terminateReason(), "std::terminate on an uncaught exception that is no std::exception");
+        }
+
+        EXPECT_EQ(Crash::terminateReason(), "std::terminate");
     }
 }

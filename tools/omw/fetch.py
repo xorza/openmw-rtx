@@ -109,13 +109,13 @@ def extract_member(archive: Path, name: str, into: Path) -> Path:
                 shutil.copyfileobj(source, out)
     else:
         with tarfile.open(archive) as opened:
-            member = next((m for m in opened.getmembers() if m.isfile() and PurePosixPath(m.name).name == name), None)
-            if member is None:
+            found = next((m for m in opened.getmembers() if m.isfile() and PurePosixPath(m.name).name == name), None)
+            if found is None:
                 raise Refusal(f"{archive.name} holds no {name}")
-            source = opened.extractfile(member)
-            assert source is not None, "a regular member always has contents"
-            with source, open(target, "wb") as out:
-                shutil.copyfileobj(source, out)
+            extracted = opened.extractfile(found)
+            assert extracted is not None, "a regular member always has contents"
+            with extracted, open(target, "wb") as out:
+                shutil.copyfileobj(extracted, out)
     if not WINDOWS:
         target.chmod(0o755)
     return target
