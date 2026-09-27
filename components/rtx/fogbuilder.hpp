@@ -71,10 +71,17 @@ namespace Rtx
     /// How deep a weather's layer stands, as a multiple of the one `FOG_HEIGHT` names.
     float fogLift(float depth, float wind);
 
-    /// What the air scatters toward the eye: the sky's own light (`skyMean`, a radiance) in the
-    /// weather's recorded colour (`hue`), because the record handed over as a radiance drew a foggy
-    /// day the same brightness at noon and at dusk. Normalised by the brightest channel and not by
-    /// luminance, because a scattering albedo cannot exceed one.
+    /// What the air scatters toward the eye: as bright as the sky's own light (`skyMean`, a
+    /// radiance) and in the weather's recorded colour (`hue`) — the record handed over as a radiance
+    /// drew a foggy day the same brightness at noon and at dusk.
+    ///
+    /// **The sky's luminance and not its colour.** The record is the horizon the dome is drawn
+    /// with, so its colour already holds the sky's: lit by the dome's own colour as well, the blue
+    /// was counted twice, and clear noon's air came out with four times its red in blue where the
+    /// record says one and a half — a haze bluer than the horizon it fades into.
+    ///
+    /// **Normalised by the brightest channel and not by luminance**, because a scattering albedo
+    /// cannot exceed one: no channel of the air is brighter than the light that lit it.
     osg::Vec3f fogColour(const osg::Vec3f& skyMean, const osg::Vec3f& hue);
 
     /// The distance a room's air is measured over: the view range's shipped default, stretched by
