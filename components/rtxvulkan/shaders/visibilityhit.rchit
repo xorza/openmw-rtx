@@ -30,6 +30,7 @@
 #include "lib/hitrecord.glsl"
 #include "lib/payload.glsl"
 #include "lib/random.glsl"
+#include "lib/reproject.glsl"
 #include "lib/shading.glsl"
 #include "lib/traversal.glsl"
 #include "lib/variants.glsl"
@@ -70,14 +71,25 @@ uvec2 stagePixel()
     return gl_LaunchIDEXT.xy;
 }
 
-/// Fills the payload in for an ordinary lit surface, and for a pane the launch has still to peel.
+/// Whether the launch has still to peel what this stage found: a surface whose resolved opacity is
+/// under one, on a record short of the peel's budget.
 ///
-/// **Which of the two it is is decided here, because this is where the number is.** A pane is a
-/// surface whose resolved opacity is under one, and that opacity is a texture read `resolve` has
-/// just made — the launch would have to be handed the material row and read it again. What the
+/// **Decided here, because this is where the number is.** The opacity is a texture read `resolve`
+/// has just made — the launch would have to be handed the material row and read it again. What the
 /// launch is handed instead is `mOpacity`, which is the whole of what it needs to peel.
 ///
-/// **A pane gets direct light, the path's end for everything else, and a lamp sequence of its own.**
+/// **The launch peels `PEEL_LAYERS` of them and the one after that is a solid.** Without that a
+/// shader would look at its own opacity, find one more pane, and shade it as a pane however deep the
+/// stack went — so a launch that had run out of layers would draw a hole through the world rather
+/// than the surface standing in it.
+bool peeled(Surface surface)
+{
+    return isSeenThrough(surface.mOpacity) && record.mLayer < PEEL_LAYERS;
+}
+
+/// Fills the payload in for a pane the launch has still to peel.
+///
+/// **Direct light, the path's end for everything else, and a lamp sequence of its own.**
 /// `bounceLight` draws from the pixel and nothing else, so a pane and the wall behind it would
 /// bounce off the same numbers — which is the correlation `SEED_LAMPS_PANE` exists to keep out of the
 /// direct term, and there is no such seed to hand a bounce. What a pane gets instead is what a
@@ -86,24 +98,19 @@ uvec2 stagePixel()
 /// bounced near them. One sequence per layer, because a stack of them shades beside itself as well:
 /// the record says which layer this is, and `paneSeed` and `paneAmbientSeed` are the sequences that
 /// layer draws from.
-///
-/// **The launch peels `PEEL_LAYERS` of them and the one after that is a solid.** Without that a
-/// shader would look at its own opacity, find one more pane, and shade it as a pane however deep the
-/// stack went — so a launch that had run out of layers would draw a hole through the world rather
-/// than the surface standing in it.
-void answerSolid(inout Answer answer, Surface surface)
+void answerPane(inout Answer answer, Surface surface)
 {
-    const uvec2 pixel = stagePixel();
+    const uint key = pixelKey(stagePixel());
 
     answer.mOpacity = surface.mOpacity;
+    answer.mRadiance
+        = shadeAtPathEnd(surface, key + paneAmbientSeed(record.mLayer), key + paneSeed(record.mLayer), PATH_SEEN);
+}
 
-    if (isSeenThrough(surface.mOpacity) && record.mLayer < PEEL_LAYERS)
-    {
-        const uint key = pixelKey(pixel);
-        answer.mRadiance
-            = shadeAtPathEnd(surface, key + paneAmbientSeed(record.mLayer), key + paneSeed(record.mLayer), PATH_SEEN);
-        return;
-    }
+/// Fills the payload in for an ordinary lit surface.
+void answerSolid(inout Answer answer, Surface surface)
+{
+    answer.mOpacity = surface.mOpacity;
 
     // **The colour is replaced and the surface is not.** What these views change is what a pixel is
     // painted with; the guides still describe a surface there, and saying otherwise hands every
@@ -124,7 +131,7 @@ void answerSolid(inout Answer answer, Surface surface)
         return;
     }
 
-    shadeSolid(surface, pixel, stageCone(), answer.mRadiance, answer.mBounced, answer.mResponse);
+    shadeSolid(surface, stagePixel(), stageCone(), answer.mRadiance, answer.mBounced, answer.mResponse);
 }
 
 /// Fills the payload in for a water surface, and for the ground showing through its last half metre.
@@ -154,7 +161,11 @@ void answerWater(inout Answer answer, Surface surface)
     const WaterShading water = shadeWater(surface, direction, pixel, cone);
     answer.mRadiance = water.mRadiance;
     answer.mResponse = water.mResponse;
-    answer.mMirror = water.mMirror;
+
+    // **The one surface in the frame that shows something standing somewhere else.** Water is
+    // shaded where it is seen, so its own motion describes the surface and not what is in it; this
+    // is the other one, and the upscaler weighs the two by the specular albedo it is handed.
+    answer.mMirrorMotion = mirrorMotionOf(pixel, origin, water.mMirror);
 
     const float shore = water.mShore;
     if (shore >= 1.0)
@@ -185,10 +196,22 @@ void main()
     const Surface surface
         = resolveFor(stageHit(barycentrics), gl_WorldRayOriginEXT, gl_WorldRayDirectionEXT, LAYERED, true);
 
+    const bool pane = !(WATER && HAS_SEA) && peeled(surface);
     if (WATER && HAS_SEA)
         answerWater(answer, surface);
+    else if (pane)
+        answerPane(answer, surface);
     else
         answerSolid(answer, surface);
+
+    // **Where the surface stood last frame, worked out where the rows already are.** The instance,
+    // its mesh and where on the triangle the ray landed are this stage's own, so the launch reads
+    // none of them again. A pane has no motion of its own: the pixel keeps the surface behind the
+    // stack, and that surface's stage says where it stood.
+    if (!pane)
+        answer.mMotion = motionOf(stagePixel(), gl_WorldRayOriginEXT, gl_WorldRayDirectionEXT, gl_HitTEXT,
+            uint(gl_InstanceCustomIndexEXT), uint(gl_PrimitiveID), barycentrics, gl_ObjectToWorldEXT,
+            stageSpread());
 
     packed = packAnswer(answer);
 }

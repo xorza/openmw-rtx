@@ -618,7 +618,6 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
             // exposure downstream decides where it lands. A gain on top of it blows every flame to
             // a white square and hides the shape that was already in the texture.
             //
-
             // **And it absorbs as much as it emits, per channel**, which is what makes the screen
             // in the accumulator exact for a stack of them: what one sprite adds is what it always
             // added, and what twenty add saturates at the white the original's framebuffer clamped
@@ -698,7 +697,6 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
     }
 
     layer.mAdded = (1.0 - addedThrough) * SUNLIT_WHITE;
-
 
     return layer;
 }

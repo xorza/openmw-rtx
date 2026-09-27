@@ -134,8 +134,12 @@ namespace Rtx
         const MoonFaces& faces, Moon moon, float alongArc, float axisOffset, Sky::MoonPhase phase, float alpha);
 
     /// A placement as the shader takes it — one conversion, so a moon read off the weather system
-    /// and one worked out from a date reach the shader the same way.
-    Shaders::MoonDisc describeMoon(const MoonPlacement& placement);
+    /// and one worked out from a date reach the shader the same way. What the phase and the sun
+    /// make of the face's shading is worked out here, once for the frame.
+    ///
+    /// @param towardSun unit, toward the frame's sun, which the lit limb is turned toward — below
+    ///        the horizon as well, where a moon still shows which side the sun is on.
+    Shaders::MoonDisc describeMoon(const MoonPlacement& placement, const osg::Vec3f& towardSun);
 
     /// The angular radius of a moon of `Moons_<name>_Size` `size`, in radians, out of the renderer
     /// the game already has: the size is scaled by 450/125 onto a quad of half-extent 0.5 a

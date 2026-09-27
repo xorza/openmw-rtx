@@ -182,7 +182,7 @@ namespace Rtx
         for (Shaders::SkyPatch& patch : constants.mSkyPatches)
             patch = noPatch();
         for (Shaders::MoonDisc& moon : constants.mMoons)
-            moon = describeMoon(MoonPlacement{});
+            moon = describeMoon(MoonPlacement{}, constants.mSun.mDirection);
 
         if (reading.mOutdoors)
         {
@@ -192,7 +192,7 @@ namespace Rtx
             describePatches(reading.mStarRoll, reading.mSky, constants.mSkyPatches);
 
             for (std::size_t moon = 0; moon < moons.size(); ++moon)
-                constants.mMoons[moon] = describeMoon(moons[moon]);
+                constants.mMoons[moon] = describeMoon(moons[moon], constants.mSun.mDirection);
         }
 
         constants.mFogColour = air.mColour;

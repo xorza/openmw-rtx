@@ -181,6 +181,8 @@ namespace Rtx::Testing
             facing.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
             facing.mUp = osg::Vec3f(0.0f, -root, root);
             facing.mColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
+            facing.mLitFrom = osg::Vec3f(0.0f, 0.0f, 1.0f);
+            facing.mLunar = 1.0f;
             facing.mAlpha = 1.0f;
             facing.mThroughAir = osg::Vec3f(1.0f, 1.0f, 1.0f);
             facing.mPaint = osg::Vec3f(1.0f, 1.0f, 1.0f);

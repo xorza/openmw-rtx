@@ -9,7 +9,7 @@
 //
 // **Apart from `visibility.h` because two passes want this and not the frame.** The tone pass draws
 // the stars and the fog's set names one layer a source, and neither wants the whole frame
-// description — eleven hundred bytes and a 64-bit extension — for one struct.
+// description — thirteen hundred bytes and a 64-bit extension — for one struct.
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders
@@ -253,14 +253,23 @@ namespace Rtx::Shaders
         /// What a fully lit face sends back, linear.
         vec3 mColour;
 
-        /// How far round its cycle: zero is full and pi is new.
+        /// Which way the light falls on the face, in the face's own frame — along `mRight`, along
+        /// `mUp`, and toward the eye — unit: straight out of the face at full, and edge-on at a half.
         ///
         /// **The share that is lit comes from the game and the direction it faces comes from the
         /// sky.** Morrowind advances a phase on its own three-day clock, which owes nothing to where
         /// its sun actually is — so the terminator is carved at the angle the game names and then
         /// turned so the lit limb points at the sun, which is the only orientation that does not
         /// read as a mistake.
-        float mPhaseAngle;
+        ///
+        /// **Worked out once for the frame and not at every pixel of the disc**, because both halves
+        /// are the frame's: `describeMoon` puts them together.
+        vec3 mLitFrom;
+
+        /// How much of McEwen's lunar-Lambert the face is shaded by at its phase, against Lambert's
+        /// own law: one at full, and nought from the phase McEwen's fit reaches nought at. A phase
+        /// is the frame's, so this is too.
+        float mLunar;
 
         /// What the game fades the moon by near the horizon and at the ends of its arc. Zero is a
         /// moon that is not there, and the whole disc is skipped for it.
@@ -312,7 +321,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(MoonDisc) == 100, "MoonDisc must be scalar-packed on every side");
+    static_assert(sizeof(MoonDisc) == 112, "MoonDisc must be scalar-packed on every side");
     static_assert(sizeof(CloudDeck) == 96, "CloudDeck must be scalar-packed on every side");
     static_assert(sizeof(StarField) == 32, "StarField must be scalar-packed on every side");
     static_assert(sizeof(SkyPatch) == 44, "SkyPatch must be scalar-packed on every side");

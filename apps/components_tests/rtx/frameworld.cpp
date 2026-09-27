@@ -355,9 +355,25 @@ namespace Rtx
                 EXPECT_FLOAT_EQ(disc.mSource.mLimb, std::sin(placed.mAngularRadius)) << "moon " << moon;
                 EXPECT_EQ(disc.mSource.mIrradiance, osg::componentMultiply(placed.mIrradiance, placed.mPaint))
                     << "moon " << moon;
-                EXPECT_EQ(disc.mPhaseAngle, placed.mPhaseAngle) << "moon " << moon;
                 EXPECT_EQ(disc.mAlpha, placed.mAlpha) << "moon " << moon;
                 EXPECT_EQ(disc.mFace, static_cast<std::uint32_t>(placed.mFace)) << "moon " << moon;
+            }
+
+            // **Each face is lit from the frame's own sun, which is overhead.** Masser's face lies
+            // square to it, so the sun has no side across it and the limb stays on its right:
+            // `(sin 0.25, 0, cos 0.25)`. Secunda's up is the zenith, so the limb turns onto it:
+            // `(0, sin 2.5, cos 2.5)`. And each keeps McEwen's share at its own phase: 0.25 radians
+            // is 14.324°, `1 - 0.27215 + 0.04965 - 0.00429 = 0.77321`; 2.5 is 143.24°, past the
+            // cubic's root, so nought.
+            const std::array<osg::Vec3f, 2> litFrom{ osg::Vec3f(std::sin(0.25f), 0.0f, std::cos(0.25f)),
+                osg::Vec3f(0.0f, std::sin(2.5f), std::cos(2.5f)) };
+            const std::array<float, 2> lunar{ 0.773207f, 0.0f };
+            for (std::size_t moon = 0; moon < litFrom.size(); ++moon)
+            {
+                for (int axis = 0; axis < 3; ++axis)
+                    EXPECT_NEAR(constants.mMoons[moon].mLitFrom[axis], litFrom[moon][axis], 1e-6f)
+                        << "moon " << moon << ", axis " << axis;
+                EXPECT_NEAR(constants.mMoons[moon].mLunar, lunar[moon], 1e-5f) << "moon " << moon;
             }
 
             // **And the two moons are not one moon written twice**, which is what an index carried
