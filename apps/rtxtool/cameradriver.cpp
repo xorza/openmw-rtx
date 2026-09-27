@@ -45,13 +45,11 @@ namespace RtxTool
         aim(stop);
     }
 
-    void CameraDriver::step(const Stop& stop, const std::uint32_t seen, const std::uint32_t warmup, const float seconds)
+    void CameraDriver::step(const Stop& stop, const std::optional<std::uint32_t> measured, const float seconds)
     {
         if (stop.mSchedule.mTrack.has_value())
         {
-            // The frame about to be drawn is the take's `seen - warmup`th, counted from nought,
-            // since the measurer counts it before it measures it.
-            const TrackPose pose = stop.mSchedule.mTrack->pose(seen > warmup ? seen - warmup : 0);
+            const TrackPose pose = stop.mSchedule.mTrack->pose(measured.value_or(0u));
 
             mFlown = pose.mEye;
             mFacing = pose.mRotation;
@@ -73,7 +71,7 @@ namespace RtxTool
         // **The route runs over the measured frames and not the warm-up.** Warming up is the GPU
         // coming off its idle clock; flying during it would start the measurement partway along
         // and leave the first crossing outside the numbers.
-        if (seen < warmup)
+        if (!measured.has_value())
             return;
 
         if (stop.mSchedule.mRoute.has_value())

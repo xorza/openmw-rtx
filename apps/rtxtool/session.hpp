@@ -91,9 +91,6 @@ namespace RtxTool
 
         const Stop& currentStop() const { return mRequest.mStops[mAt]; }
 
-        /// The warm-up of the running stop, in frames of the run's step.
-        std::uint32_t currentWarmup() const;
-
         SessionRequest mRequest;
 
         /// What the renderer is made with: the request's setup, and this as the run. After the
