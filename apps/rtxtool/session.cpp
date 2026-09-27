@@ -62,11 +62,6 @@ namespace RtxTool
         return world != nullptr && !world->getPlayerPtr().isEmpty();
     }
 
-    std::uint32_t Session::currentWarmup() const
-    {
-        return currentStop().mSchedule.mSpec.getWarmup(mRequest.mSetup.getWorldStep());
-    }
-
     void Session::beginStop()
     {
         const Stop& stop = currentStop();
@@ -105,14 +100,14 @@ namespace RtxTool
         if (mDone || !mStarted)
             return 0;
 
-        const std::uint32_t warmup = currentWarmup();
-        if (currentStop().mSchedule.mAccumulate == 0 || mMeasurer.getSeen() < warmup)
+        const std::optional<std::uint32_t> measured = mMeasurer.getMeasuredIndex();
+        if (currentStop().mSchedule.mAccumulate == 0 || !measured.has_value())
             return 0;
 
         // **Counted from the first measured frame**, because the warm-up is the world arriving and
         // the card coming off its idle clock. Averaging those in would put a picture of a
         // half-built cell into the reference.
-        return mMeasurer.getSeen() - warmup + 1;
+        return *measured + 1;
     }
 
     bool Session::wantsSecondWalk() const
@@ -184,7 +179,7 @@ namespace RtxTool
         if (mMeasurer.getSeen() == 0)
             Stager::forgetHistory();
 
-        mCamera.step(currentStop(), mMeasurer.getSeen(), currentWarmup(), mRequest.mSetup.getWorldStep());
+        mCamera.step(currentStop(), mMeasurer.getMeasuredIndex(), mRequest.mSetup.getWorldStep());
 
         // **After the camera has stepped and on every frame, warm-up included.** `CameraDriver::aim`
         // says why once is not enough; the warm-up frames stand at the route's start.

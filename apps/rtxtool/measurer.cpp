@@ -63,10 +63,24 @@ namespace RtxTool
         // that a field added to it is reset here whether or not its author remembered to.
         mProgress.restart();
 
+        mProgress.mWarmup = stop.mSchedule.mSpec.getWarmup(mRequest.mSetup.getWorldStep());
         mProgress.mCell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
         mProgress.mPlace.mView = stop.mName;
         mProgress.mPlace.mCell = stop.mStand.mCell;
         mProgress.mPlace.mNote = stop.mNote;
+    }
+
+    std::optional<std::uint32_t> Measurer::getMeasuredIndex() const
+    {
+        if (mProgress.mMeasuredFrom.has_value())
+            return mProgress.mSeen - *mProgress.mMeasuredFrom;
+
+        // The warm-up has run its length and the frame about to be drawn opens the measurement,
+        // which `frame` marks when it takes that frame.
+        if (mProgress.mWarmedRan == mProgress.mWarmup)
+            return 0u;
+
+        return std::nullopt;
     }
 
     Measurer::Verdict Measurer::frame(const Stop& stop, const MWRender::FrameContext& context,
@@ -75,11 +89,19 @@ namespace RtxTool
         Rtx::Renderer& renderer = context.mRenderer.getBackend();
         const double frameMs = report.mSpend.at(Rtx::Timing::Frame);
         const float step = mRequest.mSetup.getWorldStep();
-        const std::uint32_t warmup = stop.mSchedule.mSpec.getWarmup(step);
         const std::uint32_t measured = stop.mSchedule.mSpec.getMeasured(step);
 
-        if (mProgress.mSeen == warmup)
+        if (!mProgress.mMeasuredFrom.has_value() && mProgress.mWarmedRan == mProgress.mWarmup)
         {
+            mProgress.mMeasuredFrom = mProgress.mSeen;
+
+            // Said where it happened, so a run that took longer to arrive than it was asked to
+            // says why.
+            if (mProgress.mWarmedPaused > 0)
+                mRecord.note(
+                    std::format("{}: the warm-up stood paused on {} frames, held by {}, and ran its {} around them\n",
+                        stop.mName, mProgress.mWarmedPaused, mProgress.mPausedBy, mProgress.mWarmup));
+
             // **Sampled through the measured frames and not at their ends.** Two readings bound
             // nothing: the ends of a place agree to within a couple of per cent while the card
             // moves a fifth of its clock between them, and a leg that lost its clock then reads
@@ -129,9 +151,35 @@ namespace RtxTool
         mProgress.mPendingSpend = report.mSpend;
         mProgress.mPendingArrived = report.mArrivedMeshes;
 
+        if (!mProgress.mMeasuredFrom.has_value())
+        {
+            if (!report.mPaused || mRequest.mPlayed)
+            {
+                ++mProgress.mWarmedRan;
+                return Verdict::Going;
+            }
+
+            if (mProgress.mWarmedPaused++ == 0)
+                mProgress.mPausedBy = Stager::describePause();
+
+            // **Given up once the world has stood paused for as long again as the warm-up asked
+            // to run.** What the session can lift — a menu — lifts within a frame or two, the
+            // interface's script unpausing on the notice the close sends; what is still there by
+            // then is a pause the session cannot lift, and a warm-up waiting on it would wait for
+            // ever.
+            if (mProgress.mWarmedPaused > mProgress.mWarmup)
+            {
+                mFailure = std::format("the world stood paused through {} frames of the warm-up of {}, held by {}",
+                    mProgress.mWarmedPaused, stop.mName, mProgress.mPausedBy);
+                return Verdict::Failed;
+            }
+
+            return Verdict::Going;
+        }
+
         // A window that runs until it is closed is looked at and not measured: nothing reads its
         // figures, and every series kept for it grew for as long as the window stood open.
-        if (mProgress.mSeen <= warmup || stop.mSchedule.mSpec.mRun.isUntilClosed())
+        if (stop.mSchedule.mSpec.mRun.isUntilClosed())
             return Verdict::Going;
 
         mProgress.mSamples.add(closed);
@@ -166,7 +214,7 @@ namespace RtxTool
             mProgress.mCell = cell;
         }
 
-        const std::uint32_t drawn = mProgress.mSeen - warmup;
+        const std::uint32_t drawn = mProgress.mSeen - *mProgress.mMeasuredFrom;
 
         // Numbered here, where the frame is traced, for `writeFilmFrame` to find when its picture
         // comes back.
@@ -190,8 +238,7 @@ namespace RtxTool
     void Measurer::answered(const Stop& stop, const Rtx::FrameResult& finished, const Rtx::FrameExtents& extents)
     {
         // A frame the warm-up drew: its picture has no row and its figures are nobody's.
-        const BenchSpec& spec = stop.mSchedule.mSpec;
-        if (mProgress.mSeen <= spec.getWarmup(mRequest.mSetup.getWorldStep()) || spec.mRun.isUntilClosed()
+        if (!mProgress.mMeasuredFrom.has_value() || stop.mSchedule.mSpec.mRun.isUntilClosed()
             || finished.mFrame < mProgress.mFirstMeasured)
             return;
 
@@ -276,6 +323,8 @@ namespace RtxTool
 
         if (mProgress.mPausedFrames > 0)
         {
+            // The same guard over the measured frames, where a pause is no longer the world
+            // arriving but the figures of a world standing still.
             const std::string why = std::format("the world stood paused on {} of {} measured frames of {}, held by {}",
                 mProgress.mPausedFrames, stop.mSchedule.mSpec.getMeasured(step), stop.mName, mProgress.mPausedBy);
             Log(Debug::Error) << "Ray tracing session: " << why;

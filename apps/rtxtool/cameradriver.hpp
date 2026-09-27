@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 #include <osg/Vec3f>
 
@@ -23,11 +24,11 @@ namespace RtxTool
         /// before the first `aim` would be drawn from wherever the last stop left it.
         void begin(const Stop& stop);
 
-        /// Moves one frame of `stop`, the `seen`th since it began, of which `warmup` are thrown
-        /// away: a track stands its eye, clock and sky at every frame, the warm-up at its first; a
-        /// route and a turning sky move over the measured frames alone, `seconds` of world a
-        /// frame.
-        void step(const Stop& stop, std::uint32_t seen, std::uint32_t warmup, float seconds);
+        /// Moves one frame of `stop`, the `measured`th of its measured frames or one of its warm-up
+        /// where that is nothing (`Measurer::getMeasuredIndex`): a track stands its eye, clock and
+        /// sky at every frame, the warm-up at its first; a route and a turning sky move over the
+        /// measured frames alone, `seconds` of world a frame.
+        void step(const Stop& stop, std::optional<std::uint32_t> measured, float seconds);
 
         /// Puts the camera where the stop stands this frame, and points it where the stop asked.
         /// Every frame, because `omw/camera/camera.lua`'s `onActive` forces third person and a
