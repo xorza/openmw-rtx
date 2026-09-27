@@ -20,6 +20,16 @@
     "reveal": "always",
     "tags": ["rtx-view"]
   },
+  // `balmora-fog-night` in files/rtx/views.cfg: the Balmora bridge at 23:00 under Foggy weather.
+  {
+    "label": "RTX: Balmora, foggy night (release)",
+    "command": "./omw release view --size=2560x1440 --view=balmora-fog-night",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": true,
+    "reveal": "always",
+    "tags": ["rtx-view"]
+  },
   // The Fullrest Repack under /home/Games/M[FR]: `~/.config/openmw-mfr` is its Linux profile, and
   // `--replace=config` keeps the vanilla profile's content list out of it.
   {
