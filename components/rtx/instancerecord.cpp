@@ -119,7 +119,19 @@ namespace Rtx
             if (row.mPrevious == instance.mTransform)
                 return;
 
-            record.mMotion = toTransform3x4(osg::Matrixf::inverse(instance.mTransform) * row.mPrevious);
+            // Water's step along its own plane is not motion — `InstanceRecord::mMotion` says why.
+            // Reported, the sea's cell-long step would send every water pixel's history a cell away
+            // for a frame, and the upscaler would blend whatever it found there into the water.
+            osg::Matrixf previous = row.mPrevious;
+            if (row.mWorn.mKind == MaterialKind::Water)
+            {
+                const osg::Vec3f now = instance.mTransform.getTrans();
+                previous.setTrans(now.x(), now.y(), previous.getTrans().z());
+                if (previous == instance.mTransform)
+                    return;
+            }
+
+            record.mMotion = toTransform3x4(osg::Matrixf::inverse(instance.mTransform) * previous);
         }
     }
 
