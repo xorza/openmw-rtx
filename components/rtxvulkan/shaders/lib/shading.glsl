@@ -75,9 +75,7 @@ struct DirectLight
 DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path)
 {
     const vec3 position = surface.mPosition;
-    const vec3 normal = surface.mNormal;
-    const vec3 side = surface.mClosed ? surface.mSmooth : surface.mGeometric;
-    const float transmission = surface.mTransmission;
+    const Facing facing = facingOf(surface);
 
     vec3 radiance = vec3(0.0);
 
@@ -144,10 +142,9 @@ DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path)
     // three are named and not indexed**, for the reason `SkyChoice` gives: the pick is a value the
     // compiler cannot fold, and a local array read at one is a spill.
     const bool lunar = HAS_MOONS && path == PATH_SEEN;
-    const vec3 diffuse = surface.mAlbedo;
-    const SkyChoice sun = skyChoiceAt(SKY_SOURCE_SUN, normal, side, transmission, sunUp(), gloss, diffuse);
-    const SkyChoice masser = skyChoiceAt(SKY_SOURCE_MASSER, normal, side, transmission, lunar, gloss, diffuse);
-    const SkyChoice secunda = skyChoiceAt(SKY_SOURCE_SECUNDA, normal, side, transmission, lunar, gloss, diffuse);
+    const SkyChoice sun = skyChoiceAt(SKY_SOURCE_SUN, facing, sunUp(), gloss);
+    const SkyChoice masser = skyChoiceAt(SKY_SOURCE_MASSER, facing, lunar, gloss);
+    const SkyChoice secunda = skyChoiceAt(SKY_SOURCE_SECUNDA, facing, lunar, gloss);
 
     const WeightedPick pick
         = pickByWeight(sun.mLight.mWeight, masser.mLight.mWeight, secunda.mLight.mWeight, skyPick);
@@ -190,7 +187,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path)
     // where the cosine was. A glossy surface weighs each lamp by both — `surfaceCandidate` says why —
     // and either estimate is unbiased under any weight positive where its term is.
     Reservoir kept = noLamps();
-    weighLamps(kept, state, position, normal, side, INV_PI, transmission, gloss, diffuse);
+    weighLamps(kept, state, position, facing, INV_PI, gloss);
 
     float lampShare;
     const vec3 lampDiffuse = lampsThrough(kept, lampDraw, lampShare);
@@ -533,8 +530,8 @@ vec3 bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel)
     // recover. `Requirements::mInvocationReorder` holds every reading since.
     // A diffuse bounce is not drawn: it carries light, and a surface it met from behind still
     // carries it.
-    const Surface hit = trace(surface.mPosition, drawn.mTowards, SHADOW_BIAS, surface.mFootprint, drawn.mSpread,
-        solidMask(frame.mRayMask), drawn.mSpecular);
+    const Surface hit = trace(WorldRay(surface.mPosition, drawn.mTowards), SHADOW_BIAS,
+        Cone(surface.mFootprint, drawn.mSpread), solidMask(frame.mRayMask), drawn.mSpecular);
 
     if (!hit.mHit)
         return bounceEscape(surface.mPosition, drawn.mTowards, weight);

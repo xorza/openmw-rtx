@@ -167,10 +167,11 @@ namespace Rtx
         /// @param layout what `describeLayout` made: every array is shaped by the one the renderer
         ///        keeps, which is what lets one pass be handed any scene's set.
         /// @param passes the renderer's, which every texture is made with as it arrives.
+        /// @param anisotropy `RenderProfile::mAnisotropy`: what the footprint binding filters by.
         TextureArray(const Device& device, Batch& batch, const SetLayout& layout, const TexturePasses& passes,
-            std::uint32_t slots);
+            std::uint32_t slots, std::uint32_t anisotropy = 1);
 
-        /// The shape of every set an array here holds: two bindless arrays, partially bound and
+        /// The shape of every set an array here holds: three bindless arrays, partially bound and
         /// updated after bind. Made once by whoever owns the passes that name it.
         static SetLayout describeLayout(const Device& device);
 
@@ -211,6 +212,11 @@ namespace Rtx
         /// makes legal: no live material names a freed slot. The array does not shrink, because the
         /// scene's table has not either.
         void drop(std::span<const std::uint32_t> slots);
+
+        /// Filters the footprint binding by `anisotropy` from each set's next `sync` on: every slot
+        /// that stands is owed to every set again, and the samplers it was written through go
+        /// under the frames that may still read them.
+        void setAnisotropy(std::uint32_t anisotropy);
 
         /// The set `slot`'s frame binds, which `sync(slot)` brought up to date. A hand-out, so it
         /// names the set for the next submit the way `Buffer::addressFor` names a buffer.
@@ -306,6 +312,10 @@ namespace Rtx
         /// One per `TextureWrap`, indexed by it: the sampler a slot is bound through is the one its
         /// file's wrap names, for the texture and for its shading map alike.
         std::array<Sampler, sTextureWrapCount> mSamplers;
+
+        /// The same, filtering anisotropically, for the textures' third binding —
+        /// `TEXTURE_BIND_ALONG`.
+        std::array<Sampler, sTextureWrapCount> mFootprintSamplers;
 
         /// The one texel every material with no diffuse names, at `TEXTURE_NEUTRAL` of every set:
         /// beside the array rather than in it, so the array's length stays the scene's table's.

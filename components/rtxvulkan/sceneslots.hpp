@@ -43,6 +43,17 @@ namespace Rtx
         const DeviceScene& at(SceneSlot slot) const;
         DeviceScene& at(SceneSlot slot);
 
+        /// `visit` over every scene a slot holds, the world's first.
+        template <class Visit>
+        void forEach(Visit&& visit)
+        {
+            if (mWorld != nullptr)
+                visit(*mWorld);
+            for (const std::unique_ptr<DeviceScene>& view : mViews)
+                if (view != nullptr)
+                    visit(*view);
+        }
+
     private:
         const std::unique_ptr<DeviceScene>& slotAt(SceneSlot slot) const;
         std::unique_ptr<DeviceScene>& slotAt(SceneSlot slot);

@@ -292,8 +292,8 @@ namespace Rtx
 
         Batch setup(mDevice.getPool());
         DeviceScene& held = mScenes.hold(slot,
-            std::make_unique<DeviceScene>(
-                mDevice, setup, mTextureLayout, mSkinPass, mTexturePasses, mGroundPass, scene, textures));
+            std::make_unique<DeviceScene>(mDevice, setup, mTextureLayout, mSkinPass, mTexturePasses, mGroundPass, scene,
+                textures, mProfile.mAnisotropy));
 
         // A picture's scene rides the next submit, as an arrival does: its placement and its trace
         // are deferred behind it, and the barrier every upload and build ends in orders them. The
@@ -460,6 +460,15 @@ namespace Rtx
         // may move with the pacing, and a rebuild frees what a batch may be sitting beside.
         mGui.getTextures().finish();
         mPresenter->setPacing(pacing);
+    }
+
+    void VulkanRenderer::setAnisotropy(const std::uint32_t anisotropy)
+    {
+        if (anisotropy == mProfile.mAnisotropy)
+            return;
+
+        mProfile.mAnisotropy = anisotropy;
+        mScenes.forEach([&](DeviceScene& scene) { scene.setAnisotropy(anisotropy); });
     }
 
     void VulkanRenderer::awaitFrame()

@@ -5,7 +5,7 @@
 //
 // **Its own file because a second pass samples them.** The trace has this by way of everything else
 // it is handed; the display pass draws the sky's own points at the resolution they are shown at, and
-// needs the sheet and none of the rest of `bindings.glsl`. The set and its two bindings are the
+// needs the sheet and none of the rest of `bindings.glsl`. The set and its bindings are the
 // host's as well, so both sides read them from `sets.h` and `scene.h`.
 
 // **The extension travels with the declaration**, because what needs it is the indexing rather than
@@ -36,6 +36,15 @@ layout(set = SET_TEXTURES, binding = TEXTURE_BIND_IMAGES) uniform sampler2D text
 /// would measure. A slot with a texture always has a map, neutral where nothing could estimate one.
 /// Stored over the range `SHADING_FLOOR` to `SHADING_CEILING`, which `paintedLight` decodes.
 layout(set = SET_TEXTURES, binding = TEXTURE_BIND_SHADING) uniform sampler2D shadingMaps[];
+
+/// The same textures at the same slots, through samplers with anisotropic filtering on: what a read
+/// along a footprint (`textureGrad`) goes through, and nothing else.
+///
+/// **A binding of its own and not anisotropy on `textures`**, because the device does not leave a
+/// read that names its level alone under such a sampler: an explicit level through one came back
+/// blended at a different fraction of a level than it asked for, and every read but the eye's names
+/// its level.
+layout(set = SET_TEXTURES, binding = TEXTURE_BIND_ALONG) uniform sampler2D texturesAlong[];
 
 /// How many texels each slot holds, with `TEXTURE_STANDS_IN` over the count where the slot draws the
 /// stand-in — `GpuTables::mTextureTexels`, handed to each pass by address.

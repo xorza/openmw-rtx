@@ -272,6 +272,12 @@ namespace Rtx
         /// Bethesda's textures with their lighting still in them.
         float mDelight = 1.0f;
 
+        /// How many times longer than it is wide a footprint the eye's texture reads may filter
+        /// along: the player's `[General] anisotropy`, held to what the device takes. One or less
+        /// reads every footprint at the level of its long axis, which is what a profile that says
+        /// nothing asks — the level a cone names is then the level read, and a test can measure it.
+        std::uint32_t mAnisotropy = 1;
+
         /// What every pixel is painted with: the light, or a surface input for a picture of the
         /// maps themselves.
         SurfaceView mShow = SurfaceView::Shaded;

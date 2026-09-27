@@ -152,6 +152,16 @@ namespace Rtx
             EXPECT_EQ(kept[water].mMask, Shaders::MASK_WATER);
             ASSERT_EQ(scene.placements().getPresent().size(), 2u) << "the cloud and the sheet";
 
+            // **A medium is met by the medium bit alone**, so no ray that ignores it is handed it, and
+            // its class rides in `mClass` for the one ray that sums it. Every other placement's mask
+            // is its class. The instance here states no class, which is a static.
+            EXPECT_EQ(kept[cloud].mMask, Shaders::MASK_MEDIUM);
+            EXPECT_EQ(kept[cloud].mClass, Shaders::MASK_STATIC);
+            EXPECT_EQ(kept[glow].mMask, Shaders::MASK_ADDITIVE);
+            EXPECT_EQ(kept[glow].mClass, Shaders::MASK_ADDITIVE);
+            EXPECT_EQ(kept[pane].mMask, kept[pane].mClass);
+            EXPECT_EQ(kept[water].mClass, Shaders::MASK_WATER);
+
             // **The kind, which the backend turns into a shader-table record offset.** Traversal
             // picks the closest-hit shader from it, so a placement carrying the wrong one is shaded
             // by the wrong program — ground as a plain surface, water as ground — and nothing in the

@@ -338,6 +338,15 @@ namespace Rtx::Testing
         std::optional<SurfaceView> mShow;
         std::optional<float> mDelight;
 
+        /// `RenderProfile::mAnisotropy` for the shot. One, so the level a cone names is the level
+        /// read, which is what every test that measures a level off the mip ladder relies on.
+        std::uint32_t mAnisotropy = 1;
+
+        /// Whether the shot hands its scene over, or places the one the shot before it stood, as a
+        /// frame of the game does: for a test of a change that has to reach a scene already
+        /// standing.
+        bool mSetScene = true;
+
         /// A fixed offset in the pixel for every frame, where the shot does not jitter.
         std::optional<osg::Vec2f> mOffset;
 
@@ -373,7 +382,11 @@ namespace Rtx::Testing
         {
             mRenderer.resize(size, size);
             mRenderer.setSea(shot.mSea);
-            mRenderer.setScene(Rtx::SceneSlot::world(), scene, inSceneOrder(textures));
+            mRenderer.setAnisotropy(shot.mAnisotropy);
+            if (shot.mSetScene)
+                mRenderer.setScene(Rtx::SceneSlot::world(), scene, inSceneOrder(textures));
+            else
+                mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
 
             if (shot.mResetHistory)
                 mRenderer.resetHistory();

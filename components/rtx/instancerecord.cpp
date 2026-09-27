@@ -75,23 +75,23 @@ namespace Rtx
             const osg::Matrixf placement
                 = water ? loweredBy(instance.mTransform, Shaders::WATER_TIE_BREAK) : instance.mTransform;
 
+            // **An additive surface carries its own bit and no other.** Nothing that shades,
+            // shadows or bounces casts with it, so such a surface is met by the one query that
+            // gathers what adds and by nothing else — which is what the rasterizer's
+            // shadow-casting masks say of a magic effect too.
+            const std::uint32_t kind = traversed.mAdditive ? Shaders::MASK_ADDITIVE
+                                                           : (water ? Shaders::MASK_WATER : classBit(instance.mClass));
+
             return InstanceRecord{
                 .mTransform = toTransform3x4(placement),
                 .mMotion = sStillTransform,
                 .mMesh = instance.mMesh,
                 .mKind = worn.mKind,
-                // The medium bit rides with whichever of the three this is, so that every ray
-                // meets it exactly as it did and one more ray can ask for it alone. Everything that
-                // reads a row's mask tests the bit it wants rather than the whole word, which is
-                // what makes a second bit free to ride here.
-                //
-                // **An additive surface carries its own bit and no other.** Nothing that shades,
-                // shadows or bounces casts with it, so such a surface is met by the one query that
-                // gathers what adds and by nothing else — which is what the rasterizer's
-                // shadow-casting masks say of a magic effect too.
-                .mMask = traversed.mAdditive ? Shaders::MASK_ADDITIVE
-                                             : (water ? Shaders::MASK_WATER : classBit(instance.mClass))
-                        | (traversed.mMedium ? Shaders::MASK_MEDIUM : 0u),
+                .mClass = kind,
+                // **A medium carries the medium bit alone**, so traversal hands it to the two rays
+                // that sum it and to none of the rays that walked past it. `InstanceRecord::mMask`
+                // says why.
+                .mMask = traversed.mMedium && !traversed.mAdditive ? Shaders::MASK_MEDIUM : kind,
 
                 .mCutout = traversed.mCutout,
                 .mTranslucent = traversed.mTranslucent,

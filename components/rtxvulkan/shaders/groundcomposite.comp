@@ -73,8 +73,11 @@ void main()
             continue;
 
         const bool authored = layerAuthored(layer, TexelTable(chunk.mTexels));
-        const vec4 shown = layerTexel(layer, layerUv(layer, chunkUv),
-            groundLod(layer.mDiffuse, layer, GROUND_COMPOSITE_EXTENT), GROUND_COMPOSITE_DELIGHT, authored);
+        const vec2 at = layerUv(layer, chunkUv);
+        const vec4 shown = layerTexel(layer, at,
+            textureLod(textures[nonuniformEXT(layer.mDiffuse)], at,
+                groundLod(layer.mDiffuse, layer, GROUND_COMPOSITE_EXTENT)),
+            GROUND_COMPOSITE_DELIGHT, authored);
         albedo += showing * shown.rgb;
         weights += showing;
         roughness += showing * shown.a;

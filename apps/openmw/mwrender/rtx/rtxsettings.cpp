@@ -1,5 +1,7 @@
 #include "rtxsettings.hpp"
 
+#include <algorithm>
+
 #include <components/rtx/cellgrid.hpp>
 #include <components/rtx/specularlayout.hpp>
 #include <components/rtx/upscale.hpp>
@@ -18,6 +20,7 @@ namespace MWRender
             .mObjectPaging = Settings::terrain().mObjectPaging,
             .mObjectPagingMinSize = Settings::terrain().mObjectPagingMinSize,
             .mSpecularMapLayout = Settings::rtx().mSpecularMapLayout.get(),
+            .mAnisotropy = Settings::general().mAnisotropy,
         };
     }
 
@@ -35,6 +38,7 @@ namespace MWRender
                 .mMinSize = values.mObjectPagingMinSize,
                 .mSpecularLayout = Rtx::sSpecularLayoutNames.require(values.mSpecularMapLayout, "a specular map layout"),
             },
+            .mAnisotropy = static_cast<std::uint32_t>(std::max(values.mAnisotropy, 1)),
         };
     }
 }

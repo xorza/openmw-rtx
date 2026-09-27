@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -842,10 +843,10 @@ namespace Rtx::Testing
         /// **And the level itself, which the ratio alone would not pin.** Four times the span is one
         /// level coarser whatever constant the area carries, so the gentler quad's own level is what
         /// says the constant is `cos / 4` and not something else. Its sheet area is `0.25 * 4/27`,
-        /// which is `1/27`; the triangle covers `4 h^2 = 1024` of the world; the cone is
-        /// `away * 2 tan(30) / size = 6.792` wide where it lands, and the plane faces the ray. So
-        /// the base is `0.5 log2(1/27648) + log2(6.792)`, or `-4.614`, and a 64-texel sheet adds
-        /// `0.5 log2(4096)`, which is six: **1.386**.
+        /// which is `1/27`; the triangle covers `4 h^2 = 1024` of the world; the cone spreads by
+        /// `atan(2 tan(30) / size)` and is `6.782` wide where it lands, and the plane faces the ray.
+        /// So the base is `0.5 log2(1/27648) + log2(6.782)`, or `-4.616`, and a 64-texel sheet adds
+        /// `0.5 log2(4096)`, which is six: **1.384**.
         ///
         /// **A quad whose normals do not lean at all reads the finest level**, whatever its texture
         /// coordinates are: a sheet coordinate that stands still across a triangle has nothing to
@@ -911,11 +912,70 @@ namespace Rtx::Testing
             const float much = levelOf(leaningMore);
 
             EXPECT_NEAR(much - little, 1.0f, 0.02f) << "four times the span is one level coarser";
-            EXPECT_NEAR(little, 1.386f, 0.02f) << "and the level itself is the area the form gives";
+            EXPECT_NEAR(little, 1.384f, 0.02f) << "and the level itself is the area the form gives";
 
             // Against neither end of the ladder, or the two above are a clamp rather than the form.
             EXPECT_GT(little, 0.2f);
             EXPECT_LT(much, 5.5f);
+        }
+
+        /// **At an anisotropy of one, a surface is read at the level of its footprint's long axis**,
+        /// and the long axis is the cone over the facing, carried onto the texture by that axis's
+        /// own scale.
+        ///
+        /// A quad 64 units across under a 64-texel ladder that glows, a texel a unit, tilted about
+        /// the axis across the view. The cone spreads by `atan(2 tan(30) / size)` and is `6.782` wide
+        /// where it meets the middle pixel, so head on the level is `log2(6.782) = 2.762`. Tilted to a facing
+        /// of a half and of a quarter, the footprint stretches along the tilt by two and by four, and
+        /// the level climbs by one and by two; across the tilt it does not stretch at all.
+        ///
+        /// **A texture twice as dense along one axis is read at that axis's scale**: head on and
+        /// with `u` doubled, the footprint covers twice the texels along `u` and as many along `v`,
+        /// so one level coarser. A level off the area — the mean of the two scales, which is what an
+        /// isotropic cone stated before the footprint had axes — would be half a level coarser.
+        TEST_F(RtxVisibilityTest, aFootprintAtAnAnisotropyOfOneIsReadAtItsLongAxis)
+        {
+            // Odd, so the middle pixel's own centre is on the axis.
+            constexpr std::uint32_t size = 17;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr float half = 32.0f;
+            constexpr float away = 100.0f;
+
+            TestTexture ladder;
+            paintMipLadder(ladder);
+
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -away, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            const auto levelOf = [&](float facing, float uScale) {
+                const float sine = std::sqrt(1.0f - facing * facing);
+                std::array<osg::Vec3f, 4> quad = uprightQuadAt(half, 0.0f);
+                for (osg::Vec3f& corner : quad)
+                    corner = osg::Vec3f(corner.x(), corner.z() * sine, corner.z() * facing);
+                std::array<osg::Vec2f, 4> uv = sQuadUv;
+                for (osg::Vec2f& at : uv)
+                    at.x() *= uScale;
+
+                SceneDesc scene;
+                const Index mesh
+                    = scene.addMesh(MeshArrays{ .mPositions = quad, .mTexCoords = uv, .mIndices = sQuadIndices });
+                // Black, so the glow is the whole of what the pixel holds.
+                const Index material = scene.addMaterial(
+                    Material{ .mEmissive = scene.textures().add(VFS::Path::NormalizedView("ladder.dds")),
+                        .mDiffuseColour = osg::Vec3f() });
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+
+                const Frame frame = shoot(scene, std::span(&ladder.mData, 1), camera, size);
+                return ladderLevel(frame.at(centre) / Shaders::EMISSIVE_INTENSITY);
+            };
+
+            const float headOn = std::log2(camera.mCamera.mSpreadAngle * away);
+            EXPECT_NEAR(headOn, 2.762f, 0.001f) << "the cone the form above names";
+
+            EXPECT_NEAR(levelOf(1.0f, 1.0f), headOn, 0.02f) << "head on, the cone's own width";
+            EXPECT_NEAR(levelOf(0.5f, 1.0f), headOn + 1.0f, 0.02f) << "at a facing of a half, twice it";
+            EXPECT_NEAR(levelOf(0.25f, 1.0f), headOn + 2.0f, 0.02f) << "at a quarter, four times";
+            EXPECT_NEAR(levelOf(1.0f, 2.0f), headOn + 1.0f, 0.02f) << "and at the denser axis's scale, not the mean";
         }
 
         /// The dark map multiplies the albedo, read at the unit the content bound it at and on the
@@ -1384,6 +1444,88 @@ namespace Rtx::Testing
             EXPECT_EQ(at(blue, 63)[1], 0);
             EXPECT_EQ(at(green, 63)[1], 255) << "and its near half, half a coordinate back";
             EXPECT_EQ(at(green, 63)[2], 0);
+        }
+
+        /// **A footprint is read along its long axis only as far as the setting lets it.** Ground seen
+        /// seven degrees off the grazing line, through a two-degree frame of sixteen pixels, painted
+        /// in stripes a texel wide that run away from the eye: level nought is 64 and 192 by turns
+        /// across the frame, and every level past it is the stripes averaged, 128.
+        ///
+        /// Each pixel's cone is `2 tan(1°) / 16 = 0.00218` wide per unit it travels, and it meets the
+        /// ground between 710 and 940 units off at a facing of 0.141 to 0.106, so across the ray its
+        /// footprint is 1.55 to 2.05 units and along the ray, where it stretches by one over the
+        /// facing, 11 to 19. A texel is 3.5 units: 0.44 to 0.59 of one across and 3.1 to 5.5 along.
+        ///
+        /// - At one, the read takes the long axis for both, which is level 1.6 to 2.5, all of it
+        ///   stripes averaged — 128 in every pixel, which is 0.50196 in light and encodes to
+        ///   `1.055 * 0.50196^(1/2.4) - 0.055 = 0.73667`, or 188 of 255.
+        /// - At sixteen, the ratio of the two axes, 7 to 9.4, is inside what the filter takes, so it
+        ///   reads at the short axis's level, which is under nought, and the stripes come back
+        ///   through: pixels darker and brighter than the average both.
+        ///
+        /// The setting moved under a scene already standing reads as a scene built with it, both ways,
+        /// because a player moves it in the menu with the world loaded.
+        TEST_F(RtxVisibilityTest, aFootprintIsReadAlongItsLongAxisOnlyAsFarAsTheSettingLetsIt)
+        {
+            constexpr std::uint32_t size = 16;
+            constexpr std::uint32_t extent = 8;
+            constexpr float texel = 3.5f;
+            constexpr float perUv = texel * extent;
+
+            Testing::TestTexture stripes;
+            for (std::uint32_t level = 0, side = extent; side > 0; ++level, side /= 2)
+            {
+                stripes.mLevels.push_back(MipLevel{ static_cast<std::uint32_t>(stripes.mBytes.size()), side, side });
+                for (std::uint32_t y = 0; y < side; ++y)
+                    for (std::uint32_t x = 0; x < side; ++x)
+                    {
+                        const std::uint8_t tone = level > 0 ? 128 : (x % 2 == 0 ? 64 : 192);
+                        stripes.mBytes.insert(stripes.mBytes.end(), { tone, tone, tone, 255 });
+                    }
+            }
+            stripes.describe(extent, extent, "stripes");
+
+            const std::array<osg::Vec3f, 4> ground{
+                osg::Vec3f(-400.0f, 0.0f, 0.0f),
+                osg::Vec3f(400.0f, 0.0f, 0.0f),
+                osg::Vec3f(400.0f, 4000.0f, 0.0f),
+                osg::Vec3f(-400.0f, 4000.0f, 0.0f),
+            };
+            std::array<osg::Vec2f, 4> uv;
+            for (std::size_t corner = 0; corner < ground.size(); ++corner)
+                uv[corner] = osg::Vec2f(ground[corner].x(), ground[corner].y()) / perUv;
+
+            SceneDesc scene;
+            const Index mesh
+                = scene.addMesh(MeshArrays{ .mPositions = ground, .mTexCoords = uv, .mIndices = sQuadIndices });
+            const Index material = scene.addMaterial(
+                Material{ .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("stripes.dds")) });
+            scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(0.0f, 800.0f, 0.0f), 2.0f, size, size, 10000.0f);
+
+            const auto shownWith = [&](std::uint32_t anisotropy, bool built) {
+                const Frame frame = shoot(scene, std::span(&stripes.mData, 1), camera, size,
+                    Shot{ .mShow = SurfaceView::Albedo, .mAnisotropy = anisotropy, .mSetScene = built });
+                EXPECT_EQ(frame.mHits, size * size);
+
+                std::vector<int> shown(std::size_t{ size } * size);
+                for (std::size_t pixel = 0; pixel < shown.size(); ++pixel)
+                    shown[pixel] = frame.byte(pixel * 4);
+                return shown;
+            };
+
+            const std::vector<int> isotropic = shownWith(1, true);
+            for (std::size_t pixel = 0; pixel < isotropic.size(); ++pixel)
+                ASSERT_EQ(isotropic[pixel], 188) << "pixel " << pixel << ": the stripes averaged, at one";
+
+            const std::vector<int> along = shownWith(16, false);
+            EXPECT_LT(*std::min_element(along.begin(), along.end()), 188) << "a dark stripe resolved, at sixteen";
+            EXPECT_GT(*std::max_element(along.begin(), along.end()), 188) << "and a bright one";
+            EXPECT_EQ(shownWith(16, true), along) << "moved under the standing scene, as one built at sixteen";
+
+            EXPECT_EQ(shownWith(1, false), isotropic) << "and moved back to one";
         }
 
         /// **Ground sums its layers' maps by the weights it sums their albedo by**: the normals, and

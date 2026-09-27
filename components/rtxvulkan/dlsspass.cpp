@@ -30,10 +30,12 @@ namespace Rtx
         /// writes scene-referred radiance and the tone curve comes after the upscale. `MVLowRes` is
         /// a description, not a request: the motion vectors *are* at the render resolution, and
         /// leaving it out is `FAIL_InvalidParameter` with the reason only in NGX's own log.
-        /// `DepthInverted` is absent because this renderer's clip depth is zero at the near plane;
+        /// `DepthInverted` because the clip depth is one at the near plane and nought at the far one —
+        /// `clipDepth` says why it is written reversed;
         /// `AutoExposure` and the exposure parameters are absent because Ray Reconstruction does
         /// not support exposure (integration guide §3.7), measured bit-identical with and without.
-        constexpr int sCreateFlags = NVSDK_NGX_DLSS_Feature_Flags_IsHDR | NVSDK_NGX_DLSS_Feature_Flags_MVLowRes;
+        constexpr int sCreateFlags = NVSDK_NGX_DLSS_Feature_Flags_IsHDR | NVSDK_NGX_DLSS_Feature_Flags_MVLowRes
+            | NVSDK_NGX_DLSS_Feature_Flags_DepthInverted;
 
         /// An image as NGX takes one, checked against the size the feature was built for, because
         /// a guide at another resolution goes to the network unremarked: NGX returns success, the

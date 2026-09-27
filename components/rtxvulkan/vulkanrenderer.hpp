@@ -85,6 +85,7 @@ namespace Rtx
         /// renderer is paced by whoever calls it.
         bool pacesFrames() const override;
         void setPacing(const Pacing& pacing) override;
+        void setAnisotropy(std::uint32_t anisotropy) override;
         void skipFrame() override;
         void awaitFrame() override;
         void endSimulation(bool flash) override;

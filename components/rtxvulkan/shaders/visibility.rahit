@@ -40,7 +40,7 @@ void main()
     uint blocked = 0u;
 
     if (!candidateStops(uint(gl_InstanceCustomIndexEXT), uint(gl_PrimitiveID), barycentrics,
-            triangleCross(corners, gl_ObjectToWorldEXT), gl_WorldRayDirectionEXT,
-            cone.mWidth + cone.mSpread * gl_HitTEXT, false, blocked))
+            triangleEdges(corners, gl_ObjectToWorldEXT), gl_WorldRayDirectionEXT,
+            cone.mWidth + cone.mSpread * gl_HitTEXT, false, true, blocked))
         ignoreIntersectionEXT;
 }

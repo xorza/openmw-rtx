@@ -63,14 +63,15 @@ namespace Rtx::Shaders
     /// table hands out from nought, and every test that names a slot by number still does.
     const uint TEXTURE_NEUTRAL = TEXTURE_SLOTS - 1u;
 
-    /// Where the texture set binds its two arrays: the textures, and their shading maps at the
-    /// same slots.
+    /// Where the texture set binds its three arrays: the textures, their shading maps at the same
+    /// slots, and the textures again through samplers that filter along a footprint.
     ///
-    /// **Named on both sides because a swap would be silent.** Both are `TEXTURE_SLOTS` combined
+    /// **Named on both sides because a swap would be silent.** All are `TEXTURE_SLOTS` combined
     /// image samplers, so a layout and a shader that disagreed on which is which would pass every
     /// check the layers make, and the trace would sample shading maps as colour.
     const uint TEXTURE_BIND_IMAGES = 0;
     const uint TEXTURE_BIND_SHADING = 1;
+    const uint TEXTURE_BIND_ALONG = 2;
 
 /// What every texture this renderer writes is stored as: a chain a file did not carry, a sprite's
 /// light bake and a ground composite. Read back through the file's curve where the file had one.
@@ -350,8 +351,8 @@ namespace Rtx::Shaders
                 + WATER_CAUSTIC_GAIN_QUARTIC * squared * squared);
     }
 
-    /// Which instances a ray is interested in: the instance mask, one class bit per instance and
-    /// `MASK_MEDIUM` beside it, tested against the camera's `VisibilityConstants::mRayMask`.
+    /// Which instances a ray is interested in: the instance mask, one class bit per instance or
+    /// `MASK_MEDIUM` instead of it, tested against the camera's `VisibilityConstants::mRayMask`.
     ///
     /// **The camera's cull mask, as a ray tracer can read it.** The rasterizer draws what every
     /// node mask on a path intersects the camera's cull mask; the local map's has no actors, no
@@ -448,10 +449,11 @@ namespace Rtx::Shaders
 
     /// A surface that is nowhere opaque, gathered as a depth along the ray rather than met.
     ///
-    /// **Carried beside the class bit and not instead of it**, because a medium is still something a
-    /// shadow ray is dimmed by and something the eye's traversal has to be handed so it can walk
-    /// past. What this bit is for is the one ray that wants nothing else: `mediumAlong` traverses on
-    /// it alone, so a cell full of shells costs that walk its own instances and no others.
+    /// **Carried instead of the class bit and not beside it.** Only two rays want a medium: the shadow
+    /// and ambient rays, which it dims (`throughToward`), and `mediumAlong`, which gathers it. The
+    /// eye, a bounce and a water ray walked past every shell they crossed after an any-hit test and a
+    /// row load apiece; under this bit alone traversal hands a shell to its two rays and to no other,
+    /// and `GpuInstance::mClass` answers the class test the mask no longer makes.
     const uint MASK_MEDIUM = 0x08u;
 
     /// The material is a medium — `Rtx::Material::isMedium`.
@@ -575,6 +577,12 @@ namespace Rtx::Shaders
         /// `Rtx::MeshInstance::mOpacity` for why a fade belongs to a placement and not to a
         /// material.
         float mOpacity;
+
+        /// The class bits this placement answers to — `MASK_STATIC`, `MASK_ACTOR` and the rest,
+        /// `Rtx::InstanceRecord::mClass`. The structure's own mask says the same for every placement
+        /// but a medium's, which carries `MASK_MEDIUM` alone so that no ray ignoring it meets it; the
+        /// one ray that sums a medium asks this word instead — `candidateStops`.
+        uint mClass;
 
         /// World space to where this instance was on the previous frame, as three rows of four.
         ///
@@ -1088,7 +1096,7 @@ namespace Rtx::Shaders
     // `--scalar-block-layout` the build hands the validator.
 #ifdef RTX_HOST
     static_assert(sizeof(GpuMesh) == 24, "GpuMesh must be scalar-packed on every side");
-    static_assert(sizeof(GpuInstance) == 60, "GpuInstance must be scalar-packed on every side");
+    static_assert(sizeof(GpuInstance) == 64, "GpuInstance must be scalar-packed on every side");
     static_assert(sizeof(GpuLight) == 40, "GpuLight must be scalar-packed on every side");
     static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 64, "GpuLayer must be scalar-packed on every side");

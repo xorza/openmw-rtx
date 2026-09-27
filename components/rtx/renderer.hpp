@@ -362,6 +362,11 @@ namespace Rtx
         /// settings-change call and not a frame one.
         virtual void setVerticalSync(SDLUtil::VSyncMode mode) = 0;
 
+        /// `RenderProfile::mAnisotropy`, changed while the frames run: a menu change. Every
+        /// texture's descriptors are written again into each copy of a scene's set, at the
+        /// placement that next writes that copy.
+        virtual void setAnisotropy(std::uint32_t anisotropy) = 0;
+
         /// Whether presents are paced by the driver: a window, a driver that paces, and a present
         /// mode the surface paces under. Asked every frame, because a change of present mode
         /// moves the answer; a renderer that answers no is paced by whoever calls it.

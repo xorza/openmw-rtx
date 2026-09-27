@@ -223,8 +223,13 @@ vec2 skyMotionOf(uvec2 pixel, vec3 direction)
 /// nearer in depth than its distance says — and an upscaler comparing this against its own
 /// reprojection would find every corner disagreeing.
 ///
-/// `far / (far - near) * (1 - near / z)`, which is zero at the near plane and one at the far one.
-/// A miss writes one: nothing is further away than the end of the world.
+/// **Reversed: one at the near plane and nought at the far one**, `near (far - z) / (z (far - near))`,
+/// which is the same projection read from the other end. A float holds a value near nought far more
+/// finely than one near one, and a perspective depth spends its range close to the eye, so the
+/// standard form left the far half of the world a few thousand steps: at a hundred thousand units a
+/// step was six hundred units deep. Reversed, the float's exponent follows `1 / z` and a step is a
+/// ten-millionth of the distance at any depth. NGX is told so (`DepthInverted`, `dlsspass.cpp`).
+/// A miss writes nought: nothing is further away than the end of the world.
 float clipDepth(vec3 direction, float along)
 {
     const float z = dot(direction, frame.mCamera.mForward) * along;
@@ -232,11 +237,12 @@ float clipDepth(vec3 direction, float along)
     // A parallel projection's depth is linear in that distance; it is the perspective divide that
     // makes the expression below the shape it is.
     if (frame.mCamera.mOrthographic != 0u)
-        return clamp((z - frame.mNear) / (frame.mFar - frame.mNear), 0.0, 1.0);
+        return clamp((frame.mFar - z) / (frame.mFar - frame.mNear), 0.0, 1.0);
 
-    // A surface at or short of the near plane writes nought: `z` is held at the plane, where the
-    // expression is exactly nought, and the divide by nothing goes with it.
-    return frame.mFar / (frame.mFar - frame.mNear) * (1.0 - frame.mNear / max(z, frame.mNear));
+    // A surface at or short of the near plane writes one: `z` is held at the plane, where the
+    // expression is exactly one, and the divide by nothing goes with it.
+    const float held = max(z, frame.mNear);
+    return frame.mNear * (frame.mFar - held) / (held * (frame.mFar - frame.mNear));
 }
 
 #endif

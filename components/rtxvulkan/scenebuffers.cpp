@@ -322,6 +322,7 @@ namespace Rtx
             const MeshInstance& placed = placements[at].mInstance;
             row.mMaterial = placed.mMaterial == sNoIndex ? sentinel : placed.mMaterial;
             row.mOpacity = placed.mOpacity;
+            row.mClass = record.mClass;
 
             for (int r = 0; r < 3; ++r)
                 row.mMotion[r] = osg::Vec4f(record.mMotion.mRows[r][0], record.mMotion.mRows[r][1],

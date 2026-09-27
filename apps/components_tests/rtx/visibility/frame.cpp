@@ -558,10 +558,10 @@ namespace Rtx::Testing
 
         /// The two answers the depth channel carries, against hand-computed values for both.
         ///
-        /// **Clip depth in `r`, for an upscaler.** `far / (far - near) * (1 - near / z)`, zero at the
-        /// near plane and one at the far one. The numbers here: near is 1 and far is 100,000, so a
-        /// wall 200 units off reads `1.00001 * (1 - 1/200) = 0.995`, and one at 400 reads
-        /// `1.00001 * (1 - 1/400) = 0.9975`. Most of the range is spent within a few units of the
+        /// **Clip depth in `r`, for an upscaler**, reversed: `near (far - z) / (z (far - near))`, one at
+        /// the near plane and nought at the far one. The numbers here: near is 1 and far is 100,000,
+        /// so a wall 200 units off reads `99,800 / (200 * 99,999) = 0.0049900`, and one at 400 reads
+        /// `99,600 / (400 * 99,999) = 0.0024900`. Most of the range is spent within a few units of the
         /// eye, which is exactly why the filter reads the second channel instead.
         ///
         /// **Distance from the eye in `g`, for the filter.** In world units, along the ray.
@@ -580,7 +580,7 @@ namespace Rtx::Testing
             constexpr float far = 100000.0f;
             constexpr float near = 1.0f;
 
-            const auto expected = [](float z) { return far / (far - near) * (1.0f - near / z); };
+            const auto expected = [](float z) { return near * (far - z) / (z * (far - near)); };
 
             // Two floats a pixel: clip depth, then distance from the eye.
             constexpr std::size_t stride = 2;
@@ -610,13 +610,13 @@ namespace Rtx::Testing
                 const std::vector<float> depth = depthOf(away);
                 ASSERT_EQ(depth.size(), std::size_t{ size } * size * stride);
 
-                EXPECT_NEAR(depth[centre], expected(away), 1e-5f) << "at " << away;
+                EXPECT_NEAR(depth[centre], expected(away), expected(away) * 1e-5f) << "at " << away;
 
                 // The corner sees the same plane, so it must read the same depth even though it is
                 // a good deal further from the eye. Reading the ray's own length instead would put
-                // this at `expected(away / cos)`, which at this field of view is a whole 0.00002
-                // out — small, and exactly the kind of small that makes an upscaler shimmer.
-                EXPECT_NEAR(depth[corner], depth[centre], 1e-6f) << "the corner of the same wall";
+                // this at `expected(away / cos)`, which at this field of view is a fifth of the value
+                // out — the kind of error that makes an upscaler shimmer at every corner.
+                EXPECT_NEAR(depth[corner], depth[centre], depth[centre] * 1e-5f) << "the corner of the same wall";
 
                 // And the second channel is the reading the first is not: the corner really is
                 // further away, by the cosine the depth deliberately divides out.
@@ -639,7 +639,7 @@ namespace Rtx::Testing
                 mRenderer.readChannel(Channel::Depth, depth);
                 for (std::size_t i = 0; i < depth.size(); i += stride)
                 {
-                    ASSERT_EQ(depth[i], 1.0f) << "clip depth at " << i / stride;
+                    ASSERT_EQ(depth[i], 0.0f) << "clip depth at " << i / stride;
                     ASSERT_EQ(depth[i + 1], far) << "distance at " << i / stride;
                 }
             }

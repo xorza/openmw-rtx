@@ -108,8 +108,8 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
     // passes one, and the walk of the tile's sprites it took to find the bound cost this launch a
     // tenth to a fifth of a millisecond more than the longer query it saved, at 2560 by 1440.
     const float distance = arms ? imageLoad(depth, ivec2(traced)).y
-                                : surfaceWithin(origin, direction, 0.0, frame.mFar, cone.mWidth, cone.mSpread,
-                                    worldMask(frame.mRayMask), true, true);
+                                : surfaceWithin(WorldRay(origin, direction), 0.0, frame.mFar, cone,
+                                    RayRule(worldMask(frame.mRayMask), true, true));
 
     // The sprites' shape, and where they stand, off this pixel's own march.
     PuffLayer layer = spritesAlong(binned, origin, direction, distance, cone, false);
@@ -185,7 +185,7 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
     // puff a few units out must not take two hundred units of haze away with it. The near half is
     // read again as the whole one's own prefix, and the clamp is what a pair quantised apart by a
     // froxel slice can need.
-    const vec3 airBefore = opacity > 0.0 ? fogAlong(traced, origin, direction, layer.mCoveredAt).xyz : vec3(0.0);
+    const vec3 airBefore = opacity > 0.0 ? fogAlong(traced, WorldRay(origin, direction), layer.mCoveredAt).xyz : vec3(0.0);
 
     const vec3 composited
         = airBefore + layer.mColour * opacity + layer.mAdded + layer.mTransmittance * max(before.rgb - airBefore, vec3(0.0));

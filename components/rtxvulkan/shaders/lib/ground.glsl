@@ -51,8 +51,7 @@ float paintedLight(uint slot, vec2 at)
     return shadingFactor(textureLod(shadingMaps[nonuniformEXT(slot)], at, 0.0).r);
 }
 
-/// A texture's albedo at `at`, read at `lod`, with the light painted into it divided back out by
-/// `delight` of the estimate.
+/// `texel`, read from `slot` at `at`, with `delight` of the light painted into it divided back out.
 ///
 /// **A texture drawn for a renderer with no bounce has the bounce drawn into it** — occlusion in
 /// the corners, a highlight along a rim, the glow a lamp throws on the wall behind it. Lighting it
@@ -62,9 +61,8 @@ float paintedLight(uint slot, vec2 at)
 /// Only where an albedo is being read. The same sampler serves a cutout's mask, which is alpha and
 /// unaffected, and an emissive map, which is light rather than a surface and must keep what it was
 /// painted with.
-vec3 sampleAlbedoLod(uint slot, vec2 at, float lod, float delight)
+vec3 delitTexel(uint slot, vec2 at, vec3 texel, float delight)
 {
-    const vec3 texel = textureLod(textures[nonuniformEXT(slot)], at, lod).rgb;
     if (delight <= 0.0)
         return texel;
 
@@ -79,19 +77,19 @@ bool layerAuthored(GpuLayer layer, TexelTable texels)
     return (layer.mFlags & LAYER_AUTHORED) != 0u && holdsTexture(texels, layer.mDiffuse);
 }
 
-/// What one layer shows at `at`, read at `lod`: its albedo in rgb and its perceptual roughness in
-/// alpha. **An authored layer** is read as it stands, its alpha its roughness; **any other** has
+/// What one layer shows where `texel` was read from it, at `at`: its albedo in rgb and its
+/// perceptual roughness in alpha. **An authored layer** is read as it stands, its alpha its roughness; **any other** has
 /// `delight` of its painted light divided out and is a Lambert layer, as rough as a surface is. The
 /// two readers of a stack call this and nothing else for a layer, so a flattened chunk is the stack
 /// it replaces.
 ///
 /// @param authored `layerAuthored`, which the trace asks only where `HAS_MAPS` says a layer can be.
-vec4 layerTexel(GpuLayer layer, vec2 at, float lod, float delight, bool authored)
+vec4 layerTexel(GpuLayer layer, vec2 at, vec4 texel, float delight, bool authored)
 {
     if (authored)
-        return textureLod(textures[nonuniformEXT(layer.mDiffuse)], at, lod);
+        return texel;
 
-    return vec4(sampleAlbedoLod(layer.mDiffuse, at, lod, delight), 1.0);
+    return vec4(delitTexel(layer.mDiffuse, at, texel.rgb, delight), 1.0);
 }
 
 /// Where `chunkUv` of a chunk lands on one of its layers, which tiles across it.

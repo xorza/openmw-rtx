@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -151,12 +152,24 @@ namespace Rtx
         /// The layout every array declares, sized to the maximum and not to the scene, because a
         /// pipeline outlives a cell and two set layouts are compatible only where they are
         /// identically defined. The maximum costs a few hundred kilobytes of pool, paid once.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 2> sBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 3> sBindings{
             VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_IMAGES, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 Shaders::TEXTURE_SLOTS, sStages },
             VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_SHADING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 Shaders::TEXTURE_SLOTS, sStages },
+            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_ALONG, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                Shaders::TEXTURE_SLOTS, sStages },
         };
+
+        /// One footprint sampler per `TextureWrap`, indexed by it, filtering by `anisotropy`.
+        std::array<Sampler, sTextureWrapCount> makeFootprintSamplers(
+            const Device& device, const std::uint32_t anisotropy)
+        {
+            return { makeFootprintSampler(device, "textures along repeating", TextureWrap::Repeat, anisotropy),
+                makeFootprintSampler(device, "textures along clamped along s", TextureWrap::ClampS, anisotropy),
+                makeFootprintSampler(device, "textures along clamped along t", TextureWrap::ClampT, anisotropy),
+                makeFootprintSampler(device, "textures along clamped", TextureWrap::Clamp, anisotropy) };
+        }
 
         constexpr VkImageUsageFlags sUploaded = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         constexpr VkImageUsageFlags sWritten = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -393,7 +406,7 @@ namespace Rtx
         // descriptor, and a slot nothing has described is a slot no material names.
         constexpr VkDescriptorBindingFlags sBound
             = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
-        constexpr std::array<VkDescriptorBindingFlags, 2> flags{ sBound, sBound };
+        constexpr std::array<VkDescriptorBindingFlags, 3> flags{ sBound, sBound, sBound };
         const VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
             .bindingCount = static_cast<std::uint32_t>(flags.size()),
@@ -405,13 +418,14 @@ namespace Rtx
     }
 
     TextureArray::TextureArray(const Device& device, Batch& batch, const SetLayout& layout, const TexturePasses& passes,
-        const std::uint32_t slots)
+        const std::uint32_t slots, const std::uint32_t anisotropy)
         : mDevice(device)
         , mPasses(passes)
         , mSamplers{ makeContentSampler(device, "textures repeating", TextureWrap::Repeat),
             makeContentSampler(device, "textures clamped along s", TextureWrap::ClampS),
             makeContentSampler(device, "textures clamped along t", TextureWrap::ClampT),
             makeContentSampler(device, "textures clamped", TextureWrap::Clamp) }
+        , mFootprintSamplers(makeFootprintSamplers(device, anisotropy))
         // Allocated at the maximum the layout declares, not at what this scene brought. Sizing the
         // set to the cell is what made a texture arriving mean a new set, a new pool and every
         // image uploaded again; four thousand descriptors is a few hundred kilobytes of pool and it
@@ -721,8 +735,8 @@ namespace Rtx
         const std::span<const Index> slots = owed.getSlots();
         mImageScratch.clear();
         mWriteScratch.clear();
-        mImageScratch.reserve(2 * slots.size());
-        mWriteScratch.reserve(2 * slots.size());
+        mImageScratch.reserve(3 * slots.size());
+        mWriteScratch.reserve(3 * slots.size());
 
         const VkDescriptorSet set = mSets.get(slot.get());
         for (const Index at : slots)
@@ -734,10 +748,13 @@ namespace Rtx
             if (held.isEmpty())
                 continue;
 
-            const VkSampler sampler = mSamplers[static_cast<std::size_t>(held.getWrap())].get();
+            const std::size_t wrap = static_cast<std::size_t>(held.getWrap());
+            const VkSampler sampler = mSamplers[wrap].get();
             queueWrite(set, Shaders::TEXTURE_BIND_IMAGES, at, held.describe(sampler), mImageScratch, mWriteScratch);
             queueWrite(
                 set, Shaders::TEXTURE_BIND_SHADING, at, held.describeShading(sampler), mImageScratch, mWriteScratch);
+            queueWrite(set, Shaders::TEXTURE_BIND_ALONG, at, held.describe(mFootprintSamplers[wrap].get()),
+                mImageScratch, mWriteScratch);
         }
 
         updateSets(mDevice, mWriteScratch);
@@ -814,6 +831,23 @@ namespace Rtx
             mDevice.getGraveyard().replace(mSlots[slot].mTexture, Texture());
             mSlots[slot].mStandIn = false;
             mSlots[slot].mReduced = false;
+        }
+    }
+
+    void TextureArray::setAnisotropy(const std::uint32_t anisotropy)
+    {
+        // Held by ownership, as the graveyard holds what it has no kind for: a menu change, and
+        // the one allocation it makes is not a frame's.
+        mDevice.getGraveyard().bury(std::make_shared<std::array<Sampler, sTextureWrapCount>>(
+            std::exchange(mFootprintSamplers, makeFootprintSamplers(mDevice, anisotropy))));
+
+        // Every slot and not only those that stand: `sync` passes over a slot that holds nothing,
+        // as it does one owed and since dropped.
+        for (SlotSet& owed : mOwed.live())
+        {
+            for (std::uint32_t slot = 0; slot < mSlots.size(); ++slot)
+                owed.addMakingRoom(slot);
+            owed.addMakingRoom(Shaders::TEXTURE_NEUTRAL);
         }
     }
 

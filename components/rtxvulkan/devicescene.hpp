@@ -53,9 +53,14 @@ namespace Rtx
         /// @param skin what poses this scene's bodies, at the build and at every placement.
         /// @param passes what every texture is made with as it arrives.
         /// @param ground what flattens every chunk's stack, in the placement after it arrives.
+        /// @param anisotropy `RenderProfile::mAnisotropy`, which the textures are read along a
+        ///        footprint by.
         DeviceScene(const Device& device, Batch& batch, const SetLayout& textureLayout, const SkinPass& skin,
             const TexturePasses& passes, const GroundCompositePass& ground, const SceneDesc& scene,
-            std::span<const TextureData> textures);
+            std::span<const TextureData> textures, std::uint32_t anisotropy);
+
+        /// `TextureArray::setAnisotropy`.
+        void setAnisotropy(std::uint32_t anisotropy) { mTextures.setAnisotropy(anisotropy); }
 
         /// Takes in what the scene says arrived: the meshes where the mesh table's revision moved —
         /// the geometry blocks are appended to rather than replaced, so every address a structure

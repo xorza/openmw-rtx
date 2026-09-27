@@ -8,15 +8,22 @@
 #include "tangent.h"
 #include "bindings.glsl"
 
-/// Twice the area of a hit triangle, as a vector along its plane's normal.
+/// The triangle's two edges from its first corner, in the world. Crossed, they are twice its area
+/// along its plane's normal: normalised that is the plane, and its length is the size a cone
+/// compares its own against. Apart, they are what a footprint on the triangle is mapped onto its
+/// texture through (`surfaceConeAt`).
 ///
 /// Object to world is a rotation, a uniform scale and a translation, so a direction survives it —
-/// and the translation cancels in an edge, so the upper 3x3 is all an edge needs. One cross product
-/// then answers two questions: normalised it is the plane's normal, and its length is the size a
-/// cone has to compare its own against.
-vec3 triangleCross(vec3 corners[3], mat4x3 toWorld)
+/// and the translation cancels in an edge, so the upper 3x3 is all an edge needs.
+struct TriangleEdges
 {
-    return cross(mat3(toWorld) * (corners[1] - corners[0]), mat3(toWorld) * (corners[2] - corners[0]));
+    vec3 mFirst;
+    vec3 mSecond;
+};
+
+TriangleEdges triangleEdges(vec3 corners[3], mat4x3 toWorld)
+{
+    return TriangleEdges(mat3(toWorld) * (corners[1] - corners[0]), mat3(toWorld) * (corners[2] - corners[0]));
 }
 
 /// Where in the shared vertex buffers the three corners of a mesh's triangle are.

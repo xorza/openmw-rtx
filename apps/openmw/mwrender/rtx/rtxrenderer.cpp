@@ -98,6 +98,7 @@ namespace MWRender
             return RunSetup{
                 .mProfile = {
                     .mUpscaling = settings.mUpscaling,
+                    .mAnisotropy = settings.mAnisotropy,
                     .mExposure = std::nullopt,
                     .mRadianceWidth = Rtx::RadianceWidth::Shown,
                 },
@@ -629,7 +630,8 @@ namespace MWRender
         const bool reflex = changed.contains({ "RTX", "reflex" });
         const bool reach
             = changed.contains({ "RTX", "distant land cells" }) || changed.contains({ "Camera", "viewing distance" });
-        if (!upscale && !reflex && !reach)
+        const bool anisotropy = changed.contains({ "General", "anisotropy" });
+        if (!upscale && !reflex && !reach && !anisotropy)
             return;
 
         // What asks is somebody choosing from a menu, so a spelling no mode has is reported and
@@ -659,6 +661,9 @@ namespace MWRender
         // Handed over here and never read by a frame, so every part of a frame stands in one world.
         if (reach)
             mMirror.setReach(settings->mMirror.mReach);
+
+        if (anisotropy)
+            mRenderer->setAnisotropy(settings->mAnisotropy);
     }
 
     void RtxRenderer::setUpscale(const Rtx::Upscale upscale)

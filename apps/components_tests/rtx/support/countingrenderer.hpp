@@ -107,6 +107,7 @@ namespace Rtx::Testing
         void setVerticalSync(SDLUtil::VSyncMode) override {}
         bool pacesFrames() const override { return false; }
         void setPacing(const Rtx::Pacing&) override {}
+        void setAnisotropy(std::uint32_t) override {}
         void awaitFrame() override {}
         void endSimulation(bool) override {}
         std::optional<Rtx::LatencyReport> describeLatency() const override { return std::nullopt; }
