@@ -46,6 +46,17 @@ namespace Crash::Client
             reportAndEnd("the C runtime was given an invalid parameter");
         }
 
+        /// **Stack a thread keeps for its own stack overflow**, Windows's counterpart of the alternate
+        /// signal stack. The overflow is dispatched on the thread whose stack is spent, and where the
+        /// dispatch and Crashpad's filter need more than the guard page left, the thread faults again
+        /// and the process ends with no dump: the matrix's stack overflow on the main thread did, one
+        /// run in three. What `SetThreadStackGuarantee` reserves is there for exactly that.
+        void guaranteeStack()
+        {
+            ULONG guarantee = 64 * 1024;
+            SetThreadStackGuarantee(&guarantee);
+        }
+
         /// Where the monitor starts a thread of the game's own to ask for a hang report: Windows has
         /// no signal to take it on.
         DWORD WINAPI hangEntry(LPVOID)
@@ -54,14 +65,17 @@ namespace Crash::Client
             return 0;
         }
 
-        /// **The terminate hook on every thread**, because MSVC's runtime keeps one per thread and a
-        /// new one starts with the default, which aborts. The loader calls this in each thread it
-        /// starts, before the thread's own function; a thread started before `install` keeps the
-        /// runtime's.
+        /// **The terminate hook and the stack guarantee on every thread**, because MSVC's runtime
+        /// keeps the hook per thread and a new one starts with the default, which aborts, and the
+        /// guarantee is per thread too. The loader calls this in each thread it starts, before the
+        /// thread's own function; a thread started before `install` keeps the runtime's.
         void NTAPI onThreadStart(PVOID, DWORD reason, PVOID)
         {
             if (reason == DLL_THREAD_ATTACH && isInstalled())
+            {
                 std::set_terminate(onTerminate);
+                guaranteeStack();
+            }
         }
     }
 
@@ -80,7 +94,10 @@ namespace Crash::Client
         }
     }
 
-    void prepareInstallingThread() {}
+    void prepareInstallingThread()
+    {
+        guaranteeStack();
+    }
 
     void hookEveryEnd(Heartbeat& page)
     {
