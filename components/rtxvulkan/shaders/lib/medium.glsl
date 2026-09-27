@@ -272,8 +272,7 @@ GatheredLight gatheredLight(uvec2 pixel, vec3 origin, vec3 direction, float limi
 {
     GatheredLight lit;
     lit.mSeen = float(gathered.mCoveredAt) / float(gathered.mCoverage) * limit;
-    lit.mReaching = exp(-fogColumn(origin, direction, lit.mSeen)
-        * fogCoverageAt(origin + direction * (0.5 * lit.mSeen), max(lit.mSeen, 1.0)));
+    lit.mReaching = fogThroughLeg(origin, direction, lit.mSeen);
 
     const vec3 normal = faceforward(gathered.mCoveringNormal, direction, gathered.mCoveringNormal);
     lit.mLight = puffLight(pixel, direction, lit.mSeen, ballPuff(normal, smokeThrow(direction)));

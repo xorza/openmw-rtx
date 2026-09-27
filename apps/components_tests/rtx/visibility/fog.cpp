@@ -149,6 +149,64 @@ namespace Rtx::Testing
                 EXPECT_EQ(level, int{ encodeSrgb(wall) }) << "with no fog in the cell";
         }
 
+        /// What the water shows fades through the air its ray crosses to get there, as that thing
+        /// would fade seen across the same air directly.
+        ///
+        /// **The froxel volume holds the eye's rays and no other**, so a leg a surface sends on
+        /// was charged no air at all: across a fogged bay the far shore showed in the water under a
+        /// wall of fog that hid the shore itself — Seyda Neen's harbour at noon.
+        ///
+        /// **An emissive ceiling two hundred units over flat water, at two brightnesses**, so that
+        /// what the ceiling puts into the pixel is the difference of the two, and the water's own
+        /// column and its Fresnel share cancel out of it. Through even air of `sigma` that
+        /// difference is the airless one times the air's transmittance over the whole path the
+        /// ceiling's light takes. The haze is the sky's own grey, so what the air scatters in is the
+        /// same above either ceiling and cancels too; and the layer is lifted so high that its
+        /// falloff over two hundred units is under a hundred-thousandth.
+        ///
+        /// Twice: a unit above the water looking down, the reflection, where the light crosses the
+        /// two hundred to the water and the eye's unit of air after it, `exp(-sigma * 201)`; and a
+        /// unit below looking up through Snell's window, the refraction, where it crosses the two
+        /// hundred and then water, `exp(-sigma * 200)`.
+        TEST_F(RtxVisibilityTest, whatTheWaterShowsFadesThroughTheAirItsRayCrosses)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr float sigma = 2.0e-3f;
+
+            struct Row
+            {
+                const char* mWhat;
+                float mEye;
+                float mAir;
+            };
+
+            for (const Row row : { Row{ "the reflection", 1.0f, 201.0f }, Row{ "the refraction", -1.0f, 200.0f } })
+            {
+                const auto shown = [&](float extinction, float glow) {
+                    SceneDesc scene = makeOpenWater(4000.0f);
+                    addQuad(scene, sheetAt(4000.0f, 200.0f),
+                        scene.addMaterial(
+                            Material{ .mEmissiveColour = osg::Vec3f(glow, glow, glow), .mTwoSided = true }));
+
+                    Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(0.0f, -0.01f, row.mEye),
+                        osg::Vec3f(0.0f, 0.0f, row.mEye > 0.0f ? 0.0f : 200.0f), 60.0f, size, size, 100000.0f);
+                    litThroughFog(camera, extinction, 0.0f);
+                    camera.mFogColour = camera.mSkyHorizon;
+                    camera.mFogLift = 1.0e4f;
+
+                    return shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } })
+                        .at(centre);
+                };
+
+                const float clear = shown(0.0f, 2.0f) - shown(0.0f, 1.0f);
+                const float fogged = shown(sigma, 2.0f) - shown(sigma, 1.0f);
+                ASSERT_GT(clear, 1.0e-3f) << row.mWhat << " shows nothing of the ceiling";
+
+                EXPECT_NEAR(fogged / clear, std::exp(-sigma * row.mAir), 0.01f) << row.mWhat;
+            }
+        }
+
         /// The fog layer sits on the water, thins with height above it, and stops at the surface.
         ///
         /// Fog gathers over water and drains off high ground, so the level a cell records is where

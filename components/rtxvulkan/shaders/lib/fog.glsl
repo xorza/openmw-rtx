@@ -697,6 +697,17 @@ vec3 lampsInAir(inout Reservoir kept, inout uint state, vec3 origin, vec3 direct
     return scattered;
 }
 
+/// How much of the edge's ramp a ray has crossed by `distance` of range from the eye, as a share of
+/// the whole: the integral of `exp(range / FOG_EDGE_RAMP)`, normalised to one where the ground
+/// stops. Clamped at the reach, since past it there is no more world to hide and a sky ray carries
+/// its length — `mFar` for the eye's own, `mReach` for the rest — rather than a distance to
+/// anything. Nought exactly at the eye.
+float fogEdgeCrossed(float distance)
+{
+    const float range = min(distance, frame.mFogEdge) / frame.mFogEdge;
+    return (exp(range / FOG_EDGE_RAMP) - 1.0) / (exp(1.0 / FOG_EDGE_RAMP) - 1.0);
+}
+
 /// What the far end of the world takes out of what is behind it, and what it puts in on the way.
 ///
 /// **The second element of the air, and it is about this renderer rather than about the weather.**
@@ -720,7 +731,10 @@ vec3 lampsInAir(inout Reservoir kept, inout uint state, vec3 origin, vec3 direct
 /// above it the gradient is what a ray that reaches nothing already comes back with. So this term
 /// converges the world's edge onto exactly the sky beside it, and leaves that sky where it was
 /// instead of flattening its lower half toward the horizon.
-vec4 fogEdgeAlong(vec3 origin, vec3 direction, float distance)
+///
+/// **Over the stretch of a ray from `from` to `to` of range from the eye**: the eye's own ray
+/// from nought, and a leg a surface sent on from the range the eye's ray had already come.
+vec4 fogEdgeOver(vec3 direction, float from, float to)
 {
     // A room has no edge to hide, and neither has a test that did not ask for one.
     if (!(frame.mFogEdge > 0.0))
@@ -734,19 +748,50 @@ vec4 fogEdgeAlong(vec3 origin, vec3 direction, float distance)
     if (!(rise > 0.0))
         return vec4(0.0, 0.0, 0.0, 1.0);
 
-    // Clamped at the reach, since past it there is no more world to hide and a sky ray carries
-    // its length — `mFar` for the eye's own, `mReach` for the rest — rather than a distance to
-    // anything.
-    const float range = min(distance, frame.mFogEdge) / frame.mFogEdge;
-
-    // The integral of `exp(range / FOG_EDGE_RAMP)`, normalised to one where the ground stops, so a
-    // ray that ends short of the edge is charged for exactly the part of the ramp it crossed.
-    const float crossed = (exp(range / FOG_EDGE_RAMP) - 1.0) / (exp(1.0 / FOG_EDGE_RAMP) - 1.0);
+    // A ray that ends short of the edge is charged for exactly the part of the ramp it crossed.
+    const float crossed = fogEdgeCrossed(to) - fogEdgeCrossed(from);
 
     const float transmittance = pow(FOG_EDGE_TRANSMITTANCE, rise * crossed);
     const vec3 haze = skyGradient(frame.mSkyHorizon, frame.mSkyZenith, direction);
 
     return vec4(haze * (1.0 - transmittance), transmittance);
+}
+
+/// The edge along the eye's own ray, from where it stands.
+vec4 fogEdgeAlong(vec3 origin, vec3 direction, float distance)
+{
+    return fogEdgeOver(direction, 0.0, distance);
+}
+
+/// What the weather's air lets through along `span` of a ray the eye did not cast — one a surface
+/// sent on — and the band's share of it read once, at the stretch's middle: the closed form the
+/// cloud's shells and the puffs are charged by, because the froxel volume holds the eye's rays and
+/// no other.
+float fogThroughLeg(vec3 origin, vec3 direction, float span)
+{
+    return exp(-fogColumn(origin, direction, span) * fogCoverageAt(origin + direction * (0.5 * span), max(span, 1.0)));
+}
+
+/// The air along a ray the eye did not cast, over `span` of it: what a mirror sees across, which
+/// the eye's own air in front of the mirror does not cover. `fogAlong`'s answer for that leg, in its
+/// form — scattered in along the way in `xyz`, the transmittance in `w`.
+///
+/// **What scatters in is the weather's own colour**, the ambient half of what the volume holds,
+/// and not the sun's or the lamps': what those send along a ray is a question of shadow at every
+/// point, which a leg cannot ask of froxels only the eye's rays fill. By day the ambient is most of
+/// a haze seen across the water, and it is the colour a far shore fades into when the eye sees it
+/// directly — so what the eye cannot see through the air, the water does not show it either.
+///
+/// **And the world's edge beyond it**, over the range this leg adds to the `before` the eye's ray
+/// had come, so a mirror shows no more of the ring than the eye's own ray would.
+vec4 fogAlongLeg(vec3 origin, vec3 direction, float span, float before)
+{
+    const float through = fogThroughLeg(origin, direction, span);
+    const vec4 weather = vec4(frame.mFogColour * (1.0 - through), through);
+
+    const vec4 edge = fogEdgeOver(direction, before, before + span);
+
+    return vec4(weather.xyz + weather.w * edge.xyz, weather.w * edge.w);
 }
 
 /// The air between the eye and everything else: the weather's, and the world's own edge beyond it.
@@ -790,6 +835,12 @@ vec4 fogAlong(uvec2 pixel, vec3 origin, vec3 direction, float distance)
     const vec4 edge = fogEdgeAlong(origin, direction, distance);
 
     return vec4(weather.xyz + weather.w * edge.xyz, weather.w * edge.w);
+}
+
+/// `radiance` seen through the air `air` holds — `fogAlong`'s form, and `fogAlongLeg`'s.
+vec3 throughAir(vec3 radiance, vec4 air)
+{
+    return radiance * air.w + air.xyz;
 }
 
 #endif
