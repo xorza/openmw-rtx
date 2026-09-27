@@ -294,25 +294,28 @@ namespace Rtx
                 << "an untextured surface's stand-in";
         }
 
-        /// What OpenSceneGraph allocates for one level of `spelling`, which is what `allocateImage`
-        /// takes. Ubuntu's 3.6.5 counts a two-by-two BC3 by its texels, four bytes of the sixteen it is
-        /// stored in, and the desk's `getTotalSizeInBytes` says four where it allocated sixteen.
-        std::size_t allocatedBytes(GLenum spelling, std::uint32_t width, std::uint32_t height)
+        /// How many bytes OpenSceneGraph counts in one level of `spelling`, which `describeImage` holds
+        /// an image's levels to.
+        std::size_t countedBytes(GLenum spelling, std::uint32_t width, std::uint32_t height)
         {
             return osg::Image::computeImageSizeInBytes(
                 static_cast<int>(width), static_cast<int>(height), 1, spelling, GL_UNSIGNED_BYTE, 1);
         }
 
         /// One block of `spelling`, `width` by `height` texels of it in the image — fewer than four
-        /// where the block pads past the picture's edge, which a BC file two texels wide does. As
-        /// much of the block as OpenSceneGraph allocates.
+        /// where the block pads past the picture's edge, which a BC file two texels wide does. The
+        /// block is handed over whole, as the DDS loader hands over a file's: `allocateImage` counts
+        /// a level under four texels a side by its texels, four bytes of a two-by-two BC3's sixteen.
         osg::ref_ptr<osg::Image> makeBlockImage(
             GLenum spelling, std::uint32_t width, std::uint32_t height, std::initializer_list<std::uint8_t> bytes)
         {
+            auto* const data = new unsigned char[bytes.size()];
+            std::copy(bytes.begin(), bytes.end(), data);
+
             osg::ref_ptr<osg::Image> image = new osg::Image;
             image->setFileName("block.dds");
-            image->allocateImage(static_cast<int>(width), static_cast<int>(height), 1, spelling, GL_UNSIGNED_BYTE, 1);
-            std::copy_n(bytes.begin(), std::min(bytes.size(), allocatedBytes(spelling, width, height)), image->data());
+            image->setImage(static_cast<int>(width), static_cast<int>(height), 1, static_cast<GLint>(spelling),
+                spelling, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
             return image;
         }
 
@@ -346,7 +349,7 @@ namespace Rtx
 
             // Where OpenSceneGraph counts the level short of its block, `describeImage` refuses the
             // image, and a refused image answers what changes nothing about how the surface is traced.
-            const bool wholeBlock = allocatedBytes(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2) == 16;
+            const bool wholeBlock = countedBytes(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2) == 16;
             EXPECT_EQ(reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2,
                                        { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }),
                           scratch),
