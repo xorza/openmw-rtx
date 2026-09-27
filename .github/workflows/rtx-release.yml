@@ -48,13 +48,9 @@ jobs:
         with:
           cache: "false"
 
-      - uses: $/.github/actions/rtx-sdks
-        with:
-          cache: "false"
-
       - name: Package
         # Named after the ref, so a tag names its archives and a run by hand names the branch.
-        run: apps/rtxtool/rtx package archive "$GITHUB_REF_NAME"
+        run: python omw archive "$GITHUB_REF_NAME"
 
       - name: Archive
         # `dist` whole, so the folder keeps its name inside the zip GitHub wraps around the artifact,

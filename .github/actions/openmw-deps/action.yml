@@ -1,19 +1,29 @@
-# What every build of the tree takes from its system before `rtx` configures it: upstream's
-# package list on Linux, plus what `rtx` asks for there, and on Windows the cache of what `rtx`
-# fetches into deps/ — upstream's prebuilt set, SDL's own package and Qt — at its first configure.
+# What every build of the tree takes from its system before `omw` configures it: the Python `omw` runs
+# on, upstream's package list on Linux with what `omw` asks for there, the cache of what `omw` fetches
+# into deps/, and, for the builds of the ray tracer, `omw bootstrap`: the Vulkan SDK and NGX, fetched
+# the way a fresh desk fetches them.
 name: OpenMW dependencies
-description: The packages a build of the tree needs, per system.
+description: The packages and SDKs a build of the tree needs, per system.
 
 inputs:
+  sdks:
+    description: Whether to fetch the Vulkan SDK and NGX, which only the ray tracer's builds read.
+    default: "true"
   cache:
-    description: Whether to restore and save the Windows dependency cache; false for a release.
+    description: Whether to restore and save the deps/ cache; false for a release.
     default: "true"
 
 runs:
   using: composite
   steps:
+    - name: Python
+      # The oldest Python `omw` supports, so a feature of a later one fails here and not on a desk.
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: "3.11"
+
     - name: Linux packages
-      # Upstream's own list, plus what rtx asks for: Ninja and the system Google Test, and for the
+      # Upstream's own list, plus what `omw` asks for: Ninja and the system Google Test, and for the
       # archive, Qt's Wayland platform and zsync — a few seconds on every run, so a job that packages
       # needs nothing of its own.
       if: runner.os == 'Linux'
@@ -24,13 +34,30 @@ runs:
         sudo CI/install_debian_deps.sh gcc openmw-deps openmw-deps-dynamic
         sudo apt-get install -y ninja-build libgtest-dev libgmock-dev qt6-wayland zsync
 
+    - name: Vulkan SDK cache
+      # On Linux, the SDK alone: the rest of deps/ is small, or fetched by one job only.
+      if: runner.os == 'Linux' && inputs.sdks == 'true' && inputs.cache == 'true'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: deps/vulkan-sdk-*
+        key: vulkan-sdk-${{ runner.os }}-${{ hashFiles('tools/omw/pins.py') }}
+
     - name: Windows dependencies cache
-      # The key names the tags upstream pins and the file `rtx` pins the rest in, so a bump of either
-      # saves afresh; an older cache is restored all the same, because `rtx` judges each set by the
-      # directory it leaves and fetches only what a bump changed.
+      # Everything `omw` fetches into deps/ on Windows — upstream's prebuilt set, SDL's own package, Qt
+      # and the Vulkan SDK — but NGX, which a clone brings as fast as a cache would. The key names the
+      # tags upstream pins and the file `omw` pins the rest in, so a bump of either saves afresh; an
+      # older cache is restored all the same, because `omw` judges each thing by the directory it
+      # leaves and fetches only what a bump changed.
       if: runner.os == 'Windows' && inputs.cache == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: deps
-        key: deps-${{ runner.os }}-${{ hashFiles('CI/deps_versions.msvc.sh', 'apps/rtxtool/pins.sh') }}
+        path: |
+          deps
+          !deps/dlss-*
+        key: deps-${{ runner.os }}-${{ hashFiles('CI/deps_versions.msvc.sh', 'tools/omw/pins.py') }}
         restore-keys: deps-${{ runner.os }}-
+
+    - name: The Vulkan SDK and NGX
+      if: inputs.sdks == 'true'
+      shell: bash
+      run: python omw bootstrap

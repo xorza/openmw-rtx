@@ -7,7 +7,7 @@
 #include "spirvdigest.hpp"
 
 // `openmw-rtx-spirv-digest`: `Rtx::digestProgram` of the disassembly on standard input, as 32 hex
-// digits — what `rtx <flavour> kernels` hashes each specialized kernel by.
+// digits — what `omw kernels` hashes each specialized kernel by.
 
 int main(int argc, char* /*argv*/[])
 {

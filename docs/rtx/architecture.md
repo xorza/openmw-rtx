@@ -119,9 +119,9 @@ headers are `components/rtx/shaders/*.h`. Validation layers are on outside a Rel
 (`Rtx::sValidationByDefault`); `OPENMW_RTX_SYNC_VALIDATION` and `OPENMW_RTX_GPU_VALIDATION`
 raise the level at run time.
 
-`CMakePresets.json` names the flavours `debug`, `release`, `asan` and `nodlss`, per system.
-`apps/rtxtool/rtx <flavour> <build|test|game|repeat|kernels|gate|verb>` is the one command line over
-them.
+`CMakePresets.json` names the flavours `debug`, `release`, `asan`, `nodlss`, `package` and `plain`,
+per system, and the test presets beside them. `./omw [flavour] <verb>` at the root is the one command
+line over them, on the desk and in CI: its code is `tools/omw`, and `./omw help` lists the verbs.
 
 ---
 
@@ -1230,10 +1230,11 @@ thread, and what it kept was that thread's timing.
 | `rtx-gpu-tests`    |                          | what opens a device; fails outright without one                                |
 | `openmw-tests`     | `Rtx*`                   | the game side: the renderer, the mirror, the terrain, the frame description     |
 
-`rtx <flavour> test` runs the four. `rtx <flavour> gate` runs everything a change owes.
+`cmake/Tests.cmake` registers the four with CTest, labelled `fork`, `upstream` and `device`, and
+`omw test` runs the fork's. `omw gate` runs everything a change owes.
 Rendering changes are checked without a window: `shot --views=all --map --against=<dir>` says
-which pictures moved, and `rtx <flavour> repeat --pairs=N` says whether two runs of one binary
-draw one frame. `rtx <flavour> kernels --against=<listing>` says which kernels a change moved, per
+which pictures moved, and `omw repeat --pairs=N` says whether two runs of one binary
+draw one frame. `omw kernels --against=<listing>` says which kernels a change moved, per
 tuple of their constants, from the modules alone: a tuple that did not move is the same program.
 Each tuple is digested by `openmw-rtx-spirv-digest` (`Rtx::digestProgram`), which names a global
 by what it is and an id a function defines by where it is defined, so neither a renumbering nor
@@ -1270,8 +1271,8 @@ the order declarations came in moves a digest.
 | the settings pages                             | `mwgui/settingswindow.cpp`, `apps/launcher/graphicspage.cpp`, `files/data/mygui/openmw_settings_window.layout` |
 | the two hosts                                  | `mwrender/rtx/rtxrun.hpp`, `apps/rtxtool/session.hpp` |
 | the settings a player sees                     | `docs/source/reference/modding/settings/rtx.rst`, `files/settings-default.cfg` |
-| the build                                      | `components/rtx/build.cmake`, `components/rtxvulkan/CMakeLists.txt`, `CMakePresets.json`, `apps/rtxtool/rtx` |
+| the build                                      | `components/rtx/build.cmake`, `components/rtxvulkan/CMakeLists.txt`, `CMakePresets.json`, `cmake/Tests.cmake`, `tools/omw` |
 | the driver's cache of a shader set             | `apps/rtxtool/instruments/drivercache.hpp`, `components/rtx/shaderdirectory.hpp` |
 | the pinned float arithmetic of every shader    | `components/rtxvulkan/spirvpin.hpp`, `components/rtx/shaders/pinning.h`  |
-| which kernels a change moved                   | `apps/rtxtool/rtx` (`kernels`), `components/rtxvulkan/spirvdigest.hpp`   |
+| which kernels a change moved                   | `tools/omw/kernels.py`, `components/rtxvulkan/spirvdigest.hpp`   |
 | the words                                      | `components/rtx/GLOSSARY.md`                                             |

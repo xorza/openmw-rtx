@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+"""The one way in, on the desk and in CI: `omw [flavour] <verb> [args]`, `omw help` for the rest.
+The driver is `tools/omw`, standard library only; `omw.cmd` beside this starts it from cmd and
+PowerShell, where `python3` names nothing."""
+
+import sys
+from pathlib import Path
+
+if sys.version_info < (3, 11):
+    sys.exit(f"omw: Python 3.11 or later, and this is {sys.version.split()[0]}")
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
+
+from omw.main import main  # noqa: E402
+
+sys.exit(main(sys.argv[1:]))

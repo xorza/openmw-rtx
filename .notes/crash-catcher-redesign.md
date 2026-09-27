@@ -38,11 +38,11 @@ What was built, and where it departs from the plan below:
 - **The dialog** shows where upstream's fatal-error box shows: always on Windows, and on POSIX
   when stdin is not a terminal. `OPENMW_CRASH_DIALOG=0` turns it off, and `openmw-rtxtool` sets it.
 - **FreeBSD** gets no catcher: `install` says so in the log. It does not keep the legacy path.
-- **Symbols:** the package presets add `-g1`, and `-Z7 -DEBUG` on Windows. `rtx package archive`
-  writes `openmw-<name>-<system>-symbols.zip` with `dump_syms` 2.3.9. `rtx package crash <dump>`
+- **Symbols:** the package presets add `-g1`, and `-Z7 -DEBUG` on Windows. `omw archive`
+  writes `openmw-<name>-<system>-symbols.zip` with `dump_syms` 2.3.9. `omw crash <dump>`
   reads a dump with `minidump-stackwalk` 0.27.0. Both tools are pinned in `pins.sh`.
 - **Tests:** `CrashNoteTest` and `CrashSummaryTest` in `components-tests`, and `crash-tests
-  --matrix`, which `rtx <flavour> test` runs. The matrix checks twelve modes on Linux (fourteen on
+  --matrix`, which `omw test` runs. The matrix checks twelve modes on Linux (fourteen on
   Windows), each in its own process with the real catcher.
 
 Not built yet:
