@@ -24,7 +24,7 @@ namespace Rtx
     public:
         /// Starts the runtime. Throws `Unsupported` where NGX says this machine cannot run it,
         /// after letting the runtime go, so that a machine that gains a driver need not be restarted
-        /// twice and a second attempt is not refused by the one-runtime-per-process rule.
+        /// twice and a second attempt on this device is not refused as a runtime already up.
         DlssUpscaler(const Device& device, VkInstance instance);
         ~DlssUpscaler() override;
 

@@ -79,8 +79,8 @@ namespace Rtx
     std::string describeUpscaling(const Device& device, const VkInstance instance)
     {
         // An answer rather than a runtime, which is why reporting on a device cannot disturb one:
-        // NGX keeps one runtime per process and its shutdown is unconditional, so a `Dlss` built
-        // to ask with and let go would end this renderer's the moment it left scope.
+        // NGX keeps one runtime per device, so a `Dlss` built on the renderer's device to ask with
+        // and let go would end the renderer's the moment it left scope.
         try
         {
             const DlssSupport support = Dlss::probe(device, instance);

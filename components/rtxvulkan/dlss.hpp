@@ -2,6 +2,7 @@
 
 #include <span>
 #include <string>
+#include <vector>
 
 #include <vulkan/vulkan_core.h>
 
@@ -24,13 +25,14 @@ namespace Rtx
         std::string mObstacle;
     };
 
-    /// The process's NGX runtime, and what it says this machine can do with it. Ray Reconstruction
-    /// is an upscaler that denoises across several frames from what the G-buffer already carries,
-    /// where the à-trous pass has one frame and one channel. One at a time, and the constructor
-    /// refuses a second: NGX's state is global to the process and `NVSDK_NGX_VULKAN_Shutdown` is
-    /// unconditional, so a second built to ask a question and let go again would shut down the
-    /// runtime the renderer is upscaling with — `probe` hands back an answer rather than a runtime.
-    /// Absent without `-DOPENMW_RTX_DLSS=ON`.
+    /// A device's NGX runtime, and what it says this machine can do with it. Ray Reconstruction is
+    /// an upscaler that denoises across several frames from what the G-buffer already carries,
+    /// where the à-trous pass has one frame and one channel. Absent without `-DOPENMW_RTX_DLSS=ON`.
+    ///
+    /// **One per device, and the constructor refuses a second on the same one.** NGX starts once
+    /// per device and `Shutdown1` ends that device's runtime and no other (the programming guide,
+    /// 5.7 and 7.2), so runtimes on two devices stand side by side; but a second on one device would
+    /// end the first when it went — `probe` hands back an answer rather than a runtime for that.
     class Dlss
     {
     public:
@@ -40,12 +42,12 @@ namespace Rtx
         static std::span<const char* const> getDeviceExtensions();
 
         /// Whether Ray Reconstruction can run on `device`, without leaving a runtime behind: where
-        /// one is already up this asks it, and where none is, it stands one up for the length of
-        /// the call. Throws `Unsupported` where the runtime will not come up at all.
+        /// one is already up on it this asks that one, and where none is, it stands one up for the
+        /// length of the call. Throws `Unsupported` where the runtime will not come up at all.
         static DlssSupport probe(const Device& device, VkInstance instance);
 
-        /// Starts the runtime. Throws where one is already up, on any device: there is one per
-        /// process, and a second would end the first rather than stand beside it.
+        /// Starts the runtime on `device`. Throws where one is already up on it: a second would end
+        /// the first rather than stand beside it.
         Dlss(const Device& device, VkInstance instance);
 
         ~Dlss();
@@ -66,15 +68,19 @@ namespace Rtx
         VkExtent2D getRenderSize(VkExtent2D output, Upscale upscale) const;
 
         /// The device NGX was brought up on, which is the one a feature is built for.
-        VkDevice getDevice() const { return mDevice; }
+        VkDevice getDevice() const;
 
     private:
-        /// Whichever one is up, or null. A tripwire and not an owner: nothing reads it to find
-        /// the runtime — the renderer holds that — and what it is for is making a second one a throw
-        /// instead of a silent shutdown of the first.
-        static inline Dlss* sLive = nullptr;
+        /// The runtime up on `device`, or null.
+        static const Dlss* liveOn(VkDevice device);
 
-        VkDevice mDevice = VK_NULL_HANDLE;
+        /// Every runtime that is up. A tripwire and not an owner: nothing reads it to find a
+        /// runtime to use — whoever made one holds it — and what it is for is making a second on one
+        /// device a throw instead of a silent shutdown of the first. Touched only where a runtime
+        /// starts and ends, which is never on the frame path.
+        static inline std::vector<const Dlss*> sLive;
+
+        const Device& mDevice;
         NVSDK_NGX_Parameter* mCapabilities = nullptr;
         bool mAvailable = false;
         std::string mObstacle;

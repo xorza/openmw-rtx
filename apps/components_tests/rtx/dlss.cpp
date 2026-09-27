@@ -70,14 +70,8 @@ namespace Rtx
 
         /// NGX brought up on the shared device for the length of this suite.
         ///
-        /// **One runtime, because there can only be one and it costs a quarter of a second.** NGX
-        /// keeps a single runtime per process, its shutdown is unconditional, and it belongs to the
-        /// device it was started on — so the tests below share this one rather than each standing up
-        /// its own.
-        ///
-        /// **Down with the suite and not with the binary.** A renderer asked to upscale builds a
-        /// runtime of its own, and a second is a throw — so `RtxUpscaledFrameTest` could not run
-        /// while this one was still up.
+        /// **One runtime, because a device holds one and it costs a quarter of a second**, so the
+        /// tests below share this one rather than each standing up its own.
         class RtxDlssTest : public Testing::DeviceTest
         {
         protected:
@@ -105,10 +99,10 @@ namespace Rtx
             static inline std::unique_ptr<Dlss> sNgx;
         };
 
-        /// **A second one is refused rather than made.** It would not stand beside the first: NGX
-        /// keeps one runtime per process and its shutdown is unconditional, so the second to be
-        /// destroyed would leave the first holding a feature that answers `FAIL_NotInitialized` —
-        /// which nothing else here would notice.
+        /// **A second one on the same device is refused rather than made.** It would not stand
+        /// beside the first: NGX starts once per device and `Shutdown1` ends the device's runtime,
+        /// so the second to be destroyed would leave the first holding a feature that answers
+        /// `FAIL_NotInitialized` — which nothing else here would notice.
         TEST_F(RtxDlssTest, aSecondRuntimeIsRefusedRatherThanMade)
         {
             EXPECT_THROW(Dlss(getDevice(), getInstance()), Unsupported);
@@ -294,10 +288,6 @@ namespace Rtx
             /// an 18-second suite. Every `resize`, `setUpscale`, `setScene` and `renderFrame` after
             /// the build costs single milliseconds, and the third test below is the proof that a
             /// mode and an extent can both be changed on a renderer that is already running.
-            ///
-            /// **The suite and not the binary**, which is the scope `sNgx` above keeps for the same
-            /// reason: NGX allows one runtime per process, so this renderer has to be down before
-            /// that one comes up and the other way about.
             static void SetUpTestSuite()
             {
                 RendererOptions options = Testing::describeRenderer(sBuiltWidth, sBuiltHeight);
@@ -651,6 +641,68 @@ namespace Rtx
             EXPECT_EQ(sUpscaleNames.named(sUpscaleMenu.back()), Upscale::Dlaa);
             EXPECT_EQ(upscaling->getExtents().mRenderWidth, upscaling->getExtents().mOutputWidth)
                 << "the last mode a menu offers traces every pixel it shows";
+        }
+
+        using RtxDlssRuntimeTest = Testing::DeviceTest;
+
+        /// **A runtime ends with nothing of its own left on its device**, which the programming guide
+        /// makes its owner's to see to. One that built no feature and answered one question still
+        /// leaves work there, and ended under that work, its device is lost when the process
+        /// destroys another device that stood before it: the next wait answers
+        /// `VK_ERROR_DEVICE_LOST` with an invalid write, and destroying anything after that hangs.
+        TEST_F(RtxDlssRuntimeTest, aRuntimeEndsWithNothingOfItsOwnLeftOnItsDevice)
+        {
+            std::unique_ptr<Testing::Harness> before = Testing::makeHarness(false);
+            {
+                const Dlss asked(getDevice(), mHarness.mInstance->getHandle());
+                if (asked.isAvailable())
+                    asked.getRenderSize(VkExtent2D{ 3840, 2160 }, Upscale::Performance);
+            }
+            before.reset();
+
+            ASSERT_EQ(vkDeviceWaitIdle(getDevice().getHandle()), VK_SUCCESS);
+        }
+
+        /// **Runtimes on two devices stand side by side, and each ends alone**, whichever of the
+        /// two was started first: NGX starts once per device and `Shutdown1` ends that device's
+        /// runtime and no other (the programming guide, 5.7 and 7.2). Both answer the same size for
+        /// the same GPU, and once one has gone with its device the other still builds a feature —
+        /// the call an ended runtime answers `FAIL_NotInitialized` to, where a size is only a read of
+        /// the capability map it already holds.
+        TEST_F(RtxDlssRuntimeTest, runtimesOnTwoDevicesStandSideBySideAndEachEndsAlone)
+        {
+            constexpr VkExtent2D output{ 3840, 2160 };
+
+            for (const bool besideFirst : { true, false })
+            {
+                SCOPED_TRACE(besideFirst ? "the one that ends started first" : "the one that ends started second");
+
+                std::unique_ptr<Testing::Harness> other = Testing::makeHarness(false);
+                std::optional<Dlss> beside;
+                std::optional<Dlss> kept;
+                if (besideFirst)
+                    beside.emplace(*other->mDevice, other->mInstance->getHandle());
+                kept.emplace(getDevice(), mHarness.mInstance->getHandle());
+                if (!besideFirst)
+                    beside.emplace(*other->mDevice, other->mInstance->getHandle());
+
+                if (!kept->isAvailable())
+                    GTEST_SKIP() << kept->getObstacle();
+
+                const VkExtent2D render = kept->getRenderSize(output, Upscale::Performance);
+                const VkExtent2D besideRender = beside->getRenderSize(output, Upscale::Performance);
+                EXPECT_EQ(besideRender.width, render.width);
+                EXPECT_EQ(besideRender.height, render.height);
+
+                beside.reset();
+                other.reset();
+
+                EXPECT_NO_THROW(kept->getRenderSize(output, Upscale::Performance));
+                std::unique_ptr<DlssPass> pass;
+                EXPECT_NO_THROW(getPool().submitAndWait([&](VkCommandBuffer commands) {
+                    pass = std::make_unique<DlssPass>(*kept, commands, render, output, Upscale::Performance, Preset::D);
+                })) << "the runtime left standing was ended with the other";
+            }
         }
     }
 }
