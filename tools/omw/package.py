@@ -11,7 +11,7 @@ from pathlib import Path
 
 from omw import deps
 from omw.build import Build
-from omw.system import ROOT, WINDOWS, Refusal, SYSTEM, output, require, run
+from omw.system import ROOT, SYSTEM, WINDOWS, Refusal, output, require, run
 
 DIST = ROOT / "dist"
 
@@ -90,7 +90,9 @@ def _archive_linux(build: Build, name: str) -> None:
     hooks.mkdir()
     (hooks / "osg-plugins.sh").write_text('export OSG_LIBRARY_PATH="$this_dir/usr/lib"\n')
 
-    kept = Path(tempfile.mkdtemp(prefix="AppDir.kept.", dir=ROOT))
+    kept = ROOT / "AppDir.kept"
+    shutil.rmtree(kept, ignore_errors=True)
+    kept.mkdir()
     for signed in (appdir / "usr" / "bin").glob("libnvidia-ngx-*.so.*"):
         signed.rename(kept / signed.name)
 

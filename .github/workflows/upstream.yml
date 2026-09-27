@@ -8,13 +8,14 @@
 # say so. A `git merge -X ours` would have lost upstream's change and `-X theirs` the fork's.
 #
 # **Nothing here builds.** The pull request this opens runs `ci.yml` on `pull_request`, which is
-# the whole of CI on three systems, so a build here would be the same build twice. What no hosted runner can do is the gate: it needs a card, and the body of every
-# pull request this opens says the gate has not been run.
+# the whole of CI on three systems, so a build here would be the same build twice. What no hosted
+# runner can do is the gate: it needs a card, and the body of every pull request this opens says
+# the gate has not been run.
 #
 # **Merged by CI and by nothing else.** The agent opens the pull request and stops; the last step
 # turns on auto-merge, and the `master` ruleset holds the merge until the checks of `ci.yml`
-# pass. Nobody reads a resolution before it lands, and no hosted runner
-# has a GPU, so the gate runs after the merge, on a box with a card, or not at all.
+# pass. Nobody reads a resolution before it lands, and no hosted runner has a GPU, so the gate runs
+# after the merge, on a box with a card, or not at all.
 #
 # **Only the pull request this run opened is merged.** The shell names the branch and hands the
 # name to the agent, and the last step looks up that name alone, on a branch in this repository:

@@ -12,7 +12,19 @@ import subprocess
 from pathlib import Path
 
 from omw import deps, pins, presets
-from omw.system import ROOT, SYSTEM, WINDOWS, Refusal, environment_key, jobs, msvc_environment, output, resolved, run
+from omw.system import (
+    EXE,
+    ROOT,
+    SYSTEM,
+    WINDOWS,
+    Refusal,
+    environment_key,
+    jobs,
+    msvc_environment,
+    output,
+    resolved,
+    run,
+)
 
 FLAVOURS = ("debug", "release", "asan", "nodlss", "package", "plain")
 
@@ -105,7 +117,11 @@ class Build:
         env = self.env
         digest = presets.digest(env)
         configured_from = self.dir / CONFIGURED_FROM
-        if (self.dir / "build.ninja").is_file() and configured_from.is_file() and configured_from.read_text().strip() == digest:
+        configured = configured_from.read_text().strip() if configured_from.is_file() else None
+        if (self.dir / "build.ninja").is_file() and configured == digest:
+            # What CMake wrote is brought up to date with the CMake files as Ninja would before a
+            # build, so what is asked of it before one — the tests it has — is not a stale answer.
+            run(["cmake", "--build", self.dir, "--target", "build.ninja"], env=env, stdout=subprocess.DEVNULL)
             return
 
         # Written down before the configure starts, since a fresh one that fails has already
@@ -175,13 +191,18 @@ class Build:
         return json.loads(listing).get("tests", [])
 
     def test_targets(self) -> list[str]:
-        return sorted({Path(test["command"][0]).stem for test in self.tests()})
+        """The targets the tests run, which `cmake/Tests.cmake` names on each: a test whose binary is
+        not built yet has no command in CTest's listing."""
+        return sorted({property["value"] for test in self.tests() for property in test.get("properties", [])
+                       if property["name"] == "OPENMW_TARGET"})
 
     def binary(self, name: str) -> Path:
-        return self.dir / f"{name}{'.exe' if WINDOWS else ''}"
+        return self.dir / f"{name}{EXE}"
 
-    def run_here(self, command: list, cwd: Path | None = None, **options) -> subprocess.CompletedProcess:
+    def run_here(self, command: list, cwd: Path | None = None, check: bool = False,
+                 **options) -> subprocess.CompletedProcess:
         """A command under the flavour's environment, in the build directory unless told otherwise.
         **Every run is from the build directory**, because the harness's `--resources` defaults to
         `./resources`, and the tests that read game data resolve it the way the harness does."""
-        return subprocess.run(resolved(command, self.env), cwd=cwd or self.dir, env=self.env, **options)
+        return subprocess.run(resolved(command, self.env), cwd=cwd or self.dir, env=self.env, check=check,
+                              **options)

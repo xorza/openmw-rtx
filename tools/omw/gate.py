@@ -14,13 +14,16 @@ from omw.system import ROOT, Refusal
 
 def self_test() -> bool:
     """The driver's own tests, which take a second."""
-    suite = unittest.defaultTestLoader.discover(str(ROOT / "tools" / "omw" / "tests"), top_level_dir=str(ROOT / "tools"))
+    tools = ROOT / "tools"
+    suite = unittest.defaultTestLoader.discover(str(tools / "omw" / "tests"), top_level_dir=str(tools))
     return unittest.TextTestRunner(verbosity=0).run(suite).wasSuccessful()
 
 
 def gate(build: Build, args: list[str]) -> int:
     if args:
         raise Refusal("gate takes no arguments")
+    if build.flavour == "plain":
+        raise Refusal("the gate is the ray tracer's, and the plain build has none: `omw plain test`")
     if formatting.check_format([]) != 0:
         return 1
     if not self_test():

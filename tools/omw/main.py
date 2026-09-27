@@ -100,7 +100,7 @@ def _bootstrap(args: list[str]) -> int:
 
 # Verbs no build is configured for: reading a dump or checking the format needs none, and a verb
 # that configured one first fetched a dependency set and started MSVC to read a file.
-PLAIN_VERBS: dict[str, Callable[[list[str]], int]] = {
+BUILDLESS_VERBS: dict[str, Callable[[list[str]], int]] = {
     "crash": crash.read_crash,
     "format": formatting.check_format,
     "bootstrap": _bootstrap,
@@ -128,12 +128,12 @@ def parse(argv: list[str]) -> Line:
     if verb.startswith("-"):
         raise Refusal(f"name a verb before the switches: `omw {flavour or 'debug'} view {' '.join(rest)}`")
 
-    if verb in PLAIN_VERBS:
+    if verb in BUILDLESS_VERBS:
         if flavour is not None:
             raise Refusal(f"{verb} is not made of a build, so it takes no flavour")
         return Line(None, verb, args)
     if verb not in BUILD_VERBS and verb not in HARNESS_VERBS:
-        known = [*BUILD_VERBS, *HARNESS_VERBS, *PLAIN_VERBS]
+        known = [*BUILD_VERBS, *HARNESS_VERBS, *BUILDLESS_VERBS]
         raise Refusal(f"no verb or flavour is called {verb!r}: {', '.join(known)}, or a flavour first")
     own = BUILD_VERBS[verb].flavour if verb in BUILD_VERBS else None
     if own is not None and flavour not in (None, own):
@@ -143,7 +143,7 @@ def parse(argv: list[str]) -> Line:
 
 def dispatch(line: Line) -> int:
     if line.flavour is None:
-        return PLAIN_VERBS[line.verb](line.args)
+        return BUILDLESS_VERBS[line.verb](line.args)
     build = Build(line.flavour)
     if line.verb in BUILD_VERBS:
         return BUILD_VERBS[line.verb].run(build, line.args)

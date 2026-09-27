@@ -39,12 +39,11 @@ class ParseTest(unittest.TestCase):
                 self.assertEqual(str(refused.exception), message)
 
     def test_a_word_that_is_no_verb_is_refused_before_anything_is_built(self):
-        for argv in (["debgu", "test"], ["debug", "tets"]):
+        for argv, word in ((["debgu", "test"], "debgu"), (["debug", "tets"], "tets")):
             with self.subTest(argv=argv):
                 with self.assertRaises(Refusal) as refused:
                     parse(argv)
-                self.assertIn(f"no verb or flavour is called {argv[0] if argv[0] == 'debgu' else argv[1]!r}",
-                              str(refused.exception))
+                self.assertIn(f"no verb or flavour is called {word!r}", str(refused.exception))
 
     def test_the_harness_verbs_are_the_harness_own(self):
         text = (ROOT / "apps" / "rtxtool" / "verbs.cpp").read_text()

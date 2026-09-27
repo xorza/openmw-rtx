@@ -29,7 +29,8 @@ class CarriedNgxTest(unittest.TestCase):
             "NGX_FOUND:INTERNAL=1",
             "OTHER:PATH=/elsewhere",
         ]
-        self.assertEqual(carried_ngx(entries), ["-DNGX_ROOT:PATH=/sdk", "-DNGX_LIBRARY:FILEPATH=/sdk/lib/libnvsdk_ngx.a"])
+        self.assertEqual(carried_ngx(entries),
+                         ["-DNGX_ROOT:PATH=/sdk", "-DNGX_LIBRARY:FILEPATH=/sdk/lib/libnvsdk_ngx.a"])
 
 
 class SettleTest(unittest.TestCase):

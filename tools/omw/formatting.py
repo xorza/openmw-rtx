@@ -28,7 +28,7 @@ def check_format(args: list[str]) -> int:
     batches = [files[at:at + 64] for at in range(0, len(files), 64)]
 
     def checked(batch: list[str]) -> int:
-        return subprocess.run([clang_format, "--dry-run", "-Werror", *batch], cwd=ROOT).returncode
+        return subprocess.run([clang_format, "--dry-run", "-Werror", *batch], cwd=ROOT, check=False).returncode
 
     with ThreadPoolExecutor(max_workers=jobs()) as pool:
         failed = sum(1 for code in pool.map(checked, batches) if code != 0)

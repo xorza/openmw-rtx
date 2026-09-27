@@ -50,10 +50,7 @@ def test_environment(name: str, env: dict[str, str], root: Path = ROOT) -> dict[
     what CTest runs the tests under, and so what every program of that flavour runs under. Only
     `$env{}` and `$penv{}` are read, which is all the presets use; a variable a preset names as
     `null` is taken away."""
-    presets: dict[str, dict] = {}
-    for file in preset_files(root):
-        for preset in json.loads(file.read_text()).get("testPresets", []):
-            presets[preset["name"]] = preset
+    presets = _test_presets(root)
 
     def gathered(preset_name: str) -> dict[str, str | None]:
         preset = presets.get(preset_name)
@@ -75,6 +72,10 @@ def test_environment(name: str, env: dict[str, str], root: Path = ROOT) -> dict[
     return result
 
 
+def _test_presets(root: Path) -> dict[str, dict]:
+    return {preset["name"]: preset for file in preset_files(root)
+            for preset in json.loads(file.read_text()).get("testPresets", [])}
+
+
 def has_test_preset(name: str, root: Path = ROOT) -> bool:
-    return any(preset["name"] == name for file in preset_files(root)
-               for preset in json.loads(file.read_text()).get("testPresets", []))
+    return name in _test_presets(root)

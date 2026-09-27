@@ -7,11 +7,13 @@ import os
 import re
 import shutil
 import subprocess
+import tarfile
 import tempfile
+import zipfile
 from pathlib import Path
 
 from omw import fetch, pins
-from omw.system import DEPS, ROOT, SYSTEM, WINDOWS, Refusal, prepend_path, environment_key, run
+from omw.system import DEPS, EXE, ROOT, SYSTEM, WINDOWS, Refusal, environment_key, prepend_path, run
 
 
 def msvc_versions() -> dict[str, str]:
@@ -126,7 +128,7 @@ def crash_tool(name: str) -> Path:
     """One of Breakpad's two tools, fetched once into deps/crash: the player never has them, and the
     desk and CI take the versions `pins.py` names."""
     tools = DEPS / "crash"
-    tool = tools / f"{name}{'.exe' if WINDOWS else ''}"
+    tool = tools / f"{name}{EXE}"
     if tool.is_file():
         return tool
 
@@ -161,8 +163,8 @@ def vulkan_sdk() -> Path:
     """**The Vulkan SDK from LunarG, only what the build needs out of it.** The backend needs
     VK_EXT_ray_tracing_invocation_reorder, which entered the SDK at 1.4.333, and the distributions'
     packages stop short of it. What is kept: the headers, SPIR-V's among them, the loader the tests
-    start against, and glslc, spirv-val and spirv-opt, which link nothing of the SDK's. No layers,
-    since whatever runs the bootstrap without a device has no use for them."""
+    start against, and glslc, spirv-val and spirv-opt, which link nothing of the SDK's. No layers:
+    a runner has no device to validate on, and a desk that validates has an SDK installed for it."""
     sdk = vulkan_sdk_dir()
     if sdk.is_dir():
         return sdk
@@ -179,11 +181,10 @@ def vulkan_sdk() -> Path:
 def _vulkan_sdk_linux(into: Path) -> None:
     """Out of the 330 MB tarball. The loader sits in a prefix of its own, `lib/VulkanLoader`, which is
     where the SDK's `setup-env.sh` points too."""
-    import tarfile
-
     tarball = DEPS / Path(pins.VULKAN_SDK_LINUX.url).name
     fetch.download_pin(pins.VULKAN_SDK_LINUX, tarball)
-    wanted = re.compile(r"[^/]+/x86_64/(include/.*|lib/VulkanLoader/lib/libvulkan\.so.*|bin/(glslc|spirv-val|spirv-opt))")
+    wanted = re.compile(r"[^/]+/x86_64/(include/.*|lib/VulkanLoader/lib/libvulkan\.so.*"
+                        r"|bin/(glslc|spirv-val|spirv-opt))")
     with tarfile.open(tarball) as opened:
         members: list[tarfile.TarInfo] = []
         for member in opened:
@@ -228,11 +229,11 @@ def _vulkan_sdk_windows(into: Path) -> None:
 
     loader = DEPS / Path(pins.VULKAN_LOADER_WINDOWS.url).name
     fetch.download_pin(pins.VULKAN_LOADER_WINDOWS, loader)
-    import zipfile
-
-    with zipfile.ZipFile(loader) as opened:
-        with opened.open(f"{loader.stem}/x64/vulkan-1.dll") as source, open(into / "Bin" / "vulkan-1.dll", "wb") as out:
-            shutil.copyfileobj(source, out)
+    # The x64 one by its path: the archive holds the loader of each architecture under one name.
+    dll = f"{loader.stem}/x64/vulkan-1.dll"
+    target = into / "Bin" / "vulkan-1.dll"
+    with zipfile.ZipFile(loader) as opened, opened.open(dll) as source, open(target, "wb") as out:
+        shutil.copyfileobj(source, out)
     loader.unlink()
 
 
@@ -247,7 +248,10 @@ def ngx() -> Path:
     shutil.rmtree(partial, ignore_errors=True)
     run(["git", "clone", "--quiet", "--depth", "1", "--branch", f"v{ngx_version()}", "--filter=blob:none",
          "--sparse", "https://github.com/NVIDIA/DLSS.git", partial])
-    paths = ["include", "lib/Windows_x86_64/rel", "lib/Windows_x86_64/x64"] if WINDOWS else ["include", "lib/Linux_x86_64/rel"]
+    if WINDOWS:
+        paths = ["include", "lib/Windows_x86_64/rel", "lib/Windows_x86_64/x64"]
+    else:
+        paths = ["include", "lib/Linux_x86_64/rel"]
     run(["git", "-C", partial, "sparse-checkout", "set", *paths])
     partial.rename(checkout)
     return checkout
