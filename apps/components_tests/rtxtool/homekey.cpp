@@ -62,9 +62,11 @@ namespace RtxTool
             return extents;
         }
 
+        /// In text mode, as the keys are written and as `BlockFile` reads them: on Windows each line
+        /// ends `\r\n` on disk, which a raw read would compare against the `\n` the test expects.
         std::string readText(const std::filesystem::path& path)
         {
-            std::ifstream file(path, std::ios::binary);
+            std::ifstream file(path);
             return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         }
 
