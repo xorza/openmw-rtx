@@ -202,11 +202,6 @@ namespace RtxTool
             windows.popGuiMode(true);
     }
 
-    bool Stager::isWorldPaused()
-    {
-        return MWBase::Environment::get().getWorld()->getTimeManager()->isPaused();
-    }
-
     std::string Stager::describePause()
     {
         std::string why;

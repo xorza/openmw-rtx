@@ -52,6 +52,10 @@ namespace MWRender
         /// Whether the hand-over rebuilt the scene from nothing, which a crossing is counted by.
         bool mRebuilt = false;
 
+        /// Whether the world stood paused for this frame: the game's own flag, as the frame was
+        /// described with it, and not the one the game will have set by the time anybody asks.
+        bool mPaused = false;
+
         /// How many meshes this frame's upload built structures for, `SceneUpload::mArrivedMeshes`.
         std::uint32_t mArrivedMeshes = 0;
 

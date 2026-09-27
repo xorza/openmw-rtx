@@ -746,7 +746,7 @@ namespace MWRender
 
         const osg::FrameStamp& when = frame.mWhen;
 
-        FrameReport report;
+        FrameReport report{ .mPaused = frame.mPaused };
 
         // **What the game spent since this renderer last let go of the frame** — its update, its
         // cells arriving and whatever it waits on to get them. It is the one stretch of the loop
