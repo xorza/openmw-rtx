@@ -167,7 +167,7 @@ void answerWater(inout Answer answer, Surface surface)
     // **The one surface in the frame that shows something standing somewhere else.** Water is
     // shaded where it is seen, so its own motion describes the surface and not what is in it; this
     // is the other one, and the upscaler weighs the two by the specular albedo it is handed.
-    answer.mMirrorMotion = mirrorMotionOf(pixel, origin, water.mMirror, stageSpread());
+    answer.mMirrorMotion = mirrorMotionOf(pixel, origin, water.mMirror);
 
     const float shore = water.mShore;
     if (shore >= 1.0)

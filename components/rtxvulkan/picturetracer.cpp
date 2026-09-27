@@ -1,6 +1,7 @@
 #include "picturetracer.hpp"
 
 #include <cassert>
+#include <cmath>
 
 #include <components/rtx/frameoptions.hpp>
 #include <components/rtx/framesampling.hpp>
@@ -45,6 +46,12 @@ namespace Rtx
         // The camera's own extent is how much of the texture the picture fills.
         const VkExtent2D extent{ camera.mCamera.mWidth, camera.mCamera.mHeight };
         assert(holds(extent) && "a picture larger than the chain was grown to");
+
+        // `VisibilityConstants::mTransparentBackground` says why: over the interface the backdrop
+        // is the picture's alpha, which is one number, and a medium in front of it asks for three.
+        assert((camera.mTransparentBackground == 0
+                   || (camera.mFogExtinction == 0.0f && !(camera.mFogEdge > 0.0f) && std::isinf(camera.mWaterLevel)))
+            && "a picture laid over the interface that stands in air or water");
 
         const VisibilityInputs inputs
             = mMedia.describe(traced, camera, mChain.getColour(), mCounts, mDisplay.getGlareCounts(), FrameSlot{});
@@ -91,26 +98,28 @@ namespace Rtx
 
             // Borrowed rather than transitioned. Where a GUI texture rests between writes is
             // `GuiTextures`' to say, and a caller that said it here had to keep a barrier's scope in
-            // step with the commands below — which it did not.
-            mTextures.writeWith(texture, commands, [&](const Image& into, VkImageLayout layout) {
-                assert(extent.width <= into.getWidth() && extent.height <= into.getHeight());
+            // step with the commands below — which it did not. Premultiplied, which is what the
+            // curve writes a picture as: `ToneConstants::mBackdrop` says why.
+            mTextures.writeWith(
+                texture, AlphaForm::Premultiplied, commands, [&](const Image& into, VkImageLayout layout) {
+                    assert(extent.width <= into.getWidth() && extent.height <= into.getHeight());
 
-                // Cleared whole and then covered in part, and only where the picture does not
-                // cover it all: what the trace fills is as much of the texture as the widget is
-                // currently wide, and the rest has to be the clear colour rather than what a wider
-                // picture left there the last time this was drawn. Both are transfer writes to the
-                // same image and nothing orders two of those, so the clear is left as what the copy
-                // meets.
-                if (extent.width < into.getWidth() || extent.height < into.getHeight())
-                    into.clear(commands, Use::sTransferWrite,
-                        VkClearColorValue{
-                            .float32 = { options.mClear[0], options.mClear[1], options.mClear[2], options.mClear[3] } },
-                        Use::sCopyWrite);
+                    // Cleared whole and then covered in part, and only where the picture does not
+                    // cover it all: what the trace fills is as much of the texture as the widget is
+                    // currently wide, and the rest has to be the clear colour rather than what a wider
+                    // picture left there the last time this was drawn. Both are transfer writes to the
+                    // same image and nothing orders two of those, so the clear is left as what the copy
+                    // meets.
+                    if (extent.width < into.getWidth() || extent.height < into.getHeight())
+                        into.clear(commands, Use::sTransferWrite,
+                            VkClearColorValue{ .float32
+                                = { options.mClear[0], options.mClear[1], options.mClear[2], options.mClear[3] } },
+                            Use::sCopyWrite);
 
-                assert(layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-                    && "a texture lent in another layout than a copy takes");
-                mTarget.copyTo(commands, into, layout, extent);
-            });
+                    assert(layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                        && "a texture lent in another layout than a copy takes");
+                    mTarget.copyTo(commands, into, layout, extent);
+                });
 
             if (options.mReadBack)
                 mTextures.readBackWith(texture, commands);

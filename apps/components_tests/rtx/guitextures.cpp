@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -504,10 +505,12 @@ namespace Rtx
         }
 
         /// A level sheet of `extent` about the origin at z = 0, facing up.
-        SceneDesc makeSheet(float extent)
+        /// @param fade how much of the sheet the placement shows, as the game fades an actor.
+        SceneDesc makeSheet(float extent, float fade = 1.0f)
         {
             SceneDesc scene;
-            Testing::addQuad(scene, Testing::sheetAt(extent, 0.0f));
+            scene.addInstance(
+                MeshInstance{ .mMesh = Testing::addQuadMesh(scene, Testing::sheetAt(extent, 0.0f)), .mOpacity = fade });
 
             return scene;
         }
@@ -530,9 +533,8 @@ namespace Rtx
         /// The sheet `makeMapCamera` lights, as the display pass writes it.
         ///
         /// A default albedo of a half, Lambertian, square to a sun of one: `0.5 * 1.0 / pi = 0.159155`
-        /// linear, at the exposure of one a picture is held at. At a contrast of one the curve takes
-        /// its whole shadow offset off that and leaves the rest alone — `1.055 * 0.119155^(1/2.4) -
-        /// 0.055 = 0.378907`, or 97 of 255.
+        /// linear, at the exposure of one a picture is held at, through the curve `displayedGrey`
+        /// follows — 98 of 255.
         std::array<std::uint8_t, 4> sheetLit()
         {
             const std::uint8_t grey = Testing::displayedGrey(0.5f * Shaders::INV_PI);
@@ -594,6 +596,23 @@ namespace Rtx
 
             EXPECT_EQ(inTexture(texture, extent, 5, 8), (std::array<std::uint8_t, 4>{ 0, 0, 0, 255 }))
                 << "past the sheet, and opaque";
+
+            // **And a see-through sheet over nothing is there as much as it is anywhere,
+            // premultiplied.** Faded to a quarter and lit four times as brightly, its light over
+            // nothing is the whole sheet's at one — `sheetLit`'s grey — and its alpha is the quarter:
+            // the backdrop it leaves is `0.75 * 255` = 191.25, held as 191, so `1 - 191 / 255` is
+            // 64 of 255 exactly. Taken straight, its colour would be four times the sheet's; covered
+            // by the hit alone, it would not be drawn at all.
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f, 0.25f), {});
+            camera.mTransparentBackground = 1;
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+
+            const std::uint8_t grey = sheetLit()[0];
+            EXPECT_EQ(inTexture(texture, extent, 8, 8), (std::array<std::uint8_t, 4>{ grey, grey, grey, 64 }))
+                << "a quarter of the sheet, over nothing";
+            EXPECT_EQ(inTexture(texture, extent, 5, 8), (std::array<std::uint8_t, 4>{ 0, 0, 0, 0 }))
+                << "and nothing past it";
         }
 
         /// Two pictures of a subject scene, placed and traced twice with nothing waited between,
@@ -745,6 +764,67 @@ namespace Rtx
             mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{ .mScene = subject });
             EXPECT_NE(inTexture(texture, extent, 8, 8), lit) << "the puff over the subject's sheet";
             mRenderer.dropViewScene(subject);
+        }
+
+        /// A puff laid over nothing covers a picture as much as it covers anything, and a flame laid
+        /// over nothing is light that covers nothing at all.
+        ///
+        /// **Held against the same picture over black**, because what a puff lets through at a pixel
+        /// is the march's to say and not arithmetic a test can do by hand: premultiplied, a layer's
+        /// colour over nothing is its colour over black to the byte, and what it covers is what the
+        /// backdrop no longer shows. The white puff of `aCameraWithoutTheParticleBitDrawsNoSprites`
+        /// grown to sixty units across a sheet twenty-five across, so column 4 of row 8, whose
+        /// middle stands 44.2 units off the puff's, is the puff over nothing. The flame is the same
+        /// ball, adding.
+        TEST_F(RtxGuiDrawTest, aPuffOverNothingIsThereAsMuchAsItIsAnywhere)
+        {
+            constexpr std::uint32_t extent = 16;
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+            const std::array<TextureData, 1> puff{ Testing::describeTexel(white) };
+
+            const GuiSlot texture = mRenderer.addGuiTexture(extent, extent);
+            mHeld.push_back(texture);
+
+            struct Laid
+            {
+                std::array<std::uint8_t, 4> mOverBlack;
+                std::array<std::uint8_t, 4> mOverNothing;
+            };
+
+            const auto laidWith = [&](bool additive) {
+                SceneDesc scene = makeSheet(25.0f);
+                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 50.0f),
+                    .mRadius = 60.0f,
+                    .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                    .mAlpha = 1.0f } };
+                scene.addEmitter(sprites, cut, additive);
+                mRenderer.setScene(Rtx::SceneSlot::world(), scene, puff);
+
+                Shaders::VisibilityConstants camera = makeMapCamera(extent);
+                Laid laid{};
+                mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+                laid.mOverBlack = inTexture(texture, extent, 4, 8);
+
+                camera.mTransparentBackground = 1;
+                mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+                laid.mOverNothing = inTexture(texture, extent, 4, 8);
+
+                return laid;
+            };
+
+            const Laid puffed = laidWith(false);
+            ASSERT_EQ(puffed.mOverBlack[3], 255) << "a picture over black is opaque";
+            ASSERT_GT(puffed.mOverBlack[0], 0) << "the puff did not reach the pixel";
+            EXPECT_EQ(puffed.mOverNothing[0], puffed.mOverBlack[0]) << "the puff's colour, premultiplied";
+            EXPECT_GT(puffed.mOverNothing[3], 0) << "the puff covered nothing of the picture";
+            EXPECT_LT(puffed.mOverNothing[3], 255) << "and a ball's rim is not the whole of it";
+
+            const Laid flame = laidWith(true);
+            ASSERT_GT(flame.mOverBlack[0], 0) << "the flame did not reach the pixel";
+            EXPECT_EQ(flame.mOverNothing,
+                (std::array<std::uint8_t, 4>{ flame.mOverBlack[0], flame.mOverBlack[1], flame.mOverBlack[2], 0 }))
+                << "a flame over nothing is its light and no coverage";
         }
 
         /// A picture smaller than the texture behind it, which is the inventory doll: its window
@@ -909,6 +989,33 @@ namespace Rtx
 
             EXPECT_NE(at(4, 4), (std::array<std::uint8_t, 4>{ 0, 0, 255, 255 })) << "where the picture covers";
             EXPECT_EQ(at(0, 0), (std::array<std::uint8_t, 4>{ 0, 0, 255, 255 })) << "where it does not";
+
+            // **Laid down premultiplied, and faded as a window fades.** The quarter of a sheet
+            // `aTracedPictureFillsAGuiTextureAndSaysWhereItStops` holds to `sheetLit`'s grey `g` at
+            // an alpha of 64, over grey, through a vertex alpha of `f = 128 / 255`: the colour is taken
+            // as it is and weighed by `f`, and the grey is left `1 - f * 64 / 255` of itself. At the
+            // 98 `g` comes to that is `98 f + 128 (1 - f * 64 / 255)` = 49.19 + 111.87 = 161.07, or
+            // 161; blended straight it would be `98 * (f * 64 / 255) + 128 (1 - f * 64 / 255)` =
+            // 12.35 + 111.87 = 124.2, or 124.
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f, 0.25f), {});
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+
+            const std::uint8_t g = sheetLit()[0];
+            ASSERT_EQ(g, 98);
+            ASSERT_EQ(inTexture(texture, extent, 8, 8), (std::array<std::uint8_t, 4>{ g, g, g, 64 }));
+
+            const GuiSlot grey = makeTexel({ 128, 128, 128, 255 });
+            drawQuad(grey, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 255));
+            drawQuad(texture, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 128));
+
+            const float fade = 128.0f / 255.0f;
+            const float covered = fade * 64.0f / 255.0f;
+            const auto laid
+                = static_cast<std::uint8_t>(std::lround(static_cast<float>(g) * fade + 128.0f * (1.0f - covered)));
+            ASSERT_EQ(laid, 161);
+            EXPECT_EQ(at(sExtent / 2, sExtent / 2), (std::array<std::uint8_t, 4>{ laid, laid, laid, 255 }))
+                << "the picture over grey, through a window half faded";
         }
 
         /// A picture inside the interface leaves the frame's own exposure where it found it.

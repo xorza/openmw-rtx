@@ -865,13 +865,13 @@ namespace Rtx::Testing
             EXPECT_GT(std::abs(mirrored[centre * 2]), 1.0f) << "the mirrored sky slid when the camera turned";
             EXPECT_LT(std::abs(mirrored[centre * 2]), static_cast<float>(size)) << "and stayed on screen";
 
-            // **And water seen past a see-through arm reflects through the arms' own eye.** The
-            // ceiling's scene again, with a card of the player's arms faded to half between the eye
-            // and the water, seen at ninety degrees under the world's sixty, and a still camera: the
-            // image did not move. Column 30 of the middle row looks `30.5 / 33 * 2 - 1` = 0.8485 of
-            // the arms' half width `tan(45)` across, and read through the world's plane that is
-            // `0.8485 / tan(30)` = 1.4697 of a half width — column 40.75, which is the 10.25 pixels
-            // the reflection stored before it was told which eye it was seen through.
+            // **And water seen past a see-through arm is the world's eye's.** The ceiling's scene
+            // again, with a card of the player's arms faded to half between the eye and the water,
+            // seen at ninety degrees under the world's sixty, and a still camera: the image did not
+            // move. Carried on along the arms' ray, column 30 of the middle row looked
+            // `30.5 / 33 * 2 - 1` = 0.8485 of the arms' half width `tan(45)` across, which read
+            // through the world's plane is `0.8485 / tan(30)` = 1.4697 of a half width — column
+            // 40.75, a reflection that moved 10.25 pixels under a camera that stood still.
             SceneDesc armed = makeOpenWater(4000.0f);
             addQuad(armed, sheetAt(4000.0f, 200.0f), armed.addMaterial(Material{ .mTwoSided = true }));
             armed.addInstance(MeshInstance{ .mMesh = addQuadMesh(armed, sheetAt(4000.0f, 50.0f)),

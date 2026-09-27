@@ -41,8 +41,8 @@ namespace Rtx
         /// units, where a half's steps are thirty-two units wide, and it orders the layer against
         /// the sprites.
 
-        /// Three bytes for three fractions, which is what `gbuffer.h` argues a modulation is.
-        constexpr VkFormat sStars = toVulkanFormat(GBUFFER_STARS);
+        /// Four bytes for four fractions, which is what `gbuffer.h` argues a modulation is.
+        constexpr VkFormat sBackdrop = toVulkanFormat(GBUFFER_BACKDROP);
 
         /// `SAMPLED` on all of them, and it is not decoration. DLSS samples every input it is
         /// handed; one without the bit reads as zero, NGX returns success and the validation layers
@@ -75,7 +75,7 @@ namespace Rtx
                 every[bindingOf(Channel::Motion)] = { sMotion, sReadable };
                 every[bindingOf(Channel::Depth)] = { sDepth, sReadable };
                 every[bindingOf(Channel::ReflectionMotion)] = { sMotion, sReadable };
-                every[bindingOf(Channel::StarsShown)] = { sStars, sUsage };
+                every[bindingOf(Channel::Backdrop)] = { sBackdrop, sUsage };
                 every[bindingOf(Channel::Puffs)] = { sLayer, sUsage };
 
                 return every;

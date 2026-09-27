@@ -19,7 +19,7 @@ namespace Rtx::Shaders
     /// else, so the two cannot drift apart.
     const uint TONE_BIND_COLOUR = 0;
     const uint TONE_BIND_TARGET = 1;
-    const uint TONE_BIND_STARS_SHOWN = 2;
+    const uint TONE_BIND_BACKDROP = 2;
     const uint TONE_BIND_EXPOSURE = 3;
     const uint TONE_BIND_BLOOM = 4;
     const uint TONE_BIND_SUN_GLARE = 5;
@@ -32,6 +32,12 @@ namespace Rtx::Shaders
 
     /// Threads along each edge of the tone pass's workgroup.
     const uint TONE_WORKGROUP = 8;
+
+    /// What stands behind everything the trace drew: the star field, which a frame that fills a
+    /// window draws here over the sky, or the interface, which a picture inside it
+    /// (`VisibilityConstants::mTransparentBackground`) is laid over. `ToneConstants::mBackdrop`.
+    const uint BACKDROP_STARS = 0u;
+    const uint BACKDROP_INTERFACE = 1u;
 
     /// What the display pass is told: the size of the picture, and what is drawn on it that the
     /// trace could not draw.
@@ -46,8 +52,8 @@ namespace Rtx::Shaders
     {
         /// The frame's sprite tile list and what its tiles can meet, `VisibilityConstants::mTables`'s:
         /// with the traced puffs' arms flag, what says where the composite wrote nothing and the
-        /// frame's alpha is not the puffs' — `puffsCoverNothing`. First, so the addresses land eight-aligned
-        /// on both sides.
+        /// frame's alpha is not the puffs' — `puffsCoverNothing`. First, so the addresses land
+        /// eight-aligned on both sides.
         uint64 mSpriteTileList;
         uint64 mSpritePresence;
 
@@ -55,19 +61,26 @@ namespace Rtx::Shaders
         /// field's sheet stands in.
         uint64 mTextureTexels;
 
-        /// The trace's own extent, which is what `Channel::StarsShown` is written at.
+        /// The trace's own extent, which is what `Channel::Backdrop` is written at.
         ///
         /// **Two extents because an upscaler stands between them**, and the other is the camera's.
         /// What this pass writes is one pixel of the picture; what it asks about a pixel — how much
-        /// of the star field is left in front of what is drawn there — was answered at whatever the
+        /// of the backdrop is left in front of what is drawn there — was answered at whatever the
         /// trace ran at, and at `performance` that is a quarter as many pixels.
         uint mTracedWidth;
         uint mTracedHeight;
 
-        /// Whether the frame's alpha carries the puffs' transmittance, which `spritecomposite.rgen`
-        /// leaves there for the star field to be drawn through wherever it drew one — the frame's;
-        /// a picture's alpha is its coverage, and its stars are not drawn through anything.
-        uint mCoverAlpha;
+        /// What the backdrop is, `BACKDROP_*`: what this pass draws through what the trace left of
+        /// it and the puffs' transmittance in the frame's alpha.
+        ///
+        /// **One product and two uses.** Over the star field it is how much of each star a pixel
+        /// shows, and the picture is opaque. Over the interface it is how much of the window behind
+        /// the picture shows through it, so the picture's alpha is one less it: a pane over nothing
+        /// covers what it covers, and a puff laid over nothing is there as much as it is anywhere.
+        /// **The picture stays premultiplied**, the curve taken over the colour as it is: a flame
+        /// over nothing is light with no coverage at all, which only that form can hold, and the
+        /// interface lays the picture down in it.
+        uint mBackdrop;
 
         /// The frame's camera at *this* pass's extent, with no jitter — and so the extent the pass
         /// covers.
@@ -100,7 +113,7 @@ namespace Rtx::Shaders
         /// to the resolution, and no guide buffer moves it: an eye-facing normal, the bias mask over
         /// every sky pixel, and the four before-and-after colour pairs all come out neutral or worse.
         /// So the field is drawn where it is shown, and the trace draws the rest of the sky — and
-        /// hands this pass `Channel::StarsShown`, because a moon, a deck, a pane, the water and
+        /// hands this pass `Channel::Backdrop`, because a moon, a deck, a pane, the water and
         /// the air all stand between the field and the eye and none of them is here.
         StarField mStars;
 

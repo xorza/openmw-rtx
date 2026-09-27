@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 
 #include <components/rtx/renderer.hpp>
 
@@ -33,27 +34,50 @@ namespace Rtx
             VkVertexInputAttributeDescription{ 2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(GuiVertex, mU) },
         };
 
+        /// `gui.frag`'s `PREMULTIPLIED`, which is the texture's `AlphaForm`.
+        constexpr std::array<std::uint32_t, 1> sStraight{ 0 };
+        constexpr std::array<std::uint32_t, 1> sPremultiplied{ 1 };
+
         GraphicsPipelineOptions describePipeline(
-            const std::filesystem::path& shaderDirectory, VkFormat targetFormat, Blend blend)
+            const std::filesystem::path& shaderDirectory, VkFormat targetFormat, Blend blend, AlphaForm source)
         {
+            const bool premultiplied = source == AlphaForm::Premultiplied;
+
             GraphicsPipelineOptions options;
             options.mBindings = sBindings;
             options.mVertexBindings = sVertexBindings;
             options.mVertexAttributes = sVertexAttributes;
             options.mColourFormat = targetFormat;
             options.mBlend = blend;
+            options.mSource = source;
+            options.mSpecialization = premultiplied ? sPremultiplied : sStraight;
             options.mVertexModule = shaderDirectory / "gui.vert.spv";
             options.mFragmentModule = shaderDirectory / "gui.frag.spv";
-            options.mName = blend == Blend::Additive ? "gui additive" : "gui";
+            if (blend == Blend::Additive)
+                options.mName = premultiplied ? "gui additive premultiplied" : "gui additive";
+            else
+                options.mName = premultiplied ? "gui premultiplied" : "gui";
             return options;
         }
     }
 
     GuiPass::GuiPass(const Device& device, const std::filesystem::path& shaderDirectory, VkFormat targetFormat)
-        : mOver(device, describePipeline(shaderDirectory, targetFormat, Blend::Over))
-        , mAdditive(device, describePipeline(shaderDirectory, targetFormat, Blend::Additive))
+        : mOver(device, describePipeline(shaderDirectory, targetFormat, Blend::Over, AlphaForm::Straight))
+        , mAdditive(device, describePipeline(shaderDirectory, targetFormat, Blend::Additive, AlphaForm::Straight))
+        , mOverPremultiplied(
+              device, describePipeline(shaderDirectory, targetFormat, Blend::Over, AlphaForm::Premultiplied))
+        , mAdditivePremultiplied(
+              device, describePipeline(shaderDirectory, targetFormat, Blend::Additive, AlphaForm::Premultiplied))
         , mSampler(makeTargetSampler(device, "gui"))
     {
+    }
+
+    const GraphicsPipeline& GuiPass::pipelineFor(const GuiDraw& draw) const
+    {
+        if (draw.mSource == AlphaForm::Premultiplied)
+            return draw.mBlend == Blend::Additive ? mAdditivePremultiplied : mOverPremultiplied;
+
+        return draw.mBlend == Blend::Additive ? mAdditive : mOver;
     }
 
     void GuiPass::record(
@@ -72,14 +96,14 @@ namespace Rtx
 
         for (const GuiDraw& draw : draws)
         {
-            const GraphicsPipeline& pipeline = draw.mBlend == Blend::Additive ? mAdditive : mOver;
+            const GraphicsPipeline& pipeline = pipelineFor(draw);
             if (&pipeline != bound)
             {
                 bind(commands, pipeline);
                 bound = &pipeline;
             }
 
-            // Against the layout of the pipeline that is bound: the two are identical, but a push
+            // Against the layout of the pipeline that is bound: the four are identical, but a push
             // is only defined against the one in force.
             DescriptorWrites<1> texture;
             texture.image(0,

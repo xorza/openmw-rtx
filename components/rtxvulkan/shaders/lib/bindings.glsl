@@ -106,16 +106,22 @@ layout(set = SET_CHANNELS, binding = CHANNEL_DEPTH, GBUFFER_DEPTH) uniform image
 layout(set = SET_CHANNELS, binding = CHANNEL_REFLECTION_MOTION, GBUFFER_MOTION)
     uniform writeonly image2D reflectionMotion;
 
-/// How much of the star field this pixel still shows, per channel — everything the trace put between
-/// the field and the eye, multiplied together.
+/// How much of the backdrop this pixel still shows, per channel, in `rgb` — everything the trace put
+/// between the backdrop and the eye, multiplied together. The backdrop is the star field behind a
+/// sky, and the interface behind a picture that has no sky (`mTransparentBackground`).
 ///
-/// **The field is drawn by a pass that can see none of this.** `ToneConstants::mStars` says why it
-/// is drawn there and not here; what it costs is that the pass has no moons, no cloud deck, no
-/// window pane, no water and no fog in front of the sky it is adding stars to. So the trace hands it
-/// the one number that carries all of them: `skyRadiance`'s `shown` times the path's own
-/// transmittance — the puffs' apart, which `spritecomposite.rgen` leaves in the frame's alpha
-/// for the same pass. Nought on every pixel that hit something, which is also how that pass knows.
-layout(set = SET_CHANNELS, binding = CHANNEL_STARS_SHOWN, GBUFFER_STARS) uniform writeonly image2D starsShown;
+/// **The backdrop is drawn by a pass that can see none of this.** `ToneConstants::mStars` says why
+/// the field is drawn there and not here, and the interface is not drawn by this renderer at all;
+/// what it costs is that the pass has no moons, no cloud deck, no window pane, no water and no fog
+/// in front of it. So the trace hands it the one number that carries all of them: `skyRadiance`'s
+/// `shown` times the path's own transmittance — the puffs' apart, which `spritecomposite.rgen`
+/// leaves in the frame's alpha for the same pass. Nought on every pixel that hit something, which
+/// is also how that pass knows.
+///
+/// **And in `a`, what see-through arms let through of everything behind them**, one where none
+/// stands. The puffs behind a Chameleon's hand are the world's, and `spritecomposite.rgen` lays them
+/// down by this. Read back there, which is why it is not `writeonly`.
+layout(set = SET_CHANNELS, binding = CHANNEL_BACKDROP, GBUFFER_BACKDROP) uniform image2D backdrop;
 
 /// The sprites in front of the surface: their straight colour lit where they stand and already
 /// fog-attenuated, and what they let through in `a` with the arms' flag in its sign — `packPuffs`.

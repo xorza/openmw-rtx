@@ -24,13 +24,16 @@ namespace Rtx
     namespace
     {
         /// The display pass's own description of the frame, on the picture's grid. The alpha
-        /// carries the puffs' transmittance wherever it is not the picture's coverage, which is
-        /// the same test `spritecomposite.rgen` makes — and where that composite drew nothing, the
-        /// pass finds out for itself from what it is handed here.
+        /// carries the puffs' transmittance, and where the puffs' composite drew nothing the pass
+        /// finds out for itself from what it is handed here.
+        ///
+        /// **The traced extent is the trace's camera's, and not the channels' own size.** A picture
+        /// is traced into a chain grown to the largest one asked for, so a smaller picture fills a
+        /// corner of its channels: read at the channels' size, the pass looked for a pixel's backdrop
+        /// and its sprite tile under another pixel altogether.
         Shaders::ToneConstants toneFor(const Shaders::VisibilityConstants& frame, const SunGlare& fader,
             const VkDeviceAddress spriteTileList, const VkDeviceAddress spritePresence,
-            const VkDeviceAddress textureTexels, std::uint32_t width, std::uint32_t height, std::uint32_t tracedWidth,
-            std::uint32_t tracedHeight)
+            const VkDeviceAddress textureTexels, std::uint32_t width, std::uint32_t height)
         {
             assert(spriteTileList != 0 && spritePresence != 0 && "a curve told no tiles to test the puffs by");
             assert(textureTexels != 0 && "a curve told no texel counts to test the star sheet by");
@@ -39,9 +42,9 @@ namespace Rtx
                 .mSpriteTileList = spriteTileList,
                 .mSpritePresence = spritePresence,
                 .mTextureTexels = textureTexels,
-                .mTracedWidth = tracedWidth,
-                .mTracedHeight = tracedHeight,
-                .mCoverAlpha = frame.mTransparentBackground == 0 ? 1u : 0u,
+                .mTracedWidth = frame.mCamera.mWidth,
+                .mTracedHeight = frame.mCamera.mHeight,
+                .mBackdrop = frame.mTransparentBackground == 0 ? Shaders::BACKDROP_STARS : Shaders::BACKDROP_INTERFACE,
                 .mCamera = Shaders::cameraOnGrid(frame.mCamera, width, height),
                 .mStars = frame.mStars,
                 .mGlareColour = fader.mColour,
@@ -137,14 +140,14 @@ namespace Rtx
                 .mColour = shown,
                 .mExposure = *exposure,
                 .mSunGlare = *share,
-                .mStarsShown = channels.get(Channel::StarsShown),
+                .mBackdrop = channels.get(Channel::Backdrop),
                 .mPuffs = channels.get(Channel::Puffs),
                 .mBloom = what.mBloom ? mBloom.getPyramid() : nullptr,
                 .mTextures = inputs.mTextures,
                 .mTarget = what.mTarget,
                 .mConstants = toneFor(what.mSampled, what.mGlare.has_value() ? what.mGlare->mFader : SunGlare{},
                     what.mTrace.mSpriteTileList, what.mTrace.mSpritePresence, inputs.mTextureTexels, what.mExtent.width,
-                    what.mExtent.height, channels.getWidth(), channels.getHeight()),
+                    what.mExtent.height),
             });
         closeZone(what.mTimer, commands);
 

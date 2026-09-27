@@ -65,8 +65,9 @@ struct Answer
     /// is not water.
     vec2 mMirrorMotion;
 
-    /// The sky only: how much of the star field the pixel shows through what the sky drew.
-    float mSkyShown;
+    /// The miss only: how much of the backdrop the pixel shows through what the sky drew — the star
+    /// field behind a sky, and the interface, whole, behind a picture that has none.
+    float mBackdropShown;
 
     /// How much of the surface the ray met is there: what the launch composites a pane by.
     float mOpacity;
@@ -95,7 +96,7 @@ Answer noAnswer()
     answer.mResponse = noResponse();
     answer.mMotion = vec2(0.0);
     answer.mMirrorMotion = vec2(0.0);
-    answer.mSkyShown = 0.0;
+    answer.mBackdropShown = 0.0;
     answer.mOpacity = 1.0;
     answer.mPane = false;
     answer.mWater = false;
@@ -105,7 +106,7 @@ Answer noAnswer()
 
 /// The record as it crosses the execute: fourteen words, laid out once here.
 ///
-/// The flags word carries the stars' share as a half in its high bits, and three facts in its low
+/// The flags word carries the backdrop's share as a half in its high bits, and three facts in its low
 /// ones: whether the launch peels the surface, whether it is water, and whether the response
 /// carries a normal at all. The last is what a pane and the sky leave nought, and nought has no
 /// direction to pack.
@@ -146,7 +147,7 @@ VisibilityPayload packAnswer(Answer answer)
     packed.mNormal = hasNormal ? packDirection(answer.mResponse.mNormal) : 0u;
     packed.mMotion = packHalf2x16(answer.mMotion);
     packed.mMirrorMotion = packHalf2x16(answer.mMirrorMotion);
-    packed.mFlags = packHalf2x16(vec2(0.0, answer.mSkyShown)) | (answer.mWater ? ANSWER_WATER : 0u)
+    packed.mFlags = packHalf2x16(vec2(0.0, answer.mBackdropShown)) | (answer.mWater ? ANSWER_WATER : 0u)
         | (hasNormal ? ANSWER_HAS_NORMAL : 0u) | (answer.mPane ? ANSWER_PANE : 0u);
 
     return packed;
@@ -167,7 +168,7 @@ Answer unpackAnswer(VisibilityPayload packed)
         vec3(diffuseRg, diffuseBSpecularR.x), vec3(diffuseBSpecularR.y, specularGb), roughnessOpacity.x);
     answer.mMotion = unpackHalf2x16(packed.mMotion);
     answer.mMirrorMotion = unpackHalf2x16(packed.mMirrorMotion);
-    answer.mSkyShown = unpackHalf2x16(packed.mFlags).y;
+    answer.mBackdropShown = unpackHalf2x16(packed.mFlags).y;
     answer.mOpacity = roughnessOpacity.y;
     answer.mPane = (packed.mFlags & ANSWER_PANE) != 0u;
     answer.mWater = (packed.mFlags & ANSWER_WATER) != 0u;

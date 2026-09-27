@@ -53,7 +53,8 @@ namespace Rtx
             // blank. The assert above is where a caller finds out; a release build drops the batch.
             if (view != VK_NULL_HANDLE)
                 mDraws.push_back(GuiDraw{ view, batch.mFirstVertex, batch.mVertexCount,
-                    batch.mBlend == GuiBlend::Additive ? Blend::Additive : Blend::Over });
+                    batch.mBlend == GuiBlend::Additive ? Blend::Additive : Blend::Over,
+                    mTextures.alphaOf(batch.mTexture) });
         }
 
         const VkCommandBuffer commands = slot.mCommands;

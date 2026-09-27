@@ -28,6 +28,19 @@ namespace Rtx
         Additive,
     };
 
+    /// How a source's colour stands to its alpha, which is what the blend's source factor is.
+    enum class AlphaForm
+    {
+        /// Apart: the blend weighs the colour by the alpha. Every texture the host writes is this —
+        /// a font, a skin, a video frame.
+        Straight,
+
+        /// Already weighed by it, so the blend takes the colour as it is. A traced picture is this,
+        /// because it is the one form that holds light over nothing: a flame in a doll's hand,
+        /// against the window behind the doll, has a colour and no coverage at all.
+        Premultiplied,
+    };
+
     /// What a raster pipeline is made of that a compute one has no equivalent for. No span
     /// outlives the call: every one is read into Vulkan's own copies inside the constructor, so a
     /// caller may pass the address of one of its own locals.
@@ -45,6 +58,13 @@ namespace Rtx
         VkFormat mColourFormat = VK_FORMAT_UNDEFINED;
 
         Blend mBlend = Blend::None;
+
+        /// What the fragment stage writes, `AlphaForm`. Read only where something blends.
+        AlphaForm mSource = AlphaForm::Straight;
+
+        /// One word per specialization constant, as `ComputePipeline` takes them, given to both
+        /// stages.
+        std::span<const std::uint32_t> mSpecialization;
 
         /// What the vertices make: triangles, which the interface is, or lines, which the debug
         /// modes are.

@@ -26,7 +26,7 @@ namespace Rtx
         Motion = Shaders::CHANNEL_MOTION,
         Depth = Shaders::CHANNEL_DEPTH,
         ReflectionMotion = Shaders::CHANNEL_REFLECTION_MOTION,
-        StarsShown = Shaders::CHANNEL_STARS_SHOWN,
+        Backdrop = Shaders::CHANNEL_BACKDROP,
         Puffs = Shaders::CHANNEL_PUFFS,
     };
 
@@ -48,7 +48,7 @@ namespace Rtx
         { Channel::Motion, "g-motion" },
         { Channel::Depth, "g-depth" },
         { Channel::ReflectionMotion, "g-reflection-motion" },
-        { Channel::StarsShown, "g-stars-shown" },
+        { Channel::Backdrop, "g-backdrop" },
         { Channel::Puffs, "g-puffs" },
     } } };
 
