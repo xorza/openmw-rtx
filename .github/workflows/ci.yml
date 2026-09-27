@@ -114,8 +114,13 @@ jobs:
 
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
-          key: linux
-          max-size: 1000M
+          # **No key begins another.** The action restores the newest cache whose name begins
+          # `ccache-<key>-`, so a key that is the start of another's restores that one: named `linux`,
+          # this job took whichever of `linux-clang`'s and `linux-plain`'s had been saved last and hit
+          # two compiles in 2,323. Two gigabytes, because this job fills two build directories with
+          # GCC's debug objects, and at one it evicted 858 times over a run.
+          key: linux-gcc
+          max-size: 2000M
           # Saved by master's runs and only read by a pull request's: ten gigabytes hold every job's
           # cache once, and not once more for every branch.
           save: ${{ github.event_name != 'pull_request' }}
@@ -287,8 +292,10 @@ jobs:
 
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
-          key: windows
-          max-size: 1000M
+          # Not `windows`, which begins `windows-plain`, and two gigabytes for the two build
+          # directories: the reasons the `linux` job's key gives.
+          key: windows-msvc
+          max-size: 2000M
           # Saved by master's runs and only read by a pull request's: ten gigabytes hold every job's
           # cache once, and not once more for every branch.
           save: ${{ github.event_name != 'pull_request' }}
@@ -333,8 +340,10 @@ jobs:
 
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
+          # A gigabyte and a half: at one, MSVC's objects for the plain tree evicted 155 times a run
+          # and hit seven compiles in ten.
           key: windows-plain
-          max-size: 1000M
+          max-size: 1500M
           # Saved by master's runs and only read by a pull request's: ten gigabytes hold every job's
           # cache once, and not once more for every branch.
           save: ${{ github.event_name != 'pull_request' }}
