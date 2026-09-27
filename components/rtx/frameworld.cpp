@@ -70,6 +70,12 @@ namespace Rtx
         mLastSeconds = seconds;
     }
 
+    void FogDrift::hold(const osg::Vec2d& carried, const double seconds)
+    {
+        mCarried = carried;
+        mLastSeconds = seconds;
+    }
+
     osg::Vec2f splitSeconds(const double seconds)
     {
         const float high = static_cast<float>(seconds);

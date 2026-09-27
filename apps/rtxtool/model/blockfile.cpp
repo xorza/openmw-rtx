@@ -1,6 +1,8 @@
 #include "blockfile.hpp"
 
+#include <array>
 #include <charconv>
+#include <cmath>
 #include <format>
 #include <fstream>
 #include <locale>
@@ -17,41 +19,88 @@
 
 namespace RtxTool
 {
+    namespace
+    {
+        template <class Number>
+        std::optional<Number> parseNumber(std::string_view text)
+        {
+            // Not `std::from_chars`: libc++ ships the floating-point overload only from macOS 26.
+            // `eof` is what says the whole field was consumed — the same question `from_chars`
+            // answers with its end pointer.
+            std::istringstream stream{ std::string(text) };
+            stream.imbue(std::locale::classic());
+
+            Number value = 0;
+            if (!(stream >> value) || !stream.eof())
+                return std::nullopt;
+
+            return value;
+        }
+
+        /// `text` cut at its commas into exactly `into.size()` pieces, each trimmed, or false where
+        /// it has any other number of them.
+        bool splitExactly(std::string_view text, std::span<std::string_view> into)
+        {
+            for (std::size_t at = 0; at < into.size(); ++at)
+            {
+                const bool last = at + 1 == into.size();
+                const std::size_t comma = text.find(',');
+                if ((comma == std::string_view::npos) != last)
+                    return false;
+
+                into[at] = trimmed(text.substr(0, comma));
+                if (!last)
+                    text.remove_prefix(comma + 1);
+            }
+
+            return true;
+        }
+    }
+
     std::optional<float> parseFloat(std::string_view text)
     {
-        // Not `std::from_chars`: libc++ ships the floating-point overload only from macOS 26. `eof`
-        // is what says the whole field was consumed — the same question `from_chars` answers with
-        // its end pointer.
-        std::istringstream stream{ std::string(text) };
-        stream.imbue(std::locale::classic());
-
-        float value = 0.0f;
-        if (!(stream >> value) || !stream.eof())
-            return std::nullopt;
-
-        return value;
+        return parseNumber<float>(text);
     }
 
     std::optional<osg::Vec3f> parseVec3(std::string_view text)
     {
-        osg::Vec3f result;
-        for (int axis = 0; axis < 3; ++axis)
-        {
-            const bool last = axis == 2;
-            const std::size_t comma = text.find(',');
-            if ((comma == std::string_view::npos) != last)
-                return std::nullopt;
+        std::array<std::string_view, 3> pieces;
+        if (!splitExactly(text, pieces))
+            return std::nullopt;
 
-            const std::optional<float> value = parseFloat(trimmed(text.substr(0, comma)));
+        osg::Vec3f result;
+        for (std::size_t axis = 0; axis < pieces.size(); ++axis)
+        {
+            const std::optional<float> value = parseFloat(pieces[axis]);
             if (!value.has_value())
                 return std::nullopt;
 
-            result[axis] = *value;
-            if (!last)
-                text.remove_prefix(comma + 1);
+            result[static_cast<int>(axis)] = *value;
         }
 
         return result;
+    }
+
+    std::optional<Rtx::AirClock> parseAir(std::string_view text)
+    {
+        std::array<std::string_view, 4> pieces;
+        if (!splitExactly(text, pieces))
+            return std::nullopt;
+
+        const std::optional<double> seconds = parseNumber<double>(pieces[0]);
+        const std::optional<float> scroll = parseNumber<float>(pieces[1]);
+        const std::optional<double> x = parseNumber<double>(pieces[2]);
+        const std::optional<double> y = parseNumber<double>(pieces[3]);
+        if (!seconds.has_value() || !scroll.has_value() || !x.has_value() || !y.has_value())
+            return std::nullopt;
+
+        // The ranges the clocks keep: `Sky::SkyClock::step` only adds to the seconds and wraps the
+        // scroll at four, and a carry is a sum of finite steps.
+        if (!(*seconds >= 0.0) || !std::isfinite(*seconds) || !(*scroll >= 0.0f) || !(*scroll < 4.0f)
+            || !std::isfinite(*x) || !std::isfinite(*y))
+            return std::nullopt;
+
+        return Rtx::AirClock{ .mSky = { .mSeconds = *seconds, .mCloudScroll = *scroll }, .mCarried = { *x, *y } };
     }
 
     std::string_view trimmed(std::string_view text)
@@ -182,6 +231,17 @@ namespace RtxTool
         return *value;
     }
 
+    Rtx::AirClock BlockFile::air(const BlockField& field) const
+    {
+        const std::optional<Rtx::AirClock> value = parseAir(field.mValue);
+        if (!value.has_value())
+            refuseValue(field,
+                "is not the sky's seconds from nought, the deck's scroll from nought up to but not including "
+                "four, and the drift's two coordinates, separated by commas");
+
+        return *value;
+    }
+
     bool BlockFile::boolean(const BlockField& field) const
     {
         if (field.mValue != "true" && field.mValue != "false")
@@ -215,6 +275,8 @@ namespace RtxTool
             stop.mSky.mHour = hour(field);
         else if (field.mName == "weather")
             stop.mSky.mWeather = weather(field);
+        else if (field.mName == "air")
+            stop.mSky.mAir = air(field);
         else
             return false;
 

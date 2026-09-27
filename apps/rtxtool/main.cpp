@@ -29,6 +29,7 @@
 #include <components/platform/platform.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/error.hpp>
+#include <components/rtx/frameworld.hpp>
 #include <components/rtx/pacing.hpp>
 #include <components/rtx/reconstruction.hpp>
 #include <components/rtx/renderer.hpp>
@@ -154,6 +155,36 @@ namespace RtxTool
             return variables["weather"].as<std::string>();
         }
 
+        /// What `--air` named, or nothing where the line names none. Text that names no air is
+        /// refused, quoted whole.
+        std::optional<Rtx::AirClock> airGiven(const bpo::variables_map& variables)
+        {
+            const std::string& text = variables["air"].as<std::string>();
+            if (text.empty())
+                return std::nullopt;
+
+            const std::optional<Rtx::AirClock> air = parseAir(text);
+            if (!air.has_value())
+                throw std::runtime_error(
+                    std::format("--air is not the sky's seconds from nought, the deck's scroll "
+                                "from nought up to but not including four, and the drift's two "
+                                "coordinates, separated by commas: \"{}\"",
+                        text));
+
+            return air;
+        }
+
+        /// The sky the line names for every place it stages: `stopFor` is the rule it feeds.
+        StopSky skyGiven(const bpo::variables_map& variables, const Framed& framed)
+        {
+            return StopSky{
+                .mHour = hourGiven(variables),
+                .mDay = framed.mDay,
+                .mWeather = weatherGiven(variables),
+                .mAir = airGiven(variables),
+            };
+        }
+
         /// The point `--<name>` names, or nothing where the line names none. Text that names no point
         /// is refused, quoted whole.
         std::optional<osg::Vec3f> pointGiven(const bpo::variables_map& variables, const char* name)
@@ -175,13 +206,12 @@ namespace RtxTool
         std::vector<Stop> stopsFrom(
             const std::vector<Stop>& views, const bpo::variables_map& variables, const Framed& framed)
         {
-            const std::optional<float> hour = hourGiven(variables);
-            const std::optional<std::string> weather = weatherGiven(variables);
+            const StopSky given = skyGiven(variables, framed);
 
             std::vector<Stop> stops;
             stops.reserve(views.size());
             for (const Stop& view : views)
-                stops.push_back(stopFor(view, hour, weather, framed.mDay));
+                stops.push_back(stopFor(view, given));
 
             return stops;
         }
@@ -391,7 +421,9 @@ namespace RtxTool
             SessionRequest request;
             request.mStops = std::move(stops);
             request.mSetup = framed.mSetup;
+            request.mPlayed = policy.mPlayed;
             request.mHud = variables["hud"].as<bool>();
+            request.mSetup.mInterface = request.mPlayed || request.mHud;
             request.mVanity = variables["vanity"].as<bool>();
             request.mRandomSeed = variables["random-seed"].as<unsigned int>();
 
@@ -442,13 +474,14 @@ namespace RtxTool
                 staged.mName = variables["load-savegame"].as<Files::MaybeQuotedPath>().stem().string();
                 staged.mSky.mHour = hourGiven(variables);
                 staged.mSky.mWeather = weatherGiven(variables);
+                staged.mSky.mAir = airGiven(variables);
                 if (!variables["day"].defaulted())
                     staged.mSky.mDay = framed.mDay;
             }
             else
             {
                 const Stop view = found != nullptr ? *found : Stop{ .mStand = { .mCell = cell } };
-                staged = stopFor(view, hourGiven(variables), weatherGiven(variables), framed.mDay);
+                staged = stopFor(view, skyGiven(variables, framed));
             }
 
             // Anything given on the command line wins over the view, which is the rule `stopFor`

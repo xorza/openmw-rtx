@@ -57,7 +57,6 @@
 #define GBUFFER_MOTION STORAGE_RG16F
 #define GBUFFER_DEPTH STORAGE_RG32F
 #define GBUFFER_LAYER STORAGE_RGBA16F
-#define GBUFFER_PUFF_DEPTH STORAGE_RG32F
 #define GBUFFER_STARS STORAGE_RGBA8
 
 // Which binding of `SET_CHANNELS` each channel is.
@@ -95,17 +94,16 @@ namespace Rtx::Shaders
     /// How much of the star field a pixel still shows, for the pass that draws it.
     const uint CHANNEL_STARS_SHOWN = 8;
 
-    /// The puffs the trace found in front of the surface, kept apart from it: the sprites and the
-    /// cloud shells as one layer, lit where they stand — its colour and what it lets through, then
-    /// how far along the ray it stood and what the shells alone let through. What the frame is
-    /// composited with comes from here at the traced extent and the sprites' *shape* from a
-    /// second march at the shown extent, which `spritecomposite.rgen` puts together — so no puff
-    /// goes through a denoiser or an upscaler's overlay.
+    /// The sprites the trace found in front of the surface, kept apart from it and lit where they
+    /// stand: their colour, what they let through, and which eye the pixel's ray left — `packPuffs`.
+    /// The light is all the composite takes from here. What a puff's shape is, what hides it and
+    /// what the cloud shells add are answered along the shown pixel's own ray by
+    /// `spritecomposite.rgen`, so no puff goes through a denoiser or an upscaler's overlay, and
+    /// nothing the composite draws moves with the jitter the traced grid is sampled at.
     const uint CHANNEL_PUFFS = 9;
-    const uint CHANNEL_PUFFS_DEPTH = 10;
 
     /// How many the set declares, which is the last of them and one more.
-    const uint CHANNEL_COUNT = 11;
+    const uint CHANNEL_COUNT = 10;
 
 #ifdef RTX_HOST
 }

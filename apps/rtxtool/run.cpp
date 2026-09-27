@@ -93,6 +93,11 @@ namespace RtxTool
             stop.mSky.mWeather.value_or(std::string(sDefaultWeather)));
     }
 
+    std::string describeAir(const Rtx::AirClock& air)
+    {
+        return std::format("{},{},{},{}", air.mSky.mSeconds, air.mSky.mCloudScroll, air.mCarried.x(), air.mCarried.y());
+    }
+
     std::string describeBlock(const Stop& stop)
     {
         std::string block = std::format("[{}]\n", slugOf(stop.mName));
@@ -115,6 +120,11 @@ namespace RtxTool
         if (stop.mSky.mWeather.has_value() && *stop.mSky.mWeather != sDefaultWeather)
             block += std::format("weather = {}\n", *stop.mSky.mWeather);
 
+        // Always where it is known, since no air is the file's own: one left out is whatever the
+        // run's frames carried it to.
+        if (stop.mSky.mAir.has_value())
+            block += std::format("air = {}\n", describeAir(*stop.mSky.mAir));
+
         return block;
     }
 
@@ -125,11 +135,17 @@ namespace RtxTool
 
         // Quoted, because an interior's name has spaces and commas in it; `=` on every switch,
         // because a leading minus reads as an option otherwise, as `--pos`'s help says.
-        return std::format(
-            "# openmw-rtxtool view --cell=\"{}\" --pos={},{},{} --look={},{},{} --hour={} --day={} --weather={}\n",
+        std::string command = std::format(
+            "# openmw-rtxtool view --cell=\"{}\" --pos={},{},{} --look={},{},{} --hour={} --day={} --weather={}",
             stop.mStand.mCell, eye.x(), eye.y(), eye.z(), look.x(), look.y(), look.z(),
             stop.mSky.mHour.value_or(sDefaultHour), stop.mSky.mDay.value_or(0),
             stop.mSky.mWeather.value_or(std::string(sDefaultWeather)));
+
+        if (stop.mSky.mAir.has_value())
+            command += std::format(" --air={}", describeAir(*stop.mSky.mAir));
+
+        command += '\n';
+        return command;
     }
 
     std::string describeKey(const Stop& stop)
@@ -333,8 +349,7 @@ namespace RtxTool
         }
     }
 
-    Stop stopFor(
-        const Stop& view, const std::optional<float>& hour, const std::optional<std::string>& weather, const int day)
+    Stop stopFor(const Stop& view, const StopSky& given)
     {
         Stop stop = view;
 
@@ -343,9 +358,11 @@ namespace RtxTool
         if (stop.mName.empty())
             stop.mName = view.mStand.mCell;
 
-        stop.mSky.mHour = hourFor(hour, view.mSky.mHour);
-        stop.mSky.mWeather = weatherFor(weather, view.mSky.mWeather);
-        stop.mSky.mDay = day;
+        stop.mSky.mHour = hourFor(given.mHour, view.mSky.mHour);
+        stop.mSky.mWeather = weatherFor(given.mWeather, view.mSky.mWeather);
+        stop.mSky.mDay = given.mDay;
+        if (given.mAir.has_value())
+            stop.mSky.mAir = given.mAir;
 
         return stop;
     }

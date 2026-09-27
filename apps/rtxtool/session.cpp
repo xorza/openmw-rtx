@@ -129,6 +129,17 @@ namespace RtxTool
         return actions.mHash || actions.mFilm.has_value();
     }
 
+    std::optional<Rtx::AirClock> Session::getHeldAir() const
+    {
+        // **Until the first counted frame, for the reason the history is forgotten until then**
+        // (`beforeFrame`): how many frames a stop opens with is how long the world took to load,
+        // and an air that ran through them stood somewhere else in every run.
+        if (mDone || !mStarted || mMeasurer.getSeen() != 0)
+            return std::nullopt;
+
+        return currentStop().mSky.mAir;
+    }
+
     void Session::beforeFrame()
     {
         if (mDone)
@@ -148,6 +159,9 @@ namespace RtxTool
 
         if (!isPlaying())
             return;
+
+        if (!mRequest.mPlayed)
+            Stager::closeMenus();
 
         if (!mStarted)
         {
@@ -181,13 +195,15 @@ namespace RtxTool
         // trace — so a note taken before them describes a camera under a sky that no frame ever
         // used. The last one taken is what `RunRecord::describe` publishes.
         mNote.take();
-        mNote.printIfAsked(mRequest.mKeys);
     }
 
     void Session::frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report)
     {
         if (mDone || !mStarted)
             return;
+
+        mNote.takeAir(report.mAir);
+        mNote.printIfAsked(mRequest.mKeys);
 
         switch (mMeasurer.frame(currentStop(), context, report, mCamera.hasArrived()))
         {

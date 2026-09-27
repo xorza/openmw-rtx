@@ -55,9 +55,9 @@ layout(set = SET_PASS, binding = TONE_BIND_SUN_GLARE, scalar) readonly buffer Su
     float sunGlareShare;
 };
 
-/// What the trace left of the puffs at the traced extent: the shells' transmittance in `y` is what
-/// `puffsCoverNothing` reads.
-layout(set = SET_PASS, binding = TONE_BIND_PUFFS_DEPTH, GBUFFER_PUFF_DEPTH) uniform readonly image2D puffsDepth;
+/// What the trace left of the puffs at the traced extent: the arms' flag is what `puffsCoverNothing`
+/// reads.
+layout(set = SET_PASS, binding = TONE_BIND_PUFFS, GBUFFER_LAYER) uniform readonly image2D puffsLayer;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -109,7 +109,7 @@ void main()
         if (frame.mCoverAlpha != 0u)
         {
             puffs = puffsCoverNothing(SpriteTileList(frame.mSpriteTileList), SpritePresence(frame.mSpritePresence),
-                        frame.mTracedWidth, traced, unpackPuffsStood(imageLoad(puffsDepth, ivec2(traced)).xy))
+                        frame.mTracedWidth, traced, puffsOnArms(imageLoad(puffsLayer, ivec2(traced))))
                 ? 1.0
                 : lit.a;
         }

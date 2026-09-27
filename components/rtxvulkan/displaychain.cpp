@@ -138,7 +138,7 @@ namespace Rtx
                 .mExposure = *exposure,
                 .mSunGlare = *share,
                 .mStarsShown = channels.get(Channel::StarsShown),
-                .mPuffsDepth = channels.get(Channel::PuffsDepth),
+                .mPuffs = channels.get(Channel::Puffs),
                 .mBloom = what.mBloom ? mBloom.getPyramid() : nullptr,
                 .mTextures = inputs.mTextures,
                 .mTarget = what.mTarget,

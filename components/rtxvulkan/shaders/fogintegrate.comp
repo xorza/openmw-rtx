@@ -20,6 +20,13 @@
 //
 // Nothing here traces, walks or samples a field. It reads three images and a depth, and does
 // multiply-adds.
+//
+// **And it hands the averaged seeing on**, because a puff of smoke is lit by the same three answers
+// the air is and wants them filtered the same way. Read raw, a puff showed what the tent exists to
+// take away: a draw of one ray averaged over ten frames is a blotch a column wide, and a puff lit by
+// the sun at a card's worth paints it warm across every bank of mist that hangs in the light. Stored
+// beside and not over `fogSunward`, because that image is the next frame's history, and a history
+// filtered every frame is blurred again every frame.
 
 #include "scene.h"
 
@@ -81,7 +88,8 @@ ivec2 fogTentAt(ivec2 column, int i, ivec2 grid)
 /// what lets each be treated as what it is.
 ///
 /// @param surfaces where the nine columns' views of the air end, in `fogTentOffset` order.
-FogSlice sliceAt(ivec2 column, uint slice, ivec2 grid, float surfaces[9])
+/// @param averaged the three answers of the seeing as the tent left them, packed as they were read.
+FogSlice sliceAt(ivec2 column, uint slice, ivec2 grid, float surfaces[9], out vec4 averaged)
 {
     const float near = froxelNear(slice);
 
@@ -110,6 +118,7 @@ FogSlice sliceAt(ivec2 column, uint slice, ivec2 grid, float surfaces[9])
 
     point /= total;
     seeing /= total;
+    averaged = seeing;
 
     const vec3 lamps = texelFetch(fogLamps, ivec3(column, int(slice)), 0).xyz;
     const FogPoint held = unpackFogPoint(point, seeing);
@@ -144,13 +153,18 @@ void main()
 
     // The slice before the first is the first, and the one after the last is the last — the clamp
     // the sampler applies when a pixel reads the same line at its edges.
-    FogSlice before = sliceAt(column, 0u, grid.xy, surfaces);
+    vec4 seeing;
+    FogSlice before = sliceAt(column, 0u, grid.xy, surfaces, seeing);
     FogSlice here = before;
 
     for (uint slice = 0u; slice < FOG_VOLUME_SLICES; ++slice)
     {
         const ivec3 froxel = ivec3(column, int(slice));
-        const FogSlice next = slice + 1u < FOG_VOLUME_SLICES ? sliceAt(column, slice + 1u, grid.xy, surfaces) : here;
+        imageStore(fogSeeingTarget, froxel, seeing);
+
+        vec4 seeingNext = seeing;
+        const FogSlice next
+            = slice + 1u < FOG_VOLUME_SLICES ? sliceAt(column, slice + 1u, grid.xy, surfaces, seeingNext) : here;
 
         // **The line must not bend toward a slice that starts past the surface**, which holds no
         // air of this column's: the far half of the slice the surface stands in is flat, the way
@@ -185,5 +199,6 @@ void main()
         behind = ahead;
         before = here;
         here = next;
+        seeing = seeingNext;
     }
 }

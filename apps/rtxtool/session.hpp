@@ -9,6 +9,7 @@
 #include <apps/openmw/engine.hpp>
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
+#include <components/rtx/frameworld.hpp>
 
 #include "cameradriver.hpp"
 #include "measurer.hpp"
@@ -56,6 +57,7 @@ namespace RtxTool
         std::uint32_t getAccumulated() const override;
         bool wantsSecondWalk() const override;
         bool wantsFrameCopy() const override;
+        std::optional<Rtx::AirClock> getHeldAir() const override;
 
         /// Starts the stop that is due, or moves the running one a frame on. Does nothing until the
         /// game has a world to stand in.

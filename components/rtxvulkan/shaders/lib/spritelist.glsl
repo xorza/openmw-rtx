@@ -86,28 +86,26 @@ uint spriteTileOf(uvec2 pixel, uint width)
     return (pixel.y / SPRITE_TILE) * spriteTilesOver(width) + pixel.x / SPRITE_TILE;
 }
 
-/// What the trace leaves at a pixel for the puffs' composite and the curve, `CHANNEL_PUFFS_DEPTH`:
-/// how far the puffs stand, what the cloud shells let through, and whether the arms were found there
-/// — whose eye the composite marches the pixel's ray from again.
-struct PuffsStood
+/// What the trace leaves at a pixel for the puffs' composite and the curve, `CHANNEL_PUFFS`: the
+/// sprites' colour lit where they stand, what they let through, and whether the arms were found
+/// there — whose eye the composite marches the pixel's ray from again.
+///
+/// **The flag rides in the sign of the transmittance**, which a transmittance never spends: a half
+/// float keeps its sign bit, nought's included, so `abs` gives the transmittance back exactly and
+/// the bit gives the flag.
+vec4 packPuffs(vec3 colour, float through, bool arms)
 {
-    float mCoveredAt;
-    float mShellsThrough;
-    bool mArms;
-};
-
-/// **Two words and a bit, in a channel of two.** The flag rides in the sign of the transmittance,
-/// which a transmittance never spends: a float store keeps its sign bit, nought's included, so
-/// `abs` gives the transmittance back exactly and the bit gives the flag. A third word is past the
-/// format — `GBUFFER_PUFF_DEPTH` is two floats — and a flag stored there reads back as nought.
-vec2 packPuffsStood(PuffsStood stood)
-{
-    return vec2(stood.mCoveredAt, stood.mArms ? -stood.mShellsThrough : stood.mShellsThrough);
+    return vec4(colour, arms ? -through : through);
 }
 
-PuffsStood unpackPuffsStood(vec2 packed)
+float puffsThrough(vec4 packed)
 {
-    return PuffsStood(packed.x, abs(packed.y), (floatBitsToUint(packed.y) & 0x80000000u) != 0u);
+    return abs(packed.a);
+}
+
+bool puffsOnArms(vec4 packed)
+{
+    return (floatBitsToUint(packed.a) & 0x80000000u) != 0u;
 }
 
 /// The `PRESENCE_` kinds a ray through a traced pixel's tile can meet — every kind where the frame
@@ -121,10 +119,10 @@ uint presenceAt(SpriteTileList list, SpritePresence presence, uint tracedWidth, 
 }
 
 /// Whether the puff layer holds nothing at a traced pixel: no sprite binned into its tile, no cloud
-/// shell in front of it, no additive mesh a ray through its tile can meet, and not the arms' — so
-/// the composite there would leave the frame as it found it, with a transmittance of one in its
-/// alpha. An arms' ray looks its sprites up in another tile than its own (`binnedPixel`), and the
-/// hand is a sliver of the frame, so it is walked rather than asked about.
+/// shell and no additive mesh a ray through its tile can meet, and not the arms' — so the composite
+/// there would leave the frame as it found it, with a transmittance of one in its alpha. An arms'
+/// ray looks its sprites up in another tile than its own (`binnedPixel`), and the hand is a sliver
+/// of the frame, so it is walked rather than asked about.
 ///
 /// **Asked by the composite and by the curve, which have to agree pixel for pixel.** The composite
 /// skips such a pixel, and the curve reads a transmittance of one there in place of an alpha the
@@ -133,14 +131,17 @@ uint presenceAt(SpriteTileList list, SpritePresence presence, uint tracedWidth, 
 /// with the writes gone. A frame whose runs did not fit binned nothing, and every pixel of it
 /// walks every sprite — `SPRITE_LIST_UNBINNED`.
 ///
-/// @param stood what the trace left at the pixel.
-bool puffsCoverNothing(SpriteTileList list, SpritePresence presence, uint tracedWidth, uvec2 traced, PuffsStood stood)
+/// **Of the tile alone, and of nothing a ray through the pixel found**, so the answer is the same
+/// whichever point of the pixel the trace sampled.
+///
+/// @param arms whether the trace found the arms at the pixel, `puffsOnArms`.
+bool puffsCoverNothing(SpriteTileList list, SpritePresence presence, uint tracedWidth, uvec2 traced, bool arms)
 {
-    if (list.at[0] == SPRITE_LIST_UNBINNED || stood.mShellsThrough < 1.0 || stood.mArms)
+    if (list.at[0] == SPRITE_LIST_UNBINNED || arms)
         return false;
 
     const uint tile = spriteTileOf(traced, tracedWidth);
-    return (presence.at[tile] & PRESENCE_ADDITIVE) == 0u
+    return (presence.at[tile] & (PRESENCE_ADDITIVE | PRESENCE_MEDIUM)) == 0u
         && list.at[spriteStartSlot(tile)] == list.at[spriteStartSlot(tile + 1u)];
 }
 

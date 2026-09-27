@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -8,11 +9,13 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/Vec2d>
 #include <osg/Vec3f>
 
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/run.hpp>
+#include <components/rtx/frameworld.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool
@@ -56,15 +59,27 @@ namespace RtxTool
             return loadViews(file);
         }
 
-        /// A point is three numbers and nothing else, spaces around each allowed; anything else is
-        /// no point, the empty text among it, and the caller says so in its own words.
-        TEST(RtxBlockFileTest, aPointIsThreeNumbersAndNothingElse)
+        /// A point is three numbers and an air four, and nothing else, spaces around each allowed;
+        /// anything else is none, the empty text among it, and the caller says so in its own words.
+        TEST(RtxBlockFileTest, aPointAndAnAirAreTheirNumbersAndNothingElse)
         {
             EXPECT_EQ(parseVec3("1,-2.5,3"), osg::Vec3f(1.0f, -2.5f, 3.0f));
             EXPECT_EQ(parseVec3(" -8292, -73376 ,320 "), osg::Vec3f(-8292.0f, -73376.0f, 320.0f));
 
             for (const std::string_view text : { "", "1,2", "1,2,3,", "1,,3", "1,2,3,4", "a,b,c", "1,2,3x", ",," })
                 EXPECT_FALSE(parseVec3(text).has_value()) << '"' << text << '"';
+
+            // An air is four numbers in the ranges its clocks keep, the seconds and the drift read at
+            // double precision: 36000.123456789 is no float, whose nearest is 36000.125.
+            const std::optional<Rtx::AirClock> air = parseAir(" 36000.123456789, 1.25 ,-2041.5,5432.000001");
+            ASSERT_TRUE(air.has_value());
+            EXPECT_EQ(air->mSky.mSeconds, 36000.123456789);
+            EXPECT_EQ(air->mSky.mCloudScroll, 1.25f);
+            EXPECT_EQ(air->mCarried, osg::Vec2d(-2041.5, 5432.000001));
+
+            for (const std::string_view text :
+                { "", "1,2,3", "1,2,3,4,5", "a,0,0,0", "-1,0,0,0", "0,4,0,0", "0,-0.5,0,0", "0,0,,0" })
+                EXPECT_FALSE(parseAir(text).has_value()) << '"' << text << '"';
 
             EXPECT_EQ(trimmed(" \tcell = 0,0\r"), "cell = 0,0");
             EXPECT_EQ(trimmed("  "), "");

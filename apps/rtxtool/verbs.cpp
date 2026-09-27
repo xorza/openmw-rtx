@@ -30,14 +30,14 @@ namespace RtxTool
 
     const VerbPolicy& policyOf(const Verbs one)
     {
-        // In the order `sNames` names them. `view` flies nothing and freezes nothing, because
-        // somebody is flying it; `check` and `shot` fly a route unfrozen and stand still elsewhere;
-        // `bench` measures what moves.
+        // In the order `sNames` names them. `view` flies nothing and freezes nothing, and keeps the
+        // game's interface, because somebody is flying it; `check` and `shot` fly a route unfrozen
+        // and stand still elsewhere; `bench` measures what moves.
         static constexpr std::array<std::pair<Verbs, VerbPolicy>, 7> sPolicies{ {
             { Verbs::Info, VerbPolicy{} },
             { Verbs::Scene, VerbPolicy{ .mFreezes = true } },
             { Verbs::Shot, VerbPolicy{ .mFreezes = true, .mFliesRoutes = true, .mHashes = true } },
-            { Verbs::View, VerbPolicy{} },
+            { Verbs::View, VerbPolicy{ .mPlayed = true } },
             { Verbs::Bench, VerbPolicy{ .mFliesRoutes = true, .mMeasures = true } },
             { Verbs::Check, VerbPolicy{ .mFreezes = true, .mFliesRoutes = true } },
             { Verbs::Film, VerbPolicy{ .mFollowsTracks = true, .mMeasures = true } },

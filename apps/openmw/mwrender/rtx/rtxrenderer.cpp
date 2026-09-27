@@ -128,6 +128,7 @@ namespace MWRender
     RtxRenderer::RtxRenderer(const RendererSpec& spec, const RtxSetup* const run, const RunSetup& setup)
         : mRun(run != nullptr ? run->mRun : mPlayed)
         , mSettled(setup.mSettled)
+        , mInterface(setup.mInterface)
         , mWindow(setup.mHeadless)
         , mUpdateVisitor(new Rtx::PoseUpdate)
         , mStartTick(osg::Timer::instance()->tick())
@@ -426,7 +427,8 @@ namespace MWRender
         // its colours are display-referred — they were picked looking at a monitor, and a tone curve
         // meant for radiance is how a menu comes out grey.
         assert(mGui != nullptr && "a GUI drawn before the interface was made");
-        mGui->collectDrawCalls();
+        if (mInterface)
+            mGui->collectDrawCalls();
     }
 
     FrameContext RtxRenderer::describeContext()
@@ -767,6 +769,10 @@ namespace MWRender
         if (!frame.mPaused && frame.mWorld.mSkyShown)
             mSky.step(frame.mDeltaTime, frame.mWorld.mTimeScale, frame.mSky.mWeather.mCloudSpeed);
 
+        // After the step, so the frame is drawn at the moment asked for and not one step past it.
+        if (const std::optional<Rtx::AirClock> held = mRun.getHeldAir())
+            mSky.holdAir(*held);
+
         // **Ahead of the trace and not after the present**, so the frame this draws is the one the
         // window's own extent asked for rather than the one behind it.
         mWindow.fit(*mRenderer, getCamera());
@@ -989,7 +995,7 @@ namespace MWRender
         // the rule that would derive it — `Rtx::Skylight::mExposureBias`. Whichever light this cell
         // got settled it, and a second derivation at the frame is a second place to get the
         // exception wrong.
-        Rtx::describeWorld(read, mFogDrift, constants, options);
+        report.mAir = mSky.describe(read, constants, options);
 
         // **Timed, because a profiler cannot read it.** The record and the submit are almost
         // entirely inside the driver, which carries no frame pointer, so perf attributes what they

@@ -200,6 +200,181 @@ namespace Rtx::Testing
             }
         }
 
+        /// A puff under a shade that takes half the sun holds still from one frame to the next.
+        ///
+        /// **What a puff reads is one ray a froxel a frame, and a puff is lit hard enough to show
+        /// it.** The history averages ten frames of it, which leaves a coin a column wide; the air
+        /// is lit by a fraction of the sun and takes the tent across its neighbours besides, and a
+        /// puff read the froxel alone at a card's worth of the sun. M[FR]'s ground mist wore that
+        /// coin as warm blocks that boiled wherever it hung in the light. So a puff reads the seeing
+        /// the tent averaged (`fogSeeing`), and this measures it the way
+        /// `theVolumeSettlesTheAirUnderALampRatherThanFlickeringBlockByBlock` measures the air: the
+        /// mean step of a settled pixel between frames, against its mean.
+        ///
+        /// **Slats eight units wide and eight apart**, six hundred units over the puff and under the
+        /// sun, so every froxel's jittered shadow ray is a fair coin: thirty-three pixels over sixty
+        /// degrees at four hundred units are `2 * 400 * tan 30° / 33 = 14` units each, so a column of
+        /// eight is 112 units across and holds seven slats and seven gaps.
+        ///
+        /// **And the mean is the half the slats leave**, so what took the noise away took none of
+        /// the light: a filter that dimmed the puff would hold as still.
+        ///
+        /// The froxel's own seeing, read as it was, steps by 3.5% of the pixel here and the averaged
+        /// seeing by 2.1%; the bound stands between them.
+        TEST_F(RtxVisibilityTest, aPuffUnderASlattedShadeHoldsStillFromFrameToFrame)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr std::uint32_t frames = 192;
+            constexpr std::uint32_t settled = 64;
+
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+            const std::array<TextureData, 1> puff{ describeTexel(white) };
+
+            const auto lit = [&](bool slatted) {
+                SceneDesc scene;
+                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
+                    .mRadius = 60.0f,
+                    .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                    .mAlpha = 1.0f } };
+                scene.addEmitter(sprites, cut, false);
+
+                if (slatted)
+                {
+                    constexpr float width = 8.0f;
+                    constexpr float extent = 200.0f;
+                    constexpr float height = 600.0f;
+                    for (float x = -extent; x < extent; x += 2.0f * width)
+                        addQuad(scene,
+                            std::array{ osg::Vec3f(x, -extent, height), osg::Vec3f(x + width, -extent, height),
+                                osg::Vec3f(x + width, extent, height), osg::Vec3f(x, extent, height) });
+                }
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -1.0f, 400.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mAmbientFromSky = 0.0f;
+                camera.mAmbient = osg::Vec3f();
+                camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+
+                std::vector<float> radiance;
+                shoot(scene, puff, camera, size,
+                    Shot{ .mFrames = slatted ? frames : 1u,
+                        .mAverage = false,
+                        .mResetHistory = true,
+                        .mEachFrame = [&](const Frame& each) { radiance.push_back(each.at(centre)); } });
+                return radiance;
+            };
+
+            const auto settledMean = [&](const std::vector<float>& radiance) {
+                double total = 0.0;
+                for (std::size_t frame = frames - settled; frame < frames; ++frame)
+                    total += double{ radiance[frame] };
+                return total / double{ settled };
+            };
+
+            // One frame of the open puff, because with nothing over it every ray finds the sun.
+            const std::vector<float> shaded = lit(true);
+            const double open = double{ lit(false).front() };
+            const double mean = settledMean(shaded);
+            ASSERT_GT(open, 0.01) << "the sun did not reach the puff at all";
+
+            double stepped = 0.0;
+            for (std::size_t frame = frames - settled; frame < frames; ++frame)
+                stepped += std::abs(double{ shaded[frame] } - double{ shaded[frame - 1] });
+            const double step = stepped / double{ settled };
+
+            EXPECT_NEAR(mean / open, 0.5, 0.1) << "the slats take half the sun and the filter none of it";
+            EXPECT_LT(step / mean, 0.028) << "how far a settled pixel of a shaded puff moves between frames";
+        }
+
+        /// A puff behind a post's edge, and a cloud's shell, are hidden where the pixel's own ray
+        /// meets the post, and not where that frame's sample happened to land.
+        ///
+        /// **The traced grid is jittered for the upscaler, and the picture the composite lays the
+        /// puffs over is not.** Hidden by the traced pixel's depth, a puff behind a silhouette was
+        /// there on the frames the sample missed the post and gone on the frames it hit it, and
+        /// Seyda Neen's pier shook under M[FR]'s mist wherever a rope or a post stood in front of
+        /// it. A shell gathered by the trace stopped where the sample stopped in the same way. So
+        /// the composite finds the depth along the shown pixel's ray, and gathers the shells there.
+        ///
+        /// **The centre pixel's ray passes a quarter of a pixel right of the post's edge, and a
+        /// sample moved four tenths of a pixel left lands on the post.** Thirty-three pixels over
+        /// sixty degrees are `2 * 200 * tan 30° / 33 = 7.0` units across at the post's two hundred,
+        /// so the edge stands at `-0.25 * 7.0 = -1.75` and the moved sample at `-2.8`. The post faces
+        /// the eye and the sun stands overhead, so with no sky and no ambient it is black, and what
+        /// the pixel holds is what stands behind it: the same under both samples.
+        ///
+        /// **And lit as it is beside the post.** With the sample on the post, the traced pixel under
+        /// this one holds no puff to take a colour from, and the composite reads the ring around
+        /// it; the fallback it had before lit the puff by the ambient alone, which is nought here.
+        /// The shell is lit by its own walk, which the traced grid has no part in.
+        TEST_F(RtxVisibilityTest, whatStandsBehindAPostIsHiddenWhereThePixelsRayMeetsThePost)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+
+            enum class Behind
+            {
+                Puff,
+                Shell,
+            };
+
+            Shaders::VisibilityConstants camera = Testing::makeCameraAlong(
+                osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mAmbientFromSky = 0.0f;
+            camera.mAmbient = osg::Vec3f();
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+
+            const auto sampledAt = [&](Behind behind, float across) {
+                SceneDesc scene;
+                std::array<TextureData, 1> textures{ describeTexel(white) };
+                if (behind == Behind::Puff)
+                {
+                    const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                    const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 400.0f, 0.0f),
+                        .mRadius = 60.0f,
+                        .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                        .mAlpha = 1.0f } };
+                    scene.addEmitter(sprites, cut, false);
+                }
+                else
+                {
+                    const Index texture = scene.textures().add(VFS::Path::NormalizedView("shell.dds"));
+                    const Index shell = scene.addMaterial(Material{ .mDiffuse = texture,
+                        .mOpacity = 0.5f,
+                        .mAlphaMode = AlphaMode::Blend,
+                        .mDiffuseNeverSolid = true });
+                    addQuad(scene, uprightQuadAt(60.0f, 400.0f), shell);
+                }
+
+                constexpr float edge = -1.75f;
+                addQuad(scene,
+                    std::array{ osg::Vec3f(-500.0f, 200.0f, -500.0f), osg::Vec3f(edge, 200.0f, -500.0f),
+                        osg::Vec3f(edge, 200.0f, 500.0f), osg::Vec3f(-500.0f, 200.0f, 500.0f) });
+
+                return shoot(
+                    scene, textures, camera, size, Shot{ .mResetHistory = true, .mOffset = osg::Vec2f(across, 0.0f) })
+                    .at(centre);
+            };
+
+            for (const Behind behind : { Behind::Puff, Behind::Shell })
+            {
+                const char* const what = behind == Behind::Puff ? "a puff" : "a shell";
+                const float beside = sampledAt(behind, 0.0f);
+                const float onThePost = sampledAt(behind, -0.4f);
+
+                ASSERT_GT(beside, 0.01f) << what << " did not reach the pixel beside the post at all";
+                EXPECT_NEAR(onThePost / beside, 1.0f, 0.05f) << what << " behind the edge went with the sample";
+            }
+        }
+
         /// A sprite in front of the player's hand is looked for where the arms' ray crosses the
         /// world's picture, and not in the tile of the pixel the ray was cast for.
         ///

@@ -40,7 +40,6 @@ namespace Rtx
         /// A full float for how far along the ray the layer stood: a distance past thirty thousand
         /// units, where a half's steps are thirty-two units wide, and it orders the layer against
         /// the sprites.
-        constexpr VkFormat sPuffDepth = toVulkanFormat(GBUFFER_PUFF_DEPTH);
 
         /// Three bytes for three fractions, which is what `gbuffer.h` argues a modulation is.
         constexpr VkFormat sStars = toVulkanFormat(GBUFFER_STARS);
@@ -78,7 +77,6 @@ namespace Rtx
                 every[bindingOf(Channel::ReflectionMotion)] = { sMotion, sReadable };
                 every[bindingOf(Channel::StarsShown)] = { sStars, sUsage };
                 every[bindingOf(Channel::Puffs)] = { sLayer, sUsage };
-                every[bindingOf(Channel::PuffsDepth)] = { sPuffDepth, sUsage };
 
                 return every;
             }();

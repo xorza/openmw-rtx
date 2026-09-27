@@ -28,7 +28,6 @@
 #include "lib/counts.glsl"
 #include "lib/fog.glsl"
 #include "lib/frame.glsl"
-#include "lib/medium.glsl"
 #include "lib/payload.glsl"
 #include "lib/random.glsl"
 #include "lib/reproject.glsl"
@@ -339,41 +338,22 @@ void main()
 
     transmittance *= paneThrough;
 
-    // **The puffs in front of all of it, lit where they stand and left in a layer of their own.**
+    // **The sprites in front of all of it, lit where they stand and left in a layer of their own.**
     // Nothing of them is in `shaded`: the frame goes to the denoiser with no puff in it, and
-    // `spritecomposite.rgen` puts the layer over the reconstructed frame at the shown extent —
-    // with the sprites' shape marched again there, at the picture's own resolution, and the
-    // colour taken from here. What this walk is for is the light: three fetches a covering sprite,
-    // which is worth paying once at the traced extent and not three times over at the shown one.
+    // `spritecomposite.rgen` puts the puffs over the reconstructed frame at the shown extent —
+    // their shape marched again there, along the shown pixel's own ray, and their colour taken
+    // from here. What this walk is for is the light: three fetches a covering sprite, which is
+    // worth paying once at the traced extent and not three times over at the shown one.
     //
-    // **Two walks and one layer.** An emitter's sprites and a cloud's shells are the same kind of
-    // thing standing in the same place, so the second walk fills a layer of its own and
-    // `mergedPuffs` puts the two together. The shells' own transmittance rides beside the depth,
-    // because the composite marches the sprites again and the shells it cannot.
+    // **The sprites alone, and no cloud shell.** A shell is gathered along the ray that shows it,
+    // which is the composite's; gathered here as well, it was hidden and let through by this
+    // jittered sample and not by the pixel the picture shows, and a cloud's edge shook the way a
+    // puff's did at a silhouette.
     //
-    // **And the whole of the second walk is inside the test.** The tile's presence says whether a
-    // ray through it can meet anything carrying `MASK_MEDIUM`, so a tile with no cloud in reach
-    // neither descends the top level to find nothing nor merges a layer that holds nothing — and
-    // the merge is not free: it divides a coverage back out, which moves a level on a pixel that
-    // meets no medium.
-    const uvec2 binned = binnedPixel(pixel, direction, arms);
-    PuffLayer layer = spritesAlong(binned, origin, direction, distance, cone, true);
-    float shellsThrough = 1.0;
-
-    if ((presenceAt(SpriteTileList(frame.mTables.mSpriteTileList), SpritePresence(frame.mTables.mSpritePresence),
-             frame.mCamera.mWidth, binned)
-            & PRESENCE_MEDIUM)
-        != 0u)
-    {
-        const PuffLayer shells = mediumAlong(pixel, origin, direction, distance, cone);
-        shellsThrough = shells.mTransmittance;
-        layer = mergedPuffs(layer, shells);
-    }
-
     // And which eye this pixel's ray was cast from, for the composite to march its own again
-    // through the same one: `spritecomposite.rgen` reads it beside the depth.
-    imageStore(puffs, ivec2(pixel), vec4(layer.mColour, layer.mTransmittance));
-    imageStore(puffsDepth, ivec2(pixel), vec4(packPuffsStood(PuffsStood(layer.mCoveredAt, shellsThrough, arms)), 0.0, 0.0));
+    // through the same one — in the sign of what the sprites let through, `packPuffs`.
+    const PuffLayer layer = spritesAlong(binnedPixel(pixel, direction, arms), origin, direction, distance, cone, true);
+    imageStore(puffs, ivec2(pixel), packPuffs(layer.mColour, layer.mTransmittance, arms));
 
     // **The sun glare fader's query, one ray at a time.** The rasterizer draws the sun's quad
     // against the world's depth and counts the pixels that survived; here every primary ray inside

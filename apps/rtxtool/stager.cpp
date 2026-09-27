@@ -1,6 +1,7 @@
 #include "stager.hpp"
 
 #include <cstdint>
+#include <format>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -190,6 +191,43 @@ namespace RtxTool
     void Stager::forgetHistory()
     {
         MWBase::Environment::get().getWorld()->getRenderingManager()->notifyWorldSpaceChanged();
+    }
+
+    void Stager::closeMenus()
+    {
+        // Popped and not cleared, because a pop is what tells the scripts the mode changed: the
+        // interface script is what paused the world for the menu, and it unpauses on that notice.
+        MWBase::WindowManager& windows = *MWBase::Environment::get().getWindowManager();
+        while (windows.isGuiMode())
+            windows.popGuiMode(true);
+    }
+
+    bool Stager::isWorldPaused()
+    {
+        return MWBase::Environment::get().getWorld()->getTimeManager()->isPaused();
+    }
+
+    std::string Stager::describePause()
+    {
+        std::string why;
+        const auto add = [&](std::string_view reason) {
+            if (!why.empty())
+                why += ", ";
+            why += reason;
+        };
+
+        for (const std::string& tag : MWBase::Environment::get().getWorld()->getTimeManager()->getPausedTags())
+            add(std::format("the pause tag \"{}\"", tag));
+
+        const MWBase::WindowManager& windows = *MWBase::Environment::get().getWindowManager();
+        if (windows.isConsoleMode())
+            add("the console");
+        if (windows.isInteractiveMessageBoxActive())
+            add("a message box waiting for an answer");
+        if (windows.isPostProcessorHudVisible())
+            add("the post-processing window");
+
+        return why.empty() ? std::string("no reason the game names") : why;
     }
 
     void Stager::setWeather(MWBase::World& world, const std::string_view name)

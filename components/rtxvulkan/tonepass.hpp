@@ -37,8 +37,9 @@ namespace Rtx
         /// for itself.
         const Image& mStarsShown;
 
-        /// The trace's own depth of the puffs, at the same extent.
-        const Image& mPuffsDepth;
+        /// What the trace left of the puffs at the same extent, whose arms' flag
+        /// `puffsCoverNothing` reads.
+        const Image& mPuffs;
 
         /// The pyramid's finest level, in `VK_IMAGE_LAYOUT_GENERAL`, or null where nothing built
         /// one — a doll, a map tile, a frame too small to halve.

@@ -17,11 +17,12 @@
 // **The shape at the shown extent and the light at the traced one.** What a picture needs at
 // its own resolution is a puff's edge: which pixels it covers and how much. What it does not need
 // there is the light, which is read out of froxels that are a hundred pixels across and costs
-// three fetches a sprite — marched at every shown pixel, a storm's frame paid five times what it did. So the sprites are marched here for their shape
-// alone (`spritesAlong` with `lit` off), the colour comes off the trace's own lit layer, read
-// bilinearly and weighted by its coverage so a rim the traced grid missed borrows from the pixel
-// beside it, and the shells' transmittance comes with it, because a shell is geometry the trace
-// crossed and this launch cannot.
+// three fetches a sprite — marched at every shown pixel, a storm's frame paid five times what it
+// did. So the sprites are marched here for their shape alone (`spritesAlong` with `lit` off), and
+// the colour comes off the trace's own lit layer, read bilinearly and weighted by its coverage so
+// a rim the traced grid missed borrows from the pixel beside it. The cloud shells are gathered here
+// whole, light and all — `mediumAlong` is one walk a pixel and lights its layer once — so nothing
+// but the sprites' light is taken from the traced grid.
 //
 // **One pass for both denoisers.** Under the wavelet the shown extent is the traced one and this
 // runs at it; nothing else composites a puff anywhere in this renderer.
@@ -33,9 +34,18 @@
 // registers allow: 0.30 ms of a 4K frame, where the traced grid takes 0.12. The shown pixels are
 // the run `shownPixelsFrom` gives, so each is composited exactly as it was.
 //
-// **A launch and not a dispatch**, for the reason `RtxSourceTreeTest` gives: the sprite march
-// reaches the fog, and the fog reaches the traversal, and a dispatch that can trace answers
-// differently under another process's preemption. Nothing here traces.
+// **Where the eye's view ends, found again along the shown pixel's own ray.** The traced grid is
+// jittered for the upscaler, so the depth one of its pixels holds at a silhouette is the post on one
+// frame and the water behind it on the next — and a puff hidden by the one and not the other was
+// drawn over the post's edge on every other frame, in blocks of the traced grid: the rope and the
+// posts of Seyda Neen's pier shook under M[FR]'s mist, which stood still with the puffs taken away.
+// The shown ray is not jittered and neither is the picture the upscaler reconstructs, so a depth
+// found along it holds still with the edge it hides a puff behind. One ray query, with no material
+// resolved, where a puff can stand at all.
+//
+// **A launch and not a dispatch**, for the reason `RtxSourceTreeTest` gives: this traces, and so
+// does the fog the sprite march reaches, and a dispatch that can trace answers differently under
+// another process's preemption.
 
 #include "camera.h"
 #include "scene.h"
@@ -56,43 +66,63 @@ layout(push_constant, scalar) uniform Push
     PuffConstants picture;
 };
 
+/// Adds one traced pixel's lit sprites to a gather, weighted by `near` and by how much they covered
+/// there, so a traced pixel the puff missed says nothing and one it covered speaks for the rim
+/// beside it. Clamped to the grid's edge, which is the neighbour the sampler would have read there.
+void gatherLit(ivec2 tap, uvec2 tracedExtent, float near, inout vec3 lit, inout float weight)
+{
+    const vec4 read = imageLoad(puffs, clamp(tap, ivec2(0), ivec2(tracedExtent) - 1));
+    const float covered = (1.0 - puffsThrough(read)) * near;
+
+    lit += read.rgb * covered;
+    weight += covered;
+}
+
 /// Composites the puffs over one shown pixel, whose centre falls in `traced`.
-void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, PuffsStood stood)
+///
+/// @param arms whether the trace found the arms at `traced`, whose eye the pixel's ray then leaves.
+void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bool arms)
 {
     const vec2 across = vec2(tracedExtent) / vec2(extent);
 
     // The traced camera on this grid — `cameraOnGrid` says why it is the same basis.
-    const Camera camera = cameraOnGrid(stood.mArms ? frame.mArms : frame.mCamera, extent.x, extent.y);
+    const Camera camera = cameraOnGrid(arms ? frame.mArms : frame.mCamera, extent.x, extent.y);
 
     const Ray ray = rayAt(camera, vec2(pixel));
     const vec3 origin = frame.mOrigin + ray.mOffset;
     const vec3 direction = ray.mDirection;
 
-    // How far the eye committed on the traced grid, which is where a puff is hidden.
-    const float distance = imageLoad(depth, ivec2(traced)).y;
-
     const Cone cone = coneAt(camera);
-    const uvec2 binned = binnedPixel(traced, direction, stood.mArms);
-    const PuffLayer shape = spritesAlong(binned, origin, direction, distance, cone, false);
 
-    PuffLayer layer = shape;
-    layer.mTransmittance = shape.mTransmittance * stood.mShellsThrough;
-    layer.mCoveredAt = stood.mCoveredAt;
+    const uvec2 binned = binnedPixel(traced, direction, arms);
+    const uint present = presenceAt(SpriteTileList(frame.mTables.mSpriteTileList),
+        SpritePresence(frame.mTables.mSpritePresence), tracedExtent.x, binned);
+
+    // **Where a puff is hidden: the eye's own rule, along this pixel's own ray** — the world's
+    // mask, what the eye sees through walked past and the eye's culling, as `fogdepth.rgen` finds
+    // where a column's view ends. The header says why not the traced grid's. Not for the arms,
+    // whose ray leaves an eye of its own a few units off and whose depth the trace already has.
+    //
+    // **The whole ray, and not only as far as the last emitter it passes.** That bound is exact —
+    // a surface beyond every emitter hides none — and it lost: under M[FR]'s mist nearly every ray
+    // passes one, and the walk of the tile's sprites it took to find the bound cost this launch a
+    // tenth to a fifth of a millisecond more than the longer query it saved, at 2560 by 1440.
+    const float distance = arms ? imageLoad(depth, ivec2(traced)).y
+                                : surfaceWithin(origin, direction, 0.0, frame.mFar, cone.mWidth, cone.mSpread,
+                                    worldMask(frame.mRayMask), true, true);
+
+    // The sprites' shape, and where they stand, off this pixel's own march.
+    PuffLayer layer = spritesAlong(binned, origin, direction, distance, cone, false);
 
     // **The additive meshes, gathered here beside the flames** for the reason this launch draws
     // the flames at all: at the picture's own extent and past the denoiser. One query against a
     // mask a handful of instances carry, and only in the tiles one of them can be met from.
-    if ((presenceAt(SpriteTileList(frame.mTables.mSpriteTileList), SpritePresence(frame.mTables.mSpritePresence),
-             tracedExtent.x, binned)
-            & PRESENCE_ADDITIVE)
-        != 0u)
+    if ((present & PRESENCE_ADDITIVE) != 0u)
         layer.mAdded += additiveAlong(traced, origin, direction, distance, cone);
 
-    // The lit colour, off the traced layer around this pixel: each of the four nearest traced
-    // pixels weighted by how near it is and by how much it covered, so a traced pixel the puff
-    // missed says nothing and one it covered speaks for the rim beside it.
-    const float opacity = 1.0 - layer.mTransmittance;
-    if (opacity > 0.0)
+    // The sprites' lit colour, off the traced layer around this pixel: each of the four nearest
+    // traced pixels weighted by how near it is — `gatherLit`.
+    if (layer.mTransmittance < 1.0)
     {
         const vec2 at = (vec2(pixel) + 0.5) * across - 0.5;
         const vec2 corner = floor(at);
@@ -103,19 +133,39 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, Pu
         for (int i = 0; i < 4; ++i)
         {
             const ivec2 quad = ivec2(i & 1, i >> 1);
-            const ivec2 tap = clamp(ivec2(corner) + quad, ivec2(0), ivec2(tracedExtent) - 1);
-            const vec4 read = imageLoad(puffs, tap);
             const vec2 near = mix(vec2(1.0) - share, share, vec2(quad));
-            const float covered = (1.0 - read.a) * near.x * near.y;
-
-            lit += read.rgb * covered;
-            weight += covered;
+            gatherLit(ivec2(corner) + quad, tracedExtent, near.x * near.y, lit, weight);
         }
 
-        // A puff smaller than a traced pixel, standing between four centres that all missed it:
-        // its own unlit colour, lit as the air around it is. Rare, and one read.
-        layer.mColour = weight > 0.0 ? lit / weight : shape.mColour * frame.mAmbient;
+        // **Where all four missed, the ring around them**, weighted by a tent two traced pixels wide.
+        // The traced layer is hidden where the traced grid's jittered depth is, and this pixel's
+        // shape is not: at a silhouette the traced pixels under this one can all have met the post
+        // on a frame this pixel's ray passes beside it, and the colour fell back to the ambient
+        // alone — the puff went dark over the edge on those frames. A branch, where the fallback
+        // below always was one: the four answer for nearly every pixel, and the ring is read only
+        // at a silhouette or round a puff smaller than a traced pixel.
+        if (!(weight > 0.0))
+            for (int i = 0; i < 16; ++i)
+            {
+                const ivec2 step = ivec2(i & 3, i >> 2) - 1;
+                const vec2 near = max(vec2(1.0) - abs(corner + vec2(step) - at) * 0.5, vec2(0.0));
+                gatherLit(ivec2(corner) + step, tracedExtent, near.x * near.y, lit, weight);
+            }
+
+        // A puff smaller than a traced pixel, standing between centres that all missed it: its own
+        // unlit colour, lit as the air around it is. Rare, and one read.
+        layer.mColour = weight > 0.0 ? lit / weight : layer.mColour * frame.mAmbient;
     }
+
+    // **The cloud shells, gathered along this pixel's own ray and lit where they stand**, and then
+    // put together with the sprites as the trace once did — `mergedPuffs`. Here and not in the
+    // trace because what a shell hides and lets through is a question about the ray the picture
+    // shows, which the traced grid's jittered sample is not. Only in a tile whose rays can meet
+    // one, which is most of every frame's tiles not.
+    if ((present & PRESENCE_MEDIUM) != 0u)
+        layer = mergedPuffs(layer, mediumAlong(traced, origin, direction, distance, cone));
+
+    const float opacity = 1.0 - layer.mTransmittance;
 
     // **The puffs' transmittance rides in the frame's alpha**, for the display pass to draw the
     // star field through — where the alpha is not already spoken for: a picture with a transparent
@@ -149,20 +199,19 @@ void main()
     const uvec2 tracedExtent = gl_LaunchSizeEXT.xy;
     const uvec2 extent = uvec2(picture.mShownWidth, picture.mShownHeight);
 
-    // What the trace left at this pixel: how far the puffs stand, what the shells let through, and
-    // which eye the ray was cast from — the arms' where the arms were found, so the march here runs
-    // along the same ray the trace lit them on.
-    const PuffsStood stood = unpackPuffsStood(imageLoad(puffsDepth, ivec2(traced)).xy);
+    // Which eye the trace cast this pixel's ray from — the arms' where the arms were found, so the
+    // march here runs along the same ray the trace lit them on.
+    const bool arms = puffsOnArms(imageLoad(puffs, ivec2(traced)));
 
     // **Nothing to draw and nothing to write.** The curve makes the same test and reads a one
     // where this wrote nothing; `puffsCoverNothing` says what it saves.
     if (puffsCoverNothing(SpriteTileList(frame.mTables.mSpriteTileList), SpritePresence(frame.mTables.mSpritePresence),
-            tracedExtent.x, traced, stood))
+            tracedExtent.x, traced, arms))
         return;
 
     const uvec2 first = shownPixelsFrom(traced, extent, tracedExtent);
     const uvec2 end = shownPixelsFrom(traced + 1u, extent, tracedExtent);
     for (uint y = first.y; y < end.y; ++y)
         for (uint x = first.x; x < end.x; ++x)
-            compositeAt(uvec2(x, y), extent, tracedExtent, traced, stood);
+            compositeAt(uvec2(x, y), extent, tracedExtent, traced, arms);
 }

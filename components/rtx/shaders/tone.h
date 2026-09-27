@@ -23,7 +23,7 @@ namespace Rtx::Shaders
     const uint TONE_BIND_EXPOSURE = 3;
     const uint TONE_BIND_BLOOM = 4;
     const uint TONE_BIND_SUN_GLARE = 5;
-    const uint TONE_BIND_PUFFS_DEPTH = 6;
+    const uint TONE_BIND_PUFFS = 6;
     const uint TONE_BINDINGS = 7;
 
 /// What the curve writes the picture as: bytes a display understands. `PresentTargets` makes its
@@ -45,8 +45,8 @@ namespace Rtx::Shaders
     struct ToneConstants
     {
         /// The frame's sprite tile list and what its tiles can meet, `VisibilityConstants::mTables`'s:
-        /// with the traced puff depth, what says where the composite wrote nothing and the frame's
-        /// alpha is not the puffs' — `puffsCoverNothing`. First, so the addresses land eight-aligned
+        /// with the traced puffs' arms flag, what says where the composite wrote nothing and the
+        /// frame's alpha is not the puffs' — `puffsCoverNothing`. First, so the addresses land eight-aligned
         /// on both sides.
         uint64 mSpriteTileList;
         uint64 mSpritePresence;

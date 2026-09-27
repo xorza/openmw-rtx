@@ -89,6 +89,11 @@ namespace RtxTool
         mCrossed = 1.0f - world.getWeatherTransition();
     }
 
+    void StandingNote::takeAir(const Rtx::AirClock& air)
+    {
+        mStood->mSky.mAir = air;
+    }
+
     void StandingNote::printIfAsked(const std::filesystem::path& keys)
     {
         // **SDL's own key state, and not a script.** The other keys a window answers are named in

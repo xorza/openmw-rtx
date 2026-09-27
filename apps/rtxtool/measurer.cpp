@@ -28,6 +28,7 @@
 #include "model/benchrun.hpp"
 #include "model/benchspec.hpp"
 #include "model/runrecord.hpp"
+#include "stager.hpp"
 #include "stopwriter.hpp"
 
 namespace RtxTool
@@ -136,6 +137,14 @@ namespace RtxTool
         mProgress.mSamples.add(closed);
         mProgress.mPlace.mArrivals.add(closedArrived, closed);
         mProgress.mWallMs += frameMs;
+
+        // **A measured frame of a paused world is a frame of something else**, and nothing else in
+        // a report says so: the figures of a world standing still look like any other place's. A
+        // menu a script opened paused every run under M[FR]'s hotkey notice until the session
+        // learnt to close one (`Stager::closeMenus`), and the console, a message box waiting for an
+        // answer or a script's own tag pause it the same way.
+        if (Stager::isWorldPaused() && mProgress.mPausedFrames++ == 0)
+            mProgress.mPausedBy = Stager::describePause();
 
         // The driver's own figure of the newest frame it finished, kept where there is one: a
         // series of its own and not a row, because it is not a stretch of the host's frame.
@@ -263,6 +272,15 @@ namespace RtxTool
         // the place they belong to.
         while (const std::optional<Rtx::FrameResult> finished = renderer.finishFrame())
             answered(stop, *finished, extents);
+
+        if (mProgress.mPausedFrames > 0)
+        {
+            const std::string why = std::format("the world stood paused on {} of {} measured frames of {}, held by {}",
+                mProgress.mPausedFrames, stop.mSchedule.mSpec.getMeasured(step), stop.mName, mProgress.mPausedBy);
+            Log(Debug::Error) << "Ray tracing session: " << why;
+            mRecord.note(why + '\n');
+            mRecord.fail();
+        }
 
         // **A still is one frame traced again, and its depth and motion cannot move unless the
         // code under them did.** Asked of every hashed still that nothing jittered and nothing

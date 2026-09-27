@@ -11,11 +11,13 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/Vec2d>
 #include <osg/Vec3f>
 
 #include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/run.hpp>
+#include <components/rtx/frameworld.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool
@@ -86,6 +88,12 @@ namespace RtxTool
             dawn.mSky.mWeather = "Thunderstorm";
             EXPECT_NE(describeCommand(dawn).find("--hour=6.5 --day=17 --weather=Thunderstorm"), std::string::npos)
                 << describeCommand(dawn);
+
+            // An air is named last, where it is known, as the one argument `--air` reads back.
+            dawn.mSky.mAir = Rtx::AirClock{ .mSky = { .mSeconds = 0.1, .mCloudScroll = 0.25f },
+                .mCarried = osg::Vec2d(-2041.5, 5432.25) };
+            EXPECT_TRUE(describeCommand(dawn).ends_with("--weather=Thunderstorm --air=0.1,0.25,-2041.5,5432.25\n"))
+                << describeCommand(dawn);
         }
 
         /// **The symmetry, asserted rather than assumed**: what the window prints, the view file
@@ -126,12 +134,18 @@ namespace RtxTool
             // still free to be measured under whatever a run names.
             EXPECT_FALSE(read.front().mSky.mHour.has_value()) << describeBlock(spot);
             EXPECT_FALSE(read.front().mSky.mWeather.has_value()) << describeBlock(spot);
+            EXPECT_FALSE(read.front().mSky.mAir.has_value()) << "no air was known, so none is fixed";
 
             // **And anything else writes both**, because the light is most of what the frame is: a
             // block pasted from a window flown at dawn in a storm has to bring both with it.
+            //
+            // **And the air where one is known, to the bit**: ten hours in, which no float holds, and
+            // a drift no float holds either.
             RtxTool::Stop dawn = spot;
             dawn.mSky.mHour = 6.5f;
             dawn.mSky.mWeather = "Thunderstorm";
+            dawn.mSky.mAir = Rtx::AirClock{ .mSky = { .mSeconds = 36000.123456789, .mCloudScroll = 3.9999998f },
+                .mCarried = osg::Vec2d(-123456.78901234, 0.1) };
 
             const std::filesystem::path second = TestingOpenMW::outputFilePath("viewpoint-dawn.cfg");
             {
@@ -147,6 +161,10 @@ namespace RtxTool
             EXPECT_EQ(*back.front().mSky.mHour, 6.5f);
             ASSERT_TRUE(back.front().mSky.mWeather.has_value());
             EXPECT_EQ(*back.front().mSky.mWeather, "Thunderstorm");
+            ASSERT_TRUE(back.front().mSky.mAir.has_value());
+            EXPECT_EQ(back.front().mSky.mAir->mSky.mSeconds, dawn.mSky.mAir->mSky.mSeconds);
+            EXPECT_EQ(back.front().mSky.mAir->mSky.mCloudScroll, dawn.mSky.mAir->mSky.mCloudScroll);
+            EXPECT_EQ(back.front().mSky.mAir->mCarried, dawn.mSky.mAir->mCarried);
         }
 
         /// A window opened by `--cell` has no view to replace: `stopFor` names the stop after the
@@ -160,7 +178,7 @@ namespace RtxTool
             RtxTool::Stop bare = makeSpot();
             bare.mName.clear();
             bare.mNote.clear();
-            const RtxTool::Stop spot = stopFor(bare, std::nullopt, std::nullopt, 0);
+            const RtxTool::Stop spot = stopFor(bare, StopSky{ .mDay = 0 });
 
             const std::string block = describeBlock(spot);
             EXPECT_EQ(block.find("[balmora-guild-of-mages]"), 0u) << block;
@@ -574,7 +592,9 @@ hour = 19.25
                 .mStand = { .mCell = "Vivec, Foreign Quarter",
                     .mEye = osg::Vec3f(1.0f, 2.0f, 3.0f),
                     .mLook = osg::Vec3f(4.0f, 5.0f, 6.0f) },
-                .mSky = { .mHour = 6.5f, .mWeather = std::string("Overcast") },
+                .mSky = { .mHour = 6.5f,
+                    .mWeather = std::string("Overcast"),
+                    .mAir = Rtx::AirClock{ .mSky = { .mSeconds = 100.0 } } },
                 .mSchedule = { .mRoute = RtxTool::Route{ .mTo = osg::Vec3f(7.0f, 8.0f, 9.0f),
                                    .mLookTo = osg::Vec3f(),
                                    .mSpeed = 400.0f } },
@@ -582,29 +602,37 @@ hour = 19.25
 
             const RtxTool::Stop bare{ .mStand = { .mCell = "-2,-9" } };
 
+            const StopSky silent{ .mDay = 0 };
+            const StopSky rain{ .mHour = 9.0f,
+                .mDay = 0,
+                .mWeather = std::string("Rain"),
+                .mAir = Rtx::AirClock{ .mSky = { .mSeconds = 200.0 } } };
+
             // Neither says anything: noon under a clear sky, which is how a picture of a place is
-            // taken.
-            EXPECT_EQ(stopFor(bare, std::nullopt, std::nullopt, 0).mSky.mHour, sDefaultHour);
-            EXPECT_EQ(stopFor(bare, std::nullopt, std::nullopt, 0).mSky.mWeather, sDefaultWeather);
+            // taken, and the air wherever the run's frames carry it.
+            EXPECT_EQ(stopFor(bare, silent).mSky.mHour, sDefaultHour);
+            EXPECT_EQ(stopFor(bare, silent).mSky.mWeather, sDefaultWeather);
+            EXPECT_FALSE(stopFor(bare, silent).mSky.mAir.has_value());
 
             // Only the place: the place decides, which is what makes a view id one frame.
-            EXPECT_EQ(stopFor(entry, std::nullopt, std::nullopt, 0).mSky.mHour, 6.5f);
-            EXPECT_EQ(stopFor(entry, std::nullopt, std::nullopt, 0).mSky.mWeather, "Overcast");
+            EXPECT_EQ(stopFor(entry, silent).mSky.mHour, 6.5f);
+            EXPECT_EQ(stopFor(entry, silent).mSky.mWeather, "Overcast");
+            EXPECT_EQ(stopFor(entry, silent).mSky.mAir->mSky.mSeconds, 100.0);
 
             // The command line, over a place that fixes one and over a place that does not.
-            EXPECT_EQ(stopFor(entry, 9.0f, std::string("Rain"), 0).mSky.mHour, 9.0f);
-            EXPECT_EQ(stopFor(entry, 9.0f, std::string("Rain"), 0).mSky.mWeather, "Rain");
-            EXPECT_EQ(stopFor(bare, 9.0f, std::string("Rain"), 0).mSky.mHour, 9.0f);
-            EXPECT_EQ(stopFor(bare, 9.0f, std::string("Rain"), 0).mSky.mWeather, "Rain");
+            EXPECT_EQ(stopFor(entry, rain).mSky.mHour, 9.0f);
+            EXPECT_EQ(stopFor(entry, rain).mSky.mWeather, "Rain");
+            EXPECT_EQ(stopFor(entry, rain).mSky.mAir->mSky.mSeconds, 200.0);
+            EXPECT_EQ(stopFor(bare, rain).mSky.mHour, 9.0f);
+            EXPECT_EQ(stopFor(bare, rain).mSky.mWeather, "Rain");
+            EXPECT_EQ(stopFor(bare, rain).mSky.mAir->mSky.mSeconds, 200.0);
 
             // And the three answers differ, so the rule is doing something.
-            EXPECT_NE(stopFor(entry, std::nullopt, std::nullopt, 0).mSky.mHour,
-                stopFor(entry, 9.0f, std::nullopt, 0).mSky.mHour);
-            EXPECT_NE(stopFor(bare, std::nullopt, std::nullopt, 0).mSky.mHour,
-                stopFor(entry, std::nullopt, std::nullopt, 0).mSky.mHour);
+            EXPECT_NE(stopFor(entry, silent).mSky.mHour, stopFor(entry, rain).mSky.mHour);
+            EXPECT_NE(stopFor(bare, silent).mSky.mHour, stopFor(entry, silent).mSky.mHour);
 
             // Everything that is not a condition is the entry's, unchanged.
-            const RtxTool::Stop settled = stopFor(entry, std::nullopt, std::nullopt, 3);
+            const RtxTool::Stop settled = stopFor(entry, StopSky{ .mDay = 3 });
             EXPECT_EQ(settled.mName, "dawn-deck");
             EXPECT_EQ(settled.mNote, "a deck at dawn");
             EXPECT_EQ(settled.mStand.mCell, "Vivec, Foreign Quarter");
@@ -616,7 +644,7 @@ hour = 19.25
 
             // **A view with no id of its own is named after its cell**, because a report row and a
             // hash file are keyed on the name and neither can be keyed on nothing.
-            EXPECT_EQ(stopFor(bare, std::nullopt, std::nullopt, 0).mName, "-2,-9");
+            EXPECT_EQ(stopFor(bare, silent).mName, "-2,-9");
         }
     }
 }

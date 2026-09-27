@@ -28,7 +28,6 @@ namespace Rtx
         ReflectionMotion = Shaders::CHANNEL_REFLECTION_MOTION,
         StarsShown = Shaders::CHANNEL_STARS_SHOWN,
         Puffs = Shaders::CHANNEL_PUFFS,
-        PuffsDepth = Shaders::CHANNEL_PUFFS_DEPTH,
     };
 
     inline constexpr std::uint32_t sChannelCount = Shaders::CHANNEL_COUNT;
@@ -51,7 +50,6 @@ namespace Rtx
         { Channel::ReflectionMotion, "g-reflection-motion" },
         { Channel::StarsShown, "g-stars-shown" },
         { Channel::Puffs, "g-puffs" },
-        { Channel::PuffsDepth, "g-puffs-depth" },
     } } };
 
     /// Every channel in binding order, for a walk that wants them all.

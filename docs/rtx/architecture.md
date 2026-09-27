@@ -552,6 +552,8 @@ keeps the adder's image, so the upload opens no file), `dropTextures`, one of `p
 File: `frameworld.hpp`. `WorldReading` is a frame's sky, air and water as far as neither host
 can work it out for the other. `describeWorld(reading, drift, constants)` writes the world's
 half of `VisibilityConstants`; `makeCameraFromView` (`camera.hpp`) writes the camera's half.
+`AirClock` is where the air's clocks stand — the sky's seconds, the deck's scroll and the fog's
+drift — and a frame's report carries it, so a moment a window showed is one a run stands in again.
 One call and not twenty assignments per host. The builders are free functions in
 `skylight.hpp` (the sun, the room light, the exposure bias), `skybuilder.hpp` (the sky's sheets,
 the deck, the stars), `moonbuilder.hpp`, `cloudshell.hpp`, `nightsky.hpp`, `fogbuilder.hpp`.
@@ -698,9 +700,8 @@ the slots nothing holds. A scene given back or replaced is buried, never drained
 
 **`TraceChain`** (`tracechain.hpp`): everything one camera's trace writes at one extent. There
 are two: the renderer's `mFrame` at the render extent, and `PictureTracer`'s, grown to the
-largest picture inside the interface. A chain owns the `GBuffer` (eleven channels: direct,
-indirect, albedo, specular, guide, motion, depth, reflection motion, stars shown, puffs, puffs
-depth), the `FogVolume`, one `SpriteBin` per slot, the accumulator's `AccumulateHistory`, the
+largest picture inside the interface. A chain owns the `GBuffer` (ten channels: direct,
+indirect, albedo, specular, guide, motion, depth, reflection motion, stars shown, puffs), the `FogVolume`, one `SpriteBin` per slot, the accumulator's `AccumulateHistory`, the
 filter's scratch image and the running sum. `TraceChain::record` names its own images in the
 inputs it is handed and returns them as a `TraceResult`, which is what the display reads. The
 passes are shared and held by the renderer: `VisibilityPass` (the five ray tracing shaders and
@@ -998,7 +999,7 @@ Lua worker; `RenderingManager::renderFrame` → `RtxRenderer::renderFrame(frame)
 | step | phase   | what happens                                                                                                              | timing row |
 |------|---------|---------------------------------------------------------------------------------------------------------------------------|------------|
 | 1    | Walking | `Rtx::Renderer::endSimulation`: the game's work is done, the renderer's begins; `FrameTimer::enter`: the gap since the renderer last left is the game's, with the driver's sleep inside it | `Update`, `Sleep` |
-| 2    | Walking | the sky's clock steps, on an unpaused frame with a sky                                                                    |            |
+| 2    | Walking | the sky's clock steps, on an unpaused frame with a sky; where the run holds an air (`RtxRun::getHeldAir`), the clock and the fog's drift stand there instead |            |
 | 3    | Walking | `RtxWindow::fit`: once the size has settled, `Renderer::resize` (a comparison where nothing changed) and the viewport      |            |
 | 4    | Walking | if `!drawsWorld()`: `renderGui()` and return                                                                              |            |
 | 5    | Walking | `setShowsPlayer(frame.mEye.mPlayersEye)`; the view matrix off the camera; `RippleEmitters::update` unless paused          |            |
@@ -1093,7 +1094,7 @@ submit, then places.
 | `ripples`, `waves`     | the wake stepped and pressed where the world stands in a sea; the sea's tiles for the clock         |
 | `shelter`, `shade`, `sprites` | the sprite tables taken; drops under a roof zeroed; sprites shaded and binned into tiles     |
 | `air`, `column`        | the fog's depth and in-scatter per column; the volume integrated                                    |
-| `trace`                | `visibility.rgen`: one ray per pixel, the eleven channels                                           |
+| `trace`                | `visibility.rgen`: one ray per pixel, the ten channels                                              |
 | `accumulate`, `filter` | only where the wavelet runs                                                                        |
 | `composite`            | the channels back into one picture; the albedo multiplied back in; the running sum where asked      |
 | `digest`, `upscale`    | the frame hash for a run that asks; DLSS Ray Reconstruction from colour, albedo, specular, guide, depth, motion, jitter, delta, reset |
@@ -1184,17 +1185,20 @@ and what every thread was doing.
 ## 14. Harness, instruments, tests
 
 `openmw-rtxtool <verb>` drives a real game headless: `info`, `scene`, `shot`, `view`, `bench`,
-`check`, `film`. `RtxTool::Session` (`apps/rtxtool/session.hpp`) is both the `OMW::EngineHost` and the
-`MWRender::RtxRun`: it makes the renderer with itself installed, states the frame step, and
-sequences four parts — the `Stager` puts the world where a stop stands (a teleport, the clock
-and the sky, god mode, the walls), the `CameraDriver` moves the camera a frame at a time (a flown
-route, a followed track, a turned sky, the aim), the `StandingNote` keeps where the run stands
-for Home, the title and where it was left, and the `Measurer` counts and measures each frame
-straight into the place it reports. What a command does with a place — freeze it, fly its route,
-follow a track, measure, hash — is one row of `RtxTool::VerbPolicy` (`apps/rtxtool/verbs.hpp`),
-and the views, the suites and a film's keys are three schemas over one ordered reader,
-`RtxTool::BlockFile` (`apps/rtxtool/model/blockfile.hpp`). `RtxTool::Check`
-(`apps/rtxtool/model/benchrun.hpp`) lists what `check` asserts.
+`check`, `film`. `RtxTool::Session` (`apps/rtxtool/session.hpp`) is both the `OMW::EngineHost` and
+the `MWRender::RtxRun`: it makes the renderer with itself installed, states the frame step, holds
+the air a stop names until the stop's first counted frame, closes every menu a script opens in a run
+nobody plays (a menu pauses the world), and sequences four parts — the `Stager` puts the world where
+a stop stands (a teleport, the clock and the sky, god mode, the walls), the `CameraDriver` moves the
+camera a frame at a time (a flown route, a followed track, a turned sky, the aim), the
+`StandingNote` keeps where the run stands for Home, the title and where it was left, the air
+included, and the `Measurer` counts and measures each frame straight into the place it reports, and
+fails a run that measured a world standing paused, naming what paused it. What a command does with a
+place — freeze it, fly its route, follow a track, measure, hash, leave it to be played with the
+game's interface — is one row of `RtxTool::VerbPolicy` (`apps/rtxtool/verbs.hpp`), and the views,
+the suites and a film's keys are three schemas over one ordered reader, `RtxTool::BlockFile`
+(`apps/rtxtool/model/blockfile.hpp`). `RtxTool::Check` (`apps/rtxtool/model/benchrun.hpp`) lists
+what `check` asserts.
 
 **A film is a list of stops.** `view --keys` appends the key it stands at on every Home press, and
 `film --keys` splits the keys into takes (`apps/rtxtool/film.hpp`): a cut where two keys are in

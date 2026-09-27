@@ -247,6 +247,13 @@ namespace RtxTool
             "what time an exterior's sun is at, on a twenty-four hour clock. An interior is lit "
             "by its own lamps and does not care. Given, it beats an hour a view fixes for itself");
 
+        option(sOneSky, "air", bpo::value<std::string>()->default_value(""),
+            "where the clocks the air runs on stand: the sky's seconds, the deck's scroll, and how far "
+            "the fog was carried east and north, as four numbers separated by commas. What Home "
+            "prints, so the fog a window showed is the fog a picture is taken in; left out, it is "
+            "wherever the run's own frames carried it, and a run started fresh stands in one fog "
+            "whatever the window saw. Given, it beats an air a view fixes for itself");
+
         option(sFramed, "day", bpo::value<int>()->default_value(byDefault.mDay),
             "which day the world stands on, counted from the one a new game starts — 16 Last Seed, "
             "where both moons are full. It is the moons this decides and nothing else: their phase "
@@ -280,7 +287,9 @@ namespace RtxTool
 
         option(sFramed, "hud", bpo::value<bool>()->default_value(false)->implicit_value(true),
             "draw the game's HUD over the picture: the bars, the compass and the cell's name. Off "
-            "unless asked for, and a window's F11 toggles it either way");
+            "unless asked for, and a window's F11 toggles it either way. Off, a command that writes "
+            "a picture draws nothing of the interface at all, so a message or a mod's window a "
+            "script opens stays out of it; a window keeps the game's menus and console");
 
         option(sFramed, "vanity", bpo::value<bool>()->default_value(false)->implicit_value(true),
             "let the game's vanity camera orbit the player after thirty idle seconds, as the played "

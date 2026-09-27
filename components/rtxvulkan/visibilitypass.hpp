@@ -224,8 +224,8 @@ namespace Rtx
             const Shaders::VisibilityConstants& constants, GpuTimer* timer) const;
 
         /// Composites the puffs over `inputs.mShown`, in place, at the picture's own extent: the
-        /// sprites' shape marched there against the bin the trace binned over its own grid, their
-        /// light and the cloud shells read off the layer the trace left in `Channel::Puffs`. After
+        /// sprites' shape and the cloud shells marched there against the bin the trace binned over its
+        /// own grid, and the sprites' light read off the layer the trace left in `Channel::Puffs`. After
         /// whatever denoised and upscaled the frame, because neither should touch a particle —
         /// `spritecomposite.rgen` says what an upscaler's overlay costs.
         ///
