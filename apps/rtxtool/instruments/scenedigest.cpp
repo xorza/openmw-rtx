@@ -254,7 +254,7 @@ namespace RtxTool
 
             void addFields(const auto& fields)
             {
-                std::apply([this](const auto&... field) { (add(field), ...); }, fields);
+                std::apply([&](const auto&... field) { (add(field), ...); }, fields);
             }
 
             /// The column's digest, over everything added.
