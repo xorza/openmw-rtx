@@ -329,6 +329,9 @@ namespace RtxTool
         /// Where a window appends a film's key on every Home press, or empty for none.
         std::filesystem::path mKeys;
 
+        /// Where a window writes the picture of every Home press, the press's block inside it.
+        std::filesystem::path mHomePictures;
+
         /// perf's control fifo, or empty where the run is not being profiled.
         std::filesystem::path mPerfControl;
 

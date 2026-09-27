@@ -787,6 +787,7 @@ namespace RtxTool
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             request.mQuitAtEnd = frames > 0;
             request.mKeys = variables["keys"].as<std::string>();
+            request.mHomePictures = variables["out"].defaulted() ? "view" : variables["out"].as<std::string>();
 
             return runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request), true);
         }

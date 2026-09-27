@@ -52,6 +52,10 @@ namespace RtxTool
     /// next run draws again. The day too, which the block has no key for and the moons hang on.
     std::string describeCommand(const Stop& stop);
 
+    /// The id a block is written under: the stop's own name, or one made from it, spelt as a view
+    /// file's id.
+    std::string describeId(const Stop& stop);
+
     /// The same place as one key of a film: the block, and the day, which a film's key reads and a
     /// view does not. What `view --keys` appends on Home. A condition the block leaves out is the
     /// file's own, which is what a key reads it as.

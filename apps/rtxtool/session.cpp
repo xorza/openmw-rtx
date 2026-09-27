@@ -19,6 +19,7 @@ namespace RtxTool
     Session::Session(SessionRequest request)
         : mRequest(std::move(request))
         , mInstalled{ .mSetup = mRequest.mSetup, .mRun = *this }
+        , mHome(mRequest.mKeys, mRequest.mHomePictures)
         , mMeasurer(mRequest, mRecord)
     {
         if (!mRequest.mAgainst.empty())
@@ -121,7 +122,7 @@ namespace RtxTool
             return false;
 
         const Actions& actions = currentStop().mActions;
-        return actions.mHash || actions.mFilm.has_value();
+        return actions.mHash || actions.mFilm.has_value() || mHome.wantsPicture();
     }
 
     std::optional<Rtx::AirClock> Session::getHeldAir() const
@@ -179,6 +180,7 @@ namespace RtxTool
         if (mMeasurer.getSeen() == 0)
             Stager::forgetHistory();
 
+        mHome.listen();
         mCamera.step(currentStop(), mMeasurer.getMeasuredIndex(), mRequest.mSetup.getWorldStep());
 
         // **After the camera has stepped and on every frame, warm-up included.** `CameraDriver::aim`
@@ -201,7 +203,7 @@ namespace RtxTool
         // the air the renderer stepped. Taken before the frame, the note would be a camera one update
         // behind the picture. The last one taken is what `RunRecord::describe` publishes.
         mNote.take(report.mAir);
-        mNote.printIfAsked(mRequest.mKeys);
+        mHome.answer(mNote.getLeft(), report, context.mRenderer.getBackend().getExtents());
 
         switch (mMeasurer.frame(currentStop(), context, report, mCamera.hasArrived()))
         {

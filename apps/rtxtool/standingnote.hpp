@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <filesystem>
 #include <optional>
 #include <string_view>
 
@@ -13,8 +12,8 @@
 namespace RtxTool
 {
     /// Where the run stands and under what sky, as a stop a person could paste: noted every frame,
-    /// printed whole where Home goes down, written into the window's title, and handed back as where
-    /// the run was left.
+    /// kept whole with its picture where Home goes down (`HomeKey`), written into the window's
+    /// title, and handed back as where the run was left.
     ///
     /// **Taken on a frame that still has a world**, because `OMW::Engine::~Engine` clears the world
     /// before the renderer that holds the run, so what a run ends at cannot be asked of the world
@@ -28,13 +27,11 @@ namespace RtxTool
 
         /// Notes the frame just drawn: where the eye stood, the sky over it, and `air`, where the
         /// renderer's clocks stood for it.
+        ///
+        /// **The game's camera and not the traced one**, whose origin is a float inverted out of a
+        /// float matrix: a few thousandths of a unit off where the camera stood, where the camera's
+        /// own is the double a `view` puts back exactly. Both look along `Camera::getOrient`.
         void take(const Rtx::AirClock& air);
-
-        /// Prints the note, whole, on the frame Home goes down: what a window prints where it was
-        /// left, printed now, so a frame somebody is looking at can be drawn again without closing
-        /// the window on it — and appends it to `keys` as a film's key, where that names a file.
-        /// Once a frame is drawn, so the note is of the frame on the screen, air and all.
-        void printIfAsked(const std::filesystem::path& keys);
 
         /// The weather and the hour the run stands under, `Thunderstorm, 14:32`, and which weather
         /// is crossing in where one is, `Clear → Overcast 37%, 14:32`, off the last note; empty until
@@ -62,9 +59,6 @@ namespace RtxTool
         /// player crosses into another. An id and not the store, since a load frees every store and
         /// may build the next where the last one was.
         ESM::RefId mNotedCell;
-
-        /// Whether Home was down on the last frame, so a press prints once.
-        bool mPrintKeyHeld = false;
 
         /// What `describeTitle` is written into, once a second and never allocated: room for the
         /// longest note `writeSkyNote` names.

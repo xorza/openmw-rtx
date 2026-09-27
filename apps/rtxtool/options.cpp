@@ -411,10 +411,13 @@ namespace RtxTool
             "hash names the frame and never where in it. A PNG a frame on the frame path, some "
             "sixty milliseconds each, so a run under this is further still from a benchmark");
 
-        option(Verbs::Shot | Verbs::Check | Verbs::Film, "out", bpo::value<std::string>()->default_value(""),
+        option(Verbs::Shot | Verbs::Check | Verbs::Film | Verbs::View, "out",
+            bpo::value<std::string>()->default_value(""),
             "the directory to write every picture into, as <view>.png beside <view>-doll.png, "
-            "<view>-map.png and <view>-textures.png, or a film's frames/000000.png onwards and "
-            "<keys>.mp4: \"shot\", \"check\" and \"film\" unless named");
+            "<view>-map.png and <view>-textures.png, a film's frames/000000.png onwards and "
+            "<keys>.mp4, or the picture of each Home press in a `view` as <view>-<n>.png, with the "
+            "block Home prints inside it as the PNG's Description: \"shot\", \"check\", \"film\" "
+            "and \"view\" unless named");
 
         const FilmPacing pacing;
         option(Verbs::View | Verbs::Film, "keys", bpo::value<std::string>()->default_value(""),

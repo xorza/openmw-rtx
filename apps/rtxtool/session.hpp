@@ -12,6 +12,7 @@
 #include <components/rtx/frameworld.hpp>
 
 #include "cameradriver.hpp"
+#include "homekey.hpp"
 #include "measurer.hpp"
 #include "model/benchrun.hpp"
 #include "model/runrecord.hpp"
@@ -115,6 +116,7 @@ namespace RtxTool
         Stager mStager;
         CameraDriver mCamera;
         StandingNote mNote;
+        HomeKey mHome;
         Measurer mMeasurer;
         StopWriter mWriter;
     };

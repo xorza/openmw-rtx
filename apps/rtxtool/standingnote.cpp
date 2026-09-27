@@ -1,11 +1,7 @@
 #include "standingnote.hpp"
 
 #include <cstdint>
-#include <fstream>
-#include <ostream>
 
-#include <SDL_keyboard.h>
-#include <SDL_scancode.h>
 #include <osg/Vec3d>
 #include <osg/Vec3f>
 
@@ -17,9 +13,6 @@
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
-#include <components/debug/debugging.hpp>
-#include <components/debug/debuglog.hpp>
-#include <components/files/conversion.hpp>
 #include <components/rtx/skylight.hpp>
 
 #include "run.hpp"
@@ -89,27 +82,6 @@ namespace RtxTool
         mCrossed = 1.0f - world.getWeatherTransition();
 
         stood.mSky.mAir = air;
-    }
-
-    void StandingNote::printIfAsked(const std::filesystem::path& keys)
-    {
-        // **SDL's own key state, and not a script.** The other keys a window answers are named in
-        // `keys.lua`, because what they do is turn the world, which only a script may; what this
-        // one does is print the session's own note of the frame, which no script can reach. The
-        // state array is the engine's, pumped once a frame on this thread.
-        const bool down = SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_HOME] != 0;
-        if (down && !mPrintKeyHeld)
-        {
-            Debug::getRawStdout() << describeStanding(*mStood) << std::flush;
-
-            if (!keys.empty())
-            {
-                std::ofstream(keys, std::ios::app) << '\n' << describeKey(*mStood);
-                Log(Debug::Info) << "Ray tracing session: a film's key appended to "
-                                 << Files::pathToUnicodeString(keys);
-            }
-        }
-        mPrintKeyHeld = down;
     }
 
     std::string_view StandingNote::describeTitle()

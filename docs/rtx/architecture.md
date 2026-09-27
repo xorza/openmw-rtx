@@ -1190,11 +1190,12 @@ the `MWRender::RtxRun`: it makes the renderer with itself installed, states the 
 the game's clock through a take whose track states the hour (the time scale runs on, and with it
 the sky and every AI package's hours), holds the air a stop names until the stop's first counted
 frame, closes every menu a script opens in a run
-nobody plays (a menu pauses the world), and sequences four parts — the `Stager` puts the world where
+nobody plays (a menu pauses the world), and sequences five parts — the `Stager` puts the world where
 a stop stands (a teleport, the clock and the sky, god mode, the walls), the `CameraDriver` moves the
 camera a frame at a time (a flown route, a followed track, a turned sky, the aim), the
 `StandingNote` keeps where the run stands for Home, the title and where it was left, the air
-included, and the `Measurer` counts and measures each frame straight into the place it reports, and
+included, the `HomeKey` keeps the frame Home went down on — its block printed, and its picture
+written off the frame with the block inside it as the PNG's `Description` — and the `Measurer` counts and measures each frame straight into the place it reports, and
 fails a run that measured a world standing paused, naming what paused it. What a command does with a
 place — freeze it, fly its route, follow a track, measure, hash, leave it to be played with the
 game's interface — is one row of `RtxTool::VerbPolicy` (`apps/rtxtool/verbs.hpp`), and the views,
