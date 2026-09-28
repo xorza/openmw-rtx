@@ -7,7 +7,7 @@ indirect light, sky, water and fog; the OpenGL renderer is untouched and is what
 
 A build configured with :code:`-DOPENMW_RTX=OFF` leaves it out. It needs an NVIDIA GPU with
 hardware ray tracing, Turing or later: acceleration structures, ray query, ray tracing pipelines,
-position fetch and the hit objects of the invocation-reorder extension are all required, and a device
+position fetch and the fused multiply-add of :code:`VK_KHR_shader_fma` are all required, and a device
 missing any of them refuses to start rather than falling back.
 
 Most settings here are read once, at startup. :code:`upscale` and :code:`distant land cells`

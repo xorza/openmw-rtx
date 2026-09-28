@@ -26,18 +26,9 @@ namespace Rtx
             RequiredExtension{ VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME, {} },
             RequiredExtension{ VK_KHR_RAY_TRACING_MAINTENANCE_1_EXTENSION_NAME, {} },
             RequiredExtension{ VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME, {} },
-            // The launch, and what it is for. The trace calls `traceRayEXT` nowhere and still has to
-            // be a ray tracing pipeline, because a hit object may only be traced from the ray
-            // generation stage, and the shader it names may only be run from there.
+            // The launch: the eye's ray goes through the pipeline to the closest-hit shader its
+            // instance names, and every ray after it is an inline query inside that shader.
             RequiredExtension{ VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, {} },
-            // A driver floor and not a hardware one: hit objects are this extension's and no launch
-            // here sorts, but the shaders compile to `SPV_EXT_shader_invocation_reorder`. Every
-            // Windows and Linux report in the Vulkan Hardware Database lists it from 595.44 on, RTX
-            // 20 to 50 alike, and none at 591.86 or before. The exceptions are pre-releases: 595.02
-            // without it, a few from 580.94 with it — so a refusal names the branch, 595. Older
-            // drivers offer the `NV` extension instead, which carries the `NV` SPIR-V capability,
-            // so taking it would mean a second binary of each shader that holds a hit object.
-            RequiredExtension{ VK_EXT_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME, "595" },
             // Occupancy is a register count the driver's own compiler owns and no offline tool has.
             // Required, because a renderer that quietly reported nothing would be a fallback path.
             RequiredExtension{ VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME, {} },
@@ -50,7 +41,7 @@ namespace Rtx
             // build fuses what it pins (`Rtx::pinFloatArithmetic`); `fma()` of the GLSL set may be
             // two roundings or one. The Vulkan beta drivers carried it from 580.94; of the release
             // drivers, the Vulkan Hardware Database's reports list it from 595.02 on and not at
-            // 591.86 — the same branch as hit objects above.
+            // 591.86, so a refusal names the branch, 595.
             RequiredExtension{ VK_KHR_SHADER_FMA_EXTENSION_NAME, "595" },
         };
 
@@ -194,8 +185,6 @@ namespace Rtx
             // every launch makes that no procedural geometry is anywhere in the scene.
             RequiredFeature{ "rayTraversalPrimitiveCulling",
                 +[](DeviceFeatures& f) -> VkBool32& { return f.mRayTracingPipeline.rayTraversalPrimitiveCulling; } },
-            RequiredFeature{ "rayTracingInvocationReorder",
-                +[](DeviceFeatures& f) -> VkBool32& { return f.mInvocationReorder.rayTracingInvocationReorder; } },
             RequiredFeature{ "pipelineExecutableInfo",
                 +[](DeviceFeatures& f) -> VkBool32& { return f.mPipelineExecutable.pipelineExecutableInfo; } },
             RequiredFeature{
@@ -230,7 +219,6 @@ namespace Rtx
         chain(next, mShaderFma, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FMA_FEATURES_KHR);
         chain(next, mShaderClock, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR);
         chain(next, mPipelineExecutable, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR);
-        chain(next, mInvocationReorder, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_INVOCATION_REORDER_FEATURES_EXT);
         chain(next, mRayTracingPipeline, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR);
         chain(next, mRayTracingMaintenance1, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_MAINTENANCE_1_FEATURES_KHR);
         chain(next, mPositionFetch, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_POSITION_FETCH_FEATURES_KHR);
@@ -253,8 +241,6 @@ namespace Rtx
     DeviceProperties::DeviceProperties()
     {
         void* next = nullptr;
-        chain(
-            next, mInvocationReorder, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_INVOCATION_REORDER_PROPERTIES_EXT);
         chain(next, mRayTracingPipeline, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR);
         chain(next, mAccelerationStructure, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR);
         chain(next, mVulkan12, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES);

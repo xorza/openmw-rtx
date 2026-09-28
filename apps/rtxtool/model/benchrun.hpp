@@ -12,6 +12,7 @@
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "benchrecord.hpp"
@@ -197,6 +198,11 @@ namespace RtxTool
         /// converged reference is the only ground truth a sampled renderer has: error falls as the
         /// square root of this, a hundred is a clean picture and a thousand is a reference.
         std::uint32_t mAccumulate = 0;
+
+        /// What every frame of the stop asks of the reconstruction and of the exposure in place of
+        /// the profile's, or nothing for the profile's: `MWRender::RtxRun::getReconstruction`.
+        std::optional<Rtx::ReconstructionRequest> mReconstruction;
+        std::optional<Rtx::ExposureRule> mExposure;
 
         /// Whether the world's clock is held still while the stop runs, so a still frame traced
         /// many times is the same frame. `DateTimeManager::setSimulationTimeScale` is where it

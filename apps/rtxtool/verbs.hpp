@@ -25,10 +25,11 @@ namespace RtxTool
         Bench = 1 << 4,
         Check = 1 << 5,
         Film = 1 << 6,
+        Noise = 1 << 7,
 
         /// Every command, which is what an option nobody restricted is read by: every bit up to
         /// the last one named above, so a command added there is in it by being there.
-        Every = (Film << 1) - 1,
+        Every = (Noise << 1) - 1,
     };
 
     constexpr Verbs operator|(Verbs a, Verbs b)

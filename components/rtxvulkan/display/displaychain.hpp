@@ -36,8 +36,8 @@ namespace Rtx
     struct FrameLook
     {
         /// The eye adapts off the shown frame at its own rate — from nothing where `mReset` says the
-        /// camera has no past — or is held at a value. A picture is measured off nothing, which
-        /// `ExposurePass::getPictureExposure` says is a buffer of its own.
+        /// camera has no past — or is held at a value, or keeps the one the frame before ended on. A picture is
+        /// measured off nothing, which `ExposurePass::getPictureExposure` says is a buffer of its own.
         struct Measured
         {
             float mSeconds;
@@ -48,7 +48,10 @@ namespace Rtx
         {
             float mValue;
         };
-        using Exposure = std::variant<Measured, Fixed>;
+        struct Held
+        {
+        };
+        using Exposure = std::variant<Measured, Fixed, Held>;
         Exposure mExposure;
 
         /// The sun glare fader and the sun's share, eased at the query's own rate.

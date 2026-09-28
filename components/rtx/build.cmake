@@ -168,11 +168,10 @@ endfunction()
 # own headers, which a host never does — the backend keeps Vulkan private behind
 # `createrenderer.hpp`. Found here, both see the same target.
 #
-# **1.4.333 at least**, the headers that first name everything the backend requires: the hit objects
-# of `VK_EXT_ray_tracing_invocation_reorder` came at 1.4.333, and `VK_KHR_shader_fma`, which every
-# shader's fusions are (`Rtx::pinFloatArithmetic`), at 1.4.329. An older SDK is a configure that
-# says so rather than a compile that stops inside `requirements.cpp`.
-find_package(Vulkan 1.4.333 REQUIRED)
+# **1.4.329 at least**, the headers that first name everything the backend requires: the last of it is
+# `VK_KHR_shader_fma`, which every shader's fusions are (`Rtx::pinFloatArithmetic`). An older SDK is
+# a configure that says so rather than a compile that stops inside `requirements.cpp`.
+find_package(Vulkan 1.4.329 REQUIRED)
 
 # Where the compiled shaders land, beside the other RTX resources: the backend writes them, the
 # game and the harness read them through `resources/`, and the tests are told the path outright.

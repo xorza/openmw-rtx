@@ -317,7 +317,6 @@ namespace RtxTool
             if (const std::string& noise = variables["noise"].as<std::string>(); noise != "auto")
                 profile.mReconstruction.mNoise = Rtx::sNoiseSourceNames.require(noise, "a noise source");
             profile.mReconstruction.mLevelEpsilon = variables["level-epsilon"].as<float>();
-            profile.mReorder = Rtx::sReorderNames.require(variables["reorder"].as<std::string>(), "a reorder key");
 
             return framed;
         }
@@ -861,6 +860,78 @@ namespace RtxTool
             return runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));
         }
 
+        /// How far the frame a player sees stands from the picture it converges to, at each place of a
+        /// suite: three pictures of each place, in one run, and a verdict on them.
+        ///
+        /// **The reference, the bar and the frame, in that order.** The reference averages
+        /// `sNoiseReferenceFrames` frames traced unfiltered and jittered, from the white hash, which
+        /// is a sequence neither of the others draws from, so it shares no sample with them; its
+        /// exposure is measured as a played frame's is. The bar averages `sNoiseBarFrames` frames,
+        /// unfiltered and as the run otherwise traces. The frame is the run's own, after the warm-up
+        /// its history converges over. The bar and the frame hold the exposure the reference ended
+        /// on, so all three are mapped by one curve and the scale is derived rather than stated.
+        ///
+        /// **Judged against the bar and not against a number**: a frame is as clean as the bar when
+        /// it stands no further from the reference, by the mean and at the 99th percentile. The bar is
+        /// measured at the same place, so it carries the place's own difficulty and aliasing with it.
+        int commandNoise(const Command& command)
+        {
+            const bpo::variables_map& variables = command.mVariables;
+            const Framed framed = frameFrom(command);
+
+            const SuiteRun run = chooseBenchViews(variables, command.mResources, "noise");
+            const std::vector<Stop> places = stopsFrom(run.mViews, variables, framed);
+
+            const std::filesystem::path out
+                = variables["out"].defaulted() ? "noise" : variables["out"].as<std::string>();
+            std::filesystem::create_directories(out);
+
+            const Rtx::ReconstructionRequest& played = framed.mSetup.mProfile.mReconstruction;
+            Rtx::ReconstructionRequest reference = played;
+            reference.mFilter = false;
+            reference.mJitter = true;
+            reference.mNoise = Rtx::NoiseSource::WhiteHash;
+            Rtx::ReconstructionRequest unfiltered = played;
+            unfiltered.mFilter = false;
+            const Rtx::ExposureRule held{ .mHeld = true };
+
+            // One picture of `place`: `frames` frames summed where it is more than one.
+            const auto picture = [&](const Stop& place, const std::string_view suffix, const std::uint32_t frames,
+                                     const std::optional<Rtx::ReconstructionRequest>& reconstruction,
+                                     const std::optional<Rtx::ExposureRule>& exposure) {
+                Stop stop = place;
+                stop.mName += suffix;
+                measureFrames(stop, variables, frames);
+                stop.mSchedule.mAccumulate = frames > 1 ? frames : 0;
+                stop.mSchedule.mReconstruction = reconstruction;
+                stop.mSchedule.mExposure = exposure;
+                stop.mActions.mCapture = out / (stop.mName + ".png");
+                return stop;
+            };
+
+            std::vector<Stop> stops;
+            stops.reserve(places.size() * 3);
+            std::vector<std::string> names;
+            names.reserve(places.size());
+            for (const Stop& place : places)
+            {
+                names.push_back(place.mName);
+                stops.push_back(picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, reference, std::nullopt));
+                stops.push_back(picture(place, sNoiseBarSuffix, sNoiseBarFrames, unfiltered, held));
+                stops.push_back(picture(place, "", 1, std::nullopt, held));
+            }
+
+            SessionRequest request = sessionFor(command, framed, std::move(stops));
+            request.mSuite = run.mSuite;
+
+            if (const int status
+                = runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));
+                status != 0)
+                return status;
+
+            return judgeNoise(out, names);
+        }
+
         /// A film of the keys a window wrote: every take drawn headless, its frames numbered through
         /// the film, then encoded.
         ///
@@ -988,7 +1059,7 @@ namespace RtxTool
         /// forgotten in the other was either a command nobody could find or a line of help nothing
         /// answered. In the order `--help` prints them, which is the order they were written to be
         /// read in rather than a sorted one.
-        constexpr std::array<Verb, 7> sVerbs{
+        constexpr std::array<Verb, 8> sVerbs{
             Verb{ Verbs::Info, "report the device this renderer would run on", commandInfo },
             Verb{ Verbs::Scene, "read a place and report what the renderer would be handed", commandScene },
             Verb{ Verbs::Shot,
@@ -999,6 +1070,8 @@ namespace RtxTool
             Verb{ Verbs::Check, "assert what the renderer is handed and what it draws, at every place of a suite",
                 commandCheck },
             Verb{ Verbs::Film, "fly through the keys `view --keys` wrote, into frames and a video", commandFilm },
+            Verb{ Verbs::Noise, "how far the frame stands from its converged reference, at every place of a suite",
+                commandNoise },
         };
 
         void printUsage(const bpo::options_description& options)

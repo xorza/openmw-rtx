@@ -1,6 +1,7 @@
 #include "compare.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdlib>
 #include <format>
@@ -18,6 +19,27 @@ namespace RtxTool
         std::ostream& out()
         {
             return Debug::getRawStdout();
+        }
+
+        /// Whether the two have a picture each, of one size, so there is something to subtract.
+        bool comparable(const Rtx::PngImage& one, const Rtx::PngImage& other)
+        {
+            return !one.empty() && !other.empty() && one.mWidth == other.mWidth && one.mHeight == other.mHeight;
+        }
+
+        /// The difference of the pixel whose first byte is `at`: its worst colour channel, out of 255.
+        /// Colour only, because alpha is not the picture.
+        std::uint32_t worstChannel(const Rtx::PngImage& one, const Rtx::PngImage& other, const std::size_t at)
+        {
+            std::uint32_t worst = 0;
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                const auto a = static_cast<std::int32_t>(one.mPixels[at + channel]);
+                const auto b = static_cast<std::int32_t>(other.mPixels[at + channel]);
+                worst = std::max(worst, static_cast<std::uint32_t>(std::abs(a - b)));
+            }
+
+            return worst;
         }
 
         /// How a difference reads on one line.
@@ -41,7 +63,7 @@ namespace RtxTool
 
     FrameDifference compareFrames(const Rtx::PngImage& before, const Rtx::PngImage& after)
     {
-        if (before.empty() || after.empty() || before.mWidth != after.mWidth || before.mHeight != after.mHeight)
+        if (!comparable(before, after))
             return FrameDifference{ .mMismatched = true };
 
         FrameDifference difference;
@@ -49,14 +71,7 @@ namespace RtxTool
 
         for (std::size_t at = 0; at + 3 < before.mPixels.size(); at += 4)
         {
-            std::uint32_t worst = 0;
-            for (std::size_t channel = 0; channel < 3; ++channel)
-            {
-                const auto one = static_cast<std::int32_t>(before.mPixels[at + channel]);
-                const auto other = static_cast<std::int32_t>(after.mPixels[at + channel]);
-                worst = std::max(worst, static_cast<std::uint32_t>(std::abs(one - other)));
-            }
-
+            const std::uint32_t worst = worstChannel(before, after, at);
             if (worst > 0)
             {
                 ++difference.mDiffering;
@@ -65,6 +80,74 @@ namespace RtxTool
         }
 
         return difference;
+    }
+
+    PictureError measureError(const Rtx::PngImage& picture, const Rtx::PngImage& reference)
+    {
+        if (!comparable(picture, reference))
+            return PictureError{ .mMismatched = true };
+
+        std::array<std::uint64_t, 256> counts{};
+        std::uint64_t sum = 0;
+        for (std::size_t at = 0; at + 3 < picture.mPixels.size(); at += 4)
+        {
+            const std::uint32_t worst = worstChannel(picture, reference, at);
+            ++counts[worst];
+            sum += worst;
+        }
+
+        const std::uint64_t pixels = std::uint64_t{ picture.mWidth } * picture.mHeight;
+
+        // Counted in whole pixels, rounded up: at least ninety-nine in a hundred are within it.
+        const std::uint64_t needed = (pixels * 99 + 99) / 100;
+        std::uint64_t within = 0;
+        std::uint32_t level = 0;
+        while ((within += counts[level]) < needed)
+            ++level;
+
+        return PictureError{
+            .mMean = static_cast<double>(sum) / static_cast<double>(pixels),
+            .mP99 = level,
+        };
+    }
+
+    int judgeNoise(const std::filesystem::path& wrote, const std::span<const std::string> places)
+    {
+        const auto read = [&](const std::string& place, const std::string_view suffix) {
+            return Rtx::readPng(wrote / (place + std::string(suffix) + ".png"));
+        };
+
+        std::uint32_t noisier = 0;
+        std::uint32_t missing = 0;
+        for (const std::string& place : places)
+        {
+            const Rtx::PngImage reference = read(place, sNoiseReferenceSuffix);
+            const PictureError frame = measureError(read(place, ""), reference);
+            const PictureError bar = measureError(read(place, sNoiseBarSuffix), reference);
+            if (frame.mMismatched || bar.mMismatched)
+            {
+                out() << std::format("  {:<28} a picture is missing, or of another size\n", place);
+                ++missing;
+                continue;
+            }
+
+            const bool clean = frame.mMean <= bar.mMean && frame.mP99 <= bar.mP99;
+            if (!clean)
+                ++noisier;
+
+            out() << std::format("  {:<28} frame mean {:.2f} p99 {}, {} averaged mean {:.2f} p99 {} — {}\n", place,
+                frame.mMean, frame.mP99, sNoiseBarFrames, bar.mMean, bar.mP99, clean ? "as clean" : "noisier");
+        }
+
+        if (noisier == 0 && missing == 0)
+        {
+            out() << std::format("  every frame is as clean as {} frames averaged\n", sNoiseBarFrames);
+            return 0;
+        }
+
+        out() << std::format("  {} of {} frames noisier than {} frames averaged, {} could not be measured\n", noisier,
+            places.size(), sNoiseBarFrames, missing);
+        return 1;
     }
 
     int compareRuns(const std::filesystem::path& wrote, const std::filesystem::path& against,

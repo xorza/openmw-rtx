@@ -37,7 +37,7 @@ namespace Rtx
         TEST_F(RtxVisibilityKernelsTest, theKernelsAreCountedAsTheyLandAndTheCountEndsWithTheCompile)
         {
             const VisibilityPass pass(
-                getDevice(), Testing::getShaderDirectory(), mTextures, mChannels, mVolume, false, false, Reorder::None);
+                getDevice(), Testing::getShaderDirectory(), mTextures, mChannels, mVolume, false, false);
             constexpr std::uint32_t expected = 1 + 1 + 5;
 
             KernelProgress progress = pass.awaitKernels(std::chrono::milliseconds::zero());
@@ -67,8 +67,7 @@ namespace Rtx
         /// call that does not throw.
         TEST_F(RtxVisibilityKernelsTest, aKernelThatCannotBeMadeIsThrownToEveryAsk)
         {
-            const VisibilityPass pass(
-                getDevice(), "no-such-directory", mTextures, mChannels, mVolume, false, true, Reorder::None);
+            const VisibilityPass pass(getDevice(), "no-such-directory", mTextures, mChannels, mVolume, false, true);
 
             EXPECT_THROW(pass.awaitKernels(), InputError);
             EXPECT_THROW(pass.awaitKernels(), InputError);

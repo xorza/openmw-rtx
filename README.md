@@ -51,11 +51,10 @@ Requirements
 
 * An NVIDIA RTX card, Turing (RTX 20 series) or later, which is what the renderer is written and
   tested for.
-* Vulkan 1.4 with ray tracing pipelines, ray queries, position fetch and shader invocation
-  reorder. A device missing any of them refuses to start rather than falling back.
-* NVIDIA driver 595 or later, on Windows or Linux. It is the first to offer
-  `VK_EXT_ray_tracing_invocation_reorder` on RTX cards, Turing included, so an RTX 20 card on an
-  older driver is refused for that extension and runs once the driver is updated.
+* Vulkan 1.4 with ray tracing pipelines, ray queries, position fetch and `VK_KHR_shader_fma`. A
+  device missing any of them refuses to start rather than falling back.
+* NVIDIA driver 595 or later, on Windows or Linux. It is the first to offer `VK_KHR_shader_fma`, so
+  an older driver is refused for that extension and runs once the driver is updated.
 
 Tested on one machine so far: a laptop RTX 4090 at 150 W, which is about a desktop RTX 4070.
 

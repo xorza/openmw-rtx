@@ -53,12 +53,8 @@ namespace Rtx
         {
             const Device& device = getDevice();
 
-            // The one record the probe's own hit object names. `traceprobe.rmiss` says what a table
-            // without it costs.
-            const std::array<std::filesystem::path, 1> miss{ Testing::getShaderDirectory() / "traceprobe.rmiss.spv" };
             const TraceShaders shaders{
                 .mRaygen = Testing::getShaderDirectory() / "traceprobe.rgen.spv",
-                .mMiss = miss,
             };
             const TracePipeline pipeline(device, sBindings, {}, shaders, "trace probe");
 

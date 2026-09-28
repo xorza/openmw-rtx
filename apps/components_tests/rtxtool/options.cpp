@@ -129,7 +129,7 @@ namespace RtxTool
             EXPECT_EQ(
                 options.complainAbout(line, Verbs::Bench), "`bench` does not read --find, which belongs to `scene`.\n");
             EXPECT_EQ(options.complainAbout(line, Verbs::Scene),
-                "`scene` does not read --suite, which belongs to `bench` and `check`.\n"
+                "`scene` does not read --suite, which belongs to `bench`, `check` and `noise`.\n"
                 "`scene` does not read --seconds, which belongs to `bench` and `check`.\n");
 
             // An option written twice is worth one complaint.
@@ -166,7 +166,9 @@ namespace RtxTool
 
             EXPECT_EQ(options.readsOption("validation"), Verbs::Every);
             EXPECT_EQ(options.readsOption("data"), Verbs::Every) << "the engine's own, read by every command";
-            EXPECT_EQ(options.readsOption("views"), Verbs::Scene | Verbs::Shot | Verbs::Bench | Verbs::Check);
+            EXPECT_EQ(
+                options.readsOption("views"), Verbs::Scene | Verbs::Shot | Verbs::Bench | Verbs::Check | Verbs::Noise);
+            EXPECT_EQ(options.readsOption("suite"), Verbs::Bench | Verbs::Check | Verbs::Noise);
 
             // Every command but `info` builds a frame, and `info` reports on a device. A film is
             // always made under one mode, and names none.
@@ -238,14 +240,16 @@ namespace RtxTool
             EXPECT_EQ(verbNamed("check"), Verbs::Check);
             EXPECT_EQ(verbName(Verbs::Film), "film");
             EXPECT_EQ(verbNamed("film"), Verbs::Film);
+            EXPECT_EQ(verbName(Verbs::Noise), "noise");
+            EXPECT_EQ(verbNamed("noise"), Verbs::Noise);
             EXPECT_EQ(verbNamed("nonesuch"), Verbs::None);
             EXPECT_EQ(verbName(Verbs::Bench | Verbs::Check), "") << "a set of two is not a command";
             EXPECT_EQ(verbName(Verbs::None), "");
 
-            EXPECT_EQ(countVerbs(Verbs::Every), 7u) << "the seven `--help` prints";
+            EXPECT_EQ(countVerbs(Verbs::Every), 8u) << "the eight `--help` prints";
             EXPECT_EQ(countVerbs(Verbs::None), 0u);
             EXPECT_EQ(otherThan(Verbs::Every), Verbs::None);
-            EXPECT_EQ(countVerbs(otherThan(Verbs::Shot)), 6u);
+            EXPECT_EQ(countVerbs(otherThan(Verbs::Shot)), 7u);
             EXPECT_TRUE(holds(Verbs::Bench | Verbs::Check, Verbs::Check));
             EXPECT_FALSE(holds(Verbs::Bench | Verbs::Check, Verbs::Shot));
 
@@ -277,6 +281,8 @@ namespace RtxTool
             EXPECT_EQ(row(Verbs::Bench), (std::array{ false, true, false, true, false, false }));
             EXPECT_EQ(row(Verbs::Check), (std::array{ true, true, false, false, false, false }));
             EXPECT_EQ(row(Verbs::Film), (std::array{ false, false, true, true, false, false }));
+            EXPECT_EQ(row(Verbs::Noise), (std::array{ true, false, false, false, false, false }))
+                << "a reference is many frames of one frame, and a route would make them many";
         }
     }
 

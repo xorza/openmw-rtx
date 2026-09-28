@@ -51,5 +51,6 @@ void main()
     // of it, so whatever the launch put in front of this miss is all that covers it.
     answer.mBackdropShown = picture ? 1.0 : answer.mBackdropShown;
 
+    answer.mDistance = gl_RayTmaxEXT;
     packed = packAnswer(answer);
 }

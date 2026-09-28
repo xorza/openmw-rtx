@@ -344,9 +344,8 @@ namespace RtxTool
              << std::format(R"(  "render": [{}, {}],)", header.mExtents.mRenderWidth, header.mExtents.mRenderHeight)
              << '\n'
              << std::format(R"(  "upscale": "{}",)", Rtx::sUpscaleNames.name(header.mUpscaling.mMode)) << '\n'
-             << std::format(R"(  "noise": "{}", "levelBias": {:.3f}, "reorder": "{}",)",
-                    Rtx::sNoiseSourceNames.name(header.mNoise), header.mLevelBias,
-                    Rtx::sReorderNames.name(header.mReorder))
+             << std::format(R"(  "noise": "{}", "levelBias": {:.3f},)", Rtx::sNoiseSourceNames.name(header.mNoise),
+                    header.mLevelBias)
              << '\n'
              << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
                     header.mValidating)

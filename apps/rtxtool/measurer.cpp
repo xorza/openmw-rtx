@@ -353,7 +353,6 @@ namespace RtxTool
             header.mUpscaling = report.mReconstruction.mUpscaling;
             header.mNoise = report.mReconstruction.mNoise;
             header.mLevelBias = report.mReconstruction.mLevelBias;
-            header.mReorder = renderer.getProfile().mReorder;
             header.mValidating = renderer.isValidating();
             header.mMeasured = stop.mSchedule.mSpec.getMeasured(step);
             header.mWarmup = stop.mSchedule.mSpec.getWarmup(step);

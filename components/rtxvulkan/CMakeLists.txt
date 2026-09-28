@@ -85,6 +85,7 @@ set(RTX_SHADERS
     shaders/trace/visibility.rgen
     shaders/trace/visibility.rmiss
     shaders/trace/visibilityhit.rchit
+    shaders/trace/visibilityunshaded.rmiss
     shaders/trace/wavecompose.comp
     shaders/trace/waveform.comp
     shaders/trace/waveline.comp
@@ -93,8 +94,7 @@ set(RTX_SHADERS
 # The device-behaviour probes, compiled only where something is going to run them. Nothing the
 # renderer draws reaches these: they state an assumption about the hardware so that it can fail as a
 # test rather than as a rendering mystery.
-set(RTX_SHADER_PROBES shaders/probes/pinning.comp shaders/probes/probe.comp shaders/probes/traceprobe.rgen
-    shaders/probes/traceprobe.rmiss)
+set(RTX_SHADER_PROBES shaders/probes/pinning.comp shaders/probes/probe.comp shaders/probes/traceprobe.rgen)
 if (BUILD_COMPONENTS_TESTS)
     list(APPEND RTX_SHADERS ${RTX_SHADER_PROBES})
 endif()

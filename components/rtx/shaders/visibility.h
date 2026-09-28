@@ -38,13 +38,8 @@ namespace Rtx::Shaders
     /// What a hit record carries after its handle, which is everything a hit's stages are told by
     /// the launch that invoked them.
     ///
-    /// **Nothing crosses the payload inwards, and this is why.** A field the launch writes into the
-    /// payload before `hitObjectExecuteShaderEXT` is not what the closest-hit shader reads once a
-    /// `reorderThreadEXT` with a key stands anywhere in the launch: on driver 610.57.04 a per-pixel
-    /// signature written that way arrives wrong at nearly every pixel, and the answers written back
-    /// arrive right. No launch sorts unless `RenderProfile::mReorder` asks, and the record is what
-    /// keeps that a choice: it is read by the shader the hit object names, through the index
-    /// traversal computed, whatever stands between the trace and the execute.
+    /// **Nothing crosses the payload inwards.** The shader reads its eye and its layer off the record
+    /// traversal chose for it, so the payload carries answers outwards and nothing else.
     ///
     /// **Each closest-hit shader stands behind a block of `HIT_RECORDS_PER_SHADER` of these**: one
     /// per eye the launch casts through, and within an eye's run one per layer of the peel. The
@@ -97,20 +92,16 @@ namespace Rtx::Shaders
     }
 #endif
 
-    /// The sky, which is the only miss record the trace has.
-    ///
-    /// **Seen through the world's eye alone.** The arms' eye traces the arms and nothing else, and a
-    /// ray of it that finds no arm is never shaded: the world's own ray is traced there instead, so
-    /// whatever reaches the sky reached it through `mCamera`.
+    /// The sky, for the world's eye.
     const uint MISS_RECORD_SKY = 0u;
-    const uint MISS_RECORD_COUNT = 1u;
 
-    /// What `lib/variants.glsl`'s `REORDER` constant may be, which is `Rtx::Reorder` as the host
-    /// spells it: no sort, a sort on the shader the hit names, or on that and the hit material's
-    /// diffuse texture.
-    const uint REORDER_NONE = 0u;
-    const uint REORDER_SHADER = 1u;
-    const uint REORDER_TEXTURE = 2u;
+    /// Nothing, for the arms' eye. **The sky is seen through the world's eye alone**: the arms' eye
+    /// traces the arms and nothing else, and a ray of it that finds no arm is not shaded — the
+    /// world's own ray is traced there instead, so whatever reaches the sky reached it through
+    /// `mCamera`, and a pixel beside the arms runs the sky's shader once and not twice.
+    const uint MISS_RECORD_UNSHADED = 1u;
+
+    const uint MISS_RECORD_COUNT = 2u;
 
     /// What a pixel is painted with: the light, or one input of the surface written straight out —
     /// `Rtx::SurfaceView`, which says what each is.

@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <span>
 #include <string>
+#include <string_view>
 
 #include <components/rtx/renderer/png.hpp>
 
@@ -36,6 +37,43 @@ namespace RtxTool
     /// Subtracts one picture from another. Mismatched where either is empty or they disagree on
     /// their extents.
     FrameDifference compareFrames(const Rtx::PngImage& before, const Rtx::PngImage& after);
+
+    /// How far a picture stands from the one it should converge to, in levels of 255. A pixel's error
+    /// is its worst colour channel, as `FrameDifference` counts a pixel.
+    struct PictureError
+    {
+        /// The two are not the same size, or either is missing.
+        bool mMismatched = false;
+
+        double mMean = 0.0;
+
+        /// The least error ninety-nine pixels in a hundred are within: where the specks are, which
+        /// the mean spreads over the whole picture.
+        std::uint32_t mP99 = 0;
+    };
+
+    /// Measures `picture` against `reference`. Mismatched where either is empty or they disagree
+    /// on their extents.
+    PictureError measureError(const Rtx::PngImage& picture, const Rtx::PngImage& reference);
+
+    /// How many frames `noise` averages into the reference, and into the picture the frame is held
+    /// to. **The reference at 256**: a second reference drawn from another sequence stood 5 levels
+    /// from it at the 99th percentile at the Seyda Neen pier, a seventh of the bar's 33 there, so
+    /// what is left of its own noise does not decide a verdict. **The bar at 16 is a decision, not a
+    /// derivation**: the frame a player sees is to be as clean as sixteen samples a pixel, a quarter
+    /// of one sample's noise. Moving it moves what the claim says.
+    inline constexpr std::uint32_t sNoiseReferenceFrames = 256;
+    inline constexpr std::uint32_t sNoiseBarFrames = 16;
+
+    /// What `noise` names the reference and the bar of a place, after the place's own name.
+    inline constexpr std::string_view sNoiseReferenceSuffix = "-reference";
+    inline constexpr std::string_view sNoiseBarSuffix = "-averaged";
+
+    /// Reads back the three pictures `noise` wrote of each of `places` into `wrote` and says whether
+    /// each frame is as clean as its bar: no worse than the bar against the reference, by the mean
+    /// and at the 99th percentile. Returns a process exit status, non-zero where any frame is
+    /// noisier than its bar or any picture is missing.
+    int judgeNoise(const std::filesystem::path& wrote, std::span<const std::string> places);
 
     /// Reads back what a run wrote and says what moved since `against`: a directory an earlier run
     /// wrote on this machine, never a corpus in the tree, because the picture is a function of the

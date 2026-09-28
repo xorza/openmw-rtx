@@ -15,8 +15,8 @@ primary visibility, shadows, direct and indirect light, sky, water and fog are r
 rasterizer is not modified. Both renderers stand behind one interface, one binary ships both,
 and the one not chosen never starts.
 
-The target is NVIDIA RTX, Turing and later, through Vulkan with ray tracing pipelines, ray
-queries and shader invocation reorder. The renderer's own wavelet filter is the denoiser, and
+The target is NVIDIA RTX, Turing and later, through Vulkan with ray tracing pipelines and ray
+queries. The renderer's own wavelet filter is the denoiser, and
 every frame is traced at the window's size: the upscaler seam has no upscaler behind it yet.
 Vanilla content is read as it is: its textures are pre-lit, so the renderer estimates the painted
 light and divides it out. A PBR replacer's companion maps reach the trace, and a

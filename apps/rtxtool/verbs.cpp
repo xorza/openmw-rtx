@@ -25,6 +25,7 @@ namespace RtxTool
             std::pair{ Verbs::Bench, std::string_view("bench") },
             std::pair{ Verbs::Check, std::string_view("check") },
             std::pair{ Verbs::Film, std::string_view("film") },
+            std::pair{ Verbs::Noise, std::string_view("noise") },
         } };
     }
 
@@ -32,8 +33,9 @@ namespace RtxTool
     {
         // In the order `sNames` names them. `view` flies nothing and freezes nothing, and keeps the
         // game's interface, because somebody is flying it; `check` and `shot` fly a route unfrozen
-        // and stand still elsewhere; `bench` measures what moves.
-        static constexpr std::array<std::pair<Verbs, VerbPolicy>, 7> sPolicies{ {
+        // and stand still elsewhere; `bench` measures what moves; `noise` stands still, because a
+        // reference is many frames of one frame.
+        static constexpr std::array<std::pair<Verbs, VerbPolicy>, 8> sPolicies{ {
             { Verbs::Info, VerbPolicy{} },
             { Verbs::Scene, VerbPolicy{ .mFreezes = true } },
             { Verbs::Shot, VerbPolicy{ .mFreezes = true, .mFliesRoutes = true, .mHashes = true } },
@@ -41,6 +43,7 @@ namespace RtxTool
             { Verbs::Bench, VerbPolicy{ .mFliesRoutes = true, .mMeasures = true } },
             { Verbs::Check, VerbPolicy{ .mFreezes = true, .mFliesRoutes = true } },
             { Verbs::Film, VerbPolicy{ .mFollowsTracks = true, .mMeasures = true } },
+            { Verbs::Noise, VerbPolicy{ .mFreezes = true } },
         } };
 
         for (const auto& [verb, policy] : sPolicies)

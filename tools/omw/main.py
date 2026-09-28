@@ -30,7 +30,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   exec <command> [args]        a command in the build directory, under the flavour's environment
   archive [name]               the release archive into dist/, with its symbols: the package flavour
   profile [args]               the harness's CPU side under perf: the release flavour
-  info, scene, shot, view, bench, check, film [args]
+  info, scene, shot, view, bench, check, film, noise [args]
                                openmw-rtxtool's own verbs, from the build directory
 
   crash <dump> [symbols]       a player's crash dump, every thread named and lined, against a
@@ -50,7 +50,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
 
 # The harness's own verbs, `sNames` in `apps/rtxtool/verbs.cpp`, which a test holds this to: a word
 # that is none of these and none of the driver's is refused before anything is configured or built.
-HARNESS_VERBS = ("info", "scene", "shot", "view", "bench", "check", "film")
+HARNESS_VERBS = ("info", "scene", "shot", "view", "bench", "check", "film", "noise")
 
 
 def _harness(build: Build, verb: str, args: list[str]) -> int:

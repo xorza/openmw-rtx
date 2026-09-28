@@ -1,14 +1,13 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_PAYLOAD_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_PAYLOAD_GLSL
 
-// What crosses between the launch and the shader an execute runs.
+// What crosses between the launch and the shader a trace runs.
 //
-// **The whole of what the frame's tail needs, and nothing the hit object already answers.** A
-// launch reads the hit itself, its distance and its ray straight off the `hitObjectEXT` through
-// `hitObjectIsHitEXT`, `hitObjectGetRayTMaxEXT` and the ray's own getters, so not one word here is
-// spent on them.
+// **The whole of what the frame's tail needs, and nothing the launch already holds.** The ray is
+// the launch's own, so its origin and direction stay there; whether it hit and how far it went are
+// the shader's to say, and travel here.
 //
-// **What crosses the execute is what it costs**, and this is it: eleven words. Every field the
+// **What crosses the trace is what it costs**, and this is it: twelve words. Every field the
 // tail reads travels, and travels as small as the frame keeps it — the albedo, the scalars and
 // the motion vector as halves, which is the width of the channels they are stored in, and the
 // normal as the surface channel's own code. What stays whole is the two radiances, because a
@@ -21,27 +20,17 @@
 // landed already in hand — so the payload carries the vector a pixel stores, and not the point for
 // the launch to reproject, which would read the rows a second time.
 //
-// **Every word of it flows outwards.** The launch writes nothing here before an execute: what a
-// closest-hit shader is told, it reads off its shader-table record, and `Shaders::HitRecord` says
-// what measuring the other direction found.
+// **Every word of it flows outwards.** The launch writes nothing here before a trace: what a
+// closest-hit shader is told, it reads off its shader-table record (`Shaders::HitRecord`).
 
-#include "basis.glsl"
 #include "records.glsl"
 
-/// Where the shading payload below sits. A literal at every call, as the extension wants.
+/// Where the payload below sits. A literal at every call, as the extension wants. The any-hit
+/// shader a traversal reaches declares none, because it reads none.
 #define RTX_PAYLOAD 0
 
-/// Where the payload traversal carries sits, which is a different and far smaller one.
-///
-/// **Traversal and shading invoke different shaders, so they are given different payloads.** The
-/// any-hit shader a traversal reaches tests a cutout and reads nothing at all, where a closest-hit
-/// shader fills in every field below — and the whitepaper's own example of when to split them is
-/// this one. A traversal handed the shading payload pays register pressure for fields the shader it
-/// runs never touches.
-#define RTX_TRAVERSAL_PAYLOAD 1
-
-/// What the shader an execute ran hands back to the launch, unpacked: the record a hit shader
-/// fills in and the launch's tail reads, and never what crosses the execute itself.
+/// What the shader a trace ran hands back to the launch, unpacked: the record a hit or miss shader
+/// fills in and the launch's tail reads, and never what crosses the trace itself.
 struct Answer
 {
     /// What the surface sends back along the ray, before the pane, the water column, the air and
@@ -77,6 +66,11 @@ struct Answer
     /// Whether what was shaded is water, which the glare's query counts as nothing that writes
     /// depth.
     bool mWater;
+
+    /// Whether the ray met a surface, and how far along it: the hit's distance, or the ray's own
+    /// end where it met nothing.
+    bool mHit;
+    float mDistance;
 };
 
 /// Everything the launch reads, at what a shader that answered nothing would leave it.
@@ -95,14 +89,16 @@ Answer noAnswer()
     answer.mOpacity = 1.0;
     answer.mPane = false;
     answer.mWater = false;
+    answer.mHit = false;
+    answer.mDistance = 0.0;
 
     return answer;
 }
 
-/// The record as it crosses the execute: eleven words, laid out once here.
+/// The record as it crosses the trace: twelve words, laid out once here.
 ///
-/// The flags word carries the backdrop's share as a half in its high bits, and two facts in its low
-/// ones: whether the launch peels the surface, and whether it is water.
+/// The flags word carries the backdrop's share as a half in its high bits, and three facts in its
+/// low ones: whether the ray hit, whether the launch peels the surface, and whether it is water.
 struct VisibilityPayload
 {
     vec3 mRadiance;
@@ -118,11 +114,15 @@ struct VisibilityPayload
     /// The motion vector, a pair of halves: the width `GBUFFER_MOTION` stores it at.
     uint mMotion;
 
+    /// Whole, because the launch places the layers, the water and the surface channel by it.
+    float mDistance;
+
     uint mFlags;
 };
 
 const uint ANSWER_WATER = 1u << 0u;
 const uint ANSWER_PANE = 1u << 1u;
+const uint ANSWER_HIT = 1u << 2u;
 
 VisibilityPayload packAnswer(Answer answer)
 {
@@ -133,8 +133,9 @@ VisibilityPayload packAnswer(Answer answer)
         packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mOpacity)));
     packed.mNormal = floatBitsToUint(answer.mResponse.mNormal);
     packed.mMotion = packHalf2x16(answer.mMotion);
+    packed.mDistance = answer.mDistance;
     packed.mFlags = packHalf2x16(vec2(0.0, answer.mBackdropShown)) | (answer.mWater ? ANSWER_WATER : 0u)
-        | (answer.mPane ? ANSWER_PANE : 0u);
+        | (answer.mPane ? ANSWER_PANE : 0u) | (answer.mHit ? ANSWER_HIT : 0u);
 
     return packed;
 }
@@ -153,6 +154,8 @@ Answer unpackAnswer(VisibilityPayload packed)
     answer.mOpacity = diffuseBOpacity.y;
     answer.mPane = (packed.mFlags & ANSWER_PANE) != 0u;
     answer.mWater = (packed.mFlags & ANSWER_WATER) != 0u;
+    answer.mHit = (packed.mFlags & ANSWER_HIT) != 0u;
+    answer.mDistance = packed.mDistance;
 
     return answer;
 }

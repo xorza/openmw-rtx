@@ -948,6 +948,8 @@ namespace MWRender
         Rtx::FrameOptions options{
             .mAccumulate = mRun.getAccumulated(),
             .mSinceLast = sinceLast,
+            .mReconstruction = mRun.getReconstruction(),
+            .mExposure = mRun.getExposure(),
             .mReadBack = mRun.wantsFrameCopy(),
         };
 

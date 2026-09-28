@@ -138,11 +138,9 @@ namespace Rtx
         ///        were not finite — a harness facility, specialized away rather than branched on.
         /// @param specialize whether to make a kernel per tuple, or the full tuple's alone and
         ///        answer every frame with it — `RenderProfile::mSpecializeLaunches`.
-        /// @param reorder whether the launch sorts its threads before the hit's shader runs, and
-        ///        by what — `RenderProfile::mReorder`, a constant of every launch.
         VisibilityPass(const Device& device, const std::filesystem::path& shaderDirectory,
             const SetLayout& textureLayout, const SetLayout& channelLayout, const SetLayout& volumeLayout,
-            bool counting, bool specialize, Reorder reorder);
+            bool counting, bool specialize);
 
         /// Waits for every kernel, and rethrows what making one threw — every time it is asked,
         /// so a caller that caught it once cannot go on to record with a table half empty. Ahead
@@ -279,10 +277,9 @@ namespace Rtx
         Buffer mConstants;
 
         /// Fixed for the life of the pass, where the four in `VisibilityVariant` are the frame's:
-        /// what counts is which binary was built and not what is being looked at, and the sort is
-        /// the run's. Both as the words the kernels are specialized with.
+        /// what counts is which binary was built and not what is being looked at. As the word the
+        /// kernels are specialized with.
         std::uint32_t mCounting = 0;
-        std::uint32_t mReorder = Shaders::REORDER_NONE;
 
         /// Whether the tables below hold a kernel per tuple, or the full tuple's alone.
         bool mSpecialize = true;

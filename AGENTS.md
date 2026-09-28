@@ -85,12 +85,13 @@ backend ever arrives.
   build or another gate.
 - Do not open the game window to check a rendering change. The harness's verbs go through the
   driver, which builds `openmw-rtxtool` and runs it in the flavour's directory:
-  `./omw [flavour] info|scene|shot|view|bench|check|film`, and `./omw exec ./openmw-rtxtool --help`
+  `./omw [flavour] info|scene|shot|view|bench|check|film|noise`, and `./omw exec ./openmw-rtxtool --help`
   for their options. The places are `files/rtx/views.cfg`, the suites `files/rtx/benches.cfg`.
 - `./omw shot --views=all --map --out=<dir>` ahead of a change and `--against=<dir>` after it says
   which pictures the change moved. `scene` reports what the renderer was handed. `check` asserts
   the tree's claims at every place of its suite. `bench` has the moving camera. `view` is for what
-  only a window shows, and `film` flies through the keys `view --keys` wrote.
+  only a window shows, and `film` flies through the keys `view --keys` wrote. `noise` holds the
+  frame against a converged reference, and fails a frame noisier than sixteen frames averaged.
 - `./omw kernels > before.txt` ahead of a shader change and `--against=before.txt` after
   it names the kernels the change moved, per tuple of their constants; a tuple it did not name
   draws what it drew.

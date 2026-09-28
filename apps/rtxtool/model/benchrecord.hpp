@@ -206,11 +206,9 @@ namespace RtxTool
         Rtx::Upscaling mUpscaling{ .mMode = Rtx::Upscale::Off };
 
         /// Where the trace drew from and what its texture levels were offset by, as the frame's
-        /// `Reconstruction` resolved them; and whether the launch sorted its threads, which is
-        /// the profile's.
+        /// `Reconstruction` resolved them.
         Rtx::NoiseSource mNoise = Rtx::NoiseSource::BlueNoiseTile;
         float mLevelBias = 0.0f;
-        Rtx::Reorder mReorder = Rtx::Reorder::None;
 
         std::uint32_t mMeasured = 0;
         std::uint32_t mWarmup = 0;

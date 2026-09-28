@@ -74,22 +74,6 @@ namespace Rtx
                 && at(tables.mSpritePresence, Shaders::TABLE_ALIGN_ROWS);
         }
 
-        /// The word `lib/variants.glsl` is compiled with as `REORDER`.
-        std::uint32_t reorderWordOf(const Reorder reorder)
-        {
-            switch (reorder)
-            {
-                case Reorder::Shader:
-                    return Shaders::REORDER_SHADER;
-                case Reorder::Texture:
-                    return Shaders::REORDER_TEXTURE;
-                case Reorder::None:
-                    break;
-            }
-
-            return Shaders::REORDER_NONE;
-        }
-
         /// Every stage on every binding, because one description of set zero serves the trace's
         /// five shaders and the fog volume's dispatch.
         constexpr auto sStages = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR
@@ -224,14 +208,13 @@ namespace Rtx
 
     VisibilityPass::VisibilityPass(const Device& device, const std::filesystem::path& shaderDirectory,
         const SetLayout& textureLayout, const SetLayout& channelLayout, const SetLayout& volumeLayout, bool counting,
-        const bool specialize, const Reorder reorder)
+        const bool specialize)
         : mDevice(device)
         , mBlueNoise(uploadOnce(device, BlueNoise::shared().getValues(), "blue noise"))
         , mSpecularAlbedo(uploadOnce(device, SpecularAlbedo::shared().getValues(), "specular albedo"))
         , mConstants(Buffer::deviceLocal(device, sizeof(Shaders::VisibilityConstants),
               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame constants"))
         , mCounting(counting ? 1u : 0u)
-        , mReorder(reorderWordOf(reorder))
         , mSpecialize(specialize)
         , mChannelLayout(channelLayout.get())
         , mVolumeLayout(volumeLayout.get())
@@ -299,15 +282,16 @@ namespace Rtx
         // One word per `constant_id`, in the order `lib/variants.glsl` declares them. The volume
         // traces no primary ray and so adds no miss, but its froxels are a boundary the finiteness
         // count watches, so it counts under the same word as the trace.
-        const std::array<std::uint32_t, 6> specialization{ mCounting, variant.mSun ? 1u : 0u, variant.mMoons ? 1u : 0u,
-            variant.mSea ? 1u : 0u, mReorder, variant.mMaps ? 1u : 0u };
+        const std::array<std::uint32_t, 5> specialization{ mCounting, variant.mSun ? 1u : 0u, variant.mMoons ? 1u : 0u,
+            variant.mSea ? 1u : 0u, variant.mMaps ? 1u : 0u };
 
         switch (wanted.mKernel)
         {
             case Kernel::Visibility:
             {
-                const std::array<std::filesystem::path, Shaders::MISS_RECORD_COUNT> miss{ shaders
-                    / "visibility.rmiss.spv" };
+                const std::array<std::filesystem::path, Shaders::MISS_RECORD_COUNT> miss{
+                    shaders / "visibility.rmiss.spv", shaders / "visibilityunshaded.rmiss.spv"
+                };
                 const std::filesystem::path hitModule = shaders / "visibilityhit.rchit.spv";
                 const std::array<HitShader, Shaders::HIT_SHADER_COUNT> hit{
                     HitShader{ .mModule = hitModule, .mSpecialization = sSurfaceHit },

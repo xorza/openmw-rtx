@@ -147,8 +147,8 @@ def vulkan_sdk_dir() -> Path:
 
 def vulkan_sdk() -> Path:
     """**The Vulkan SDK from LunarG, only what the build needs out of it.** The backend needs
-    VK_EXT_ray_tracing_invocation_reorder, which entered the SDK at 1.4.333, and the distributions'
-    packages stop short of it. What is kept: the headers, SPIR-V's among them, the loader the tests
+    VK_KHR_shader_fma, which entered the SDK at 1.4.329, and a pinned SDK is the same headers and
+    tools on every desk and runner, whatever the distribution packages. What is kept: the headers, SPIR-V's among them, the loader the tests
     start against, and glslc, spirv-val and spirv-opt, which link nothing of the SDK's. No layers:
     a runner has no device to validate on, and a desk that validates has an SDK installed for it."""
     sdk = vulkan_sdk_dir()
