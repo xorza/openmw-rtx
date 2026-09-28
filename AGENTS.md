@@ -28,6 +28,9 @@ them.
 - One binary ships both renderers, and the one not chosen never starts.
 - Opacity micromaps (`VK_EXT_opacity_micromap`) for the cutouts were tried and declined: the
   trace did not get faster, and building the maps only added loading time. Do not propose them again.
+- Async compute (a second queue, the next trace beside this frame's Ray Reconstruction) was tried
+  and declined: RR with a trace on the other queue faults the card (Xid 109, then 31), and the
+  overlap that is left gained 0.1–0.2 ms. The branch `async` has the record. Do not propose it again.
 - Keep the diff against upstream minimal, but never at the cost of reuse or of the abstraction's
   quality. The `[RTX]` settings pages and their translations are a fine price, and so is
   `components/crashcatcher`: upstream's crash catcher is replaced whole by the fork's own, a
