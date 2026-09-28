@@ -14,7 +14,8 @@
 # build as upstream's GitLab builds it, a Clang build, and upstream's integration tests — the game
 # under Xvfb with the example suite — run on the fork's own binary with the OpenGL renderer, which is
 # the seam's other half in what the fork ships. What costs hours, or needs upstream's own services,
-# stays out: clang-tidy, coverage, Coverity. The sanitizers and the packaging are `daily.yml`'s.
+# stays out: clang-tidy, coverage, Coverity. The sanitizers and the packaging are `daily.yml`'s and
+# a release's.
 #
 # No hosted runner has a GPU, so the ray tracer's tests name `--without-device`: `rtx-gpu-tests`,
 # which refuses to start without a device, is left out, and the gate stays on a box with a card.

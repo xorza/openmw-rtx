@@ -1,7 +1,5 @@
 - audit includes
 - audit #pragmas
 
-- fsr and other denoisers and upscalers
+- fsr and other denoisers and upscalers + AMD
 - folder structure
-- add symbols to the release ci
-- release to run asan ubsan

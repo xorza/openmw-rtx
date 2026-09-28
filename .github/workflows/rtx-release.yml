@@ -2,12 +2,14 @@
 # archive a player takes — an AppImage on Linux, which carries Qt, OSG, MyGUI, SDL and the Vulkan
 # loader and leaves the driver to the host, and on Windows the portable folder, which is what a fork
 # under a renderer nobody has installed before should be rather than an installer that registers
-# itself where a stock OpenMW would — and puts both on a draft release, to be read before it is
-# published. `ci.yml` has already built and tested the commit the tag names.
+# itself where a stock OpenMW would — and puts both on a draft release, each with the Breakpad
+# symbols `omw crash` reads a player's dump against, to be read before it is published. `ci.yml` has
+# already built and tested the commit the tag names; beside the packaging, the tests run again under
+# the sanitizers (`sanitizers.yml`), and a finding leaves no release.
 #
-# The packaging can be tried without a tag: run this by hand, and the archives come back as
-# artifacts, in the one zip GitHub wraps around each. `daily.yml` does that every day, with its
-# caches, and keeps nothing.
+# The packaging can be tried without a tag: run this by hand, and the archives and the symbols come
+# back as artifacts, in the one zip GitHub wraps around each. `daily.yml` does that every day, with
+# its caches, and keeps nothing.
 name: Release
 
 on:
@@ -19,6 +21,13 @@ on:
 permissions: {}
 
 jobs:
+  sanitizers:
+    uses: $/.github/workflows/sanitizers.yml
+    permissions:
+      contents: read
+    with:
+      cache: false
+
   package:
     name: package (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -63,10 +72,11 @@ jobs:
           compression-level: ${{ matrix.compression }}
 
   release:
-    # A draft, with both archives, on the tag that was pushed. Only this job can write, and it runs
-    # on nothing but a release tag; a leg that failed leaves no release at all.
+    # A draft, with both archives and their symbols, on the tag that was pushed. Only this job can
+    # write, and it runs on nothing but a release tag; a leg that failed, the sanitizers' included,
+    # leaves no release at all.
     if: startsWith(github.ref, 'refs/tags/rtx-v')
-    needs: package
+    needs: [sanitizers, package]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
