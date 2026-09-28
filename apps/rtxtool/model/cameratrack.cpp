@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numbers>
+#include <utility>
 
 #include <components/rtx/contract.hpp>
 
@@ -33,9 +34,34 @@ namespace RtxTool
         return static_cast<float>(std::fmod(static_cast<double>(to) - static_cast<double>(from) + 24.0, 24.0));
     }
 
-    CameraTrack::CameraTrack(const std::span<const TrackKey> keys)
+    void SkyRun::pose(const std::uint32_t frame, TrackPose& into) const
+    {
+        if (mHoursPerFrame.has_value())
+            into.mHoursOn = static_cast<double>(frame + (mFirstFrame > 0 ? 1u : 0u)) * *mHoursPerFrame;
+
+        if (!mWeathers.empty())
+            turnAt(mFirstFrame + frame, into);
+    }
+
+    void SkyRun::turnAt(const std::uint32_t frame, TrackPose& into) const
+    {
+        const std::uint32_t period = mHoldFrames + mCrossingFrames;
+        const std::uint32_t turn = frame / period;
+        const std::uint32_t within = frame % period;
+        const auto count = static_cast<std::uint32_t>(mWeathers.size());
+
+        into.mWeather = mWeathers[turn % count];
+        into.mNextWeather = within < mHoldFrames ? into.mWeather : mWeathers[(turn + 1) % count];
+        into.mCrossed = into.mNextWeather == into.mWeather
+            ? 0.0f
+            : smoothstep(static_cast<float>(within - mHoldFrames) / static_cast<float>(mCrossingFrames));
+    }
+
+    CameraTrack::CameraTrack(const std::span<const TrackKey> keys, SkyRun sky)
+        : mSky(std::move(sky))
     {
         Rtx::contract(!keys.empty(), "a camera track needs a key");
+        Rtx::contract(mSky.mCrossingFrames > 0, "a sky that crosses in no frames");
 
         mKnots.reserve(keys.size());
         for (std::size_t at = 0; at < keys.size(); ++at)
@@ -152,6 +178,7 @@ namespace RtxTool
         pose.mRotation = osg::Vec3f(
             static_cast<float>(value[sPitch]), 0.0f, static_cast<float>(std::remainder(value[sYaw], sTurn)));
         pose.mHoursOn = value[sHours];
+        mSky.pose(frame, pose);
         return pose;
     }
 }

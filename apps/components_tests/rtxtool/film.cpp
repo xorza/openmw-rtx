@@ -332,6 +332,75 @@ namespace RtxTool
                 "  room                         Vivec, Arena 12:00, Clear\n");
         }
 
+        /// **A film under its own sky flies at the camera's pace**: the clock at `×512` and the
+        /// weather turned through Clear and Rain over the whole film, across its cut, whatever the
+        /// keys name after the first.
+        ///
+        /// By hand: a thousand units at a hundred a second is ten seconds, a hundred frames, where
+        /// the keys' six hours at two seconds each would have been a hundred and twenty. `×512` is
+        /// `512 × 30 / 3600 = 4.27` game hours a second, 0.4267 a frame, so the second key, at frame
+        /// 100, is `12 + 42.67 = 54.67` hours, 06:40, and the room, the film's frame 101, 07:06. A
+        /// weather stands a second, ten frames, and crosses in eight, eighty: frame 100 is ten into
+        /// the second period of ninety, where Rain begins to cross back into Clear.
+        TEST(RtxFilmTest, aFilmUnderItsOwnSkyFliesAtTheCamerasPace)
+        {
+            std::vector<FilmKey> keys{
+                keyAt("dock", "-2,-9", osg::Vec3f(0, 0, 0)),
+                keyAt("shore", "-2,-9", osg::Vec3f(1000, 0, 0)),
+                keyAt("room", "Vivec, Arena", osg::Vec3f(0, 0, 0)),
+            };
+            keys[1].mStop.mSky.mHour = 18.0f;
+            keys[1].mStop.mSky.mWeather = "Rain";
+            keys[2].mStop.mSky.mDay = 5;
+
+            EXPECT_EQ(planFilm(keys, pacingForTests()).mTakes[0].mSegments[0].mFrames, 120u) << "the keys' clock";
+
+            FilmPacing pacing = pacingForTests();
+            pacing.mClock = 512.0f;
+            pacing.mTurn = { 0, 4 };
+            pacing.mWeatherHold = 1.0f;
+            const FilmPlan plan = planFilm(keys, pacing);
+            ASSERT_EQ(plan.mTakes.size(), 2u);
+
+            const FilmSegment& flown = plan.mTakes[0].mSegments[0];
+            EXPECT_EQ(flown.mFrames, 100u);
+            EXPECT_EQ(flown.mPace, FilmPace::Distance);
+
+            const SkyRun& second = plan.mTakes[1].mSky;
+            ASSERT_TRUE(second.mHoursPerFrame.has_value());
+            EXPECT_NEAR(*second.mHoursPerFrame, 512.0 * 30.0 / 3600.0 * 0.1, 1e-7);
+            EXPECT_EQ(second.mHoldFrames, 10u);
+            EXPECT_EQ(second.mCrossingFrames, 80u);
+            EXPECT_EQ(second.mFirstFrame, plan.mTakes[1].mFirstFrame);
+            EXPECT_EQ(second.mFirstFrame, 101u);
+
+            // The first take sets the clock and every take after takes it up, and no take settles a
+            // weather the turn holds over.
+            const std::vector<RtxTool::Stop> stops = stopsFor(plan, "film/frames");
+            ASSERT_EQ(stops.size(), 2u);
+            EXPECT_EQ(stops[0].mSky.mHour, sDefaultHour);
+            EXPECT_EQ(stops[0].mSky.mDay, 0);
+            EXPECT_FALSE(stops[1].mSky.mHour.has_value());
+            EXPECT_FALSE(stops[1].mSky.mDay.has_value()) << "the key's day set against the running clock";
+            EXPECT_FALSE(stops[0].mSky.mWeather.has_value());
+            EXPECT_FALSE(stops[1].mSky.mWeather.has_value());
+
+            const std::string text = describePlan(plan);
+            EXPECT_NE(text.find("the clock at ×512 of the game's own over the whole film, 4.27 hours a second\n"),
+                std::string::npos)
+                << text;
+            EXPECT_NE(text.find("the weather through Clear, Rain and round again, each standing 1.0 s and crossing "
+                                "in 8.0 s\n"),
+                std::string::npos)
+                << text;
+            EXPECT_NE(text.find("  -> shore                       10.0 s  06:40 Rain → Clear, -2,-9  (1000 units at "
+                                "100 a second)\n"),
+                std::string::npos)
+                << text;
+            EXPECT_NE(text.find("  room                         Vivec, Arena 07:06, Rain → Clear\n"), std::string::npos)
+                << text;
+        }
+
         /// Only what the film writes goes: six digits and `.png`.
         TEST(RtxFilmTest, clearingTheFramesLeavesEverythingElse)
         {

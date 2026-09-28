@@ -36,10 +36,14 @@ set(RTXTOOL_FILES
     model/cameratrack.hpp
     model/runrecord.cpp
     model/runrecord.hpp
+    model/skycrossing.cpp
+    model/skycrossing.hpp
     options.cpp
     options.hpp
     run.cpp
     run.hpp
+    skykeys.cpp
+    skykeys.hpp
     verbs.cpp
     verbs.hpp
 )

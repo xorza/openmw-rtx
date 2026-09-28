@@ -114,12 +114,9 @@ namespace RtxTool
 
         // **Settled rather than crossed into**, which is what the game does when a player sleeps:
         // a stop asked to stand under a sky stands under it from its first frame rather than four
-        // seconds later. A run that turns its sky asks for the transition instead.
+        // seconds later. A run that turns its sky crosses from there (`CameraDriver::beginTurn`).
         if (stop.mSky.mHour.has_value() || stop.mSky.mDay.has_value() || stop.mSky.mWeather.has_value())
             world.advanceTime(0.0, false);
-
-        if (!stop.mSky.mTurnThrough.empty())
-            setWeather(world, stop.mSky.mTurnThrough.front());
 
         // **Seeded again here, where the stop's frames begin**: `SessionRequest::mRandomSeed`
         // says why the seed the engine started with is not enough. Both generators, because the

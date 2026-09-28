@@ -16,6 +16,7 @@
 #include "measurer.hpp"
 #include "model/benchrun.hpp"
 #include "model/runrecord.hpp"
+#include "skykeys.hpp"
 #include "stager.hpp"
 #include "standingnote.hpp"
 #include "stopwriter.hpp"
@@ -117,6 +118,7 @@ namespace RtxTool
         CameraDriver mCamera;
         StandingNote mNote;
         HomeKey mHome;
+        SkyKeys mSkyKeys;
         Measurer mMeasurer;
         StopWriter mWriter;
     };

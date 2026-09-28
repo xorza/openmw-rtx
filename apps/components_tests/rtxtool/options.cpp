@@ -167,10 +167,13 @@ namespace RtxTool
             EXPECT_FALSE(lineFor("validation").starts_with("with ")) << "nothing to say where every command reads it";
 
             // **A number a line states is the number the code reads**, formatted from it: eight
-            // milliseconds, four seconds, sixty frames a second for twenty seconds, 800 units at
-            // 69.99 a metre, 16384 units of 8192-unit cells, and the encoder's own three settings.
+            // milliseconds, four seconds, `512 × 30 / 3600` game hours, sixty frames a second for
+            // twenty seconds, 800 units at 69.99 a metre, 16384 units of 8192-unit cells, and the
+            // encoder's own three settings.
             EXPECT_NE(lineFor("hold").find("`check` holds 8 unless"), std::string::npos) << lineFor("hold");
-            EXPECT_NE(lineFor("turn-weather").find("Each crossing takes 4 seconds"), std::string::npos);
+            EXPECT_NE(lineFor("turn-weather").find("each crossing takes 4 seconds"), std::string::npos);
+            EXPECT_NE(lineFor("clock").find("--clock=512 is 4.27 game hours a second"), std::string::npos)
+                << lineFor("clock");
             EXPECT_NE(lineFor("seconds").find("steps 1/60 of a second"), std::string::npos) << lineFor("seconds");
             EXPECT_NE(lineFor("seconds").find("the 20 seconds nobody named are 1200 frames"), std::string::npos);
             EXPECT_NE(lineFor("speed").find("11 metres a second by default"), std::string::npos) << lineFor("speed");
