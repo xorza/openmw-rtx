@@ -267,8 +267,8 @@ namespace MWBase
         virtual int readPressedButton() = 0;
 
         /// A message box with buttons that a content script asks, MWScript's or Lua's: shown, or
-        /// logged and not shown where nobody is at the keys to answer it
-        /// (`OMW::EngineHost::answersScriptMessageBoxes`).
+        /// logged and not shown where the engine's host shows none
+        /// (`OMW::EngineHost::showsScriptMessageBoxes`).
         virtual void scriptMessageBox(std::string_view message, const std::vector<std::string>& buttons) = 0;
 
         virtual void updateConsoleObjectPtr(const MWWorld::Ptr& currentPtr, const MWWorld::Ptr& newPtr) = 0;
