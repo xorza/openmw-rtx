@@ -38,9 +38,14 @@
 // the sea, holds air on one side of the surface and something else on the other, and what a pixel
 // wants of it is the air alone: the pixel's ray ends at the surface, and a ray that passes over the
 // surface passes through the air part. `fogdepth.rgen` says what the alternative drew. So the
-// sample is drawn inside the air the froxel holds and not inside the froxel, the lamps are
-// integrated over that same stretch, and a froxel standing wholly past the surface keeps what it
-// had.
+// sample is drawn inside the air the froxel holds and not inside the froxel, and the lamps are
+// integrated over that same stretch.
+//
+// **A froxel standing wholly past the surface is drawn over its whole slice, every frame.** The
+// column's ray is one of its block's, and a pixel beside the surface that sees past it reads the
+// air there (`fogintegrate.comp`). Kept instead, the froxel held the light of the last frame this
+// column's ray reached it, and under a clock run fast that is an hour's light, laid round every
+// silhouette the width of a column.
 
 #include "camera.h"
 #include "look.h"
@@ -124,11 +129,11 @@ void main()
     const float ahead = froxelFar(slice);
 
     // **Where this column's view of the air ends**, which `fogdepth.rgen` traced along this same
-    // ray, and so where this froxel's air ends: at its own far edge, or at the surface if that
-    // stands inside it. A froxel that starts past the surface holds no air at all.
+    // ray, and so where this froxel's air ends: at the surface if that stands inside it, and at its
+    // own far edge otherwise — a froxel that starts past the surface included, for the reason the
+    // top of this file gives.
     const float surface = imageLoad(fogColumnDepth, column).x;
-    const float clear = min(ahead, surface);
-    const bool inAir = clear > behind;
+    const float clear = surface > behind ? min(ahead, surface) : ahead;
 
     // **Drawn inside the air the froxel holds and not inside the froxel**, so a froxel the ground
     // stands inside is a draw of its air on every frame rather than on the frames the draw happened
@@ -137,7 +142,7 @@ void main()
     // the integrate pass takes the transmittance over is still the whole slice, because a ray that
     // passes over the surface crosses the whole slice, and a pixel that ends at the surface steps
     // through only the part short of it.
-    const float along = behind + alongJitter * (max(clear, behind) - behind);
+    const float along = behind + alongJitter * (clear - behind);
     const vec3 position = origin + direction * along;
 
     // The field's level from where the sample stands and not from the slice's own stride, which is
@@ -162,26 +167,14 @@ void main()
     // leaves from the jittered point rather than from where the walk weighed the lamp, so a shadow's
     // edge crossing this froxel is a gradient across frames rather than a step across eight pixels.
     //
-    // **A froxel with no air in it keeps what it had.** Nothing reads it this frame — the integrate
-    // pass carries the last slice in the air over it, and the tent leaves it out — and what it held
-    // is the best guess for the frame the eye moves and it holds air again. Where there is no
-    // history to keep, nothing at all.
+    // **Every froxel asks every question, and a clear one asks them too.** A third of them are
+    // clear — the coverage band lets nothing through below `FOG_CLEARING` — and skipping their rays
+    // looks free, since the integrate pass weighs a froxel by an extinction of nought. A froxel
+    // that stores an answer on the frames it holds air and holds or drops it on the frames it does
+    // not is running two filters, and which of them it runs turns on where inside itself this
+    // frame's sample fell: a bias that grows with the stride, and so with depth, drawn as the grid's
+    // own shells.
     //
-    // **Every froxel with air in it asks every question, and a clear one asks them too.** A third of
-    // them are clear — the coverage band lets nothing through below `FOG_CLEARING` — and skipping
-    // their rays looks free, since the integrate pass weighs a froxel by an extinction of nought. A
-    // froxel that stores an answer on the frames it holds air and holds or drops it on the frames
-    // it does not is running two filters, and which of them it runs turns on where inside itself
-    // this frame's sample fell: a bias that grows with the stride, and so with depth, drawn as the
-    // grid's own shells.
-    if (!inAir)
-    {
-        imageStore(fogScatterTarget, froxel, reprojected ? wasScatter : vec4(0.0));
-        imageStore(fogSunwardTarget, froxel, reprojected ? wasSunward : vec4(0.0));
-        imageStore(fogLampsTarget, froxel, vec4(0.0));
-        return;
-    }
-
     // **Over the stretch short of the surface and not over the slice**, so a froxel the ground
     // stands inside holds the mean over its air.
     uint lampState = randomSeed(froxelKey(uvec2(column), slice) + SEED_LAMPS_FOG);

@@ -719,6 +719,94 @@ namespace Rtx::Testing
             }
         }
 
+        /// The air a step uncovers behind a surface is this frame's air.
+        ///
+        /// **What a silhouette reads past itself.** A column's ray is one of its block's, and a
+        /// pixel beside the surface that ray met sees on past it into the column's further slices;
+        /// an eye that moves brings the air behind a surface into view the same way. A froxel there
+        /// that kept what it had held the light of the last frame the column's ray reached it: under
+        /// a clock run fast, an hour's light round every silhouette.
+        ///
+        /// **A pillar two hundred units in front of the eye, and the air's colour changed behind
+        /// it.** The air settles in one colour seen from 200 units up, where the eye looks over the
+        /// pillar at the air behind it; the eye comes down behind the pillar, and the air turns to
+        /// another colour while it stands there; and the eye then steps 150 units aside, so the
+        /// middle pixel looks past the pillar's edge at 60. The frame after the step is held against
+        /// the same frame of a run that had the second colour all along. Black sky, no ambient and
+        /// no lamp, so the pixel is the air alone: its colour times the half of the ray the air
+        /// takes, `1 - exp(-ln 2)`.
+        ///
+        /// **From 200 units up, because the air has to have been seen.** A froxel that no ray ever
+        /// reached holds nothing at all, which is a darker rim and not the light of an earlier hour.
+        /// Over the pillar's top at 60, the middle ray after the step is in sight from 500 units on:
+        /// the line from that eye crosses the pillar's plane at `200 - 200 * 200 / 500 = 120`.
+        ///
+        /// **One scene through the run**, because a scene handed over is a frame with no previous
+        /// one to reproject from, and every history would start again from nothing.
+        ///
+        /// **The run held against is the closed form to five per cent**, what
+        /// `theVolumeLightsTheAirUpToASurfaceWhereverInASliceItStands` allows the volume's
+        /// quadrature at a wall.
+        ///
+        /// **What the tolerance holds.** From the eye behind the pillar, the middle ray after the
+        /// step is hidden from `150 * 200 / 60 = 500` units on, and the air from there to the wall
+        /// holds `exp(-ln 2 / 4) - 0.5 = 0.341` of the colour. Drawn every frame, those froxels
+        /// carry the first colour at `0.9^65` after the sixty-four frames of the turn and this one,
+        /// which is `0.341 * 0.3 * 0.00106 = 1.1e-4` in red and in blue, under half-float storage
+        /// whose step at these values is `2.4e-4`. Kept, they carry it at nine tenths, up to
+        /// `0.341 * 0.3 * 0.9 = 0.092`, and the volume that kept them missed by 0.044 in red and in
+        /// blue: the first colour's red in, its blue out.
+        TEST_F(RtxVisibilityTest, theAirAStepUncoversBehindASurfaceIsThisFramesAir)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreOf(size);
+            constexpr float distance = 2000.0f;
+            constexpr float step = 150.0f;
+            constexpr float over = 200.0f;
+            constexpr float pillarAway = 200.0f;
+            constexpr float pillarHalf = 60.0f;
+            constexpr std::uint32_t settled = 48;
+            constexpr std::uint32_t turned = 64;
+
+            const osg::Vec3f before(sHaze.z(), sHaze.y(), sHaze.x());
+
+            SceneDesc scene = makeWall();
+            addQuad(scene, uprightQuadAt(pillarHalf, pillarAway - distance));
+
+            const auto eye = [&](float across, float up, const osg::Vec3f& colour) {
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(across, -distance, up), osg::Vec3f(across, 0.0f, up), 60.0f, size, size, 100000.0f);
+                litThroughFog(camera, 0.693147f / distance);
+                camera.mFogColour = colour;
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mAmbientFromSky = 0.0f;
+                return camera;
+            };
+
+            const auto air = [&](const Frame& frame) {
+                return osg::Vec3f(frame.at(centre * 4), frame.at(centre * 4 + 1), frame.at(centre * 4 + 2));
+            };
+
+            const osg::Vec3f expected = air(shoot(scene, {}, eye(step, 0.0f, sHaze), size,
+                Shot{ .mFrames = settled + turned + 1, .mAverage = false, .mResetHistory = true }));
+
+            shoot(scene, {}, eye(0.0f, over, before), size,
+                Shot{ .mFrames = settled, .mAverage = false, .mResetHistory = true });
+            shoot(scene, {}, eye(0.0f, 0.0f, sHaze), size,
+                Shot{ .mFrames = turned, .mAverage = false, .mFirstFrame = settled, .mSetScene = false });
+            const osg::Vec3f seen = air(shoot(scene, {}, eye(step, 0.0f, sHaze), size,
+                Shot{ .mFrames = 1, .mAverage = false, .mFirstFrame = settled + turned, .mSetScene = false }));
+
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                EXPECT_NEAR(expected[channel] / (0.5f * sHaze[channel]), 1.0f, 0.05f)
+                    << "the air of the run the other is held against, channel " << channel;
+                EXPECT_NEAR(seen[channel], expected[channel], 2e-3f)
+                    << "the air the step uncovered behind the pillar, channel " << channel;
+            }
+        }
+
         /// The banked field holds as much air as an even one, which is what `FOG_COVERAGE` is for.
         ///
         /// **The noise redistributes the fog, it does not remove it.** The extinction the host

@@ -73,10 +73,10 @@ ivec2 fogTentAt(ivec2 column, int i, ivec2 grid)
 /// history. What the lamps deliver is an integral, carries no draw and is read plain.
 ///
 /// **Only the neighbours that hold air at this slice**, which is what makes this nine fetches and
-/// not four corner taps of the sampler. A column whose surface stands short of the slice holds
-/// nothing of the air there — `fogdepth.rgen` says what it holds — and averaged in it darkened the
-/// seeing and thinned the air in every froxel beside a surface: the lit air over a lamp-lit floor
-/// dimmed by the floor's own shadow of a froxel that was never in the air. The weights are
+/// not four corner taps of the sampler. A column whose surface stands short of the slice holds a
+/// point behind that surface there, as often as not inside what the surface bounds, and averaged in
+/// it darkened the seeing and thinned the air in every froxel beside a surface: the lit air over a
+/// lamp-lit floor dimmed by the floor's own shadow of a point inside the floor. The weights are
 /// renormalised over what is left, and a froxel with nothing around it in the air keeps its own.
 ///
 /// **Across the screen and never along the ray.** A froxel is already a hundred units deep where it
@@ -170,12 +170,11 @@ void main()
         // air of this column's: the far half of the slice the surface stands in is flat, the way
         // the sampler is flat past the last texel of an axis.
         //
-        // **And only that half.** The slices past the surface are integrated as they stand, out of
-        // whatever they held when this column's ray missed the surface — `fogscatter.rgen` keeps
-        // that — because a pixel at the surface's edge that sees past it reads them. Carrying the
-        // last slice in the air over all of them instead drew that slice around every silhouette:
-        // the lit air beside a lantern, laid over the whole of the fog behind the wall it hangs on,
-        // in blocks eight pixels wide.
+        // **And only that half.** The slices past the surface are integrated as they stand —
+        // `fogscatter.rgen` draws them every frame like any other — because a pixel at the
+        // surface's edge that sees past it reads them. Carrying the last slice in the air over all
+        // of them instead drew that slice around every silhouette: the lit air beside a lantern,
+        // laid over the whole of the fog behind the wall it hangs on, in blocks eight pixels wide.
         const FogSlice after = froxelNear(slice + 1u) < surface ? next : here;
 
         // **Two straight pieces, cut at the sample.** A quarter of the way through a slice the line
