@@ -125,6 +125,7 @@ namespace Rtx
             EXPECT_EQ(sPresetNames.name(Preset::Default), "default");
             EXPECT_EQ(sPresetNames.name(Preset::D), "d");
             EXPECT_EQ(sPresetNames.name(Preset::E), "e");
+            EXPECT_EQ(sPresetNames.name(Preset::F), "f");
             EXPECT_EQ(sPresetNames.named("D"), std::nullopt) << "spelled as the SDK's letter and not as a capital";
 
             EXPECT_EQ(sNoiseSourceNames.name(NoiseSource::BlueNoiseTile), "blue-noise");

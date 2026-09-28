@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <format>
 #include <memory>
 #include <optional>
 #include <string>
@@ -36,6 +37,7 @@
 #include <components/rtxvulkan/formats.hpp>
 #include <components/rtxvulkan/image.hpp>
 #include <components/rtxvulkan/imageuse.hpp>
+#include <components/rtxvulkan/ngxdispatch.hpp>
 #include <components/rtxvulkan/upscaler.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -172,16 +174,6 @@ namespace Rtx
             CommandPool& pool = getPool();
             const VkExtent2D render = sNgx->getRenderSize(sOutput, Upscale::Performance);
 
-            // **Built for a named preset, which is the first thing a wrong parameter map would
-            // refuse.** A hint set under the wrong name is not an error to NGX — it reverts to
-            // whatever the installed library defaults to and says nothing — so what this proves is
-            // only that the build accepts one. That the network actually changes with it is a
-            // picture question and is measured with `shot --preset`.
-            std::unique_ptr<DlssPass> pass;
-            pool.submitAndWait([&](VkCommandBuffer commands) {
-                pass = std::make_unique<DlssPass>(*sNgx, commands, render, sOutput, Upscale::Performance, Preset::D);
-            });
-
             // **Every input in the format `GBuffer` gives it, and named rather than spelled.** What
             // this test proves is that NGX takes the parameter map the renderer builds, and it
             // proves nothing about a map built out of images the renderer never hands over — the
@@ -189,9 +181,11 @@ namespace Rtx
             // what makes a format changed in `gbuffer.h` reach this test rather than drift away
             // from it.
             //
-            // The colour and the output are not the g-buffer's: `VulkanRenderer` makes both at full
-            // float directly, and these follow that.
-            const Image colour = Testing::makeTestImage(device, render, VK_FORMAT_R32G32B32A32_SFLOAT, "test-colour");
+            // The colour is the direct channel at the wider of the two widths a run can give it,
+            // `GBUFFER_RADIANCE_SUMMED`. The output is the upscaler's own, taken here at full float
+            // so that it reads back as floats.
+            const Image colour
+                = Testing::makeTestImage(device, render, toVulkanFormat(GBUFFER_RADIANCE_SUMMED), "test-colour");
             const Image diffuse
                 = Testing::makeTestImage(device, render, toVulkanFormat(GBUFFER_ALBEDO), "test-diffuse");
             const Image specular
@@ -212,59 +206,120 @@ namespace Rtx
             fill(pool, depth, { 0.5f, 0.0f, 0.0f, 0.0f });
             fill(pool, motion, { 0.0f, 0.0f, 0.0f, 0.0f });
             fill(pool, reflections, { 0.0f, 0.0f, 0.0f, 0.0f });
-            fill(pool, output, { 0.0f, 0.0f, 0.0f, 0.0f });
 
-            mHarness.mInstance->getValidationLog()->clear();
+            // **Built for every named preset, which is the first thing a wrong parameter map would
+            // refuse.** A hint set under the wrong name is not an error to NGX — it reverts to
+            // whatever the installed library defaults to and says nothing — so what this proves is
+            // only that the build accepts each and resolves with it. That the network actually changes
+            // with it is a picture question and is measured with `shot --preset`.
+            for (const auto& [preset, spelling] : sPresetNames.mNames)
+            {
+                SCOPED_TRACE(std::format("preset {}", spelling));
 
-            pool.submitAndWait([&](VkCommandBuffer commands) {
-                pass->record(commands,
-                    UpscaleInputs{
-                        .mColour = colour,
-                        .mDiffuseAlbedo = diffuse,
-                        .mSpecularAlbedo = specular,
-                        .mNormalRoughness = normals,
-                        .mDepth = depth,
-                        .mMotion = motion,
-                        .mReflectionMotion = reflections,
-                        .mJitter = osg::Vec2f(0.0f, 0.0f),
-                        // The first frame has no history, which is what a reset means.
-                        .mReset = true,
-                    },
-                    output);
-            });
+                std::unique_ptr<DlssPass> pass;
+                pool.submitAndWait([&](VkCommandBuffer commands) {
+                    pass = std::make_unique<DlssPass>(*sNgx, commands, render, sOutput, Upscale::Performance, preset);
+                });
 
-            std::vector<std::uint8_t> bytes;
-            output.read(VK_IMAGE_LAYOUT_GENERAL, bytes);
-            ASSERT_EQ(bytes.size(), std::size_t{ sOutput.width } * sOutput.height * 16);
+                fill(pool, output, { 0.0f, 0.0f, 0.0f, 0.0f });
 
-            std::vector<float> pixels(bytes.size() / sizeof(float));
-            std::memcpy(pixels.data(), bytes.data(), bytes.size());
+                mHarness.mInstance->getValidationLog()->clear();
 
-            // Away from the border, where the network has no neighbourhood and rolls off.
-            const std::size_t centre = (std::size_t{ sOutput.height / 2 } * sOutput.width + sOutput.width / 2) * 4;
+                pool.submitAndWait([&](VkCommandBuffer commands) {
+                    pass->record(commands,
+                        UpscaleInputs{
+                            .mColour = colour,
+                            .mDiffuseAlbedo = diffuse,
+                            .mSpecularAlbedo = specular,
+                            .mNormalRoughness = normals,
+                            .mDepth = depth,
+                            .mMotion = motion,
+                            .mReflectionMotion = reflections,
+                            .mJitter = osg::Vec2f(0.0f, 0.0f),
+                            // The first frame has no history, which is what a reset means.
+                            .mReset = true,
+                        },
+                        output);
+                });
 
-            // Three different values rather than one grey, because a single channel read twice would
-            // pass a grey check while proving nothing about which channel was read.
-            constexpr std::array<float, 3> sExpected{ 0.25f, 0.5f, 0.75f };
-            for (std::size_t channel = 0; channel < sExpected.size(); ++channel)
-                EXPECT_NEAR(pixels[centre + channel], sExpected[channel], sExpected[channel] * 0.05f)
-                    << "channel " << channel << " of a flat frame did not resolve to itself";
+                std::vector<std::uint8_t> bytes;
+                output.read(VK_IMAGE_LAYOUT_GENERAL, bytes);
+                ASSERT_EQ(bytes.size(), std::size_t{ sOutput.width } * sOutput.height * 16);
 
-            // **The floor a rejected input reads back as, and the reason this assertion is here
-            // beside the one above.** An image DLSS cannot sample is not an error anywhere: NGX
-            // returns success, the validation layers say nothing, and the network resolves the black
-            // field it saw to a uniform value near zero — 1.36e-7 here, measured by dropping
-            // `VK_IMAGE_USAGE_SAMPLED_BIT` from the images above.
-            EXPECT_GT(pixels[centre], 1e-6f) << "the output is at the epsilon floor, so DLSS resolved "
-                                                "an input it never read";
+                std::vector<float> pixels(bytes.size() / sizeof(float));
+                std::memcpy(pixels.data(), bytes.data(), bytes.size());
 
-            // **DLSS records its own commands into that buffer**, and success says only that NGX
-            // liked the parameter map — not that what it recorded was valid. The layers are what
-            // have an opinion about the resources it then touched.
-            std::vector<std::string> raised;
-            mHarness.mInstance->getValidationLog()->takeErrorsOnThisThread(raised);
-            for (const std::string& message : raised)
-                ADD_FAILURE() << "validation error from the evaluation: " << message;
+                // Away from the border, where the network has no neighbourhood and rolls off.
+                const std::size_t centre = (std::size_t{ sOutput.height / 2 } * sOutput.width + sOutput.width / 2) * 4;
+
+                // Three different values rather than one grey, because a single channel read twice would
+                // pass a grey check while proving nothing about which channel was read.
+                constexpr std::array<float, 3> sExpected{ 0.25f, 0.5f, 0.75f };
+                for (std::size_t channel = 0; channel < sExpected.size(); ++channel)
+                    EXPECT_NEAR(pixels[centre + channel], sExpected[channel], sExpected[channel] * 0.05f)
+                        << "channel " << channel << " of a flat frame did not resolve to itself";
+
+                // **The floor a rejected input reads back as, and the reason this assertion is here
+                // beside the one above.** An image DLSS cannot sample is not an error anywhere: NGX
+                // returns success, the validation layers say nothing, and the network resolves the black
+                // field it saw to a uniform value near zero — 1.36e-7 here, measured by dropping
+                // `VK_IMAGE_USAGE_SAMPLED_BIT` from the images above.
+                EXPECT_GT(pixels[centre], 1e-6f) << "the output is at the epsilon floor, so DLSS resolved "
+                                                    "an input it never read";
+
+                // **DLSS records its own commands into that buffer**, and success says only that NGX
+                // liked the parameter map — not that what it recorded was valid. The layers are what
+                // have an opinion about the resources it then touched, and about NGX's own: the second
+                // generation's network orders its own clear only because `ngxdispatch.hpp` widens
+                // what NGX records, and this is where that is proven.
+                std::vector<std::string> raised;
+                mHarness.mInstance->getValidationLog()->takeErrorsOnThisThread(raised);
+                for (const std::string& message : raised)
+                    ADD_FAILURE() << "validation error from the evaluation: " << message;
+            }
+        }
+
+        /// **The rule NGX's barriers are widened by, case by case**: a move into a layout a transfer
+        /// writes in makes the transfer's writes wait for it, beside whatever NGX already made wait,
+        /// and anything else passes through as it was. Exact masks, because a rule that widened by a
+        /// bit too many or dropped one NGX named would still pass the evaluation above.
+        TEST(RtxNgxDispatchTest, aMoveIntoATransferLayoutOrdersTheTransferAfterItAndNothingElse)
+        {
+            constexpr VkAccessFlags sNamed = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            constexpr VkAccessFlags sWidened = sNamed | VK_ACCESS_TRANSFER_WRITE_BIT;
+
+            struct Case
+            {
+                VkImageLayout mFrom;
+                VkImageLayout mTo;
+                bool mWidened;
+            };
+
+            constexpr std::array<Case, 5> sCases{ {
+                { VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, true },
+                { VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, true },
+                { VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, false },
+                { VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, false },
+                { VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, false },
+            } };
+
+            for (const Case& one : sCases)
+            {
+                VkImageMemoryBarrier barrier{
+                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                    .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                    .dstAccessMask = sNamed,
+                    .oldLayout = one.mFrom,
+                    .newLayout = one.mTo,
+                };
+
+                EXPECT_EQ(orderTransferWrites(barrier), one.mWidened) << one.mFrom << " to " << one.mTo;
+                EXPECT_EQ(barrier.dstAccessMask, one.mWidened ? sWidened : sNamed) << one.mFrom << " to " << one.mTo;
+                EXPECT_EQ(barrier.srcAccessMask, VkAccessFlags{ VK_ACCESS_SHADER_WRITE_BIT })
+                    << "what the barrier waits on is NGX's to say";
+                EXPECT_EQ(barrier.oldLayout, one.mFrom);
+                EXPECT_EQ(barrier.newLayout, one.mTo);
+            }
         }
 
         /// The mean of one channel over a frame `readPixels` gave back.

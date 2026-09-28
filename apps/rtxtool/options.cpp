@@ -205,11 +205,12 @@ namespace RtxTool
             bpo::value<std::string>()->default_value(
                 std::string(Rtx::sPresetNames.name(byDefault.mSetup.mProfile.mUpscaling.mPreset))),
             std::format("which Ray Reconstruction network to run: {}. Ray Reconstruction keeps its "
-                        "own presets, and they are not super-resolution's -- A through C are retired, d is the "
-                        "default transformer model and e is the latest. `default` hands the choice to the "
+                        "own presets, and they are not super-resolution's -- A through C are retired, d and e "
+                        "are the first generation's transformer models, and f is the second generation, the "
+                        "SDK's default from 310.9.1. `default` hands the choice to the "
                         "installed library, which has changed between SDK versions and between the "
                         "convolutional and transformer models, so two runs under it are not the same "
-                        "measurement. Pinned to d so that they are",
+                        "measurement. Pinned to f so that they are",
                 Rtx::sPresetNames.list())
                 .c_str());
 

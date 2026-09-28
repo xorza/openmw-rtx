@@ -39,7 +39,7 @@ namespace Rtx
     } };
 
     /// Which network Ray Reconstruction runs, named for the letters NVIDIA uses. Ray Reconstruction
-    /// keeps its own set, distinct from super-resolution's: `nvsdk_ngx_defs_dlssd.h` names D and E,
+    /// keeps its own set, distinct from super-resolution's: `nvsdk_ngx_defs_dlssd.h` names D to F,
     /// where `nvsdk_ngx_defs.h` names J through M, and reading one for the other selects a network
     /// that does not exist.
     enum class Preset
@@ -49,12 +49,16 @@ namespace Rtx
         /// under this, which is the whole reason the rest of the enum is here.
         Default,
 
-        /// NVIDIA's preset D — what the SDK calls the default transformer model.
+        /// NVIDIA's preset D — the first transformer model.
         D,
 
-        /// NVIDIA's preset E — the latest transformer model, and the only one that accepts a
-        /// depth-of-field guide.
+        /// NVIDIA's preset E — the later transformer model, and the one a depth-of-field guide asks
+        /// for.
         E,
+
+        /// NVIDIA's preset F — the second generation of the network, which the SDK makes its default
+        /// from 310.9.1, and the only one that takes a responsivity mask.
+        F,
     };
 
     /// How a `Preset` is spelled on a command line, in a setting file and in a report. The one list
@@ -63,6 +67,7 @@ namespace Rtx
         std::pair{ Preset::Default, std::string_view("default") },
         std::pair{ Preset::D, std::string_view("d") },
         std::pair{ Preset::E, std::string_view("e") },
+        std::pair{ Preset::F, std::string_view("f") },
     } };
 
     /// Where the trace's per-pixel draws come from — the shadow ray's place on the source, the
@@ -119,7 +124,7 @@ namespace Rtx
 
         /// Which network to pin, where one runs at all. Pinned rather than left to the library,
         /// whose default has changed between SDK versions, so that two runs are comparable.
-        Preset mPreset = Preset::D;
+        Preset mPreset = Preset::F;
 
         bool operator==(const Upscaling& other) const = default;
     };
