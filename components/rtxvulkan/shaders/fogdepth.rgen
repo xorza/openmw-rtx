@@ -16,7 +16,7 @@
 //
 // **One ray per column and not per froxel**, because every froxel of a column samples the column's
 // own ray, so what that ray stops at is the column's to know once. `fogscatter.rgen` reads it and
-// keeps every sample short of it.
+// keeps the sample of the froxel it stands inside short of it.
 
 #include "camera.h"
 #include "scene.h"
@@ -34,7 +34,7 @@ void main()
 
     // **Traced whatever the air weighs.** The scatter pass fills its froxels' sources for a puff of
     // smoke even where there is no fog to scatter them — `fogscatter.rgen` says why — and a froxel
-    // only holds a source short of the surface its column found. An early-out here left this image
+    // draws its sample short of the surface its column found. An early-out here left this image
     // unwritten, and every froxel of a fog-free frame read itself as behind a surface.
 
     const Ray ray = fogColumnRay(uvec2(column));
