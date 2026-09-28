@@ -246,7 +246,8 @@ Lamp lampAt(GpuLight lamp, vec3 position)
 /// live state become one and a reservoir whose origin moved aims from where it now is for nothing.
 struct Reservoir
 {
-    /// Where the ray this buys leaves from — a shading point, or a froxel of the air.
+    /// Where the ray this buys leaves from — a shading point lifted off its facet (`Surface::mLift`),
+    /// or a froxel of the air.
     vec3 mFrom;
 
     /// What the lamp held would deliver there with nothing in the way: `LightCandidate::mRadiance`.
@@ -274,20 +275,19 @@ Reservoir noLamps()
 /// What a surface's diffuse half needs to take a light: which way it faces, which side a light has
 /// to stand on, and what light on its far side is worth.
 ///
-/// **Which side is one vector's answer and how much is another's.** Four hits in a hundred carry a
-/// normal more than sixty degrees off its own triangle, so the two disagree often enough that picking
-/// wrongly is visible either way — and which of them is lying depends on what the surface is. An open
-/// shape is a plane whose normals lean off it: read off the normal, a wall panel takes a lamp standing
-/// behind it as a lamp in front, and having no far side for the shadow ray to stop in it glows through
-/// itself. A closed shape is a solid the content faceted, and its *facets* lean off the normals: read
-/// off the plane, whole triangles of a boulder go black under a light its surface plainly faces.
-/// `Surface::mClosed` is what tells them apart, and `facingOf` is where it is read.
+/// **Which side is the interpolated normal's answer** on everything the content did not double: the
+/// facets of a solid lean off the surface its normals describe, and read off the plane, whole
+/// triangles of a boulder went black under a light its surface plainly faces. The normals can be
+/// believed because the content's creases were split at load (`Rtx::CreaseSplit`), and the shadow
+/// ray leaves from the surface they describe (`Surface::mLift`), so a facet the light is behind does
+/// not shadow itself. **A sheet takes its plane**, because it is lit from both faces and its far
+/// side is a light's other half (`mTransmission`), not a light in front of it.
 struct Facing
 {
     vec3 mNormal;
 
-    /// What decides which side of the surface a light has to stand on — `Surface::mSmooth` for a
-    /// closed shape and `Surface::mGeometric` for an open one.
+    /// What decides which side of the surface a light has to stand on — `Surface::mSmooth`, or
+    /// `Surface::mGeometric` on a sheet.
     vec3 mSide;
 
     /// What the far side of a sheet is worth, `Surface::mTransmission`. Nought for a solid.
@@ -296,7 +296,7 @@ struct Facing
 
 Facing facingOf(Surface surface)
 {
-    return Facing(surface.mNormal, surface.mClosed ? surface.mSmooth : surface.mGeometric, surface.mTransmission);
+    return Facing(surface.mNormal, surface.mSheet ? surface.mGeometric : surface.mSmooth, surface.mTransmission);
 }
 
 /// The cosine a diffuse surface takes a light at, with what a sheet takes from its far side.
@@ -555,7 +555,8 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
 float lampVisible(Reservoir kept, vec2 draw)
 {
     // Aimed from where the ray leaves and not from where the lamp was weighed, with no reach test:
-    // a caller that moved its origin after weighing — the air does — still aims at the lamp it held.
+    // a caller that moved its origin after weighing — a lifted surface and the air both do — still
+    // aims at the lamp it held.
     const GpuLight lamp = lightAt(kept.mLamp);
     const vec3 offset = lamp.mPosition - kept.mFrom;
     const float distance = length(offset);

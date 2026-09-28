@@ -1,16 +1,10 @@
 #pragma once
 
-#include <cstdint>
-#include <span>
-#include <vector>
-
-#include <osg/Vec3f>
-
 #include "alphaimage.hpp"
 #include "contentcache.hpp"
 #include "contentpass.hpp"
 #include "contentstats.hpp"
-#include "shapefold.hpp"
+#include "shapepass.hpp"
 #include "solidreach.hpp"
 #include "texelmean.hpp"
 #include "texels.hpp"
@@ -38,10 +32,8 @@ namespace Rtx
         ContentPreprocessor(const ContentPreprocessor&) = delete;
         ContentPreprocessor& operator=(const ContentPreprocessor&) = delete;
 
-        /// `ShapeFold`: what a drawable's `triangles` come to over `positions`, the kept ones
-        /// written to `kept`.
-        FoldedShape fold(std::span<const osg::Vec3f> positions, std::span<const std::uint32_t> triangles,
-            std::vector<std::uint32_t>& kept);
+        /// `ShapePass`: what a drawable's triangles come to, and its normals where they split.
+        void shape(const ShapePass::Input& input, ShapePass::Output& output);
 
         /// `SolidReach`: whether `image`'s alpha ever reaches solid.
         bool reachesSolid(const osg::Image& image);
@@ -59,7 +51,7 @@ namespace Rtx
         /// What the two texture passes describe an image into, one after the other.
         AlphaScratch mAlphaScratch;
 
-        ShapeFold mFold;
+        ShapePass mShape;
         SolidReach mSolid{ mAlphaScratch };
         TexelMean mMean{ mAlphaScratch };
 

@@ -148,12 +148,12 @@ namespace MWRender
             const Rtx::ExtractionStats first = mirror.mirror(world.frame(), view, 1);
             EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::TexelMean).mAsked, 1u)
                 << "what ran before the first walk was lost";
-            EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Fold).mAsked, 1u)
+            EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Shape).mAsked, 1u)
                 << "the one quad both bodies share";
 
             const Rtx::ExtractionStats second = mirror.mirror(world.frame(), view, 2);
             EXPECT_EQ(second.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::TexelMean).mAsked, 0u) << "counted twice";
-            EXPECT_EQ(second.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Fold).mAsked, 0u);
+            EXPECT_EQ(second.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Shape).mAsked, 0u);
 
             // A mirror goes standing nothing.
             world.mRoot->removeChildren(0, world.mRoot->getNumChildren());

@@ -18,6 +18,7 @@ set(RTX_TEST_FILES
     rtx/compositequeue.cpp
     rtx/contentkey.cpp
     rtx/contentpreprocessor.cpp
+    rtx/creasesplit.cpp
     rtx/dispatch.cpp
     rtx/exposure.cpp
     rtx/extractor/fixture.hpp

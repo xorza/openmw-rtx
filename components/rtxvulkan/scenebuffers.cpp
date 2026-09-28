@@ -202,9 +202,8 @@ namespace Rtx
             mMeshTable.write(at) = Shaders::GpuMesh{
                 .mVertexOffset = mesh.mVertices.mOffset,
                 .mIndexOffset = mesh.mIndices.mOffset,
-                .mShape = (mesh.mShape.mSheet ? Shaders::MESH_SHEET : 0u)
-                    | (mesh.mShape.mClosed ? Shaders::MESH_CLOSED : 0u)
-                    | (mesh.mTangents ? Shaders::MESH_TANGENTS : 0u),
+                .mShape
+                = (mesh.mShape.mSheet ? Shaders::MESH_SHEET : 0u) | (mesh.mTangents ? Shaders::MESH_TANGENTS : 0u),
                 .mSecondTexCoordOffset
                 = mesh.mSecondTexCoords.empty() ? Shaders::NO_STREAM : mesh.mSecondTexCoords.mOffset,
                 .mUnitStreams = mesh.mUnitStreams,

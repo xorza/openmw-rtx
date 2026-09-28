@@ -34,12 +34,9 @@ namespace Rtx
         stats.mRunMs += since(keyed, std::chrono::steady_clock::now());
     }
 
-    FoldedShape ContentPreprocessor::fold(const std::span<const osg::Vec3f> positions,
-        const std::span<const std::uint32_t> triangles, std::vector<std::uint32_t>& kept)
+    void ContentPreprocessor::shape(const ShapePass::Input& input, ShapePass::Output& output)
     {
-        ShapeFold::Output folded{ .mKept = kept };
-        run(mFold, ShapeFold::Input{ .mPositions = positions, .mIndices = triangles }, folded);
-        return folded.mShape;
+        run(mShape, input, output);
     }
 
     bool ContentPreprocessor::reachesSolid(const osg::Image& image)

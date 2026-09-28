@@ -10,7 +10,10 @@
 #include <gtest/gtest.h>
 
 #include <osg/Array>
+#include <osg/GL>
 #include <osg/Geometry>
+#include <osg/PrimitiveSet>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 #include <osg/Vec4ub>
@@ -46,6 +49,66 @@ namespace Rtx::Testing
 
             Resolving() { mPass.mStats = &mStats; }
         };
+
+        /// **A vertex the split added carries everything its source did, and its own normal.** A
+        /// cube whose eight normals the export averaged over its right angles reads as twenty-four
+        /// vertices — `CreaseSplit` says why — and every corner of every triangle still names the
+        /// position and the coordinates the file gave it, with its own face's normal.
+        TEST(RtxMeshReaderTest, aVertexTheSplitAddedCarriesItsSourcesAttributesAndItsOwnNormal)
+        {
+            const std::array<std::uint32_t, 36> named{ 0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1,
+                6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7 };
+
+            osg::ref_ptr<osg::Vec3Array> positions = new osg::Vec3Array;
+            osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
+            osg::ref_ptr<osg::Vec2Array> texCoords = new osg::Vec2Array;
+            for (std::uint32_t vertex = 0; vertex < 8; ++vertex)
+            {
+                const float x = (vertex == 1 || vertex == 2 || vertex == 5 || vertex == 6) ? 1.0f : 0.0f;
+                const float y = (vertex == 2 || vertex == 3 || vertex == 6 || vertex == 7) ? 1.0f : 0.0f;
+                const float z = vertex >= 4 ? 1.0f : 0.0f;
+                positions->push_back(osg::Vec3f(x, y, z));
+                osg::Vec3f normal(x * 2.0f - 1.0f, y * 2.0f - 1.0f, z * 2.0f - 1.0f);
+                normal.normalize();
+                normals->push_back(normal);
+                texCoords->push_back(osg::Vec2f(static_cast<float>(vertex), 0.5f));
+            }
+
+            osg::ref_ptr<osg::Geometry> cube = new osg::Geometry;
+            cube->setVertexArray(positions);
+            cube->setNormalArray(normals, osg::Array::BIND_PER_VERTEX);
+            cube->setTexCoordArray(0, texCoords, osg::Array::BIND_PER_VERTEX);
+            cube->addPrimitiveSet(new osg::DrawElementsUInt(GL_TRIANGLES, named.begin(), named.end()));
+
+            ContentPreprocessor content;
+            MeshReader reader(content);
+            MeshReading reading;
+            ASSERT_TRUE(reader.read(readDrawable(*cube, NodeKinds{}.of(*cube)), reading).value());
+
+            const MeshArrays& arrays = reading.mArrays;
+            ASSERT_EQ(arrays.mPositions.size(), 24u);
+            ASSERT_EQ(arrays.mNormals.size(), 24u);
+            ASSERT_EQ(arrays.mTexCoords.size(), 24u);
+            ASSERT_EQ(arrays.mIndices.size(), 36u);
+
+            for (std::size_t t = 0; t < 12; ++t)
+            {
+                const osg::Vec3f& a = (*positions)[named[3 * t]];
+                osg::Vec3f face = ((*positions)[named[3 * t + 1]] - a) ^ ((*positions)[named[3 * t + 2]] - a);
+                face.normalize();
+                for (std::size_t corner = 0; corner < 3; ++corner)
+                {
+                    const std::uint32_t read = arrays.mIndices[3 * t + corner];
+                    const std::uint32_t written = named[3 * t + corner];
+                    EXPECT_EQ(arrays.mPositions[read], (*positions)[written])
+                        << "triangle " << t << ", corner " << corner;
+                    EXPECT_EQ(arrays.mTexCoords[read], (*texCoords)[written])
+                        << "triangle " << t << ", corner " << corner;
+                    EXPECT_LT((arrays.mNormals[read] - face).length(), 1e-6f)
+                        << "triangle " << t << ", corner " << corner;
+                }
+            }
+        }
 
         TEST(RtxMeshReaderTest, aReadingIsWhatTheGeometryHoldsFoldedAndAnOverallNormalIsSpread)
         {

@@ -597,7 +597,7 @@ struct Surface
     vec3 mNormal;
 
     /// The interpolated normal, turned as `mNormal` is, before any map: `mNormal` wherever there is
-    /// no map. **What a closed shape takes a light's side from**, so a normal map cannot move a
+    /// no map. **What a light's side is taken from**, so a normal map cannot move a
     /// light to the other side of the surface — `litCosine` says why the side is not the map's
     /// question.
     vec3 mSmooth;
@@ -608,14 +608,11 @@ struct Surface
 
     /// The triangle's own plane, turned the same way `mNormal` is.
     ///
-    /// **What a bounce is bounded by, and what an open surface takes a light's side from.** A
-    /// shading normal on this content routinely leans past its own triangle — four hits in a hundred
-    /// by more than sixty degrees — so it aims a bounce into the floor the bounce left, and on
-    /// anything with no far side it says a light behind the surface is in front of it. The plane
-    /// says neither. `mClosed` is what decides whether a light's side is its question or the
-    /// normal's; a bounce is always its. It is turned rather than left as the winding wound it so
-    /// that a caller has one vector meaning "out of this surface" and no side of its own to work
-    /// out.
+    /// **What a bounce is bounded by, and what a sheet takes a light's side from.** A shading normal
+    /// leans off its own triangle wherever the content faceted a curve, so it would aim a bounce
+    /// into the floor the bounce left; the plane does not. It is turned rather than left as the
+    /// winding wound it so that a caller has one vector meaning "out of this surface" and no side of
+    /// its own to work out.
     vec3 mGeometric;
 
     /// The diffuse albedo: the texture's, delit, for a vanilla surface, and `(1 - metal)` of the
@@ -653,15 +650,21 @@ struct Surface
     /// `candidateStops` — so the two cannot haze one surface two ways.
     float mOpacity;
 
-    /// Whether every edge of this mesh carries a triangle each way — `MESH_CLOSED`.
+    /// Whether the content doubled this mesh for its back — `MESH_SHEET` — and so lit it from both
+    /// faces: what takes a light's side from `mGeometric` and not from `mSmooth` (`facingOf`).
+    bool mSheet;
+
+    /// How far above this point the surface the vertex normals describe stands — `smoothLift` —
+    /// which every light's shadow ray leaves from. Nought on a sheet, whose far side is its own back:
+    /// lifted off its front, a leaf's ray to a light behind it would leave from the wrong face.
     ///
-    /// **It says which of the two normals above is lying.** A closed shape is a solid the content
-    /// faceted, so its interpolated normal describes it and its triangles do not: a light the normal
-    /// faces is one whole facets turn away from, and reading the side off the plane costs those
-    /// facets every scrap of direct light in a patch with the triangle's own edges. An open shape is
-    /// the reverse — a quad whose normals lean off it — and reading the side off the normal lights it
-    /// from behind, because there is no far side for the shadow ray to stop in.
-    bool mClosed;
+    /// **On every shadow ray, as Hanika and RTX Remix lift it**, and not only past the facet's
+    /// terminator as Cycles does. A facet the light faces is shadowed by its neighbours too where a
+    /// neighbour's edge stands above it — the close Seyda Neen boulder dropped a triangle of shadow
+    /// with that facet's own edges in full sun. The lift is nought wherever a facet's corners carry
+    /// its own normal, which is every flat face once the content's creases are split, so a contact
+    /// shadow on a floor or a table top is where it was.
+    vec3 mLift;
 
     /// What light on the far side of this surface is worth to the side the ray met, against the
     /// same light on the near side. Nought for everything solid; `SHEET_TRANSMISSION` for a leaf.
@@ -694,7 +697,8 @@ Surface noSurface(vec3 origin)
     surface.mInstance = 0u;
     surface.mFootprint = 0.0;
     surface.mOpacity = 1.0;
-    surface.mClosed = false;
+    surface.mSheet = false;
+    surface.mLift = vec3(0.0);
     surface.mTransmission = 0.0;
 
     return surface;
@@ -786,8 +790,18 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
     surface.mEmissiveColour = mix(material.mEmissiveColour, vertexColour, glowing);
 
-    surface.mClosed = (mesh.mShape & MESH_CLOSED) != 0u;
-    surface.mTransmission = (mesh.mShape & MESH_SHEET) != 0u && hasMask(material) ? SHEET_TRANSMISSION : 0.0;
+    surface.mSheet = (mesh.mShape & MESH_SHEET) != 0u;
+    surface.mTransmission = surface.mSheet && hasMask(material) ? SHEET_TRANSMISSION : 0.0;
+
+    // The corner normals back out of what the traversal carried — the interpolated one and the other
+    // two corners' difference from the first — turned as `mNormal` was, so no vertex is fetched
+    // twice. A mesh with no normals carried noughts, which lift nothing.
+    const float side = turned ? -1.0 : 1.0;
+    vec3 corners[3];
+    corners[0] = (hit.mShading - hit.mSecondTurn * hit.mBary.x - hit.mThirdTurn * hit.mBary.y) * side;
+    corners[1] = corners[0] + hit.mSecondTurn * side;
+    corners[2] = corners[0] + hit.mThirdTurn * side;
+    surface.mLift = smoothLift(hit.mEdges, corners, hit.mBary) * float(!surface.mSheet);
 
     vec2 uv[3];
     triangleUvs(corner, uv);

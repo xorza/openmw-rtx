@@ -16,7 +16,7 @@
 #include <components/rtx/contentpreprocessor.hpp>
 #include <components/rtx/contentstats.hpp>
 #include <components/rtx/finesttexels.hpp>
-#include <components/rtx/shapefold.hpp>
+#include <components/rtx/shapepass.hpp>
 #include <components/rtx/texels.hpp>
 #include <components/rtx/texturedata.hpp>
 #include <components/rtx/textureencoding.hpp>
@@ -54,41 +54,52 @@ namespace Rtx
 
         const std::array<std::uint8_t, 16> sPaint{ 255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 0, 255, 255, 255, 255 };
 
-        /// A fold asked through the preprocessor keeps the card's front and says it was a sheet, and
-        /// is counted: asked once, found in no cache, and keyed on exactly what it read — eight positions of twelve
-        /// bytes and twelve indices of four, 96 + 48 = 144.
-        TEST(RtxContentPreprocessorTest, aFoldIsTheFoldItselfAndIsCountedByWhatItRead)
+        /// The shape pass asked with no normals: the fold alone.
+        FoldedShape foldCard(ContentPreprocessor& content, std::vector<std::uint32_t>& kept)
+        {
+            std::vector<osg::Vec3f> normals;
+            std::vector<std::uint32_t> sources;
+            ShapePass::Output output{ .mKept = kept, .mNormals = normals, .mSources = sources };
+            content.shape(ShapePass::Input{ .mPositions = sCard, .mTriangles = sDoubled, .mSplits = true }, output);
+            return output.mShape;
+        }
+
+        /// A shape asked through the preprocessor keeps the card's front and says it was a sheet,
+        /// and is counted: asked once, found in no cache, and keyed on exactly what it read — eight
+        /// positions of twelve bytes, no normals, twelve indices of four and the split's one-byte
+        /// flag, 96 + 0 + 48 + 1 = 145.
+        TEST(RtxContentPreprocessorTest, aShapeIsCountedByWhatItRead)
         {
             ContentPreprocessor content;
             std::vector<std::uint32_t> kept;
-            const FoldedShape shape = content.fold(sCard, sDoubled, kept);
+            const FoldedShape shape = foldCard(content, kept);
 
             EXPECT_EQ(kept, (std::vector<std::uint32_t>{ 0, 1, 2, 0, 2, 3 })) << "the front, as the file wrote it";
             EXPECT_TRUE(shape.mSheet);
 
             const ContentStats stats = content.takeStats();
-            const PassStats& fold = stats.at(ContentPassId::Fold);
-            EXPECT_EQ(fold.mAsked, 1u);
-            EXPECT_EQ(fold.mHits, 0u);
-            EXPECT_EQ(fold.mKeyBytes, 144u);
+            const PassStats& shaped = stats.at(ContentPassId::Shape);
+            EXPECT_EQ(shaped.mAsked, 1u);
+            EXPECT_EQ(shaped.mHits, 0u);
+            EXPECT_EQ(shaped.mKeyBytes, 145u);
             EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 0u) << "a pass not asked counts nothing";
         }
 
-        /// **The cache holds nothing, so every ask runs.** The same fold asked twice is asked
+        /// **The cache holds nothing, so every ask runs.** The same shape asked twice is asked
         /// twice and found twice nowhere, and a take leaves nothing counted behind it.
         TEST(RtxContentPreprocessorTest, theSameInputAskedAgainRunsAgainAndATakeEmptiesTheCount)
         {
             ContentPreprocessor content;
             std::vector<std::uint32_t> kept;
-            content.fold(sCard, sDoubled, kept);
-            content.fold(sCard, sDoubled, kept);
+            foldCard(content, kept);
+            foldCard(content, kept);
 
             const ContentStats stats = content.takeStats();
-            EXPECT_EQ(stats.at(ContentPassId::Fold).mAsked, 2u);
-            EXPECT_EQ(stats.at(ContentPassId::Fold).mHits, 0u);
-            EXPECT_EQ(stats.at(ContentPassId::Fold).mKeyBytes, 288u);
+            EXPECT_EQ(stats.at(ContentPassId::Shape).mAsked, 2u);
+            EXPECT_EQ(stats.at(ContentPassId::Shape).mHits, 0u);
+            EXPECT_EQ(stats.at(ContentPassId::Shape).mKeyBytes, 290u);
 
-            EXPECT_EQ(content.takeStats().at(ContentPassId::Fold).mAsked, 0u);
+            EXPECT_EQ(content.takeStats().at(ContentPassId::Shape).mAsked, 0u);
         }
 
         /// The texture passes through the preprocessor answer what the readings of the described
@@ -161,17 +172,17 @@ namespace Rtx
         TEST(RtxContentStatsTest, aSumIsPassByPassAndTheWholeIsEveryKeyAndRun)
         {
             ContentStats first;
-            first.at(ContentPassId::Fold)
+            first.at(ContentPassId::Shape)
                 = PassStats{ .mAsked = 2, .mHits = 1, .mKeyMs = 1.0, .mRunMs = 2.0, .mKeyBytes = 10 };
 
             ContentStats second;
-            second.at(ContentPassId::Fold) = PassStats{ .mAsked = 1, .mKeyMs = 3.0, .mKeyBytes = 5 };
+            second.at(ContentPassId::Shape) = PassStats{ .mAsked = 1, .mKeyMs = 3.0, .mKeyBytes = 5 };
             second.at(ContentPassId::TexelMean) = PassStats{ .mAsked = 4, .mRunMs = 4.0 };
 
             Preprocessed both{ .mOnFrame = first };
             both += Preprocessed{ .mOnFrame = second, .mOffFrame = second };
 
-            const PassStats& fold = both.mOnFrame.at(ContentPassId::Fold);
+            const PassStats& fold = both.mOnFrame.at(ContentPassId::Shape);
             EXPECT_EQ(fold.mAsked, 3u);
             EXPECT_EQ(fold.mHits, 1u);
             EXPECT_EQ(fold.mKeyMs, 4.0);

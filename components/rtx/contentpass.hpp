@@ -18,8 +18,9 @@ namespace Rtx
     /// more than reading what it converts, is not one.
     enum class ContentPassId : std::uint32_t
     {
-        /// A shape's reversed twins and pockets folded away, and whether it closes — `ShapeFold`.
-        Fold,
+        /// A shape's reversed twins and pockets folded away, and its normals split where the content
+        /// smoothed them across a hard edge — `ShapePass`.
+        Shape,
 
         /// Whether a texture's alpha ever reaches solid — `SolidReach`.
         SolidReach,
@@ -33,7 +34,7 @@ namespace Rtx
     /// What a report heads each pass's row with, and what a key is made under. A name changed here
     /// files every output of the pass under a new key.
     inline constexpr NamedEnum sContentPasses{ std::array{
-        std::pair{ ContentPassId::Fold, std::string_view("fold") },
+        std::pair{ ContentPassId::Shape, std::string_view("shape") },
         std::pair{ ContentPassId::SolidReach, std::string_view("solid reach") },
         std::pair{ ContentPassId::TexelMean, std::string_view("texel mean") },
     } };
