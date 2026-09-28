@@ -655,7 +655,7 @@ namespace Rtx
             mUpscaler->record(commands,
                 UpscaleInputs{
                     .mColour = traced.mColour,
-                    .mDepth = channels.get(Channel::Depth),
+                    .mSurface = channels.get(Channel::Surface),
                     .mMotion = channels.get(Channel::Motion),
                     .mJitter = sampled.mCamera.mJitter,
                     .mFrameDeltaMs = sinceLastMs,

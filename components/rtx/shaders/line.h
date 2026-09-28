@@ -22,7 +22,7 @@ namespace Rtx::Shaders
 #endif
 
     /// What both stages are told: the camera on the picture's own grid, where the eye stands, the
-    /// near plane a vertex is clipped at, and the traced extent the depth channel is read over.
+    /// near plane a vertex is clipped at, and the traced extent the surface channel is read over.
     struct LineConstants
     {
         Camera mCamera;

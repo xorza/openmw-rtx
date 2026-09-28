@@ -1,4 +1,5 @@
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -12,6 +13,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 
 namespace Rtx
 {
@@ -150,6 +152,55 @@ namespace Rtx
 
             // And the frame it does have comes back, so the refusals above are not simply everything.
             EXPECT_NE(frameImage(whole, 2, 2, RowOrder::TopFirst), nullptr);
+        }
+
+        /// The surface channel's normal code: the axes come back exactly, nought comes back as the
+        /// code for no normal and that code as nought, the largest code is a float exactly, and every
+        /// direction with whole coordinates from minus three to three comes back within the steps'
+        /// bound.
+        ///
+        /// **The bound.** A stored coordinate is at most half a step, `1 / 4094`, from the one
+        /// packed, which moves the point on the octahedron by at most
+        /// `sqrt(du² + dv² + (|du| + |dv|)²) = sqrt(1.5) / 2047`. The octahedron is nowhere nearer
+        /// the centre than `1 / sqrt(3)`, so the projection onto the sphere stretches that by at most
+        /// `sqrt(3)`: `sqrt(4.5) / 2047`, about `1.0363e-3`, which is 0.059 degrees. The `1e-6` over
+        /// it is the float arithmetic's.
+        ///
+        /// **The largest code** is both coordinates at their top step, `4094 + 4094 * 4095 =
+        /// 16,769,024`, under the 2^24 past which a float skips integers: straight down, which the
+        /// fold puts on the square's far corner.
+        TEST(RtxFrameImageTest, theSurfaceCodeHoldsANormalWithinTheBoundOfItsSteps)
+        {
+            using Shaders::packSurfaceNormal;
+            using Shaders::unpackSurfaceNormal;
+
+            for (const osg::Vec3f axis :
+                { osg::Vec3f(1.0f, 0.0f, 0.0f), osg::Vec3f(-1.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f),
+                    osg::Vec3f(0.0f, -1.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(0.0f, 0.0f, -1.0f) })
+                EXPECT_EQ(unpackSurfaceNormal(packSurfaceNormal(axis)), axis)
+                    << axis.x() << ' ' << axis.y() << ' ' << axis.z();
+
+            EXPECT_EQ(packSurfaceNormal(osg::Vec3f()), Shaders::SURFACE_NO_NORMAL);
+            EXPECT_EQ(unpackSurfaceNormal(Shaders::SURFACE_NO_NORMAL), osg::Vec3f());
+
+            // Straight down folds onto the square's far corner, `(1, 1)`, which is the largest code.
+            EXPECT_EQ(packSurfaceNormal(osg::Vec3f(0.0f, 0.0f, -1.0f)), 16769024.0f);
+            EXPECT_LT(16769024u, 1u << 24);
+
+            const float bound = std::sqrt(4.5f) / 2047.0f + 1e-6f;
+            for (int x = -3; x <= 3; ++x)
+                for (int y = -3; y <= 3; ++y)
+                    for (int z = -3; z <= 3; ++z)
+                    {
+                        if (x == 0 && y == 0 && z == 0)
+                            continue;
+
+                        osg::Vec3f unit(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z));
+                        unit.normalize();
+                        const float code = packSurfaceNormal(unit);
+                        EXPECT_EQ(code, std::floor(code)) << "a whole code: " << x << ' ' << y << ' ' << z;
+                        EXPECT_LE((unpackSurfaceNormal(code) - unit).length(), bound) << x << ' ' << y << ' ' << z;
+                    }
         }
     }
 }

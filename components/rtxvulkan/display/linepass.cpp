@@ -13,7 +13,7 @@ namespace Rtx
 {
     namespace
     {
-        /// The trace's depth, read by every fragment.
+        /// The trace's surface channel, whose distance every fragment reads.
         constexpr std::array<VkDescriptorSetLayoutBinding, 1> sBindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
         };
@@ -54,7 +54,7 @@ namespace Rtx
     void LinePass::record(const VkCommandBuffer commands, const Lines& what) const
     {
         const Image& target = what.mTarget;
-        const Image& depth = what.mDepth;
+        const Image& surface = what.mSurface;
         const Shaders::LineConstants& constants = what.mConstants;
         const VkBuffer vertices = what.mVertices;
         const std::uint32_t lineCount = what.mLineCount;
@@ -63,8 +63,8 @@ namespace Rtx
         assert(constants.mCamera.mOrthographic == 0 && "debug lines through a parallel projection");
         assert(constants.mCamera.mWidth == target.getWidth() && constants.mCamera.mHeight == target.getHeight()
             && "a camera on a grid other than the target's");
-        assert(constants.mTraced.x() == depth.getWidth() && constants.mTraced.y() == depth.getHeight()
-            && "a traced extent other than the depth channel's");
+        assert(constants.mTraced.x() == surface.getWidth() && constants.mTraced.y() == surface.getHeight()
+            && "a traced extent other than the surface channel's");
 
         if (lineCount == 0 && triangleCount == 0)
             return;
@@ -76,7 +76,7 @@ namespace Rtx
         vkCmdBindVertexBuffers(commands, 0, 1, &vertices, &offset);
 
         DescriptorWrites<1> traced;
-        traced.image(0, depth.describeStorage());
+        traced.image(0, surface.describeStorage());
 
         // Each pipeline is handed the set and the block again: a push is only defined against
         // the layout in force, and the two layouts are the same in everything but the handle.

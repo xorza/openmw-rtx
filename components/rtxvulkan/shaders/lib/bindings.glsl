@@ -79,20 +79,17 @@ layout(set = SET_CHANNELS, binding = CHANNEL_INDIRECT) uniform writeonly image2D
 /// Lambert term.
 layout(set = SET_CHANNELS, binding = CHANNEL_ALBEDO, GBUFFER_ALBEDO) uniform writeonly image2D albedo;
 
-/// The shading normal in `xyz` and the surface's roughness in `w`.
+/// The shading normal as `packSurfaceNormal`'s code in `r`, and the distance from the eye along the
+/// pixel's ray in `g`.
 ///
 /// **The normal the shading actually used**, which for water is the wave's rather than the plane's
 /// — a rippled surface described as a flat one is reconstructed as a flat one. A ray that hit
-/// nothing writes a zero normal, which no surface can be mistaken for.
-layout(set = SET_CHANNELS, binding = CHANNEL_GUIDE, GBUFFER_GUIDE) uniform writeonly image2D guide;
+/// nothing writes `SURFACE_NO_NORMAL`, which no surface can be mistaken for. Read back by
+/// `spritecomposite.rgen` for where a sprite is hidden, which is why it is not `writeonly`.
+layout(set = SET_CHANNELS, binding = CHANNEL_SURFACE, GBUFFER_SURFACE) uniform image2D surfaceChannel;
 
 /// Where each surface stood on the previous frame's screen, less where it stands on this one.
 layout(set = SET_CHANNELS, binding = CHANNEL_MOTION, GBUFFER_MOTION) uniform writeonly image2D motion;
-
-/// Clip depth in `r`, for whatever upscales the frame, and the distance from the eye in `g`, for
-/// whatever filters it. Two questions, and one number cannot answer both. Read back by
-/// `spritecomposite.rgen` for where a sprite is hidden, which is why it is not `writeonly`.
-layout(set = SET_CHANNELS, binding = CHANNEL_DEPTH, GBUFFER_DEPTH) uniform image2D depth;
 
 /// How much of the backdrop this pixel still shows, per channel, in `rgb` — everything the trace put
 /// between the backdrop and the eye, multiplied together. The backdrop is the star field behind a

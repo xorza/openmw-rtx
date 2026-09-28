@@ -2,14 +2,12 @@
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_BASIS_GLSL
 
 // Directions, with nothing of the frame block in them: a frame built on one axis, for anything that
-// draws about a direction or lays a grid across one; a normal turned to face the ray that found it;
-// and a direction in one word, on the octahedral map `tangent.h` shares with the host.
+// draws about a direction or lays a grid across one; and a normal turned to face the ray that found
+// it.
 //
 // **Its own file because a pass with no frame block wants it.** `random.glsl` builds every sampled
 // direction on it and reaches the frame for its draws; `spriteshade.comp` lays its grid on it and
 // has no frame at all, and wrote its own copy with a different threshold.
-
-#include "tangent.h"
 
 /// A unit vector square to `axis`, to build a basis on.
 ///
@@ -40,19 +38,6 @@ vec3 facingRay(vec3 normal, vec3 fallback, vec3 incident, float least)
     // solved rather than iterated.
     const float back = (least - facing) / max(dot(-incident, fallback) - facing, 1e-4);
     return normalize(mix(normal, fallback, clamp(back, 0.0, 1.0)));
-}
-
-/// The octahedral map in one word of two signed halves, which is the payload's use of it. Sixteen
-/// bits an axis is a direction to a hundredth of a degree — finer than the half-float channels the
-/// guide is stored in downstream, so nothing the frame keeps is lost across the execute.
-uint packDirection(vec3 unit)
-{
-    return packSnorm2x16(octahedralSquare(unit));
-}
-
-vec3 unpackDirection(uint packed)
-{
-    return octahedralUnit(unpackSnorm2x16(packed));
 }
 
 #endif

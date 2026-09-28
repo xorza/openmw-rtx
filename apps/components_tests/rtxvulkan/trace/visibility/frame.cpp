@@ -24,6 +24,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/shaders/exposure.h>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/vfs/pathutil.hpp>
 
@@ -498,12 +499,12 @@ namespace Rtx::Testing
 
                 std::vector<float> motion;
                 mRenderer.readChannel(Channel::Motion, motion);
-                std::vector<float> depth;
-                mRenderer.readChannel(Channel::Depth, depth);
+                std::vector<float> surface;
+                mRenderer.readChannel(Channel::Surface, surface);
 
                 // The centre pixel's ray leans `0.5 / 32` of the half width off the axis either way,
                 // which at ninety degrees is `200 sqrt(1 + 2 (1 / 64)^2)` = 200.0488 units.
-                EXPECT_NEAR(depth[centre * 2 + 1], 200.0488f, 0.01f) << "the arms' eye did not find the wall";
+                EXPECT_NEAR(surface[centre * 2 + 1], 200.0488f, 0.01f) << "the arms' eye did not find the wall";
                 EXPECT_NEAR(motion[centre * 2], 0.64f, 0.02f) << "the arms reprojected through the world's plane";
                 EXPECT_NEAR(motion[centre * 2 + 1], 0.0f, 1e-3f);
             }
@@ -529,10 +530,11 @@ namespace Rtx::Testing
 
                 std::vector<float> motion;
                 mRenderer.readChannel(Channel::Motion, motion);
-                std::vector<float> depth;
-                mRenderer.readChannel(Channel::Depth, depth);
+                std::vector<float> surface;
+                mRenderer.readChannel(Channel::Surface, surface);
 
-                EXPECT_EQ(depth[centre * 2], 0.0f) << "the ray peeled the arm and found nothing behind it";
+                EXPECT_EQ(surface[centre * 2], Shaders::SURFACE_NO_NORMAL)
+                    << "the ray peeled the arm and found nothing behind it";
                 EXPECT_NEAR(motion[centre * 2], 0.0f, 1e-3f)
                     << "the sky past the arms reprojected through the world's plane";
                 EXPECT_NEAR(motion[centre * 2 + 1], 0.0f, 1e-3f);
@@ -620,39 +622,34 @@ namespace Rtx::Testing
             EXPECT_NEAR(motion(-500.0f, osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f)).x(), 0.0f, 1e-3f);
         }
 
-        /// The two answers the depth channel carries, against hand-computed values for both.
+        /// The two answers the surface channel carries, against hand-computed values for both.
         ///
-        /// **Clip depth in `r`, for an upscaler**, reversed: `near (far - z) / (z (far - near))`, one at
-        /// the near plane and nought at the far one. The numbers here: near is 1 and far is 100,000,
-        /// so a wall 200 units off reads `99,800 / (200 * 99,999) = 0.0049900`, and one at 400 reads
-        /// `99,600 / (400 * 99,999) = 0.0024900`. Most of the range is spent within a few units of the
-        /// eye, which is exactly why the filter reads the second channel instead.
+        /// **The normal's code in `r`**, which the wall facing the eye, `(0, -1, 0)`, folds onto the
+        /// square's `(0, -1)`: a cardinal direction, which the code holds exactly, so the pixel
+        /// holds `packSurfaceNormal` of it to the bit. The corner sees the same wall, so
+        /// it holds the same code.
         ///
-        /// **Distance from the eye in `g`, for the filter.** In world units, along the ray.
-        ///
-        /// **And the two disagree in the one place that matters**, which is what makes this a test
-        /// rather than two readings of one number: at the corner of the frame the same plane is
-        /// further away and no deeper. A 64-pixel square at a sixty-degree field of view puts pixel
-        /// zero at `uv = 0.5/64 * 2 - 1 = -0.984375` on both axes, so its ray is
+        /// **Distance from the eye in `g`**, in world units, along the ray, and **not the depth a
+        /// rasterizer would have written**: at the corner of the frame the same plane is further away
+        /// and no deeper. A 64-pixel square at a sixty-degree field of view puts pixel zero at
+        /// `uv = 0.5/64 * 2 - 1 = -0.984375` on both axes, so its ray is
         /// `normalize(F - 0.984375 R + 0.984375 U)` with `|R| = |U| = tan(30°)`; the cosine to the
         /// view axis is `1 / sqrt(1 + 2 (0.984375 tan 30°)^2) = 1 / 1.2829652`. So the corner reads
-        /// the centre's clip value and 1.2829652 times its distance. The centre pixel is itself half
-        /// a pixel off-axis, which is the 1.0000814 below.
-        TEST_F(RtxVisibilityTest, theDepthChannelIsWhatARasterizerWouldHaveWritten)
+        /// 1.2829652 times the centre's distance. The centre pixel is itself half a pixel off-axis,
+        /// which is the 1.0000814 below.
+        TEST_F(RtxVisibilityTest, theSurfaceChannelHoldsTheNormalsCodeAndTheDistanceAlongTheRay)
         {
             constexpr std::uint32_t size = 64;
             constexpr float far = 100000.0f;
-            constexpr float near = 1.0f;
 
-            const auto expected = [](float z) { return near * (far - z) / (z * (far - near)); };
-
-            // Two floats a pixel: clip depth, then distance from the eye.
+            // Two floats a pixel: the normal's code, then distance from the eye.
             constexpr std::size_t stride = 2;
             constexpr std::size_t centre = centreOf(size) * stride;
             constexpr float cornerCosine = 1.2829652f;
             constexpr float centreCosine = 1.0000814f;
+            const float facing = Shaders::packSurfaceNormal(osg::Vec3f(0.0f, -1.0f, 0.0f));
 
-            const auto depthOf = [&](float away) {
+            const auto surfaceOf = [&](float away) {
                 SceneDesc scene;
                 addQuad(scene, wallAt(away));
 
@@ -662,33 +659,27 @@ namespace Rtx::Testing
                 const Frame frame = shoot(scene, {}, camera, size);
                 EXPECT_EQ(frame.mHits, size * size);
 
-                std::vector<float> depth;
-                mRenderer.readChannel(Channel::Depth, depth);
-                return depth;
+                std::vector<float> surface;
+                mRenderer.readChannel(Channel::Surface, surface);
+                return surface;
             };
 
             constexpr std::size_t corner = 0;
 
             for (const float away : { 200.0f, 400.0f })
             {
-                const std::vector<float> depth = depthOf(away);
-                ASSERT_EQ(depth.size(), std::size_t{ size } * size * stride);
+                const std::vector<float> surface = surfaceOf(away);
+                ASSERT_EQ(surface.size(), std::size_t{ size } * size * stride);
 
-                EXPECT_NEAR(depth[centre], expected(away), expected(away) * 1e-5f) << "at " << away;
+                EXPECT_EQ(surface[centre], facing) << "at " << away;
+                EXPECT_EQ(surface[corner], facing) << "the corner of the same wall, at " << away;
+                EXPECT_EQ(Shaders::unpackSurfaceNormal(surface[centre]), osg::Vec3f(0.0f, -1.0f, 0.0f));
 
-                // The corner sees the same plane, so it must read the same depth even though it is
-                // a good deal further from the eye. Reading the ray's own length instead would put
-                // this at `expected(away / cos)`, which at this field of view is a fifth of the value
-                // out — the kind of error that makes an upscaler shimmer at every corner.
-                EXPECT_NEAR(depth[corner], depth[centre], depth[centre] * 1e-5f) << "the corner of the same wall";
-
-                // And the second channel is the reading the first is not: the corner really is
-                // further away, by the cosine the depth deliberately divides out.
-                EXPECT_NEAR(depth[centre + 1], away * centreCosine, away * 1e-3f) << "distance at the centre";
-                EXPECT_NEAR(depth[corner + 1], away * cornerCosine, away * 1e-3f) << "distance at the corner";
+                EXPECT_NEAR(surface[centre + 1], away * centreCosine, away * 1e-3f) << "distance at the centre";
+                EXPECT_NEAR(surface[corner + 1], away * cornerCosine, away * 1e-3f) << "distance at the corner";
             }
 
-            // A ray that hit nothing is as far away as anything can be.
+            // A ray that hit nothing has no normal and is as far away as anything can be.
             {
                 SceneDesc scene;
                 addQuad(scene, wallAt(200.0f));
@@ -699,12 +690,12 @@ namespace Rtx::Testing
                 const Frame frame = shoot(scene, {}, away, size);
                 EXPECT_EQ(frame.mHits, 0u);
 
-                std::vector<float> depth;
-                mRenderer.readChannel(Channel::Depth, depth);
-                for (std::size_t i = 0; i < depth.size(); i += stride)
+                std::vector<float> surface;
+                mRenderer.readChannel(Channel::Surface, surface);
+                for (std::size_t i = 0; i < surface.size(); i += stride)
                 {
-                    ASSERT_EQ(depth[i], 0.0f) << "clip depth at " << i / stride;
-                    ASSERT_EQ(depth[i + 1], far) << "distance at " << i / stride;
+                    ASSERT_EQ(surface[i], Shaders::SURFACE_NO_NORMAL) << "normal at " << i / stride;
+                    ASSERT_EQ(surface[i + 1], far) << "distance at " << i / stride;
                 }
             }
         }
@@ -722,7 +713,7 @@ namespace Rtx::Testing
         ///
         /// The distance is the assertion rather than the hit count, because it names *where* the
         /// new triangles are and not merely that something changed. Its 1.0000814 is the centre
-        /// pixel's own half-pixel offset from the view axis, worked out in the depth test above.
+        /// pixel's own half-pixel offset from the view axis, worked out in the surface test above.
         TEST_F(RtxVisibilityTest, aDeformedMeshIsTracedAgainstItsNewVerticesWithoutRebuildingTheScene)
         {
             constexpr std::uint32_t size = 64;
@@ -742,9 +733,9 @@ namespace Rtx::Testing
             const Frame frame = shoot(scene, {}, camera, size);
             ASSERT_EQ(frame.mHits, size * size);
 
-            std::vector<float> depth;
-            mRenderer.readChannel(Channel::Depth, depth);
-            ASSERT_NEAR(depth[centre], 200.0f * centreCosine, 0.2f) << "where it was built";
+            std::vector<float> surface;
+            mRenderer.readChannel(Channel::Surface, surface);
+            ASSERT_NEAR(surface[centre], 200.0f * centreCosine, 0.2f) << "where it was built";
 
             /// Moves the wall's bone `away` units off its bind pose and replaces the scene's
             /// placement, exactly as a frame of the game does: clear, re-walk, hand it back.
@@ -759,8 +750,8 @@ namespace Rtx::Testing
             mRenderer.renderFrame(camera, FrameOptions{});
             EXPECT_EQ(mRenderer.finishFrame().value().mHits, size * size);
 
-            mRenderer.readChannel(Channel::Depth, depth);
-            EXPECT_NEAR(depth[centre], 400.0f * centreCosine, 0.4f) << "and the structure followed its vertices";
+            mRenderer.readChannel(Channel::Surface, surface);
+            EXPECT_NEAR(surface[centre], 400.0f * centreCosine, 0.4f) << "and the structure followed its vertices";
 
             // Behind the eye, where a wall that was never rebuilt would still be filling the frame.
             deformTo(-1000.0f);
@@ -895,8 +886,8 @@ namespace Rtx::Testing
                 float mArmDistance;
                 float mMiddleDistance;
 
-                /// Two floats a pixel: clip depth, then distance from the eye.
-                std::vector<float> mDepth;
+                /// Two floats a pixel: the normal's code, then distance from the eye.
+                std::vector<float> mSurface;
             };
 
             const auto seenWith = [&](const Shaders::Camera& arms, float fade = 1.0f) {
@@ -910,9 +901,9 @@ namespace Rtx::Testing
                     .mArm = { frame.byte(arm * 4), frame.byte(arm * 4 + 1), frame.byte(arm * 4 + 2) },
                     .mMiddle = { frame.byte(centre * 4), frame.byte(centre * 4 + 1), frame.byte(centre * 4 + 2) },
                 };
-                mRenderer.readChannel(Channel::Depth, seen.mDepth);
-                seen.mArmDistance = seen.mDepth[arm * 2 + 1];
-                seen.mMiddleDistance = seen.mDepth[centre * 2 + 1];
+                mRenderer.readChannel(Channel::Surface, seen.mSurface);
+                seen.mArmDistance = seen.mSurface[arm * 2 + 1];
+                seen.mMiddleDistance = seen.mSurface[centre * 2 + 1];
 
                 return seen;
             };
@@ -936,7 +927,7 @@ namespace Rtx::Testing
             const Seen faded = seenWith(cameraAtFieldOfView(camera.mCamera, 60.0f), 0.5f);
             EXPECT_EQ(faded.mArmDistance, narrow.mArmDistance)
                 << "the world behind a see-through arm was not the world's eye's";
-            EXPECT_EQ(faded.mDepth, narrow.mDepth) << "the arm moved the world behind it";
+            EXPECT_EQ(faded.mSurface, narrow.mSurface) << "the arm moved the world behind it";
             EXPECT_NE(faded.mArm, narrow.mArm) << "the faded arm was not drawn at all";
         }
 

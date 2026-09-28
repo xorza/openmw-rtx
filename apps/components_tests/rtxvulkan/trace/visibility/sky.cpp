@@ -22,6 +22,7 @@
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
@@ -82,15 +83,13 @@ namespace Rtx::Testing
             EXPECT_GT(frame.byte(top + 2), 0) << "and some zenith";
 
             std::vector<float> diffuse;
-            std::vector<float> guide;
+            std::vector<float> surface;
             mRenderer.readChannel(Channel::Albedo, diffuse);
-            mRenderer.readChannel(Channel::Guide, guide);
+            mRenderer.readChannel(Channel::Surface, surface);
             for (std::size_t channel = 0; channel < 3; ++channel)
-            {
                 EXPECT_EQ(diffuse[middle + channel], 0.0f) << "no albedo, channel " << channel;
-                EXPECT_EQ(guide[middle + channel], 0.0f) << "no normal, channel " << channel;
-            }
-            EXPECT_EQ(guide[middle + 3], 0.0f) << "no roughness";
+            EXPECT_EQ(surface[centreOf(size) * 2], Shaders::SURFACE_NO_NORMAL) << "no normal";
+            EXPECT_EQ(surface[centreOf(size) * 2 + 1], 10000.0f) << "as far away as the camera reaches";
         }
 
         /// Both moons light a floor, and the two slots are one code path.

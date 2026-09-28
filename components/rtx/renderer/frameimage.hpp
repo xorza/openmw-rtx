@@ -21,9 +21,8 @@ namespace Rtx
         Direct = Shaders::CHANNEL_DIRECT,
         Indirect = Shaders::CHANNEL_INDIRECT,
         Albedo = Shaders::CHANNEL_ALBEDO,
-        Guide = Shaders::CHANNEL_GUIDE,
+        Surface = Shaders::CHANNEL_SURFACE,
         Motion = Shaders::CHANNEL_MOTION,
-        Depth = Shaders::CHANNEL_DEPTH,
         Backdrop = Shaders::CHANNEL_BACKDROP,
         Puffs = Shaders::CHANNEL_PUFFS,
     };
@@ -41,9 +40,8 @@ namespace Rtx
         { Channel::Direct, "g-direct" },
         { Channel::Indirect, "g-indirect" },
         { Channel::Albedo, "g-albedo" },
-        { Channel::Guide, "g-guide" },
+        { Channel::Surface, "g-surface" },
         { Channel::Motion, "g-motion" },
-        { Channel::Depth, "g-depth" },
         { Channel::Backdrop, "g-backdrop" },
         { Channel::Puffs, "g-puffs" },
     } } };

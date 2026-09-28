@@ -14,7 +14,7 @@
 //
 // **The pass's own, and not the G-buffer's.** A channel the trace writes and a history the denoiser
 // keeps share nothing but a number of bits, and a history built from a radiance channel's width or
-// `GBUFFER_GUIDE` is narrowed silently whenever a channel is narrowed for the trace's sake — with
+// `GBUFFER_SURFACE` is narrowed silently whenever a channel is narrowed for the trace's sake — with
 // the evidence for the history's width lying somewhere else entirely. The paragraph below is that
 // evidence.
 //
@@ -49,15 +49,14 @@ namespace Rtx::Shaders
     /// else, so the two cannot drift apart.
     const uint ACCUMULATE_BIND_INDIRECT = 0;
     const uint ACCUMULATE_BIND_MOTION = 1;
-    const uint ACCUMULATE_BIND_GUIDE = 2;
-    const uint ACCUMULATE_BIND_DEPTH = 3;
-    const uint ACCUMULATE_BIND_HISTORY_COLOUR = 4;
-    const uint ACCUMULATE_BIND_HISTORY_SURFACE = 5;
-    const uint ACCUMULATE_BIND_HISTORY_MOMENTS = 6;
-    const uint ACCUMULATE_BIND_SURFACE_OUT = 7;
-    const uint ACCUMULATE_BIND_MOMENTS_OUT = 8;
-    const uint ACCUMULATE_BIND_BLENDED_OUT = 9;
-    const uint ACCUMULATE_BINDINGS = 10;
+    const uint ACCUMULATE_BIND_SURFACE = 2;
+    const uint ACCUMULATE_BIND_HISTORY_COLOUR = 3;
+    const uint ACCUMULATE_BIND_HISTORY_SURFACE = 4;
+    const uint ACCUMULATE_BIND_HISTORY_MOMENTS = 5;
+    const uint ACCUMULATE_BIND_SURFACE_OUT = 6;
+    const uint ACCUMULATE_BIND_MOMENTS_OUT = 7;
+    const uint ACCUMULATE_BIND_BLENDED_OUT = 8;
+    const uint ACCUMULATE_BINDINGS = 9;
 
     /// Threads along each edge of the accumulator's workgroup.
     const uint ACCUMULATE_WORKGROUP = 8;

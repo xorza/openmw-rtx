@@ -13,10 +13,6 @@ namespace Rtx
 {
     namespace
     {
-        /// Half floats, and `gbuffer.h` has the angles the width is derived from. A normal is
-        /// compared against a neighbour's and thrown away, never summed.
-        constexpr VkFormat sGuide = toVulkanFormat(GBUFFER_GUIDE);
-
         /// Half floats, because an albedo is a fraction. The diffuse albedo takes it too, which
         /// needed measuring: quantising a per-pixel constant is a systematic error on the indirect
         /// term, but on a converged reference of a room the mean moves by a fiftieth of the
@@ -26,10 +22,9 @@ namespace Rtx
         /// Two halves, for the reason `gbuffer.h` gives.
         constexpr VkFormat sMotion = toVulkanFormat(GBUFFER_MOTION);
 
-        /// Two, and full floats rather than halves: a clip depth has little precision left at the
-        /// far end of a Morrowind view, and the distance beside it runs past thirty thousand units
-        /// where a half's steps are thirty-two units wide.
-        constexpr VkFormat sDepth = toVulkanFormat(GBUFFER_DEPTH);
+        /// Two full floats, for the reasons `gbuffer.h` gives: the distance runs past thirty thousand
+        /// units, where a half's steps are thirty-two units wide.
+        constexpr VkFormat sSurface = toVulkanFormat(GBUFFER_SURFACE);
 
         /// Half floats for the layer the eye sees through: nothing sums it, and a reference is
         /// built with the upscaler off.
@@ -38,12 +33,12 @@ namespace Rtx
         /// Four bytes for four fractions, which is what `gbuffer.h` argues a modulation is.
         constexpr VkFormat sBackdrop = toVulkanFormat(GBUFFER_BACKDROP);
 
-        /// `SAMPLED` on all of them: an upscaler samples what it is handed, and the bit costs no
-        /// memory, so every channel carries it rather than only the ones an upscaler reads.
+        /// `SAMPLED` on all of them: the cascade samples the surface and the puffs, an upscaler samples
+        /// what it is handed, and the bit costs no memory, so every channel carries it.
         constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-        /// The channels a caller can ask to read back: the bounce, the albedo, the guide, the
-        /// motion and the depth. See `Rtx::Channel`. And the direct channel, which
+        /// The channels a caller can ask to read back: the bounce, the albedo, the surface and the
+        /// motion. See `Rtx::Channel`. And the direct channel, which
         /// is the frame once composed: `readComposite` copies it out, the frame a measurement is
         /// taken on, where `readPixels` gives the one a display would show.
         constexpr VkImageUsageFlags sReadable = sUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
@@ -64,9 +59,8 @@ namespace Rtx
                 every[bindingOf(Channel::Direct)] = { VK_FORMAT_UNDEFINED, sReadable };
                 every[bindingOf(Channel::Indirect)] = { VK_FORMAT_UNDEFINED, sReadable };
                 every[bindingOf(Channel::Albedo)] = { sAlbedo, sReadable };
-                every[bindingOf(Channel::Guide)] = { sGuide, sReadable };
+                every[bindingOf(Channel::Surface)] = { sSurface, sReadable };
                 every[bindingOf(Channel::Motion)] = { sMotion, sReadable };
-                every[bindingOf(Channel::Depth)] = { sDepth, sReadable };
                 every[bindingOf(Channel::Backdrop)] = { sBackdrop, sUsage };
                 every[bindingOf(Channel::Puffs)] = { sLayer, sUsage };
 

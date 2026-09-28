@@ -233,6 +233,7 @@ set(RTX_SHADER_HEADERS
     shaders/look.h
     shaders/mipchain.h
     shaders/normalspread.h
+    shaders/octahedral.h
     shaders/portable.h
     shaders/pinning.h
     shaders/probe.h

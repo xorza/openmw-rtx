@@ -229,22 +229,11 @@ vec3 pathEnd(vec3 position, float reaching)
     return frame.mAmbient * (daylightReaching(position) * reaching);
 }
 
-/// What `shadeSurface` does with a surface that has no specular half, said in those terms. Perfectly
-/// rough and perfectly diffuse, because that is exactly what a Lambert surface is — the true answer
-/// for it and not a stand-in for one.
-SurfaceResponse lambertResponse(Surface surface)
+/// What a surface is in the filter's and the composite's terms: its shading normal and its diffuse
+/// albedo, whether or not it has a specular half.
+SurfaceResponse responseOf(Surface surface)
 {
-    return SurfaceResponse(surface.mNormal, surface.mAlbedo, 1.0);
-}
-
-/// What a surface is in the filter's terms: its shading normal, its diffuse albedo and its
-/// roughness — or, with no specular half, `lambertResponse` exactly.
-SurfaceResponse surfaceResponse(Surface surface, Gloss gloss)
-{
-    if (!gloss.mGlossy)
-        return lambertResponse(surface);
-
-    return SurfaceResponse(surface.mNormal, surface.mAlbedo, surface.mRoughness);
+    return SurfaceResponse(packSurfaceNormal(surface.mNormal), surface.mAlbedo);
 }
 
 /// What an ordinary lit surface sends back along the ray that found it.
@@ -614,7 +603,7 @@ void shadeSolid(
 
     direct = lit + bounced.mSpecular;
     bounce = bounced.mDiffuse;
-    response = surfaceResponse(hit, gloss);
+    response = responseOf(hit);
 }
 
 #endif

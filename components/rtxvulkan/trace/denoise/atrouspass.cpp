@@ -18,14 +18,14 @@ namespace Rtx
     namespace
     {
         /// The channel coming in with its variance, which says where the edges in the light are,
-        /// the channel going out, and the two that say where the edges in the surface are. All
+        /// the channel going out, the one that says where the edges in the surface are, and the
+        /// puffs. All
         /// pushed. Sampled on the three this pass only reads, because a twenty-five tap gather wants the texture
         /// unit's cache — a few per cent of the cascade — and legal from `VK_IMAGE_LAYOUT_GENERAL`.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ATROUS_BINDINGS> sBindings{
             computeBinding(Shaders::ATROUS_BIND_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_FILTERED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
-            computeBinding(Shaders::ATROUS_BIND_GUIDE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
-            computeBinding(Shaders::ATROUS_BIND_DEPTH, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
+            computeBinding(Shaders::ATROUS_BIND_SURFACE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_PUFFS, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
         };
 
@@ -34,12 +34,18 @@ namespace Rtx
         /// leave the other frame's access uncovered.
         constexpr VkAccessFlags2 sReads = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
 
-        /// Three ways of feeding this pass the same taps more cheaply were measured and none pays:
-        /// a shared-memory tile with Dolp's permutation, because the pass costs the same per level
-        /// whatever the stride and there is no locality to recover; one geometry channel instead of
-        /// the guide and the depth, neutral; packing it to eight bytes, worse, because the
-        /// octahedral `normalize` over 125 taps costs more than a fetch. What the pass spends is
-        /// the two `exp` and the guide tap. A profiler is what the next attempt should start from.
+        /// **One fetch of eight bytes a tap for the surface**, the normal's code and the distance,
+        /// where a half-float guide and a two-float depth were two of sixteen. Measured on the
+        /// default suite against the two channels: 3.19 ms of the cascade to 2.78 in the guild,
+        /// twice, and within the run-to-run spread on the deck, 2.47 to 2.37 and 2.58 at noon and
+        /// 2.17 to 2.14 and 1.78 at dawn — so the octahedral `normalize` at 125 taps costs less
+        /// than the bytes it saves. An earlier try at eight bytes was recorded here as worse, with
+        /// no record of how it read the normal; this measurement replaces it.
+        ///
+        /// A shared-memory tile with Dolp's permutation was measured and did not pay, because the
+        /// pass costs the same per level whatever the stride and there is no locality to recover.
+        /// What the pass spends is the two `exp` and the surface tap. A profiler is what the next
+        /// attempt should start from.
     }
 
     AtrousPass::AtrousPass(const Device& device, const std::filesystem::path& shaderDirectory)
@@ -106,9 +112,7 @@ namespace Rtx
             writes.image(
                 Shaders::ATROUS_BIND_SOURCE, source->describeSampled(VK_NULL_HANDLE), VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
             writes.image(Shaders::ATROUS_BIND_FILTERED, target->describeStorage());
-            writes.image(Shaders::ATROUS_BIND_GUIDE, buffer.get(Channel::Guide).describeSampled(VK_NULL_HANDLE),
-                VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
-            writes.image(Shaders::ATROUS_BIND_DEPTH, buffer.get(Channel::Depth).describeSampled(VK_NULL_HANDLE),
+            writes.image(Shaders::ATROUS_BIND_SURFACE, buffer.get(Channel::Surface).describeSampled(VK_NULL_HANDLE),
                 VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
             writes.image(Shaders::ATROUS_BIND_PUFFS, buffer.get(Channel::Puffs).describeSampled(VK_NULL_HANDLE),
                 VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);

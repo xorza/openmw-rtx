@@ -9,32 +9,32 @@
 // the water and the shading to hold a `VisibilityPayload`, and the reprojection pulled in the
 // water for one struct.
 
+#include "gbuffer.h"
+
 /// What a shading model made of a surface, in the terms the filter and the composite read.
 ///
 /// **Reported by whatever shaded the pixel rather than guessed after it.** The composite puts the
-/// bounce back by the albedo, and the filter tells surfaces apart by the normal and the roughness,
-/// so those three have to describe what this renderer actually did — and only the function that
-/// did it knows. A constant roughness of one and the *flat quad's* normal for water is a
-/// description of a renderer nobody wrote.
+/// bounce back by the albedo, and the filter tells surfaces apart by the normal, so the two have to
+/// describe what this renderer actually did — and only the function that did it knows. The *flat
+/// quad's* normal for water is a description of a renderer nobody wrote.
 struct SurfaceResponse
 {
-    /// The normal the shading used, which for water is the wave's and not the plane's.
-    vec3 mNormal;
+    /// The normal the shading used, which for water is the wave's and not the plane's, as the
+    /// surface channel's code: `packSurfaceNormal`, once, where the shading has it whole, so the
+    /// payload carries and the launch stores the one rounding the channel holds.
+    float mNormal;
 
     /// What the diffuse half is multiplied by, and nothing else: the surface's own albedo, with
     /// none of what the path took off it between here and the eye.
     vec3 mDiffuse;
-
-    /// Nought for a mirror and one for Lambert.
-    float mRoughness;
 };
 
 /// A pixel with no surface behind it: the sky, or a ray that reached nothing.
 ///
-/// **Nought throughout.** Nothing reads the sky's albedo or roughness: the composite multiplies the
-/// albedo into a bounce of nought, and the filters know the sky by its normal, which stays nought.
+/// **No normal and no albedo.** Nothing reads the sky's albedo: the composite multiplies it into a
+/// bounce of nought, and the filters know the sky by `SURFACE_NO_NORMAL`.
 SurfaceResponse noResponse()
 {
-    return SurfaceResponse(vec3(0.0), vec3(0.0), 0.0);
+    return SurfaceResponse(SURFACE_NO_NORMAL, vec3(0.0));
 }
 #endif

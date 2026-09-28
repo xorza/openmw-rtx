@@ -22,8 +22,8 @@ namespace Rtx
         /// cleared: the frame is already in it.
         const Image& mTarget;
 
-        /// The trace's depth channel, in `GENERAL`, at the extent `mConstants.mTraced` names.
-        const Image& mDepth;
+        /// The trace's surface channel, in `GENERAL`, at the extent `mConstants.mTraced` names.
+        const Image& mSurface;
 
         Shaders::LineConstants mConstants;
 

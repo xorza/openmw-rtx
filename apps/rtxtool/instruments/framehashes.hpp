@@ -136,9 +136,9 @@ namespace RtxTool
         /// One entry per view this run drew, in the order it drew them.
         std::vector<ViewDifference> against(const FrameHashes& reference) const;
 
-        /// The first frame of `view` whose depth or motion differs from the view's first frame, or
+        /// The first frame of `view` whose surface or motion differs from the view's first frame, or
         /// nothing where every frame pictured so far agrees on both. For a still nothing jittered,
-        /// whose frames are one camera's: its depth and motion are then one frame's whatever the
+        /// whose frames are one camera's: its surface and motion are then one frame's whatever the
         /// noise did to the light, and a frame where either moved was traced on other code: the
         /// driver swapping in one that computes an operation the build leaves to the device
         /// otherwise (`Rtx::pinFloatArithmetic`).

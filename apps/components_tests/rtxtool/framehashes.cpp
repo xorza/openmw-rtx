@@ -187,20 +187,20 @@ namespace RtxTool
             const std::string report = describeDifference(difference);
             EXPECT_NE(report.find("the trace differs on 1 of 1 frames, at 1 — g-albedo 1"), std::string::npos)
                 << report;
-            EXPECT_EQ(report.find("g-guide"), std::string::npos) << report;
+            EXPECT_EQ(report.find("g-surface"), std::string::npos) << report;
             EXPECT_NE(report.find("the scene was the same on every frame"), std::string::npos) << report;
         }
 
-        /// A still's light moves with the noise from frame to frame and its depth and motion do
+        /// A still's light moves with the noise from frame to frame and its surface and motion do
         /// not, so the first frame where either moves is the one named — and a frame of another view,
         /// which stands somewhere else, is never compared with it.
-        TEST(RtxFrameHashesTest, aStillWhoseDepthOrMotionMovedNamesTheFirstFrameThatDid)
+        TEST(RtxFrameHashesTest, aStillWhoseSurfaceOrMotionMovedNamesTheFirstFrameThatDid)
         {
             Rtx::FrameDigest lit = digestOf(100);
             lit.mImages[Rtx::bindingOf(Rtx::Channel::Direct)] = hashOf(4242);
             lit.mImages[Rtx::bindingOf(Rtx::Channel::Indirect)] = hashOf(4243);
             Rtx::FrameDigest deeper = lit;
-            deeper.mImages[Rtx::bindingOf(Rtx::Channel::Depth)] = hashOf(4244);
+            deeper.mImages[Rtx::bindingOf(Rtx::Channel::Surface)] = hashOf(4244);
             Rtx::FrameDigest moving = digestOf(100);
             moving.mImages[Rtx::bindingOf(Rtx::Channel::Motion)] = hashOf(4245);
 

@@ -267,7 +267,7 @@ namespace RtxTool
                 continue;
             }
 
-            for (const Rtx::Channel still : { Rtx::Channel::Depth, Rtx::Channel::Motion })
+            for (const Rtx::Channel still : { Rtx::Channel::Surface, Rtx::Channel::Motion })
                 if (frame.mTraced[Rtx::bindingOf(still)] != first->mTraced[Rtx::bindingOf(still)])
                     return frame.mFrame;
         }
