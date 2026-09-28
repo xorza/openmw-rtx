@@ -133,8 +133,6 @@ namespace Rtx
         /// Writes the material rows `slot`'s copy owes.
         void shade(const SceneDesc& scene, FrameSlot slot);
 
-        const Device& mDevice;
-
         // What the scene is made of, written on arrival and read by every frame: one copy, because
         // an arrival writes it on the queue, behind every frame in flight. The colours too, where
         // the normals are one per frame in flight: a skin recomputes a body's normals and never
