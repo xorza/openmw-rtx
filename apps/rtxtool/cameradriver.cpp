@@ -5,6 +5,7 @@
 #include <format>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <osg/Vec3d>
@@ -99,7 +100,7 @@ namespace RtxTool
         crossSky(stop, seconds);
     }
 
-    void CameraDriver::turnSkyBy(const Stop& stop, const int steps)
+    void CameraDriver::turnSkyBy(const Stop& stop, const int steps, const bool atOnce)
     {
         if (stop.mSchedule.mTrack.has_value())
         {
@@ -133,15 +134,15 @@ namespace RtxTool
         const std::uint32_t chosen = rolled[at];
 
         const bool stopped = !(world.getTimeManager()->getGameTimeScale() > 0.0f);
-        if (stopped)
+        if (atOnce || stopped)
             sky.settle(chosen);
         else
             sky.ask(chosen);
         mDelta = transitionDeltaOf(chosen);
 
+        const std::string_view how = atOnce ? "at once" : stopped ? "at once under the stopped clock" : "arriving";
         Log(Debug::Info) << std::format("Ray tracing session: {} {}, {} of {} the region rolls, {}%",
-            Rtx::weatherName(chosen), stopped ? "at once under the stopped clock" : "arriving", at + 1, rolled.size(),
-            chanceOf(*record, chosen));
+            Rtx::weatherName(chosen), how, at + 1, rolled.size(), chanceOf(*record, chosen));
     }
 
     void CameraDriver::beginTurn(const Stop& stop)

@@ -181,8 +181,8 @@ namespace RtxTool
             Stager::forgetHistory();
 
         mHome.listen();
-        if (const int steps = mSkyKeys.listen(); steps != 0)
-            mCamera.turnSkyBy(currentStop(), steps);
+        if (const SkyPress press = mSkyKeys.listen(); press.mSteps != 0)
+            mCamera.turnSkyBy(currentStop(), press.mSteps, press.mAtOnce);
         mCamera.step(currentStop(), mMeasurer.getMeasuredIndex(), mRequest.mSetup.getWorldStep());
 
         // **After the camera has stepped and on every frame, warm-up included.** `CameraDriver::aim`

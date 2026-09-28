@@ -135,8 +135,9 @@ namespace RtxTool
             EXPECT_EQ(options.readsOption("data"), Verbs::Every) << "the engine's own, read by every command";
             EXPECT_EQ(options.readsOption("views"), Verbs::Scene | Verbs::Shot | Verbs::Bench | Verbs::Check);
 
-            // Every command but `info` builds a frame, and `info` reports on a device.
-            EXPECT_EQ(options.readsOption("upscale"), otherThan(Verbs::Info));
+            // Every command but `info` builds a frame, and `info` reports on a device. A film is
+            // always made under one mode, and names none.
+            EXPECT_EQ(options.readsOption("upscale"), otherThan(Verbs::Info | Verbs::Film));
             EXPECT_EQ(options.readsOption("size"), otherThan(Verbs::Info));
             EXPECT_EQ(options.complainAbout(parse(options, { "--size=8x8" }), Verbs::Info),
                 "`info` does not read --size, which belongs to every command but `info`.\n");

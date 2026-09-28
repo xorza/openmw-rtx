@@ -123,6 +123,12 @@ namespace RtxTool
     /// plain run is the renderer with everything on and not one that quietly quartered its pixels.
     inline constexpr Rtx::Upscale sUpscaleByDefault = Rtx::sUpscalerBuilt ? Rtx::Upscale::Quality : Rtx::Upscale::Off;
 
+    /// What every film is made under, and no line chooses another: DLAA, every pixel traced and Ray
+    /// Reconstruction still the denoiser, because a film is watched and never timed, and the one
+    /// picture a person keeps is the best one the renderer draws. A build without the upscaler
+    /// draws what it can, which is the trace alone.
+    inline constexpr Rtx::Upscale sFilmUpscale = Rtx::sUpscalerBuilt ? Rtx::Upscale::Dlaa : Rtx::Upscale::Off;
+
     /// Where a hosted run's frames are presented: what goes into the settings the engine makes its
     /// window from, and nothing the renderer is made with.
     struct WindowRequest
