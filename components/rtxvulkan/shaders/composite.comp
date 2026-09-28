@@ -3,25 +3,35 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_shader_image_load_formatted : require
 
-// The trace's channels back into one picture, still in linear radiance.
+// The trace's channels back into one picture, still in linear radiance, written over the direct
+// channel it was composed from.
 //
 // **Separate because a filter needs every pixel before any pixel is finished.** The trace writes
 // indirect light with the albedo divided out; something between here and there blurs it, which it
 // can only do once the whole image exists. Multiplying the albedo back afterwards is what returns
 // texture detail a blur would otherwise have smeared — the mortar between bricks is in the albedo,
 // and the light falling on the wall is not.
+//
+// **And only where something stands between the two.** A frame nothing filters was composed by the
+// trace itself (`VisibilityConstants::mComposed`), and runs this only to add it to a sum.
+//
+// **In place**, because each invocation reads and writes its own pixel and nothing reads the direct
+// light apart from the frame after this: the frame is one image fewer, and the one an upscaler, the
+// puffs and the curve take is the channel the trace wrote.
 
 #include "composite.h"
 #include "gbuffer.h"
 #include "sets.h"
 
+#include "lib/compose.glsl"
 #include "lib/pixels.glsl"
 
 layout(local_size_x = COMPOSITE_WORKGROUP, local_size_y = COMPOSITE_WORKGROUP) in;
 
-/// Everything already resolved: direct light, emission, the sky, water, and the fog over all of it.
-/// No format, for the reason the bounce below gives twice over: the run decides its width too.
-layout(set = SET_PASS, binding = COMPOSITE_BIND_DIRECT) uniform readonly image2D direct;
+/// Everything already resolved: direct light, emission, the sky, water, and the fog over all of it,
+/// and the frame once this has run. No format, for the reason the bounce below gives twice over: the
+/// run decides its width too, and a load and a store with no format both convert.
+layout(set = SET_PASS, binding = COMPOSITE_BIND_DIRECT) uniform image2D direct;
 
 /// One bounce with the albedo divided out, times whatever the water and the air took off it on the
 /// way to the eye — the only channel a filter is allowed to touch.
@@ -39,10 +49,6 @@ layout(set = SET_PASS, binding = COMPOSITE_BIND_ALBEDO, GBUFFER_ALBEDO) uniform 
 /// The running sum, when `mAccumulate` asks for one.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SUM, COMPOSITE_SUM_FORMAT) uniform image2D sum;
 
-/// The frame, in the linear radiance everything after this reads: an upscaler across several of
-/// them, and then the curve. As wide as the run made the channels it is composed from.
-layout(set = SET_PASS, binding = COMPOSITE_BIND_COLOUR) uniform writeonly image2D colour;
-
 layout(push_constant, scalar) uniform Push
 {
     CompositeConstants frame;
@@ -55,7 +61,9 @@ void main()
         return;
 
     const ivec2 at = ivec2(pixel);
-    vec3 resolved = imageLoad(direct, at).rgb + imageLoad(albedo, at).rgb * imageLoad(indirect, at).rgb;
+    vec3 resolved = imageLoad(direct, at).rgb;
+    if (frame.mComposed == 0u)
+        resolved = composedLight(resolved, imageLoad(albedo, at).rgb, imageLoad(indirect, at).rgb);
 
     // In linear, which is what everything downstream of here now works in. Summing an encoded frame
     // would add up rounded numbers and clip every sample past the display's range to the same value
@@ -68,5 +76,5 @@ void main()
     }
 
     // The alpha is the puffs' composite's to write, and the curve's to read only where it did.
-    imageStore(colour, at, vec4(resolved, 1.0));
+    imageStore(direct, at, vec4(resolved, 1.0));
 }

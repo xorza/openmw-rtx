@@ -49,7 +49,9 @@ layout(set = SET_PASS, binding = BIND_SCENE) uniform accelerationStructureEXT sc
 
 // Set two, in the order it is bound.
 
-/// Everything already resolved: direct light, emission, the sky, water, and the fog over all of it.
+/// Everything already resolved: direct light, emission, the sky, water, and the fog over all of it
+/// — and the bounce put back in as well where nothing filters it (`mComposed`), which makes it the
+/// frame.
 ///
 /// **No format on this or the bounce below**, because a run decides how wide they are —
 /// `gbuffer.h` says which run gets which — and a store with no format converts to whatever the

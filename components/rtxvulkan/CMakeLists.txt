@@ -170,6 +170,7 @@ set(RTX_SHADER_LIB
     shaders/lib/basis.glsl
     shaders/lib/bindings.glsl
     shaders/lib/bloom.glsl
+    shaders/lib/compose.glsl
     shaders/lib/counts.glsl
     shaders/lib/fog.glsl
     shaders/lib/footprint.glsl

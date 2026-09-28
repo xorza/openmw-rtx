@@ -35,12 +35,9 @@ namespace Rtx::Shaders
     /// second.
     const uint DIGEST_LANES = 4u;
 
-    /// What one frame digests: every channel of the trace, and the composite that folded them.
-    const uint DIGEST_IMAGES = CHANNEL_COUNT + 1u;
-
-    /// Which image the composite is, after the channels, which are their binding: image `i`'s
-    /// words are the `DIGEST_LANES` from `i * DIGEST_LANES`.
-    const uint DIGEST_COMPOSITE = CHANNEL_COUNT;
+    /// What one frame digests: every channel of the trace at its binding, the direct one holding
+    /// the composed frame. Image `i`'s words are the `DIGEST_LANES` from `i * DIGEST_LANES`.
+    const uint DIGEST_IMAGES = CHANNEL_COUNT;
 
     /// The two seeds, one per mix, so the two lanes of a texel are not one word twice.
     const uint DIGEST_SEED_SUM = 0x9e3779b9u;

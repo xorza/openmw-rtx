@@ -24,7 +24,8 @@ namespace Rtx
 namespace RtxTool
 {
     /// Which digested column of a frame moved: every channel of the trace at its binding, the
-    /// composite after them, and last the numbers the frame handed the reconstruction.
+    /// direct one holding the composed frame, and last the numbers the frame handed the
+    /// reconstruction.
     inline constexpr std::size_t sTracedColumns = Rtx::Shaders::DIGEST_IMAGES + 1;
 
     inline constexpr std::size_t sReconstructionColumn = Rtx::Shaders::DIGEST_IMAGES;
@@ -34,7 +35,7 @@ namespace RtxTool
         if (column < Rtx::sChannelCount)
             return Rtx::channelName(static_cast<Rtx::Channel>(column));
 
-        return column == Rtx::Shaders::DIGEST_COMPOSITE ? "composite" : "reconstruction";
+        return "reconstruction";
     }
 
     /// What a frame of a run computed and what it was handed, hashed, and what a previous run's

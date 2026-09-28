@@ -184,6 +184,16 @@ namespace Rtx::Shaders
         /// three.
         uint mTransparentBackground;
 
+        /// Non-zero where nothing filters the bounce between the trace and the picture: the trace
+        /// then composes the frame into `CHANNEL_DIRECT` itself, `composedLight` of the two
+        /// channels, and no composite reads them back only to add them.
+        ///
+        /// **Every frame Ray Reconstruction takes**, which is every played frame the settings leave
+        /// alone: a composite there is a whole pass that reads three channels and writes the
+        /// fourth at the traced extent, to hand an upscaler a sum the trace holds in its registers.
+        /// Zero where the wavelet runs, which needs the two apart.
+        uint mComposed;
+
         /// The sun as a light: where it stands, unit; how much of its light arrives on a surface
         /// square to it; and the sine of the cone its shadow rays are drawn from, which is
         /// `SUN_SHADOW_SINE` and not the disc's own half degree — `SUN_SHADOW_RADIUS` says why.
@@ -552,8 +562,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1192, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1376, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1200, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1384, "VisibilityConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

@@ -37,10 +37,6 @@ namespace Rtx
         /// built with the upscaler off.
         constexpr VkFormat sLayer = toVulkanFormat(GBUFFER_LAYER);
 
-        /// A full float for how far along the ray the layer stood: a distance past thirty thousand
-        /// units, where a half's steps are thirty-two units wide, and it orders the layer against
-        /// the sprites.
-
         /// Four bytes for four fractions, which is what `gbuffer.h` argues a modulation is.
         constexpr VkFormat sBackdrop = toVulkanFormat(GBUFFER_BACKDROP);
 
@@ -51,7 +47,9 @@ namespace Rtx
         constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
         /// The channels a caller can ask to read back: the bounce, the two albedos, the guide,
-        /// the two motion fields and the depth. See `Rtx::Channel`.
+        /// the two motion fields and the depth. See `Rtx::Channel`. And the direct channel, which
+        /// is the frame once composed: `readComposite` copies it out, the frame a measurement is
+        /// taken on, where `readPixels` gives the one a display would show.
         constexpr VkImageUsageFlags sReadable = sUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
         struct ChannelFormat
@@ -67,7 +65,7 @@ namespace Rtx
         {
             static constexpr auto sFormats = [] {
                 std::array<ChannelFormat, sChannelCount> every{};
-                every[bindingOf(Channel::Direct)] = { VK_FORMAT_UNDEFINED, sUsage };
+                every[bindingOf(Channel::Direct)] = { VK_FORMAT_UNDEFINED, sReadable };
                 every[bindingOf(Channel::Indirect)] = { VK_FORMAT_UNDEFINED, sReadable };
                 every[bindingOf(Channel::Albedo)] = { sAlbedo, sReadable };
                 every[bindingOf(Channel::Specular)] = { sAlbedo, sReadable };
@@ -139,12 +137,11 @@ namespace Rtx
     void GBuffer::handOver(VkCommandBuffer commands) const
     {
         // A read after a write, and nothing more: every channel is read-only from here to the end
-        // of the frame. Sampled as well as loaded, because DLSS samples every guide it is handed.
+        // of the frame but the direct one, which a composite writes the frame over and orders for
+        // itself. Sampled as well as loaded, because DLSS samples every guide it is handed.
         Barriers barriers(commands);
         for (const Image& image : mChannels)
-            barriers.add(image.describeTransition(Use::sTraceWrite,
-                ImageUse{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                    VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT }));
+            barriers.add(image.describeTransition(Use::sTraceWrite, Use::sAnyShaderRead));
 
         barriers.flush();
     }

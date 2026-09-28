@@ -23,12 +23,9 @@
 
 namespace Rtx
 {
-    TraceChain::TraceChain(const Device& device, const TracePasses& passes, const VkImageUsageFlags colourUsage,
-        const std::string_view colourName)
+    TraceChain::TraceChain(const Device& device, const TracePasses& passes)
         : mDevice(device)
         , mPasses(passes)
-        , mColourUsage(colourUsage)
-        , mColourName(colourName)
         , mBins([&](FrameSlot) { return SpriteBin{ device }; })
         , mHistory(device)
     {
@@ -40,10 +37,6 @@ namespace Rtx
 
         mWidth = width;
         mHeight = height;
-
-        // As wide as the channels it is composed from: what is summed is summed out of this image,
-        // and what is shown is shown from it.
-        mColour = Image(mDevice, mWidth, mHeight, radianceFormat(radiance), mColourUsage, mColourName);
 
         mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, radiance);
         mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight);
@@ -117,11 +110,11 @@ namespace Rtx
             mSum.transition(commands, Use::sUndefined, Use::sComputeReadWrite);
         }
 
-        // Both written whole before anything reads them. The last frame may still be reading
-        // them, and the head barrier `CommandPool::begin` recorded is what orders this buffer after
-        // it, so the discard itself waits for nothing.
-        for (const Image* image : { static_cast<const Image*>(&mColour), what.mTarget })
-            image->transition(commands, Use::sUndefined, Use::sComputeWrite);
+        // Written whole before anything reads it. The last frame may still be reading it, and the
+        // head barrier `CommandPool::begin` recorded is what orders this buffer after it, so the
+        // discard itself waits for nothing. The frame's own image is a channel, which `GBuffer`
+        // discards with the rest.
+        what.mTarget->transition(commands, Use::sUndefined, Use::sComputeWrite);
 
         // Before the trace and outside its zone, because the sea is a function of the clock and of
         // nothing the camera does — one synthesis serves every ray. None where there is no sea,
@@ -147,8 +140,11 @@ namespace Rtx
         if (bins)
             bin.take(sprites, what.mAsked.mCamera, commands);
 
+        // Composed by the trace where nothing filters the bounce: `VisibilityConstants::mComposed`.
+        const bool composed = !what.mFilter;
+
         mPasses.mVisibility.writeFrame(
-            commands, inputs, bin, getSpriteTileList(inputs), what.mSampled, what.mPastLost || mAirStale);
+            commands, inputs, bin, getSpriteTileList(inputs), what.mSampled, what.mPastLost || mAirStale, composed);
         mAirStale = false;
 
         if (bins)
@@ -177,21 +173,34 @@ namespace Rtx
         if (what.mFilter)
             indirect = &recordDenoise(commands, what.mSampled.mCamera, what.mSampled.mFar, what.mPastLost, what.mTimer);
 
-        openZone(what.mTimer, commands, "composite");
-        mPasses.mComposite.record(commands, *mChannels, *indirect, mSum.isEmpty() ? nullptr : &mSum, mColour,
-            Shaders::CompositeConstants{
-                .mWidth = what.mSampled.mCamera.mWidth,
-                .mHeight = what.mSampled.mCamera.mHeight,
-                .mAccumulate = what.mAccumulate,
-            });
-        closeZone(what.mTimer, commands);
+        // **Only where something is left to do**: a filter to put the albedo back in behind, or a sum
+        // to add the frame to. Anything else was composed by the trace, into the channel that is
+        // the frame, and every pass after it reads the channel as `handOver` left it.
+        const Image& frame = mChannels->get(Channel::Direct);
+        if (what.mFilter || what.mAccumulate > 0)
+        {
+            // Written over, where the hand-over left it to be read: nothing has read it since, and
+            // this is the dependency that keeps it so.
+            frame.transition(commands, Use::sAnyShaderRead, Use::sComputeReadWrite);
 
-        // Whatever comes next reads what the composite just wrote. The frame's scope is the wider of
-        // the two — an upscaler, a lens and a curve against a picture's one curve — and covers both.
-        mColour.transition(commands, Use::sComputeWrite, Use::sAnyGeneralRead);
+            openZone(what.mTimer, commands, "composite");
+            mPasses.mComposite.record(commands, *mChannels, *indirect, mSum.isEmpty() ? nullptr : &mSum,
+                Shaders::CompositeConstants{
+                    .mWidth = what.mSampled.mCamera.mWidth,
+                    .mHeight = what.mSampled.mCamera.mHeight,
+                    .mAccumulate = what.mAccumulate,
+                    .mComposed = composed ? 1u : 0u,
+                });
+            closeZone(what.mTimer, commands);
+
+            // Whatever comes next reads what the composite just wrote. The frame's scope is the
+            // wider of the two — an upscaler, a lens and a curve against a picture's one curve —
+            // and covers both.
+            frame.transition(commands, Use::sComputeReadWrite, Use::sAnyGeneralRead);
+        }
 
         return TraceResult{ .mInputs = inputs,
-            .mColour = mColour,
+            .mColour = frame,
             .mSpriteTileList = getSpriteTileList(inputs),
             .mSpritePresence = bin.getPresenceAddress() };
     }
