@@ -1,5 +1,6 @@
 #include "stager.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <format>
 #include <optional>
@@ -191,8 +192,15 @@ namespace RtxTool
     {
         // Popped and not cleared, because a pop is what tells the scripts the mode changed: the
         // interface script is what paused the world for the menu, and it unpauses on that notice.
+        //
+        // **The menus on the stack and no more, and never until `isGuiMode` says no.** That also
+        // answers yes for the console, the post-processing window and a message box waiting for an
+        // answer, which no pop closes, and a film under M[FR] spun on one for ever at its frame 530.
+        // And only as many pops as there were menus, because a script told of a close may open
+        // another, which the next frame closes: what stays is a pause the measurer reports.
         MWBase::WindowManager& windows = *MWBase::Environment::get().getWindowManager();
-        while (windows.isGuiMode())
+        for (std::size_t open = windows.getGuiModeStack().size(); open > 0 && !windows.getGuiModeStack().empty();
+             --open)
             windows.popGuiMode(true);
     }
 

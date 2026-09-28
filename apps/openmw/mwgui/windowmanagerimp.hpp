@@ -270,6 +270,11 @@ namespace MWGui
         void removeStaticMessageBox() override;
         void interactiveMessageBox(std::string_view message, const std::vector<std::string>& buttons = {},
             bool block = false, int defaultFocus = -1) override;
+        void scriptMessageBox(std::string_view message, const std::vector<std::string>& buttons) override;
+
+        /// Whether `scriptMessageBox` shows its box: the engine's host's answer
+        /// (`OMW::EngineHost::answersScriptMessageBoxes`).
+        void setScriptMessageBoxesShown(bool shown) { mScriptMessageBoxesShown = shown; }
 
         int readPressedButton() override; ///< returns the index of the pressed button or -1 if no button was pressed
                                           ///< (->MessageBoxmanager->InteractiveMessageBox)
@@ -542,6 +547,7 @@ namespace MWGui
         std::string mVersionDescription;
 
         bool mWindowVisible;
+        bool mScriptMessageBoxesShown = true;
 
         MWGui::TextColours mTextColours;
 

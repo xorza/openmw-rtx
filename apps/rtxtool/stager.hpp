@@ -34,7 +34,8 @@ namespace RtxTool
         /// Leaves every menu open, as a player closing each would. For a run nobody plays, every
         /// frame: a menu pauses the world, and nobody is at the keys to close one a script opens —
         /// M[FR]'s hotkey notice opens one on every new game, and every run under it measured a
-        /// world with its clock, its particles and its air standing still.
+        /// world with its clock, its particles and its air standing still. The console, the
+        /// post-processing window and a message box are no menus and stay (`describePause`).
         static void closeMenus();
 
         /// What holds the world paused, as a report names it: the pause tags a script set — the
