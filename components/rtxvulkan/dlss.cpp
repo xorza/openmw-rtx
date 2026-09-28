@@ -18,6 +18,7 @@
 
 #include "device.hpp"
 #include "ngx.hpp"
+#include "ngxdispatch.hpp"
 #include "physicaldevice.hpp"
 #include "result.hpp"
 
@@ -145,7 +146,7 @@ namespace Rtx
         const Crash::NoteScope noted("starting NGX");
         const NVSDK_NGX_Result started = NVSDK_NGX_VULKAN_Init_with_ProjectID("c541dbdf-6e4f-4476-ad27-15d2b4a231f4",
             NVSDK_NGX_ENGINE_TYPE_CUSTOM, "0.52", dataPath(), instance, device.getPhysicalDevice().getHandle(),
-            device.getHandle(), vkGetInstanceProcAddr, vkGetDeviceProcAddr, &common, NVSDK_NGX_Version_API);
+            device.getHandle(), ngxInstanceProcAddr, ngxDeviceProcAddr, &common, NVSDK_NGX_Version_API);
 
         if (NVSDK_NGX_FAILED(started))
             throw Unsupported("NGX would not start: " + describeNgxResult(started));

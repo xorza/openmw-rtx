@@ -63,12 +63,13 @@ also follow the settings window while the game runs.
 .. omw-setting::
    :title: preset
    :type: string
-   :range: default, d, e
-   :default: d
+   :range: default, d, e, f
+   :default: f
 
    Which Ray Reconstruction network to run, where :code:`upscale` runs one at all. Ray
    Reconstruction keeps its own presets, and they are not super-resolution's: A through C are
-   retired, :code:`d` is the default transformer model and :code:`e` is the latest.
+   retired, :code:`d` and :code:`e` are the first generation's transformer models, and :code:`f` is
+   the second generation, which NVIDIA's SDK makes its default from 310.9.1.
 
    :code:`default` hands the choice to the installed library. What that picks has changed between
    SDK versions and between the convolutional and transformer models, so two machines under it do

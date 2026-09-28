@@ -21,7 +21,7 @@ cmake_policy(SET CMP0116 NEW)
 # compared against; the feature libraries carry the tag in their file names, which is what the
 # module reads.
 if (OPENMW_RTX_DLSS)
-    find_package(NGX 310.7.0 EXACT REQUIRED)
+    find_package(NGX 310.9.1 EXACT REQUIRED)
 endif()
 
 find_program(OPENMW_GLSLC NAMES glslc HINTS "${Vulkan_GLSLC_EXECUTABLE}" REQUIRED
@@ -365,7 +365,8 @@ set(RTX_VULKAN_FILES
 # Only where the SDK is there to compile against: these are nothing but NGX, so a build without
 # DLSS leaves them out rather than hollowing them with a guard. `upscaler.hpp` is the one seam the
 # renderer reaches them through, and the build picks which of its two definitions links.
-set(RTX_VULKAN_DLSS_FILES dlss.cpp dlss.hpp dlsspass.cpp dlsspass.hpp dlssupscaler.cpp dlssupscaler.hpp ngx.hpp)
+set(RTX_VULKAN_DLSS_FILES dlss.cpp dlss.hpp dlsspass.cpp dlsspass.hpp dlssupscaler.cpp dlssupscaler.hpp ngx.hpp
+    ngxdispatch.cpp ngxdispatch.hpp)
 set(RTX_VULKAN_NO_DLSS_FILES noupscaler.cpp)
 if (OPENMW_RTX_DLSS)
     list(APPEND RTX_VULKAN_FILES ${RTX_VULKAN_DLSS_FILES})

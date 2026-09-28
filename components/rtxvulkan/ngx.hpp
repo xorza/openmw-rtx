@@ -64,6 +64,8 @@ namespace Rtx
                 return NVSDK_NGX_RayReconstruction_Hint_Render_Preset_D;
             case Preset::E:
                 return NVSDK_NGX_RayReconstruction_Hint_Render_Preset_E;
+            case Preset::F:
+                return NVSDK_NGX_RayReconstruction_Hint_Render_Preset_F;
             case Preset::Default:
                 return NVSDK_NGX_RayReconstruction_Hint_Render_Preset_Default;
         }

@@ -11,7 +11,7 @@ Use this module by invoking find_package with the form::
 .. code-block:: cmake
 
   find_package(NGX
-    [version] [EXACT]      # The feature libraries' version, e.g. 310.7.0
+    [version] [EXACT]      # The feature libraries' version, e.g. 310.9.1
     [REQUIRED]             # Fail with error if NGX is not found
   )
 
