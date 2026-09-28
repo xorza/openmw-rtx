@@ -4,8 +4,16 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <string>
 
 #include <osg/Vec3f>
+
+#include "model/skycrossing.hpp"
+
+namespace ESM
+{
+    struct Region;
+}
 
 namespace RtxTool
 {
@@ -13,9 +21,14 @@ namespace RtxTool
     struct Stop;
 
     /// Moves the camera through a stop, frame by frame: where a route has flown to, where a film's
-    /// track stands the eye, the clock and the sky, which weather a turning sky is on, and the aim
+    /// track stands the eye, the clock and the sky, the sky a turn or the keys cross, and the aim
     /// that holds the camera there. What the world is put in once, at the stop's start, is
     /// `Stager`'s; this starts where that leaves the player.
+    ///
+    /// **The sky is the world's until a turn or a key takes it**, and from then until the stop
+    /// ends it is this one's (`SkyCrossing`), handed to the world whole on every frame: the world
+    /// then runs no crossing of its own and rolls no weather of its own, which at a fast clock it
+    /// did every few seconds over what was asked for. A take's track holds its own sky.
     class CameraDriver
     {
     public:
@@ -30,6 +43,13 @@ namespace RtxTool
         /// sky at every frame, the warm-up at its first; a route and a turning sky move over the
         /// measured frames alone, `seconds` of world a frame.
         void step(const Stop& stop, std::optional<std::uint32_t> measured, float seconds);
+
+        /// Steps the sky `steps` weathers on from the last one asked for, or back where negative,
+        /// among the weathers the player's region rolls, and says where it went. From what the sky
+        /// shows now (`SkyCrossing::ask`), at the weather's own `Transition_Delta` and the clock's
+        /// speed, and at once where the clock is stopped. Nothing under a take's track, or where
+        /// the player stands under no region's sky.
+        void turnSkyBy(const Stop& stop, int steps);
 
         /// Puts the camera where the stop stands this frame, and points it where the stop asked.
         /// Every frame, because `omw/camera/camera.lua`'s `onActive` forces third person and a
@@ -59,8 +79,36 @@ namespace RtxTool
         /// Flies the player along `route` by one frame's worth of `step` seconds.
         void fly(const Route& route, float step);
 
-        /// Moves the sky one frame of `step` seconds along `through`.
+        /// Asks for the next weather of `through` where one frame of `step` seconds brings a turn's
+        /// time round.
         void turnWeather(const Stop& stop, float step);
+
+        /// Takes the sky for a stop that turns it, from the stop's first frame, and asks for the
+        /// turn's first weather.
+        void beginTurn(const Stop& stop);
+
+        /// Asks the taken sky for `weather`, which a turn names by its content-file spelling.
+        void askTurn(const std::string& weather);
+
+        /// Moves the taken sky on by one frame of `seconds` and hands it to the world, where it is
+        /// taken.
+        void crossSky(const Stop& stop, float seconds);
+
+        /// Hands the world the sky whole for this frame (`MWBase::World::holdWeather`), as
+        /// `SkyCrossing` numbers its weathers.
+        static void holdSky(std::uint32_t weather, std::uint32_t next, float crossed);
+
+        /// The sky this holds, taken from the world where it holds none yet.
+        SkyCrossing& takeSky();
+
+        /// What the world's sky is doing now.
+        static SkyCrossing skyOfTheWorld();
+
+        /// How much of a crossing into `weather` the world runs a second, at the game's own clock.
+        static float transitionDeltaOf(std::uint32_t weather);
+
+        /// The chance `region` rolls `weather` at, in per cent, and nought where it names none.
+        static int chanceOf(const ESM::Region& region, std::uint32_t weather);
 
         /// Puts the player's body at `eye`, where a route or a track has the camera this frame.
         static void moveBodyTo(const osg::Vec3f& eye);
@@ -96,8 +144,15 @@ namespace RtxTool
 
         bool mArrived = false;
 
-        /// Which weather the turn is on, and how far into the transition to the next.
+        /// Which weather the turn is on, and how far into the time before it asks for the next.
         std::size_t mTurnedTo = 0;
         float mTurned = 0.0f;
+
+        /// The sky once a turn or a key took it, and nothing while it is the world's.
+        std::optional<SkyCrossing> mSky;
+
+        /// How much of a crossing the keys' last weather takes a second at the game's own clock:
+        /// its `Transition_Delta`, read once a press rather than once a frame.
+        float mDelta = 0.0f;
     };
 }

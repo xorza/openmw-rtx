@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -51,6 +52,42 @@ namespace RtxTool
         float mCrossed = 0.0f;
     };
 
+    /// A sky that runs on its own through a film, whatever the keys name: the clock at a rate, and
+    /// the weather turned through a list, round and round. What a time-lapse is flown under, where
+    /// the camera keeps its own pace through the keys and the sky keeps the film's. Either half
+    /// left out is the keys' own.
+    ///
+    /// **Counted in frames of the film and not of the take**, so a cut keeps the sky where it was:
+    /// the clock takes up where the take before left the world, and the turn where it left the
+    /// list.
+    struct SkyRun
+    {
+        /// Game hours one frame of film stands for, or nothing for the hours the keys name.
+        std::optional<double> mHoursPerFrame;
+
+        /// The weathers turned through, as `Rtx::weatherIndex` numbers them, or none for the
+        /// crossings the keys make.
+        std::vector<std::uint32_t> mWeathers;
+
+        /// Frames each weather stands before the crossing into the next, and frames the crossing
+        /// takes, one at least.
+        std::uint32_t mHoldFrames = 0;
+        std::uint32_t mCrossingFrames = 1;
+
+        /// The film's frame the take's first frame is.
+        std::uint32_t mFirstFrame = 0;
+
+        /// Writes the run's halves over `pose`, the take's `frame`th.
+        ///
+        /// **The clock of a take after the first leads it by a frame**: the world stands where the
+        /// last frame of the take before left it, which is a frame behind this take's first.
+        void pose(std::uint32_t frame, TrackPose& into) const;
+
+        /// The weather the turn stands at at the film's `frame`, or the pair it crosses between and
+        /// how far, into `into`'s sky.
+        void turnAt(std::uint32_t frame, TrackPose& into) const;
+    };
+
     /// The turn from `from` to `to`, in radians, the short way round: in [-π, π].
     float shortestTurn(float from, float to);
 
@@ -74,8 +111,9 @@ namespace RtxTool
     {
     public:
         /// `keys` in order of frame, at least one, strictly increasing: a contract, since the
-        /// planner that times a take is what numbers its frames.
-        explicit CameraTrack(std::span<const TrackKey> keys);
+        /// planner that times a take is what numbers its frames. `sky` is written over what the
+        /// keys say of the sky.
+        explicit CameraTrack(std::span<const TrackKey> keys, SkyRun sky = {});
 
         /// How many frames the take has: its last key's, and one.
         std::uint32_t getFrames() const;
@@ -101,5 +139,6 @@ namespace RtxTool
         };
 
         std::vector<Knot> mKnots;
+        SkyRun mSky;
     };
 }

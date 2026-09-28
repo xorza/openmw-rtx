@@ -73,8 +73,23 @@ namespace RtxTool
         /// Seconds of film a game hour takes, where two keys' hours differ.
         float mHourSeconds = 2.0f;
 
-        /// The least a crossing into another weather takes.
+        /// The least a crossing into another weather takes, and what each crossing of `mTurn`
+        /// takes.
         float mCrossingSeconds = 8.0f;
+
+        /// **The sky on its own rate, for a time-lapse the camera flies through.** The game
+        /// clock's speed over the whole film as a multiple of the game's own, `sGameTimeScale` —
+        /// the `×N` the clock keys set in a window — where the hours the keys name after the first
+        /// are left alone and set no segment's length; or nothing for the keys' hours.
+        std::optional<float> mClock;
+
+        /// The weathers the sky turns through over the whole film, round and round, as
+        /// `Rtx::weatherIndex` numbers them, where the weathers the keys name are left alone and
+        /// set no segment's length; or none for the keys' weathers.
+        std::vector<std::uint32_t> mTurn;
+
+        /// How long each weather of `mTurn` stands before the crossing into the next.
+        float mWeatherHold = 4.0f;
 
         /// How long a key that nothing leads to or from stands, and a segment where nothing changes.
         float mStillSeconds = 4.0f;
@@ -100,6 +115,10 @@ namespace RtxTool
         /// Frames a second, which is what a person reads and what the encoder is told.
         float getRate() const { return 1.0f / mStep; }
     };
+
+    /// Game hours a second of a clock running at `clock` times the game's own speed,
+    /// `sGameTimeScale`: `FilmPacing::mClock`'s rate.
+    double clockHoursPerSecond(float clock);
 
     /// Which of a segment's changes set its length.
     enum class FilmPace
@@ -159,6 +178,9 @@ namespace RtxTool
 
         /// The number of the take's first frame in the film.
         std::uint32_t mFirstFrame = 0;
+
+        /// What the pacing's own sky writes over the keys', from `mFirstFrame` on.
+        SkyRun mSky;
 
         std::uint32_t getFrames() const { return mTrack.back().mFrame + 1; }
     };

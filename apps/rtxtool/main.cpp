@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -34,6 +35,7 @@
 #include <components/rtx/reconstruction.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/shaderdirectory.hpp>
+#include <components/rtx/skylight.hpp>
 #include <components/rtx/surfaceview.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -906,14 +908,26 @@ namespace RtxTool
             pacing.mFieldOfView = framed.mWindow.mFieldOfView;
             pacing.mAspect = static_cast<float>(framed.mWindow.mWidth) / static_cast<float>(framed.mWindow.mHeight);
             pacing.mDay = framed.mDay;
+            pacing.mWeatherHold = variables["weather-hold"].as<float>();
+            if (variables.count("clock") > 0)
+            {
+                pacing.mClock = variables["clock"].as<float>();
+                if (!(*pacing.mClock >= 0.0f) || !std::isfinite(*pacing.mClock))
+                    throw std::runtime_error(std::format("--clock is {}, which is no speed", *pacing.mClock));
+            }
+            for (const std::string& weather : splitNames(variables["turn-weather"].as<std::string>()))
+            {
+                refuseUnlessWeather("turn-weather", weather);
+                pacing.mTurn.push_back(*Rtx::weatherIndex(weather));
+            }
 
             for (const auto& [name, value] : { std::pair{ "speed", pacing.mSpeed },
                      std::pair{ "pan-seconds", pacing.mPanSeconds }, std::pair{ "hour-seconds", pacing.mHourSeconds },
                      std::pair{ "crossing", pacing.mCrossingSeconds }, std::pair{ "still", pacing.mStillSeconds } })
                 if (!(value > 0.0f))
                     throw std::runtime_error(std::format("--{} is {}, which is not more than nought", name, value));
-            if (!(pacing.mCutDistance >= 0.0f) || !(pacing.mWarmupSeconds >= 0.0f))
-                throw std::runtime_error("--cut-distance and --warmup cannot be less than nought");
+            if (!(pacing.mCutDistance >= 0.0f) || !(pacing.mWarmupSeconds >= 0.0f) || !(pacing.mWeatherHold >= 0.0f))
+                throw std::runtime_error("--cut-distance, --warmup and --weather-hold cannot be less than nought");
 
             const FilmPlan plan = planFilm(loadKeys(keys), pacing);
             out() << describePlan(plan) << std::flush;

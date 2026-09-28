@@ -41,11 +41,11 @@ namespace RtxTool
         /// interface's `ui` among them, which a menu sets — and the game's own reasons beside them.
         static std::string describePause();
 
+    private:
         /// Puts the sky under the weather called `name` over the player's region, as `changeweather`
         /// would, and warns for a name that is none of the ten.
         static void setWeather(MWBase::World& world, std::string_view name);
 
-    private:
         /// Gives the player every attribute and skill at 255, a Speed of 2000, level 255 and a
         /// million gold, through the calls the console's `setspeed`, `setlevel` and `additem` make.
         /// A body walking at Morrowind's pace crosses a cell in a minute.

@@ -102,6 +102,7 @@ set(RTX_TEST_FILES
     rtxtool/options.cpp
     rtxtool/run.cpp
     rtxtool/scenedigest.cpp
+    rtxtool/skycrossing.cpp
     sky/skyclock.cpp
     sky/sundisc.cpp
 )

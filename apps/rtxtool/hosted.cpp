@@ -85,12 +85,7 @@ namespace RtxTool
 
         const unsigned int seed = request.mRandomSeed;
 
-        // **The crossings a turn makes are the world's to run, off the fallback map it is made
-        // from** — so the map is written here, before the request is given up and before there is
-        // an engine to read it.
-        Fallback::FallbackMap fallback = variables["fallback"].as<Fallback::FallbackMap>();
-        for (const Stop& stop : request.mStops)
-            setTurnCrossings(stop.mSky.mTurnThrough, fallback.mMap);
+        const Fallback::FallbackMap fallback = variables["fallback"].as<Fallback::FallbackMap>();
 
         // **Built before the engine and read after it.** A run that ends its last stop and a window
         // somebody closes both have to be reported, and only the first ever reaches `finish` — so

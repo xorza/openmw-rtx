@@ -159,5 +159,65 @@ namespace RtxTool
             EXPECT_EQ(end.mWeather, 5u);
             EXPECT_EQ(end.mNextWeather, 5u);
         }
+
+        /// **A sky run writes the clock and the weather over the keys', counted in frames of the film,
+        /// and leaves the camera alone.** Half an hour a frame; Cloudy, Rain and Snow, each standing
+        /// two frames and crossing in four, so a period is six.
+        ///
+        /// By hand: frame 4 is 2 hours on, and four into the first period, two into the crossing of
+        /// Cloudy into Rain: `smoothstep(2 / 4) = 0.5`. Frame 6 stands at Rain. Frame 17 is five
+        /// into the third period, Snow crossing back round into Cloudy at `smoothstep(3 / 4)`,
+        /// `0.5625 × 1.5 = 0.84375`. The eye halfway between two keys is still halfway. A take whose
+        /// first frame is the film's tenth leads its clock by a frame, half an hour, and stands where
+        /// the film's tenth does in the turn: four into the second period, Rain into Snow at a half.
+        TEST(RtxCameraTrackTest, aSkyRunWritesTheClockAndTheWeatherOverTheKeys)
+        {
+            constexpr std::uint32_t cloudy = 1;
+            constexpr std::uint32_t rain = 4;
+            constexpr std::uint32_t snow = 8;
+            const std::vector<TrackKey> keys{ keyAt(0, 0.0f, 0.0f, 12.0f, 0), keyAt(10, 100.0f, 0.0f, 18.0f, rain) };
+            const SkyRun run{
+                .mHoursPerFrame = 0.5, .mWeathers = { cloudy, rain, snow }, .mHoldFrames = 2, .mCrossingFrames = 4
+            };
+            const CameraTrack track(keys, run);
+
+            const TrackPose first = track.pose(0);
+            EXPECT_EQ(first.mHoursOn, 0.0);
+            EXPECT_EQ(first.mWeather, cloudy);
+            EXPECT_EQ(first.mNextWeather, cloudy);
+            EXPECT_EQ(first.mCrossed, 0.0f);
+
+            const TrackPose crossing = track.pose(4);
+            EXPECT_EQ(crossing.mHoursOn, 2.0);
+            EXPECT_EQ(crossing.mWeather, cloudy);
+            EXPECT_EQ(crossing.mNextWeather, rain);
+            EXPECT_FLOAT_EQ(crossing.mCrossed, 0.5f);
+            EXPECT_NE(CameraTrack(keys).pose(4).mHoursOn, crossing.mHoursOn) << "the run changed no hour";
+
+            EXPECT_EQ(track.pose(6).mWeather, rain);
+            EXPECT_EQ(track.pose(6).mNextWeather, rain);
+
+            const TrackPose round = track.pose(17);
+            EXPECT_EQ(round.mWeather, snow);
+            EXPECT_EQ(round.mNextWeather, cloudy);
+            EXPECT_FLOAT_EQ(round.mCrossed, 0.84375f);
+
+            EXPECT_FLOAT_EQ(track.pose(5).mEye.x(), 50.0f);
+            EXPECT_EQ(track.pose(5).mEye, CameraTrack(keys).pose(5).mEye);
+
+            SkyRun later = run;
+            later.mFirstFrame = 10;
+            const TrackPose cut = CameraTrack(keys, later).pose(0);
+            EXPECT_EQ(cut.mHoursOn, 0.5);
+            EXPECT_EQ(cut.mWeather, rain);
+            EXPECT_EQ(cut.mNextWeather, snow);
+            EXPECT_FLOAT_EQ(cut.mCrossed, 0.5f);
+
+            // Half a run is the keys' other half: the clock alone leaves the keys' weathers.
+            const CameraTrack clockOnly(keys, SkyRun{ .mHoursPerFrame = 0.5 });
+            EXPECT_EQ(clockOnly.pose(5).mWeather, 0u);
+            EXPECT_EQ(clockOnly.pose(5).mNextWeather, rain);
+            EXPECT_EQ(clockOnly.pose(5).mHoursOn, 2.5);
+        }
     }
 }

@@ -1,5 +1,6 @@
--- What the keys turn: the weather over the player, the game's clock, and the hour. A global
--- script, because only one may write the world. Every answer goes back to the player as `RtxSay`.
+-- What the keys turn: the game's clock and the hour. A global script, because only one may write
+-- the world. Every answer goes back to the player as `RtxSay`. The weather is the harness's own
+-- (`RtxTool::SkyKeys`), because what it crosses is a sky no script can reach.
 local core = require('openmw.core')
 local world = require('openmw.world')
 
@@ -7,73 +8,10 @@ local function say(player, text)
     player:sendEvent('RtxSay', text)
 end
 
--- The weathers the region rolls at all, in record order: the ones with a chance above nought.
-local function weathersOf(regionId)
-    local chances = core.regions.records[regionId].weatherProbabilities
-    local allowed = {}
-    for _, weather in ipairs(core.weather.records) do
-        local chance = chances[weather.recordId]
-        if chance and chance > 0 then
-            table.insert(allowed, { weather = weather, chance = chance })
-        end
-    end
-    return allowed
-end
-
--- The id of the weather the last press asked for, which the walk steps from. The engine keeps
--- only the weather arriving and one queued behind it, and a press during a transition replaces
--- the queued one, so what it reports never says how far the walk got: stepping from its answer
--- stalled on the second weather for as long as the first took to arrive.
-local asked = nil
-
--- `steps` weathers on from the one asked for, or back where negative.
-local function turnWeather(player, steps)
-    local cell = player.cell
-    local regionId = cell.region
-    if not regionId then
-        say(player, 'no sky here')
-        return
-    end
-
-    local allowed = weathersOf(regionId)
-    if #allowed == 0 then
-        say(player, 'the region rolls no weather')
-        return
-    end
-
-    -- Stepped from the last asked, or from the current where none was — and where neither is one
-    -- the region rolls, which a save or the console can leave it as, from before the first going
-    -- on and from after the last going back, so the first press lands on an end of the list.
-    local current = core.weather.getCurrent(cell)
-    local from = asked or (current and current.recordId)
-    local at = steps > 0 and 0 or #allowed + 1
-    for index, entry in ipairs(allowed) do
-        if entry.weather.recordId == from then
-            at = index
-        end
-    end
-    local index = (at - 1 + steps) % #allowed + 1
-    local chosen = allowed[index]
-    asked = chosen.weather.recordId
-
-    -- A change is a transition, as the console's `changeweather` is: 1 / Transition_Delta seconds
-    -- of the simulation's clock, which the game clock's speed does not touch — a minute for most,
-    -- half that for a storm — and a press during one queues behind the weather arriving. The
-    -- message below lands on the HUD, which a window has only under `--hud`; the window's title
-    -- says which weather is crossing in and how far, whatever the HUD does.
-    local arriving = core.weather.getNext(cell)
-    local how = 'arriving'
-    if arriving and arriving.recordId ~= chosen.weather.recordId then
-        how = 'queued after ' .. arriving.name
-    end
-
-    core.weather.changeWeather(regionId, chosen.weather)
-    say(player, string.format('%s %s, %d of %d, %d%%', chosen.weather.name, how, index, #allowed, chosen.chance))
-end
-
 -- The game's default `timescale`, which the clock keys halve and double: ×1 is the game's own
--- day. Bounded at ×1/8, below which the sky stands still to the eye, and ×1024, at which a day
--- passes in under three seconds and the sun is a streak.
+-- day, and a crossing of the sky runs at the game's own speed there (`RtxTool::sGameTimeScale`).
+-- Bounded at ×1/8, below which the sky stands still to the eye, and ×1024, at which a day passes
+-- in under three seconds and the sun is a streak.
 local baseScale = 30
 local slowest, fastest = -3, 10
 
@@ -152,9 +90,6 @@ end
 
 return {
     eventHandlers = {
-        RtxTurnWeather = function(data)
-            turnWeather(data.player, data.steps)
-        end,
         RtxPauseClock = function(data)
             pauseClock(data.player)
         end,

@@ -235,15 +235,18 @@ namespace RtxTool
                 listWeathers())
                 .c_str());
 
-        option(Verbs::Bench, "turn-weather", bpo::value<std::string>()->default_value(""),
-            std::format("turn the sky through these weathers while each place runs, comma separated and round again — "
-                        "--turn-weather=Rain,Foggy. Each crossing takes {} "
+        option(Verbs::Bench | Verbs::Film, "turn-weather", bpo::value<std::string>()->default_value(""),
+            std::format("turn the sky through these weathers, comma separated and round again — "
+                        "--turn-weather=Rain,Foggy. Under `bench`, while each place runs: each crossing takes {} "
                         "seconds of world in place of the weather's own Transition_Delta, a minute for most, "
                         "and the next is asked for as one lands, so the precipitation of the one arriving "
                         "replaces the one leaving halfway through every crossing. **A run under it is not a "
                         "benchmark**: no two places stand under the same sky. It is here because a weather "
                         "turning frees a whole emitter's meshes and textures on an ordinary frame, which is "
-                        "the one thing the game does constantly that no other path in this tool could do",
+                        "the one thing the game does constantly that no other path in this tool could do. "
+                        "Under `film`, over the whole film whatever the keys name: each weather stands for "
+                        "--weather-hold and crosses into the next in --crossing, while the camera flies the "
+                        "keys at its own pace",
                 sTurnSeconds));
 
         option(sOneSky, "hour", bpo::value<float>()->default_value(sDefaultHour),
@@ -446,7 +449,17 @@ namespace RtxTool
             "The clock runs forward only, so a key at an earlier hour is reached the next day");
         option(Verbs::Film, "crossing", bpo::value<float>()->default_value(pacing.mCrossingSeconds),
             "the least a crossing into another weather takes. The sky crosses over the whole of the "
-            "segment between two keys whatever it takes");
+            "segment between two keys whatever it takes; under --turn-weather, each crossing takes this");
+        option(Verbs::Film, "clock", bpo::value<float>(),
+            std::format("run the game clock at this many times the game's own speed over the whole film — the ×N "
+                        "the clock keys set in a window, so --clock=512 is {:.2f} game hours a second — whatever "
+                        "hours the keys after the first name: a time-lapse the camera flies through at its own "
+                        "pace, across cuts. The keys' hours then set no segment's length, and --clock=0 holds the "
+                        "first key's hour",
+                clockHoursPerSecond(512.0f))
+                .c_str());
+        option(Verbs::Film, "weather-hold", bpo::value<float>()->default_value(pacing.mWeatherHold),
+            "how long each weather of --turn-weather stands before it crosses into the next");
         option(Verbs::Film, "still", bpo::value<float>()->default_value(pacing.mStillSeconds),
             "how long a key with no key either side of it stands, and a segment where nothing changes");
         option(Verbs::Film, "cut-distance", bpo::value<float>()->default_value(pacing.mCutDistance),
