@@ -119,6 +119,11 @@ namespace Rtx
             openZone(timer, commands, "exposure");
             if (const auto* fixed = std::get_if<FrameLook::Fixed>(&look->mExposure); fixed != nullptr)
                 mExposure.recordFixed(commands, fixed->mValue);
+            else if (std::holds_alternative<FrameLook::Held>(look->mExposure))
+            {
+                // Nothing recorded: the buffer holds what the last write left, and the head barrier
+                // `CommandPool::begin` records orders this frame's curve after it.
+            }
             else
             {
                 const FrameLook::Measured& measured = std::get<FrameLook::Measured>(look->mExposure);

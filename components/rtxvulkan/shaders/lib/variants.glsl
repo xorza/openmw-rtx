@@ -62,14 +62,6 @@ layout(constant_id = 2) const bool HAS_MOONS = true;
 /// under. False takes the waves, the caustics and the whole underwater column out of a room.
 layout(constant_id = 3) const bool HAS_SEA = true;
 
-/// Whether the launch sorts its threads by what they hit before the hit's shader runs —
-/// `reorderThreadEXT` between the trace and the execute — and by what: `REORDER_NONE`,
-/// `REORDER_SHADER` on the shader the hit names alone, `REORDER_TEXTURE` with the low bits of the
-/// hit material's diffuse texture slot as the hint, for the data the shader is about to read. A
-/// run's decision and not a frame's, so a constant: `RenderProfile::mReorder`, and the bench is
-/// what sets it.
-layout(constant_id = 4) const uint REORDER = REORDER_NONE;
-
 /// Whether this frame's scene places a material with a normal map or a specular map. False takes
 /// the tangent fetch, the maps' reads and the whole specular half out of a scene that has none —
 /// every vanilla scene.
@@ -79,7 +71,7 @@ layout(constant_id = 4) const uint REORDER = REORDER_NONE;
 /// driver compiled the Lambert arithmetic around it even where not one hit ran it: every vanilla view
 /// traced a different frame by a rounding. Specialized out, the kernel a vanilla scene runs is the
 /// one it ran before the maps existed.
-layout(constant_id = 5) const bool HAS_MAPS = true;
+layout(constant_id = 4) const bool HAS_MAPS = true;
 
 // Constants six and seven are the hit module's own — `visibilityhit.rchit` — and stand after these
 // so that one table of words serves every stage of a pipeline.

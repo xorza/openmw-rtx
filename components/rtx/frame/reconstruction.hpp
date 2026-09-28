@@ -48,28 +48,6 @@ namespace Rtx
         std::pair{ NoiseSource::WhiteHash, std::string_view("white-hash") },
     } };
 
-    /// Whether the launch sorts its threads by what they hit before the shader the hit names
-    /// runs, and by what. A run's decision and not a frame's — `lib/variants.glsl` `REORDER` is
-    /// the constant it becomes — and off until the bench says a hint pays.
-    enum class Reorder
-    {
-        None,
-
-        /// By the shader the hit names alone, which is the key the driver sorts on with no hint.
-        Shader,
-
-        /// By the shader and the low bits of the hit material's diffuse texture, for the sheet the
-        /// shader is about to read.
-        Texture,
-    };
-
-    /// How a `Reorder` is spelled on a command line and in a report.
-    inline constexpr NamedEnum sReorderNames{ std::array{
-        std::pair{ Reorder::None, std::string_view("none") },
-        std::pair{ Reorder::Shader, std::string_view("shader") },
-        std::pair{ Reorder::Texture, std::string_view("texture") },
-    } };
-
     /// What the upscaler is built with, decided once per set of targets: whether one runs, and at
     /// what quality.
     struct Upscaling
@@ -192,11 +170,16 @@ namespace Rtx
         Summed,
     };
 
-    /// What a frame is scaled by before the display curve: a fixed scale, or nothing to measure it
-    /// off the frame.
+    /// What a frame is scaled by before the display curve: a fixed scale, the scale the frame
+    /// before ended on, or neither to measure it off the frame.
     struct ExposureRule
     {
         std::optional<float> mFixed;
+
+        /// Keep what the frame before ended on, measuring nothing and resetting nothing: the frames a
+        /// harness compares with a reference hold the exposure the reference measured, so the two
+        /// are mapped by one curve and the scale is derived rather than stated. Not with `mFixed`.
+        bool mHeld = false;
     };
 
     /// Everything a run decides once about how the picture is made, in one bag for both hosts,
@@ -253,7 +236,5 @@ namespace Rtx
         /// whether a run sums its frames or shows them. The reference's width unless a run says
         /// it only shows its frames, so that a run that forgot to say is exact rather than fast.
         RadianceWidth mRadianceWidth = RadianceWidth::Summed;
-
-        Reorder mReorder = Reorder::None;
     };
 }

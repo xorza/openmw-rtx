@@ -107,6 +107,13 @@ namespace MWRender
         /// stop is not averaging. `RtxTool::Schedule::mAccumulate` says what that is for.
         virtual std::uint32_t getAccumulated() const = 0;
 
+        /// What the frame asks of the reconstruction and of the exposure in place of the profile's,
+        /// or nothing for the profile's — `Rtx::FrameOptions` says why the two are carried per
+        /// frame. A reference traces unfiltered and jittered, and the frames compared with it hold
+        /// the exposure it measured, so a picture and its reference come off one renderer.
+        virtual std::optional<Rtx::ReconstructionRequest> getReconstruction() const = 0;
+        virtual std::optional<Rtx::ExposureRule> getExposure() const = 0;
+
         /// Whether the stop wants the graph walked a second time, so it can report what that added.
         virtual bool wantsSecondWalk() const = 0;
 
@@ -142,6 +149,8 @@ namespace MWRender
     public:
         std::optional<std::uint32_t> getSampleFrame() const override { return std::nullopt; }
         std::uint32_t getAccumulated() const override { return 0; }
+        std::optional<Rtx::ReconstructionRequest> getReconstruction() const override { return std::nullopt; }
+        std::optional<Rtx::ExposureRule> getExposure() const override { return std::nullopt; }
         bool wantsSecondWalk() const override { return false; }
         bool wantsFrameCopy() const override { return false; }
         std::optional<Rtx::AirClock> getHeldAir() const override { return std::nullopt; }

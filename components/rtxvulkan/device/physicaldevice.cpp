@@ -329,7 +329,6 @@ namespace Rtx
             out << mProfile.mTimestampBits << " bits at " << base.limits.timestampPeriod << " ns a tick\n";
 
         const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& pipeline = mProperties->mRayTracingPipeline;
-        const VkPhysicalDeviceRayTracingInvocationReorderPropertiesEXT& reorder = mProperties->mInvocationReorder;
 
         out << "\nray tracing\n"
             << "  max geometry count:           " << as.maxGeometryCount << '\n'
@@ -337,12 +336,7 @@ namespace Rtx
             << "  max primitive count:          " << as.maxPrimitiveCount << '\n'
             << "  shader group handle:          " << pipeline.shaderGroupHandleSize << " bytes, aligned "
             << pipeline.shaderGroupHandleAlignment << ", based " << pipeline.shaderGroupBaseAlignment << '\n'
-            << "  max ray dispatch:             " << pipeline.maxRayDispatchInvocationCount
-            << '\n'
-            // What a hit object may name. The field arrived with the extension's revision 2, so
-            // a driver at revision 1 leaves it as it found it — printed rather than asserted against
-            // for that reason.
-            << "  max record index:             " << reorder.maxShaderBindingTableRecordIndex << '\n';
+            << "  max ray dispatch:             " << pipeline.maxRayDispatchInvocationCount << '\n';
 
         out << "\noptional extensions present\n";
         if (mProfile.mOptionalExtensions.empty())

@@ -2,16 +2,15 @@
 
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_ray_tracing : require
-#extension GL_EXT_shader_invocation_reorder : require
 
 // The frame, composed. One ray per pixel against the top-level structure; what a pixel *shows* is
 // answered by whichever shader the hit table names, and this is the order those answers are put
 // together in — the water under the air, the puffs left in a layer of their own, and each of the
 // G-buffer channels given what its reader was promised.
 //
-// **The traversal and the shading are two programs.** The launch traces a hit object and then runs
-// the shader that object names, which traversal picked off the instance's own shader-table offset;
-// what comes back is a payload rather than a `Surface`. So this shader holds no lamp reservoir, no
+// **The traversal and the shading are two programs.** The launch traces a ray and traversal runs
+// the shader the instance's own shader-table offset names; what comes back is a payload rather
+// than a `Surface`. So this shader holds no lamp reservoir, no
 // bounce, no layer stack and no sky — each of those is in the shader that needs it, carrying its own
 // registers. `lib/payload.glsl` is what crosses.
 //
@@ -41,11 +40,6 @@
 #include "lib/water.glsl"
 
 layout(location = RTX_PAYLOAD) rayPayloadEXT VisibilityPayload packed;
-
-/// What crosses traversal, which is nothing anything reads. `RTX_TRAVERSAL_PAYLOAD` says why it
-/// exists at all: the any-hit shader a traversal reaches wants a smaller payload than the shader
-/// the execute runs, and this is how small.
-layout(location = RTX_TRAVERSAL_PAYLOAD) rayPayloadEXT uint traversed;
 
 /// What the media in front of a point along the ray scattered in, and what they let through.
 struct MediumAhead
@@ -119,66 +113,21 @@ vec3 stackOver(PaneStack stack, vec3 behind)
     return stack.mRadiance + stack.mThrough * max(behind - stack.mScattered, vec3(0.0));
 }
 
-/// Traces one ray and runs the shader the hit names.
-///
-/// **A macro because a `hitObjectEXT` may not cross a function boundary**, which is the same
-/// restriction `RTX_RESOLVE` is written around for `rayQueryEXT`.
-///
-/// **Two payloads, because the two calls invoke different shaders.** Traversal reaches the any-hit
-/// shader, which tests a cutout and reads nothing; the execute reaches a closest-hit or the miss
-/// shader, which fills in the whole of what the frame's tail needs. The whitepaper names this
-/// exactly — an any-hit wants a smaller payload than a closest-hit, and giving it the larger one is
-/// register pressure paid for fields the invoked shader never touches.
-///
-/// **One call reached by every invocation.** A miss is a hit object like any other, so the sky's
-/// shader runs through the same execute as the solids'.
+/// Traces one ray, runs the shader the hit or the miss names, and answers what it said.
 ///
 /// **Drawn, so back faces culled** — `facingFor`. Culling nothing, the peel walked through the far
 /// wall of a ghost's robe as well as the near one and composited its alpha twice.
 ///
-/// @param object filled in with what the ray found, and left readable: the launch takes the ray
-///        and the distance back off it rather than carrying them.
 /// @param arms,layer which eye the ray is cast through, one for the arms' and nought for the
 ///        world's, and the layer of the peel it is for. A hit lands on `hitRecordOffset` of the two
 ///        in its kind's block, added to the instance's shader-table offset; `HitRecord` in
-///        `visibility.h` says why the two travel that way and not in the payload. A miss lands on
-///        the sky's one record, which only the world's eye is ever shaded through.
-#define RTX_TRACE(object, from, tmin, along, mask, arms, layer)                                             \
-    hitObjectTraceRayEXT(object, sceneTop, facingFor(true), (mask), hitRecordOffset((arms), (layer)), 0u,   \
-        MISS_RECORD_SKY, (from), (tmin), (along), frame.mFar, RTX_TRAVERSAL_PAYLOAD);
-
-/// Runs the shader the hit object names, sorted first where the build asked.
-///
-/// **The one place the launch's threads may be reordered, and why it is a constant.** Between
-/// the trace and the execute the hit object says which shader each thread is about to run, and
-/// `reorderThreadEXT` groups the threads that agree so a warp runs one shader rather than three
-/// — the shader index is the key the driver sorts on with no hint at all. What crosses it is
-/// the payload the execute fills afterwards, so nothing is written into it before this; the
-/// driver note in `visibility.h` is what that keeps out. `REORDER` is `RenderProfile::mReorder`.
-#define RTX_SHADE(object)                                                                                   \
-    {                                                                                                       \
-        if (REORDER == REORDER_SHADER)                                                                      \
-            reorderThreadEXT(object);                                                                       \
-        else if (REORDER == REORDER_TEXTURE)                                                                \
-            reorderThreadEXT(object, textureHintOf(object), 8);                                             \
-        hitObjectExecuteShaderEXT(object, RTX_PAYLOAD);                                                     \
-    }
-
-#define RTX_TRACE_AND_SHADE(object, from, tmin, along, mask, arms, layer)                                   \
-    {                                                                                                       \
-        RTX_TRACE(object, from, tmin, along, mask, arms, layer)                                             \
-        RTX_SHADE(object)                                                                                   \
-    }
-
-/// The low eight bits of the diffuse texture slot the hit's material names, as a coherence hint:
-/// two dependent loads the hit shader makes again, spent here so that a warp reads one sheet.
-/// Nought for a miss, which names no material; every hit names one, the neutral slot included.
-uint textureHintOf(hitObjectEXT object)
+///        `visibility.h` says why the two travel that way and not in the payload.
+/// @param miss `MISS_RECORD_SKY` for the world's eye and `MISS_RECORD_UNSHADED` for the arms'.
+Answer answerAlong(vec3 from, float tmin, vec3 along, uint mask, uint arms, uint layer, uint miss)
 {
-    if (!hitObjectIsHitEXT(object))
-        return 0u;
-
-    return materialAt(instanceAt(uint(hitObjectGetInstanceCustomIndexEXT(object))).mMaterial).mDiffuse & 0xFFu;
+    traceRayEXT(sceneTop, facingFor(true), mask, hitRecordOffset(arms, layer), 0u, miss, from, tmin, along,
+        frame.mFar, RTX_PAYLOAD);
+    return unpackAnswer(packed);
 }
 
 void main()
@@ -189,33 +138,35 @@ void main()
     const uvec2 pixel = gl_LaunchIDEXT.xy;
 
     // **Traversal picks the shader and this shader never asks what it hit.** The instance carries
-    // its material's kind as its shader-table offset, so the hit object comes back naming one of the
-    // closest-hit records or the sky's miss record.
-    //
-    // **The ray is built into the call and not kept.** The same rays the wavelet rebuilds come from
-    // the same `rayAt`, and the hit object hands them back below.
+    // its material's kind as its shader-table offset, so the trace runs one of the closest-hit
+    // records or a miss record. The same rays the wavelet rebuilds come from the same `rayAt`.
     //
     // **The arms first, through their own eye, and the world only where they are not.** The
     // rasterizer draws the player's arms under a projection of their own field of view and clears
     // the depth under them, so they stand in front of everything — a decision about what the
-    // picture is, which `worldMask` says the world's ray keeps out of. The arms' ray is traced and
-    // not shaded until it is known to have hit, so a pixel beside the arms pays one traversal on
-    // a mask a handful of instances carry and no second shading of the sky.
-    hitObjectEXT found;
+    // picture is, which `worldMask` says the world's ray keeps out of. A miss of the arms' ray runs
+    // the unshaded record, so a pixel beside the arms pays one traversal on a mask a handful of
+    // instances carry and no second shading of the sky.
     bool arms = false;
+    vec3 origin;
+    vec3 direction;
+    Answer answer;
     if (frame.mArmsInFrame != 0u)
     {
         const Ray ray = rayAt(frame.mArms, vec2(pixel));
-        RTX_TRACE(found, frame.mOrigin + ray.mOffset, 0.0, ray.mDirection, frame.mRayMask & MASK_FIRST_PERSON, 1u, 0u)
-        arms = hitObjectIsHitEXT(found);
+        origin = frame.mOrigin + ray.mOffset;
+        direction = ray.mDirection;
+        answer = answerAlong(
+            origin, 0.0, direction, frame.mRayMask & MASK_FIRST_PERSON, 1u, 0u, MISS_RECORD_UNSHADED);
+        arms = answer.mHit;
     }
     if (!arms)
     {
         const Ray ray = rayAt(frame.mCamera, vec2(pixel));
-        RTX_TRACE(found, frame.mOrigin + ray.mOffset, 0.0, ray.mDirection, worldMask(frame.mRayMask), 0u, 0u)
+        origin = frame.mOrigin + ray.mOffset;
+        direction = ray.mDirection;
+        answer = answerAlong(origin, 0.0, direction, worldMask(frame.mRayMask), 0u, 0u, MISS_RECORD_SKY);
     }
-    RTX_SHADE(found)
-    Answer answer = unpackAnswer(packed);
 
     // Which layer of the peel the next trace is for — one budget for the pixel, whichever eye
     // spends it: `HitRecord::mLayer`.
@@ -240,52 +191,39 @@ void main()
 
     if (arms && answer.mPane)
     {
-        const vec3 from = hitObjectGetWorldRayOriginEXT(found);
-        const vec3 along = hitObjectGetWorldRayDirectionEXT(found);
         const Cone armsCone = coneAt(frame.mArms);
-        const bool armsSubmerged = waterOver(from) > 0.0;
+        const bool armsSubmerged = waterOver(origin) > 0.0;
 
         bool behind = false;
         for (; layer < PEEL_LAYERS && answer.mPane; ++layer)
         {
-            const float distance = hitObjectGetRayTMaxEXT(found);
-            const MediumAhead ahead = mediumAhead(pixel, WorldRay(from, along), distance, distance,
+            const float distance = answer.mDistance;
+            const MediumAhead ahead = mediumAhead(pixel, WorldRay(origin, direction), distance, distance,
                 armsCone.mWidth + armsCone.mSpread * distance, armsSubmerged);
 
             stackLayer(armsStack, ahead, answer);
 
-            // Traced and not shaded until it hits, as the arms' first ray is: a miss here is the
-            // world's to answer, through the world's eye.
-            RTX_TRACE(found, from, min(distance + SHADOW_BIAS, frame.mFar), along, frame.mRayMask & MASK_FIRST_PERSON,
-                1u, layer + 1u)
-            if (!hitObjectIsHitEXT(found))
+            // Unshaded where it misses, as the arms' first ray is: a miss here is the world's to
+            // answer, through the world's eye.
+            answer = answerAlong(origin, min(distance + SHADOW_BIAS, frame.mFar), direction,
+                frame.mRayMask & MASK_FIRST_PERSON, 1u, layer + 1u, MISS_RECORD_UNSHADED);
+            if (!answer.mHit)
             {
                 behind = true;
                 ++layer;
                 break;
             }
-            RTX_SHADE(found)
-            answer = unpackAnswer(packed);
         }
 
         if (behind)
         {
             arms = false;
             const Ray ray = rayAt(frame.mCamera, vec2(pixel));
-            RTX_TRACE_AND_SHADE(found, frame.mOrigin + ray.mOffset, 0.0, ray.mDirection, worldMask(frame.mRayMask),
-                0u, layer)
-            answer = unpackAnswer(packed);
+            origin = frame.mOrigin + ray.mOffset;
+            direction = ray.mDirection;
+            answer = answerAlong(origin, 0.0, direction, worldMask(frame.mRayMask), 0u, layer, MISS_RECORD_SKY);
         }
     }
-
-    // **Read back rather than carried across.** The hit object holds the ray it was traced with, so
-    // asking it costs nothing where six floats of the launch's own would have been kept live across
-    // the execute.
-    vec3 origin = hitObjectGetWorldRayOriginEXT(found);
-    vec3 direction = hitObjectGetWorldRayDirectionEXT(found);
-
-    bool hit = hitObjectIsHitEXT(found);
-    float distance = hitObjectGetRayTMaxEXT(found);
 
     // **Made before the peel, because each layer of it is charged the medium in front of itself.**
     // Both are the eye's own and neither moves as the ray carries on past a layer: the cone is the
@@ -332,6 +270,7 @@ void main()
 
     for (; layer < PEEL_LAYERS && answer.mPane; ++layer)
     {
+        const float distance = answer.mDistance;
         const MediumAhead ahead = mediumAhead(
             pixel, WorldRay(origin, direction), distance, distance, cone.mWidth + cone.mSpread * distance, submerged);
 
@@ -343,20 +282,15 @@ void main()
         // **Held at the clip**, where a pane within the bias of it would start the ray past its own
         // end: a trace with its `tmin` over its `tmax` is undefined, and one with the two equal is
         // the miss the clip says it is.
-        RTX_TRACE_AND_SHADE(found, origin, min(distance + SHADOW_BIAS, frame.mFar), direction,
-            worldMask(frame.mRayMask), 0u, layer + 1u)
-        answer = unpackAnswer(packed);
-
-        origin = hitObjectGetWorldRayOriginEXT(found);
-        direction = hitObjectGetWorldRayDirectionEXT(found);
-
-        hit = hitObjectIsHitEXT(found);
-        distance = hitObjectGetRayTMaxEXT(found);
+        answer = answerAlong(origin, min(distance + SHADOW_BIAS, frame.mFar), direction, worldMask(frame.mRayMask),
+            0u, layer + 1u, MISS_RECORD_SKY);
     }
 
     // **The last shader's answer, unpacked once.** `answer` holds what the surface behind the
     // stack sent back, and everything below composes over it; the rest of it is read at the
     // stores, and nothing between here and there changes it.
+    const bool hit = answer.mHit;
+    const float distance = answer.mDistance;
     vec3 shaded = answer.mRadiance;
 
     // **What the surface is, kept apart from what the path did to it.** An albedo multiplied by
@@ -496,7 +430,7 @@ void main()
     // what the arms' share beside it is for.
     imageStore(backdrop, at, vec4(answer.mBackdropShown * transmittance, armsStack.mThrough));
 
-    // A miss is as far away as anything can be, and the hit object already carries `mFar` for it.
+    // A miss is as far away as anything can be, and the miss shader answered `mFar` for it.
     RTX_STORE_COUNTED(surfaceChannel, at, BOUNDARY_GUIDE,
         vec4(answer.mResponse.mNormal, distance, 0.0, 0.0))
 }

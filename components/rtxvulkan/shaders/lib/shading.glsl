@@ -526,9 +526,8 @@ vec3 bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel)
 
     // **An inline query inside the closest-hit shader, and not a second launch-side trace.** The
     // one ray Shader Execution Reordering's sources point at is this one, and sorting for it was
-    // measured before the trace was split: 20 percent slower out of doors and 30 in a room, because
-    // a bounce indoors is short and lands on the same few surfaces, so there is no coherence left to
-    // recover. `Requirements::mInvocationReorder` holds every reading since.
+    // measured: 20 percent slower out of doors and 30 in a room, because a bounce indoors is short
+    // and lands on the same few surfaces, so there is no coherence left to recover.
     // A diffuse bounce is not drawn: it carries light, and a surface it met from behind still
     // carries it.
     const Surface hit = trace(WorldRay(surface.mPosition, drawn.mTowards), SHADOW_BIAS,

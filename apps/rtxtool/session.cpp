@@ -111,6 +111,22 @@ namespace RtxTool
         return *measured + 1;
     }
 
+    std::optional<Rtx::ReconstructionRequest> Session::getReconstruction() const
+    {
+        if (mDone || !mStarted)
+            return std::nullopt;
+
+        return currentStop().mSchedule.mReconstruction;
+    }
+
+    std::optional<Rtx::ExposureRule> Session::getExposure() const
+    {
+        if (mDone || !mStarted)
+            return std::nullopt;
+
+        return currentStop().mSchedule.mExposure;
+    }
+
     bool Session::wantsSecondWalk() const
     {
         return !mDone && mStarted && currentStop().mActions.walksTwice();

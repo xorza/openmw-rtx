@@ -26,7 +26,7 @@ namespace Rtx
         /// @param counting `RendererOptions::mCounting`: whether the trace counts what its rays met.
         /// @param specialize `RenderProfile::mSpecializeLaunches`.
         TracePasses(const Device& device, const std::filesystem::path& shaders, const SetLayout& textureLayout,
-            bool counting, bool specialize, Reorder reorder);
+            bool counting, bool specialize);
 
         SetLayout mChannels;
         SetLayout mFog;

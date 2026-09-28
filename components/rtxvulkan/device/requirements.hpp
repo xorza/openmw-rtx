@@ -48,14 +48,6 @@ namespace Rtx
         /// query inside that shader.
         VkPhysicalDeviceRayTracingPipelineFeaturesKHR mRayTracingPipeline{};
 
-        /// Hit objects: what lets the launch trace a ray, hold what it found, and run the shader it
-        /// names as two calls. Nothing here asks the extension to sort, because sorting was measured
-        /// four ways and lost every one: a reorder point costs 17 to 23 per cent of the trace at
-        /// every place, as much with no key as with one, and the launch is already 89 to 100 per
-        /// cent coherent on the key before anyone sorts it — what diverges in a frame is the bounce,
-        /// the lamp reservoir and the cutout loop, none of which a key can name.
-        VkPhysicalDeviceRayTracingInvocationReorderFeaturesEXT mInvocationReorder{};
-
         /// What lets the driver be asked how it compiled a pipeline: registers a thread, spills,
         /// waves a multiprocessor. See `ComputePipeline`, which is where the answer is read.
         VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR mPipelineExecutable{};
@@ -86,9 +78,6 @@ namespace Rtx
         /// The shader group handle's size and the two alignments a shader binding table is laid out
         /// against. `TracePipeline` is what reads them.
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR mRayTracingPipeline{};
-
-        /// The largest record index a hit object may name, which `openmw-rtxtool info` prints.
-        VkPhysicalDeviceRayTracingInvocationReorderPropertiesEXT mInvocationReorder{};
 
         /// The device's heaps and memory types, read once for the device that is chosen: the memory
         /// report names every heap in each report it makes (`Memory::report`).

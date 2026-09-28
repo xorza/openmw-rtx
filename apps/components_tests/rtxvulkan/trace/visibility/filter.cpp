@@ -378,7 +378,7 @@ namespace Rtx::Testing
         /// Two skies a factor of thirty-two apart and nothing else in the picture, so the histogram
         /// is the only thing that changed. Every case is claimed: told it has no past, the eye
         /// arrives at once; told it has one, it has barely moved a frame later; told no time passed,
-        /// it has not moved at all.
+        /// it has not moved at all; held, it has not moved whatever it was told.
         ///
         /// **Driven frame by frame rather than through `shoot`**, because that helper calls
         /// `setScene` every time and a new scene clears the previous camera — which is a reset, and
@@ -445,6 +445,19 @@ namespace Rtx::Testing
             EXPECT_GT(adapted, 0.0) << "the dark sky rendered as black even with the eye open";
             EXPECT_LT(justAfter, 0.5 * adapted)
                 << "the exposure arrived in one frame: " << justAfter << " against " << adapted;
+
+            // **Held, the eye stays where the frame before left it, reset or not**: the dim sky told
+            // it has no past draws exactly what the adapted frame drew, and the bright sky under the
+            // dim eye comes out brighter than it did under its own.
+            const auto held = [&](const Shaders::VisibilityConstants& camera) {
+                mRenderer.renderFrame(
+                    camera, FrameOptions{ .mSinceLast = 1.0f / 60.0f, .mExposure = ExposureRule{ .mHeld = true } });
+                mRenderer.readPixels(pixels);
+                return meanByte();
+            };
+            mRenderer.resetHistory();
+            EXPECT_EQ(held(dim), adapted) << "a held eye measured the frame";
+            EXPECT_GT(held(bright), lit) << "a held eye adapted to the bright sky";
         }
 
         /// A reset survives a frame that has no history to reset.

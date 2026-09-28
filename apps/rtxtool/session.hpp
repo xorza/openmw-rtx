@@ -10,6 +10,7 @@
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 
 #include "cameradriver.hpp"
 #include "homekey.hpp"
@@ -57,6 +58,8 @@ namespace RtxTool
 
         std::optional<std::uint32_t> getSampleFrame() const override;
         std::uint32_t getAccumulated() const override;
+        std::optional<Rtx::ReconstructionRequest> getReconstruction() const override;
+        std::optional<Rtx::ExposureRule> getExposure() const override;
         bool wantsSecondWalk() const override;
         bool wantsFrameCopy() const override;
         std::optional<Rtx::AirClock> getHeldAir() const override;

@@ -72,8 +72,8 @@ namespace Rtx
         , mProfile(options.mProfile)
         , mReadsCounts(mCounting || mProfile.mStressOverlapMs > 0.0)
         , mScenePasses(mDevice, options.mShaderDirectory)
-        , mTracePasses(mDevice, options.mShaderDirectory, mScenePasses.mTextureLayout, mCounting,
-              mProfile.mSpecializeLaunches, mProfile.mReorder)
+        , mTracePasses(
+              mDevice, options.mShaderDirectory, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
         , mFrame(mDevice, mTracePasses)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get(), options.mShaderDirectory,
               PresentTargets::sFormat)
@@ -673,8 +673,12 @@ namespace Rtx
         FrameLook::Exposure exposure = FrameLook::Measured{
             .mSeconds = options.mSinceLast, .mReset = basisLost, .mBias = options.mExposureBias
         };
-        if (const ExposureRule rule = options.mExposure.value_or(mProfile.mExposure); rule.mFixed.has_value())
+        const ExposureRule rule = options.mExposure.value_or(mProfile.mExposure);
+        assert(!(rule.mFixed.has_value() && rule.mHeld) && "an exposure both fixed and held");
+        if (rule.mFixed.has_value())
             exposure = FrameLook::Fixed{ *rule.mFixed };
+        else if (rule.mHeld)
+            exposure = FrameLook::Held{};
 
         mDisplay.record(commands,
             Display{

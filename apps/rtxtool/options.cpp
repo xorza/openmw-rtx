@@ -44,7 +44,7 @@ namespace RtxTool
         constexpr Verbs sPlaces = Verbs::Scene | Verbs::Shot | Verbs::View;
 
         /// The commands that visit a list of places.
-        constexpr Verbs sRuns = Verbs::Scene | Verbs::Shot | Verbs::Bench | Verbs::Check;
+        constexpr Verbs sRuns = Verbs::Scene | Verbs::Shot | Verbs::Bench | Verbs::Check | Verbs::Noise;
 
         /// The commands that frame the world, which is every one that builds a `Framed`.
         /// `info` is the one that does not: it reports on a device and draws nothing.
@@ -257,9 +257,9 @@ namespace RtxTool
             "closed, and `bench` measures this many at each place instead of deriving them from "
             "--seconds");
 
-        option(Verbs::Bench | Verbs::Check, "suite", bpo::value<std::string>()->default_value(""),
-            "which list of places in resources/rtx/benches.cfg to visit: [default] for `bench` "
-            "and [check] for `check` unless named. Overridden by --views");
+        option(Verbs::Bench | Verbs::Check | Verbs::Noise, "suite", bpo::value<std::string>()->default_value(""),
+            "which list of places in resources/rtx/benches.cfg to visit: [default] for `bench`, "
+            "[check] for `check` and [noise] for `noise` unless named. Overridden by --views");
 
         option(sRuns, "views", bpo::value<std::string>()->default_value(""),
             "which views.cfg views to visit, comma separated, by name rather than by suite. "
@@ -318,14 +318,6 @@ namespace RtxTool
         option(sFramed, "level-epsilon", bpo::value<float>()->default_value(0.0f),
             "levels added to the texture level bias past the ratio the upscaler sets, negative for "
             "sharper. Nought is the ratio alone, and off the upscaler nothing is biased");
-
-        option(sFramed, "reorder", bpo::value<std::string>()->default_value("none"),
-            std::format("sort the launch's threads by what they hit before the hit's shader runs "
-                        "(reorderThreadEXT): {}. Shader sorts by the hit's shader alone, texture by "
-                        "the shader and the low bits of the hit material's diffuse texture. A no-op "
-                        "on a card without the unit",
-                Rtx::sReorderNames.list())
-                .c_str());
 
         option(sFramed, "hold", bpo::value<std::string>()->default_value("0"),
             std::format("hold the queue this many milliseconds behind the host after every frame's trace, or "
@@ -401,13 +393,14 @@ namespace RtxTool
             "hash names the frame and never where in it. A PNG a frame on the frame path, some "
             "sixty milliseconds each, so a run under this is further still from a benchmark");
 
-        option(Verbs::Shot | Verbs::Check | Verbs::Film | Verbs::View, "out",
+        option(Verbs::Shot | Verbs::Check | Verbs::Film | Verbs::View | Verbs::Noise, "out",
             bpo::value<std::string>()->default_value(""),
             "the directory to write every picture into, as <view>.png beside <view>-doll.png, "
             "<view>-map.png and <view>-textures.png, a film's frames/000000.png onwards and "
-            "<keys>.mp4, or the picture of each Home press in a `view` as <view>-<n>.png, with the "
-            "block Home prints inside it as the PNG's Description: \"shot\", \"check\", \"film\" "
-            "and \"view\" unless named");
+            "<keys>.mp4, the picture of each Home press in a `view` as <view>-<n>.png, with the "
+            "block Home prints inside it as the PNG's Description, or `noise`'s three pictures of a "
+            "place as <view>.png beside <view>-reference.png and <view>-averaged.png: \"shot\", "
+            "\"check\", \"film\", \"view\" and \"noise\" unless named");
 
         const FilmPacing pacing;
         option(Verbs::View | Verbs::Film, "keys", bpo::value<std::string>()->default_value(""),

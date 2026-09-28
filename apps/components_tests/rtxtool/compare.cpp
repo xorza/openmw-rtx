@@ -63,6 +63,34 @@ namespace RtxTool
             EXPECT_TRUE(compareFrames(before, after).same());
         }
 
+        /// **The error a noise measure reads**, on a hundred pixels whose errors are set by hand: 90
+        /// at nought, 8 at 4 (in green), one at 20 (in blue) and one at 155 (red at 255 over 100).
+        /// The mean is (8 × 4 + 20 + 155) / 100 = 2.07. Ninety-nine of the hundred are within 20 and
+        /// ninety-eight within 4, so the 99th percentile is 20: the one pixel at 155 is the
+        /// percentile's to leave out and the mean's to carry. A pixel that differs in alpha alone
+        /// counts nothing.
+        TEST(RtxCompareTest, anErrorIsItsMeanAndTheLevelNinetyNinePixelsInAHundredAreWithin)
+        {
+            const Rtx::PngImage reference = flat(10, 10, 100);
+            Rtx::PngImage picture = reference;
+            for (std::uint32_t x = 0; x < 8; ++x)
+                channelAt(picture, x, 0, 1) = 96;
+            channelAt(picture, 0, 1, 2) = 120;
+            channelAt(picture, 1, 1, 0) = 255;
+            channelAt(picture, 2, 1, 3) = 0;
+
+            EXPECT_EQ(measureError(reference, reference).mMean, 0.0);
+            EXPECT_EQ(measureError(reference, reference).mP99, 0u);
+
+            const PictureError error = measureError(picture, reference);
+            EXPECT_FALSE(error.mMismatched);
+            EXPECT_DOUBLE_EQ(error.mMean, (8.0 * 4.0 + 20.0 + 155.0) / 100.0);
+            EXPECT_EQ(error.mP99, 20u);
+
+            EXPECT_TRUE(measureError(picture, flat(10, 9, 100)).mMismatched);
+            EXPECT_TRUE(measureError(Rtx::PngImage{}, reference).mMismatched);
+        }
+
         /// Two sizes are not a delta, and neither is a reference that was never written.
         TEST(RtxCompareTest, nothingToSubtractIsSaidRatherThanCountedAsZero)
         {

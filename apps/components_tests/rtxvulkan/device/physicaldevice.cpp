@@ -41,18 +41,14 @@ namespace Rtx
         ///
         /// **A card nobody here owns, described from what it says of itself.** Three heaps — six
         /// gigabytes of video memory, twenty-five of system memory, and a 246 MiB window the host
-        /// writes into — and a reordering hint of `NONE`, which is what every RTX card before Ada
-        /// answers. Its driver lists `VK_NV_ray_tracing_invocation_reorder` and not the `EXT` one,
-        /// so the card as reported is refused; a `Card` lists every required extension, as any
-        /// driver from 595 does, and `aCardShortOfOneThingIsNamedForThatThing` puts the report's
-        /// own list back.
+        /// writes into. Its driver predates `VK_KHR_shader_fma`, so the card as reported is refused;
+        /// a `Card` lists every required extension, as any driver from 595 does, and
+        /// `aCardShortOfOneThingIsNamedForThatThing` takes that one out again.
         void describeTuring(DeviceProperties& properties)
         {
             properties.mProperties2.properties.apiVersion = VK_MAKE_API_VERSION(0, 1, 4, 325);
             properties.mVulkan12.driverID = VK_DRIVER_ID_NVIDIA_PROPRIETARY;
             std::ranges::copy(std::string_view("590.48.01"), properties.mVulkan12.driverInfo);
-            properties.mInvocationReorder.rayTracingInvocationReorderReorderingHint
-                = VK_RAY_TRACING_INVOCATION_REORDER_MODE_NONE_EXT;
 
             VkPhysicalDeviceMemoryProperties& memory = properties.mMemory;
             memory.memoryHeapCount = 3;
@@ -81,8 +77,6 @@ namespace Rtx
         {
             properties.mProperties2.properties.apiVersion = VK_MAKE_API_VERSION(0, 1, 4, 341);
             properties.mVulkan12.driverID = VK_DRIVER_ID_NVIDIA_PROPRIETARY;
-            properties.mInvocationReorder.rayTracingInvocationReorderReorderingHint
-                = VK_RAY_TRACING_INVOCATION_REORDER_MODE_REORDER_EXT;
 
             VkPhysicalDeviceMemoryProperties& memory = properties.mMemory;
             memory.memoryHeapCount = 2;
@@ -131,8 +125,8 @@ namespace Rtx
         /// Two cards this fork targets, and the profile differs in exactly what their hardware does.
         ///
         /// **The whole reason the type exists.** Neither card is asked, only described, and both
-        /// answers matter: an RTX 2060 that reorders nothing runs the same trace, and its 246 MiB
-        /// aperture is what decides where the scene's tables live.
+        /// answers matter: an RTX 2060 runs the same trace, and its 246 MiB aperture is what decides
+        /// where the scene's tables live.
         TEST(RtxPhysicalDeviceTest, twoCardsDifferExactlyWhereTheirHardwareDoes)
         {
             Card turing(&describeTuring);
@@ -201,18 +195,16 @@ namespace Rtx
                     "missing extensions: " + std::string(getRequiredDeviceExtensions().front().mName));
             }
             {
-                // Report 46422's own list: the card is short of a driver and not of hardware, and
-                // the refusal names the release that has the extension beside the one that has not.
+                // Report 46422's driver: the card is short of a driver and not of hardware, and the
+                // refusal names the release that has the extension beside the one that has not.
                 Card dated(&describeTuring);
-                std::erase(dated.mExtensions, VK_EXT_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME);
-                dated.mExtensions.emplace_back(VK_NV_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME);
+                std::erase(dated.mExtensions, VK_KHR_SHADER_FMA_EXTENSION_NAME);
                 EXPECT_EQ(dated.profile().mObstacle,
-                    "missing extensions: VK_EXT_ray_tracing_invocation_reorder (NVIDIA driver 595 or later; this "
-                    "one is 590.48.01)");
+                    "missing extensions: VK_KHR_shader_fma (NVIDIA driver 595 or later; this one is 590.48.01)");
 
                 // NVIDIA's releases say nothing of another vendor's driver on the same card.
                 dated.mProperties.mVulkan12.driverID = VK_DRIVER_ID_MESA_NVK;
-                EXPECT_EQ(dated.profile().mObstacle, "missing extensions: VK_EXT_ray_tracing_invocation_reorder");
+                EXPECT_EQ(dated.profile().mObstacle, "missing extensions: VK_KHR_shader_fma");
             }
             {
                 // What a Radeon or an Arc lists — reports 51246 and 51371: everything the trace needs,
