@@ -398,33 +398,7 @@ add_component_dir (lua_ui
 copy_resource_file("lua_ui/content.lua" "${OPENMW_RESOURCES_ROOT}" "resources/lua_libs/content.lua")
 
 
-add_component_dir (crashcatcher
-    crash
-    crashmonitorarguments
-    crashnote
-    crashpackage
-    crashpage
-    crashsummary
-    crashuncaught
-)
-
-if (OPENMW_CRASHPAD)
-    add_component_dir (crashcatcher
-        crashpadclient
-        crashpadclientsystem
-        crashpadmonitor
-        crashpadmonitorsystem
-    )
-    if (WIN32)
-        add_component_dir (crashcatcher crashpadclientwin32 crashpadmonitorwin32)
-    else()
-        add_component_dir (crashcatcher crashpadclientposix crashpadmonitorposix)
-    endif()
-else()
-    add_component_dir (crashcatcher
-        crashunsupported
-    )
-endif()
+include(crashcatcher/sources.cmake)
 
 add_component_dir(detournavigator
     agentbounds
@@ -549,25 +523,7 @@ else ()
         )
 endif()
 
-# The ray tracer's own answers, in the same shape: what its perf fifo and the libraries it opens do
-# that the systems spell differently. Two systems, because those are the two it runs on.
-if (OPENMW_RTX)
-    add_component_dir(platform
-        fifo library
-        )
-
-    if (WIN32)
-        add_component_dir(platform
-            fifowin32 librarywin32
-            )
-    elseif (UNIX)
-        add_component_dir(platform
-            fifoposix libraryposix
-            )
-    else ()
-        message(FATAL_ERROR "The ray tracer has no platform layer for ${CMAKE_SYSTEM_NAME}")
-    endif()
-endif()
+include(platform/rtx.cmake)
 
 add_component_dir(testing
     expecterror
@@ -638,28 +594,7 @@ endif()
 
 add_library(components STATIC ${COMPONENT_FILES})
 
-# `Settings::sRayTracingBuilt` and `Rtx::sUpscalerBuilt` read these: facts about the binary, and
-# every program in this tree links this library, the settings menu that reads `upscale.hpp` in a
-# build without the ray tracer included. Defined in every build, as 0 or 1, so each constant needs
-# no `#ifdef`.
-target_compile_definitions(components PUBLIC OPENMW_RTX=$<BOOL:${OPENMW_RTX}>
-                                             OPENMW_RTX_DLSS=$<BOOL:$<AND:$<BOOL:${OPENMW_RTX}>,$<BOOL:${OPENMW_RTX_DLSS}>>>)
-
-if (OPENMW_RTX)
-    # What `platform/libraryposix.cpp` opens a shared library with, on the C libraries that keep
-    # it out of libc. Empty where libc has it.
-    target_link_libraries(components ${CMAKE_DL_LIBS})
-
-    # This fork's own files inside upstream's library take the fork's flags, for the reason
-    # `components/rtx/build.cmake` gives; the upstream files the fork edits keep upstream's. Every
-    # system's file is named, and a name no system builds sets a property nothing reads.
-    openmw_rtx_sources(
-        platform/fifoposix.cpp platform/fifowin32.cpp platform/libraryposix.cpp platform/librarywin32.cpp
-        platform/memoryposix.cpp platform/memorywin32.cpp platform/processposix.cpp platform/processwin32.cpp
-        platform/sharedmemoryposix.cpp platform/sharedmemorywin32.cpp
-        sceneutil/paintedtexture.cpp sky/sundisc.cpp sky/timeofday.cpp
-        )
-endif()
+include(rtx/components.cmake)
 
 if (ANDROID)
     set_property(TARGET components PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -740,47 +675,7 @@ if (WIN32)
     target_link_libraries(components shlwapi)
 endif()
 
-if (OPENMW_CRASHPAD)
-    # Crashpad's client, and its handler as a library, because the monitor is this same
-    # executable started with `--crash-monitor`: one file to ship, as Chromium does it.
-    target_link_libraries(components
-        crashpad_client
-        crashpad_handler_lib
-        crashpad_minidump
-        crashpad_snapshot
-        crashpad_tools
-        crashpad_util
-        mini_chromium
-    )
-    if (MSVC)
-        target_link_libraries(components crashpad_getopt)
-    endif()
-
-    # What Crashpad defines for its own directory and its headers read: the files that include them
-    # see what its library was built with.
-    set_property(SOURCE crashcatcher/crashpadclient.cpp crashcatcher/crashpadmonitor.cpp
-        crashcatcher/crashpadclientposix.cpp crashcatcher/crashpadclientwin32.cpp
-        crashcatcher/crashpadmonitorposix.cpp crashcatcher/crashpadmonitorwin32.cpp
-        APPEND PROPERTY COMPILE_DEFINITIONS CRASHPAD_FLOCK_ALWAYS_SUPPORTED=1)
-
-    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        # **The note the monitor finds this module's `CrashpadInfo` by.** Crashpad's own reference
-        # to it, in `GetCrashpadInfo`, is a store through a pointer *to* volatile, which GCC removes,
-        # and a note nothing references stays in the archive: the annotations and every setting on
-        # `CrashpadInfo`, the gathered heap among them, went unread. Asked for by name, it links.
-        target_link_options(components INTERFACE "LINKER:--undefined=CRASHPAD_NOTE_REFERENCE")
-
-        # **Every thread its own alternate signal stack**, so a stack overflow on a worker is a
-        # report and not a second fault inside the handler. Crashpad's wrapper of `pthread_create`
-        # gives it to each thread as it starts, drivers' and SDL's included; it has to be in the
-        # executable itself to stand in front of libc's, so its object goes on every link line
-        # that takes this library rather than into the archive.
-        add_library(openmw_crashpad_threads OBJECT ${CRASHPAD_SOURCE_DIR}/client/pthread_create_linux.cc)
-        target_link_libraries(openmw_crashpad_threads PRIVATE crashpad_client)
-        target_compile_options(openmw_crashpad_threads PRIVATE -w)
-        target_link_libraries(components $<TARGET_OBJECTS:openmw_crashpad_threads>)
-    endif()
-endif()
+include(crashcatcher/link.cmake)
 
 # Fix for not visible pthreads functions for linker with glibc 2.15
 if (UNIX AND NOT APPLE)

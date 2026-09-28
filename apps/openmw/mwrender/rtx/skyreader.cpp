@@ -23,8 +23,8 @@
 #include <components/sky/skyclock.hpp>
 #include <components/vfs/manager.hpp>
 
-#include "../precipitation.hpp"
 #include "../sceneframe.hpp"
+#include "../sky.hpp"
 #include "../skystate.hpp"
 
 namespace MWRender

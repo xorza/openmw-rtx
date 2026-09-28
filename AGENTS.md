@@ -20,7 +20,10 @@ them.
 
 ## Rules
 
-- Do not change the rasterizer, or anything the ray tracer does not need.
+- Do not change the rasterizer, or anything the ray tracer does not need. Two changes the ray
+  tracer needs do move the rasterizer's picture, each where upstream's was wrong: the optimizer
+  merges in child order, not address order, and an exterior map tile keeps its land where the
+  quad tree did not build the chunk yet.
 - Both renderers stand behind one interface that exposes no implementation detail. Where the game
   would branch on which renderer it has, the seam abstracts the question instead.
 - Performance matters. Compute nothing twice; compute as early as possible.
@@ -34,7 +37,8 @@ them.
 - Keep the diff against upstream minimal, but never at the cost of reuse or of the abstraction's
   quality. The `[RTX]` settings pages and their translations are a fine price, and so is
   `components/crashcatcher`: upstream's crash catcher is replaced whole by the fork's own, a
-  Crashpad monitor process, and that diff is accepted rather than kept small.
+  Crashpad monitor process, and that diff is accepted rather than kept small. So are `README.md`,
+  which is the fork's own page and what a package ships, and `CI/`.
 
 ## Where the code lives
 

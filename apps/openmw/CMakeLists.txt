@@ -17,12 +17,6 @@ set(OPENMW_HEADERS
 
 source_group(apps/openmw FILES main.cpp androidmain.cpp ${OPENMW_SOURCES} ${OPENMW_HEADERS} ${OPENMW_RESOURCES})
 
-# The renderer seam: `MWRender::Renderer`, what a frame is described as, and the rasterizer behind
-# the seam. Built whichever renderer is, and named once so the block below can find them.
-set(OPENMW_RENDERER_SEAM
-    renderer sceneframe framedescriber skystate ripplerules objectstorage precipitation ground glground glrenderer glworld gloffscreenview glmapoverlay mapoverlay pixels
-    )
-
 add_openmw_dir (mwrender
     actors objects renderingmanager animation rotatecontroller sky skyutil npcanimation esm4npcanimation vismask
     creatureanimation effectmanager util renderinginterface pathgrid rendermode weaponanimation screenshotmanager
@@ -30,36 +24,9 @@ add_openmw_dir (mwrender
     renderbin actoranimation landmanager navmesh actorspaths recastmesh fogmanager objectpaging groundcover
     postprocessor pingpongcull luminancecalculator pingpongcanvas transparentpass opaqueblit waterawaretransparentbin precipitationocclusion ripples
     actorutil distortion animationpriority bonegroup blendmask animblendcontroller
-    ${OPENMW_RENDERER_SEAM}
     )
 
-# Gated, because these are the only files in the game that name a graphics API other than OpenGL.
-if (OPENMW_RTX)
-    set(OPENMW_RTX_DIR
-        classmasks debugwalk framereport frametimer rippleemitters rtxrenderer rtxrun rtxsettings rtxwindow skyreader tracedground
-        tracedoverlay tracedterrain tracedview viewqueue worldmirror
-        )
-    add_openmw_dir (mwrender/rtx ${OPENMW_RTX_DIR})
-
-    # The seam and the ray tracer's own directory are this fork's files in upstream's target, and
-    # every one of them reads the game's headers: the errors alone, for the reason `build.cmake`
-    # gives. A name with a header alone names a file nothing compiles, and a property on it is
-    # read by nothing.
-    set(OPENMW_RTX_SOURCES)
-    set(OPENMW_RTX_NAMED)
-    foreach (name ${OPENMW_RTX_DIR})
-        list(APPEND OPENMW_RTX_SOURCES mwrender/rtx/${name}.cpp)
-        list(APPEND OPENMW_RTX_NAMED ${name}.cpp ${name}.hpp)
-    endforeach()
-    openmw_rtx_expect_listed("${CMAKE_CURRENT_SOURCE_DIR}/mwrender/rtx" MATCHING *.cpp *.hpp LISTED ${OPENMW_RTX_NAMED})
-    foreach (name ${OPENMW_RENDERER_SEAM})
-        list(APPEND OPENMW_RTX_SOURCES mwrender/${name}.cpp)
-    endforeach()
-    openmw_rtx_sources(ERRORS_ONLY ${OPENMW_RTX_SOURCES})
-else()
-    # `createRtxRenderer` for a build without the ray tracer, so the factory names no build flag.
-    add_openmw_dir (mwrender nortxrenderer)
-endif()
+include(mwrender/renderers.cmake)
 
 add_openmw_dir (mwinput
     actions actionmanager bindingsmanager controllermanager controlswitch
@@ -158,6 +125,10 @@ add_library(openmw-lib STATIC
     ${OPENMW_SOURCES}
 )
 
+if (OPENMW_RTX)
+    target_link_libraries(openmw-lib openmw-rtx openmw-rtx-vulkan openmw-rtx-mygui)
+endif()
+
 if (MSVC)
     # these TUs take a lot of memory for codegen
     # in CI, they often go over the 8GB memory limit if another cl.exe is running at the same time
@@ -189,10 +160,6 @@ if(BUILD_OPENMW)
     endif()
 
     target_link_libraries(openmw openmw-lib)
-
-if (OPENMW_RTX)
-    target_link_libraries(openmw-lib openmw-rtx openmw-rtx-vulkan openmw-rtx-mygui)
-endif()
 
     # Workaround necessary to ensure osgAnimation::MatrixLinearSampler dynamic casts work under Clang
     # NOTE: it's unclear whether the broken behavior is spec-compliant
