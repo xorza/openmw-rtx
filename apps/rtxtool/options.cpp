@@ -438,10 +438,19 @@ namespace RtxTool
         option(Verbs::Film, "fps", bpo::value<float>()->default_value(MWRender::sStepRate),
             "frames a second of film, which is also what the world steps by");
         option(Verbs::Film, "speed", bpo::value<float>()->default_value(pacing.mSpeed),
-            std::format("world units a second the camera flies between two keys, {:.0f} metres a second "
-                        "by default: a drone and not a run. A flight takes as long as the slowest of its "
-                        "changes asks, this and the four after it",
+            std::format("world units a second the camera flies along its path through the keys, one speed "
+                        "from the first key to the last, {:.0f} metres a second by default: a drone and not "
+                        "a run. A turn, the clock or a crossing on a flight takes the flight's time, and "
+                        "--plan says where one asks for longer",
                 pacing.mSpeed / Constants::UnitsPerMeter));
+        option(Verbs::Film, "length", bpo::value<float>(),
+            "the film's length in seconds, in place of --speed: every flight at the one speed that fills "
+            "it, which is the path's whole length over what is left once the holds, the stills, what "
+            "stands on the spot and the keys' own seconds are taken out");
+        option(Verbs::Film, "ease", bpo::value<float>()->default_value(pacing.mEase),
+            "seconds the camera takes to reach its speed from a rest and to come back to one: at a "
+            "take's ends, at a hold, and beside a turn on the spot. Nought flies at full speed from "
+            "the first frame to the last");
         option(Verbs::Film, "pan-seconds", bpo::value<float>()->default_value(pacing.mPanSeconds),
             "how long a pan takes to sweep one image width, or a tilt one image height: the "
             "established limit before judder, which a frame with no motion blur shows sooner");

@@ -89,10 +89,12 @@ set(RTX_TEST_FILES
     rtxtool/benchrun.cpp
     rtxtool/benchspec.cpp
     rtxtool/blockfile.cpp
+    rtxtool/camerapath.cpp
     rtxtool/cameratrack.cpp
     rtxtool/cardwatch.cpp
     rtxtool/compare.cpp
     rtxtool/contactsheet.cpp
+    rtxtool/cruise.cpp
     rtxtool/drivercache.cpp
     rtxtool/film.cpp
     rtxtool/framehashes.cpp

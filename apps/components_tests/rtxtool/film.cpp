@@ -1,5 +1,6 @@
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -12,10 +13,12 @@
 
 #include <osg/Math>
 #include <osg/Vec2d>
+#include <osg/Vec3d>
 #include <osg/Vec3f>
 
 #include <apps/rtxtool/film.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/cameratrack.hpp>
 #include <apps/rtxtool/run.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
@@ -55,12 +58,15 @@ namespace RtxTool
 
         /// Ten frames a second, a hundred units a second, and a frame whose horizontal field is
         /// exactly ninety degrees: `2·atan(tan(30°)·√3)` is `2·atan(1)`. A quarter turn is then one
-        /// image width, seven seconds, and a pitch of thirty degrees half an image height, 3.5.
+        /// image width, seven seconds, and a pitch of thirty degrees half an image height, 3.5. No
+        /// ease, so a flight takes its length at the speed and nothing else; the test of the ease
+        /// names one.
         FilmPacing pacingForTests()
         {
             FilmPacing pacing;
             pacing.mStep = 0.1f;
             pacing.mSpeed = 100.0f;
+            pacing.mEase = 0.0f;
             pacing.mAspect = std::sqrt(3.0f);
             return pacing;
         }
@@ -191,12 +197,12 @@ namespace RtxTool
             EXPECT_EQ(plan.mTakes[5].mCut, FilmCut::Asked);
         }
 
-        /// Each change asks for a length, and the longest wins, at ten frames a second: a thousand
-        /// units at a hundred a second is ten seconds; a quarter turn one image width, seven; a
-        /// pitch of thirty degrees half an image height, 3.5; three hours at two seconds each, six;
-        /// a weather crossing, eight; nothing at all, a still of four; and a key's own seconds over
-        /// every one of them. A length too short for a frame is one frame.
-        TEST(RtxFilmTest, aSegmentTakesTheLongestOfWhatItsChangesAsk)
+        /// A flight takes its length at the speed, and a segment that goes nowhere the longest of
+        /// what else it changes, at ten frames a second: a thousand units at a hundred a second is
+        /// ten seconds; a quarter turn one image width, seven; a pitch of thirty degrees half an
+        /// image height, 3.5; three hours at two seconds each, six; a weather crossing, eight;
+        /// nothing at all, a still of four; and a key's own seconds over any of them.
+        TEST(RtxFilmTest, aFlightTakesItsLengthAndASegmentThatGoesNowhereTheLongestOfItsChanges)
         {
             const osg::Vec3f spot(0, 0, 0);
             const osg::Vec3f north(0, 1e4f, 0);
@@ -215,7 +221,6 @@ namespace RtxTool
                 keyAt("rain", "0,0", there, eastUp),
                 keyAt("same", "0,0", there, eastUp),
                 keyAt("given", "0,0", osg::Vec3f(5000, 0, 0), up),
-                keyAt("nudged", "0,0", osg::Vec3f(5004, 0, 0), up),
             };
             keys[3].mStop.mSky.mHour = 12.0f;
             for (std::size_t at = 4; at < keys.size(); ++at)
@@ -227,29 +232,138 @@ namespace RtxTool
             const FilmPlan plan = planFilm(keys, pacingForTests());
             ASSERT_EQ(plan.mTakes.size(), 1u);
             const std::vector<FilmSegment>& segments = plan.mTakes[0].mSegments;
-            ASSERT_EQ(segments.size(), 8u);
+            ASSERT_EQ(segments.size(), 7u);
 
-            EXPECT_EQ(segments[0].mFrames, 100u);
+            EXPECT_DOUBLE_EQ(segments[0].mFrames, 100.0);
             EXPECT_EQ(segments[0].mPace, FilmPace::Distance);
-            EXPECT_EQ(segments[1].mFrames, 70u);
+            EXPECT_DOUBLE_EQ(segments[1].mFrames, 70.0);
             EXPECT_EQ(segments[1].mPace, FilmPace::Turn);
-            EXPECT_EQ(segments[2].mFrames, 35u);
+            EXPECT_DOUBLE_EQ(segments[2].mFrames, 35.0);
             EXPECT_EQ(segments[2].mPace, FilmPace::Turn);
-            EXPECT_EQ(segments[3].mFrames, 60u);
+            EXPECT_DOUBLE_EQ(segments[3].mFrames, 60.0);
             EXPECT_EQ(segments[3].mPace, FilmPace::Clock);
-            EXPECT_EQ(segments[4].mFrames, 80u);
+            EXPECT_DOUBLE_EQ(segments[4].mFrames, 80.0);
             EXPECT_EQ(segments[4].mPace, FilmPace::Weather);
-            EXPECT_EQ(segments[5].mFrames, 40u);
+            EXPECT_DOUBLE_EQ(segments[5].mFrames, 40.0);
             EXPECT_EQ(segments[5].mPace, FilmPace::Still);
-            EXPECT_EQ(segments[6].mFrames, 25u);
+            EXPECT_DOUBLE_EQ(segments[6].mFrames, 25.0);
             EXPECT_EQ(segments[6].mPace, FilmPace::Given);
-            EXPECT_EQ(segments[7].mFrames, 1u) << "four units is 0.04 s, four tenths of a frame";
-            EXPECT_EQ(segments[7].mPace, FilmPace::Distance);
 
-            // Forty units and three hours: the clock's six seconds beat the flight's 0.4.
+            // Forty units and three hours: the flight's 0.4 s, and the clock's six seconds are what
+            // it asks and does not get.
             std::vector<FilmKey> both{ keyAt("a", "0,0", spot), keyAt("b", "0,0", osg::Vec3f(40, 0, 0)) };
             both[1].mStop.mSky.mHour = 15.0f;
-            EXPECT_EQ(planFilm(both, pacingForTests()).mTakes[0].mSegments[0].mFrames, 60u);
+            const FilmSegment hurried = planFilm(both, pacingForTests()).mTakes[0].mSegments[0];
+            EXPECT_DOUBLE_EQ(hurried.mFrames, 4.0);
+            EXPECT_EQ(hurried.mPace, FilmPace::Distance);
+            EXPECT_FLOAT_EQ(hurried.mAsked, 6.0f);
+            EXPECT_EQ(hurried.mAsker, FilmPace::Clock);
+        }
+
+        /// **The eye crosses a take at one speed, keys and bends included**, eased from rest over a
+        /// second at each end. Round a right angle at a hundred units a second, ten frames a second:
+        /// between the two eases the eye has covered `v · (f − 5)` of the path at frame `f`, the
+        /// ease having covered half what cruising would, and stands where the take's own path puts
+        /// that length, on either side of the corner's key. The take ends on a whole frame, so its
+        /// speed is off the hundred by at most half a frame of its own flight.
+        TEST(RtxFilmTest, theEyeCrossesATakeAtOneSpeed)
+        {
+            const std::vector<FilmKey> keys{ keyAt("a", "0,0", osg::Vec3f(0, 0, 0)),
+                keyAt("corner", "0,0", osg::Vec3f(1000, 0, 0)), keyAt("b", "0,0", osg::Vec3f(1000, 1000, 0)) };
+            FilmPacing pacing = pacingForTests();
+            pacing.mEase = 1.0f;
+
+            const FilmPlan plan = planFilm(keys, pacing);
+            ASSERT_EQ(plan.mTakes.size(), 1u);
+            const FilmTake& take = plan.mTakes[0];
+            const double flight = take.mSegments[0].mFrames + take.mSegments[1].mFrames;
+            EXPECT_NEAR(take.mSpeed, 100.0, 100.0 * 0.5 / flight);
+            EXPECT_EQ(take.getFrames(), static_cast<std::uint32_t>(std::lround(flight)) + 1);
+
+            const RtxTool::Stop stop = stopsFor(plan, "film/frames")[0];
+            const CameraTrack& track = *stop.mSchedule.mTrack;
+            const double perFrame = take.mSpeed * double{ pacing.mStep };
+            const double corner = take.mPath.getLength(0);
+            const std::uint32_t last = take.getFrames() - 1;
+            std::uint32_t checked = 0;
+            for (std::uint32_t frame = 10; frame + 10 <= last; ++frame, ++checked)
+            {
+                const double along = perFrame * (static_cast<double>(frame) - 5.0);
+                const osg::Vec3d expected = along < corner ? take.mPath.at(0, along) : take.mPath.at(1, along - corner);
+                EXPECT_NEAR((osg::Vec3d(track.pose(frame).mEye) - expected).length(), 0.0, 1e-3) << "frame " << frame;
+            }
+            EXPECT_GT(checked, 190u) << "the cruise, both legs of it";
+
+            EXPECT_LT((track.pose(1).mEye - track.pose(0).mEye).length(), perFrame / 10.0) << "setting off from rest";
+        }
+
+        /// **A length sets the speed: the path's length over the frames the rest leaves.** Five
+        /// seconds at ten frames a second is fifty frames. The second take holds its first key a
+        /// second, and each take has its first frame, so twelve are spoken for and 38 are flown:
+        /// 3000 units in the first take and 500 in the second, `3500 / 38 = 92.1` a frame, which
+        /// is `32.57` frames and `5.43`. Rounded to whole frames that still add to 38, the larger
+        /// remainder takes the frame: 33 and 5, so the first take flies `3000 / 33 = 90.9` a frame
+        /// and passes its middle key at frame `1000 / 90.9 = 11`, and the second `500 / 5 = 100`.
+        ///
+        /// **A flight too short for a frame at that speed is a frame, taken from the longest.** A
+        /// third take of five units makes 37 flown frames of 3505 units, `94.7` a frame: `31.67`,
+        /// `5.28` and `0.05`. The whole parts are 31, 5 and nought, the frame left over goes to the
+        /// largest remainder, the first's, and the third's frame comes back out of it: 31, 5 and 1.
+        TEST(RtxFilmTest, aLengthSetsTheSpeed)
+        {
+            std::vector<FilmKey> keys{
+                keyAt("a", "0,0", osg::Vec3f(0, 0, 0)),
+                keyAt("b", "0,0", osg::Vec3f(1000, 0, 0)),
+                keyAt("c", "0,0", osg::Vec3f(3000, 0, 0)),
+                keyAt("door", "Vivec, Arena", osg::Vec3f(0, 0, 0)),
+                keyAt("hall", "Vivec, Arena", osg::Vec3f(500, 0, 0)),
+            };
+            keys[3].mHold = 1.0f;
+
+            FilmPacing pacing = pacingForTests();
+            pacing.mLength = 5.0f;
+            const FilmPlan plan = planFilm(keys, pacing);
+            ASSERT_EQ(plan.mTakes.size(), 2u);
+
+            EXPECT_EQ(plan.getFrames(), 50u);
+            EXPECT_EQ(plan.mTakes[0].getFrames(), 34u);
+            EXPECT_EQ(plan.mTakes[1].getFrames(), 16u);
+            const double step = double{ pacing.mStep };
+            EXPECT_NEAR(plan.mTakes[0].mSpeed, 3000.0 / 33.0 / step, 1e-9);
+            EXPECT_NEAR(plan.mTakes[1].mSpeed, 100.0 / step, 1e-9);
+            EXPECT_NEAR(plan.mTakes[0].mTrack[1].mFrame, 11.0, 1e-9);
+            EXPECT_EQ(plan.mTakes[1].mTrack[1].mFrame, 10.0) << "the hold";
+            EXPECT_EQ(plan.mTakes[1].mTrack[2].mFrame, 15.0);
+
+            std::vector<FilmKey> hop = keys;
+            hop.push_back(keyAt("stair", "Balmora, Guild of Mages", osg::Vec3f(0, 0, 0)));
+            hop.push_back(keyAt("step", "Balmora, Guild of Mages", osg::Vec3f(5, 0, 0)));
+            const FilmPlan three = planFilm(hop, pacing);
+            ASSERT_EQ(three.mTakes.size(), 3u);
+            EXPECT_EQ(three.getFrames(), 50u);
+            EXPECT_EQ(three.mTakes[0].getFrames(), 32u);
+            EXPECT_EQ(three.mTakes[1].getFrames(), 16u);
+            EXPECT_EQ(three.mTakes[2].getFrames(), 2u);
+            EXPECT_NEAR(three.mTakes[2].mSpeed, 5.0 / step, 1e-9);
+
+            const auto refusal = [&](std::vector<FilmKey> film, float length) {
+                FilmPacing asked = pacingForTests();
+                asked.mLength = length;
+                try
+                {
+                    planFilm(std::move(film), asked);
+                }
+                catch (const std::runtime_error& error)
+                {
+                    return std::string(error.what());
+                }
+                return std::string("nothing was refused");
+            };
+            EXPECT_EQ(refusal({ keys[0] }, 5.0f),
+                "--length has nothing to set: no key of the film is flown to, where 5 s are");
+            EXPECT_EQ(refusal(keys, 1.0f),
+                "--length is 1 s, and the holds, the stills, what stands on the spot and each take's first frame take "
+                "1.2 s of it, leaving less than a frame for each of the 2 takes that fly");
         }
 
         /// A hold is its key twice, both resting; a take of one key holds it for a still; each take
@@ -271,18 +385,18 @@ namespace RtxTool
 
             const std::vector<RtxTool::TrackKey>& track = plan.mTakes[0].mTrack;
             ASSERT_EQ(track.size(), 4u);
-            EXPECT_EQ(track[0].mFrame, 0u);
-            EXPECT_EQ(track[1].mFrame, 100u);
+            EXPECT_EQ(track[0].mFrame, 0.0);
+            EXPECT_EQ(track[1].mFrame, 100.0);
             EXPECT_TRUE(track[1].mRests);
-            EXPECT_EQ(track[2].mFrame, 115u);
+            EXPECT_EQ(track[2].mFrame, 115.0);
             EXPECT_TRUE(track[2].mRests);
             EXPECT_EQ(track[2].mEye, track[1].mEye);
-            EXPECT_EQ(track[3].mFrame, 215u);
+            EXPECT_EQ(track[3].mFrame, 215.0);
             EXPECT_EQ(plan.mTakes[0].getFrames(), 216u);
 
             const std::vector<RtxTool::TrackKey>& still = plan.mTakes[1].mTrack;
             ASSERT_EQ(still.size(), 2u);
-            EXPECT_EQ(still[1].mFrame, 40u) << "the still's four seconds";
+            EXPECT_EQ(still[1].mFrame, 40.0) << "the still's four seconds";
             EXPECT_EQ(plan.mTakes[1].mFirstFrame, 216u);
             EXPECT_EQ(plan.getFrames(), 216u + 41u);
 
@@ -322,13 +436,14 @@ namespace RtxTool
             keys[1].mStop.mSky.mWeather = "Rain";
 
             EXPECT_EQ(describePlan(planFilm(keys, pacingForTests())),
-                "film: 3 keys, 2 takes, 162 frames, 16.2 s at 10 frames a second\n"
+                "film: 3 keys, 2 takes, 142 frames, 14.2 s at 10 frames a second\n"
                 "\n"
-                "take 1, from frame 0: 12.1 s, cut in: the first key\n"
+                "take 1, from frame 0: 10.1 s, cut in: the first key\n"
                 "  dock                         -2,-9 12:00, Clear\n"
-                "  -> shore                       12.0 s  18:00 Rain, -2,-9  (6.00 hours of clock)\n"
+                "  -> shore                       10.0 s  18:00 Rain, -2,-9  (1000 units at 100 a second; 6.00 hours "
+                "of clock asks 12.0 s)\n"
                 "\n"
-                "take 2, from frame 121: 4.1 s, cut in: outside to inside\n"
+                "take 2, from frame 101: 4.1 s, cut in: outside to inside\n"
                 "  room                         Vivec, Arena 12:00, Clear\n");
         }
 
@@ -336,8 +451,8 @@ namespace RtxTool
         /// weather turned through Clear and Rain over the whole film, across its cut, whatever the
         /// keys name after the first.
         ///
-        /// By hand: a thousand units at a hundred a second is ten seconds, a hundred frames, where
-        /// the keys' six hours at two seconds each would have been a hundred and twenty. `×512` is
+        /// By hand: a thousand units at a hundred a second is ten seconds, a hundred frames, with or
+        /// without the keys' own clock, which a flight at one speed does not wait for. `×512` is
         /// `512 × 30 / 3600 = 4.27` game hours a second, 0.4267 a frame, so the second key, at frame
         /// 100, is `12 + 42.67 = 54.67` hours, 06:40, and the room, the film's frame 101, 07:06. A
         /// weather stands a second, ten frames, and crosses in eight, eighty: frame 100 is ten into
@@ -353,7 +468,8 @@ namespace RtxTool
             keys[1].mStop.mSky.mWeather = "Rain";
             keys[2].mStop.mSky.mDay = 5;
 
-            EXPECT_EQ(planFilm(keys, pacingForTests()).mTakes[0].mSegments[0].mFrames, 120u) << "the keys' clock";
+            EXPECT_DOUBLE_EQ(planFilm(keys, pacingForTests()).mTakes[0].mSegments[0].mFrames, 100.0)
+                << "under the keys' clock";
 
             FilmPacing pacing = pacingForTests();
             pacing.mClock = 512.0f;
@@ -363,7 +479,7 @@ namespace RtxTool
             ASSERT_EQ(plan.mTakes.size(), 2u);
 
             const FilmSegment& flown = plan.mTakes[0].mSegments[0];
-            EXPECT_EQ(flown.mFrames, 100u);
+            EXPECT_DOUBLE_EQ(flown.mFrames, 100.0);
             EXPECT_EQ(flown.mPace, FilmPace::Distance);
 
             const SkyRun& second = plan.mTakes[1].mSky;

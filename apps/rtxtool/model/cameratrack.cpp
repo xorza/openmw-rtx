@@ -11,9 +11,9 @@ namespace RtxTool
 {
     namespace
     {
-        constexpr std::size_t sYaw = 3;
-        constexpr std::size_t sPitch = 4;
-        constexpr std::size_t sHours = 5;
+        constexpr std::size_t sYaw = 0;
+        constexpr std::size_t sPitch = 1;
+        constexpr std::size_t sHours = 2;
 
         constexpr double sTurn = 2.0 * std::numbers::pi;
 
@@ -57,18 +57,22 @@ namespace RtxTool
             : smoothstep(static_cast<float>(within - mHoldFrames) / static_cast<float>(mCrossingFrames));
     }
 
-    CameraTrack::CameraTrack(const std::span<const TrackKey> keys, SkyRun sky)
-        : mSky(std::move(sky))
+    CameraTrack::CameraTrack(const std::span<const TrackKey> keys, CameraPath path, const Cruise cruise, SkyRun sky)
+        : mPath(std::move(path))
+        , mCruise(cruise)
+        , mSky(std::move(sky))
     {
         Rtx::contract(!keys.empty(), "a camera track needs a key");
+        Rtx::contract(mPath.getSegments() + 1 == keys.size(), "a camera track on another track's path");
         Rtx::contract(mSky.mCrossingFrames > 0, "a sky that crosses in no frames");
+        Rtx::contract(keys.back().mFrame == std::floor(keys.back().mFrame), "a take that ends between two frames");
 
         mKnots.reserve(keys.size());
         for (std::size_t at = 0; at < keys.size(); ++at)
         {
             const TrackKey& key = keys[at];
             Knot knot{ .mFrame = key.mFrame, .mWeather = key.mWeather };
-            knot.mValue = { key.mEye.x(), key.mEye.y(), key.mEye.z(), key.mRotation.z(), key.mRotation.x(), 0.0 };
+            knot.mValue = { key.mRotation.z(), key.mRotation.x(), 0.0 };
 
             if (at > 0)
             {
@@ -88,7 +92,7 @@ namespace RtxTool
         const auto secant = [&](const std::size_t from, const std::size_t channel) {
             const Knot& a = mKnots[from];
             const Knot& b = mKnots[from + 1];
-            return (b.mValue[channel] - a.mValue[channel]) / static_cast<double>(b.mFrame - a.mFrame);
+            return (b.mValue[channel] - a.mValue[channel]) / (b.mFrame - a.mFrame);
         };
 
         for (std::size_t channel = 0; channel < sChannels; ++channel)
@@ -103,8 +107,8 @@ namespace RtxTool
 
                 const Knot& before = mKnots[at - 1];
                 const Knot& after = mKnots[at + 1];
-                mKnots[at].mSlope[channel] = (after.mValue[channel] - before.mValue[channel])
-                    / static_cast<double>(after.mFrame - before.mFrame);
+                mKnots[at].mSlope[channel]
+                    = (after.mValue[channel] - before.mValue[channel]) / (after.mFrame - before.mFrame);
             }
 
             // Scaled into the circle of radius three, which keeps each segment monotone.
@@ -131,29 +135,40 @@ namespace RtxTool
 
     std::uint32_t CameraTrack::getFrames() const
     {
-        return mKnots.back().mFrame + 1;
+        return static_cast<std::uint32_t>(mKnots.back().mFrame) + 1;
     }
 
     TrackPose CameraTrack::pose(const std::uint32_t frame) const
     {
+        const double at = static_cast<double>(frame);
         const auto after = std::upper_bound(
-            mKnots.begin(), mKnots.end(), frame, [](std::uint32_t f, const Knot& knot) { return f < knot.mFrame; });
+            mKnots.begin(), mKnots.end(), at, [](double f, const Knot& knot) { return f < knot.mFrame; });
 
         std::array<double, sChannels> value{};
+        osg::Vec3d eye;
         TrackPose pose;
         if (after == mKnots.begin() || after == mKnots.end())
         {
-            const Knot& at = after == mKnots.begin() ? mKnots.front() : mKnots.back();
-            value = at.mValue;
-            pose.mWeather = at.mWeather;
-            pose.mNextWeather = at.mWeather;
+            const bool first = after == mKnots.begin();
+            const Knot& knot = first ? mKnots.front() : mKnots.back();
+            value = knot.mValue;
+            eye = mPath.getEye(first ? 0 : mKnots.size() - 1);
+            pose.mWeather = knot.mWeather;
+            pose.mNextWeather = knot.mWeather;
         }
         else
         {
             const Knot& a = *(after - 1);
             const Knot& b = *after;
-            const double span = static_cast<double>(b.mFrame - a.mFrame);
-            const double u = static_cast<double>(frame - a.mFrame) / span;
+            const auto segment = static_cast<std::size_t>(after - mKnots.begin() - 1);
+            const double span = b.mFrame - a.mFrame;
+            const double into = at - a.mFrame;
+            const double u = into / span;
+
+            const CruiseLeg leg{ .mLength = mPath.getLength(segment),
+                .mFromRest = mPath.restsAt(segment),
+                .mToRest = mPath.restsAt(segment + 1) };
+            eye = mPath.at(segment, leg.mLength > 0.0 ? mCruise.coveredAt(leg, span, into) : 0.0);
             const double u2 = u * u;
             const double u3 = u2 * u;
 
@@ -173,8 +188,7 @@ namespace RtxTool
             pose.mCrossed = a.mWeather == b.mWeather ? 0.0f : smoothstep(static_cast<float>(u));
         }
 
-        pose.mEye
-            = osg::Vec3f(static_cast<float>(value[0]), static_cast<float>(value[1]), static_cast<float>(value[2]));
+        pose.mEye = osg::Vec3f(eye);
         pose.mRotation = osg::Vec3f(
             static_cast<float>(value[sPitch]), 0.0f, static_cast<float>(std::remainder(value[sYaw], sTurn)));
         pose.mHoursOn = value[sHours];

@@ -14,7 +14,9 @@
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 
 #include "model/benchrun.hpp"
+#include "model/camerapath.hpp"
 #include "model/cameratrack.hpp"
+#include "model/cruise.hpp"
 #include "run.hpp"
 
 namespace RtxTool
@@ -64,8 +66,18 @@ namespace RtxTool
         /// every length below is counted in frames by, and `--fps` is one over.
         float mStep = MWRender::sStepSeconds;
 
-        /// World units a second the eye flies at between two keys.
+        /// World units a second the eye flies at along the path, key to key, where `mLength` does
+        /// not set it.
         float mSpeed = 800.0f;
+
+        /// **The film's length, for the eye's speed to fill.** Every flight is flown at the one
+        /// speed that ends the film at this many seconds, after its holds, its stills, what stands
+        /// on the spot, and the keys' own `seconds`; or nothing for `mSpeed`.
+        std::optional<float> mLength;
+
+        /// Seconds the eye takes to reach its speed from a rest and to come back to one: at a
+        /// take's ends, at a hold, and beside a turn on the spot (`Cruise`).
+        float mEase = 1.0f;
 
         /// Seconds a pan takes to turn one image width, the established limit for judder.
         float mPanSeconds = 7.0f;
@@ -114,13 +126,17 @@ namespace RtxTool
 
         /// Frames a second, which is what a person reads and what the encoder is told.
         float getRate() const { return 1.0f / mStep; }
+
+        /// The pace along the path in frames, which is what a track counts in.
+        Cruise getCruise() const { return Cruise{ .mEase = double{ mEase } / double{ mStep } }; }
     };
 
     /// Game hours a second of a clock running at `clock` times the game's own speed,
     /// `sGameTimeScale`: `FilmPacing::mClock`'s rate.
     double clockHoursPerSecond(float clock);
 
-    /// Which of a segment's changes set its length.
+    /// Which of a segment's changes set its length: the flight's speed, a key's own seconds, or
+    /// for a segment that goes nowhere the longest of what else it changes.
     enum class FilmPace
     {
         Given,
@@ -137,14 +153,24 @@ namespace RtxTool
         /// The key it arrives at.
         std::size_t mTo = 0;
 
-        std::uint32_t mFrames = 0;
+        /// How many frames it takes, and the frame of its take it arrives at: between two frames
+        /// wherever a flight at one speed passes a key.
+        double mFrames = 0.0;
+        double mArrival = 0.0;
+
         FilmPace mPace = FilmPace::Still;
 
-        /// What changes over it: how far the eye moves, how far it turns, and how many hours the
-        /// clock runs.
-        float mDistance = 0.0f;
+        /// What changes over it: how far the eye moves along the path, how far it turns, and how
+        /// many hours the clock runs.
+        double mDistance = 0.0;
         float mTurnDegrees = 0.0f;
         float mHours = 0.0f;
+
+        /// The longest its turn, its clock and its weather ask, in seconds, and which of them asks
+        /// it: what times a segment that goes nowhere, and what the plan holds a flight's own time
+        /// against, since a flight at one speed takes what its length gives whatever else it changes.
+        float mAsked = 0.0f;
+        FilmPace mAsker = FilmPace::Still;
     };
 
     /// Why a take begins with a cut.
@@ -173,8 +199,14 @@ namespace RtxTool
         /// The segment into each key after the first.
         std::vector<FilmSegment> mSegments;
 
-        /// The keys at their frames, a hold stated as two, for `CameraTrack`.
+        /// The keys at their frames, a hold stated as two, and the line through them, for
+        /// `CameraTrack`.
         std::vector<TrackKey> mTrack;
+        CameraPath mPath;
+
+        /// World units a second its flights are flown at, or nought where nothing flies. The plan's
+        /// speed, give or take the part of a frame the take was rounded by to end on a frame.
+        double mSpeed = 0.0;
 
         /// The number of the take's first frame in the film.
         std::uint32_t mFirstFrame = 0;
@@ -182,7 +214,7 @@ namespace RtxTool
         /// What the pacing's own sky writes over the keys', from `mFirstFrame` on.
         SkyRun mSky;
 
-        std::uint32_t getFrames() const { return mTrack.back().mFrame + 1; }
+        std::uint32_t getFrames() const { return static_cast<std::uint32_t>(mTrack.back().mFrame) + 1; }
     };
 
     /// A keys file split into takes and timed, before a frame is drawn.
@@ -195,8 +227,11 @@ namespace RtxTool
         std::uint32_t getFrames() const;
     };
 
-    /// Splits `keys` into takes and times each segment by the longest of what changes over it,
-    /// rounded to whole frames. Throws where there is no key.
+    /// Splits `keys` into takes, lays each take's path through its eyes, and times it: a flight at
+    /// one speed along the path, `mSpeed` or what fills `mLength`; a segment that goes nowhere by
+    /// the longest of what else it changes; a key's own seconds over either. Each take ends on a
+    /// whole frame, and its speed is what fills that exactly. Throws where there is no key, and
+    /// where a length cannot be filled.
     FilmPlan planFilm(std::vector<FilmKey> keys, const FilmPacing& pacing);
 
     /// The plan as a person reads it before committing an hour of rendering to it: every take, why

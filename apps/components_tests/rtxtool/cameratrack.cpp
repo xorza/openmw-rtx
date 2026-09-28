@@ -1,13 +1,16 @@
 #include <cmath>
 #include <cstdint>
 #include <numbers>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
 
 #include <osg/Vec3f>
 
+#include <apps/rtxtool/model/camerapath.hpp>
 #include <apps/rtxtool/model/cameratrack.hpp>
+#include <apps/rtxtool/model/cruise.hpp>
 
 namespace RtxTool
 {
@@ -15,8 +18,8 @@ namespace RtxTool
     {
         constexpr float sDegree = std::numbers::pi_v<float> / 180.0f;
 
-        TrackKey keyAt(std::uint32_t frame, float x, float yawDegrees = 0.0f, float hour = 12.0f,
-            std::uint32_t weather = 0, bool rests = false)
+        TrackKey keyAt(double frame, float x, float yawDegrees = 0.0f, float hour = 12.0f, std::uint32_t weather = 0,
+            bool rests = false)
         {
             return TrackKey{ .mFrame = frame,
                 .mEye = osg::Vec3f(x, 0.0f, 0.0f),
@@ -26,56 +29,85 @@ namespace RtxTool
                 .mRests = rests };
         }
 
-        /// Two keys are exactly smoothstep, `3u² − 2u³`: at u = 0.2 that is 0.12 − 0.016 = 0.104,
-        /// and at a half, a half. The last key's pose stands past the end.
-        TEST(RtxCameraTrackTest, twoKeysEaseInAndOutBySmoothstep)
+        CameraTrack trackOf(const std::vector<TrackKey>& keys, const Cruise cruise = {}, SkyRun sky = {})
+        {
+            return CameraTrack(keys, CameraPath(keys), cruise, std::move(sky));
+        }
+
+        /// **Two keys at one speed, eased from and to rest.** With no ease, a hundred units in ten
+        /// frames is ten a frame from the first to the last. With an ease of four the flight takes
+        /// `100 / v + 4 = 10`, so `v = 100 / 6`, and has covered `v · 4 · (0.5³ − 0.5⁴ / 2) = 6.25`
+        /// half way through the first ease and `v · (5 − 2) = 50` half way through. The last key's
+        /// pose stands past the end.
+        TEST(RtxCameraTrackTest, twoKeysFlyAtOneSpeedEasedFromAndToRest)
         {
             const std::vector<TrackKey> keys{ keyAt(0, 0.0f), keyAt(10, 100.0f) };
-            const CameraTrack track(keys);
+            const CameraTrack even = trackOf(keys);
 
-            EXPECT_EQ(track.getFrames(), 11u);
-            EXPECT_FLOAT_EQ(track.pose(0).mEye.x(), 0.0f);
-            EXPECT_FLOAT_EQ(track.pose(2).mEye.x(), 10.4f);
-            EXPECT_FLOAT_EQ(track.pose(5).mEye.x(), 50.0f);
-            EXPECT_FLOAT_EQ(track.pose(10).mEye.x(), 100.0f);
-            EXPECT_FLOAT_EQ(track.pose(20).mEye.x(), 100.0f);
+            EXPECT_EQ(even.getFrames(), 11u);
+            EXPECT_FLOAT_EQ(even.pose(0).mEye.x(), 0.0f);
+            EXPECT_FLOAT_EQ(even.pose(2).mEye.x(), 20.0f);
+            EXPECT_FLOAT_EQ(even.pose(5).mEye.x(), 50.0f);
+            EXPECT_FLOAT_EQ(even.pose(10).mEye.x(), 100.0f);
+            EXPECT_FLOAT_EQ(even.pose(20).mEye.x(), 100.0f);
+
+            const CameraTrack eased = trackOf(keys, Cruise{ .mEase = 4.0 });
+            EXPECT_FLOAT_EQ(eased.pose(2).mEye.x(), 6.25f);
+            EXPECT_FLOAT_EQ(eased.pose(5).mEye.x(), 50.0f);
+            EXPECT_FLOAT_EQ(eased.pose(8).mEye.x(), 93.75f);
 
             const std::vector<TrackKey> one{ keyAt(0, 7.0f) };
-            const CameraTrack still(one);
+            const CameraTrack still = trackOf(one);
             EXPECT_EQ(still.getFrames(), 1u);
             EXPECT_FLOAT_EQ(still.pose(3).mEye.x(), 7.0f);
         }
 
-        /// Three keys ten frames and a hundred units apart: Catmull-Rom's tangent at the middle is
-        /// 200 / 20 = 10 a frame. At frame 15, u = 0.5: 0.5·100 + 0.125·10·10 + 0.5·200 = 162.5. At
-        /// frames 9 and 11 the curve is 89.1 and 110.9, the same 10.9 either side of the key, so the
-        /// camera does not change speed through it. A resting key has no tangent: 97.2 and 102.8,
-        /// which is the smoothstep of each side on its own.
+        /// **A key the flight passes, it passes at speed.** Three keys ten frames and a hundred
+        /// units apart with an ease of four: each leg rests at one end, so takes `100 / v + 2 = 10`,
+        /// `v = 12.5` a frame, and a frame either side of the middle key the eye is 12.5 short of it
+        /// and 12.5 past, 87.5 and 112.5. A key that rests stops the eye on it: both legs rest at
+        /// both ends, `v = 100 / 6`, and a frame out of the stop the eye has covered
+        /// `v · 4 · (0.25³ − 0.25⁴ / 2) = 0.911458`.
         TEST(RtxCameraTrackTest, aKeyIsPassedAtOneSpeedUnlessItRests)
         {
+            const Cruise cruise{ .mEase = 4.0 };
             const std::vector<TrackKey> keys{ keyAt(0, 0.0f), keyAt(10, 100.0f), keyAt(20, 200.0f) };
-            const CameraTrack track(keys);
+            const CameraTrack track = trackOf(keys, cruise);
 
             EXPECT_FLOAT_EQ(track.pose(10).mEye.x(), 100.0f);
-            EXPECT_FLOAT_EQ(track.pose(15).mEye.x(), 162.5f);
-            EXPECT_NEAR(track.pose(9).mEye.x(), 89.1f, 1e-4f);
-            EXPECT_NEAR(track.pose(11).mEye.x(), 110.9f, 1e-4f);
+            EXPECT_NEAR(track.pose(9).mEye.x(), 87.5f, 1e-4f);
+            EXPECT_NEAR(track.pose(11).mEye.x(), 112.5f, 1e-4f);
+            EXPECT_NEAR(track.pose(15).mEye.x(), 162.5f, 1e-4f) << "the cruise, 12.5 a frame";
 
             const std::vector<TrackKey> resting{ keyAt(0, 0.0f), keyAt(10, 100.0f, 0.0f, 12.0f, 0, true),
                 keyAt(20, 200.0f) };
-            const CameraTrack held(resting);
-            EXPECT_NEAR(held.pose(9).mEye.x(), 97.2f, 1e-4f);
-            EXPECT_NEAR(held.pose(11).mEye.x(), 102.8f, 1e-4f);
+            const CameraTrack held = trackOf(resting, cruise);
+            EXPECT_NEAR(held.pose(9).mEye.x(), 100.0f - 0.911458f, 1e-4f);
+            EXPECT_NEAR(held.pose(11).mEye.x(), 100.0f + 0.911458f, 1e-4f);
         }
 
-        /// A flight into a pan on the spot: Catmull-Rom's tangent at the spot is 1000 / 40 = 25 a
-        /// frame, which would carry the camera past it and back. The pan's secant is flat, so the
-        /// tangent is none and the camera stands exactly at the spot for the whole pan, while the
-        /// yaw turns through it.
+        /// **A key passed between two frames is passed at the flight's speed.** A hundred units in
+        /// 7.5 frames and `12.5 · 40 / 3` more in 12.5, with no ease: `40 / 3` a frame on both legs,
+        /// so frame 7 is `280 / 3` and frame 8 is a hundred and half a frame on, `320 / 3`.
+        TEST(RtxCameraTrackTest, aKeyBetweenTwoFramesIsPassedAtSpeed)
+        {
+            constexpr float perFrame = 40.0f / 3.0f;
+            const std::vector<TrackKey> keys{ keyAt(0.0, 0.0f), keyAt(7.5, 100.0f),
+                keyAt(20.0, 100.0f + 12.5f * perFrame) };
+            const CameraTrack track = trackOf(keys);
+
+            EXPECT_EQ(track.getFrames(), 21u);
+            EXPECT_NEAR(track.pose(7).mEye.x(), 7.0f * perFrame, 1e-3f);
+            EXPECT_NEAR(track.pose(8).mEye.x(), 8.0f * perFrame, 1e-3f);
+        }
+
+        /// A flight into a pan on the spot: the pan goes nowhere, so the spot is a rest the flight
+        /// reaches along its chord and does not pass, and the camera stands exactly at it for the
+        /// whole pan while the yaw turns through it.
         TEST(RtxCameraTrackTest, aPanOnTheSpotDoesNotLeaveTheSpot)
         {
             const std::vector<TrackKey> keys{ keyAt(0, 0.0f), keyAt(10, 1000.0f), keyAt(40, 1000.0f, 90.0f) };
-            const CameraTrack track(keys);
+            const CameraTrack track = trackOf(keys);
 
             for (std::uint32_t frame = 10; frame <= 40; ++frame)
                 EXPECT_FLOAT_EQ(track.pose(frame).mEye.x(), 1000.0f) << "frame " << frame;
@@ -95,7 +127,7 @@ namespace RtxTool
             EXPECT_NEAR(shortestTurn(-10.0f * sDegree, 10.0f * sDegree), 20.0f * sDegree, 1e-6f);
 
             const std::vector<TrackKey> keys{ keyAt(0, 0.0f, 170.0f), keyAt(10, 0.0f, -170.0f) };
-            const CameraTrack track(keys);
+            const CameraTrack track = trackOf(keys);
 
             EXPECT_NEAR(std::cos(track.pose(5).mRotation.z()), -1.0f, 1e-6f);
             for (std::uint32_t frame = 0; frame <= 10; ++frame)
@@ -111,7 +143,7 @@ namespace RtxTool
             EXPECT_FLOAT_EQ(hoursForward(1.0f, 23.0f), 22.0f);
 
             const std::vector<TrackKey> keys{ keyAt(0, 0.0f, 0.0f, 22.0f), keyAt(10, 0.0f, 0.0f, 2.0f) };
-            const CameraTrack track(keys);
+            const CameraTrack track = trackOf(keys);
             EXPECT_DOUBLE_EQ(track.pose(0).mHoursOn, 0.0);
             EXPECT_DOUBLE_EQ(track.pose(5).mHoursOn, 2.0);
             EXPECT_DOUBLE_EQ(track.pose(10).mHoursOn, 4.0);
@@ -126,7 +158,7 @@ namespace RtxTool
         {
             const std::vector<TrackKey> keys{ keyAt(0, 0.0f, 0.0f, 6.0f), keyAt(10, 0.0f, 0.0f, 7.0f),
                 keyAt(20, 0.0f, 0.0f, 18.0f), keyAt(60, 0.0f, 0.0f, 18.0f) };
-            const CameraTrack track(keys);
+            const CameraTrack track = trackOf(keys);
 
             EXPECT_NEAR(track.pose(5).mHoursOn, 0.125, 1e-12);
             for (std::uint32_t frame = 0; frame < 60; ++frame)
@@ -140,7 +172,7 @@ namespace RtxTool
         {
             const std::vector<TrackKey> keys{ keyAt(0, 0.0f, 0.0f, 12.0f, 0), keyAt(10, 0.0f, 0.0f, 12.0f, 5),
                 keyAt(20, 0.0f, 0.0f, 12.0f, 5) };
-            const CameraTrack track(keys);
+            const CameraTrack track = trackOf(keys);
 
             const TrackPose start = track.pose(0);
             EXPECT_EQ(start.mWeather, 0u);
@@ -179,7 +211,7 @@ namespace RtxTool
             const SkyRun run{
                 .mHoursPerFrame = 0.5, .mWeathers = { cloudy, rain, snow }, .mHoldFrames = 2, .mCrossingFrames = 4
             };
-            const CameraTrack track(keys, run);
+            const CameraTrack track = trackOf(keys, {}, run);
 
             const TrackPose first = track.pose(0);
             EXPECT_EQ(first.mHoursOn, 0.0);
@@ -192,7 +224,7 @@ namespace RtxTool
             EXPECT_EQ(crossing.mWeather, cloudy);
             EXPECT_EQ(crossing.mNextWeather, rain);
             EXPECT_FLOAT_EQ(crossing.mCrossed, 0.5f);
-            EXPECT_NE(CameraTrack(keys).pose(4).mHoursOn, crossing.mHoursOn) << "the run changed no hour";
+            EXPECT_NE(trackOf(keys).pose(4).mHoursOn, crossing.mHoursOn) << "the run changed no hour";
 
             EXPECT_EQ(track.pose(6).mWeather, rain);
             EXPECT_EQ(track.pose(6).mNextWeather, rain);
@@ -203,18 +235,18 @@ namespace RtxTool
             EXPECT_FLOAT_EQ(round.mCrossed, 0.84375f);
 
             EXPECT_FLOAT_EQ(track.pose(5).mEye.x(), 50.0f);
-            EXPECT_EQ(track.pose(5).mEye, CameraTrack(keys).pose(5).mEye);
+            EXPECT_EQ(track.pose(5).mEye, trackOf(keys).pose(5).mEye);
 
             SkyRun later = run;
             later.mFirstFrame = 10;
-            const TrackPose cut = CameraTrack(keys, later).pose(0);
+            const TrackPose cut = trackOf(keys, {}, later).pose(0);
             EXPECT_EQ(cut.mHoursOn, 0.5);
             EXPECT_EQ(cut.mWeather, rain);
             EXPECT_EQ(cut.mNextWeather, snow);
             EXPECT_FLOAT_EQ(cut.mCrossed, 0.5f);
 
             // Half a run is the keys' other half: the clock alone leaves the keys' weathers.
-            const CameraTrack clockOnly(keys, SkyRun{ .mHoursPerFrame = 0.5 });
+            const CameraTrack clockOnly = trackOf(keys, {}, SkyRun{ .mHoursPerFrame = 0.5 });
             EXPECT_EQ(clockOnly.pose(5).mWeather, 0u);
             EXPECT_EQ(clockOnly.pose(5).mNextWeather, rain);
             EXPECT_EQ(clockOnly.pose(5).mHoursOn, 2.5);

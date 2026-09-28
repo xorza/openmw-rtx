@@ -32,8 +32,12 @@ set(RTXTOOL_FILES
     model/benchspec.hpp
     model/blockfile.cpp
     model/blockfile.hpp
+    model/camerapath.cpp
+    model/camerapath.hpp
     model/cameratrack.cpp
     model/cameratrack.hpp
+    model/cruise.cpp
+    model/cruise.hpp
     model/runrecord.cpp
     model/runrecord.hpp
     model/skycrossing.cpp

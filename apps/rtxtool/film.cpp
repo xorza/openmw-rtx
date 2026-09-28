@@ -3,17 +3,21 @@
 #include <algorithm>
 #include <charconv>
 #include <cmath>
+#include <cstdint>
 #include <format>
 #include <fstream>
+#include <optional>
 #include <stdexcept>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #include <osg/Math>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
+#include <components/rtx/contract.hpp>
 #include <components/rtx/skylight.hpp>
 
 #include "model/benchrecord.hpp"
@@ -136,9 +140,9 @@ namespace RtxTool
             return std::nullopt;
         }
 
-        /// The segment from `from` into `to`: every change it makes, and the longest of the lengths
-        /// they ask for, or the one the key gives.
-        FilmSegment timeSegment(const FilmKey& from, const FilmKey& to, std::size_t index, const FilmPacing& pacing)
+        /// The segment from `from` into `to`: every change it makes but the eye's, which the path
+        /// measures, and the longest of the lengths those changes ask for.
+        FilmSegment sketchSegment(const FilmKey& from, const FilmKey& to, std::size_t index, const FilmPacing& pacing)
         {
             FilmSegment segment{ .mTo = index };
 
@@ -147,7 +151,6 @@ namespace RtxTool
             const float yaw = std::abs(shortestTurn(turnFrom.z(), turnTo.z()));
             const float pitch = std::abs(turnTo.x() - turnFrom.x());
 
-            segment.mDistance = (to.getEye() - from.getEye()).length();
             segment.mTurnDegrees = osg::RadiansToDegrees(std::max(yaw, pitch));
             segment.mHours = hoursForward(from.getHour(), to.getHour());
 
@@ -157,64 +160,231 @@ namespace RtxTool
             const float horizontal = 2.0f * std::atan(std::tan(vertical / 2.0f) * pacing.mAspect);
 
             const std::pair<float, FilmPace> asks[] = {
-                { segment.mDistance / pacing.mSpeed, FilmPace::Distance },
                 { std::max(yaw / horizontal, pitch / vertical) * pacing.mPanSeconds, FilmPace::Turn },
                 { pacing.mClock.has_value() ? 0.0f : segment.mHours * pacing.mHourSeconds, FilmPace::Clock },
                 { pacing.mTurn.empty() && from.getWeather() != to.getWeather() ? pacing.mCrossingSeconds : 0.0f,
                     FilmPace::Weather },
             };
 
-            float seconds = 0.0f;
             for (const auto& [asked, pace] : asks)
-                if (asked > seconds)
+                if (asked > segment.mAsked)
                 {
-                    seconds = asked;
-                    segment.mPace = pace;
+                    segment.mAsked = asked;
+                    segment.mAsker = pace;
                 }
 
-            if (seconds <= 0.0f)
-                seconds = pacing.mStillSeconds;
-
-            if (to.mSeconds.has_value())
-            {
-                seconds = *to.mSeconds;
-                segment.mPace = FilmPace::Given;
-            }
-
-            segment.mFrames = pacing.framesOf(seconds);
             return segment;
         }
 
-        TrackKey trackKey(const FilmKey& key, std::uint32_t frame, bool rests)
+        TrackKey trackKey(const FilmKey& key, bool rests)
         {
-            return TrackKey{ .mFrame = frame,
-                .mEye = key.getEye(),
+            return TrackKey{ .mEye = key.getEye(),
                 .mRotation = rotationOf(key),
                 .mHour = key.getHour(),
                 .mWeather = *Rtx::weatherIndex(key.getWeather()),
                 .mRests = rests };
         }
 
-        /// The keys of `take` at their frames. A hold is the key twice, resting on both, so the
-        /// camera stops on it and sets off again; a take of one key holds it for a still at least.
-        void layTrack(const FilmPlan& plan, FilmTake& take)
+        /// Where a take begins and ends among the plan's keys, and why it cuts in.
+        struct TakeRange
         {
-            const bool alone = take.mEnd - take.mFirst == 1;
-            std::uint32_t frame = 0;
-            for (std::size_t at = take.mFirst; at < take.mEnd; ++at)
+            std::size_t mFirst = 0;
+            std::size_t mEnd = 0;
+            FilmCut mCut = FilmCut::First;
+            float mJump = 0.0f;
+        };
+
+        /// A take as far as it goes before a speed is chosen: its keys laid out and the path through
+        /// them, every segment the speed has no say in timed, and the flights that are left.
+        struct TakeDraft
+        {
+            FilmTake mTake;
+
+            /// Per key of the take, the index in the track of the key the eye leaves it from: the
+            /// second of a hold's two.
+            std::vector<std::size_t> mLeaves;
+
+            /// Per key, the frames it is held for.
+            std::vector<std::uint32_t> mHolds;
+
+            /// The flights, and which segment each is.
+            std::vector<CruiseLeg> mLegs;
+            std::vector<std::size_t> mFlown;
+
+            /// The frames of the take the speed has no say in: its holds, its stills, what stands on
+            /// the spot, and the keys' own seconds.
+            std::uint32_t mFixed = 0;
+
+            /// The frames its flights take at `speed`, in units per frame.
+            double flightFramesAt(const Cruise& cruise, double speed) const
+            {
+                double frames = 0.0;
+                for (const CruiseLeg& leg : mLegs)
+                    frames += cruise.timeFor(leg, speed);
+                return frames;
+            }
+        };
+
+        /// `range`'s keys at no frames yet, the path through them, and what of the take is timed
+        /// whatever the speed. A hold is the key twice, resting on both, so the camera stops on it
+        /// and sets off again; a take of one key holds it for a still at least.
+        TakeDraft draftTake(const FilmPlan& plan, const TakeRange& range)
+        {
+            const FilmPacing& pacing = plan.mPacing;
+            const bool alone = range.mEnd - range.mFirst == 1;
+
+            std::vector<TrackKey> track;
+            std::vector<std::size_t> leavesFrom;
+            std::vector<std::uint32_t> holds;
+            std::uint32_t fixed = 0;
+            for (std::size_t at = range.mFirst; at < range.mEnd; ++at)
             {
                 const FilmKey& key = plan.mKeys[at];
-                if (at > take.mFirst)
-                    frame += take.mSegments[at - take.mFirst - 1].mFrames;
+                const float hold = alone ? std::max(key.mHold, pacing.mStillSeconds) : key.mHold;
+                const std::uint32_t held = hold > 0.0f ? pacing.framesOf(hold) : 0u;
 
-                const float hold = alone ? std::max(key.mHold, plan.mPacing.mStillSeconds) : key.mHold;
-                take.mTrack.push_back(trackKey(key, frame, hold > 0.0f));
-                if (hold > 0.0f)
-                {
-                    frame += plan.mPacing.framesOf(hold);
-                    take.mTrack.push_back(trackKey(key, frame, true));
-                }
+                track.push_back(trackKey(key, held > 0));
+                if (held > 0)
+                    track.push_back(trackKey(key, true));
+                leavesFrom.push_back(track.size() - 1);
+                holds.push_back(held);
+                fixed += held;
             }
+
+            CameraPath path(track);
+
+            std::vector<FilmSegment> segments;
+            std::vector<CruiseLeg> legs;
+            std::vector<std::size_t> flown;
+            for (std::size_t at = range.mFirst + 1; at < range.mEnd; ++at)
+            {
+                const FilmKey& to = plan.mKeys[at];
+                FilmSegment& segment = segments.emplace_back(sketchSegment(plan.mKeys[at - 1], to, at, pacing));
+
+                const std::size_t leaves = leavesFrom[at - range.mFirst - 1];
+                segment.mDistance = path.getLength(leaves);
+
+                if (to.mSeconds.has_value())
+                {
+                    segment.mPace = FilmPace::Given;
+                    segment.mFrames = pacing.framesOf(*to.mSeconds);
+                }
+                else if (segment.mDistance > 0.0)
+                {
+                    segment.mPace = FilmPace::Distance;
+                    legs.push_back(CruiseLeg{ .mLength = segment.mDistance,
+                        .mFromRest = path.restsAt(leaves),
+                        .mToRest = path.restsAt(leaves + 1) });
+                    flown.push_back(segments.size() - 1);
+                    continue;
+                }
+                else
+                {
+                    segment.mPace = segment.mAsked > 0.0f ? segment.mAsker : FilmPace::Still;
+                    segment.mFrames = pacing.framesOf(segment.mAsked > 0.0f ? segment.mAsked : pacing.mStillSeconds);
+                }
+
+                fixed += static_cast<std::uint32_t>(segment.mFrames);
+            }
+
+            return TakeDraft{ .mTake = FilmTake{ .mFirst = range.mFirst,
+                                  .mEnd = range.mEnd,
+                                  .mCut = range.mCut,
+                                  .mJump = range.mJump,
+                                  .mSegments = std::move(segments),
+                                  .mTrack = std::move(track),
+                                  .mPath = std::move(path) },
+                .mLeaves = std::move(leavesFrom),
+                .mHolds = std::move(holds),
+                .mLegs = std::move(legs),
+                .mFlown = std::move(flown),
+                .mFixed = fixed };
+        }
+
+        /// `total` frames shared out as `shares` ask, each a whole number and the sum exact: each
+        /// share's whole part, then one more to each of the largest remainders, which between them
+        /// are exactly what is left over. A share of anything at all is a frame at least, since a
+        /// flight in no frames is no flight, taken from the largest; `total` covers one for each.
+        std::vector<std::uint32_t> apportion(const std::vector<double>& shares, const std::uint32_t total)
+        {
+            const auto owed = static_cast<std::uint32_t>(
+                std::count_if(shares.begin(), shares.end(), [](double share) { return share > 0.0; }));
+            Rtx::contract(total >= owed, "fewer frames than flights to share them out to");
+
+            std::vector<std::uint32_t> whole(shares.size());
+            std::uint32_t given = 0;
+            for (std::size_t at = 0; at < shares.size(); ++at)
+            {
+                whole[at] = static_cast<std::uint32_t>(std::floor(shares[at]));
+                given += whole[at];
+            }
+            Rtx::contract(given <= total, "shares that add to more than their total");
+
+            std::vector<std::size_t> order;
+            for (std::size_t at = 0; at < shares.size(); ++at)
+                if (shares[at] > 0.0)
+                    order.push_back(at);
+            std::stable_sort(order.begin(), order.end(), [&](const std::size_t a, const std::size_t b) {
+                return shares[a] - std::floor(shares[a]) > shares[b] - std::floor(shares[b]);
+            });
+            for (std::size_t at = 0; given < total; ++at, ++given)
+            {
+                Rtx::contract(at < order.size(), "more left over than the shares have remainders");
+                ++whole[order[at]];
+            }
+
+            for (std::size_t at = 0; at < shares.size(); ++at)
+                if (shares[at] > 0.0 && whole[at] == 0)
+                {
+                    --*std::max_element(whole.begin(), whole.end());
+                    whole[at] = 1;
+                }
+
+            return whole;
+        }
+
+        /// Times `draft` with its flights sharing `flightFrames` at one speed, into its take: each
+        /// key's frame, each segment's frames and arrival, and the speed. The take then ends on the
+        /// whole frame its fixed frames and its flights' add to.
+        FilmTake finishTake(TakeDraft draft, const std::uint32_t flightFrames, const FilmPacing& pacing)
+        {
+            FilmTake& take = draft.mTake;
+            const Cruise cruise = pacing.getCruise();
+
+            double speed = 0.0;
+            if (!draft.mLegs.empty())
+            {
+                speed = cruise.speedFor(draft.mLegs, static_cast<double>(flightFrames));
+                take.mSpeed = speed / double{ pacing.mStep };
+                for (std::size_t at = 0; at < draft.mLegs.size(); ++at)
+                    take.mSegments[draft.mFlown[at]].mFrames = cruise.timeFor(draft.mLegs[at], speed);
+            }
+
+            double frame = 0.0;
+            for (std::size_t at = 0; at < draft.mLeaves.size(); ++at)
+            {
+                if (at > 0)
+                {
+                    FilmSegment& segment = take.mSegments[at - 1];
+                    frame += segment.mFrames;
+                    segment.mArrival = frame;
+                }
+
+                const std::size_t leaves = draft.mLeaves[at];
+                const std::size_t arrives = draft.mHolds[at] > 0 ? leaves - 1 : leaves;
+                take.mTrack[arrives].mFrame = frame;
+                frame += static_cast<double>(draft.mHolds[at]);
+                take.mTrack[leaves].mFrame = frame;
+            }
+
+            // The flights were timed to fill their frames exactly, so what is left is rounding.
+            const auto last = static_cast<double>(draft.mFixed + flightFrames);
+            Rtx::contract(std::abs(frame - last) < 1e-6 * std::max(1.0, last), "a take timed off its own frames");
+            take.mTrack.back().mFrame = last;
+            if (!take.mSegments.empty() && draft.mHolds.back() == 0)
+                take.mSegments.back().mArrival = last;
+
+            return std::move(take);
         }
 
         /// The sky `pacing` runs on its own, for the take that begins at the film's `first` frame.
@@ -279,15 +449,16 @@ namespace RtxTool
             Crash::fatal("a cut with no name");
         }
 
-        /// What set a segment's length, in the words and numbers that set it.
-        std::string describePace(const FilmSegment& segment, const FilmKey& to, const FilmPacing& pacing)
+        /// What `pace` stands for over `segment`, in the words and numbers that say it.
+        std::string describeChange(
+            const FilmPace pace, const FilmSegment& segment, const FilmKey& to, const FilmTake& take)
         {
-            switch (segment.mPace)
+            switch (pace)
             {
                 case FilmPace::Given:
                     return "as the key says";
                 case FilmPace::Distance:
-                    return std::format("{:.0f} units at {:.0f} a second", segment.mDistance, pacing.mSpeed);
+                    return std::format("{:.0f} units at {:.0f} a second", segment.mDistance, take.mSpeed);
                 case FilmPace::Turn:
                     return std::format("a turn of {:.0f}°", segment.mTurnDegrees);
                 case FilmPace::Clock:
@@ -299,6 +470,19 @@ namespace RtxTool
             }
             Crash::fatal("a pace with no name");
         }
+
+        /// What set a segment's length, and on a flight what else asks for longer than the flight
+        /// gives it: a turn, the clock or a crossing that a speed held from key to key hurries.
+        std::string describePace(
+            const FilmSegment& segment, const FilmKey& to, const FilmTake& take, const FilmPacing& pacing)
+        {
+            std::string text = describeChange(segment.mPace, segment, to, take);
+            const double given = segment.mFrames * double{ pacing.mStep };
+            if (segment.mDistance > 0.0 && double{ segment.mAsked } > given)
+                text += std::format(
+                    "; {} asks {:.1f} s", describeChange(segment.mAsker, segment, to, take), segment.mAsked);
+            return text;
+        }
     }
 
     FilmPlan planFilm(std::vector<FilmKey> keys, const FilmPacing& pacing)
@@ -307,29 +491,76 @@ namespace RtxTool
             throw std::runtime_error("a film needs a key");
 
         FilmPlan plan{ .mKeys = std::move(keys), .mPacing = pacing };
+
+        std::vector<TakeRange> ranges;
         for (std::size_t at = 0; at < plan.mKeys.size(); ++at)
         {
             float jump = 0.0f;
             const std::optional<FilmCut> cut
                 = at == 0 ? FilmCut::First : cutBetween(plan.mKeys[at - 1], plan.mKeys[at], pacing.mCutDistance, jump);
-
             if (cut.has_value())
+                ranges.push_back(TakeRange{ .mFirst = at, .mCut = *cut, .mJump = jump });
+            ranges.back().mEnd = at + 1;
+        }
+
+        std::vector<TakeDraft> drafts;
+        drafts.reserve(ranges.size());
+        for (const TakeRange& range : ranges)
+            drafts.push_back(draftTake(plan, range));
+
+        // **One speed for every flight of the film**, `mSpeed` or the one that fills `mLength`, in
+        // world units a frame; then each take's flights rounded to the whole frames it ends on,
+        // and flown at what fills those exactly — a speed off the film's by at most half a frame
+        // of its own flights, where carrying the part of a frame over into the next take would
+        // start it between two frames.
+        const Cruise cruise = pacing.getCruise();
+        std::vector<std::uint32_t> frames;
+        frames.reserve(drafts.size());
+        if (pacing.mLength.has_value())
+        {
+            std::vector<CruiseLeg> legs;
+            std::uint64_t fixed = 0;
+            std::uint32_t flying = 0;
+            for (const TakeDraft& draft : drafts)
             {
-                plan.mTakes.push_back(FilmTake{ .mFirst = at, .mEnd = at, .mCut = *cut, .mJump = jump });
-            }
-            else
-            {
-                FilmTake& take = plan.mTakes.back();
-                take.mSegments.push_back(timeSegment(plan.mKeys[at - 1], plan.mKeys[at], at, pacing));
+                legs.insert(legs.end(), draft.mLegs.begin(), draft.mLegs.end());
+                // And the take's first frame, which it has before anything has moved.
+                fixed += std::uint64_t{ draft.mFixed } + 1;
+                flying += draft.mLegs.empty() ? 0u : 1u;
             }
 
-            plan.mTakes.back().mEnd = at + 1;
+            const std::uint32_t length = pacing.framesOf(*pacing.mLength);
+            if (legs.empty())
+                throw std::runtime_error(std::format(
+                    "--length has nothing to set: no key of the film is flown to, where {} s are", *pacing.mLength));
+            if (length < fixed + flying)
+                throw std::runtime_error(
+                    std::format("--length is {} s, and the holds, the stills, what stands on the "
+                                "spot and each take's first frame take {:.1f} s of it, leaving "
+                                "less than a frame for each of the {} takes that fly",
+                        *pacing.mLength, static_cast<double>(fixed) * double{ pacing.mStep }, flying));
+
+            const auto flights = static_cast<std::uint32_t>(length - fixed);
+            const double speed = cruise.speedFor(legs, static_cast<double>(flights));
+            std::vector<double> shares;
+            shares.reserve(drafts.size());
+            for (const TakeDraft& draft : drafts)
+                shares.push_back(draft.mLegs.empty() ? 0.0 : draft.flightFramesAt(cruise, speed));
+            frames = apportion(shares, flights);
+        }
+        else
+        {
+            const double speed = double{ pacing.mSpeed } * double{ pacing.mStep };
+            for (const TakeDraft& draft : drafts)
+                frames.push_back(draft.mLegs.empty()
+                        ? 0u
+                        : std::max(1u, static_cast<std::uint32_t>(std::lround(draft.flightFramesAt(cruise, speed)))));
         }
 
         std::uint32_t first = 0;
-        for (FilmTake& take : plan.mTakes)
+        for (std::size_t at = 0; at < drafts.size(); ++at)
         {
-            layTrack(plan, take);
+            FilmTake& take = plan.mTakes.emplace_back(finishTake(std::move(drafts[at]), frames[at], pacing));
             take.mFirstFrame = first;
             take.mSky = skyRunOf(pacing, first);
             first += take.getFrames();
@@ -340,7 +571,12 @@ namespace RtxTool
 
     std::string describePlan(const FilmPlan& plan)
     {
-        const auto seconds = [&](std::uint32_t frames) { return static_cast<float>(frames) * plan.mPacing.mStep; };
+        const auto seconds = [&](double frames) { return frames * double{ plan.mPacing.mStep }; };
+
+        // The film's frame a key is drawn nearest to, which its hour and weather are read at.
+        const auto drawnAt = [](const std::uint32_t first, const double frame) {
+            return first + static_cast<std::uint32_t>(std::lround(frame));
+        };
 
         // `:g`, because the rate is one over the step and reads back as 59.999996 otherwise.
         std::string text = std::format("film: {} keys, {} takes, {} frames, {:.1f} s at {:g} frames a second\n",
@@ -371,26 +607,20 @@ namespace RtxTool
                 text += std::format(", {:.0f} units", take.mJump);
             text += '\n';
 
-            // The frame each key is reached at, as `layTrack` lays them: after the segment into it
-            // and every hold before it.
-            const auto held = [&](const FilmKey& key) { return key.mHold > 0.0f ? pacing.framesOf(key.mHold) : 0u; };
-            std::uint32_t frame = take.mFirstFrame;
-
+            const std::uint32_t start = drawnAt(take.mFirstFrame, 0.0);
             text += std::format("  {:<28} {} {}, {}{}\n", first.mStop.mName, first.getCell(),
-                describeHour(hourAt(plan, frame, first)), weatherAt(plan, frame, first),
+                describeHour(hourAt(plan, start, first)), weatherAt(plan, start, first),
                 first.mHold > 0.0f ? std::format(", holds {:.1f} s", first.mHold) : std::string());
-            frame += held(first);
 
             for (const FilmSegment& segment : take.mSegments)
             {
                 const FilmKey& key = plan.mKeys[segment.mTo];
-                frame += segment.mFrames;
+                const std::uint32_t arrival = drawnAt(take.mFirstFrame, segment.mArrival);
 
                 text += std::format("  -> {:<25} {:6.1f} s  {} {}, {}{}  ({})\n", key.mStop.mName,
-                    seconds(segment.mFrames), describeHour(hourAt(plan, frame, key)), weatherAt(plan, frame, key),
+                    seconds(segment.mFrames), describeHour(hourAt(plan, arrival, key)), weatherAt(plan, arrival, key),
                     key.mHold > 0.0f ? std::format("holds {:.1f} s, ", key.mHold) : std::string(), key.getCell(),
-                    describePace(segment, key, plan.mPacing));
-                frame += held(key);
+                    describePace(segment, key, take, pacing));
             }
         }
 
@@ -413,7 +643,7 @@ namespace RtxTool
             stop.mSky.mDay = first.mStop.mSky.mDay.value_or(plan.mPacing.mDay);
             stop.mSchedule.mSpec.mWarm = BenchSpan{ .mSeconds = plan.mPacing.mWarmupSeconds };
             stop.mSchedule.mSpec.mRun = BenchSpan{ .mFrames = take.getFrames() };
-            stop.mSchedule.mTrack.emplace(take.mTrack, take.mSky);
+            stop.mSchedule.mTrack.emplace(take.mTrack, take.mPath, plan.mPacing.getCruise(), take.mSky);
             stop.mActions.mFilm = Actions::Film{ .mDirectory = frames, .mFirst = take.mFirstFrame };
 
             // **A clock that runs through the film is set once, at its first take**, and every take
