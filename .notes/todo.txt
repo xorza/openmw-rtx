@@ -6,5 +6,4 @@
 - add symbols to the release ci
 - blue rain
 - folder structure
-- preprocessed content cache
 - release to run asan ubsan
