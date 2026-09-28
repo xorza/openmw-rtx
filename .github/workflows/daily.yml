@@ -7,10 +7,8 @@
 # issue for one breakage however many days it lasts, and never an issue for a run that was only
 # cancelled.
 #
-# The sanitizers are upstream's, from its GitLab pipeline: AddressSanitizer and
-# UndefinedBehaviorSanitizer over its suites, with a finding a failure. Here the fork's `asan` flavour,
-# which carries both, over upstream's suites and the fork's own, without a device as every hosted run
-# is. The packaging is `omw archive`, which a release runs, on both systems.
+# The sanitizers are `sanitizers.yml`, which a release runs as well, here with the caches. The
+# packaging is `omw archive`, which a release runs, on both systems.
 name: Daily
 
 on:
@@ -23,11 +21,6 @@ on:
 # Nothing by default, and each job names what it needs.
 permissions: {}
 
-env:
-  # A filter that matches nothing is a failure and not a pass, on a Google Test that reads this;
-  # an older one ignores it.
-  GTEST_FAIL_IF_NO_TEST_SELECTED: "1"
-
 # A run is never cancelled, since it is the day's answer; one asked for by hand waits its turn.
 concurrency:
   group: daily
@@ -35,49 +28,11 @@ concurrency:
 
 jobs:
   sanitizers:
-    name: sanitizers
-    runs-on: ubuntu-24.04
+    uses: $/.github/workflows/sanitizers.yml
     permissions:
       contents: read
-    timeout-minutes: 180
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: $/.github/actions/openmw-deps
-
-      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
-        with:
-          # Two gigabytes: at one, the sanitized objects of every suite (`--all`) filled the cache
-          # and evicted 335 times over a run.
-          key: sanitizers
-          max-size: 2000M
-
-      - name: Build
-        run: python omw asan build
-
-      - name: Test, upstream's suites whole beside the fork's, in a shuffled order
-        # Shuffled, so a test that leans on what an earlier one left behind fails here: the seed is in
-        # a failing test's log, and `--gtest_random_seed` takes it back. A test that captured stderr
-        # and never gave it back broke every later death test in its binary, and ran in upstream's
-        # order for years. Google Test reads its flags from the environment as well as the line.
-        env:
-          GTEST_SHUFFLE: "1"
-        run: python omw asan test --without-device --all
-
-      - name: Logs
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: logs-sanitizers-${{ github.sha }}
-          path: |
-            build-asan/CMakeCache.txt
-            build-asan/**/*.log
-            build-asan/crash-matrix/
+    with:
+      cache: true
 
   package:
     name: package (${{ matrix.os }})
