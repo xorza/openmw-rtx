@@ -82,7 +82,7 @@ namespace RtxTool
             std::ifstream written(file);
             std::string text((std::istreambuf_iterator<char>(written)), std::istreambuf_iterator<char>());
             EXPECT_EQ(text,
-                "frame finish wait walk fold place bake textures upload trace views present update sleep\n"
+                "frame finish wait walk preprocess place bake textures upload trace views present update sleep\n"
                 "10.000 4.750 4.500 0.000 0.000 0.000 0.000 0.000 0.000 1.250 0.000 0.000 0.000 0.000\n"
                 "8.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.500 0.000 0.000 2.000 0.750\n");
 

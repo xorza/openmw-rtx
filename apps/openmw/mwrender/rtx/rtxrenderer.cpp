@@ -360,7 +360,7 @@ namespace MWRender
 
         // The sky's sheets into the mirror's scene, once: they are drawn by rays that reach
         // nothing, so nothing the walk finds would keep their slots.
-        mSky.attach(mMirror.getScene(), *getResources().getSceneManager());
+        mSky.attach(mMirror.getScene(), *getResources().getSceneManager(), mMirror.getPreprocessor());
     }
 
     void RtxRenderer::adoptTraversalRoot(osg::Group& root) noexcept
@@ -823,13 +823,17 @@ namespace MWRender
             const std::chrono::steady_clock::time_point walked = std::chrono::steady_clock::now();
             mWalked.mFound = mMirror.mirror(frame, view, when.getFrameNumber());
             report.mSpend.at(Rtx::Timing::Walk) = Rtx::since(walked, std::chrono::steady_clock::now());
-            report.mSpend.at(Rtx::Timing::Fold) = mWalked.mFound.mFoldMs;
+            report.mSpend.at(Rtx::Timing::Preprocess) = mWalked.mFound.mPreprocessed.mOnFrame.getMs();
 
             // **The same graph again, and it should add nothing.** Only a run that asked pays for
             // it, because a second whole-graph walk is the largest cost a frame has.
             mWalked.mAgain.reset();
             if (mRun.wantsSecondWalk())
                 mWalked.mAgain = mMirror.mirror(frame, view, when.getFrameNumber());
+
+            mWalked.mSession += mWalked.mFound.mPreprocessed;
+            if (mWalked.mAgain.has_value())
+                mWalked.mSession += mWalked.mAgain->mPreprocessed;
         }
 
         // After the last walk, because a walk clears the frame's lists.

@@ -3,10 +3,14 @@
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <cassert>
+#include <functional>
 #include <limits>
 
 #include <osg/BoundingBox>
 #include <osg/Vec3f>
+
+#include "contentkey.hpp"
 
 namespace Rtx
 {
@@ -290,6 +294,24 @@ namespace Rtx
         if (dropped)
             compactTriangles(indices, [&](std::size_t t) { return mPocketDropped[t] != 0; });
         return dropped;
+    }
+
+    void ShapeFold::digest(const Input& input, ContentDigest& digest) const
+    {
+        digest.add(input.mPositions);
+        digest.add(input.mIndices);
+    }
+
+    void ShapeFold::run(const Input& input, Output& output)
+    {
+        // An input spanning its own output would be read as it is overwritten.
+        [[maybe_unused]] const std::uint32_t* const from = input.mIndices.data();
+        [[maybe_unused]] const std::uint32_t* const kept = output.mKept.data();
+        assert((std::less_equal<>()(from + input.mIndices.size(), kept)
+                   || std::less_equal<>()(kept + output.mKept.capacity(), from))
+            && "a fold's input spans its own output");
+        output.mKept.assign(input.mIndices.begin(), input.mIndices.end());
+        output.mShape = fold(input.mPositions, output.mKept);
     }
 
     FoldedShape ShapeFold::fold(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices)

@@ -43,9 +43,11 @@ namespace Rtx
         /// @param pass the walk in progress: its sweep stamp and its counts, read at every call.
         ///        Borrowed, so that the mirror and everything resolving into it cannot come to hold
         ///        two answers.
-        MeshResolver(SceneDesc& scene, const MirrorPass& pass)
+        /// @param content the walk's thread's, which folds what is read.
+        MeshResolver(SceneDesc& scene, const MirrorPass& pass, ContentPreprocessor& content)
             : mScene(scene)
             , mPass(pass)
+            , mReader(content)
         {
         }
 

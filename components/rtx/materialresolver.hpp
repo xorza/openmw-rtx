@@ -11,7 +11,6 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
-#include "alphaimage.hpp"
 #include "material.hpp"
 #include "meantexels.hpp"
 #include "mirroridentity.hpp"
@@ -37,7 +36,7 @@ namespace SceneUtil
 
 namespace Rtx
 {
-    struct AlphaScratch;
+    class ContentPreprocessor;
     struct Shading;
 
     /// What a chain of state sets says a surface is, read where the chain is and adopted where the
@@ -83,10 +82,12 @@ namespace Rtx
         ///        two answers.
         /// @param means the process's mean texels, shared with the emitters for the reason
         ///        `EmitterResolver` gives.
-        MaterialResolver(SceneDesc& scene, const MirrorPass& pass, MeanTexels& means)
+        /// @param content the walk's thread's, which reads a translucent map's alpha.
+        MaterialResolver(SceneDesc& scene, const MirrorPass& pass, MeanTexels& means, ContentPreprocessor& content)
             : mScene(scene)
             , mPass(pass)
             , mMeans(means)
+            , mContent(content)
         {
         }
 
@@ -96,9 +97,9 @@ namespace Rtx
         /// Reads the chain of state sets in force at a drawable, for a thread that has no scene to
         /// resolve into. `resolve` is the same reading followed by `adopt`.
         ///
-        /// @param scratch what a translucent diffuse map's texels are walked through.
+        /// @param content that thread's own, which reads a translucent diffuse map's alpha.
         /// @param means that thread's own cache of additive maps' means.
-        static MaterialReading read(std::span<const Shading> shading, AlphaScratch& scratch, MeanTexels& means);
+        static MaterialReading read(std::span<const Shading> shading, ContentPreprocessor& content, MeanTexels& means);
 
         /// The material slot for a reading, adding it where the mirror holds none under its key,
         /// with one hold taken on the entry — `MeshResolver::adopt` says why a hold. Standing only:
@@ -294,13 +295,10 @@ namespace Rtx
         /// address would otherwise be handed the state set the first one's controllers were writing.
         Identity<const osg::Node, Animated> mAnimated{ mPass };
 
-        /// What `diffuseReachesSolid` reads a texture's alpha in, refilled per image it is asked
-        /// about — which is once per translucent diffuse map a cell arrives with.
-        AlphaScratch mAlphaScratch;
-
-        /// The extractor's. The ring's reader has its own and hands its answers over in the
+        /// The extractor's, both. The ring's reader has its own and hands its answers over in the
         /// reading.
         MeanTexels& mMeans;
+        ContentPreprocessor& mContent;
 
         SpecularLayout mSpecularLayout = SpecularLayout::Ignore;
     };

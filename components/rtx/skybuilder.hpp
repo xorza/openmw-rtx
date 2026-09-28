@@ -17,6 +17,7 @@
 
 namespace Rtx
 {
+    class ContentPreprocessor;
     class SceneDesc;
 
     /// Which meshes the sky's two surfaces are read off — `Models/skyclouds` and the two star
@@ -88,7 +89,10 @@ namespace Rtx
     /// short of a file is content the game still runs, and the shipped fallbacks name Solstheim's
     /// two skies without Bloodmoon. A deck's sheet is left out rather than stood in for, because
     /// the stand-in is an opaque grey, which over a cloud deck is the entire sky.
-    SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes);
+    ///
+    /// @param content what each sheet's mean is read through: the frame thread's.
+    SkyContent addSkyContent(
+        SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes, ContentPreprocessor& content);
 
     /// Gives back every hold `addSkyContent` took — each weather's deck and the night sky's
     /// sheets — so a scene the world has left holds nothing of its sky.

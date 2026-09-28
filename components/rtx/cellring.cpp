@@ -226,6 +226,7 @@ namespace Rtx
         mPlacer.adoptGround(cell, held, mAround, stats);
 
         mScene.refusals().refuse(cell.mRefusals);
+        stats.mPreprocessed.mOffFrame += cell.mPreprocessed;
 
         for (PreparedModel* model : cell.mModels)
         {

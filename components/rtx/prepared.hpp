@@ -19,6 +19,7 @@
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "contentstats.hpp"
 #include "material.hpp"
 #include "materialresolver.hpp"
 #include "meshreader.hpp"
@@ -273,6 +274,10 @@ namespace Rtx
         /// The models and the lamps of the cell this renderer cannot take, which only the frame's
         /// thread reports.
         std::vector<Refusal> mRefusals;
+
+        /// What reading the cell computed from the content on the reader's thread: the models it
+        /// read the first time, which a model named again does not cost.
+        ContentStats mPreprocessed;
 
         void reuse()
         {

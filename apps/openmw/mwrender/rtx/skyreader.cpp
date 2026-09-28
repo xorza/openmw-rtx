@@ -76,10 +76,10 @@ namespace MWRender
             textures.emplace_back(Rtx::moonFaceOf(moon));
     }
 
-    void SkyReader::attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes)
+    void SkyReader::attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ContentPreprocessor& content)
     {
         mMoonFaces = Rtx::addMoonFaces(scene, *scenes.getImageManager(), mMoonSizes);
-        mSkyContent = Rtx::addSkyContent(scene, scenes, meshes());
+        mSkyContent = Rtx::addSkyContent(scene, scenes, meshes(), content);
     }
 
     void SkyReader::detach(Rtx::SceneDesc& scene)

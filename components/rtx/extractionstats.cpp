@@ -36,7 +36,7 @@ namespace Rtx
         for (const auto counter : sCounters)
             this->*counter += other.*counter;
 
-        mFoldMs += other.mFoldMs;
+        mPreprocessed += other.mPreprocessed;
 
         return *this;
     }

@@ -15,6 +15,7 @@
 #include <components/rtx/cellring.hpp>
 #include <components/rtx/cellworld.hpp>
 #include <components/rtx/compositequeue.hpp>
+#include <components/rtx/contentpreprocessor.hpp>
 #include <components/rtx/extractionstats.hpp>
 #include <components/rtx/framespend.hpp>
 #include <components/rtx/frameworld.hpp>
@@ -138,6 +139,9 @@ namespace MWRender
 
         const Rtx::SceneDesc& getScene() const { return mScene; }
         Rtx::SceneDesc& getScene() { return mScene; }
+
+        /// The frame thread's — `Rtx::SceneExtractor::getPreprocessor`.
+        Rtx::ContentPreprocessor& getPreprocessor() { return mExtractor.getPreprocessor(); }
 
         /// Where every walk that can reach one graph takes its traversal numbers from.
         Rtx::Traversals& getTraversals() { return mTraversals; }

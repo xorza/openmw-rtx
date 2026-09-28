@@ -7,6 +7,7 @@
 
 #include <osg/Vec3f>
 
+#include "contentpass.hpp"
 #include "pockettree.hpp"
 
 namespace Rtx
@@ -69,14 +70,42 @@ namespace Rtx
     class ShapeFold
     {
     public:
-        /// Drops the second of every reversed pair and then the later wall of every pocket,
-        /// compacting `indices` in place, and says what the shape came to. A twin is matched by
-        /// exact equality of positions, because it is a copy and not a remodel; a copy wound the
-        /// same way is not a twin and is left. No allocation per triangle, because a cell crossing
-        /// folds tens of thousands of triangles a second.
-        FoldedShape fold(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices);
+        /// What the fold reads: the vertices, and the triangles as the drawable named them.
+        struct Input
+        {
+            std::span<const osg::Vec3f> mPositions;
+            std::span<const std::uint32_t> mIndices;
+        };
+
+        /// What it comes to: the triangles it kept, in the order the drawable named them, and what
+        /// the shape was.
+        struct Output
+        {
+            std::vector<std::uint32_t>& mKept;
+            FoldedShape mShape;
+        };
+
+        static constexpr ContentPassId sPass = ContentPassId::Fold;
+        static constexpr std::uint32_t sVersion = 1;
+
+        void digest(const Input& input, ContentDigest& digest) const;
+
+        /// Drops the second of every reversed pair and then the later wall of every pocket, keeping
+        /// the rest in the order they were named, and says what the shape came to. A twin is
+        /// matched by exact equality of positions, because it is a copy and not a remodel; a copy
+        /// wound the same way is not a twin and is left. No allocation per triangle, because a cell
+        /// crossing folds tens of thousands of triangles a second.
+        void run(const Input& input, Output& output);
 
     private:
+        /// **Made by a `ContentPreprocessor` and by nothing else**, so the one way to fold is the
+        /// one that keys and counts it.
+        friend class ContentPreprocessor;
+        ShapeFold() = default;
+
+        /// `run`'s own, over the kept triangles in place.
+        FoldedShape fold(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices);
+
         /// One triangle's corners, rotated so the least comes first: the winding survives and where
         /// the file happened to start the triangle does not, which is what lets two spellings of one
         /// triangle compare equal.

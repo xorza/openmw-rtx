@@ -118,7 +118,10 @@ namespace Rtx
 
     PreparedCell& CellReader::read(const osg::Vec2i& cell, const bool statics)
     {
-        PreparedCell& prepared = mCells.take([&](PreparedCell& into) { fill(into, cell, statics); });
+        PreparedCell& prepared = mCells.take([&](PreparedCell& into) {
+            fill(into, cell, statics);
+            into.mPreprocessed = mWalk.takeStats();
+        });
         mCells.lend(prepared);
         return prepared;
     }

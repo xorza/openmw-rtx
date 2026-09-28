@@ -27,6 +27,8 @@ namespace SceneUtil
 
 namespace Rtx
 {
+    class ContentPreprocessor;
+
     /// What of a drawable there is to mirror: the geometry its triangles and attributes are read
     /// from, and what poses it. A skinned body's geometry is its source — the bind pose, which a
     /// pose is computed from on the device — and so is a morphed face's, with the base target for
@@ -58,9 +60,6 @@ namespace Rtx
         MeshArrays mArrays;
 
         FoldedShape mShape;
-
-        /// What the fold cost, in milliseconds. `ExtractionStats::mFoldMs` is where it is summed.
-        double mFoldMs = 0.0;
     };
 
     /// Turns a drawable into a `MeshReading`: the half of a mesh's arrival that reads and folds,
@@ -69,6 +68,12 @@ namespace Rtx
     class MeshReader
     {
     public:
+        /// @param content this thread's, which folds what is read.
+        explicit MeshReader(ContentPreprocessor& content)
+            : mContent(content)
+        {
+        }
+
         /// Reads `read` into `into`, answering whether the drawable held a triangle to read, and an
         /// error for a face this cannot build, saying why: a morph's base that is not the length of
         /// its source, a triangle naming a vertex the drawable does not have, an array of normals,
@@ -77,14 +82,15 @@ namespace Rtx
         Result<bool, std::string> read(const DrawableRead& read, MeshReading& into);
 
     private:
-        /// Collects `geometry`'s triangles into `mIndexScratch`, degenerate ones left out, and
+        /// Collects `geometry`'s triangles into `mTriangleScratch`, degenerate ones left out, and
         /// answers whether any is left. An error where one names a vertex at or past `vertices`.
         Result<bool, std::string> collectTriangles(const osg::Geometry& geometry, std::size_t vertices);
 
-        ShapeFold mFold;
+        ContentPreprocessor& mContent;
 
-        /// Refilled per drawable rather than reallocated, because a cell is tens of thousands of
-        /// them.
+        /// The triangles as the drawable names them, and the ones the fold kept. Refilled per
+        /// drawable rather than reallocated, because a cell is tens of thousands of them.
+        std::vector<std::uint32_t> mTriangleScratch;
         std::vector<std::uint32_t> mIndexScratch;
 
         /// Where an overall normal is spread across a drawable's vertices.

@@ -141,38 +141,15 @@ namespace Rtx
         return mColour / mAlpha;
     }
 
-    MeanTexel meanTexel(const osg::Image& image)
+    MeanTexel meanTexel(const TextureData& finest, AlphaScratch& scratch)
     {
-        AlphaScratch scratch;
-        return meanTexel(image, scratch);
-    }
+        const MipLevel& level = finest.mLevels.front();
 
-    MeanTexel meanTexel(const osg::Image& image, AlphaScratch& scratch)
-    {
-        std::vector<MipLevel>& levels = scratch.mLevels;
-        levels.clear();
-        scratch.mTexels.clear();
-
-        // An image this cannot describe is the same image whose arrival in the texture table
-        // refuses it by name. The caller gets nothing and carries on without whatever this was
-        // worth.
-        const Result<TextureData, std::string> read = describeImage(image, levels, scratch.mTexels);
-        if (!read.isOk())
-            return MeanTexel();
-
-        TextureData described = read.value();
-
-        // The finest level alone. A mip chain is the same picture at lower rates, so every level
-        // holds the same mean to within its own filtering, and the coarse ones cost nothing to skip.
-        const MipLevel& level = levels.front();
-
-        // Never empty here, because it is empty only for a description carrying no texels — so
-        // the alpha is read rather than defaulted, which is the difference between a star sheet
-        // worth nearly nothing and one worth the black it is painted on. The one level, as
-        // `reachesSolid` reads it, because the coarser ones are never asked.
-        described.mLevels = described.mLevels.subspan(0, 1);
+        // The alpha is never empty here, because it is empty only for a description carrying no
+        // texels — so it is read rather than defaulted, which is the difference between a star
+        // sheet worth nearly nothing and one worth the black it is painted on.
         AlphaImage& alpha = scratch.mAlpha;
-        alpha.build(described);
+        alpha.build(finest);
 
         // Row by row, in the order a texel at a time was summed, so the means are the same to the
         // bit; a band at a time, so a block is decoded once and not once a texel.
@@ -182,7 +159,7 @@ namespace Rtx
         double covered = 0.0;
         for (std::uint32_t first = 0; first < level.mHeight; first += 4)
         {
-            readTexelBand(described, level, first / 4, band);
+            readTexelBand(finest, level, first / 4, band);
             for (std::uint32_t y = first; y < first + band.size() / level.mWidth; ++y)
                 for (std::uint32_t x = 0; x < level.mWidth; ++x)
                 {

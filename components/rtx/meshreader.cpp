@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <chrono>
 #include <cstddef>
 #include <span>
 #include <string>
@@ -19,7 +18,7 @@
 #include <components/shader/automaps.hpp>
 
 #include "colour.hpp"
-#include "framespend.hpp"
+#include "contentpreprocessor.hpp"
 
 namespace Rtx
 {
@@ -258,13 +257,13 @@ namespace Rtx
 
     Result<bool, std::string> MeshReader::collectTriangles(const osg::Geometry& geometry, const std::size_t vertices)
     {
-        mIndexScratch.clear();
+        mTriangleScratch.clear();
 
         osg::TriangleIndexFunctor<TriangleCollector> collector;
-        collector.mIndices = &mIndexScratch;
+        collector.mIndices = &mTriangleScratch;
         geometry.accept(collector);
 
-        if (mIndexScratch.empty())
+        if (mTriangleScratch.empty())
             return false;
 
         if (collector.mLargest >= vertices)
@@ -343,16 +342,13 @@ namespace Rtx
         // Folded before the mesh is written, so the copy the content drew for a card's back never
         // reaches a structure. Once per drawable and never for a pose: a rig moves the two copies
         // together, so the pairs found in the bind pose are the pairs.
-        const std::chrono::steady_clock::time_point folding = std::chrono::steady_clock::now();
         const Result<bool, std::string> collected = collectTriangles(geometry, count);
         if (!collected.isOk())
             return Err{ collected.error() };
-        if (collected.value())
-            into.mShape = mFold.fold(arrays.mPositions, mIndexScratch);
-        into.mFoldMs = since(folding, std::chrono::steady_clock::now());
-
         if (!collected.value())
             return false;
+
+        into.mShape = mContent.fold(arrays.mPositions, mTriangleScratch, mIndexScratch);
 
         into.mArrays = MeshArrays{
             .mPositions = arrays.mPositions,

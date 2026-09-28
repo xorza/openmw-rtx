@@ -16,6 +16,7 @@
 #include <osg/Vec4ub>
 #include <osg/ref_ptr>
 
+#include <components/rtx/contentpreprocessor.hpp>
 #include <components/rtx/extractionstats.hpp>
 #include <components/rtx/mesh.hpp>
 #include <components/rtx/meshreader.hpp>
@@ -40,7 +41,8 @@ namespace Rtx::Testing
             SceneDesc mScene;
             ExtractionStats mStats;
             MirrorPass mPass;
-            MeshResolver mResolver{ mScene, mPass };
+            ContentPreprocessor mContent;
+            MeshResolver mResolver{ mScene, mPass, mContent };
 
             Resolving() { mPass.mStats = &mStats; }
         };
@@ -51,7 +53,8 @@ namespace Rtx::Testing
 
             quad->setNormalArray(makePositions({ osg::Vec3f(0.0f, 0.0f, 1.0f) }), osg::Array::BIND_OVERALL);
 
-            MeshReader reader;
+            ContentPreprocessor content;
+            MeshReader reader(content);
             MeshReading reading;
             ASSERT_TRUE(reader.read(readDrawable(*quad, NodeKinds{}.of(*quad)), reading).value());
 
@@ -89,7 +92,8 @@ namespace Rtx::Testing
             constexpr float sAt64 = 0.05126946f;
             constexpr float sAt128 = 0.21586050f;
 
-            MeshReader reader;
+            ContentPreprocessor content;
+            MeshReader reader(content);
             MeshReading reading;
 
             // What `NifOsg` builds from a `NiGeometryData`: four floats a vertex.
@@ -195,7 +199,8 @@ namespace Rtx::Testing
                 { tripleTangents, "its tangents are not four floats each" },
             } };
 
-            MeshReader reader;
+            ContentPreprocessor content;
+            MeshReader reader(content);
             MeshReading reading;
             for (const auto& [geometry, why] : broken)
             {
@@ -229,7 +234,8 @@ namespace Rtx::Testing
             quad->setTexCoordArray(1, first);
             quad->setTexCoordArray(2, second);
 
-            MeshReader reader;
+            ContentPreprocessor content;
+            MeshReader reader(content);
             MeshReading reading;
             ASSERT_TRUE(reader.read(readDrawable(*quad, NodeKinds{}.of(*quad)), reading).value());
             EXPECT_TRUE(reading.mArrays.mTangents.empty()) << "a quad no normal map is read through";
@@ -256,7 +262,8 @@ namespace Rtx::Testing
         {
             osg::ref_ptr<osg::Geometry> quad = makeQuad();
 
-            MeshReader reader;
+            ContentPreprocessor content;
+            MeshReader reader(content);
             MeshReading reading;
             ASSERT_TRUE(reader.read(readDrawable(*quad, NodeKinds{}.of(*quad)), reading).value());
 

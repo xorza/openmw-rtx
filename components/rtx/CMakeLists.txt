@@ -37,6 +37,14 @@ set(RTX_FILES
     colourblock.hpp
     compositequeue.cpp
     compositequeue.hpp
+    contentcache.hpp
+    contentkey.cpp
+    contentkey.hpp
+    contentpass.hpp
+    contentpreprocessor.cpp
+    contentpreprocessor.hpp
+    contentstats.cpp
+    contentstats.hpp
     contract.hpp
     debuglines.hpp
     deformertable.cpp
@@ -46,6 +54,8 @@ set(RTX_FILES
     error.hpp
     extractionstats.cpp
     extractionstats.hpp
+    finesttexels.cpp
+    finesttexels.hpp
     finite.hpp
     fogbuilder.cpp
     fogbuilder.hpp
@@ -149,6 +159,8 @@ set(RTX_FILES
     slot.hpp
     slots.cpp
     slots.hpp
+    solidreach.cpp
+    solidreach.hpp
     specularalbedo.cpp
     specularalbedo.hpp
     specularlayout.hpp
@@ -167,6 +179,8 @@ set(RTX_FILES
     tangent.hpp
     templatewalk.cpp
     templatewalk.hpp
+    texelmean.cpp
+    texelmean.hpp
     texels.cpp
     texels.hpp
     texturebuilder.cpp

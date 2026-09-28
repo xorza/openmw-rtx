@@ -18,6 +18,7 @@ namespace Resource
 
 namespace Rtx
 {
+    class ContentPreprocessor;
     class SceneDesc;
 
     /// Morrowind's night sky, read off the mesh the rasterizer draws it with: a star field over
@@ -69,8 +70,9 @@ namespace Rtx
     /// @param mesh the star dome the configuration names.
     /// @param fallback the dome to read where the archives hold no `mesh`: Tribunal ships the
     ///        second one and Morrowind alone does not, and the rasterizer picks by the same test.
+    /// @param content what each sheet's mean is read through.
     Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
-        VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback);
+        VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ContentPreprocessor& content);
 
     /// Gives back every hold `readNightSky` took: the field's and each patch's.
     void dropNightSky(SceneDesc& scene, const NightSky& sky);

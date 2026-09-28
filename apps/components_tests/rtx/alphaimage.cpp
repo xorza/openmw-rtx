@@ -14,6 +14,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/alphaimage.hpp>
+#include <components/rtx/contentpreprocessor.hpp>
 #include <components/rtx/texturedata.hpp>
 
 #include "support/allocations.hpp"
@@ -281,16 +282,15 @@ namespace Rtx
         /// The solid texel is last, so a walk that answered off the first texel it read fails.
         TEST(RtxAlphaImageTest, reachesSolidIsTrueOnlyWhereSomeTexelIsFullyOpaque)
         {
-            // One scratch for all four, which is how `MaterialResolver` holds it: a cell asks this
-            // once per translucent diffuse map it arrives with.
-            AlphaScratch scratch;
+            // One preprocessor for all four, which is how a thread holds it: a cell asks this once
+            // per translucent diffuse map it arrives with.
+            ContentPreprocessor content;
 
-            EXPECT_TRUE(reachesSolid(*makeAlphaImage({ 0, 119, 254, 255 }), scratch)) << "one solid texel is a mask";
-            EXPECT_FALSE(reachesSolid(*makeAlphaImage({ 0, 119, 254, 254 }), scratch))
-                << "one short of solid is a wisp";
-            EXPECT_FALSE(reachesSolid(*makeAlphaImage({ 119, 119, 119, 119 }), scratch))
+            EXPECT_TRUE(content.reachesSolid(*makeAlphaImage({ 0, 119, 254, 255 }))) << "one solid texel is a mask";
+            EXPECT_FALSE(content.reachesSolid(*makeAlphaImage({ 0, 119, 254, 254 }))) << "one short of solid is a wisp";
+            EXPECT_FALSE(content.reachesSolid(*makeAlphaImage({ 119, 119, 119, 119 })))
                 << "the blight cloud's own peak";
-            EXPECT_TRUE(reachesSolid(*makeAlphaImage({ 255, 255, 255, 255 }), scratch))
+            EXPECT_TRUE(content.reachesSolid(*makeAlphaImage({ 255, 255, 255, 255 })))
                 << "an untextured surface's stand-in";
         }
 
@@ -332,40 +332,34 @@ namespace Rtx
         /// `1 | 1 << 3 | 7 << 9 | 1 << 12 | 1 << 15 = 0x9E09`, little-endian `09 9E`.
         TEST(RtxAlphaImageTest, aBlockFormatReachesSolidByItsBlocksAndNeverByItsPadding)
         {
-            AlphaScratch scratch;
+            ContentPreprocessor content;
 
-            EXPECT_TRUE(reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4,
-                                         { 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF }),
-                scratch))
+            EXPECT_TRUE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF })))
                 << "descending endpoints: four colours and no hole";
-            EXPECT_FALSE(reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4,
-                                          { 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }),
-                scratch))
+            EXPECT_FALSE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF })))
                 << "ascending endpoints and every index three: all hole";
-            EXPECT_TRUE(reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4,
-                                         { 0x00, 0x00, 0xFF, 0xFF, 0xFC, 0xFF, 0xFF, 0xFF }),
-                scratch))
+            EXPECT_TRUE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFC, 0xFF, 0xFF, 0xFF })))
                 << "ascending endpoints and one index nought: one texel of paint";
 
             // Where OpenSceneGraph counts the level short of its block, `describeImage` refuses the
             // image, and a refused image answers what changes nothing about how the surface is traced.
             const bool wholeBlock = countedBytes(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2) == 16;
-            EXPECT_EQ(reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2,
-                                       { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }),
-                          scratch),
+            EXPECT_EQ(content.reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2,
+                          { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })),
                 !wholeBlock)
                 << "the 255 is in the padding";
-            EXPECT_TRUE(reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4,
-                                         { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }),
-                scratch))
+            EXPECT_TRUE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4, { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })))
                 << "the same block whole: texel three is in the picture";
-            EXPECT_FALSE(reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4,
-                                          { 200, 0, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }),
-                scratch))
+            EXPECT_FALSE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4, { 200, 0, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })))
                 << "descending from 200, index seven is a step of the ramp and nothing reaches 255";
         }
 
-        /// The second image a scratch reads costs the heap nothing, and reads as itself.
+        /// The second image a preprocessor reads costs the heap nothing, and reads as itself.
         ///
         /// **What holding one is for.** `MaterialResolver` asks this of every translucent diffuse
         /// map a cell arrives with, and a reading that took its levels table and its decoded alpha
@@ -377,11 +371,11 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> mask = makeAlphaImage({ 0, 119, 254, 255 });
             const osg::ref_ptr<osg::Image> wisp = makeAlphaImage({ 0, 119, 254, 254 });
 
-            AlphaScratch scratch;
-            ASSERT_TRUE(reachesSolid(*mask, scratch)) << "the image this one has to stop carrying";
+            ContentPreprocessor content;
+            ASSERT_TRUE(content.reachesSolid(*mask)) << "the image this one has to stop carrying";
 
             const std::size_t before = Testing::getAllocationCount();
-            const bool answer = reachesSolid(*wisp, scratch);
+            const bool answer = content.reachesSolid(*wisp);
             const std::size_t spent = Testing::getAllocationCount() - before;
 
             EXPECT_FALSE(answer) << "the last image's alpha came through";
@@ -399,8 +393,8 @@ namespace Rtx
             luminance->setFileName("odd.dds");
             luminance->allocateImage(2, 2, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE);
 
-            AlphaScratch scratch;
-            EXPECT_TRUE(reachesSolid(*luminance, scratch));
+            ContentPreprocessor content;
+            EXPECT_TRUE(content.reachesSolid(*luminance));
         }
     }
 }

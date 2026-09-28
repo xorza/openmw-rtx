@@ -23,10 +23,10 @@ namespace Rtx
     /// Which of a measured frame's figures a row holds. `Wait` is the CPU standing still for the
     /// device — a wait near the frame is a device that cannot keep up, near nought a CPU that
     /// cannot — and `Finish` is the whole of collecting the frame behind, of which `Wait` is the
-    /// largest share. `Walk` is the world being mirrored, with `Fold` the share of it spent
-    /// folding geometry that arrived on it. `Place` is the renderer being told what moved, split
-    /// into `Bake`, `Textures` and `Upload` because its worst frame is hundreds of times its
-    /// median and a profile cannot say which half. `Trace` and `Present` are the other two calls
+    /// largest share. `Walk` is the world being mirrored, with `Preprocess` the share of it spent
+    /// computing from content that arrived on it — `ContentPreprocessor`. `Place` is the renderer
+    /// being told what moved, split into `Bake`, `Textures` and `Upload` because its worst frame is
+    /// hundreds of times its median and a profile cannot say which half. `Trace` and `Present` are the other two calls
     /// into the backend, and `Update` is the rest of the loop, which is the game's — with `Sleep`
     /// the share of it the host was held for before the frame's input: by the driver where the
     /// driver paces, and by the frame-rate limiter where it does not. `Frame` is the whole of it,
@@ -41,7 +41,7 @@ namespace Rtx
         Finish,
         Wait,
         Walk,
-        Fold,
+        Preprocess,
         Place,
         Bake,
         Textures,
@@ -70,7 +70,7 @@ namespace Rtx
         std::pair{ Timing::Finish, std::string_view("finish") },
         std::pair{ Timing::Wait, std::string_view("wait") },
         std::pair{ Timing::Walk, std::string_view("walk") },
-        std::pair{ Timing::Fold, std::string_view("fold") },
+        std::pair{ Timing::Preprocess, std::string_view("preprocess") },
         std::pair{ Timing::Place, std::string_view("place") },
         std::pair{ Timing::Bake, std::string_view("bake") },
         std::pair{ Timing::Textures, std::string_view("textures") },

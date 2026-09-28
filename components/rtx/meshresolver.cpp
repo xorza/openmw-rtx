@@ -139,8 +139,6 @@ namespace Rtx
 
         const Index mesh = added.value();
 
-        stats.mFoldMs += reading.mFoldMs;
-
         if (read.mRig != nullptr && read.mDeform == Deform::None)
             ++stats.mUnskinned;
 

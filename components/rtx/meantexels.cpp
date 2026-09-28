@@ -4,13 +4,15 @@
 
 #include <osg/Image>
 
+#include "contentpreprocessor.hpp"
+
 namespace Rtx
 {
     const MeanTexel& MeanTexels::of(const osg::Image& image)
     {
         if (image.getFileName().empty())
         {
-            mUnnamed = meanTexel(image, mScratch);
+            mUnnamed = mContent.meanTexel(image);
             return mUnnamed;
         }
 
@@ -21,6 +23,6 @@ namespace Rtx
         if (const auto known = mByFile.find(file); known != mByFile.end())
             return known->second;
 
-        return mByFile.emplace(std::move(file), meanTexel(image, mScratch)).first->second;
+        return mByFile.emplace(std::move(file), mContent.meanTexel(image)).first->second;
     }
 }

@@ -17,8 +17,8 @@
 #include <components/sceneutil/statesetupdater.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "alphaimage.hpp"
 #include "colour.hpp"
+#include "contentpreprocessor.hpp"
 #include "contract.hpp"
 #include "extractionstats.hpp"
 #include "material.hpp"
@@ -193,7 +193,8 @@ namespace Rtx
             .mKey = sSea };
     }
 
-    MaterialReading MaterialResolver::read(std::span<const Shading> shading, AlphaScratch& scratch, MeanTexels& means)
+    MaterialReading MaterialResolver::read(
+        std::span<const Shading> shading, ContentPreprocessor& content, MeanTexels& means)
     {
         if (shading.empty())
             return MaterialReading{};
@@ -215,7 +216,7 @@ namespace Rtx
         if (diffuse != nullptr && !diffuse->getFileName().empty())
         {
             if (translucent)
-                reading.mDiffuseSolid = reachesSolid(*diffuse, scratch);
+                reading.mDiffuseSolid = content.reachesSolid(*diffuse);
             if (additive)
                 reading.mDiffuseMean = meanUnder(means.of(*diffuse), described.mBlend);
         }
@@ -383,7 +384,7 @@ namespace Rtx
 
         std::optional<bool>& solid = known->second.mSolid;
         if (!solid.has_value())
-            solid = reachesSolid(*image, mAlphaScratch);
+            solid = mContent.reachesSolid(*image);
 
         return *solid;
     }

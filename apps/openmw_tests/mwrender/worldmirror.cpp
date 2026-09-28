@@ -2,8 +2,10 @@
 
 #include <osg/Camera>
 #include <osg/FrameStamp>
+#include <osg/GL>
 #include <osg/Geometry>
 #include <osg/Group>
+#include <osg/Image>
 #include <osg/Matrix>
 #include <osg/MatrixTransform>
 #include <osg/Matrixd>
@@ -27,6 +29,8 @@
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/cellworld.hpp>
+#include <components/rtx/contentpass.hpp>
+#include <components/rtx/contentpreprocessor.hpp>
 #include <components/rtx/extractionstats.hpp>
 #include <components/vfs/manager.hpp>
 
@@ -125,6 +129,35 @@ namespace MWRender
             const Rtx::ExtractionStats gone = mirror.mirror(world.frame(), view, 3);
             EXPECT_EQ(gone.mInstances, 0u);
             EXPECT_EQ(mirror.getScene().placements().getCounts().mPlaced, 0u) << "a slot traced after its body went";
+        }
+
+        /// **What the frame's thread computes from the content is counted once, by the frame that
+        /// follows it**, however many walks the frame makes and whatever ran between them. The sky's
+        /// sheets are averaged where the world is attached, before any walk, and the rain and the
+        /// sea are walks whose own counts go nowhere; a count one of them took with it was lost.
+        TEST(RtxWorldMirrorTest, whatTheFramesThreadPreprocessedIsCountedOnceByTheNextFrame)
+        {
+            TwoBodyFrame world;
+            WorldMirror mirror(Rtx::MirrorKnobs{});
+            const osg::Matrixd view = osg::Matrixd::identity();
+
+            osg::ref_ptr<osg::Image> sheet = new osg::Image;
+            sheet->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            mirror.getPreprocessor().meanTexel(*sheet);
+
+            const Rtx::ExtractionStats first = mirror.mirror(world.frame(), view, 1);
+            EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::TexelMean).mAsked, 1u)
+                << "what ran before the first walk was lost";
+            EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Fold).mAsked, 1u)
+                << "the one quad both bodies share";
+
+            const Rtx::ExtractionStats second = mirror.mirror(world.frame(), view, 2);
+            EXPECT_EQ(second.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::TexelMean).mAsked, 0u) << "counted twice";
+            EXPECT_EQ(second.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Fold).mAsked, 0u);
+
+            // A mirror goes standing nothing.
+            world.mRoot->removeChildren(0, world.mRoot->getNumChildren());
+            mirror.mirror(world.frame(), view, 3);
         }
 
         /// **The player is the one thing a mirror leaves out on a question about the camera.** Every

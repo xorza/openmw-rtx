@@ -22,6 +22,7 @@ namespace VFS
 
 namespace Rtx
 {
+    class ContentPreprocessor;
     class SceneDesc;
 }
 
@@ -59,7 +60,9 @@ namespace MWRender
         /// life of the scene: a moon and a deck are drawn by a ray that reached nothing, so no
         /// material speaks for the slots and the sweep would take them on the first frame a cell
         /// died. Once, where the world is attached.
-        void attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes);
+        ///
+        /// @param content what the sheets' means are read through: the frame thread's.
+        void attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ContentPreprocessor& content);
 
         /// Gives every hold `attach` took back to `scene`, so a scene the world has left holds
         /// nothing of the sky: `attach`'s pair, where the world is detached.
