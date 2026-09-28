@@ -871,10 +871,11 @@ namespace RtxTool
         /// keys came to are where a wrong one shows: a flight of forty seconds where ten were meant
         /// is a key too far away, and the plan says so before a frame is drawn.
         ///
-        /// **Stepped at the film's own rate, settled and unvalidated.** The world moves a frame's
-        /// worth between frames, so the water and the people move at their own speed in the video;
-        /// every walk waits for the cells it collects, so no cell arrives on screen; and the layers,
-        /// which a film does not ask about, stay off unless named, as a bench's do.
+        /// **Stepped at the film's own rate, settled, unvalidated and under DLAA.** The world moves a
+        /// frame's worth between frames, so the water and the people move at their own speed in the
+        /// video; every walk waits for the cells it collects, so no cell arrives on screen; the
+        /// layers, which a film does not ask about, stay off unless named, as a bench's do; and every
+        /// pixel is traced (`sFilmUpscale`).
         int commandFilm(const Command& command)
         {
             const bpo::variables_map& variables = command.mVariables;
@@ -895,6 +896,7 @@ namespace RtxTool
                 throw std::runtime_error(std::format("--fps is {}, which is not more than nought", framesPerSecond));
             framed.mSetup.mStep = 1.0f / framesPerSecond;
             framed.mSetup.mSettled = true;
+            framed.mSetup.mProfile.mUpscaling.mMode = sFilmUpscale;
 
             FilmPacing pacing;
             pacing.mStep = *framed.mSetup.mStep;

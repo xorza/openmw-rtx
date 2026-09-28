@@ -188,7 +188,7 @@ namespace RtxTool
             "one sheet: what a frame there would actually sample, since a town's people wear "
             "textures the town itself never names");
 
-        option(sFramed, "upscale",
+        option(otherThan(Verbs::Info | Verbs::Film), "upscale",
             bpo::value<std::string>()->default_value(
                 std::string(Rtx::sUpscaleNames.name(byDefault.mSetup.mProfile.mUpscaling.mMode))),
             std::format("put DLSS Ray Reconstruction between the trace and the picture: {}. --size "
@@ -198,8 +198,9 @@ namespace RtxTool
                         "everything switched on without quartering the pixels it traced; "
                         "--upscale=performance is the 1920x1080 to 3840x2160 the frame budget is "
                         "written against, and --upscale=off is what an A/B against the unupscaled "
-                        "path needs. A reference cannot be built through a denoiser",
-                Rtx::sUpscaleNames.list(), Rtx::sUpscaleNames.name(sUpscaleByDefault))
+                        "path needs. A reference cannot be built through a denoiser. `film` is always `{}`",
+                Rtx::sUpscaleNames.list(), Rtx::sUpscaleNames.name(sUpscaleByDefault),
+                Rtx::sUpscaleNames.name(sFilmUpscale))
                 .c_str());
 
         option(sFramed, "preset",

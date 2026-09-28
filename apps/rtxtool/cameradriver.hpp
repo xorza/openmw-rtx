@@ -47,9 +47,9 @@ namespace RtxTool
         /// Steps the sky `steps` weathers on from the last one asked for, or back where negative,
         /// among the weathers the player's region rolls, and says where it went. From what the sky
         /// shows now (`SkyCrossing::ask`), at the weather's own `Transition_Delta` and the clock's
-        /// speed, and at once where the clock is stopped. Nothing under a take's track, or where
-        /// the player stands under no region's sky.
-        void turnSkyBy(const Stop& stop, int steps);
+        /// speed; or at once, where `atOnce` asks or the clock is stopped. Nothing under a take's
+        /// track, or where the player stands under no region's sky.
+        void turnSkyBy(const Stop& stop, int steps, bool atOnce);
 
         /// Puts the camera where the stop stands this frame, and points it where the stop asked.
         /// Every frame, because `omw/camera/camera.lua`'s `onActive` forces third person and a
