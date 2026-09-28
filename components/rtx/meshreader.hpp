@@ -6,7 +6,9 @@
 #include <string>
 #include <vector>
 
+#include <osg/Vec2f>
 #include <osg/Vec3f>
+#include <osg/Vec4f>
 
 #include "mesh.hpp"
 #include "nodekind.hpp"
@@ -51,24 +53,24 @@ namespace Rtx
     /// A morph's base target, which `MorphGeometry::cull` reads its positions from.
     std::span<const osg::Vec3f> morphBase(const SceneUtil::MorphGeometry& morph);
 
-    /// What one drawable's triangles come to once read and folded: spans into the geometry's own
-    /// arrays and into the reader's scratch, valid until the reader reads again.
+    /// What one drawable's triangles come to once read and shaped — `ShapePass`: spans into the
+    /// geometry's own arrays and into the reader's scratch, valid until the reader reads again.
     struct MeshReading
     {
-        /// The vertices, and the triangles the fold kept. An attribute the geometry carries none
-        /// of — or one of another length — comes back empty.
+        /// The vertices with any the split added, and the triangles the fold kept. An attribute the
+        /// geometry carries none of — or one of another length — comes back empty.
         MeshArrays mArrays;
 
         FoldedShape mShape;
     };
 
-    /// Turns a drawable into a `MeshReading`: the half of a mesh's arrival that reads and folds,
+    /// Turns a drawable into a `MeshReading`: the half of a mesh's arrival that reads and shapes,
     /// apart from the half that inserts, because the ring does the first on a thread of its own
     /// and what a shape is has to be one answer. Not thread-safe, and one instance a thread.
     class MeshReader
     {
     public:
-        /// @param content this thread's, which folds what is read.
+        /// @param content this thread's, which shapes what is read.
         explicit MeshReader(ContentPreprocessor& content)
             : mContent(content)
         {
@@ -92,6 +94,20 @@ namespace Rtx
         /// drawable rather than reallocated, because a cell is tens of thousands of them.
         std::vector<std::uint32_t> mTriangleScratch;
         std::vector<std::uint32_t> mIndexScratch;
+
+        /// What the shape pass split: the normals where any changed, and the vertex each added one
+        /// copies — `ShapePass::Output`.
+        std::vector<osg::Vec3f> mNormalScratch;
+        std::vector<std::uint32_t> mSourceScratch;
+
+        /// A mesh's attributes with the split's added vertices on the end, for a mesh that has any:
+        /// the geometry's own arrays cannot grow. Apart from `mColourScratch`, which the copies are
+        /// read from.
+        std::vector<osg::Vec3f> mPositionScratch;
+        std::vector<osg::Vec2f> mTexCoordScratch;
+        std::vector<osg::Vec2f> mSecondTexCoordScratch;
+        std::vector<osg::Vec3f> mCopiedColourScratch;
+        std::vector<osg::Vec4f> mTangentScratch;
 
         /// Where an overall normal is spread across a drawable's vertices.
         std::vector<osg::Vec3f> mFlatNormalScratch;

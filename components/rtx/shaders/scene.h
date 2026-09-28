@@ -508,14 +508,10 @@ namespace Rtx::Shaders
     /// its far side is worth to it.
     const uint MESH_SHEET = 0x01u;
 
-    /// Every edge of this mesh carries a triangle each way — `Rtx::FoldedShape::mClosed`. It says
-    /// which of a surface's two normals describes it, which `litCosine` reads.
-    const uint MESH_CLOSED = 0x02u;
-
     /// The mesh carries tangents — `Rtx::MeshRange::mTangents` — so a hit on it has a frame to read
     /// a normal map through. **What a traversal asks before it fetches three tangent words**, on the
     /// mesh row it already holds: a vanilla scene has none, and every hit in it skips the fetch.
-    const uint MESH_TANGENTS = 0x04u;
+    const uint MESH_TANGENTS = 0x02u;
 
     /// Where a mesh's vertices and indices begin in the shared buffers.
     ///
@@ -525,7 +521,7 @@ namespace Rtx::Shaders
         uint mVertexOffset;
         uint mIndexOffset;
 
-        /// What the fold found this mesh's triangles to be — `MESH_SHEET` and `MESH_CLOSED`.
+        /// What the shape pass found this mesh to be — `MESH_SHEET` and `MESH_TANGENTS`.
         ///
         /// **Bits and not two words, because this row is read on every hit.** A mesh table entry is
         /// six words and every ray that lands fetches one.

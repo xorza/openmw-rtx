@@ -459,10 +459,10 @@ namespace Rtx::Testing
                 << "one mesh for the tree however many stand, one for the fern, and one a cell of ground";
             EXPECT_EQ(first.mMaterialsAdded, 2u + sPreparedCells);
             EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells);
-            EXPECT_EQ(first.mPreprocessed.mOffFrame.at(ContentPassId::Fold).mAsked, 2u)
-                << "the tree and the fern folded once each, on the reader's thread, however many stand";
-            EXPECT_EQ(mExtractor.getPreprocessor().takeStats().at(ContentPassId::Fold).mAsked, 0u)
-                << "the frame adopts what the reader folded";
+            EXPECT_EQ(first.mPreprocessed.mOffFrame.at(ContentPassId::Shape).mAsked, 2u)
+                << "the tree and the fern shaped once each, on the reader's thread, however many stand";
+            EXPECT_EQ(mExtractor.getPreprocessor().takeStats().at(ContentPassId::Shape).mAsked, 0u)
+                << "the frame adopts what the reader shaped";
 
             // **The ground stands where the storage put it**: cell (3, 0)'s placement is translated
             // to the cell's centre, and its mesh's first vertex is the storage's own south-western

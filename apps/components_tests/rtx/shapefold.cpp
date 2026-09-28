@@ -22,12 +22,17 @@ namespace Rtx
 {
     namespace
     {
-        /// The fold as the renderer asks it, with `indices` replaced by what it kept.
+        /// The fold as the renderer asks it, with `indices` replaced by what it kept. No normals, so
+        /// nothing is split and the fold is all that runs.
         FoldedShape foldInPlace(
             ContentPreprocessor& content, std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices)
         {
             const std::vector<std::uint32_t> named = indices;
-            return content.fold(positions, named, indices);
+            std::vector<osg::Vec3f> normals;
+            std::vector<std::uint32_t> sources;
+            ShapePass::Output shaped{ .mKept = indices, .mNormals = normals, .mSources = sources };
+            content.shape(ShapePass::Input{ .mPositions = positions, .mTriangles = named, .mSplits = true }, shaped);
+            return shaped.mShape;
         }
         /// A unit quad, and the same four positions again as the vertices its back was modelled
         /// with — which is how the content spells a card: eight vertices, not four.
@@ -257,58 +262,6 @@ namespace Rtx
                 << "and nothing short of it";
         }
 
-        /// A shape is closed when every edge of what survives the fold carries a triangle each way.
-        ///
-        /// **The fact that says which of a surface's two normals is lying**, and every case here is
-        /// one the content ships. A tetrahedron stands for the solids, and the same tetrahedron with
-        /// a face taken off stands for what Morrowind actually models — a rock is a dome with no
-        /// base, which is why so little of the game answers yes.
-        ///
-        /// **A card is open both before and after its twin goes.** Doubled, every edge carries two
-        /// triangles the *same* way round the outline and none the other; folded, it is one quad
-        /// with a boundary. Neither is a solid, and the difference matters: `mSheet` and `mClosed`
-        /// are two facts and a shape may carry both, so neither can be read off the other.
-        TEST(RtxShapeFoldTest, aShapeIsClosedWhenEveryEdgeCarriesATriangleEachWay)
-        {
-            ContentPreprocessor fold;
-
-            const std::array<osg::Vec3f, 4> tetra{
-                osg::Vec3f(0.0f, 0.0f, 0.0f),
-                osg::Vec3f(1.0f, 0.0f, 0.0f),
-                osg::Vec3f(0.0f, 1.0f, 0.0f),
-                osg::Vec3f(0.0f, 0.0f, 1.0f),
-            };
-
-            std::vector<std::uint32_t> solid{ 0, 2, 1, 0, 1, 3, 1, 2, 3, 2, 0, 3 };
-            EXPECT_TRUE(foldInPlace(fold, tetra, solid).mClosed);
-
-            // The same solid with one face off, which is the shape of every rock in the game.
-            std::vector<std::uint32_t> dome{ 0, 1, 3, 1, 2, 3, 2, 0, 3 };
-            EXPECT_FALSE(foldInPlace(fold, tetra, dome).mClosed);
-
-            // A single quad: three of its four edges carry one triangle, and the shared diagonal
-            // carries two — but both the same way.
-            std::vector<std::uint32_t> quad = sFront;
-            EXPECT_FALSE(foldInPlace(fold, sCard, quad).mClosed);
-
-            // And the doubled card the fold reduces to that quad.
-            std::vector<std::uint32_t> card{ 0, 1, 2, 0, 2, 3, 6, 5, 4, 7, 6, 4 };
-            const FoldedShape folded = foldInPlace(fold, sCard, card);
-            EXPECT_TRUE(folded.mSheet);
-            EXPECT_FALSE(folded.mClosed);
-
-            // A tetrahedron doubled inside out is both at once, which is what stops either fact
-            // being read off the other. No shipped shape is, but two exteriors hold one each.
-            std::vector<std::uint32_t> twinned{ 0, 2, 1, 0, 1, 3, 1, 2, 3, 2, 0, 3, 0, 1, 2, 0, 3, 1, 1, 3, 2, 2, 3,
-                0 };
-            const FoldedShape both = foldInPlace(fold, tetra, twinned);
-            EXPECT_TRUE(both.mSheet);
-            EXPECT_TRUE(both.mClosed);
-
-            std::vector<std::uint32_t> none;
-            EXPECT_FALSE(foldInPlace(fold, sCard, none).mClosed);
-        }
-
         /// The rule, written again the slow obvious way, for the cross-check below.
         ///
         /// **Independent of the real one on purpose.** It compares every triangle against every
@@ -383,59 +336,6 @@ namespace Rtx
 
                 return { kept, sheet };
             }
-
-            /// Whether every edge carries a triangle each way, written the slow obvious way too.
-            ///
-            /// **Every edge against every other rather than a table**, for the reason the fold's
-            /// reference is written that way: the two agree only where the rule they share is the
-            /// rule. What this guards is the arithmetic `ShapeFold::closes` exits early on — an odd
-            /// triangle count and a count of distinct edges past three halves of one — neither of
-            /// which appears here at all.
-            ///
-            /// **It guards the refusals and not the answers.** The sweep draws from a plane, so no
-            /// shape it makes closes, and every comparison below is a no against a no. That a shape
-            /// which does close still does is
-            /// `aShapeIsClosedWhenEveryEdgeCarriesATriangleEachWay`'s tetrahedron, which is four
-            /// triangles and six edges — exactly the limit the second exit refuses to pass.
-            static bool closes(std::span<const osg::Vec3f> positions, const std::vector<std::uint32_t>& indices)
-            {
-                const std::size_t count = indices.size() / 3;
-                if (count == 0)
-                    return false;
-
-                using Ends = std::array<float, 6>;
-                const auto ends = [](const osg::Vec3f& low, const osg::Vec3f& high) {
-                    return Ends{ low.x(), low.y(), low.z(), high.x(), high.y(), high.z() };
-                };
-                std::vector<std::pair<Ends, bool>> edges;
-                for (std::size_t t = 0; t < count; ++t)
-                    for (std::size_t side = 0; side < 3; ++side)
-                    {
-                        const osg::Vec3f& from = positions[indices[3 * t + side]];
-                        const osg::Vec3f& to = positions[indices[3 * t + (side + 1) % 3]];
-
-                        // A degenerate edge belongs to no pair and would pair with itself.
-                        if (from == to)
-                            return false;
-
-                        const bool forward = lower(from, to);
-                        edges.emplace_back(forward ? ends(from, to) : ends(to, from), forward);
-                    }
-
-                for (const auto& [key, ignored] : edges)
-                {
-                    std::size_t forwards = 0;
-                    std::size_t backwards = 0;
-                    for (const auto& [other, otherForward] : edges)
-                        if (other == key)
-                            (otherForward ? forwards : backwards) += 1;
-
-                    if (forwards != 1 || backwards != 1)
-                        return false;
-                }
-
-                return true;
-            }
         };
 
         /// Every shape the content can hand it, against the rule written the slow way.
@@ -482,15 +382,11 @@ namespace Rtx
 
                     const auto [expected, expectedSheet] = Reference::fold(positions, indices);
 
-                    // **On what survives**, because that is what `fold` asks the question of.
-                    const bool expectedClosed = Reference::closes(positions, expected);
-
                     std::vector<std::uint32_t> folded = indices;
                     const FoldedShape shape = foldInPlace(fold, positions, folded);
 
                     EXPECT_EQ(folded, expected) << "corners " << corners << ", attempt " << attempt;
                     EXPECT_EQ(shape.mSheet, expectedSheet) << "corners " << corners << ", attempt " << attempt;
-                    EXPECT_EQ(shape.mClosed, expectedClosed) << "corners " << corners << ", attempt " << attempt;
                 }
             }
         }

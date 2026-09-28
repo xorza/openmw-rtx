@@ -7,7 +7,6 @@
 
 #include <osg/Vec3f>
 
-#include "contentpass.hpp"
 #include "pockettree.hpp"
 
 namespace Rtx
@@ -38,14 +37,6 @@ namespace Rtx
         /// cloth — what `ShapeFold` says a pocket is. Apart from `mFolded` because it is another
         /// finding and a report counts it apart; a ray that draws spares the mesh for either.
         bool mPocketed = false;
-
-        /// Every edge of what survives carries a triangle each way, so the shape has no boundary and
-        /// a ray that enters it leaves through the far side. Which of a surface's two normals is
-        /// lying depends on this: a boulder's interpolated normals describe it and its facets do
-        /// not, and an unbacked quad is the reverse — `litCosine` reads this to tell them apart.
-        /// Matched on positions and not on indices, because Morrowind splits a vertex at every UV
-        /// seam. Little of the game answers yes: a rock is modelled as a dome with no base.
-        bool mClosed = false;
     };
 
     /// Folds the reversed twin every sheet in the game is doubled with back into one triangle, and
@@ -70,41 +61,18 @@ namespace Rtx
     class ShapeFold
     {
     public:
-        /// What the fold reads: the vertices, and the triangles as the drawable named them.
-        struct Input
-        {
-            std::span<const osg::Vec3f> mPositions;
-            std::span<const std::uint32_t> mIndices;
-        };
-
-        /// What it comes to: the triangles it kept, in the order the drawable named them, and what
-        /// the shape was.
-        struct Output
-        {
-            std::vector<std::uint32_t>& mKept;
-            FoldedShape mShape;
-        };
-
-        static constexpr ContentPassId sPass = ContentPassId::Fold;
-        static constexpr std::uint32_t sVersion = 1;
-
-        void digest(const Input& input, ContentDigest& digest) const;
-
-        /// Drops the second of every reversed pair and then the later wall of every pocket, keeping
-        /// the rest in the order they were named, and says what the shape came to. A twin is
-        /// matched by exact equality of positions, because it is a copy and not a remodel; a copy
-        /// wound the same way is not a twin and is left. No allocation per triangle, because a cell
-        /// crossing folds tens of thousands of triangles a second.
-        void run(const Input& input, Output& output);
+        /// Drops the second of every reversed pair and then the later wall of every pocket,
+        /// compacting `indices` in place, and says what the shape came to. A twin is matched by
+        /// exact equality of positions, because it is a copy and not a remodel; a copy wound the
+        /// same way is not a twin and is left. No allocation per triangle, because a cell crossing
+        /// folds tens of thousands of triangles a second.
+        FoldedShape fold(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices);
 
     private:
-        /// **Made by a `ContentPreprocessor` and by nothing else**, so the one way to fold is the
-        /// one that keys and counts it.
-        friend class ContentPreprocessor;
+        /// **Made by a `ShapePass` and by nothing else**, so the one way to fold is the one that
+        /// keys and counts it.
+        friend class ShapePass;
         ShapeFold() = default;
-
-        /// `run`'s own, over the kept triangles in place.
-        FoldedShape fold(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices);
 
         /// One triangle's corners, rotated so the least comes first: the winding survives and where
         /// the file happened to start the triangle does not, which is what lets two spellings of one
@@ -130,24 +98,11 @@ namespace Rtx
         /// An empty table slot, and the end of a chain.
         static constexpr std::uint32_t sNoEntry = ~std::uint32_t{ 0 };
 
-        /// One edge of what survived the fold, and how many triangles ran along it each way.
-        struct Edge
-        {
-            osg::Vec3f mEnd[2];
-            std::uint32_t mForward = 0;
-            std::uint32_t mBackward = 0;
-        };
-
         static Corners canonical(const osg::Vec3f& a, const osg::Vec3f& b, const osg::Vec3f& c);
 
         /// Drops the later wall of every pocket in `indices`, compacting it in place, and says
         /// whether any went. See the class's own doc.
         bool dropPockets(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices);
-
-        /// Whether every edge of `indices` carries one triangle each way. See `FoldedShape::mClosed`.
-        /// Its own pass over three times as many entries as the fold, and its own buffers, because
-        /// the fold's are still holding what the pairing wrote.
-        bool closes(std::span<const osg::Vec3f> positions, std::span<const std::uint32_t> indices);
 
         /// The triangle a spelling is held under, or `sNoEntry`. Open addressed with linear
         /// probing, a power of two long and never more than half full, so a probe always ends. The
@@ -165,10 +120,6 @@ namespace Rtx
         std::vector<std::uint32_t> mNext;
 
         std::vector<Fate> mFates;
-
-        /// `closes`'s own table and edge list. A slot holds an index into `mEdges`.
-        std::vector<std::uint32_t> mEdgeTable;
-        std::vector<Edge> mEdges;
 
         PocketTree mTree;
 

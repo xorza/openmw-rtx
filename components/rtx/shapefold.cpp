@@ -3,14 +3,12 @@
 #include <algorithm>
 #include <array>
 #include <bit>
-#include <cassert>
-#include <functional>
 #include <limits>
 
 #include <osg/BoundingBox>
 #include <osg/Vec3f>
 
-#include "contentkey.hpp"
+#include "pointhash.hpp"
 
 namespace Rtx
 {
@@ -23,30 +21,6 @@ namespace Rtx
             if (a.y() != b.y())
                 return a.y() < b.y();
             return a.z() < b.z();
-        }
-
-        /// The bits of a run of points, mixed to a hash: a triangle's three corners, or an edge's
-        /// two ends. Mixed here rather than through `Misc::hashCombine`, which reaches
-        /// `std::hash<float>` — a byte-wise murmur over four bytes — and eighteen of those per
-        /// triangle cost more than the fold around them, where FNV over the bits and one final mix
-        /// cost nine multiplies. A zero is normalised first, because -0 and 0 compare equal in a
-        /// spelling and in an edge, and a hash that told the two apart would never find the twin.
-        std::size_t hashPoints(std::span<const osg::Vec3f> points)
-        {
-            std::uint64_t seed = 0xcbf29ce484222325ull;
-            for (const osg::Vec3f& point : points)
-                for (const float value : { point.x(), point.y(), point.z() })
-                {
-                    seed ^= std::bit_cast<std::uint32_t>(value == 0.0f ? 0.0f : value);
-                    seed *= 0x100000001b3ull;
-                }
-
-            // FNV moves its high bits far more than its low ones, and the tables mask the low ones.
-            seed ^= seed >> 29;
-            seed *= 0xbf58476d1ce4e5b9ull;
-            seed ^= seed >> 32;
-
-            return static_cast<std::size_t>(seed);
         }
 
         /// How far apart a pocket's two walls stand at most, in the mesh's own units. **The ship's
@@ -125,85 +99,6 @@ namespace Rtx
                 least = i;
 
         return Corners{ { *corners[least], *corners[(least + 1) % 3], *corners[(least + 2) % 3] } };
-    }
-
-    bool ShapeFold::closes(std::span<const osg::Vec3f> positions, std::span<const std::uint32_t> indices)
-    {
-        const std::size_t count = indices.size() / 3;
-
-        // A closed shape carries three halves of a triangle's worth of edges, because every edge
-        // of one has a triangle each way. Two things follow and neither is a threshold: an odd
-        // triangle count cannot close, and no shape passes `mostEdges` distinct edges and still
-        // closes. Nothing closes nothing, which is the third.
-        //
-        // They are here for the merged terrain chunk, which is hundreds of statics whose first
-        // grass card already passes the limit: a saving in the fold's tail alone.
-        if (count == 0 || count % 2 != 0)
-            return false;
-
-        const std::size_t mostEdges = count * 3 / 2;
-
-        // Sized against what can be reached and not against what could be pushed. The limit
-        // above bounds the table, so the same one entry in two costs half the slots a bound of
-        // every side of every triangle would — half a megabyte of the `assign` below, on a chunk of
-        // thirty thousand triangles.
-        const std::size_t slots = std::bit_ceil(std::max<std::size_t>(mostEdges * 2, 16));
-        const std::size_t mask = slots - 1;
-
-        mEdgeTable.assign(slots, sNoEntry);
-        mEdges.clear();
-        mEdges.reserve(mostEdges);
-
-        for (std::size_t t = 0; t < count; ++t)
-            for (int side = 0; side < 3; ++side)
-            {
-                const osg::Vec3f& from = positions[indices[3 * t + side]];
-                const osg::Vec3f& to = positions[indices[3 * t + (side + 1) % 3]];
-
-                // A degenerate edge belongs to no pair and would pair with itself.
-                if (from == to)
-                    return false;
-
-                const bool forward = before(from, to);
-                const osg::Vec3f& low = forward ? from : to;
-                const osg::Vec3f& high = forward ? to : from;
-
-                const osg::Vec3f ends[2] = { low, high };
-                std::size_t at = hashPoints(ends) & mask;
-                for (;; at = (at + 1) & mask)
-                {
-                    const std::uint32_t held = mEdgeTable[at];
-                    if (held == sNoEntry)
-                    {
-                        // Reaching the limit is what a closed shape does, and passing it is what
-                        // says this is not one. A tetrahedron is four triangles and six edges,
-                        // which is exactly the limit.
-                        if (mEdges.size() == mostEdges)
-                            return false;
-
-                        mEdgeTable[at] = static_cast<std::uint32_t>(mEdges.size());
-                        mEdges.push_back(Edge{ { low, high }, 0, 0 });
-                        break;
-                    }
-
-                    if (mEdges[held].mEnd[0] == low && mEdges[held].mEnd[1] == high)
-                        break;
-                }
-
-                Edge& edge = mEdges[mEdgeTable[at]];
-                (forward ? edge.mForward : edge.mBackward) += 1;
-
-                // A third triangle on an edge is a shape no side can be taken against, and there is
-                // no answer further on that could put it right.
-                if (edge.mForward > 1 || edge.mBackward > 1)
-                    return false;
-            }
-
-        for (const Edge& edge : mEdges)
-            if (edge.mForward != 1 || edge.mBackward != 1)
-                return false;
-
-        return true;
     }
 
     bool ShapeFold::dropPockets(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices)
@@ -294,24 +189,6 @@ namespace Rtx
         if (dropped)
             compactTriangles(indices, [&](std::size_t t) { return mPocketDropped[t] != 0; });
         return dropped;
-    }
-
-    void ShapeFold::digest(const Input& input, ContentDigest& digest) const
-    {
-        digest.add(input.mPositions);
-        digest.add(input.mIndices);
-    }
-
-    void ShapeFold::run(const Input& input, Output& output)
-    {
-        // An input spanning its own output would be read as it is overwritten.
-        [[maybe_unused]] const std::uint32_t* const from = input.mIndices.data();
-        [[maybe_unused]] const std::uint32_t* const kept = output.mKept.data();
-        assert((std::less_equal<>()(from + input.mIndices.size(), kept)
-                   || std::less_equal<>()(kept + output.mKept.capacity(), from))
-            && "a fold's input spans its own output");
-        output.mKept.assign(input.mIndices.begin(), input.mIndices.end());
-        output.mShape = fold(input.mPositions, output.mKept);
     }
 
     FoldedShape ShapeFold::fold(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices)
@@ -412,10 +289,6 @@ namespace Rtx
         // at no distance at all, where a pocket's stands a few units off.
         const bool pocketed = dropPockets(positions, indices);
 
-        // On what survives, because that is what a ray will meet. A doubled card folds to one
-        // quad, which has a boundary; a shape with no twins folds to itself and is whatever it was.
-        return FoldedShape{
-            .mSheet = sheet, .mFolded = folded, .mPocketed = pocketed, .mClosed = closes(positions, indices)
-        };
+        return FoldedShape{ .mSheet = sheet, .mFolded = folded, .mPocketed = pocketed };
     }
 }

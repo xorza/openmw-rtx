@@ -144,10 +144,11 @@ scene is. Written once and read by every backend.
   templates, the lamps. A reader thread prepares cells, and the frame adopts them a little at a
   time.
 - **`Rtx::ContentPreprocessor`** is the one way anything is computed from what the content files
-  hold — a shape's fold, a texture's alpha and mean. One lives on each thread that reads content:
-  the frame's walk and the ring's reader. Every pass is keyed on everything it reads and asked of
-  `ContentCache` first; the cache holds nothing yet, so every pass runs, and what each costs is
-  counted into the walk's stats and the `preprocess` row of a frame.
+  hold — a shape's fold and the normals it smoothed across a hard edge split, a texture's alpha and
+  mean. One lives on each thread that reads content: the frame's walk and the ring's reader. Every
+  pass is keyed on everything it reads and asked of `ContentCache` first; the cache holds nothing
+  yet, so every pass runs, and what each costs is counted into the walk's stats and the
+  `preprocess` row of a frame.
 - **`Rtx::SceneUploader`** hands a scene to the backend once a frame, in the cheapest of three
   ways: place what moved, extend with what arrived, or rebuild.
 - **The world a frame is told** (`frameworld.hpp` and the builders beside it) turns a

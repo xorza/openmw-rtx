@@ -45,6 +45,8 @@ set(RTX_FILES
     contentpreprocessor.hpp
     contentstats.cpp
     contentstats.hpp
+    creasesplit.cpp
+    creasesplit.hpp
     contract.hpp
     debuglines.hpp
     deformertable.cpp
@@ -124,6 +126,7 @@ set(RTX_FILES
     placementtable.hpp
     pockettree.cpp
     pockettree.hpp
+    pointhash.hpp
     poseupdate.hpp
     prepared.hpp
     radicalinverse.hpp
@@ -152,6 +155,8 @@ set(RTX_FILES
     shadingmap.hpp
     shapefold.cpp
     shapefold.hpp
+    shapepass.cpp
+    shapepass.hpp
     skybuilder.cpp
     skybuilder.hpp
     skylight.cpp

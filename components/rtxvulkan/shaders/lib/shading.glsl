@@ -52,7 +52,7 @@ struct DirectLight
 /// from — the two tests before it are what keep a cell's worth of lamps affordable.
 ///
 /// What it reads of the surface: where it is, its shading normal, which side a light has to stand
-/// on — `Surface::mClosed` picks between the plane and the interpolated normal, and `litCosine` says
+/// on — `facingOf` picks between the plane and the interpolated normal, and `litCosine` says
 /// why neither answers for both — how wide the cone that found it had grown, which is the scale the
 /// caustics resolve waves at, and what a light on its far side is worth, `Surface::mTransmission`.
 ///
@@ -76,6 +76,10 @@ DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path)
 {
     const vec3 position = surface.mPosition;
     const Facing facing = facingOf(surface);
+
+    // Only the shadow rays leave from the surface the normals describe (`Surface::mLift`): what a
+    // light delivers is weighed at the point shaded, the one the eye sees.
+    const vec3 leaving = position + surface.mLift;
 
     vec3 radiance = vec3(0.0);
 
@@ -154,7 +158,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path)
     {
         const SkyChoice picked = pick.mIndex == 0u ? sun : (pick.mIndex == 1u ? masser : secunda);
 
-        const float skySeen = skyVisibleThrough(picked.mSky, position, sunDraw);
+        const float skySeen = skyVisibleThrough(picked.mSky, leaving, sunDraw);
         const vec3 water = lightThroughWater(position, picked.mSky.mDirection, surface.mFootprint);
         const vec3 skyArriving = picked.mSky.mIrradiance * water;
         const float skyLit = picked.mCosine * INV_PI * skySeen;
@@ -190,6 +194,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path)
     // and either estimate is unbiased under any weight positive where its term is.
     Reservoir kept = noLamps();
     weighLamps(kept, state, position, facing, INV_PI, gloss);
+    kept.mFrom = leaving;
 
     float lampShare;
     const vec3 lampDiffuse = lampsThrough(kept, lampDraw, lampShare);

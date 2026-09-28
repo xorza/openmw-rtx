@@ -6,6 +6,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <osg/Array>
 #include <osg/Drawable>
@@ -24,6 +25,22 @@ namespace Rtx
 {
     namespace
     {
+        /// `values` with the vertices a split added on the end, each a copy of its source, laid into
+        /// `scratch` — or `values` itself where nothing was added or there is nothing to copy.
+        template <class T>
+        std::span<const T> withCopies(
+            std::span<const T> values, std::span<const std::uint32_t> sources, std::vector<T>& scratch)
+        {
+            if (sources.empty() || values.empty())
+                return values;
+
+            scratch.assign(values.begin(), values.end());
+            for (const std::uint32_t source : sources)
+                scratch.push_back(values[source]);
+
+            return scratch;
+        }
+
         struct TriangleCollector
         {
             std::vector<std::uint32_t>* mIndices = nullptr;
@@ -339,7 +356,7 @@ namespace Rtx
         if (!tangents.isOk())
             return Err{ tangents.error() };
 
-        // Folded before the mesh is written, so the copy the content drew for a card's back never
+        // Shaped before the mesh is written, so the copy the content drew for a card's back never
         // reaches a structure. Once per drawable and never for a pose: a rig moves the two copies
         // together, so the pairs found in the bind pose are the pairs.
         const Result<bool, std::string> collected = collectTriangles(geometry, count);
@@ -348,17 +365,29 @@ namespace Rtx
         if (!collected.value())
             return false;
 
-        into.mShape = mContent.fold(arrays.mPositions, mTriangleScratch, mIndexScratch);
-
-        into.mArrays = MeshArrays{
+        const ShapePass::Input shape{
             .mPositions = arrays.mPositions,
             .mNormals = arrays.mNormals,
-            .mTexCoords
-            = texCoords.value() != nullptr ? std::span(texCoords.value()->asVector()) : std::span<const osg::Vec2f>(),
-            .mSecondTexCoords = second != nullptr ? std::span(second->asVector()) : std::span<const osg::Vec2f>(),
+            .mTriangles = mTriangleScratch,
+            .mSplits = read.mDeform == Deform::None,
+        };
+        ShapePass::Output shaped{ .mKept = mIndexScratch, .mNormals = mNormalScratch, .mSources = mSourceScratch };
+        mContent.shape(shape, shaped);
+        into.mShape = shaped.mShape;
+
+        const std::span<const std::uint32_t> sources = mSourceScratch;
+        into.mArrays = MeshArrays{
+            .mPositions = withCopies(arrays.mPositions, sources, mPositionScratch),
+            .mNormals = mNormalScratch.empty() ? arrays.mNormals : std::span<const osg::Vec3f>(mNormalScratch),
+            .mTexCoords = withCopies(
+                texCoords.value() != nullptr ? std::span(texCoords.value()->asVector()) : std::span<const osg::Vec2f>(),
+                sources, mTexCoordScratch),
+            .mSecondTexCoords
+            = withCopies(second != nullptr ? std::span(second->asVector()) : std::span<const osg::Vec2f>(), sources,
+                mSecondTexCoordScratch),
             .mUnitStreams = unitStreams,
-            .mColours = colours.value(),
-            .mTangents = tangents.value(),
+            .mColours = withCopies(colours.value(), sources, mCopiedColourScratch),
+            .mTangents = withCopies(tangents.value(), sources, mTangentScratch),
             .mIndices = mIndexScratch,
         };
 

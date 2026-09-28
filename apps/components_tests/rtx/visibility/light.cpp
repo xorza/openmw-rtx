@@ -50,8 +50,9 @@ namespace Rtx::Testing
         /// on, so this is inside the range the renderer meets rather than a corner built to fail.
         constexpr float sLeaningNormal = 70.0f * std::numbers::pi_v<float> / 180.0f;
 
-        /// A level sheet at the origin whose vertex normals all lean `sLeaningNormal` off it.
-        SceneDesc leaningFloor()
+        /// A level quad at the origin whose vertex normals all lean `sLeaningNormal` off it — as the
+        /// fold left it, or as a sheet the content doubled for its back.
+        SceneDesc leaningFloor(FoldedShape shape = {})
         {
             SceneDesc scene;
 
@@ -59,8 +60,9 @@ namespace Rtx::Testing
             const std::array<osg::Vec3f, 4> normals{ leaning, leaning, leaning, leaning };
 
             scene.addInstance(MeshInstance{
-                .mMesh = scene.addMesh(MeshArrays{
-                    .mPositions = sheetAt(4000.0f, 0.0f), .mNormals = normals, .mIndices = sQuadIndices }) });
+                .mMesh = scene.addMesh(
+                    MeshArrays{ .mPositions = sheetAt(4000.0f, 0.0f), .mNormals = normals, .mIndices = sQuadIndices },
+                    shape) });
 
             return scene;
         }
@@ -1732,28 +1734,28 @@ namespace Rtx::Testing
             EXPECT_LT(floorUnderTheLid(open, 1.0f, 600.0f), 0.1f * clear) << "and the sky does not reach under a lid";
         }
 
-        /// Which side of a surface a light is on is its triangle's answer and never its normal's.
+        /// Which side of a surface a light is on is its normal's answer, and a sheet's triangle's.
         ///
-        /// **A sheet has no thickness for a shadow ray to stop in.** A floor whose vertex normals
-        /// lean seventy degrees still faces a sun *below* it — the cosine against the shading normal
-        /// is `cos 40` — and the shadow ray it then buys leaves through the floor, meets nothing,
-        /// and reports the sun as fully visible. The floor lights itself from underneath.
+        /// **A surface follows its normals**, because they describe the surface the content faceted:
+        /// the content's creases were split at load (`Rtx::CreaseSplit`) and a shadow ray leaves from
+        /// the surface the normals describe (`Surface::mLift`). A floor whose vertex normals lean
+        /// seventy degrees takes a sun below its plane at the normal's own cosine, `cos 40`. The cost
+        /// is stated here and not hidden: a surface with no far side takes light from behind its
+        /// plane within the angle its normals lean.
         ///
-        /// The same quad and the same normal twice, with the sun mirrored about the floor's plane.
-        /// Above it, the floor takes it at the shading normal's own cosine, which here is one; below
-        /// it, the floor takes nothing at all.
+        /// **A sheet takes its plane**, because it is lit from both faces and what reaches it from
+        /// behind is the other half of `mTransmission`, not a light in front of it — the same floor
+        /// doubled for its back takes nothing from below.
         ///
-        /// **Both halves are the assertion.** The plane deciding alone would be satisfied by a
-        /// renderer that had dropped the shading normal and taken the plane's cosine instead — which
-        /// is `cos 70`, a third of what the sun above has to deliver, and nowhere near the tolerance.
-        TEST_F(RtxVisibilityTest, aLightBehindASurfacesOwnTriangleDoesNotReachIt)
+        /// The sun along the shading normal first: cosine one, albedo a half, and the Lambert
+        /// divisor, 0.5 * 4 / pi = 0.63662. Mirrored about the plane: 0.5 * 4 * cos 40 / pi =
+        /// 0.48768.
+        TEST_F(RtxVisibilityTest, aLightBehindASurfacesTriangleReachesItWhereItsNormalFacesItAndNotASheet)
         {
             constexpr std::uint32_t size = 16;
             constexpr float sunlight = 4.0f;
 
-            const SceneDesc scene = leaningFloor();
-
-            const auto litFrom = [&](float upward) {
+            const auto litFrom = [&](const SceneDesc& scene, float upward) {
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -1.0f, 300.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
 
@@ -1772,14 +1774,114 @@ namespace Rtx::Testing
                 return frame.mean();
             };
 
-            // The sun along the shading normal itself: cosine one, albedo a half, and the Lambert
-            // divisor. 0.5 * 4 / pi = 0.63662.
-            const float above = litFrom(1.0f);
-            EXPECT_NEAR(above, 0.5f * sunlight / std::numbers::pi_v<float>, 0.002f)
-                << "the shading normal still says how much";
+            const SceneDesc floor = leaningFloor();
+            EXPECT_NEAR(litFrom(floor, 1.0f), 0.5f * sunlight / std::numbers::pi_v<float>, 0.002f)
+                << "the shading normal says how much";
+            EXPECT_NEAR(litFrom(floor, -1.0f),
+                0.5f * sunlight * std::cos(40.0f * std::numbers::pi_v<float> / 180.0f) / std::numbers::pi_v<float>,
+                0.002f)
+                << "and which side";
 
-            // Mirrored: `cos 40` against the shading normal, and behind the plane.
-            EXPECT_LT(litFrom(-1.0f), 0.002f) << "and the triangle says which side";
+            const SceneDesc sheet = leaningFloor(FoldedShape{ .mSheet = true, .mFolded = true });
+            EXPECT_NEAR(litFrom(sheet, 1.0f), 0.5f * sunlight / std::numbers::pi_v<float>, 0.002f);
+            EXPECT_LT(litFrom(sheet, -1.0f), 0.002f) << "a sheet's triangle says which side";
+        }
+
+        /// **A facet turned from the sun is lit where its normals face it, and not shadowed by its own
+        /// solid.** A closed prism along x — a ridge at z = 100 over a base 200 wide — whose sloped
+        /// sides are smoothed over the ridge, as a coarse rock is: the ridge's vertices carry the
+        /// normal straight up, the sides' lower ones their own faces'. The sun stands sixty degrees
+        /// off the zenith on the far side, so the near side's plane, `(0, 1, 1) / √2`, turns from it
+        /// (`cos = (0.5 - 0.866) / √2 < 0`) while its normals near the ridge still face it.
+        ///
+        /// The eye looks down, a unit off the vertical so it has a basis, at (0, 10, 90) on the near
+        /// side, a tenth of the way down its slope,
+        /// where the normal is `normalize(0.9 · up + 0.1 · (0, 1, 1) / √2)` = (0, 0.07264, 0.99734)
+        /// and meets the sun at a cosine of 0.43576: 0.5 · 4 · 0.43576 / π = 0.27742. From the facet
+        /// itself the shadow ray to that sun crosses the prism and leaves through the far side, which
+        /// faces the sun and stops it; lifted onto the surface the normals describe — nine tenths of
+        /// the ten units the ridge's tangent plane stands above the point — it clears the ridge.
+        ///
+        /// **The facet the sun faces is lifted too**, for a sun sixty degrees off the zenith on the
+        /// near side: (0, 0.866, 0.5), which the plane meets at a cosine of 0.966 and the normal at
+        /// 0.56164, so 0.5 · 4 · 0.56164 / π = 0.35755. A ledge two-sided at z = 95 over y from 13 to
+        /// 30 stands in its way: the ray from the facet meets that height at y = 18.66 and stops, and
+        /// lifted to z = 99 it starts above the ledge and climbs away from it. That is the Seyda Neen
+        /// boulder's neighbour standing over a facet that faces the sun, and a contact shadow of the
+        /// same height lost is its cost.
+        TEST_F(RtxVisibilityTest, aFacetIsLitWhereItsNormalsFaceTheSunAndNotShadowedWithinItsLift)
+        {
+            constexpr std::uint32_t size = 17;
+            constexpr float sunlight = 4.0f;
+
+            const float slope = std::sqrt(0.5f);
+            const osg::Vec3f up(0.0f, 0.0f, 1.0f);
+            const osg::Vec3f farSide(0.0f, -slope, slope);
+            const osg::Vec3f nearSide(0.0f, slope, slope);
+            const std::array<osg::Vec3f, 18> positions{
+                // The far side, then the near side, each a quad from its foot to the ridge.
+                osg::Vec3f(-200.0f, -100.0f, 0.0f),
+                osg::Vec3f(200.0f, -100.0f, 0.0f),
+                osg::Vec3f(200.0f, 0.0f, 100.0f),
+                osg::Vec3f(-200.0f, 0.0f, 100.0f),
+                osg::Vec3f(-200.0f, 0.0f, 100.0f),
+                osg::Vec3f(200.0f, 0.0f, 100.0f),
+                osg::Vec3f(200.0f, 100.0f, 0.0f),
+                osg::Vec3f(-200.0f, 100.0f, 0.0f),
+                // The base, facing down.
+                osg::Vec3f(-200.0f, -100.0f, 0.0f),
+                osg::Vec3f(-200.0f, 100.0f, 0.0f),
+                osg::Vec3f(200.0f, 100.0f, 0.0f),
+                osg::Vec3f(200.0f, -100.0f, 0.0f),
+                // The two ends.
+                osg::Vec3f(200.0f, -100.0f, 0.0f),
+                osg::Vec3f(200.0f, 100.0f, 0.0f),
+                osg::Vec3f(200.0f, 0.0f, 100.0f),
+                osg::Vec3f(-200.0f, -100.0f, 0.0f),
+                osg::Vec3f(-200.0f, 0.0f, 100.0f),
+                osg::Vec3f(-200.0f, 100.0f, 0.0f),
+            };
+            const osg::Vec3f down(0.0f, 0.0f, -1.0f);
+            const std::array<osg::Vec3f, 18> normals{ farSide, farSide, up, up, up, up, nearSide, nearSide, down, down,
+                down, down, osg::Vec3f(1.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f),
+                osg::Vec3f(-1.0f, 0.0f, 0.0f), osg::Vec3f(-1.0f, 0.0f, 0.0f), osg::Vec3f(-1.0f, 0.0f, 0.0f) };
+            const std::array<std::uint32_t, 24> indices{ 0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12,
+                13, 14, 15, 16, 17 };
+
+            SceneDesc scene;
+            scene.addInstance(MeshInstance{ .mMesh
+                = scene.addMesh(MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices }) });
+
+            osg::Vec3f normal = up * 0.9f + nearSide * 0.1f;
+            normal.normalize();
+
+            const auto litAt = [&](const osg::Vec3f& towardTheSun) {
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, 9.0f, 1000.0f), osg::Vec3f(0.0f, 10.0f, 90.0f), 5.0f, size, size, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f();
+                camera.mAmbientFromSky = 1.0f;
+                camera.mSun = Shaders::sunSource(towardTheSun, osg::Vec3f(sunlight, sunlight, sunlight));
+
+                const Frame frame = shoot(scene, {}, camera, size, { .mFrames = 16 });
+                return frame.mRadiance[centreValueOf(size)];
+            };
+
+            const float sixty = std::numbers::pi_v<float> / 3.0f;
+            const osg::Vec3f farSun(0.0f, -std::sin(sixty), std::cos(sixty));
+            ASSERT_LT(nearSide * farSun, 0.0f) << "the near side's plane turns from the far sun";
+            EXPECT_NEAR(litAt(farSun), 0.5f * sunlight * (normal * farSun) / std::numbers::pi_v<float>, 0.003f)
+                << "not shadowed by its own solid";
+
+            const osg::Vec3f nearSun(0.0f, std::sin(sixty), std::cos(sixty));
+            ASSERT_GT(nearSide * nearSun, 0.9f) << "the near side's plane faces the near sun";
+            addQuad(scene,
+                std::array{ osg::Vec3f(-50.0f, 13.0f, 95.0f), osg::Vec3f(50.0f, 13.0f, 95.0f),
+                    osg::Vec3f(50.0f, 30.0f, 95.0f), osg::Vec3f(-50.0f, 30.0f, 95.0f) },
+                scene.addMaterial(Material{ .mTwoSided = true }));
+            EXPECT_NEAR(litAt(nearSun), 0.5f * sunlight * (normal * nearSun) / std::numbers::pi_v<float>, 0.003f)
+                << "not shadowed by what stands within its lift";
         }
 
         /// A bounce does not gather through the triangle it left.
