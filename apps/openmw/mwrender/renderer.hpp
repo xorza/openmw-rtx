@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
-#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -242,16 +241,11 @@ namespace MWRender
         /// the game runs. The one route the limit reaches a renderer by.
         void setFrameRateLimit(float limit);
 
-        /// Holds the game until the next frame may begin, and says how long the last one stood
-        /// for on the wall. The frame-rate limit lives here, and so does whatever pacing a
-        /// renderer has beyond it (`holdFrame`). Once per loop, before input is read, because what
-        /// is read after this is what the frame shows. The limiter is the one the engine's loop
-        /// used to hold, one call earlier in the loop, which is the same point in the cycle, and it
+        /// Holds the game in the frame-rate limit until the next frame may begin, and says how long
+        /// the last one stood for on the wall. Once per loop, before input is read, because what is
+        /// read after this is what the frame shows. The limiter is the one the engine's loop used
+        /// to hold, one call earlier in the loop, which is the same point in the cycle, and it
         /// answers as it did: the limit's own length for a frame it slept for.
-        ///
-        /// **One opening for both holds**, so a renderer that moves between them answers each
-        /// interval from the frame before it: a clock of each hold's own went stale while the
-        /// other ran, and the first frame after a switch stood for the whole of the other's run.
         std::chrono::steady_clock::duration awaitFrame();
 
         /// Opens the game loop's next frame: held by `awaitFrame`, and the clock moved on by what
@@ -264,8 +258,8 @@ namespace MWRender
         /// what it stood for. Answers how long it stands for, which a nested loop steps its
         /// interface by: nought under a stated step, whose clock counts the loop's frames alone and
         /// holds for this one, so that whatever reads the clock's step inside the frame reads the
-        /// same nought. Without it a nested frame was paced by a limiter of its own that knew
-        /// nothing of the driver's, and stamped and stepped the interface by the outer frame's time.
+        /// same nought. Without it a nested frame was paced by a limiter of its own, and stamped and
+        /// stepped the interface by the outer frame's time.
         float openNestedFrame();
 
         /// What `setFrameRateLimit` handed over, nought before it has: the one copy, which a loop
@@ -414,15 +408,7 @@ namespace MWRender
         /// What `setFrameClock` handed over. Asserts that it has.
         const Misc::FrameClock& getFrameClock() const;
 
-        /// `setFrameRateLimit`'s hook, with the limit already kept, for a renderer that paces its
-        /// own frames by it.
-        virtual void applyFrameRateLimit() {}
-
-        /// Holds the frame in a renderer's own pacing — a driver that says when to start the frame
-        /// — and says whether it did. Asked every frame; where it did not, the limiter holds it.
-        virtual bool holdFrame() { return false; }
-
-        /// How long the last `awaitFrame` held the game, in the limiter or in `holdFrame`.
+        /// How long the last `awaitFrame` held the game in the limiter.
         std::chrono::steady_clock::duration getLastHold() const { return mLastHold; }
 
         /// The view mask has changed; put `getViewMask()` where this renderer reads it from.
@@ -446,13 +432,8 @@ namespace MWRender
         Misc::FrameClock* mClock = nullptr;
         float mFrameRateLimit = 0.0f;
 
-        /// What `awaitFrame` sleeps in where `holdFrame` did not hold, made anew by
-        /// `setFrameRateLimit` and moved to each opening a renderer's own hold made.
+        /// What `awaitFrame` sleeps in, made anew by `setFrameRateLimit`.
         Misc::FrameRateLimiter mLimiter{ std::chrono::steady_clock::duration::zero() };
-
-        /// When the last `awaitFrame` let the game go, nothing before the first, and how long it
-        /// held it.
-        std::optional<std::chrono::steady_clock::time_point> mOpened;
         std::chrono::steady_clock::duration mLastHold{};
         osg::ref_ptr<SceneUtil::AsyncScreenCaptureOperation> mScreenshotWriter;
         osg::ref_ptr<osg::Camera> mCamera;

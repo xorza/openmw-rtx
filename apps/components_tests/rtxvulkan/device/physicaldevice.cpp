@@ -8,7 +8,6 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/frame/upscale.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/upscalerextensions.hpp>
@@ -216,24 +215,11 @@ namespace Rtx
                 EXPECT_EQ(dated.profile().mObstacle, "missing extensions: VK_EXT_ray_tracing_invocation_reorder");
             }
             {
-                // What a Radeon or an Arc lists — reports 51246 and 51371: everything the trace needs
-                // and neither of the NVIDIA extensions NGX asks for. A build with DLSS cannot make a
-                // device of it, and a build without one traces on it.
+                // What a Radeon or an Arc lists — reports 51246 and 51371: everything the trace needs,
+                // under another vendor's driver. The renderer traces on it.
                 Card foreign(&describeTuring);
                 foreign.mProperties.mVulkan12.driverID = VK_DRIVER_ID_AMD_PROPRIETARY;
-                std::erase(foreign.mExtensions, VK_NVX_BINARY_IMPORT_EXTENSION_NAME);
-                std::erase(foreign.mExtensions, VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME);
-                EXPECT_EQ(foreign.profile().mObstacle,
-                    sUpscalerBuilt ? "missing extensions DLSS Ray Reconstruction needs: VK_NVX_binary_import, "
-                                     "VK_NVX_image_view_handle"
-                                   : "");
-            }
-            {
-                // NGX names the buffer address extension, whose feature is core here and which the
-                // spec forbids beside it: a device need not list what it is never asked to enable.
-                Card core(&describeTuring);
-                std::erase(core.mExtensions, VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
-                EXPECT_EQ(core.profile().mObstacle, "");
+                EXPECT_EQ(foreign.profile().mObstacle, "");
             }
             {
                 Card short_(&describeTuring);

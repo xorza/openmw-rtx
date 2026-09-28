@@ -148,9 +148,9 @@ namespace Rtx::Shaders
         /// Where the depth buffer's zero sits, in world units from the eye.
         ///
         /// **A ray tracer has no near plane and an upscaler asks for one anyway.** Nothing here
-        /// clips against it; it exists so the depth written for DLSS is the value a rasterizer with
-        /// this frustum would have written, which is what NGX's disocclusion test expects to be
-        /// looking at.
+        /// clips against it; it exists so the depth written for an upscaler is the value a
+        /// rasterizer with this frustum would have written, which is what a disocclusion test
+        /// expects to be looking at.
         float mNear;
 
         /// How far the camera's own ray travels, and what the depth buffer encodes against: the
@@ -188,10 +188,9 @@ namespace Rtx::Shaders
         /// then composes the frame into `CHANNEL_DIRECT` itself, `composedLight` of the two
         /// channels, and no composite reads them back only to add them.
         ///
-        /// **Every frame Ray Reconstruction takes**, which is every played frame the settings leave
-        /// alone: a composite there is a whole pass that reads three channels and writes the
-        /// fourth at the traced extent, to hand an upscaler a sum the trace holds in its registers.
-        /// Zero where the wavelet runs, which needs the two apart.
+        /// **Every frame nothing filters**: a composite there is a whole pass that reads three
+        /// channels and writes the fourth at the traced extent, to hand on a sum the trace holds in
+        /// its registers. Zero where the wavelet runs, which needs the two apart.
         uint mComposed;
 
         /// The sun as a light: where it stands, unit; how much of its light arrives on a surface
@@ -524,11 +523,10 @@ namespace Rtx::Shaders
         uint mNoise;
 
         /// What every texture level is offset by, in levels: `Rtx::Reconstruction::mLevelBias`,
-        /// the DLSS guide's mip bias for the pixel that is shown rather than the one that is
-        /// traced, below nought under an upscaler and whatever the epsilon says past that. Added
-        /// where a level is chosen from a cone — `coneBase`, `waveLevel`, `rippleLevel` — and
-        /// nowhere else, because `mSpreadAngle` also sizes the sun's disc and the wave filter's
-        /// taps, which are not levels.
+        /// the level bias for the pixel that is shown rather than the one that is traced, below nought under an
+        /// upscaler and whatever the epsilon says past that. Added where a level is chosen from a cone — `coneBase`,
+        /// `waveLevel`, `rippleLevel` — and nowhere else, because `mSpreadAngle` also sizes the sun's disc and the wave
+        /// filter's taps, which are not levels.
         float mLevelBias;
 
         /// Where every table a hit reads is. `GpuTables` says why it rides here.

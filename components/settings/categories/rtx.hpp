@@ -36,23 +36,11 @@ namespace Settings
         SettingValue<float> mDistantLandCells{ mIndex, "RTX", "distant land cells",
             makeClampSanitizerFloat(0.0f, sMaxDistantLandCells) };
 
-        /// How hard DLSS Ray Reconstruction works, or `off`: a name `Rtx::sUpscaleNames` refuses
-        /// rather than defaults. Changing it rebuilds every target, and a machine that cannot reach
+        /// How hard the upscaler works, or `off`: a name `Rtx::sUpscaleNames` refuses rather than
+        /// defaults. Changing it rebuilds every target, and a machine that cannot reach
         /// the mode keeps the one it had and says so in the log. `Rtx::sUpscaleMenu` is what the
         /// launcher and the settings window offer of it.
         SettingValue<std::string> mUpscale{ mIndex, "RTX", "upscale" };
-
-        /// Which Ray Reconstruction network runs, as `Rtx::sPresetNames` spells them.
-        SettingValue<std::string> mPreset{ mIndex, "RTX", "preset" };
-
-        /// How the driver paces the frame, as `Rtx::sLatencyModeNames` spells the modes: off, on
-        /// or boost. Read where the renderer is made and again on a change, like the vertical
-        /// sync; a machine whose driver paces nothing keeps the setting and does nothing with it.
-        SettingValue<std::string> mReflex{ mIndex, "RTX", "reflex" };
-
-        /// Whether a left click marks its frame for the driver's latency analyser, which draws a
-        /// square on it. A measurement aid and never on by default.
-        SettingValue<bool> mReflexFlash{ mIndex, "RTX", "reflex flash" };
 
         /// What the content's `_spec` maps mean, as `Rtx::sSpecularLayoutNames` spells the layouts:
         /// `ignore` or `metal roughness`. Read where the renderer is made, because the maps are

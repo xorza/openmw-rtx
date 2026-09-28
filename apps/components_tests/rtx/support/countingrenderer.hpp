@@ -105,12 +105,7 @@ namespace Rtx::Testing
         void resize(std::uint32_t, std::uint32_t) override {}
         void setUpscale(Upscale upscale) override { mProfile.mUpscaling.mMode = upscale; }
         void setVerticalSync(SDLUtil::VSyncMode) override {}
-        bool pacesFrames() const override { return false; }
-        void setPacing(const Rtx::Pacing&) override {}
         void setAnisotropy(std::uint32_t) override {}
-        void awaitFrame() override {}
-        void endSimulation(bool) override {}
-        std::optional<Rtx::LatencyReport> describeLatency() const override { return std::nullopt; }
         Rtx::KernelProgress awaitKernels(std::chrono::milliseconds) override { return {}; }
         Rtx::FrameExtents getExtents() const override { return {}; }
         Rtx::Reconstruction renderFrame(const Rtx::Shaders::VisibilityConstants&, const Rtx::FrameOptions&) override

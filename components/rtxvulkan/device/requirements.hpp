@@ -136,10 +136,9 @@ namespace Rtx
         MemoryBudget,
         PresentFences,
         Checkpoints,
-        Pacing,
     };
 
-    inline constexpr std::size_t sDeviceOptions = static_cast<std::size_t>(DeviceOption::Pacing) + 1;
+    inline constexpr std::size_t sDeviceOptions = static_cast<std::size_t>(DeviceOption::Checkpoints) + 1;
 
     /// The features the options bring, each in its own structure: what a device that took an option
     /// is asked for, and enabled with where it has it. Outside `DeviceFeatures`, which is what the
@@ -153,7 +152,6 @@ namespace Rtx
 
         VkPhysicalDeviceFaultFeaturesEXT mFault{};
         VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR mPresentFences{};
-        VkPhysicalDevicePresentIdFeaturesKHR mPresentId{};
     };
 
     /// The one feature an option is no use without, and how to reach its structure and its flag,
@@ -167,7 +165,7 @@ namespace Rtx
     /// One option as extensions: the ones it is made of, enabled all or none, and what the registry
     /// says has to be enabled beside them — an instance extension or a device one — before any of
     /// them may be. An option whose needs are not met is not taken, however much of it the driver
-    /// offers: the present id rests on a swapchain, which a device with no window has none of.
+    /// offers: a present fence rests on a swapchain, which a device with no window has none of.
     struct OptionalExtensions
     {
         DeviceOption mOption;
@@ -185,7 +183,7 @@ namespace Rtx
 
     /// Every option, in the order of `DeviceOption`. Reported by `openmw-rtxtool info`, so it is
     /// visible which a device offers; `Device`'s constructor takes each it can and keeps what the
-    /// frame asks of them (`Device::hasPresentFences`, `Device::hasLatencyPacing`).
+    /// frame asks of them (`Device::hasPresentFences`).
     std::span<const OptionalExtensions> getOptionalExtensions();
 
     /// The table itself, so a test can prove its entries address distinct fields.

@@ -72,16 +72,8 @@ namespace Rtx
         void setUpscale(Upscale upscale) override;
 
         void setVerticalSync(SDLUtil::VSyncMode mode) override;
-
-        /// The driver's pacing, which is the presenter's and nothing without one — a headless
-        /// renderer is paced by whoever calls it.
-        bool pacesFrames() const override;
-        void setPacing(const Pacing& pacing) override;
         void setAnisotropy(std::uint32_t anisotropy) override;
         void skipFrame() override;
-        void awaitFrame() override;
-        void endSimulation(bool flash) override;
-        std::optional<LatencyReport> describeLatency() const override;
         FrameExtents getExtents() const override;
         const RenderProfile& getProfile() const override { return mProfile; }
         KernelProgress awaitKernels(std::chrono::milliseconds patience) override;

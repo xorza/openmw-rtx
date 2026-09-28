@@ -18,8 +18,8 @@ namespace Rtx
     /// being told what moved, split into `Bake`, `Textures` and `Upload` because its worst frame is
     /// hundreds of times its median and a profile cannot say which half. `Trace` and `Present` are the other two calls
     /// into the backend, and `Update` is the rest of the loop, which is the game's — with `Sleep`
-    /// the share of it the host was held for before the frame's input: by the driver where the
-    /// driver paces, and by the frame-rate limiter where it does not. `Frame` is the whole of it,
+    /// the share of it the frame-rate limiter held the host for before the frame's input. `Frame`
+    /// is the whole of it,
     /// from one trace's frame opening to the next. Timed rather than profiled, because most of
     /// what a call into the driver costs is inside the driver with no frame pointer to walk, and a
     /// thread asleep is nothing to a sampling profiler. Together they close the frame: `Frame` less

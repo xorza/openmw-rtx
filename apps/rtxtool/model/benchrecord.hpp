@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
-#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -154,12 +153,6 @@ namespace RtxTool
         const FrameTimes& at(const Rtx::Timing timing) const { return mRows[indexOf(timing)]; }
         FrameTimes& at(const Rtx::Timing timing) { return mRows[indexOf(timing)]; }
 
-        /// The driver's own input-to-present figure over the measured frames, in milliseconds,
-        /// where the driver paced the window — the one latency a player feels, measured by the
-        /// only party that sees the whole pipeline. Nothing on a headless run, which is every
-        /// measured one, and the JSON says so by leaving the key out.
-        std::optional<FrameTimes> mLatency;
-
         /// What the device itself says each stretch of the frame cost, most expensive first. Empty
         /// where the device cannot write timestamps.
         std::vector<GpuZone> mGpu;
@@ -207,10 +200,10 @@ namespace RtxTool
 
         Rtx::FrameExtents mExtents;
 
-        /// What upscaled the run's frames, as `Reconstruction` reports it: the mode and the network,
-        /// or `Off` and `Default` where nothing did. **Read off a frame and not off the renderer**,
+        /// What upscaled the run's frames, as `Reconstruction` reports it: the mode, or `Off` where
+        /// nothing did. **Read off a frame and not off the renderer**,
         /// which answers the mode alone.
-        Rtx::Upscaling mUpscaling{ .mMode = Rtx::Upscale::Off, .mPreset = Rtx::Preset::Default };
+        Rtx::Upscaling mUpscaling{ .mMode = Rtx::Upscale::Off };
 
         /// Where the trace drew from and what its texture levels were offset by, as the frame's
         /// `Reconstruction` resolved them; and whether the launch sorted its threads, which is

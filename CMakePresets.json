@@ -145,21 +145,6 @@
             }
         },
         {
-            "name": "nodlss",
-            "hidden": true,
-            "inherits": [ "debug", "no-tools" ],
-            "$comment": [
-                "The debug flavour without the SDK, which is a different binary and not the same one with a",
-                "feature skipped: `noupscaler.cpp` links where `dlss*.cpp` did, and every file that reaches NGX",
-                "has to be one of those CMake leaves out. The gate compiles it so that a symbol reached from the",
-                "wrong side is found here and not by whoever next configures without the SDK."
-            ],
-            "binaryDir": "${sourceDir}/build-nodlss",
-            "cacheVariables": {
-                "OPENMW_RTX_DLSS": "OFF"
-            }
-        },
-        {
             "name": "plain",
             "hidden": true,
             "$comment": [
@@ -253,14 +238,6 @@
             "inherits": [ "asan", "linux", "rtx" ]
         },
         {
-            "name": "nodlss-linux",
-            "inherits": [ "nodlss", "linux", "rtx" ]
-        },
-        {
-            "name": "nodlss-windows",
-            "inherits": [ "nodlss", "windows", "rtx" ]
-        },
-        {
             "name": "plain-linux",
             "inherits": [ "plain", "linux", "rtx" ]
         },
@@ -337,8 +314,6 @@
         { "name": "debug-linux", "configurePreset": "debug-linux", "inherits": [ "tests" ] },
         { "name": "debug-windows", "configurePreset": "debug-windows", "inherits": [ "tests" ] },
         { "name": "asan-linux", "configurePreset": "asan-linux", "inherits": [ "tests", "sanitizers" ] },
-        { "name": "nodlss-linux", "configurePreset": "nodlss-linux", "inherits": [ "tests" ] },
-        { "name": "nodlss-windows", "configurePreset": "nodlss-windows", "inherits": [ "tests" ] },
         { "name": "plain-linux", "configurePreset": "plain-linux", "inherits": [ "tests" ] },
         { "name": "plain-windows", "configurePreset": "plain-windows", "inherits": [ "tests" ] }
     ]

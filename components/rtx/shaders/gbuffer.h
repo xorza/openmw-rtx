@@ -27,17 +27,14 @@
 // reaches a half float as infinity. `PREVIOUS_SCREEN_REACH` holds it to one screen outside the
 // frame either way, so the largest vector a 1920-wide render can carry is 3840 — where a half's
 // step is two pixels, on a vector that left the screen twice over. Inside the frame, where a vector
-// is read, that step is a sixtieth of a pixel at sixteen and a thousandth at one. NVIDIA's Ray
-// Reconstruction guide takes the format.
+// is read, that step is a sixtieth of a pixel at sixteen and a thousandth at one.
 //
-// Eight bytes a pixel across the two motion channels, and 16 MiB of that at 1080p.
+// Four bytes a pixel, and 8 MiB of that at 1080p.
 //
 // **A normal is eleven bits a component, because everything that reads one compares directions.**
 // The guide's `xyz` is a unit vector and its `w` a fraction, and the sharpest test made of either is
 // the cascade's `pow(dot, 128)`, which cuts a tap at about six degrees of tilt — against the 0.03
-// degrees a half float rounds a direction by. Ray Reconstruction asks for this width itself: the
-// DLSS-RR integration guide §3.4.3 takes "RGB16_FLOAT or RGB32_FLOAT" with the roughness packed into
-// alpha, which is what `DlssPass` already tells it this is.
+// degrees a half float rounds a direction by.
 //
 // This is the largest tap in the frame — the cascade reads it twenty-five times a pixel at each of
 // five levels — so eight bytes rather than sixteen takes a fifth off that pass's traffic, and
@@ -80,34 +77,30 @@ namespace Rtx::Shaders
     /// The one bounce, demodulated — the only channel a filter may touch.
     const uint CHANNEL_INDIRECT = 1;
 
-    /// What the composite multiplies the bounce back in by, and what an upscaler demodulates each
-    /// half of a pixel by.
+    /// What the composite multiplies the bounce back in by.
     const uint CHANNEL_ALBEDO = 2;
-    const uint CHANNEL_SPECULAR = 3;
 
-    /// The shading normal and the roughness, which is what a filter and an upscaler compare
-    /// surfaces by.
-    const uint CHANNEL_GUIDE = 4;
+    /// The shading normal and the roughness, which is what a filter compares surfaces by.
+    const uint CHANNEL_GUIDE = 3;
 
     /// Where things stood on the previous frame's screen, and how far away they are now.
-    const uint CHANNEL_MOTION = 5;
-    const uint CHANNEL_DEPTH = 6;
-    const uint CHANNEL_REFLECTION_MOTION = 7;
+    const uint CHANNEL_MOTION = 4;
+    const uint CHANNEL_DEPTH = 5;
 
     /// How much of the backdrop a pixel still shows, for the pass that draws it, and what the arms
     /// let through, for the puffs' composite.
-    const uint CHANNEL_BACKDROP = 8;
+    const uint CHANNEL_BACKDROP = 6;
 
     /// The sprites the trace found in front of the surface, kept apart from it and lit where they
     /// stand: their colour, what they let through, and which eye the pixel's ray left — `packPuffs`.
     /// The light is all the composite takes from here. What a puff's shape is, what hides it and
     /// what the cloud shells add are answered along the shown pixel's own ray by
-    /// `spritecomposite.rgen`, so no puff goes through a denoiser or an upscaler's overlay, and
+    /// `spritecomposite.rgen`, so no puff goes through the denoiser or an upscaler, and
     /// nothing the composite draws moves with the jitter the traced grid is sampled at.
-    const uint CHANNEL_PUFFS = 9;
+    const uint CHANNEL_PUFFS = 7;
 
     /// How many the set declares, which is the last of them and one more.
-    const uint CHANNEL_COUNT = 10;
+    const uint CHANNEL_COUNT = 8;
 
 #ifdef RTX_HOST
 }

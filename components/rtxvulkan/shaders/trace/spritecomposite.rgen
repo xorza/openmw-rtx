@@ -7,12 +7,11 @@
 // The puffs over the reconstructed frame, at the resolution it is shown at.
 //
 // **After the denoiser and the upscaler, because neither should touch a particle.** A sprite is
-// not noise in a ray-traced estimate, so a denoiser given one reconstructs it as an error; and
-// Ray Reconstruction's own overlay is "upscaled only", at the traced extent, so every particle
-// handed to it was drawn at half the picture's resolution and stretched. So the trace leaves the
-// puffs in a layer of their own and this launch composites them over the frame the way the trace
-// used to — `airBefore + colour * opacity + added + T * (frame - airBefore)`, which is exact for a
-// layer in front of the haze behind it.
+// not noise in a ray-traced estimate, so a denoiser given one reconstructs it as an error; and a
+// particle an upscaler took at the traced extent would be drawn at a fraction of the picture's
+// resolution and stretched. So the trace leaves the puffs in a layer of their own and this launch
+// composites them over the frame — `airBefore + colour * opacity + added + T * (frame - airBefore)`,
+// which is exact for a layer in front of the haze behind it.
 //
 // **The shape at the shown extent and the light at the traced one.** What a picture needs at
 // its own resolution is a puff's edge: which pixels it covers and how much. What it does not need
@@ -24,8 +23,8 @@
 // whole, light and all — `mediumAlong` is one walk a pixel and lights its layer once — so nothing
 // but the sprites' light is taken from the traced grid.
 //
-// **One pass for both denoisers.** Under the wavelet the shown extent is the traced one and this
-// runs at it; nothing else composites a puff anywhere in this renderer.
+// **One pass whatever reconstructs the frame.** Without an upscaler the shown extent is the traced
+// one and this runs at it; nothing else composites a puff anywhere in this renderer.
 //
 // **One invocation a traced pixel, for every shown pixel whose centre lands on it.** Whether a
 // puff can be there at all is a fact about the traced pixel — its tile's run of sprites and its

@@ -53,11 +53,6 @@ struct WaterPath
     /// Whether it found a surface, which a distance cannot say: a surface further off than the
     /// sentinel is a surface and not sky.
     bool mFound;
-
-    /// Where it landed, in world units, and which instance row that surface came off. Both nought
-    /// where nothing was found.
-    vec3 mPosition;
-    uint mInstance;
 };
 
 /// What a ray sees along `ray` after leaving the water, and what it found to see it on.
@@ -99,8 +94,6 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint seed, uint ambientS
         = trace(ray, SHADOW_BIAS, Cone(cone.mWidth, cone.mSpread + lobe), solidMask(frame.mRayMask), true);
 
     WaterPath path;
-    path.mPosition = hit.mPosition;
-    path.mInstance = hit.mInstance;
     path.mFound = hit.mHit;
 
     if (hit.mHit)
@@ -164,18 +157,13 @@ vec3 alongLeg(WaterPath path, WorldRay leg, bool underwater, float footprint, uv
 }
 
 /// What a water surface answers with: what it sends back along the ray, what it is in the
-/// upscaler's terms, what it reflects, and how much of the pixel is water at all.
+/// filter's terms, what it reflects, and how much of the pixel is water at all.
 struct WaterShading
 {
     /// The water's whole answer, as if there were water all the way down.
     vec3 mRadiance;
 
     SurfaceResponse mResponse;
-
-    /// What this surface reflects, for the motion vector that describes it. Not found where the
-    /// reflection reached only sky, or where the water is being looked at from underneath —
-    /// neither is a thing a mirrored reprojection has an answer for.
-    WaterMirror mMirror;
 
     /// How much of the pixel is water at all, from nothing at the waterline to one over half a
     /// metre of depth. **The caller mixes the ground in, and not `shadeWater`**, because what a
@@ -197,7 +185,6 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const uint key = pixelKey(pixel);
 
     WaterShading shaded;
-    shaded.mMirror = WaterMirror(vec3(0.0), vec3(0.0), 0u, false);
 
     // **Which side of the water a ray is on is a question about the plane, not about a wave.** At a
     // glancing angle a facet can tilt far enough to face away from the ray, and reading that as "the
@@ -233,23 +220,10 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
         = fromBelow ? sqrt(max(1.0 - WATER_IOR * WATER_IOR * (1.0 - incidence * incidence), 0.0)) : incidence;
     const float fresnel = fresnelSchlick(WATER_F0, 1.0, schlickWeight(cosine));
 
-    // **The wave's normal and not the quad's**, the roughness the lost slopes stand for, and
-    // the Fresnel term as the specular albedo — which is what a specular albedo is, and not what a
-    // guide written for a different shading model calls one. The channel is a demodulator: whatever
-    // the specular light was multiplied by has to be exactly what is divided back out, and here that
-    // is the Fresnel share. `EnvBRDFApprox2` is the answer where the specular half is a pre-integrated
-    // GGX lobe; ours is a traced reflection weighted by Schlick, and dividing it by an environment
-    // BRDF would divide by a number nothing ever multiplied.
-    //
-    // Both exits return it, and the one below where total internal reflection makes the specular
-    // all of the pixel changes that half alone.
-    //
-    // Water is the only surface of vanilla content with a specular half. A vanilla solid reports
-    // nought and that is the content's answer rather than a gap: `nifloader.cpp` forces specular to
-    // black and glossiness to zero for every mesh at Morrowind's NIF version, because the game had
-    // specular lighting disabled — measured across four cells, 831 materials, none with either. A
-    // solid with a specular map has one of its own, `surfaceResponse`.
-    shaded.mResponse = SurfaceResponse(normal, vec3(0.0), vec3(fresnel), roughness);
+    // **The wave's normal and not the quad's**, and the roughness the lost slopes stand for: what the
+    // filter tells this surface apart by. No diffuse albedo, since water answers a ray with a
+    // reflection and a refraction and no Lambert term.
+    shaded.mResponse = SurfaceResponse(normal, vec3(0.0), roughness);
 
     // Offset along the *plane*, not the facet: what a ray has to clear to avoid finding this surface
     // again is the quad, and only the plane's normal is guaranteed to take it off that.
@@ -282,8 +256,6 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const WaterPath bounced = waterRay(
         mirrored, Cone(surface.mFootprint, cone.mSpread), lobe, key + SEED_LAMPS_MIRROR, key + SEED_AMBIENT_MIRROR);
     const vec3 reflected = alongLeg(bounced, mirrored, fromBelow, surface.mFootprint, pixel, before);
-    if (!fromBelow)
-        shaded.mMirror = WaterMirror(bounced.mPosition, mirrored.mAlong, bounced.mInstance, bounced.mFound);
 
     const vec3 bent = refract(incident, normal, fromBelow ? WATER_IOR : 1.0 / WATER_IOR);
     if (dot(bent, bent) < 1e-6)
@@ -291,7 +263,6 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
         // Past the critical angle looking up from underwater, where the surface is a mirror and
         // there is nothing behind it to see: the reflection whole, which is the Fresnel term's own
         // answer there, and no refraction to trace.
-        shaded.mResponse.mSpecular = vec3(1.0);
         shaded.mRadiance = reflected;
         return shaded;
     }

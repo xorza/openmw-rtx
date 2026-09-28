@@ -19,8 +19,7 @@ namespace MWRender
         /// How long the window must report one size before the renderer is rebuilt for it.
         ///
         /// **Because rebuilding costs about as long as this waits.** A new extent releases every
-        /// target, allocates them again and uploads Ray Reconstruction's weights for the pair of
-        /// resolutions it is now between — about a tenth of a second. A window dragged across a
+        /// target and allocates them again — about a tenth of a second. A window dragged across a
         /// screen passes through hundreds of extents, and following each of them would draw the
         /// drag at ten frames a second.
         ///

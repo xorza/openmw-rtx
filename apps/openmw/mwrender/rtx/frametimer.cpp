@@ -54,8 +54,7 @@ namespace MWRender
         return true;
     }
 
-    std::string_view FrameTimer::writeTitle(
-        const std::optional<Rtx::LatencyReport>& latency, const std::string_view note)
+    std::string_view FrameTimer::writeTitle(const std::string_view note)
     {
         char* out = mTitle.data();
         const auto room = [&] { return static_cast<std::size_t>(mTitle.data() + mTitle.size() - 1 - out); };
@@ -64,13 +63,6 @@ namespace MWRender
         if (mSecondMeanMs > 0.0)
             out = std::format_to_n(out, room(), " - {:.0f} fps, {:.1f} ms, worst {:.1f} ms", sSecondMs / mSecondMeanMs,
                 mSecondMeanMs, mSecondWorstMs)
-                      .out;
-
-        // The newest frame's and not the second's, because the second is the rate's: a latency
-        // averaged over a second would hide the frame the sleep let slip.
-        if (latency.has_value())
-            out = std::format_to_n(
-                out, room(), ", {:.1f} ms latency", static_cast<double>(latency->mInputToPresentUs) / 1000.0)
                       .out;
 
         if (!note.empty())

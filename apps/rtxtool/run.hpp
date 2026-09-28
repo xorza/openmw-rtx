@@ -117,17 +117,17 @@ namespace RtxTool
     std::string_view writeSkyNote(std::span<char> room, const SkyNote& note);
 
     /// What a frame is upscaled by when nobody names a mode. The one knob whose default is the
-    /// harness's own and not `settings-default.cfg`'s: the file says `quality`, and a build with
-    /// `-DOPENMW_RTX_DLSS=OFF` refuses every mode but `off` by name, so a run of that build has to
-    /// ask for what it can have. Quality rather than Performance where there is a choice, so a
-    /// plain run is the renderer with everything on and not one that quietly quartered its pixels.
+    /// harness's own and not `settings-default.cfg`'s: a renderer without an upscaler refuses every
+    /// mode but `off` by name, so a run has to ask for what it can have. Quality rather than
+    /// Performance where there is a choice, so a plain run is the renderer with everything on and
+    /// not one that quietly quartered its pixels.
     inline constexpr Rtx::Upscale sUpscaleByDefault = Rtx::sUpscalerBuilt ? Rtx::Upscale::Quality : Rtx::Upscale::Off;
 
-    /// What every film is made under, and no line chooses another: DLAA, every pixel traced and Ray
-    /// Reconstruction still the denoiser, because a film is watched and never timed, and the one
-    /// picture a person keeps is the best one the renderer draws. A build without the upscaler
-    /// draws what it can, which is the trace alone.
-    inline constexpr Rtx::Upscale sFilmUpscale = Rtx::sUpscalerBuilt ? Rtx::Upscale::Dlaa : Rtx::Upscale::Off;
+    /// What every film is made under, and no line chooses another: native, every pixel traced and
+    /// the upscaler still reconstructing across frames, because a film is watched and never timed,
+    /// and the one picture a person keeps is the best one the renderer draws. Without an upscaler
+    /// it draws what it can, which is the trace alone.
+    inline constexpr Rtx::Upscale sFilmUpscale = Rtx::sUpscalerBuilt ? Rtx::Upscale::Native : Rtx::Upscale::Off;
 
     /// Where a hosted run's frames are presented: what goes into the settings the engine makes its
     /// window from, and nothing the renderer is made with.
@@ -153,7 +153,7 @@ namespace RtxTool
     {
         WindowRequest mWindow;
 
-        /// What the renderer is made with, whole: the line's profile, mirror, pacing, layers,
+        /// What the renderer is made with, whole: the line's profile, mirror, layers,
         /// shaders and budget, hidden and stepped at the harness's own rate until a command says
         /// otherwise. The request `sessionFor` builds carries it as it is, so a knob `RunSetup`
         /// gains reaches every command by being read here.

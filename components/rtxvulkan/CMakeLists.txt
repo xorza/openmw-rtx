@@ -7,23 +7,6 @@
 # Ninja needs the NEW behaviour to consume glslc's depfile; upstream's policy version predates it.
 cmake_policy(SET CMP0116 NEW)
 
-# NVIDIA's NGX SDK, which is what DLSS is. Prebuilt, licensed by NVIDIA rather than by this tree,
-# and 750 MB — so it is found rather than vendored, submoduled or fetched: `cmake/FindNGX.cmake`,
-# pointed at a checkout by `NGX_ROOT` the way every package is. `extern/` is for source this build
-# compiles, and none of that is true of a static library and a set of signed feature libraries.
-#
-# **A hard error and not a quiet disable.** Compiling the feature out would put "is DLSS really
-# here" in a definition only this directory can see, which every caller would then have to guess
-# at. Asking for it and not having it is one message instead.
-#
-# **The version is exact and not a floor.** What is linked here is a prebuilt library and what
-# ships beside it is signed, so "whatever was newest that day" is not a version anything can be
-# compared against; the feature libraries carry the tag in their file names, which is what the
-# module reads.
-if (OPENMW_RTX_DLSS)
-    find_package(NGX 310.9.1 EXACT REQUIRED)
-endif()
-
 find_program(OPENMW_GLSLC NAMES glslc HINTS "${Vulkan_GLSLC_EXECUTABLE}" REQUIRED
     DOC "glslc, from shaderc — compiles the renderer's GLSL to SPIR-V")
 find_program(OPENMW_SPIRV_VAL NAMES spirv-val REQUIRED
@@ -301,10 +284,6 @@ set(RTX_VULKAN_FILES
     pipeline/pipeline.hpp
     pipeline/tracepipeline.cpp
     pipeline/tracepipeline.hpp
-    present/latencypacer.cpp
-    present/latencypacer.hpp
-    present/pacedmodes.cpp
-    present/pacedmodes.hpp
     present/presenter.cpp
     present/presenter.hpp
     present/presenttargets.cpp
@@ -375,26 +354,15 @@ set(RTX_VULKAN_FILES
     trace/visibilitypass.hpp
     trace/wavepass.cpp
     trace/wavepass.hpp
+    upscale/upscaler.cpp
     upscale/upscaler.hpp
     vulkanrenderer.cpp
     vulkanrenderer.hpp
 )
 
-# Only where the SDK is there to compile against: these are nothing but NGX, so a build without
-# DLSS leaves them out rather than hollowing them with a guard. `upscale/upscaler.hpp` is the one
-# seam the renderer reaches them through, and the build picks which of its two definitions links.
-set(RTX_VULKAN_DLSS_FILES upscale/dlss.cpp upscale/dlss.hpp upscale/dlsspass.cpp upscale/dlsspass.hpp
-    upscale/dlssupscaler.cpp upscale/dlssupscaler.hpp upscale/ngx.hpp upscale/ngxdispatch.cpp upscale/ngxdispatch.hpp)
-set(RTX_VULKAN_NO_DLSS_FILES upscale/noupscaler.cpp)
-if (OPENMW_RTX_DLSS)
-    list(APPEND RTX_VULKAN_FILES ${RTX_VULKAN_DLSS_FILES})
-else()
-    list(APPEND RTX_VULKAN_FILES ${RTX_VULKAN_NO_DLSS_FILES})
-endif()
-
 openmw_rtx_library(openmw-rtx-vulkan ${RTX_VULKAN_FILES})
 openmw_rtx_expect_listed("${CMAKE_CURRENT_SOURCE_DIR}" MATCHING *.cpp *.hpp shaders/*
-    LISTED ${RTX_VULKAN_FILES} ${RTX_VULKAN_DLSS_FILES} ${RTX_VULKAN_NO_DLSS_FILES} ${RTX_SPIRV_PIN_FILES}
+    LISTED ${RTX_VULKAN_FILES} ${RTX_SPIRV_PIN_FILES}
            spirv/spirvpintool.cpp spirv/spirvdigesttool.cpp ${RTX_SHADERS} ${RTX_SHADER_PROBES} ${RTX_SHADER_LIB})
 
 # Vulkan is private: a host reaches the backend through `createrenderer.hpp`, which names no
@@ -425,15 +393,3 @@ target_link_libraries(openmw-rtx-vulkan PRIVATE GPUOpen::VulkanMemoryAllocator)
 # debugging session that does not happen. Defined in every build, as 0 or 1, so the one place that
 # reads it, `Rtx::sDebugNames`, needs no `#ifdef`.
 target_compile_definitions(openmw-rtx-vulkan PUBLIC OPENMW_RTX_DEBUG_NAMES=$<IF:$<CONFIG:Release>,0,1>)
-
-if (OPENMW_RTX_DLSS)
-    # The static half is the target; the shared half is the feature library it loads at runtime,
-    # from the directory of the running executable (`upscale/dlss.cpp` says why that one), so a copy
-    # sits beside every binary of the build and goes with the binaries an install ships. The SDK's own
-    # name is kept, version and all: it is what NGX asks the directory for.
-    target_link_libraries(openmw-rtx-vulkan PRIVATE NGX::NGX)
-    get_filename_component(_ngx_feature_name "${NGX_FEATURE_LIBRARY}" NAME)
-    copy_resource_file("${NGX_FEATURE_LIBRARY}" "${OpenMW_BINARY_DIR}" "${_ngx_feature_name}")
-    install(FILES "${NGX_FEATURE_LIBRARY}" DESTINATION "${CMAKE_INSTALL_BINDIR}")
-    unset(_ngx_feature_name)
-endif()

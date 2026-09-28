@@ -10,7 +10,6 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/renderer/framespend.hpp>
-#include <components/rtx/renderer/latencyreport.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/visibility.h>
 
@@ -87,10 +86,6 @@ namespace MWRender
         Rtx::AirClock mAir;
 
         WalkReport mWalked;
-
-        /// The driver's timings of the newest frame it finished, where the driver paces the
-        /// window; nothing on a headless run and before the first frame finished.
-        std::optional<Rtx::LatencyReport> mLatency;
     };
 
     /// What a measured stop may reach beyond the frame's own report. Borrowed and valid for one stop:

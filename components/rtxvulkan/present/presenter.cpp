@@ -47,30 +47,18 @@ namespace Rtx
         return names;
     }
 
-    Presenter::Presenter(const Device& device, const Instance& instance, SDL_Window* window,
-        const SDLUtil::VSyncMode verticalSync, const Pacing& pacing)
+    Presenter::Presenter(
+        const Device& device, const Instance& instance, SDL_Window* window, const SDLUtil::VSyncMode verticalSync)
         : mDevice(device)
         , mInstance(instance.getHandle())
-        , mSleepSemaphore(makeTimelineSemaphore(device, "frame pacing"))
-        , mPacer(device.getLatencyFunctions(), device.getHandle(), mSleepSemaphore.get())
     {
         try
         {
             if (SDL_Vulkan_CreateSurface(window, mInstance, &mSurface) == SDL_FALSE)
                 throw Unsupported(std::string("SDL would not make a Vulkan surface: ") + SDL_GetError());
 
-            // Whether the driver paces, asked once and joined here: the device's half is the
-            // extension, the surface's is the modes, and an empty list says no for either.
-            if (device.hasLatencyPacing())
-                mPacedModes
-                    = PacedModes(instance.getSurfaceCapabilities2(), device.getPhysicalDevice().getHandle(), mSurface);
-
-            mSwapchain = std::make_unique<Swapchain>(
-                device, mSurface, drawableSize(window), verticalSync, pacing.mMode != LatencyMode::Off, mPacedModes);
+            mSwapchain = std::make_unique<Swapchain>(device, mSurface, drawableSize(window), verticalSync);
             makeImageSync();
-
-            mPacer.setPacing(pacing);
-            followSwapchain();
         }
         catch (...)
         {
@@ -89,9 +77,7 @@ namespace Rtx
     void Presenter::destroy()
     {
         // Through `tearDown`, because this runs from a destructor and from the `catch` that tidies
-        // up after a constructor that failed. Throwing out of either is `std::terminate`. This
-        // called `vkDeviceWaitIdle` itself to dodge that, which also threw away what the device said
-        // about the fault — and left the rule as a comment for the next teardown to remember.
+        // up after a constructor that failed, and throwing out of either is `std::terminate`.
         tearDown("the device would not finish before the presenter was taken apart", [&] { mDevice.waitIdle(); });
 
         releaseImageSync();
@@ -185,13 +171,6 @@ namespace Rtx
             remake(getExtent());
     }
 
-    void Presenter::setPacing(const Pacing& pacing)
-    {
-        mPacer.setPacing(pacing);
-        if (mSwapchain->setPreferPaced(pacing.mMode != LatencyMode::Off))
-            remake(getExtent());
-    }
-
     void Presenter::remake(const VkExtent2D extent)
     {
         // The sync released between the idle and the recreate, because the present fences it waits
@@ -201,24 +180,6 @@ namespace Rtx
         releaseImageSync();
         mSwapchain->recreate(extent);
         makeImageSync();
-        followSwapchain();
-    }
-
-    void Presenter::followSwapchain()
-    {
-        mPacer.follow(mSwapchain->getHandle(), mSwapchain->isPaced());
-        passPresentId();
-    }
-
-    void Presenter::passPresentId()
-    {
-        mDevice.getPool().setPresentId(mPacer.getPresentId());
-    }
-
-    void Presenter::awaitFrame()
-    {
-        mPacer.awaitFrame();
-        passPresentId();
     }
 
     VkExtent2D Presenter::getExtent() const
@@ -228,11 +189,6 @@ namespace Rtx
 
     void Presenter::present(const Image& frame)
     {
-        // A present nothing slept for pays its sleep here, before the acquire, which is the
-        // earliest a loading screen's present can: the driver counts one sleep between two
-        // presents, and a run of presents with none would send it to a worse spot of its own.
-        awaitFrame();
-
         Acquisition& acquisition = mAcquiring[mAcquisition];
         mAcquisition = (mAcquisition + 1) % static_cast<std::uint32_t>(mAcquiring.size());
 
@@ -316,13 +272,7 @@ namespace Rtx
         acquisition.mBlit = blitted;
         image.mBlitOn = blitted;
 
-        mPacer.beforePresent();
-        const bool shown
-            = mSwapchain->present(image.mRendered.get(), index, image.mPresented.get(), mPacer.getPresentId());
-        mPacer.afterPresent();
-        passPresentId();
-
-        if (!shown)
+        if (!mSwapchain->present(image.mRendered.get(), index, image.mPresented.get()))
             mStale = true;
     }
 }

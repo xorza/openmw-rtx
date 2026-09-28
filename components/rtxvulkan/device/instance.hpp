@@ -38,15 +38,6 @@ namespace Rtx
         /// headless, and what the device's swapchain rests on.
         bool hasExtension(std::string_view name) const;
 
-        /// `vkGetPhysicalDeviceSurfaceCapabilities2KHR`, or null: the extended question of a
-        /// surface, which is where a surface says which present modes the driver paces under
-        /// (`LatencyPacer`). Null for a headless instance and for a loader without
-        /// `VK_KHR_get_surface_capabilities2`.
-        PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR getSurfaceCapabilities2() const
-        {
-            return mGetSurfaceCapabilities2;
-        }
-
         /// Whether `VK_EXT_debug_utils` was enabled, which is what object names and command-buffer
         /// labels need. True whenever this build names objects, not only under validation — a
         /// capture is worth having without paying for the layers.
@@ -67,7 +58,6 @@ namespace Rtx
 
         /// Resolved with the create half, once, so the destructor does not ask the loader again.
         PFN_vkDestroyDebugUtilsMessengerEXT mDestroyMessenger = nullptr;
-        PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR mGetSurfaceCapabilities2 = nullptr;
         std::uint32_t mApiVersion = 0;
     };
 }

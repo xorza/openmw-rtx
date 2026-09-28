@@ -21,11 +21,9 @@ namespace Rtx
         Direct = Shaders::CHANNEL_DIRECT,
         Indirect = Shaders::CHANNEL_INDIRECT,
         Albedo = Shaders::CHANNEL_ALBEDO,
-        Specular = Shaders::CHANNEL_SPECULAR,
         Guide = Shaders::CHANNEL_GUIDE,
         Motion = Shaders::CHANNEL_MOTION,
         Depth = Shaders::CHANNEL_DEPTH,
-        ReflectionMotion = Shaders::CHANNEL_REFLECTION_MOTION,
         Backdrop = Shaders::CHANNEL_BACKDROP,
         Puffs = Shaders::CHANNEL_PUFFS,
     };
@@ -43,11 +41,9 @@ namespace Rtx
         { Channel::Direct, "g-direct" },
         { Channel::Indirect, "g-indirect" },
         { Channel::Albedo, "g-albedo" },
-        { Channel::Specular, "g-specular" },
         { Channel::Guide, "g-guide" },
         { Channel::Motion, "g-motion" },
         { Channel::Depth, "g-depth" },
-        { Channel::ReflectionMotion, "g-reflection-motion" },
         { Channel::Backdrop, "g-backdrop" },
         { Channel::Puffs, "g-puffs" },
     } } };

@@ -14,8 +14,8 @@ namespace Rtx
     /// `specularAlbedoOf` makes a surface's directional albedo out of the pair for any reflectance,
     /// and `specularCompensation` its scale for the energy one scattering event loses.
     ///
-    /// **Integrated rather than fitted.** The fits in use — Karis's, and `EnvBRDFApprox2` in the Ray
-    /// Reconstruction guide — are fits to a lobe with another masking term, and a compensation off a
+    /// **Integrated rather than fitted.** The fits in use — Karis's, and the split-sum fit of Ray
+    /// Tracing Gems ch. 32 — are fits to a lobe with another masking term, and a compensation off a
     /// lobe the shader does not draw puts back energy it did not lose. The table is the integral of
     /// the functions the shader calls, and a test holds it to a quadrature of its own.
     class SpecularAlbedo

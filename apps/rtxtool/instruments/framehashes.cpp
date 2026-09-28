@@ -352,8 +352,8 @@ namespace RtxTool
             if (anyTraced)
                 difference.mTraceDiffering.push_back(held.mFrame);
 
-            // **Whose picture it is decides which list it goes on.** Where either run put a network
-            // between the trace and the picture, the picture is the network's, and two runs of
+            // **Whose picture it is decides which list it goes on.** Where either run put an upscaler
+            // between the trace and the picture, the picture is the upscaler's, and two runs of
             // one build are allowed to disagree about it.
             if (found->mHash != held.mHash)
             {
@@ -403,7 +403,7 @@ namespace RtxTool
 
             return std::format(
                 "{} frames, the trace and the scene the same on every one; the reconstructed picture "
-                "differs on {}, which is the network's and not a verdict",
+                "differs on {}, which is the upscaler's and not a verdict",
                 difference.mFrames, difference.mReconstructedDiffering.size());
         }
 
@@ -411,7 +411,7 @@ namespace RtxTool
 
         // **The trace first, because it is the verdict.** A picture that differs where the trace
         // differs is the same finding twice; one that differs where the trace did not is the
-        // display chain, or the network past it.
+        // display chain, or the upscaler past it.
         if (!difference.mTraceDiffering.empty())
             clauses.push_back(std::format("the trace differs on {} of {} frames, at {}{}",
                 difference.mTraceDiffering.size(), difference.mFrames, nameFrames(difference.mTraceDiffering),
@@ -423,7 +423,7 @@ namespace RtxTool
 
         if (!difference.mReconstructedDiffering.empty())
             clauses.push_back(
-                std::format("the reconstructed picture differs on {} frames, which is the network's and "
+                std::format("the reconstructed picture differs on {} frames, which is the upscaler's and "
                             "not a verdict",
                     difference.mReconstructedDiffering.size()));
 

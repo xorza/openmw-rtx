@@ -56,7 +56,6 @@ set(RTX_FILES
     frame/frameoptions.hpp
     frame/framesampling.cpp
     frame/framesampling.hpp
-    frame/pacing.hpp
     frame/reconstruction.hpp
     frame/specularalbedo.cpp
     frame/specularalbedo.hpp
@@ -159,7 +158,6 @@ set(RTX_FILES
     renderer/framespend.hpp
     renderer/guirenderer.hpp
     renderer/kernelprogress.hpp
-    renderer/latencyreport.hpp
     renderer/memoryreport.cpp
     renderer/memoryreport.hpp
     renderer/png.cpp

@@ -231,39 +231,25 @@
         <item row="8" column="0">
          <widget class="QLabel" name="rayTracingUpscaleLabel">
           <property name="text">
-           <string>DLSS Ray Reconstruction</string>
+           <string>Upscaling</string>
           </property>
          </widget>
         </item>
         <item row="8" column="1">
          <widget class="QComboBox" name="rayTracingUpscaleComboBox">
           <property name="toolTip">
-           <string>How hard DLSS Ray Reconstruction works. It denoises and antialiases the traced frame whichever mode is chosen, and every mode but DLAA also traces fewer pixels than it shows.</string>
+           <string>How far below the window's size the ray tracer traces. The upscaler reconstructs the frame across frames whichever mode is chosen, and every mode but Native traces fewer pixels than it shows.</string>
           </property>
          </widget>
         </item>
         <item row="9" column="0">
-         <widget class="QLabel" name="rayTracingReflexLabel">
-          <property name="text">
-           <string>NVIDIA Reflex</string>
-          </property>
-         </widget>
-        </item>
-        <item row="9" column="1">
-         <widget class="QComboBox" name="rayTracingReflexComboBox">
-          <property name="toolTip">
-           <string>How the driver paces the frame. On holds the game before each frame's input is read, so the input is sampled as late as it will still reach the screen on time. Boost holds the card at its top clock as well, at a power cost. Off leaves the driver's pacing as a frame limiter.</string>
-          </property>
-         </widget>
-        </item>
-        <item row="10" column="0">
          <widget class="QLabel" name="rayTracingDistantLandLabel">
           <property name="text">
            <string>Ray Tracing Distant Land</string>
           </property>
          </widget>
         </item>
-        <item row="10" column="1">
+        <item row="9" column="1">
          <widget class="QSpinBox" name="rayTracingDistantLandSpinBox">
           <property name="toolTip">
            <string>How far out from the eye the world is built, in cells. The ray tracing renderer builds what rays can reach, which is a different question from how far the rasterizer can see.</string>
@@ -273,7 +259,7 @@
           </property>
          </widget>
         </item>
-        <item row="11" column="0">
+        <item row="10" column="0">
          <spacer name="verticalSpacer">
           <property name="orientation">
            <enum>Qt::Vertical</enum>

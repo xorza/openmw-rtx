@@ -223,8 +223,8 @@ uint randomSeed(uint key)
 ///
 /// **The hash: independent draws with no arrangement.** Every pixel, every frame and every stream
 /// seeds a counter of its own, and nothing about one draw says anything about its neighbour's or
-/// its own last frame's. What a network trained on independent samples was trained on, and what
-/// the tile — one sequence, rotated, repeated every sixty-four pixels — is not.
+/// its own last frame's, which the tile — one sequence, rotated, repeated every sixty-four pixels —
+/// is not.
 float randomAt(uvec2 pixel, uint stream)
 {
     if (frame.mNoise == NOISE_WHITE_HASH)

@@ -625,7 +625,7 @@ struct Surface
     vec3 mSpecular;
 
     /// The perceptual roughness the map paints, and one where there is no map — which is what a
-    /// Lambert surface is to the upscaler, and what `lambertResponse` reports.
+    /// Lambert surface is to the filter, and what `lambertResponse` reports.
     float mRoughness;
 
     /// The material's own glow, as a lighting term. See `GpuMaterial::mEmissiveColour`.
@@ -985,7 +985,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     }
 
     // **Widened by what the footprint averages away**, before anything reads the roughness: the
-    // lobe, the energy it keeps, the guide the upscaler is told and the cone a reflection leaves
+    // lobe, the energy it keeps, the guide the filter reads and the cone a reflection leaves
     // in. A surface that turns under a pixel reflects all the ways it turns there, and one ray
     // drawn from the unwidened lobe shows one of them each frame — the sparkle on a curved glossy
     // surface, and a reflection sharper than the pixel can hold. A Lambert surface stays one.

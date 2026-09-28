@@ -132,9 +132,6 @@ jobs:
       - name: Test, upstream's suites whole beside the fork's
         run: python omw debug test --without-device --all
 
-      - name: The backend without DLSS
-        run: python omw nodlss build openmw-rtx-vulkan
-
       - name: Integration tests
         # Upstream's, from its GitLab pipeline: the game under Xvfb, the example suite at the revision
         # upstream pins, and the Lua suites the tree carries. The fork's binary with the ray tracer off,
@@ -173,7 +170,6 @@ jobs:
             build-debug/CMakeCache.txt
             build-debug/**/*.log
             build-debug/crash-matrix/
-            build-nodlss/CMakeCache.txt
             integration_tests_output/**/*.log
             integration_tests_output/**/*.cfg
 
@@ -307,9 +303,6 @@ jobs:
       - name: Test, upstream's suites whole beside the fork's
         run: python omw debug test --without-device --all
 
-      - name: The backend without DLSS
-        run: python omw nodlss build openmw-rtx-vulkan
-
       - name: Logs
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -319,7 +312,6 @@ jobs:
             build-debug/CMakeCache.txt
             build-debug/**/*.log
             build-debug/crash-matrix/
-            build-nodlss/CMakeCache.txt
 
   windows-plain:
     name: windows-plain

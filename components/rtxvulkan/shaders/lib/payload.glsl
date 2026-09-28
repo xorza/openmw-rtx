@@ -8,9 +8,9 @@
 // `hitObjectIsHitEXT`, `hitObjectGetRayTMaxEXT` and the ray's own getters, so not one word here is
 // spent on them.
 //
-// **What crosses the execute is what it costs**, and this is it: fourteen words. Every field the
-// tail reads travels, and travels as small as the frame keeps it — the two albedos, the scalars and
-// the two motion vectors as halves, which is the width of the channels they are stored in, and the
+// **What crosses the execute is what it costs**, and this is it: twelve words. Every field the
+// tail reads travels, and travels as small as the frame keeps it — the albedo, the scalars and
+// the motion vector as halves, which is the width of the channels they are stored in, and the
 // normal as one word of octahedral halves. What stays whole is the two radiances, because a
 // reference is a sum of a thousand frames and a term rounded to a half before the sum does not
 // average away. `Answer` is the same record unpacked, which is what the shaders write and the launch
@@ -18,8 +18,8 @@
 //
 // **The answers and not the questions.** Where a surface stood last frame is worked out by the
 // shader that found it, which has the instance's row, its mesh and where on the triangle the ray
-// landed already in hand — so the payload carries the two vectors a pixel stores, and not the
-// reflected point for the launch to reproject, which would read the rows a second time.
+// landed already in hand — so the payload carries the vector a pixel stores, and not the point for
+// the launch to reproject, which would read the rows a second time.
 //
 // **Every word of it flows outwards.** The launch writes nothing here before an execute: what a
 // closest-hit shader is told, it reads off its shader-table record, and `Shaders::HitRecord` says
@@ -48,22 +48,18 @@ struct Answer
     /// the sprites the launch composites in front of it.
     vec3 mRadiance;
 
-    /// The one bounce this hit gathered, kept apart because the upscaler demodulates it by the
-    /// albedo in `mResponse` and multiplies the two back together afterwards.
+    /// The one bounce this hit gathered, kept apart because the filter runs over it demodulated by
+    /// the albedo in `mResponse`, and the composite multiplies the two back together afterwards.
     vec3 mBounced;
 
-    /// What the shading model made of the surface, for the upscaler. `noResponse` where nothing was
-    /// shaded — a pane, whose response is the surface behind it.
+    /// What the shading model made of the surface, for the filter and the composite. `noResponse`
+    /// where nothing was shaded — a pane, whose response is the surface behind it.
     SurfaceResponse mResponse;
 
     /// Where what the pixel shows stood on the previous frame's screen, less where it stands on this
     /// one, in pixels: `motionOf` for a surface, `skyMotionOf` for the sky. Nought where nothing
     /// was shaded for the frame to keep — a pane, whose motion is the surface behind it.
     vec2 mMotion;
-
-    /// The same for what a water surface reflects, `mirrorMotionOf`, and nought for everything that
-    /// is not water.
-    vec2 mMirrorMotion;
 
     /// The miss only: how much of the backdrop the pixel shows through what the sky drew — the star
     /// field behind a sky, and the interface, whole, behind a picture that has none.
@@ -86,7 +82,7 @@ struct Answer
 /// Everything the launch reads, at what a shader that answered nothing would leave it.
 ///
 /// **What every shader the table names starts from**, because a launch reads every field
-/// whatever ran: a solid writes no reflection's motion and the sky writes no response, and a field
+/// whatever ran: the sky writes no response, and a field
 /// one shader skipped would otherwise carry whatever the last pixel through that lane put there.
 Answer noAnswer()
 {
@@ -95,7 +91,6 @@ Answer noAnswer()
     answer.mBounced = vec3(0.0);
     answer.mResponse = noResponse();
     answer.mMotion = vec2(0.0);
-    answer.mMirrorMotion = vec2(0.0);
     answer.mBackdropShown = 0.0;
     answer.mOpacity = 1.0;
     answer.mPane = false;
@@ -104,7 +99,7 @@ Answer noAnswer()
     return answer;
 }
 
-/// The record as it crosses the execute: fourteen words, laid out once here.
+/// The record as it crosses the execute: twelve words, laid out once here.
 ///
 /// The flags word carries the backdrop's share as a half in its high bits, and three facts in its low
 /// ones: whether the launch peels the surface, whether it is water, and whether the response
@@ -115,16 +110,14 @@ struct VisibilityPayload
     vec3 mRadiance;
     vec3 mBounced;
 
-    /// The response's diffuse and specular, then its roughness beside the opacity: six halves and
-    /// two more in four words.
-    uvec4 mHalves;
+    /// The response's diffuse, then its roughness, then the opacity: five halves in three words.
+    uvec3 mHalves;
 
     /// The response's normal, `packDirection`.
     uint mNormal;
 
-    /// The two motion vectors, a pair of halves apiece: the width `GBUFFER_MOTION` stores them at.
+    /// The motion vector, a pair of halves: the width `GBUFFER_MOTION` stores it at.
     uint mMotion;
-    uint mMirrorMotion;
 
     uint mFlags;
 };
@@ -140,13 +133,11 @@ VisibilityPayload packAnswer(Answer answer)
     VisibilityPayload packed;
     packed.mRadiance = answer.mRadiance;
     packed.mBounced = answer.mBounced;
-    packed.mHalves = uvec4(packHalf2x16(answer.mResponse.mDiffuse.rg),
-        packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mResponse.mSpecular.r)),
-        packHalf2x16(answer.mResponse.mSpecular.gb),
-        packHalf2x16(vec2(answer.mResponse.mRoughness, answer.mOpacity)));
+    packed.mHalves = uvec3(packHalf2x16(answer.mResponse.mDiffuse.rg),
+        packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mResponse.mRoughness)),
+        packHalf2x16(vec2(answer.mOpacity, 0.0)));
     packed.mNormal = hasNormal ? packDirection(answer.mResponse.mNormal) : 0u;
     packed.mMotion = packHalf2x16(answer.mMotion);
-    packed.mMirrorMotion = packHalf2x16(answer.mMirrorMotion);
     packed.mFlags = packHalf2x16(vec2(0.0, answer.mBackdropShown)) | (answer.mWater ? ANSWER_WATER : 0u)
         | (hasNormal ? ANSWER_HAS_NORMAL : 0u) | (answer.mPane ? ANSWER_PANE : 0u);
 
@@ -157,19 +148,17 @@ Answer unpackAnswer(VisibilityPayload packed)
 {
     const bool hasNormal = (packed.mFlags & ANSWER_HAS_NORMAL) != 0u;
     const vec2 diffuseRg = unpackHalf2x16(packed.mHalves.x);
-    const vec2 diffuseBSpecularR = unpackHalf2x16(packed.mHalves.y);
-    const vec2 specularGb = unpackHalf2x16(packed.mHalves.z);
-    const vec2 roughnessOpacity = unpackHalf2x16(packed.mHalves.w);
+    const vec2 diffuseBRoughness = unpackHalf2x16(packed.mHalves.y);
+    const float opacity = unpackHalf2x16(packed.mHalves.z).x;
 
     Answer answer;
     answer.mRadiance = packed.mRadiance;
     answer.mBounced = packed.mBounced;
     answer.mResponse = SurfaceResponse(hasNormal ? unpackDirection(packed.mNormal) : vec3(0.0),
-        vec3(diffuseRg, diffuseBSpecularR.x), vec3(diffuseBSpecularR.y, specularGb), roughnessOpacity.x);
+        vec3(diffuseRg, diffuseBRoughness.x), diffuseBRoughness.y);
     answer.mMotion = unpackHalf2x16(packed.mMotion);
-    answer.mMirrorMotion = unpackHalf2x16(packed.mMirrorMotion);
     answer.mBackdropShown = unpackHalf2x16(packed.mFlags).y;
-    answer.mOpacity = roughnessOpacity.y;
+    answer.mOpacity = opacity;
     answer.mPane = (packed.mFlags & ANSWER_PANE) != 0u;
     answer.mWater = (packed.mFlags & ANSWER_WATER) != 0u;
 

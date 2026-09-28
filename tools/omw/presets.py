@@ -13,7 +13,7 @@ _MACRO = re.compile(r"\$(p?env)\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 # **What CMake reads from the environment on its own**, outside any preset: the compilers, and where
 # the SDKs are. A change to one is a change to what a configure would find.
-IMPLICIT_INPUTS = ("CC", "CXX", "VULKAN_SDK", "NGX_ROOT", "CMAKE_PREFIX_PATH")
+IMPLICIT_INPUTS = ("CC", "CXX", "VULKAN_SDK", "CMAKE_PREFIX_PATH")
 
 
 def preset_files(root: Path = ROOT) -> list[Path]:

@@ -259,20 +259,20 @@
         <translation>Експериментално трасиране на лъчи</translation>
     </message>
     <message>
-        <source>DLSS Ray Reconstruction</source>
-        <translation>DLSS Ray Reconstruction</translation>
+        <source>Upscaling</source>
+        <translation>Мащабиране</translation>
     </message>
     <message>
-        <source>How hard DLSS Ray Reconstruction works. It denoises and antialiases the traced frame whichever mode is chosen, and every mode but DLAA also traces fewer pixels than it shows.</source>
-        <translation>Колко усилено работи DLSS Ray Reconstruction. То премахва шума и заглажда трасирания кадър при всеки режим, а всички режими освен DLAA трасират и по-малко пиксели, отколкото показват.</translation>
+        <source>How far below the window&apos;s size the ray tracer traces. The upscaler reconstructs the frame across frames whichever mode is chosen, and every mode but Native traces fewer pixels than it shows.</source>
+        <translation>Колко под размера на прозореца трасира трасирането на лъчи. Мащабиращият реконструира кадъра от няколко кадъра във всеки режим, и всеки режим освен Естествена трасира по-малко пиксели, отколкото показва.</translation>
     </message>
     <message>
         <source>Ultra Performance</source>
         <translation>Ултра производителност</translation>
     </message>
     <message>
-        <source>DLAA</source>
-        <translation>DLAA</translation>
+        <source>Native</source>
+        <translation>Естествена</translation>
     </message>
     <message>
         <source>Performance</source>
@@ -285,26 +285,6 @@
     <message>
         <source>Quality</source>
         <translation>Качество</translation>
-    </message>
-    <message>
-        <source>NVIDIA Reflex</source>
-        <translation>NVIDIA Reflex</translation>
-    </message>
-    <message>
-        <source>How the driver paces the frame. On holds the game before each frame&apos;s input is read, so the input is sampled as late as it will still reach the screen on time. Boost holds the card at its top clock as well, at a power cost. Off leaves the driver&apos;s pacing as a frame limiter.</source>
-        <translation>Как драйверът задава темпото на кадрите. „Вкл.“ задържа играта, преди да се прочете входът на всеки кадър, така че входът да се вземе възможно най-късно, но кадърът все пак да стигне навреме до екрана. „Boost“ освен това държи картата на най-високата ѝ честота с цената на консумация. „Изкл.“ оставя темпото на драйвера само като ограничител на кадрите.</translation>
-    </message>
-    <message>
-        <source>Off</source>
-        <translation>Изкл.</translation>
-    </message>
-    <message>
-        <source>On</source>
-        <translation>Вкл.</translation>
-    </message>
-    <message>
-        <source>On + Boost</source>
-        <translation>Вкл. + Boost</translation>
     </message>
     <message>
         <source>Ray Tracing Distant Land</source>

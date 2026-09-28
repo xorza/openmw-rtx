@@ -191,20 +191,20 @@
         <translation>Ray tracing expérimental</translation>
     </message>
     <message>
-        <source>DLSS Ray Reconstruction</source>
-        <translation>DLSS Ray Reconstruction</translation>
+        <source>Upscaling</source>
+        <translation>Mise à l&apos;échelle</translation>
     </message>
     <message>
-        <source>How hard DLSS Ray Reconstruction works. It denoises and antialiases the traced frame whichever mode is chosen, and every mode but DLAA also traces fewer pixels than it shows.</source>
-        <translation>À quel point DLSS Ray Reconstruction travaille. Il débruite et anticrénèle l&apos;image tracée quel que soit le mode, et tous les modes sauf DLAA tracent aussi moins de pixels qu&apos;ils n&apos;en affichent.</translation>
+        <source>How far below the window&apos;s size the ray tracer traces. The upscaler reconstructs the frame across frames whichever mode is chosen, and every mode but Native traces fewer pixels than it shows.</source>
+        <translation>À quelle distance sous la taille de la fenêtre le ray tracing est calculé. Le module de mise à l&apos;échelle reconstruit l&apos;image sur plusieurs images quel que soit le mode, et chaque mode sauf Native calcule moins de pixels qu&apos;il n&apos;en affiche.</translation>
     </message>
     <message>
         <source>Ultra Performance</source>
         <translation>Ultra performance</translation>
     </message>
     <message>
-        <source>DLAA</source>
-        <translation>DLAA</translation>
+        <source>Native</source>
+        <translation>Native</translation>
     </message>
     <message>
         <source>Performance</source>
@@ -217,26 +217,6 @@
     <message>
         <source>Quality</source>
         <translation>Qualité</translation>
-    </message>
-    <message>
-        <source>NVIDIA Reflex</source>
-        <translation>NVIDIA Reflex</translation>
-    </message>
-    <message>
-        <source>How the driver paces the frame. On holds the game before each frame&apos;s input is read, so the input is sampled as late as it will still reach the screen on time. Boost holds the card at its top clock as well, at a power cost. Off leaves the driver&apos;s pacing as a frame limiter.</source>
-        <translation>Comment le pilote cadence les images. « Actif » retient le jeu avant la lecture des entrées de chaque image, afin qu&apos;elles soient échantillonnées aussi tard que possible tout en atteignant l&apos;écran à temps. « Boost » maintient en plus la carte à sa fréquence maximale, au prix d&apos;une consommation accrue. « Inactif » laisse la cadence du pilote servir de limiteur d&apos;images.</translation>
-    </message>
-    <message>
-        <source>Off</source>
-        <translation>Inactif</translation>
-    </message>
-    <message>
-        <source>On</source>
-        <translation>Actif</translation>
-    </message>
-    <message>
-        <source>On + Boost</source>
-        <translation>Actif + Boost</translation>
     </message>
     <message>
         <source>Ray Tracing Distant Land</source>

@@ -1,9 +1,7 @@
-# `Settings::sRayTracingBuilt` and `Rtx::sUpscalerBuilt` read these: facts about the binary, and
-# every program in this tree links this library, the settings menu that reads `upscale.hpp` in a
-# build without the ray tracer included. Defined in every build, as 0 or 1, so each constant needs
-# no `#ifdef`.
-target_compile_definitions(components PUBLIC OPENMW_RTX=$<BOOL:${OPENMW_RTX}>
-                                             OPENMW_RTX_DLSS=$<BOOL:$<AND:$<BOOL:${OPENMW_RTX}>,$<BOOL:${OPENMW_RTX_DLSS}>>>)
+# `Settings::sRayTracingBuilt` reads this: a fact about the binary, and every program in this tree
+# links this library, the settings menu in a build without the ray tracer included. Defined in every
+# build, as 0 or 1, so the constant needs no `#ifdef`.
+target_compile_definitions(components PUBLIC OPENMW_RTX=$<BOOL:${OPENMW_RTX}>)
 
 if (OPENMW_RTX)
     # What `platform/libraryposix.cpp` opens a shared library with, on the C libraries that keep

@@ -222,17 +222,14 @@ float sixWayThrough(vec3 toward, vec3 planeAcross, vec3 planeUp, vec3 facing, ve
 /// **Two walks fill one of these**, because the two are the same kind of thing: `spritesAlong`
 /// gathers what an emitter drew, and `mediumAlong` gathers the shells of a cloud the content
 /// modelled as geometry. `mergedPuffs` is what puts the two together, and everything downstream —
-/// the air split, the composite, the claim, the layer the upscaler is handed — reads one layer and
-/// never asks which walk filled it.
+/// the air split, the composite, the claim — reads one layer and never asks which walk filled it.
 struct PuffLayer
 {
     /// What the covering puffs look like where they cover a pixel whole — a straight colour and
     /// not one premultiplied by `1 - mTransmittance`.
     ///
-    /// **Straight, because that is what a colour is**, and because the two composites want it that
-    /// way at different moments: the frame's own multiplies it by the coverage where it composites,
-    /// and the layer handed to Ray Reconstruction is premultiplied where it is written.
-    /// `visibility.rgen` measured which the upscaler takes.
+    /// **Straight, because that is what a colour is**, and because the composite multiplies it by
+    /// the coverage where it composites.
     ///
     /// Already fog-attenuated where it stands, so a caller composites this over a frame the fog has
     /// finished with rather than putting it through the fog a second time.
@@ -240,8 +237,8 @@ struct PuffLayer
 
     /// What the additive sprites put in, which no coverage carries.
     ///
-    /// **Apart from `mColour`, because an alpha blend cannot express a flame.** A layer handed to
-    /// the upscaler is a colour and an opacity, and a flame's opacity is nought by definition — so
+    /// **Apart from `mColour`, because an alpha blend cannot express a flame.** A layer the composite
+    /// blends is a colour and an opacity, and a flame's opacity is nought by definition — so
     /// what it adds rides with the frame behind it instead. What that costs is that a plume across
     /// a flame now dims it, which is the one case this walk's own note says it did not model.
     vec3 mAdded;

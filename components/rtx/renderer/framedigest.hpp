@@ -14,7 +14,7 @@ namespace Rtx
     /// What a frame computed before anything past it had a say: every channel the trace wrote, the
     /// direct one holding the frame they compose, digested on the device, and the numbers the frame
     /// handed the reconstruction beside those images. What a comparison of two runs compares. The picture is
-    /// still hashed beside this, but where a network reconstructed it the picture is the network's:
+    /// still hashed beside this, but where an upscaler reconstructed it the picture is the upscaler's:
     /// it keeps a history, and the smallest difference in what it was handed on one frame stays in
     /// its picture for the rest of the run — so the picture there is something to look at and never
     /// a verdict, and this is the verdict.

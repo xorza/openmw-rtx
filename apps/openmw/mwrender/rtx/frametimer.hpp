@@ -6,8 +6,6 @@
 #include <optional>
 #include <string_view>
 
-#include <components/rtx/renderer/latencyreport.hpp>
-
 namespace MWRender
 {
     /// Where one frame began and ended inside the ray tracer, what it presented, and what the
@@ -47,10 +45,8 @@ namespace MWRender
         /// The window title for the second that ran out. Never allocates: the text is written into
         /// this object's own bytes, and ends in a nought a C string wants.
         ///
-        /// @param latency the driver's newest timings, where the driver paces: the title carries
-        ///        the input-to-present figure beside the rate, and nothing where there is none.
         /// @param note what the run says of where it stands, after the rest, or empty for nothing.
-        std::string_view writeTitle(const std::optional<Rtx::LatencyReport>& latency, std::string_view note);
+        std::string_view writeTitle(std::string_view note);
 
     private:
         std::optional<std::chrono::steady_clock::time_point> mEntered;

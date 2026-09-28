@@ -14,7 +14,6 @@
 
 #include <components/esm3/refnum.hpp>
 #include <components/rtx/common/stepped.hpp>
-#include <components/rtx/frame/pacing.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/visibility.h>
@@ -217,13 +216,6 @@ namespace MWRender
         void applyViewMask() noexcept override {}
         void applyWorldShown() noexcept override {}
 
-        /// The driver's sleep where the driver paces, and the seam's limiter where it does not,
-        /// asked every frame. What either held is the frame's `Sleep` row.
-        bool holdFrame() noexcept override;
-
-        /// The limit, as the interval the driver's sleep holds two presents apart.
-        void applyFrameRateLimit() noexcept override;
-
     private:
         /// Builds everything from the setup, which is spent here. Delegated to, so `mRun` can bind
         /// to `mPlayed` where the host installed none and the setup can be a temporary either way.
@@ -262,9 +254,6 @@ namespace MWRender
         /// cannot reach the mode refuses.
         void setUpscale(Rtx::Upscale upscale);
 
-        /// The Reflex mode the run chose or the menu moved, with the seam's limit as its interval.
-        Rtx::Pacing getPacing() const;
-
         /// Traces the world the walk has just mirrored: the frame behind finished, the scene handed
         /// over, the deferred views drawn, the camera aimed, the frame traced and the report closed.
         /// Its refusals — an empty world, a camera with no roll — are not reasons not to present, so
@@ -294,9 +283,6 @@ namespace MWRender
 
         /// What a measured stop is allowed to look at beyond the report.
         FrameContext describeContext();
-
-        /// Whether the left mouse button went down since the last ask, off SDL's own state.
-        bool takeClick();
 
         /// Hands MyGUI's triangles to the renderer, where there is a GUI up at all.
         void drawGui();
@@ -398,13 +384,5 @@ namespace MWRender
         /// Whether a camera the builder refused has already been reported. `describeTrace` says why
         /// once is the whole of it.
         bool mComplained = false;
-
-        /// How the driver paces the frame, as the run set it and the menu moved it. The interval
-        /// beside it is the seam's (`getFrameRateLimit`), so each half has one source.
-        Rtx::LatencyMode mLatency;
-        bool mReflexFlash;
-
-        /// The left button as `takeClick` last saw it.
-        bool mLeftButtonDown = false;
     };
 }

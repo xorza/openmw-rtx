@@ -13,7 +13,6 @@
 #include <string>
 
 #include <MyGUI_ITexture.h>
-#include <SDL_mouse.h>
 #include <SDL_video.h>
 #include <osg/Camera>
 #include <osg/FrameStamp>
@@ -41,7 +40,6 @@
 #include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameextents.hpp>
-#include <components/rtx/frame/pacing.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/poseupdate.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
@@ -94,7 +92,12 @@ namespace MWRender
         /// by frames, and at two hundred of them a second the world ran three times over.
         RunSetup playedRunSetup()
         {
-            const RtxSettings settings = RtxSettings::derive(RtxSettingValues::fromRegistry());
+            const RtxSettings asked = RtxSettings::derive(RtxSettingValues::fromRegistry());
+            const RtxSettings settings = asked.playedIn(Rtx::sUpscalerBuilt);
+            if (settings.mUpscaling.mMode != asked.mUpscaling.mMode)
+                Log(Debug::Warning) << "Ray tracing: this renderer has no upscaler, so [RTX] upscale "
+                                    << Rtx::sUpscaleNames.name(asked.mUpscaling.mMode)
+                                    << " traces at the window's size";
 
             return RunSetup{
                 .mProfile = {
@@ -106,8 +109,6 @@ namespace MWRender
                 .mValidation
                 = { .mLevel = Rtx::sValidationByDefault ? Rtx::ValidationLevel::On : Rtx::ValidationLevel::Off },
                 .mMirror = settings.mMirror,
-                .mLatency = settings.mLatency,
-                .mReflexFlash = settings.mReflexFlash,
                 .mHeadless = false,
                 .mStep = std::nullopt,
                 .mSettled = std::nullopt,
@@ -135,8 +136,6 @@ namespace MWRender
         , mUpdateVisitor(new Rtx::PoseUpdate)
         , mStartTick(osg::Timer::instance()->tick())
         , mMirror(setup.mMirror)
-        , mLatency(setup.mLatency)
-        , mReflexFlash(setup.mReflexFlash)
     {
         // **The run's stated step decides whether the ground waits, unless the run says otherwise.**
         // A composite comes back whenever the baker finishes it, so which frame it lands on is a
@@ -181,9 +180,6 @@ namespace MWRender
         options.mHeight = mWindow.getHeight();
         options.mWindow = mWindow.get();
         options.mVerticalSync = Settings::video().mVsyncMode;
-        // No interval yet: the engine hands the limit over before the first frame, and
-        // `applyFrameRateLimit` passes it on.
-        options.mPacing = Rtx::Pacing{ .mMode = mLatency };
         // **The run's answer.** A launcher making a measurement says on its command line whether
         // the layers load, because a figure taken under them is not one to compare against
         // anything; `playedRunSetup` says what a session with no command line answers.
@@ -224,10 +220,9 @@ namespace MWRender
 
         // **Said once, where it is decided.** What reconstructs the frame does not change while the
         // session runs, so it does not belong in the periodic line; what that line carries is the
-        // one word a reader of any single line needs, and the rest — which network, at what pair of
-        // sizes — is here, where it was chosen.
-        Log(Debug::Info) << "Ray tracing: upscale " << Rtx::sUpscaleNames.name(setup.mProfile.mUpscaling.mMode)
-                         << ", Ray Reconstruction preset " << Rtx::sPresetNames.name(setup.mProfile.mUpscaling.mPreset);
+        // one word a reader of any single line needs, and the rest — at what pair of sizes — is here,
+        // where it was chosen.
+        Log(Debug::Info) << "Ray tracing: upscale " << Rtx::sUpscaleNames.name(setup.mProfile.mUpscaling.mMode);
 
         // **Grass hangs off the quad tree, and this renderer has the game build none**: its ground is
         // the cell ring's. Said and not refused, because a game that asked for grass plays the same
@@ -589,51 +584,13 @@ namespace MWRender
         mRenderer->setVerticalSync(mode);
     }
 
-    bool RtxRenderer::holdFrame() noexcept
-    {
-        mPhase.expect(Phase::Between);
-
-        // Asked every frame and not once, because a present mode the surface does not pace moves
-        // the answer, and a frame the driver stopped pacing is one the host's limiter holds.
-        if (!mRenderer->pacesFrames())
-            return false;
-
-        mRenderer->awaitFrame();
-        return true;
-    }
-
-    bool RtxRenderer::takeClick()
-    {
-        // The state the frame's own input pump left, so the flash lands in the frame that
-        // processed the click and not the one after. Only the press: a button held is one click.
-        const bool down = (SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON_LMASK) != 0;
-        const bool clicked = down && !mLeftButtonDown;
-        mLeftButtonDown = down;
-        return clicked;
-    }
-
-    void RtxRenderer::applyFrameRateLimit() noexcept
-    {
-        mRenderer->setPacing(getPacing());
-    }
-
-    Rtx::Pacing RtxRenderer::getPacing() const
-    {
-        return Rtx::Pacing{
-            .mMode = mLatency,
-            .mMinimumIntervalUs = Rtx::minimumIntervalOf(getFrameRateLimit()),
-        };
-    }
-
     void RtxRenderer::processChangedSettings(const Settings::CategorySettingVector& changed) noexcept
     {
         const bool upscale = changed.contains({ "RTX", "upscale" });
-        const bool reflex = changed.contains({ "RTX", "reflex" });
-        const bool flash = changed.contains({ "RTX", "reflex flash" });
         const bool reach
             = changed.contains({ "RTX", "distant land cells" }) || changed.contains({ "Camera", "viewing distance" });
         const bool anisotropy = changed.contains({ "General", "anisotropy" });
-        if (!upscale && !reflex && !flash && !reach && !anisotropy)
+        if (!upscale && !reach && !anisotropy)
             return;
 
         // What asks is somebody choosing from a menu, so a spelling no mode has is reported and
@@ -651,15 +608,6 @@ namespace MWRender
 
         if (upscale)
             setUpscale(settings->mUpscaling.mMode);
-
-        if (reflex)
-        {
-            mLatency = settings->mLatency;
-            mRenderer->setPacing(getPacing());
-        }
-
-        if (flash)
-            mReflexFlash = settings->mReflexFlash;
 
         // The menu moves the reach while the game runs, and the ring, the air and the map all
         // follow it: a slider that took effect at the next start was a slider that did nothing.
@@ -747,12 +695,6 @@ namespace MWRender
         // **The frame's work under one note, and each step's under its own**, which ends with the
         // frame: a crash in the game's update after it names no step of a frame already drawn.
         const Crash::NoteScope noted("drawing frame {}", frame.mWhen.getFrameNumber());
-
-        // The game's work is done and the renderer's begins, said before the frame with the world
-        // hidden turns back: a present from there is still a frame the driver counts. The click is
-        // read here, off the state this frame's input pump left.
-        const bool flash = mReflexFlash && takeClick();
-        mRenderer->endSimulation(flash);
 
         const osg::FrameStamp& when = frame.mWhen;
 
@@ -1036,7 +978,6 @@ namespace MWRender
         {
             report.mSpend.at(Rtx::Timing::Frame) = *since;
             report.mWalked = mWalked;
-            report.mLatency = mRenderer->describeLatency();
 
             // Every traced frame, whether or not the device has answered for one yet: the run
             // counts the frames it traced, and `RtxRun::frame` says why a count of answers is not
@@ -1047,7 +988,7 @@ namespace MWRender
             // Once a second, which is how often `FrameTimer::addFrame` closes one — and the window is
             // asked then whether anybody can see it, rather than a copy of that being kept here.
             if (mTimer.addFrame(*since))
-                mWindow.setTitle(mTimer.writeTitle(report.mLatency, mRun.describeTitle()).data());
+                mWindow.setTitle(mTimer.writeTitle(mRun.describeTitle()).data());
         }
     }
 

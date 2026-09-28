@@ -25,8 +25,8 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                two runs of one binary walk one place and must agree
   kernels [--against=<file>]   one digest per shader and tuple of its constants; against an earlier
                                listing, which tuples moved
-  gate                         format check, the driver's tests, build, the release and no-DLSS
-                               compiles, test, check, repeat — stops at the first failure
+  gate                         format check, the driver's tests, build, the release compile, test,
+                               check, repeat — stops at the first failure
   exec <command> [args]        a command in the build directory, under the flavour's environment
   archive [name]               the release archive into dist/, with its symbols: the package flavour
   profile [args]               the harness's CPU side under perf: the release flavour
@@ -37,13 +37,12 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                release's -symbols.zip or the newest in dist/; no flavour
   format [--check]             clang-format 14 over the working tree: rewrites it, or with --check
                                changes nothing and says what it would; no flavour
-  bootstrap                    the pinned Vulkan SDK and NGX into deps/; no flavour
+  bootstrap                    the pinned Vulkan SDK into deps/; no flavour
 
   flavour   directory       what it is
   debug     build-debug     -O2 -g with every assert and the tests: the everyday build, and the default
   release   build-release   -O3 -DNDEBUG, line tables and frame pointers: the build a number is quoted from
   asan      build-asan      debug under AddressSanitizer and UndefinedBehaviorSanitizer; Linux only
-  nodlss    build-nodlss    debug without the DLSS SDK: the other binary
   package   build-package   release with the launcher, the wizard and the importers, portable
   plain     build-plain     the tree without the ray tracer, as upstream builds it, with its suites whole
 """

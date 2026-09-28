@@ -14,27 +14,14 @@ namespace Rtx
     class Device;
     class Image;
 
-    /// Everything one reconstruction reads. Every image must have been created with
-    /// `VK_IMAGE_USAGE_SAMPLED_BIT`, or it reads as zero with the library returning success and
-    /// the layers silent; the pass asserts it.
+    /// Everything one reconstruction reads: what a temporal upscaler takes, and no guide one
+    /// upscaler alone asks for. Every image is created with `VK_IMAGE_USAGE_SAMPLED_BIT`, since an
+    /// upscaler may sample any of them.
     struct UpscaleInputs
     {
-        /// The trace's radiance at render resolution, undenoised. Ray Reconstruction is the
-        /// denoiser: handing it a filtered frame is asking it to reconstruct detail already blurred
-        /// away.
+        /// The frame at render resolution, as the trace chain composed it: denoised by the wavelet
+        /// where it ran, and the trace's own composite where nothing filtered it.
         const Image& mColour;
-
-        /// The surface's own albedo, with nothing of the path in it — this is divided out of the
-        /// colour above, so anything folded into it comes back out of the light.
-        const Image& mDiffuseAlbedo;
-
-        /// Its reflectance at the angle it was seen from: the gloss's directional albedo, which the
-        /// specular half of the colour is demodulated by.
-        const Image& mSpecularAlbedo;
-
-        /// Shading normal in `xyz`, roughness in `w` — the feature is built for the packed layout,
-        /// which is one resource fewer to write and to bind.
-        const Image& mNormalRoughness;
 
         /// Clip depth, in the sense a rasterizer would have written it.
         const Image& mDepth;
@@ -42,10 +29,6 @@ namespace Rtx
         /// Where each surface stood on the previous frame's screen, less where it stands now, in
         /// render pixels.
         const Image& mMotion;
-
-        /// Where what the water reflects stood on the previous frame's screen — see
-        /// `GBuffer::get(Channel::ReflectionMotion)`.
-        const Image& mReflectionMotion;
 
         /// Where inside its pixel this frame sampled, in render pixels — the same offset the trace
         /// was given.
@@ -61,9 +44,8 @@ namespace Rtx
     };
 
     /// What the frame asks of whatever reconstructs it across frames: what to trace at, and the
-    /// frame at the output extent. Ray Reconstruction is the one behind it, one runtime per device;
-    /// a build without it has `makeUpscaler` refuse by name, and nothing else in the frame path
-    /// knows which build it is.
+    /// frame at the output extent. None stands behind it yet, so `makeUpscaler` refuses by name,
+    /// and nothing else in the frame path knows whether one does.
     class Upscaler
     {
     public:
@@ -73,18 +55,17 @@ namespace Rtx
         Upscaler& operator=(const Upscaler&) = delete;
 
         /// What to trace at to produce `output` under `mode`, which must not be `Off`: the
-        /// library's answer and not a ratio applied here, because a frame traced at anything else
-        /// is a frame it will refuse. Throws `Unsupported` where it will not answer.
+        /// upscaler's answer and not a ratio applied here, because the ratio is the upscaler's to
+        /// choose. Throws `Unsupported` where it will not answer.
         virtual VkExtent2D renderSizeFor(VkExtent2D output, Upscale mode) const = 0;
 
-        /// Builds the feature for one pair of extents and the image it writes, releasing the last:
-        /// the feature holds the network's weights for one pair, and the image is sixteen bytes a
-        /// pixel of the output, so neither is left behind for a pair that may not come back. Once
-        /// per resolution, and it uploads the weights, so never per frame.
+        /// Builds what the upscaler keeps for one pair of extents and the image it writes, releasing
+        /// the last, so nothing is left behind for a pair that may not come back. Once per
+        /// resolution, and never per frame.
         virtual void resize(VkExtent2D render, VkExtent2D output, const Upscaling& how) = 0;
 
-        /// Lets the feature and its image go and keeps the runtime, for a mode turned off that may
-        /// not come back.
+        /// Lets what `resize` built go and keeps the upscaler, for a mode turned off that may not come
+        /// back.
         virtual void release() = 0;
 
         /// The image `record` writes, which the display composites the puffs over and maps.
@@ -99,11 +80,9 @@ namespace Rtx
         Upscaler() = default;
     };
 
-    /// Brings the runtime up, or throws `Unsupported` naming what is missing: the library, in a
-    /// build without it, or what the library says this machine lacks.
+    /// Brings the upscaler up, or throws `Unsupported` naming what is missing.
     std::unique_ptr<Upscaler> makeUpscaler(const Device& device, VkInstance instance);
 
-    /// One line for `info`: available, or why not — asked without leaving a runtime up, because a
-    /// device has one runtime, and one stood up to ask with would end the renderer's as it went.
+    /// One line for `info`: which upscaler this renderer has, or none.
     std::string describeUpscaling(const Device& device, VkInstance instance);
 }

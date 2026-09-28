@@ -29,7 +29,6 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/menu.hpp>
-#include <components/rtx/frame/pacing.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/settings/values.hpp>
@@ -174,17 +173,9 @@ namespace
         { "performance", "#{OMWEngine:RayTracingUpscalePerformance}" },
         { "balanced", "#{OMWEngine:RayTracingUpscaleBalanced}" },
         { "quality", "#{OMWEngine:RayTracingUpscaleQuality}" },
-        { "dlaa", "#{OMWEngine:RayTracingUpscaleDlaa}" },
+        { "native", "#{OMWEngine:RayTracingUpscaleNative}" },
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
-
-    // Off and on are the vsync box's own words, so one page spells a toggle one way
-    constexpr std::array<Rtx::MenuLabel, Rtx::sLatencyMenu.size()> sLatencyLabels{ {
-        { "off", "#{Interface:Off}" },
-        { "on", "#{Interface:On}" },
-        { "boost", "#{OMWEngine:RayTracingReflexBoost}" },
-    } };
-    static_assert(Rtx::followsMenu(sLatencyLabels, Rtx::sLatencyMenu));
 
     void addMenuItems(MyGUI::ComboBox* box, std::span<const Rtx::MenuLabel> labels)
     {
@@ -355,8 +346,6 @@ namespace MWGui
         getWidget(mRayTracingButton, "RayTracingButton");
         getWidget(mRayTracingUpscale, "RayTracingUpscaleList");
         getWidget(mRayTracingUpscaleText, "RayTracingUpscaleText");
-        getWidget(mRayTracingReflex, "RayTracingReflexList");
-        getWidget(mRayTracingReflexText, "RayTracingReflexText");
         getWidget(mRayTracingDistantLand, "RayTracingDistantLandSlider");
         getWidget(mRayTracingDistantLandText, "RayTracingDistantLandText");
         getWidget(mRayTracingRestartHint, "RayTracingRestartHint");
@@ -367,17 +356,17 @@ namespace MWGui
         mRayTracingUnavailableHint->setVisible(!rayTracing);
         mRayTracingButton->setEnabled(rayTracing);
         mRayTracingRestartHint->setVisible(rayTracing);
-        for (MyGUI::Widget* widget : { static_cast<MyGUI::Widget*>(mRayTracingUpscale), mRayTracingUpscaleText,
-                 static_cast<MyGUI::Widget*>(mRayTracingReflex), mRayTracingReflexText, mRayTracingDistantLand,
-                 mRayTracingDistantLandText })
+        for (MyGUI::Widget* widget :
+            { static_cast<MyGUI::Widget*>(mRayTracingDistantLand), mRayTracingDistantLandText })
             widget->setVisible(rayTracing);
 
+        // A renderer without an upscaler traces at the window's size whatever the mode, so it offers none.
+        for (MyGUI::Widget* widget : { static_cast<MyGUI::Widget*>(mRayTracingUpscale), mRayTracingUpscaleText })
+            widget->setVisible(rayTracing && Rtx::sUpscalerBuilt);
+
         addMenuItems(mRayTracingUpscale, sUpscaleLabels);
-        addMenuItems(mRayTracingReflex, sLatencyLabels);
         mRayTracingUpscale->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscaleChanged);
-        mRayTracingReflex->eventComboChangePosition
-            += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingReflexChanged);
 
 #ifndef WIN32
         // hide gamma controls since it currently does not work under Linux
@@ -685,16 +674,6 @@ namespace MWGui
             return;
 
         Settings::rtx().mUpscale.set(std::string(*chosen));
-        apply();
-    }
-
-    void SettingsWindow::onRayTracingReflexChanged(MyGUI::ComboBox* sender, size_t pos)
-    {
-        const std::optional<std::string_view> chosen = Rtx::menuName(Rtx::sLatencyMenu, pos);
-        if (!chosen.has_value())
-            return;
-
-        Settings::rtx().mReflex.set(std::string(*chosen));
         apply();
     }
 
@@ -1090,9 +1069,6 @@ namespace MWGui
         const std::optional<std::size_t> offered = Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get());
 
         mRayTracingUpscale->setIndexSelected(offered.value_or(MyGUI::ITEM_NONE));
-
-        const std::optional<std::size_t> pacing = Rtx::menuIndex(Rtx::sLatencyMenu, Settings::rtx().mReflex.get());
-        mRayTracingReflex->setIndexSelected(pacing.value_or(MyGUI::ITEM_NONE));
     }
 
     void SettingsWindow::layoutControlsBox()

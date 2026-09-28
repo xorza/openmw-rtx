@@ -41,7 +41,7 @@ namespace RtxTool
             spend.at(Rtx::Timing::Finish) = 1.5;
             spend.at(Rtx::Timing::Wait) = 1.4;
             spend.at(Rtx::Timing::Walk) = 0.5;
-            // The driver's sleep is the largest figure of the frame and a share of `update`, so it
+            // The limiter's sleep is the largest figure of the frame and a share of `update`, so it
             // is not among the stretches printed.
             spend.at(Rtx::Timing::Update) = 4.0;
             spend.at(Rtx::Timing::Sleep) = 3.5;
@@ -81,14 +81,6 @@ namespace RtxTool
             // `finish` is the third.
             EXPECT_NE(described.find("9.0 ms (12 meshes: update 4.0 place 2.0 finish 1.5)"), std::string::npos)
                 << described;
-
-            // The driver's own latency stands under the rows only where the driver paced the
-            // window, and the JSON leaves the key out otherwise.
-            EXPECT_EQ(described.find("latency ms"), std::string::npos) << described;
-            place.mLatency = FrameTimes{
-                .mMean = 12.0, .mMedian = 11.5, .mP95 = 14.0, .mP99 = 15.0, .mBest = 9.0, .mWorst = 20.0
-            };
-            EXPECT_NE(describePlace(place).find("latency ms"), std::string::npos) << describePlace(place);
         }
 
         /// A route flown short says so beside its crossings, and one that arrived says nothing.

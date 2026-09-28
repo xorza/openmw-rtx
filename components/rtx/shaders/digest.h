@@ -6,7 +6,7 @@
 #include "portable.h"
 
 // A digest of the frame's images, taken on the device: what a comparison of two runs compares
-// where the picture past the upscaler is the network's and not this renderer's. `digest.comp`
+// where the picture past an upscaler is the upscaler's and not this renderer's. `digest.comp`
 // folds every texel of every image into four words an image, a workgroup at a time, and the host
 // folds the words of the texels the same way in a test, so the two are one function of an image's
 // bits and neither trusts the other.

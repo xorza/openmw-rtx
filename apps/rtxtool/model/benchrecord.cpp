@@ -271,12 +271,6 @@ namespace RtxTool
         for (const Rtx::Timing timing : Rtx::sTimings.values())
             out += describeTimes(std::format("{} ms", Rtx::sTimings.name(timing)), place.mRows[indexOf(timing)]);
 
-        // The driver's figure under the host's rows, in the same columns: the one number a player
-        // feels, from the only party that sees the whole of the pipeline. Only where the driver
-        // paced the window.
-        if (place.mLatency.has_value())
-            out += describeTimes("latency ms", *place.mLatency);
-
         // **The device's own account of the same frame, one figure each.** Six distributions would
         // be a wall; what this row answers is "which of them is the expensive one", and the row
         // above already says how much the whole frame varies. Each figure is the zone's share of
@@ -350,7 +344,6 @@ namespace RtxTool
              << std::format(R"(  "render": [{}, {}],)", header.mExtents.mRenderWidth, header.mExtents.mRenderHeight)
              << '\n'
              << std::format(R"(  "upscale": "{}",)", Rtx::sUpscaleNames.name(header.mUpscaling.mMode)) << '\n'
-             << std::format(R"(  "preset": "{}",)", Rtx::sPresetNames.name(header.mUpscaling.mPreset)) << '\n'
              << std::format(R"(  "noise": "{}", "levelBias": {:.3f}, "reorder": "{}",)",
                     Rtx::sNoiseSourceNames.name(header.mNoise), header.mLevelBias,
                     Rtx::sReorderNames.name(header.mReorder))
@@ -372,8 +365,6 @@ namespace RtxTool
                  << std::format(R"(, "overlap": {{"mean": {:.4f}, "least": {}}}, "travelled": {:.4f}, )",
                         place.mOverlap.getMean(), place.mOverlap.mLeast, place.mTravelled);
 
-            if (place.mLatency.has_value())
-                file << R"("latencyMs": )" << asJson(*place.mLatency) << ", ";
             for (const Rtx::Timing timing : Rtx::sTimings.values())
                 file << std::format(R"("{}Ms": )", Rtx::sTimings.name(timing)) << asJson(place.mRows[indexOf(timing)])
                      << ", ";

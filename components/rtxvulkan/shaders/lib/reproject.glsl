@@ -169,54 +169,19 @@ vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
         spread);
 }
 
-/// Where what a water surface reflects stood on the previous frame's screen, in pixels.
-///
-/// **A reflection is not where the water is, and reprojecting it as though it were is what makes a
-/// mirrored shoreline swim.** The eye sees the reflected point at its image in the plane, so the
-/// thing that has to be reprojected is that image: mirror it about the water level, and mirror its
-/// motion with it.
-///
-/// **Exact for a flat surface and an approximation by exactly the wave.** The image of a point in a
-/// tilted facet is not the image in the plane, so this is the reflection the water would carry if it
-/// were still — which is what a mirrored reprojection can describe, and is why the wave's own
-/// scatter is left to the mask beside it.
-///
-/// The plane is `frame.mWaterLevel`, which every frame with water in it names: the surface this
-/// reflects about is the one the water geometry lies in, and not the facet the ray happened to
-/// bounce off.
-///
-/// **Through the world's image plane**, because water is never seen through the arms' eye: that eye
-/// traces the arms alone.
-vec2 mirrorMotionOf(uvec2 pixel, vec3 origin, WaterMirror mirror)
-{
-    // **The sky reflected is still a reflection that moves**, and writing nought for it says the
-    // opposite. It has no distance, so the eye's own walk does not carry it and its turn is the
-    // whole of it — the argument `skyMotionOf` makes, about a direction that is mirrored because
-    // what is being watched is the image and not the sky.
-    if (!mirror.mFound)
-        return reprojected(pixel, vec3(mirror.mAlong.xy, -mirror.mAlong.z), vec2(1.0));
-
-    // The plane's own reflection, which is linear on differences: the constant cancels in the
-    // subtraction below, so only `z` changes sign.
-    const vec3 seen = vec3(mirror.mAt.xy, 2.0 * frame.mWaterLevel - mirror.mAt.z);
-    const vec3 went = movedBy(instanceAt(mirror.mInstance), mirror.mAt);
-
-    return reprojected(pixel, seen - origin + frame.mCameraMotion + vec3(went.xy, -went.z), vec2(1.0));
-}
-
 /// Where the sky a ray found stood on the previous frame's screen, in pixels.
 ///
 /// **Infinitely far, so the eye's own walk does not carry it and its turn is the whole of it.** A
 /// miss that stores nothing here, on the reasoning that the sky does not move, is true of walking
-/// and false of looking around, and looking around is most of what a player does: an upscaler
-/// then fetches the sky's history from the pixel it already occupies, so every turn of the head
+/// and false of looking around, and looking around is most of what a player does: a temporal
+/// filter then fetches the sky's history from the pixel it already occupies, so every turn of the head
 /// smears it — a gradient hides that and a field of stars does not.
 ///
 /// The same reprojection a surface gets, with the translation left out: at infinity `mCameraMotion`
 /// is nothing beside the direction, and dropping it is what says so exactly rather than nearly.
 ///
-/// **Through the world's image plane**, for the reason `mirrorMotionOf` gives: the sky is never
-/// seen through the arms' eye.
+/// **Through the world's image plane**, because the sky is never seen through the arms' eye: that
+/// eye traces the arms alone.
 vec2 skyMotionOf(uvec2 pixel, vec3 direction)
 {
     return reprojected(pixel, direction, vec2(1.0));
@@ -234,7 +199,7 @@ vec2 skyMotionOf(uvec2 pixel, vec3 direction)
 /// finely than one near one, and a perspective depth spends its range close to the eye, so the
 /// standard form left the far half of the world a few thousand steps: at a hundred thousand units a
 /// step was six hundred units deep. Reversed, the float's exponent follows `1 / z` and a step is a
-/// ten-millionth of the distance at any depth. NGX is told so (`DepthInverted`, `dlsspass.cpp`).
+/// ten-millionth of the distance at any depth.
 /// A miss writes nought: nothing is further away than the end of the world.
 float clipDepth(vec3 direction, float along)
 {

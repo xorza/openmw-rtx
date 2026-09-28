@@ -43,13 +43,12 @@ namespace Misc
         std::chrono::steady_clock::duration mLastFrameDuration;
     };
 
-    inline Misc::FrameRateLimiter makeFrameRateLimiter(
-        float frameRateLimit, std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now())
+    inline Misc::FrameRateLimiter makeFrameRateLimiter(float frameRateLimit)
     {
         if (frameRateLimit > 0.0f)
-            return Misc::FrameRateLimiter(std::chrono::duration<float>(1.0f / frameRateLimit), now);
+            return Misc::FrameRateLimiter(std::chrono::duration<float>(1.0f / frameRateLimit));
         else
-            return Misc::FrameRateLimiter(std::chrono::steady_clock::duration::zero(), now);
+            return Misc::FrameRateLimiter(std::chrono::steady_clock::duration::zero());
     }
 }
 

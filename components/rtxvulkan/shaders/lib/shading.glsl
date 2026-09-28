@@ -2,7 +2,7 @@
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_SHADING_GLSL
 
 // What an ordinary lit surface does with light: the direct sources it can ask about, the
-// one bounce it traces for everything else, and the terms an upscaler demodulates by.
+// one bounce it traces for everything else, and the terms the filter demodulates by.
 
 #include "brdf.h"
 #include "camera.h"
@@ -66,7 +66,7 @@ struct DirectLight
 /// it could have one.
 ///
 /// @param gloss the surface's specular half, `glossOf`: made once by the caller, which reports it
-///        to the upscaler as well.
+///        to the bounce's draw as well.
 /// @param seed which draw sequence the lamp reservoir steps. **One per depth of the path**, because
 ///        a bounce shades a second surface and two reservoirs stepping one sequence would keep
 ///        correlated lamps at both ends of it.
@@ -234,18 +234,17 @@ vec3 pathEnd(vec3 position, float reaching)
 /// for it and not a stand-in for one.
 SurfaceResponse lambertResponse(Surface surface)
 {
-    return SurfaceResponse(surface.mNormal, surface.mAlbedo, vec3(0.0), 1.0);
+    return SurfaceResponse(surface.mNormal, surface.mAlbedo, 1.0);
 }
 
-/// What a surface is in the upscaler's terms: its shading normal, its diffuse albedo, the albedo its
-/// lobe reflects toward the eye and its roughness — or, with no specular half, `lambertResponse`
-/// exactly.
+/// What a surface is in the filter's terms: its shading normal, its diffuse albedo and its
+/// roughness — or, with no specular half, `lambertResponse` exactly.
 SurfaceResponse surfaceResponse(Surface surface, Gloss gloss)
 {
     if (!gloss.mGlossy)
         return lambertResponse(surface);
 
-    return SurfaceResponse(surface.mNormal, surface.mAlbedo, gloss.mAlbedo, surface.mRoughness);
+    return SurfaceResponse(surface.mNormal, surface.mAlbedo, surface.mRoughness);
 }
 
 /// What an ordinary lit surface sends back along the ray that found it.
@@ -400,8 +399,7 @@ struct Bounce
 
     /// Whole: what the lobe reflects toward the eye. **It joins the direct light, because it is not
     /// multiplied by the diffuse albedo** — a metal has none, and in the indirect term its whole
-    /// reflection would be multiplied by nought. Ray Reconstruction takes the composite, so it sees
-    /// the same colour either way.
+    /// reflection would be multiplied by nought.
     vec3 mSpecular;
 };
 
@@ -599,7 +597,7 @@ Bounce bounceLight(Surface surface, Gloss gloss, uvec2 pixel, Cone cone)
 }
 
 /// What a solid the eye found is: its direct light, the one bounce it gathers, and what it is in the
-/// upscaler's terms. The lobe's bounce joins the direct light, for the reason `Bounce::mSpecular`
+/// filter's terms. The lobe's bounce joins the direct light, for the reason `Bounce::mSpecular`
 /// gives.
 ///
 /// **One statement of what a ground pixel is, used twice** — for the hit itself, and for the bed

@@ -1,5 +1,5 @@
 - audit includes
 - audit #pragmas
 
-- fsr and other denoisers and upscalers + AMD
+- fix rendering resolution and allow to resize window
 - Result<>

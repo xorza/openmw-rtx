@@ -23,7 +23,7 @@ class DigestTest(unittest.TestCase):
         self.assertEqual(digest({"PRESET_READS": "1", "UNREAD": "x"}, root), base)
         self.assertNotEqual(digest({"PRESET_READS": "2"}, root), base)
         self.assertNotEqual(digest({"PRESET_READS": "1", "CXX": "clang++"}, root), base)
-        self.assertNotEqual(digest({"PRESET_READS": "1", "NGX_ROOT": "/sdk"}, root), base)
+        self.assertNotEqual(digest({"PRESET_READS": "1", "VULKAN_SDK": "/sdk"}, root), base)
 
     def test_a_presets_file_that_includes_another_is_refused(self):
         root = presets_root(self, {"version": 10, "include": ["other.json"]})
