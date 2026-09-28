@@ -16,9 +16,9 @@ namespace Rtx
 {
     namespace
     {
-        /// The channel being blended, the three the frame describes it with, the three a history
+        /// The channel being blended, the two the frame describes it with, the three a history
         /// arrives in, the two of those this pass writes back, and the blend the cascade reads.
-        /// Ten and not eleven, because the first wavelet level writes the history this reads next
+        /// Nine and not ten, because the first wavelet level writes the history this reads next
         /// frame — SVGF's feedback.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_BINDINGS> sBindings
             = computeBindings<Shaders::ACCUMULATE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -59,8 +59,7 @@ namespace Rtx
         DescriptorWrites<Shaders::ACCUMULATE_BINDINGS> writes;
         writes.image(Shaders::ACCUMULATE_BIND_INDIRECT, buffer.get(Channel::Indirect).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_GUIDE, buffer.get(Channel::Guide).describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_DEPTH, buffer.get(Channel::Depth).describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_COLOUR, turn.mColourBefore.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_SURFACE, turn.mSurfaceBefore.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_MOMENTS, turn.mMomentsBefore.describeStorage());

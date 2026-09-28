@@ -32,6 +32,7 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/brdf.h>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
@@ -296,9 +297,10 @@ namespace Rtx::Testing
             // **A fade a hair short of one is peeled like any other.** The launch was handed the
             // opacity as a half, and `1 - 2^-13` is a half's one: the hit answered a pane, with no
             // response and no motion, and the launch asked the half again and kept that pane whole,
-            // so the guides said there was no surface there. Peeled, the pixel's guides are the
-            // wall's behind it, to the bit — the byte is black either way, which is why the guide.
-            const auto guideThrough = [&](std::optional<float> fade) {
+            // so the surface channel said there was no surface there. Peeled, the pixel's surface is
+            // the wall's behind it, to the bit — the byte is black either way, which is why the
+            // surface channel.
+            const auto surfaceThrough = [&](std::optional<float> fade) {
                 constexpr std::uint32_t size = 33;
 
                 SceneDesc scene = makeWall();
@@ -306,15 +308,15 @@ namespace Rtx::Testing
                     addPane(scene, pane, black, *fade);
                 shoot(scene, {}, wallCamera(size, bright), size);
 
-                std::vector<float> guide;
-                mRenderer.readChannel(Channel::Guide, guide);
-                const std::size_t at = centreValueOf(size);
-                return osg::Vec4f(guide[at], guide[at + 1], guide[at + 2], guide[at + 3]);
+                std::vector<float> surface;
+                mRenderer.readChannel(Channel::Surface, surface);
+                const std::size_t at = centreOf(size) * 2;
+                return osg::Vec2f(surface[at], surface[at + 1]);
             };
 
-            const osg::Vec4f wall = guideThrough(std::nullopt);
-            ASSERT_GT(wall.length2(), 0.0f) << "the wall's own guide";
-            EXPECT_EQ(guideThrough(1.0f - 0x1p-13f), wall) << "a fade that rounds to one as a half was not peeled";
+            const osg::Vec2f wall = surfaceThrough(std::nullopt);
+            ASSERT_NE(wall.x(), Shaders::SURFACE_NO_NORMAL) << "the wall's own normal";
+            EXPECT_EQ(surfaceThrough(1.0f - 0x1p-13f), wall) << "a fade that rounds to one as a half was not peeled";
         }
 
         /// A translucent occluder dims the sun rather than stopping it.

@@ -23,7 +23,7 @@ namespace Rtx::Shaders
     /// trace's business alone.
     ///
     /// **Shared because two shaders build the same rays and one of them must build them exactly.**
-    /// The wavelet's edge tests compare world positions reconstructed from the guide's distance, and
+    /// The wavelet's edge tests compare world positions reconstructed from the surface channel's distance, and
     /// a position reconstructed from a ray that differs from the one that was shaded — by the
     /// jitter, by the projection, by half a pixel — is not the position of the surface it is
     /// filtering. Two copies of one derivation, a frame at a time, is how the two come to differ.

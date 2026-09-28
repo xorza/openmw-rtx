@@ -145,17 +145,13 @@ namespace Rtx::Shaders
         /// them.
         vec2 mArmsSpread;
 
-        /// Where the depth buffer's zero sits, in world units from the eye.
-        ///
-        /// **A ray tracer has no near plane and an upscaler asks for one anyway.** Nothing here
-        /// clips against it; it exists so the depth written for an upscaler is the value a
-        /// rasterizer with this frustum would have written, which is what a disocclusion test
-        /// expects to be looking at.
+        /// Where the debug lines' depth range starts, in world units from the eye. **A ray tracer has
+        /// no near plane**: nothing the trace does clips against it, and the lines, which are
+        /// rasterized, are the one reader.
         float mNear;
 
-        /// How far the camera's own ray travels, and what the depth buffer encodes against: the
-        /// clip. The world's own size for the world's camera, where a primary ray that reaches it
-        /// has left the world; a picture's framing for a picture, which clips at the depth range it
+        /// How far the camera's own ray travels: the clip. The world's own size for the world's camera, where a primary
+        /// ray that reaches it has left the world; a picture's framing for a picture, which clips at the depth range it
         /// frames.
         float mFar;
 

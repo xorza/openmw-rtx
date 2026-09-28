@@ -198,10 +198,8 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     // into the next without a seam at the boundary.
     const WaterSurface sea = waterSurfaceAt(surface.mPosition.xy, surface.mFootprint);
 
-    // **The lost slopes as a roughness, the one a painted map states**, so the guide's channel holds
-    // one quantity over water and land and the shore blends two of the same thing. The cone they
-    // widen a reflection by is the lobe's own, as a solid's is, and never wider than a diffuse
-    // bounce's.
+    // **The lost slopes as a roughness, the one a painted map states.** The cone they widen a
+    // reflection by is the lobe's own, as a solid's is, and never wider than a diffuse bounce's.
     const float roughness = slopeRoughness(sea.mLostSlope);
     const float lobe = ggxConeWidth(roughness * roughness, BOUNCE_SPREAD);
     vec3 normal = fromBelow ? -sea.mNormal : sea.mNormal;
@@ -220,10 +218,10 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
         = fromBelow ? sqrt(max(1.0 - WATER_IOR * WATER_IOR * (1.0 - incidence * incidence), 0.0)) : incidence;
     const float fresnel = fresnelSchlick(WATER_F0, 1.0, schlickWeight(cosine));
 
-    // **The wave's normal and not the quad's**, and the roughness the lost slopes stand for: what the
-    // filter tells this surface apart by. No diffuse albedo, since water answers a ray with a
-    // reflection and a refraction and no Lambert term.
-    shaded.mResponse = SurfaceResponse(normal, vec3(0.0), roughness);
+    // **The wave's normal and not the quad's**: what the filter tells this surface apart by. No
+    // diffuse albedo, since water answers a ray with a reflection and a refraction and no Lambert
+    // term.
+    shaded.mResponse = SurfaceResponse(packSurfaceNormal(normal), vec3(0.0));
 
     // Offset along the *plane*, not the facet: what a ray has to clear to avoid finding this surface
     // again is the quad, and only the plane's normal is guaranteed to take it off that.

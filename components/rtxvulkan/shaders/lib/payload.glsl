@@ -8,10 +8,10 @@
 // `hitObjectIsHitEXT`, `hitObjectGetRayTMaxEXT` and the ray's own getters, so not one word here is
 // spent on them.
 //
-// **What crosses the execute is what it costs**, and this is it: twelve words. Every field the
+// **What crosses the execute is what it costs**, and this is it: eleven words. Every field the
 // tail reads travels, and travels as small as the frame keeps it — the albedo, the scalars and
 // the motion vector as halves, which is the width of the channels they are stored in, and the
-// normal as one word of octahedral halves. What stays whole is the two radiances, because a
+// normal as the surface channel's own code. What stays whole is the two radiances, because a
 // reference is a sum of a thousand frames and a term rounded to a half before the sum does not
 // average away. `Answer` is the same record unpacked, which is what the shaders write and the launch
 // reads; `packAnswer` and `unpackAnswer` are the whole of the boundary.
@@ -99,21 +99,20 @@ Answer noAnswer()
     return answer;
 }
 
-/// The record as it crosses the execute: twelve words, laid out once here.
+/// The record as it crosses the execute: eleven words, laid out once here.
 ///
-/// The flags word carries the backdrop's share as a half in its high bits, and three facts in its low
-/// ones: whether the launch peels the surface, whether it is water, and whether the response
-/// carries a normal at all. The last is what a pane and the sky leave nought, and nought has no
-/// direction to pack.
+/// The flags word carries the backdrop's share as a half in its high bits, and two facts in its low
+/// ones: whether the launch peels the surface, and whether it is water.
 struct VisibilityPayload
 {
     vec3 mRadiance;
     vec3 mBounced;
 
-    /// The response's diffuse, then its roughness, then the opacity: five halves in three words.
-    uvec3 mHalves;
+    /// The response's diffuse, then the opacity: four halves in two words.
+    uvec2 mHalves;
 
-    /// The response's normal, `packDirection`.
+    /// The response's normal code, `packSurfaceNormal`, as its bits: a whole number or minus one,
+    /// never a NaN, so the word comes back as the float it went in as.
     uint mNormal;
 
     /// The motion vector, a pair of halves: the width `GBUFFER_MOTION` stores it at.
@@ -123,42 +122,35 @@ struct VisibilityPayload
 };
 
 const uint ANSWER_WATER = 1u << 0u;
-const uint ANSWER_HAS_NORMAL = 1u << 1u;
-const uint ANSWER_PANE = 1u << 2u;
+const uint ANSWER_PANE = 1u << 1u;
 
 VisibilityPayload packAnswer(Answer answer)
 {
-    const bool hasNormal = dot(answer.mResponse.mNormal, answer.mResponse.mNormal) > 0.0;
-
     VisibilityPayload packed;
     packed.mRadiance = answer.mRadiance;
     packed.mBounced = answer.mBounced;
-    packed.mHalves = uvec3(packHalf2x16(answer.mResponse.mDiffuse.rg),
-        packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mResponse.mRoughness)),
-        packHalf2x16(vec2(answer.mOpacity, 0.0)));
-    packed.mNormal = hasNormal ? packDirection(answer.mResponse.mNormal) : 0u;
+    packed.mHalves = uvec2(packHalf2x16(answer.mResponse.mDiffuse.rg),
+        packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mOpacity)));
+    packed.mNormal = floatBitsToUint(answer.mResponse.mNormal);
     packed.mMotion = packHalf2x16(answer.mMotion);
     packed.mFlags = packHalf2x16(vec2(0.0, answer.mBackdropShown)) | (answer.mWater ? ANSWER_WATER : 0u)
-        | (hasNormal ? ANSWER_HAS_NORMAL : 0u) | (answer.mPane ? ANSWER_PANE : 0u);
+        | (answer.mPane ? ANSWER_PANE : 0u);
 
     return packed;
 }
 
 Answer unpackAnswer(VisibilityPayload packed)
 {
-    const bool hasNormal = (packed.mFlags & ANSWER_HAS_NORMAL) != 0u;
     const vec2 diffuseRg = unpackHalf2x16(packed.mHalves.x);
-    const vec2 diffuseBRoughness = unpackHalf2x16(packed.mHalves.y);
-    const float opacity = unpackHalf2x16(packed.mHalves.z).x;
+    const vec2 diffuseBOpacity = unpackHalf2x16(packed.mHalves.y);
 
     Answer answer;
     answer.mRadiance = packed.mRadiance;
     answer.mBounced = packed.mBounced;
-    answer.mResponse = SurfaceResponse(hasNormal ? unpackDirection(packed.mNormal) : vec3(0.0),
-        vec3(diffuseRg, diffuseBRoughness.x), diffuseBRoughness.y);
+    answer.mResponse = SurfaceResponse(uintBitsToFloat(packed.mNormal), vec3(diffuseRg, diffuseBOpacity.x));
     answer.mMotion = unpackHalf2x16(packed.mMotion);
     answer.mBackdropShown = unpackHalf2x16(packed.mFlags).y;
-    answer.mOpacity = opacity;
+    answer.mOpacity = diffuseBOpacity.y;
     answer.mPane = (packed.mFlags & ANSWER_PANE) != 0u;
     answer.mWater = (packed.mFlags & ANSWER_WATER) != 0u;
 

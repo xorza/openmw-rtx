@@ -2,6 +2,7 @@
 #define OPENMW_COMPONENTS_RTX_SHADERS_GBUFFER_H
 
 #include "hosttypes.h"
+#include "octahedral.h"
 #include "portable.h"
 #include "storageformat.h"
 
@@ -31,14 +32,15 @@
 //
 // Four bytes a pixel, and 8 MiB of that at 1080p.
 //
-// **A normal is eleven bits a component, because everything that reads one compares directions.**
-// The guide's `xyz` is a unit vector and its `w` a fraction, and the sharpest test made of either is
-// the cascade's `pow(dot, 128)`, which cuts a tap at about six degrees of tilt — against the 0.03
-// degrees a half float rounds a direction by.
-//
-// This is the largest tap in the frame — the cascade reads it twenty-five times a pixel at each of
-// five levels — so eight bytes rather than sixteen takes a fifth off that pass's traffic, and
-// sixteen megabytes at 1080p rather than thirty-three.
+// **The surface is one texel of two floats: the normal as a code, and the distance whole.** They are
+// what the filters tell two surfaces apart by, and the cascade reads both at every tap — twenty-five
+// times a pixel at each of five levels, the largest read in the frame — so one fetch of eight bytes
+// a tap and not two of sixteen. The distance is whole because the plane test measures offsets of a
+// fraction of a pixel's footprint at any distance. The normal is `packSurfaceNormal`'s code, twelve
+// bits an octahedral axis: 0.06 degrees at the worst against the six degrees of tilt the cascade's
+// `pow(dot, 128)` cuts a tap at, so what the rounding moves is a weight's fourth decimal place. A
+// float and not a word, because the digest and every reader load the channels as floats, and a
+// code under 2^24 is a float exactly.
 //
 // So each format is one line naming a `storageformat.h` layout, which is both the qualifier the
 // shader declares and what the host creates the image as.
@@ -52,9 +54,8 @@
 #define GBUFFER_RADIANCE_SHOWN STORAGE_RGBA16F
 #define GBUFFER_RADIANCE_SUMMED STORAGE_RGBA32F
 #define GBUFFER_ALBEDO STORAGE_RGBA16F
-#define GBUFFER_GUIDE STORAGE_RGBA16F
+#define GBUFFER_SURFACE STORAGE_RG32F
 #define GBUFFER_MOTION STORAGE_RG16F
-#define GBUFFER_DEPTH STORAGE_RG32F
 #define GBUFFER_LAYER STORAGE_RGBA16F
 #define GBUFFER_BACKDROP STORAGE_RGBA8
 
@@ -80,16 +81,16 @@ namespace Rtx::Shaders
     /// What the composite multiplies the bounce back in by.
     const uint CHANNEL_ALBEDO = 2;
 
-    /// The shading normal and the roughness, which is what a filter compares surfaces by.
-    const uint CHANNEL_GUIDE = 3;
+    /// The shading normal, `packSurfaceNormal`, and the distance from the eye along the pixel's ray:
+    /// what a filter compares surfaces by, and where the eye's view ends.
+    const uint CHANNEL_SURFACE = 3;
 
-    /// Where things stood on the previous frame's screen, and how far away they are now.
+    /// Where things stood on the previous frame's screen.
     const uint CHANNEL_MOTION = 4;
-    const uint CHANNEL_DEPTH = 5;
 
     /// How much of the backdrop a pixel still shows, for the pass that draws it, and what the arms
     /// let through, for the puffs' composite.
-    const uint CHANNEL_BACKDROP = 6;
+    const uint CHANNEL_BACKDROP = 5;
 
     /// The sprites the trace found in front of the surface, kept apart from it and lit where they
     /// stand: their colour, what they let through, and which eye the pixel's ray left — `packPuffs`.
@@ -97,10 +98,41 @@ namespace Rtx::Shaders
     /// what the cloud shells add are answered along the shown pixel's own ray by
     /// `spritecomposite.rgen`, so no puff goes through the denoiser or an upscaler, and
     /// nothing the composite draws moves with the jitter the traced grid is sampled at.
-    const uint CHANNEL_PUFFS = 7;
+    const uint CHANNEL_PUFFS = 6;
 
     /// How many the set declares, which is the last of them and one more.
-    const uint CHANNEL_COUNT = 8;
+    const uint CHANNEL_COUNT = 7;
+
+    /// How many steps either side of nought the surface channel holds an octahedral axis at: twelve
+    /// bits an axis, so a code is under 2^24 and a float holds it exactly.
+    const uint SURFACE_NORMAL_STEPS = 2047u;
+    const uint SURFACE_NORMAL_SPAN = 2u * SURFACE_NORMAL_STEPS + 1u;
+
+    /// The code of a pixel with no surface: below every code a normal packs to, and so apart from
+    /// all of them.
+    const float SURFACE_NO_NORMAL = -1.0f;
+
+    /// A unit normal as the surface channel's code, or `SURFACE_NO_NORMAL` for nought — the sky's and
+    /// a ray's that found nothing, which has no direction to fold.
+    RTX_SHADER float packSurfaceNormal(vec3 normal)
+    {
+        if (!(abs(normal[0]) + abs(normal[1]) + abs(normal[2]) > 0.0f))
+            return SURFACE_NO_NORMAL;
+
+        const vec2 square = octahedralSquare(normal);
+        return float(octahedralStep(square[0], SURFACE_NORMAL_STEPS)
+            + octahedralStep(square[1], SURFACE_NORMAL_STEPS) * SURFACE_NORMAL_SPAN);
+    }
+
+    /// The unit normal a code stands for, or nought for `SURFACE_NO_NORMAL`. Selected and not
+    /// branched: every tap of the cascade asks, and the lanes of a warp land on both.
+    RTX_SHADER vec3 unpackSurfaceNormal(float packed)
+    {
+        const uint code = uint(max(packed, 0.0f));
+        const vec3 unit = octahedralUnit(vec2(octahedralCoordinate(code % SURFACE_NORMAL_SPAN, SURFACE_NORMAL_STEPS),
+            octahedralCoordinate(code / SURFACE_NORMAL_SPAN, SURFACE_NORMAL_STEPS)));
+        return packed >= 0.0f ? unit : vec3(0.0f, 0.0f, 0.0f);
+    }
 
 #ifdef RTX_HOST
 }

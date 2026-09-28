@@ -23,8 +23,10 @@ namespace Rtx
         /// where it ran, and the trace's own composite where nothing filtered it.
         const Image& mColour;
 
-        /// Clip depth, in the sense a rasterizer would have written it.
-        const Image& mDepth;
+        /// `CHANNEL_SURFACE`: the distance from the eye along each pixel's ray in `g`. An upscaler
+        /// that compares depths derives the one a rasterizer would have written from it, on the
+        /// frames it upscales, rather than every frame storing one for it.
+        const Image& mSurface;
 
         /// Where each surface stood on the previous frame's screen, less where it stands now, in
         /// render pixels.

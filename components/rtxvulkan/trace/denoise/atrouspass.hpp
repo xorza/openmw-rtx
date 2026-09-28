@@ -32,8 +32,8 @@ namespace Rtx
         /// Runs every level and returns the channel the result ended up in, because the levels
         /// alternate and a copy back would be bandwidth spent on tidiness.
         ///
-        /// @param buffer handed over, so the trace's writes are visible. Only the guide and the
-        ///        depth are read from it.
+        /// @param buffer handed over, so the trace's writes are visible. Only the surface and the
+        ///        puffs are read from it.
         /// @param blended what the accumulator made of this frame's bounce, and the variance that
         ///        turns a difference in brightness into an edge or into noise: the first level's
         ///        input, written by the odd-numbered levels.

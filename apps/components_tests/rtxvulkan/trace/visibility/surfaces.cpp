@@ -34,6 +34,7 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
@@ -609,18 +610,19 @@ namespace Rtx::Testing
             }
         }
 
-        /// What crosses the execute comes back as it went in: the guide the filter reads is the
-        /// surface's own normal, roughness and albedo, through the halves and the octahedral word
-        /// `payload.glsl` packs them into.
+        /// What crosses the execute comes back as it went in: the normal the filter reads is the
+        /// surface's own, and so is the albedo, through the code and the halves `payload.glsl`
+        /// carries them in.
         ///
         /// **An oblique normal, because a cardinal one packs exactly and proves nothing about the
         /// fold.** The wall is turned thirty degrees about z and twenty about x, so its normal has
-        /// three non-zero components and lands off every axis of the octahedron's square. A signed
-        /// half an axis is one part in thirty-two thousand, and the guide is stored in halves at
-        /// one in two thousand, so the read-back is held to the channel's precision and not the
-        /// packing's. The albedo is the ladder texture's finest level, 40 of 255, which is a byte
-        /// a half carries exactly.
-        TEST_F(RtxVisibilityTest, theGuideCarriesTheSurfacesNormalAndAlbedoAcrossThePackedPayload)
+        /// three non-zero components and lands off every axis of the octahedron's square. The code is
+        /// made once, by the hit shader, and stored as it crossed, so the read-back is held to its
+        /// one rounding: half a step of `1 / 2047` moves the point on the octahedron by at most
+        /// `sqrt(1.5) / 2047`, and the projection onto the sphere stretches that by at most
+        /// `sqrt(3)`, so `sqrt(4.5) / 2047`, about `1.0363e-3`. The albedo is the ladder texture's finest level, 40 of
+        /// 255, which is a byte a half carries exactly.
+        TEST_F(RtxVisibilityTest, theSurfaceChannelCarriesTheNormalAndTheAlbedoAcrossThePackedPayload)
         {
             constexpr std::uint32_t size = 64;
 
@@ -654,14 +656,13 @@ namespace Rtx::Testing
             const Frame frame = shoot(scene, textures, camera, size, Shot{ .mLevelEpsilon = -1.0f });
             ASSERT_EQ(frame.mHits, size * size) << "the turned card fills the frame";
 
-            std::vector<float> guide;
-            mRenderer.readChannel(Channel::Guide, guide);
-            const std::size_t at = centreValueOf(size);
-            EXPECT_NEAR(guide[at], expected.x(), 1e-3f);
-            EXPECT_NEAR(guide[at + 1], expected.y(), 1e-3f);
-            EXPECT_NEAR(guide[at + 2], expected.z(), 1e-3f);
-            EXPECT_EQ(guide[at + 3], 1.0f) << "Lambert's roughness, which a half holds exactly";
+            std::vector<float> surface;
+            mRenderer.readChannel(Channel::Surface, surface);
+            const osg::Vec3f normal = Shaders::unpackSurfaceNormal(surface[centreOf(size) * 2]);
+            const float bound = std::sqrt(4.5f) / 2047.0f + 1e-6f;
+            EXPECT_LE((normal - expected).length(), bound) << normal.x() << ' ' << normal.y() << ' ' << normal.z();
 
+            const std::size_t at = centreValueOf(size);
             std::vector<float> albedo;
             mRenderer.readChannel(Channel::Albedo, albedo);
             EXPECT_NEAR(albedo[at], 40.0f / 255.0f, 1e-3f);
@@ -1119,22 +1120,22 @@ namespace Rtx::Testing
                 return scene;
             };
 
-            // The trace's own depth and bounce, read before the composite that gathers what adds:
+            // The trace's own surface and bounce, read before the composite that gathers what adds:
             // a quad the eye met would stand at fifty where the wall stands at a hundred.
-            std::vector<float> withDepth;
-            std::vector<float> withoutDepth;
+            std::vector<float> withSurface;
+            std::vector<float> withoutSurface;
             std::vector<float> withBounce;
             std::vector<float> withoutBounce;
             std::vector<std::uint8_t> withShown;
             std::vector<std::uint8_t> withoutShown;
 
             EXPECT_EQ(shoot(build(0.5f), textures, camera, size).mHits, size * size);
-            mRenderer.readChannel(Channel::Depth, withDepth);
+            mRenderer.readChannel(Channel::Surface, withSurface);
             mRenderer.readChannel(Channel::Indirect, withBounce);
             mRenderer.readPixels(withShown);
 
             EXPECT_EQ(shoot(build(std::nullopt), textures, camera, size).mHits, size * size);
-            mRenderer.readChannel(Channel::Depth, withoutDepth);
+            mRenderer.readChannel(Channel::Surface, withoutSurface);
             mRenderer.readChannel(Channel::Indirect, withoutBounce);
             mRenderer.readPixels(withoutShown);
 
@@ -1143,9 +1144,9 @@ namespace Rtx::Testing
 
             // The depth channel is two values a pixel: the clip depth, and the distance the ray
             // travelled.
-            ASSERT_EQ(withDepth.size(), std::size_t{ size } * size * 2);
-            EXPECT_NEAR(withDepth[centreOf(size) * 2 + 1], 100.0f, 0.1f) << "the eye met the additive quad";
-            EXPECT_EQ(withDepth, withoutDepth);
+            ASSERT_EQ(withSurface.size(), std::size_t{ size } * size * 2);
+            EXPECT_NEAR(withSurface[centreOf(size) * 2 + 1], 100.0f, 0.1f) << "the eye met the additive quad";
+            EXPECT_EQ(withSurface, withoutSurface);
             EXPECT_EQ(withBounce, withoutBounce) << "a bounce met the additive quad";
 
             EXPECT_GT(int{ withShown[centre] }, int{ withoutShown[centre] }) << "the quad added nothing red";
@@ -1269,7 +1270,7 @@ namespace Rtx::Testing
                 EXPECT_EQ(shoot(scene, {}, camera, size).mHits, size * size);
 
                 std::vector<float> depth;
-                mRenderer.readChannel(Channel::Depth, depth);
+                mRenderer.readChannel(Channel::Surface, depth);
                 EXPECT_EQ(depth.size(), std::size_t{ size } * size * 2);
 
                 return depth[centreOf(size) * 2 + 1];

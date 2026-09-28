@@ -3,9 +3,8 @@
 
 // Where everything in the frame stood on the previous frame's screen.
 //
-// **Three answers, because three things move differently.** A surface moves with the eye and
-// with itself; what water reflects moves as its image in the plane; and the sky, being
-// infinitely far, moves only when the eye turns. A puff has no answer here: none is in the
+// **Two answers, because two things move differently.** A surface moves with the eye and with
+// itself, and the sky, being infinitely far, moves only when the eye turns. A puff has no answer here: none is in the
 // frame, so nothing in it moves with one.
 
 #include "camera.h"
@@ -185,35 +184,6 @@ vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
 vec2 skyMotionOf(uvec2 pixel, vec3 direction)
 {
     return reprojected(pixel, direction, vec2(1.0));
-}
-
-/// The depth a rasterizer would have written for a hit `along` units down `direction`.
-///
-/// **Along the view axis and not along the ray.** A rasterizer's depth is the distance to the plane
-/// through the eye that faces the way the camera does, so a surface at the corner of the frame is
-/// nearer in depth than its distance says — and an upscaler comparing this against its own
-/// reprojection would find every corner disagreeing.
-///
-/// **Reversed: one at the near plane and nought at the far one**, `near (far - z) / (z (far - near))`,
-/// which is the same projection read from the other end. A float holds a value near nought far more
-/// finely than one near one, and a perspective depth spends its range close to the eye, so the
-/// standard form left the far half of the world a few thousand steps: at a hundred thousand units a
-/// step was six hundred units deep. Reversed, the float's exponent follows `1 / z` and a step is a
-/// ten-millionth of the distance at any depth.
-/// A miss writes nought: nothing is further away than the end of the world.
-float clipDepth(vec3 direction, float along)
-{
-    const float z = dot(direction, frame.mCamera.mForward) * along;
-
-    // A parallel projection's depth is linear in that distance; it is the perspective divide that
-    // makes the expression below the shape it is.
-    if (frame.mCamera.mOrthographic != 0u)
-        return clamp((frame.mFar - z) / (frame.mFar - frame.mNear), 0.0, 1.0);
-
-    // A surface at or short of the near plane writes one: `z` is held at the plane, where the
-    // expression is exactly one, and the divide by nothing goes with it.
-    const float held = max(z, frame.mNear);
-    return frame.mNear * (frame.mFar - held) / (held * (frame.mFar - frame.mNear));
 }
 
 #endif

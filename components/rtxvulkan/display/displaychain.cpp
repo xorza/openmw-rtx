@@ -190,7 +190,7 @@ namespace Rtx
         mLines.record(commands,
             Lines{
                 .mTarget = target,
-                .mDepth = channels.get(Channel::Depth),
+                .mSurface = channels.get(Channel::Surface),
                 .mConstants = {
                     .mCamera = Shaders::cameraOnGrid(what.mSampled.mCamera, target.getWidth(), target.getHeight()),
                     .mOrigin = what.mSampled.mOrigin,

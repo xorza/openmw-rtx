@@ -129,7 +129,7 @@ void answerSolid(inout Answer answer, Surface surface)
         else
             answer.mRadiance = surface.mSpecular;
 
-        answer.mResponse = lambertResponse(surface);
+        answer.mResponse = responseOf(surface);
         return;
     }
 
@@ -179,10 +179,13 @@ void answerWater(inout Answer answer, Surface surface)
     shadeSolid(bed, pixel, cone, bedLight, answer.mBounced, lambert);
 
     // The direct light and the response as a blend, and the bounce whole, since the albedo it is put
-    // back against carries the share.
+    // back against carries the share. The two normals arrive as codes and leave as one, so a shore
+    // pixel's is rounded twice — within twice the code's bound, on the few pixels a waterline
+    // crosses.
+    const vec3 normal = normalize(mix(unpackSurfaceNormal(lambert.mNormal),
+        unpackSurfaceNormal(answer.mResponse.mNormal), shore));
     answer.mRadiance = mix(bedLight, answer.mRadiance, shore);
-    answer.mResponse = SurfaceResponse(normalize(mix(lambert.mNormal, answer.mResponse.mNormal, shore)),
-        lambert.mDiffuse * (1.0 - shore), mix(lambert.mRoughness, answer.mResponse.mRoughness, shore));
+    answer.mResponse = SurfaceResponse(packSurfaceNormal(normal), lambert.mDiffuse * (1.0 - shore));
 }
 
 void main()

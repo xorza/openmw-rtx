@@ -40,18 +40,17 @@ namespace Rtx::Shaders
     /// else, so the two cannot drift apart.
     const uint ATROUS_BIND_SOURCE = 0;
     const uint ATROUS_BIND_FILTERED = 1;
-    const uint ATROUS_BIND_GUIDE = 2;
-    const uint ATROUS_BIND_DEPTH = 3;
-    const uint ATROUS_BIND_PUFFS = 4;
-    const uint ATROUS_BINDINGS = 5;
+    const uint ATROUS_BIND_SURFACE = 2;
+    const uint ATROUS_BIND_PUFFS = 3;
+    const uint ATROUS_BINDINGS = 4;
 
     /// Threads along each edge of a level's workgroup.
     const uint ATROUS_WORKGROUP = 8;
 
     /// Everything one level reads that is not an image.
     ///
-    /// **The camera is here because the edge tests need world positions and the guide stores a
-    /// distance.** A position is `origin + direction * distance`, and the difference between two of
+    /// **The camera is here because the edge tests need world positions and the surface channel
+    /// stores a distance.** A position is `origin + direction * distance`, and the difference between two of
     /// them drops the origin — so the basis is enough and the eye's place in the world is not
     /// needed. The rays are rebuilt by the same `rayAt` the trace built them with, which is what
     /// makes the reconstructed positions the ones that were actually shaded.

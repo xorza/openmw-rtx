@@ -35,11 +35,9 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_INDIRECT) uniform readonly imag
 /// Where each surface stood on the previous frame's screen, less where it stands on this one.
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D motion;
 
-/// The shading normal in `xyz`. A ray that hit nothing left a zero normal, which no surface matches.
-layout(set = SET_PASS, binding = ACCUMULATE_BIND_GUIDE, GBUFFER_GUIDE) uniform readonly image2D guide;
-
-/// Clip depth in `r` and the distance from the eye in `g`. This reads the second, in world units.
-layout(set = SET_PASS, binding = ACCUMULATE_BIND_DEPTH, GBUFFER_DEPTH) uniform readonly image2D depth;
+/// The shading normal's code in `r` and the distance from the eye in `g`, in world units —
+/// `CHANNEL_SURFACE`. A ray that hit nothing left no normal, which no surface matches.
+layout(set = SET_PASS, binding = ACCUMULATE_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 
 /// Last frame's mean in `rgb`.
 ///
@@ -112,8 +110,9 @@ void main()
         return;
 
     const vec3 sampled = imageLoad(indirect, at).rgb;
-    const vec3 normal = imageLoad(guide, at).xyz;
-    const float scaled = imageLoad(depth, at).g * frame.mDistanceScale;
+    const vec2 seen = imageLoad(surfaceChannel, at).xy;
+    const vec3 normal = unpackSurfaceNormal(seen.x);
+    const float scaled = seen.y * frame.mDistanceScale;
 
     // A pixel with no surface under it has nothing to accumulate and nothing to hand on. The sky is
     // resolved into `direct` by the trace and never reaches here as light.

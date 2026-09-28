@@ -483,7 +483,6 @@ void main()
     RTX_STORE_COUNTED(direct, at, BOUNDARY_COLOUR, vec4(light, 1.0))
     RTX_STORE_COUNTED(indirect, at, BOUNDARY_COLOUR, vec4(bounce, 1.0))
     RTX_STORE_COUNTED(albedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mDiffuse, 1.0))
-    RTX_STORE_COUNTED(guide, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mNormal, answer.mResponse.mRoughness))
 
     // **The vector as the shader that answered worked it out**: where the surface or the sky stood
     // last frame. `Answer::mMotion` says whose and why there.
@@ -498,6 +497,6 @@ void main()
     imageStore(backdrop, at, vec4(answer.mBackdropShown * transmittance, armsStack.mThrough));
 
     // A miss is as far away as anything can be, and the hit object already carries `mFar` for it.
-    // The arms' depth is the eye's own: `clipDepth` measures along the forward the two share.
-    RTX_STORE_COUNTED(depth, at, BOUNDARY_GUIDE, vec4(hit ? clipDepth(direction, distance) : 0.0, distance, 0.0, 0.0))
+    RTX_STORE_COUNTED(surfaceChannel, at, BOUNDARY_GUIDE,
+        vec4(answer.mResponse.mNormal, distance, 0.0, 0.0))
 }
