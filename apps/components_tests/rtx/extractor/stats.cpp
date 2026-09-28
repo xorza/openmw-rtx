@@ -6,6 +6,8 @@
 #include <osg/StateAttribute>
 #include <osg/ref_ptr>
 
+#include <components/rtx/contentpass.hpp>
+#include <components/rtx/contentstats.hpp>
 #include <components/rtx/formatcensus.hpp>
 #include <components/rtx/runs.hpp>
 #include <components/rtx/texturedata.hpp>
@@ -34,6 +36,25 @@ namespace Rtx::Testing
             EXPECT_EQ(stats.mInstances, 1u) << "the geometry is still placed; only its shading is unknown";
             ASSERT_EQ(mScene.materials().getRows().size(), 1u);
             EXPECT_EQ(mScene.materials().getRows()[0].mDiffuse, Rtx::sNoIndex);
+        }
+
+        /// A walk computes from the content through the extractor's own preprocessor: a quad met
+        /// the first time is folded once, keyed on its four positions and six indices, 48 + 24 =
+        /// 72 bytes; met again it is the mesh already uploaded, and the second walk folds nothing.
+        /// The counts wait in the preprocessor for the frame's owner, and a walk takes none of them.
+        TEST_F(RtxSceneExtractorTest, aWalkPreprocessesThroughTheExtractorsOwnAndAMeshMetAgainCostsNothing)
+        {
+            osg::ref_ptr<osg::Geometry> quad = makeQuad();
+
+            const ExtractionStats first = walk(*quad, 0, 1);
+            EXPECT_EQ(first.mPreprocessed.mOnFrame.at(ContentPassId::Fold).mAsked, 0u) << "a walk took the count";
+
+            const ContentStats counted = mExtractor.getPreprocessor().takeStats();
+            EXPECT_EQ(counted.at(ContentPassId::Fold).mAsked, 1u);
+            EXPECT_EQ(counted.at(ContentPassId::Fold).mKeyBytes, 72u);
+
+            walk(*quad, 0, 2);
+            EXPECT_EQ(mExtractor.getPreprocessor().takeStats().at(ContentPassId::Fold).mAsked, 0u);
         }
 
         /// A texture arrives under the format it was decoded in, and its mip chain is counted beside
@@ -109,6 +130,8 @@ namespace Rtx::Testing
             stats.mGroundCells = from + 18;
             stats.mWornBeyondKept = from + 21;
             stats.mRestood = from + 22;
+            stats.mPreprocessed.mOnFrame.at(ContentPassId::Fold).mAsked = from + 23;
+            stats.mPreprocessed.mOffFrame.at(ContentPassId::TexelMean).mAsked = from + 24;
             return stats;
         }
 
@@ -139,6 +162,8 @@ namespace Rtx::Testing
             EXPECT_EQ(sum.mGroundCells, 136u);
             EXPECT_EQ(sum.mWornBeyondKept, 142u);
             EXPECT_EQ(sum.mRestood, 144u);
+            EXPECT_EQ(sum.mPreprocessed.mOnFrame.at(ContentPassId::Fold).mAsked, 146u);
+            EXPECT_EQ(sum.mPreprocessed.mOffFrame.at(ContentPassId::TexelMean).mAsked, 148u);
         }
     }
 }

@@ -56,11 +56,10 @@ namespace Rtx
         osg::Vec3f opaque() const;
     };
 
-    /// Averages `image`, every texel and not a sample, because a mean of a sheet that is mostly
-    /// empty cannot be sampled. Nothing where the image is in a format `describeImage` does not
-    /// read.
-    MeanTexel meanTexel(const osg::Image& image);
-    MeanTexel meanTexel(const osg::Image& image, AlphaScratch& scratch);
+    /// Averages a finest level `describeFinest` gave, every texel and not a sample, because a mean
+    /// of a sheet that is mostly empty cannot be sampled. The alpha and the colours are read into
+    /// `scratch`.
+    MeanTexel meanTexel(const TextureData& finest, AlphaScratch& scratch);
 
     /// Which format `image` arrived in, read as `encoding` — the one place a texture's `GLenum`
     /// decides its format, so the uploader and the report cannot disagree. A blend map is weights

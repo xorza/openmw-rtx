@@ -7,7 +7,8 @@
 #include <osg/Node>
 #include <osg/NodeVisitor>
 
-#include "alphaimage.hpp"
+#include "contentpreprocessor.hpp"
+#include "contentstats.hpp"
 #include "meantexels.hpp"
 #include "meshreader.hpp"
 #include "nodekind.hpp"
@@ -46,6 +47,9 @@ namespace Rtx
         ///        frame's walk carries, so the two reach the same drawables.
         Result<void, std::string> read(const osg::Node& root, osg::Node::NodeMask mask, PreparedModel& into);
 
+        /// What the reads computed from the content since the last take — `ContentPreprocessor`.
+        ContentStats takeStats() { return mContent.takeStats(); }
+
         void apply(osg::Node& node) override;
         void apply(osg::Transform& node) override;
         void apply(osg::Drawable& drawable) override;
@@ -63,9 +67,9 @@ namespace Rtx
 
         PreparedModel* mInto = nullptr;
 
-        MeshReader mMeshes;
-        AlphaScratch mAlpha;
-        MeanTexels mMeans;
+        ContentPreprocessor mContent;
+        MeshReader mMeshes{ mContent };
+        MeanTexels mMeans{ mContent };
 
         /// This thread's own classifier: `NodeKinds` is written on a miss.
         NodeKinds mKinds;

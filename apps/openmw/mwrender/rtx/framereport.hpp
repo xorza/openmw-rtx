@@ -5,6 +5,7 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/contentstats.hpp>
 #include <components/rtx/extractionstats.hpp>
 #include <components/rtx/framespend.hpp>
 #include <components/rtx/frameworld.hpp>
@@ -37,6 +38,11 @@ namespace MWRender
     {
         Rtx::ExtractionStats mFound;
         std::optional<Rtx::ExtractionStats> mAgain;
+
+        /// What every walk since the renderer started computed from the content, on the frame's
+        /// thread and on the ring's: what loading the places visited so far has cost, where a
+        /// frame's own row is only that frame's share.
+        Rtx::Preprocessed mSession;
     };
 
     /// What one traced frame came to, handed to whoever measures it: what it spent, what the device

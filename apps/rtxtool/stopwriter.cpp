@@ -40,6 +40,8 @@
 #include <components/misc/constants.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/rtx/cellgrid.hpp>
+#include <components/rtx/contentpass.hpp>
+#include <components/rtx/contentstats.hpp>
 #include <components/rtx/extractionstats.hpp>
 #include <components/rtx/formatcensus.hpp>
 #include <components/rtx/lightbuilder.hpp>
@@ -276,6 +278,23 @@ namespace RtxTool
             refused.count(Rtx::Refused::Mesh), refused.count(Rtx::Refused::Model), refused.count(Rtx::Refused::Texture),
             refused.count(Rtx::Refused::SkyLayer), refused.count(Rtx::Refused::Moon), refused.count(Rtx::Refused::Lamp),
             refused.count(Rtx::Refused::Emitter), refused.count(Rtx::Refused::Sprites)));
+
+        // Since the renderer started and not this frame's, because a place is loaded over the
+        // frames before its measured ones: what arriving here has cost, pass by pass and thread by
+        // thread, which is the figure a cache is judged against.
+        into.mRecord.note("\npreprocessed since the renderer started\n");
+        const Rtx::Preprocessed& preprocessed = into.mReport.mWalked.mSession;
+        for (const auto& [thread, passes] :
+            { std::pair{ "frame", &preprocessed.mOnFrame }, std::pair{ "ring", &preprocessed.mOffFrame } })
+            for (const auto& [pass, name] : Rtx::sContentPasses.mNames)
+            {
+                const Rtx::PassStats& counted = passes->at(pass);
+                into.mRecord.note(
+                    std::format("  {:<6}{:<12} {:>7} asked, {:>7} found, {:>9.1f} ms keying "
+                                "{:>8.1f} MiB, {:>9.1f} ms running\n",
+                        thread, name, counted.mAsked, counted.mHits, counted.mKeyMs,
+                        double(counted.mKeyBytes) / (1024.0 * 1024.0), counted.mRunMs));
+            }
 
         if (into.mReport.mWalked.mAgain.has_value())
         {

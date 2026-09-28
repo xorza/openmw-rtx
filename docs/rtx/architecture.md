@@ -143,6 +143,11 @@ scene is. Written once and read by every backend.
   because rays reach it: the ground from the land records, the statics as instances of their
   templates, the lamps. A reader thread prepares cells, and the frame adopts them a little at a
   time.
+- **`Rtx::ContentPreprocessor`** is the one way anything is computed from what the content files
+  hold — a shape's fold, a texture's alpha and mean. One lives on each thread that reads content:
+  the frame's walk and the ring's reader. Every pass is keyed on everything it reads and asked of
+  `ContentCache` first; the cache holds nothing yet, so every pass runs, and what each costs is
+  counted into the walk's stats and the `preprocess` row of a frame.
 - **`Rtx::SceneUploader`** hands a scene to the backend once a frame, in the cheapest of three
   ways: place what moved, extend with what arrived, or rebuild.
 - **The world a frame is told** (`frameworld.hpp` and the builders beside it) turns a
@@ -302,6 +307,7 @@ Rendering changes are checked without a window. `AGENTS.md` lists the commands.
 | the walk, the sweep, the hand-over        | `mwrender/rtx/worldmirror.hpp`, `components/rtx/sceneextractor.hpp`, `sceneuploader.hpp` |
 | what the scene is                         | `components/rtx/scenedesc.hpp`                                         |
 | the cells past the active grid            | `components/rtx/cellring.hpp`                                          |
+| what is computed from content, and cached | `components/rtx/contentpreprocessor.hpp`, `contentpass.hpp`            |
 | the sky, the air and the sea              | `components/rtx/frameworld.hpp`, `mwrender/rtx/skyreader.hpp`          |
 | the surface model                         | `components/rtx/shaders/brdf.h`                                        |
 | what a frame is on the device             | `components/rtx/shaders/visibility.h`, `scene.h`                       |

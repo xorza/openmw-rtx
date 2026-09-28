@@ -16,6 +16,7 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/rtx/contentpreprocessor.hpp>
 #include <components/rtx/meantexels.hpp>
 #include <components/rtx/texels.hpp>
 #include <components/rtx/texturedata.hpp>
@@ -116,8 +117,8 @@ namespace Rtx
         /// `(1 + 1) / 4`, which is what a sheet that adds whole is worth.
         TEST(RtxMeanTexelTest, aTexelIsWorthItsColourInLightTimesHowMuchOfItIsThere)
         {
-            const MeanTexel mean
-                = meanTexel(*makeSheetImage({ 255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 0, 255, 255, 255, 255 }));
+            const MeanTexel mean = ContentPreprocessor().meanTexel(
+                *makeSheetImage({ 255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 0, 255, 255, 255, 255 }));
 
             EXPECT_NEAR(mean.mColour.x(), 0.5f, 1e-5f);
             EXPECT_NEAR(mean.mColour.y(), 0.37549f, 1e-5f);
@@ -139,12 +140,12 @@ namespace Rtx
         /// white is worth 0.216 where it is worth a half.
         TEST(RtxMeanTexelTest, theCurveIsUndoneBeforeTheMeanRatherThanAfterIt)
         {
-            const MeanTexel chequer
-                = meanTexel(*makeSheetImage({ 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255 }));
+            const MeanTexel chequer = ContentPreprocessor().meanTexel(
+                *makeSheetImage({ 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255 }));
 
             EXPECT_NEAR(chequer.mColour.x(), 0.5f, 1e-5f);
 
-            const MeanTexel flat = meanTexel(
+            const MeanTexel flat = ContentPreprocessor().meanTexel(
                 *makeSheetImage({ 128, 128, 128, 255, 128, 128, 128, 255, 128, 128, 128, 255, 128, 128, 128, 255 }));
 
             EXPECT_NEAR(flat.mColour.x(), 0.21586f, 1e-5f);
@@ -161,8 +162,8 @@ namespace Rtx
             luminance->setFileName("odd.dds");
             luminance->allocateImage(2, 2, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE);
 
-            EXPECT_EQ(meanTexel(*luminance).mColour, osg::Vec3f());
-            EXPECT_EQ(meanTexel(*luminance).mAlpha, 0.0f);
+            EXPECT_EQ(ContentPreprocessor().meanTexel(*luminance).mColour, osg::Vec3f());
+            EXPECT_EQ(ContentPreprocessor().meanTexel(*luminance).mAlpha, 0.0f);
         }
 
         /// A sheet's paint is what its own alpha calls solid, and not what it adds to the sky behind it.
@@ -175,8 +176,8 @@ namespace Rtx
         /// Morrowind's own clear sheet is exactly this shape, a quarter covered by cirrus.
         TEST(RtxMeanTexelTest, aSheetsPaintIsWhatItsOwnAlphaCallsSolid)
         {
-            const MeanTexel wisps
-                = meanTexel(*makeSheetImage({ 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 }));
+            const MeanTexel wisps = ContentPreprocessor().meanTexel(
+                *makeSheetImage({ 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 }));
 
             EXPECT_NEAR(wisps.mColour.x(), 0.5f, 1e-5f);
             EXPECT_NEAR(wisps.mAlpha, 0.5f, 1e-5f);
@@ -184,7 +185,7 @@ namespace Rtx
 
             // And a sheet with nothing painted on it has no paint to average, rather than a division by
             // the nothing that covers it.
-            const MeanTexel empty = meanTexel(
+            const MeanTexel empty = ContentPreprocessor().meanTexel(
                 *makeSheetImage({ 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0 }));
 
             EXPECT_EQ(empty.mAlpha, 0.0f);
@@ -197,7 +198,8 @@ namespace Rtx
         /// every ask and kept nowhere.
         TEST(RtxMeanTexelsTest, aFileIsAveragedOnceAndFoundByItsName)
         {
-            MeanTexels means;
+            ContentPreprocessor content;
+            MeanTexels means(content);
 
             osg::ref_ptr<osg::Image> red
                 = makeSheetImage({ 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255 });

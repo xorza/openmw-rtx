@@ -5,3 +5,4 @@
 - physical brightness
 - add symbols to the release ci
 - blue rain
+- folder structure

@@ -6,7 +6,6 @@
 
 #include <components/vfs/pathutil.hpp>
 
-#include "alphaimage.hpp"
 #include "texels.hpp"
 
 namespace osg
@@ -16,15 +15,23 @@ namespace osg
 
 namespace Rtx
 {
+    class ContentPreprocessor;
+
     /// The mean texel of every map this has been asked about, kept for the life of the process
     /// and keyed by the file, because a file's mean never changes and a session meets tens of
     /// additive maps. Kept here and not beside the texture's slot, which the scene gives back when
     /// the last material naming the image goes — and a spell's map goes with every burst, so a
     /// cache that died with the slot read every texel again on the frame of the next cast. One
-    /// instance a thread, like `AlphaScratch`: the ring's reader has its own.
+    /// instance a thread, like its `ContentPreprocessor`: the ring's reader has its own.
     class MeanTexels
     {
     public:
+        /// @param content this thread's, which reads a file's mean the first time it is asked.
+        explicit MeanTexels(ContentPreprocessor& content)
+            : mContent(content)
+        {
+        }
+
         /// `image`'s mean, read at the first ask under its file name and found at every ask after.
         /// The reference stands for the life of this object, so a caller that asks every frame
         /// keeps it and asks once. An image that is not a file has no name to keep it under: it
@@ -40,6 +47,6 @@ namespace Rtx
         /// Where an unnamed image's mean is put, good until the next ask.
         MeanTexel mUnnamed;
 
-        AlphaScratch mScratch;
+        ContentPreprocessor& mContent;
     };
 }

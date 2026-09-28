@@ -12,6 +12,7 @@
 #include <osg/Node>
 
 #include "camera.hpp"
+#include "contentpreprocessor.hpp"
 #include "emitterresolver.hpp"
 #include "extractionstats.hpp"
 #include "lightbuilder.hpp"
@@ -172,6 +173,11 @@ namespace Rtx
         /// Where this walk's traversal numbers come from — the one handed in, or its own.
         Traversals& getTraversals() { return mTraversals; }
 
+        /// This thread's preprocessor: what the walks compute from the content, and what the host
+        /// reads off it between them — the sky's sheets. Its counts are the thread's and not a
+        /// walk's, so whoever owns the frame takes them once, after the frame's last walk.
+        ContentPreprocessor& getPreprocessor() { return mContent; }
+
         /// Lets go of everything the walks stood and the ring held, for a world that is detached:
         /// the ring's holds are given back — the two releases read nothing of a walk — and then a
         /// retire at a fresh epoch, which keeps nothing but what is held, because a walk that will
@@ -323,9 +329,12 @@ namespace Rtx
         std::vector<Glow> mGlows;
         std::optional<std::size_t> mGlow;
 
+        /// Everything the walks compute from what the content holds, on this extractor's thread.
+        ContentPreprocessor mContent;
+
         /// The mean texel of every additive map met, for the process: a sheet's and a flame's
         /// alike, so the two resolvers below share it.
-        MeanTexels mMeans;
+        MeanTexels mMeans{ mContent };
 
         /// Which sweep is current, and where the walk in progress puts its counts. Declared before
         /// the walk and every resolver below, which borrow it rather than keep a copy that could
@@ -339,10 +348,10 @@ namespace Rtx
         Kept<std::unordered_map<std::size_t, Known>> mPlacements{ mPass };
 
         /// The drawables the walk met, and what poses the ones that deform.
-        MeshResolver mMeshes{ mScene, mPass };
+        MeshResolver mMeshes{ mScene, mPass, mContent };
 
         /// What the content says each surface is, and the textures those name.
-        MaterialResolver mMaterials{ mScene, mPass, mMeans };
+        MaterialResolver mMaterials{ mScene, mPass, mMeans, mContent };
 
         /// The particle systems the walk met, and the sprite textures they hold.
         EmitterResolver mEmitters{ mScene, mPass, mMeans };

@@ -122,7 +122,8 @@ namespace RtxTool
             // of them: `Timing` says `Wait` is most of `Finish` and `Upload` most of `Place`, so
             // a share beside its whole is one stretch printed twice.
             constexpr std::array<Rtx::Timing, 7> sNotStretches{ Rtx::Timing::Frame, Rtx::Timing::Wait,
-                Rtx::Timing::Fold, Rtx::Timing::Bake, Rtx::Timing::Textures, Rtx::Timing::Upload, Rtx::Timing::Sleep };
+                Rtx::Timing::Preprocess, Rtx::Timing::Bake, Rtx::Timing::Textures, Rtx::Timing::Upload,
+                Rtx::Timing::Sleep };
             std::array<Rtx::Timing, Rtx::sTimingCount> spends = Rtx::sTimings.values();
             const auto end = std::remove_if(spends.begin(), spends.end(), [&](const Rtx::Timing timing) {
                 return std::find(sNotStretches.begin(), sNotStretches.end(), timing) != sNotStretches.end();

@@ -24,6 +24,7 @@
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/cloudshell.hpp>
+#include <components/rtx/contentpreprocessor.hpp>
 #include <components/rtx/moonbuilder.hpp>
 #include <components/rtx/nightsky.hpp>
 #include <components/rtx/refusals.hpp>
@@ -422,10 +423,12 @@ namespace Rtx
             images.hold(VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), rgb);
 
             SceneDesc scene;
+            ContentPreprocessor preprocessor;
             const SkyContent content = addSkyContent(scene, scenes,
                 SkyMeshes{ .mClouds = VFS::Path::Normalized("meshes/sky_clouds_01.nif"),
                     .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
-                    .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") });
+                    .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
+                preprocessor);
 
             EXPECT_EQ(content.cloudsOf(Shaders::WEATHER_CLEAR), Shaders::NO_TEXTURE) << "a grey sky";
             EXPECT_EQ(content.cloudsOf(Shaders::WEATHER_OVERCAST), Shaders::NO_TEXTURE);
@@ -494,8 +497,9 @@ namespace Rtx
             scenes.hold(dome, night);
 
             SceneDesc scene;
+            ContentPreprocessor preprocessor;
             const Result<NightSky, std::string> sky
-                = readNightSky(scene, scenes, dome, VFS::Path::NormalizedView("meshes/sky_night_01.nif"));
+                = readNightSky(scene, scenes, dome, VFS::Path::NormalizedView("meshes/sky_night_01.nif"), preprocessor);
             ASSERT_TRUE(sky.isOk()) << sky.error();
 
             EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 1u);
@@ -525,17 +529,19 @@ namespace Rtx
             Resource::BgsmFileManager materials(&vfs, 0);
             Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, 0);
             SceneDesc scene;
+            ContentPreprocessor preprocessor;
 
             const Result<NightSky, std::string> night
                 = readNightSky(scene, scenes, VFS::Path::NormalizedView("meshes/sky_night_02.nif"),
-                    VFS::Path::NormalizedView("meshes/sky_night_01.nif"));
+                    VFS::Path::NormalizedView("meshes/sky_night_01.nif"), preprocessor);
             ASSERT_FALSE(night.isOk()) << "a missing star dome was read as no stars";
             EXPECT_EQ(night.error(), "the archives hold neither it nor \"meshes/sky_night_01.nif\"");
 
             const SkyContent content = addSkyContent(scene, scenes,
                 SkyMeshes{ .mClouds = VFS::Path::Normalized("meshes/sky_clouds_01.nif"),
                     .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
-                    .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") });
+                    .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
+                preprocessor);
 
             EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 4u)
                 << "the cloud cap, the star dome, and the Clear and Overcast decks the seed names";

@@ -16,6 +16,8 @@ set(RTX_TEST_FILES
     rtx/cloudshell.cpp
     rtx/colour.cpp
     rtx/compositequeue.cpp
+    rtx/contentkey.cpp
+    rtx/contentpreprocessor.cpp
     rtx/dispatch.cpp
     rtx/exposure.cpp
     rtx/extractor/fixture.hpp

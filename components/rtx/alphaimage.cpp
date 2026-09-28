@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -190,29 +191,29 @@ namespace Rtx
         }
     }
 
-    bool reachesSolid(const osg::Image& image, AlphaScratch& scratch)
+    std::optional<TextureData> describeFinest(const osg::Image& image, AlphaScratch& scratch)
     {
-        std::vector<MipLevel>& levels = scratch.mLevels;
-        levels.clear();
+        scratch.mLevels.clear();
         scratch.mTexels.clear();
 
-        // An image this cannot describe is the same image whose arrival in the texture table
-        // refuses it by name. What comes back here is the answer that changes nothing about how
-        // the surface is traced.
-        const Result<TextureData, std::string> read = describeImage(image, levels, scratch.mTexels);
+        const Result<TextureData, std::string> read = describeImage(image, scratch.mLevels, scratch.mTexels);
         if (!read.isOk())
-            return true;
+            return std::nullopt;
 
-        const TextureData& described = read.value();
+        TextureData finest = read.value();
+        finest.mLevels = finest.mLevels.first(1);
+        return finest;
+    }
 
-        // The one level that can answer, and only as far as the first solid texel: every coarser
-        // level is an average of the one above it, and a mask's average stops reaching solid a
-        // level or two down; and nearly every map that reaches solid does so in its first block,
-        // so the walk that decodes the level whole is paid by the clouds alone, which never do.
-        const MipLevel& level = levels.front();
-        const std::size_t from = std::min<std::size_t>(level.mOffset, described.mBytes.size());
+    bool reachesSolid(const TextureData& finest)
+    {
+        // Only as far as the first solid texel: nearly every map that reaches solid does so in its
+        // first block, so the walk that decodes the level whole is paid by the clouds alone, which
+        // never do.
+        const MipLevel& level = finest.mLevels.front();
+        const std::size_t from = std::min<std::size_t>(level.mOffset, finest.mBytes.size());
 
-        return forEachAlpha(described.mFormat, described.mBytes.subspan(from), level.mWidth, level.mHeight,
+        return forEachAlpha(finest.mFormat, finest.mBytes.subspan(from), level.mWidth, level.mHeight,
             [](std::uint32_t, std::uint32_t, std::uint8_t alpha) { return alpha == 255; });
     }
 }

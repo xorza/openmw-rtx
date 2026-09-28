@@ -14,6 +14,7 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/contentpreprocessor.hpp>
 #include <components/rtx/pockettree.hpp>
 #include <components/rtx/shapefold.hpp>
 
@@ -21,6 +22,13 @@ namespace Rtx
 {
     namespace
     {
+        /// The fold as the renderer asks it, with `indices` replaced by what it kept.
+        FoldedShape foldInPlace(
+            ContentPreprocessor& content, std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices)
+        {
+            const std::vector<std::uint32_t> named = indices;
+            return content.fold(positions, named, indices);
+        }
         /// A unit quad, and the same four positions again as the vertices its back was modelled
         /// with — which is how the content spells a card: eight vertices, not four.
         const std::array<osg::Vec3f, 8> sCard{
@@ -38,21 +46,21 @@ namespace Rtx
 
         TEST(RtxShapeFoldTest, aCardDoubledForItsBackKeepsTheFrontAndIsASheet)
         {
-            ShapeFold fold;
+            ContentPreprocessor fold;
 
             // The back wound the other way, on the second set of vertices.
             std::vector<std::uint32_t> indices{ 0, 1, 2, 0, 2, 3, 6, 5, 4, 7, 6, 4 };
-            EXPECT_TRUE(fold.fold(sCard, indices).mSheet);
+            EXPECT_TRUE(foldInPlace(fold, sCard, indices).mSheet);
             EXPECT_EQ(indices, sFront) << "the copy the file wrote first is the one kept";
 
             // Folded again there is nothing left to pair, so a sheet is not a sheet twice.
-            EXPECT_FALSE(fold.fold(sCard, indices).mSheet);
+            EXPECT_FALSE(foldInPlace(fold, sCard, indices).mSheet);
             EXPECT_EQ(indices, sFront);
         }
 
         TEST(RtxShapeFoldTest, aTwinIsMatchedByItsCornersAndNotByWhereTheFileStartedIt)
         {
-            ShapeFold fold;
+            ContentPreprocessor fold;
 
             // (0, 1, 2) reversed is (0, 2, 1), which the file may as well spell (2, 1, 0) or
             // (1, 0, 2): every rotation of it is the same back.
@@ -60,19 +68,19 @@ namespace Rtx
                      std::array<std::uint32_t, 3>{ 6, 5, 4 }, std::array<std::uint32_t, 3>{ 5, 4, 6 } })
             {
                 std::vector<std::uint32_t> indices{ 0, 1, 2, back[0], back[1], back[2] };
-                EXPECT_TRUE(fold.fold(sCard, indices).mSheet);
+                EXPECT_TRUE(foldInPlace(fold, sCard, indices).mSheet);
                 EXPECT_EQ(indices, (std::vector<std::uint32_t>{ 0, 1, 2 }));
             }
 
             // And the same triangle again with the same winding is a second front, not a back.
             std::vector<std::uint32_t> twice{ 0, 1, 2, 4, 5, 6 };
-            EXPECT_FALSE(fold.fold(sCard, twice).mSheet);
+            EXPECT_FALSE(foldInPlace(fold, sCard, twice).mSheet);
             EXPECT_EQ(twice, (std::vector<std::uint32_t>{ 0, 1, 2, 4, 5, 6 }));
         }
 
         TEST(RtxShapeFoldTest, aSolidHasNoTwinsAndAMixedShapeLosesOnlyItsTwins)
         {
-            ShapeFold fold;
+            ContentPreprocessor fold;
 
             // A tetrahedron: four faces, no two over the same three corners.
             const std::array<osg::Vec3f, 4> tetra{
@@ -83,22 +91,22 @@ namespace Rtx
             };
             std::vector<std::uint32_t> solid{ 0, 2, 1, 0, 1, 3, 1, 2, 3, 2, 0, 3 };
             const std::vector<std::uint32_t> before = solid;
-            EXPECT_FALSE(fold.fold(tetra, solid).mSheet);
+            EXPECT_FALSE(foldInPlace(fold, tetra, solid).mSheet);
             EXPECT_EQ(solid, before);
 
             // A doubled card with one lone triangle beside it: the twin goes, the lone one stays,
             // and the shape is not a sheet — a leaf's stem is not lit through. It is folded all the
             // same, which is what keeps a ray that draws from culling the card the twin went from.
             std::vector<std::uint32_t> mixed{ 0, 1, 2, 2, 1, 0, 1, 2, 3 };
-            const FoldedShape part = fold.fold(sCard, mixed);
+            const FoldedShape part = foldInPlace(fold, sCard, mixed);
             EXPECT_FALSE(part.mSheet);
             EXPECT_TRUE(part.mFolded);
             EXPECT_EQ(mixed, (std::vector<std::uint32_t>{ 0, 1, 2, 1, 2, 3 }));
 
-            EXPECT_FALSE(fold.fold(tetra, solid).mFolded) << "a solid the fold took nothing from";
+            EXPECT_FALSE(foldInPlace(fold, tetra, solid).mFolded) << "a solid the fold took nothing from";
 
             std::vector<std::uint32_t> none;
-            EXPECT_FALSE(fold.fold(sCard, none).mSheet);
+            EXPECT_FALSE(foldInPlace(fold, sCard, none).mSheet);
             EXPECT_TRUE(none.empty());
         }
 
@@ -195,11 +203,11 @@ namespace Rtx
             const QuadShape wide = pocket(100.0f, 12.0f, false);
             cases.push_back({ "two walls further apart than a pocket", wide, wide.mIndices });
 
-            ShapeFold fold;
+            ContentPreprocessor fold;
             for (Case& test : cases)
             {
                 const bool dropping = test.mKept.size() != test.mShape.mIndices.size();
-                const FoldedShape shape = fold.fold(test.mShape.mPositions, test.mShape.mIndices);
+                const FoldedShape shape = foldInPlace(fold, test.mShape.mPositions, test.mShape.mIndices);
 
                 EXPECT_EQ(test.mShape.mIndices, test.mKept) << test.mName;
                 EXPECT_EQ(shape.mPocketed, dropping) << test.mName << ": the wall left answers for both faces";
@@ -262,7 +270,7 @@ namespace Rtx
         /// are two facts and a shape may carry both, so neither can be read off the other.
         TEST(RtxShapeFoldTest, aShapeIsClosedWhenEveryEdgeCarriesATriangleEachWay)
         {
-            ShapeFold fold;
+            ContentPreprocessor fold;
 
             const std::array<osg::Vec3f, 4> tetra{
                 osg::Vec3f(0.0f, 0.0f, 0.0f),
@@ -272,20 +280,20 @@ namespace Rtx
             };
 
             std::vector<std::uint32_t> solid{ 0, 2, 1, 0, 1, 3, 1, 2, 3, 2, 0, 3 };
-            EXPECT_TRUE(fold.fold(tetra, solid).mClosed);
+            EXPECT_TRUE(foldInPlace(fold, tetra, solid).mClosed);
 
             // The same solid with one face off, which is the shape of every rock in the game.
             std::vector<std::uint32_t> dome{ 0, 1, 3, 1, 2, 3, 2, 0, 3 };
-            EXPECT_FALSE(fold.fold(tetra, dome).mClosed);
+            EXPECT_FALSE(foldInPlace(fold, tetra, dome).mClosed);
 
             // A single quad: three of its four edges carry one triangle, and the shared diagonal
             // carries two — but both the same way.
             std::vector<std::uint32_t> quad = sFront;
-            EXPECT_FALSE(fold.fold(sCard, quad).mClosed);
+            EXPECT_FALSE(foldInPlace(fold, sCard, quad).mClosed);
 
             // And the doubled card the fold reduces to that quad.
             std::vector<std::uint32_t> card{ 0, 1, 2, 0, 2, 3, 6, 5, 4, 7, 6, 4 };
-            const FoldedShape folded = fold.fold(sCard, card);
+            const FoldedShape folded = foldInPlace(fold, sCard, card);
             EXPECT_TRUE(folded.mSheet);
             EXPECT_FALSE(folded.mClosed);
 
@@ -293,12 +301,12 @@ namespace Rtx
             // being read off the other. No shipped shape is, but two exteriors hold one each.
             std::vector<std::uint32_t> twinned{ 0, 2, 1, 0, 1, 3, 1, 2, 3, 2, 0, 3, 0, 1, 2, 0, 3, 1, 1, 3, 2, 2, 3,
                 0 };
-            const FoldedShape both = fold.fold(tetra, twinned);
+            const FoldedShape both = foldInPlace(fold, tetra, twinned);
             EXPECT_TRUE(both.mSheet);
             EXPECT_TRUE(both.mClosed);
 
             std::vector<std::uint32_t> none;
-            EXPECT_FALSE(fold.fold(sCard, none).mClosed);
+            EXPECT_FALSE(foldInPlace(fold, sCard, none).mClosed);
         }
 
         /// The rule, written again the slow obvious way, for the cross-check below.
@@ -442,7 +450,7 @@ namespace Rtx
         TEST(RtxShapeFoldTest, everyShapeFoldsTheWayTheRuleSaysItShould)
         {
             std::mt19937 random(20260830);
-            ShapeFold fold;
+            ContentPreprocessor fold;
 
             // A small pool of positions, so triangles collide often and the awkward cases happen
             // rather than being hoped for.
@@ -478,7 +486,7 @@ namespace Rtx
                     const bool expectedClosed = Reference::closes(positions, expected);
 
                     std::vector<std::uint32_t> folded = indices;
-                    const FoldedShape shape = fold.fold(positions, folded);
+                    const FoldedShape shape = foldInPlace(fold, positions, folded);
 
                     EXPECT_EQ(folded, expected) << "corners " << corners << ", attempt " << attempt;
                     EXPECT_EQ(shape.mSheet, expectedSheet) << "corners " << corners << ", attempt " << attempt;

@@ -16,6 +16,7 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "contentpreprocessor.hpp"
 #include "frameworld.hpp"
 #include "refusals.hpp"
 #include "result.hpp"
@@ -62,7 +63,8 @@ namespace Rtx
         return weather < mCloudCover.size() ? mCloudCover[weather] : 0.0f;
     }
 
-    SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes)
+    SkyContent addSkyContent(
+        SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes, ContentPreprocessor& content)
     {
         const VFS::Manager& vfs = *scenes.getVFS();
 
@@ -109,7 +111,7 @@ namespace Rtx
             // Read here and not on the frame that needs it. Averaging a 512-square sheet is a
             // quarter of a million texels, and there are six of them; the image is the one the
             // upload is about to take out of the same cache.
-            const MeanTexel painted = meanTexel(*image.value());
+            const MeanTexel painted = content.meanTexel(*image.value());
             loaded.mCloudMean[weather] = painted.opaque() * Shaders::LUMINANCE_WEIGHTS;
             loaded.mCloudCover[weather] = painted.mAlpha;
         }
@@ -124,7 +126,7 @@ namespace Rtx
         // The night sky is the mesh's, every number of it: which sheet the field wears, how much
         // sky a tile of it covers, where it fades out, and where the six patches sit.
         if (const Result<NightSky, std::string> night
-            = readNightSky(scene, scenes, meshes.mStars, meshes.mStarsFallback);
+            = readNightSky(scene, scenes, meshes.mStars, meshes.mStarsFallback, content);
             night.isOk())
             loaded.mNight = night.value();
         else

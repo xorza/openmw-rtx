@@ -268,7 +268,7 @@ namespace MWRender
         mRing.follow(around);
 
         // One walk over the whole graph, where every path is already distinct.
-        const Rtx::ExtractionStats found
+        Rtx::ExtractionStats found
             = mExtractor.extractWorld(frame.mScene, osg::Matrixf::identity(), Anchor::World, frameNumber, mRing);
 
         // What the walks did not find has gone. The graph is the whole world every frame, which is
@@ -276,6 +276,11 @@ namespace MWRender
         // After every walk of the frame and never before one, because the sweep bumps the epoch
         // the next walk is measured against.
         mExtractor.retire();
+
+        // **Taken once, after every walk of the frame**, and not by a walk: the precipitation and
+        // the sea are walks whose counts go nowhere, and the sky's sheets are read between walks,
+        // so a count a walk took with it was a count the frame lost.
+        found.mPreprocessed.mOnFrame += mExtractor.getPreprocessor().takeStats();
 
         return found;
     }

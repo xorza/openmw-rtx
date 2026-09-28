@@ -140,7 +140,7 @@ namespace Rtx
 
         PreparedPart part;
         part.mDrawable = &drawable;
-        part.mMaterial = MaterialResolver::read(mShading, mAlpha, mMeans);
+        part.mMaterial = MaterialResolver::read(mShading, mContent, mMeans);
         part.mLocal = osg::Matrixf(mHere);
         part.mShape = reading.mShape;
 
