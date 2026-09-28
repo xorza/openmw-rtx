@@ -242,8 +242,8 @@ On the host, in order:
 6. **GUI and present.** The host returns without waiting for the device.
 
 On the device, in record order: the sea and the ripples, the sprites, the fog, the trace, the
-denoiser where it runs, the composite, DLSS Ray Reconstruction, the display chain, the GUI, the
-present.
+denoiser where it runs, the composite where a denoiser or a sum needs one, DLSS Ray Reconstruction,
+the display chain, the GUI, the present.
 
 Four clocks drive a frame, each with one source: host time (the wall in play, the frame count
 times a stated step in a measured run), simulation time, game time (the hour), and the sky's

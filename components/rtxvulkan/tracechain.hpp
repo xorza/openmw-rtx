@@ -2,11 +2,10 @@
 
 #include <cstdint>
 #include <memory>
-#include <string>
-#include <string_view>
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/frameimage.hpp>
 #include <components/rtx/reconstruction.hpp>
 #include <components/rtx/shaders/camera.h>
 
@@ -50,20 +49,16 @@ namespace Rtx
 
     /// Everything one camera's trace writes, at one extent — one chain however many cameras have
     /// one, so a barrier cannot go missing from a second copy. What differs between two of these
-    /// is what the caller hands in: the extent, what may be done with the composite's image
-    /// afterwards, and whether the chain is sized exactly or grown to fit. What becomes of a
-    /// finished picture — the frame's presented pair, a picture's byte target — is not here.
+    /// is what the caller hands in: the extent, and whether the chain is sized exactly or grown to
+    /// fit. What becomes of a finished picture — the frame's presented pair, a picture's byte
+    /// target — is not here.
     class TraceChain
     {
     public:
         /// Nothing has an extent until `resize` or `grow` is called.
         ///
         /// @param passes what the chain traces with, which outlives it.
-        /// @param colourUsage what the composite's output has done to it besides being written: an
-        ///        upscaler samples a frame's and a measurement copies it out.
-        /// @param colourName what a capture and a validation message call that image.
-        TraceChain(const Device& device, const TracePasses& passes, VkImageUsageFlags colourUsage,
-            std::string_view colourName);
+        TraceChain(const Device& device, const TracePasses& passes);
 
         /// Builds the chain at exactly this extent, whatever it was before. The caller has waited
         /// for anything still reading what this replaces.
@@ -83,7 +78,7 @@ namespace Rtx
         std::uint32_t getHeight() const { return mHeight; }
 
         /// Whether the images exist, which is the same question as whether the extent is set.
-        bool isBuilt() const { return !mColour.isEmpty(); }
+        bool isBuilt() const { return mChannels != nullptr; }
 
         /// Whether a picture this big fits what is built, which is what `grow` would leave alone.
         bool holds(std::uint32_t width, std::uint32_t height) const
@@ -91,9 +86,9 @@ namespace Rtx
             return isBuilt() && width <= mWidth && height <= mHeight;
         }
 
-        /// The composite's output: one picture in linear radiance, before anything upscales it and
-        /// before the display curve.
-        const Image& getColour() const { return mColour; }
+        /// The frame: one picture in linear radiance, before anything upscales it and before the
+        /// display curve. The direct channel, which the trace or the composite composes it into.
+        const Image& getColour() const { return mChannels->get(Channel::Direct); }
 
         /// What the trace writes and the composite reads: one picture's light, still in pieces.
         const GBuffer& getChannels() const { return *mChannels; }
@@ -130,13 +125,9 @@ namespace Rtx
         const Device& mDevice;
         TracePasses mPasses;
 
-        VkImageUsageFlags mColourUsage;
-        std::string mColourName;
-
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
 
-        Image mColour;
         std::unique_ptr<GBuffer> mChannels;
         std::unique_ptr<FogVolume> mFogVolume;
 

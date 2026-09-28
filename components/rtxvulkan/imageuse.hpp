@@ -53,6 +53,12 @@ namespace Rtx
             VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
             VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT };
 
+        /// Loaded or sampled by whatever comes next, in `GENERAL`: what `GBuffer::handOver` leaves
+        /// every channel as, because the upscaler samples what a pass loads and runs at stages of
+        /// its own.
+        inline constexpr ImageUse sAnyShaderRead{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT };
+
         /// Sampled by the trace and by a dispatch alike, in `GENERAL`: what the wave tiles and the
         /// fog volume's slices are left as.
         inline constexpr ImageUse sShaderSample{ VK_IMAGE_LAYOUT_GENERAL,

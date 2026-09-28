@@ -25,6 +25,7 @@
 #include "visibility.h"
 
 #include "lib/bindings.glsl"
+#include "lib/compose.glsl"
 #include "lib/counts.glsl"
 #include "lib/fog.glsl"
 #include "lib/frame.glsl"
@@ -462,8 +463,6 @@ void main()
 
     const ivec2 at = ivec2(pixel);
 
-    RTX_STORE_COUNTED(direct, at, BOUNDARY_COLOUR, vec4(shaded, 1.0))
-
     // **The bounce carries what the path took off it, and the albedo carries only the surface.**
     // The composite still multiplies the two, so the picture is the same product it always was; what
     // moved is which of the two the water and the air are folded into. They belong to the light,
@@ -472,7 +471,18 @@ void main()
     //
     // Filtering the bounce with the transmittance already in it averages a quantity that varies as
     // slowly as fog does, which is to say it changes nothing.
-    RTX_STORE_COUNTED(indirect, at, BOUNDARY_COLOUR, vec4(answer.mBounced * transmittance, 1.0))
+    const vec3 bounce = answer.mBounced * transmittance;
+
+    // **Composed here where nothing filters the bounce** — `mComposed` says why. A select and not a
+    // factor of nought, so a bounce that is not finite stays out of a direct channel a filter
+    // reads apart from it.
+    //
+    // **The indirect channel is written either way**: a test reads the bounce alone, and a
+    // frame's digest hashes every channel, which one left undefined would make differ between
+    // two runs of the same frame.
+    const vec3 light = frame.mComposed != 0u ? composedLight(shaded, answer.mResponse.mDiffuse, bounce) : shaded;
+    RTX_STORE_COUNTED(direct, at, BOUNDARY_COLOUR, vec4(light, 1.0))
+    RTX_STORE_COUNTED(indirect, at, BOUNDARY_COLOUR, vec4(bounce, 1.0))
     RTX_STORE_COUNTED(albedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mDiffuse, 1.0))
     RTX_STORE_COUNTED(specular, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mSpecular, 1.0))
     RTX_STORE_COUNTED(guide, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mNormal, answer.mResponse.mRoughness))

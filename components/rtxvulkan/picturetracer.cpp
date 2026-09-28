@@ -27,7 +27,7 @@ namespace Rtx
         , mMedia(media)
         , mDisplay(display)
         , mTextures(textures)
-        , mChain(device, passes, VK_IMAGE_USAGE_STORAGE_BIT, "view colour")
+        , mChain(device, passes)
         , mCounts(Buffer::deviceLocal(
               device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture counts"))
     {

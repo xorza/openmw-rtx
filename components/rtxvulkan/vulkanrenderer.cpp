@@ -82,12 +82,7 @@ namespace Rtx
         , mSpriteShade(mDevice, options.mShaderDirectory)
         , mAccumulate(mDevice, options.mShaderDirectory)
         , mFilter(mDevice, options.mShaderDirectory)
-        // `SAMPLED` because an upscaler samples what it is handed, and one bit short of that is a
-        // black frame nothing reports. See `GBuffer`, which carries it for the same reason.
-        // `TRANSFER_SRC` because `readComposite` copies this out: it is the frame a measurement is
-        // taken on, where `readPixels` gives the one a display would show.
-        , mFrame(mDevice, describeTracePasses(),
-              VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "colour")
+        , mFrame(mDevice, describeTracePasses())
         , mDisplay(mDevice, mPass, mTextureLayout.get(), options.mShaderDirectory, PresentTargets::sFormat)
         , mDigest(mDevice, options.mShaderDirectory)
         , mMedia(mDevice, options.mShaderDirectory)
@@ -719,7 +714,6 @@ namespace Rtx
             std::array<const Image*, Shaders::DIGEST_IMAGES> digested{};
             for (const Channel channel : sEveryChannel)
                 digested[bindingOf(channel)] = &channels.get(channel);
-            digested[Shaders::DIGEST_COMPOSITE] = &traced.mColour;
 
             mDigest.record(commands, digested, frame.mDigestLanes, &timer);
             frame.mDigest = FrameDigest{

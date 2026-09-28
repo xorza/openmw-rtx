@@ -32,8 +32,8 @@ namespace Rtx
         /// medium and the layer decision are already in it. What the composite covers is its extent.
         Shaders::VisibilityConstants mSampled;
 
-        /// What the display curve will write into, discarded beside the chain's colour because both
-        /// are rewritten whole.
+        /// What the display curve will write into, discarded as the chain's record opens because it
+        /// is rewritten whole.
         const Image* mTarget = nullptr;
 
         /// How many frames the chain's running total holds, this one included, or nought where
@@ -54,7 +54,7 @@ namespace Rtx
     };
 
     /// What one trace hands the display: its inputs as the chain completed them — its own channels
-    /// and air named — the composite's output, and the sprite tile list the trace read and what its
+    /// and air named — the frame they compose, and the sprite tile list the trace read and what its
     /// tiles can meet, which the curve tests for where the puffs' composite drew nothing.
     struct TraceResult
     {

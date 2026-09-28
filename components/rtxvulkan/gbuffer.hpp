@@ -24,9 +24,12 @@ namespace Rtx
     /// to still be separate from the surface it landed on when the blur reaches it. By the time a
     /// pixel is a colour, the albedo is multiplied in, the fog is laid over it and the curve is
     /// applied, and nothing is left to filter that would not also smear the wall's texture. So the
-    /// trace writes what it knows and the composite puts it back together:
+    /// trace writes what it knows and the composite puts it back together, over the direct channel:
     ///
     ///     colour = direct + albedo * filter(indirect * transmittance)
+    ///
+    /// Where no filter stands between the two, the trace composes it there itself
+    /// (`VisibilityConstants::mComposed`). Either way the direct channel is the frame afterwards.
     ///
     /// Ray Reconstruction asks for exactly this — demodulated radiance, the albedo to put back,
     /// normals and depth — so the split earns its place whichever filter runs over it.
@@ -60,12 +63,13 @@ namespace Rtx
         std::uint32_t getHeight() const { return get(Channel::Direct).getHeight(); }
 
         /// Discards the contents and makes every channel writable, which is how a frame starts.
-        /// Waits for the previous frame's composite to have read them, so that one set of channels
+        /// Waits for the previous frame's readers to be done with them, so that one set of channels
         /// can serve a window that keeps several frames in flight.
         void begin(VkCommandBuffer commands) const;
 
-        /// Orders the pass that wrote them against the pass about to read them, or in the
-        /// accumulator's case to write one of them back.
+        /// Orders the pass that wrote them against the passes about to read them, as
+        /// `Use::sAnyShaderRead`. The composite, which writes the frame over the direct channel,
+        /// orders its own write after this.
         void handOver(VkCommandBuffer commands) const;
 
     private:

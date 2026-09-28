@@ -15,7 +15,8 @@ namespace Rtx
 {
     namespace
     {
-        /// Three channels in, the running sum, and the frame out — all storage images, all pushed.
+        /// Three channels in, the direct one written back as the frame, and the running sum — all
+        /// storage images, all pushed.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::COMPOSITE_BINDINGS> sBindings
             = computeBindings<Shaders::COMPOSITE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
@@ -28,11 +29,10 @@ namespace Rtx
     }
 
     void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Image& indirect, const Image* sum,
-        const Image& colour, const Shaders::CompositeConstants& constants) const
+        const Shaders::CompositeConstants& constants) const
     {
         assert(buffer.getWidth() >= constants.mWidth && buffer.getHeight() >= constants.mHeight);
         assert(indirect.getWidth() >= constants.mWidth && indirect.getHeight() >= constants.mHeight);
-        assert(colour.getWidth() >= constants.mWidth && colour.getHeight() >= constants.mHeight);
 
         // A sum has to cover the frame it is a sum of; a stand-in never read does not.
         assert(constants.mAccumulate == 0 || sum != nullptr);
@@ -48,7 +48,6 @@ namespace Rtx
         writes.image(Shaders::COMPOSITE_BIND_INDIRECT, indirect.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_ALBEDO, buffer.get(Channel::Albedo).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_SUM, bound.describeStorage());
-        writes.image(Shaders::COMPOSITE_BIND_COLOUR, colour.describeStorage());
 
         dispatch(commands, mPipeline, writes.get(), constants,
             groupsFor(constants.mWidth, Shaders::COMPOSITE_WORKGROUP),

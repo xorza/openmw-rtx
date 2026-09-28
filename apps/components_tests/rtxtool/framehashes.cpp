@@ -240,7 +240,8 @@ namespace RtxTool
 
             EXPECT_EQ(difference.mTraceDiffering, std::vector<std::uint32_t>{ 1u });
             EXPECT_EQ(difference.mTracedDiffering[sReconstructionColumn], 1u);
-            EXPECT_EQ(difference.mTracedDiffering[Rtx::Shaders::DIGEST_COMPOSITE], 0u) << "the images were the same";
+            EXPECT_EQ(difference.mTracedDiffering[Rtx::bindingOf(Rtx::Channel::Direct)], 0u)
+                << "the images were the same";
             EXPECT_NE(describeDifference(difference).find("reconstruction 1"), std::string::npos)
                 << describeDifference(difference);
 
@@ -268,9 +269,9 @@ namespace RtxTool
 
             // Every column comes back: a run against the file that moved one is told so.
             Rtx::FrameDigest moved = digestOf(100);
-            moved.mImages[Rtx::Shaders::DIGEST_COMPOSITE] = hashOf(4242);
+            moved.mImages[Rtx::bindingOf(Rtx::Channel::Direct)] = hashOf(4242);
             EXPECT_EQ(onlyView(runOf(partsOf(100), sPixels, moved, Rtx::Upscale::Quality).against(read))
-                          .mTracedDiffering[Rtx::Shaders::DIGEST_COMPOSITE],
+                          .mTracedDiffering[Rtx::bindingOf(Rtx::Channel::Direct)],
                 1u);
             EXPECT_EQ(onlyView(plainRun().against(read)).mUpscaledDiffering, 1u);
 
@@ -281,7 +282,7 @@ namespace RtxTool
             }
             EXPECT_EQ(header.substr(0, 37), "hashes 4: view,frame,upscale,picture,");
             EXPECT_NE(header.find(",g-direct,"), std::string::npos) << header;
-            EXPECT_NE(header.find(",composite,reconstruction,positions,"), std::string::npos) << header;
+            EXPECT_NE(header.find(",g-puffs,reconstruction,positions,"), std::string::npos) << header;
             EXPECT_NE(header.find(",textures,"), std::string::npos) << header;
 
             std::filesystem::remove(file);

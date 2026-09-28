@@ -13,6 +13,7 @@
 #include <osg/Vec3f>
 
 #include <components/rtx/camera.hpp>
+#include <components/rtx/frameimage.hpp>
 #include <components/rtx/mesh.hpp>
 #include <components/rtx/renderer.hpp>
 #include <components/rtx/scenedesc.hpp>
@@ -84,6 +85,18 @@ namespace Rtx::Testing
                 EXPECT_LT(filteredSpread, rawSpread * 0.2f)
                     << "channel " << channel << " has most of its noise taken away";
             }
+
+            // **The raw frame is the trace's own composition, and a sum of one frame is that
+            // frame.** Nothing filters it, so the trace put the bounce into the direct channel
+            // itself, and the composite that takes the sum must not add it a second time: frame
+            // nought summed once reads back as frame nought, value for value.
+            std::vector<float> bounce;
+            mRenderer.readChannel(Channel::Indirect, bounce);
+            ASSERT_GT(*std::ranges::max_element(bounce), 0.0f)
+                << "a bounce of nothing adds nothing twice, and this would prove nothing";
+
+            const Frame summed = shoot(scene, {}, camera, size, { .mFrames = 1 });
+            EXPECT_EQ(summed.mRadiance, raw.mRadiance) << "the sum of one unfiltered frame is that frame";
         }
 
         /// The same floor at a grazing angle, against the answer it is trying to reach.

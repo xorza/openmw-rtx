@@ -20,8 +20,7 @@ namespace Rtx::Shaders
     const uint COMPOSITE_BIND_INDIRECT = 1;
     const uint COMPOSITE_BIND_ALBEDO = 2;
     const uint COMPOSITE_BIND_SUM = 3;
-    const uint COMPOSITE_BIND_COLOUR = 4;
-    const uint COMPOSITE_BINDINGS = 5;
+    const uint COMPOSITE_BINDINGS = 4;
 
 /// What the running sum a reference is built in is kept as: full floats, for the reason
 /// `GBUFFER_RADIANCE_SUMMED` is.
@@ -49,6 +48,11 @@ namespace Rtx::Shaders
         /// the filter is then judged against. It is summed in linear, before the curve, for the
         /// reason the shader gives.
         uint mAccumulate;
+
+        /// Non-zero where the trace already composed the frame into the direct channel —
+        /// `VisibilityConstants::mComposed`, the same frame's answer — so all that is left here is
+        /// the sum. A composite runs on such a frame only to take one.
+        uint mComposed;
     };
 
 #ifdef RTX_HOST

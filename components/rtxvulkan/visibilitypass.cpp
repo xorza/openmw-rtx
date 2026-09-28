@@ -485,8 +485,8 @@ namespace Rtx
     }
 
     void VisibilityPass::writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs, const SpriteBin& bin,
-        const VkDeviceAddress spriteTileList, const Shaders::VisibilityConstants& constants,
-        const bool historyLost) const
+        const VkDeviceAddress spriteTileList, const Shaders::VisibilityConstants& constants, const bool historyLost,
+        const bool composed) const
     {
         assert(inputs.mWaves != nullptr && "a trace with no sea synthesised for it");
         assert(inputs.mFogVolume != nullptr && "a trace with no air integrated for it");
@@ -502,6 +502,8 @@ namespace Rtx
             described.mPreviousRight = Shaders::vec3();
             described.mPreviousUp = Shaders::vec3();
         }
+
+        described.mComposed = composed ? 1u : 0u;
 
         // The tiles' widths come off the pass that built them, so what the shader divides by is
         // what is actually bound rather than a second statement of the same table.

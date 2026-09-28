@@ -11,16 +11,16 @@ namespace Rtx
     /// them.
     using DigestWords = std::array<std::uint64_t, 2>;
 
-    /// What a frame computed before anything past it had a say: every channel the trace wrote and
-    /// the composite that folded them, digested on the device, and the numbers the frame handed the
-    /// reconstruction beside those images. What a comparison of two runs compares. The picture is
+    /// What a frame computed before anything past it had a say: every channel the trace wrote, the
+    /// direct one holding the frame they compose, digested on the device, and the numbers the frame
+    /// handed the reconstruction beside those images. What a comparison of two runs compares. The picture is
     /// still hashed beside this, but where a network reconstructed it the picture is the network's:
     /// it keeps a history, and the smallest difference in what it was handed on one frame stays in
     /// its picture for the rest of the run — so the picture there is something to look at and never
     /// a verdict, and this is the verdict.
     struct FrameDigest
     {
-        /// The channels at their binding, and the composite at `Shaders::DIGEST_COMPOSITE`.
+        /// The channels at their binding, the direct one holding the composed frame.
         std::array<DigestWords, Shaders::DIGEST_IMAGES> mImages{};
 
         /// Where inside the pixel this frame sampled, as the trace applied it — what the

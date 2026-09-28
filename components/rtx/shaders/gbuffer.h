@@ -73,7 +73,8 @@ namespace Rtx::Shaders
 {
 #endif
 
-    /// What the trace resolved on its own: direct light, emission, the sky, water and the fog.
+    /// What the trace resolved on its own: direct light, emission, the sky, water and the fog. The
+    /// frame, once composed into it (`VisibilityConstants::mComposed`).
     const uint CHANNEL_DIRECT = 0;
 
     /// The one bounce, demodulated — the only channel a filter may touch.
