@@ -16,6 +16,7 @@
 #include "commands.hpp"
 #include "frameslots.hpp"
 #include "graphicspipeline.hpp"
+#include "growablebuffer.hpp"
 #include "image.hpp"
 #include "imageuse.hpp"
 
@@ -145,7 +146,7 @@ namespace Rtx
         {
             static constexpr std::uint64_t sNever = 0;
 
-            Buffer mBuffer;
+            GrowableBuffer mBuffer;
             std::uint64_t mRides = sNever;
         };
         std::vector<Copy> mCopies;

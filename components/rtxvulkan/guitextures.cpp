@@ -53,7 +53,8 @@ namespace Rtx
 
         mImages.push_back(std::move(image));
         mForms.push_back(AlphaForm::Straight);
-        mCopies.emplace_back();
+        mCopies.push_back(Copy{ .mBuffer
+            = GrowableBuffer(mDevice, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "gui read back") });
         return GuiSlot::at(static_cast<std::uint32_t>(mImages.size() - 1));
     }
 
@@ -189,9 +190,9 @@ namespace Rtx
         // Buried and not destroyed where it has to grow: a batch recorded against it may not have
         // run.
         Copy& copy = mCopies[slot.get()];
-        growTo(copy.mBuffer, mDevice, BufferKind::ReadBack, bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "gui read back");
+        copy.mBuffer.growTo(bytes);
 
-        image.recordRead(commands, Use::sFragmentSample, Use::sFragmentSample, copy.mBuffer);
+        image.recordRead(commands, Use::sFragmentSample, Use::sFragmentSample, copy.mBuffer.get());
 
         copy.mRides = mDevice.getTimeline().getNext();
     }
@@ -204,8 +205,8 @@ namespace Rtx
         if (copy.mRides == Copy::sNever || !mDevice.getTimeline().hasFinished(copy.mRides))
             return false;
 
-        const std::size_t bytes = std::min<std::size_t>(into.size(), copy.mBuffer.getSize());
-        std::memcpy(into.data(), copy.mBuffer.map(), bytes);
+        const std::size_t bytes = std::min<std::size_t>(into.size(), copy.mBuffer.get().getSize());
+        std::memcpy(into.data(), copy.mBuffer.get().map(), bytes);
         return true;
     }
 

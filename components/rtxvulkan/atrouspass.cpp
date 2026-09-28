@@ -27,6 +27,7 @@ namespace Rtx
             computeBinding(Shaders::ATROUS_BIND_FILTERED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_GUIDE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_DEPTH, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
+            computeBinding(Shaders::ATROUS_BIND_PUFFS, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
         };
 
         /// Both reads, because a level's inputs are sampled and its target is storage. An image
@@ -57,7 +58,7 @@ namespace Rtx
     }
 
     const Image& AtrousPass::record(VkCommandBuffer commands, const GBuffer& buffer, const Image& blended,
-        const Image& history, const Image& scratch, const Shaders::Camera& camera) const
+        const Image& history, const Image& scratch, const Shaders::Camera& camera, const Shaders::Camera& arms) const
     {
         assert(!scratch.isEmpty() && "a filter with no scratch to ping-pong through");
         assert(scratch.getWidth() >= camera.mWidth && scratch.getHeight() >= camera.mHeight);
@@ -72,6 +73,7 @@ namespace Rtx
         // trace's own `rayAt`.
         Shaders::AtrousConstants level{
             .mCamera = camera,
+            .mArms = arms,
             .mStep = 1,
         };
 
@@ -108,6 +110,8 @@ namespace Rtx
             writes.image(Shaders::ATROUS_BIND_GUIDE, buffer.get(Channel::Guide).describeSampled(VK_NULL_HANDLE),
                 VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
             writes.image(Shaders::ATROUS_BIND_DEPTH, buffer.get(Channel::Depth).describeSampled(VK_NULL_HANDLE),
+                VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+            writes.image(Shaders::ATROUS_BIND_PUFFS, buffer.get(Channel::Puffs).describeSampled(VK_NULL_HANDLE),
                 VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
 
             level.mStep = 1u << pass;

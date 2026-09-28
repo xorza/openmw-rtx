@@ -18,7 +18,7 @@ namespace Rtx
         Clamp = 3,
     };
 
-    inline constexpr std::size_t sTextureWrapCount = 4;
+    inline constexpr std::size_t sTextureWrapCount = static_cast<std::size_t>(TextureWrap::Clamp) + 1;
 
     inline constexpr TextureWrap textureWrapOf(const bool clampS, const bool clampT)
     {

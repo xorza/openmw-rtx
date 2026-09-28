@@ -173,10 +173,20 @@ namespace MWRender
 
             Misc::FrameClock stated(1.0f / 60.0f);
             renderer.setFrameClock(stated);
-            stated.advance(0.0);
+            EXPECT_EQ(renderer.openFrame(), static_cast<double>(1.0f / 60.0f))
+                << "the loop's frame takes the stated step";
             const double now = stated.getNow();
+            EXPECT_EQ(now, static_cast<double>(1.0f / 60.0f));
             EXPECT_EQ(renderer.openNestedFrame(), 0.0f);
             EXPECT_EQ(stated.getNow(), now) << "a nested frame moved a clock whose steps are the loop's";
+
+            // **And whatever reads the clock inside the nested frame reads the same nought**: the
+            // interface stepped by the clock's step, which was still the loop frame's, once for
+            // every loading frame the wall happened to draw.
+            EXPECT_EQ(stated.getStep(), 0.0) << "the nested frame left the loop frame's step open";
+
+            EXPECT_EQ(renderer.openFrame(), static_cast<double>(1.0f / 60.0f));
+            EXPECT_EQ(stated.getNow(), 2.0 * static_cast<double>(1.0f / 60.0f));
         }
 
         /// **A window is sized so that its pixels are the resolution asked for, at any scale.** Asked

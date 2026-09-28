@@ -7,7 +7,6 @@
 #include "barriers.hpp"
 #include "bufferusage.hpp"
 #include "device.hpp"
-#include "graveyard.hpp"
 #include "physicaldevice.hpp"
 #include "result.hpp"
 #include "timeline.hpp"
@@ -189,27 +188,6 @@ namespace Rtx
 
         nameForNext();
         return VkDescriptorBufferInfo{ mHandle.get(), 0, VK_WHOLE_SIZE };
-    }
-
-    bool growTo(Buffer& held, const Device& device, const BufferKind kind, const VkDeviceSize bytes,
-        const VkBufferUsageFlags usage, const std::string_view name)
-    {
-        assert((held.isEmpty() || held.getKind() == kind) && "a table grown into another kind of memory");
-
-        if (!held.isEmpty() && held.getSize() >= bytes)
-            return false;
-
-        device.getGraveyard().replace(held, Buffer::make(device, kind, bytes, usage, name));
-        return true;
-    }
-
-    bool outgrow(Buffer& held, const Device& device, const BufferKind kind, const VkDeviceSize bytes,
-        const VkBufferUsageFlags usage, const std::string_view name)
-    {
-        if (!held.isEmpty() && held.getSize() >= bytes)
-            return false;
-
-        return growTo(held, device, kind, std::max(bytes, held.getSize() * 2), usage, name);
     }
 
     VkBufferMemoryBarrier2 Buffer::describeBarrier(const BufferUse& from, const BufferUse& to) const

@@ -16,7 +16,7 @@
 #include "blockedbuffer.hpp"
 #include "buffer.hpp"
 #include "frameslots.hpp"
-#include "placing.hpp"
+#include "growablebuffer.hpp"
 #include "slottable.hpp"
 #include "spritebin.hpp"
 
@@ -58,7 +58,7 @@ namespace Rtx
         /// @param changed the slots `updateInstanceRecords` wrote, which is the one list the rows
         ///        are driven by.
         void place(const SceneDesc& scene, std::span<const InstanceRecord> records, std::span<const Index> changed,
-            const Placing& placing);
+            FrameSlot slot);
 
         /// Waits until nothing on the queue reads `slot`'s copy of any table `place` writes, ahead
         /// of the placement that writes it. Each copy carries its own stamp, so this waits for the
@@ -96,17 +96,19 @@ namespace Rtx
         /// its own account: `mInstanceTable`, `mMaterialTable`, `mNormalTable` and `mTangentTable`.
         struct Tables
         {
-            Buffer mLights;
-            Buffer mLightList;
+            explicit Tables(const Device& device);
+
+            GrowableBuffer mLights;
+            GrowableBuffer mLightList;
 
             /// The sprites as the scene placed them, unshaded: what a trace's `SpriteBin` copies
             /// and shades for its own sun. Never read by a shader directly.
-            Buffer mSprites;
-            Buffer mEmitters;
+            GrowableBuffer mSprites;
+            GrowableBuffer mEmitters;
 
             /// Where each medium and additive instance can be met, `PlacementTable::describePresences`,
             /// which the bin puts into the screen's tiles beside the sprites.
-            Buffer mPresences;
+            GrowableBuffer mPresences;
 
             /// How many of each the copy holds, for the bin that copies them.
             std::uint32_t mSpriteCount = 0;
@@ -146,8 +148,8 @@ namespace Rtx
         /// A material's layers and the weights a layer places, one copy each for the same reason.
         /// Plain buffers grown by doubling, because a shader reaches a run by its offset from one
         /// address; the masks are megabytes, which is what a copy per frame in flight cost.
-        Buffer mLayers;
-        Buffer mMasks;
+        GrowableBuffer mLayers;
+        GrowableBuffer mMasks;
 
         /// One row a mesh slot, so a hit can turn its slot into offsets into the tables above. A copy
         /// per frame in flight with its rows owed, because a slot handed out again holds another

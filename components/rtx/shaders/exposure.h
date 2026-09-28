@@ -27,17 +27,18 @@ namespace Rtx::Shaders
     const uint EXPOSURE_BIND_EXPOSURE = 1;
     const uint EXPOSURE_BINDINGS = 2;
 
-    /// Bins in the log-luminance histogram.
+    /// Threads along each edge of the binning pass's workgroup.
+    const uint HISTOGRAM_WORKGROUP = 16;
+
+    /// Bins in the log-luminance histogram: the binning pass's workgroup squared, so each thread
+    /// owns exactly one bin of the workgroup's own tally, which `histogram.comp` indexes by the
+    /// thread.
     ///
     /// **A histogram and not a running mean, because of what an interior looks like**: a handful of
     /// tiny flames at a luminance of one, in a room sitting at a hundredth of that. A mean is
     /// dragged around by whichever population has more pixels; a histogram keeps them apart and
     /// lets the reduction decide what to expose for.
-    const uint EXPOSURE_BINS = 256;
-
-    /// Threads along each edge of the binning pass's workgroup. Squared, it is `EXPOSURE_BINS`, so
-    /// each thread owns exactly one bin of the workgroup's own tally.
-    const uint HISTOGRAM_WORKGROUP = 16;
+    const uint EXPOSURE_BINS = HISTOGRAM_WORKGROUP * HISTOGRAM_WORKGROUP;
 
     /// What the binning pass needs to place a luminance.
     struct HistogramConstants
@@ -81,12 +82,22 @@ namespace Rtx::Shaders
         return uint(clamp(normalised, 0.0f, 1.0f) * float(EXPOSURE_BINS - 2u)) + 1u;
     }
 
-    /// The luminance a bin stands for, for a bin that may be a mean and so not whole.
+    /// The luminance a bin stands for, for a bin that may be a mean and so not whole: its middle.
+    /// A luminance is binned by the floor of where it falls on the scale, so a whole bin holds
+    /// what lies from its lower edge to the next one, and half a bin up is where what it holds lies
+    /// on average — at its lower edge, the metered mean read half a bin low, about 0.04 of a stop.
     RTX_SHADER float binLuminance(float bin)
     {
         const float span = MAX_LOG_LUMINANCE - MIN_LOG_LUMINANCE;
-        return exp2((bin - 1.0f) / float(EXPOSURE_BINS - 2u) * span + MIN_LOG_LUMINANCE);
+        return exp2((bin - 0.5f) / float(EXPOSURE_BINS - 2u) * span + MIN_LOG_LUMINANCE);
     }
+
+    // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
+    // reads them are different compilers.
+#ifdef RTX_HOST
+    static_assert(sizeof(HistogramConstants) == 8, "HistogramConstants must be scalar-packed on every side");
+    static_assert(sizeof(ExposureConstants) == 16, "ExposureConstants must be scalar-packed on every side");
+#endif
 
 #ifdef RTX_HOST
 }

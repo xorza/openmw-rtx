@@ -59,10 +59,10 @@ namespace RtxTool
 
     /// Writes what `Actions` asks of the place a stop stood at.
     ///
-    /// **What a stop produces, apart from what drove it there.** A picture, a radiance dump, a
-    /// bounce tail, a scene report, a contact sheet, a map tile, a doll, a listing and a set of
-    /// claims each need the renderer and a path. None of them needs the schedule, the route, the
-    /// camera or the sky, so none of them is a member of the thing that owns those.
+    /// **What a stop produces, apart from what drove it there.** A picture, its frame times, a
+    /// scene report, a contact sheet, a map tile, a doll, a listing and a set of claims each need
+    /// the renderer and a path. None of them needs the schedule, the route, the camera or the sky,
+    /// so none of them is a member of the thing that owns those.
     ///
     /// **Held for the whole run for its read-back buffer alone.** Three of the writers land a frame
     /// in host memory, and a stop that allocates one is a stop measuring its own allocator.

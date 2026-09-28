@@ -18,6 +18,14 @@ namespace Rtx
 {
     class Device;
 
+    /// What the two radiance channels, and the frame composed from them, are made of at a width:
+    /// `Rtx::RadianceWidth` carries the argument for each.
+    constexpr VkFormat radianceFormat(const RadianceWidth width)
+    {
+        return width == RadianceWidth::Summed ? toVulkanFormat(GBUFFER_RADIANCE_SUMMED)
+                                              : toVulkanFormat(GBUFFER_RADIANCE_SHOWN);
+    }
+
     /// What the trace leaves behind, before anything has decided what the picture looks like. A
     /// picture cannot be filtered and these can: one bounce per pixel is noisy, and the only thing
     /// that removes noise without removing detail is a blur over the light alone, so the light has
@@ -33,14 +41,6 @@ namespace Rtx
     ///
     /// Ray Reconstruction asks for exactly this — demodulated radiance, the albedo to put back,
     /// normals and depth — so the split earns its place whichever filter runs over it.
-    /// What the two radiance channels, and the frame composed from them, are made of at a width:
-    /// `Rtx::RadianceWidth` carries the argument for each.
-    constexpr VkFormat radianceFormat(const RadianceWidth width)
-    {
-        return width == RadianceWidth::Summed ? toVulkanFormat(GBUFFER_RADIANCE_SUMMED)
-                                              : toVulkanFormat(GBUFFER_RADIANCE_SHOWN);
-    }
-
     class GBuffer
     {
     public:
@@ -73,9 +73,9 @@ namespace Rtx
         void handOver(VkCommandBuffer commands) const;
 
     private:
-        /// An array and not fourteen members. Named three times each — a member, an accessor,
-        /// and a hand-written table mapping the binding back — a channel added to `Rtx::Channel`
-        /// without the third reaches its pass as a null.
+        /// An array at each channel's binding (`bindingOf`), and not a member a channel. Named
+        /// three times each — a member, an accessor, and a hand-written table mapping the binding
+        /// back — a channel added to `Rtx::Channel` without the third reaches its pass as a null.
         std::vector<Image> mChannels;
 
         /// One set, in a pool of its own that goes with it.

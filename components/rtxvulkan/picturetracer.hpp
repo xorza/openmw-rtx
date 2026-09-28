@@ -57,8 +57,10 @@ namespace Rtx
         /// asks for a picture, and grown with the chain.
         Image mTarget;
 
-        /// What the picture sums its census into, which nothing reads: the hit count and the
-        /// crossings are the frame's, and a picture traced beside it must not add to them.
+        /// What the picture sums its census and its view of the sun into, which nothing reads: the
+        /// hit count, the crossings and the glare fader's counts are the frame's, and a picture
+        /// traced beside it must not add to them. Bound because the shaders write both regardless.
         Buffer mCounts;
+        Buffer mGlareCounts;
     };
 }

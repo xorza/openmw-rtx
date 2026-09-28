@@ -343,6 +343,18 @@ namespace Rtx::Testing
             EXPECT_TRUE(mScene.deformers().getDeformers().empty());
             EXPECT_EQ(mScene.meshes().getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
                 << "the bind pose, where it stands";
+
+            // **And once the update finds it, it is a rig, and not the standing slot reused.** The
+            // standing mesh has no deformer and the rig's has none yet, and nothing equals nothing:
+            // compared as indices, the two agreed and the rig posed a slot with no deformer.
+            rigged.update(1);
+            const ExtractionStats skinned = walk(*rigged.mSkeleton);
+
+            EXPECT_EQ(skinned.mMeshesReused, 0u) << "a standing slot was reused for a rig";
+            EXPECT_EQ(skinned.mMeshesAdded, 1u);
+            EXPECT_EQ(skinned.mDeformed, 1u);
+            EXPECT_EQ(skinned.mUnskinned, 0u);
+            ASSERT_EQ(mScene.deformers().getDeformers().size(), 1u);
         }
 
         /// A morphed face is mirrored as its base and its weights, and posed again each pass — and

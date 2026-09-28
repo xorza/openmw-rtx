@@ -16,6 +16,7 @@
 
 #include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/run.hpp>
 #include <components/rtx/frameworld.hpp>
 #include <components/testing/util.hpp>
@@ -574,6 +575,25 @@ hour = 19.25
                             .ends_with(":3: look \"\" is not three numbers separated by commas"));
 
             EXPECT_THROW(readViews("[dawn]\nlike = dawn\n"), std::runtime_error) << "like itself";
+
+            // **"all" means every view, so no view may be called it**, and a list that names nothing
+            // is refused rather than read as every view: `--views=,` ran the whole file.
+            EXPECT_THROW(readViews("[all]\ncell = -2,-9\n"), std::runtime_error) << "a view called all";
+            const std::vector<RtxTool::Stop> two = readViews(std::string(sShip) + "[dawn]\nlike = ship\n");
+            EXPECT_THROW(RtxTool::chooseViews(two, {}), std::runtime_error) << "a list that names nothing";
+            EXPECT_EQ(RtxTool::chooseViews(two, { "all" }).size(), 2u);
+            EXPECT_EQ(RtxTool::chooseViews(two, { "dawn" }).size(), 1u);
+
+            // **The command line refuses by the same rules**, `hourRefusal` and `weatherRefusal`,
+            // which is what these are.
+            EXPECT_TRUE(RtxTool::hourRefusal(24.0f).has_value());
+            EXPECT_TRUE(RtxTool::hourRefusal(-0.01f).has_value());
+            EXPECT_FALSE(RtxTool::hourRefusal(0.0f).has_value());
+            EXPECT_FALSE(RtxTool::hourRefusal(23.99f).has_value());
+            EXPECT_TRUE(RtxTool::weatherRefusal("Rian").has_value());
+            EXPECT_FALSE(RtxTool::weatherRefusal("Rain").has_value());
+            EXPECT_EQ(RtxTool::listWeathers(),
+                "Clear, Cloudy, Foggy, Overcast, Rain, Thunderstorm, Ashstorm, Blight, Snow, Blizzard");
 
             EXPECT_THROW(
                 readViews(std::string(sShip) + "[dawn]\nlike = ship\n[later]\nlike = dawn\n"), std::runtime_error)

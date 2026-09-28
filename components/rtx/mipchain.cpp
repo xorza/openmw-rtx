@@ -47,20 +47,24 @@ namespace Rtx
         const std::uint32_t height = mTexture.getHeight();
 
         // The finest level, through the readers that already know every format. Alpha is a byte
-        // a texel in all of them and colour is one call apiece, so nothing here knows what a block
-        // is.
+        // a texel in all of them and colour a band of blocks at a time, so nothing here knows what
+        // a block is.
         mAlpha.build(described);
-        for (std::uint32_t y = 0; y < height; ++y)
-            for (std::uint32_t x = 0; x < width; ++x)
-            {
-                const osg::Vec3f colour = texelAt(described, finest, x, y);
-                const std::span<std::byte, OwnedTexture::sStride> into = mTexture.at(0, x, y);
+        for (std::uint32_t first = 0; first < height; first += 4)
+        {
+            readTexelBand(described, finest, first / 4, mBand);
+            for (std::uint32_t y = first; y < first + mBand.size() / width; ++y)
+                for (std::uint32_t x = 0; x < width; ++x)
+                {
+                    const osg::Vec3f& colour = mBand[std::size_t{ y - first } * width + x];
+                    const std::span<std::byte, OwnedTexture::sStride> into = mTexture.at(0, x, y);
 
-                for (int channel = 0; channel < 3; ++channel)
-                    into[static_cast<std::size_t>(channel)] = quantise(colour[channel]);
+                    for (int channel = 0; channel < 3; ++channel)
+                        into[static_cast<std::size_t>(channel)] = quantise(colour[channel]);
 
-                into[3] = static_cast<std::byte>(mAlpha.at(0, x, y));
-            }
+                    into[3] = static_cast<std::byte>(mAlpha.at(0, x, y));
+                }
+        }
 
         // Each level from the one above it, with the colours weighed by the alpha they carry,
         // because a punch-through block stores black where nothing was painted and an even mean

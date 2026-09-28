@@ -165,6 +165,13 @@ namespace Rtx::Testing
             EXPECT_EQ(stats.mSkippedEmpty, 1u);
             EXPECT_EQ(stats.mInstances, 0u);
             EXPECT_TRUE(mScene.meshes().getRows().empty());
+
+            // Filed as it was found, so the next walk neither reads it nor adds it.
+            mScene.clearPlacement();
+            const ExtractionStats again = walk(*geometry, 0, 1);
+            EXPECT_EQ(again.mSkippedEmpty, 0u) << "an empty drawable read again";
+            EXPECT_EQ(again.mInstances, 0u);
+            EXPECT_TRUE(mScene.meshes().getRows().empty());
         }
 
         /// A drawable that describes nothing inherits what the state sets above it say.

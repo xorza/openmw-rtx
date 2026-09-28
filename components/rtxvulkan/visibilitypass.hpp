@@ -27,28 +27,28 @@
 namespace Rtx
 {
     class Device;
-    class FogTile;
+    class DeviceScene;
     class FogVolume;
     class GBuffer;
     class GpuTimer;
     class Image;
-    class RipplePass;
-    class SceneBuffers;
     class SpriteBin;
-    class WavePass;
+    class TraceMedia;
 
-    /// What one trace reads about the world, and what every launch of it binds beside the world:
-    /// the channels it writes, the census it sums into, and which copy of the chain's own state
-    /// it is. One value handed to every launch of a trace and to the display after it, so the
-    /// four cannot be handed to one launch and left out of the next.
-    struct VisibilityInputs
+    /// What one trace is of and where its results go but for the chain's own images: the scene
+    /// and the media, which slot of the chain's state it takes, and the census and glare counts it
+    /// sums into. What `TraceMedia::describe` answers, the same for a frame and a picture inside
+    /// the interface but for the arguments.
+    struct TraceSubject
     {
-        VkAccelerationStructureKHR mScene = VK_NULL_HANDLE;
-        const SceneBuffers* mBuffers = nullptr;
+        /// What the rays meet, at the copy of its tables the scene's last placement wrote: the
+        /// structure, the tables a hit reads through the frame block, and the texture array. Read
+        /// where it is used, so no two launches of a trace can be handed two copies of it.
+        const DeviceScene* mScene = nullptr;
 
-        /// Which copy of the frame's tables in `mBuffers` this trace reads: the one the frame's
-        /// placement wrote. The first for a scene that is traced and waited for.
-        FrameSlot mSlot;
+        /// What every trace reads beside its scene: the sea, the wake in it, the fog's field and
+        /// the list of no sprites. One for everything traced.
+        const TraceMedia* mMedia = nullptr;
 
         /// Which of the chain's sprite bins this trace records into and reads, and which copy of
         /// the air it writes, the other being its history: the frame's own slot in the world's
@@ -56,64 +56,17 @@ namespace Rtx
         /// pictures' chain.
         FrameSlot mTraceSlot;
 
-        /// Where the trace leaves its channels, all in `VK_IMAGE_LAYOUT_GENERAL` and at least as
-        /// large as the camera. Channels and not a picture, because the indirect term has to
-        /// survive to the filter with the albedo still divided out. The chain's own, which
-        /// `TraceChain::record` names.
-        const GBuffer* mChannels = nullptr;
-
         /// What the trace sums its census into: the frame's own, or for a picture inside the
         /// interface one nothing reads — bound because the shader writes it regardless.
         const Buffer* mCounts = nullptr;
 
-        /// Where the index blocks are, which is `SceneAcceleration`'s. Taken fresh every frame and
-        /// never cached, because the table is made again whenever a block is added to it.
-        VkDeviceAddress mIndexBlocks = 0;
+        /// Whether this camera draws sprites. One that draws none reads the media's list of
+        /// nothing in place of its bin's, which holds whatever the last bin into it left, sized for
+        /// another camera.
+        bool mDrawsSprites = true;
 
-        /// This copy's pose blocks and the other's, `GpuTables::mPoseBlocks` and
-        /// `mPreviousPoseBlocks`. From the acceleration like the index blocks, because the poses
-        /// are the refit's input before they are a hit's.
-        VkDeviceAddress mPoseBlocks = 0;
-        VkDeviceAddress mPreviousPoseBlocks = 0;
-
-        /// The bindless texture array's set, bound once and not pushed. Every array declares the
-        /// same shape, so a set from a later array binds against the pipeline layout the first one
-        /// produced.
-        VkDescriptorSet mTextures = VK_NULL_HANDLE;
-
-        /// Where the array's texel counts are, `GpuTables::mTextureTexels`: the array's own, taken
-        /// fresh with its set.
-        VkDeviceAddress mTextureTexels = 0;
-
-        /// The sea, as the tiles it was synthesised into this frame. Not the scene's, because one
-        /// sea runs under every cell and under the doll and the map beside them.
-        const WavePass* mWaves = nullptr;
-
-        /// What walked through the water, as the tiles the ripple pass unpacked it into. One field
-        /// under every picture, world-anchored, so a map tile reads the same wake the frame does.
-        const RipplePass* mRipples = nullptr;
-
-        /// The fog's fractal field, here for the same reason and drawn once for the life of the
-        /// device rather than once a frame.
-        const FogTile* mFog = nullptr;
-
-        /// Where the air in front of this camera is integrated, before the trace reads it. Sized to
-        /// the camera and so not the pass's, as `GBuffer` is, and named by `TraceChain::record`.
-        const FogVolume* mFogVolume = nullptr;
-
-        /// The sprite tiles' list to read in place of the slot's, or nought to read the slot's. For
-        /// a camera that draws no sprites: the slot's list holds whatever the last bin into it left,
-        /// sized for another camera. An empty list is two words, and one buffer serves every extent.
-        VkDeviceAddress mSpriteList = 0;
-
-        /// The frame as it will be shown, at the output's extent and in `GENERAL`, which
-        /// `recordSpriteComposite` composites the puffs over. Bound for every launch, because one
-        /// set serves them all, and read by that one alone.
-        const Image* mShown = nullptr;
-
-        /// The sun glare fader's two counts, `SunGlarePass::getCounts`, which the eye's launch
-        /// adds to. Always set: a picture inside the interface adds to the frame's, harmlessly,
-        /// because the frame zeroes them ahead of its own trace.
+        /// The two counts the eye's launch adds to: the frame's, `SunGlarePass::getCounts`, or
+        /// for a picture inside the interface its own that nothing reads, as with the census.
         const Buffer* mSunGlare = nullptr;
 
         /// Whether this trace has a sea: a water surface in the scene the eye can meet, or a level
@@ -121,11 +74,24 @@ namespace Rtx
         /// The one answer the synthesis, the ripple step and `HAS_SEA` all read, so the kernel
         /// never samples tiles that nothing wrote this frame.
         bool mSea = false;
+    };
 
-        /// Whether this scene places a material with a normal map or a specular map, and so whether
-        /// the trace needs the maps' code — `HAS_MAPS`. The scene's answer, because which materials
-        /// a camera's rays meet is not known until they are traced.
-        bool mMapped = false;
+    /// What every launch of one trace binds: its subject, and the chain's channels and air, which
+    /// `TraceChain::record` names as it makes this. Whole from the moment it is made, and one value
+    /// handed to every launch of the trace and to the display after it, so the chain's images
+    /// cannot be handed to one launch and left out of the next.
+    struct VisibilityInputs
+    {
+        TraceSubject mSubject;
+
+        /// Where the trace leaves its channels, all in `VK_IMAGE_LAYOUT_GENERAL` and at least as
+        /// large as the camera. Channels and not a picture, because the indirect term has to
+        /// survive to the filter with the albedo still divided out.
+        const GBuffer& mChannels;
+
+        /// Where the air in front of this camera is integrated, before the trace reads it. Sized to
+        /// the camera, as the channels are, and so the chain's and not the pass's.
+        const FogVolume& mFogVolume;
     };
 
     /// What a trace can be told at compile time, and so what keys a pipeline. Each is only ever
@@ -139,8 +105,10 @@ namespace Rtx
         bool mSea = true;
         bool mMaps = true;
 
-        /// What this frame is. `sea` and `mapped` are `VisibilityInputs::mSea` and `mMapped`, for
-        /// the reason given there.
+        /// What this frame is. `sea` is `TraceSubject::mSea`, for the reason given there, and
+        /// `mapped` whether the scene places a material with a normal or a specular map, which is
+        /// the scene's answer, because which materials a camera's rays meet is not known until they
+        /// are traced.
         static VisibilityVariant resolve(const Shaders::VisibilityConstants& frame, bool sea, bool mapped);
 
         /// Which of the table's pipelines this tuple is.
@@ -227,19 +195,19 @@ namespace Rtx
         void record(VkCommandBuffer commands, const VisibilityInputs& inputs,
             const Shaders::VisibilityConstants& constants, GpuTimer* timer) const;
 
-        /// Composites the puffs over `inputs.mShown`, in place, at the picture's own extent: the
+        /// Composites the puffs over `shown`, in place, at the picture's own extent: the
         /// sprites' shape and the cloud shells marched there against the bin the trace binned over its
         /// own grid, and the sprites' light read off the layer the trace left in `Channel::Puffs`. After
         /// whatever denoised and upscaled the frame, because neither should touch a particle —
         /// `spritecomposite.rgen` says what an upscaler's overlay costs.
         ///
-        /// @param shown how much of `inputs.mShown` the picture is, from its corner: the whole of
-        ///        a frame's, and a picture's own size inside an image that may be larger. The
-        ///        block is the one the trace wrote, so the traced camera and the bin are read
-        ///        from there.
+        /// @param shown the frame as it will be shown, in `GENERAL`.
+        /// @param extent how much of `shown` the picture is, from its corner: the whole of a
+        ///        frame's, and a picture's own size inside an image that may be larger. The block is
+        ///        the one the trace wrote, so the traced camera and the bin are read from there.
         /// @param traced the extent the trace ran at, its camera's, which the launch covers.
-        void recordSpriteComposite(VkCommandBuffer commands, const VisibilityInputs& inputs, VkExtent2D shown,
-            VkExtent2D traced, GpuTimer* timer) const;
+        void recordSpriteComposite(VkCommandBuffer commands, const VisibilityInputs& inputs, const Image& shown,
+            VkExtent2D extent, VkExtent2D traced, GpuTimer* timer) const;
 
     private:
         enum class Kernel
@@ -282,7 +250,11 @@ namespace Rtx
 
         /// Pushes set zero — everything both passes read — and binds the three sets nothing pushes.
         /// Any of the pipelines here, because the volume reads the same world the trace does.
-        void pushInputs(VkCommandBuffer commands, const Pipeline& pipeline, const VisibilityInputs& inputs) const;
+        ///
+        /// @param shown the composite's frame as shown, and nothing for every other launch, whose
+        ///        set does not declare it.
+        void pushInputs(VkCommandBuffer commands, const Pipeline& pipeline, const VisibilityInputs& inputs,
+            const Image* shown = nullptr) const;
 
         /// Which slot of the two tables holds `variant`'s kernel: its own, or the full tuple's
         /// where that one answers for every frame.

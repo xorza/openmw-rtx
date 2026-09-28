@@ -35,6 +35,7 @@
 #include <components/rtxvulkan/frameslots.hpp>
 #include <components/rtxvulkan/scenebuffers.hpp>
 #include <components/rtxvulkan/spritebin.hpp>
+#include <components/rtxvulkan/spritepasses.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "../support/device/harness.hpp"
@@ -88,7 +89,9 @@ namespace Rtx::Testing
 
             // The two the trace's own bin writes, which it hands out the same way, whether or not
             // anything was ever binned into it.
-            const SpriteBin bin(device);
+            const SpriteShadePass shading(device, getShaderDirectory());
+            const SpriteBinPass binning(device, getShaderDirectory());
+            const SpriteBin bin(device, shading, binning);
             addressed.mSprites = bin.getSpritesAddress();
             addressed.mSpriteTileList = bin.getTileListAddress();
 

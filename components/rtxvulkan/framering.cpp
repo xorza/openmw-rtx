@@ -36,6 +36,7 @@ namespace Rtx
         : mTimer(device)
         , mCounts(Buffer::readBack(device, sizeof(Shaders::FrameCounts),
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame counts"))
+        , mDebugVertices(device, BufferKind::HostWritten, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "debug vertices")
         , mDigestLanes(Buffer::readBack(device, DigestPass::sBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame digest"))
     {
     }
@@ -45,6 +46,9 @@ namespace Rtx
         , mReadsCounts(readsCounts)
         , mSlots([&](FrameSlot) { return FrameRecord{ device }; })
     {
+        for (GrowableBuffer& picture : mPictures)
+            picture = GrowableBuffer(device, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame readback");
+
         // Two command buffers a frame to begin with — the first placement's and the trace's —
         // allocated once and recorded into again. A frame placed more than once takes another from
         // the same pool and keeps it, which `FrameRecord::mPlaceCommands` explains.
@@ -146,7 +150,7 @@ namespace Rtx
 
         // Handed out as a span over the ring's own memory, which `pictureOf` says how long stands.
         const std::span<const std::uint8_t> pixels = frame.mReadBackBytes > 0
-            ? std::span(static_cast<const std::uint8_t*>(pictureOf(mFinished).map()), frame.mReadBackBytes)
+            ? std::span(static_cast<const std::uint8_t*>(pictureOf(mFinished).get().map()), frame.mReadBackBytes)
             : std::span<const std::uint8_t>();
 
         if (frame.mDigest.has_value())

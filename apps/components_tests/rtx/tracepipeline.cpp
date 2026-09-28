@@ -79,10 +79,15 @@ namespace Rtx
                 .pBufferInfo = &into,
             };
 
+            EXPECT_EQ(pipeline.getTable().getNamedUntil(), 0u) << "the table was named before any launch";
             getPool().submitAndWait([&](VkCommandBuffer commands) {
                 bind(commands, pipeline);
                 pushDescriptors(commands, pipeline, std::span(&write, 1));
                 pipeline.traceRays(commands, sWidth, sHeight);
+
+                // The launch reads the table by address, so the launch is what names it.
+                EXPECT_EQ(pipeline.getTable().getNamedUntil(), device.getTimeline().getNext())
+                    << "a launch did not name the table it reads";
 
                 written.orderForHostRead(commands);
             });

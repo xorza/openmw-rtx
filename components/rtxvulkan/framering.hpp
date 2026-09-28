@@ -17,6 +17,7 @@
 #include "buffer.hpp"
 #include "frameslots.hpp"
 #include "gputimer.hpp"
+#include "growablebuffer.hpp"
 
 namespace Rtx
 {
@@ -83,7 +84,7 @@ namespace Rtx
         /// The debug lines' vertices, rewritten every frame that draws any and grown to the busiest
         /// frame so far, in the frame's own commands: the slot is the frame's, so a write lands
         /// under no submit in flight.
-        Buffer mDebugVertices;
+        GrowableBuffer mDebugVertices;
 
         /// How much of `FrameRing::pictureOf` this frame wrote where `FrameOptions::mReadBack`
         /// asked, nought for a frame that did not.
@@ -170,7 +171,7 @@ namespace Rtx
         /// that did not repeat. With a picture more than there are slots, the copy that reuses a
         /// picture's memory is the one after that, and `FrameResult::mPixels` stands until the
         /// `renderFrame` after the one it was collected before.
-        Buffer& pictureOf(std::uint64_t frame) { return mPictures[frame % mPictures.size()]; }
+        GrowableBuffer& pictureOf(std::uint64_t frame) { return mPictures[frame % mPictures.size()]; }
 
     private:
         /// Waits the oldest frame in flight out and puts what it came to in `mReports`.
@@ -191,7 +192,7 @@ namespace Rtx
         bool mReadsCounts = false;
 
         PerSlot<FrameRecord> mSlots;
-        std::array<Buffer, sFrameSlots + 1> mPictures;
+        std::array<GrowableBuffer, sFrameSlots + 1> mPictures;
 
         /// The next frame to record and the next to finish. Everything from `mFinished` to `mFrame`
         /// is in flight, and there are never more of those than there are slots.

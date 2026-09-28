@@ -3,7 +3,6 @@
 #include <array>
 
 #include <components/rtx/shaders/shadingmap.h>
-#include <components/rtx/texturedata.hpp>
 
 #include "buffer.hpp"
 #include "dispatch.hpp"
@@ -16,7 +15,7 @@ namespace Rtx
     {
         /// The texture in, the sums out.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::SHADING_SUM_BINDINGS> sSumBindings{
-            computeBinding(Shaders::SHADING_SUM_BIND_SOURCE, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER),
+            computeBinding(Shaders::SHADING_SUM_BIND_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::SHADING_SUM_BIND_SUMS, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
         };
 
@@ -39,8 +38,8 @@ namespace Rtx
     {
     }
 
-    void ShadingPass::record(const VkCommandBuffer commands, const Image& source, const VkSampler sampler,
-        const Image& map, const TextureData& data) const
+    void ShadingPass::record(
+        const VkCommandBuffer commands, const Image& source, const Image& map, const bool punchThrough) const
     {
         // Against the map stage of the texture before this one, which read the sums this is
         // about to write over. An execution dependency is all a write-after-read needs.
@@ -51,13 +50,13 @@ namespace Rtx
         const Shaders::ShadingConstants constants{
             .mWidth = source.getWidth(),
             .mHeight = source.getHeight(),
-            .mPunchThrough = isBc1(data.mFormat) ? 1u : 0u,
+            .mPunchThrough = punchThrough ? 1u : 0u,
         };
 
         DescriptorWrites<Shaders::SHADING_SUM_BINDINGS> summing;
         summing.image(Shaders::SHADING_SUM_BIND_SOURCE,
-            source.describeSampled(sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
-            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+            source.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
+            VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
         summing.buffer(Shaders::SHADING_SUM_BIND_SUMS, mSums.describe());
         dispatch(commands, mSum, summing.get(), constants, Shaders::SHADING_EXTENT);
 

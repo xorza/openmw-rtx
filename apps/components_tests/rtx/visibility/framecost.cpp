@@ -24,11 +24,11 @@
 #include <components/rtxvulkan/device.hpp>
 #include <components/rtxvulkan/handles.hpp>
 #include <components/rtxvulkan/texture.hpp>
+#include <components/rtxvulkan/texturepasses.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "../support/allocations.hpp"
 #include "../support/device/harness.hpp"
-#include "../support/device/texturepasses.hpp"
 #include "../support/geometry.hpp"
 #include "../support/testcamera.hpp"
 #include "fixture.hpp"
@@ -250,9 +250,9 @@ namespace Rtx::Testing
             };
 
             const SetLayout layout = TextureArray::describeLayout(device);
-            const Testing::TexturePassSet passes(device);
+            const TexturePasses passes(device, Testing::getShaderDirectory());
             Batch setup(pool);
-            TextureArray array(device, setup, layout, passes.mPasses, slots);
+            TextureArray array(device, setup, layout, passes, slots);
             setup.flush();
 
             // Held across the arrivals as a scene holds its own, and never written to: a device

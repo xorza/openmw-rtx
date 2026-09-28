@@ -17,6 +17,10 @@ namespace Rtx
         // cannot timestamp at all — asked of the device once, when it was chosen.
         const std::uint32_t bits = device.getPhysicalDevice().getTimestampBits();
 
+        // Before anything can return: `open` files a zone whether or not the queue times it, and
+        // hands its checkpoint's address to the queue, which a vector that grew would move.
+        mZones.reserve(sMaxGpuZones);
+
         // A period of zero is the driver saying its clock does not advance, which no amount of
         // arithmetic recovers from.
         mSupported = bits > 0 && limits.timestampPeriod > 0.0f;
@@ -37,8 +41,6 @@ namespace Rtx
 
         mHandle = QueryPool::make(device.getHandle(), vkCreateQueryPool, info, "vkCreateQueryPool");
         device.setName(mHandle.get(), "frame timestamps");
-
-        mZones.reserve(sMaxGpuZones);
     }
 
     void GpuTimer::beginFrame(const std::uint64_t frame)

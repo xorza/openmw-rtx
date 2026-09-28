@@ -18,11 +18,11 @@
 #include <components/rtxvulkan/handles.hpp>
 #include <components/rtxvulkan/memory.hpp>
 #include <components/rtxvulkan/texture.hpp>
+#include <components/rtxvulkan/texturepasses.hpp>
 
 #include "support/device/harness.hpp"
 #include "support/device/heldsubmit.hpp"
 #include "support/device/memorylimits.hpp"
-#include "support/device/texturepasses.hpp"
 #include "support/testtexture.hpp"
 
 namespace Rtx
@@ -48,9 +48,9 @@ namespace Rtx
             CommandPool& pool = getPool();
 
             const SetLayout layout = TextureArray::describeLayout(device);
-            const Testing::TexturePassSet passes(device);
+            const TexturePasses passes(device, Testing::getShaderDirectory());
             Batch setup(pool);
-            TextureArray textures(device, setup, layout, passes.mPasses, 1);
+            TextureArray textures(device, setup, layout, passes, 1);
             setup.flush();
 
             // An arrival, owed to every set: what `sync` has to write once the set is free. Ahead
@@ -108,9 +108,9 @@ namespace Rtx
         {
             Device& device = getDevice();
             const SetLayout layout = TextureArray::describeLayout(device);
-            const Testing::TexturePassSet passes(device);
+            const TexturePasses passes(device, Testing::getShaderDirectory());
             Batch setup(getPool());
-            const TextureArray textures(device, setup, layout, passes.mPasses, 3);
+            const TextureArray textures(device, setup, layout, passes, 3);
             setup.flush();
 
             const std::uint32_t limit = textures.getSideLimit();
@@ -168,9 +168,9 @@ namespace Rtx
         {
             Device& device = getDevice();
             const SetLayout layout = TextureArray::describeLayout(device);
-            const Testing::TexturePassSet passes(device);
+            const TexturePasses passes(device, Testing::getShaderDirectory());
             Batch setup(getPool());
-            TextureArray textures(device, setup, layout, passes.mPasses, 2);
+            TextureArray textures(device, setup, layout, passes, 2);
             setup.flush();
 
             const std::uint32_t limit = textures.getSideLimit();
@@ -224,9 +224,9 @@ namespace Rtx
             Device& device = getDevice();
             MemoryAllocator& memory = device.getMemory();
             const SetLayout layout = TextureArray::describeLayout(device);
-            const Testing::TexturePassSet passes(device);
+            const TexturePasses passes(device, Testing::getShaderDirectory());
             Batch setup(getPool());
-            TextureArray textures(device, setup, layout, passes.mPasses, 2);
+            TextureArray textures(device, setup, layout, passes, 2);
             setup.flush();
 
             Testing::TestTexture ladder;

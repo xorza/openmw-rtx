@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #include <utility>
 #include <vector>
@@ -164,6 +165,7 @@ namespace Rtx
             // Two quads of two triangles each: what a scene holding both looks like.
             EXPECT_EQ(scene.placements().getCounts().mPlaced, 2u);
             EXPECT_EQ(scene.meshes().getTriangleCount(), 4u);
+            const std::size_t twoQuads = scene.meshes().getGeometryBytes();
 
             // The shirt comes off and a hat goes on — one part replaced, not moved.
             subject->removeChild(shirt);
@@ -177,10 +179,12 @@ namespace Rtx
             // three here.
             EXPECT_EQ(scene.placements().getCounts().mPlaced, 2u);
 
-            // **And six triangles and not four**, which is the other half: a swept mesh is *freed*
-            // rather than compacted away, so the shirt keeps its room in the index buffer. Four here
-            // would mean the sweep closed the gap and renumbered every mesh above it.
-            EXPECT_EQ(scene.meshes().getTriangleCount(), 6u);
+            // **And three quads' room for two quads' triangles**, which is the other half: a swept
+            // mesh is *freed* rather than compacted away, so the shirt keeps its room in the
+            // buffers while its triangles are no longer counted. Two quads' room here would mean
+            // the sweep closed the gap and renumbered every mesh above it.
+            EXPECT_EQ(scene.meshes().getTriangleCount(), 4u);
+            EXPECT_EQ(2 * scene.meshes().getGeometryBytes(), 3 * twoQuads);
 
             // The hat comes off in turn, and what replaces it takes the room the sweep is holding.
             subject->removeChild(hat);
@@ -191,10 +195,11 @@ namespace Rtx
 
             EXPECT_EQ(scene.placements().getCounts().mPlaced, 2u);
 
-            // **Six again and not eight**, which is what a freed slot is for: the boots fit where
-            // the hat was and the buffer did not grow. Eight would be a doll that leaks a mesh per
-            // change of clothes.
-            EXPECT_EQ(scene.meshes().getTriangleCount(), 6u);
+            // **Three quads' room again and not four**, which is what a freed slot is for: the boots
+            // fit where the hat was and the buffers did not grow. Four would be a doll that leaks a
+            // mesh per change of clothes.
+            EXPECT_EQ(scene.meshes().getTriangleCount(), 4u);
+            EXPECT_EQ(2 * scene.meshes().getGeometryBytes(), 3 * twoQuads);
 
             // **Built from nothing exactly once**, across three redraws that each replaced a part.
             // This is what the sweep freeing rather than compacting buys: a race-creation slider

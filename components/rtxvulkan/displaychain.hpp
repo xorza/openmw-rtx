@@ -14,6 +14,8 @@
 #include "bloompass.hpp"
 #include "exposurepass.hpp"
 #include "frameslots.hpp"
+#include "growablebuffer.hpp"
+#include "imageuse.hpp"
 #include "linepass.hpp"
 #include "sunglarepass.hpp"
 #include "tonepass.hpp"
@@ -28,31 +30,14 @@ namespace Rtx
     class VisibilityPass;
     struct TraceResult;
 
-    /// What one picture asks of the display chain, and what makes a frame's different from a
-    /// picture's inside the interface: a picture has no lens, no share of the sun, no eye of its
-    /// own and no lines over it. Nothing here is held.
-    struct Display
+    /// What a frame asks of the display chain beyond what a picture inside the interface does:
+    /// a picture has no lens, no eye of its own, no share of the sun, no lines over it and no
+    /// timer, and cannot be handed any of them. Nothing here is held.
+    struct FrameLook
     {
-        /// What the trace bound and the sprite tile list it read. The frame as it will be shown is
-        /// the inputs' `mShown`, in `Use::sTraceReadWrite`: the puffs go over it and the curve
-        /// maps it. The upscaler's output where one runs, the trace's own composite where none
-        /// does, and a picture's own colour inside the interface.
-        const TraceResult& mTrace;
-
-        /// How much of the shown frame the picture is, from its corner: the whole of a frame's,
-        /// and a picture's own size inside an image that may be larger. The curve encodes as much
-        /// of `mTarget` from its corner.
-        VkExtent2D mExtent;
-
-        /// The camera the trace sampled, which the curve and the lines are told.
-        const Shaders::VisibilityConstants& mSampled;
-
-        /// What the curve writes into, at least `mExtent` large.
-        Image& mTarget;
-
         /// The eye adapts off the shown frame at its own rate — from nothing where `mReset` says the
-        /// camera has no past — or is held at a value, or a picture is measured off nothing —
-        /// `ExposurePass::getPictureExposure` says why that is a buffer of its own.
+        /// camera has no past — or is held at a value. A picture is measured off nothing, which
+        /// `ExposurePass::getPictureExposure` says is a buffer of its own.
         struct Measured
         {
             float mSeconds;
@@ -63,33 +48,58 @@ namespace Rtx
         {
             float mValue;
         };
-        struct Picture
-        {
-        };
-        using Exposure = std::variant<Measured, Fixed, Picture>;
+        using Exposure = std::variant<Measured, Fixed>;
         Exposure mExposure;
 
-        /// Whether the lens spreads the picture: a picture inside the interface is a diagram.
-        bool mBloom = false;
-
-        /// The sun glare fader and the sun's share, eased at the query's own rate, or nothing for a
-        /// picture, which is mapped with no glare at all.
+        /// The sun glare fader and the sun's share, eased at the query's own rate.
         struct Glare
         {
             SunGlare mFader;
             float mSeconds;
             bool mReset;
         };
-        std::optional<Glare> mGlare;
+        Glare mGlare;
 
         /// The debug modes' lines and triangles over the picture, and the slot's own buffer they
         /// are drawn from: the frame behind read its own slot's, so nothing here is written under
-        /// a submit. Nothing, and no buffer, for a picture.
+        /// a submit.
         DebugLines mDebug;
-        Buffer* mDebugVertices = nullptr;
+        GrowableBuffer& mDebugVertices;
 
-        /// Null where the run is not being timed, which a picture is not.
-        GpuTimer* mTimer = nullptr;
+        GpuTimer& mTimer;
+    };
+
+    /// What one picture asks of the display chain: a frame, or a picture inside the interface,
+    /// which is the same list with no `FrameLook`. Nothing here is held.
+    struct Display
+    {
+        /// What the trace bound and the sprite tile list it read.
+        const TraceResult& mTrace;
+
+        /// The frame as it will be shown: the puffs go over it and the curve maps it. The
+        /// upscaler's output where one runs, the trace's own composite where none does, and a
+        /// picture's own colour inside the interface.
+        const Image& mShown;
+
+        /// Where the last writer of `mShown` left it, which the display hands over from: the
+        /// trace's `Use::sAnyGeneralRead`, or the upscaler's `Use::sAnyGeneralWrite`.
+        ImageUse mShownFrom;
+
+        /// How much of the shown frame the picture is, from its corner: the whole of a frame's,
+        /// and a picture's own size inside an image that may be larger. The curve encodes as much
+        /// of `mTarget` from its corner.
+        VkExtent2D mExtent;
+
+        /// The camera the trace sampled, which the curve and the lines are told.
+        const Shaders::VisibilityConstants& mSampled;
+
+        /// What the curve writes into, at least `mExtent` large. Its contents are discarded, because
+        /// the curve rewrites it whole.
+        Image& mTarget;
+
+        /// Nothing for a picture inside the interface, which is a diagram: measured off nothing,
+        /// mapped with no glare, spread by no lens, and not timed.
+        std::optional<FrameLook> mFrame;
     };
 
     /// What comes after the trace and the upscaler: the puffs over the picture, the lens, the eye,
@@ -127,12 +137,11 @@ namespace Rtx
         void record(VkCommandBuffer commands, const Display& what);
 
     private:
-        /// Draws `what.mDebug` over the target after the curve, from the slot's own vertex
-        /// buffer, depth-tested against the channels. Nothing at all for a picture with none,
+        /// Draws `look.mDebug` over the target after the curve, from the slot's own vertex
+        /// buffer, depth-tested against the channels. Nothing at all for a frame with none,
         /// which is nearly every frame.
-        void recordDebugLines(VkCommandBuffer commands, const Display& what);
+        void recordDebugLines(VkCommandBuffer commands, const Display& what, const FrameLook& look);
 
-        const Device& mDevice;
         const VisibilityPass& mPuffs;
 
         BloomPass mBloom;

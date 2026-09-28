@@ -254,14 +254,17 @@ namespace Rtx
         Summed,
     };
 
+    /// What a frame is scaled by before the display curve: a fixed scale, or nothing to measure it
+    /// off the frame.
+    struct ExposureRule
+    {
+        std::optional<float> mFixed;
+    };
+
     /// Everything a run decides once about how the picture is made, in one bag for both hosts,
     /// handed to the backend inside `RendererOptions` and read there. A frame reads what the run
     /// was handed rather than asking the registry per knob per frame, and only a menu moves it
     /// afterwards: `Renderer::setUpscale` changes `mUpscaling`, which `getProfile` then answers.
-    /// What a frame is scaled by before the display curve: a fixed scale, or nothing to measure it
-    /// off the frame.
-    using ExposureRule = std::optional<float>;
-
     struct RenderProfile
     {
         /// What the upscaler is built with.

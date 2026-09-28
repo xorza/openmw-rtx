@@ -15,6 +15,7 @@ namespace Crash
         constexpr std::string_view sApplication = "--openmw-application";
         constexpr std::string_view sDialog = "--openmw-dialog";
         constexpr std::string_view sIssues = "--openmw-issues";
+        constexpr std::string_view sEndAfter = "--openmw-end-after-ms";
         constexpr std::string_view sDatabase = "--database";
 
         std::string option(std::string_view name, std::string_view value)
@@ -37,7 +38,7 @@ namespace Crash
         std::snprintf(notes, sizeof(notes), "0x%llx:%llu", static_cast<unsigned long long>(mNotes),
             static_cast<unsigned long long>(mNotesSize));
 
-        return {
+        std::vector<std::string> written{
             std::string(sMonitorSwitch),
             option(sClient, std::to_string(mClient)),
             option(sNotes, notes),
@@ -45,6 +46,10 @@ namespace Crash
             option(sDialog, mDialog ? "1" : "0"),
             option(sIssues, mIssues),
         };
+        if (mEndAfter.has_value())
+            written.push_back(option(sEndAfter, std::to_string(mEndAfter->count())));
+
+        return written;
     }
 
     MonitorArguments MonitorArguments::read(std::span<const std::string> arguments, std::vector<std::string>& handler)
@@ -74,6 +79,8 @@ namespace Crash
                 read.mDialog = *dialog != "0";
             else if (const auto issues = valueOf(argument, sIssues))
                 read.mIssues = *issues;
+            else if (const auto after = valueOf(argument, sEndAfter))
+                read.mEndAfter = std::chrono::milliseconds(std::strtoll(std::string(*after).c_str(), nullptr, 10));
             else
             {
                 if (const auto database = valueOf(argument, sDatabase))

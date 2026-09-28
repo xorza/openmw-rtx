@@ -11,8 +11,8 @@
 #include <components/rtx/runs.hpp>
 #include <components/rtx/scenedesc.hpp>
 
-#include "buffer.hpp"
 #include "frameslots.hpp"
+#include "growablebuffer.hpp"
 
 namespace Rtx
 {
@@ -94,16 +94,14 @@ namespace Rtx
         /// Stages the poses of `meshes` into the first copy.
         void writePoses(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes);
 
-        const Device& mDevice;
+        GrowableBuffer mBindPositions;
+        GrowableBuffer mBindNormals;
+        GrowableBuffer mBindTangents;
+        GrowableBuffer mRuns;
+        GrowableBuffer mInfluences;
+        GrowableBuffer mMorphOffsets;
 
-        Buffer mBindPositions;
-        Buffer mBindNormals;
-        Buffer mBindTangents;
-        Buffer mRuns;
-        Buffer mInfluences;
-        Buffer mMorphOffsets;
-
-        PerSlot<Buffer> mPoses;
+        PerSlot<GrowableBuffer> mPoses;
 
         /// Every mesh or deformer, for a table written whole. Kept so a growth allocates nothing
         /// of its own.

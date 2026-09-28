@@ -23,12 +23,11 @@
 
 namespace Rtx
 {
-    /// What stands in a texture slot, and so which of the row's two names carries it, stated
-    /// rather than deduced from two names.
+    /// What stands in a live texture slot, and so which of the row's two names carries it, stated
+    /// rather than deduced from two names. Whether a slot is live is the table's to say
+    /// (`TextureTable::isFree`), and a free row's kind means nothing.
     enum class TextureKind : std::uint8_t
     {
-        Free,
-
         /// A file the content named. `TextureRow::mPath` carries it.
         File,
 
@@ -41,7 +40,7 @@ namespace Rtx
     /// `VFS::Path::Normalized` with a guarantee its readers rely on.
     struct TextureRow
     {
-        TextureKind mKind = TextureKind::Free;
+        TextureKind mKind = TextureKind::File;
         VFS::Path::Normalized mPath;
         std::string mBaked;
         TextureWrap mWrap = TextureWrap::Repeat;
@@ -116,9 +115,9 @@ namespace Rtx
         void hold(Index texture);
         void drop(Index texture);
 
-        /// Whether nothing stands in `texture`. Read off what the slot is and not off a count,
+        /// Whether nothing stands in `texture`. Asked of the slots and not of a count of holds,
         /// because a slot is taken before it is named.
-        bool isFree(Index texture) const { return mRows.at(texture).mKind == TextureKind::Free; }
+        bool isFree(Index texture) const { return !mRows.isLive(texture); }
 
         /// How many slots stand a texture, which is what an empty scene has nought of.
         std::size_t getLiveCount() const { return mRows.getLiveCount(); }
@@ -184,5 +183,29 @@ namespace Rtx
         std::uint32_t mRefused = 0;
         std::uint64_t mFreed = 0;
         FormatCensus mFormats;
+    };
+
+    /// Which of up to eight takes of one image the table refused, and how many slots it had freed
+    /// then (`TextureTable::getFreedCount`). A refused take is asked again once that count moves,
+    /// because nothing else makes room, and not before, because until then asking is a path built
+    /// to be refused. The one rule for every resolver that takes a texture.
+    class RefusedTakes
+    {
+    public:
+        /// Whether take `bit` was refused and the table has freed nothing since.
+        bool stands(std::uint8_t bit, std::uint64_t freed) const { return mAt == freed && (mBits & bit) != 0; }
+
+        void refuse(std::uint8_t bit, std::uint64_t freed)
+        {
+            if (mAt != freed)
+                mBits = 0;
+
+            mBits |= bit;
+            mAt = freed;
+        }
+
+    private:
+        std::uint8_t mBits = 0;
+        std::uint64_t mAt = 0;
     };
 }

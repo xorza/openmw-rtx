@@ -307,7 +307,16 @@ namespace Rtx
             expectNear(quarter.mLitFrom, osg::Vec3f(0.6f, 0.8f, 0.0f), "a quarter");
             EXPECT_NEAR(quarter.mLunar, 0.18586f, 1e-5f);
 
-            expectNear(described(1.5f * osg::PIf, sun).mLitFrom, osg::Vec3f(-0.6f, -0.8f, 0.0f), "the other quarter");
+            // **Waxing and waning are the same light from the sun's own side.** The first quarter,
+            // three quarters of the way round the month, is lit toward the sun like the last one
+            // and shaded by the same law: the waxing half once clamped to Lambert and turned its lit
+            // limb away from the sun.
+            const Shaders::MoonDisc waxing = described(1.5f * osg::PIf, sun);
+            expectNear(waxing.mLitFrom, osg::Vec3f(0.6f, 0.8f, 0.0f), "the other quarter");
+            EXPECT_NEAR(waxing.mLunar, quarter.mLunar, 1e-6f);
+            EXPECT_NEAR(described(1.75f * osg::PIf, sun).mLunar, 0.5020075f, 1e-5f) << "a waxing gibbous";
+            EXPECT_EQ(described(2.0f * osg::PIf, sun).mLunar, 1.0f)
+                << "a whole turn round, which an unspecified phase is, is full";
             expectNear(described(0.5f * osg::PIf, osg::Vec3f(0.8f, -0.6f, 0.0f)).mLitFrom,
                 osg::Vec3f(0.8f, -0.6f, 0.0f), "a quarter under another sun");
             expectNear(described(0.5f * osg::PIf, osg::Vec3f(0.0f, 0.0f, 1.0f)).mLitFrom, osg::Vec3f(1.0f, 0.0f, 0.0f),

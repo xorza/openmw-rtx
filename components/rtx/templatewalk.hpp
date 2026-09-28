@@ -30,7 +30,8 @@ namespace Rtx
     /// controllers, and a template is shared with every clone and the preloader, so a walk from
     /// another thread may write nothing into it. `SceneUtil::CopyOp` shares the drawables, state
     /// sets and transforms, so a mesh read here is the mesh the frame's walk finds under the clone.
-    /// A sequence is walked at the frame it stands on, an LOD whole. Not thread-safe: one a thread.
+    /// A sequence is walked at the frame it stands on, an LOD at its nearest level: `descendInWorld`
+    /// is the rule both walks share. Not thread-safe: one a thread.
     class TemplateWalk final : public osg::NodeVisitor
     {
     public:

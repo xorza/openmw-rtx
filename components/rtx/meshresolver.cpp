@@ -98,8 +98,11 @@ namespace Rtx
 
             const Held held = holdDeformer(read);
 
-            // The same deformer is the same kind: `fits` held the reading's kind against it.
-            if (vertices == range.mVertices.mCount && held.mIndex == range.mDeformer)
+            // The same deformer is the same kind: `fits` held the reading's kind against it. A
+            // deformer and not "no deformer" on both sides, because a rig read standing before its
+            // skeleton resolved holds none, and a rig read after it that has none yet would equal
+            // it.
+            if (vertices == range.mVertices.mCount && held.mIndex != sNoIndex && held.mIndex == range.mDeformer)
             {
                 ++stats.mMeshesReused;
                 mMeshes.stamp(known);
@@ -121,9 +124,12 @@ namespace Rtx
         if (!readMesh.isOk())
             return refuse(drawable, readMesh.error());
 
+        // Vertices and no triangle: nothing to place, and filed as a refusal is, with nothing to
+        // report, so the next walk does not read and decode it again.
         if (!readMesh.value())
         {
             ++stats.mSkippedEmpty;
+            mMeshes.add(&drawable, Known{ .mIndex = sNoIndex });
             return sNoIndex;
         }
 

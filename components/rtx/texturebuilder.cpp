@@ -118,13 +118,26 @@ namespace Rtx
             return image.r() == 1 || keptLevels(image) == 1;
         }
 
+        /// `checkUploadable` of a format already read.
+        Result<void, std::string> checkFormat(const osg::Image& image, const TextureFormat format)
+        {
+            if (!isUploadable(format) && !isWidened(format))
+                return Err{ "its format is " + std::string(nameOf(format)) + " ("
+                    + std::to_string(image.getPixelFormat()) + "), which this renderer does not upload" };
+
+            if (!image.valid() || image.s() < 0 || image.t() < 0)
+                return Err{ "it is " + std::to_string(image.s()) + " by " + std::to_string(image.t())
+                    + " texels, which no device holds" };
+
+            return {};
+        }
+
         /// How many bytes `describeImage` lays into its `texels` for `image`, which is what a
         /// caller holding earlier descriptions reserves first: a sixteen-bit format widened, or a
         /// volume's first slices gathered. Nought for an image spanned where it is, and for one it
         /// refuses, whose format may have no layout to count by.
-        std::size_t laidBytes(const osg::Image& image, TextureEncoding encoding)
+        std::size_t laidBytes(const osg::Image& image, const TextureFormat format)
         {
-            const TextureFormat format = readFormat(image, encoding);
             const bool widened = isWidened(format);
             if (!widened && (!isUploadable(format) || slicesAdjoin(image)))
                 return 0;
@@ -188,29 +201,25 @@ namespace Rtx
 
     Result<void, std::string> checkUploadable(const osg::Image& image, const TextureEncoding encoding)
     {
-        const TextureFormat format = readFormat(image, encoding);
-        if (!isUploadable(format) && !isWidened(format))
-            return Err{ "its format is " + std::string(nameOf(format)) + " (" + std::to_string(image.getPixelFormat())
-                + "), which this renderer does not upload" };
-
-        if (!image.valid() || image.s() < 0 || image.t() < 0)
-            return Err{ "it is " + std::to_string(image.s()) + " by " + std::to_string(image.t())
-                + " texels, which no device holds" };
-
-        return {};
+        return checkFormat(image, readFormat(image, encoding));
     }
 
     Result<TextureData, std::string> describeImage(const osg::Image& image, std::vector<MipLevel>& levels,
         std::vector<std::byte>& texels, const TextureEncoding encoding)
     {
+        return describeImage(image, readFormat(image, encoding), encoding, levels, texels);
+    }
+
+    Result<TextureData, std::string> describeImage(const osg::Image& image, const TextureFormat format,
+        const TextureEncoding encoding, std::vector<MipLevel>& levels, std::vector<std::byte>& texels)
+    {
         // Every reader of an image's bytes on the processor comes through here first, so a crash
         // in one names the file.
         const Crash::NoteScope noted("describing the texture \"{}\"", image.getFileName());
 
-        if (const Result<void, std::string> uploadable = checkUploadable(image, encoding); !uploadable.isOk())
+        if (const Result<void, std::string> uploadable = checkFormat(image, format); !uploadable.isOk())
             return Err{ uploadable.error() };
 
-        const TextureFormat format = readFormat(image, encoding);
         const TexelLayout layout = layoutOf(format);
         const auto width = static_cast<std::uint32_t>(image.s());
         const auto height = static_cast<std::uint32_t>(image.t());
@@ -337,7 +346,10 @@ namespace Rtx
             // The image the adder held, and never the file opened again: this runs on the frame an
             // arrival lands on, and a path is a lock and a disk read.
             if (row.mKind == TextureKind::File && row.mImage != nullptr)
+            {
                 kept.mImage = row.mImage;
+                kept.mFormat = readFormat(*row.mImage, kept.mEncoding);
+            }
             else if (row.mKind == TextureKind::File)
                 kept.mImage = Err{ std::string(sNoImage) };
             else if (const std::optional<VFS::Path::Normalized> source = SpriteLightMap::sourceOf(row.mBaked))
@@ -361,7 +373,7 @@ namespace Rtx
             if (kept.mImage.isOk() && kept.mImage.value() != nullptr)
             {
                 levels += kept.mImage.value()->getNumMipmapLevels();
-                texels += laidBytes(*kept.mImage.value(), kept.mEncoding);
+                texels += laidBytes(*kept.mImage.value(), kept.mFormat);
             }
         mLevels.reserve(levels);
         mTexels.reserve(texels);
@@ -412,7 +424,8 @@ namespace Rtx
 
         if (const osg::Image* image = kept.mImage.value().get())
         {
-            const Result<TextureData, std::string> read = describeImage(*image, mLevels, mTexels, kept.mEncoding);
+            const Result<TextureData, std::string> read
+                = describeImage(*image, kept.mFormat, kept.mEncoding, mLevels, mTexels);
             if (!read.isOk())
                 return read;
 

@@ -197,6 +197,21 @@ namespace Rtx
             EXPECT_EQ(Shaders::ggxConeWidth(1.0f, 1.0f), 1.0f);
         }
 
+        /// **A field of slopes is the roughness a painted map would state for it**, so water's guide
+        /// holds the quantity a solid's does and the shore blends two of one thing. By hand: slopes
+        /// of `sigma = 0.1` along each axis are a variance of `0.02` over both, which is GGX's
+        /// `alpha = sqrt(2) * 0.1 = 0.1414214` and a roughness of its root, `0.3760603`; a variance
+        /// of `0.09` is `alpha = 0.3`, the cone test's; none is a mirror; and a sea rougher than GGX
+        /// states is held at a roughness of one.
+        TEST(RtxBrdfTest, aFieldOfSlopesIsTheRoughnessAMapWouldStateForIt)
+        {
+            EXPECT_NEAR(Shaders::slopeRoughness(0.02f), 0.3760603f, 1e-6f);
+            EXPECT_NEAR(Shaders::slopeRoughness(0.09f), std::sqrt(0.3f), 1e-6f);
+            EXPECT_NEAR(Shaders::ggxAlpha(Shaders::slopeRoughness(0.09f)), 0.3f, 1e-6f);
+            EXPECT_EQ(Shaders::slopeRoughness(0.0f), 0.0f);
+            EXPECT_EQ(Shaders::slopeRoughness(2.0f), 1.0f);
+        }
+
         /// **The distribution is normalised**: `∫ D (n.h) dω` is one for every alpha, which in
         /// `s = cos²` is `∫ D(√s) π ds` over nought to one — worked out by hand, the antiderivative
         /// of `α² / (s (α² - 1) + 1)²` is `-α² / ((α² - 1) (s (α² - 1) + 1))`, which rises by

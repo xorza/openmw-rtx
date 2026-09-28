@@ -51,6 +51,11 @@ namespace MWRender
         /// here: it is the engine's, which hands it to whichever renderer it made.
         Rtx::LatencyMode mLatency = Rtx::LatencyMode::Off;
 
+        /// Whether a click flashes the driver's latency marker, which a tool measuring the click to
+        /// the screen watches for: the player's `[RTX] reflex flash`, and never a harness's, whose
+        /// clicks nobody makes.
+        bool mReflexFlash = false;
+
         /// Whether the window stays hidden, which saves a present per frame and nothing else.
         bool mHeadless = false;
 
@@ -74,8 +79,8 @@ namespace MWRender
         /// run states by default.
         float getWorldStep() const { return mStep.value_or(sStepSeconds); }
 
-        /// Whether each walk waits for the cell it adopts, or nothing to let the frame clock
-        /// decide. Settled is what makes two processes draw one picture; a run timing the
+        /// Whether each walk waits for the cell it adopts, or nothing to let `mStep` decide: a
+        /// stated step waits. Settled is what makes two processes draw one picture; a run timing the
         /// streaming path says no (`Rtx::CellRing::setSettled`).
         std::optional<bool> mSettled;
 

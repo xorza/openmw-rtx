@@ -317,7 +317,7 @@ namespace MWRender
         const EyeState& eye = frame.mEye;
         const Precipitation& precipitation = frame.mPrecipitation;
 
-        const bool weathered = sky.mOutdoors;
+        const bool weathered = sky.mWeatherRan;
         const osg::Vec4f disc = sunDiscOf(sky, world);
 
         Fx::StateUpdater& state = *mPostProcessor->getStateUpdater();
@@ -327,7 +327,7 @@ namespace MWRender
         state.setSunVis(world.mSunVisibility);
         state.setAmbientColor(world.mAmbientColour);
         state.setSkyColor(sky.mWeather.mSkyColor);
-        state.setIsInterior(world.isInteriorCell());
+        state.setIsInterior(!world.mSkyShown);
         state.setIsWaterEnabled(world.mWater.isShown());
         state.setWaterHeight(world.mWater.mHeight);
         state.setIsUnderwater(world.mUnderwater);
@@ -343,8 +343,9 @@ namespace MWRender
         state.setNextWeatherId(world.mNextWeatherId.value_or(-1));
         state.setWeatherTransition(world.mWeatherTransition);
         state.setWindSpeed(world.mWindSpeed);
-        // Which techniques run at all. A quasi-exterior is outside here and inside for the
-        // `isInterior` uniform above, which is why `WorldState` answers the two apart.
+        // Which techniques run at all. The `isInterior` uniform above and the shadow mode below follow
+        // the sky switch, as `RenderingManager::setSkyEnabled` set them upstream, and this follows
+        // the cell: a quasi-exterior is outside here, and so is an exterior whose sky `tsky` hid.
         mPostProcessor->setUnderwaterFlag(world.mUnderwater);
         mPostProcessor->setExteriorFlag(world.isOutdoors());
 
@@ -421,14 +422,14 @@ namespace MWRender
             mPrecipitationOccluder->update();
         }
 
-        // The shadow technique's mode is a rebuild, so it follows the door and not the frame
-        if (!mApplied.mAny || mApplied.mOutdoors != world.isOutdoors())
+        // The shadow technique's mode is a rebuild, so it follows the sky switch and not the frame
+        if (!mApplied.mAny || mApplied.mSkyShown != world.mSkyShown)
         {
-            if (world.isOutdoors())
+            if (world.mSkyShown)
                 mShadowManager->enableOutdoorMode();
             else
                 mShadowManager->enableIndoorMode(Settings::shadows());
-            mApplied.mOutdoors = world.isOutdoors();
+            mApplied.mSkyShown = world.mSkyShown;
         }
 
         // Upstream's setWaterHeight and enableTerrain: the water is culled by the ground's height
@@ -440,7 +441,10 @@ namespace MWRender
             osg::Callback* cull
                 = exterior ? frame.mTerrain.getHeightCullCallback(world.mWater.mHeight, Mask_Water) : nullptr;
             mWater->setCullCallback(cull);
-            mApplied.mWaterCulled = !exterior || cull != nullptr;
+
+            // Applied where the terrain handed a cull out, and where it never will: with water
+            // culling off there is none to wait for, and asking again every frame changes nothing.
+            mApplied.mWaterCulled = !exterior || cull != nullptr || !Settings::terrain().mWaterCulling;
             mApplied.mExterior = exterior;
         }
         if (!mApplied.mAny || mApplied.mWaterHeight != world.mWater.mHeight)
@@ -524,7 +528,7 @@ namespace MWRender
                 mShadowManager->setupShadowSettings(Settings::shadows(), scene.getShaderManager());
                 mShadowManager->setIndoorShadowCastingMask(getIndoorShadowCastingMask());
                 mShadowManager->setOutdoorShadowCastingMask(getOutdoorShadowCastingMask());
-                if (mApplied.mOutdoors)
+                if (mApplied.mSkyShown)
                     mShadowManager->enableOutdoorMode();
                 else
                     mShadowManager->enableIndoorMode(Settings::shadows());

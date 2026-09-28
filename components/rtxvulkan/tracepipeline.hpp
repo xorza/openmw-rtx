@@ -78,6 +78,9 @@ namespace Rtx
         void traceRays(
             VkCommandBuffer commands, std::uint32_t width, std::uint32_t height, std::uint32_t depth = 1) const;
 
+        // Read by the tests and by nothing else.
+        const Buffer& getTable() const { return mTable; }
+
     private:
         const Device& mDevice;
 

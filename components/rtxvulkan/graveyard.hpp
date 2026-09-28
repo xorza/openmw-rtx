@@ -12,7 +12,6 @@
 #include "handles.hpp"
 #include "image.hpp"
 #include "retiring.hpp"
-#include "texture.hpp"
 
 namespace Rtx
 {
@@ -33,7 +32,6 @@ namespace Rtx
 
         /// Each takes an empty one and does nothing with it.
         void bury(Buffer&& buffer);
-        void bury(Texture&& texture);
         void bury(Image&& image);
 
         /// A structure and the room it stands in, given back together once nothing can be built
@@ -48,8 +46,8 @@ namespace Rtx
         /// room back to a storage the scene owns. Type-erased, so this file names no scene.
         void bury(std::shared_ptr<void>&& held);
 
-        /// Puts `made` where `held` stands and buries what stood there: the one way a table, a
-        /// texture or a structure is replaced, so the assignment that replaces it cannot destroy
+        /// Puts `made` where `held` stands and buries what stood there: the one way a table, an
+        /// image or a structure is replaced, so the assignment that replaces it cannot destroy
         /// what a frame in flight reads.
         template <class T>
         void replace(T& held, T&& made)
@@ -71,8 +69,7 @@ namespace Rtx
         // Read by the tests and by nothing else.
         std::size_t getHeldCount() const
         {
-            return mBuffers.size() + mTextures.size() + mImages.size() + mStructures.size() + mQueryPools.size()
-                + mOthers.size();
+            return mBuffers.size() + mImages.size() + mStructures.size() + mQueryPools.size() + mOthers.size();
         }
 
     private:
@@ -89,7 +86,6 @@ namespace Rtx
         const Device& mDevice;
 
         Retiring<Buffer> mBuffers;
-        Retiring<Texture> mTextures;
         Retiring<Image> mImages;
         Retiring<AccelerationStructure> mStructures;
         Retiring<QueryPool> mQueryPools;

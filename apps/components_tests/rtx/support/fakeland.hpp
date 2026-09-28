@@ -180,6 +180,7 @@ namespace Rtx::Testing
     public:
         Result<osg::ref_ptr<const osg::Image>, std::string> get(const VFS::Path::NormalizedView path)
         {
+            ++mOpened;
             if (mLost.contains(path.value()))
                 return Err{ "no image reads from the file" };
 
@@ -198,8 +199,12 @@ namespace Rtx::Testing
 
         void lose(std::string_view path) { mLost.emplace(path); }
 
+        /// How many times a file was asked for, which a reader that opens each once keeps low.
+        std::size_t getOpened() const { return mOpened; }
+
     private:
         std::map<std::string, osg::ref_ptr<osg::Image>, std::less<>> mImages;
         std::set<std::string, std::less<>> mLost;
+        std::size_t mOpened = 0;
     };
 }

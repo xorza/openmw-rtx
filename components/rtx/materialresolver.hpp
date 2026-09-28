@@ -161,20 +161,27 @@ namespace Rtx
         /// unset: the slots are eight, and the sweep reads the epoch and the holds alone.
         struct HeldTexture : Known
         {
-            std::array<std::array<Index, sTextureWrapCount>, sTextureEncodingCount> mSlots{ {
-                { sNoIndex, sNoIndex, sNoIndex, sNoIndex },
-                { sNoIndex, sNoIndex, sNoIndex, sNoIndex },
-            } };
+            using Slots = std::array<std::array<Index, sTextureWrapCount>, sTextureEncodingCount>;
+
+            /// Every slot unset, filled rather than spelled, so a wrap or an encoding added is
+            /// unset too and not slot nought.
+            static constexpr Slots noSlots()
+            {
+                Slots slots{};
+                for (std::array<Index, sTextureWrapCount>& wraps : slots)
+                    wraps.fill(sNoIndex);
+                return slots;
+            }
+
+            Slots mSlots = noSlots();
             std::optional<bool> mSolid;
 
-            /// Which of `mSlots` the table refused, a bit each, as of `TextureTable::getFreedCount`
-            /// reading `mRefusedAt`; a count that moved since clears them all. An animated material
-            /// asks for its images every frame, and a full table refused each of them every frame,
-            /// building the path to be refused. Per slot and not per image, because another wrap of
-            /// the same file may stand already, and the table answers that one full or not.
-            std::uint8_t mRefused = 0;
+            /// Which of `mSlots` the table refused, a bit each. An animated material asks for its
+            /// images every frame, and a full table refused each of them every frame, building the
+            /// path to be refused. Per slot and not per image, because another wrap of the same
+            /// file may stand already, and the table answers that one full or not.
+            RefusedTakes mRefused;
             static_assert(sTextureEncodingCount * sTextureWrapCount <= 8, "a refusal bit per slot");
-            std::uint64_t mRefusedAt = 0;
 
             /// Its mean texel in the process's cache, `MeanTexels`, or null until an additive
             /// material asks. Null too for an image that is not a file, whose mean the cache

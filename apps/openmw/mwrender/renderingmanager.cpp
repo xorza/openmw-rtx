@@ -465,7 +465,7 @@ namespace MWRender
         // Fed the weather where the sky manager was fed it upstream: every update the weather ran,
         // paused or not, and before the particles step.
         const SkyState& sky = MWBase::Environment::get().getWorld()->getSkyState();
-        if (sky.mOutdoors)
+        if (sky.mWeatherRan)
             mPrecipitation->setWeather(sky);
 
         if (!paused)
@@ -806,6 +806,7 @@ namespace MWRender
     void RenderingManager::notifyWorldSpaceChanged()
     {
         mEffectManager->clear();
+        mRenderer.notifyWorldspaceChanged();
         mRenderer.notifyCut();
     }
 

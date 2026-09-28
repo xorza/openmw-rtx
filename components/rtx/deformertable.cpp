@@ -158,8 +158,8 @@ namespace Rtx
         // vertices and both kinds are computed from them.
         range.mBindOffset = mBindRuns.allocate(range.mVertices.mCount).mOffset;
 
-        // And a run of words, zeroed. Zero is a pose nothing can equal, and `MeshRange::mPosed`
-        // is what says the first pose names the mesh regardless.
+        // And a run of words, zeroed. A first pose may equal them, and `MeshRange::mPosed` is what
+        // says it names the mesh regardless.
         mDeformers.hold(range.mDeformer);
         range.mPoseOffset = mPoses.allocateZeroed(mDeformers.at(range.mDeformer).getPoseWords()).mOffset;
     }

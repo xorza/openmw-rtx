@@ -11,14 +11,13 @@
 #include <components/rtx/texturedata.hpp>
 #include <components/rtxvulkan/commands.hpp>
 #include <components/rtxvulkan/device.hpp>
-#include <components/rtxvulkan/handles.hpp>
 #include <components/rtxvulkan/image.hpp>
 #include <components/rtxvulkan/memory.hpp>
 #include <components/rtxvulkan/spritelightpass.hpp>
 #include <components/rtxvulkan/texture.hpp>
+#include <components/rtxvulkan/texturepasses.hpp>
 
 #include "support/device/harness.hpp"
-#include "support/device/texturepasses.hpp"
 #include "support/spritelightbake.hpp"
 #include "support/testtexture.hpp"
 
@@ -35,8 +34,7 @@ namespace Rtx
             std::vector<std::vector<std::uint8_t>> bakeOf(const TextureData& sprite)
             {
                 Device& device = getDevice();
-                const Testing::TexturePassSet passes(device);
-                const Sampler sampler = makeContentSampler(device, "sprite light test");
+                const TexturePasses passes(device, Testing::getShaderDirectory());
 
                 const auto levels = static_cast<std::uint32_t>(sprite.mLevels.size());
                 const Image bake(device, sprite.mWidth, sprite.mHeight, VK_FORMAT_R8G8B8A8_UNORM,
@@ -45,10 +43,10 @@ namespace Rtx
 
                 Batch upload(getPool());
                 std::vector<VkBufferImageCopy> regions;
-                const Texture source = std::move(Texture::fromFile(
-                    device, upload, passes.mPasses, sampler.get(), sprite, 0, "sprite", regions, MemoryUse::Essential)
-                                                     .value());
-                passes.mBake.record(upload.getCommands(), source.getImage(), sampler.get(), bake);
+                const Texture source = std::move(
+                    Texture::fromFile(device, upload, passes, sprite, 0, "sprite", regions, MemoryUse::Essential)
+                        .value());
+                passes.mBake.record(upload.getCommands(), source.getImage(), bake);
                 upload.flush();
 
                 std::vector<std::vector<std::uint8_t>> read(levels);

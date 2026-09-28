@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <semaphore>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -37,6 +38,7 @@
 #include <components/misc/constants.hpp>
 #include <components/rtx/cellreader.hpp>
 #include <components/rtx/cellring.hpp>
+#include <components/rtx/cellsupply.hpp>
 #include <components/rtx/cellworld.hpp>
 #include <components/rtx/compositequeue.hpp>
 #include <components/rtx/extractionstats.hpp>
@@ -319,13 +321,13 @@ namespace Rtx::Testing
                 EXPECT_TRUE(mScene.isEmpty()) << "a world detached and still standing rows";
             }
 
-            void start()
+            void start(const ESM::RefId worldspace = ESM::Cell::sDefaultWorldspaceId)
             {
                 mAround.mWorld = Rtx::CellWorld{
                     .mStorage = &mStorage,
                     .mGround = &mLand,
                     .mContent = &mContent,
-                    .mWorldspace = ESM::Cell::sDefaultWorldspaceId,
+                    .mWorldspace = worldspace,
                     .mMask = ~0u,
                 };
                 mRing.follow(mAround);
@@ -921,6 +923,34 @@ namespace Rtx::Testing
             EXPECT_LE(mRing.getHeldCellCount(), frame) << "one cell a frame, and a frame walked twice adopts once";
         }
 
+        /// **A recycled cell whose new land stands nothing stands no ground.** An ESM4 world leaves a
+        /// cell with no land out rather than laying a plane, and the cell that takes a dropped
+        /// cell's place kept that cell's ground: it stood rows it no longer held and dropped a
+        /// mesh of nothing.
+        TEST_F(RtxCellRingTest, aRecycledCellWhoseLandStandsNothingStandsNoGround)
+        {
+            mLand.mWithData.clear();
+            for (int x = -6; x <= 6; ++x)
+                for (int y = -6; y <= 6; ++y)
+                    mLand.mWithData.emplace_back(x, y);
+            start(ESM::RefId::stringRefId("tamriel"));
+
+            ExtractionStats stood;
+            for (std::size_t walks = 0; walks < 2 * sPreparedCells; ++walks)
+                stood = walk(mWalked++);
+            ASSERT_GT(stood.mGroundCells, 0u);
+
+            // Far from every cell with land: every cell dropped, and every cell adopted in their
+            // place stands nothing.
+            around(osg::Vec3f(60.5f * sCellSize, 60.5f * sCellSize, 0.0f), osg::Vec4i(59, 59, 62, 62));
+            ExtractionStats away;
+            for (std::size_t walks = 0; walks < 2 * sPreparedCells; ++walks)
+                away = walk(mWalked++);
+
+            EXPECT_EQ(away.mGroundCells, 0u) << "a recycled cell stood the ground of the cell it replaced";
+            EXPECT_EQ(placed(), 0u);
+        }
+
         /// Settled, a walk adopts the one cell an unsettled walk does and waits for it.
         ///
         /// **No sleep anywhere here, and that is the whole claim.** The test above has to wait on
@@ -1020,6 +1050,128 @@ namespace Rtx::Testing
                 reader.giveBack(reader.read(osg::Vec2i(0, 0), true));
 
             EXPECT_EQ(storage.mModelsAsked, 1) << "the storage was asked for a record's model more than once";
+        }
+
+        /// **A layer's file is opened once for as long as a cell holds it**, and not once a cell:
+        /// every cell of a band wears the same few ground textures, and an open is a lock and a
+        /// read. Two cells of grass and rock are three files; a third file would be the second
+        /// cell's own. The rock's `_nh` carries a height, which is its format's to say, and the
+        /// grass asks for none. Given back and read again, a file that no longer reads keeps its
+        /// place and its path, for the texture table to stand in and refuse.
+        TEST(RtxCellReaderTest, aLayersFileIsOpenedOnceWhileACellHoldsIt)
+        {
+            FakeLand land;
+            land.mWithData = { osg::Vec2i(0, 0), osg::Vec2i(1, 0) };
+            FewStatics storage;
+            FewContent content;
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u);
+
+            PreparedCell& west = reader.read(osg::Vec2i(0, 0), true);
+            EXPECT_EQ(content.mImages.getOpened(), 3u) << "grass, rock and the rock's normal map";
+            PreparedCell& east = reader.read(osg::Vec2i(1, 0), true);
+            EXPECT_EQ(content.mImages.getOpened(), 3u) << "a file opened again while a cell held it";
+
+            ASSERT_EQ(east.mGround.mLayers.size(), 2u);
+            const PreparedLayer& grass = east.mGround.mLayers[0];
+            const PreparedLayer& rock = east.mGround.mLayers[1];
+            EXPECT_EQ(grass.mTexture, west.mGround.mLayers[0].mTexture) << "one reading of one file";
+            ASSERT_NE(rock.mNormalTexture, nullptr);
+            ASSERT_NE(rock.mNormalTexture->mImage, nullptr);
+            EXPECT_EQ(rock.mNormalTexture->mImage->getFileName(), "textures/rock_nh.dds");
+            EXPECT_TRUE(rock.mParallax) << "an `_nh` of four channels carries a height";
+            EXPECT_FALSE(grass.mParallax);
+            EXPECT_EQ(grass.mNormalTexture, nullptr);
+
+            // What a cell holds is the one list `collectTextures` derives: each layer's diffuse,
+            // then its normal map.
+            std::vector<PreparedTexture*> held;
+            for (PreparedCell* cell : { &west, &east })
+            {
+                held.clear();
+                cell->mGround.collectTextures(held);
+                ASSERT_EQ(held.size(), 3u);
+                EXPECT_EQ(held[0]->mPath, "textures/grass.dds");
+                EXPECT_EQ(held[1]->mPath, "textures/rock_diffusespec.dds");
+                EXPECT_EQ(held[2]->mPath, "textures/rock_nh.dds");
+                for (PreparedTexture* texture : held)
+                    reader.giveBack(*texture);
+                reader.giveBack(*cell);
+            }
+
+            content.mImages.lose("textures/grass.dds");
+            PreparedCell& again = reader.read(osg::Vec2i(0, 0), true);
+            EXPECT_EQ(content.mImages.getOpened(), 6u) << "a reading given back was kept";
+            ASSERT_EQ(again.mGround.mLayers.size(), 2u);
+            EXPECT_EQ(again.mGround.mLayers[0].mTexture->mImage, nullptr);
+            EXPECT_EQ(again.mGround.mLayers[0].mTexture->mPath, "textures/grass.dds");
+        }
+
+        /// Content whose first image is held until the test lets it go, which holds the reading
+        /// thread inside the first cell of its list.
+        class HeldContent final : public ContentSource
+        {
+        public:
+            osg::ref_ptr<const osg::Node> getTemplate(VFS::Path::NormalizedView) override { return nullptr; }
+
+            Result<osg::ref_ptr<const osg::Image>, std::string> getImage(const VFS::Path::NormalizedView path) override
+            {
+                if (!mHeldOnce)
+                {
+                    mHeldOnce = true;
+                    mEntered.release();
+                    mLetGo.acquire();
+                }
+                return mImages.get(path);
+            }
+
+            ImagesByPath mImages;
+            std::binary_semaphore mEntered{ 0 };
+            std::binary_semaphore mLetGo{ 0 };
+
+            /// The reading thread's alone.
+            bool mHeldOnce = false;
+        };
+
+        /// **An ask for nothing cancels the list in flight**, as a newer list does: the eye has
+        /// moved and nothing it lacked is lacked now. It left the list to be read to its end,
+        /// because what said "newer" was a list that was not empty. The thread is held inside the
+        /// first of three cells while the empty ask is made, and the next cell it reads is the one
+        /// asked after.
+        TEST(RtxCellSupplyTest, anAskForNothingCancelsTheListInFlight)
+        {
+            FakeLand land;
+            FewStatics storage;
+            HeldContent content;
+            CellSupply supply;
+            supply.follow(CellWorld{
+                .mStorage = &storage,
+                .mGround = &land,
+                .mContent = &content,
+                .mWorldspace = ESM::Cell::sDefaultWorldspaceId,
+                .mMask = ~0u,
+            });
+
+            supply.ask(CellRequest{ .mCells = { osg::Vec2i(0, 0), osg::Vec2i(1, 0), osg::Vec2i(2, 0) } });
+            content.mEntered.acquire();
+            supply.ask(CellRequest{});
+            content.mLetGo.release();
+
+            std::vector<PreparedCell*> read;
+            supply.waitForOne();
+            supply.take(read);
+            ASSERT_EQ(read.size(), 1u);
+            EXPECT_EQ(read[0]->mCell, osg::Vec2i(0, 0)) << "the cell in hand is finished";
+
+            supply.ask(CellRequest{ .mCells = { osg::Vec2i(5, 0) } });
+            while (std::none_of(
+                read.begin(), read.end(), [](const PreparedCell* cell) { return cell->mCell == osg::Vec2i(5, 0); }))
+            {
+                supply.waitForOne();
+                supply.take(read);
+            }
+
+            ASSERT_EQ(read.size(), 2u) << "a cell of the cancelled list was read";
+            EXPECT_EQ(read[1]->mCell, osg::Vec2i(5, 0));
         }
 
         /// **A model the walk refuses costs the reader nothing it keeps.** The reference is left

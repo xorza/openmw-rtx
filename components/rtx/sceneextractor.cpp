@@ -719,11 +719,13 @@ namespace Rtx
         // the node above it is a plain transform shared with anything else hanging there.
         const bool water = isWater(drawable.getNodeMask());
 
-        const MaterialResolver::Resolved material = water ? mMaterials.resolveWater() : mMaterials.resolve(shading);
-
+        // The mesh first: a surface nothing places has no material, and one resolved ahead of a
+        // refused mesh held its textures and uploaded them for nothing.
         const Index mesh = mMeshes.resolve(drawable, read);
         if (mesh == sNoIndex)
             return;
+
+        const MaterialResolver::Resolved material = water ? mMaterials.resolveWater() : mMaterials.resolve(shading);
 
         // The slot this placement has held since it first appeared, so a world that stands
         // still writes nothing: the scene already knows where everything is, and only a transform

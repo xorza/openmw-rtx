@@ -117,20 +117,14 @@ namespace Rtx
     {
         CellReturns& back = mSupply.giveBack();
         back.mModels.insert(back.mModels.end(), cell.mModels.begin(), cell.mModels.end());
-        if (cell.mGround.has_value())
-            back.mTextures.insert(back.mTextures.end(), cell.mGround->mTextures.begin(), cell.mGround->mTextures.end());
+        back.mTextures.insert(back.mTextures.end(), cell.mGround.mTextures.begin(), cell.mGround.mTextures.end());
     }
 
     void CellRing::giveBackHolds(const PreparedCell& cell)
     {
         CellReturns& back = mSupply.giveBack();
         back.mModels.insert(back.mModels.end(), cell.mModels.begin(), cell.mModels.end());
-        for (const PreparedLayer& layer : cell.mGround.mLayers)
-        {
-            back.mTextures.push_back(layer.mTexture);
-            if (layer.mNormalTexture != nullptr)
-                back.mTextures.push_back(layer.mNormalTexture);
-        }
+        cell.mGround.collectTextures(back.mTextures);
     }
 
     void CellRing::takeDone()

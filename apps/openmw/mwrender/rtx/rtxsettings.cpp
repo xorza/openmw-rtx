@@ -21,6 +21,8 @@ namespace MWRender
             .mObjectPagingMinSize = Settings::terrain().mObjectPagingMinSize,
             .mSpecularMapLayout = Settings::rtx().mSpecularMapLayout.get(),
             .mAnisotropy = Settings::general().mAnisotropy,
+            .mReflexFlash = Settings::rtx().mReflexFlash,
+            .mGroundcover = Settings::groundcover().mEnabled,
         };
     }
 
@@ -39,6 +41,7 @@ namespace MWRender
                 .mSpecularLayout = Rtx::sSpecularLayoutNames.require(values.mSpecularMapLayout, "a specular map layout"),
             },
             .mAnisotropy = static_cast<std::uint32_t>(std::max(values.mAnisotropy, 1)),
+            .mReflexFlash = values.mReflexFlash,
         };
     }
 }

@@ -176,7 +176,7 @@ namespace Rtx
 
         // Opted into the driver's pacing where the surface paces this mode, which is what makes
         // the sleep, the markers and the ids mean anything on this swapchain.
-        mPaced = mDevice.hasLatencyPacing() && mPacedModes.paces(mPresentMode);
+        mPaced = mPacedModes.paces(mPresentMode);
         const VkSwapchainLatencyCreateInfoNV paced{
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_LATENCY_CREATE_INFO_NV,
             .latencyModeEnable = VK_TRUE,

@@ -132,33 +132,18 @@ namespace Rtx
         DeviceFeatures features;
         requestRequiredFeatures(features);
 
-        // Outside `DeviceFeatures`, because these are the features that are optional. That type
-        // is what the renderer requires, asked and enabled as one list, and a feature it can do
-        // without has no place in a list a device is refused for lacking.
-        VkPhysicalDeviceFaultFeaturesEXT fault{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT };
-        VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR presentFences{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR,
-        };
-        VkPhysicalDevicePresentIdFeaturesKHR presentId{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR,
-        };
-
         // Only what the device took is chained, into the query and into the creation alike. A
-        // driver may offer an extension without the feature it provides, so each has to be asked;
-        // asking for one whose extension is not enabled is a structure the driver was never told to
-        // expect.
-        void* asked = nullptr;
-        const auto chain = [&asked](auto& structure) {
+        // driver may offer an extension without the feature it provides, so each has to be asked.
+        OptionalFeatures optional;
+        VkBaseOutStructure* asked = nullptr;
+        const auto chain = [&asked](VkBaseOutStructure& structure) {
             structure.pNext = asked;
             asked = &structure;
         };
 
-        if (has(DeviceOption::FaultReport))
-            chain(fault);
-        if (has(DeviceOption::PresentFences))
-            chain(presentFences);
-        if (has(DeviceOption::Pacing))
-            chain(presentId);
+        for (const OptionalExtensions& option : getOptionalExtensions())
+            if (option.mFeature != nullptr && has(option.mOption))
+                chain(option.mFeature->mStructure(optional));
 
         if (asked != nullptr)
         {
@@ -167,22 +152,27 @@ namespace Rtx
 
             // The vendor binary is not asked for: nothing here could read it, and a feature enabled
             // for nothing is a feature to explain.
-            fault.deviceFaultVendorBinary = VK_FALSE;
+            optional.mFault.deviceFaultVendorBinary = VK_FALSE;
         }
 
-        const bool describesFault = has(DeviceOption::FaultReport) && fault.deviceFault == VK_TRUE;
-        mPresentFences = has(DeviceOption::PresentFences) && presentFences.swapchainMaintenance1 == VK_TRUE;
-        const bool paces = has(DeviceOption::Pacing) && presentId.presentId == VK_TRUE;
-
         // The same chain again, of what the device turned out to have rather than what it offered,
-        // in front of the features the renderer requires.
-        asked = &features.mFeatures2;
-        if (describesFault)
-            chain(fault);
-        if (mPresentFences)
-            chain(presentFences);
-        if (paces)
-            chain(presentId);
+        // in front of the features the renderer requires. An option whose feature the device lacks
+        // is not taken after all.
+        asked = reinterpret_cast<VkBaseOutStructure*>(&features.mFeatures2);
+        for (const OptionalExtensions& option : getOptionalExtensions())
+        {
+            if (option.mFeature == nullptr || !has(option.mOption))
+                continue;
+
+            if (option.mFeature->mField(optional) == VK_TRUE)
+                chain(option.mFeature->mStructure(optional));
+            else
+                taken[static_cast<std::size_t>(option.mOption)] = false;
+        }
+
+        const bool describesFault = has(DeviceOption::FaultReport);
+        mPresentFences = has(DeviceOption::PresentFences);
+        const bool paces = has(DeviceOption::Pacing);
 
         const float priority = 1.0f;
         const VkDeviceQueueCreateInfo queue{

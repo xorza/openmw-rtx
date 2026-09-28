@@ -8,6 +8,7 @@
 #include <components/rtx/frameimage.hpp>
 #include <components/rtx/reconstruction.hpp>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtx/shaders/visibility.h>
 
 #include "accumulatehistory.hpp"
 #include "fogvolume.hpp"
@@ -19,33 +20,12 @@
 
 namespace Rtx
 {
-    class AccumulatePass;
-    class AtrousPass;
-    class CompositePass;
     class Device;
     class GpuTimer;
-    class SpriteBinPass;
-    class SpriteShadePass;
-    class VisibilityPass;
+    struct TracePasses;
     struct TraceRecording;
     struct TraceResult;
     struct VisibilityInputs;
-
-    /// What every chain shares, whichever camera it is for: the layouts every `GBuffer` and every
-    /// `FogVolume` is shaped by, and the passes every trace runs. The renderer keeps one of each,
-    /// built once — a pipeline is a compile, and two chains that each made their own made it
-    /// twice — and what differs between two chains is the extent and what becomes of the picture.
-    struct TracePasses
-    {
-        const SetLayout& mChannels;
-        const SetLayout& mFog;
-        const VisibilityPass& mVisibility;
-        const CompositePass& mComposite;
-        const SpriteBinPass& mSpriteBin;
-        const SpriteShadePass& mSpriteShade;
-        const AccumulatePass& mAccumulate;
-        const AtrousPass& mFilter;
-    };
 
     /// Everything one camera's trace writes, at one extent — one chain however many cameras have
     /// one, so a barrier cannot go missing from a second copy. What differs between two of these
@@ -109,21 +89,22 @@ namespace Rtx
         void dropSum() { mSum = Image(); }
 
     private:
-        /// The sprite tile list the trace of `inputs` reads: the camera's own where it was handed
-        /// one, which is the list of nothing, and the slot's bin otherwise. The one rule, which
-        /// the block is written by and the display's `puffsCoverNothing` asks after the trace —
-        /// after, because the bin's `take` may have grown the table.
+        /// The sprite tile list the trace of `inputs` reads: the media's list of nothing for a camera
+        /// that draws no sprites, and the slot's bin otherwise. Asked once, after the bin's `take`,
+        /// which may have grown the table.
         VkDeviceAddress getSpriteTileList(const VisibilityInputs& inputs) const;
 
         /// The bounce resolved: the temporal mean, and then the cascade over it, with the barrier
         /// between them that makes this one call.
         ///
         /// @param timer null where the run is not being timed, which a picture is not.
+        ///
+        /// @param sampled the camera the trace sampled: its eye, its arms' eye and its far plane.
         const Image& recordDenoise(
-            VkCommandBuffer commands, const Shaders::Camera& camera, float far, bool historyLost, GpuTimer* timer);
+            VkCommandBuffer commands, const Shaders::VisibilityConstants& sampled, bool historyLost, GpuTimer* timer);
 
         const Device& mDevice;
-        TracePasses mPasses;
+        const TracePasses& mPasses;
 
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;

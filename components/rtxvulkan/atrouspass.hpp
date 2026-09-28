@@ -42,8 +42,9 @@ namespace Rtx
         ///        frame. `AccumulateHistory::getHistory` says why the feedback belongs here.
         /// @param scratch `makeScratch`'s, at least the camera's extent.
         /// @param camera the one the frame was traced with; the edge tests rebuild its rays.
+        /// @param arms the one the player's arms were traced with, whose pixels are rebuilt through it.
         const Image& record(VkCommandBuffer commands, const GBuffer& buffer, const Image& blended, const Image& history,
-            const Image& scratch, const Shaders::Camera& camera) const;
+            const Image& scratch, const Shaders::Camera& camera, const Shaders::Camera& arms) const;
 
     private:
         ComputePipeline mPipeline;

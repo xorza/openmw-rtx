@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <vulkan/vulkan_core.h>
 
 #include <components/crashcatcher/crash.hpp>
@@ -8,6 +10,28 @@
 
 namespace Rtx
 {
+    /// How a read of floats decodes a texel read back to the host: from halves, as floats, or not at
+    /// all, for a format only a read of bytes takes.
+    enum class TexelDecode
+    {
+        Bytes,
+        Half,
+        Float,
+    };
+
+    /// What a read-back needs of a format: how many bytes one texel takes, and how a read of floats
+    /// decodes it.
+    struct FormatInfo
+    {
+        std::uint32_t mTexelBytes;
+        TexelDecode mDecode;
+    };
+
+    /// The one table of `FormatInfo`, asked by a read-back and by nothing else. Ends the process
+    /// for a format no image here is read back in — every block format among them, whose texels
+    /// have no size of their own — because one read here is a contract broken.
+    FormatInfo formatInfoOf(VkFormat format);
+
     /// The one place a `TextureFormat` becomes Vulkan's. A colour's cases are sRGB, because the files
     /// hold display-encoded bytes and the hardware converts them in the filter; data's are UNORM.
     /// Ends the process for a format `describeImage` refuses, because one arriving here is a

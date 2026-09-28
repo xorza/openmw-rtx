@@ -223,8 +223,8 @@ namespace RtxTool
         /// place, and one number for the whole of it.
         bool mDigest = false;
 
-        /// Whether the same graph is walked a second time, so what that added can be asked about.
-        /// The largest cost a frame has, so only a stop that asked pays for it.
+        /// Whether the scene report says what a second walk of the same graph added. The largest
+        /// cost a frame has, so only a stop that asked pays for it: this, or `Check::WalkTwice`.
         bool mWalkTwice = false;
 
         /// Where every texture the scene holds is written, vanilla beside de-lit, as one sheet.
@@ -263,6 +263,10 @@ namespace RtxTool
 
         /// What this stop asserts. Empty for a stop that only draws.
         std::vector<Check> mChecks;
+
+        /// Whether the graph is walked a second time: for the report, or for the check that asks
+        /// what the walk added.
+        bool walksTwice() const;
     };
 
     /// One place a run visits, and everything that is true of it.
@@ -285,9 +289,9 @@ namespace RtxTool
     {
         std::vector<Stop> mStops;
 
-        /// What the renderer is made with: hidden and stepped unless the command says otherwise,
-        /// because a run measures or writes a picture unless somebody is watching it.
-        MWRender::RunSetup mSetup{ .mHeadless = true, .mStep = MWRender::sStepSeconds };
+        /// What the renderer is made with: the command's (`Framed::mSetup`), hidden and stepped unless
+        /// it says otherwise.
+        MWRender::RunSetup mSetup;
 
         /// Whether somebody plays the session (`VerbPolicy::mPlayed`): the menus are theirs to open
         /// and close. Otherwise the run closes any a script opens, and draws the interface only

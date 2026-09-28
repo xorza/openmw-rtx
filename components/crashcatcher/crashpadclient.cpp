@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <string>
@@ -22,6 +20,7 @@
 #include "crashpadclientsystem.hpp"
 #include "crashpage.hpp"
 #include "crashsummary.hpp"
+#include "crashuncaught.hpp"
 
 namespace Crash
 {
@@ -83,6 +82,7 @@ namespace Crash
         monitor.mNotesSize = noteTable().size();
         monitor.mApplication = settings.mApplication;
         monitor.mDialog = settings.mDialog;
+        monitor.mEndAfter = settings.mEndAfter;
         monitor.mIssues = settings.mIssues;
 
         crashpad::CrashpadInfo* const info = crashpad::CrashpadInfo::GetCrashpadInfo();
@@ -151,10 +151,7 @@ namespace Crash
     void fatal(std::string_view reason)
     {
         if (!sInstalled)
-        {
-            std::fprintf(stderr, "Fatal: %.*s\n", static_cast<int>(reason.size()), reason.data());
-            std::abort();
-        }
+            abortUncaught(reason);
 
         Client::endAsCrash(reason);
     }

@@ -27,10 +27,10 @@
 #include <components/rtxvulkan/image.hpp>
 #include <components/rtxvulkan/scenebuffers.hpp>
 #include <components/rtxvulkan/texture.hpp>
+#include <components/rtxvulkan/texturepasses.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "support/device/harness.hpp"
-#include "support/device/texturepasses.hpp"
 #include "support/layers.hpp"
 #include "support/testtexture.hpp"
 
@@ -60,7 +60,7 @@ namespace Rtx
             Baked bakeOf(float tiling, std::uint32_t outputs, bool authored, bool standsIn = false)
             {
                 Device& device = getDevice();
-                const Testing::TexturePassSet passes(device);
+                const TexturePasses passes(device, Testing::getShaderDirectory());
                 const SetLayout layout = TextureArray::describeLayout(device);
                 const GroundCompositePass pass(device, Testing::getShaderDirectory(), layout.get());
 
@@ -99,7 +99,7 @@ namespace Rtx
                 };
                 const Texture albedo = made(Shaders::GROUND_COMPOSITE_ALBEDO, TextureFormat::Rgba8Srgb);
                 const Texture gloss = made(Shaders::GROUND_COMPOSITE_GLOSS, TextureFormat::Rgba8Unorm);
-                TextureArray array(device, setup, layout, passes.mPasses, 2);
+                TextureArray array(device, setup, layout, passes, 2);
                 std::vector<Refusal> refused;
                 array.write(setup, textures, refused);
                 array.sync(FrameSlot{});

@@ -15,18 +15,22 @@
 
 namespace Rtx
 {
-    SpriteBin::SpriteBin(const Device& device)
+    SpriteBin::SpriteBin(const Device& device, const SpriteShadePass& shading, const SpriteBinPass& pass)
         : mDevice(device)
-        , mSprites(Buffer::hostWritten(device, 0, sTableFilledUsage, "binned sprites"))
-        , mEmitterFrames(Buffer::hostWritten(device, 0, sTableUsage, "emitter frames"))
-        , mOrder(Buffer::hostWritten(device, 0, sTableUsage, "sprite order"))
-        , mRects(Buffer::hostWritten(device, 0, sTableUsage, "sprite rects"))
-        , mTileList(Buffer::hostWritten(device, 0, sTableFilledUsage, "sprite tile list"))
-        , mPresence(Buffer::hostWritten(device, 0, sTableFilledUsage, "sprite presence"))
+        , mShading(shading)
+        , mPass(pass)
+        , mSprites(device, BufferKind::DeviceLocal, sTableFilledUsage, "binned sprites")
+        , mEmitterFrames(device, BufferKind::DeviceLocal, sTableUsage, "emitter frames")
+        , mOrder(device, BufferKind::DeviceLocal, sTableUsage, "sprite order")
+        , mRects(device, BufferKind::DeviceLocal, sTableUsage, "sprite rects")
+        , mTileList(device, BufferKind::DeviceLocal, sTableFilledUsage, "sprite tile list")
+        , mPresence(device, BufferKind::DeviceLocal, sTableFilledUsage, "sprite presence")
         , mReport(Buffer::readBack(device, sizeof(std::uint32_t), sTableUsage, "sprite report"))
     {
         // Every table exists from here, whether or not anything is binned: a frame carries the
         // address of the sprites and the list, and a scene with no sprites bins none.
+        for (GrowableBuffer* table : { &mSprites, &mEmitterFrames, &mOrder, &mRects, &mTileList, &mPresence })
+            table->growTo(0);
         mReport.writable<std::uint32_t>(0, 1).front() = 0;
     }
 
@@ -38,16 +42,12 @@ namespace Rtx
 
         // At twice the high-water mark past it, as every table a frame writes: a storm thickens by a
         // few sprites a frame, and a table sized to each count would be made again on every one.
-        outgrow(mSprites, mDevice, BufferKind::HostWritten, bytes, sTableFilledUsage, "binned sprites");
-        outgrow(mOrder, mDevice, BufferKind::HostWritten,
-            VkDeviceSize{ count } * Shaders::SPRITE_SHADE_LIGHTS * sizeof(std::uint64_t), sTableUsage, "sprite order");
-        outgrow(mRects, mDevice, BufferKind::HostWritten, VkDeviceSize{ count } * sizeof(std::uint64_t), sTableUsage,
-            "sprite rects");
-        outgrow(mEmitterFrames, mDevice, BufferKind::HostWritten,
-            VkDeviceSize{ source.mEmitterCount } * sizeof(Shaders::GpuEmitterFrame), sTableUsage, "emitter frames");
-        outgrow(mPresence, mDevice, BufferKind::HostWritten,
-            VkDeviceSize{ Shaders::spriteTilesIn(camera.mWidth, camera.mHeight) } * sizeof(std::uint32_t),
-            sTableFilledUsage, "sprite presence");
+        mSprites.outgrow(bytes);
+        mOrder.outgrow(VkDeviceSize{ count } * Shaders::SPRITE_SHADE_LIGHTS * sizeof(std::uint64_t));
+        mRects.outgrow(VkDeviceSize{ count } * sizeof(std::uint64_t));
+        mEmitterFrames.outgrow(VkDeviceSize{ source.mEmitterCount } * sizeof(Shaders::GpuEmitterFrame));
+        mPresence.outgrow(
+            VkDeviceSize{ Shaders::spriteTilesIn(camera.mWidth, camera.mHeight) } * sizeof(std::uint32_t));
 
         // Sized from what the last bin here said it needed, with room over it, because the need is
         // only known once the tiles are counted and that happens on the device. Read where the
@@ -62,8 +62,7 @@ namespace Rtx
 
         // Past the need as the tables above are; the pass is told the capacity the rule gave, which
         // the buffer holds.
-        outgrow(
-            mTileList, mDevice, BufferKind::HostWritten, mListSize.getBytes(), sTableFilledUsage, "sprite tile list");
+        mTileList.outgrow(mListSize.getBytes());
 
         // The placement's table, whole, because the shade writes over what it reads: the copy is
         // what lets a second trace against the same placement — a picture, or the frame after a
@@ -73,14 +72,12 @@ namespace Rtx
         // of these commands is what orders the copy after it. Handed to the launch and the
         // dispatch both, because the shelter launch writes it before the shade does.
         if (bytes > 0)
-            source.mSprites->copyTo(commands, mSprites, bytes);
-        mSprites.transition(commands, Use::sBufferCopyWrite, Use::sBufferShaderReadWrite);
+            source.mSprites->copyTo(commands, mSprites.get(), bytes);
+        mSprites.get().transition(commands, Use::sBufferCopyWrite, Use::sBufferShaderReadWrite);
     }
 
     void SpriteBin::record(VkCommandBuffer commands, const Binning& what)
     {
-        const SpriteShadePass& shading = what.mShading;
-        const SpriteBinPass& pass = what.mPass;
         const SpriteSource& source = what.mSource;
         const osg::Vec3f& origin = what.mOrigin;
         const Shaders::Camera& camera = what.mCamera;
@@ -88,36 +85,36 @@ namespace Rtx
         GpuTimer* const timer = what.mTimer;
 
         const std::uint32_t count = source.mSpriteCount;
-        assert(mSprites.getSize() >= VkDeviceSize{ source.mSpriteCount } * sizeof(Shaders::GpuSprite)
+        assert(mSprites.get().getSize() >= VkDeviceSize{ source.mSpriteCount } * sizeof(Shaders::GpuSprite)
             && "a bin recorded over sprites it never took");
 
-        shading.record(commands,
+        mShading.record(commands,
             Shaders::SpriteShadeConstants{
-                .mSprites = mSprites.addressFor(),
+                .mSprites = mSprites.get().addressFor(),
                 .mEmitters = source.mEmitters,
-                .mOrder = mOrder.addressFor(),
+                .mOrder = mOrder.get().addressFor(),
                 .mToSun = toSun,
                 .mEmitterCount = source.mEmitterCount,
                 .mCount = count,
             },
             timer);
 
-        pass.record(commands,
+        mPass.record(commands,
             Shaders::SpriteBinConstants{
-                .mSprites = mSprites.addressFor(),
+                .mSprites = mSprites.get().addressFor(),
                 .mEmitters = source.mEmitters,
-                .mRects = mRects.addressFor(),
-                .mList = mTileList.addressFor(),
+                .mRects = mRects.get().addressFor(),
+                .mList = mTileList.get().addressFor(),
                 .mReport = mReport.addressFor(),
                 .mPresences = source.mPresences,
-                .mPresence = mPresence.addressFor(),
+                .mPresence = mPresence.get().addressFor(),
                 .mOrigin = origin,
                 .mCamera = camera,
                 .mCount = count,
                 .mCapacity = mListSize.getCapacity(),
                 .mPresenceCount = source.mPresenceCount,
             },
-            mTileList, mPresence, timer);
+            mTileList.get(), mPresence.get(), timer);
 
         // What the next bin here sizes its list from. A fence's access scope is the device's, so
         // without this the figure is whatever the caches held.
@@ -126,7 +123,7 @@ namespace Rtx
 
     VkDeviceSize SpriteBin::getBytes() const
     {
-        return mSprites.getSize() + mEmitterFrames.getSize() + mOrder.getSize() + mRects.getSize() + mTileList.getSize()
-            + mPresence.getSize() + mReport.getSize();
+        return mSprites.get().getSize() + mEmitterFrames.get().getSize() + mOrder.get().getSize()
+            + mRects.get().getSize() + mTileList.get().getSize() + mPresence.get().getSize() + mReport.getSize();
     }
 }

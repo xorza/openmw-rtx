@@ -17,6 +17,7 @@
 #include "buffer.hpp"
 #include "device.hpp"
 #include "frameslots.hpp"
+#include "growablebuffer.hpp"
 #include "timeline.hpp"
 
 namespace Rtx
@@ -34,11 +35,10 @@ namespace Rtx
         /// @param usage what the device does with the copies.
         void open(const Device& device, std::uint32_t slots, VkBufferUsageFlags usage, std::string_view name)
         {
-            mDevice = &device;
             mCopies.open(slots);
             mOwed.open(slots);
-            mUsage = usage;
-            mName = name;
+            for (GrowableBuffer& copy : mCopies.live())
+                copy = GrowableBuffer(device, BufferKind::HostWritten, usage, name);
         }
 
         std::size_t size() const { return mRows.size(); }
@@ -86,9 +86,7 @@ namespace Rtx
         /// the graveyard, because a frame in flight may still be reading it.
         void sync(FrameSlot slot)
         {
-            assert(mDevice != nullptr && "sync before open");
-
-            Buffer& copy = mCopies.at(slot);
+            GrowableBuffer& copy = mCopies.at(slot);
             RowDebt& owed = mOwed.at(slot);
             const VkDeviceSize needed = mRows.size() * sizeof(Row);
 
@@ -96,46 +94,44 @@ namespace Rtx
             // `finishReads` waited that out before this placement began; the write asserts that
             // it did.
 
-            // A copy made again is empty whatever the debt says. Doubled only where it does not
-            // fit, because `growTo` remakes whatever is larger than what it has. A byte where the
-            // table is empty, because a descriptor with nothing bound is undefined rather than blank.
-            const VkDeviceSize least = std::max(needed, VkDeviceSize{ 1 });
-            if (copy.getSize() < least)
-            {
-                growTo(copy, *mDevice, BufferKind::HostWritten, std::max(least, copy.getSize() * 2), mUsage, mName);
+            // A copy made again is empty whatever the debt says. A byte where the table is empty,
+            // because a descriptor with nothing bound is undefined rather than blank.
+            if (copy.outgrow(std::max(needed, VkDeviceSize{ 1 })))
                 owed.oweEverything();
-            }
 
             if (owed.owesEverything())
-                copy.write(std::span<const Row>(mRows));
+                copy.get().write(std::span<const Row>(mRows));
             else
                 for (const Index at : owed.getRows())
                 {
                     assert(at < mRows.size() && "a debt naming a row the table no longer has");
-                    copy.writeAt(at * sizeof(Row), std::span<const Row>(&mRows[at], 1));
+                    copy.get().writeAt(at * sizeof(Row), std::span<const Row>(&mRows[at], 1));
                 }
 
             owed.settle();
         }
 
         /// Where `slot`'s copy is, as a recording takes it — `Buffer::addressFor`.
-        VkDeviceAddress addressFor(FrameSlot slot) const { return mCopies.at(slot).addressFor(); }
+        VkDeviceAddress addressFor(FrameSlot slot) const { return mCopies.at(slot).get().addressFor(); }
 
         /// Waits until nothing on the queue reads `slot`'s copy, ahead of the `sync` that writes it.
-        void finishReads(FrameSlot slot) const { mCopies.at(slot).waitIdle("a submit still reading a table's copy"); }
+        void finishReads(FrameSlot slot) const
+        {
+            mCopies.at(slot).get().waitIdle("a submit still reading a table's copy");
+        }
 
         VkDeviceSize getBytes() const
         {
             VkDeviceSize total = 0;
-            for (const Buffer& copy : mCopies.live())
-                total += copy.getSize();
+            for (const GrowableBuffer& copy : mCopies.live())
+                total += copy.get().getSize();
 
             return total;
         }
 
         // Read by the tests and by nothing else.
         /// What one copy's buffer occupies, which says whether it keeps growing.
-        VkDeviceSize getCopyBytes(FrameSlot slot) const { return mCopies.at(slot).getSize(); }
+        VkDeviceSize getCopyBytes(FrameSlot slot) const { return mCopies.at(slot).get().getSize(); }
 
         /// What `slot` would write if it were synced now, which says whether the bookkeeping is
         /// right rather than whether the picture is.
@@ -144,13 +140,8 @@ namespace Rtx
         bool owesEverything(FrameSlot slot) const { return mOwed.at(slot).owesEverything(); }
 
     private:
-        const Device* mDevice = nullptr;
-        VkBufferUsageFlags mUsage = 0;
-        /// A literal, which is what every caller passes and all a debug name is asked to be.
-        std::string_view mName;
-
         std::vector<Row> mRows;
-        PerSlot<Buffer> mCopies;
+        PerSlot<GrowableBuffer> mCopies;
         PerSlot<RowDebt> mOwed;
 
         /// Cleared and refilled by `grow`, never freed: the rows one growth appended.

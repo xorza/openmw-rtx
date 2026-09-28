@@ -22,28 +22,17 @@ namespace Rtx
         mNoSprites.clear();
     }
 
-    VisibilityInputs TraceMedia::describe(const DeviceScene& held, const Shaders::VisibilityConstants& camera,
-        const Image& shown, const Buffer& counts, const Buffer& sunGlare, const FrameSlot traceSlot) const
+    TraceSubject TraceMedia::describe(const DeviceScene& held, const Shaders::VisibilityConstants& camera,
+        const Buffer& counts, const Buffer& sunGlare, const FrameSlot traceSlot) const
     {
-        return VisibilityInputs{
-            .mScene = held.getAcceleration().getTopLevel(),
-            .mBuffers = &held.getBuffers(),
-            .mSlot = held.getSlot(),
+        return TraceSubject{
+            .mScene = &held,
+            .mMedia = this,
             .mTraceSlot = traceSlot,
             .mCounts = &counts,
-            .mIndexBlocks = held.getAcceleration().getIndexBlocks(),
-            .mPoseBlocks = held.getAcceleration().getPoseBlocks(held.getSlot()),
-            .mPreviousPoseBlocks = held.getAcceleration().getPreviousPoseBlocks(held.getSlot()),
-            .mTextures = held.getTextures(),
-            .mTextureTexels = held.getTextureTexels(),
-            .mWaves = &mWaves,
-            .mRipples = &mRipples,
-            .mFog = &mFog,
-            .mSpriteList = (camera.mRayMask & Shaders::MASK_PARTICLE) != 0 ? 0 : mNoSprites.addressFor(),
-            .mShown = &shown,
+            .mDrawsSprites = (camera.mRayMask & Shaders::MASK_PARTICLE) != 0,
             .mSunGlare = &sunGlare,
             .mSea = held.getCounts().mWater > 0 || !std::isinf(camera.mWaterLevel),
-            .mMapped = held.getCounts().mMapped > 0,
         };
     }
 

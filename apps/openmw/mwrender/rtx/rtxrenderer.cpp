@@ -99,13 +99,14 @@ namespace MWRender
                 .mProfile = {
                     .mUpscaling = settings.mUpscaling,
                     .mAnisotropy = settings.mAnisotropy,
-                    .mExposure = std::nullopt,
+                    .mExposure = Rtx::ExposureRule{},
                     .mRadianceWidth = Rtx::RadianceWidth::Shown,
                 },
                 .mValidation
                 = { .mLevel = Rtx::sValidationByDefault ? Rtx::ValidationLevel::On : Rtx::ValidationLevel::Off },
                 .mMirror = settings.mMirror,
                 .mLatency = settings.mLatency,
+                .mReflexFlash = settings.mReflexFlash,
                 .mHeadless = false,
                 .mStep = std::nullopt,
                 .mSettled = std::nullopt,
@@ -128,14 +129,29 @@ namespace MWRender
 
     RtxRenderer::RtxRenderer(const RendererSpec& spec, const RtxSetup* const run, const RunSetup& setup)
         : mRun(run != nullptr ? run->mRun : mPlayed)
-        , mSettled(setup.mSettled)
         , mInterface(setup.mInterface)
         , mWindow(setup.mHeadless)
         , mUpdateVisitor(new Rtx::PoseUpdate)
         , mStartTick(osg::Timer::instance()->tick())
         , mMirror(setup.mMirror)
         , mLatency(setup.mLatency)
+        , mReflexFlash(setup.mReflexFlash)
     {
+        // **The run's stated step decides whether the ground waits, unless the run says otherwise.**
+        // A composite comes back whenever the baker finishes it, so which frame it lands on is a
+        // thread's answer rather than the schedule's, and a run whose pictures are compared with
+        // another's cannot have that. The step the host hands the frame clock is this one.
+        //
+        // **The step and not what a run does with its frames.** `shot` is what the reference
+        // pictures are made with and it hashes no frame, so a condition asking about hashes would
+        // leave out the run that most needs this: measured on `balmora`, four processes drew four
+        // different frames after half a second of warming and one frame after a tenth of one.
+        //
+        // **And a run that means to time the streaming path overrides it**, because waiting is
+        // most of what that path then measures. `RunSetup::mSettled` says what the override costs
+        // and what it buys.
+        mMirror.setSettled(setup.mSettled.value_or(setup.mStep.has_value()));
+
         // **Made here, because there is no viewer to make them.** Every renderer needs the four and
         // one built on `osgViewer` gets them already wired together.
         const osg::ref_ptr<osg::Camera> camera = new osg::Camera;
@@ -212,11 +228,11 @@ namespace MWRender
         Log(Debug::Info) << "Ray tracing: upscale " << Rtx::sUpscaleNames.name(setup.mProfile.mUpscaling.mMode)
                          << ", Ray Reconstruction preset " << Rtx::sPresetNames.name(setup.mProfile.mUpscaling.mPreset);
 
-        // **Grass hangs off the quad tree, and this renderer has the game build none.** Its ground
-        // is the cell ring's, and a quad tree beside it would build chunks nothing traces; a setting
-        // that wants one is refused by name rather than honoured by a rasterizer's route.
-        if (Settings::groundcover().mEnabled)
-            throw std::runtime_error("groundcover is on, and the ray tracing renderer builds no quad tree to carry it");
+        // **Grass hangs off the quad tree, and this renderer has the game build none**: its ground is
+        // the cell ring's. Said and not refused, because a game that asked for grass plays the same
+        // without it; the content still loads, which is the world's to decide.
+        if (RtxSettingValues::fromRegistry().mGroundcover)
+            Log(Debug::Warning) << "Groundcover is on, and the ray tracer draws none";
 
         mRenderer = Rtx::createVulkanRenderer(options);
 
@@ -270,22 +286,6 @@ namespace MWRender
     void RtxRenderer::configureResources(Resource::ResourceSystem& resources) noexcept
     {
         setResourceExpiry(resources, getFrameClock().getStatedStep());
-
-        // **The clock's stated step decides whether the ground waits, unless the run says otherwise.** A
-        // composite comes back whenever the baker finishes it, so which frame it lands on is a
-        // thread's answer rather than the schedule's, and a run whose pictures are compared with
-        // another's cannot have that.
-        //
-        // **The step and not what a run does with its frames.** `shot` is what the reference
-        // pictures are made with and it hashes no frame, so a condition asking about hashes would
-        // leave out the run that most needs this: measured on
-        // `balmora`, four processes drew four different frames after half a second of warming and
-        // one frame after a tenth of one.
-        //
-        // **And a run that means to time the streaming path overrides it**, because waiting is
-        // most of what that path then measures. `RunSetup::mSettled` says what the
-        // override costs and what it buys.
-        mMirror.setSettled(mSettled.value_or(getFrameClock().getStatedStep().has_value()));
 
         Resource::SceneManager& scene = *resources.getSceneManager();
         scene.setShadersEnabled(false);
@@ -628,10 +628,11 @@ namespace MWRender
     {
         const bool upscale = changed.contains({ "RTX", "upscale" });
         const bool reflex = changed.contains({ "RTX", "reflex" });
+        const bool flash = changed.contains({ "RTX", "reflex flash" });
         const bool reach
             = changed.contains({ "RTX", "distant land cells" }) || changed.contains({ "Camera", "viewing distance" });
         const bool anisotropy = changed.contains({ "General", "anisotropy" });
-        if (!upscale && !reflex && !reach && !anisotropy)
+        if (!upscale && !reflex && !flash && !reach && !anisotropy)
             return;
 
         // What asks is somebody choosing from a menu, so a spelling no mode has is reported and
@@ -655,6 +656,9 @@ namespace MWRender
             mLatency = settings->mLatency;
             mRenderer->setPacing(getPacing());
         }
+
+        if (flash)
+            mReflexFlash = settings->mReflexFlash;
 
         // The menu moves the reach while the game runs, and the ring, the air and the map all
         // follow it: a slider that took effect at the next start was a slider that did nothing.
@@ -746,7 +750,7 @@ namespace MWRender
         // The game's work is done and the renderer's begins, said before the frame with the world
         // hidden turns back: a present from there is still a frame the driver counts. The click is
         // read here, off the state this frame's input pump left.
-        const bool flash = Settings::rtx().mReflexFlash && takeClick();
+        const bool flash = mReflexFlash && takeClick();
         mRenderer->endSimulation(flash);
 
         const osg::FrameStamp& when = frame.mWhen;

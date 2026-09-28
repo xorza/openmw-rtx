@@ -7,8 +7,9 @@
 //
 // **Three values that are the emitter's and the camera's alone**, which the walks worked out again
 // at every pixel an emitter covers, at the traced extent and again at the shown one: the fog's
-// coverage band, forty hashes; what one layer of the texture lets through, a level query and a
-// fetch; and the texture's extent, a header read. One invocation an emitter, ahead of the trace.
+// coverage band, a fetch of the fog's tile per scale; what one layer of the texture lets through,
+// a level query and a fetch; and the texture's extent, a header read. One invocation an emitter,
+// ahead of the trace.
 //
 // **A launch and not a dispatch**, for the reason `RtxSourceTreeTest` gives: the band reaches the
 // fog, and the fog reaches the traversal. Nothing here traces.

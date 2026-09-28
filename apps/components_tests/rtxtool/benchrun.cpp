@@ -111,6 +111,18 @@ namespace RtxTool
 
             Stop unplaced;
             EXPECT_FALSE(canAsk(Check::CameraStands, unplaced, unheld)) << "no eye named, nothing to stand at";
+
+            // The check that asks what a second walk added is what makes one: a stop that asks it
+            // and not the report still walks twice.
+            Actions actions;
+            EXPECT_FALSE(actions.walksTwice());
+            actions.mChecks = { Check::Finite };
+            EXPECT_FALSE(actions.walksTwice());
+            actions.mChecks.push_back(Check::WalkTwice);
+            EXPECT_TRUE(actions.walksTwice());
+            actions.mChecks.clear();
+            actions.mWalkTwice = true;
+            EXPECT_TRUE(actions.walksTwice());
         }
     }
 }

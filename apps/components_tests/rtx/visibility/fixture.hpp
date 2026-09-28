@@ -409,7 +409,7 @@ namespace Rtx::Testing
                             .mJitter = shot.mJitter,
                             .mNoise = shot.mNoise,
                             .mLevelEpsilon = shot.mLevelEpsilon },
-                        .mExposure = shot.mExposure,
+                        .mExposure = ExposureRule{ .mFixed = shot.mExposure },
                         .mDelight = shot.mDelight,
                         .mShow = shot.mShow,
                         .mJitter = shot.mOffset,

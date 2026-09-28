@@ -29,20 +29,9 @@ namespace Rtx
 {
     class Batch;
     class Device;
+    class Graveyard;
     class GroundCompositePass;
-    class MipChainPass;
-    class ShadingPass;
-    class SpriteLightPass;
-
-    /// The three dispatches a texture is made with as it arrives, which the renderer owns and
-    /// every array is handed together: the chain a file did not carry, the light painted into it,
-    /// and a sprite's own light bake.
-    struct TexturePasses
-    {
-        const MipChainPass& mChain;
-        const ShadingPass& mShading;
-        const SpriteLightPass& mBake;
-    };
+    struct TexturePasses;
 
     /// A sampled image on the GPU, the levels a content file brought for it, and the light the
     /// file already had painted into it — two `Image`s: the first uploaded, the second the shading
@@ -63,16 +52,14 @@ namespace Rtx
         ///
         /// @param passes what makes the chain and estimates the map, or fills the map with the
         ///        neutral one where `data` says the texture is not to be estimated.
-        /// @param sampler the sampler the array binds this texture through, which the dispatches
-        ///        are handed the texture with.
         /// @param first the level the image begins at: nought for the file as it is, and further
         ///        down for one held to a smaller side. Nought where the device completes the chain,
         ///        which begins at the file's one level.
         /// @param name what a capture calls it. Empty where the build names no objects.
         /// @param regions the caller's scratch, cleared and refilled here with one copy per level.
         static Result<Texture, std::string_view> fromFile(const Device& device, Batch& batch,
-            const TexturePasses& passes, VkSampler sampler, const TextureData& data, std::uint32_t first,
-            std::string_view name, std::vector<VkBufferImageCopy>& regions, MemoryUse use);
+            const TexturePasses& passes, const TextureData& data, std::uint32_t first, std::string_view name,
+            std::vector<VkBufferImageCopy>& regions, MemoryUse use);
 
         /// A sprite's light bake: shaped like `source`, made from its alpha by `passes.mBake` in
         /// the same batch, under the neutral map. `source` must stand, and its upload must be
@@ -80,7 +67,7 @@ namespace Rtx
         ///
         /// @param format what the description says the bake is, which is its image's format.
         static Result<Texture, std::string_view> bakeOf(const Device& device, Batch& batch, const TexturePasses& passes,
-            VkSampler sampler, const Texture& source, TextureFormat format, std::string_view name);
+            const Texture& source, TextureFormat format, std::string_view name);
 
         /// A chunk's flattened ground, stood empty under the neutral map: `GROUND_COMPOSITE_EXTENT`
         /// square, with a chain to one texel and a view without the curve a dispatch stores
@@ -98,6 +85,10 @@ namespace Rtx
 
         /// Whether the slot holds no texture.
         bool isEmpty() const { return mImage.isEmpty(); }
+
+        /// Hands both images to `graveyard` and leaves this empty: a frame in flight may still
+        /// sample either.
+        void buryIn(Graveyard& graveyard);
 
         /// The texture and its shading map as a sampled descriptor takes them, through `sampler`,
         /// from the read-only layout an upload leaves them in.

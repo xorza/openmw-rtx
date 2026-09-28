@@ -16,5 +16,5 @@ namespace Rtx
         Data = 1,
     };
 
-    inline constexpr std::size_t sTextureEncodingCount = 2;
+    inline constexpr std::size_t sTextureEncodingCount = static_cast<std::size_t>(TextureEncoding::Data) + 1;
 }

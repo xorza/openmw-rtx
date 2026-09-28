@@ -35,7 +35,10 @@ namespace Rtx
     SceneAcceleration::SceneAcceleration(
         const Device& device, Batch& batch, const SceneDesc& scene, const std::uint32_t slots)
         : mDevice(device)
+        , mTopLevelStorage(device, BufferKind::DeviceLocal, sStructureStorageUsage, "top level storage")
         , mBottomLevel(device)
+        , mRefitScratch(device, BufferKind::DeviceLocal, sScratchUsage, "refit scratch")
+        , mTopLevelScratch(device, BufferKind::DeviceLocal, sScratchUsage, "top level scratch")
     {
         mPoses.open(device, slots, sBuildInputUsage, "poses");
         mRowTable.open(device, slots, sBuildInputUsage, "instances");
@@ -146,7 +149,7 @@ namespace Rtx
         }
 
         if (updates > 0)
-            growTo(mRefitScratch, mDevice, BufferKind::DeviceLocal, updates + rebuild, sScratchUsage, "refit scratch");
+            mRefitScratch.growTo(updates + rebuild);
     }
 
     void SceneAcceleration::prepareRefit(const SceneDesc& scene, const FrameSlot slot)
@@ -209,9 +212,9 @@ namespace Rtx
         [[maybe_unused]] VkDeviceSize scratchTotal = 0;
         for (const Index mesh : deformed)
             scratchTotal = alignUp(scratchTotal + refitScratchOf(mesh), scratchAlignment);
-        assert(scratchTotal <= mRefitScratch.getSize() && "a refit past what the arrivals sized its scratch to");
+        assert(scratchTotal <= mRefitScratch.get().getSize() && "a refit past what the arrivals sized its scratch to");
 
-        const VkDeviceAddress scratchAddress = mRefitScratch.addressFor();
+        const VkDeviceAddress scratchAddress = mRefitScratch.get().addressFor();
 
         mRefit.sizeTo(count);
 
@@ -452,16 +455,14 @@ namespace Rtx
 
         // Grown to the high-water mark and kept, both of them. A structure is created at offset zero
         // of whatever this holds and asks only that it be large enough.
-        growTo(mTopLevelStorage, mDevice, BufferKind::DeviceLocal, sizes.accelerationStructureSize,
-            sStructureStorageUsage, "top level storage");
-        growTo(mTopLevelScratch, mDevice, BufferKind::DeviceLocal, sizes.buildScratchSize, sScratchUsage,
-            "top level scratch");
+        mTopLevelStorage.growTo(sizes.accelerationStructureSize);
+        mTopLevelScratch.growTo(sizes.buildScratchSize);
 
-        mTopLevel
-            = AccelerationStructure::topLevel(mDevice, mTopLevelStorage, sizes.accelerationStructureSize, "scene");
+        mTopLevel = AccelerationStructure::topLevel(
+            mDevice, mTopLevelStorage.get(), sizes.accelerationStructureSize, "scene");
 
         mTopLevelBuild.dstAccelerationStructure = mTopLevel.getHandle();
-        mTopLevelBuild.scratchData.deviceAddress = mTopLevelScratch.addressFor();
+        mTopLevelBuild.scratchData.deviceAddress = mTopLevelScratch.get().addressFor();
     }
 
     void SceneAcceleration::recordTopLevel(VkCommandBuffer commands, GpuTimer* timer)

@@ -8,9 +8,10 @@
 namespace Rtx
 {
     /// Which present modes of one surface the driver paces under, as `VkLatencySurfaceCapabilitiesNV`
-    /// lists them: the surface's half of whether frames are paced, the device's being
-    /// `Device::hasLatencyPacing`. Read once per surface, because the answer is the surface's and
-    /// not the swapchain's.
+    /// lists them, and the one answer to whether a mode is paced: the surface is asked only where
+    /// the device paces at all (`Device::hasLatencyPacing`), so an empty list is every reason
+    /// nothing is. Read once per surface, because the answer is the surface's and not the
+    /// swapchain's.
     class PacedModes
     {
     public:

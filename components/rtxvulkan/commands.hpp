@@ -106,7 +106,6 @@ namespace Rtx
 
         /// The device's alone, because the device's waits are what collect it: a second pool's
         /// retired buffers would wait for a collect that never came.
-        friend class Device;
         explicit CommandPool(const Device& device);
 
         VkCommandBuffer begin();
@@ -256,6 +255,10 @@ namespace Rtx
         /// buries what it held under that submit; records nothing more. The other way out of a
         /// batch, for a load that is followed by a submit anyway.
         void defer();
+
+        /// Gives back what was begun, submitting nothing, and buries what the batch held under the
+        /// next submit: the third way out, for a caller whose recording came to nothing.
+        void abandon();
 
     private:
         /// Buries everything this batch was holding and gives its staging back, whichever way it

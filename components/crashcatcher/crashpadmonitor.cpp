@@ -288,11 +288,9 @@ namespace Crash
         /// Whether the player chose to end a game that stands still.
         bool askToEnd(const MonitorState& monitor, std::uint32_t seconds)
         {
-            // **A harness's answer, where nobody is at the box**: End, after this many milliseconds,
-            // which is what lets a test end a game that recovered, or ended, while it was asked.
-            if (const char* const after = std::getenv("OPENMW_CRASH_END_AFTER_MS"))
+            if (monitor.mEndAfter.has_value())
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(std::strtoul(after, nullptr, 10)));
+                std::this_thread::sleep_for(*monitor.mEndAfter);
                 return true;
             }
 

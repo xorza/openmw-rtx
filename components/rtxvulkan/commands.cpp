@@ -354,6 +354,14 @@ namespace Rtx
             mPool.defer(std::exchange(mCommands, VK_NULL_HANDLE));
     }
 
+    void Batch::abandon()
+    {
+        release();
+
+        if (mCommands != VK_NULL_HANDLE)
+            mPool.discard(std::exchange(mCommands, VK_NULL_HANDLE));
+    }
+
     void stageInto(Batch& batch, const Buffer& into, VkDeviceSize offset, std::span<const std::byte> bytes)
     {
         const StagingRun staged = batch.stage(bytes);

@@ -405,6 +405,7 @@ add_component_dir (crashcatcher
     crashpackage
     crashpage
     crashsummary
+    crashuncaught
 )
 
 if (OPENMW_CRASHPAD)

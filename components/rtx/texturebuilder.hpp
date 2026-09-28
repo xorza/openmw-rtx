@@ -49,6 +49,11 @@ namespace Rtx
     Result<TextureData, std::string> describeImage(const osg::Image& image, std::vector<MipLevel>& levels,
         std::vector<std::byte>& texels, TextureEncoding encoding = TextureEncoding::Colour);
 
+    /// `describeImage` of an image whose format the caller has read already, as `encoding`
+    /// (`readFormat`).
+    Result<TextureData, std::string> describeImage(const osg::Image& image, TextureFormat format,
+        TextureEncoding encoding, std::vector<MipLevel>& levels, std::vector<std::byte>& texels);
+
     /// The image at `path`, or why nothing reads there — an error and not an exception, because a
     /// live scene graph names textures that were never files and a renderer that fell over on one
     /// would fall over on a cell. Never null.
@@ -107,6 +112,10 @@ namespace Rtx
 
             /// The file's image, or why none reads. Null for a slot that names no file.
             Result<osg::ref_ptr<const osg::Image>, std::string> mImage = osg::ref_ptr<const osg::Image>();
+
+            /// The image's format as `mEncoding` reads it, read once for the reserve and the
+            /// description both. Unnamed where there is no image.
+            TextureFormat mFormat = TextureFormat::Unnamed;
         };
 
         /// What `kept` is described as, or why it gets the stand-in.

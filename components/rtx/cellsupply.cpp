@@ -73,7 +73,10 @@ namespace Rtx
 
         mRequested = request;
 
-        mMonitor.give([&] { mWanted = request; });
+        mMonitor.give([&] {
+            mWanted = request;
+            ++mAsked;
+        });
     }
 
     void CellSupply::take(std::vector<PreparedCell*>& into)
@@ -121,6 +124,7 @@ namespace Rtx
             [&] {
                 recycle();
                 mReading.take(mWanted);
+                mReadingAsked = mAsked;
             },
             [&](std::stop_token turn) { read(turn); });
     }
@@ -132,10 +136,11 @@ namespace Rtx
             if (stop.stop_requested())
                 return;
 
-            // A newer list replaces this one: the eye has moved and what it lacks has changed.
+            // A newer ask replaces this one: the eye has moved and what it lacks has changed. An ask
+            // for nothing too, which says the list in flight is no longer wanted.
             const bool newer = mMonitor.under([&] {
                 recycle();
-                return !mWanted.empty();
+                return mAsked != mReadingAsked;
             });
 
             if (newer)

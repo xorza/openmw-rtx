@@ -55,9 +55,9 @@ const uint SEED_SHEET_SIDE = SEED_AMBIENT_FOG + 1u;
 
 /// And one for whether an indirect hit is lit at all this frame.
 ///
-/// **Offset from the reservoir's own key rather than drawn out of its sequence.** The draw is made
-/// before the reservoir opens, and taken as a step of it, it would move every lamp the bounce hit
-/// weighed — which is the ordering `gather` states at the top of itself.
+/// **An entry of the pixel's own chain rather than a step of the reservoir's sequence.** The draw is
+/// made before the reservoir opens, and taken as a step of it, it would move every lamp the bounce
+/// hit weighed — which is the ordering `gather` states at the top of itself.
 const uint SEED_INDIRECT_LIGHT = SEED_SHEET_SIDE + 1u;
 
 /// And one for each layer of the peel under the first: a cuirass over a skirt over a leg shade
@@ -107,6 +107,13 @@ const uint SEED_BOUNCE_LOBE = SEED_BOUNCE_TRACED + 1u;
 /// and a rock's edge across the disc would shadow the shaft by the share of that spiral it covers and
 /// not by the share of the disc.
 const uint SEED_WATER_SHAFT = SEED_BOUNCE_LOBE + 1u;
+
+/// And the occlusion rays at the far end of the water's two rays, the reflection's and the
+/// refraction's, for the reason `SEED_AMBIENT_REACHING` gives. Entries of the chain and not the
+/// lamp seed plus `SEED_AMBIENT_REACHING`, which is a sum of two entries and so nothing the chain
+/// says is apart from the rest.
+const uint SEED_AMBIENT_MIRROR = SEED_WATER_SHAFT + 1u;
+const uint SEED_AMBIENT_THROUGH = SEED_AMBIENT_MIRROR + 1u;
 
 /// How far each stream's sequence advances between frames.
 ///

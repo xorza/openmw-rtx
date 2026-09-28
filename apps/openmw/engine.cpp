@@ -700,19 +700,13 @@ void OMW::Engine::go()
 
     // Start the main rendering loop
     MWWorld::DateTimeManager& timeManager = *mWorld->getTimeManager();
-    const std::chrono::steady_clock::duration maxSimulationInterval(std::chrono::milliseconds(200));
     while (!mStateManager->hasQuitRequest())
     {
         // The renderer says when the frame may begin — the frame-rate limit, and the driver's
-        // pacing where there is one — and what the wall says the last frame took, which a host's
-        // stated step overrules. Before input, because what is read after this is what the frame
-        // shows.
-        const std::chrono::steady_clock::duration stood = mRenderer->awaitFrame();
-        const double measured
-            = std::chrono::duration_cast<std::chrono::duration<double>>(std::min(stood, maxSimulationInterval)).count();
-
-        mClock.advance(measured);
-        const double dt = mClock.getStep() * timeManager.getSimulationTimeScale();
+        // pacing where there is one — and moves the clock by what the wall says the last frame
+        // took, which a host's stated step overrules. Before input, because what is read after this
+        // is what the frame shows.
+        const double dt = mRenderer->openFrame() * timeManager.getSimulationTimeScale();
 
         mRenderer->advance(timeManager.getRenderingSimulationTime());
 

@@ -564,6 +564,8 @@ namespace Rtx::Shaders
     // reads them are different compilers.
     static_assert(offsetof(VisibilityConstants, mTables) == 1200, "GpuTables must land eight-aligned and last");
     static_assert(sizeof(VisibilityConstants) == 1384, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(HitRecord) == 8, "HitRecord must be scalar-packed on every side");
+    static_assert(sizeof(PuffConstants) == 8, "PuffConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

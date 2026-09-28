@@ -23,10 +23,7 @@ namespace Rtx
         /// samples, which is how an upload leaves it; `bake` is met undefined and left the same way,
         /// ready for the array's sampler. `bake` must hold as many levels as `source` and be
         /// writable as storage at each.
-        ///
-        /// @param sampler any sampler the array binds: the dispatch fetches by texel and reads
-        ///        none of it, but a combined image needs one.
-        void record(VkCommandBuffer commands, const Image& source, VkSampler sampler, const Image& bake) const;
+        void record(VkCommandBuffer commands, const Image& source, const Image& bake) const;
 
     private:
         ComputePipeline mPipeline;

@@ -188,7 +188,16 @@ void main()
     Reservoir lamps = noLamps();
     const vec3 lampScatter
         = lampsInAir(lamps, lampState, fromMiddle, middle.mDirection, behind, clear) / (clear - behind);
-    aimLampFrom(lamps, position);
+
+    // **What a lamp is worth and where to ask whether it is seen are two questions.** The froxel
+    // weighs its lamps over the whole of its stretch, where a share is an integral and the point
+    // that carries most of it is the closest approach — and then asks whether *the froxel* is
+    // shadowed, which is best put from a point drawn anywhere inside. Over frames that point walks
+    // the froxel, so a shadow's edge crossing one lands between two froxels as something the filter
+    // averages rather than as a step eight pixels wide. The selection is untouched, so the
+    // estimator stays what the walk says it is; the lamp is named, so the ray aims itself from
+    // wherever it now leaves.
+    lamps.mFrom = position;
 
     // Drawn after the lamp's own pair, so a lamp keeps the numbers it drew before the sky asked for
     // any: the ray's pair for the sun, the ray's pair for the moon, and the moon's pick.

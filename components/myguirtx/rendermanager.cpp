@@ -60,10 +60,7 @@ namespace MyGUIRtx
             mInvScalingFactor = 1.f / scalingFactor;
     }
 
-    RenderManager::~RenderManager()
-    {
-        mIsInitialise = false;
-    }
+    RenderManager::~RenderManager() = default;
 
     void RenderManager::initialise()
     {

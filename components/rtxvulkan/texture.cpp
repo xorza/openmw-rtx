@@ -29,12 +29,10 @@
 #include "graveyard.hpp"
 #include "groundcompositepass.hpp"
 #include "imageuse.hpp"
-#include "mipchainpass.hpp"
 #include "physicaldevice.hpp"
 #include "requirements.hpp"
 #include "result.hpp"
-#include "shadingpass.hpp"
-#include "spritelightpass.hpp"
+#include "texturepasses.hpp"
 
 namespace Rtx
 {
@@ -232,7 +230,7 @@ namespace Rtx
     }
 
     Result<Texture, std::string_view> Texture::fromFile(const Device& device, Batch& batch, const TexturePasses& passes,
-        const VkSampler sampler, const TextureData& data, const std::uint32_t first, std::string_view name,
+        const TextureData& data, const std::uint32_t first, std::string_view name,
         std::vector<VkBufferImageCopy>& regions, const MemoryUse use)
     {
         assert(first < data.mLevels.size() && "a texture begun past the file's last level");
@@ -302,7 +300,7 @@ namespace Rtx
 
             uploadImage(batch, upload.value(), data.mBytes, regions);
             made.mImage = std::move(chain.value());
-            passes.mChain.record(batch.getCommands(), upload.value(), sampler, made.mImage, encoded);
+            passes.mChain.record(batch.getCommands(), upload.value(), made.mImage, encoded);
             batch.keep(std::move(upload.value()));
 
             made.mBytes = chainBytes(made.mImage);
@@ -312,14 +310,21 @@ namespace Rtx
         if (data.hasNeutralShading())
             clearNeutral(batch, made.mShading);
         else
-            passes.mShading.record(batch.getCommands(), made.mImage, sampler, made.mShading, data);
+            passes.mShading.record(batch.getCommands(), made.mImage, made.mShading, isBc1(data.mFormat));
 
         made.mBytes += sShadingBytes;
         return made;
     }
 
+    void Texture::buryIn(Graveyard& graveyard)
+    {
+        graveyard.bury(std::move(mImage));
+        graveyard.bury(std::move(mShading));
+        *this = Texture();
+    }
+
     Result<Texture, std::string_view> Texture::bakeOf(const Device& device, Batch& batch, const TexturePasses& passes,
-        const VkSampler sampler, const Texture& source, const TextureFormat format, std::string_view name)
+        const Texture& source, const TextureFormat format, std::string_view name)
     {
         assert(!source.isEmpty());
 
@@ -336,7 +341,7 @@ namespace Rtx
 
         Texture made;
         made.mImage = std::move(image.value());
-        passes.mBake.record(batch.getCommands(), from, sampler, made.mImage);
+        passes.mBake.record(batch.getCommands(), from, made.mImage);
 
         // Clamped, because a bake is one image whose coordinates run edge to edge — what
         // `TextureTable::addBaked` says of its row.
@@ -440,8 +445,8 @@ namespace Rtx
     {
         // Essential, and the one texture made that way: it is what stands where the device had no
         // room for the texture itself.
-        mStandIn = std::move(Texture::fromFile(device, batch, passes, mSamplers[0].get(), describeStandIn(), 0,
-            "stand-in", mRegionScratch, MemoryUse::Essential)
+        mStandIn = std::move(Texture::fromFile(
+            device, batch, passes, describeStandIn(), 0, "stand-in", mRegionScratch, MemoryUse::Essential)
                                  .value());
 
         // The last slot is the neutral texel's. `TextureTable` refuses a slot past it, so a scene
@@ -605,8 +610,6 @@ namespace Rtx
     Result<Texture, std::string_view> TextureArray::make(
         Batch& batch, const TextureData& texture, const std::uint32_t side, std::string_view name)
     {
-        const VkSampler sampler = mSamplers[static_cast<std::size_t>(texture.mWrap)].get();
-
         switch (texture.mSource)
         {
             case TextureSource::GroundComposite:
@@ -623,7 +626,7 @@ namespace Rtx
                 contract(texture.mFrom < mSlots.size() && !mSlots[texture.mFrom].isEmpty(),
                     "a sprite light bake names a source that does not stand");
                 return Texture::bakeOf(
-                    mDevice, batch, mPasses, sampler, standingIn(mSlots[texture.mFrom]), texture.mFormat, name);
+                    mDevice, batch, mPasses, standingIn(mSlots[texture.mFrom]), texture.mFormat, name);
             }
 
             case TextureSource::File:
@@ -634,10 +637,10 @@ namespace Rtx
                 const auto last = static_cast<std::uint32_t>(texture.mLevels.size()) - 1;
                 std::uint32_t first = firstLevelAt(texture, side);
                 Result<Texture, std::string_view> made = Texture::fromFile(
-                    mDevice, batch, mPasses, sampler, texture, first, name, mRegionScratch, MemoryUse::Texture);
+                    mDevice, batch, mPasses, texture, first, name, mRegionScratch, MemoryUse::Texture);
                 while (!made.isOk() && first < last)
                     made = Texture::fromFile(
-                        mDevice, batch, mPasses, sampler, texture, ++first, name, mRegionScratch, MemoryUse::Texture);
+                        mDevice, batch, mPasses, texture, ++first, name, mRegionScratch, MemoryUse::Texture);
 
                 return made;
             }
@@ -682,7 +685,7 @@ namespace Rtx
         slot.mStandIn = made.isEmpty();
         slot.mReduced = texture.mSource == TextureSource::File && !made.isEmpty()
             && (made.getImage().getWidth() < texture.mWidth || made.getImage().getHeight() < texture.mHeight);
-        mDevice.getGraveyard().replace(slot.mTexture, std::move(made));
+        std::exchange(slot.mTexture, std::move(made)).buryIn(mDevice.getGraveyard());
 
         if (!why.empty())
             refused.push_back(Refusal{ .mKind = Refused::Texture, .mName = std::string(texture.mName), .mWhy = why });
@@ -808,7 +811,7 @@ namespace Rtx
                     .mMasks = tables.mMasks,
                     .mMaterial = material,
                     .mOutputs = outputs,
-                    .mTexels = getTexelsAddress(slot),
+                    .mTexels = tables.mTextureTexels,
                 });
             baked = true;
         }
@@ -828,7 +831,7 @@ namespace Rtx
 
             // Exchanged rather than erased, so the slot stays where it is and the image goes under
             // the frame that may still name it.
-            mDevice.getGraveyard().replace(mSlots[slot].mTexture, Texture());
+            std::exchange(mSlots[slot].mTexture, Texture()).buryIn(mDevice.getGraveyard());
             mSlots[slot].mStandIn = false;
             mSlots[slot].mReduced = false;
         }

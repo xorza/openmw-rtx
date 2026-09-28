@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <stop_token>
 #include <thread>
@@ -125,12 +126,17 @@ namespace Rtx
         CellReturns mReturning;
 
         /// The lock between the frame and the reader, and the two waits across it. It guards the
-        /// three below and nothing else.
+        /// four below and nothing else.
         Monitor mMonitor;
 
         /// What the thread is to read next, written whole under the lock and taken whole by the
         /// thread. A newer request replaces an older one it has not finished.
         CellRequest mWanted;
+
+        /// How many asks were handed over, which is what tells the thread its list is no longer
+        /// wanted: an ask for nothing leaves `mWanted` as empty as a taken one, and has to cancel
+        /// the list in flight all the same.
+        std::uint64_t mAsked = 0;
 
         /// What the thread has read, under the lock.
         std::vector<PreparedCell*> mDone;
@@ -138,8 +144,9 @@ namespace Rtx
         /// What the frame has given back, under the lock, for the thread to refill.
         CellReturns mReturned;
 
-        /// The thread's own: the request it is working through.
+        /// The thread's own: the request it is working through, and the ask it came from.
         CellRequest mReading;
+        std::uint64_t mReadingAsked = 0;
 
         /// Owned here and used by the thread alone while it runs.
         std::unique_ptr<CellReader> mReader;

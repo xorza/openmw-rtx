@@ -80,6 +80,28 @@ namespace Rtx
             // constant footprint off `mRight` instead.
             EXPECT_EQ(camera.mCamera.mSpreadAngle, 0.0f);
 
+            // **A point of the picture is looked through along the forward, from where the box puts
+            // it**, which a pick reads as the trace does (`rayAcross`). A quarter of the way right
+            // of the centre and a quarter up is half of `mRight` and half of `mUp`: 50 across and
+            // 25 up, and the ray goes straight down the view.
+            const Shaders::Ray parallel = Shaders::rayAcross(camera.mCamera, osg::Vec2f(0.5f, -0.5f));
+            EXPECT_NEAR(parallel.mOffset.x(), 50.0f, 1e-4f);
+            EXPECT_NEAR(parallel.mOffset.y(), 25.0f, 1e-4f);
+            EXPECT_NEAR(parallel.mOffset.z(), 0.0f, 1e-4f);
+            EXPECT_NEAR(parallel.mDirection.z(), -1.0f, 1e-6f);
+
+            // And under a pinhole the same offset turns the direction and moves no origin: the
+            // plane's right edge of a unit basis is 45 degrees off the forward.
+            Shaders::Camera pinhole = camera.mCamera;
+            pinhole.mOrthographic = 0u;
+            pinhole.mForward = osg::Vec3f(0.0f, 0.0f, -1.0f);
+            pinhole.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
+            pinhole.mUp = osg::Vec3f(0.0f, 1.0f, 0.0f);
+            const Shaders::Ray fanned = Shaders::rayAcross(pinhole, osg::Vec2f(1.0f, 0.0f));
+            EXPECT_EQ(fanned.mOffset, osg::Vec3f());
+            EXPECT_NEAR(fanned.mDirection.x(), std::sqrt(0.5f), 1e-6f);
+            EXPECT_NEAR(fanned.mDirection.z(), -std::sqrt(0.5f), 1e-6f);
+
             Testing::expectDies([&] { makeOrthographicCameraFromView(view, 0.0f, 100.0f, 64, 32, 5.0f, 400.0f); },
                 "an orthographic camera with no extent sees nothing");
         }

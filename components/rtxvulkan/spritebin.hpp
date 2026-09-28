@@ -9,6 +9,7 @@
 #include <components/rtx/spritelistsize.hpp>
 
 #include "buffer.hpp"
+#include "growablebuffer.hpp"
 
 namespace Rtx
 {
@@ -36,9 +37,6 @@ namespace Rtx
     /// two are one type, so a list takes either for the other.
     struct Binning
     {
-        const SpriteShadePass& mShading;
-        const SpriteBinPass& mPass;
-
         /// The sprites this bin took, as the scene's tables describe them.
         const SpriteSource& mSource;
 
@@ -63,7 +61,9 @@ namespace Rtx
     class SpriteBin
     {
     public:
-        explicit SpriteBin(const Device& device);
+        /// @param shading what shades the sprites against the sun: the chain's, which outlives it.
+        /// @param pass what bins them, the chain's as well.
+        SpriteBin(const Device& device, const SpriteShadePass& shading, const SpriteBinPass& pass);
 
         /// Grows every table here to what `source` and the tiles of `camera` need — the list from
         /// what the last bin here reported it needed, where the timeline says that report has
@@ -80,37 +80,39 @@ namespace Rtx
         /// commands. `commands` first, as every other `record` in this backend takes it.
         void record(VkCommandBuffer commands, const Binning& what);
 
-        VkDeviceAddress getSpritesAddress() const { return mSprites.addressFor(); }
-        VkDeviceAddress getEmitterFramesAddress() const { return mEmitterFrames.addressFor(); }
-        VkDeviceAddress getTileListAddress() const { return mTileList.addressFor(); }
-        VkDeviceAddress getPresenceAddress() const { return mPresence.addressFor(); }
+        VkDeviceAddress getSpritesAddress() const { return mSprites.get().addressFor(); }
+        VkDeviceAddress getEmitterFramesAddress() const { return mEmitterFrames.get().addressFor(); }
+        VkDeviceAddress getTileListAddress() const { return mTileList.get().addressFor(); }
+        VkDeviceAddress getPresenceAddress() const { return mPresence.get().addressFor(); }
 
         VkDeviceSize getBytes() const;
 
     private:
         const Device& mDevice;
+        const SpriteShadePass& mShading;
+        const SpriteBinPass& mPass;
 
         /// The shaded sprites, copied from the placement's before every shade because the shade
         /// writes over what it reads.
-        Buffer mSprites;
+        GrowableBuffer mSprites;
 
         /// One `Shaders::GpuEmitterFrame` an emitter, written by `VisibilityPass::recordSpriteEmitters`
         /// for this trace's camera.
-        Buffer mEmitterFrames;
+        GrowableBuffer mEmitterFrames;
 
         /// One depth key per sprite per light, the shading's own scratch inside its dispatch.
         /// `Shaders::SpriteShadeConstants::mOrder` says how the two lights share it.
-        Buffer mOrder;
+        GrowableBuffer mOrder;
 
         /// One rectangle of tiles per sprite, the bin's own scratch between its dispatches.
-        Buffer mRects;
+        GrowableBuffer mRects;
 
         /// The sprite tiles' list, made on the device by `SpriteBinPass` and never written by the
         /// host: `tiles + 1` starts, then the runs, in `RunList`'s shape.
-        Buffer mTileList;
+        GrowableBuffer mTileList;
 
         /// One word of presence bits a tile, `Shaders::GpuTables::mSpritePresence`.
-        Buffer mPresence;
+        GrowableBuffer mPresence;
 
         /// How many entries the last bin here came to, written by the pass and read back before the
         /// next bin. Staging, because it is the one table the host reads.

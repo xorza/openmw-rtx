@@ -9,7 +9,7 @@
 
 #include <osg/Image>
 
-#include "colour.hpp"
+#include "colourblock.hpp"
 #include "result.hpp"
 #include "texturebuilder.hpp"
 

@@ -1,5 +1,6 @@
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include <gtest/gtest.h>
@@ -10,6 +11,8 @@
 #include <components/rtx/texels.hpp>
 #include <components/rtx/texturedata.hpp>
 #include <components/rtxvulkan/formats.hpp>
+
+#include "support/death.hpp"
 
 namespace Rtx
 {
@@ -66,6 +69,54 @@ namespace Rtx
 
             for (const auto& [format, expected] : sTable)
                 EXPECT_EQ(toVulkanFormat(format), expected) << nameOf(format);
+        }
+
+        /// **A read-back knows every format it reads, from one table.** The bytes one texel takes are
+        /// what a read-back buffer is sized by, and the decode is what a read of floats does with
+        /// them; two tables that disagreed once read the motion channels as pairs of halves. A block
+        /// format has no texel of its own and is never read back, so it ends the process.
+        ///
+        /// Each row by hand: the channels times the bytes of one channel — one byte for 8 bits,
+        /// two for a half or a 16-bit channel, four for a float.
+        TEST(RtxFormatsTest, aReadBackFormatIsItsTexelSizeAndItsDecode)
+        {
+            struct Row
+            {
+                VkFormat mFormat;
+                std::uint32_t mBytes;
+                TexelDecode mDecode;
+            };
+            constexpr std::array<Row, 13> sTable{ {
+                { VK_FORMAT_R8_UNORM, 1, TexelDecode::Bytes },
+                { VK_FORMAT_R8G8_UNORM, 2, TexelDecode::Bytes },
+                { VK_FORMAT_R16_UNORM, 2, TexelDecode::Bytes },
+                { VK_FORMAT_R16_SFLOAT, 2, TexelDecode::Half },
+                { VK_FORMAT_R8G8B8A8_UNORM, 4, TexelDecode::Bytes },
+                { VK_FORMAT_R8G8B8A8_SRGB, 4, TexelDecode::Bytes },
+                { VK_FORMAT_B8G8R8A8_UNORM, 4, TexelDecode::Bytes },
+                { VK_FORMAT_B8G8R8A8_SRGB, 4, TexelDecode::Bytes },
+                { VK_FORMAT_R16G16_SFLOAT, 4, TexelDecode::Half },
+                { VK_FORMAT_R32_SFLOAT, 4, TexelDecode::Float },
+                { VK_FORMAT_R16G16B16A16_SFLOAT, 8, TexelDecode::Half },
+                { VK_FORMAT_R32G32_SFLOAT, 8, TexelDecode::Float },
+                { VK_FORMAT_R32G32B32A32_SFLOAT, 16, TexelDecode::Float },
+            } };
+
+            for (const Row& row : sTable)
+            {
+                const FormatInfo info = formatInfoOf(row.mFormat);
+                EXPECT_EQ(info.mTexelBytes, row.mBytes) << "format " << row.mFormat;
+                EXPECT_EQ(info.mDecode, row.mDecode) << "format " << row.mFormat;
+            }
+
+            // Every storage layout a pass declares can be read back, since a channel is one.
+            for (const StorageFormat format :
+                { StorageFormat::Rgba8, StorageFormat::R16, StorageFormat::R16f, StorageFormat::R32f,
+                    StorageFormat::Rg16f, StorageFormat::Rg32f, StorageFormat::Rgba16f, StorageFormat::Rgba32f })
+                EXPECT_GT(formatInfoOf(toVulkanFormat(format)).mTexelBytes, 0u) << static_cast<int>(format);
+
+            Testing::expectDies(
+                [] { formatInfoOf(VK_FORMAT_BC1_RGBA_SRGB_BLOCK); }, "no read-back is recorded for this image format");
         }
     }
 }

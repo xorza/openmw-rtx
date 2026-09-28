@@ -14,6 +14,7 @@
 #include "accelerationstructure.hpp"
 #include "blockedbuffer.hpp"
 #include "bufferusage.hpp"
+#include "growablebuffer.hpp"
 #include "handles.hpp"
 #include "readstamp.hpp"
 #include "structurebuild.hpp"
@@ -234,8 +235,8 @@ namespace Rtx
         /// high-water mark, and grown through the graveyard: a build in flight still reads them,
         /// and the next build's copies and work are ordered after it by the barrier every command
         /// buffer opens with.
-        Buffer mArrived;
-        Buffer mScratch;
+        GrowableBuffer mArrived;
+        GrowableBuffer mScratch;
 
         /// What one run of `build` describes.
         StructureBuildBatch mBuild;

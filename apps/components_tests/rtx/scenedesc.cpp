@@ -303,6 +303,16 @@ namespace Rtx
             // and 12 indices at 4. The mesh brought neither normal, coordinate, colour nor tangent
             // and the buffers hold one apiece regardless — `MeshTable::writeVertices` says why.
             EXPECT_EQ(scene.meshes().getGeometryBytes(), 8u * 12u + 8u * 12u + 8u * 8u + 8u * 12u + 8u * 4u + 12u * 4u);
+
+            // **The triangles are the standing meshes'**, and not the index buffer's length: one
+            // quad given back leaves two, though its six indices stay in the buffer as room, and
+            // the next quad into that room makes four again.
+            scene.clearArrivals();
+            const std::array<Index, 1> keep{ 0 };
+            ASSERT_TRUE(scene.release(keep, {}));
+            EXPECT_EQ(scene.meshes().getTriangleCount(), 2u) << "a freed mesh's triangles still counted";
+            Testing::addQuadMesh(scene);
+            EXPECT_EQ(scene.meshes().getTriangleCount(), 4u);
         }
 
         /// The cutoff a material is traced against, and which materials get traced against one.

@@ -2,16 +2,18 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <deque>
 #include <optional>
 #include <vector>
 
 #include <components/crashcatcher/crashnote.hpp>
 
-#include "computepipeline.hpp"
 #include "device.hpp"
 #include "handles.hpp"
 #include "memory.hpp"
+#include "pipeline.hpp"
 #include "result.hpp"
 
 namespace Rtx
@@ -195,9 +197,12 @@ namespace Rtx
         mMiss = region(at, stride, shaders.mMiss.size());
         mHit = region(at, hitStride, hitRecords);
 
+        // Filled as unnamed, because this runs on a compile thread while the main thread submits,
+        // and nothing has named the table yet: `traceRays` is the first hand-out.
         mTable = Buffer::hostWritten(
             device, at, VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, name);
-        mTable.clear();
+        const std::span<std::byte> table = mTable.unnamed<std::byte>();
+        std::memset(table.data(), 0, table.size());
 
         std::vector<std::uint8_t> handles(groups.size() * limits.shaderGroupHandleSize);
         checkVk(device.getFunctions().mGetRayTracingShaderGroupHandles(device.getHandle(), mHandle.get(), 0,
@@ -213,22 +218,21 @@ namespace Rtx
             for (std::size_t record = 0; record < count; ++record, ++group)
             {
                 const VkDeviceSize address = into.deviceAddress + record * into.stride;
-                mTable.writeAt(address,
-                    std::span<const std::uint8_t>(
-                        handles.data() + group * limits.shaderGroupHandleSize, limits.shaderGroupHandleSize));
+                std::memcpy(table.data() + address, handles.data() + group * limits.shaderGroupHandleSize,
+                    limits.shaderGroupHandleSize);
                 if (bytes > 0)
-                    mTable.writeAt(
-                        address + limits.shaderGroupHandleSize, shaders.mHitRecordData.subspan(record * bytes, bytes));
+                    std::memcpy(table.data() + address + limits.shaderGroupHandleSize,
+                        shaders.mHitRecordData.data() + record * bytes, bytes);
             }
         };
         fill(mRaygen, 1, 0);
         fill(mMiss, shaders.mMiss.size(), 0);
         fill(mHit, hitRecords, hitRecordBytes);
 
-        // Each `Buffer` is its own allocation bound at offset zero, so its address is the
-        // allocation's — which every driver hands back far more coarsely aligned than this. Asserted
-        // rather than worked around, because a table that has to be offset into is a table this
-        // renderer does not have.
+        // A shader binding table's buffer is placed at the base alignment by the allocator —
+        // `alignmentOwedBy` asks for it — so its address is aligned without offsetting into it.
+        // Asserted rather than worked around, because a table that has to be offset into is a
+        // table this renderer does not have.
         const VkDeviceAddress base = mTable.getDeviceAddress();
         assert(base % limits.shaderGroupBaseAlignment == 0
             && "a shader binding table the device would not read from where it was put");
@@ -242,6 +246,9 @@ namespace Rtx
     void TracePipeline::traceRays(
         VkCommandBuffer commands, std::uint32_t width, std::uint32_t height, std::uint32_t depth) const
     {
+        // The regions carry the table by address, taken once at the fill, so the launch is the
+        // hand-out that names it: the table then outlives every trace that reads it.
+        mTable.nameForNext();
         mDevice.getFunctions().mCmdTraceRays(commands, &mRaygen, &mMiss, &mHit, &mCallable, width, height, depth);
     }
 }

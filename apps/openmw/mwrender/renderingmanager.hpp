@@ -212,8 +212,8 @@ namespace MWRender
 
         /// The player was put somewhere rather than walked there, inside a worldspace the
         /// renderer is still drawing: `ActionTeleport` — a door, `coc`, Recall, a boat. The
-        /// world's effects stay, which is what tells it from `notifyWorldSpaceChanged`; the
-        /// renderer is told the same thing either way.
+        /// world's effects and the water's ripples stay, which is what tells it from
+        /// `notifyWorldSpaceChanged`; the renderer is told of the cut either way.
         void notifyTeleport();
 
         void update(float dt, bool paused);

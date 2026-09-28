@@ -152,9 +152,6 @@ namespace Rtx
             case TextureKind::Baked:
                 mBakedIndex.erase(row.mBaked);
                 break;
-            case TextureKind::Free:
-                assert(false && "a slot with a reference to give back that nothing ever named");
-                break;
         }
 
         row = TextureRow{};

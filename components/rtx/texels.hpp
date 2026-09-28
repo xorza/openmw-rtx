@@ -21,9 +21,19 @@ namespace Rtx
     struct AlphaScratch;
 
     /// The colour of one texel of one level, as it is stored — display-encoded; `Rtx::toLinear`
-    /// turns it into light. A texel at a time rather than a level decoded first, because both
-    /// callers ask for a scattered few. `x` and `y` must lie inside `level`.
+    /// turns it into light. For a reader of a scattered few: a texel of a block decodes the whole
+    /// block, and a reader of every texel takes `readTexelBand`. `x` and `y` must lie inside
+    /// `level`.
     osg::Vec3f texelAt(const TextureData& texture, const MipLevel& level, std::uint32_t x, std::uint32_t y);
+
+    /// Rows `4 × band` to `4 × band + 3` of `level` — fewer at its bottom edge — as they are
+    /// stored, row after row, with every block of them decoded once where `texelAt` decodes one
+    /// for each texel it hands out: sixteen times over for a reader of every texel. A band is a
+    /// row of blocks, and every texel a band holds is `texelAt`'s to the bit.
+    ///
+    /// @param into refilled with `level.mWidth` texels a row.
+    void readTexelBand(
+        const TextureData& texture, const MipLevel& level, std::uint32_t band, std::vector<osg::Vec3f>& into);
 
     /// What one texel of an image is worth on average.
     struct MeanTexel

@@ -11,6 +11,8 @@
 #include <osg/Matrixd>
 #include <osg/NodeVisitor>
 #include <osg/Transform>
+#include <osg/Vec2f>
+#include <osg/Vec3f>
 #include <osg/Viewport>
 #include <osgUtil/CullVisitor>
 #include <osgUtil/IntersectionVisitor>
@@ -24,6 +26,7 @@
 #include "poseupdate.hpp"
 #include "scenedesc.hpp"
 #include "sceneextractor.hpp"
+#include "shaders/camera.h"
 #include "shaders/visibility.h"
 #include "slot.hpp"
 
@@ -248,11 +251,18 @@ namespace Rtx
         if (!camera.has_value())
             return false;
 
-        const osg::Vec3f direction = camera->mCamera.mForward + camera->mCamera.mRight * x - camera->mCamera.mUp * y;
+        // The trace's own rule, so a picture framed orthographically is picked along its parallel
+        // rays and not fanned out from its eye. From the near plane to the far one, which a ray
+        // reaches at the distance its slant from the forward stretches it to.
+        const Shaders::Ray ray = Shaders::rayAcross(camera->mCamera, osg::Vec2f(x, y));
+        const osg::Vec3f from = camera->mOrigin + ray.mOffset;
+        osg::Vec3f forward = camera->mCamera.mForward;
+        forward.normalize();
+        const float slant = ray.mDirection * forward;
 
         osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector = new osgUtil::LineSegmentIntersector(
-            osgUtil::Intersector::MODEL, camera->mOrigin + direction * mRequest.mFraming.mNear,
-            camera->mOrigin + direction * mRequest.mFraming.mFar);
+            osgUtil::Intersector::MODEL, from + ray.mDirection * (mRequest.mFraming.mNear / slant),
+            from + ray.mDirection * (mRequest.mFraming.mFar / slant));
         intersector->setIntersectionLimit(osgUtil::LineSegmentIntersector::LIMIT_NEAREST);
 
         // Posed here, on the processor, because the intersection reads the drawable's own copy.

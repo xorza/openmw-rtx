@@ -1,5 +1,6 @@
 #version 460
 
+#extension GL_EXT_samplerless_texture_functions : require
 #extension GL_GOOGLE_include_directive : require
 
 // The first half of the shading estimate: every cell's sum, over the whole card.
@@ -21,7 +22,7 @@
 
 layout(local_size_x = SHADING_EXTENT, local_size_y = SHADING_EXTENT) in;
 
-layout(set = SET_PASS, binding = SHADING_SUM_BIND_SOURCE) uniform sampler2D source;
+layout(set = SET_PASS, binding = SHADING_SUM_BIND_SOURCE) uniform texture2D source;
 
 layout(set = SET_PASS, binding = SHADING_SUM_BIND_SUMS, scalar) writeonly buffer Sums
 {

@@ -124,8 +124,8 @@ namespace Rtx
         Index addMorph(const MorphSpec& morph);
 
         /// Gives `range` the runs its kind needs, and counts one more mesh on the deformer it names.
-        /// Nothing for a mesh that stands. The words it hands out are zeroed, which is a pose
-        /// nothing can equal — `MeshRange::mPosed` says why the first pose counts regardless.
+        /// Nothing for a mesh that stands. The words it hands out are zeroed, which a first pose
+        /// may equal — `MeshRange::mPosed` says why it counts regardless.
         void stand(MeshRange& range);
 
         /// Writes one mesh's pose, laid as `packBones` or `packWeights` lays it, over the words it

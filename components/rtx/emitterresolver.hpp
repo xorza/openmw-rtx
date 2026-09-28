@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <vector>
@@ -15,6 +16,8 @@
 #include "scenedesc.hpp"
 #include "sprite.hpp"
 #include "surface.hpp"
+#include "texturetable.hpp"
+#include "texturewrap.hpp"
 
 namespace osg
 {
@@ -99,6 +102,12 @@ namespace Rtx
             /// and what the census names once per emitter.
             const osg::Image* mSprite = nullptr;
 
+            /// How the image is addressed past its edges, which is part of the slot it takes.
+            TextureWrap mWrap = TextureWrap::Repeat;
+
+            /// Whether the table refused the image a slot, which is asked again once it frees one.
+            RefusedTakes mRefused;
+
             /// That image's mean texel, or null until an effect's glow asks for it: read then and
             /// kept, because `MeanTexels` keeps a named file's mean for the process, and every
             /// image here is a named file. Nulled with `mSprite`.
@@ -126,6 +135,13 @@ namespace Rtx
         /// system left with no sprite to draw is refused here, where that is decided.
         void describeSprite(
             const osgParticle::ParticleSystem& particles, HeldSprite& held, std::span<const Shading> shading);
+
+        /// Takes the slot `held`'s sprite is drawn out of, and the bake of it, where the table has
+        /// room — or where a refusal stood and the table has freed a slot since.
+        void takeSprite(const osgParticle::ParticleSystem& particles, HeldSprite& held);
+
+        /// The one take a sprite makes, as a `RefusedTakes` bit.
+        static constexpr std::uint8_t sSpriteTake = 1;
 
         /// Gives back the slots `held` took, where it took any.
         void releaseSprite(const HeldSprite& held);

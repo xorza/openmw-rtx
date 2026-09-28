@@ -33,6 +33,8 @@ set(RTX_FILES
     cloudshell.hpp
     colour.cpp
     colour.hpp
+    colourblock.cpp
+    colourblock.hpp
     compositequeue.cpp
     compositequeue.hpp
     contract.hpp

@@ -10,7 +10,6 @@
 #include <osg/Array>
 #include <osg/GL>
 #include <osg/Image>
-#include <osg/Node>
 #include <osg/PrimitiveSet>
 #include <osg/Vec2f>
 #include <osg/Vec2i>
@@ -22,10 +21,8 @@
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
-#include <components/rtx/cellworld.hpp>
 #include <components/rtx/groundreader.hpp>
 #include <components/rtx/prepared.hpp>
-#include <components/rtx/result.hpp>
 #include <components/terrain/buffercache.hpp>
 #include <components/terrain/defs.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -36,19 +33,6 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// Images and no templates, which is all the ground asks for.
-        class GroundImages final : public ContentSource
-        {
-        public:
-            osg::ref_ptr<const osg::Node> getTemplate(VFS::Path::NormalizedView) override { return nullptr; }
-            Result<osg::ref_ptr<const osg::Image>, std::string> getImage(const VFS::Path::NormalizedView path) override
-            {
-                return mImages.get(path);
-            }
-
-            ImagesByPath mImages;
-        };
-
         /// One triangle list against the other, index for index.
         void expectSameTriangles(const std::span<const std::uint32_t> read, const osg::DrawElements& built)
         {
@@ -64,8 +48,7 @@ namespace Rtx::Testing
         {
             FakeLand land;
             land.mWithData = { osg::Vec2i(0, 0) };
-            GroundImages images;
-            GroundReader reader(land, images, ESM::Cell::sDefaultWorldspaceId);
+            GroundReader reader(land, ESM::Cell::sDefaultWorldspaceId);
 
             PreparedGround ground;
             reader.read(osg::Vec2i(0, 0), ground);
@@ -112,21 +95,20 @@ namespace Rtx::Testing
             ASSERT_EQ(reader.getLayerFiles().size(), 2u) << "one layer's files a layer";
             const GroundReader::LayerFiles& grassFiles = reader.getLayerFiles()[0];
             const GroundReader::LayerFiles& rockFiles = reader.getLayerFiles()[1];
-            EXPECT_EQ(grassFiles.mImage->getFileName(), "textures/grass.dds");
-            EXPECT_EQ(rockFiles.mImage->getFileName(), "textures/rock_diffusespec.dds");
+            EXPECT_EQ(grassFiles.mPath, "textures/grass.dds");
+            EXPECT_EQ(rockFiles.mPath, "textures/rock_diffusespec.dds");
             EXPECT_EQ(grass.mRow.mDiffuseTransform, osg::Vec4f(16.0f, 16.0f, 0.0f, 0.0f));
 
-            // The rock's maps as the storage named them, its normal map read beside its diffuse;
-            // the grass has neither.
+            // The rock's maps as the storage named them, its normal map named beside its diffuse
+            // and asked for a height; the grass has neither. Named and not opened: the cell reader
+            // opens each file once for as long as it holds it, and says whether the map carries
+            // the height (`RtxCellReaderTest`).
             EXPECT_TRUE(rock.mDiffuseSpec);
             EXPECT_EQ(rockFiles.mNormalPath, "textures/rock_nh.dds");
-            ASSERT_NE(rockFiles.mNormalImage, nullptr);
-            EXPECT_EQ(rockFiles.mNormalImage->getFileName(), "textures/rock_nh.dds");
-            EXPECT_TRUE(rock.mParallax) << "an `_nh` of four channels carries a height";
-            EXPECT_FALSE(grass.mParallax);
+            EXPECT_TRUE(rockFiles.mParallax);
+            EXPECT_FALSE(grassFiles.mParallax);
             EXPECT_FALSE(grass.mDiffuseSpec);
             EXPECT_TRUE(grassFiles.mNormalPath.empty());
-            EXPECT_EQ(grassFiles.mNormalImage, nullptr);
 
             // `BlendmapTexMat` at sixteen tiles: a scale of 16 / 17 about the centre and a nudge of
             // a quarter texel, which comes to an offset of 0.75 / 17 in x and 0.25 / 17 in y.
@@ -158,8 +140,7 @@ namespace Rtx::Testing
         TEST(RtxGroundReaderTest, aCellWithNoRecordIsAPlaneAtTheDefaultHeight)
         {
             FakeLand land;
-            GroundImages images;
-            GroundReader reader(land, images, ESM::Cell::sDefaultWorldspaceId);
+            GroundReader reader(land, ESM::Cell::sDefaultWorldspaceId);
 
             PreparedGround ground;
             reader.read(osg::Vec2i(1, 0), ground);
@@ -185,20 +166,31 @@ namespace Rtx::Testing
 
             ASSERT_EQ(ground.mLayers.size(), 1u);
             ASSERT_EQ(reader.getLayerFiles().size(), 1u);
-            EXPECT_EQ(reader.getLayerFiles()[0].mImage->getFileName(), "textures/_land_default.dds");
             EXPECT_EQ(reader.getLayerFiles()[0].mPath, "textures/_land_default.dds");
             EXPECT_EQ(ground.mLayers[0].mWeights.mCount, 0u) << "one ground type covers the cell";
             EXPECT_TRUE(ground.mWeights.empty());
+        }
 
-            // **A layer whose image does not read keeps its place and its path**, for the texture
-            // table to stand in and refuse as it does any texture: dropped, the ground under it
-            // would show another layer with nothing said.
-            images.mImages.lose("textures/_land_default.dds");
-            PreparedGround unread;
-            reader.read(osg::Vec2i(2, 0), unread);
-            ASSERT_EQ(unread.mLayers.size(), 1u);
-            EXPECT_EQ(reader.getLayerFiles()[0].mImage, nullptr);
-            EXPECT_EQ(reader.getLayerFiles()[0].mPath, "textures/_land_default.dds");
+        /// **An ESM4 cell with no land stands nothing, and says so of its layers too.** An ESM4 world
+        /// has no default height, so such a cell is left out — and what it reports of its layers is
+        /// its own, nothing, and not the cell read before it, which a reader filed into ground it
+        /// never stood.
+        TEST(RtxGroundReaderTest, anEsm4CellWithNoLandKeepsNoLayersOfTheCellBefore)
+        {
+            FakeLand land;
+            land.mWithData = { osg::Vec2i(0, 0) };
+            GroundReader reader(land, ESM::RefId::stringRefId("tamriel"));
+
+            PreparedGround stood;
+            reader.read(osg::Vec2i(0, 0), stood);
+            ASSERT_TRUE(stood.mStands);
+            ASSERT_EQ(reader.getLayerFiles().size(), 2u);
+
+            PreparedGround empty;
+            reader.read(osg::Vec2i(3, 0), empty);
+            EXPECT_FALSE(empty.mStands);
+            EXPECT_TRUE(empty.mLayers.empty());
+            EXPECT_TRUE(reader.getLayerFiles().empty()) << "the cell read before this one still answers";
         }
 
         /// A land whose one cell blends two masks of two formats: the game's own, and one a mod
@@ -261,8 +253,7 @@ namespace Rtx::Testing
         TEST(RtxGroundReaderTest, aBlendMapReadsTheSameOnTheRowPathAndTheFallback)
         {
             TwoFormats land;
-            GroundImages images;
-            GroundReader reader(land, images, ESM::Cell::sDefaultWorldspaceId);
+            GroundReader reader(land, ESM::Cell::sDefaultWorldspaceId);
 
             PreparedGround ground;
             reader.read(osg::Vec2i(0, 0), ground);

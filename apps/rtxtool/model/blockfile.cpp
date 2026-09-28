@@ -3,10 +3,9 @@
 #include <array>
 #include <charconv>
 #include <cmath>
+#include <cstdint>
 #include <format>
 #include <fstream>
-#include <locale>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <system_error>
@@ -24,14 +23,10 @@ namespace RtxTool
         template <class Number>
         std::optional<Number> parseNumber(std::string_view text)
         {
-            // Not `std::from_chars`: libc++ ships the floating-point overload only from macOS 26.
-            // `eof` is what says the whole field was consumed — the same question `from_chars`
-            // answers with its end pointer.
-            std::istringstream stream{ std::string(text) };
-            stream.imbue(std::locale::classic());
-
             Number value = 0;
-            if (!(stream >> value) || !stream.eof())
+            const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+            // `from_chars` reads "inf" and "nan", which no field of a view or a bench stands for.
+            if (error != std::errc() || end != text.data() + text.size() || !std::isfinite(value))
                 return std::nullopt;
 
             return value;
@@ -96,8 +91,7 @@ namespace RtxTool
 
         // The ranges the clocks keep: `Sky::SkyClock::step` only adds to the seconds and wraps the
         // scroll at four, and a carry is a sum of finite steps.
-        if (!(*seconds >= 0.0) || !std::isfinite(*seconds) || !(*scroll >= 0.0f) || !(*scroll < 4.0f)
-            || !std::isfinite(*x) || !std::isfinite(*y))
+        if (!(*seconds >= 0.0) || !(*scroll >= 0.0f) || !(*scroll < 4.0f))
             return std::nullopt;
 
         return Rtx::AirClock{ .mSky = { .mSeconds = *seconds, .mCloudScroll = *scroll }, .mCarried = { *x, *y } };
@@ -203,21 +197,51 @@ namespace RtxTool
         return value;
     }
 
+    std::optional<std::string_view> hourRefusal(const float hour)
+    {
+        if (!(hour >= 0.0f) || !(hour < 24.0f))
+            return "is not from 0 up to but not including 24";
+
+        return std::nullopt;
+    }
+
+    std::optional<std::string_view> weatherRefusal(const std::string_view weather)
+    {
+        // **Checked where it is read rather than at the frame**, for the reason a mistyped view id
+        // is: a place that quietly stood under another sky reports a number against a frame nobody
+        // asked for.
+        if (!Rtx::weatherIndex(weather).has_value())
+            return "is none of the weathers the content files name";
+
+        return std::nullopt;
+    }
+
+    std::string listWeathers()
+    {
+        std::string list;
+        for (std::uint32_t weather = 0; !Rtx::weatherName(weather).empty(); ++weather)
+        {
+            if (!list.empty())
+                list += ", ";
+            list += Rtx::weatherName(weather);
+        }
+
+        return list;
+    }
+
     float BlockFile::hour(const BlockField& field) const
     {
         const float value = number(field);
-        if (!(value >= 0.0f) || !(value < 24.0f))
-            refuseValue(field, "is not from 0 up to but not including 24");
+        if (const std::optional<std::string_view> why = hourRefusal(value))
+            refuseValue(field, *why);
 
         return value;
     }
 
     const std::string& BlockFile::weather(const BlockField& field) const
     {
-        // **Checked here rather than at the frame**, for the reason a mistyped view id is: a place
-        // that quietly stood under another sky reports a number against a frame nobody asked for.
-        if (!Rtx::weatherIndex(field.mValue).has_value())
-            refuseValue(field, "is none of the weathers the content files name");
+        if (const std::optional<std::string_view> why = weatherRefusal(field.mValue))
+            refuseValue(field, *why);
 
         return field.mValue;
     }

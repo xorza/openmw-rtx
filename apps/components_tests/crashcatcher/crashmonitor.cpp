@@ -1,4 +1,5 @@
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -24,6 +25,7 @@ namespace
         written.mApplication = "crash-tests";
         written.mDialog = false;
         written.mIssues = "https://github.com/xorza/openmw-rtx/issues";
+        written.mEndAfter = std::chrono::milliseconds(1500);
 
         std::vector<std::string> line{ "openmw", "--database=/home/x/crashes" };
         for (const std::string& argument : written.write())
@@ -38,6 +40,7 @@ namespace
         EXPECT_EQ(read.mApplication, "crash-tests");
         EXPECT_FALSE(read.mDialog);
         EXPECT_EQ(read.mIssues, "https://github.com/xorza/openmw-rtx/issues");
+        EXPECT_EQ(read.mEndAfter, std::chrono::milliseconds(1500));
         EXPECT_EQ(read.mDatabase, std::filesystem::path("/home/x/crashes"));
 
         const std::vector<std::string> crashpads{ "openmw", "--database=/home/x/crashes", "--initial-client-fd=3" };
@@ -55,6 +58,7 @@ namespace
         EXPECT_EQ(read.mNotes, 0u);
         EXPECT_EQ(read.mNotesSize, 0u);
         EXPECT_TRUE(read.mDialog);
+        EXPECT_FALSE(read.mEndAfter.has_value()) << "a game that names no answer leaves the player to give one";
         EXPECT_EQ(handler, std::vector<std::string>{ "openmw" });
     }
 

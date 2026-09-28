@@ -72,10 +72,11 @@ namespace Rtx
         /// it anyway.
         void write() const;
 
-        /// Removes every other pipeline cache of this renderer's in the same directory — the
-        /// eviction, since anything else under `rtx-` is for a driver or shaders this build no
-        /// longer has. A driver rollback compiles from source once; so does a process whose partial
-        /// write is swept in the one-rename window.
+        /// Removes the oldest of this renderer's other caches in the same directory, past the few it
+        /// keeps — the eviction. Another cache is for a driver or a shader tree this run does not
+        /// have, which a second card or the tree before an edit may have again; one older than the
+        /// kept few compiles from source once. So does a process whose partial write is swept in
+        /// the one-rename window.
         void sweep() const;
 
         VkDevice mDevice = VK_NULL_HANDLE;

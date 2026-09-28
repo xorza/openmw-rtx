@@ -1,5 +1,6 @@
 #include "texels.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -25,8 +26,10 @@
 
 #include "alphaimage.hpp"
 #include "colour.hpp"
+#include "colourblock.hpp"
 #include "contract.hpp"
 #include "error.hpp"
+#include "frameimage.hpp"
 #include "result.hpp"
 #include "texturebuilder.hpp"
 
@@ -57,14 +60,9 @@ namespace Rtx
                     static_cast<uInt>(body.size()))));
             return chunk;
         }
-    }
 
-    osg::Vec3f texelAt(const TextureData& texture, const MipLevel& level, std::uint32_t x, std::uint32_t y)
-    {
-        assert(x < level.mWidth && y < level.mHeight);
-
-        const TexelLayout layout = layoutOf(texture.mFormat);
-        if (!layout.isBlocked())
+        osg::Vec3f looseTexel(const TextureData& texture, const MipLevel& level, const TexelLayout& layout,
+            const std::uint32_t x, const std::uint32_t y)
         {
             assert(layout.mBytes == 4 && "a loose texel read as four bytes that is not");
             const std::size_t at = level.mOffset + (std::size_t{ y } * level.mWidth + x) * layout.mBytes;
@@ -80,14 +78,59 @@ namespace Rtx
             return osg::Vec3f(channel(0), channel(1), channel(2));
         }
 
-        // The colour half is the last eight bytes of a block whichever format it is: BC2 and BC3 put
-        // their alpha in front of it and BC1 has none.
-        const std::uint32_t columns = (level.mWidth + 3) / 4;
-        const std::size_t at
-            = level.mOffset + (std::size_t{ y / 4 } * columns + x / 4) * layout.mBytes + (layout.mBytes - 8);
-        const ColourBlock block = ColourBlock::read(texture.mBytes.subspan(at).first<8>(), isBc1(texture.mFormat));
+        /// The block at `column` and `band`, counted in blocks. Its colour half is the last eight bytes
+        /// whichever format it is: BC2 and BC3 put their alpha in front of it and BC1 has none.
+        ColourBlock colourBlockAt(const TextureData& texture, const MipLevel& level, const TexelLayout& layout,
+            const std::uint32_t column, const std::uint32_t band)
+        {
+            const std::uint32_t columns = (level.mWidth + 3) / 4;
+            const std::size_t at
+                = level.mOffset + (std::size_t{ band } * columns + column) * layout.mBytes + (layout.mBytes - 8);
+            return ColourBlock::read(texture.mBytes.subspan(at).first<8>(), isBc1(texture.mFormat));
+        }
+    }
 
+    osg::Vec3f texelAt(const TextureData& texture, const MipLevel& level, std::uint32_t x, std::uint32_t y)
+    {
+        assert(x < level.mWidth && y < level.mHeight);
+
+        const TexelLayout layout = layoutOf(texture.mFormat);
+        if (!layout.isBlocked())
+            return looseTexel(texture, level, layout, x, y);
+
+        const ColourBlock block = colourBlockAt(texture, level, layout, x / 4, y / 4);
         return block.mPalette[block.indexAt(std::size_t{ y % 4 } * 4 + x % 4)];
+    }
+
+    void readTexelBand(
+        const TextureData& texture, const MipLevel& level, const std::uint32_t band, std::vector<osg::Vec3f>& into)
+    {
+        const std::uint32_t first = band * 4;
+        assert(first < level.mHeight && "a band below the level");
+        const std::uint32_t rows = std::min(level.mHeight - first, 4u);
+        const std::uint32_t width = level.mWidth;
+        into.resize(std::size_t{ rows } * width);
+
+        const TexelLayout layout = layoutOf(texture.mFormat);
+        if (!layout.isBlocked())
+        {
+            for (std::uint32_t row = 0; row < rows; ++row)
+                for (std::uint32_t x = 0; x < width; ++x)
+                    into[std::size_t{ row } * width + x] = looseTexel(texture, level, layout, x, first + row);
+            return;
+        }
+
+        const std::uint32_t columns = (width + 3) / 4;
+        for (std::uint32_t column = 0; column < columns; ++column)
+        {
+            const ColourBlock block = colourBlockAt(texture, level, layout, column, band);
+
+            const std::uint32_t across = std::min(width - column * 4, 4u);
+            for (std::uint32_t row = 0; row < rows; ++row)
+                for (std::uint32_t x = 0; x < across; ++x)
+                    into[std::size_t{ row } * width + column * 4 + x]
+                        = block.mPalette[block.indexAt(std::size_t{ row } * 4 + x)];
+        }
     }
 
     osg::Vec3f MeanTexel::opaque() const
@@ -131,19 +174,26 @@ namespace Rtx
         AlphaImage& alpha = scratch.mAlpha;
         alpha.build(described);
 
+        // Row by row, in the order a texel at a time was summed, so the means are the same to the
+        // bit; a band at a time, so a block is decoded once and not once a texel.
+        std::vector<osg::Vec3f>& band = scratch.mColours;
         osg::Vec3d total;
         osg::Vec3d whole;
         double covered = 0.0;
-        for (std::uint32_t y = 0; y < level.mHeight; ++y)
-            for (std::uint32_t x = 0; x < level.mWidth; ++x)
-            {
-                const osg::Vec3d light(toLinear(texelAt(described, level, x, y)));
-                const double opacity = alpha.at(0, x, y) / 255.0;
+        for (std::uint32_t first = 0; first < level.mHeight; first += 4)
+        {
+            readTexelBand(described, level, first / 4, band);
+            for (std::uint32_t y = first; y < first + band.size() / level.mWidth; ++y)
+                for (std::uint32_t x = 0; x < level.mWidth; ++x)
+                {
+                    const osg::Vec3d light(toLinear(band[std::size_t{ y - first } * level.mWidth + x]));
+                    const double opacity = alpha.at(0, x, y) / 255.0;
 
-                total += light * opacity;
-                whole += light;
-                covered += opacity;
-            }
+                    total += light * opacity;
+                    whole += light;
+                    covered += opacity;
+                }
+        }
 
         const double texels = double(level.mWidth) * level.mHeight;
         total /= texels;
@@ -274,12 +324,11 @@ namespace Rtx
     void writePng(const std::filesystem::path& path, std::uint32_t width, std::uint32_t height,
         std::span<const std::uint8_t> pixels, const std::string_view description)
     {
-        osg::ref_ptr<osg::Image> image = new osg::Image;
-        image->allocateImage(static_cast<int>(width), static_cast<int>(height), 1, GL_RGBA, GL_UNSIGNED_BYTE);
-
-        const std::size_t stride = std::size_t{ width } * 4;
-        for (std::uint32_t y = 0; y < height; ++y)
-            std::memcpy(image->data(0, static_cast<int>(height - 1 - y)), pixels.data() + y * stride, stride);
+        // The one conversion of a traced picture to OpenSceneGraph's rows, at its own size.
+        const osg::ref_ptr<osg::Image> image
+            = frameImage(TracedFrame{ .mWidth = width, .mHeight = height, .mPixels = pixels }, static_cast<int>(width),
+                static_cast<int>(height), RowOrder::BottomFirst);
+        contract(image != nullptr, "a picture written from fewer pixels than its size");
 
         // zlib's fastest level: a 1080p frame in 60 ms against 260 at the plugin's default, for a
         // file a fifth larger — and a run that keeps every frame writes hundreds of them.

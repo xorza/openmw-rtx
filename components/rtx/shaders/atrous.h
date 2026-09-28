@@ -42,7 +42,8 @@ namespace Rtx::Shaders
     const uint ATROUS_BIND_FILTERED = 1;
     const uint ATROUS_BIND_GUIDE = 2;
     const uint ATROUS_BIND_DEPTH = 3;
-    const uint ATROUS_BINDINGS = 4;
+    const uint ATROUS_BIND_PUFFS = 4;
+    const uint ATROUS_BINDINGS = 5;
 
     /// Threads along each edge of a level's workgroup.
     const uint ATROUS_WORKGROUP = 8;
@@ -58,6 +59,12 @@ namespace Rtx::Shaders
     {
         Camera mCamera;
 
+        /// The eye the player's arms were traced through, `VisibilityConstants::mArms`: a pixel the
+        /// trace drew on an arm — the puffs channel's flag says which — is rebuilt through it, and
+        /// the rest through `mCamera`. The two stand at one place, so positions rebuilt through
+        /// either still differ by a vector that drops it.
+        Camera mArms;
+
         /// The spacing of this level's taps, in pixels. The three sigmas the taps are weighed by
         /// are `look.h`'s, because nothing varies them per level or per frame.
         uint mStep;
@@ -66,7 +73,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(AtrousConstants) == 64, "AtrousConstants must be scalar-packed on every side");
+    static_assert(sizeof(AtrousConstants) == 124, "AtrousConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

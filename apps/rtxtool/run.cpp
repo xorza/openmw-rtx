@@ -57,7 +57,7 @@ namespace RtxTool
         const Files::ConfigurationManager& config, const std::string_view category, const std::string_view setting)
     {
         // Parsed once per process: the file does not change under a run, and every framed verb asks
-        // for two of its values.
+        // for three of its values.
         static Settings::CategorySettingValueMap shipped;
         if (shipped.empty())
         {
@@ -393,6 +393,11 @@ namespace RtxTool
                 if (blocks[before].mName == block.mName)
                     file.refuseRepeat(block, blocks[before], "view");
 
+            // `chooseViews` reads the word as every view, so a view of that name could never be
+            // chosen alone.
+            if (block.mName == "all")
+                file.refuse(block.mLine, "\"all\" names every view and may not name one");
+
             Stop& view = views.emplace_back(Stop{ .mName = block.mName });
             for (const BlockField& field : block.mFields)
             {
@@ -434,8 +439,12 @@ namespace RtxTool
     std::vector<Stop> chooseViews(const std::vector<Stop>& views, const std::vector<std::string>& named)
     {
         // **"all" is a name nothing may take, and it means every view.** `bench` reaches this
-        // through a suite as well, so the word has to mean the same on either road in.
-        if (named.empty() || (named.size() == 1 && named.front() == "all"))
+        // through a suite as well, so the word has to mean the same on either road in. A list
+        // that names nothing — `--views=,` — is refused rather than read as every view.
+        if (named.empty())
+            throw std::runtime_error("nothing to visit: no view was named");
+
+        if (named.size() == 1 && named.front() == "all")
             return views;
 
         std::vector<Stop> chosen;

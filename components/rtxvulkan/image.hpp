@@ -217,7 +217,6 @@ namespace Rtx
 
         VkImageUsageFlags mUsage = 0;
         std::uint32_t mMipLevels = 1;
-        std::uint32_t mTexelBytes = 0;
 
         /// The format a storage view is made in, where it is not `mFormat`, which `bind` reads.
         VkFormat mStorageFormat = VK_FORMAT_UNDEFINED;

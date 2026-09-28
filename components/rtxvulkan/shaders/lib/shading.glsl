@@ -90,7 +90,9 @@ DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path)
     float rated = 1.0;
     if (path == PATH_INDIRECT && skyLights())
     {
-        uint lit = randomSeed(seed + SEED_INDIRECT_LIGHT);
+        // Only the bounce shades as indirect, so `seed` is its pixel's key and `SEED_LAMPS_BOUNCE`,
+        // and the draw is the key's own entry of the chain.
+        uint lit = randomSeed(seed - SEED_LAMPS_BOUNCE + SEED_INDIRECT_LIGHT);
         if (randomNext(lit) >= INDIRECT_LIGHT_RATE)
             return DirectLight(radiance, specular);
 
@@ -152,7 +154,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path)
     {
         const SkyChoice picked = pick.mIndex == 0u ? sun : (pick.mIndex == 1u ? masser : secunda);
 
-        const float skySeen = skyVisible(picked.mSky, position, sunDraw);
+        const float skySeen = skyVisibleThrough(picked.mSky, position, sunDraw);
         const vec3 water = lightThroughWater(position, picked.mSky.mDirection, surface.mFootprint);
         const vec3 skyArriving = picked.mSky.mIrradiance * water;
         const float skyLit = picked.mCosine * INV_PI * skySeen;
@@ -384,29 +386,6 @@ vec3 shadeAtPathEnd(Surface hit, uint ambientSeed, uint lampSeed, uint path)
     return shadeSurface(hit, glossOf(hit), pathEnd(hit.mPosition, reaching), lampSeed, path);
 }
 
-/// What a bounce brings back when it reaches nothing.
-///
-/// The glow and not the disc: the sun is already a term of its own in `gather`, for the lobe as
-/// well as for the diffuse half, and a bounce that found it in the sky would be the same light
-/// counted twice.
-///
-/// **A room has nothing outside it, so a ray that got out of one brings back nothing.** The dome a
-/// room draws is its fog colour standing in for the *picture* wherever a ray leaves the shell, and it
-/// is far brighter than the room itself: lighting with it drew a bright band along the foot of every
-/// wall. `mAmbientFromSky` is where a cell answers whether its sky is a light, and `ambientReaching`
-/// reads the same field to decide how far to look for what blocks the fill.
-///
-/// Dimmed by the column of water over the point, on `daylightReaching`'s vertical approximation and
-/// for its reason: this ray left for the sky and the sky is above, so what stands between them is the
-/// depth. Without it a flooded floor reads brighter than the same floor seen from over the surface.
-vec3 bounceEscape(vec3 position, vec3 towards, vec3 weight)
-{
-    if (!skyLights())
-        return vec3(0.0);
-
-    return weight * skyGlow(towards) * daylightReaching(position);
-}
-
 /// What one bounce brings back, in the two halves `shadeSolid` hands on apart.
 struct Bounce
 {
@@ -442,6 +421,36 @@ struct BounceDraw
     /// diffuse one reads its textures at.
     float mSpread;
 };
+
+/// What a bounce brings back when it reaches nothing.
+///
+/// The glow and not the disc: the sun is already a term of its own in `gather`, for the lobe as
+/// well as for the diffuse half, and a bounce that found it in the sky would be the same light
+/// counted twice.
+///
+/// **A room has nothing outside it, so a ray that got out of one brings back nothing.** The dome a
+/// room draws is its fog colour standing in for the *picture* wherever a ray leaves the shell, and it
+/// is far brighter than the room itself: lighting with it drew a bright band along the foot of every
+/// wall. `mAmbientFromSky` is where a cell answers whether its sky is a light, and `ambientReaching`
+/// reads the same field to decide how far to look for what blocks the fill.
+///
+/// Dimmed by the column of water over the point, on `daylightReaching`'s vertical approximation and
+/// for its reason: this ray left for the sky and the sky is above, so what stands between them is the
+/// depth. Without it a flooded floor reads brighter than the same floor seen from over the surface.
+///
+/// **The lobe's escape finds the sky a mirror shows**, `reflectedSky`, because a reflection is a
+/// picture of the world: the deck, the sheets and the stars where they are, and no fill. With no
+/// discs, which `gather` asks the lobe for already. A branch and not a factor, because the halves
+/// are the draw's own split and the reflected sky is a deck's reading the diffuse half never needs.
+vec3 bounceEscape(vec3 position, BounceDraw drawn, vec3 weight)
+{
+    if (!skyLights())
+        return vec3(0.0);
+
+    const vec3 sky = drawn.mSpecular ? reflectedSky(position, drawn.mTowards, 0.5 * drawn.mSpread, false)
+                                     : skyGlow(drawn.mTowards);
+    return weight * sky * daylightReaching(position);
+}
 
 /// Which way the eye's bounce leaves a surface, and what the light that arrives along it is worth.
 ///
@@ -513,7 +522,7 @@ vec3 bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel)
     // costs and why the room is not in it.
     const vec3 fromEye = surface.mPosition - frame.mOrigin;
     if (skyLights() && surface.mGround && dot(fromEye, fromEye) > BOUNCE_REACH * BOUNCE_REACH)
-        return bounceEscape(surface.mPosition, drawn.mTowards, weight);
+        return bounceEscape(surface.mPosition, drawn, weight);
 
     // Drawn last, so the side, the direction and the escape are the numbers they were. One path
     // at a rate of one: no draw reaches it, and the weight is divided by one.
@@ -534,7 +543,7 @@ vec3 bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel)
         Cone(surface.mFootprint, drawn.mSpread), solidMask(frame.mRayMask), drawn.mSpecular);
 
     if (!hit.mHit)
-        return bounceEscape(surface.mPosition, drawn.mTowards, weight);
+        return bounceEscape(surface.mPosition, drawn, weight);
 
     // **Its glow is counted here, because this is the only path it takes.** Nothing gives a glowing
     // surface a lamp of its own — `EMISSIVE_INTENSITY` says what measuring that showed — so a ray

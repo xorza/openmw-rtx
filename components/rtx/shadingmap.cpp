@@ -8,6 +8,7 @@
 #include <osg/Vec3f>
 
 #include "colour.hpp"
+#include "colourblock.hpp"
 #include "shaders/colour.h"
 #include "shaders/look.h"
 #include "shaders/shadingmap.h"

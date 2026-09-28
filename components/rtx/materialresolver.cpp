@@ -306,21 +306,15 @@ namespace Rtx
         HeldTexture& held = known->second;
         Index& slot = held.mSlots[static_cast<std::size_t>(encoding)][static_cast<std::size_t>(use.mWrap)];
         const std::uint64_t freed = mScene.textures().getFreedCount();
-        if (held.mRefusedAt != freed)
-            held.mRefused = 0;
-
         const std::uint8_t bit = static_cast<std::uint8_t>(
             1u << (static_cast<std::size_t>(encoding) * sTextureWrapCount + static_cast<std::size_t>(use.mWrap)));
-        if (slot == sNoIndex && (held.mRefused & bit) == 0)
+        if (slot == sNoIndex && !held.mRefused.stands(bit, freed))
         {
             // Held, because this entry is the reference. `mTextureOf` says why a slot the map names
             // has to be one nothing else can hand out.
             slot = mScene.textures().take(VFS::Path::Normalized(image->getFileName()), *image, use.mWrap, encoding);
             if (slot == sNoIndex)
-            {
-                held.mRefused |= bit;
-                held.mRefusedAt = freed;
-            }
+                held.mRefused.refuse(bit, freed);
         }
 
         if (worn != nullptr)

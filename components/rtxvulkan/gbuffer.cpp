@@ -126,7 +126,7 @@ namespace Rtx
         // From undefined, because every pixel is written before any is read. One set of channels
         // serves every frame and two are in flight, and the head barrier `CommandPool::begin`
         // recorded is what orders this buffer after the last frame's readers — NGX among them,
-        // whose stages are its own. The stand-ins are in here too (`CompositePass::mNoSum`).
+        // whose stages are its own.
         Barriers barriers(commands);
         for (const Image& image : mChannels)
             barriers.add(image.describeTransition(Use::sUndefined, Use::sTraceWrite));

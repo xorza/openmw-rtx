@@ -25,6 +25,8 @@ namespace MWRender
                 .mObjectPagingMinSize = 0.025f,
                 .mSpecularMapLayout = "metal roughness",
                 .mAnisotropy = 8,
+                .mReflexFlash = true,
+                .mGroundcover = true,
             };
         }
 
@@ -66,6 +68,7 @@ namespace MWRender
             EXPECT_EQ(derived.mMirror.mMinSize, 0.025f);
             EXPECT_EQ(derived.mMirror.mSpecularLayout, Rtx::SpecularLayout::MetalRoughness);
             EXPECT_EQ(derived.mAnisotropy, 8u);
+            EXPECT_TRUE(derived.mReflexFlash);
 
             RtxSettingValues handedBack = valid();
             handedBack.mDistantLandCells = 0.0f;

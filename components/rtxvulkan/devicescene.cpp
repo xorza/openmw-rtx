@@ -8,8 +8,8 @@
 #include <components/rtx/shaders/scene.h>
 
 #include "commands.hpp"
-#include "groundcompositepass.hpp"
 #include "placing.hpp"
+#include "scenepasses.hpp"
 #include "skinpass.hpp"
 
 namespace Rtx
@@ -26,23 +26,21 @@ namespace Rtx
         }
     }
 
-    DeviceScene::DeviceScene(const Device& device, Batch& batch, const SetLayout& textureLayout, const SkinPass& skin,
-        const TexturePasses& passes, const GroundCompositePass& ground, const SceneDesc& scene,
+    DeviceScene::DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, const SceneDesc& scene,
         std::span<const TextureData> textures, const std::uint32_t anisotropy)
-        : mSkin(skin)
-        , mGround(ground)
+        : mPasses(passes)
         , mRecords(recordsOf(scene))
         , mAcceleration(device, batch, scene, sFrameSlots)
         , mBuffers(device, batch, scene, mRecords, sFrameSlots)
         , mSkinTables(device, batch, scene, sFrameSlots)
-        , mTextures(device, batch, textureLayout, passes, static_cast<std::uint32_t>(scene.textures().getRows().size()),
-              anisotropy)
+        , mTextures(device, batch, passes.mTextureLayout, passes.mTextures,
+              static_cast<std::uint32_t>(scene.textures().getRows().size()), anisotropy)
     {
         // Posed before it is built. The structures are built over the first copy of the
         // positions, and a skinned body's bind pose is not where the body is; the pass writes the
         // pose into that copy and the build then reads it. The other copy is owed the same pose and
         // takes it on the first placement that writes it.
-        mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{}));
+        mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{}));
         mAcceleration.build(batch, scene, mRecords, mRefusals);
         mTextures.write(batch, textures, mRefusals);
         mBuiltMeshes = scene.meshes().getRevision();
@@ -71,11 +69,20 @@ namespace Rtx
         };
     }
 
+    void DeviceScene::describeTables(const FrameSlot slot, Shaders::GpuTables& tables) const
+    {
+        mBuffers.describeTables(slot, tables);
+        tables.mIndexBlocks = mAcceleration.getIndexBlocks();
+        tables.mPoseBlocks = mAcceleration.getPoseBlocks(slot);
+        tables.mPreviousPoseBlocks = mAcceleration.getPreviousPoseBlocks(slot);
+        tables.mTextureTexels = mTextures.getTexelsAddress(slot);
+    }
+
     bool DeviceScene::bakeGround(const VkCommandBuffer commands, const FrameSlot slot)
     {
         Shaders::GpuTables tables{};
-        mBuffers.describeTables(slot, tables);
-        return mTextures.bakeComposites(commands, mGround, slot, tables);
+        describeTables(slot, tables);
+        return mTextures.bakeComposites(commands, mPasses.mGround, slot, tables);
     }
 
     void DeviceScene::extend(
@@ -94,7 +101,7 @@ namespace Rtx
             // Posed before it is built, as the constructor does, into the first copy, which is what
             // the build reads — and only the meshes that arrived, over the rows `SkinTables::extend`
             // staged. `SkinPass::recordArrived` says why it may not be every mesh the copy owes.
-            mSkin.recordArrived(batch.getCommands(), skinning(scene, FrameSlot{}), scene.meshes().getArrived());
+            mPasses.mSkin.recordArrived(batch.getCommands(), skinning(scene, FrameSlot{}), scene.meshes().getArrived());
             mAcceleration.buildArrived(batch, scene, timer, mRefusals);
             mBuiltMeshes = scene.meshes().getRevision();
         }
@@ -123,14 +130,14 @@ namespace Rtx
         // The pose first, because the refit reads it. Every skinned body and morphed face this
         // copy owes is computed into it here, and the barrier the pass ends in is what the refit
         // and the trace wait on.
-        const bool posed = mSkin.record(placing.mCommands, skinning(scene, placing.mSlot, placing.mTimer));
+        const bool posed = mPasses.mSkin.record(placing.mCommands, skinning(scene, placing.mSlot, placing.mTimer));
 
         const bool built = mAcceleration.place(scene, mRecords, mChangedRecords, placing);
 
         // Nothing to report, because nothing here is recorded: the tables are host-visible and the
         // submit that follows makes them visible. Only what a moving world changed — rebuilding all
         // of it is tens of milliseconds on a nine-by-nine region.
-        mBuffers.place(scene, mRecords, mChangedRecords, placing);
+        mBuffers.place(scene, mRecords, mChangedRecords, placing.mSlot);
 
         // The ground that arrived flattened here, after the tables its stack is in are written
         // and the set its layers are in is synced: the trace behind this samples it as a file.

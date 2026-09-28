@@ -24,6 +24,19 @@ namespace Rtx
 {
     namespace
     {
+        /// What `buffer` needs of an allocation, at `alignment` at least. By hand and not the
+        /// library's own look at the buffer, because that look takes the driver's alignment and no
+        /// other, and a scratch buffer owes a coarser one. What the library then does not know is
+        /// that this is a buffer, so it keeps the image granularity between this and any neighbour —
+        /// a kilobyte on this hardware, which is what every range paid before it.
+        VkMemoryRequirements requirementsOf(const VkDevice device, const VkBuffer buffer, const VkDeviceSize alignment)
+        {
+            VkMemoryRequirements requirements{};
+            vkGetBufferMemoryRequirements(device, buffer, &requirements);
+            requirements.alignment = std::max(requirements.alignment, alignment);
+            return requirements;
+        }
+
         /// The block a memory type is grown by. Sixty-four megabytes: what this fork's own allocator
         /// settled on before the library took over, against the library's quarter of a gigabyte,
         /// which on a card whose host-visible video memory is a couple of hundred megabytes is the
@@ -172,15 +185,7 @@ namespace Rtx
     {
         assert(alignment > 0 && (alignment & (alignment - 1)) == 0 && "an alignment is a power of two");
 
-        // The requirements by hand and not the library's own look at the buffer, because that look
-        // takes the driver's alignment and no other, and a scratch buffer owes a coarser one. What
-        // the library then does not know is that this is a buffer, so it keeps the image
-        // granularity between this and any neighbour — a kilobyte on this hardware, which is what
-        // every range paid before it.
-        VkMemoryRequirements requirements{};
-        vkGetBufferMemoryRequirements(mDevice, buffer, &requirements);
-        requirements.alignment = std::max(requirements.alignment, alignment);
-
+        const VkMemoryRequirements requirements = requirementsOf(mDevice, buffer, alignment);
         const VmaAllocationCreateInfo create = askingFor(properties);
         VmaAllocation allocation = nullptr;
         VmaAllocationInfo placed{};
@@ -209,10 +214,7 @@ namespace Rtx
 
         assert(alignment > 0 && (alignment & (alignment - 1)) == 0 && "an alignment is a power of two");
 
-        // By hand, for the reason `take` gives.
-        VkMemoryRequirements requirements{};
-        vkGetBufferMemoryRequirements(mDevice, buffer, &requirements);
-        requirements.alignment = std::max(requirements.alignment, alignment);
+        const VkMemoryRequirements requirements = requirementsOf(mDevice, buffer, alignment);
 
         return tryAllocate(requirements.size, requirements.memoryTypeBits, false, properties, use,
             [&](const VmaAllocationCreateInfo& create, VmaAllocation* allocation, VmaAllocationInfo* placed) {

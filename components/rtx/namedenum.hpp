@@ -124,7 +124,7 @@ namespace Rtx
             return result;
         }
 
-        /// Every spelling as one sentence — "off, hit, hint or both" — for a help line and for the
+        /// Every spelling as one sentence — "off, on or boost" — for a help line and for the
         /// error a name nobody knows is answered with.
         std::string list() const
         {

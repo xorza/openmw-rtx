@@ -113,7 +113,7 @@ namespace RtxTool
 
     bool Session::wantsSecondWalk() const
     {
-        return !mDone && mStarted && currentStop().mActions.mWalkTwice;
+        return !mDone && mStarted && currentStop().mActions.walksTwice();
     }
 
     bool Session::wantsFrameCopy() const

@@ -106,7 +106,7 @@ namespace MWRender
         /// change: the shadow technique's mode is a rebuild.
         struct Applied
         {
-            bool mOutdoors = false;
+            bool mSkyShown = false;
             bool mExterior = false;
             float mWaterHeight = 0.f;
             bool mWaterEnabled = false;

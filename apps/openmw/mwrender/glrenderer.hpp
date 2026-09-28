@@ -127,7 +127,7 @@ namespace MWRender
         void addWaterRippleEmitter(const MWWorld::Ptr& ptr) override;
         void removeWaterRippleEmitter(const MWWorld::Ptr& ptr) override;
         void emitWaterRipple(const osg::Vec3f& position) override;
-        void notifyCut() override;
+        void notifyWorldspaceChanged() override;
         void listAssetsToPreload(
             std::vector<VFS::Path::Normalized>& models, std::vector<VFS::Path::Normalized>& textures) override;
 

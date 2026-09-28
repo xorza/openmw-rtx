@@ -295,7 +295,6 @@ namespace RtxTool
         if (!row.has_value() || mRequest.mPictures.empty())
             return;
 
-        std::filesystem::create_directories(mRequest.mPictures);
         Rtx::writePng(mRequest.mPictures / std::format("{}-{}.png", row->mView, row->mFrame), extents.mOutputWidth,
             extents.mOutputHeight, finished.mPixels);
     }

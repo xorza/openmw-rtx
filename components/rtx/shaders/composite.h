@@ -55,6 +55,12 @@ namespace Rtx::Shaders
         uint mComposed;
     };
 
+    // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
+    // reads them are different compilers.
+#ifdef RTX_HOST
+    static_assert(sizeof(CompositeConstants) == 16, "CompositeConstants must be scalar-packed on every side");
+#endif
+
 #ifdef RTX_HOST
 }
 #endif

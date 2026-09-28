@@ -6,7 +6,6 @@
 #include <vector>
 
 #include <osg/Array>
-#include <osg/Image>
 #include <osg/Vec2f>
 #include <osg/Vec2i>
 #include <osg/Vec4f>
@@ -22,8 +21,6 @@
 
 namespace Rtx
 {
-    class ContentSource;
-
     /// Reads one cell's ground off the land records into a `PreparedGround`, on whichever thread
     /// owns this: what `Terrain::ChunkManager::createChunk` reads from `Terrain::Storage` and
     /// `Terrain::BufferCache` for a chunk one cell wide at full detail, and none of the passes
@@ -31,23 +28,21 @@ namespace Rtx
     class GroundReader
     {
     public:
-        GroundReader(Terrain::Storage& storage, ContentSource& content, ESM::RefId worldspace);
+        GroundReader(Terrain::Storage& storage, ESM::RefId worldspace);
 
-        /// Reads the ground of `cell` into `into`, which has been through `reuse`. A layer whose
-        /// texture cannot be opened keeps its place and its path, for the texture table to stand
-        /// in and refuse: left out, the ground under it would show another layer with nothing said.
-        /// The layers' textures are `getLayerFiles`', for the caller to hold them by.
+        /// Reads the ground of `cell` into `into`, which has been through `reuse`. The layers'
+        /// textures are `getLayerFiles`', named and not opened, for the caller to open once for as
+        /// long as it holds them.
         void read(const osg::Vec2i& cell, PreparedGround& into);
 
-        /// What one layer's land names and what opening it found: the diffuse, and the normal map
-        /// the storage found beside it, with an empty path where there is none and a null image
-        /// where a file would not read.
+        /// What one layer's land names: the diffuse, the normal map the storage found beside it,
+        /// with an empty path where there is none, and whether the land asks that map for a
+        /// height, which it carries only where its format has room for one (`carriesHeight`).
         struct LayerFiles
         {
-            osg::ref_ptr<const osg::Image> mImage;
             VFS::Path::Normalized mPath;
-            osg::ref_ptr<const osg::Image> mNormalImage;
             VFS::Path::Normalized mNormalPath;
+            bool mParallax = false;
         };
 
         /// The last `read`'s, one a layer in the layers' order, until the next `read`. Here and not
@@ -72,7 +67,6 @@ namespace Rtx
             std::vector<osg::Vec2f>& corners);
 
         Terrain::Storage& mStorage;
-        ContentSource& mContent;
         ESM::RefId mWorldspace;
 
         float mCellSize = 0.0f;

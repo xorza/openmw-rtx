@@ -15,6 +15,7 @@
 #include "buffer.hpp"
 #include "commands.hpp"
 #include "device.hpp"
+#include "formats.hpp"
 #include "result.hpp"
 
 namespace Rtx
@@ -43,49 +44,6 @@ namespace Rtx
 
             // Bias 15 to bias 127, and ten mantissa bits to twenty-three.
             return std::bit_cast<float>(sign | ((exponent + 112u) << 23) | (mantissa << 13));
-        }
-
-        /// How many bytes one texel takes, for the formats this renderer makes images in, because
-        /// a read-back has to know. Nought for a block format, whose texels have no size of their
-        /// own and which nothing reads back.
-        std::uint32_t texelBytesOf(VkFormat format)
-        {
-            switch (format)
-            {
-                case VK_FORMAT_R8_UNORM:
-                    return 1;
-                case VK_FORMAT_R8G8_UNORM:
-                    return 2;
-                case VK_FORMAT_R16_UNORM:
-                case VK_FORMAT_R16_SFLOAT:
-                    return 2;
-                case VK_FORMAT_R8G8B8A8_UNORM:
-                case VK_FORMAT_R8G8B8A8_SRGB:
-                case VK_FORMAT_B8G8R8A8_UNORM:
-                case VK_FORMAT_B8G8R8A8_SRGB:
-                    return 4;
-                case VK_FORMAT_R16G16_SFLOAT:
-                case VK_FORMAT_R32_SFLOAT:
-                    return 4;
-                case VK_FORMAT_R16G16B16A16_SFLOAT:
-                    return 8;
-                case VK_FORMAT_R32G32_SFLOAT:
-                    return 8;
-                case VK_FORMAT_R32G32B32A32_SFLOAT:
-                    return 16;
-
-                case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
-                case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
-                case VK_FORMAT_BC2_SRGB_BLOCK:
-                case VK_FORMAT_BC2_UNORM_BLOCK:
-                case VK_FORMAT_BC3_SRGB_BLOCK:
-                case VK_FORMAT_BC3_UNORM_BLOCK:
-                case VK_FORMAT_BC5_UNORM_BLOCK:
-                    return 0;
-
-                default:
-                    Crash::fatal("no texel size is recorded for this image format");
-            }
         }
     }
 
@@ -121,7 +79,6 @@ namespace Rtx
         , mFormat(format)
         , mUsage(usage)
         , mMipLevels(mipLevels)
-        , mTexelBytes(texelBytesOf(format))
         , mStorageFormat(storageFormat)
     {
         assert(mipLevels >= 1 && "an image holds its own full level at least");
@@ -234,7 +191,6 @@ namespace Rtx
             mFormat = other.mFormat;
             mUsage = other.mUsage;
             mMipLevels = other.mMipLevels;
-            mTexelBytes = other.mTexelBytes;
             mStorageFormat = other.mStorageFormat;
         }
 
@@ -395,9 +351,7 @@ namespace Rtx
     {
         assert(level < mMipLevels && "a level this image does not hold");
         assert(mDepth == 1 && "a read hands back one slice, and a volume has more than one");
-        assert(mTexelBytes > 0 && "a read of an image whose texels come in blocks");
-
-        return VkDeviceSize{ getWidthAt(level) } * getHeightAt(level) * mTexelBytes;
+        return VkDeviceSize{ getWidthAt(level) } * getHeightAt(level) * formatInfoOf(mFormat).mTexelBytes;
     }
 
     void Image::recordRead(const VkCommandBuffer commands, const ImageUse& before, const ImageUse& after,
@@ -445,14 +399,12 @@ namespace Rtx
         std::vector<std::uint8_t> bytes;
         read(layout, bytes);
 
-        // Every format read back this way is named, and one that is not is a throw rather than a
-        // `memcpy`, which is how the motion channels came back as pairs of halves the day they
-        // narrowed. Tested on the format, because several macros across three headers name each
-        // of these.
-        switch (mFormat)
+        // Every format read back this way is named in `formatInfoOf`, and one decoded as bytes is
+        // an end rather than a `memcpy`, which is how the motion channels came back as pairs of
+        // halves the day they narrowed.
+        switch (formatInfoOf(mFormat).mDecode)
         {
-            case VK_FORMAT_R16G16_SFLOAT:
-            case VK_FORMAT_R16G16B16A16_SFLOAT:
+            case TexelDecode::Half:
                 values.resize(bytes.size() / sizeof(std::uint16_t));
                 for (std::size_t at = 0; at < values.size(); ++at)
                 {
@@ -463,17 +415,17 @@ namespace Rtx
 
                 return;
 
-            case VK_FORMAT_R32_SFLOAT:
-            case VK_FORMAT_R32G32_SFLOAT:
-            case VK_FORMAT_R32G32B32A32_SFLOAT:
+            case TexelDecode::Float:
                 values.resize(bytes.size() / sizeof(float));
                 std::memcpy(values.data(), bytes.data(), bytes.size());
 
                 return;
 
-            default:
-                Crash::fatal("no float decode is recorded for this image format");
+            case TexelDecode::Bytes:
+                break;
         }
+
+        Crash::fatal("no float decode is recorded for this image format");
     }
 
     Image makeStandIn(

@@ -31,6 +31,7 @@
 #include "buffer.hpp"
 #include "commands.hpp"
 #include "device.hpp"
+#include "devicescene.hpp"
 #include "dispatch.hpp"
 #include "fogvolume.hpp"
 #include "gbuffer.hpp"
@@ -41,6 +42,7 @@
 #include "ripplepass.hpp"
 #include "scenebuffers.hpp"
 #include "spritebin.hpp"
+#include "tracemedia.hpp"
 #include "validation.hpp"
 #include "wavepass.hpp"
 
@@ -146,12 +148,17 @@ namespace Rtx
             declared[Shaders::BIND_FOG_FIELD] = VkDescriptorSetLayoutBinding{ Shaders::BIND_FOG_FIELD,
                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, sStages };
 
-            // The frame as shown, for the one launch that composites the puffs over it. In this
-            // set because that launch reads everything else in it — the block, the bin through
-            // it, the air — and one layout serves every pipeline the set is pushed for.
+            return declared;
+        }();
+
+        /// The composite's set: every launch's, and the frame as shown, which it composites the
+        /// puffs over. Pushed with the rest because that launch reads everything else in it — the
+        /// block, the bin through it, the air.
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::BIND_COUNT + 1> sCompositeBindings = [] {
+            std::array<VkDescriptorSetLayoutBinding, Shaders::BIND_COUNT + 1> declared{};
+            std::ranges::copy(sBindings, declared.begin());
             declared[Shaders::BIND_SHOWN]
                 = VkDescriptorSetLayoutBinding{ Shaders::BIND_SHOWN, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, sStages };
-
             return declared;
         }();
 
@@ -338,7 +345,7 @@ namespace Rtx
                 return;
             case Kernel::SpriteComposite:
                 mSpriteCompositePipeline
-                    = std::make_unique<TracePipeline>(mDevice, sBindings, sharedSets(textureLayout),
+                    = std::make_unique<TracePipeline>(mDevice, sCompositeBindings, sharedSets(textureLayout),
                         TraceShaders{ .mRaygen = shaders / "spritecomposite.rgen.spv",
                             .mRaygenConstantBytes = sizeof(Shaders::PuffConstants) },
                         "sprite composite");
@@ -408,17 +415,21 @@ namespace Rtx
     }
 
     void VisibilityPass::pushInputs(
-        VkCommandBuffer commands, const Pipeline& pipeline, const VisibilityInputs& inputs) const
+        VkCommandBuffer commands, const Pipeline& pipeline, const VisibilityInputs& inputs, const Image* shown) const
     {
-        assert(inputs.mChannels != nullptr && inputs.mCounts != nullptr && "a launch handed no channels or no census");
-        const GBuffer& buffer = *inputs.mChannels;
-        const Buffer& counts = *inputs.mCounts;
+        assert(inputs.mSubject.mCounts != nullptr && "a launch handed no census");
+        const GBuffer& buffer = inputs.mChannels;
+        const Buffer& counts = *inputs.mSubject.mCounts;
 
+        const VkAccelerationStructureKHR scene = inputs.mSubject.mScene->getAcceleration().getTopLevel();
         const VkWriteDescriptorSetAccelerationStructureKHR sceneWrite{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
             .accelerationStructureCount = 1,
-            .pAccelerationStructures = &inputs.mScene,
+            .pAccelerationStructures = &scene,
         };
+        const WavePass& waves = inputs.mSubject.mMedia->getWaves();
+        const RipplePass& ripples = inputs.mSubject.mMedia->getRipples();
+        const FogTile& fog = inputs.mSubject.mMedia->getFog();
 
         // The tiles' widths come off the pass that built them, so what the shader divides by is
         // what is actually bound rather than a second statement of the same table. Sampled from
@@ -429,14 +440,14 @@ namespace Rtx
         std::array<VkDescriptorImageInfo, Shaders::WAVE_CASCADES> curvatures{};
         for (std::size_t cascade = 0; cascade < Shaders::WAVE_CASCADES; ++cascade)
         {
-            const VkSampler sampler = inputs.mWaves->getSampler();
-            surfaces[cascade] = inputs.mWaves->getSurface(cascade).describeSampled(sampler);
-            curvatures[cascade] = inputs.mWaves->getCurvature(cascade).describeSampled(sampler);
+            const VkSampler sampler = waves.getSampler();
+            surfaces[cascade] = waves.getSurface(cascade).describeSampled(sampler);
+            curvatures[cascade] = waves.getCurvature(cascade).describeSampled(sampler);
         }
 
         // Appended in binding order rather than indexed, so a channel added cannot silently move
         // two writes on top of each other; the count is checked below rather than maintained.
-        DescriptorWrites<sBindings.size(), 2 * Shaders::WAVE_CASCADES + 4> writes;
+        DescriptorWrites<sCompositeBindings.size(), 2 * Shaders::WAVE_CASCADES + 5> writes;
         writes.structure(Shaders::BIND_SCENE, sceneWrite);
 
         // The two buffers still bound: the hit counter, and the frame block every table is reached
@@ -450,28 +461,28 @@ namespace Rtx
         writes.images(Shaders::BIND_WAVE_CURVATURE, curvatures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
         writes.image(Shaders::BIND_FOG_FIELD,
-            inputs.mFog->getField().describeSampled(
-                inputs.mFog->getSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
+            fog.getField().describeSampled(fog.getSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-        assert(inputs.mShown != nullptr && !inputs.mShown->isEmpty() && "a trace with no frame to show");
-        writes.image(Shaders::BIND_SHOWN, inputs.mShown->describeStorage());
-
-        assert(inputs.mRipples != nullptr && "a trace with no ripple field stood for it");
-        writes.image(Shaders::BIND_RIPPLE_SURFACE,
-            inputs.mRipples->getSurface().describeSampled(inputs.mRipples->getSampler()),
+        writes.image(Shaders::BIND_RIPPLE_SURFACE, ripples.getSurface().describeSampled(ripples.getSampler()),
             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        writes.image(Shaders::BIND_RIPPLE_CURVATURE,
-            inputs.mRipples->getCurvature().describeSampled(inputs.mRipples->getSampler()),
+        writes.image(Shaders::BIND_RIPPLE_CURVATURE, ripples.getCurvature().describeSampled(ripples.getSampler()),
             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-        assert(
-            inputs.mSunGlare != nullptr && !inputs.mSunGlare->isEmpty() && "a trace with no glare query to count into");
-        writes.buffer(Shaders::BIND_SUN_GLARE, inputs.mSunGlare->describe());
+        assert(inputs.mSubject.mSunGlare != nullptr && !inputs.mSubject.mSunGlare->isEmpty()
+            && "a trace with no glare query to count into");
+        writes.buffer(Shaders::BIND_SUN_GLARE, inputs.mSubject.mSunGlare->describe());
+
+        if (shown != nullptr)
+        {
+            assert(!shown->isEmpty() && "a composite over no frame");
+            writes.image(Shaders::BIND_SHOWN, shown->describeStorage());
+        }
 
         // Every binding the layout declares, written exactly once — a shader that grew one and a
         // record that did not is the failure this counts.
-        assert(writes.size() == sBindings.size() && "a binding the layout declares was left unwritten");
+        assert(writes.size() == (shown != nullptr ? sCompositeBindings.size() : sBindings.size())
+            && "a binding the layout declares was left unwritten");
 
         pushDescriptors(commands, pipeline, writes.get());
 
@@ -479,18 +490,19 @@ namespace Rtx
         // trace writes, and the air in front of the camera. Each is written when what it names is
         // made, and bound as it is.
         bindSets(commands, pipeline,
-            SharedSetBinds{ .mTextures = inputs.mTextures,
+            SharedSetBinds{ .mTextures = inputs.mSubject.mScene->getTextures(),
                 .mChannels = buffer.getSet(),
-                .mVolume = inputs.mFogVolume->getSet(inputs.mTraceSlot) });
+                .mVolume = inputs.mFogVolume.getSet(inputs.mSubject.mTraceSlot) });
     }
 
     void VisibilityPass::writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs, const SpriteBin& bin,
         const VkDeviceAddress spriteTileList, const Shaders::VisibilityConstants& constants, const bool historyLost,
         const bool composed) const
     {
-        assert(inputs.mWaves != nullptr && "a trace with no sea synthesised for it");
-        assert(inputs.mFogVolume != nullptr && "a trace with no air integrated for it");
+        assert(inputs.mSubject.mScene != nullptr && inputs.mSubject.mMedia != nullptr
+            && "a trace of no scene, or in no media");
 
+        const WavePass& waves = inputs.mSubject.mMedia->getWaves();
         Shaders::VisibilityConstants described = constants;
 
         // A basis of nothing is how this block already says there is no previous frame, so a
@@ -509,18 +521,18 @@ namespace Rtx
         // what is actually bound rather than a second statement of the same table.
         for (std::size_t cascade = 0; cascade < Shaders::WAVE_CASCADES; ++cascade)
         {
-            described.mWaveExtent[cascade] = inputs.mWaves->getExtent(cascade);
-            described.mWaveTexel[cascade] = inputs.mWaves->getTexel(cascade);
+            described.mWaveExtent[cascade] = waves.getExtent(cascade);
+            described.mWaveTexel[cascade] = waves.getTexel(cascade);
         }
 
-        described.mWaveSlope = inputs.mWaves->getSlope();
+        described.mWaveSlope = waves.getSlope();
 
-        const WaveCurvature& curvature = inputs.mWaves->getMoments();
+        const WaveCurvature& curvature = waves.getMoments();
         described.mWaveCurvature = curvature.mWhole;
         std::copy(curvature.mResolved.begin(), curvature.mResolved.end(), std::begin(described.mWaveResolved));
 
         // And where the lamps were binned, off the tables the placement built, for the same reason.
-        const LightGrid& lamps = inputs.mBuffers->getLightGrid();
+        const LightGrid& lamps = inputs.mSubject.mScene->getBuffers().getLightGrid();
         described.mLightGrid = Shaders::GpuLightGrid{
             .mOrigin = lamps.getOrigin(),
             .mInverseCell = lamps.getInverseCell(),
@@ -529,18 +541,14 @@ namespace Rtx
 
         // And how many froxels stand in front of the camera, off the volume that holds them, so the
         // three shaders that divide by it stop asking the driver for a number the host already has.
-        described.mFogColumns = Shaders::uvec2(inputs.mFogVolume->getColumns(), inputs.mFogVolume->getRows());
+        described.mFogColumns = Shaders::uvec2(inputs.mFogVolume.getColumns(), inputs.mFogVolume.getRows());
 
         // And where every table is. Every address read here names a buffer that is alive when the
         // trace runs, because the placement buried what it displaced in the graveyard and nothing
         // between here and the submit grows a table.
-        inputs.mBuffers->describeTables(inputs.mSlot, described.mTables);
+        inputs.mSubject.mScene->describeTables(inputs.mSubject.mScene->getSlot(), described.mTables);
         described.mTables.mBlueNoise = mBlueNoise.addressFor();
         described.mTables.mSpecularAlbedo = mSpecularAlbedo.addressFor();
-        described.mTables.mIndexBlocks = inputs.mIndexBlocks;
-        described.mTables.mPoseBlocks = inputs.mPoseBlocks;
-        described.mTables.mPreviousPoseBlocks = inputs.mPreviousPoseBlocks;
-        described.mTables.mTextureTexels = inputs.mTextureTexels;
 
         // The trace's own, shaded and binned for this camera ahead of it, or the list of nothing
         // for a camera that draws no sprites and binned none.
@@ -602,21 +610,19 @@ namespace Rtx
     void VisibilityPass::record(VkCommandBuffer commands, const VisibilityInputs& inputs,
         const Shaders::VisibilityConstants& constants, GpuTimer* timer) const
     {
-        assert(inputs.mChannels != nullptr && "a trace with no channels to write");
-        assert(inputs.mChannels->getWidth() >= constants.mCamera.mWidth
-            && inputs.mChannels->getHeight() >= constants.mCamera.mHeight);
+        assert(inputs.mChannels.getWidth() >= constants.mCamera.mWidth
+            && inputs.mChannels.getHeight() >= constants.mCamera.mHeight);
 
-        assert(inputs.mWaves != nullptr && "a trace with no sea synthesised for it");
-        assert(inputs.mFog != nullptr && "a trace with no fog field drawn for it");
-        assert(inputs.mFogVolume != nullptr && "a trace with no air integrated for it");
-        assert(inputs.mTextures != VK_NULL_HANDLE && "a trace whose texture array named no set");
+        assert(inputs.mSubject.mScene != nullptr && inputs.mSubject.mMedia != nullptr
+            && "a trace of no scene, or in no media");
 
         // Resolved from the constants this frame is about to be traced with, and from nothing
         // kept between frames: a dusk moves the tuple and a doorway moves it again.
-        const VisibilityVariant variant = VisibilityVariant::resolve(constants, inputs.mSea, inputs.mMapped);
+        const VisibilityVariant variant = VisibilityVariant::resolve(
+            constants, inputs.mSubject.mSea, inputs.mSubject.mScene->getCounts().mMapped > 0);
 
-        const FrameSlot trace = inputs.mTraceSlot;
-        inputs.mFogVolume->begin(commands, trace);
+        const FrameSlot trace = inputs.mSubject.mTraceSlot;
+        inputs.mFogVolume.begin(commands, trace);
 
         const TracePipeline& scatter = scatterPipelineFor(variant);
 
@@ -624,8 +630,8 @@ namespace Rtx
         // drawn into a volume grown to the largest one asked for, and the pixel at its edge
         // interpolates against the column outside it — which has to hold air rather than
         // whatever was there.
-        const std::uint32_t columns = inputs.mFogVolume->getColumns();
-        const std::uint32_t rows = inputs.mFogVolume->getRows();
+        const std::uint32_t columns = inputs.mFogVolume.getColumns();
+        const std::uint32_t rows = inputs.mFogVolume.getRows();
 
         openZone(timer, commands, "air");
 
@@ -636,7 +642,7 @@ namespace Rtx
 
         mDepthPipeline->traceRays(commands, columns, rows);
 
-        inputs.mFogVolume->depthTaken(commands);
+        inputs.mFogVolume.depthTaken(commands);
 
         // The set stays pushed across all three launches. Every one of them is addressed through
         // the same layout at the same bind point, so what was pushed for the first is still bound
@@ -648,7 +654,7 @@ namespace Rtx
 
         closeZone(timer, commands);
 
-        inputs.mFogVolume->scattered(commands, trace);
+        inputs.mFogVolume.scattered(commands, trace);
 
         openZone(timer, commands, "column");
 
@@ -662,7 +668,7 @@ namespace Rtx
 
         closeZone(timer, commands);
 
-        inputs.mFogVolume->handOver(commands);
+        inputs.mFogVolume.handOver(commands);
 
         openZone(timer, commands, "trace");
 
@@ -681,10 +687,9 @@ namespace Rtx
     }
 
     void VisibilityPass::recordSpriteComposite(const VkCommandBuffer commands, const VisibilityInputs& inputs,
-        const VkExtent2D shown, const VkExtent2D traced, GpuTimer* const timer) const
+        const Image& shown, const VkExtent2D extent, const VkExtent2D traced, GpuTimer* const timer) const
     {
-        assert(inputs.mShown != nullptr && "a composite over no frame");
-        assert(shown.width <= inputs.mShown->getWidth() && shown.height <= inputs.mShown->getHeight()
+        assert(extent.width <= shown.getWidth() && extent.height <= shown.getHeight()
             && "a picture larger than the image it is drawn into");
 
         // Its own zone and not the bin's `sprites`, so a report says what the march at the shown
@@ -692,9 +697,9 @@ namespace Rtx
         openZone(timer, commands, "puffs");
 
         bind(commands, *mSpriteCompositePipeline);
-        pushInputs(commands, *mSpriteCompositePipeline, inputs);
+        pushInputs(commands, *mSpriteCompositePipeline, inputs, &shown);
         pushConstants(commands, *mSpriteCompositePipeline,
-            Shaders::PuffConstants{ .mShownWidth = shown.width, .mShownHeight = shown.height });
+            Shaders::PuffConstants{ .mShownWidth = extent.width, .mShownHeight = extent.height });
 
         // One invocation a traced pixel, which composites the shown pixels over it —
         // `spritecomposite.rgen` says why.

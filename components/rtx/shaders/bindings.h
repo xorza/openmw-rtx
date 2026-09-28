@@ -43,21 +43,21 @@ namespace Rtx::Shaders
     const uint BIND_WAVE_CURVATURE = 4;
     const uint BIND_FOG_FIELD = 5;
 
-    /// The frame as it will be shown, at the output's own extent: what `spritecomposite.rgen`
-    /// composites the puffs over, in place. Bound for every pipeline in the set's layout and read
-    /// by that one launch.
-    const uint BIND_SHOWN = 6;
-
     /// What walked through the water, as one more tile of the sea: its slopes and its curvatures,
     /// world-anchored where the wave tiles repeat. `ripple.h` says whose field it is.
-    const uint BIND_RIPPLE_SURFACE = 7;
-    const uint BIND_RIPPLE_CURVATURE = 8;
+    const uint BIND_RIPPLE_SURFACE = 6;
+    const uint BIND_RIPPLE_CURVATURE = 7;
 
     /// The two counts the eye's rays take of the sun's quad, for the glare fader — `glare.h`.
-    const uint BIND_SUN_GLARE = 9;
+    const uint BIND_SUN_GLARE = 8;
 
-    /// How many the set declares, which is the last of them and one more.
-    const uint BIND_COUNT = 10;
+    /// How many every launch's set declares, which is the last of them and one more.
+    const uint BIND_COUNT = 9;
+
+    /// The frame as it will be shown, at the output's own extent: what `spritecomposite.rgen`
+    /// composites the puffs over, in place. Past the others, because that launch's set alone
+    /// declares it: the trace runs before anything decides which image is shown.
+    const uint BIND_SHOWN = BIND_COUNT;
 
 #ifdef RTX_HOST
 }
