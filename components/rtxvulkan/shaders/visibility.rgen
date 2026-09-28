@@ -59,7 +59,7 @@ struct MediumAhead
 /// **One composition for the whole path and for every layer peeled off it**, because those are the
 /// same measurement over different stretches: the water first and the air over what it left, in
 /// that order and nowhere else. Each layer's pair is then a prefix of the path's own — the air is
-/// one accumulation read twice and the water march is handed the same offset — so the two agree
+/// one accumulation read twice and the water march draws from the same pixel — so the two agree
 /// where they meet by construction rather than by tolerance.
 ///
 /// @param air how far the fog is measured over. Its own march clamps this to the reach.
@@ -72,7 +72,7 @@ MediumAhead mediumAhead(uvec2 pixel, WorldRay ray, float air, float water, float
 
     if (submerged)
     {
-        const WaterColumn column = waterColumn(ray.mFrom, ray.mAlong, water, width, randomAt(pixel, STREAM_WATER));
+        const WaterColumn column = waterColumn(ray.mFrom, ray.mAlong, water, width, pixel);
 
         ahead.mScattered = column.mScattered;
         ahead.mThrough = column.mTransmittance;

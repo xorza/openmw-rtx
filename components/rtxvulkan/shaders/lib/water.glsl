@@ -151,14 +151,14 @@ float airSpan(WaterPath path)
 /// from below, the reflection stays under and the refraction is the sky through Snell's window,
 /// which has travelled no water at all. Attenuating the wrong one turns that window green.
 ///
-/// @param footprint,offset what the column's march is read at and where in its first step it
-///        starts: the pixel's own, and one draw for both legs, since both leave the same point.
+/// @param footprint,pixel what the column's march is read at and draws from: the pixel's own, for
+///        both legs, since both leave the same point.
 /// @param before how far the eye's own ray had come, which a leg into the air carries on from —
 ///        `fogAlongLeg` says why it asks.
-vec3 alongLeg(WaterPath path, WorldRay leg, bool underwater, float footprint, float offset, float before)
+vec3 alongLeg(WaterPath path, WorldRay leg, bool underwater, float footprint, uvec2 pixel, float before)
 {
     if (underwater)
-        return throughWater(path.mRadiance, waterColumn(leg.mFrom, leg.mAlong, path.mDistance, footprint, offset));
+        return throughWater(path.mRadiance, waterColumn(leg.mFrom, leg.mAlong, path.mDistance, footprint, pixel));
 
     return throughAir(path.mRadiance, fogAlongLeg(leg.mFrom, leg.mAlong, airSpan(path), before));
 }
@@ -207,10 +207,6 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const bool fromBelow = incident.z > 0.0;
     const vec3 plane = fromBelow ? vec3(0.0, 0.0, -1.0) : vec3(0.0, 0.0, 1.0);
 
-    // One draw for the pixel and not one per ray: the reflection and the refraction leave the same
-    // point, so a shaft marched down either is marched over the same stretch of water.
-    const float marchOffset = randomAt(pixel, STREAM_WATER);
-
     // Keyed off world position rather than anything interpolated, so one cell's surface continues
     // into the next without a seam at the boundary.
     const WaterSurface sea = waterSurfaceAt(surface.mPosition.xy, surface.mFootprint);
@@ -224,7 +220,14 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     // and tilting it back toward the plane is what keeps a glancing reflection finite.
     normal = facingRay(normal, plane, incident, WATER_MIN_FACING);
 
-    const float cosine = clamp(dot(-incident, normal), 0.0, 1.0);
+    // **Schlick at the angle in the air, which from below is the refracted one.** The curve is
+    // written for light arriving from the rarer medium; taken at the incident angle under the
+    // surface it gives 0.024 at the critical angle and then all of it past it — Snell's window drawn
+    // with a hard rim. At the angle the light leaves by it climbs to one as that angle reaches the
+    // horizon, which is where the critical angle puts it, and past it the cosine is nought.
+    const float incidence = clamp(dot(-incident, normal), 0.0, 1.0);
+    const float cosine
+        = fromBelow ? sqrt(max(1.0 - WATER_IOR * WATER_IOR * (1.0 - incidence * incidence), 0.0)) : incidence;
     const float fresnel = fresnelSchlick(WATER_F0, 1.0, schlickWeight(cosine));
 
     // **The wave's normal and not the quad's**, the lobe the lost slopes left as the roughness, and
@@ -275,7 +278,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     // The reflection stays on the eye's side of the plane, and the refraction crosses it.
     const WorldRay mirrored = WorldRay(leaving, reflect(incident, normal));
     const WaterPath bounced = waterRay(mirrored, Cone(surface.mFootprint, cone.mSpread), lobe, key + SEED_LAMPS_MIRROR);
-    const vec3 reflected = alongLeg(bounced, mirrored, fromBelow, surface.mFootprint, marchOffset, before);
+    const vec3 reflected = alongLeg(bounced, mirrored, fromBelow, surface.mFootprint, pixel, before);
     if (!fromBelow)
         shaded.mMirror = WaterMirror(bounced.mPosition, mirrored.mAlong, bounced.mInstance, bounced.mFound);
 
@@ -283,13 +286,8 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     if (dot(bent, bent) < 1e-6)
     {
         // Past the critical angle looking up from underwater, where the surface is a mirror and
-        // there is nothing behind it to see.
-        //
-        // **All of it, and the Fresnel term is not that.** Schlick answers a share of the light a
-        // surface reflects *when the rest of it refracts*; past the critical angle nothing refracts,
-        // so the pixel is the reflection whatever the angle says. At the critical angle itself
-        // Schlick gives 0.024, and reporting that of a pixel that is entirely a reflection tells the
-        // upscaler to divide the specular light by forty.
+        // there is nothing behind it to see: the reflection whole, which is the Fresnel term's own
+        // answer there, and no refraction to trace.
         shaded.mResponse.mSpecular = vec3(1.0);
         shaded.mRadiance = reflected;
         return shaded;
@@ -306,7 +304,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const WorldRay across = WorldRay(leaving, through);
     const WaterPath behind
         = waterRay(across, Cone(surface.mFootprint, cone.mSpread), lobe * WATER_REFRACTION_BEND, key + SEED_LAMPS_THROUGH);
-    const vec3 refracted = alongLeg(behind, across, !fromBelow, surface.mFootprint, marchOffset, before);
+    const vec3 refracted = alongLeg(behind, across, !fromBelow, surface.mFootprint, pixel, before);
 
     shaded.mRadiance = mix(refracted, reflected, fresnel);
     return shaded;

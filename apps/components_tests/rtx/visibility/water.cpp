@@ -621,6 +621,17 @@ namespace Rtx::Testing
         /// Red, because water takes it out four times faster than green. Charge the eye's own
         /// stretch nothing and both read 157 — a fifth of the scale apart, so this cannot be passed
         /// by widening a tolerance.
+        ///
+        /// **And leaning, the underside's Fresnel is the angle in the air's.** Forty-five degrees
+        /// off the vertical from a hundred down, the light leaves at `asin(1.333 sin 45)` = 70.5
+        /// degrees, whose cosine is 0.334, so Schlick reflects `0.0204 + 0.9796 * 0.666^5` = 0.149
+        /// of the sky back down, over a path of 141.4:
+        ///
+        ///   surface = 0.5 sky * (1 - 0.149)          = 0.426
+        ///   at 100  = 0.426 * exp(-0.003743 * 141.4) = 0.251,  or 137
+        ///
+        /// Taken at the incident 45 degrees instead it reflects 0.022 and reads 146, and the same
+        /// rule reaches 0.024 at the critical angle and then all of it past it.
         TEST_F(RtxVisibilityTest, theWaterBetweenAnEyeAndTheSurfaceOverItIsChargedForToo)
         {
             constexpr std::uint32_t size = 33;
@@ -628,11 +639,11 @@ namespace Rtx::Testing
 
             const SceneDesc scene = makeFlooded(4000.0f, 2000.0f);
 
-            const auto lookUp = [&](float from) {
+            const auto lookUp = [&](float from, float lean) {
                 // A fifth of a degree off the vertical, which `makeCamera` insists on and which
-                // leaves the ray well inside Snell's window.
-                Shaders::VisibilityConstants camera = Testing::makeCamera(
-                    osg::Vec3f(0.0f, -0.05f, from), osg::Vec3f(0.0f, 0.0f, from + 10.0f), 60.0f, size, size, 10000.0f);
+                // leaves the ray well inside Snell's window, or `lean` along the eye's ten units up.
+                Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(0.0f, -0.05f, from),
+                    osg::Vec3f(0.0f, lean - 0.05f, from + 10.0f), 60.0f, size, size, 10000.0f);
 
                 camera.mWaterLevel = 0.0f;
                 camera.mSkyHorizon = osg::Vec3f(0.5f, 0.0f, 0.0f);
@@ -643,8 +654,9 @@ namespace Rtx::Testing
                 return static_cast<int>(frame.byte(centre));
             };
 
-            EXPECT_NEAR(lookUp(-100.0f), 157, 2) << "a hundred units of water over the eye";
-            EXPECT_NEAR(lookUp(-300.0f), 111, 2) << "and three hundred take three times as much red";
+            EXPECT_NEAR(lookUp(-100.0f, 0.05f), 157, 2) << "a hundred units of water over the eye";
+            EXPECT_NEAR(lookUp(-300.0f, 0.05f), 111, 2) << "and three hundred take three times as much red";
+            EXPECT_NEAR(lookUp(-100.0f, 10.0f), 137, 2) << "and at forty-five degrees the underside reflects";
         }
 
         /// The water scatters the sun forward far harder than back, and the ratio is the whole test.

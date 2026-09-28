@@ -1766,12 +1766,21 @@ namespace Rtx::Testing
             // that no amount of accumulation could average away. Two independent samples land on the
             // same byte only by coincidence — green's range covers some eighty of them here, so a
             // few per cent — and the rest must differ.
-            const Frame second = shade(1);
-            std::size_t moved = 0;
-            for (std::size_t i = 1; i < first.mRadiance.size(); i += 4)
-                moved += first.byte(i) != second.byte(i) ? 1u : 0u;
+            const auto moved = [](const Frame& one, const Frame& other) {
+                std::size_t count = 0;
+                for (std::size_t i = 1; i < one.mRadiance.size(); i += 4)
+                    count += one.byte(i) != other.byte(i) ? 1u : 0u;
 
-            EXPECT_GT(moved, std::size_t{ size } * size * 9 / 10) << "the frame redraws the bounce";
+                return count;
+            };
+
+            EXPECT_GT(moved(first, shade(1)), std::size_t{ size } * size * 9 / 10) << "the frame redraws the bounce";
+
+            // **And three days into a session at sixty, where a float stops telling two frames
+            // apart.** The tile's turn is the fraction of `frame * step`; taken in a float, 2^24 and
+            // the frame after it are one number, and the two would draw one pattern.
+            EXPECT_GT(moved(shade(1u << 24), shade((1u << 24) + 1u)), std::size_t{ size } * size * 9 / 10)
+                << "the frame redraws the bounce a session in";
 
             // **And what the accumulator is for: the error falls as the square root of the count.**
             // Averaging sixty-four independent draws divides the standard deviation of each by eight

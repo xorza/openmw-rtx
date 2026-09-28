@@ -100,6 +100,14 @@ const uint SEED_BOUNCE_TRACED = SEED_AMBIENT_PANE + PEEL_LAYERS;
 /// a Lambert surface draws what it drew before there was one.
 const uint SEED_BOUNCE_LOBE = SEED_BOUNCE_TRACED + 1u;
 
+/// And one for where in the sun's disc a water shaft's shadow rays aim.
+///
+/// **Beside the march's own offset and not out of it.** The offset is one number, and a pair carried
+/// from it lies on one line of the square: every step's ray would aim along one spiral of the disc,
+/// and a rock's edge across the disc would shadow the shaft by the share of that spiral it covers and
+/// not by the share of the disc.
+const uint SEED_WATER_SHAFT = SEED_BOUNCE_LOBE + 1u;
+
 /// How far each stream's sequence advances between frames.
 ///
 /// **An additive recurrence with an irrational step**, which is the cheapest sequence whose every
@@ -221,7 +229,14 @@ float randomAt(uvec2 pixel, uint stream)
     const uvec2 tile = pixel % BLUE_NOISE_EXTENT;
     const uint at = (tile.y * BLUE_NOISE_EXTENT + tile.x) * RANDOM_STREAMS + stream;
 
-    return fract(blueNoiseAt(at) + float(frame.mFrame) * STREAM_TURN[stream]);
+    // **The turn in fixed point, because a float product keeps no fraction of a long session.**
+    // `float(frame) * step` rounds to the product's own last place, which past 2^17 frames — half an
+    // hour at sixty — is a 128th of the interval, past 2^20 a sixteenth, and past 2^23 two values:
+    // the sweep over frames freezes into a few offsets. The step's float times 2^32 is a whole
+    // number, so the product wrapped in a word is the fraction of `frame * step` exactly, at any
+    // count.
+    const uint turned = frame.mFrame * uint(STREAM_TURN[stream] * 4294967296.0);
+    return fract(blueNoiseAt(at) + float(turned >> 8u) * (1.0 / 16777216.0));
 }
 
 /// Two numbers in `[0, 1)` for one pixel, from `stream` and the one after it.

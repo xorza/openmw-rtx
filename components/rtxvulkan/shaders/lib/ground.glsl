@@ -14,6 +14,7 @@
 // **The three tables it reads are declared here** and reached through `bindings.glsl` by the
 // trace, so that a table is declared once whichever side constructs the reference.
 
+#include "colour.h"
 #include "look.h"
 #include "scene.h"
 #include "shadingmap.h"
@@ -61,12 +62,19 @@ float paintedLight(uint slot, vec2 at)
 /// Only where an albedo is being read. The same sampler serves a cutout's mask, which is alpha and
 /// unaffected, and an emissive map, which is light rather than a surface and must keep what it was
 /// painted with.
+///
+/// **Held at a reflectance of one, and brought down whole rather than per channel.** A bright texel
+/// in a cell painted dark divides to past one — a glint in a shadowed fold is light painted in as
+/// well — and a surface that reflects more than reaches it makes light at every bounce. The factor
+/// is grey, so the colour is kept by scaling all three. A flattened chunk stores its sum in bytes,
+/// which hold it at one too, so the stack and the chunk it flattens to agree there.
 vec3 delitTexel(uint slot, vec2 at, vec3 texel, float delight)
 {
     if (delight <= 0.0)
         return texel;
 
-    return texel / mix(1.0, paintedLight(slot, at), delight);
+    const vec3 delit = texel / mix(1.0, paintedLight(slot, at), delight);
+    return delit / max(brightest(delit), 1.0);
 }
 
 /// Whether `layer` is authored (`LAYER_AUTHORED`) and its texture holds what it was: a layer whose

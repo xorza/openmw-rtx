@@ -33,8 +33,11 @@ namespace Rtx
               shaderDirectory / "exposure.comp.spv", "exposure")
         , mHistogram(Buffer::deviceLocal(device, Shaders::EXPOSURE_BINS * sizeof(std::uint32_t),
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "histogram"))
-        , mExposure(Buffer::deviceLocal(
-              device, sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "exposure"))
+        // `TRANSFER_SRC` because the exposure is the whole of what this pass produces and so the
+        // only thing a reader can check it by, as `BloomPass` says of its levels.
+        , mExposure(Buffer::deviceLocal(device, sizeof(float),
+              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+              "exposure"))
         , mPicture(Buffer::hostWritten(device, sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture exposure"))
     {
         mPicture.writable<float>(0, 1).front() = 1.0f;

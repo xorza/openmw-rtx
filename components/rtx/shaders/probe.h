@@ -29,9 +29,9 @@ namespace Rtx::Shaders
     /// What a reference to a row of `ProbeRow`s claims about every address it is constructed from.
     ///
     /// **Sixteen, because that is the largest claim the renderer's own tables make**, and a claim
-    /// larger than the truth is undefined behaviour with no message. `GpuLayer` is 48 bytes with two
+    /// larger than the truth is undefined behaviour with no message. `GpuLayer` is 64 bytes with two
     /// `vec4` at sixteen and thirty-two, so its reference may claim sixteen and the compiler may
-    /// load a `vec4` in one instruction. This is the same shape, read the same way.
+    /// load a `vec4` in one instruction. This is the same claim, read the same way.
     const uint PROBE_ROW_ALIGN = 16;
 
     struct ProbeConstants
@@ -60,7 +60,7 @@ namespace Rtx::Shaders
         uint64 mRows;
     };
 
-    /// A row the size and shape of `GpuLayer`, read through a reference that claims
+    /// A row of `vec4` on sixteen, as `GpuLayer`'s two are, read through a reference that claims
     /// `PROBE_ROW_ALIGN`.
     struct ProbeRow
     {
