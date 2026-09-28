@@ -4,9 +4,9 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtxvulkan/buffer.hpp>
-#include <components/rtxvulkan/device.hpp>
-#include <components/rtxvulkan/memory.hpp>
+#include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/device/memory/memory.hpp>
 
 namespace Rtx::Testing
 {

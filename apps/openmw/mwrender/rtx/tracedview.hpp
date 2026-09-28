@@ -6,9 +6,9 @@
 #include <osg/ref_ptr>
 
 #include <components/myguirtx/rendermanager.hpp>
-#include <components/rtx/mirrorpass.hpp>
-#include <components/rtx/offscreentrace.hpp>
-#include <components/rtx/specularlayout.hpp>
+#include <components/rtx/mirror/mirrorpass.hpp>
+#include <components/rtx/scene/specularlayout.hpp>
+#include <components/rtx/view/offscreentrace.hpp>
 
 #include "../offscreenview.hpp"
 

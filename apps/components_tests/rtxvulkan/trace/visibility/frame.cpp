@@ -1,0 +1,1001 @@
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <span>
+#include <vector>
+
+#include <osg/Math>
+#include <osg/Matrixf>
+#include <osg/Vec2f>
+#include <osg/Vec3f>
+
+#include <apps/components_tests/rtx/support/testcamera.hpp>
+#include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <components/rtx/common/runs.hpp>
+#include <components/rtx/frame/camera.hpp>
+#include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/slot.hpp>
+#include <components/rtx/scene/debuglines.hpp>
+#include <components/rtx/scene/material.hpp>
+#include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/shaders/exposure.h>
+#include <components/rtx/shaders/visibility.h>
+#include <components/vfs/pathutil.hpp>
+
+#include "fixture.hpp"
+
+namespace Rtx::Testing
+{
+    namespace
+    {
+        /// A mesh moved by its instance and a mesh whose vertices were already moved must render to
+        /// the same bytes.
+        ///
+        /// The transform path has a unit test, and a unit test is not enough on its own: every other
+        /// test here places its geometry with the identity, so a transposed rotation would sail
+        /// through all of them. This is the one that puts a rotation through the acceleration
+        /// structure and compares the result against arithmetic done on the CPU.
+        TEST_F(RtxVisibilityTest, aRotatedInstanceRendersAsIfItsVerticesHadBeenMoved)
+        {
+            const osg::Matrixf transform = osg::Matrixf::scale(1.5f, 1.5f, 1.5f)
+                * osg::Matrixf::rotate(osg::DegreesToRadians(37.0f), osg::Vec3f(0.3f, -0.5f, 0.8f))
+                * osg::Matrixf::translate(11.0f, -23.0f, 5.0f);
+
+            const std::array local{
+                osg::Vec3f(-120.0f, 0.0f, -80.0f),
+                osg::Vec3f(120.0f, 0.0f, -80.0f),
+                osg::Vec3f(90.0f, 0.0f, 110.0f),
+                osg::Vec3f(-140.0f, 0.0f, 60.0f),
+            };
+
+            SceneDesc placedByInstance;
+            addQuad(placedByInstance, local, sNoIndex, transform);
+
+            std::array<osg::Vec3f, 4> moved{};
+            for (std::size_t i = 0; i < local.size(); ++i)
+                moved[i] = local[i] * transform;
+
+            SceneDesc placedByVertex;
+            addQuad(placedByVertex, moved);
+
+            constexpr std::uint32_t size = 64;
+            const osg::Vec3f centre(11.0f, -23.0f, 5.0f);
+            const Shaders::VisibilityConstants camera
+                = Testing::makeCamera(centre - osg::Vec3f(0.0f, 260.0f, 0.0f), centre, 60.0f, size, size, 10000.0f);
+
+            Frame byInstance;
+            Frame byVertex;
+            byInstance = shoot(placedByInstance, {}, camera, size);
+            const std::uint32_t instanceHits = byInstance.mHits;
+            byVertex = shoot(placedByVertex, {}, camera, size);
+            const std::uint32_t vertexHits = byVertex.mHits;
+
+            // Both blank would agree for the wrong reason.
+            ASSERT_GT(vertexHits, 0u);
+            EXPECT_EQ(instanceHits, vertexHits);
+            EXPECT_EQ(byInstance.bytes(), byVertex.bytes());
+        }
+
+        /// Parallel rays, and the whole difference between them and a pinhole's.
+        ///
+        /// **The count is exact, so the arithmetic is the assertion.** A sheet fifty units across
+        /// lies two hundred units under an eye looking straight down. The orthographic camera's box
+        /// is two hundred across, so the sheet covers a quarter of each axis: pixel `p` of
+        /// sixty-four samples the world at `100 * ((p + 0.5) / 32 - 1)`, which is inside twenty-five
+        /// for `p` in 24..39 — sixteen columns, sixteen rows, **256 hits**, and no pixel near enough
+        /// the boundary for rounding to argue.
+        ///
+        /// The same viewpoint as a pinhole with a ninety-degree field of view spans four hundred
+        /// units at that distance rather than two hundred, so the sheet covers an eighth of each
+        /// axis: `p` in 28..35, **64 hits**. That the two differ is the point — a parallel ray that
+        /// quietly fanned out would still fill a plausible-looking image.
+        TEST_F(RtxVisibilityTest, anOrthographicCameraSendsItsRaysParallelRatherThanThroughAnEye)
+        {
+            constexpr std::uint32_t size = 64;
+
+            SceneDesc scene;
+            addQuad(scene, sheetAt(25.0f, -100.0f));
+
+            // Straight down from a hundred units up, so the sheet is two hundred below the eye.
+            // `lookAt` needs an up vector that is not the view direction; +Y is the map's own.
+            const osg::Matrixf view
+                = osg::Matrixf::lookAt(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(), osg::Vec3f(0.0f, 1.0f, 0.0f));
+
+            Frame frame;
+
+            frame = shoot(scene, {},
+                makeOrthographicCameraFromView(view, 200.0f, 200.0f, size, size, 1.0f, 10000.0f).value(), size);
+            const std::uint32_t parallel = frame.mHits;
+
+            frame = shoot(scene, {}, makeCameraFromView(view, 90.0f, size, size, 1.0f, 10000.0f).value(), size);
+            const std::uint32_t pinhole = frame.mHits;
+
+            EXPECT_EQ(parallel, 16u * 16u);
+            EXPECT_EQ(pinhole, 8u * 8u);
+            EXPECT_NE(parallel, pinhole);
+        }
+
+        /// The same scene with the camera turned around. Nothing is in front of it, so nothing is hit
+        /// — the check that the pass reports geometry rather than reporting that it ran.
+        TEST_F(RtxVisibilityTest, aCameraFacingAwayHitsNothingAndTheImageIsAllSky)
+        {
+            constexpr std::uint32_t size = 64;
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -200.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            // A sky with green in it and nothing else, so that "this is sky" and "this is the
+            // untextured wall" cannot be confused: the wall is grey through every channel.
+            camera.mSkyHorizon = osg::Vec3f(0.0f, 0.25f, 0.0f);
+            camera.mSkyZenith = osg::Vec3f(0.0f, 0.25f, 0.0f);
+
+            const Frame frame = shoot(makeWall(), {}, camera, size);
+            EXPECT_EQ(frame.mHits, 0u);
+
+            // Flat, so every pixel is the same byte: 1.055 * 0.25^(1/2.4) - 0.055 = 0.537099, which
+            // is 137 of 255.
+            ASSERT_EQ(frame.mRadiance.size(), std::size_t{ size } * size * 4);
+            for (std::size_t i = 0; i < frame.mRadiance.size(); i += 4)
+            {
+                ASSERT_EQ(frame.byte(i), 0) << "red at pixel " << i / 4;
+                ASSERT_EQ(frame.byte(i + 1), 137) << "green at pixel " << i / 4;
+            }
+        }
+
+        /// A wall bigger than the field of view leaves no room for sky.
+        ///
+        /// At a hundred units from a sixty-degree camera the frame is 2 * 100 * tan(30) = 115 units
+        /// tall; the wall is four hundred. Every ray must land on it, so the answer is exact rather
+        /// than a threshold.
+        ///
+        /// The colour is exact too. These quads carry no state set, so they get the untextured
+        /// material: a linear albedo of 0.5, which the shader encodes on the way out as
+        /// 1.055 * 0.5^(1/2.4) - 0.055 = 0.735, or 187 of 255.
+        TEST_F(RtxVisibilityTest, aWallLargerThanTheFrameIsHitByEveryRay)
+        {
+            constexpr std::uint32_t size = 64;
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            const Frame frame = shoot(makeWall(), {}, camera, size, Shot{ .mShow = SurfaceView::Albedo });
+            EXPECT_EQ(frame.mHits, size * size);
+
+            ASSERT_EQ(frame.mRadiance.size(), std::size_t{ size } * size * 4);
+            for (std::size_t i = 0; i < frame.mRadiance.size(); i += 4)
+            {
+                ASSERT_NEAR(frame.byte(i), 187, 1) << "red at pixel " << i / 4;
+                ASSERT_NEAR(frame.byte(i + 1), 187, 1) << "green at pixel " << i / 4;
+                ASSERT_NEAR(frame.byte(i + 2), 187, 1) << "blue at pixel " << i / 4;
+            }
+
+            // **The same frame, measured rather than held, and the whole of the arithmetic is
+            // here.** A flat frame is the one input whose exposure can be worked out by hand, and
+            // working it out means going through the binning rather than around it — which is the
+            // half a check against "it got darker" would not cover.
+            //
+            // Luminance is 0.5, so `log2` is -1 and the histogram places it at
+            // `uint((-1 + 10) / span * 254) + 1`, the span being `16 + log2 DAYLIGHT_GAIN` stops.
+            // Every lit pixel lands in that one bin, so the reduction reads back that bin's lower
+            // edge — at a gain of one bin 143 and `(143 - 1) / 254 * 16 - 10 = -1.055118`, a
+            // luminance of 0.481258, which is the quantisation and not a mistake. The key over that,
+            // to the adaptation power, is `(0.18 / 0.481258)^0.75 = 0.478268`, times two to the
+            // compensation — a frame built by hand has no day to adapt to — and the contrast
+            // grade then multiplies by `(0.5 * exposure / 0.18)^(contrast - 1)`. The saturation grade
+            // leaves a grey where it is.
+            //
+            // At a compensation of nought and a contrast of one the frame reaches the curve at
+            // 0.239134 linear. The curve takes its shadow offset off that — 0.239134 is past three
+            // times it, so the whole 0.04 comes off — and leaves the rest alone, being far under the
+            // compression point: `1.055 * 0.199134^(1/2.4) - 0.055 = 0.483578`, or 123 of 255.
+            // **Worked out from the dials rather than written as 123**, so a look tuned in `look.h`
+            // leaves this test holding the arithmetic and not the old look.
+            const float metered = Shaders::binLuminance(static_cast<float>(Shaders::luminanceBin(0.5f)));
+            const float exposure = std::exp2(Shaders::EXPOSURE_COMPENSATION)
+                * std::pow(Shaders::EXPOSURE_KEY / metered, Shaders::EXPOSURE_ADAPTATION);
+            const float exposed = 0.5f * std::clamp(exposure, Shaders::EXPOSURE_MIN, Shaders::EXPOSURE_MAX);
+            const std::uint8_t expected = displayedGrey(exposed);
+
+            std::vector<std::uint8_t> measured;
+            renderPicture(makeWall(), {}, camera, size, measured, Shot{ .mShow = SurfaceView::Albedo });
+
+            ASSERT_EQ(measured.size(), frame.mRadiance.size());
+            for (std::size_t i = 0; i < measured.size(); i += 4)
+            {
+                ASSERT_NEAR(measured[i], expected, 1) << "red at pixel " << i / 4;
+                ASSERT_NEAR(measured[i + 1], expected, 1) << "green at pixel " << i / 4;
+                ASSERT_NEAR(measured[i + 2], expected, 1) << "blue at pixel " << i / 4;
+            }
+        }
+
+        /// A wall smaller than the frame leaves sky around it, and the count is the area it covers.
+        ///
+        /// The frame is 115.47 units tall at a hundred units, so a wall 60 units across covers
+        /// 60 / 115.47 of the image in each direction: 0.5196 squared, which is 27.0% of 4096
+        /// pixels — 1106 of them, give or take the pixels the edge falls inside.
+        TEST_F(RtxVisibilityTest, aWallSmallerThanTheFrameCoversTheAreaItSubtends)
+        {
+            constexpr std::uint32_t size = 64;
+
+            const std::array positions = uprightQuadAt(30.0f, 0.0f);
+
+            SceneDesc scene;
+            const Index mesh = addQuadMesh(scene, positions);
+            scene.addInstance(MeshInstance{ .mMesh = mesh });
+
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            const Frame frame = shoot(scene, {}, camera, size);
+            const std::uint32_t hits = frame.mHits;
+
+            const float covered = 30.0f / sCardHalfExtent;
+            const auto expected = static_cast<std::uint32_t>(covered * covered * size * size);
+
+            // Within a pixel of edge on each side of a 33-pixel square.
+            const double tolerance = 2.0 * static_cast<double>(covered) * size + 4.0;
+            EXPECT_NEAR(static_cast<double>(hits), static_cast<double>(expected), tolerance);
+        }
+
+        /// Which way the jitter moves the picture, which is the half of this that looks fine wrong.
+        ///
+        /// **A wrong sign still antialiases**, so nothing about a smoothed edge can catch one, and
+        /// the reference implementation shipped both axes inverted. What catches it is an edge and a
+        /// direction: a wall covering the left half of the frame, and a sample point moved right,
+        /// has to lose exactly one column of hits.
+        ///
+        /// Half a pixel exactly, so the answer is a whole column and no pixel lands on the boundary.
+        TEST_F(RtxVisibilityTest, theJitterMovesTheSampleTheWayTheImageIsIndexed)
+        {
+            constexpr std::uint32_t size = 64;
+
+            // The frame is 2 * 100 * tan(30) = 115.47 units across at the wall, which is 1.8042 to
+            // the pixel. The wall's edge is put a quarter of a pixel right of the image's centre
+            // line — 0.4510 units — so that it falls between the boundary and the first column right
+            // of it, and a half-pixel move takes exactly one column across it.
+            constexpr float edge = 0.4510f;
+            const std::array half{
+                osg::Vec3f(-4000.0f, 0.0f, -4000.0f),
+                osg::Vec3f(edge, 0.0f, -4000.0f),
+                osg::Vec3f(edge, 0.0f, 4000.0f),
+                osg::Vec3f(-4000.0f, 0.0f, 4000.0f),
+            };
+
+            SceneDesc scene;
+            addQuad(scene, half);
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            const auto covered = [&](float acrossX) {
+                const Frame frame = shoot(scene, {}, camera, size, Shot{ .mOffset = osg::Vec2f(acrossX, 0.0f) });
+                return frame.mHits;
+            };
+
+            const std::uint32_t centred = covered(0.0f);
+            ASSERT_GT(centred, 0u);
+            ASSERT_LT(centred, size * size) << "the wall has to cover part of the frame and not all";
+
+            // **Asymmetric on purpose, because that is what carries the sign.** The first column
+            // right of the edge samples a quarter pixel past it, so moving left by half a pixel
+            // brings that column onto the wall and moving right by half a pixel changes nothing at
+            // all. Invert either axis and the two swap.
+            EXPECT_EQ(covered(-0.5f), centred + size) << "half a pixel left gains one column";
+            EXPECT_EQ(covered(0.5f), centred) << "and half a pixel right crosses nothing";
+        }
+
+        /// Jitter and the reference mode together, which is the only thing jitter is good for.
+        ///
+        /// **One jittered frame is just a frame sampled slightly wrong.** What the sequence buys is
+        /// what several of them cover between them: over sixteen frames the sample points spread
+        /// across the pixel, so a pixel the edge cuts through averages the two sides in proportion
+        /// to how much of it each covers. Unjittered, every frame samples the same point and the
+        /// average is as hard-edged as one frame is.
+        ///
+        /// The edge is put a quarter of a pixel off the centre line, so the column it crosses is
+        /// three quarters wall and one quarter sky and cannot come out as either.
+        TEST_F(RtxVisibilityTest, jitteredFramesAverageIntoAnAntialiasedEdge)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float edge = 0.4510f;
+
+            const std::array half{
+                osg::Vec3f(-4000.0f, 0.0f, -4000.0f),
+                osg::Vec3f(edge, 0.0f, -4000.0f),
+                osg::Vec3f(edge, 0.0f, 4000.0f),
+                osg::Vec3f(-4000.0f, 0.0f, 4000.0f),
+            };
+
+            SceneDesc scene;
+            addQuad(scene, half);
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            // Green sky, so the wall's grey and the sky cannot be confused, and a pixel that mixed
+            // them reads as neither.
+            camera.mSkyHorizon = osg::Vec3f(0.0f, 0.25f, 0.0f);
+            camera.mSkyZenith = osg::Vec3f(0.0f, 0.25f, 0.0f);
+
+            // The last column the wall covers, and the first one past it.
+            constexpr std::size_t row = std::size_t{ size / 2 } * size;
+            const auto redAt = [](const Frame& drawn, std::size_t column) {
+                return static_cast<int>(drawn.byte((row + column) * 4));
+            };
+
+            const Frame hard = shoot(scene, {}, camera, size, { .mFrames = 16, .mShow = SurfaceView::Albedo });
+
+            const Frame soft
+                = shoot(scene, {}, camera, size, { .mFrames = 16, .mJitter = true, .mShow = SurfaceView::Albedo });
+
+            // Unjittered, every one of the sixteen samples the same point, so the two columns are
+            // the wall's byte and the sky's with nothing between them.
+            EXPECT_NEAR(redAt(hard, size / 2 - 1), 187, 1) << "wall";
+            EXPECT_EQ(redAt(hard, size / 2), 0) << "sky, which has no red in it";
+
+            // Jittered, the column the edge crosses is part of each. Red comes only from the wall,
+            // so anything between nothing and the wall's own byte is the edge being resolved.
+            EXPECT_NEAR(redAt(soft, size / 2 - 1), 187, 1) << "still wall a whole pixel in";
+            EXPECT_GT(redAt(soft, size / 2), 10) << "the edge column picked up some wall";
+            EXPECT_LT(redAt(soft, size / 2), 180) << "and did not become it";
+        }
+
+        /// Motion vectors, which can be plausible and wrong in three separate ways.
+        ///
+        /// So all three are asserted: a still camera leaves every pixel where it is; a camera that
+        /// only *turns* moves a surface by an amount that does not depend on how far away it is; and
+        /// a camera that *steps* moves a near surface further than a far one.
+        ///
+        /// **The same pixel at two depths, and not two pixels at one depth.** A perspective rotation
+        /// is not a uniform slide — a point at the edge of the frame moves further than one at its
+        /// centre, because screen position goes as the tangent of the angle. Comparing two places in
+        /// one frame would measure that and call it a depth error, so each depth gets its own frame
+        /// and the same pixel is read from both.
+        ///
+        /// The step's arithmetic. Moving the eye `s` sideways leaves the point now straight ahead
+        /// standing `s` to the side of where the eye used to be, so its old screen position had
+        /// `tan(angle) = s / d`. The basis carries `tan(30)` as its half width, so that is
+        /// `(s / d) / tan(30)` in a coordinate running -1 to 1 across the frame, and 32 pixels to
+        /// the unit over 64: `55.426 * s / d`. Four units at two hundred is 1.1085 pixels, at four
+        /// hundred 0.5543.
+        ///
+        /// **Through the arms' own eye, the step reprojects through the arms' own plane.** The same
+        /// four units at two hundred, on a wall placed as first person and seen through arms at
+        /// ninety degrees under a sixty-degree world: the arms' half width is `tan(45)` against the
+        /// world's `tan(30)`, so `mArmsSpread` is `1 / tan(30)` and the old screen position is
+        /// `(s / d) / tan(30) / (1 / tan(30)) = s / d`, which at 32 pixels to the unit is 0.64 —
+        /// where the world's plane would read 1.1085.
+        TEST_F(RtxVisibilityTest, aMotionVectorSaysWhereItsSurfaceWasAndNotWhereTheWorldIs)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::size_t centre = centreOf(size);
+
+            /// The centre pixel's motion after the camera moves from `somewhere`, looking along +y,
+            /// to `somewhere + eye` looking at `somewhere + at`.
+            const auto motionFrom
+                = [&](const osg::Vec3f& somewhere, float away, const osg::Vec3f& eye, const osg::Vec3f& at) {
+                      SceneDesc scene;
+                      std::array<osg::Vec3f, 4> wall = wallAt(away);
+                      for (osg::Vec3f& corner : wall)
+                          corner += somewhere;
+
+                      addQuad(scene, wall);
+
+                      const Shaders::VisibilityConstants first = Testing::makeCamera(
+                          somewhere, somewhere + osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
+
+                      const Frame frame = shoot(scene, {}, first, size);
+                      EXPECT_EQ(frame.mHits, size * size) << "at " << away;
+
+                      mRenderer.renderFrame(
+                          Testing::makeCamera(somewhere + eye, somewhere + at, 60.0f, size, size, 1000000.0f),
+                          FrameOptions{});
+
+                      std::vector<float> motion;
+                      mRenderer.readChannel(Channel::Motion, motion);
+                      return osg::Vec2f(motion[centre * 2], motion[centre * 2 + 1]);
+                  };
+
+            /// The same, at the origin, where a formulation that subtracts world points still works.
+            const auto motionAt = [&](float away, const osg::Vec3f& eye, const osg::Vec3f& at) {
+                return motionFrom(osg::Vec3f(), away, eye, at);
+            };
+
+            // **A still camera.** An unproject followed by a project with a float rounding between
+            // them, so this is not exactly zero and must not be far from it.
+            {
+                const osg::Vec2f held = motionAt(200.0f, osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f));
+
+                EXPECT_NEAR(held.x(), 0.0f, 1e-3f) << "a frame that did not move";
+                EXPECT_NEAR(held.y(), 0.0f, 1e-3f);
+            }
+
+            // **A still camera that jitters**, which is every frame an upscaler ever sees. Where in
+            // its pixel a frame chose to sample says nothing about where the surface went, so this
+            // is the same zero as above — and it is a separate case because the jitter is exactly
+            // what a reprojection can leave in by accident: the ray that found the surface carries
+            // the offset, and the pixel it is being compared against does not.
+            //
+            // Two different terms of the sequence, because a wrong answer that happened to be the
+            // same both frames would still hold an upscaler's history in one wrong place rather
+            // than shaking it between two.
+            {
+                SceneDesc scene;
+                addQuad(scene, wallAt(200.0f));
+
+                const Shaders::VisibilityConstants camera
+                    = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
+
+                mRenderer.resize(size, size);
+                mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+
+                for (const std::uint32_t frame : { 1u, 2u })
+                {
+                    Shaders::VisibilityConstants sampled = camera;
+                    sampled.mFrame = frame;
+                    mRenderer.renderFrame(
+                        sampled, FrameOptions{ .mReconstruction = ReconstructionRequest{ .mJitter = true } });
+                }
+
+                std::vector<float> motion;
+                mRenderer.readChannel(Channel::Motion, motion);
+
+                // A quarter pixel and better than a third: the second and third Halton terms, which
+                // is what a reprojection that carried the jitter would report here.
+                EXPECT_NEAR(motion[centre * 2], 0.0f, 1e-3f) << "a jittered frame that did not move";
+                EXPECT_NEAR(motion[centre * 2 + 1], 0.0f, 1e-3f);
+            }
+
+            // **A camera that steps**, four units along +x. The point now straight ahead was to the
+            // right of the old eye, so it comes back positive, and twice as far away halves it.
+            {
+                const float near = motionAt(200.0f, osg::Vec3f(4.0f, 0.0f, 0.0f), osg::Vec3f(4.0f, 100.0f, 0.0f)).x();
+                const float far = motionAt(400.0f, osg::Vec3f(4.0f, 0.0f, 0.0f), osg::Vec3f(4.0f, 100.0f, 0.0f)).x();
+
+                EXPECT_NEAR(near, 1.1085f, 0.02f) << "two hundred units away";
+                EXPECT_NEAR(far, 0.5543f, 0.02f) << "and four hundred";
+            }
+
+            // **The same step, a hundred thousand units from the origin**, which is where Morrowind
+            // actually is: the far corner of the map is past 200,000 and every cell but one is
+            // somewhere out there.
+            //
+            // **The formulation keeps every device-side number small**, which is why the answer
+            // out here is the same as the answer at the origin: the only subtraction of two world
+            // points happens on the host, between two camera positions a step apart, and the device
+            // adds that small delta to an offset from its own eye.
+            //
+            // Measured, and worth writing down: taking the difference on the device instead gives
+            // bit-identical results at this distance, because the compiler folds `(o + x) - (o - m)`
+            // back to `x + m`. So this asserts the answer rather than proving the formulation
+            // necessary — what it would catch is a reprojection that built world-space clip
+            // coordinates, whose intermediates really are six figures long.
+            {
+                const osg::Vec3f somewhere(100000.0f, 100000.0f, 0.0f);
+                const float near
+                    = motionFrom(somewhere, 200.0f, osg::Vec3f(4.0f, 0.0f, 0.0f), osg::Vec3f(4.0f, 100.0f, 0.0f)).x();
+
+                EXPECT_NEAR(near, 1.1085f, 0.02f) << "the same two hundred units, a long way from the origin";
+            }
+
+            {
+                SceneDesc scene;
+                scene.addInstance(
+                    MeshInstance{ .mMesh = addQuadMesh(scene, wallAt(200.0f)), .mClass = InstanceClass::FirstPerson });
+
+                Shaders::VisibilityConstants first
+                    = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
+                first.mArms = cameraAtFieldOfView(first.mCamera, 90.0f);
+                shoot(scene, {}, first, size);
+
+                Shaders::VisibilityConstants stepped = Testing::makeCamera(
+                    osg::Vec3f(4.0f, 0.0f, 0.0f), osg::Vec3f(4.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
+                stepped.mArms = cameraAtFieldOfView(stepped.mCamera, 90.0f);
+                mRenderer.renderFrame(stepped, FrameOptions{});
+
+                std::vector<float> motion;
+                mRenderer.readChannel(Channel::Motion, motion);
+                std::vector<float> depth;
+                mRenderer.readChannel(Channel::Depth, depth);
+
+                // The centre pixel's ray leans `0.5 / 32` of the half width off the axis either way,
+                // which at ninety degrees is `200 sqrt(1 + 2 (1 / 64)^2)` = 200.0488 units.
+                EXPECT_NEAR(depth[centre * 2 + 1], 200.0488f, 0.01f) << "the arms' eye did not find the wall";
+                EXPECT_NEAR(motion[centre * 2], 0.64f, 0.02f) << "the arms reprojected through the world's plane";
+                EXPECT_NEAR(motion[centre * 2 + 1], 0.0f, 1e-3f);
+            }
+
+            // **And the sky seen past a see-through arm is the world's eye's.** The arms faded to
+            // half and nothing behind them, under a still camera: the sky did not move. Carried on
+            // along the arms' ray, the centre pixel's sky leaned `0.5 / 32` of the arms' half width
+            // `tan(45)` off the axis on each side, which read through the world's plane is
+            // `(1 / 64) / tan(30)` = 0.0271 of a half width, or `0.0271 * 32` = 0.866 of a pixel
+            // where the ray's own centre is 0.5 — a motion of 0.366 of a pixel under a camera that
+            // stood still.
+            {
+                SceneDesc scene;
+                scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene, wallAt(200.0f)),
+                    .mOpacity = 0.5f,
+                    .mClass = InstanceClass::FirstPerson });
+
+                Shaders::VisibilityConstants still
+                    = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
+                still.mArms = cameraAtFieldOfView(still.mCamera, 90.0f);
+                shoot(scene, {}, still, size);
+                mRenderer.renderFrame(still, FrameOptions{});
+
+                std::vector<float> motion;
+                mRenderer.readChannel(Channel::Motion, motion);
+                std::vector<float> depth;
+                mRenderer.readChannel(Channel::Depth, depth);
+
+                EXPECT_EQ(depth[centre * 2], 0.0f) << "the ray peeled the arm and found nothing behind it";
+                EXPECT_NEAR(motion[centre * 2], 0.0f, 1e-3f)
+                    << "the sky past the arms reprojected through the world's plane";
+                EXPECT_NEAR(motion[centre * 2 + 1], 0.0f, 1e-3f);
+            }
+
+            // **A camera that only turns**, about its own position and by the same angle whichever
+            // wall it is looking at. Distance has no say in what a rotation does.
+            {
+                const osg::Vec3f turned(20.0f, 100.0f, 0.0f);
+                const float near = motionAt(200.0f, osg::Vec3f(), turned).x();
+                const float far = motionAt(400.0f, osg::Vec3f(), turned).x();
+
+                EXPECT_GT(std::abs(near), 1.0f) << "the image slid";
+                EXPECT_LT(std::abs(near), size) << "and stayed on screen";
+                EXPECT_NEAR(near, far, 0.01f) << "by an amount its distance had no say in";
+            }
+        }
+
+        /// The sky moves when the eye turns and stands still when it walks, and an upscaler is told
+        /// which.
+        ///
+        /// **A miss stores motion too.** That the sky does not move is true of walking and false of
+        /// looking around, which is most of what a player does: with nothing stored, the upscaler
+        /// fetches the sky's history from the pixel it already occupies and every turn of the head
+        /// smears it. A gradient hides that; a field of stars does not.
+        ///
+        /// **The claim is exact rather than approximate.** Under a rotation about the eye, where a
+        /// point lands on screen depends on its direction and not on how far away it is — so the sky
+        /// and a wall at any distance all move by the same number of pixels, and that is what makes
+        /// this an equality and not a "something happened".
+        TEST_F(RtxVisibilityTest, theSkyReprojectsByTheTurnAloneAndAWallAtAnyDistanceAgrees)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::size_t centre = centreOf(size);
+
+            /// The centre pixel's motion after the camera moves from the origin, looking along +y, to
+            /// `eye` looking at `at`, with a wall `away` units along that axis.
+            ///
+            /// **A negative `away` puts it behind the eye**, which is a frame of nothing but sky and
+            /// is not the same thing as a scene with nothing in it — a renderer with no geometry at
+            /// all has no acceleration structure to trace, and that is a different test.
+            const auto motion = [&](float away, const osg::Vec3f& eye, const osg::Vec3f& at) {
+                const std::array wall = wallAt(away);
+
+                SceneDesc scene;
+                addQuad(scene, wall);
+
+                const Shaders::VisibilityConstants first
+                    = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, 1000000.0f);
+
+                const Frame frame = shoot(scene, {}, first, size);
+                const std::uint32_t hit = frame.mHits;
+                EXPECT_EQ(hit, away > 0.0f ? size * size : 0u) << "the frame is all wall or all sky";
+
+                mRenderer.renderFrame(Testing::makeCamera(eye, at, 60.0f, size, size, 1000000.0f), FrameOptions{});
+
+                std::vector<float> moved;
+                mRenderer.readChannel(Channel::Motion, moved);
+                return osg::Vec2f(moved[centre * 2], moved[centre * 2 + 1]);
+            };
+
+            // **A camera that only turns.** Twenty units across a hundred out is a little over eleven
+            // degrees, and every one of these three lands on the same pixel offset.
+            const osg::Vec3f turned(20.0f, 100.0f, 0.0f);
+            const float sky = motion(-500.0f, osg::Vec3f(), turned).x();
+            const float near = motion(200.0f, osg::Vec3f(), turned).x();
+            const float far = motion(400.0f, osg::Vec3f(), turned).x();
+
+            EXPECT_GT(std::abs(sky), 1.0f) << "the sky slid, which storing nothing could never say";
+            EXPECT_LT(std::abs(sky), size) << "and stayed on screen";
+            EXPECT_NEAR(sky, near, 0.01f) << "by exactly what a wall two hundred units off moved";
+            EXPECT_NEAR(sky, far, 0.01f) << "and four hundred, because a turn does not care";
+
+            // **A camera that only walks.** Now the distances part company and the sky is the one
+            // that does not move: it is infinitely far, so a step sideways is nothing beside it.
+            const osg::Vec3f aside(40.0f, 0.0f, 0.0f);
+            const float walkedSky = motion(-500.0f, aside, aside + osg::Vec3f(0.0f, 100.0f, 0.0f)).x();
+            const float walkedNear = motion(200.0f, aside, aside + osg::Vec3f(0.0f, 100.0f, 0.0f)).x();
+
+            EXPECT_NEAR(walkedSky, 0.0f, 1e-3f) << "the sky is where it was";
+            EXPECT_GT(std::abs(walkedNear), 1.0f) << "and the wall is not";
+
+            // And a camera that did nothing moves nothing, sky included — an unproject and a project
+            // with a rounding between them.
+            EXPECT_NEAR(motion(-500.0f, osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f)).x(), 0.0f, 1e-3f);
+        }
+
+        /// The two answers the depth channel carries, against hand-computed values for both.
+        ///
+        /// **Clip depth in `r`, for an upscaler**, reversed: `near (far - z) / (z (far - near))`, one at
+        /// the near plane and nought at the far one. The numbers here: near is 1 and far is 100,000,
+        /// so a wall 200 units off reads `99,800 / (200 * 99,999) = 0.0049900`, and one at 400 reads
+        /// `99,600 / (400 * 99,999) = 0.0024900`. Most of the range is spent within a few units of the
+        /// eye, which is exactly why the filter reads the second channel instead.
+        ///
+        /// **Distance from the eye in `g`, for the filter.** In world units, along the ray.
+        ///
+        /// **And the two disagree in the one place that matters**, which is what makes this a test
+        /// rather than two readings of one number: at the corner of the frame the same plane is
+        /// further away and no deeper. A 64-pixel square at a sixty-degree field of view puts pixel
+        /// zero at `uv = 0.5/64 * 2 - 1 = -0.984375` on both axes, so its ray is
+        /// `normalize(F - 0.984375 R + 0.984375 U)` with `|R| = |U| = tan(30°)`; the cosine to the
+        /// view axis is `1 / sqrt(1 + 2 (0.984375 tan 30°)^2) = 1 / 1.2829652`. So the corner reads
+        /// the centre's clip value and 1.2829652 times its distance. The centre pixel is itself half
+        /// a pixel off-axis, which is the 1.0000814 below.
+        TEST_F(RtxVisibilityTest, theDepthChannelIsWhatARasterizerWouldHaveWritten)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float far = 100000.0f;
+            constexpr float near = 1.0f;
+
+            const auto expected = [](float z) { return near * (far - z) / (z * (far - near)); };
+
+            // Two floats a pixel: clip depth, then distance from the eye.
+            constexpr std::size_t stride = 2;
+            constexpr std::size_t centre = centreOf(size) * stride;
+            constexpr float cornerCosine = 1.2829652f;
+            constexpr float centreCosine = 1.0000814f;
+
+            const auto depthOf = [&](float away) {
+                SceneDesc scene;
+                addQuad(scene, wallAt(away));
+
+                const Shaders::VisibilityConstants camera
+                    = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, far);
+
+                const Frame frame = shoot(scene, {}, camera, size);
+                EXPECT_EQ(frame.mHits, size * size);
+
+                std::vector<float> depth;
+                mRenderer.readChannel(Channel::Depth, depth);
+                return depth;
+            };
+
+            constexpr std::size_t corner = 0;
+
+            for (const float away : { 200.0f, 400.0f })
+            {
+                const std::vector<float> depth = depthOf(away);
+                ASSERT_EQ(depth.size(), std::size_t{ size } * size * stride);
+
+                EXPECT_NEAR(depth[centre], expected(away), expected(away) * 1e-5f) << "at " << away;
+
+                // The corner sees the same plane, so it must read the same depth even though it is
+                // a good deal further from the eye. Reading the ray's own length instead would put
+                // this at `expected(away / cos)`, which at this field of view is a fifth of the value
+                // out — the kind of error that makes an upscaler shimmer at every corner.
+                EXPECT_NEAR(depth[corner], depth[centre], depth[centre] * 1e-5f) << "the corner of the same wall";
+
+                // And the second channel is the reading the first is not: the corner really is
+                // further away, by the cosine the depth deliberately divides out.
+                EXPECT_NEAR(depth[centre + 1], away * centreCosine, away * 1e-3f) << "distance at the centre";
+                EXPECT_NEAR(depth[corner + 1], away * cornerCosine, away * 1e-3f) << "distance at the corner";
+            }
+
+            // A ray that hit nothing is as far away as anything can be.
+            {
+                SceneDesc scene;
+                addQuad(scene, wallAt(200.0f));
+
+                const Shaders::VisibilityConstants away
+                    = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, -100.0f, 0.0f), 60.0f, size, size, far);
+
+                const Frame frame = shoot(scene, {}, away, size);
+                EXPECT_EQ(frame.mHits, 0u);
+
+                std::vector<float> depth;
+                mRenderer.readChannel(Channel::Depth, depth);
+                for (std::size_t i = 0; i < depth.size(); i += stride)
+                {
+                    ASSERT_EQ(depth[i], 0.0f) << "clip depth at " << i / stride;
+                    ASSERT_EQ(depth[i + 1], far) << "distance at " << i / stride;
+                }
+            }
+        }
+
+        /// A mesh whose pose changed is traced against the vertices the device computed from it,
+        /// without a scene rebuild.
+        ///
+        /// **What a skinned body needs and moving an instance cannot give.** A crate that moves says
+        /// so with its transform; an arm that swings does not — the actor's transform is where the
+        /// actor stands, and the pose lives in vertices underneath it. So this wall stays at the
+        /// identity throughout and only its one bone is written again: the skinning pass has to
+        /// compute the corners from the bind pose and the refit has to follow them, and a
+        /// `placeScene` that rebuilt the top level over an untouched bottom level would trace the
+        /// first wall every time and read the first distance.
+        ///
+        /// The distance is the assertion rather than the hit count, because it names *where* the
+        /// new triangles are and not merely that something changed. Its 1.0000814 is the centre
+        /// pixel's own half-pixel offset from the view axis, worked out in the depth test above.
+        TEST_F(RtxVisibilityTest, aDeformedMeshIsTracedAgainstItsNewVerticesWithoutRebuildingTheScene)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::size_t centre = centreOf(size) * 2 + 1;
+            constexpr float far = 100000.0f;
+            constexpr float centreCosine = 1.0000814f;
+
+            const Shaders::VisibilityConstants camera
+                = Testing::makeCamera(osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, size, size, far);
+
+            SceneDesc scene;
+            const Index wall
+                = addOneBoneBody(scene, MeshArrays{ .mPositions = wallAt(200.0f), .mIndices = sQuadIndices }).mMesh;
+            scene.addInstance(MeshInstance{ .mMesh = wall });
+            poseByOneBone(scene, wall, osg::Matrixf::identity());
+
+            const Frame frame = shoot(scene, {}, camera, size);
+            ASSERT_EQ(frame.mHits, size * size);
+
+            std::vector<float> depth;
+            mRenderer.readChannel(Channel::Depth, depth);
+            ASSERT_NEAR(depth[centre], 200.0f * centreCosine, 0.2f) << "where it was built";
+
+            /// Moves the wall's bone `away` units off its bind pose and replaces the scene's
+            /// placement, exactly as a frame of the game does: clear, re-walk, hand it back.
+            const auto deformTo = [&](float away) {
+                scene.clearPlacement();
+                poseByOneBone(scene, wall, osg::Matrixf::translate(0.0f, away - 200.0f, 0.0f));
+                scene.addInstance(MeshInstance{ .mMesh = wall });
+                mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            };
+
+            deformTo(400.0f);
+            mRenderer.renderFrame(camera, FrameOptions{});
+            EXPECT_EQ(mRenderer.finishFrame().value().mHits, size * size);
+
+            mRenderer.readChannel(Channel::Depth, depth);
+            EXPECT_NEAR(depth[centre], 400.0f * centreCosine, 0.4f) << "and the structure followed its vertices";
+
+            // Behind the eye, where a wall that was never rebuilt would still be filling the frame.
+            deformTo(-1000.0f);
+            mRenderer.renderFrame(camera, FrameOptions{});
+            EXPECT_EQ(mRenderer.finishFrame().value().mHits, 0u);
+        }
+
+        /// A debug line is drawn over the picture where it stands in front of what was traced,
+        /// and not where it stands behind it.
+        ///
+        /// **The trace's own depth is the test.** A wall a hundred units ahead, and a red line
+        /// across the middle of the frame: fifty units ahead it is drawn, replacing the wall's
+        /// grey along the middle row at full alpha; a hundred and fifty units ahead it is behind
+        /// the wall and the row is the wall. A triangle over the lower half of the frame at a
+        /// quarter alpha is blended, so the pixel it covers is a quarter of the way from the
+        /// wall to red and the pixel it does not cover is the wall.
+        TEST_F(RtxVisibilityTest, aDebugLineIsDrawnInFrontOfTheTraceAndNotBehindIt)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t middle = centreValueOf(size);
+            constexpr std::size_t low = (std::size_t{ 28 } * size + size / 2) * 4;
+
+            const SceneDesc scene = makeWall();
+            const Shaders::VisibilityConstants camera = wallCamera(
+                size, osg::Vec3f(2.0f, 2.0f, 2.0f), osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f));
+
+            const auto shown = [&](float ahead, std::span<const DebugVertex> triangles) {
+                // Half a unit under the eye's own height: fifty ahead that is three tenths of a
+                // pixel under the middle row's centre, so the line rasterizes on that row and not
+                // on the boundary between two.
+                const std::array<DebugVertex, 2> line{
+                    DebugVertex{ .mPosition = osg::Vec3f(-500.0f, -100.0f + ahead, -0.5f),
+                        .mColour = osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f) },
+                    DebugVertex{ .mPosition = osg::Vec3f(500.0f, -100.0f + ahead, -0.5f),
+                        .mColour = osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f) },
+                };
+                shoot(scene, {}, camera, size, Shot{ .mDebug = { .mLines = line, .mTriangles = triangles } });
+
+                std::vector<std::uint8_t> pixels;
+                mRenderer.readPixels(pixels);
+                requireFrame(pixels, size);
+                return pixels;
+            };
+
+            const std::vector<std::uint8_t> bare = shown(150.0f, {});
+            ASSERT_GT(int{ bare[middle] }, 20) << "the wall is not lit";
+            EXPECT_EQ(bare[middle], bare[middle + 1]) << "a line behind the wall was drawn";
+
+            const std::vector<std::uint8_t> lined = shown(50.0f, {});
+            EXPECT_EQ(int{ lined[middle] }, 255) << "the line in front of the wall was not drawn";
+            EXPECT_EQ(int{ lined[middle + 1] }, 0);
+            EXPECT_EQ(lined[low], bare[low]) << "the line reached a row it does not cross";
+
+            // A triangle over the lower half, fifty ahead, at a quarter alpha: over what the wall
+            // encodes to, a quarter of the way to red.
+            const std::array<DebugVertex, 3> lower{
+                DebugVertex{
+                    .mPosition = osg::Vec3f(-500.0f, -50.0f, -2.0f), .mColour = osg::Vec4f(1.0f, 0.0f, 0.0f, 0.25f) },
+                DebugVertex{
+                    .mPosition = osg::Vec3f(500.0f, -50.0f, -2.0f), .mColour = osg::Vec4f(1.0f, 0.0f, 0.0f, 0.25f) },
+                DebugVertex{
+                    .mPosition = osg::Vec3f(0.0f, -50.0f, -500.0f), .mColour = osg::Vec4f(1.0f, 0.0f, 0.0f, 0.25f) },
+            };
+            const std::vector<std::uint8_t> filled = shown(150.0f, lower);
+            EXPECT_NEAR(int{ filled[low] }, static_cast<int>(0.75f * bare[low] + 0.25f * 255.0f), 1)
+                << "the triangle was not blended over the wall";
+            EXPECT_NEAR(int{ filled[low + 1] }, static_cast<int>(0.75f * bare[low + 1]), 1);
+            EXPECT_EQ(filled[middle], bare[middle]) << "the triangle reached a row above it";
+        }
+
+        /// The player's arms are seen through their own eye and stand in front of everything.
+        ///
+        /// **Two decisions the rasterizer makes for `Mask_FirstPerson`, both of them the
+        /// picture's.** `NpcAnimation` swaps the projection under the arms for
+        /// `first person field of view`, and clears the depth under them so no wall clips a
+        /// hand. An eye a hundred units short of a grey wall that fills the frame, and a red pane
+        /// placed as first person a hundred units past the wall, ten units either side of
+        /// `x = 70`: through a thirty-degree eye the pane is off the picture, since that eye
+        /// reaches 53.6 units either side at the pane's depth, and every pixel is the wall;
+        /// through arms at sixty degrees the eye reaches 115.5, and column 26 of thirty-three —
+        /// whose centre looks seventy units across at that depth — is the pane, red and at the
+        /// pane's own distance, with the wall a hundred units nearer along the world's ray. The
+        /// middle of the frame is the wall either way.
+        ///
+        /// **And behind a see-through arm is the world the eye sees beside it**, which is the
+        /// rasterizer's blend of the arms over what the world's own projection drew. The pane faded
+        /// to half: column 26 finds the wall along the thirty-degree eye's ray, to the bit, where the
+        /// arms' ray carried on past the pane would have found nothing at all behind it — and every
+        /// other pixel's depth is the depth the frame has with no arm in it.
+        TEST_F(RtxVisibilityTest, theArmsAreSeenThroughTheirOwnEyeAndInFrontOfEverything)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t row = size / 2;
+            constexpr std::size_t column = 26;
+            constexpr std::size_t centre = centreOf(size);
+            constexpr std::size_t arm = row * size + column;
+
+            constexpr std::array<std::uint8_t, 4> sGrey{ 128, 128, 128, 255 };
+            constexpr std::array<std::uint8_t, 4> sRed{ 255, 0, 0, 255 };
+            const std::array<TextureData, 2> textures{ describeTexel(sGrey, 0), describeTexel(sRed, 1) };
+
+            const std::array<osg::Vec3f, 4> pane{
+                osg::Vec3f(60.0f, 100.0f, -20.0f),
+                osg::Vec3f(80.0f, 100.0f, -20.0f),
+                osg::Vec3f(80.0f, 100.0f, 20.0f),
+                osg::Vec3f(60.0f, 100.0f, 20.0f),
+            };
+
+            const auto sceneWith = [&](float fade) {
+                SceneDesc scene;
+                const Index grey = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
+                const Index red = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
+                scene.addInstance(
+                    MeshInstance{ .mMesh = scene.addMesh(MeshArrays{
+                                      .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                        .mMaterial = scene.addMaterial(Material{ .mDiffuse = grey }) });
+                scene.addInstance(MeshInstance{ .mMesh
+                    = scene.addMesh(MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                    .mMaterial = scene.addMaterial(Material{ .mDiffuse = red }),
+                    .mOpacity = fade,
+                    .mClass = InstanceClass::FirstPerson });
+                return scene;
+            };
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 30.0f, size, size, 10000.0f);
+
+            struct Seen
+            {
+                std::array<std::uint8_t, 3> mArm;
+                std::array<std::uint8_t, 3> mMiddle;
+                float mArmDistance;
+                float mMiddleDistance;
+
+                /// Two floats a pixel: clip depth, then distance from the eye.
+                std::vector<float> mDepth;
+            };
+
+            const auto seenWith = [&](const Shaders::Camera& arms, float fade = 1.0f) {
+                camera.mArms = arms;
+
+                const Frame frame
+                    = shoot(sceneWith(fade), textures, camera, size, Shot{ .mShow = SurfaceView::Albedo });
+                EXPECT_EQ(frame.mHits, size * size);
+
+                Seen seen{
+                    .mArm = { frame.byte(arm * 4), frame.byte(arm * 4 + 1), frame.byte(arm * 4 + 2) },
+                    .mMiddle = { frame.byte(centre * 4), frame.byte(centre * 4 + 1), frame.byte(centre * 4 + 2) },
+                };
+                mRenderer.readChannel(Channel::Depth, seen.mDepth);
+                seen.mArmDistance = seen.mDepth[arm * 2 + 1];
+                seen.mMiddleDistance = seen.mDepth[centre * 2 + 1];
+
+                return seen;
+            };
+
+            const Seen narrow = seenWith(camera.mCamera);
+            EXPECT_EQ(narrow.mArm, narrow.mMiddle) << "the pane is off a thirty-degree picture";
+            EXPECT_NEAR(narrow.mMiddleDistance, 100.0f, 0.01f);
+
+            const Seen wide = seenWith(cameraAtFieldOfView(camera.mCamera, 60.0f));
+            EXPECT_GT(int{ wide.mArm[0] }, 200) << "the arms' eye did not see the pane";
+            EXPECT_LT(int{ wide.mArm[1] }, 50) << "the arms' eye saw something other than the pane";
+            EXPECT_EQ(wide.mMiddle, narrow.mMiddle) << "the arms' eye moved the wall";
+            EXPECT_NEAR(wide.mMiddleDistance, 100.0f, 0.01f);
+
+            // Where column 26's centre lands at sixty degrees: `(26.5 / 33) * 2 - 1` of the
+            // half-extent `tan(30°)` per unit ahead, and the pane stands two hundred ahead.
+            const float across = ((26.5f / 33.0f) * 2.0f - 1.0f) * std::tan(osg::DegreesToRadians(30.0f));
+            EXPECT_NEAR(wide.mArmDistance, 200.0f * std::sqrt(1.0f + across * across), 0.05f)
+                << "the pane stands a hundred units behind the wall, and is drawn in front of it";
+
+            const Seen faded = seenWith(cameraAtFieldOfView(camera.mCamera, 60.0f), 0.5f);
+            EXPECT_EQ(faded.mArmDistance, narrow.mArmDistance)
+                << "the world behind a see-through arm was not the world's eye's";
+            EXPECT_EQ(faded.mDepth, narrow.mDepth) << "the arm moved the world behind it";
+            EXPECT_NE(faded.mArm, narrow.mArm) << "the faded arm was not drawn at all";
+        }
+
+        /// A glossy surface of the player's arms reflects through the arms' own cone, whatever the
+        /// world's is.
+        ///
+        /// **How wide a reflection's cone grows is the eye's that found the surface.** A white metal
+        /// pane two hundred ahead reflects a wall behind the eye painted with the mip ladder, whose
+        /// levels are different greys, so the level the reflected cone reads is what the pixel shows.
+        /// The arms are thirty degrees in all three runs: under a thirty-degree world and a
+        /// ninety-degree one the pixel is the same to the bit, and widening the arms' own eye moves
+        /// it — the world's spread, three times the arms', read the ladder a level and a half
+        /// coarser.
+        TEST_F(RtxVisibilityTest, aGlossyArmReflectsThroughTheArmsOwnCone)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreOf(size);
+
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+            constexpr std::array<std::uint8_t, 4> mirror{ 255, 26, 255, 255 };
+            Testing::TestTexture ladder;
+            Testing::paintMipLadder(ladder);
+            std::array<TextureData, 3> textures{ describeTexel(white, 0), describeTexel(mirror, 1), ladder.mData };
+            textures[2].mSlot = 2;
+
+            SceneDesc scene;
+            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+            const Index map = scene.textures().add(
+                VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+            const Index painted = scene.textures().add(VFS::Path::NormalizedView("ladder.dds"));
+            scene.addInstance(MeshInstance{
+                .mMesh = scene.addMesh(MeshArrays{
+                    .mPositions = uprightQuadAt(40.0f, 100.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map, .mTwoSided = true }),
+                .mClass = InstanceClass::FirstPerson });
+            scene.addInstance(MeshInstance{
+                .mMesh = scene.addMesh(MeshArrays{
+                    .mPositions = uprightQuadAt(400.0f, -500.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                .mMaterial = scene.addMaterial(Material{ .mDiffuse = painted, .mTwoSided = true }) });
+
+            const auto reflectedWith = [&](float world, float arms) {
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), world, size, size, 10000.0f);
+                camera.mArms = cameraAtFieldOfView(camera.mCamera, arms);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
+                camera.mAmbientFromSky = 0.0f;
+
+                const Frame frame = shoot(scene, textures, camera, size);
+
+                return frame.at(centre * 4);
+            };
+
+            const float narrow = reflectedWith(30.0f, 30.0f);
+            ASSERT_GT(narrow, 0.0f) << "the pane reflected nothing";
+            EXPECT_EQ(reflectedWith(90.0f, 30.0f), narrow) << "the arms' reflection widened with the world's eye";
+            EXPECT_NE(reflectedWith(30.0f, 60.0f), narrow) << "the arms' own cone reached no level of the ladder";
+        }
+    }
+}

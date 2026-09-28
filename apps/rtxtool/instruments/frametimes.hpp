@@ -9,8 +9,8 @@
 #include <vector>
 
 #include <components/platform/file.hpp>
-#include <components/rtx/framespend.hpp>
-#include <components/rtx/renderer.hpp>
+#include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 namespace RtxTool
 {

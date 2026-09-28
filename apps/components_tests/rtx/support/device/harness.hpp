@@ -9,11 +9,11 @@
 
 #include <gtest/gtest.h>
 
-#include <components/rtx/renderer.hpp>
-#include <components/rtxvulkan/commands.hpp>
-#include <components/rtxvulkan/device.hpp>
-#include <components/rtxvulkan/instance.hpp>
-#include <components/rtxvulkan/pipelinecache.hpp>
+#include <components/rtx/renderer/renderer.hpp>
+#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/instance.hpp>
+#include <components/rtxvulkan/device/pipelinecache.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 
 namespace Rtx::Testing

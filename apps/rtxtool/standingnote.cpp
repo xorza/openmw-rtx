@@ -13,7 +13,7 @@
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
-#include <components/rtx/skylight.hpp>
+#include <components/rtx/environment/skylight.hpp>
 
 #include "run.hpp"
 

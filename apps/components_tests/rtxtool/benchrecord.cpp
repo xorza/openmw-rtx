@@ -8,7 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/model/benchrecord.hpp>
-#include <components/rtx/framespend.hpp>
+#include <components/rtx/renderer/framespend.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool

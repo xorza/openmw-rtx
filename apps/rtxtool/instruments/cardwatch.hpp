@@ -6,8 +6,8 @@
 #include <string_view>
 #include <vector>
 
-#include <components/rtx/monitor.hpp>
-#include <components/rtx/worker.hpp>
+#include <components/rtx/common/monitor.hpp>
+#include <components/rtx/common/worker.hpp>
 
 #include "gpuclock.hpp"
 #include "nvml.hpp"

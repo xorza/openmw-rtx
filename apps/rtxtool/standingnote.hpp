@@ -5,7 +5,7 @@
 #include <string_view>
 
 #include <components/esm/refid.hpp>
-#include <components/rtx/frameworld.hpp>
+#include <components/rtx/environment/frameworld.hpp>
 
 #include "model/benchrun.hpp"
 

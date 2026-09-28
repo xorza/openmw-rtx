@@ -6,7 +6,7 @@
 #include <vector>
 
 #include <components/platform/process.hpp>
-#include <components/rtx/shaderdirectory.hpp>
+#include <components/rtx/renderer/shaderdirectory.hpp>
 
 #include "scenedigest.hpp"
 

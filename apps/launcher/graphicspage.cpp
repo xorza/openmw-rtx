@@ -3,9 +3,9 @@
 #include "sdlinit.hpp"
 
 #include <components/misc/display.hpp>
-#include <components/rtx/menu.hpp>
-#include <components/rtx/pacing.hpp>
-#include <components/rtx/upscale.hpp>
+#include <components/rtx/common/menu.hpp>
+#include <components/rtx/frame/pacing.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/settings/values.hpp>
 
 #include <QCoreApplication>

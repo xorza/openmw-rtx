@@ -10,8 +10,8 @@
 #include <string>
 #include <string_view>
 
-#include <components/rtx/framespend.hpp>
-#include <components/rtx/memoryreport.hpp>
+#include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/memoryreport.hpp>
 
 namespace RtxTool
 {

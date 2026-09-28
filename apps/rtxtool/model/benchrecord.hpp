@@ -13,13 +13,13 @@
 #include <apps/rtxtool/instruments/cardwatch.hpp>
 #include <apps/rtxtool/instruments/frametimes.hpp>
 #include <apps/rtxtool/instruments/gpuclock.hpp>
-#include <components/rtx/frameextents.hpp>
-#include <components/rtx/framespend.hpp>
-#include <components/rtx/guirenderer.hpp>
-#include <components/rtx/memoryreport.hpp>
-#include <components/rtx/reconstruction.hpp>
-#include <components/rtx/renderer.hpp>
-#include <components/rtx/upscale.hpp>
+#include <components/rtx/frame/frameextents.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/guirenderer.hpp>
+#include <components/rtx/renderer/memoryreport.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 namespace RtxTool
 {

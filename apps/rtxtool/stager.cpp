@@ -34,7 +34,7 @@
 #include <components/esm3/loadregn.hpp>
 #include <components/esm3/loadskil.hpp>
 #include <components/misc/rng.hpp>
-#include <components/rtx/skylight.hpp>
+#include <components/rtx/environment/skylight.hpp>
 
 #include "model/benchrun.hpp"
 

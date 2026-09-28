@@ -13,7 +13,7 @@
 #include <MyGUI_Types.h>
 
 #include <components/myguiplatform/guirendermanager.hpp>
-#include <components/rtx/guirenderer.hpp>
+#include <components/rtx/renderer/guirenderer.hpp>
 
 namespace Resource
 {

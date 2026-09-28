@@ -10,7 +10,7 @@
 
 #include <apps/rtxtool/instruments/drivercache.hpp>
 #include <apps/rtxtool/instruments/scenedigest.hpp>
-#include <components/rtx/shaderdirectory.hpp>
+#include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool

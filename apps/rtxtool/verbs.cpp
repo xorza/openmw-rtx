@@ -7,7 +7,7 @@
 #include <utility>
 
 #include <components/crashcatcher/crash.hpp>
-#include <components/rtx/namedenum.hpp>
+#include <components/rtx/common/namedenum.hpp>
 
 namespace RtxTool
 {

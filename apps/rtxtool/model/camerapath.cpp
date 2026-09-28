@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include <components/rtx/contract.hpp>
+#include <components/rtx/common/contract.hpp>
 
 #include "cameratrack.hpp"
 

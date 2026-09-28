@@ -5,7 +5,7 @@
 #include <cmath>
 #include <cstddef>
 
-#include <components/rtx/alphaimage.hpp>
+#include <components/rtx/image/alphaimage.hpp>
 
 namespace Rtx::Testing
 {

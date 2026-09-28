@@ -26,7 +26,7 @@
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/misc/constants.hpp>
-#include <components/rtx/result.hpp>
+#include <components/rtx/common/result.hpp>
 #include <components/terrain/defs.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/vfs/pathutil.hpp>

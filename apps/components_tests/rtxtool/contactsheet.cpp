@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/instruments/contactsheet.hpp>
-#include <components/rtx/texturedata.hpp>
+#include <components/rtx/image/texturedata.hpp>
 
 #include "../rtx/support/testtexture.hpp"
 

@@ -2,9 +2,9 @@
 
 #include <algorithm>
 
-#include <components/rtx/cellgrid.hpp>
-#include <components/rtx/specularlayout.hpp>
-#include <components/rtx/upscale.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/mirror/cells/cellgrid.hpp>
+#include <components/rtx/scene/specularlayout.hpp>
 #include <components/settings/values.hpp>
 
 namespace MWRender

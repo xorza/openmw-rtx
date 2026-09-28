@@ -28,9 +28,9 @@
 #include <components/misc/strings/algorithm.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/menu.hpp>
-#include <components/rtx/pacing.hpp>
-#include <components/rtx/upscale.hpp>
+#include <components/rtx/common/menu.hpp>
+#include <components/rtx/frame/pacing.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>

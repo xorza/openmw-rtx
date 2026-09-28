@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 
-#include <components/rtx/monitor.hpp>
-#include <components/rtx/worker.hpp>
+#include <components/rtx/common/monitor.hpp>
+#include <components/rtx/common/worker.hpp>
 
 namespace MWRender
 {

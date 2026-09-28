@@ -11,11 +11,11 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/instruments/framehashes.hpp>
-#include <components/rtx/error.hpp>
-#include <components/rtx/framedigest.hpp>
-#include <components/rtx/frameimage.hpp>
-#include <components/rtx/renderer.hpp>
-#include <components/rtx/upscale.hpp>
+#include <components/rtx/common/error.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/renderer/framedigest.hpp>
+#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/testing/util.hpp>
 
 #include "../rtx/support/death.hpp"

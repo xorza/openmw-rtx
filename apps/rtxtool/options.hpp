@@ -10,7 +10,7 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
-#include <components/rtx/renderer.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 #include "verbs.hpp"
 

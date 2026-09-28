@@ -1,0 +1,310 @@
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <span>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include <gtest/gtest.h>
+
+#include <vulkan/vulkan_core.h>
+
+#include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <apps/components_tests/rtx/support/device/readback.hpp>
+#include <apps/components_tests/rtx/support/guiquad.hpp>
+#include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/renderer/renderer.hpp>
+#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/device/memory/memory.hpp>
+#include <components/rtxvulkan/gui/guipass.hpp>
+#include <components/rtxvulkan/pipeline/graphicspipeline.hpp>
+#include <components/rtxvulkan/texture/texture.hpp>
+#include <components/rtxvulkan/texture/texturepasses.hpp>
+
+namespace Rtx
+{
+    namespace
+    {
+        constexpr std::uint32_t sExtent = 8;
+
+        /// What the target holds before anything is drawn over it, so that a blend has something to
+        /// blend with and an untouched pixel is recognisable.
+        constexpr std::array<std::uint8_t, 4> sBackground{ 0, 0, 255, 255 };
+
+        constexpr std::array<std::uint8_t, 4> sWhiteTexel{ 255, 255, 255, 255 };
+
+        class RtxGuiPassTest : public Testing::DeviceTest
+        {
+        protected:
+            void SetUp() override
+            {
+                Testing::DeviceTest::SetUp();
+                mPass = std::make_unique<GuiPass>(getDevice(), Testing::getShaderDirectory(), VK_FORMAT_R8G8B8A8_UNORM);
+            }
+
+            /// The pass before the base reads the layers, so what its teardown does is this test's
+            /// to report rather than the next one's to have cleared.
+            void TearDown() override
+            {
+                mPass.reset();
+
+                Testing::DeviceTest::TearDown();
+            }
+
+            /// Clears a target to `sBackground`, records `draws` over it, and hands back the pixels.
+            /// Four bytes each, row zero at the top.
+            void drawAndRead(
+                std::span<const GuiVertex> vertices, std::span<const GuiDraw> draws, std::vector<std::uint8_t>& pixels)
+            {
+                Device& device = *mHarness.mDevice;
+
+                Image target(device, sExtent, sExtent, VK_FORMAT_R8G8B8A8_UNORM,
+                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                        | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                    "gui test target");
+
+                Batch upload(getPool());
+                const Buffer buffer = uploadBuffer(upload, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "test");
+                upload.flush();
+
+                getPool().submitAndWait([&](VkCommandBuffer commands) {
+                    target.transition(
+                        commands, ImageUse{ VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_2_NONE, 0 }, Use::sClearWrite);
+
+                    const VkClearColorValue clear{ .float32 = { sBackground[0] / 255.0f, sBackground[1] / 255.0f,
+                                                       sBackground[2] / 255.0f, sBackground[3] / 255.0f } };
+                    const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+                    vkCmdClearColorImage(
+                        commands, target.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear, 1, &whole);
+
+                    target.transition(commands, Use::sClearWrite, Use::sColourAttachment);
+
+                    mPass->record(commands, target, buffer.getHandle(), draws);
+                });
+
+                target.read(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, pixels);
+                ASSERT_EQ(pixels.size(), std::size_t{ sExtent } * sExtent * 4);
+            }
+
+            static std::array<std::uint8_t, 4> at(
+                std::span<const std::uint8_t> pixels, std::uint32_t x, std::uint32_t y)
+            {
+                return Testing::rgbaAt(pixels, sExtent, x, y);
+            }
+
+            /// A texture on the device, waited for. The renderer records these into a batch it
+            /// flushes once for a whole cell; a test wants the one texture ready on the next line.
+            /// Its shading map is estimated as the renderer's would be, and read by nothing here.
+            Texture makeTexture(const TextureData& data, std::string_view name)
+            {
+                const TexturePasses passes(getDevice(), Testing::getShaderDirectory());
+
+                Batch upload(getPool());
+                std::vector<VkBufferImageCopy> regions;
+                Texture texture = std::move(
+                    Texture::fromFile(getDevice(), upload, passes, data, 0, name, regions, MemoryUse::Essential)
+                        .value());
+                upload.flush();
+                return texture;
+            }
+
+            std::unique_ptr<GuiPass> mPass;
+        };
+
+        /// Half-transparent red over opaque blue, on the left half only.
+        ///
+        /// **Every expected byte is exact.** An alpha of 128/255 makes the source's contribution
+        /// `255 * 128/255 = 128` and what it leaves of the destination `255 * 127/255 = 127`, so the
+        /// blend has no rounding to argue about — and the right half says the draw stayed inside its
+        /// own triangles.
+        TEST_F(RtxGuiPassTest, aHalfTransparentQuadBlendsOverWhatWasAlreadyThere)
+        {
+            const Texture texture = makeTexture(Testing::describeTexel(sWhiteTexel), "white");
+
+            const std::array<GuiVertex, 6> quad
+                = Testing::makeGuiQuad(-1.0f, 1.0f, 0.0f, -1.0f, Testing::packColour(255, 0, 0, 128));
+            const std::array<GuiDraw, 1> draws{ GuiDraw{ texture.getView(), 0, quad.size() } };
+
+            std::vector<std::uint8_t> pixels;
+            ASSERT_NO_FATAL_FAILURE(drawAndRead(quad, draws, pixels));
+
+            for (std::uint32_t y = 0; y < sExtent; ++y)
+            {
+                EXPECT_EQ(at(pixels, 1, y), (std::array<std::uint8_t, 4>{ 128, 0, 127, 255 })) << "covered, row " << y;
+                EXPECT_EQ(at(pixels, sExtent - 2, y), sBackground) << "uncovered, row " << y;
+            }
+        }
+
+        /// A vertex is drawn whatever depth it carries, because depth decides nothing here.
+        ///
+        /// **The pass has no depth attachment**, and widgets are drawn in the order MyGUI hands them
+        /// over. What a vertex's z would decide is whether Vulkan keeps it at all — it clips z
+        /// outside `[0, w]` — and OpenMW's book page writes minus one for every glyph, built against
+        /// a GL projection that keeps it. Every dialogue's text was clipped away whole. So the
+        /// shader drops the z, and a quad at minus one, at plus two and at nought are one quad.
+        TEST_F(RtxGuiPassTest, aQuadIsDrawnAtAnyDepth)
+        {
+            const Texture texture = makeTexture(Testing::describeTexel(sWhiteTexel), "white");
+
+            for (const float depth : { -1.0f, 2.0f, 0.0f })
+            {
+                std::array<GuiVertex, 6> quad
+                    = Testing::makeGuiQuad(-1.0f, 1.0f, 0.0f, -1.0f, Testing::packColour(255, 0, 0, 255));
+                for (GuiVertex& vertex : quad)
+                    vertex.mZ = depth;
+
+                const std::array<GuiDraw, 1> draws{ GuiDraw{ texture.getView(), 0, quad.size() } };
+
+                std::vector<std::uint8_t> pixels;
+                ASSERT_NO_FATAL_FAILURE(drawAndRead(quad, draws, pixels));
+
+                EXPECT_EQ(at(pixels, 1, sExtent / 2), (std::array<std::uint8_t, 4>{ 255, 0, 0, 255 }))
+                    << "covered, at depth " << depth;
+                EXPECT_EQ(at(pixels, sExtent - 2, sExtent / 2), sBackground) << "uncovered, at depth " << depth;
+            }
+        }
+
+        /// The texture is what the quad shows, and its first row is the one at the top of the frame.
+        ///
+        /// **This is the assertion that catches a flipped V.** MyGUI puts texture coordinate zero at
+        /// the top of a widget and clip coordinate +1 there too; Vulkan's clip space points the other
+        /// way, and the pass answers that with a flipped viewport rather than by touching the
+        /// coordinates. Get it wrong and every glyph in the game is upside down — which is obvious on
+        /// a screen and invisible to every other assertion here.
+        TEST_F(RtxGuiPassTest, theTexturesFirstRowLandsAtTheTopOfTheFrame)
+        {
+            // Two by two, every corner distinguishable: red and green across the first row, blue and
+            // white across the second.
+            constexpr std::array<std::uint8_t, 16> sCorners{
+                255,
+                0,
+                0,
+                255, //
+                0,
+                255,
+                0,
+                255, //
+                0,
+                0,
+                255,
+                255, //
+                255,
+                255,
+                255,
+                255,
+            };
+            Testing::TestTexture corners;
+            Testing::paintFlat(corners, 2, sCorners, "corners");
+            const Texture texture = makeTexture(corners.mData, "corners");
+
+            // The whole frame, opaque white so the texture passes through the multiply unchanged.
+            const std::array<GuiVertex, 6> quad
+                = Testing::makeGuiQuad(-1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 255));
+            const std::array<GuiDraw, 1> draws{ GuiDraw{ texture.getView(), 0, quad.size() } };
+
+            std::vector<std::uint8_t> pixels;
+            ASSERT_NO_FATAL_FAILURE(drawAndRead(quad, draws, pixels));
+
+            // A pixel's centre this far into a corner lands outside the outermost texel centre, so
+            // clamping gives the filter one texel to return rather than a mixture of two.
+            EXPECT_EQ(at(pixels, 1, 1), (std::array<std::uint8_t, 4>{ 255, 0, 0, 255 })) << "top left";
+            EXPECT_EQ(at(pixels, sExtent - 2, 1), (std::array<std::uint8_t, 4>{ 0, 255, 0, 255 })) << "top right";
+            EXPECT_EQ(at(pixels, 1, sExtent - 2), (std::array<std::uint8_t, 4>{ 0, 0, 255, 255 })) << "bottom left";
+            EXPECT_EQ(at(pixels, sExtent - 2, sExtent - 2), (std::array<std::uint8_t, 4>{ 255, 255, 255, 255 }))
+                << "bottom right";
+        }
+
+        /// Two batches, two textures, one buffer: the second must not be drawn with the first's.
+        ///
+        /// **What a per-batch push descriptor is for.** A GUI frame is dozens of these — a skin
+        /// atlas, then a font, then another skin — and binding once for all of them is a mistake
+        /// that looks like a font drawn in wood panelling.
+        TEST_F(RtxGuiPassTest, eachBatchIsDrawnWithItsOwnTexture)
+        {
+            constexpr std::array<std::uint8_t, 4> sGreenTexel{ 0, 255, 0, 255 };
+            const Texture whiteTexture = makeTexture(Testing::describeTexel(sWhiteTexel), "white");
+            const Texture greenTexture = makeTexture(Testing::describeTexel(sGreenTexel), "green");
+
+            const std::array<GuiVertex, 6> left
+                = Testing::makeGuiQuad(-1.0f, 1.0f, 0.0f, -1.0f, Testing::packColour(255, 0, 0, 255));
+            const std::array<GuiVertex, 6> right
+                = Testing::makeGuiQuad(0.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 255));
+
+            std::array<GuiVertex, 12> vertices{};
+            std::copy(left.begin(), left.end(), vertices.begin());
+            std::copy(right.begin(), right.end(), vertices.begin() + left.size());
+
+            const std::array<GuiDraw, 2> draws{
+                GuiDraw{ whiteTexture.getView(), 0, left.size() },
+                GuiDraw{ greenTexture.getView(), left.size(), right.size() },
+            };
+
+            std::vector<std::uint8_t> pixels;
+            ASSERT_NO_FATAL_FAILURE(drawAndRead(vertices, draws, pixels));
+
+            // White texture times a red vertex colour on the left; green texture times white on the
+            // right. Either texture used for both batches would make one of these the other.
+            EXPECT_EQ(at(pixels, 1, 4), (std::array<std::uint8_t, 4>{ 255, 0, 0, 255 })) << "first batch";
+            EXPECT_EQ(at(pixels, sExtent - 2, 4), (std::array<std::uint8_t, 4>{ 0, 255, 0, 255 })) << "second batch";
+        }
+
+        /// The same quad drawn additively and drawn over, side by side in one recording.
+        ///
+        /// **Both halves in one call on purpose**: it is the only assertion that the pass rebinds
+        /// when the mode changes rather than drawing everything with whichever pipeline came first.
+        ///
+        /// Half-transparent red over opaque blue, so the arithmetic is exact either way. The source
+        /// contributes `255 * 128/255 = 128` red in both. What separates them is the blue already
+        /// there: `Over` keeps `255 * 127/255 = 127` of it, `Additive` keeps all 255. That gap is
+        /// the whole difference between a hit flash reading as light and reading as a tint.
+        TEST_F(RtxGuiPassTest, anAdditiveBatchAddsToTheFrameWhereAnOverOneReplacesIt)
+        {
+            const Texture texture = makeTexture(Testing::describeTexel(sWhiteTexel), "white");
+
+            const std::array<GuiVertex, 6> left
+                = Testing::makeGuiQuad(-1.0f, 1.0f, 0.0f, -1.0f, Testing::packColour(255, 0, 0, 128));
+            const std::array<GuiVertex, 6> right
+                = Testing::makeGuiQuad(0.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 0, 0, 128));
+
+            std::array<GuiVertex, 12> vertices{};
+            std::copy(left.begin(), left.end(), vertices.begin());
+            std::copy(right.begin(), right.end(), vertices.begin() + left.size());
+
+            const std::array<GuiDraw, 2> draws{
+                GuiDraw{ texture.getView(), 0, left.size(), Blend::Additive },
+                GuiDraw{ texture.getView(), left.size(), right.size(), Blend::Over },
+            };
+
+            std::vector<std::uint8_t> pixels;
+            ASSERT_NO_FATAL_FAILURE(drawAndRead(vertices, draws, pixels));
+
+            for (std::uint32_t y = 0; y < sExtent; ++y)
+            {
+                EXPECT_EQ(at(pixels, 1, y), (std::array<std::uint8_t, 4>{ 128, 0, 255, 255 })) << "additive, row " << y;
+                EXPECT_EQ(at(pixels, sExtent - 2, y), (std::array<std::uint8_t, 4>{ 128, 0, 127, 255 }))
+                    << "over, row " << y;
+            }
+        }
+
+        /// Nothing to draw records nothing at all, rather than an empty render pass over the frame.
+        TEST_F(RtxGuiPassTest, aFrameWithNoBatchesLeavesTheTargetAlone)
+        {
+            const std::array<GuiVertex, 6> quad
+                = Testing::makeGuiQuad(-1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 0, 0, 255));
+
+            std::vector<std::uint8_t> pixels;
+            ASSERT_NO_FATAL_FAILURE(drawAndRead(quad, {}, pixels));
+
+            for (std::uint32_t y = 0; y < sExtent; ++y)
+                for (std::uint32_t x = 0; x < sExtent; ++x)
+                    EXPECT_EQ(at(pixels, x, y), sBackground) << "at " << x << ", " << y;
+        }
+    }
+}

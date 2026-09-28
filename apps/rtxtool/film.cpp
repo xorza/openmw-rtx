@@ -17,8 +17,8 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
-#include <components/rtx/contract.hpp>
-#include <components/rtx/skylight.hpp>
+#include <components/rtx/common/contract.hpp>
+#include <components/rtx/environment/skylight.hpp>
 
 #include "model/benchrecord.hpp"
 #include "model/benchspec.hpp"

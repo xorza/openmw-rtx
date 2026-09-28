@@ -9,8 +9,8 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/memoryreport.hpp>
-#include <components/rtx/result.hpp>
+#include <components/rtx/common/result.hpp>
+#include <components/rtx/renderer/memoryreport.hpp>
 
 namespace Rtx::Testing
 {

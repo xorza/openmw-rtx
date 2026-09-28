@@ -12,8 +12,8 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/instruments/frametimes.hpp>
-#include <components/rtx/framespend.hpp>
-#include <components/rtx/renderer.hpp>
+#include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/testing/util.hpp>
 
 #include "../rtx/support/allocations.hpp"

@@ -13,11 +13,11 @@
 #include <osg/ref_ptr>
 
 #include <components/esm3/refnum.hpp>
-#include <components/rtx/frameimage.hpp>
-#include <components/rtx/pacing.hpp>
-#include <components/rtx/reconstruction.hpp>
+#include <components/rtx/common/stepped.hpp>
+#include <components/rtx/frame/pacing.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/visibility.h>
-#include <components/rtx/stepped.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
 #include <components/vfs/pathutil.hpp>

@@ -15,8 +15,8 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
-#include <components/rtx/meshtable.hpp>
-#include <components/rtx/surface.hpp>
+#include <components/rtx/scene/meshtable.hpp>
+#include <components/rtx/scene/surface.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/texturetype.hpp>
 

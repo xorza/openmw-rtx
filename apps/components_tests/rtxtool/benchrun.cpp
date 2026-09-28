@@ -6,7 +6,7 @@
 #include <osg/Vec3f>
 
 #include <apps/rtxtool/model/benchrun.hpp>
-#include <components/rtx/reconstruction.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 
 namespace RtxTool
 {

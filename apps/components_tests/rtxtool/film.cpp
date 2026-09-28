@@ -22,8 +22,8 @@
 #include <apps/rtxtool/run.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
-#include <components/rtx/frameworld.hpp>
-#include <components/rtx/skylight.hpp>
+#include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/environment/skylight.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool

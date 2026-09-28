@@ -6,10 +6,10 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/error.hpp>
-#include <components/rtxvulkan/instance.hpp>
-#include <components/rtxvulkan/requirements.hpp>
-#include <components/rtxvulkan/validation.hpp>
+#include <components/rtx/common/error.hpp>
+#include <components/rtxvulkan/device/instance.hpp>
+#include <components/rtxvulkan/device/requirements.hpp>
+#include <components/rtxvulkan/device/validation.hpp>
 
 namespace Rtx::Testing
 {

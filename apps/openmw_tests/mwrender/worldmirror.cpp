@@ -13,7 +13,7 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
-#include <apps/components_tests/rtx/extractor/fixture.hpp>
+#include <apps/components_tests/rtx/mirror/extractor/fixture.hpp>
 #include <apps/components_tests/rtx/support/fakeland.hpp>
 #include <apps/openmw/mwrender/objectstorage.hpp>
 #include <apps/openmw/mwrender/rtx/tracedterrain.hpp>
@@ -28,10 +28,10 @@
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/cellworld.hpp>
-#include <components/rtx/contentpass.hpp>
-#include <components/rtx/contentpreprocessor.hpp>
-#include <components/rtx/extractionstats.hpp>
+#include <components/rtx/mirror/cells/cellworld.hpp>
+#include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/vfs/manager.hpp>
 
 namespace MWRender

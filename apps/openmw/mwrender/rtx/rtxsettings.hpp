@@ -3,9 +3,9 @@
 #include <cstdint>
 #include <string_view>
 
-#include <components/rtx/cellworld.hpp>
-#include <components/rtx/pacing.hpp>
-#include <components/rtx/reconstruction.hpp>
+#include <components/rtx/frame/pacing.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/mirror/cells/cellworld.hpp>
 
 namespace MWRender
 {

@@ -5,7 +5,7 @@
 #include <span>
 #include <string>
 
-#include <components/rtx/texels.hpp>
+#include <components/rtx/renderer/png.hpp>
 
 namespace RtxTool
 {

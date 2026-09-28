@@ -3,22 +3,21 @@
 #include <cassert>
 #include <cmath>
 
-#include <components/rtx/frameoptions.hpp>
-#include <components/rtx/framesampling.hpp>
+#include <components/rtx/frame/frameoptions.hpp>
+#include <components/rtx/frame/framesampling.hpp>
 #include <components/rtx/shaders/counts.h>
 #include <components/rtx/shaders/glare.h>
-
-#include "commands.hpp"
-#include "device.hpp"
-#include "devicescene.hpp"
-#include "displaychain.hpp"
-#include "guitextures.hpp"
-#include "imageuse.hpp"
-#include "presenttargets.hpp"
-#include "timeline.hpp"
-#include "tracemedia.hpp"
-#include "tracerecording.hpp"
-#include "visibilitypass.hpp"
+#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/device/timeline.hpp>
+#include <components/rtxvulkan/display/displaychain.hpp>
+#include <components/rtxvulkan/gui/guitextures.hpp>
+#include <components/rtxvulkan/present/presenttargets.hpp>
+#include <components/rtxvulkan/scene/devicescene.hpp>
+#include <components/rtxvulkan/trace/tracemedia.hpp>
+#include <components/rtxvulkan/trace/tracerecording.hpp>
+#include <components/rtxvulkan/trace/visibilitypass.hpp>
 
 namespace Rtx
 {

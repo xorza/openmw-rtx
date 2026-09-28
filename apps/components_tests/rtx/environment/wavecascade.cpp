@@ -1,0 +1,277 @@
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstddef>
+#include <random>
+#include <vector>
+
+#include <gtest/gtest.h>
+
+#include <osg/Vec2f>
+
+#include <apps/components_tests/rtx/support/wavemoments.hpp>
+#include <components/rtx/environment/wavecascade.hpp>
+#include <components/rtx/environment/wavespectrum.hpp>
+#include <components/rtx/shaders/scene.h>
+#include <components/rtx/shaders/wave.h>
+
+namespace Rtx
+{
+    namespace
+    {
+        /// The wavelength the entry at `at` stands for, or zero for the wavevector of no length at
+        /// the middle.
+        float wavelengthAt(const WaveCascade& cascade, std::size_t at)
+        {
+            const float wavenumber = Testing::waveVectorAt(cascade, at).length();
+
+            return wavenumber > 0.0f ? Shaders::TAU / wavenumber : 0.0f;
+        }
+
+        /// The variance of the surface these amplitudes describe, which is their zeroth moment. In
+        /// double, over the stored amplitudes' own squares, as the height is asked of.
+        double varianceOf(const std::array<WaveCascade, Shaders::WAVE_CASCADES>& cascades)
+        {
+            double total = 0.0;
+            for (const WaveCascade& cascade : cascades)
+                for (const osg::Vec2f& amplitude : cascade.mAmplitudes)
+                    total += 2.0 * double{ amplitude.length2() };
+
+            return total;
+        }
+
+        /// The tiles carry the significant height they were asked for, across both of them.
+        ///
+        /// **Scaled together and not one at a time.** Each tile is an independent draw of a share of
+        /// one spectrum, so their variances add — normalising each to the height asked for would
+        /// give two seas of that roughness rather than one.
+        TEST(RtxWaveCascadeTest, theTilesCarryTheSignificantHeightTheyWereAskedFor)
+        {
+            for (const float height : { 4.0f, 9.4f, 40.0f })
+            {
+                SeaState sea;
+                sea.mSignificantHeight = height;
+
+                // To a part in a million: the scale is taken over the same sum in double, and all
+                // that is left is the amplitudes' storage in float. In float, the sum of seventy
+                // thousand squares came out 1.7 parts in a hundred thousand high at every height.
+                EXPECT_NEAR(
+                    4.0 * std::sqrt(varianceOf(makeWaveCascades(sea))), double{ height }, double{ height } * 1e-6)
+                    << "at height " << height;
+            }
+        }
+
+        /// Every tile holds the whole spectrum, and holds it in tens of thousands of components.
+        ///
+        /// **The component count is what the transform is for.** A table of sixty-four sinusoids
+        /// gives the shortest four forty per cent of the curvature — four plane waves crossing,
+        /// which is a lattice. A tile of this size holds five orders more
+        /// than that inside the same band.
+        ///
+        /// **And the band is the spectrum's, not the tile's.** A tile cannot hold a wave longer than
+        /// itself or shorter than two of its texels, and both of these are wide enough and fine
+        /// enough that neither limit bites: what bounds the band is `sShortestWave`, which the
+        /// spectrum stops at for reasons of its own.
+        TEST(RtxWaveCascadeTest, everyTileHoldsTheWholeSpectrumInTensOfThousandsOfComponents)
+        {
+            const auto cascades = makeWaveCascades(SeaState{});
+
+            for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
+            {
+                const WaveCascade& cascade = cascades[index];
+                EXPECT_EQ(cascade.mExtent, sWaveTiles[index].mExtent);
+                EXPECT_EQ(cascade.mGrid, sWaveTiles[index].mGrid);
+                ASSERT_EQ(cascade.mAmplitudes.size(), cascade.mGrid * cascade.mGrid);
+
+                const float nyquist = 2.0f * cascade.mExtent / static_cast<float>(cascade.mGrid);
+                EXPECT_LT(nyquist, sShortestWave) << "tile " << index << " cannot reach the spectrum's short end";
+                EXPECT_GT(cascade.mExtent, 1000.0f) << "tile " << index << " cannot hold the swell";
+
+                std::size_t carried = 0;
+                for (std::size_t at = 0; at < cascade.mAmplitudes.size(); ++at)
+                {
+                    if (cascade.mAmplitudes[at] == osg::Vec2f())
+                        continue;
+
+                    const float wavelength = wavelengthAt(cascade, at);
+                    ASSERT_LE(wavelength, cascade.mExtent) << "tile " << index << " holds a wave it cannot fit";
+                    ASSERT_GT(wavelength, sShortestWave) << "tile " << index << " holds a wave past the cutoff";
+
+                    ++carried;
+                }
+
+                // The band runs from the tile's own width down to `sShortestWave`, so it fills the
+                // disc of radius `mExtent / sShortestWave` — 51 420 cells of the wide tile and 7088
+                // of the narrow one. Half of that is a floor no rounding reaches.
+                const float radius = cascade.mExtent / sShortestWave;
+                EXPECT_GT(static_cast<float>(carried), 1.5f * radius * radius)
+                    << "tile " << index << " carries too few components to be water";
+            }
+        }
+
+        /// No two tiles share a period, which is the whole reason there are two.
+        ///
+        /// One tile lays the same water down every `mExtent` units. Two whose widths divide into one
+        /// another line up every few tiles and draw one coarse grid over the sea — the artefact the
+        /// sixty-four-sinusoid table drew on a seabed, moved up a scale. These three come back into
+        /// step only after tens of thousands of units, which is past anything a frame contains.
+        TEST(RtxWaveCascadeTest, noTwoTilesShareAPeriod)
+        {
+            for (std::size_t index = 1; index < Shaders::WAVE_CASCADES; ++index)
+            {
+                const float ratio = sWaveTiles[index - 1].mExtent / sWaveTiles[index].mExtent;
+
+                // Within a twentieth of a whole number is close enough to line up over the handful
+                // of tiles a frame covers, which is what this refuses.
+                EXPECT_GT(std::abs(ratio - std::round(ratio)), 0.05f)
+                    << "tiles " << index - 1 << " and " << index << " at " << sWaveTiles[index - 1].mExtent << " and "
+                    << sWaveTiles[index].mExtent;
+            }
+        }
+
+        /// Every entry turns at the speed the dispersion relation gives its own wavenumber.
+        ///
+        /// The same relation the sinusoid table uses, so a shallow shelf slows the swell here as it
+        /// does there — and a tile whose entries turned at one speed would translate rigidly rather
+        /// than beat into a sea.
+        TEST(RtxWaveCascadeTest, everyEntryTurnsAtItsOwnDispersionSpeed)
+        {
+            const SeaState sea;
+            const auto cascades = makeWaveCascades(sea);
+
+            for (const WaveCascade& cascade : cascades)
+                for (std::size_t at = 0; at < cascade.mAmplitudes.size(); ++at)
+                {
+                    if (cascade.mAmplitudes[at] == osg::Vec2f())
+                        continue;
+
+                    const float wavenumber = Shaders::TAU / wavelengthAt(cascade, at);
+                    ASSERT_NEAR(cascade.mTurnRates[at], sea.getFrequency(wavenumber) / Shaders::TAU, 1e-5f)
+                        << "at " << at << " of a tile " << cascade.mExtent << " across";
+                }
+        }
+
+        /// A shallower shelf takes the energy out of the swell and gives it to the chop.
+        ///
+        /// **Kitaigorodskii's factor, seen where it lands.** A shelf cannot carry a wave whose orbit
+        /// reaches the bottom, so the density is cut at the low frequencies and the significant
+        /// height then puts what was taken back into the short ones. Both seas are scaled to the
+        /// same height, so the two shares are comparable and the depth term is the whole difference
+        /// between them.
+        TEST(RtxWaveCascadeTest, aShallowerShelfMovesTheEnergyOutOfTheSwell)
+        {
+            const auto swellShare = [](const SeaState& sea) {
+                float total = 0.0f;
+                float swell = 0.0f;
+
+                for (const WaveCascade& cascade : makeWaveCascades(sea))
+                    for (std::size_t at = 0; at < cascade.mAmplitudes.size(); ++at)
+                    {
+                        const float energy = 2.0f * cascade.mAmplitudes[at].length2();
+                        total += energy;
+
+                        if (wavelengthAt(cascade, at) > sea.mPeakWavelength)
+                            swell += energy;
+                    }
+
+                return swell / total;
+            };
+
+            SeaState deep;
+            deep.mDepth = 4000.0f;
+            SeaState shallow;
+            shallow.mDepth = 60.0f;
+
+            EXPECT_LT(swellShare(shallow), swellShare(deep) - 0.05f)
+                << "shallow " << swellShare(shallow) << " against deep " << swellShare(deep);
+        }
+
+        /// The same sea state is the same sea, twice.
+        ///
+        /// **Every amplitude is a Gaussian draw**, and a draw with a history would give a cell a
+        /// different surface every time it was loaded — and a screenshot a different one every time
+        /// it was taken. The draws come off a hash of where they sit instead.
+        TEST(RtxWaveCascadeTest, theSameSeaStateIsTheSameSeaTwice)
+        {
+            const SeaState sea;
+            const auto first = makeWaveCascades(sea);
+            const auto second = makeWaveCascades(sea);
+
+            for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
+                for (std::size_t at = 0; at < first[index].mAmplitudes.size(); ++at)
+                    ASSERT_EQ(first[index].mAmplitudes[at], second[index].mAmplitudes[at])
+                        << "tile " << index << ", entry " << at;
+
+            // And another sea is another sea: a heavier one differs everywhere it has energy. The
+            // wind's *heading* is not a state of the sea at all — the tiles are spread about their
+            // own axis and the frame turns them, so no bearing is here to change.
+            SeaState heavier = sea;
+            heavier.mSignificantHeight = sea.mSignificantHeight * 2.0f;
+
+            const auto third = makeWaveCascades(heavier);
+
+            std::size_t moved = 0;
+            for (std::size_t at = 0; at < first[0].mAmplitudes.size(); ++at)
+                moved += third[0].mAmplitudes[at] != first[0].mAmplitudes[at] ? 1 : 0;
+
+            EXPECT_GT(moved, first[0].mAmplitudes.size() / 20) << "a different sea state is a different sea";
+        }
+
+        /// `causticGain` is the mean it says it is, against the field it was fitted to.
+        ///
+        /// **The fit is the one number in the caustic nobody can read off the shader.** Everything
+        /// else there is arithmetic or a dial; this is three coefficients standing for four million
+        /// draws, and a fit nobody can check is a magic number. So the draws are made again here.
+        ///
+        /// The Hessian of an isotropic Gaussian field has one free parameter. Its fourth spectral
+        /// moments give `Var[Hxx] = Var[Hyy] = 3c`, `Var[Hxy] = Cov[Hxx, Hyy] = c`, so
+        /// `E[(tr H)^2] = 8c` — and the fold is `b` times the root of that, which is the whole of
+        /// what the curve is a function of. Drawn as two independent parts plus one shared: the
+        /// shared draw is what makes `Hxx` and `Hyy` agree by `c`.
+        ///
+        /// Two hundred thousand draws a fold, which puts the standard error of each mean under
+        /// 0.002 — a tenth of what is allowed, so a failure here is the fit and not the draw.
+        TEST(RtxCausticGainTest, theFittedGainIsTheMeanOfWhatTheCausticComputes)
+        {
+            constexpr std::size_t draws = 200000;
+            constexpr float shared = 1.0f / 8.0f;
+            constexpr float own = 3.0f / 8.0f - shared;
+
+            std::mt19937 gen(11);
+            std::normal_distribution<float> normal(0.0f, 1.0f);
+
+            // One field, every fold measured on it, so the folds share their draws and the curve
+            // comes out smooth rather than eight independent estimates of eight points.
+            std::vector<std::array<float, 3>> hessians;
+            hessians.reserve(draws);
+            for (std::size_t draw = 0; draw < draws; ++draw)
+            {
+                const float together = std::sqrt(shared) * normal(gen);
+                hessians.push_back({ std::sqrt(own) * normal(gen) + together, std::sqrt(own) * normal(gen) + together,
+                    std::sqrt(shared) * normal(gen) });
+            }
+
+            for (const float fold : { 0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f })
+            {
+                // `E[(tr H)^2]` is one for the draws above, so the fold is the bend outright.
+                double total = 0.0;
+                for (const std::array<float, 3>& h : hessians)
+                {
+                    const float determinant = (1.0f - fold * h[0]) * (1.0f - fold * h[1]) - fold * fold * h[2] * h[2];
+
+                    total += 1.0 / double{ std::max(std::abs(determinant), 1.0f / Shaders::WATER_CAUSTIC_MAX) };
+                }
+
+                EXPECT_NEAR(Shaders::causticGain(fold), static_cast<float>(total / draws), 0.02f)
+                    << "at a fold of " << fold;
+            }
+
+            // **The second order is exact rather than fitted**, which is what the numerator's
+            // coefficient being the denominator's plus one buys: a reciprocal of `1 - u` with `u`
+            // of variance `f^2` is worth `1 + f^2` to second order, and the curve has to start
+            // there whatever the draws say further out.
+            EXPECT_FLOAT_EQ(Shaders::causticGain(0.0f), 1.0f) << "a flat sea gathers nothing";
+            EXPECT_NEAR(Shaders::causticGain(0.1f), 1.01f, 0.001f) << "and a nearly flat one is 1 + f^2";
+        }
+    }
+}

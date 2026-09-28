@@ -10,7 +10,7 @@
 #include <osg/ref_ptr>
 
 #include <components/resource/imagemanager.hpp>
-#include <components/rtx/guirenderer.hpp>
+#include <components/rtx/renderer/guirenderer.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace MyGUIRtx

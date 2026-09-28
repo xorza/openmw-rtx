@@ -6,7 +6,7 @@
 #include <optional>
 #include <utility>
 
-#include <components/rtx/framespend.hpp>
+#include <components/rtx/common/clock.hpp>
 
 namespace MWRender
 {

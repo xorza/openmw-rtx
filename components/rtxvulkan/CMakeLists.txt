@@ -33,7 +33,8 @@ find_program(OPENMW_SPIRV_OPT NAMES spirv-opt REQUIRED
 find_path(OPENMW_SPIRV_HEADERS NAMES spirv/unified1/spirv.hpp HINTS ${Vulkan_INCLUDE_DIRS} REQUIRED
     DOC "SPIRV-Headers, from Khronos — the opcodes every shader's float arithmetic is pinned by")
 # Headers old enough to lack the fused multiply-add the pinning writes are a configure that says so,
-# rather than a compile that stops inside `spirvpin.cpp`. The headers carry no version to ask.
+# rather than a compile that stops inside `spirv/spirvpin.cpp`. The headers carry no version to
+# ask.
 file(STRINGS "${OPENMW_SPIRV_HEADERS}/spirv/unified1/spirv.hpp" _openmw_spirv_fma REGEX "OpFmaKHR = ")
 if (NOT _openmw_spirv_fma)
     message(FATAL_ERROR "${OPENMW_SPIRV_HEADERS}/spirv/unified1/spirv.hpp names no OpFmaKHR: the shaders' "
@@ -41,74 +42,76 @@ if (NOT _openmw_spirv_fma)
 endif()
 unset(_openmw_spirv_fma)
 
-# **The step every shader takes between glslc and the validator**, `spirvpin.hpp` says why: a
+# **The step every shader takes between glslc and the validator**, `spirv/spirvpin.hpp` says why: a
 # library the tests reach into, and the tool the build runs on each module. It links nothing of the
 # renderer's, because every shader waits for the tool and the renderer waits for the shaders; and the
 # tool stays in this directory's build tree, which no install and no archive reads. **Beside it, the
-# digest `omw kernels` names each specialized kernel by** (`spirvdigest.hpp`), in the same
+# digest `omw kernels` names each specialized kernel by** (`spirv/spirvdigest.hpp`), in the same
 # library and the same tree for the same reasons.
-set(RTX_SPIRV_PIN_FILES spirvfile.cpp spirvfile.hpp spirvpin.cpp spirvpin.hpp spirvdigest.cpp spirvdigest.hpp)
+set(RTX_SPIRV_PIN_FILES spirv/spirvfile.cpp spirv/spirvfile.hpp spirv/spirvpin.cpp spirv/spirvpin.hpp
+    spirv/spirvdigest.cpp spirv/spirvdigest.hpp)
 openmw_rtx_library(openmw-rtx-spirv ${RTX_SPIRV_PIN_FILES})
 target_include_directories(openmw-rtx-spirv SYSTEM PRIVATE "${OPENMW_SPIRV_HEADERS}")
 target_link_libraries(openmw-rtx-spirv PRIVATE smhasher)
-add_executable(openmw-rtx-spirv-pin spirvpintool.cpp)
+add_executable(openmw-rtx-spirv-pin spirv/spirvpintool.cpp)
 openmw_rtx_target(openmw-rtx-spirv-pin)
 target_link_libraries(openmw-rtx-spirv-pin PRIVATE openmw-rtx-spirv)
 set_target_properties(openmw-rtx-spirv-pin PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
-add_executable(openmw-rtx-spirv-digest spirvdigesttool.cpp)
+add_executable(openmw-rtx-spirv-digest spirv/spirvdigesttool.cpp)
 openmw_rtx_target(openmw-rtx-spirv-digest)
 target_link_libraries(openmw-rtx-spirv-digest PRIVATE openmw-rtx-spirv)
 set_target_properties(openmw-rtx-spirv-digest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
 set(RTX_SHADERS
-    shaders/accumulate.comp
-    shaders/atrous.comp
-    shaders/bloomdown.comp
-    shaders/bloomup.comp
-    shaders/composite.comp
-    shaders/digest.comp
-    shaders/exposure.comp
-    shaders/fogdepth.rgen
-    shaders/fogintegrate.comp
-    shaders/fogscatter.rgen
-    shaders/groundcomposite.comp
-    shaders/gui.frag
-    shaders/gui.vert
-    shaders/histogram.comp
-    shaders/line.frag
-    shaders/line.vert
-    shaders/mipchain.comp
-    shaders/morph.comp
-    shaders/normalspread.comp
-    shaders/ripplecompose.comp
-    shaders/ripplestep.comp
-    shaders/shadingmap.comp
-    shaders/shadingsum.comp
-    shaders/skin.comp
-    shaders/spritecomposite.rgen
-    shaders/spriteemitters.rgen
-    shaders/spritelight.comp
-    shaders/spriterects.comp
-    shaders/spriteruns.comp
-    shaders/spriteshade.comp
-    shaders/spriteshelter.rgen
-    shaders/spritestarts.comp
-    shaders/stress.comp
-    shaders/sunglare.comp
-    shaders/tone.comp
-    shaders/visibility.rahit
-    shaders/visibility.rgen
-    shaders/visibility.rmiss
-    shaders/visibilityhit.rchit
-    shaders/wavecompose.comp
-    shaders/waveform.comp
-    shaders/waveline.comp
+    shaders/display/bloomdown.comp
+    shaders/display/bloomup.comp
+    shaders/display/digest.comp
+    shaders/display/exposure.comp
+    shaders/display/histogram.comp
+    shaders/display/line.frag
+    shaders/display/line.vert
+    shaders/display/tone.comp
+    shaders/gui/gui.frag
+    shaders/gui/gui.vert
+    shaders/scene/morph.comp
+    shaders/scene/skin.comp
+    shaders/scene/spriterects.comp
+    shaders/scene/spriteruns.comp
+    shaders/scene/spriteshade.comp
+    shaders/scene/spritestarts.comp
+    shaders/texture/groundcomposite.comp
+    shaders/texture/mipchain.comp
+    shaders/texture/normalspread.comp
+    shaders/texture/shadingmap.comp
+    shaders/texture/shadingsum.comp
+    shaders/texture/spritelight.comp
+    shaders/trace/denoise/accumulate.comp
+    shaders/trace/denoise/atrous.comp
+    shaders/trace/denoise/composite.comp
+    shaders/trace/fogdepth.rgen
+    shaders/trace/fogintegrate.comp
+    shaders/trace/fogscatter.rgen
+    shaders/trace/ripplecompose.comp
+    shaders/trace/ripplestep.comp
+    shaders/trace/spritecomposite.rgen
+    shaders/trace/spriteemitters.rgen
+    shaders/trace/spriteshelter.rgen
+    shaders/trace/stress.comp
+    shaders/trace/sunglare.comp
+    shaders/trace/visibility.rahit
+    shaders/trace/visibility.rgen
+    shaders/trace/visibility.rmiss
+    shaders/trace/visibilityhit.rchit
+    shaders/trace/wavecompose.comp
+    shaders/trace/waveform.comp
+    shaders/trace/waveline.comp
 )
 
 # The device-behaviour probes, compiled only where something is going to run them. Nothing the
 # renderer draws reaches these: they state an assumption about the hardware so that it can fail as a
 # test rather than as a rendering mystery.
-set(RTX_SHADER_PROBES shaders/pinning.comp shaders/probe.comp shaders/traceprobe.rgen shaders/traceprobe.rmiss)
+set(RTX_SHADER_PROBES shaders/probes/pinning.comp shaders/probes/probe.comp shaders/probes/traceprobe.rgen
+    shaders/probes/traceprobe.rmiss)
 if (BUILD_COMPONENTS_TESTS)
     list(APPEND RTX_SHADERS ${RTX_SHADER_PROBES})
 endif()
@@ -117,6 +120,10 @@ endif()
 # whose arithmetic cannot be pinned, must fail the build, never the frame. -MD gives ninja the include graph so editing a shared header rebuilds every
 # shader that includes it.
 set(RTX_SHADER_OUTPUTS)
+
+# The shaders' own root as well as the shared structures', so `lib/` is spelled the same from
+# every folder a shader sits in.
+set(RTX_SHADER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 
 # -g always, into the source set: source correlation in Nsight is what makes a shader debuggable.
 # The set every renderer reads is the same module with the source stripped, for the reason
@@ -135,7 +142,7 @@ foreach (shader ${RTX_SHADERS})
         OUTPUT "${sourced}" "${spv}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${RTX_SPIRV_DIR}" "${RTX_SPIRV_SOURCE_DIR}"
         COMMAND "${OPENMW_GLSLC}" ${RTX_GLSLC_FLAGS} --target-env=vulkan1.4 -I "${RTX_SHADER_INCLUDE}"
-                -MD -MF "${depfile}" -o "${sourced}" "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
+                -I "${RTX_SHADER_ROOT}" -MD -MF "${depfile}" -o "${sourced}" "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
         COMMAND openmw-rtx-spirv-pin "${sourced}"
         # --scalar-block-layout because the shared C++/GLSL headers rely on the feature the
         # device enables; without the flag the validator applies std430 straddling rules.
@@ -209,175 +216,176 @@ add_custom_target(openmw-rtx-vulkan-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS}
                   SOURCES ${RTX_SHADERS} ${RTX_SHADER_LIB})
 
 set(RTX_VULKAN_FILES
-    accelerationstructure.cpp
-    accelerationstructure.hpp
-    accumulatehistory.cpp
-    accumulatehistory.hpp
-    accumulatepass.cpp
-    accumulatepass.hpp
-    atrouspass.cpp
-    atrouspass.hpp
-    barriers.cpp
-    barriers.hpp
-    blockedbuffer.cpp
-    blockedbuffer.hpp
-    blocklist.hpp
-    bloompass.cpp
-    bloompass.hpp
-    bottomlevelstore.cpp
-    bottomlevelstore.hpp
-    buffer.cpp
-    buffer.hpp
-    bufferusage.hpp
-    commands.cpp
-    commands.hpp
-    compositepass.cpp
-    compositepass.hpp
-    computepipeline.cpp
-    computepipeline.hpp
     createrenderer.cpp
     createrenderer.hpp
-    descriptorsets.cpp
-    descriptorsets.hpp
-    device.cpp
-    device.hpp
-    devicescene.cpp
-    devicescene.hpp
-    digestpass.cpp
-    digestpass.hpp
-    dispatch.hpp
-    displaychain.cpp
-    displaychain.hpp
-    exposurepass.cpp
-    exposurepass.hpp
-    fogvolume.cpp
-    fogvolume.hpp
-    formats.cpp
-    formats.hpp
+    device/commands.cpp
+    device/commands.hpp
+    device/device.cpp
+    device/device.hpp
+    device/gputimer.cpp
+    device/gputimer.hpp
+    device/graveyard.cpp
+    device/graveyard.hpp
+    device/handles.cpp
+    device/handles.hpp
+    device/instance.cpp
+    device/instance.hpp
+    device/memory/accelerationstructure.cpp
+    device/memory/accelerationstructure.hpp
+    device/memory/barriers.cpp
+    device/memory/barriers.hpp
+    device/memory/blockedbuffer.cpp
+    device/memory/blockedbuffer.hpp
+    device/memory/blocklist.hpp
+    device/memory/buffer.cpp
+    device/memory/buffer.hpp
+    device/memory/bufferusage.hpp
+    device/memory/descriptorsets.cpp
+    device/memory/descriptorsets.hpp
+    device/memory/formats.cpp
+    device/memory/formats.hpp
+    device/memory/frameslots.hpp
+    device/memory/growablebuffer.cpp
+    device/memory/growablebuffer.hpp
+    device/memory/image.cpp
+    device/memory/image.hpp
+    device/memory/imageuse.hpp
+    device/memory/memory.cpp
+    device/memory/memory.hpp
+    device/memory/slottable.hpp
+    device/memory/structurestorage.cpp
+    device/memory/structurestorage.hpp
+    device/owned.hpp
+    device/physicaldevice.cpp
+    device/physicaldevice.hpp
+    device/pipelinecache.cpp
+    device/pipelinecache.hpp
+    device/readstamp.hpp
+    device/requirements.cpp
+    device/requirements.hpp
+    device/result.cpp
+    device/result.hpp
+    device/retiring.hpp
+    device/timeline.cpp
+    device/timeline.hpp
+    device/upscalerextensions.hpp
+    device/validation.cpp
+    device/validation.hpp
+    display/bloompass.cpp
+    display/bloompass.hpp
+    display/digestpass.cpp
+    display/digestpass.hpp
+    display/displaychain.cpp
+    display/displaychain.hpp
+    display/exposurepass.cpp
+    display/exposurepass.hpp
+    display/linepass.cpp
+    display/linepass.hpp
+    display/tonepass.cpp
+    display/tonepass.hpp
     framering.cpp
     framering.hpp
-    frameslots.hpp
-    gbuffer.cpp
-    gbuffer.hpp
-    gputimer.cpp
-    gputimer.hpp
-    graphicspipeline.cpp
-    graphicspipeline.hpp
-    graveyard.cpp
-    graveyard.hpp
-    growablebuffer.cpp
-    growablebuffer.hpp
-    groundcompositepass.cpp
-    groundcompositepass.hpp
-    guipass.cpp
-    guipass.hpp
-    guidrawer.cpp
-    guidrawer.hpp
-    guitextures.cpp
-    guitextures.hpp
-    handles.cpp
-    handles.hpp
-    image.cpp
-    image.hpp
-    imageuse.hpp
-    instance.cpp
-    instance.hpp
-    latencypacer.cpp
-    latencypacer.hpp
-    linepass.cpp
-    linepass.hpp
-    mipchainpass.cpp
-    mipchainpass.hpp
-    memory.cpp
-    memory.hpp
-    normalspreadpass.cpp
-    normalspreadpass.hpp
-    owned.hpp
-    pacedmodes.cpp
-    pacedmodes.hpp
-    physicaldevice.cpp
-    physicaldevice.hpp
+    gui/guidrawer.cpp
+    gui/guidrawer.hpp
+    gui/guipass.cpp
+    gui/guipass.hpp
+    gui/guitextures.cpp
+    gui/guitextures.hpp
     picturetracer.cpp
     picturetracer.hpp
-    pipeline.hpp
-    pipelinecache.cpp
-    pipelinecache.hpp
-    placing.hpp
-    presenter.cpp
-    presenter.hpp
-    presenttargets.cpp
-    presenttargets.hpp
-    readstamp.hpp
-    requirements.cpp
-    requirements.hpp
-    result.cpp
-    result.hpp
-    retiring.hpp
-    ripplepass.cpp
-    ripplepass.hpp
-    sceneacceleration.cpp
-    sceneacceleration.hpp
-    scenebuffers.cpp
-    scenebuffers.hpp
-    scenepasses.hpp
-    sceneslots.cpp
-    sceneslots.hpp
-    shadingpass.cpp
-    shadingpass.hpp
-    skinpass.cpp
-    skinpass.hpp
-    skintables.cpp
-    skintables.hpp
-    slottable.hpp
-    spritebin.cpp
-    spritebin.hpp
-    spritelightpass.cpp
-    spritelightpass.hpp
-    spritepasses.cpp
-    spritepasses.hpp
-    stresspass.cpp
-    stresspass.hpp
-    structurebuild.cpp
-    structurebuild.hpp
-    structurestorage.cpp
-    structurestorage.hpp
-    sunglarepass.cpp
-    sunglarepass.hpp
-    swapchain.cpp
-    swapchain.hpp
-    texture.cpp
-    texture.hpp
-    texturepasses.hpp
-    timeline.cpp
-    timeline.hpp
-    tonepass.cpp
-    tonepass.hpp
-    tracechain.cpp
-    tracechain.hpp
-    tracemedia.cpp
-    tracemedia.hpp
-    tracepasses.cpp
-    tracepasses.hpp
-    tracepipeline.cpp
-    tracepipeline.hpp
-    tracerecording.hpp
-    upscaler.hpp
-    validation.cpp
-    validation.hpp
-    visibilitypass.cpp
-    visibilitypass.hpp
+    pipeline/computepipeline.cpp
+    pipeline/computepipeline.hpp
+    pipeline/dispatch.hpp
+    pipeline/graphicspipeline.cpp
+    pipeline/graphicspipeline.hpp
+    pipeline/pipeline.hpp
+    pipeline/tracepipeline.cpp
+    pipeline/tracepipeline.hpp
+    present/latencypacer.cpp
+    present/latencypacer.hpp
+    present/pacedmodes.cpp
+    present/pacedmodes.hpp
+    present/presenter.cpp
+    present/presenter.hpp
+    present/presenttargets.cpp
+    present/presenttargets.hpp
+    present/swapchain.cpp
+    present/swapchain.hpp
+    scene/bottomlevelstore.cpp
+    scene/bottomlevelstore.hpp
+    scene/devicescene.cpp
+    scene/devicescene.hpp
+    scene/placing.hpp
+    scene/sceneacceleration.cpp
+    scene/sceneacceleration.hpp
+    scene/scenebuffers.cpp
+    scene/scenebuffers.hpp
+    scene/scenepasses.hpp
+    scene/sceneslots.cpp
+    scene/sceneslots.hpp
+    scene/skinpass.cpp
+    scene/skinpass.hpp
+    scene/skintables.cpp
+    scene/skintables.hpp
+    scene/spritebin.cpp
+    scene/spritebin.hpp
+    scene/spritepasses.cpp
+    scene/spritepasses.hpp
+    scene/structurebuild.cpp
+    scene/structurebuild.hpp
+    texture/groundcompositepass.cpp
+    texture/groundcompositepass.hpp
+    texture/mipchainpass.cpp
+    texture/mipchainpass.hpp
+    texture/normalspreadpass.cpp
+    texture/normalspreadpass.hpp
+    texture/shadingpass.cpp
+    texture/shadingpass.hpp
+    texture/spritelightpass.cpp
+    texture/spritelightpass.hpp
+    texture/texture.cpp
+    texture/texture.hpp
+    texture/texturepasses.hpp
+    trace/denoise/accumulatehistory.cpp
+    trace/denoise/accumulatehistory.hpp
+    trace/denoise/accumulatepass.cpp
+    trace/denoise/accumulatepass.hpp
+    trace/denoise/atrouspass.cpp
+    trace/denoise/atrouspass.hpp
+    trace/denoise/compositepass.cpp
+    trace/denoise/compositepass.hpp
+    trace/fogvolume.cpp
+    trace/fogvolume.hpp
+    trace/gbuffer.cpp
+    trace/gbuffer.hpp
+    trace/ripplepass.cpp
+    trace/ripplepass.hpp
+    trace/stresspass.cpp
+    trace/stresspass.hpp
+    trace/sunglarepass.cpp
+    trace/sunglarepass.hpp
+    trace/tracechain.cpp
+    trace/tracechain.hpp
+    trace/tracemedia.cpp
+    trace/tracemedia.hpp
+    trace/tracepasses.cpp
+    trace/tracepasses.hpp
+    trace/tracerecording.hpp
+    trace/visibilitypass.cpp
+    trace/visibilitypass.hpp
+    trace/wavepass.cpp
+    trace/wavepass.hpp
+    upscale/upscaler.hpp
     vulkanrenderer.cpp
     vulkanrenderer.hpp
-    wavepass.cpp
-    wavepass.hpp
 )
 
 # Only where the SDK is there to compile against: these are nothing but NGX, so a build without
-# DLSS leaves them out rather than hollowing them with a guard. `upscaler.hpp` is the one seam the
-# renderer reaches them through, and the build picks which of its two definitions links.
-set(RTX_VULKAN_DLSS_FILES dlss.cpp dlss.hpp dlsspass.cpp dlsspass.hpp dlssupscaler.cpp dlssupscaler.hpp ngx.hpp
-    ngxdispatch.cpp ngxdispatch.hpp)
-set(RTX_VULKAN_NO_DLSS_FILES noupscaler.cpp)
+# DLSS leaves them out rather than hollowing them with a guard. `upscale/upscaler.hpp` is the one
+# seam the renderer reaches them through, and the build picks which of its two definitions links.
+set(RTX_VULKAN_DLSS_FILES upscale/dlss.cpp upscale/dlss.hpp upscale/dlsspass.cpp upscale/dlsspass.hpp
+    upscale/dlssupscaler.cpp upscale/dlssupscaler.hpp upscale/ngx.hpp upscale/ngxdispatch.cpp upscale/ngxdispatch.hpp)
+set(RTX_VULKAN_NO_DLSS_FILES upscale/noupscaler.cpp)
 if (OPENMW_RTX_DLSS)
     list(APPEND RTX_VULKAN_FILES ${RTX_VULKAN_DLSS_FILES})
 else()
@@ -387,7 +395,7 @@ endif()
 openmw_rtx_library(openmw-rtx-vulkan ${RTX_VULKAN_FILES})
 openmw_rtx_expect_listed("${CMAKE_CURRENT_SOURCE_DIR}" MATCHING *.cpp *.hpp shaders/*
     LISTED ${RTX_VULKAN_FILES} ${RTX_VULKAN_DLSS_FILES} ${RTX_VULKAN_NO_DLSS_FILES} ${RTX_SPIRV_PIN_FILES}
-           spirvpintool.cpp spirvdigesttool.cpp ${RTX_SHADERS} ${RTX_SHADER_PROBES} ${RTX_SHADER_LIB})
+           spirv/spirvpintool.cpp spirv/spirvdigesttool.cpp ${RTX_SHADERS} ${RTX_SHADER_PROBES} ${RTX_SHADER_LIB})
 
 # Vulkan is private: a host reaches the backend through `createrenderer.hpp`, which names no
 # Vulkan type, so nothing a host compiles needs the headers.
@@ -397,9 +405,9 @@ target_link_libraries(openmw-rtx-vulkan PUBLIC openmw-rtx PRIVATE openmw-rtx-spi
 
 add_dependencies(openmw-rtx-vulkan openmw-rtx-vulkan-shaders)
 
-# Vulkan Memory Allocator, the sub-allocator behind `memory.hpp`: one header, reached by
-# `memory.cpp` and nothing else. The system's where a package is installed, which the declaration
-# asks `find_package` for first, and the pinned release fetched into the build tree otherwise, the
+# Vulkan Memory Allocator, the sub-allocator behind `device/memory/memory.hpp`: one header, reached
+# by `device/memory/memory.cpp` and nothing else. The system's where a package is installed, which
+# the declaration asks `find_package` for first, and the pinned release fetched into the build tree otherwise, the
 # way `extern/` takes Bullet and MyGUI when the system has none. `SYSTEM`, because the library's
 # warnings are not this tree's to fix; a package found is an imported target and system already.
 include(FetchContent)
@@ -420,8 +428,8 @@ target_compile_definitions(openmw-rtx-vulkan PUBLIC OPENMW_RTX_DEBUG_NAMES=$<IF:
 
 if (OPENMW_RTX_DLSS)
     # The static half is the target; the shared half is the feature library it loads at runtime,
-    # from the directory of the running executable (`dlss.cpp` says why that one), so a copy sits
-    # beside every binary of the build and goes with the binaries an install ships. The SDK's own
+    # from the directory of the running executable (`upscale/dlss.cpp` says why that one), so a copy
+    # sits beside every binary of the build and goes with the binaries an install ships. The SDK's own
     # name is kept, version and all: it is what NGX asks the directory for.
     target_link_libraries(openmw-rtx-vulkan PRIVATE NGX::NGX)
     get_filename_component(_ngx_feature_name "${NGX_FEATURE_LIBRARY}" NAME)

@@ -5,7 +5,7 @@
 #include <osg/Matrixf>
 #include <osg/NodeVisitor>
 
-#include <components/rtx/debuglines.hpp>
+#include <components/rtx/scene/debuglines.hpp>
 
 namespace osg
 {

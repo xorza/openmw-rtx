@@ -17,10 +17,10 @@
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/rtx/contract.hpp>
-#include <components/rtx/framespend.hpp>
-#include <components/rtx/skylight.hpp>
-#include <components/rtx/texels.hpp>
+#include <components/rtx/common/contract.hpp>
+#include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/png.hpp>
 
 #include "film.hpp"
 #include "instruments/framehashes.hpp"

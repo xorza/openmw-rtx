@@ -7,8 +7,8 @@
 #include <cstddef>
 #include <string_view>
 
-#include <components/rtx/namedenum.hpp>
-#include <components/rtx/reconstruction.hpp>
+#include <components/rtx/common/namedenum.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 
 namespace RtxTool
 {

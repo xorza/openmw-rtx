@@ -10,8 +10,8 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtxvulkan/barriers.hpp>
-#include <components/rtxvulkan/imageuse.hpp>
+#include <components/rtxvulkan/device/memory/barriers.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
 
 namespace Rtx::Testing
 {

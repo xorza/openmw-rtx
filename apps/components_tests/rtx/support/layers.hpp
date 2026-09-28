@@ -4,8 +4,8 @@
 
 #include <osg/Vec4f>
 
-#include <components/rtx/material.hpp>
-#include <components/rtx/runs.hpp>
+#include <components/rtx/common/runs.hpp>
+#include <components/rtx/scene/material.hpp>
 
 namespace Rtx::Testing
 {

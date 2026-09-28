@@ -14,10 +14,10 @@
 #include <components/fallback/fallback.hpp>
 #include <components/misc/constants.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/colour.hpp>
-#include <components/rtx/fogbuilder.hpp>
-#include <components/rtx/scenedesc.hpp>
-#include <components/rtx/skylight.hpp>
+#include <components/rtx/environment/fogbuilder.hpp>
+#include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/image/colour.hpp>
+#include <components/rtx/scene/scenedesc.hpp>
 #include <components/settings/values.hpp>
 #include <components/sky/moonstate.hpp>
 #include <components/sky/skyclock.hpp>
