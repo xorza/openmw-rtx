@@ -2,8 +2,6 @@
 - audit #pragmas
 
 - fsr and other denoisers and upscalers
-- physical brightness
-- add symbols to the release ci
-- blue rain
 - folder structure
+- add symbols to the release ci
 - release to run asan ubsan
