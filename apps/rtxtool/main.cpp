@@ -901,6 +901,16 @@ namespace RtxTool
             FilmPacing pacing;
             pacing.mStep = *framed.mSetup.mStep;
             pacing.mSpeed = variables["speed"].as<float>();
+            pacing.mEase = variables["ease"].as<float>();
+            if (variables.count("length") > 0)
+            {
+                if (!variables["speed"].defaulted())
+                    throw std::runtime_error("--length sets the speed, so --speed cannot be named beside it");
+                pacing.mLength = variables["length"].as<float>();
+                if (!(*pacing.mLength > 0.0f) || !std::isfinite(*pacing.mLength))
+                    throw std::runtime_error(
+                        std::format("--length is {}, which is no length of film", *pacing.mLength));
+            }
             pacing.mPanSeconds = variables["pan-seconds"].as<float>();
             pacing.mHourSeconds = variables["hour-seconds"].as<float>();
             pacing.mCrossingSeconds = variables["crossing"].as<float>();
@@ -928,8 +938,10 @@ namespace RtxTool
                      std::pair{ "crossing", pacing.mCrossingSeconds }, std::pair{ "still", pacing.mStillSeconds } })
                 if (!(value > 0.0f))
                     throw std::runtime_error(std::format("--{} is {}, which is not more than nought", name, value));
-            if (!(pacing.mCutDistance >= 0.0f) || !(pacing.mWarmupSeconds >= 0.0f) || !(pacing.mWeatherHold >= 0.0f))
-                throw std::runtime_error("--cut-distance, --warmup and --weather-hold cannot be less than nought");
+            if (!(pacing.mCutDistance >= 0.0f) || !(pacing.mWarmupSeconds >= 0.0f) || !(pacing.mWeatherHold >= 0.0f)
+                || !(pacing.mEase >= 0.0f) || !std::isfinite(pacing.mEase))
+                throw std::runtime_error(
+                    "--cut-distance, --warmup, --weather-hold and --ease cannot be less than nought");
 
             const FilmPlan plan = planFilm(loadKeys(keys), pacing);
             out() << describePlan(plan) << std::flush;

@@ -9,13 +9,17 @@
 
 #include <osg/Vec3f>
 
+#include "camerapath.hpp"
+#include "cruise.hpp"
+
 namespace RtxTool
 {
     /// One place a camera track passes through, at a frame of its take.
     struct TrackKey
     {
-        /// Frames from the take's first. Strictly increasing along a track.
-        std::uint32_t mFrame = 0;
+        /// Frames from the take's first, strictly increasing along a track: a whole number at the
+        /// take's last key, and between two frames wherever a flight at one speed passes a key.
+        double mFrame = 0.0;
 
         osg::Vec3f mEye;
 
@@ -96,24 +100,26 @@ namespace RtxTool
 
     /// A camera's flight through its keys, as a film's take flies it.
     ///
-    /// **A cubic Hermite spline in time, per channel**: x, y and z, the yaw and the pitch, and the
-    /// hour. The tangents are Catmull-Rom's, `(v₊ − v₋) / (f₊ − f₋)`, which is what a camera that
-    /// must pass through every key at a given time takes, and velocity is continuous through each
-    /// key. **Limited by the Fritsch–Carlson conditions**, because a Catmull-Rom tangent carries a
-    /// fast segment's speed into a slow neighbour and overshoots: a flight into a pan on the spot
-    /// leaves the spot and comes back. A tangent is zero where the neighbouring secants change sign
-    /// or one is flat, and a segment's pair is scaled into the circle of radius three. The hour so
-    /// never runs backwards, and a yaw never turns past a key.
+    /// **The eye along `CameraPath`, at `Cruise`'s pace**: each segment at one speed along the
+    /// line, eased from and to a rest, and taking the frames its two keys stand apart. Where the
+    /// planner gave every segment of a flight one speed, the eye crosses the take at it.
     ///
-    /// **The ends of a take and the sides of a hold rest**, so a take eases in and out: two keys
-    /// alone are exactly smoothstep, `3u² − 2u³`.
+    /// **The facing and the hour a cubic Hermite spline in time, per channel.** The tangents are
+    /// Catmull-Rom's, `(v₊ − v₋) / (f₊ − f₋)`, which is what a value that must pass through every
+    /// key at a given time takes, and its rate is continuous through each key. **Limited by the
+    /// Fritsch–Carlson conditions**, because a Catmull-Rom tangent carries a fast segment's rate
+    /// into a slow neighbour and overshoots: a tangent is zero where the neighbouring secants
+    /// change sign or one is flat, and a segment's pair is scaled into the circle of radius three.
+    /// The hour so never runs backwards, and a yaw never turns past a key. The ends of a take and
+    /// the sides of a hold rest, so two keys alone turn by exactly smoothstep, `3u² − 2u³`.
     class CameraTrack
     {
     public:
-        /// `keys` in order of frame, at least one, strictly increasing: a contract, since the
-        /// planner that times a take is what numbers its frames. `sky` is written over what the
-        /// keys say of the sky.
-        explicit CameraTrack(std::span<const TrackKey> keys, SkyRun sky = {});
+        /// `keys` in order of frame, at least one, strictly increasing, the last at a whole frame:
+        /// a contract, since the planner that times a take is what numbers its frames. `path` is
+        /// the line through the same keys, `cruise` the pace along it in frames, and `sky` is
+        /// written over what the keys say of the sky.
+        CameraTrack(std::span<const TrackKey> keys, CameraPath path, Cruise cruise = {}, SkyRun sky = {});
 
         /// How many frames the take has: its last key's, and one.
         std::uint32_t getFrames() const;
@@ -122,12 +128,12 @@ namespace RtxTool
         TrackPose pose(std::uint32_t frame) const;
 
     private:
-        /// x, y, z, yaw, pitch, and the hours since the first key.
-        static constexpr std::size_t sChannels = 6;
+        /// The yaw, the pitch, and the hours since the first key.
+        static constexpr std::size_t sChannels = 3;
 
         struct Knot
         {
-            std::uint32_t mFrame = 0;
+            double mFrame = 0.0;
             std::uint32_t mWeather = 0;
 
             /// The yaw unwrapped against the knot before and the hours counted forward from the
@@ -139,6 +145,8 @@ namespace RtxTool
         };
 
         std::vector<Knot> mKnots;
+        CameraPath mPath;
+        Cruise mCruise;
         SkyRun mSky;
     };
 }
