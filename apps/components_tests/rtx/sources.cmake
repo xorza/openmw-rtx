@@ -150,6 +150,7 @@ set(RTX_GPU_TEST_FILES
     rtx/computepipeline.cpp
     rtx/device.cpp
     rtx/digestpass.cpp
+    rtx/exposurepass.cpp
     rtx/framering.cpp
     rtx/frames.cpp
     rtx/gputimer.cpp

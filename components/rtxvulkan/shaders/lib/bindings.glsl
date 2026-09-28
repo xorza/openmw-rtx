@@ -81,11 +81,11 @@ layout(set = SET_CHANNELS, binding = CHANNEL_ALBEDO, GBUFFER_ALBEDO) uniform wri
 
 /// The specular albedo, which is what an upscaler demodulates the mirrored half of a pixel by.
 ///
-/// **Zero wherever the shading was Lambert, which is every solid surface this renderer has.** That
-/// is a statement about the shading model and not a placeholder: nothing here answers a ray with a
-/// specular lobe except the water, so nothing else has a specular albedo to report. Half floats,
-/// because an albedo is a fraction that is never accumulated — the argument for full floats on the
-/// radiance channels does not reach here.
+/// **Zero wherever the shading was Lambert, which is every vanilla solid.** That is a statement
+/// about the shading model and not a placeholder: a surface with no specular map reflects nothing —
+/// `DIELECTRIC_F0` says why — so only the water and a mapped surface's lobe have a specular albedo
+/// to report. Half floats, because an albedo is a fraction that is never accumulated — the argument
+/// for full floats on the radiance channels does not reach here.
 layout(set = SET_CHANNELS, binding = CHANNEL_SPECULAR, GBUFFER_ALBEDO) uniform writeonly image2D specular;
 
 /// The shading normal in `xyz` and the surface's roughness in `w`.

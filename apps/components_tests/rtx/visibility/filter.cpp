@@ -412,6 +412,9 @@ namespace Rtx::Testing
         /// makes from a fresh reset — value for value, since the frame index is what seeds the
         /// sampler and the camera never moves. The accumulated frame between them is what proves the
         /// comparison can tell a history from none.
+        ///
+        /// **And the reset's own sample is a history of one**, so a filtered frame after it is not a
+        /// fresh reset's picture: the same exact claim, the other way round.
         TEST_F(RtxVisibilityTest, aResetSurvivesAFrameThatHasNoHistoryToReset)
         {
             constexpr std::uint32_t size = 64;
@@ -484,6 +487,18 @@ namespace Rtx::Testing
 
             ASSERT_EQ(carried.size(), single.size());
             EXPECT_EQ(mostTheyDifferBy(carried, single), 0.0f) << "the unfiltered frame spent a reset it could not use";
+
+            // And a filtered frame in its place keeps the sample the reset took. Counted as no
+            // history, it would blend at a weight of one — the next frame alone, which is the fresh
+            // reset's picture to the value.
+            mRenderer.resetHistory();
+            renderOne(measured + 2, true);
+            renderOne(measured, true);
+            const std::vector<float> followed = radiance();
+
+            ASSERT_EQ(followed.size(), single.size());
+            EXPECT_GT(mostTheyDifferBy(followed, single), 0.0f)
+                << "the frame after a reset threw the reset's sample away";
         }
 
         /// What the history is worth where the cascade has nothing to borrow from.

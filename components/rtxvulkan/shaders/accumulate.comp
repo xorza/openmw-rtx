@@ -178,7 +178,12 @@ void main()
     vec2 blendedMoments = vec2(lit, lit * lit);
     // **Not `length`, which is GLSL's own**: a local of that name hides the builtin from everything
     // below it, and the next edit that reaches for one gets a compile error with no explanation in it.
-    float count = 0.0;
+    //
+    // **One with no history, because the mean it stores is this frame's sample.** Nought would read
+    // back as a history of nothing, and the next frame would blend at a weight of one and throw the
+    // sample away: every pixel a surface uncovers, and every pixel of a reset, would keep one sample
+    // for two frames and count one frame short ever after.
+    float count = 1.0;
     float variance = NO_HISTORY_VARIANCE;
 
     if (weight > 0.0)

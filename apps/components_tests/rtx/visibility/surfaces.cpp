@@ -506,6 +506,12 @@ namespace Rtx::Testing
         /// everywhere and changes nothing. A slot described as the stand-in draws the one the array
         /// holds, whatever bytes its description carries, under a map that was cleared and never
         /// estimated: its block's 565 grey, `0x10 << 3 | 0x10 >> 2`, is 132 of 255.
+        ///
+        /// **And no reflectance past one, with the colour kept.** Over the first three quarters a
+        /// texel of `(0.3325, 0.3325, 1)`, luminance 0.3807, and white over the last: the mean is
+        /// 0.5355, so the cells under the frame, beyond the blur's three either side of a boundary,
+        /// estimate to 0.7109 and divide to `(0.468, 0.468, 1.407)` — a red of 182. Brought down
+        /// whole it is the texel again, and its red is 156.
         TEST_F(RtxVisibilityTest, aTexturesPaintedLightIsDividedBackOutOfItsAlbedo)
         {
             constexpr std::uint32_t size = 32;
@@ -514,6 +520,11 @@ namespace Rtx::Testing
             const Testing::TestTexture oneTone = Testing::paintTwoTones(0, 128);
             Testing::TestTexture standIn = Testing::paintTwoTones(32, 96);
             standIn.mData.mSource = TextureSource::StandIn;
+
+            // The two tones' bytes, the dark one in red and green alone.
+            Testing::TestTexture tinted = Testing::paintTwoTones(96, 128);
+            for (std::size_t texel = 0; texel < tinted.mBytes.size(); texel += 4)
+                tinted.mBytes[texel + 2] = 255;
 
             SceneDesc scene;
             const Index mesh
@@ -535,6 +546,7 @@ namespace Rtx::Testing
             EXPECT_NEAR(shownAt(1.0f, twoTones.mData), 213, 1) << "a texture painted half again as bright comes back";
             EXPECT_NEAR(shownAt(1.0f, oneTone.mData), 255, 1) << "and a neutral map changes nothing";
             EXPECT_NEAR(shownAt(1.0f, standIn.mData), 132, 1) << "a stand-in draws the array's one grey, unestimated";
+            EXPECT_NEAR(shownAt(1.0f, tinted.mData), 156, 1) << "a colour divided past one is brought down whole";
 
             // The strength is what makes this answerable rather than believable: the same map at no
             // strength has to leave the texture exactly as it was drawn.

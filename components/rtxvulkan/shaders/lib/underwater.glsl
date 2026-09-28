@@ -166,9 +166,11 @@ struct WaterColumn
 /// @param footprint how wide the ray's cone is, which is the band limit the caustics are read at.
 ///        The cone at the far end rather than one per step: the depth's own blur is the larger of
 ///        the two everywhere a shaft is visible.
-/// @param offset where in its first step the march starts, in `[0, 1)`. Without it the samples land
-///        on the same shells every frame and the pattern reads as a set of rings.
-WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, float offset)
+/// @param pixel which pixel the stretch is seen at, which the march draws from: where in its first
+///        step it starts — without that the samples land on the same shells every frame and the
+///        pattern reads as a set of rings — and where in the sun's disc its shadow rays aim. One
+///        pixel's legs draw alike, since they leave one point.
+WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, uvec2 pixel)
 {
     const vec3 transmittance = waterTransmittance(path);
     const vec3 sky = WATER_SCATTER * ((1.0 - transmittance * transmittance) * 0.5) * frame.mAmbient
@@ -216,6 +218,10 @@ WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, 
     vec3 plain = vec3(0.0);
     float behind = 0.0;
 
+    const float offset = randomAt(pixel, STREAM_WATER);
+    uint aim = randomSeed(pixelKey(pixel) + SEED_WATER_SHAFT);
+    const vec2 aimed = vec2(randomNext(aim), randomNext(aim));
+
     for (uint step = 1u; step <= WATER_SHAFT_STEPS; ++step)
     {
         const float ahead = path * float(step) / float(WATER_SHAFT_STEPS);
@@ -233,9 +239,9 @@ WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, 
 
         // **Outside the fade, because a shadow is not fine detail.** `show` brings the *pattern* in
         // across the gate, and a rock's edge has to be there whether or not the filaments are. The
-        // draw is the march's own offset carried along the R2 steps, so each step aims its own way
-        // inside the disc without a second draw a step.
-        const vec2 draw = fract(vec2(offset) + float(step) * R2_STEPS);
+        // draw is one pair carried along the R2 steps, so each step aims its own way inside the
+        // disc without a second draw a step — `SEED_WATER_SHAFT` says why not the offset's.
+        const vec2 draw = fract(aimed + float(step) * R2_STEPS);
         const float visible = skyVisible(vec3(met, frame.mWaterLevel), SKY_SOURCE_SUN, draw);
 
         lit += weight * mix(1.0, caustic(met, under, footprint), show) * visible;
