@@ -34,6 +34,9 @@ them.
 - Async compute (a second queue, the next trace beside this frame's reconstruction) was tried and
   declined: the overlap gained 0.1–0.2 ms. The branch `async` has the record. Do not propose it
   again.
+- Shader Execution Reordering (`VK_EXT_ray_tracing_invocation_reorder`) was tried and declined:
+  sorting cost 17–23% of the trace, and the extension shuts out Mesa's drivers. Do not propose it
+  again.
 - Keep the diff against upstream minimal, but never at the cost of reuse or of the abstraction's
   quality. The `[RTX]` settings pages and their translations are a fine price, and so is
   `components/crashcatcher`: upstream's crash catcher is replaced whole by the fork's own, a
