@@ -9,7 +9,7 @@
 
 #include <nvsdk_ngx_defs.h>
 #include <nvsdk_ngx_defs_dlssd.h>
-#include <nvsdk_ngx_helpers_dlssd.h>
+#include <nvsdk_ngx_params.h>
 #include <nvsdk_ngx_vk.h>
 
 #include <components/crashcatcher/crashnote.hpp>
@@ -180,25 +180,32 @@ namespace Rtx
 
     VkExtent2D Dlss::getRenderSize(VkExtent2D output, Upscale upscale) const
     {
-        // Dynamic resolution is not something this renderer does — the trace's targets are made
-        // once per size — so the range the query also fills in is read and discarded.
-        unsigned int width = 0;
-        unsigned int height = 0;
-        unsigned int mostWide = 0;
-        unsigned int mostTall = 0;
-        unsigned int leastWide = 0;
-        unsigned int leastTall = 0;
-        float sharpness = 0.0f;
+        // **Asked of the capability map by hand, the way NVIDIA's Streamline asks it**, and not
+        // through `NGX_DLSSD_GET_OPTIMAL_SETTINGS`: from NGX 310.9.1 that helper is only in the
+        // D3D and CUDA headers, whose Vulkan counterpart has none, and the header that held it for
+        // every API is deprecated. The query is a function pointer inside the map, not an exported
+        // symbol — the feature library puts it there — so it is absent exactly when that library
+        // was not found. `RTXValue`, which the helper also sets, is read only by feature libraries
+        // older than the one this build ships beside itself. The range a dynamic resolution would
+        // move within is left unread, because the trace's targets are made once per size.
+        void* query = nullptr;
+        NVSDK_NGX_Parameter_GetVoidPointer(mCapabilities, NVSDK_NGX_Parameter_DLSSDOptimalSettingsCallback, &query);
+        if (query == nullptr)
+            throw Unsupported("DLSS would not say what to render at: its feature library offers no query");
 
-        // The query is a function pointer inside the capability map, not an exported symbol —
-        // the driver's feature library puts it there. So it is absent exactly when that library was
-        // not found, and the helper answers `FAIL_OutOfDate` rather than anything about paths.
-        const NVSDK_NGX_Result asked = NGX_DLSSD_GET_OPTIMAL_SETTINGS(mCapabilities, output.width, output.height,
-            ngxQualityOf(upscale), &width, &height, &mostWide, &mostTall, &leastWide, &leastTall, &sharpness);
+        NVSDK_NGX_Parameter_SetUI(mCapabilities, NVSDK_NGX_Parameter_Width, output.width);
+        NVSDK_NGX_Parameter_SetUI(mCapabilities, NVSDK_NGX_Parameter_Height, output.height);
+        NVSDK_NGX_Parameter_SetI(mCapabilities, NVSDK_NGX_Parameter_PerfQualityValue, ngxQualityOf(upscale));
 
+        const NVSDK_NGX_Result asked
+            = reinterpret_cast<PFN_NVSDK_NGX_DLSS_GetOptimalSettingsCallback>(query)(mCapabilities);
         if (NVSDK_NGX_FAILED(asked))
             throw Unsupported("DLSS would not say what to render at: " + describeNgxResult(asked));
 
+        unsigned int width = 0;
+        unsigned int height = 0;
+        NVSDK_NGX_Parameter_GetUI(mCapabilities, NVSDK_NGX_Parameter_OutWidth, &width);
+        NVSDK_NGX_Parameter_GetUI(mCapabilities, NVSDK_NGX_Parameter_OutHeight, &height);
         if (width == 0 || height == 0)
             throw Unsupported("DLSS answered with an empty render size");
 
