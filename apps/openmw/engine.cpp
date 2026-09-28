@@ -517,6 +517,8 @@ void OMW::Engine::prepareEngine()
     mWindowManager = std::make_unique<MWGui::WindowManager>(*mRenderer, mResourceSystem.get(), mWorkQueue.get(),
         mCfgMgr.getLogPath(), mScriptConsoleMode, mTranslationDataStorage, mEncoding, mExportFonts,
         Version::getOpenmwVersionDescription(), mCfgMgr);
+    if (mHost != nullptr)
+        mWindowManager->setScriptMessageBoxesShown(mHost->answersScriptMessageBoxes());
     mEnvironment.setWindowManager(*mWindowManager);
 
     mInputManager = std::make_unique<MWInput::InputManager>(

@@ -70,6 +70,11 @@ namespace RtxTool
         /// at a time scale of thirty, and the driver only ever runs the clock forward.
         bool holdsGameClock() const override;
 
+        /// Only where somebody plays the session (`SessionRequest::mPlayed`): a run nobody plays
+        /// has nobody to answer, and a film flown past Seyda Neen's census office stood paused
+        /// behind Morrowind's own `CharGenJournalMessage` for the rest of its take.
+        bool answersScriptMessageBoxes() const override { return mRequest.mPlayed; }
+
         /// Measures the frame, and asks the game to quit once the last stop is done.
         void frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report) override;
 

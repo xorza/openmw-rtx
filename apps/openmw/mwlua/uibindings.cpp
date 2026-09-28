@@ -105,7 +105,7 @@ namespace MWLua
               };
 
         api["_showInteractiveMessage"] = [windowManager](std::string_view message, sol::optional<sol::table>) {
-            windowManager->interactiveMessageBox(message, { "#{Interface:OK}" });
+            windowManager->scriptMessageBox(message, { "#{Interface:OK}" });
         };
         api["CONSOLE_COLOR"] = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string, Misc::Color>(lua,
             {

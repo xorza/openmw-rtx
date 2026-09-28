@@ -136,6 +136,12 @@ namespace OMW
         /// which everything paced in game time reads as well — an AI package's hours, the sky's own
         /// clock — and which a world whose hour is posed keeps running as the played game does.
         virtual bool holdsGameClock() const { return false; }
+
+        /// Whether somebody is at the keys to answer a content script's message box. Where nobody
+        /// is, a box would pause the world until a click that never comes, so none is shown
+        /// (`MWBase::WindowManager::scriptMessageBox`); the engine's own boxes still are. Asked once,
+        /// as the window manager is made.
+        virtual bool answersScriptMessageBoxes() const { return true; }
     };
 
     /// \brief Main engine class, that brings together all the components of OpenMW

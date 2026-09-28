@@ -789,6 +789,18 @@ namespace MWGui
         }
     }
 
+    void WindowManager::scriptMessageBox(std::string_view message, const std::vector<std::string>& buttons)
+    {
+        if (mScriptMessageBoxesShown)
+        {
+            interactiveMessageBox(message, buttons);
+            return;
+        }
+
+        Log(Debug::Info) << "A script's message box, not shown because nobody is there to answer it: \"" << message
+                         << '"';
+    }
+
     void WindowManager::messageBox(std::string_view message, enum MWGui::ShowInDialogueMode showInDialogueMode)
     {
         if (getMode() == GM_Dialogue && showInDialogueMode != MWGui::ShowInDialogueMode_Never)
