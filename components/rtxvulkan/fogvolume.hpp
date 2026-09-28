@@ -19,7 +19,7 @@ namespace Rtx
     class FogTile
     {
     public:
-        /// `pool` submits the one upload and waits for it. Not on the frame path.
+        /// Submits the one upload and waits for it. Not on the frame path.
         explicit FogTile(const Device& device);
 
         /// The shape a coverage band is cut out of, and a second field decorrelated from it.
@@ -45,7 +45,7 @@ namespace Rtx
     class FogVolume
     {
     public:
-        /// `pool` is used once, to lay every image out and empty it, because nothing times a
+        /// Lays every image out and empties it in one submit it waits for, because nothing times a
         /// not-a-number is still one. `width` and `height` are the camera's, in pixels.
         FogVolume(const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height);
 

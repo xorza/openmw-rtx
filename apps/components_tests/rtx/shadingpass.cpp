@@ -13,14 +13,13 @@
 #include <components/rtx/texturedata.hpp>
 #include <components/rtxvulkan/commands.hpp>
 #include <components/rtxvulkan/device.hpp>
-#include <components/rtxvulkan/handles.hpp>
 #include <components/rtxvulkan/image.hpp>
 #include <components/rtxvulkan/memory.hpp>
 #include <components/rtxvulkan/shadingpass.hpp>
 #include <components/rtxvulkan/texture.hpp>
+#include <components/rtxvulkan/texturepasses.hpp>
 
 #include "support/device/harness.hpp"
-#include "support/device/texturepasses.hpp"
 #include "support/testtexture.hpp"
 
 namespace Rtx
@@ -36,8 +35,7 @@ namespace Rtx
             std::vector<std::uint16_t> mapOf(const TextureData& data, std::string_view name, std::uint32_t first = 0)
             {
                 Device& device = getDevice();
-                const Testing::TexturePassSet passes(device);
-                const Sampler sampler = makeContentSampler(device, "shading test");
+                const TexturePasses passes(device, Testing::getShaderDirectory());
 
                 const Image map(device, Shaders::SHADING_EXTENT, Shaders::SHADING_EXTENT, VK_FORMAT_R16_UNORM,
                     VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
@@ -45,10 +43,10 @@ namespace Rtx
 
                 Batch upload(getPool());
                 std::vector<VkBufferImageCopy> regions;
-                const Texture source = std::move(Texture::fromFile(
-                    device, upload, passes.mPasses, sampler.get(), data, first, name, regions, MemoryUse::Essential)
-                                                     .value());
-                passes.mShading.record(upload.getCommands(), source.getImage(), sampler.get(), map, data);
+                const Texture source = std::move(
+                    Texture::fromFile(device, upload, passes, data, first, name, regions, MemoryUse::Essential)
+                        .value());
+                passes.mShading.record(upload.getCommands(), source.getImage(), map, isBc1(data.mFormat));
                 upload.flush();
 
                 std::vector<std::uint8_t> bytes;

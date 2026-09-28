@@ -9,8 +9,8 @@ namespace Sky
         /// **The order is the game's own and two things depend on it agreeing.** It is the order the
         /// eight `tx_masser_*` faces are listed in, and — because the steps are even — it is an
         /// angle: a phase is `index * 45 degrees` round the cycle, zero at full and 180 at new, so
-        /// the lit share of the disc is `(1 + cos) / 2` and the sign of the sine says which limb
-        /// keeps it.
+        /// the lit share of the disc is `(1 + cos) / 2`. Waxing and waning mirror each other, and
+        /// the limb that keeps the light is the one toward the sun.
         enum class Phase
         {
             Full,

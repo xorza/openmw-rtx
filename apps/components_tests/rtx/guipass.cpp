@@ -18,15 +18,14 @@
 #include <components/rtxvulkan/commands.hpp>
 #include <components/rtxvulkan/graphicspipeline.hpp>
 #include <components/rtxvulkan/guipass.hpp>
-#include <components/rtxvulkan/handles.hpp>
 #include <components/rtxvulkan/image.hpp>
 #include <components/rtxvulkan/imageuse.hpp>
 #include <components/rtxvulkan/memory.hpp>
 #include <components/rtxvulkan/texture.hpp>
+#include <components/rtxvulkan/texturepasses.hpp>
 
 #include "support/device/harness.hpp"
 #include "support/device/readback.hpp"
-#include "support/device/texturepasses.hpp"
 #include "support/guiquad.hpp"
 #include "support/testtexture.hpp"
 
@@ -106,14 +105,13 @@ namespace Rtx
             /// Its shading map is estimated as the renderer's would be, and read by nothing here.
             Texture makeTexture(const TextureData& data, std::string_view name)
             {
-                const Testing::TexturePassSet passes(getDevice());
-                const Sampler sampler = makeContentSampler(getDevice(), "gui test");
+                const TexturePasses passes(getDevice(), Testing::getShaderDirectory());
 
                 Batch upload(getPool());
                 std::vector<VkBufferImageCopy> regions;
-                Texture texture = std::move(Texture::fromFile(
-                    getDevice(), upload, passes.mPasses, sampler.get(), data, 0, name, regions, MemoryUse::Essential)
-                                                .value());
+                Texture texture = std::move(
+                    Texture::fromFile(getDevice(), upload, passes, data, 0, name, regions, MemoryUse::Essential)
+                        .value());
                 upload.flush();
                 return texture;
             }

@@ -24,6 +24,7 @@
 #include "prepared.hpp"
 #include "refusals.hpp"
 #include "result.hpp"
+#include "texels.hpp"
 
 namespace Rtx
 {
@@ -51,13 +52,12 @@ namespace Rtx
         , mContent(content)
         , mWorldspace(worldspace)
         , mMask(mask)
-        , mGround(ground, content, worldspace)
+        , mGround(ground, worldspace)
         , mCollector(storage.makeCollector())
     {
     }
 
-    PreparedTexture& CellReader::readTexture(
-        const osg::ref_ptr<const osg::Image>& image, const VFS::Path::Normalized& path)
+    PreparedTexture& CellReader::readTexture(const VFS::Path::Normalized& path)
     {
         if (const auto known = mTexturesByPath.find(path.value()); known != mTexturesByPath.end())
         {
@@ -65,8 +65,11 @@ namespace Rtx
             return **known;
         }
 
+        // A file that does not read keeps its place and its path, for the texture table to stand
+        // in and refuse: left out, the ground under it would show another layer with nothing said.
         PreparedTexture& texture = mTextures.take([&](PreparedTexture& into) {
-            into.mImage = image;
+            const Result<osg::ref_ptr<const osg::Image>, std::string> image = mContent.getImage(path);
+            into.mImage = image.isOk() ? image.value() : nullptr;
             into.mPath = path;
         });
 
@@ -134,9 +137,13 @@ namespace Rtx
         for (std::size_t at = 0; at < files.size(); ++at)
         {
             PreparedLayer& layer = prepared.mGround.mLayers[at];
-            layer.mTexture = &readTexture(files[at].mImage, files[at].mPath);
-            if (!files[at].mNormalPath.empty())
-                layer.mNormalTexture = &readTexture(files[at].mNormalImage, files[at].mNormalPath);
+            layer.mTexture = &readTexture(files[at].mPath);
+            if (files[at].mNormalPath.empty())
+                continue;
+
+            PreparedTexture& normal = readTexture(files[at].mNormalPath);
+            layer.mNormalTexture = &normal;
+            layer.mParallax = files[at].mParallax && normal.mImage != nullptr && carriesHeight(*normal.mImage);
         }
 
         // One cell at a time, which is the paging's near answer: containers page here as they do

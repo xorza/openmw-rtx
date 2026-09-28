@@ -15,6 +15,10 @@ namespace RtxTool
             EXPECT_EQ(splitNames("balmora,vivec"), (std::vector<std::string>{ "balmora", "vivec" }));
             EXPECT_EQ(splitNames("  balmora ,\tvivec  "), (std::vector<std::string>{ "balmora", "vivec" }));
 
+            // A line of a file saved on Windows ends in a carriage return, and the last name is
+            // not "vivec\r".
+            EXPECT_EQ(splitNames("balmora,vivec\r"), (std::vector<std::string>{ "balmora", "vivec" }));
+
             // A trailing comma is what a list being edited looks like halfway through, and an empty
             // entry is not a view whose name is the empty string.
             EXPECT_EQ(splitNames("balmora,,vivec,"), (std::vector<std::string>{ "balmora", "vivec" }));

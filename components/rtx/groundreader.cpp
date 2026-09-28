@@ -17,8 +17,6 @@
 
 #include "cellworld.hpp"
 #include "colour.hpp"
-#include "result.hpp"
-#include "texels.hpp"
 
 namespace Rtx
 {
@@ -53,9 +51,8 @@ namespace Rtx
         }
     }
 
-    GroundReader::GroundReader(Terrain::Storage& storage, ContentSource& content, const ESM::RefId worldspace)
+    GroundReader::GroundReader(Terrain::Storage& storage, const ESM::RefId worldspace)
         : mStorage(storage)
-        , mContent(content)
         , mWorldspace(worldspace)
         , mCellSize(storage.getCellWorldSize(worldspace))
         , mVerts(static_cast<std::size_t>(storage.getCellVertices(worldspace)))
@@ -103,6 +100,12 @@ namespace Rtx
 
     void GroundReader::read(const osg::Vec2i& cell, PreparedGround& into)
     {
+        // Emptied before anything can return: what the layers report is this cell's, and a cell
+        // that stands nothing has none.
+        mBlendmaps.clear();
+        mLayerInfos.clear();
+        mFiles.clear();
+
         const osg::Vec2f centre(static_cast<float>(cell.x()) + 0.5f, static_cast<float>(cell.y()) + 0.5f);
         into.mOrigin = osg::Vec3f(centre.x() * mCellSize, centre.y() * mCellSize, 0.0f);
 
@@ -151,22 +154,12 @@ namespace Rtx
 
         // The layers as the chunk manager reads them, one blend map per ground type where there
         // is more than one, and none where a single type covers the cell.
-        mBlendmaps.clear();
-        mLayerInfos.clear();
-        mFiles.clear();
         mStorage.getBlendmaps(1.0f, centre, mBlendmaps, mLayerInfos, mWorldspace);
         assert(mBlendmaps.empty() || mBlendmaps.size() == mLayerInfos.size());
 
         for (std::size_t index = 0; index < mLayerInfos.size(); ++index)
         {
-            // A layer whose image does not read keeps its place and its path, and the texture table
-            // stands it in and refuses it as it does any texture: dropped, the ground under it would
-            // show another layer with nothing said.
-            const Result<osg::ref_ptr<const osg::Image>, std::string> image
-                = mContent.getImage(mLayerInfos[index].mDiffuseMap);
-
             LayerFiles& files = mFiles.emplace_back();
-            files.mImage = image.isOk() ? image.value() : nullptr;
             files.mPath = std::move(mLayerInfos[index].mDiffuseMap);
 
             PreparedLayer layer;
@@ -177,12 +170,8 @@ namespace Rtx
             // `auto use terrain normal maps`, and read at the diffuse's own coordinates.
             if (!mLayerInfos[index].mNormalMap.empty())
             {
-                const Result<osg::ref_ptr<const osg::Image>, std::string> normal
-                    = mContent.getImage(mLayerInfos[index].mNormalMap);
-                files.mNormalImage = normal.isOk() ? normal.value() : nullptr;
                 files.mNormalPath = std::move(mLayerInfos[index].mNormalMap);
-                layer.mParallax = mLayerInfos[index].mParallax && files.mNormalImage != nullptr
-                    && carriesHeight(*files.mNormalImage);
+                files.mParallax = mLayerInfos[index].mParallax;
             }
 
             if (!mBlendmaps.empty() && mBlendmaps[index] != nullptr)

@@ -90,6 +90,7 @@ namespace Rtx
         deformers.stand(range);
 
         writeVertices(range, arrays);
+        mTriangles += range.getTriangleCount();
 
         const Index index = mRows.take(range);
         note(index, SlotNews::Arrived);
@@ -180,11 +181,6 @@ namespace Rtx
         return mIndices.in(range.mIndices);
     }
 
-    std::uint32_t MeshTable::getTriangleCount() const
-    {
-        return mIndices.size() / 3;
-    }
-
     std::size_t MeshTable::sweep(DeformerTable& deformers)
     {
         const std::size_t freed = mRows.sweep([&](const Index index, MeshRange& range) {
@@ -197,6 +193,7 @@ namespace Rtx
             if (range.mSecondTexCoords.mCount > 0)
                 mSecondRuns.release(range.mSecondTexCoords);
             deformers.release(range);
+            mTriangles -= range.getTriangleCount();
 
             range.mVertices.mCount = 0;
             range.mIndices.mCount = 0;

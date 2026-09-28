@@ -32,10 +32,11 @@ namespace Rtx
             /// The queue family that can do everything this renderer submits.
             std::uint32_t mQueueFamily = 0;
 
-            /// The largest heap carrying memory the host writes into and the device reads: what
-            /// decides where the scene's tables live. Every card this fork targets offers such a type;
-            /// what differs is the room behind it — all of video memory where the firmware maps it,
-            /// and about 246 MiB where it does not.
+            /// The largest heap carrying memory the host writes into and the device reads, which
+            /// every table the frame rewrites lives in and nothing stages around: nought is an
+            /// obstacle, and the figure is reported. Every card this fork targets offers such a
+            /// type; what differs is the room behind it — all of video memory where the firmware
+            /// maps it, and about 246 MiB where it does not.
             VkDeviceSize mHostWrittenBytes = 0;
 
             /// Which of the options' extensions (`getOptionalExtensions`) this device offers, in the

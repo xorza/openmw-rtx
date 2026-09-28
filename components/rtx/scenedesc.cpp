@@ -305,14 +305,14 @@ namespace Rtx
             for (unsigned int corner = 0; corner < 8; ++corner)
                 placed.expandBy(box.corner(corner) * instance.mTransform);
 
-            visit(instance, placed);
+            visit(row, placed);
         }
     }
 
     osg::BoundingBoxf SceneDesc::getBounds() const
     {
         osg::BoundingBoxf bounds;
-        forEachPlacement([&](const MeshInstance&, const osg::BoundingBoxf& box) { bounds.expandBy(box); });
+        forEachPlacement([&](const PlacementRow&, const osg::BoundingBoxf& box) { bounds.expandBy(box); });
 
         return bounds;
     }
@@ -320,10 +320,11 @@ namespace Rtx
     osg::BoundingBoxf SceneDesc::getContentBoundsWithin(const osg::BoundingBoxf& region) const
     {
         osg::BoundingBoxf bounds;
-        forEachPlacement([&](const MeshInstance& instance, const osg::BoundingBoxf& box) {
-            // An instance with no material is not a backdrop — the untextured test scenes place
-            // those, and a caller framing one means to see it.
-            if (instance.mMaterial != sNoIndex && mMaterials.getRows()[instance.mMaterial].mKind == MaterialKind::Water)
+        forEachPlacement([&](const PlacementRow& row, const osg::BoundingBoxf& box) {
+            // What the row keeps of its material, which an instance with none holds as a surface:
+            // not a backdrop — the untextured test scenes place those, and a caller framing one
+            // means to see it.
+            if (row.mWorn.mKind == MaterialKind::Water)
                 return;
 
             if (!box.intersects(region))

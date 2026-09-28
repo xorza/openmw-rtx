@@ -6,10 +6,10 @@
 
 #include <components/crashcatcher/crashnote.hpp>
 
-#include "computepipeline.hpp"
 #include "device.hpp"
 #include "handles.hpp"
 #include "image.hpp"
+#include "pipeline.hpp"
 #include "result.hpp"
 
 namespace Rtx

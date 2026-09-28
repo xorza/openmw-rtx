@@ -1,6 +1,7 @@
 #include "surface.hpp"
 
 #include <array>
+#include <charconv>
 #include <cstddef>
 #include <optional>
 #include <string>
@@ -76,13 +77,13 @@ namespace Rtx
 
         /// A uniform by name and the flags it was set with, without building a `std::string` where
         /// the list is empty — which it is on nearly every state set a walk meets.
-        const osg::StateSet::RefUniformPair* uniformNamed(const osg::StateSet& stateSet, const std::string& name)
+        const osg::StateSet::RefUniformPair* uniformNamed(const osg::StateSet& stateSet, std::string_view name)
         {
             const osg::StateSet::UniformList& list = stateSet.getUniformList();
             if (list.empty())
                 return nullptr;
 
-            const auto found = list.find(name);
+            const auto found = list.find(std::string(name));
             return found != list.end() ? &found->second : nullptr;
         }
 
@@ -136,7 +137,12 @@ namespace Rtx
         void readTransform(
             const osg::StateSet& stateSet, const unsigned int unit, SurfaceDescription& material, SurfaceLocks& locks)
         {
-            const osg::StateSet::RefUniformPair* uniform = uniformNamed(stateSet, "texMat" + std::to_string(unit));
+            constexpr std::string_view prefix = "texMat";
+            std::array<char, prefix.size() + 10> name{};
+            prefix.copy(name.data(), prefix.size());
+            const char* const end = std::to_chars(name.data() + prefix.size(), name.data() + name.size(), unit).ptr;
+
+            const osg::StateSet::RefUniformPair* uniform = uniformNamed(stateSet, std::string_view(name.data(), end));
             if (uniform == nullptr || !SurfaceLocks::takes(locks.mTextureMatrix, uniform->second))
                 return;
 

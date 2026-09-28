@@ -69,11 +69,35 @@ namespace Rtx
             VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME,
         };
 
+        template <class T>
+        VkBaseOutStructure& asBase(T& structure)
+        {
+            return *reinterpret_cast<VkBaseOutStructure*>(&structure);
+        }
+
+        constexpr OptionalFeature sFaultFeature{
+            .mStructure = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mFault); },
+            .mField = [](OptionalFeatures& features) -> VkBool32& { return features.mFault.deviceFault; },
+        };
+        constexpr OptionalFeature sPresentFencesFeature{
+            .mStructure
+            = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPresentFences); },
+            .mField
+            = [](OptionalFeatures& features) -> VkBool32& { return features.mPresentFences.swapchainMaintenance1; },
+        };
+        constexpr OptionalFeature sPresentIdFeature{
+            .mStructure = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPresentId); },
+            .mField = [](OptionalFeatures& features) -> VkBool32& { return features.mPresentId.presentId; },
+        };
+
         constexpr std::array sOptionalExtensions{
             // Turns a device loss from "the driver said no" into where it faulted: the addresses,
             // how precisely they are known, and what the vendor adds. `Device::describeFault` is
-            // what reads it, and `Device` enables its feature where the driver has it.
-            OptionalExtensions{ DeviceOption::FaultReport, sFaultReport, {} },
+            // what reads it.
+            OptionalExtensions{ .mOption = DeviceOption::FaultReport,
+                .mExtensions = sFaultReport,
+                .mNeeds = {},
+                .mFeature = &sFaultFeature },
             // What the driver says is left, which the heap's own size does not. A budget moves
             // with whatever else is on the card, and it is the figure a residency decision belongs
             // against — most of all on a card whose host-visible heap is a couple of hundred
@@ -82,7 +106,10 @@ namespace Rtx
             // A fence the presentation engine signals, which is the only thing that says it has
             // finished with an image. `Presenter` retires its semaphores and its swapchain against
             // one where the driver has it, and against a device-idle where it does not.
-            OptionalExtensions{ DeviceOption::PresentFences, sPresentFences, sMaintainedSwapchain },
+            OptionalExtensions{ .mOption = DeviceOption::PresentFences,
+                .mExtensions = sPresentFences,
+                .mNeeds = sMaintainedSwapchain,
+                .mFeature = &sPresentFencesFeature },
             // A marker the queue remembers passing, so a device loss names the last zone each
             // stage reached rather than an address: `GpuTimer::open` sets one per zone in a build
             // that names things, and `Device::describeFault` reads them back.
@@ -91,7 +118,10 @@ namespace Rtx
             // driver can tell one frame's markers from the next's. Both or neither: the pacing
             // needs the present id, and the id alone is a number nothing reads. `LatencyPacer` is
             // what uses them, and only where there is a window.
-            OptionalExtensions{ DeviceOption::Pacing, sPacing, sSwapchain },
+            OptionalExtensions{ .mOption = DeviceOption::Pacing,
+                .mExtensions = sPacing,
+                .mNeeds = sSwapchain,
+                .mFeature = &sPresentIdFeature },
         };
 
         /// A table out of `DeviceOption`'s order is an option read as another.
@@ -221,6 +251,15 @@ namespace Rtx
         chain(next, mVulkan13, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES);
         chain(next, mVulkan12, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES);
         chain(next, mFeatures2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
+    }
+
+    OptionalFeatures::OptionalFeatures()
+    {
+        // Each is chained where the device took its option, and not here: a structure in the chain
+        // whose extension is not enabled is one the driver was never told to expect.
+        mFault.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT;
+        mPresentFences.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR;
+        mPresentId.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR;
     }
 
     DeviceProperties::DeviceProperties()

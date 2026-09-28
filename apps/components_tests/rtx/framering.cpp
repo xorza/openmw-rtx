@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <utility>
 
 #include <gtest/gtest.h>
 
@@ -14,6 +15,7 @@
 #include <components/rtxvulkan/framering.hpp>
 #include <components/rtxvulkan/frameslots.hpp>
 #include <components/rtxvulkan/graveyard.hpp>
+#include <components/rtxvulkan/texture.hpp>
 
 #include "support/device/harness.hpp"
 
@@ -102,6 +104,19 @@ namespace Rtx
             submitEmpty(ring);
             ring.finishAll();
             EXPECT_EQ(graveyard.getHeldCount(), 0u) << "held past the submit that retired it";
+
+            // A texture goes as its two images, the one a trace samples and its shading map, and
+            // is left empty: a frame in flight may still sample either.
+            Batch made(getPool());
+            Texture texture
+                = std::move(Texture::composite(getDevice(), made, TextureFormat::Rgba8Unorm, "test").value());
+            made.flush();
+            texture.buryIn(graveyard);
+            EXPECT_TRUE(texture.isEmpty());
+            EXPECT_EQ(graveyard.getHeldCount(), 2u) << "a texture buried as other than its two images";
+            submitEmpty(ring);
+            ring.finishAll();
+            EXPECT_EQ(graveyard.getHeldCount(), 0u);
         }
 
         /// A frame that left its picture comes back with it, and one that did not comes back with
@@ -119,10 +134,9 @@ namespace Rtx
             // A frame that "copied" four bytes: the copy is the renderer's; what the ring owes is
             // the memory and the span over it.
             const auto leave = [&](FrameRecord& frame, const std::span<const std::uint8_t> bytes) {
-                Buffer& into = ring.pictureOf(ring.getRecording());
-                growTo(
-                    into, device, BufferKind::ReadBack, bytes.size(), VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test picture");
-                into.write(bytes);
+                GrowableBuffer& into = ring.pictureOf(ring.getRecording());
+                into.growTo(bytes.size());
+                into.get().write(bytes);
                 frame.mReadBackBytes = bytes.size();
                 getPool().begin(frame.mWorld.mCommands);
                 ring.submit(frame);

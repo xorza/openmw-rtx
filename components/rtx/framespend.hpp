@@ -57,6 +57,10 @@ namespace Rtx
         /// The host held before the frame's input, by the driver or by the limiter: a share of
         /// `Update`, which is the whole gap between two frames and has the hold inside it.
         Sleep,
+
+        /// How many there are, which `NamedEnum` holds the table below to: a timing added here and
+        /// not there would index past `FrameSpend::mMs`.
+        Count,
     };
 
     /// What a report heads each row with, and — with `Ms` after it — what the JSON names it. One

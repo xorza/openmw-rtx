@@ -74,7 +74,9 @@ namespace Rtx
         /// something else left.
         std::uint64_t getRevision() const { return mRevision; }
 
-        std::uint32_t getTriangleCount() const;
+        /// How many triangles the standing meshes hold: counted as each arrives and leaves, where
+        /// the index buffer's length counts the room a freed mesh left too.
+        std::uint32_t getTriangleCount() const { return mTriangles; }
         std::size_t getGeometryBytes() const;
 
         void clearArrivals();
@@ -123,5 +125,6 @@ namespace Rtx
         /// How many times a mesh has appeared. `SceneDesc::getStructureRevision` says what it is
         /// read for and why a texture arriving is counted apart from it.
         std::uint64_t mRevision = 0;
+        std::uint32_t mTriangles = 0;
     };
 }

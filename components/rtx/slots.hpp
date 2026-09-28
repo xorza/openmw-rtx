@@ -212,12 +212,12 @@ namespace Rtx
         std::span<const Row> getRows() const { return mRows; }
 
         /// Whether `slot` holds a row: what an index into this table has to name to mean anything,
-        /// and what a placement's mesh or material is checked against. A byte per row, kept so the
-        /// question is one read and not a walk of the free list.
+        /// and what a placement's mesh or material is checked against. Asked of the free list, which
+        /// keeps a byte per slot for it, so the answer has one source.
         bool isLive(Index slot) const
         {
             assert(slot < mRows.size());
-            return mLive[slot] != 0;
+            return !mFree.isFree(slot);
         }
 
         const Row& at(Index slot) const
@@ -244,14 +244,12 @@ namespace Rtx
             {
                 mRows.push_back(std::move(row));
                 mHolds.push_back(0);
-                mLive.push_back(1);
 
                 return static_cast<Index>(mRows.size() - 1);
             }
 
             assert(mHolds[index] == 0 && "a free slot something still holds");
             mRows[index] = std::move(row);
-            mLive[index] = 1;
 
             return index;
         }
@@ -263,8 +261,7 @@ namespace Rtx
 
             assert(slot < mRows.size());
             assert(mHolds[slot] == 0 && "a slot freed while something holds it");
-            assert(mLive[slot] != 0 && "a slot freed twice");
-            mLive[slot] = 0;
+            assert(isLive(slot) && "a slot freed twice");
             mFree.free(slot);
         }
 
@@ -355,7 +352,6 @@ namespace Rtx
                     continue;
 
                 release(index, mRows[index]);
-                mLive[index] = 0;
                 mFree.free(index);
                 ++freed;
             }
@@ -368,9 +364,6 @@ namespace Rtx
 
         /// How many things hold each row, parallel to the rows.
         std::vector<std::uint32_t> mHolds;
-
-        /// Whether each slot holds a row, parallel to the rows — `isLive`.
-        std::vector<std::uint8_t> mLive;
 
         SlotPool mFree;
 

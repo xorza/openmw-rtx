@@ -1,7 +1,9 @@
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <string>
 #include <vector>
 
 #include <osg/Math>
@@ -345,6 +347,43 @@ namespace Rtx::Testing
             EXPECT_TRUE(mScene.textures().getRows()[2].mBaked.empty()) << "the bake outlived the emitter";
         }
 
+        /// **A sprite a full table refused draws once the table frees room, and is not asked again
+        /// before.** The rule a material's texture keeps (`RefusedTakes`): an emitter refused a slot
+        /// once stood unlit for as long as it stood. And no bake is taken for a sprite with no slot,
+        /// because the bake is of the sprite's alpha.
+        TEST_F(RtxSceneExtractorTest, aRefusedSpriteDrawsOnceTheTableFreesASlot)
+        {
+            TextureTable& textures = mScene.textures();
+            for (std::size_t at = 0; at < TextureTable::sCapacity; ++at)
+                textures.hold(textures.add(VFS::Path::Normalized("textures/tx_" + std::to_string(at) + ".dds")));
+
+            const Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
+            emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+
+            for (unsigned int frame = 1; frame <= 2; ++frame)
+            {
+                mScene.clearPlacement();
+                walk(*plume.mRoot, 0, frame);
+                EXPECT_TRUE(mScene.emitters().empty()) << "a sprite with no slot drew on frame " << frame;
+                EXPECT_EQ(textures.getRefused(), 1u) << "asked again on frame " << frame;
+                EXPECT_EQ(textures.getRows().size(), TextureTable::sCapacity) << "a bake taken for no sprite";
+            }
+
+            // Two slots, for the sprite and its bake.
+            textures.drop(9);
+            textures.drop(10);
+
+            mScene.clearPlacement();
+            walk(*plume.mRoot, 0, 3);
+
+            EXPECT_EQ(textures.getRefused(), 1u);
+            ASSERT_EQ(mScene.emitters().size(), 1u) << "the freed room was not asked for";
+            const SpriteEmitter& drawn = mScene.emitters().front();
+            EXPECT_TRUE(
+                (drawn.mTexture == 9u && drawn.mLighting == 10u) || (drawn.mTexture == 10u && drawn.mLighting == 9u))
+                << drawn.mTexture << " and " << drawn.mLighting;
+        }
+
         /// What a system draws with is read off its chain once and kept: a texture swapped on a
         /// state set behind the walk's back is not seen, because nothing on the chain animates and
         /// a chain that does not is read exactly once — and under a controller, which is the one
@@ -413,8 +452,9 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             walk(*plume.mRoot);
             EXPECT_TRUE(mScene.emitters().empty()) << "a system with no sprite drew";
-            for (const TextureRow& row : mScene.textures().getRows())
-                EXPECT_EQ(row.mKind, TextureKind::Free) << "a slot the emitter stopped wearing was kept";
+            for (Index slot = 0; slot < mScene.textures().getRows().size(); ++slot)
+                EXPECT_TRUE(mScene.textures().isFree(slot))
+                    << "slot " << slot << " the emitter stopped wearing was kept";
 
             mScene.clearPlacement();
             walk(*plume.mRoot);

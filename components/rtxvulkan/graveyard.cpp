@@ -32,12 +32,6 @@ namespace Rtx
             mBuffers.hold(stamp(), std::move(buffer));
     }
 
-    void Graveyard::bury(Texture&& texture)
-    {
-        if (!texture.isEmpty())
-            mTextures.hold(stamp(), std::move(texture));
-    }
-
     void Graveyard::bury(AccelerationStructure&& structure)
     {
         if (!structure.isEmpty())
@@ -89,7 +83,6 @@ namespace Rtx
         free(mStructures, finished);
         free(mQueryPools, finished);
         free(mBuffers, finished);
-        free(mTextures, finished);
         free(mImages, finished);
         free(mOthers, finished);
     }

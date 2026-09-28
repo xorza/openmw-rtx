@@ -19,7 +19,7 @@ namespace Rtx
     /// is what the bounding square `cellOf(eye ± radius)` cuts on the near side already.
     ///
     /// **A disc and not a square of cells, because the air that hides the rings' edge is a disc.**
-    /// `fogEdgeAlong` closes at `distantLandReach` from the eye's own position, in every direction
+    /// `fogEdgeOver` closes at `distantLandReach` from the eye's own position, in every direction
     /// alike, so a cell whose nearest point is further than that is behind air that passes one
     /// part in 256 of it, and one nearer shows. A square of cells about the eye's cell loaded a
     /// corner cell that stood at 1.4 times the reach, wholly hidden, and along an axis up to a

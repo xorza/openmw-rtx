@@ -4,6 +4,39 @@
 
 namespace Rtx
 {
+    FormatInfo formatInfoOf(const VkFormat format)
+    {
+        switch (format)
+        {
+            case VK_FORMAT_R8_UNORM:
+                return FormatInfo{ 1, TexelDecode::Bytes };
+            case VK_FORMAT_R8G8_UNORM:
+            case VK_FORMAT_R16_UNORM:
+                return FormatInfo{ 2, TexelDecode::Bytes };
+            case VK_FORMAT_R16_SFLOAT:
+                return FormatInfo{ 2, TexelDecode::Half };
+            case VK_FORMAT_R8G8B8A8_UNORM:
+            case VK_FORMAT_R8G8B8A8_SRGB:
+            case VK_FORMAT_B8G8R8A8_UNORM:
+            case VK_FORMAT_B8G8R8A8_SRGB:
+                return FormatInfo{ 4, TexelDecode::Bytes };
+            case VK_FORMAT_R16G16_SFLOAT:
+                return FormatInfo{ 4, TexelDecode::Half };
+            case VK_FORMAT_R32_SFLOAT:
+                return FormatInfo{ 4, TexelDecode::Float };
+            case VK_FORMAT_R16G16B16A16_SFLOAT:
+                return FormatInfo{ 8, TexelDecode::Half };
+            case VK_FORMAT_R32G32_SFLOAT:
+                return FormatInfo{ 8, TexelDecode::Float };
+            case VK_FORMAT_R32G32B32A32_SFLOAT:
+                return FormatInfo{ 16, TexelDecode::Float };
+            default:
+                break;
+        }
+
+        Crash::fatal("no read-back is recorded for this image format");
+    }
+
     VkFormat toVulkanFormat(TextureFormat format)
     {
         switch (format)

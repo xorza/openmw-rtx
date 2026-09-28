@@ -20,6 +20,7 @@
 #include <components/rtx/mesh.hpp>
 #include <components/rtx/runs.hpp>
 #include <components/rtx/scenedesc.hpp>
+#include <components/rtx/shaders/brdf.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
@@ -62,17 +63,18 @@ namespace Rtx::Testing
         /// that width averaged away — never all of it unless the cone reaches the coarsest level.
         /// The reason is that this is the shader's own question, and not the size of the answer: at
         /// the footprint `waterTooFineToResolveWidensTheConeItRefractsThrough` reads, the mip has
-        /// lost nearly all of the slope anyway and the whole spectrum would predict 1.434 against
-        /// the chain's 1.425.
+        /// lost nearly all of the slope anyway.
         ///
-        /// The lobe is twice its root: a normal tilted by an angle turns a reflection by twice it.
+        /// The lobe is the cone the roughness those slopes stand for fills, `ggxConeWidth`, as a
+        /// solid's lobe is.
         float lobeOf(const SeaState& sea, float footprint)
         {
             float unresolved = 0.0f;
             for (const WaveCascade& cascade : makeWaveCascades(sea))
                 unresolved += Testing::lostSlopeOf(cascade, footprint);
 
-            return std::min(2.0f * std::sqrt(unresolved), 1.0f);
+            const float roughness = Shaders::slopeRoughness(unresolved);
+            return Shaders::ggxConeWidth(roughness * roughness, Shaders::BOUNCE_SPREAD);
         }
 
         /// A shaft is the surface's own lens carried along the ray, and nothing else.
@@ -543,12 +545,13 @@ namespace Rtx::Testing
             EXPECT_LT(still.mLit, 20u) << "measured 4 pixels: a mirror shows one dot";
             EXPECT_GT(still.mPeak, 150) << "measured 202: and shows it at full strength";
 
-            // The same sun over a sea with a state in it reaches 1,914 pixels — near half the frame
-            // — at a peak of 10. **Nearly five hundred times the area at a twentieth the strength**,
-            // which is a road rather than a spark.
+            // The same sun over a sea with a state in it reaches 884 pixels — a fifth of the frame —
+            // at a peak of 23. **Over two hundred times the area at a ninth the strength**, which is
+            // a road rather than a spark. The road is as wide as the lobe the lost slopes stand for,
+            // `ggxConeWidth` of their roughness, which is the solids' own cone.
             const Road running = road(SeaState{});
-            EXPECT_GT(running.mLit, 1000u) << "measured 1914 pixels: the sun spread across the water";
-            EXPECT_LT(running.mPeak, 40) << "measured 10: and no pixel of it near the mirror's";
+            EXPECT_GT(running.mLit, 500u) << "measured 884 pixels: the sun spread across the water";
+            EXPECT_LT(running.mPeak, 60) << "measured 23: and no pixel of it near the mirror's";
         }
 
         /// The sea runs the way the wind blows, and turning the wind turns the whole sea with it.
@@ -784,17 +787,17 @@ namespace Rtx::Testing
             };
 
             // How wide the refraction's cone is where it lands, in world units: the pixel's own
-            // footprint where it met the water, plus what it gained over the leg down. **Twice the
-            // lobe**, because the lobe is an rms angle from the axis and a cone spread is a width —
-            // and a quarter of it to begin with, because refraction bends by `1 - 1 / n` of what
-            // reflection does, so what is seen *through* a rough surface is blurred that much less.
+            // footprint where it met the water, plus what it gained over the leg down. **The lobe's
+            // width**, `ggxConeWidth` of the roughness the lost slopes stand for — and a quarter of
+            // it, because refraction bends by `1 - 1 / n` of what reflection does, so what is seen
+            // *through* a rough surface is blurred that much less.
             // The pixel's cone where it met the water, which is both what the ladder is read through
             // and what `waveLevel` picks a mip by — one quantity, so one name.
             const float footprint = camera.mCamera.mSpreadAngle * height;
 
             const auto coneAtBed = [&](float lobe) {
                 const float bent = lobe * (1.0f - 1.0f / Shaders::WATER_IOR);
-                return footprint + (camera.mCamera.mSpreadAngle + 2.0f * bent) * depth;
+                return footprint + (camera.mCamera.mSpreadAngle + bent) * depth;
             };
 
             const SeaState fine{ .mSignificantHeight = 3.0f, .mPeakWavelength = 64.0f };
@@ -814,20 +817,19 @@ namespace Rtx::Testing
             // averaged away and never the whole of it — and `RtxWavePassTest` is what says the chain
             // and `lostSlopeOf` agree about that to within the half floats it is stored in.
             //
-            // **The tolerance is a fifth of what it was, and what is left is the two Jensen terms.** The
-            // patch's mean cone is a mean over pixels of a term in `sqrt(lost)`, where the
-            // prediction takes the root of the mean — 0.9 per cent low at this spread — and the log
-            // of a mean stands 0.005 of a level over the mean of the logs. Both are computed rather
-            // than allowed for, and together they are under a hundredth. Measured 1.433 against a
-            // prediction of 1.425.
+            // **What is left is the two Jensen terms.** The patch's mean cone is a mean over pixels of
+            // a width in `sqrt(sqrt(lost))`'s cone, where the prediction takes the cone of the mean,
+            // and the log of a mean stands over the mean of the logs. Measured 1.082 against a
+            // prediction of 1.066.
             //
-            // What the assertion settles is the optics: the factor of two, because a normal tilted
-            // by an angle turns a reflection by twice it, and the `1 - 1/n` that says a refraction
-            // is bent by a quarter of what a reflection is. Adding the lobe once instead of twice
-            // puts the prediction at 0.882, twenty-seven tolerances away.
+            // What the assertion settles is the optics: the lobe's own width, `ggxConeWidth` of the
+            // roughness the lost slopes stand for, which is how a solid's lobe widens its cone too,
+            // and the `1 - 1/n` that says a refraction is bent by a quarter of what a reflection is.
+            // The cone this water was once widened by, four times the rms slope, predicts 1.428 —
+            // seventeen tolerances away.
             EXPECT_NEAR(
                 std::log2(ruffled / still), std::log2(coneAtBed(lobeOf(fine, footprint)) / coneAtBed(0.0f)), 0.02f)
-                << "the cone widened by twice the rms slope the sea could not show";
+                << "the cone widened by the lobe the sea's lost slopes stand for";
         }
     }
 }

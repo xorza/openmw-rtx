@@ -1044,6 +1044,56 @@ namespace Rtx::Testing
             EXPECT_NEAR(frame.at(centre), sun + moon, (sun + moon) * 1e-4f);
         }
 
+        /// **A metal's bounce that escapes finds the sky a mirror shows, and not the sky a hemisphere
+        /// gathers**: the fill is light the weather says a night has and nothing draws, so an eye
+        /// looking into a polished surface must not find it any more than one looking up does. The
+        /// water's reflection read the sky as seen and a metal's read `skyGlow`, so a pond and a
+        /// polished plate showed two skies.
+        ///
+        /// The metal wall of the test above, under a black sky with no sun and no moon and only a
+        /// fill: the metal has no diffuse half for the fill to reach, and its lobe finds a sky of
+        /// nothing, so the pixel is black to the bit. The same wall under a sky with no fill is
+        /// what it is measured against.
+        TEST_F(RtxVisibilityTest, aMetalsReflectionFindsTheSkyAnEyeSeesAndNotTheFill)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            constexpr std::array<std::uint8_t, 4> sBaseTexel{ 128, 128, 128, 255 };
+            constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 255, 255 };
+            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, 0), describeTexel(sMetalTexel, 1) };
+
+            const osg::Vec3f normal(0.0f, -1.0f, 0.0f);
+            const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
+            const std::array normals{ normal, normal, normal, normal };
+            const std::array tangents{ tangent, tangent, tangent, tangent };
+
+            SceneDesc scene;
+            const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
+                .mNormals = normals,
+                .mTexCoords = sQuadUv,
+                .mTangents = tangents,
+                .mIndices = sQuadIndices });
+            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+            const Index map = scene.textures().add(
+                VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+            scene.addInstance(MeshInstance{
+                .mMesh = mesh, .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mSun.mIrradiance = osg::Vec3f();
+            camera.mAmbient = osg::Vec3f();
+            camera.mAmbientFromSky = 1.0f;
+            camera.mSkyFill = osg::Vec3f(1.0f, 1.0f, 1.0f);
+
+            const Frame frame = shoot(scene, textures, camera, size, { .mFrames = 16 });
+            EXPECT_GT(frame.mHits, 0u);
+            EXPECT_EQ(frame.at(centre), 0.0f) << "a polished metal found the fill";
+        }
+
         /// Which side of a surface the light may come from is the triangle's plane's answer, and a
         /// vertex normal that disagrees does not get to overrule it.
         ///

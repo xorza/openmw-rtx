@@ -60,7 +60,7 @@ namespace RtxTool
     /// The command called `name`, or `Verbs::None` where nothing is called that.
     Verbs verbNamed(std::string_view name);
 
-    /// The commands in `set`, spelled the way a help line spells them: "`bench` and `verify`".
+    /// The commands in `set`, spelled the way a help line spells them: "`bench` and `check`".
     std::string describeVerbs(Verbs set);
 
     /// What one command does with the places it runs at: one row a command, which the staging, the

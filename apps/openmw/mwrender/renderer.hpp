@@ -254,12 +254,18 @@ namespace MWRender
         /// other ran, and the first frame after a switch stood for the whole of the other's run.
         std::chrono::steady_clock::duration awaitFrame();
 
+        /// Opens the game loop's next frame: held by `awaitFrame`, and the clock moved on by what
+        /// the wall says it stood for, or by the stated step. Answers the step. The one writer of
+        /// the clock, with `openNestedFrame`, so the two kinds of frame cannot move it by two rules.
+        double openFrame();
+
         /// Opens a frame the game's loop is not running — a loading screen's, a message box's, a
         /// video's — as the loop opens its own: held by `awaitFrame`, and a wall clock moved on by
         /// what it stood for. Answers how long it stands for, which a nested loop steps its
-        /// interface by: nought under a stated step, whose clock counts the loop's frames alone.
-        /// Without it a nested frame was paced by a limiter of its own that knew nothing of the
-        /// driver's, and stamped and stepped the interface by the outer frame's time.
+        /// interface by: nought under a stated step, whose clock counts the loop's frames alone and
+        /// holds for this one, so that whatever reads the clock's step inside the frame reads the
+        /// same nought. Without it a nested frame was paced by a limiter of its own that knew
+        /// nothing of the driver's, and stamped and stepped the interface by the outer frame's time.
         float openNestedFrame();
 
         /// What `setFrameRateLimit` handed over, nought before it has: the one copy, which a loop
@@ -289,6 +295,11 @@ namespace MWRender
         /// reconstructing across frames needs telling and a rasterizer does not. Only the
         /// simulation knows, because a cell load looks like a step from below the seam.
         virtual void notifyCut() {}
+
+        /// The worldspace changed, which is one kind of cut and the one kind that ends what a
+        /// renderer keeps of the world itself: the rasterizer's water lets go of its ripples here,
+        /// and on no other cut. Told beside `notifyCut`, never instead of it.
+        virtual void notifyWorldspaceChanged() {}
 
         /// A picture made somewhere other than the eye, for the GUI to show. What goes in the
         /// picture arrives in the spec; how it is drawn is the renderer's, which hands back a

@@ -60,8 +60,9 @@ namespace Rtx
         /// content, whose longest cycle is exactly what is held.
         std::uint32_t mWornBeyondKept = 0;
 
-        /// Geometry with no vertices or no triangles. Morrowind ships some, and the game draws
-        /// nothing for them either. What the content has and this renderer cannot take is not
+        /// Geometry this walk found to have no vertices or no triangles. Morrowind ships some, and
+        /// the game draws nothing for them either. Filed where it is found, so a walk after counts
+        /// none of it again. What the content has and this renderer cannot take is not
         /// here: that is `SceneDesc::refusals`.
         std::uint32_t mSkippedEmpty = 0;
 

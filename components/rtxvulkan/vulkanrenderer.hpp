@@ -23,32 +23,24 @@
 #include <components/rtx/wavespectrum.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 
-#include "accumulatepass.hpp"
-#include "atrouspass.hpp"
 #include "commands.hpp"
-#include "compositepass.hpp"
 #include "device.hpp"
 #include "digestpass.hpp"
 #include "displaychain.hpp"
 #include "framering.hpp"
-#include "groundcompositepass.hpp"
 #include "guidrawer.hpp"
 #include "handles.hpp"
 #include "image.hpp"
 #include "instance.hpp"
-#include "mipchainpass.hpp"
 #include "picturetracer.hpp"
 #include "presenttargets.hpp"
+#include "scenepasses.hpp"
 #include "sceneslots.hpp"
-#include "shadingpass.hpp"
-#include "skinpass.hpp"
-#include "spritelightpass.hpp"
-#include "spritepasses.hpp"
 #include "stresspass.hpp"
 #include "texture.hpp"
 #include "tracechain.hpp"
 #include "tracemedia.hpp"
-#include "visibilitypass.hpp"
+#include "tracepasses.hpp"
 
 namespace Rtx
 {
@@ -140,10 +132,6 @@ namespace Rtx
         void takeValidationErrors(std::vector<std::string>& errors);
 
     private:
-        /// The passes both chains trace with, which every member it names is declared ahead of
-        /// the chains to be built for.
-        TracePasses describeTracePasses() const;
-
         /// The image this frame writes, with the present that last read it waited for — once per
         /// frame, at the first of the trace and the interface to want it.
         Image& claimTarget();
@@ -207,33 +195,12 @@ namespace Rtx
         /// says why there are two.
         PresentTargets mTargets;
 
-        /// What every `GBuffer` here is shaped by — one description, however many of them the
-        /// frame's size brings and takes away. Declared before both chains, which allocate from it.
-        SetLayout mChannelLayout;
-
-        /// The same for the air, which is a camera's the way the channels are. Declared before both
-        /// chains for the reason `mChannelLayout` is.
-        SetLayout mFogVolumeLayout;
-
-        /// And what every scene's texture array is shaped by, so one pass samples any scene's set.
-        SetLayout mTextureLayout;
+        /// Before the trace's passes and the display, which read the scenes' texture layout.
+        ScenePasses mScenePasses;
 
         /// The passes every trace runs, whichever camera it is for, before the two chains that
-        /// hold them. Built here and once: every kernel the trace can ever need is compiled by
-        /// `mPass`, on threads of its own — ten seconds on a cold cache, measured — and waited for
-        /// ahead of every trace, because a frame that stopped for one was a device reset.
-        VisibilityPass mPass;
-        CompositePass mComposite;
-
-        /// One bin for everything binned: what differs per scene is the tables, and the camera
-        /// arrives with the frame. And one shade, which runs ahead of the bin over the same tables.
-        SpriteBinPass mSpriteBin;
-        SpriteShadePass mSpriteShade;
-
-        /// The denoiser's two passes, one pipeline each for both chains: each chain keeps the
-        /// history and the scratch its own camera needs.
-        AccumulatePass mAccumulate;
-        AtrousPass mFilter;
+        /// hold them.
+        TracePasses mTracePasses;
 
         /// What the frame is traced into, at the render extent — which is the output extent
         /// wherever nothing upscales.
@@ -254,23 +221,6 @@ namespace Rtx
         DigestPass mDigest;
 
         TraceMedia mMedia;
-
-        /// One pass for everything posed, the doll included: what differs per scene is the
-        /// tables, which each `DeviceScene` holds. Before the scenes, which hold it by reference.
-        SkinPass mSkinPass;
-
-        /// One pass for every texture's missing chain, one for every texture's shading map and
-        /// one for every sprite's light bake, the doll's and the maps' included, for the same
-        /// reason and held the same way; the bundle the arrays are handed, after the three it
-        /// names.
-        MipChainPass mMipChainPass;
-        ShadingPass mShadingPass;
-        SpriteLightPass mSpriteLightPass;
-        TexturePasses mTexturePasses;
-
-        /// One pass for every chunk's flattened ground, for the same reason. After the texture
-        /// layout, whose set it binds.
-        GroundCompositePass mGroundPass;
 
         /// The hold `RenderProfile::mStressOverlapMs` asked for, or nothing.
         std::unique_ptr<StressPass> mStress;

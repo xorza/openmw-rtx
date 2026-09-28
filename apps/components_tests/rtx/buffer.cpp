@@ -11,8 +11,10 @@
 #include <components/rtxvulkan/buffer.hpp>
 #include <components/rtxvulkan/commands.hpp>
 #include <components/rtxvulkan/device.hpp>
+#include <components/rtxvulkan/growablebuffer.hpp>
 #include <components/rtxvulkan/timeline.hpp>
 
+#include "support/death.hpp"
 #include "support/device/harness.hpp"
 #include "support/device/heldsubmit.hpp"
 
@@ -51,8 +53,8 @@ namespace Rtx
 
         /// A buffer moved out of takes its mapping with it, and the husk has none.
         ///
-        /// **Which is what a table growing does**: `growTo` hands the displaced buffer to a
-        /// graveyard, and the new one is moved into the member the old one was in.
+        /// **Which is what a table growing does**: `GrowableBuffer::growTo` hands the displaced
+        /// buffer to a graveyard, and the new one is moved into the member the old one was in.
         TEST_F(RtxBufferTest, aMovedBufferTakesItsMappingWithIt)
         {
             const Device& device = *mHarness.mDevice;
@@ -63,6 +65,43 @@ namespace Rtx
             const Buffer second = std::move(first);
 
             EXPECT_EQ(second.map(), mapped) << "the mapping did not come across";
+        }
+
+        /// A growable buffer is made in the memory its owner named, is never left holding nothing,
+        /// keeps what fits, and past what it holds grows to the need or to twice what it held.
+        ///
+        /// Each step by hand: nought asked of nothing makes the one byte Vulkan allows; 16 past 1
+        /// is 16 to `growTo`; 8 fits in 16; 20 to `outgrow` is max(20, 2 × 16) = 32; 32 fits; 33
+        /// is max(33, 64) = 64; and 200 is past twice 64, so it is 200.
+        TEST_F(RtxBufferTest, aGrowableBufferKeepsWhatFitsAndDoublesPastIt)
+        {
+            const Device& device = *mHarness.mDevice;
+            GrowableBuffer grown(device, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
+            EXPECT_TRUE(grown.get().isEmpty());
+
+            struct Step
+            {
+                bool mDoubles;
+                VkDeviceSize mAsked;
+                bool mMade;
+                VkDeviceSize mSize;
+            };
+            constexpr std::array<Step, 7> steps{ {
+                { false, 0, true, 1 },
+                { false, 16, true, 16 },
+                { false, 8, false, 16 },
+                { true, 20, true, 32 },
+                { true, 32, false, 32 },
+                { true, 33, true, 64 },
+                { true, 200, true, 200 },
+            } };
+            for (const Step& step : steps)
+            {
+                const bool made = step.mDoubles ? grown.outgrow(step.mAsked) : grown.growTo(step.mAsked);
+                EXPECT_EQ(made, step.mMade) << "asked " << step.mAsked;
+                EXPECT_EQ(grown.get().getSize(), step.mSize) << "asked " << step.mAsked;
+                EXPECT_EQ(grown.get().getKind(), BufferKind::ReadBack);
+            }
         }
 
         /// A copy names both of its ends for the submit it rides, and a host write of either waits
@@ -116,6 +155,13 @@ namespace Rtx
             // And idle is a state a wait need not leave for: nothing names the buffer now.
             target.waitIdle("test");
             EXPECT_TRUE(target.isIdle());
+
+            // **Unnamed is a promise about the buffer, which its own stamp keeps.** A buffer nothing
+            // named is written without asking the timeline, and one a submit named never is.
+            const Buffer fresh = Buffer::staging(device, 64, copyable, "test");
+            EXPECT_EQ(fresh.unnamed<std::uint32_t>().size(), 16u);
+            Testing::expectAssertDies([&] { static_cast<void>(source.unnamed<std::uint32_t>()); },
+                "a buffer written as unnamed after a submit named it");
         }
     }
 }

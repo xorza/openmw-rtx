@@ -47,7 +47,7 @@ unset(_openmw_spirv_fma)
 # tool stays in this directory's build tree, which no install and no archive reads. **Beside it, the
 # digest `omw kernels` names each specialized kernel by** (`spirvdigest.hpp`), in the same
 # library and the same tree for the same reasons.
-set(RTX_SPIRV_PIN_FILES spirvpin.cpp spirvpin.hpp spirvdigest.cpp spirvdigest.hpp)
+set(RTX_SPIRV_PIN_FILES spirvfile.cpp spirvfile.hpp spirvpin.cpp spirvpin.hpp spirvdigest.cpp spirvdigest.hpp)
 openmw_rtx_library(openmw-rtx-spirv ${RTX_SPIRV_PIN_FILES})
 target_include_directories(openmw-rtx-spirv SYSTEM PRIVATE "${OPENMW_SPIRV_HEADERS}")
 target_link_libraries(openmw-rtx-spirv PRIVATE smhasher)
@@ -263,6 +263,8 @@ set(RTX_VULKAN_FILES
     graphicspipeline.hpp
     graveyard.cpp
     graveyard.hpp
+    growablebuffer.cpp
+    growablebuffer.hpp
     groundcompositepass.cpp
     groundcompositepass.hpp
     guipass.cpp
@@ -313,6 +315,7 @@ set(RTX_VULKAN_FILES
     sceneacceleration.hpp
     scenebuffers.cpp
     scenebuffers.hpp
+    scenepasses.hpp
     sceneslots.cpp
     sceneslots.hpp
     shadingpass.cpp
@@ -340,6 +343,7 @@ set(RTX_VULKAN_FILES
     swapchain.hpp
     texture.cpp
     texture.hpp
+    texturepasses.hpp
     timeline.cpp
     timeline.hpp
     tonepass.cpp
@@ -348,6 +352,8 @@ set(RTX_VULKAN_FILES
     tracechain.hpp
     tracemedia.cpp
     tracemedia.hpp
+    tracepasses.cpp
+    tracepasses.hpp
     tracepipeline.cpp
     tracepipeline.hpp
     tracerecording.hpp
@@ -383,7 +389,7 @@ openmw_rtx_expect_listed("${CMAKE_CURRENT_SOURCE_DIR}" MATCHING *.cpp *.hpp shad
 # Vulkan type, so nothing a host compiles needs the headers.
 # The tests reach into the backend and link Vulkan themselves. Linux hides a breach of this, its
 # SDK headers sitting under `/usr/include`, and Windows is where one fails.
-target_link_libraries(openmw-rtx-vulkan PUBLIC openmw-rtx PRIVATE Vulkan::Vulkan SDL2::SDL2 components)
+target_link_libraries(openmw-rtx-vulkan PUBLIC openmw-rtx PRIVATE openmw-rtx-spirv Vulkan::Vulkan SDL2::SDL2 components)
 
 add_dependencies(openmw-rtx-vulkan openmw-rtx-vulkan-shaders)
 

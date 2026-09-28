@@ -61,8 +61,8 @@ namespace Rtx
         }
 
         /// What this cache is called: the driver that can read it back, and the shaders it was
-        /// built from. Both halves are the eviction, so the run knows exactly one file is live and
-        /// `sweep` removes the rest.
+        /// built from. Both halves are the key, so a run reads only the file it can use, and
+        /// `sweep` bounds the rest.
         std::filesystem::path cachePath(const PipelineCacheSpec& spec, const VkPhysicalDeviceProperties& properties)
         {
             if (spec.mDirectory.empty())

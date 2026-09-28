@@ -21,6 +21,7 @@
 #include "shaders/look.h"
 #include "shaders/scene.h"
 #include "sprite.hpp"
+#include "surface.hpp"
 
 namespace Rtx
 {

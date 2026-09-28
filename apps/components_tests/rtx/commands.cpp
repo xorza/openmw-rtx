@@ -102,6 +102,18 @@ namespace Rtx
 
             EXPECT_EQ(*static_cast<const std::uint32_t*>(target.map()), 0u)
                 << "an abandoned batch's copy reached the device";
+
+            // **And one abandoned on purpose**, which is what a placement that came to nothing does:
+            // what it began goes back, and nothing reaches the next submit either.
+            {
+                Batch batch(getPool());
+                const VkBufferCopy whole{ .size = sizeof(std::uint32_t) };
+                vkCmdCopyBuffer(batch.getCommands(), source.getHandle(), target.getHandle(), 1, &whole);
+                batch.abandon();
+            }
+            getPool().submitAndWait([](VkCommandBuffer) {});
+
+            EXPECT_EQ(*static_cast<const std::uint32_t*>(target.map()), 0u) << "a batch given up on still ran";
         }
 
         /// A staged write names its destination for the submit the batch rides.

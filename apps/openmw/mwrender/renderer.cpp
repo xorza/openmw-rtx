@@ -1,5 +1,6 @@
 #include "renderer.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cmath>
@@ -143,6 +144,26 @@ namespace MWRender
         renderGuiFrame();
     }
 
+    namespace
+    {
+        /// The longest a frame is allowed to stand for, whatever the wall says: a frame after a
+        /// stall steps the world by this much and no more.
+        constexpr std::chrono::steady_clock::duration sLongestFrame = std::chrono::milliseconds(200);
+
+        double secondsStood(const std::chrono::steady_clock::duration stood)
+        {
+            return std::chrono::duration_cast<std::chrono::duration<double>>(std::min(stood, sLongestFrame)).count();
+        }
+    }
+
+    double Renderer::openFrame()
+    {
+        assert(mClock != nullptr && "a frame before the host's clock was handed over");
+
+        mClock->advance(secondsStood(awaitFrame()));
+        return mClock->getStep();
+    }
+
     float Renderer::openNestedFrame()
     {
         assert(mClock != nullptr && "a frame before the host's clock was handed over");
@@ -154,9 +175,12 @@ namespace MWRender
         // the resource caches differently in two runs of one build — the reference time `repeat`
         // once found doing exactly that. Such a frame stands for nothing of the world's.
         if (mClock->getStatedStep().has_value())
+        {
+            mClock->hold();
             return 0.0f;
+        }
 
-        mClock->advance(std::chrono::duration_cast<std::chrono::duration<double>>(stood).count());
+        mClock->advance(secondsStood(stood));
         return static_cast<float>(mClock->getStep());
     }
 

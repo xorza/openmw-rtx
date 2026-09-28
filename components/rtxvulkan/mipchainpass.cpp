@@ -16,7 +16,7 @@ namespace Rtx
     {
         /// The upload in, the level above in, the level written out.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::MIPCHAIN_BINDINGS> sBindings{
-            computeBinding(Shaders::MIPCHAIN_BIND_SOURCE, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER),
+            computeBinding(Shaders::MIPCHAIN_BIND_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::MIPCHAIN_BIND_ABOVE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
             computeBinding(Shaders::MIPCHAIN_BIND_INTO, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
         };
@@ -28,8 +28,8 @@ namespace Rtx
     {
     }
 
-    void MipChainPass::record(const VkCommandBuffer commands, const Image& source, const VkSampler sampler,
-        const Image& chain, const bool encoded) const
+    void MipChainPass::record(
+        const VkCommandBuffer commands, const Image& source, const Image& chain, const bool encoded) const
     {
         assert(source.getMipLevels() == 1 && "a chain is built for a file that carried none");
         assert(chain.getWidth() == source.getWidth() && chain.getHeight() == source.getHeight()
@@ -50,8 +50,8 @@ namespace Rtx
 
             DescriptorWrites<Shaders::MIPCHAIN_BINDINGS> writes;
             writes.image(Shaders::MIPCHAIN_BIND_SOURCE,
-                source.describeSampled(sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
-                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+                source.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
+                VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
             writes.image(Shaders::MIPCHAIN_BIND_ABOVE, chain.describeStorage(level > 0 ? level - 1 : 0));
             writes.image(Shaders::MIPCHAIN_BIND_INTO, chain.describeStorage(level));
 

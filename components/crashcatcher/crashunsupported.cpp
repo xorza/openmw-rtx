@@ -1,7 +1,6 @@
 #include "crash.hpp"
 
-#include <cstdio>
-#include <cstdlib>
+#include "crashuncaught.hpp"
 
 // **No crash catcher where Crashpad does not run**, FreeBSD among them: `install` says so, and the
 // log carries it. Notes are still taken, because `crashnote.cpp` is the same everywhere.
@@ -26,7 +25,6 @@ namespace Crash
 
     void fatal(std::string_view reason)
     {
-        std::fprintf(stderr, "Fatal: %.*s\n", static_cast<int>(reason.size()), reason.data());
-        std::abort();
+        abortUncaught(reason);
     }
 }

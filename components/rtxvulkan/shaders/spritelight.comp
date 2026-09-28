@@ -1,5 +1,6 @@
 #version 460
 
+#extension GL_EXT_samplerless_texture_functions : require
 #extension GL_GOOGLE_include_directive : require
 
 // What a sprite's own texture leaves of the light crossing it, baked from its alpha, made where
@@ -28,8 +29,8 @@
 
 layout(local_size_x = SPRITE_LIGHT_WORKGROUP, local_size_y = SPRITE_LIGHT_WORKGROUP) in;
 
-/// The sprite, every level, fetched by texel: the sampler is whichever the array binds.
-layout(set = SET_PASS, binding = SPRITE_LIGHT_BIND_SOURCE) uniform sampler2D source;
+/// The sprite, every level, fetched by texel.
+layout(set = SET_PASS, binding = SPRITE_LIGHT_BIND_SOURCE) uniform texture2D source;
 
 /// The level of the bake this dispatch writes.
 layout(set = SET_PASS, binding = SPRITE_LIGHT_BIND_BAKE, TEXTURE_WRITTEN_FORMAT) uniform writeonly image2D bake;

@@ -27,9 +27,11 @@ namespace MWRender
         float mObjectPagingMinSize = 0.0f;
         std::string_view mSpecularMapLayout;
         int mAnisotropy = 0;
+        bool mReflexFlash = false;
+        bool mGroundcover = false;
 
-        /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging and `[General] anisotropy`: the
-        /// one place the game reads these settings.
+        /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging, `[General] anisotropy` and
+        /// `[Groundcover] enabled`: the one place the game reads these settings.
         static RtxSettingValues fromRegistry();
     };
 
@@ -42,6 +44,9 @@ namespace MWRender
 
         /// `RenderProfile::mAnisotropy`: the setting, where nought means what one does.
         std::uint32_t mAnisotropy = 1;
+
+        /// `RunSetup::mReflexFlash`.
+        bool mReflexFlash = false;
 
         /// Throws `Rtx::InputError` for a spelling that names no mode: a setting refused rather
         /// than defaulted, so a typo is said at once and not traced under for a session.

@@ -101,7 +101,14 @@ vec3 puffLight(uvec2 pixel, vec3 direction, float seen, PuffShape wrapped)
     const vec3 at = vec3(fogVolumeAcross(vec2(pixel) + 0.5, frame.mFogColumns), fogDepthInverse(seen));
 
     const FogSeeing seeing = unpackFogSeeing(textureLod(fogSeeing, at, 0.0));
-    const vec3 lamps = textureLod(fogLamps, at, 0.0).xyz;
+
+    // **The field holds the air's share and a puff takes the card's.** `lampsInAir` stores the
+    // lamps' mean irradiance under the air's isotropic phase, `E / 4 pi`, which the integration
+    // reads as it stands; a card is lit at `E / pi`, as the sun and the fill are below, so a puff
+    // takes four of what the air does. Stored in the air's own quantity and not as irradiance,
+    // because the field is half floats and a lamp's irradiance beside it runs twelve times closer
+    // to their top.
+    const vec3 lamps = textureLod(fogLamps, at, 0.0).xyz * (INV_PI / INV_FOUR_PI);
 
     const vec3 daylight = daylightReaching(frame.mOrigin + direction * seen);
 

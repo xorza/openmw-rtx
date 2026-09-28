@@ -587,6 +587,61 @@ namespace Rtx::Testing
             EXPECT_NEAR(boxedAt(105.0f) / open, 105.0f / reach, 0.08f) << "and three quarters in a taller room";
         }
 
+        /// **A lamp lights a puff by the card's convention, as the sun and the fill do**: a white puff
+        /// under a lamp that brings irradiance `E` reads as it does under a fill of `E / pi`. The
+        /// lamps' field holds the air's share, `E / 4 pi`, which the air's isotropic phase asks for;
+        /// read unchanged, it lit a puff four times too dimly beside the card a surface is.
+        ///
+        /// By hand: the lamp stands 200 units over the puff with a reach of 1000, and the eye's
+        /// ray passes under it at its closest approach, so the irradiance at the puff is
+        /// `40000 * (1 - 0.2^4)^2 / (200^2 + 1) = 40000 * 0.996801 / 40001 = 0.996776`, and the fill
+        /// that matches it is `0.996776 / pi = 0.317285`. The froxel averages the falloff over its
+        /// own stretch of the ray, which a puff 40 across holds to within a few per cent.
+        TEST_F(RtxVisibilityTest, aLampLightsAPuffAsItLightsACardAndAsTheFillDoes)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr float irradiance = 40000.0f * 0.996801f / 40001.0f;
+
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+            const std::array<TextureData, 1> puff{ describeTexel(white) };
+
+            const auto render = [&](bool lamp, float fill) {
+                SceneDesc scene;
+                const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
+                const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
+                    .mRadius = 40.0f,
+                    .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                    .mAlpha = 1.0f } };
+                scene.addEmitter(sprites, cut, false);
+                if (lamp)
+                    scene.addLight(Light{
+                        .mPosition = osg::Vec3f(0.0f, 0.0f, 200.0f),
+                        .mIntensity = osg::Vec3f(40000.0f, 40000.0f, 40000.0f),
+                        .mReach = 1000.0f,
+                    });
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -140.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f(fill, fill, fill);
+                camera.mAmbientFromSky = 0.0f;
+
+                const Frame frame = shoot(scene, puff, camera, size, { .mFrames = 128 });
+
+                float sum = 0.0f;
+                for (std::uint32_t x = 0; x < size; ++x)
+                    sum += frame.at((std::size_t{ size / 2 } * size + x) * 4);
+                return sum;
+            };
+
+            const float filled = render(false, irradiance * Shaders::INV_PI);
+            const float lit = render(true, 0.0f);
+            ASSERT_GT(filled, 0.01f) << "the fill did not light the puff at all";
+            EXPECT_NEAR(lit / filled, 1.0f, 0.05f) << "a lamp's puff against the fill of its irradiance over pi";
+        }
+
         /// The alpha every sprite test below cuts its sprite from: half, so that what it hides and
         /// what it lets through are the same size and neither can pass by being nought or one.
         constexpr float sHalfAlpha = 128.0f / 255.0f;

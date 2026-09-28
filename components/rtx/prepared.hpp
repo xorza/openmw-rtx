@@ -111,6 +111,19 @@ namespace Rtx
             reuseKeeping(*this, &PreparedGround::mPositions, &PreparedGround::mNormals, &PreparedGround::mColours,
                 &PreparedGround::mLayers, &PreparedGround::mWeights);
         }
+
+        /// Appends every texture reading the layers hold, each layer's diffuse and then its normal
+        /// map: the one list of them, for the frame that holds a cell and for the give-back of one
+        /// it never adopted.
+        void collectTextures(std::vector<PreparedTexture*>& into) const
+        {
+            for (const PreparedLayer& layer : mLayers)
+            {
+                into.push_back(layer.mTexture);
+                if (layer.mNormalTexture != nullptr)
+                    into.push_back(layer.mNormalTexture);
+            }
+        }
     };
 
     /// One drawable of a prepared model: what the frame adopts it under, and where its triangles

@@ -19,8 +19,10 @@ namespace Rtx
 
     void LatencyPacer::follow(const VkSwapchainKHR swapchain, const bool pacedMode)
     {
+        assert((!pacedMode || mFunctions.mSleep != nullptr) && "a paced mode on a device that does not pace");
+
         mSwapchain = swapchain;
-        mLive = pacedMode && mFunctions.mSleep != nullptr && swapchain != VK_NULL_HANDLE;
+        mLive = pacedMode && swapchain != VK_NULL_HANDLE;
 
         // A pacer that paces nothing holds no frame: what it was told before it went dormant
         // closed nowhere the driver could see, so the next sleep opens afresh.

@@ -757,12 +757,6 @@ vec4 fogEdgeOver(vec3 direction, float from, float to)
     return vec4(haze * (1.0 - transmittance), transmittance);
 }
 
-/// The edge along the eye's own ray, from where it stands.
-vec4 fogEdgeAlong(vec3 origin, vec3 direction, float distance)
-{
-    return fogEdgeOver(direction, 0.0, distance);
-}
-
 /// What the weather's air lets through along `span` of a ray the eye did not cast — one a surface
 /// sent on — and the band's share of it read once, at the stretch's middle: the closed form the
 /// cloud's shells and the puffs are charged by, because the froxel volume holds the eye's rays and
@@ -832,7 +826,7 @@ vec4 fogAlong(uvec2 pixel, WorldRay ray, float distance)
     // once per froxel and hands this two fetches, which costs an interior less.
     const vec4 weather = fogVolumeAlong(pixel, ray.mAlong, distance);
 
-    const vec4 edge = fogEdgeAlong(ray.mFrom, ray.mAlong, distance);
+    const vec4 edge = fogEdgeOver(ray.mAlong, 0.0, distance);
 
     return vec4(weather.xyz + weather.w * edge.xyz, weather.w * edge.w);
 }

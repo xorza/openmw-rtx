@@ -99,6 +99,55 @@ namespace Rtx::Testing
             EXPECT_EQ(summed.mRadiance, raw.mRadiance) << "the sum of one unfiltered frame is that frame";
         }
 
+        /// **The filter rebuilds an arm's pixels through the arms' own eye**, as the trace cast them,
+        /// and so smooths an arm as it smooths the floor. The player's arms are traced through a
+        /// ninety-degree eye beside the world's thirty here, and rebuilt through the world's, a flat
+        /// arm stood on planes it is not: a tap sixteen pixels off the centre stood ten units off the
+        /// centre's plane where a pixel is under one wide, and the coarse levels of the cascade
+        /// turned their neighbours away and left the noise.
+        TEST_F(RtxVisibilityTest, theFilterRebuildsAnArmThroughTheArmsOwnEye)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float samples = float{ size } * size;
+
+            SceneDesc scene;
+            const std::array<osg::Vec3f, 4> arm = uprightQuadAt(400.0f, 100.0f);
+            scene.addInstance(MeshInstance{ .mMesh
+                = scene.addMesh(MeshArrays{ .mPositions = arm, .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                .mClass = InstanceClass::FirstPerson });
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 100.0f, 0.0f), 30.0f, size, size, 100000.0f);
+            camera.mArms = cameraAtFieldOfView(camera.mCamera, 90.0f);
+            camera.mSkyHorizon = osg::Vec3f(0.20f, 0.15f, 0.60f);
+            camera.mSkyZenith = osg::Vec3f(0.80f, 0.65f, 0.15f);
+            camera.mAmbientFromSky = 1.0f;
+
+            const auto spreadOf = [&](bool filter) {
+                const Frame drawn = shoot(scene, {}, camera, size, { .mFilter = filter });
+                EXPECT_EQ(drawn.mHits, size * size) << "the arm does not fill the arms' eye";
+
+                float sum = 0.0f;
+                float squares = 0.0f;
+                for (std::size_t i = 1; i < drawn.mRadiance.size(); i += 4)
+                {
+                    sum += drawn.at(i);
+                    squares += drawn.at(i) * drawn.at(i);
+                }
+                const float mean = sum / samples;
+                return std::pair{ mean, std::sqrt(std::max(squares / samples - mean * mean, 0.0f)) };
+            };
+
+            const auto [rawMean, rawSpread] = spreadOf(false);
+            const auto [filteredMean, filteredSpread] = spreadOf(true);
+            ASSERT_GT(rawSpread, 0.0f) << "a bounce with no noise proves nothing";
+            EXPECT_NEAR(filteredMean, rawMean, 0.004f) << "the arm keeps its light";
+            // Measured: the arms' eye leaves 1.0 per cent of the spread, and the world's 4.9 — its
+            // levels past the first two turn their taps away. A bound between the two, at half
+            // the world's figure.
+            EXPECT_LT(filteredSpread, rawSpread * 0.025f) << "the arm's noise was not taken away";
+        }
+
         /// The same floor at a grazing angle, against the answer it is trying to reach.
         ///
         /// **Terrain is nearly always seen this way, and it is the case a depth test gets wrong.**
@@ -441,7 +490,7 @@ namespace Rtx::Testing
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = 0,
                         .mReconstruction = ReconstructionRequest{ .mFilter = filter },
-                        .mExposure = 1.0f });
+                        .mExposure = ExposureRule{ .mFixed = 1.0f } });
             };
 
             const auto radiance = [&] {

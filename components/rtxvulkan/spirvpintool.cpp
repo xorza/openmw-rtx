@@ -9,6 +9,9 @@
 #include <system_error>
 #include <vector>
 
+#include <components/rtx/error.hpp>
+
+#include "spirvfile.hpp"
 #include "spirvpin.hpp"
 
 // `openmw-rtx-spirv-pin <module>`: the module rewritten in place by `Rtx::pinFloatArithmetic`, which
@@ -17,23 +20,6 @@
 
 namespace
 {
-    std::vector<std::uint32_t> readWords(const std::filesystem::path& path)
-    {
-        std::ifstream stream(path, std::ios::binary | std::ios::ate);
-        if (!stream)
-            throw std::runtime_error("cannot be opened");
-
-        const std::streamsize bytes = stream.tellg();
-        if (bytes <= 0 || bytes % static_cast<std::streamsize>(sizeof(std::uint32_t)) != 0)
-            throw std::runtime_error("is not a whole number of 32-bit words");
-
-        std::vector<std::uint32_t> words(static_cast<std::size_t>(bytes) / sizeof(std::uint32_t));
-        stream.seekg(0);
-        if (!stream.read(reinterpret_cast<char*>(words.data()), bytes))
-            throw std::runtime_error("could not be read");
-        return words;
-    }
-
     /// Written beside the module and moved over it, so a build that stops halfway leaves the
     /// module `glslc` wrote or the pinned one and never part of either.
     void writeWords(const std::filesystem::path& path, const std::vector<std::uint32_t>& words)
@@ -65,8 +51,13 @@ int main(int argc, char* argv[])
     const std::filesystem::path path(argv[1]);
     try
     {
-        writeWords(path, Rtx::pinFloatArithmetic(readWords(path)));
+        writeWords(path, Rtx::pinFloatArithmetic(Rtx::readSpirv(path)));
         return 0;
+    }
+    catch (const Rtx::InputError& error)
+    {
+        std::cerr << error.what() << '\n';
+        return 1;
     }
     catch (const std::exception& error)
     {

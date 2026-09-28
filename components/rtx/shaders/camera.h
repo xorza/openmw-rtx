@@ -125,6 +125,61 @@ namespace Rtx::Shaders
         return (2u * traced * extent + tracedExtent - 1u) / (2u * tracedExtent);
     }
 
+    /// Where a pixel's ray starts relative to the eye, and which way it points.
+    ///
+    /// **Where it starts is what tells the two projections apart, not where it points.** A pinhole fans
+    /// every ray out of one point, so a pixel's offset turns the direction and the origin is nothing; a
+    /// parallel one sends them all the same way from wherever on the box the pixel sits, so the same
+    /// offset is a position instead.
+    struct Ray
+    {
+        /// From the eye to where this ray begins. Zero under a pinhole projection.
+        vec3 mOffset;
+
+        /// Unit.
+        vec3 mDirection;
+    };
+
+    /// The ray through `uv`, minus one to one across and down the image plane: the one rule for which
+    /// way a point of the picture looks, for the trace, every shader that recomputes its ray, and a
+    /// pick on the processor. Its components are read as `uv[i]`, which both sides spell alike.
+    RTX_SHADER Ray rayAcross(Camera camera, vec2 uv)
+    {
+        Ray ray;
+        if (camera.mOrthographic != 0u)
+        {
+            // The same pair of multiply-adds the perspective branch pins below, for the same reason.
+            RTX_PRECISE vec3 offset = camera.mRight * uv[0] - camera.mUp * uv[1];
+            ray.mOffset = offset;
+            ray.mDirection = normalize(camera.mForward);
+
+            return ray;
+        }
+
+        ray.mOffset = vec3(0.0, 0.0, 0.0);
+
+        // **The sum is written out rather than hoisted into a shared term, and that is not an
+        // oversight.** Floating-point addition does not associate: `f + (a - b)` and `(f + a) - b`
+        // differ in the last place, and a direction that differs in the last place is a hit a texel
+        // over once it has been carried thirty thousand units — a trace that sums left to right and a
+        // wavelet that hoists never reconstruct quite the positions that were shaded. This is the
+        // trace's association, because the trace is what everything else is judged against.
+        //
+        // **And `precise`, because every shader that recomputes the trace's ray has to land on the
+        // trace's bits.** The wavelet, the sprite composite, the tone pass and the fog each call
+        // `rayAt` for the ray the trace shot, and each is a module of its own. The build fuses a
+        // multiply into the one add that reads it (`Rtx::pinFloatArithmetic`), and whether a multiply
+        // here has one reader is a fact of how each module was optimised and not of this line — fused
+        // in one module and not in another, a direction an ulp away is a hit distance an ulp away on
+        // the surfaces it reaches and another sample on a few hundred pixels. `precise` keeps these
+        // steps apart in every module, so each computes the written sum; the `normalize` under it the
+        // build writes out in one order for all of them.
+        RTX_PRECISE vec3 summed = camera.mForward + camera.mRight * uv[0] - camera.mUp * uv[1];
+        ray.mDirection = normalize(summed);
+
+        return ray;
+    }
+
 #ifdef RTX_HOST
 }
 #endif
@@ -136,21 +191,6 @@ namespace Rtx::Shaders
 // write and a second reader could still compile.
 #ifndef RTX_HOST
 
-/// Where a pixel's ray starts relative to the eye, and which way it points.
-///
-/// **Where it starts is what tells the two projections apart, not where it points.** A pinhole fans
-/// every ray out of one point, so a pixel's offset turns the direction and the origin is nothing; a
-/// parallel one sends them all the same way from wherever on the box the pixel sits, so the same
-/// offset is a position instead.
-struct Ray
-{
-    /// From the eye to where this ray begins. Zero under a pinhole projection.
-    vec3 mOffset;
-
-    /// Unit.
-    vec3 mDirection;
-};
-
 /// The ray through `pixel`, whose `xy` is the integer index and to which the jitter and the half
 /// are added here — added to *one* number, so which way is down cannot be disagreed about.
 RTX_SHADER Ray rayAt(Camera camera, vec2 pixel)
@@ -158,39 +198,7 @@ RTX_SHADER Ray rayAt(Camera camera, vec2 pixel)
     RTX_PRECISE vec2 uv
         = (pixel + 0.5 + camera.mJitter) / vec2(float(camera.mWidth), float(camera.mHeight)) * 2.0 - 1.0;
 
-    Ray ray;
-    if (camera.mOrthographic != 0u)
-    {
-        // The same pair of multiply-adds the perspective branch pins below, for the same reason.
-        RTX_PRECISE vec3 offset = camera.mRight * uv.x - camera.mUp * uv.y;
-        ray.mOffset = offset;
-        ray.mDirection = normalize(camera.mForward);
-
-        return ray;
-    }
-
-    ray.mOffset = vec3(0.0);
-
-    // **The sum is written out rather than hoisted into a shared term, and that is not an
-    // oversight.** Floating-point addition does not associate: `f + (a - b)` and `(f + a) - b`
-    // differ in the last place, and a direction that differs in the last place is a hit a texel
-    // over once it has been carried thirty thousand units — a trace that sums left to right and a
-    // wavelet that hoists never reconstruct quite the positions that were shaded. This is the
-    // trace's association, because the trace is what everything else is judged against.
-    //
-    // **And `precise`, because every shader that recomputes the trace's ray has to land on the
-    // trace's bits.** The wavelet, the sprite composite, the tone pass and the fog each call
-    // `rayAt` for the ray the trace shot, and each is a module of its own. The build fuses a
-    // multiply into the one add that reads it (`Rtx::pinFloatArithmetic`), and whether a multiply
-    // here has one reader is a fact of how each module was optimised and not of this line — fused
-    // in one module and not in another, a direction an ulp away is a hit distance an ulp away on
-    // the surfaces it reaches and another sample on a few hundred pixels. `precise` keeps these
-    // steps apart in every module, so each computes the written sum; the `normalize` under it the
-    // build writes out in one order for all of them.
-    RTX_PRECISE vec3 summed = camera.mForward + camera.mRight * uv.x - camera.mUp * uv.y;
-    ray.mDirection = normalize(summed);
-
-    return ray;
+    return rayAcross(camera, uv);
 }
 
 /// Where a point lands on the image plane a basis spans, and how far ahead of the eye it stands.

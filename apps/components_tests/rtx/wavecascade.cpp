@@ -29,12 +29,14 @@ namespace Rtx
             return wavenumber > 0.0f ? Shaders::TAU / wavenumber : 0.0f;
         }
 
-        /// The variance of the surface these amplitudes describe, which is their zeroth moment.
-        float varianceOf(const std::array<WaveCascade, Shaders::WAVE_CASCADES>& cascades)
+        /// The variance of the surface these amplitudes describe, which is their zeroth moment. In
+        /// double, over the stored amplitudes' own squares, as the height is asked of.
+        double varianceOf(const std::array<WaveCascade, Shaders::WAVE_CASCADES>& cascades)
         {
-            float total = 0.0f;
+            double total = 0.0;
             for (const WaveCascade& cascade : cascades)
-                total += Testing::momentOf(cascade, 0);
+                for (const osg::Vec2f& amplitude : cascade.mAmplitudes)
+                    total += 2.0 * double{ amplitude.length2() };
 
             return total;
         }
@@ -51,7 +53,11 @@ namespace Rtx
                 SeaState sea;
                 sea.mSignificantHeight = height;
 
-                EXPECT_NEAR(4.0f * std::sqrt(varianceOf(makeWaveCascades(sea))), height, height * 1e-4f)
+                // To a part in a million: the scale is taken over the same sum in double, and all
+                // that is left is the amplitudes' storage in float. In float, the sum of seventy
+                // thousand squares came out 1.7 parts in a hundred thousand high at every height.
+                EXPECT_NEAR(
+                    4.0 * std::sqrt(varianceOf(makeWaveCascades(sea))), double{ height }, double{ height } * 1e-6)
                     << "at height " << height;
             }
         }

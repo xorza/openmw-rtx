@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <vector>
 
+#include <osg/Vec3f>
+
 #include "texturedata.hpp"
 
 namespace osg
@@ -64,6 +66,10 @@ namespace Rtx
         std::vector<MipLevel> mLevels;
         std::vector<std::byte> mTexels;
         AlphaImage mAlpha;
+
+        /// A band of colours, `readTexelBand`'s, for a reader that takes the colour beside the
+        /// alpha (`meanTexel`).
+        std::vector<osg::Vec3f> mColours;
     };
 
     /// Whether any texel of `image` is fully opaque — what tells a wisp from a mask, since

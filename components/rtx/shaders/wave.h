@@ -142,6 +142,14 @@ namespace Rtx::Shaders
         uint mCount;
     };
 
+    // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
+    // reads them are different compilers.
+#ifdef RTX_HOST
+    static_assert(sizeof(WaveConstants) == 16, "WaveConstants must be scalar-packed on every side");
+    static_assert(sizeof(WaveFormConstants) == 16, "WaveFormConstants must be scalar-packed on every side");
+    static_assert(sizeof(WaveComposeConstants) == 4, "WaveComposeConstants must be scalar-packed on every side");
+#endif
+
 #ifdef RTX_HOST
 }
 #endif

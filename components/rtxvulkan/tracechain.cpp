@@ -7,16 +7,15 @@
 #include <components/rtx/shaders/composite.h>
 #include <components/rtx/shaders/visibility.h>
 
-#include "accumulatepass.hpp"
-#include "atrouspass.hpp"
 #include "barriers.hpp"
-#include "compositepass.hpp"
+#include "devicescene.hpp"
 #include "formats.hpp"
 #include "gputimer.hpp"
 #include "handles.hpp"
 #include "imageuse.hpp"
 #include "scenebuffers.hpp"
-#include "spritepasses.hpp"
+#include "tracemedia.hpp"
+#include "tracepasses.hpp"
 #include "tracerecording.hpp"
 #include "visibilitypass.hpp"
 #include "wavepass.hpp"
@@ -26,7 +25,9 @@ namespace Rtx
     TraceChain::TraceChain(const Device& device, const TracePasses& passes)
         : mDevice(device)
         , mPasses(passes)
-        , mBins([&](FrameSlot) { return SpriteBin{ device }; })
+        , mBins([&](FrameSlot) {
+            return SpriteBin{ device, passes.mSpriteShade, passes.mSpriteBin };
+        })
         , mHistory(device)
     {
     }
@@ -57,13 +58,14 @@ namespace Rtx
         resize(std::max(mWidth, width), std::max(mHeight, height), radiance);
     }
 
-    const Image& TraceChain::recordDenoise(const VkCommandBuffer commands, const Shaders::Camera& camera,
-        const float far, const bool historyLost, GpuTimer* const timer)
+    const Image& TraceChain::recordDenoise(const VkCommandBuffer commands, const Shaders::VisibilityConstants& sampled,
+        const bool historyLost, GpuTimer* const timer)
     {
+        const Shaders::Camera& camera = sampled.mCamera;
         // The temporal half first: the accumulator hands on the variance of its mean, which is
         // what lets the levels below stop at an edge in the light and not only in the geometry.
         openZone(timer, commands, "accumulate");
-        mPasses.mAccumulate.record(commands, mHistory, *mChannels, camera, far, historyLost);
+        mPasses.mAccumulate.record(commands, mHistory, *mChannels, camera, sampled.mFar, historyLost);
         const Image& blended = mHistory.getBlended();
         closeZone(timer, commands);
 
@@ -74,8 +76,8 @@ namespace Rtx
         blended.transition(commands, Use::sComputeWrite, Use::sComputeReadOrSample);
 
         openZone(timer, commands, "filter");
-        const Image& indirect
-            = mPasses.mFilter.record(commands, *mChannels, blended, mHistory.getHistory(), mFilterScratch, camera);
+        const Image& indirect = mPasses.mFilter.record(
+            commands, *mChannels, blended, mHistory.getHistory(), mFilterScratch, camera, sampled.mArms);
         closeZone(timer, commands);
 
         return indirect;
@@ -89,16 +91,15 @@ namespace Rtx
 
     VkDeviceAddress TraceChain::getSpriteTileList(const VisibilityInputs& inputs) const
     {
-        return inputs.mSpriteList != 0 ? inputs.mSpriteList : mBins.at(inputs.mTraceSlot).getTileListAddress();
+        return inputs.mSubject.mDrawsSprites ? mBins.at(inputs.mSubject.mTraceSlot).getTileListAddress()
+                                             : inputs.mSubject.mMedia->describeNoSprites();
     }
 
     TraceResult TraceChain::record(const VkCommandBuffer commands, const TraceRecording& what)
     {
         assert(isBuilt() && "a trace into a chain that has no extent");
 
-        VisibilityInputs inputs = what.mInputs;
-        inputs.mChannels = mChannels.get();
-        inputs.mFogVolume = mFogVolume.get();
+        const VisibilityInputs inputs{ .mSubject = what.mSubject, .mChannels = *mChannels, .mFogVolume = *mFogVolume };
 
         // Made by the first trace that averages, and that trace is the one that fills it: the first
         // write needs no contents and nothing to wait on, and every trace after reads what the last
@@ -110,19 +111,13 @@ namespace Rtx
             mSum.transition(commands, Use::sUndefined, Use::sComputeReadWrite);
         }
 
-        // Written whole before anything reads it. The last frame may still be reading it, and the
-        // head barrier `CommandPool::begin` recorded is what orders this buffer after it, so the
-        // discard itself waits for nothing. The frame's own image is a channel, which `GBuffer`
-        // discards with the rest.
-        what.mTarget->transition(commands, Use::sUndefined, Use::sComputeWrite);
-
         // Before the trace and outside its zone, because the sea is a function of the clock and of
         // nothing the camera does — one synthesis serves every ray. None where there is no sea,
         // which is most interiors, and a fifth of a millisecond of device time in each of them.
-        if (inputs.mSea)
+        if (inputs.mSubject.mSea)
         {
             openZone(what.mTimer, commands, "waves");
-            inputs.mWaves->record(commands, what.mSampled.mWaterTime);
+            inputs.mSubject.mMedia->getWaves().record(commands, what.mSampled.mWaterTime);
             closeZone(what.mTimer, commands);
         }
 
@@ -134,17 +129,22 @@ namespace Rtx
         // table by address, which it has once the table is taken; the shelter launch reads the
         // block and zeroes the drops under a roof in that table; and the shade and the bin read
         // what is left. Every launch after reads the same block, and the emitters' rows beside it.
-        SpriteBin& bin = mBins.at(inputs.mTraceSlot);
-        const bool bins = inputs.mSpriteList == 0;
-        const SpriteSource sprites = inputs.mBuffers->describeSprites(inputs.mSlot);
+        SpriteBin& bin = mBins.at(inputs.mSubject.mTraceSlot);
+        const bool bins = inputs.mSubject.mDrawsSprites;
+        const SpriteSource sprites
+            = inputs.mSubject.mScene->getBuffers().describeSprites(inputs.mSubject.mScene->getSlot());
         if (bins)
             bin.take(sprites, what.mAsked.mCamera, commands);
+
+        // After the take, which may have grown the table, and once: the frame block and the
+        // display's `puffsCoverNothing` read the one list.
+        const VkDeviceAddress tileList = getSpriteTileList(inputs);
 
         // Composed by the trace where nothing filters the bounce: `VisibilityConstants::mComposed`.
         const bool composed = !what.mFilter;
 
         mPasses.mVisibility.writeFrame(
-            commands, inputs, bin, getSpriteTileList(inputs), what.mSampled, what.mPastLost || mAirStale, composed);
+            commands, inputs, bin, tileList, what.mSampled, what.mPastLost || mAirStale, composed);
         mAirStale = false;
 
         if (bins)
@@ -153,8 +153,6 @@ namespace Rtx
             mPasses.mVisibility.recordSpriteEmitters(commands, inputs, sprites.mEmitterCount, what.mTimer);
             bin.record(commands,
                 Binning{
-                    .mShading = mPasses.mSpriteShade,
-                    .mPass = mPasses.mSpriteBin,
                     .mSource = sprites,
                     .mOrigin = what.mAsked.mOrigin,
                     .mCamera = what.mAsked.mCamera,
@@ -171,7 +169,7 @@ namespace Rtx
         // nothing filtered it.
         const Image* indirect = &mChannels->get(Channel::Indirect);
         if (what.mFilter)
-            indirect = &recordDenoise(commands, what.mSampled.mCamera, what.mSampled.mFar, what.mPastLost, what.mTimer);
+            indirect = &recordDenoise(commands, what.mSampled, what.mPastLost, what.mTimer);
 
         // **Only where something is left to do**: a filter to put the albedo back in behind, or a sum
         // to add the frame to. Anything else was composed by the trace, into the channel that is
@@ -201,7 +199,7 @@ namespace Rtx
 
         return TraceResult{ .mInputs = inputs,
             .mColour = frame,
-            .mSpriteTileList = getSpriteTileList(inputs),
+            .mSpriteTileList = tileList,
             .mSpritePresence = bin.getPresenceAddress() };
     }
 }

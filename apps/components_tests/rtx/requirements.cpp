@@ -126,6 +126,28 @@ namespace Rtx
                                   [&](const RequiredExtension& held) { return std::string_view(held.mName) == name; }),
                         required.end())
                         << name << " is both required and optional";
+
+            // **Each option that brings a feature reaches its own**, structure and flag, and the
+            // structure is typed for the query: the two chains `Device` builds are this table, so a
+            // row pointed at another option's structure asks the device the wrong question.
+            OptionalFeatures features;
+            const auto reaches
+                = [&](DeviceOption option, const void* structure, const VkBool32* field, VkStructureType type) {
+                      const OptionalFeature* feature = options[static_cast<std::size_t>(option)].mFeature;
+                      ASSERT_NE(feature, nullptr) << static_cast<int>(option);
+                      EXPECT_EQ(&feature->mStructure(features), structure) << static_cast<int>(option);
+                      EXPECT_EQ(&feature->mField(features), field) << static_cast<int>(option);
+                      EXPECT_EQ(feature->mStructure(features).sType, type) << static_cast<int>(option);
+                  };
+            reaches(DeviceOption::FaultReport, &features.mFault, &features.mFault.deviceFault,
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT);
+            reaches(DeviceOption::PresentFences, &features.mPresentFences,
+                &features.mPresentFences.swapchainMaintenance1,
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR);
+            reaches(DeviceOption::Pacing, &features.mPresentId, &features.mPresentId.presentId,
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR);
+            for (const DeviceOption bare : { DeviceOption::MemoryBudget, DeviceOption::Checkpoints })
+                EXPECT_EQ(options[static_cast<std::size_t>(bare)].mFeature, nullptr) << static_cast<int>(bare);
         }
 
         /// The two directions of the table have to agree: what `requestRequiredFeatures` writes is

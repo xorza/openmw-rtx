@@ -58,7 +58,7 @@ namespace MWRender
 
             world.mLocation = where;
             world.mSkyShown = where != Location::Interior;
-            sky.mOutdoors = where != Location::Interior;
+            sky.mWeatherRan = where != Location::Interior;
             world.mGameHour = 12.0f;
             sky.mWeather.mFogDepth = 0.69f;
             sky.mWeather.mBaseWindSpeed = 0.3f;

@@ -2,8 +2,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <numbers>
+
+#include <osg/Vec2d>
+#include <osg/Vec2f>
 
 #include "shaders/scene.h"
 #include "wavespectrum.hpp"
@@ -59,6 +63,19 @@ namespace Rtx
 
             return spread * shape * shape / (2.0f * std::tanh(spread * Shaders::PI));
         }
+
+        /// The wavevector entry `at` of `cascade` stands for, in radians a world unit: the one
+        /// statement of which entry is which wave, for the draw, the curvature and the slope alike.
+        /// In double, because the sums over it run to tens of thousands of terms.
+        osg::Vec2d wavevectorAt(const WaveCascade& cascade, const std::size_t at)
+        {
+            const double step = double{ Shaders::TAU } / double{ cascade.mExtent };
+            const int half = static_cast<int>(cascade.mGrid) / 2;
+            const int row = static_cast<int>(at / cascade.mGrid) - half;
+            const int column = static_cast<int>(at % cascade.mGrid) - half;
+
+            return osg::Vec2d(step * column, step * row);
+        }
     }
 
     std::array<WaveCascade, Shaders::WAVE_CASCADES> makeWaveCascades(const SeaState& sea)
@@ -66,8 +83,8 @@ namespace Rtx
         std::array<WaveCascade, Shaders::WAVE_CASCADES> cascades{};
 
         // Summed across every tile, because the significant height describes the surface and each
-        // tile is an independent draw of a share of it.
-        float variance = 0.0f;
+        // tile is an independent draw of a share of it. In double, over tens of thousands of terms.
+        double variance = 0.0;
 
         for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
         {
@@ -76,7 +93,6 @@ namespace Rtx
             cascade.mGrid = sWaveTiles[index].mGrid;
 
             const std::size_t count = cascade.mGrid * cascade.mGrid;
-            const int half = static_cast<int>(cascade.mGrid) / 2;
 
             cascade.mAmplitudes.assign(count, osg::Vec2f());
             cascade.mTurnRates.assign(count, 0.0f);
@@ -90,60 +106,54 @@ namespace Rtx
 
             const float step = Shaders::TAU / cascade.mExtent;
 
-            for (int row = 0; row < static_cast<int>(cascade.mGrid); ++row)
-                for (int column = 0; column < static_cast<int>(cascade.mGrid); ++column)
-                {
-                    const osg::Vec2f wavevector(
-                        step * static_cast<float>(column - half), step * static_cast<float>(row - half));
+            for (std::size_t at = 0; at < count; ++at)
+            {
+                const osg::Vec2f wavevector(wavevectorAt(cascade, at));
 
-                    const float wavenumber = wavevector.length();
-                    if (!(wavenumber > 0.0f))
-                        continue;
+                const float wavenumber = wavevector.length();
+                if (!(wavenumber > 0.0f))
+                    continue;
 
-                    const float wavelength = Shaders::TAU / wavenumber;
-                    if (wavelength > longest || wavelength <= shortest)
-                        continue;
+                const float wavelength = Shaders::TAU / wavenumber;
+                if (wavelength > longest || wavelength <= shortest)
+                    continue;
 
-                    const float frequency = sea.getFrequency(wavenumber);
+                const float frequency = sea.getFrequency(wavenumber);
 
-                    // Spread about +X, the sea's own frame and never the wind's, because the wind
-                    // turns through a transition; the shader turns the tiles by `mSeaHeading` where
-                    // it samples them.
-                    const float angle = std::atan2(wavevector.y(), wavevector.x());
+                // Spread about +X, the sea's own frame and never the wind's, because the wind
+                // turns through a transition; the shader turns the tiles by `mSeaHeading` where
+                // it samples them.
+                const float angle = std::atan2(wavevector.y(), wavevector.x());
 
-                    // The spectrum over wavevectors: the density over frequency, carried across by
-                    // the dispersion relation's own slope, spread over directions, and divided by
-                    // the wavenumber because `d2k` is `k dk dtheta`.
-                    const float density = sea.getEnergy(frequency) * groupSlope(sea, wavenumber)
-                        * spreadAt(sea.getSpread(frequency), std::remainder(angle, Shaders::TAU)) / wavenumber;
+                // The spectrum over wavevectors: the density over frequency, carried across by
+                // the dispersion relation's own slope, spread over directions, and divided by
+                // the wavenumber because `d2k` is `k dk dtheta`.
+                const float density = sea.getEnergy(frequency) * groupSlope(sea, wavenumber)
+                    * spreadAt(sea.getSpread(frequency), std::remainder(angle, Shaders::TAU)) / wavenumber;
 
-                    const std::size_t at
-                        = static_cast<std::size_t>(row) * cascade.mGrid + static_cast<std::size_t>(column);
+                // Half the density into each of the two Gaussians, which makes the pair a
+                // circular complex normal, and a share of the density per tile, because
+                // independent draws of a fraction of the variance sum to one draw of all of it.
+                const float share = 1.0f / static_cast<float>(Shaders::WAVE_CASCADES);
+                const float scale = std::sqrt(0.5f * share * density * step * step);
 
-                    // Half the density into each of the two Gaussians, which makes the pair a
-                    // circular complex normal, and a share of the density per tile, because
-                    // independent draws of a fraction of the variance sum to one draw of all of it.
-                    const float share = 1.0f / static_cast<float>(Shaders::WAVE_CASCADES);
-                    const float scale = std::sqrt(0.5f * share * density * step * step);
+                // A whole stream apart per tile, because two tiles carrying the same draws are
+                // one tile with the energy split.
+                const std::uint32_t stream = static_cast<std::uint32_t>(index) * 0x51ed270bu;
+                cascade.mAmplitudes[at] = gaussians(stream + static_cast<std::uint32_t>(at)) * scale;
+                cascade.mTurnRates[at] = static_cast<float>(static_cast<double>(frequency) / (2.0 * std::numbers::pi));
 
-                    // A whole stream apart per tile, because two tiles carrying the same draws are
-                    // one tile with the energy split.
-                    const std::uint32_t stream = static_cast<std::uint32_t>(index) * 0x51ed270bu;
-                    cascade.mAmplitudes[at] = gaussians(stream + static_cast<std::uint32_t>(at)) * scale;
-                    cascade.mTurnRates[at]
-                        = static_cast<float>(static_cast<double>(frequency) / (2.0 * std::numbers::pi));
-
-                    // Twice, because a wavevector and its opposite both carry it and the two draws
-                    // are independent — the convention `wavecompose.comp` is written against.
-                    variance += 2.0f * cascade.mAmplitudes[at].length2();
-                }
+                // Twice, because a wavevector and its opposite both carry it and the two draws
+                // are independent — the convention `wavecompose.comp` is written against.
+                variance += 2.0 * double{ cascade.mAmplitudes[at].length2() };
+            }
         }
 
         // Scaled to the height that was asked for: JONSWAP's `alpha` is a fetch-and-wind parameter
         // nothing here knows, and every term in it is a constant multiplier on everything above — so
         // it cancels, and the one number a person can picture takes its place.
         const float wanted = sea.mSignificantHeight / Shaders::WATER_SIGNIFICANT_HEIGHT;
-        const float scale = variance > 0.0f ? wanted / std::sqrt(variance) : 0.0f;
+        const float scale = variance > 0.0 ? static_cast<float>(double{ wanted } / std::sqrt(variance)) : 0.0f;
 
         for (WaveCascade& cascade : cascades)
             for (osg::Vec2f& amplitude : cascade.mAmplitudes)
@@ -154,7 +164,9 @@ namespace Rtx
 
     WaveCurvature waveCurvature(const std::array<WaveCascade, Shaders::WAVE_CASCADES>& cascades)
     {
-        WaveCurvature carried;
+        // In double, for the reason `variance` is above, and stored as the floats the shader reads.
+        double whole = 0.0;
+        std::array<double, Shaders::WAVE_CASCADES * Shaders::WAVE_LEVELS> resolved{};
 
         for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
         {
@@ -188,14 +200,12 @@ namespace Rtx
                 const std::size_t row = at / cascade.mGrid;
                 const std::size_t column = at % cascade.mGrid;
 
-                const float wavenumber = step * step
-                    * static_cast<float>((static_cast<int>(row) - half) * (static_cast<int>(row) - half)
-                        + (static_cast<int>(column) - half) * (static_cast<int>(column) - half));
-                const float weight = 2.0f * cascade.mAmplitudes[at].length2() * wavenumber * wavenumber;
+                const double squared = wavevectorAt(cascade, at).length2();
+                const double weight = 2.0 * double{ cascade.mAmplitudes[at].length2() } * squared * squared;
 
                 // The sea's own curvature, before any of the sampling above takes its share — so
                 // that `WATER_CAUSTIC_FOLD` means the same thing whatever level a pixel reads.
-                carried.mWhole += weight;
+                whole += weight;
 
                 for (std::size_t level = 0; level < Shaders::WAVE_LEVELS; ++level)
                 {
@@ -204,39 +214,30 @@ namespace Rtx
                     // holds.
                     const std::size_t held = std::min(level, std::size_t{ levelsFor(cascade.mGrid) } - 1);
 
-                    carried.mResolved[index * Shaders::WAVE_LEVELS + level]
-                        += weight * power[held * cascade.mGrid + column] * power[held * cascade.mGrid + row];
+                    resolved[index * Shaders::WAVE_LEVELS + level] += weight
+                        * double{ power[held * cascade.mGrid + column] } * double{ power[held * cascade.mGrid + row] };
                 }
             }
         }
 
-        if (carried.mWhole > 0.0f)
-            for (float& share : carried.mResolved)
-                share /= carried.mWhole;
+        WaveCurvature carried;
+        carried.mWhole = static_cast<float>(whole);
+        if (whole > 0.0)
+            for (std::size_t at = 0; at < resolved.size(); ++at)
+                carried.mResolved[at] = static_cast<float>(resolved[at] / whole);
 
         return carried;
     }
 
     float waveSlope(const std::array<WaveCascade, Shaders::WAVE_CASCADES>& cascades)
     {
-        float squared = 0.0f;
+        double squared = 0.0;
 
         for (const WaveCascade& cascade : cascades)
-        {
-            const float step = Shaders::TAU / cascade.mExtent;
-            const int half = static_cast<int>(cascade.mGrid) / 2;
-
             for (std::size_t at = 0; at < cascade.mAmplitudes.size(); ++at)
-            {
-                const int row = static_cast<int>(at / cascade.mGrid) - half;
-                const int column = static_cast<int>(at % cascade.mGrid) - half;
+                squared += 2.0 * double{ cascade.mAmplitudes[at].length2() } * wavevectorAt(cascade, at).length2();
 
-                squared += 2.0f * cascade.mAmplitudes[at].length2() * step * step
-                    * static_cast<float>(row * row + column * column);
-            }
-        }
-
-        return std::sqrt(squared);
+        return static_cast<float>(std::sqrt(squared));
     }
 
 }

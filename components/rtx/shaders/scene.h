@@ -846,10 +846,10 @@ namespace Rtx::Shaders
         /// Which emitter placed it, which is what a tile's list has to carry. Written by
         /// `Rtx::SceneDesc::addEmitter`, the one place that knows.
         ///
-        /// **Walking sprites rather than emitters is what made this necessary.** The march evaluates
-        /// the fog's field once per emitter per ray — forty hashes, amortised over that emitter's
-        /// whole run — and a list of sprites can only keep that amortisation if a sprite can say
-        /// when the run it belongs to has changed.
+        /// **Walking sprites rather than emitters is what made this necessary.** The walk reads what
+        /// is the emitter's and not the sprite's — its `GpuEmitterFrame` — once where it meets the
+        /// emitter's run, and a list of sprites can only keep that if a sprite can say when the run
+        /// it belongs to has changed.
         uint mEmitter;
 
         /// How many sprites of its own emitter stand between this one and the sun, and the sky, each
@@ -973,7 +973,7 @@ namespace Rtx::Shaders
     {
         /// The fog's coverage band over the path from the eye to the emitter, taken at the path's
         /// mean-value point: every sprite of the emitter is within `GpuEmitter::mReach` of the same
-        /// air, and the band costs forty hashes.
+        /// air, and the band costs a fetch of the fog's tile per scale (`FOG_SCALES`).
         float mBand;
 
         /// What one layer of the emitter's texture lets through on average, as the base-two

@@ -207,9 +207,9 @@ vec3 rippleHessian(vec2 at, float footprint)
 
 /// The water's surface where a ray met it: one read of each tile, and everything taken from it.
 ///
-/// **The normal, the elevation and what the cone could not resolve of either, out of three fetches a
-/// tile.** They are derivatives and moments of a single height field, and the moment two of them are
-/// computed apart the light lands where the surface is not.
+/// **The normal and what the cone could not resolve of it, out of one fetch a tile.** They are a
+/// derivative and a moment of a single height field, and the moment the two are computed apart the
+/// light lands where the surface is not.
 struct WaterSurface
 {
     /// Unit, from the gradient of the height field.

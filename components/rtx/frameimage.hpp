@@ -54,6 +54,7 @@ namespace Rtx
 
     /// Every channel in binding order, for a walk that wants them all.
     inline constexpr std::array<Channel, sChannelCount> sEveryChannel = sChannels.values();
+    static_assert(coversFromNought(sEveryChannel), "a channel the table leaves out, or names twice");
 
     inline constexpr std::string_view channelName(const Channel channel)
     {

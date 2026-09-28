@@ -13,6 +13,7 @@
 #include <osg/Vec2f>
 #include <osg/ref_ptr>
 
+#include "colour.hpp"
 #include "namedenum.hpp"
 #include "texturewrap.hpp"
 
@@ -38,19 +39,6 @@ namespace Rtx
         /// texture whose alpha is all but binary, which the original renderer sorted rather than
         /// tested. `Rtx::Material::getAlphaCutoff` says what a renderer with no sort does.
         Blend,
-    };
-
-    /// A colour as a content file states one: three channels from nought to one, display-encoded.
-    /// A type, because the space is the whole of what a reader gets wrong: an `osg::Vec3f` says
-    /// nothing about which side of `Rtx::decodeColour` a value is on. No arithmetic, on purpose —
-    /// a gain belongs past the decode, where the numbers are light.
-    struct EncodedColour
-    {
-        float mRed = 0.0f;
-        float mGreen = 0.0f;
-        float mBlue = 0.0f;
-
-        bool operator==(const EncodedColour& other) const = default;
     };
 
     /// What a surface's per-vertex colour is for: `NiVertexColorProperty`'s three vertex modes,
@@ -130,7 +118,7 @@ namespace Rtx
         Specular,
     };
 
-    inline constexpr std::size_t sSurfaceMapCount = 6;
+    inline constexpr std::size_t sSurfaceMapCount = static_cast<std::size_t>(SurfaceMap::Specular) + 1;
 
     /// The map a role is kept as, or nothing for a role the trace declines to read.
     constexpr std::optional<SurfaceMap> mapOf(const TextureRole role)

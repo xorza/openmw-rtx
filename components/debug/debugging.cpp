@@ -463,6 +463,8 @@ namespace Debug
             // And none where a harness asks, which a box waiting for a click would stop.
             if (const char* const dialog = std::getenv("OPENMW_CRASH_DIALOG"))
                 settings.mDialog = Misc::StringUtils::toNumeric<int>(dialog, 1) != 0;
+            if (const char* const after = std::getenv("OPENMW_CRASH_END_AFTER_MS"))
+                settings.mEndAfter = std::chrono::milliseconds(Misc::StringUtils::toNumeric<int>(after, 0));
             if (const std::optional<std::string> why = Crash::install(settings))
                 Log(Debug::Warning) << "No crash catcher: " << *why;
             else

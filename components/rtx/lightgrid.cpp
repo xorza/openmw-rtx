@@ -25,17 +25,7 @@ namespace
     /// lamp fewer. An exterior overruns the cell budget at this size and doubles back to a tile.
     constexpr double sFirstCell = 256.0;
 
-    /// The cells a sphere of `reach` about `centre` touches, as a half-open box of cell coordinates.
-    struct CellBox
-    {
-        osg::Vec3ui mLow;
-        osg::Vec3ui mHigh;
-
-        std::size_t getCount() const
-        {
-            return std::size_t{ mHigh.x() - mLow.x() } * (mHigh.y() - mLow.y()) * (mHigh.z() - mLow.z());
-        }
-    };
+    using CellBox = Rtx::LightGrid::CellBox;
 
     /// The flat index of a cell, which is the one arithmetic the shader has to agree with.
     std::size_t cellAt(std::uint32_t x, std::uint32_t y, std::uint32_t z, const osg::Vec3ui& size)
@@ -77,29 +67,64 @@ namespace
 
 namespace Rtx
 {
-    bool LightGrid::standsWhereItWas(std::span<const Light> lights) const
+    void LightGrid::rebuild(std::span<const Light> lights)
     {
         // A list nothing has made yet says nothing about where the lamps are, and a world of no
         // lamps cannot be told from one by the lengths alone — both are nought. `RunList::start` is
-        // what puts the first entry in, so an empty list is a grid that was never built.
+        // what puts the first entry in, so an empty list is a grid that was never built. A lamp
+        // that came or went renumbers every entry after it.
         if (mList.getWhole().empty() || mBinnedOn.size() != lights.size())
-            return false;
+        {
+            build(lights);
+            return;
+        }
 
+        // **Only what moved is binned again, into the grid as it stands.** A lamp carried through
+        // a room crosses a cell every few frames and stands in the cells it stood in between, so
+        // most frames it moves write nothing; its colour, which the grid never reads, changes on
+        // nearly every one. The grid is made again only where a lamp's reach leaves it, because a
+        // position outside the grid is lit by nothing.
+        bool rebin = false;
         for (std::size_t at = 0; at < lights.size(); ++at)
         {
             const Light& light = lights[at];
-            if (mBinnedOn[at] != osg::Vec4f(light.mPosition, light.mReach))
-                return false;
+            const osg::Vec4f stood(light.mPosition, light.mReach);
+            if (mBinnedOn[at] == stood)
+                continue;
+
+            if (!covers(light))
+            {
+                build(lights);
+                return;
+            }
+
+            const CellBox box = boxAround(light.mPosition, light.mReach, mOrigin, mInverseCell, mSize);
+            rebin = rebin || box != mBoxes[at];
+            mBoxes[at] = box;
+            mBinnedOn[at] = stood;
         }
 
+        if (rebin)
+            fill();
+    }
+
+    bool LightGrid::covers(const Light& light) const
+    {
+        // In double, for the reason `boxAround` gives.
+        const double cell = 1.0 / double{ mInverseCell };
+        for (int axis = 0; axis < 3; ++axis)
+        {
+            const double from = double{ light.mPosition[axis] } - double{ mOrigin[axis] };
+            // Asked so a number that is not one answers no, and the grid is made again around it.
+            if (!(from - double{ light.mReach } >= 0.0
+                    && from + double{ light.mReach } <= static_cast<double>(mSize[axis]) * cell))
+                return false;
+        }
         return true;
     }
 
-    void LightGrid::rebuild(std::span<const Light> lights)
+    void LightGrid::build(std::span<const Light> lights)
     {
-        if (standsWhereItWas(lights))
-            return;
-
         mBinnedOn.clear();
         mBinnedOn.reserve(lights.size());
         for (const Light& light : lights)
@@ -124,6 +149,7 @@ namespace Rtx
         // listed. An axis is capped one past the cell budget before it is cast, because a far lamp
         // gives it more cells than a `uint32_t` holds, and one past fails the test whatever the
         // others hold.
+        mBoxes.reserve(lights.size());
         for (double cell = sFirstCell;; cell *= 2.0)
         {
             mInverseCell = static_cast<float>(1.0 / cell);
@@ -135,27 +161,32 @@ namespace Rtx
             if (cells > sMaxCells)
                 continue;
 
+            // Each lamp's box once, for the budget, the count and the put alike, and kept for the
+            // frames after.
+            mBoxes.clear();
             std::size_t entries = 0;
             for (const Light& light : lights)
-                entries += boxAround(light.mPosition, light.mReach, mOrigin, mInverseCell, mSize).getCount();
+                entries += mBoxes.emplace_back(boxAround(light.mPosition, light.mReach, mOrigin, mInverseCell, mSize))
+                               .getCount();
 
             if (entries <= sMaxEntries || cells == 1)
                 break;
         }
 
+        fill();
+    }
+
+    void LightGrid::fill()
+    {
         const std::size_t cells = std::size_t{ mSize.x() } * mSize.y() * mSize.z();
 
         mList.start(cells);
-        for (const Light& light : lights)
-            forEachCell(boxAround(light.mPosition, light.mReach, mOrigin, mInverseCell, mSize), mSize,
-                [&](std::size_t cell) { mList.count(cell); });
+        for (const CellBox& box : mBoxes)
+            forEachCell(box, mSize, [&](std::size_t cell) { mList.count(cell); });
 
         mList.place();
-        for (std::size_t index = 0; index < lights.size(); ++index)
-        {
-            const Light& light = lights[index];
-            forEachCell(boxAround(light.mPosition, light.mReach, mOrigin, mInverseCell, mSize), mSize,
-                [&](std::size_t cell) { mList.put(cell, static_cast<std::uint32_t>(index)); });
-        }
+        for (std::size_t index = 0; index < mBoxes.size(); ++index)
+            forEachCell(
+                mBoxes[index], mSize, [&](std::size_t cell) { mList.put(cell, static_cast<std::uint32_t>(index)); });
     }
 }

@@ -13,13 +13,12 @@
 #include <components/rtx/texturedata.hpp>
 #include <components/rtxvulkan/commands.hpp>
 #include <components/rtxvulkan/device.hpp>
-#include <components/rtxvulkan/handles.hpp>
 #include <components/rtxvulkan/image.hpp>
 #include <components/rtxvulkan/memory.hpp>
 #include <components/rtxvulkan/texture.hpp>
+#include <components/rtxvulkan/texturepasses.hpp>
 
 #include "support/device/harness.hpp"
-#include "support/device/texturepasses.hpp"
 #include "support/testtexture.hpp"
 
 namespace Rtx
@@ -45,8 +44,7 @@ namespace Rtx
                 const TextureData& file, std::string_view name, VkFormat stored = VK_FORMAT_R8G8B8A8_UNORM)
             {
                 Device& device = getDevice();
-                const Testing::TexturePassSet passes(device);
-                const Sampler sampler = makeContentSampler(device, "mip chain test");
+                const TexturePasses passes(device, Testing::getShaderDirectory());
 
                 const bool encoded = isSrgb(file.mFormat);
                 const std::uint32_t levels = levelsTo1x1(file.mWidth, file.mHeight);
@@ -63,7 +61,7 @@ namespace Rtx
                     .imageExtent = { file.mWidth, file.mHeight, 1 },
                 } };
                 uploadImage(upload, source, file.mBytes, regions);
-                passes.mChain.record(upload.getCommands(), source, sampler.get(), chain, encoded);
+                passes.mChain.record(upload.getCommands(), source, chain, encoded);
                 upload.flush();
 
                 std::vector<std::vector<std::uint8_t>> read(levels);
@@ -78,14 +76,12 @@ namespace Rtx
                 file.mCompleteChain = MipChain::wantedFor(file);
 
                 Device& device = getDevice();
-                const Testing::TexturePassSet passes(device);
-                const Sampler sampler = makeContentSampler(device, "mip chain test");
+                const TexturePasses passes(device, Testing::getShaderDirectory());
 
                 Batch upload(getPool());
                 std::vector<VkBufferImageCopy> regions;
-                const Texture stood = std::move(Texture::fromFile(
-                    device, upload, passes.mPasses, sampler.get(), file, 0, name, regions, MemoryUse::Essential)
-                                                    .value());
+                const Texture stood = std::move(
+                    Texture::fromFile(device, upload, passes, file, 0, name, regions, MemoryUse::Essential).value());
                 upload.flush();
 
                 return stood.getImage().getMipLevels();

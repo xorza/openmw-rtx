@@ -1,5 +1,9 @@
 #pragma once
 
+#include <vector>
+
+#include <osg/Vec3f>
+
 #include "alphaimage.hpp"
 #include "ownedtexture.hpp"
 #include "texturedata.hpp"
@@ -53,6 +57,9 @@ namespace Rtx
         /// The finest level's alpha, read to weigh the colours by it. Not among what `build`
         /// resets, because nothing reads it but the line that fills it.
         AlphaImage mAlpha;
+
+        /// A band of the finest level's colours at a time, `readTexelBand`'s.
+        std::vector<osg::Vec3f> mBand;
 
         /// Every level, back to back, four bytes a texel, with the name and the format beside them.
         OwnedTexture mTexture;

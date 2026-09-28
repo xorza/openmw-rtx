@@ -1,5 +1,6 @@
 #version 460
 
+#extension GL_EXT_samplerless_texture_functions : require
 #extension GL_GOOGLE_include_directive : require
 
 // The levels a texture needs, built on the device where its file carried none.
@@ -31,9 +32,8 @@
 layout(local_size_x = MIP_CHAIN_WORKGROUP, local_size_y = MIP_CHAIN_WORKGROUP) in;
 
 /// The upload: the file's finest level, in its own format read as `UNORM`, so a fetch is the
-/// stored bytes and not the light behind them. The sampler is whichever the array binds, and is
-/// not read.
-layout(set = SET_PASS, binding = MIPCHAIN_BIND_SOURCE) uniform sampler2D source;
+/// stored bytes and not the light behind them.
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_SOURCE) uniform texture2D source;
 
 /// The level above the one written, through the chain's own `UNORM` view — the bytes as stored,
 /// decoded here where the format says to. Bound to the level written for the first dispatch,

@@ -40,6 +40,7 @@
 #include "sets.h"
 
 #include "lib/pixels.glsl"
+#include "lib/spritelist.glsl"
 
 layout(local_size_x = ATROUS_WORKGROUP, local_size_y = ATROUS_WORKGROUP) in;
 
@@ -64,6 +65,10 @@ layout(set = SET_PASS, binding = ATROUS_BIND_GUIDE) uniform texture2D guide;
 /// Clip depth in `r` and the distance from the eye in `g`. This reads the second, in world units,
 /// because a tolerance against a clip value would mean something different at every distance.
 layout(set = SET_PASS, binding = ATROUS_BIND_DEPTH) uniform texture2D depth;
+
+/// The puffs the trace left, read for the one bit that says whether a pixel was drawn on an arm,
+/// `puffsOnArms`, and so which eye its ray left.
+layout(set = SET_PASS, binding = ATROUS_BIND_PUFFS) uniform texture2D puffs;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -114,14 +119,22 @@ float varianceAround(ivec2 at)
     return sum / weight;
 }
 
+/// The eye the trace's ray through `pixel` left: the arms' where it drew an arm, the world's
+/// otherwise.
+Camera eyeAt(ivec2 pixel)
+{
+    return puffsOnArms(texelFetch(puffs, pixel, 0)) ? level.mArms : level.mCamera;
+}
+
 /// Where the trace's ray through `pixel` ended up, `away` along it.
 ///
-/// **The trace's own `rayAt`, so these are the rays that were actually shaded.** The eye's place
-/// drops out because every use of this is a difference between two of them, which is why `Camera`
-/// does not carry one.
+/// **The trace's own `rayAt` through the eye the trace used, so these are the rays that were
+/// actually shaded.** An arm's pixel rebuilt through the world's eye stood on a plane the arm is
+/// not, and the plane test turned its neighbours away. The eye's place drops out because every use
+/// of this is a difference between two of them, which is why `Camera` does not carry one.
 vec3 positionAt(ivec2 pixel, float away)
 {
-    const Ray ray = rayAt(level.mCamera, vec2(pixel));
+    const Ray ray = rayAt(eyeAt(pixel), vec2(pixel));
 
     return ray.mOffset + ray.mDirection * away;
 }
@@ -151,7 +164,7 @@ void main()
     // ray, which is the same figure the trace picks its mip level with. Reading `mSpreadAngle` for
     // it instead lands on nought, and a footprint of nought rejects every tap but the centre — a
     // map tile running five levels of this and coming out exactly as it went in.
-    const Cone cone = coneAt(level.mCamera);
+    const Cone cone = coneAt(eyeAt(at));
     const float footprint = max(cone.mWidth + cone.mSpread * away, 1e-4);
 
     // **How noisy this pixel still is, which is what makes the brightness test mean anything.** A

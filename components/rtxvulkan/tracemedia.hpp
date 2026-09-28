@@ -21,9 +21,8 @@ namespace Rtx
     class Device;
     class DeviceScene;
     class GpuTimer;
-    class Image;
     class SceneDesc;
-    struct VisibilityInputs;
+    struct TraceSubject;
 
     /// What every trace reads beside its scene and its chain: the sea, the wake in it, the fog's
     /// field and the list of no sprites. One of each for everything traced, the doll and the map
@@ -38,12 +37,20 @@ namespace Rtx
         /// `TraceChain::record` names. One description for a frame and for a picture inside the
         /// interface, which differ in the arguments alone.
         ///
-        /// @param shown what the puffs are composited over.
         /// @param counts the census the launches sum into.
-        /// @param sunGlare the fader's counts, `DisplayChain::getGlareCounts`.
+        /// @param sunGlare the counts the eye's launch adds to: the fader's for a frame,
+        ///        `DisplayChain::getGlareCounts`.
         /// @param traceSlot which of the chain's slots the trace takes.
-        VisibilityInputs describe(const DeviceScene& held, const Shaders::VisibilityConstants& camera,
-            const Image& shown, const Buffer& counts, const Buffer& sunGlare, FrameSlot traceSlot) const;
+        TraceSubject describe(const DeviceScene& held, const Shaders::VisibilityConstants& camera, const Buffer& counts,
+            const Buffer& sunGlare, FrameSlot traceSlot) const;
+
+        const WavePass& getWaves() const { return mWaves; }
+        const RipplePass& getRipples() const { return mRipples; }
+        const FogTile& getFog() const { return mFog; }
+
+        /// Where the list of no sprites is, naming it for the next submit: what a camera that draws
+        /// none reads in place of its bin's list.
+        VkDeviceAddress describeNoSprites() const { return mNoSprites.addressFor(); }
 
         /// What the sea's amplitudes were last drawn for.
         const SeaState& getSea() const { return mWaves.getSea(); }
@@ -82,8 +89,8 @@ namespace Rtx
         /// already has.
         FogTile mFog;
 
-        /// An empty sprite tiles' list, for a camera that draws no sprites and so binned none.
-        /// `VisibilityInputs::mSpriteList` says why one buffer serves every extent.
+        /// An empty sprite tiles' list, for a camera that draws no sprites and so binned none. An
+        /// empty list is two words, so one buffer serves every extent.
         Buffer mNoSprites;
     };
 }

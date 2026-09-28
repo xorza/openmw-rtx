@@ -14,6 +14,7 @@
 #include "sky.h"
 #include "bindings.glsl"
 #include "frame.glsl"
+#include "starfield.glsl"
 #include "variants.glsl"
 
 /// The sky's own glow along a direction, with nothing drawn in it.
@@ -241,9 +242,9 @@ vec3 skyPatches(vec3 direction)
     // `patch` is a reserved word in GLSL, which is why this is not called one.
     //
     // **Not `[[unroll]]`, where every other loop over a compile-time shape is.** There is no local
-    // array here for it to take out of scratch memory, and it moves the picture: what unrolling
-    // changes is the last bit of the trace, and Ray Reconstruction is what shows it, on a quarter
-    // of the views.
+    // array here for it to take out of scratch memory, and it moves the trace, pinned modules and
+    // all: unrolled, the direct channel of ten of the twenty-three views came out a rounding apart
+    // (2026-09-28), a changed picture for nothing gained.
     for (uint layer = 0u; layer < SKY_PATCH_COUNT; ++layer)
     {
         const SkyPatch sheet = frame.mSkyPatches[layer];
@@ -368,8 +369,10 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
 ///
 /// @param origin where the ray started, which the deck is laid out from.
 /// @param blur how far this ray's cone has spread from its axis, in radians.
+/// @param discs whether the sun and the moons are drawn: not for a surface whose lobe `gather`
+///        already asks them for, which a disc found again would count twice.
 /// @param shown how much of the star field is still in front of what this returns, from none to all.
-vec3 skyRadiance(vec3 origin, vec3 direction, float blur, out float shown)
+vec3 skyRadiance(vec3 origin, vec3 direction, float blur, bool discs, out float shown)
 {
     shown = 1.0;
 
@@ -384,7 +387,7 @@ vec3 skyRadiance(vec3 origin, vec3 direction, float blur, out float shown)
     // second field saying whether to draw the disc is what once let a sun shadow out of an empty
     // sky, and there is no longer one to disagree with.
     const float edge = capChord(SUN_ANGULAR_RADIUS + blur);
-    if (sunUp() && insideCap(direction, frame.mSun.mDirection, edge))
+    if (discs && sunUp() && insideCap(direction, frame.mSun.mDirection, edge))
     {
         // **The sun's radiance is five orders of magnitude above the sky's** and this does not
         // pretend otherwise, so it saturates until there is an exposure stage to bring it down.
@@ -414,7 +417,7 @@ vec3 skyRadiance(vec3 origin, vec3 direction, float blur, out float shown)
     //
     // **This is also the whole of an eclipse**, and of one moon in front of the other: Masser is
     // nineteen degrees across against the sun's half a degree, so on the rare crossing it is total.
-    if (HAS_MOONS)
+    if (HAS_MOONS && discs)
         for (uint moon = 0u; moon < MOON_COUNT; ++moon)
         {
             float covered;
@@ -438,6 +441,20 @@ vec3 skyRadiance(vec3 origin, vec3 direction, float blur, out float shown)
     shown *= 1.0 - covered;
 
     return colour * (1.0 - covered) + clouds;
+}
+
+/// The sky a reflection finds: what an eye looking along `direction` sees, the star field
+/// included, because what a mirror shows is composited into a surface long before the display pass
+/// that draws the field for the eye. **The sky as a thing to look at, and never `skyGlow`**, whose
+/// fill is light nothing draws and whose night is one mean; the water and a polished surface's
+/// escaped bounce both read it, so a pond and a plate show one sky.
+///
+/// @param discs whether the sun and the moons are in it, which `skyRadiance` says.
+vec3 reflectedSky(vec3 origin, vec3 direction, float blur, bool discs)
+{
+    float shown;
+    const vec3 sky = skyRadiance(origin, direction, blur, discs, shown);
+    return sky + starField(frame.mStars, sceneTexels(), direction, blur) * shown;
 }
 
 #endif

@@ -23,9 +23,10 @@ namespace MWRender
         /// The hours the day is divided into, which the sun's disc and the stars ramp by.
         Sky::TimeOfDaySettings mTimes;
 
-        /// Whether the weather ran: outdoors, where everything below is written every update.
-        /// Indoors the weather manager stops at once, and the rest holds whatever it last held.
-        bool mOutdoors = false;
+        /// Whether the weather ran this update, which is what says everything below is current: it
+        /// runs outdoors, and indoors it stops at once and the rest holds whatever it last held.
+        /// Not where the player stands, which is `WorldState::mLocation`, read at the frame.
+        bool mWeatherRan = false;
 
         /// The orbit's direction, as `WeatherManager::update` runs the sun east to west. Where the
         /// disc is drawn is `Sky::sunDiscPosition` of it, and where the light comes from is each

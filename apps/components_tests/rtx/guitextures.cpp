@@ -1060,7 +1060,8 @@ namespace Rtx
             constexpr float sStep = 1.0f / 60.0f;
 
             const auto frame = [&](const Shaders::VisibilityConstants& camera, std::optional<float> exposure) {
-                mRenderer.renderFrame(camera, FrameOptions{ .mSinceLast = sStep, .mExposure = exposure });
+                mRenderer.renderFrame(
+                    camera, FrameOptions{ .mSinceLast = sStep, .mExposure = ExposureRule{ .mFixed = exposure } });
                 mRenderer.readPixels(mPixels);
                 return mPixels;
             };

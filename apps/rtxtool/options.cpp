@@ -24,6 +24,7 @@
 #include <components/rtx/upscale.hpp>
 
 #include "film.hpp"
+#include "model/blockfile.hpp"
 #include "run.hpp"
 #include "verbs.hpp"
 
@@ -228,10 +229,11 @@ namespace RtxTool
                 .c_str());
 
         option(sOneSky, "weather", bpo::value<std::string>()->default_value(std::string(sDefaultWeather)),
-            "which weather's sun, sky and precipitation an exterior stands under, named as the "
-            "content files spell it: Clear, Cloudy, Foggy, Overcast, Rain, Thunderstorm, Ashstorm, "
-            "Blight, Snow, Blizzard. The ones that drop something drop it here too. Given, it beats "
-            "a weather a view fixes for itself");
+            std::format("which weather's sun, sky and precipitation an exterior stands under, named as the "
+                        "content files spell it: {}. The ones that drop something drop it here too. Given, "
+                        "it beats a weather a view fixes for itself",
+                listWeathers())
+                .c_str());
 
         option(Verbs::Bench, "turn-weather", bpo::value<std::string>()->default_value(""),
             std::format("turn the sky through these weathers while each place runs, comma separated and round again — "
@@ -310,8 +312,8 @@ namespace RtxTool
         option(sFramed, "variants", bpo::value<bool>()->default_value(true)->implicit_value(true),
             "keep one launch per tuple of the frame's facts, the sun, the moons and the sea; "
             "--variants=false makes the full tuple's launch alone and traces every frame with it, "
-            "the same picture by lib/variants.glsl's argument, for measuring what the tuples are "
-            "worth against the sixteen launches the driver compiles for them");
+            "the same picture to a rounding by lib/variants.glsl's argument, for measuring what the "
+            "tuples are worth against the sixteen launches the driver compiles for them");
 
         option(Verbs::Every, "shader-source", bpo::value<bool>()->default_value(false)->implicit_value(true),
             "hand the driver the shaders with their source in them, for a profiler that shows a "
@@ -527,11 +529,6 @@ namespace RtxTool
         Files::ConfigurationManager::addCommonOptions(result.mDescription);
 
         return result;
-    }
-
-    namespace
-    {
-        namespace bpo = boost::program_options;
     }
 
     double parseHold(std::string_view text)

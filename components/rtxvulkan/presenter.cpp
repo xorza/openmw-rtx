@@ -59,8 +59,8 @@ namespace Rtx
             if (SDL_Vulkan_CreateSurface(window, mInstance, &mSurface) == SDL_FALSE)
                 throw Unsupported(std::string("SDL would not make a Vulkan surface: ") + SDL_GetError());
 
-            // The surface's half of whether the driver paces, asked once: the device's half is
-            // the extension, and neither alone is an answer.
+            // Whether the driver paces, asked once and joined here: the device's half is the
+            // extension, the surface's is the modes, and an empty list says no for either.
             if (device.hasLatencyPacing())
                 mPacedModes
                     = PacedModes(instance.getSurfaceCapabilities2(), device.getPhysicalDevice().getHandle(), mSurface);

@@ -15,6 +15,8 @@
 #include <components/rtxvulkan/device.hpp>
 #include <components/rtxvulkan/latencypacer.hpp>
 
+#include "support/death.hpp"
+
 namespace Rtx
 {
     namespace
@@ -227,6 +229,14 @@ namespace Rtx
             mPacer.follow(sSwapchain, true);
             EXPECT_FALSE(mPacer.isLive());
             EXPECT_EQ(mPacer.getPresentId(), 0u);
+
+            // A device that does not pace has no paced mode to hand over: `PacedModes` is the one
+            // answer, and the surface is not asked where the device does not pace.
+            LatencyPacer unpaced(LatencyFunctions{}, sDevice, sSemaphore);
+            unpaced.follow(sSwapchain, false);
+            EXPECT_FALSE(unpaced.isLive());
+            Testing::expectAssertDies(
+                [&] { unpaced.follow(sSwapchain, true); }, "a paced mode on a device that does not pace");
         }
 
         /// **The mode is the three flags the setting spells, applied where live and once per

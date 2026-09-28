@@ -25,12 +25,9 @@ namespace Rtx
         /// a fetch is the stored bytes; `chain` is met undefined and left as a texture the trace
         /// samples, with a storage view a level in a format with no curve under it either.
         ///
-        /// @param sampler any sampler the array binds: the dispatch fetches by texel and reads
-        ///        none of it, but a combined image needs one.
         /// @param encoded whether `chain`'s own format is display-encoded, so the box averages in
         ///        light and writes back encoded.
-        void record(
-            VkCommandBuffer commands, const Image& source, VkSampler sampler, const Image& chain, bool encoded) const;
+        void record(VkCommandBuffer commands, const Image& source, const Image& chain, bool encoded) const;
 
     private:
         ComputePipeline mPipeline;

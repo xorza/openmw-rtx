@@ -37,6 +37,9 @@ namespace Rtx
 
     BottomLevelStore::BottomLevelStore(const Device& device)
         : mDevice(device)
+        , mArrived(
+              device, BufferKind::DeviceLocal, sBuildInputUsage | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "arrived positions")
+        , mScratch(device, BufferKind::DeviceLocal, sScratchUsage, "build scratch")
     {
     }
 
@@ -114,9 +117,8 @@ namespace Rtx
         }
 
         // A byte where nothing static arrived, because a buffer of nothing cannot be created.
-        growTo(mArrived, mDevice, BufferKind::DeviceLocal, arrivedBytes,
-            sBuildInputUsage | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "arrived positions");
-        const VkDeviceAddress arrivedAddress = mArrived.addressFor();
+        mArrived.growTo(arrivedBytes);
+        const VkDeviceAddress arrivedAddress = mArrived.get().addressFor();
 
         for (std::size_t at = 0; at < meshes.size(); ++at)
         {
@@ -125,7 +127,8 @@ namespace Rtx
             if (range.deforms() || range.mVertices.empty())
                 continue;
 
-            stageInto(batch, mArrived, mBuilding[at].mArrivedAt, std::as_bytes(scene.meshes().getMeshPositions(mesh)));
+            stageInto(
+                batch, mArrived.get(), mBuilding[at].mArrivedAt, std::as_bytes(scene.meshes().getMeshPositions(mesh)));
         }
 
         if (arrivedBytes > 0)
@@ -224,8 +227,8 @@ namespace Rtx
         if (scratchTotal == 0)
             return;
 
-        growTo(mScratch, mDevice, BufferKind::DeviceLocal, scratchTotal, sScratchUsage, "build scratch");
-        const VkDeviceAddress scratchAddress = mScratch.addressFor();
+        mScratch.growTo(scratchTotal);
+        const VkDeviceAddress scratchAddress = mScratch.get().addressFor();
 
         for (std::size_t at = 0; at < meshes.size(); ++at)
         {

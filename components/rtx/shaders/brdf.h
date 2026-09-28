@@ -137,6 +137,16 @@ namespace Rtx::Shaders
         return normalize(vec3(cap[0] * alpha, cap[1] * alpha, cap[2]));
     }
 
+    /// The perceptual roughness a field of slopes stands for, whose total variance over both axes is
+    /// `slopes`: GGX's `alpha` is `sqrt(2) sigma` for a slope deviation of `sigma` along each axis,
+    /// so `alpha^2` is the variance of both together, and the roughness is its root, `ggxAlpha`'s
+    /// inverse. One quantity for a surface's guide however the surface came by its roughness — a
+    /// painted map, or water's slopes the cone averaged away — so a blend of the two means something.
+    RTX_SHADER float slopeRoughness(float slopes)
+    {
+        return min(sqrt(sqrt(max(slopes, 0.0f))), 1.0f);
+    }
+
     /// How wide, across, the cone is that the lobe's reflected rays fill down to half their peak
     /// density, at normal incidence — or `widest`, where that is narrower.
     ///

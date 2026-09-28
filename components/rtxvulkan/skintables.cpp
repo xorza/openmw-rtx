@@ -32,7 +32,13 @@ namespace Rtx
     }
 
     SkinTables::SkinTables(const Device& device, Batch& batch, const SceneDesc& scene, const std::uint32_t slots)
-        : mDevice(device)
+        : mBindPositions(device, BufferKind::DeviceLocal, sTableFilledUsage, "bind positions")
+        , mBindNormals(device, BufferKind::DeviceLocal, sTableFilledUsage, "bind normals")
+        , mBindTangents(device, BufferKind::DeviceLocal, sTableFilledUsage, "bind tangents")
+        , mRuns(device, BufferKind::DeviceLocal, sTableFilledUsage, "rig runs")
+        , mInfluences(device, BufferKind::DeviceLocal, sTableFilledUsage, "rig influences")
+        , mMorphOffsets(device, BufferKind::DeviceLocal, sTableFilledUsage, "morph offsets")
+        , mPoses([&](FrameSlot) { return GrowableBuffer(device, BufferKind::HostWritten, sTableFilledUsage, "poses"); })
     {
         mPoses.open(slots);
 
@@ -44,7 +50,6 @@ namespace Rtx
 
     void SkinTables::extend(Batch& batch, const SceneDesc& scene)
     {
-        const Device& device = mDevice;
         const DeformerTable& deformers = scene.deformers();
 
         // Grown to what the scene reaches, and written whole where a growth moved it. The
@@ -53,30 +58,23 @@ namespace Rtx
         const VkDeviceSize bind = VkDeviceSize{ deformers.getBindVertexCount() } * sizeof(osg::Vec3f);
         const VkDeviceSize bindWords = VkDeviceSize{ deformers.getBindVertexCount() } * sizeof(std::uint32_t);
         // Each grown whether or not another moved, so three calls and not a short-circuit.
-        const bool positionsMoved
-            = outgrow(mBindPositions, device, BufferKind::DeviceLocal, bind, sTableFilledUsage, "bind positions");
-        const bool normalsMoved
-            = outgrow(mBindNormals, device, BufferKind::DeviceLocal, bind, sTableFilledUsage, "bind normals");
-        const bool tangentsMoved
-            = outgrow(mBindTangents, device, BufferKind::DeviceLocal, bindWords, sTableFilledUsage, "bind tangents");
+        const bool positionsMoved = mBindPositions.outgrow(bind);
+        const bool normalsMoved = mBindNormals.outgrow(bind);
+        const bool tangentsMoved = mBindTangents.outgrow(bindWords);
         const bool bindMoved = positionsMoved || normalsMoved || tangentsMoved;
         writeBind(batch, scene, scene.meshes().getArrived(), bindMoved);
 
         const Moved moved{
-            .mRuns = outgrow(mRuns, device, BufferKind::DeviceLocal, deformers.getRuns().size() * sizeof(std::uint32_t),
-                sTableFilledUsage, "rig runs"),
-            .mInfluences = outgrow(mInfluences, device, BufferKind::DeviceLocal,
-                deformers.getInfluences().size() * sizeof(Shaders::GpuInfluence), sTableFilledUsage, "rig influences"),
-            .mOffsets = outgrow(mMorphOffsets, device, BufferKind::DeviceLocal,
-                deformers.getMorphOffsets().size() * sizeof(osg::Vec3f), sTableFilledUsage, "morph offsets"),
+            .mRuns = mRuns.outgrow(deformers.getRuns().size() * sizeof(std::uint32_t)),
+            .mInfluences = mInfluences.outgrow(deformers.getInfluences().size() * sizeof(Shaders::GpuInfluence)),
+            .mOffsets = mMorphOffsets.outgrow(deformers.getMorphOffsets().size() * sizeof(osg::Vec3f)),
         };
         writeDeformers(batch, scene, deformers.getArrived(), moved);
 
         // The arrivals' poses into the first copy alone. Every other pose of a copy reaches it in
         // the placement that dispatches over it, and the other copies owe the arrivals theirs.
-        for (Buffer& poses : mPoses.live())
-            outgrow(poses, device, BufferKind::HostWritten, deformers.getPoses().size() * sizeof(PoseWord),
-                sTableFilledUsage, "poses");
+        for (GrowableBuffer& poses : mPoses.live())
+            poses.outgrow(deformers.getPoses().size() * sizeof(PoseWord));
         writePoses(batch, scene, scene.meshes().getArrived());
 
         orderStagedWrites(batch);
@@ -93,9 +91,9 @@ namespace Rtx
                 continue;
 
             const VkDeviceSize at = VkDeviceSize{ mesh.mBindOffset } * sizeof(osg::Vec3f);
-            stageInto(batch, mBindPositions, at, std::as_bytes(scene.meshes().getMeshPositions(index)));
-            stageInto(batch, mBindNormals, at, std::as_bytes(mesh.mVertices.in(scene.meshes().getNormals())));
-            stageInto(batch, mBindTangents, VkDeviceSize{ mesh.mBindOffset } * sizeof(std::uint32_t),
+            stageInto(batch, mBindPositions.get(), at, std::as_bytes(scene.meshes().getMeshPositions(index)));
+            stageInto(batch, mBindNormals.get(), at, std::as_bytes(mesh.mVertices.in(scene.meshes().getNormals())));
+            stageInto(batch, mBindTangents.get(), VkDeviceSize{ mesh.mBindOffset } * sizeof(std::uint32_t),
                 std::as_bytes(mesh.mVertices.in(scene.meshes().getTangents())));
         }
     }
@@ -116,16 +114,16 @@ namespace Rtx
             const bool fresh = !whole || std::find(arrived.begin(), arrived.end(), index) != arrived.end();
 
             if (!deformer.mRuns.empty() && (fresh || moved.mRuns))
-                stageInto(batch, mRuns, VkDeviceSize{ deformer.mRuns.mOffset } * sizeof(std::uint32_t),
+                stageInto(batch, mRuns.get(), VkDeviceSize{ deformer.mRuns.mOffset } * sizeof(std::uint32_t),
                     std::as_bytes(deformer.mRuns.in(deformers.getRuns())));
 
             if (!deformer.mInfluences.empty() && (fresh || moved.mInfluences))
-                stageInto(batch, mInfluences,
+                stageInto(batch, mInfluences.get(),
                     VkDeviceSize{ deformer.mInfluences.mOffset } * sizeof(Shaders::GpuInfluence),
                     std::as_bytes(deformer.mInfluences.in(deformers.getInfluences())));
 
             if (!deformer.mOffsets.empty() && (fresh || moved.mOffsets))
-                stageInto(batch, mMorphOffsets, VkDeviceSize{ deformer.mOffsets.mOffset } * sizeof(osg::Vec3f),
+                stageInto(batch, mMorphOffsets.get(), VkDeviceSize{ deformer.mOffsets.mOffset } * sizeof(osg::Vec3f),
                     std::as_bytes(deformer.mOffsets.in(deformers.getMorphOffsets())));
         }
     }
@@ -139,20 +137,20 @@ namespace Rtx
             if (!mesh.deforms())
                 continue;
 
-            stageInto(batch, mPoses.at(FrameSlot{}), VkDeviceSize{ mesh.mPoseOffset } * sizeof(PoseWord),
+            stageInto(batch, mPoses.at(FrameSlot{}).get(), VkDeviceSize{ mesh.mPoseOffset } * sizeof(PoseWord),
                 std::as_bytes(scene.getMeshPose(index)));
         }
     }
 
     void SkinTables::finishReads(const FrameSlot slot) const
     {
-        mPoses.at(slot).waitIdle("an arrival's pose over the poses a placement writes");
+        mPoses.at(slot).get().waitIdle("an arrival's pose over the poses a placement writes");
     }
 
     VkDeviceAddress SkinTables::writePose(const SceneDesc& scene, const FrameSlot slot, const Index mesh)
     {
         const MeshRange& range = scene.meshes().getRows()[mesh];
-        mPoses.at(slot).writeAt(VkDeviceSize{ range.mPoseOffset } * sizeof(PoseWord), scene.getMeshPose(mesh));
+        mPoses.at(slot).get().writeAt(VkDeviceSize{ range.mPoseOffset } * sizeof(PoseWord), scene.getMeshPose(mesh));
 
         return getPose(range, slot);
     }
@@ -160,7 +158,7 @@ namespace Rtx
     VkDeviceAddress SkinTables::getPose(const MeshRange& mesh, const FrameSlot slot) const
     {
         const VkDeviceAddress address
-            = mPoses.at(slot).addressFor() + VkDeviceSize{ mesh.mPoseOffset } * sizeof(PoseWord);
+            = mPoses.at(slot).get().addressFor() + VkDeviceSize{ mesh.mPoseOffset } * sizeof(PoseWord);
         assert(
             address % Shaders::BONE_ALIGN == 0 && "a run of rows the kernel's reference claims more of than is true");
         return address;
@@ -168,40 +166,41 @@ namespace Rtx
 
     VkDeviceAddress SkinTables::getBindPositions(const MeshRange& mesh) const
     {
-        return mBindPositions.addressFor() + VkDeviceSize{ mesh.mBindOffset } * sizeof(osg::Vec3f);
+        return mBindPositions.get().addressFor() + VkDeviceSize{ mesh.mBindOffset } * sizeof(osg::Vec3f);
     }
 
     VkDeviceAddress SkinTables::getBindNormals(const MeshRange& mesh) const
     {
-        return mBindNormals.addressFor() + VkDeviceSize{ mesh.mBindOffset } * sizeof(osg::Vec3f);
+        return mBindNormals.get().addressFor() + VkDeviceSize{ mesh.mBindOffset } * sizeof(osg::Vec3f);
     }
 
     VkDeviceAddress SkinTables::getBindTangents(const MeshRange& mesh) const
     {
-        return mBindTangents.addressFor() + VkDeviceSize{ mesh.mBindOffset } * sizeof(std::uint32_t);
+        return mBindTangents.get().addressFor() + VkDeviceSize{ mesh.mBindOffset } * sizeof(std::uint32_t);
     }
 
     VkDeviceAddress SkinTables::getRuns(const Deformer& rig) const
     {
-        return mRuns.addressFor() + VkDeviceSize{ rig.mRuns.mOffset } * sizeof(std::uint32_t);
+        return mRuns.get().addressFor() + VkDeviceSize{ rig.mRuns.mOffset } * sizeof(std::uint32_t);
     }
 
     VkDeviceAddress SkinTables::getInfluences(const Deformer& rig) const
     {
-        return mInfluences.addressFor() + VkDeviceSize{ rig.mInfluences.mOffset } * sizeof(Shaders::GpuInfluence);
+        return mInfluences.get().addressFor() + VkDeviceSize{ rig.mInfluences.mOffset } * sizeof(Shaders::GpuInfluence);
     }
 
     VkDeviceAddress SkinTables::getMorphOffsets(const Deformer& morph) const
     {
-        return mMorphOffsets.addressFor() + VkDeviceSize{ morph.mOffsets.mOffset } * sizeof(osg::Vec3f);
+        return mMorphOffsets.get().addressFor() + VkDeviceSize{ morph.mOffsets.mOffset } * sizeof(osg::Vec3f);
     }
 
     VkDeviceSize SkinTables::getBytes() const
     {
-        VkDeviceSize total = mBindPositions.getSize() + mBindNormals.getSize() + mBindTangents.getSize()
-            + mRuns.getSize() + mInfluences.getSize() + mMorphOffsets.getSize();
-        for (const Buffer& poses : mPoses.live())
-            total += poses.getSize();
+        VkDeviceSize total = mBindPositions.get().getSize() + mBindNormals.get().getSize()
+            + mBindTangents.get().getSize() + mRuns.get().getSize() + mInfluences.get().getSize()
+            + mMorphOffsets.get().getSize();
+        for (const GrowableBuffer& poses : mPoses.live())
+            total += poses.get().getSize();
 
         return total;
     }

@@ -5,6 +5,8 @@
 #include <cmath>
 #include <cstddef>
 
+#include "blockfile.hpp"
+
 namespace RtxTool
 {
     std::uint32_t BenchSpan::getFrames(const float step) const
@@ -28,12 +30,7 @@ namespace RtxTool
         for (std::size_t at = 0; at <= text.size();)
         {
             const std::size_t comma = std::min(text.find(',', at), text.size());
-            std::string_view name = text.substr(at, comma - at);
-
-            while (!name.empty() && (name.front() == ' ' || name.front() == '\t'))
-                name.remove_prefix(1);
-            while (!name.empty() && (name.back() == ' ' || name.back() == '\t'))
-                name.remove_suffix(1);
+            const std::string_view name = trimmed(text.substr(at, comma - at));
 
             if (!name.empty())
                 names.emplace_back(name);

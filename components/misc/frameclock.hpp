@@ -36,7 +36,13 @@ namespace Misc
                                       : std::chrono::duration<double>(std::chrono::steady_clock::now() - mMade).count();
         }
 
-        /// How long the frame now open stands for, in seconds. Nought before the first `advance`.
+        /// Opens a frame that stands for nothing: a frame drawn between two of the loop's under a
+        /// stated step, which counts the loop's frames alone. The step is nought until the next
+        /// `advance`, and the time stays where it is.
+        void hold() { mStep = 0.0; }
+
+        /// How long the frame now open stands for, in seconds. Nought before the first `advance`,
+        /// and in a frame `hold` opened.
         double getStep() const { return mStep; }
 
         /// What time it is, in seconds. The frames counted where a step is stated, and what the

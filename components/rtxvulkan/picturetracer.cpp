@@ -6,6 +6,7 @@
 #include <components/rtx/frameoptions.hpp>
 #include <components/rtx/framesampling.hpp>
 #include <components/rtx/shaders/counts.h>
+#include <components/rtx/shaders/glare.h>
 
 #include "commands.hpp"
 #include "device.hpp"
@@ -30,6 +31,8 @@ namespace Rtx
         , mChain(device, passes)
         , mCounts(Buffer::deviceLocal(
               device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture counts"))
+        , mGlareCounts(Buffer::deviceLocal(
+              device, sizeof(Shaders::SunGlareCount), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture sun glare counts"))
     {
     }
 
@@ -53,8 +56,7 @@ namespace Rtx
                    || (camera.mFogExtinction == 0.0f && !(camera.mFogEdge > 0.0f) && std::isinf(camera.mWaterLevel)))
             && "a picture laid over the interface that stands in air or water");
 
-        const VisibilityInputs inputs
-            = mMedia.describe(traced, camera, mChain.getColour(), mCounts, mDisplay.getGlareCounts(), FrameSlot{});
+        const TraceSubject subject = mMedia.describe(traced, camera, mCounts, mGlareCounts, FrameSlot{});
 
         // Nothing reconstructs a picture, so nothing jitters it, and it has no frame before it.
         Shaders::VisibilityConstants sampled
@@ -74,24 +76,23 @@ namespace Rtx
             // which is what tells the cascade to filter as widely as it can.
             const TraceResult picture = mChain.record(commands,
                 TraceRecording{
-                    .mInputs = inputs,
+                    .mSubject = subject,
                     .mAsked = camera,
                     .mSampled = sampled,
-                    .mTarget = &mTarget,
                 });
 
             // The puffs over the picture — a torch's flame in a doll's hand is a sprite — and the
             // curve, and nothing else: a picture is measured off nothing, mapped with no share and
             // spread by no lens, because a map tile is a diagram and the same armour must be the
             // same brightness in two windows.
-            picture.mColour.transition(commands, Use::sAnyGeneralRead, Use::sTraceReadWrite);
             mDisplay.record(commands,
                 Display{
                     .mTrace = picture,
+                    .mShown = picture.mColour,
+                    .mShownFrom = Use::sAnyGeneralRead,
                     .mExtent = extent,
                     .mSampled = sampled,
                     .mTarget = mTarget,
-                    .mExposure = Display::Picture{},
                 });
 
             mTarget.transition(commands, Use::sComputeWrite, Use::sCopyRead);

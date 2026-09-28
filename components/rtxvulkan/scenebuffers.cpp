@@ -115,6 +115,9 @@ namespace Rtx
     SceneBuffers::SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
         std::span<const InstanceRecord> records, const std::uint32_t slots)
         : mDevice(device)
+        , mLayers(device, BufferKind::DeviceLocal, sTableFilledUsage, "layers")
+        , mMasks(device, BufferKind::DeviceLocal, sTableFilledUsage, "masks")
+        , mTables([&](FrameSlot) { return Tables(device); })
     {
         mTables.open(slots);
         mTexCoords.open(device, sTableUsage, "uvs");
@@ -146,7 +149,7 @@ namespace Rtx
         // The frame tables come from `place`, which is also where they are written when a material
         // changes. Every copy is empty here, so the first write of each makes its buffer and fills
         // it whole.
-        place(scene, records, {}, Placing{ .mSlot = FrameSlot{} });
+        place(scene, records, {}, FrameSlot{});
     }
 
     void SceneBuffers::extend(Batch& batch, const SceneDesc& scene)
@@ -218,11 +221,11 @@ namespace Rtx
         const Tables& tables = mTables.at(slot);
 
         return SpriteSource{
-            .mSprites = &tables.mSprites,
-            .mEmitters = tables.mEmitters.addressFor(),
+            .mSprites = &tables.mSprites.get(),
+            .mEmitters = tables.mEmitters.get().addressFor(),
             .mSpriteCount = tables.mSpriteCount,
             .mEmitterCount = tables.mEmitterCount,
-            .mPresences = tables.mPresences.addressFor(),
+            .mPresences = tables.mPresences.get().addressFor(),
             .mPresenceCount = tables.mPresenceCount,
         };
     }
@@ -273,30 +276,28 @@ namespace Rtx
         // arrival was given may be one a frame in flight still reads of the material that held it
         // last, and the copy recorded here runs behind that frame. What a flipbook does every frame
         // never touches these tables.
-        if (outgrow(mLayers, mDevice, BufferKind::DeviceLocal,
-                std::max<std::size_t>(layers.size(), 1) * sizeof(Shaders::GpuLayer), sTableFilledUsage, "layers"))
-            stageInto(batch, mLayers, 0,
+        if (mLayers.outgrow(std::max<std::size_t>(layers.size(), 1) * sizeof(Shaders::GpuLayer)))
+            stageInto(batch, mLayers.get(), 0,
                 std::as_bytes(layers.empty() ? std::span<const Shaders::GpuLayer>(&noLayer, 1) : layers));
         else
             // Each run as the chunk placed it, staged at the run's own offset, so a table of a
             // thousand layers pays for the five that arrived.
             for (const Run run : scene.materials().getArrived().mLayers)
-                stageInto(batch, mLayers, run.mOffset * sizeof(Shaders::GpuLayer), std::as_bytes(run.in(layers)));
+                stageInto(batch, mLayers.get(), run.mOffset * sizeof(Shaders::GpuLayer), std::as_bytes(run.in(layers)));
 
-        if (outgrow(mMasks, mDevice, BufferKind::DeviceLocal, std::max<std::size_t>(masks.size(), 1) * sizeof(float),
-                sTableFilledUsage, "masks"))
-            stageInto(batch, mMasks, 0, std::as_bytes(masks.empty() ? std::span<const float>(&noMask, 1) : masks));
+        if (mMasks.outgrow(std::max<std::size_t>(masks.size(), 1) * sizeof(float)))
+            stageInto(
+                batch, mMasks.get(), 0, std::as_bytes(masks.empty() ? std::span<const float>(&noMask, 1) : masks));
         else
             for (const Run run : scene.materials().getArrived().mMasks)
-                stageInto(batch, mMasks, run.mOffset * sizeof(float), std::as_bytes(run.in(masks)));
+                stageInto(batch, mMasks.get(), run.mOffset * sizeof(float), std::as_bytes(run.in(masks)));
 
         mStagedRuns = scene.materials().getRunRevision();
     }
 
     void SceneBuffers::place(const SceneDesc& scene, std::span<const InstanceRecord> records,
-        std::span<const Index> changed, const Placing& placing)
+        std::span<const Index> changed, const FrameSlot slot)
     {
-        const FrameSlot slot = placing.mSlot;
         shade(scene, slot);
 
         Tables& tables = mTables.at(slot);
@@ -357,22 +358,21 @@ namespace Rtx
         scene.placements().describePresences(scene.meshes().getRows(), mPresenceScratch);
         const std::span<const Shaders::GpuPresence> presences = mPresenceScratch;
 
-        outgrow(tables.mLights, mDevice, BufferKind::HostWritten, lights.size_bytes(), sTableUsage, "lights");
-        outgrow(tables.mLightList, mDevice, BufferKind::HostWritten, lightList.size_bytes(), sTableUsage, "light list");
-        outgrow(tables.mEmitters, mDevice, BufferKind::HostWritten, emitters.size_bytes(), sTableUsage, "emitters");
-        outgrow(
-            tables.mSprites, mDevice, BufferKind::HostWritten, sprites.size_bytes(), sTableCopiedFromUsage, "sprites");
-        outgrow(tables.mPresences, mDevice, BufferKind::HostWritten, presences.size_bytes(), sTableUsage, "presences");
+        tables.mLights.outgrow(lights.size_bytes());
+        tables.mLightList.outgrow(lightList.size_bytes());
+        tables.mEmitters.outgrow(emitters.size_bytes());
+        tables.mSprites.outgrow(sprites.size_bytes());
+        tables.mPresences.outgrow(presences.size_bytes());
 
-        tables.mLights.write(lights);
-        tables.mLightList.write(lightList);
-        tables.mEmitters.write(emitters);
+        tables.mLights.get().write(lights);
+        tables.mLightList.get().write(lightList);
+        tables.mEmitters.get().write(emitters);
 
         // Unshaded, which is what a trace's bin copies and shades for its own sun.
-        tables.mSprites.write(sprites);
+        tables.mSprites.get().write(sprites);
         tables.mSpriteCount = static_cast<std::uint32_t>(sprites.size());
         tables.mEmitterCount = static_cast<std::uint32_t>(emitters.size());
-        tables.mPresences.write(presences);
+        tables.mPresences.get().write(presences);
         tables.mPresenceCount = static_cast<std::uint32_t>(presences.size());
 
         // The normals of anything skinned are not written here: a cell's are the same from one
@@ -386,11 +386,11 @@ namespace Rtx
         mMaterialTable.finishReads(slot);
 
         const Tables& tables = mTables.at(slot);
-        tables.mLights.waitIdle("a trace still reading a copy's lights");
-        tables.mLightList.waitIdle("a trace still reading a copy's light list");
-        tables.mEmitters.waitIdle("a trace still reading a copy's emitters");
-        tables.mSprites.waitIdle("a trace's bin still copying a copy's sprites");
-        tables.mPresences.waitIdle("a trace's bin still reading a copy's presences");
+        tables.mLights.get().waitIdle("a trace still reading a copy's lights");
+        tables.mLightList.get().waitIdle("a trace still reading a copy's light list");
+        tables.mEmitters.get().waitIdle("a trace still reading a copy's emitters");
+        tables.mSprites.get().waitIdle("a trace's bin still copying a copy's sprites");
+        tables.mPresences.get().waitIdle("a trace's bin still reading a copy's presences");
     }
 
     void SceneBuffers::describeTables(const FrameSlot slot, Shaders::GpuTables& into) const
@@ -409,17 +409,26 @@ namespace Rtx
         into.mMeshes = mMeshTable.addressFor(slot);
         into.mInstances = mInstanceTable.addressFor(slot);
         into.mMaterials = mMaterialTable.addressFor(slot);
-        into.mLayers = mLayers.addressFor();
-        into.mMasks = mMasks.addressFor();
-        into.mLights = tables.mLights.addressFor();
-        into.mLightList = tables.mLightList.addressFor();
-        into.mEmitters = tables.mEmitters.addressFor();
+        into.mLayers = mLayers.get().addressFor();
+        into.mMasks = mMasks.get().addressFor();
+        into.mLights = tables.mLights.get().addressFor();
+        into.mLightList = tables.mLightList.get().addressFor();
+        into.mEmitters = tables.mEmitters.get().addressFor();
+    }
+
+    SceneBuffers::Tables::Tables(const Device& device)
+        : mLights(device, BufferKind::HostWritten, sTableUsage, "lights")
+        , mLightList(device, BufferKind::HostWritten, sTableUsage, "light list")
+        , mSprites(device, BufferKind::HostWritten, sTableCopiedFromUsage, "sprites")
+        , mEmitters(device, BufferKind::HostWritten, sTableUsage, "emitters")
+        , mPresences(device, BufferKind::HostWritten, sTableUsage, "presences")
+    {
     }
 
     VkDeviceSize SceneBuffers::Tables::getBytes() const
     {
-        return mLights.getSize() + mLightList.getSize() + mSprites.getSize() + mEmitters.getSize()
-            + mPresences.getSize();
+        return mLights.get().getSize() + mLightList.get().getSize() + mSprites.get().getSize()
+            + mEmitters.get().getSize() + mPresences.get().getSize();
     }
 
     VkDeviceSize SceneBuffers::getBytes() const
@@ -427,7 +436,7 @@ namespace Rtx
         // The indices are not counted here: they belong to the acceleration structure, which reports
         // its own size.
         VkDeviceSize total = mTexCoords.getBytes() + mSecondTexCoords.getBytes() + mColours.getBytes()
-            + mMeshTable.getBytes() + mLayers.getSize() + mMasks.getSize() + mInstanceTable.getBytes()
+            + mMeshTable.getBytes() + mLayers.get().getSize() + mMasks.get().getSize() + mInstanceTable.getBytes()
             + mMaterialTable.getBytes() + mNormalTable.getBytes() + mTangentTable.getBytes();
         for (const Tables& tables : mTables.live())
             total += tables.getBytes();

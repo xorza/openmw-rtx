@@ -62,6 +62,12 @@ namespace Rtx::Shaders
         float mMix;
     };
 
+    // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
+    // reads them are different compilers.
+#ifdef RTX_HOST
+    static_assert(sizeof(BloomConstants) == 20, "BloomConstants must be scalar-packed on every side");
+#endif
+
 #ifdef RTX_HOST
 }
 #endif

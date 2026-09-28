@@ -17,9 +17,9 @@ namespace RtxTool
 {
     struct Stop;
 
-    /// The number `text` spells, or nothing where it spells anything else — the whole of the text,
-    /// so `speed = 1500u` is a refusal and not a run that flew at 1500. Read under the classic
-    /// locale, because a decimal point read where a comma is the separator flies at one.
+    /// The finite number `text` spells, or nothing where it spells anything else — the whole of the
+    /// text, so `speed = 1500u` is a refusal and not a run that flew at 1500. Read with no locale,
+    /// because a decimal point read where a comma is the separator flies at one.
     std::optional<float> parseFloat(std::string_view text);
 
     /// The point `x,y,z` spells, with spaces around each number, or nothing where the text is
@@ -55,6 +55,17 @@ namespace RtxTool
 
         std::vector<BlockField> mFields;
     };
+
+    /// Why `hour` is no hour of the day, or nothing where it is one: the rule a view file and the
+    /// command line both refuse by, so a sky the line names is held to what a view's is.
+    std::optional<std::string_view> hourRefusal(float hour);
+
+    /// Why `weather` is none of the weathers the content files name, or nothing where it is one.
+    std::optional<std::string_view> weatherRefusal(std::string_view weather);
+
+    /// The ten weathers, as the content files spell them, comma separated: what a refusal or a
+    /// help line lists.
+    std::string listWeathers();
 
     /// A file of `[name]` sections and `field = value` lines, read in the order it was written:
     /// the views, the suites and a film's keys are three schemas over this one reader, and a field

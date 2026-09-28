@@ -1,7 +1,9 @@
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <random>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -59,6 +61,46 @@ namespace Rtx
                 .mFormat = TextureFormat::Rgba8Unorm, .mWidth = 1, .mHeight = 1, .mBytes = bytes, .mLevels = levels
             };
             EXPECT_EQ(texelAt(rgba, levels[0], 0, 0), osg::Vec3f(10 / 255.0f, 20 / 255.0f, 30 / 255.0f));
+        }
+
+        /// **A band is `texelAt`'s texels to the bit, a block decoded once for all of them.** Every
+        /// format a whole-level reader meets, at a size that leaves both a partial column and a
+        /// partial band of blocks, and at a second level that does not start at nought: random bytes,
+        /// because a block's palette and its indices are any bytes at all.
+        TEST(RtxTexelTest, aBandIsEveryTexelTexelAtReadsInRowOrder)
+        {
+            std::mt19937 random(7);
+            for (const TextureFormat format :
+                { TextureFormat::Bc1RgbaSrgb, TextureFormat::Bc1RgbaUnorm, TextureFormat::Bc2Srgb,
+                    TextureFormat::Bc3Srgb, TextureFormat::Rgba8Unorm, TextureFormat::Bgra8Srgb })
+            {
+                const TexelLayout layout = layoutOf(format);
+                const std::size_t first = layout.levelBytes(10, 7);
+                const std::array levels{ MipLevel{ 0, 10, 7 }, MipLevel{ static_cast<std::uint32_t>(first), 5, 3 } };
+
+                std::vector<std::byte> bytes(first + layout.levelBytes(5, 3));
+                for (std::byte& byte : bytes)
+                    byte = static_cast<std::byte>(random() & 0xffu);
+
+                const TextureData texture{
+                    .mFormat = format, .mWidth = 10, .mHeight = 7, .mBytes = bytes, .mLevels = levels
+                };
+
+                std::vector<osg::Vec3f> band;
+                for (const MipLevel& level : levels)
+                    for (std::uint32_t firstRow = 0; firstRow < level.mHeight; firstRow += 4)
+                    {
+                        readTexelBand(texture, level, firstRow / 4, band);
+                        const std::uint32_t rows = std::min(level.mHeight - firstRow, 4u);
+                        ASSERT_EQ(band.size(), std::size_t{ rows } * level.mWidth) << nameOf(format);
+                        for (std::uint32_t row = 0; row < rows; ++row)
+                            for (std::uint32_t x = 0; x < level.mWidth; ++x)
+                                ASSERT_EQ(band[std::size_t{ row } * level.mWidth + x],
+                                    texelAt(texture, level, x, firstRow + row))
+                                    << nameOf(format) << " at " << x << ", " << firstRow + row << " of a level "
+                                    << level.mWidth << " wide";
+                    }
+            }
         }
 
         /// A texel's worth of an image is its own colour in light, times how much of it is there.

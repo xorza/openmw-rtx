@@ -2,14 +2,14 @@
 
 #include <cstdint>
 
+#include <vulkan/vulkan_core.h>
+
 #include <components/rtx/shaders/visibility.h>
 
-#include "frameslots.hpp"
 #include "visibilitypass.hpp"
 
 namespace Rtx
 {
-    class Buffer;
     class GpuTimer;
     class Image;
 
@@ -21,7 +21,7 @@ namespace Rtx
         /// What the rays meet, where the sea and the sprites the trace reads were left, and what
         /// every launch binds beside them: the census and the chain's slot. The chain's own images
         /// are the chain's to name (`TraceChain::record`).
-        VisibilityInputs mInputs;
+        TraceSubject mSubject;
 
         /// The camera the caller asked for. What the sprite bin tiles against, because a bin is
         /// a screen-space tile and the jitter below is where inside a pixel this frame sampled:
@@ -31,10 +31,6 @@ namespace Rtx
         /// The same camera as this trace will sample it — the jitter, the previous basis, the
         /// medium and the layer decision are already in it. What the composite covers is its extent.
         Shaders::VisibilityConstants mSampled;
-
-        /// What the display curve will write into, discarded as the chain's record opens because it
-        /// is rewritten whole.
-        const Image* mTarget = nullptr;
 
         /// How many frames the chain's running total holds, this one included, or nought where
         /// nothing is averaging (`FrameOptions::mAccumulate`).
@@ -53,9 +49,9 @@ namespace Rtx
         GpuTimer* mTimer = nullptr;
     };
 
-    /// What one trace hands the display: its inputs as the chain completed them — its own channels
-    /// and air named — the frame they compose, and the sprite tile list the trace read and what its
-    /// tiles can meet, which the curve tests for where the puffs' composite drew nothing.
+    /// What one trace hands the display: the inputs every launch of it bound, the frame they
+    /// compose, and the sprite tile list the trace read and what its tiles can meet, which the curve
+    /// tests for where the puffs' composite drew nothing.
     struct TraceResult
     {
         VisibilityInputs mInputs;

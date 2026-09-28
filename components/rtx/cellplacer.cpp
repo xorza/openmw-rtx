@@ -104,10 +104,12 @@ namespace Rtx
         const PreparedCell& cell, HeldCell& held, const WorldAround& around, ExtractionStats& stats)
     {
         const PreparedGround& ground = cell.mGround;
+        HeldGround& stands = held.mGround;
+        assert(!stands.mStands && stands.mTextures.empty() && "a ground adopted over one still held");
         if (!ground.mStands)
             return;
 
-        HeldGround& stands = held.mGround.emplace();
+        stands.mStands = true;
         mLayerScratch.clear();
         bool mapped = false;
         for (const PreparedLayer& layer : ground.mLayers)
@@ -125,7 +127,6 @@ namespace Rtx
             {
                 row.mNormal = mScene.textures().add(layer.mNormalTexture->mPath, layer.mNormalTexture->mImage.get(),
                     TextureWrap::Repeat, TextureEncoding::Data);
-                stands.mTextures.push_back(layer.mNormalTexture);
                 if (layer.mParallax && row.mNormal != sNoIndex)
                     row.mFlags |= Shaders::LAYER_PARALLAX;
             }
@@ -147,9 +148,8 @@ namespace Rtx
             }
 
             mLayerScratch.push_back(row);
-
-            stands.mTextures.push_back(layer.mTexture);
         }
+        ground.collectTextures(stands.mTextures);
 
         stands.mStood.mTransform = osg::Matrixf::translate(ground.mOrigin);
 
@@ -241,10 +241,10 @@ namespace Rtx
 
     void CellPlacer::dropGround(HeldCell& cell)
     {
-        if (!cell.mGround.has_value())
+        HeldGround& ground = cell.mGround;
+        if (!ground.mStands)
             return;
 
-        HeldGround& ground = *cell.mGround;
         drop(ground.mStood, mGroundPlaced);
 
         // The rows lose their holds, and the sweep after this walk is what frees them.
@@ -259,8 +259,8 @@ namespace Rtx
             drop(cell.mPlacements[at].mStood, mPlaced);
         cell.mShown = 0;
 
-        if (cell.mGround.has_value())
-            drop(cell.mGround->mStood, mGroundPlaced);
+        if (cell.mGround.mStands)
+            drop(cell.mGround.mStood, mGroundPlaced);
     }
 
     bool CellPlacer::standsAsHeld(const HeldCell& cell, const WorldAround& around) const
@@ -293,7 +293,7 @@ namespace Rtx
                 return false;
         }
 
-        if (cell.mGround.has_value() && !standsAs(cell.mGround->mStood, inReach))
+        if (cell.mGround.mStands && !standsAs(cell.mGround.mStood, inReach))
             return false;
 
         return true;
@@ -315,9 +315,9 @@ namespace Rtx
 
         // The ground stands inside the active grid too: the game builds none for this
         // renderer, so what a cell's land says is stood here wherever the cell is.
-        if (cell.mGround.has_value())
+        if (cell.mGround.mStands)
         {
-            HeldGround& ground = *cell.mGround;
+            HeldGround& ground = cell.mGround;
 
             if (inReach && !ground.mStood.isStanding())
                 stand(ground.mStood, mGroundPlaced);

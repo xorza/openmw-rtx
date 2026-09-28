@@ -143,7 +143,18 @@ namespace RtxTool
             if (variables["hour"].defaulted())
                 return std::nullopt;
 
-            return variables["hour"].as<float>();
+            const float hour = variables["hour"].as<float>();
+            if (const std::optional<std::string_view> why = hourRefusal(hour))
+                throw std::runtime_error(std::format("--hour={} {}", hour, *why));
+
+            return hour;
+        }
+
+        /// Refuses a weather the line names that is none of the ten, with the option that named it.
+        void refuseUnlessWeather(const std::string_view option, const std::string_view weather)
+        {
+            if (const std::optional<std::string_view> why = weatherRefusal(weather))
+                throw std::runtime_error(std::format("--{}: \"{}\" {}: {}", option, weather, *why, listWeathers()));
         }
 
         /// What `--weather` named, or nothing where it was left at its default.
@@ -152,7 +163,9 @@ namespace RtxTool
             if (variables["weather"].defaulted())
                 return std::nullopt;
 
-            return variables["weather"].as<std::string>();
+            const std::string& weather = variables["weather"].as<std::string>();
+            refuseUnlessWeather("weather", weather);
+            return weather;
         }
 
         /// What `--air` named, or nothing where the line names none. Text that names no air is
@@ -299,7 +312,7 @@ namespace RtxTool
             profile.mReconstruction.mFilter = variables["filter"].as<bool>();
             profile.mShow = Rtx::sSurfaceViewNames.require(variables["show"].as<std::string>(), "a surface view");
             profile.mReconstruction.mJitter = variables["jitter"].as<bool>();
-            profile.mExposure = parseExposure(variables["exposure"].as<std::string>());
+            profile.mExposure = Rtx::ExposureRule{ .mFixed = parseExposure(variables["exposure"].as<std::string>()) };
             profile.mStressOverlapMs = parseHold(variables["hold"].as<std::string>());
             profile.mSpecializeLaunches = variables["variants"].as<bool>();
             if (const std::string& noise = variables["noise"].as<std::string>(); noise != "auto")
@@ -579,9 +592,6 @@ namespace RtxTool
                 wanted = splitNames(named);
 
             run.mViews = chooseViews(views, wanted);
-            if (run.mViews.empty())
-                throw std::runtime_error("nothing to visit: no view was named");
-
             return run;
         }
 
@@ -724,12 +734,18 @@ namespace RtxTool
 
             const BenchSpec spec = specFrom(variables);
             const std::vector<std::string> turn = splitNames(variables["turn-weather"].as<std::string>());
+            for (const std::string& weather : turn)
+                refuseUnlessWeather("turn-weather", weather);
             const bool hashing = !variables["hashes"].as<std::string>().empty()
                 || !variables["against"].as<std::string>().empty() || !variables["pictures"].as<std::string>().empty();
 
             const std::filesystem::path frameTimes = variables["frame-times"].as<std::string>();
             if (!frameTimes.empty())
                 std::filesystem::create_directories(frameTimes);
+
+            const std::filesystem::path pictures = variables["pictures"].as<std::string>();
+            if (!pictures.empty())
+                std::filesystem::create_directories(pictures);
 
             for (Stop& stop : stops)
             {
@@ -745,7 +761,7 @@ namespace RtxTool
             request.mJson = variables["json"].as<std::string>();
             request.mHashes = variables["hashes"].as<std::string>();
             request.mAgainst = variables["against"].as<std::string>();
-            request.mPictures = variables["pictures"].as<std::string>();
+            request.mPictures = pictures;
             request.mPerfControl = variables["perf-control"].as<std::string>();
             request.mSetup.mSettled = run.mSettled;
 
@@ -838,8 +854,6 @@ namespace RtxTool
                 // A route runs for as long as the line says, and ends where it arrives.
                 if (stop.mSchedule.mRoute.has_value())
                     stop.mSchedule.mSpec.mRun = BenchSpan{ .mSeconds = variables["seconds"].as<float>() };
-
-                stop.mActions.mWalkTwice = true;
             }
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));

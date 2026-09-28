@@ -345,15 +345,7 @@ namespace MWRender
         /// picture through two differently answered renderers.
         RtxRun& mRun;
 
-        /// Whether each walk waits for the cell it adopts, where the run says: one of the two things
-        /// `RunSetup` states that outlive the construction they are spent in, because what it
-        /// falls back on is the clock's stated step, which the host hands over after. The step
-        /// itself is the clock's (`getFrameClock`), and what a frame reads about how the picture is
-        /// made is the backend's `getProfile`, which a setting may move and a record made before the
-        /// backend may not.
-        std::optional<bool> mSettled;
-
-        /// `RunSetup::mInterface`, the other: read by every frame's `drawGui`.
+        /// `RunSetup::mInterface`: read by every frame's `drawGui`.
         bool mInterface;
 
         /// Before the backend, whose surface is on it: the members below die first.
@@ -410,6 +402,7 @@ namespace MWRender
         /// How the driver paces the frame, as the run set it and the menu moved it. The interval
         /// beside it is the seam's (`getFrameRateLimit`), so each half has one source.
         Rtx::LatencyMode mLatency;
+        bool mReflexFlash;
 
         /// The left button as `takeClick` last saw it.
         bool mLeftButtonDown = false;

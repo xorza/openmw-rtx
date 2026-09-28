@@ -795,7 +795,7 @@ namespace MWWorld
         else
             mNightDayMode = Default;
 
-        mSky.mOutdoors = isExterior;
+        mSky.mWeatherRan = isExterior;
         if (!isExterior)
         {
             mRendering.setSkyEnabled(false);

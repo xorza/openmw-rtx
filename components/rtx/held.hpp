@@ -4,7 +4,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <vector>
 
 #include <boost/container/flat_set.hpp>
@@ -64,6 +63,10 @@ namespace Rtx
     /// it is flattened are its material row's, which is read and not copied.
     struct HeldGround
     {
+        /// Whether the land stands anything, and so whether the rows below name anything. A flag
+        /// and not an empty optional, so the texture list keeps its room from one cell to the next.
+        bool mStands = false;
+
         /// The rows the ring holds on the scene, which no drawable and no state set will ever
         /// name, at the cell's centre, which the mesh's own positions are relative to.
         Stood mStood;
@@ -95,24 +98,20 @@ namespace Rtx
 
         std::vector<PreparedModel*> mModels;
 
-        /// The ground, or nothing where the land names none. What is emptied on a drop is the
-        /// optional's contents and never the optional itself, so its texture list keeps its room.
-        std::optional<HeldGround> mGround;
+        /// The ground, which stands nothing where the land names none.
+        HeldGround mGround;
 
         /// The cell's lamps, which `CellPlacer::place` stands on every walk at the frame's own hour.
         std::vector<PreparedLight> mLights;
 
-        /// Empties it for the next cell, keeping the room every list grew. What is emptied of the
-        /// ground is the optional's contents and never the optional itself, so its texture list
-        /// keeps its room too.
+        /// Empties it for the next cell, keeping the room every list grew.
         void reuse()
         {
             // Nothing may stand: a spare that still stood would stand twice on the next adopt.
             // `CellPlacer::dropSlots` is what every caller runs first.
             assert(std::none_of(mPlacements.begin(), mPlacements.end(),
                        [](const Placement& placement) { return placement.mStood.isStanding(); })
-                && (!mGround.has_value() || !mGround->mStood.isStanding())
-                && "a cell reused with something still standing");
+                && !mGround.mStood.isStanding() && "a cell reused with something still standing");
 
             mCell = osg::Vec2i();
             mStatics = false;
@@ -120,8 +119,7 @@ namespace Rtx
             mPlacements.clear();
             mModels.clear();
             mLights.clear();
-            if (mGround.has_value())
-                mGround->reuse();
+            mGround.reuse();
         }
     };
 

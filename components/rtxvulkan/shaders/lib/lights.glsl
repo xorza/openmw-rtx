@@ -572,23 +572,6 @@ float lampVisible(Reservoir kept, vec2 draw)
     return lightThrough(kept.mFrom, towards, along - max(lamp.mClearance, SHADOW_BIAS));
 }
 
-/// Moves the ray a reservoir buys so that it leaves from `from` rather than from where the lamp it
-/// holds was weighed.
-///
-/// **What a lamp is worth and where to ask whether it is seen are two questions.** A froxel weighs
-/// its lamps over the whole of its own stretch, where a share is an integral and the point that
-/// carries most of it is the closest approach — and then asks whether *the froxel* is shadowed,
-/// which is a question about all of it and is best put from a point drawn anywhere inside. Over
-/// frames that point walks the froxel, so a shadow's edge crossing one lands between two froxels as
-/// something the filter averages rather than as a step eight pixels wide.
-///
-/// The selection is untouched, so the estimator stays what the walk that filled this says it is;
-/// the lamp is named, so the ray aims itself from wherever it now leaves.
-void aimLampFrom(inout Reservoir kept, vec3 from)
-{
-    kept.mFrom = from;
-}
-
 /// What every lamp a reservoir stands for delivers, once the one it held has been traced to.
 ///
 /// @param share what the held lamp's own light is worth to the estimate: the reservoir's weight over

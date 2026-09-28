@@ -29,8 +29,8 @@ namespace Rtx
         /// colour above, so anything folded into it comes back out of the light.
         const Image& mDiffuseAlbedo;
 
-        /// Its reflectance at the angle it was seen from. Zero over anything shaded by a Lambert
-        /// model, which is every solid surface this renderer has.
+        /// Its reflectance at the angle it was seen from: the gloss's directional albedo, which the
+        /// specular half of the colour is demodulated by.
         const Image& mSpecularAlbedo;
 
         /// Shading normal in `xyz`, roughness in `w` — the feature is built for the packed layout,
@@ -88,12 +88,12 @@ namespace Rtx
         /// not come back.
         virtual void release() = 0;
 
-        /// The image `record` writes, named ahead of the trace: the set that carries what the puffs
-        /// are composited over is pushed for every launch, before the reconstruction runs.
+        /// The image `record` writes, which the display composites the puffs over and maps.
         virtual const Image& getOutput() const = 0;
 
-        /// Records one reconstruction into `getOutput`, at the output extent and in
-        /// `Use::sTraceReadWrite`, where the puffs want it. After `resize`.
+        /// Records one reconstruction into `getOutput`, at the output extent, and leaves it in
+        /// `Use::sAnyGeneralWrite`: what the reconstruction recorded is its own, and nothing here
+        /// knows which stages it used. After `resize`.
         virtual void record(VkCommandBuffer commands, const UpscaleInputs& inputs) = 0;
 
     protected:

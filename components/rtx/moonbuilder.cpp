@@ -72,39 +72,51 @@ namespace Rtx
             return Shaders::DAYLIGHT * Shaders::MOON_ALBEDO * sine * sine;
         }
 
+        /// The angle between the sun and the eye as the moon sees them, from nought at full to pi at
+        /// new, out of the phase's angle round the whole month. A waxing moon and a waning one a
+        /// phase apart are the same angle: which limb keeps the light is the side the sun is on,
+        /// which `litFrom` finds, and not a second law. Morrowind's phases are multiples of a
+        /// quarter pi, so the fold is a subtraction and not a trip through a cosine; wrapped first,
+        /// because `Unspecified` is the ninth and stands a whole turn round, which is full.
+        float foldedPhase(const float phaseAngle)
+        {
+            const float wrapped = std::fmod(phaseAngle, 2.0f * osg::PIf);
+
+            return wrapped <= osg::PIf ? wrapped : 2.0f * osg::PIf - wrapped;
+        }
+
         /// How much light a moon at `phaseAngle` sends, against a full one — the measured law and
         /// not the geometry, which differ by a factor of five because the surface shadows itself
         /// everywhere but at opposition. Allen's fit, `dm = 0.026|a| + 4e-9 a^4` in degrees, puts a
-        /// half moon at 0.09 of full. Folded through the cosine, because which limb keeps the light
-        /// is the disc's business.
+        /// half moon at 0.09 of full.
         float phaseLaw(float phaseAngle)
         {
-            const float from = std::acos(std::clamp(std::cos(phaseAngle), -1.0f, 1.0f));
-            const float degrees = osg::RadiansToDegrees(from);
+            const float degrees = osg::RadiansToDegrees(foldedPhase(phaseAngle));
             const float dim = 0.026f * degrees + 4.0e-9f * degrees * degrees * degrees * degrees;
 
             return std::pow(10.0f, -0.4f * dim);
         }
 
         /// Which way the light falls on `placement`'s face, in the face's own frame, under a sun
-        /// toward `towardSun`: tilted out of the eye by the phase, and turned about it until the lit
-        /// limb points at the sun. A sun along the moon's own line has no side to point at, and the
-        /// limb stays on `mRight`.
+        /// toward `towardSun`: tilted out of the eye by the folded phase, and turned about it until
+        /// the lit limb points at the sun, waxing or waning. A sun along the moon's own line has no
+        /// side to point at, and the limb stays on `mRight`.
         osg::Vec3f litFrom(const MoonPlacement& placement, const osg::Vec3f& towardSun)
         {
             const osg::Vec2f toward(towardSun * placement.mRight, towardSun * placement.mUp);
             const float length = toward.length();
             const osg::Vec2f turn = length > 0.0f ? toward / length : osg::Vec2f(1.0f, 0.0f);
-            const float lean = std::sin(placement.mPhaseAngle);
+            const float phase = foldedPhase(placement.mPhaseAngle);
+            const float lean = std::sin(phase);
 
-            return osg::Vec3f(lean * turn.x(), lean * turn.y(), std::cos(placement.mPhaseAngle));
+            return osg::Vec3f(lean * turn.x(), lean * turn.y(), std::cos(phase));
         }
 
         /// McEwen's weight of lunar-Lambert against Lambert at `phaseAngle`: his own cubic, in the
-        /// phase in degrees, held between nought and one.
+        /// folded phase in degrees, held between nought and one.
         float lunarShare(float phaseAngle)
         {
-            const float phase = osg::RadiansToDegrees(phaseAngle);
+            const float phase = osg::RadiansToDegrees(foldedPhase(phaseAngle));
 
             return std::clamp(
                 1.0f - 0.019f * phase + 0.000242f * phase * phase - 1.46e-6f * phase * phase * phase, 0.0f, 1.0f);

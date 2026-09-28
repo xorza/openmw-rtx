@@ -9,8 +9,8 @@
 
 #include <components/rtx/guirenderer.hpp>
 
-#include "buffer.hpp"
 #include "frameslots.hpp"
+#include "growablebuffer.hpp"
 #include "guipass.hpp"
 #include "guitextures.hpp"
 
@@ -46,7 +46,7 @@ namespace Rtx
 
             /// Rewritten every draw and grown to the busiest one so far. Host-visible device memory,
             /// so writing it is a memcpy and there is no staging copy and no transfer to record.
-            Buffer mVertices;
+            GrowableBuffer mVertices;
         };
 
         const Device& mDevice;

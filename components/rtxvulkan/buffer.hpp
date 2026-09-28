@@ -28,12 +28,13 @@ namespace Rtx
         /// structure built for it.
         DeviceLocal,
 
-        /// Video memory the host writes straight into — what resizable BAR is for: the whole of
-        /// this device's sixteen gigabytes is host-visible, so a table the frame rewrites is a
-        /// `memcpy` and not two allocations, a submit and a wait. Write-only, which `map` enforces:
-        /// the memory is write-combining and a read of it is orders of magnitude slower. Nothing
-        /// here synchronises, because the owner keeps one per frame in flight and a host write made
-        /// before a submit is visible to it without a barrier.
+        /// Video memory the host writes straight into — all of it where resizable BAR maps it, a
+        /// few hundred megabytes where it does not (`PhysicalDevice::Profile::mHostWrittenBytes`)
+        /// — so a table the frame rewrites is a `memcpy` and not two allocations, a submit and a
+        /// wait. Write-only, which `map` enforces: the memory is write-combining and a read of it
+        /// is orders of magnitude slower. Nothing here synchronises, because the owner keeps one
+        /// per frame in flight and a host write made before a submit is visible to it without a
+        /// barrier.
         HostWritten,
 
         /// Host memory a copy is staged through: written by the host once, read by the device
@@ -203,6 +204,18 @@ namespace Rtx
         /// a buffer holding whatever was last in that memory is a picture that depends on it too.
         void clear() const { std::memset(writable<std::byte>(0, mSize).data(), 0, mSize); }
 
+        /// The whole buffer, to be written in place, for a buffer nothing has named yet — which no
+        /// submit can read. Asked of the buffer's own stamp and never of the timeline, so a thread
+        /// that made the buffer and has not handed it out can fill it while the owner of the
+        /// timeline submits and waits: a shader binding table, filled where its pipeline compiles.
+        template <class T>
+        std::span<T> unnamed() const
+        {
+            assert(mRead.getNamedUntil() == 0 && "a buffer written as unnamed after a submit named it");
+
+            return reach<T>(0, mSize / sizeof(T));
+        }
+
     private:
         /// The handle alone, named and bound to nothing: what `make` and `tryMake` both begin
         /// with, before either knows whether there is room.
@@ -242,21 +255,4 @@ namespace Rtx
 
         ReadStamp mRead;
     };
-
-    /// Grows `held` so it can hold `bytes`, and never leaves it holding nothing: an empty slot is
-    /// grown whatever `bytes` is. Keeps whatever it already has where that is big enough. What it
-    /// displaced goes to the device's graveyard, here and not in the caller's hands, because a
-    /// frame in flight may still be reading it and a caller handed the old buffer once let it go
-    /// on the floor. True where it was made again, which is a table holding nothing that the
-    /// caller has to fill whole.
-    ///
-    /// @param kind what to make, which is asserted to be what `held` already is where it holds
-    ///        anything: a table does not change memory as it grows.
-    bool growTo(Buffer& held, const Device& device, BufferKind kind, VkDeviceSize bytes, VkBufferUsageFlags usage,
-        std::string_view name);
-
-    /// `growTo` for a table that keeps growing: at twice what it holds where that is more, so the
-    /// table is made again a logarithmic number of times rather than once per arrival.
-    bool outgrow(Buffer& held, const Device& device, BufferKind kind, VkDeviceSize bytes, VkBufferUsageFlags usage,
-        std::string_view name);
 }

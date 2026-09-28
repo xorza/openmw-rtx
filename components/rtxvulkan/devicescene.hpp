@@ -11,6 +11,7 @@
 #include <components/rtx/mesh.hpp>
 #include <components/rtx/refusal.hpp>
 #include <components/rtx/renderer.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/slot.hpp>
 #include <components/rtx/texturedata.hpp>
 
@@ -27,8 +28,8 @@ namespace Rtx
     class Device;
     class GpuTimer;
     class SceneDesc;
-    class GroundCompositePass;
     struct Placing;
+    struct ScenePasses;
 
     /// Everything one scene is traced against, on the device — the world's, or a picture's in
     /// the interface — the same objects for both, which is what lets `Rtx::SceneUploader` hand a
@@ -50,13 +51,12 @@ namespace Rtx
         /// a smaller side, and the textures are held to what the structures left — what the device
         /// had no room for is `getRefusals`.
         ///
-        /// @param skin what poses this scene's bodies, at the build and at every placement.
-        /// @param passes what every texture is made with as it arrives.
-        /// @param ground what flattens every chunk's stack, in the placement after it arrives.
+        /// @param passes what poses this scene's bodies, at the build and at every placement, what
+        ///        every texture is made with as it arrives, and what flattens every chunk's stack
+        ///        in the placement after it arrives.
         /// @param anisotropy `RenderProfile::mAnisotropy`, which the textures are read along a
         ///        footprint by.
-        DeviceScene(const Device& device, Batch& batch, const SetLayout& textureLayout, const SkinPass& skin,
-            const TexturePasses& passes, const GroundCompositePass& ground, const SceneDesc& scene,
+        DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, const SceneDesc& scene,
             std::span<const TextureData> textures, std::uint32_t anisotropy);
 
         /// `TextureArray::setAnisotropy`.
@@ -124,6 +124,12 @@ namespace Rtx
         VkDescriptorSet getTextures() const { return mTextures.getSet(mSlot); }
         VkDeviceAddress getTextureTexels() const { return mTextures.getTexelsAddress(mSlot); }
 
+        /// The scene's half of a frame block: where `slot`'s copy of every table a hit reads is,
+        /// the structure's index and pose blocks, and the texture array's texel counts. The whole
+        /// of it, for the trace and for the ground's bake alike, so nothing adds an address of the
+        /// scene's after the scene has described itself.
+        void describeTables(FrameSlot slot, Shaders::GpuTables& tables) const;
+
     private:
         /// What this scene poses with, at `slot` and timed into `timer`. The three tables are
         /// this scene's and are the same at every call, so they are stated once rather than at
@@ -134,8 +140,7 @@ namespace Rtx
         /// the tables — the copy just written, whose set is synced. True where one was recorded.
         bool bakeGround(VkCommandBuffer commands, FrameSlot slot);
 
-        const SkinPass& mSkin;
-        const GroundCompositePass& mGround;
+        const ScenePasses& mPasses;
 
         /// One row per placement slot, made whole when the scene is built and kept across frames,
         /// with the rows the scene says changed rewritten by each placement. Here rather than in

@@ -254,5 +254,45 @@ namespace Rtx
 
             EXPECT_NE(grid.getList().getEntryCount(), reachedTwo) << "a lamp that reaches further was not rebinned";
         }
+
+        /// **A lamp that moved is binned again into the grid as it stands, and nothing else is.** A
+        /// carried torch moved every lamp's binning from nothing on every frame. The grid is made
+        /// again only where a reach leaves it, because a position outside the grid is lit by nothing.
+        ///
+        /// The grid of the first test, by hand: corner -100, seventeen cells of 256. The lamp moved
+        /// to 50 spans -50 to 150, which is still cell 0: the list is the list it was. Moved to 300
+        /// it spans 200 to 400, 300 to 500 from the corner, which is cell 1 alone, and the corner
+        /// stays where it was, though a grid made from nothing would put it at 200. Moved to -500 it
+        /// reaches out of the grid, which is made again with its corner at -600.
+        TEST(RtxLightGridTest, aLampThatMovedIsBinnedAloneIntoTheGridAsItStands)
+        {
+            std::array lights{ lampAt(0.0f, 100.0f), lampAt(4096.0f, 100.0f) };
+            LightGrid grid;
+            grid.rebuild(lights);
+            const std::vector<std::uint32_t> first(grid.getList().getWhole().begin(), grid.getList().getWhole().end());
+
+            lights[0].mPosition.x() = 50.0f;
+            std::size_t before = Testing::getAllocationCount();
+            grid.rebuild(lights);
+            EXPECT_EQ(Testing::getAllocationCount() - before, 0u);
+            EXPECT_EQ(
+                std::vector<std::uint32_t>(grid.getList().getWhole().begin(), grid.getList().getWhole().end()), first)
+                << "a lamp that stayed in its cells changed the list";
+
+            lights[0].mPosition.x() = 300.0f;
+            before = Testing::getAllocationCount();
+            grid.rebuild(lights);
+            EXPECT_EQ(Testing::getAllocationCount() - before, 0u);
+            EXPECT_EQ(grid.getOrigin(), osg::Vec3f(-100.0f, -100.0f, -100.0f)) << "the grid was made again";
+            EXPECT_EQ(grid.getSize(), osg::Vec3ui(17u, 1u, 1u));
+            EXPECT_TRUE(lampsIn(grid, 0, 0, 0).empty());
+            EXPECT_EQ(lampsIn(grid, 1, 0, 0), std::vector<std::uint32_t>{ 0u });
+            EXPECT_EQ(lampsIn(grid, 16, 0, 0), std::vector<std::uint32_t>{ 1u });
+
+            lights[0].mPosition.x() = -500.0f;
+            grid.rebuild(lights);
+            EXPECT_EQ(grid.getOrigin(), osg::Vec3f(-600.0f, -100.0f, -100.0f)) << "a reach out of the grid kept it";
+            EXPECT_EQ(lampsIn(grid, 0, 0, 0), std::vector<std::uint32_t>{ 0u });
+        }
     }
 }

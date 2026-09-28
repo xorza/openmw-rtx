@@ -7,6 +7,12 @@
 #include "sky.h"
 #include "storageformat.h"
 
+// `<cstddef>` for the `offsetof` the pinned layout below is checked with, last because only the
+// host has it.
+#ifdef RTX_HOST
+#include <cstddef>
+#endif
+
 // What the display pass needs. Included verbatim by both sides, for the reason `sky.h` is.
 
 #ifdef RTX_HOST
@@ -124,6 +130,15 @@ namespace Rtx::Shaders
         vec3 mGlareColour;
         float mGlareAmount;
     };
+
+    // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
+    // reads them are different compilers.
+#ifdef RTX_HOST
+    // The host rounds the block up to eight for the addresses at its head; what the shader reads
+    // ends at the last member, and the push is the shader's 156 bytes and four the shader ignores.
+    static_assert(offsetof(ToneConstants, mGlareAmount) + sizeof(float) == 156,
+        "ToneConstants must be scalar-packed on every side");
+#endif
 
 #ifdef RTX_HOST
 }

@@ -66,9 +66,6 @@ namespace Rtx
 
         mOutput.transition(commands, Use::sUndefined, Use::sAnyGeneralWrite);
         mPass->record(commands, inputs, mOutput);
-
-        // What NGX recorded is its own; nothing here knows which stages it used.
-        mOutput.transition(commands, Use::sAnyGeneralWrite, Use::sTraceReadWrite);
     }
 
     std::unique_ptr<Upscaler> makeUpscaler(const Device& device, const VkInstance instance)

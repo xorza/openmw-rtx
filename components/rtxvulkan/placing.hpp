@@ -10,7 +10,7 @@ namespace Rtx
 
     /// Where a placement records, which copy it writes and what times it — the placement's own
     /// context and not the frame's, handed to both halves of one placement so the two cannot be
-    /// told two things. What a placement buries goes to the graveyard each half holds.
+    /// told two things. What a placement buries goes to the device's graveyard.
     struct Placing
     {
         VkCommandBuffer mCommands = VK_NULL_HANDLE;

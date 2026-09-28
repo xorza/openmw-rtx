@@ -71,6 +71,7 @@ set(RTX_TEST_FILES
     rtx/sourcetree.cpp
     rtx/specularalbedo.cpp
     rtx/spirvdigest.cpp
+    rtx/spirvfile.cpp
     rtx/spirvpin.cpp
     rtx/spritelight.cpp
     rtx/spritelistsize.cpp
@@ -139,7 +140,6 @@ set(RTX_GPU_TEST_SUPPORT
     rtx/support/device/memorylimits.hpp
     rtx/support/device/readback.cpp
     rtx/support/device/readback.hpp
-    rtx/support/device/texturepasses.hpp
 )
 
 set(RTX_GPU_TEST_FILES

@@ -149,4 +149,9 @@ namespace RtxTool
         const float level = std::cos(rotation.x());
         return osg::Vec3f(std::sin(rotation.z()) * level, std::cos(rotation.z()) * level, -std::sin(rotation.x()));
     }
+
+    bool Actions::walksTwice() const
+    {
+        return mWalkTwice || std::ranges::find(mChecks, Check::WalkTwice) != mChecks.end();
+    }
 }

@@ -16,7 +16,7 @@ namespace Rtx
     {
         /// The source in, one level of the bake out.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::SPRITE_LIGHT_BINDINGS> sBindings{
-            computeBinding(Shaders::SPRITE_LIGHT_BIND_SOURCE, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER),
+            computeBinding(Shaders::SPRITE_LIGHT_BIND_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::SPRITE_LIGHT_BIND_BAKE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
         };
     }
@@ -27,8 +27,7 @@ namespace Rtx
     {
     }
 
-    void SpriteLightPass::record(
-        const VkCommandBuffer commands, const Image& source, const VkSampler sampler, const Image& bake) const
+    void SpriteLightPass::record(const VkCommandBuffer commands, const Image& source, const Image& bake) const
     {
         assert(bake.getMipLevels() == source.getMipLevels() && "a bake shaped unlike its source");
 
@@ -38,8 +37,8 @@ namespace Rtx
         {
             DescriptorWrites<Shaders::SPRITE_LIGHT_BINDINGS> writes;
             writes.image(Shaders::SPRITE_LIGHT_BIND_SOURCE,
-                source.describeSampled(sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
-                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+                source.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
+                VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
             writes.image(Shaders::SPRITE_LIGHT_BIND_BAKE, bake.describeStorage(level));
 
             const Shaders::SpriteLightConstants constants{

@@ -18,6 +18,7 @@
 #include "bottomlevelstore.hpp"
 #include "buffer.hpp"
 #include "frameslots.hpp"
+#include "growablebuffer.hpp"
 #include "placing.hpp"
 #include "slottable.hpp"
 #include "structurebuild.hpp"
@@ -203,7 +204,7 @@ namespace Rtx
 
         BlockedBuffer mIndices{ Shaders::INDEX_BLOCK, sizeof(std::uint32_t) };
 
-        Buffer mTopLevelStorage;
+        GrowableBuffer mTopLevelStorage;
 
         /// The rows the top level is built from, one copy per frame in flight. A gap is an inactive
         /// row — a reference of nought — and not a row left out, because a row's index is the slot a
@@ -227,11 +228,11 @@ namespace Rtx
         /// Kept across frames rather than made per refit, and sized by `sizeRefitScratch`. Grown
         /// through the graveyard and never destroyed outright: a frame places twice at a crossing,
         /// and a buffer freed under a build in flight was a device lost on every crossing.
-        Buffer mRefitScratch;
+        GrowableBuffer mRefitScratch;
 
         /// Grows to the high-water mark and stays, as the storage beside it does: made per frame,
         /// the pair was `vkAllocateMemory` twice on every frame that moved.
-        Buffer mTopLevelScratch;
+        GrowableBuffer mTopLevelScratch;
 
         /// The top-level build, prepared before a command buffer exists and recorded into one after.
         /// Members rather than locals because `pGeometries` is a pointer the build info keeps.

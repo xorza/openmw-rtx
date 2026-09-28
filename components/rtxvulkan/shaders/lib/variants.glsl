@@ -24,9 +24,10 @@
 // **Each of these stands in front of the runtime test it replaces and never in place of it.** True
 // leaves the shader exactly as it was. False is set only where the test behind it already answers
 // no, so what the compiler removes is dead code rather than an answer: a specialized frame computes
-// the arithmetic the one kernel does. **Not always to the bit** — the driver fuses what is left
-// around what went, and `HAS_MAPS` measured a vanilla frame moving by a rounding with the maps'
-// code compiled in and not one hit running it.
+// the arithmetic the one kernel does. **Not always to the bit**, pinned modules and all
+// (`spirvpin.hpp`): the driver compiles what is left differently around what went, and
+// `--variants=false` against the tuples moved the trace of 22 views of 23 by a rounding — a level
+// of a byte at 37 pixels of the picture at most (2026-09-28).
 //
 // `Rtx::VisibilityVariant` is the other half. It reads each of these off the frame's own constants,
 // and `VisibilityPass` keeps one pipeline per tuple.
@@ -75,7 +76,7 @@ layout(constant_id = 4) const uint REORDER = REORDER_NONE;
 ///
 /// **What keeps a vanilla frame the frame it was, and not only what keeps it fast.** The maps' code
 /// sits beside the Lambert surface's in the same functions, and compiled in, it moved how this
-/// driver fused the Lambert arithmetic around it even where not one hit ran it: every vanilla view
+/// driver compiled the Lambert arithmetic around it even where not one hit ran it: every vanilla view
 /// traced a different frame by a rounding. Specialized out, the kernel a vanilla scene runs is the
 /// one it ran before the maps existed.
 layout(constant_id = 5) const bool HAS_MAPS = true;

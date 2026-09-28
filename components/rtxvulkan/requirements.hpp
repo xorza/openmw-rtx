@@ -141,6 +141,29 @@ namespace Rtx
 
     inline constexpr std::size_t sDeviceOptions = static_cast<std::size_t>(DeviceOption::Pacing) + 1;
 
+    /// The features the options bring, each in its own structure: what a device that took an option
+    /// is asked for, and enabled with where it has it. Outside `DeviceFeatures`, which is what the
+    /// renderer requires, asked and enabled as one list: a feature it can do without has no place
+    /// in a list a device is refused for lacking. Non-copyable for the reason `DeviceFeatures` is.
+    struct OptionalFeatures
+    {
+        OptionalFeatures();
+        OptionalFeatures(const OptionalFeatures&) = delete;
+        OptionalFeatures& operator=(const OptionalFeatures&) = delete;
+
+        VkPhysicalDeviceFaultFeaturesEXT mFault{};
+        VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR mPresentFences{};
+        VkPhysicalDevicePresentIdFeaturesKHR mPresentId{};
+    };
+
+    /// The one feature an option is no use without, and how to reach its structure and its flag,
+    /// so one table asks a device for it and enables it where the device has it.
+    struct OptionalFeature
+    {
+        VkBaseOutStructure& (*mStructure)(OptionalFeatures& features);
+        VkBool32& (*mField)(OptionalFeatures& features);
+    };
+
     /// One option as extensions: the ones it is made of, enabled all or none, and what the registry
     /// says has to be enabled beside them — an instance extension or a device one — before any of
     /// them may be. An option whose needs are not met is not taken, however much of it the driver
@@ -155,10 +178,14 @@ namespace Rtx
         /// extension enabled for nothing, and for checkpoints a fault report that says the queue
         /// passed none where none was set.
         bool mRead = true;
+
+        /// The feature the option is no use without, or nothing where its extensions are all it is.
+        const OptionalFeature* mFeature = nullptr;
     };
 
     /// Every option, in the order of `DeviceOption`. Reported by `openmw-rtxtool info`, so it is
-    /// visible which a device offers; `Device::has` says which a device took.
+    /// visible which a device offers; `Device`'s constructor takes each it can and keeps what the
+    /// frame asks of them (`Device::hasPresentFences`, `Device::hasLatencyPacing`).
     std::span<const OptionalExtensions> getOptionalExtensions();
 
     /// The table itself, so a test can prove its entries address distinct fields.

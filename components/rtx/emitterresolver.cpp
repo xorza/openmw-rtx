@@ -92,21 +92,35 @@ namespace Rtx
         held.mIndex = sNoIndex;
         held.mLighting = sNoIndex;
         held.mSprite = sprite;
+        held.mWrap = use.mWrap;
         held.mMean = nullptr;
-        if (sprite == nullptr)
+        held.mRefused = RefusedTakes();
+        if (sprite != nullptr)
+            takeSprite(particles, held);
+    }
+
+    void EmitterResolver::takeSprite(const osgParticle::ParticleSystem& particles, HeldSprite& held)
+    {
+        const std::uint64_t freed = mScene.textures().getFreedCount();
+        if (held.mRefused.stands(sSpriteTake, freed))
             return;
 
         // Held, because nothing else can name them. An emitter is a placement and is thrown
         // away every frame, so this entry is the only lasting thing that says the sprite is in
         // use; the scene frees the slots when the sweep lets go of them.
-        const VFS::Path::Normalized path(sprite->getFileName());
-        held.mIndex = mScene.textures().take(path, *sprite, use.mWrap);
+        const VFS::Path::Normalized path(held.mSprite->getFileName());
+        held.mIndex = mScene.textures().take(path, *held.mSprite, held.mWrap);
         if (held.mIndex == sNoIndex)
+        {
+            held.mRefused.refuse(sSpriteTake, freed);
             mScene.refusals().refuse(
                 Refused::Emitter, particles.getName(), "the texture array has no room for its image");
+            return;
+        }
 
         // The bake is keyed on the file, so two emitters drawing with one texture share one
-        // bake, and it is made when the texture is opened for upload — `SceneTextures`.
+        // bake, and it is made when the texture is opened for upload — `SceneTextures`. Only
+        // where the sprite stands, because the bake is of its alpha.
         held.mLighting = mScene.textures().addBaked(SpriteLightMap::keyFor(path));
         mScene.textures().hold(held.mLighting);
     }
@@ -131,6 +145,8 @@ namespace Rtx
         // the chain is built, so no reader walks the links for it.
         if (arrived || animatedThrough(shading))
             describeSprite(particles, held, shading);
+        else if (held.mSprite != nullptr && held.mIndex == sNoIndex)
+            takeSprite(particles, held);
 
         // No image, or an image the texture table had no room for: a slot the shader reads the
         // sprite out of is what an emitter is drawn with, and it has none. `describeSprite` said

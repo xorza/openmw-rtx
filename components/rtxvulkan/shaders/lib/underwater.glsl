@@ -99,6 +99,30 @@ vec3 lightThroughWater(vec3 position, vec3 toward, float footprint)
     return waterTransmittance(path) * caustic(position.xy - sun.mTravelling.xy * path, depth, footprint);
 }
 
+/// What the world leaves of a light in the sky at a point, asked along the path the light took:
+/// under the water, bent at the surface — up the refracted line to where it met the surface, and on
+/// from there along its own direction in the air — and over it, `skyVisible` itself.
+///
+/// **The shadow is where the light is.** `lightThroughWater` charges the bent path and reads the
+/// caustic where it met the surface; cast straight along the direction in the air, a roof over the
+/// water shaded a bed up-sun of where it stands, by half as much again as the depth under a sun
+/// thirty degrees high. **Two rays under the water**, because what stands in the water between the
+/// point and the surface is an occluder the ray in the air cannot meet. A branch on the depth and not
+/// a factor, because a sunlit bed and the ground beside the water are regions of the picture and not
+/// neighbouring lanes, and a ray of no length is a traversal all the same.
+float skyVisibleThrough(SkySource sky, vec3 position, vec2 draw)
+{
+    const float depth = waterOver(position);
+    if (!(depth > 0.0))
+        return skyVisible(sky, position, draw);
+
+    const SunUnderWater bent = sunUnderWater(sky.mDirection);
+    const float path = depth * bent.mSlant;
+    const vec3 met = vec3(position.xy - bent.mTravelling.xy * path, frame.mWaterLevel);
+
+    return lightThrough(position, -bent.mTravelling, path) * skyVisible(sky, met, draw);
+}
+
 /// What a stretch of water sends toward whoever is looking down it.
 ///
 /// **The sky's half is integrated, and the sun's is too everywhere a shaft would not show.** Water is
@@ -207,10 +231,10 @@ WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, 
 
     // **A ratio and not a radiance, which is what makes the march free of its own arithmetic.** The
     // same integrand twice — the sun's own way down, the way back to the eye, and the extinction
-    // that is what scattered — once with the surface's lens at every step and once without it. Eight
-    // jittered steps are a poor quadrature of either, and an excellent one of what separates them:
-    // the step count, the jitter and the exponentials all cancel, and what is left multiplies the
-    // closed form above.
+    // that is what scattered — once with the surface's lens at every step and once without it.
+    // `WATER_SHAFT_STEPS` jittered steps are a poor quadrature of either, and an excellent one of
+    // what separates them: the step count, the jitter and the exponentials all cancel, and what is
+    // left multiplies the closed form above.
     //
     // So a ray that shows no pattern comes back with exactly `beam`, to the last bit, and a gate
     // has no ring to draw.

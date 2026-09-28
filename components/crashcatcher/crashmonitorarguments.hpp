@@ -1,8 +1,10 @@
 #pragma once
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -27,6 +29,9 @@ namespace Crash
         std::string mApplication;
         bool mDialog = true;
         std::string mIssues;
+
+        /// `Settings::mEndAfter`.
+        std::optional<std::chrono::milliseconds> mEndAfter;
 
         /// Where Crashpad keeps the reports: its own `--database`, which the game does not write
         /// and the monitor reads and leaves for Crashpad.

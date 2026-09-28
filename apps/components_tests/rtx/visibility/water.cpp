@@ -351,6 +351,55 @@ namespace Rtx::Testing
                                                                << " from above, " << below[channel] << " from below";
         }
 
+        /// **A submerged surface's sun shadow is cast along the refracted path**, as its light and
+        /// its caustic come: the sun that reaches a bed bent at the surface, so what stands over the
+        /// water shades the bed where the bent path leaves it. Cast straight along the sun's
+        /// direction in the air instead, the shadow landed up-sun of where it lies — by half as much
+        /// again as the depth under a sun thirty degrees high.
+        ///
+        /// By hand: the sun thirty degrees up along +X, `(0.866025, 0, 0.5)`, bends to travel
+        /// `(-0.649519, 0, -0.760345)` through water of index 1.333. A roof twenty units square
+        /// stands fifty units over the surface at the origin, and the bed is a hundred under it.
+        /// Straight through, its shadow's middle is `-0.866025 * 150 / 0.5 = -259.8`. Bent, the path
+        /// meets the surface at `-0.866025 * 50 / 0.5 = -86.6` and the bed a further
+        /// `0.649519 * 100 / 0.760345 = 85.42` along, at `-172.0`. An eye under the surface looks
+        /// straight down on both, and the one the roof shades is the dark one.
+        TEST_F(RtxVisibilityTest, aSubmergedSurfacesSunShadowFollowsTheBentPath)
+        {
+            constexpr std::uint32_t size = 65;
+            constexpr float middle = -216.0f;
+            constexpr float across = 200.0f;
+
+            SceneDesc scene = makeFlooded(1000.0f, 100.0f);
+            addQuad(scene, sheetAt(10.0f, 50.0f));
+
+            const osg::Matrixf view = osg::Matrixf::lookAt(
+                osg::Vec3f(middle, 0.0f, -10.0f), osg::Vec3f(middle, 0.0f, -100.0f), osg::Vec3f(0.0f, 1.0f, 0.0f));
+            Shaders::VisibilityConstants camera
+                = makeOrthographicCameraFromView(view, across, across, size, size, 1.0f, 1000.0f).value();
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0.866025f, 0.0f, 0.5f), osg::Vec3f(10.0f, 10.0f, 10.0f));
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mAmbient = osg::Vec3f();
+            camera.mWaterLevel = 0.0f;
+
+            const Frame frame = shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
+
+            // The green channel, which the water takes least of, over the three pixels about each
+            // point on the middle row: a pixel is 3.1 units, and the shadow is twenty across.
+            const auto around = [&](float x) {
+                const int column = static_cast<int>(std::lround((x - middle) / across * size + 0.5f * (size - 1)));
+                float sum = 0.0f;
+                for (int at = column - 1; at <= column + 1; ++at)
+                    sum += frame.at((std::size_t{ size / 2 } * size + static_cast<std::size_t>(at)) * 4 + 1);
+                return sum;
+            };
+
+            const float bent = around(-172.0f);
+            const float straight = around(-259.8f);
+            EXPECT_LT(bent, 0.7f * straight) << "the roof shades the bed where the bent path leaves it";
+        }
+
         /// The water *over* an eye dims what the water in front of it scatters.
         ///
         /// **The half that only a submerged camera can see.** `waterColumn` charges the sun for the

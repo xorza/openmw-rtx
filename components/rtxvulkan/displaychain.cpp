@@ -12,6 +12,7 @@
 #include <components/rtx/shaders/tone.h>
 
 #include "buffer.hpp"
+#include "devicescene.hpp"
 #include "gbuffer.hpp"
 #include "gputimer.hpp"
 #include "image.hpp"
@@ -55,8 +56,7 @@ namespace Rtx
 
     DisplayChain::DisplayChain(const Device& device, const VisibilityPass& puffs,
         const VkDescriptorSetLayout textureLayout, const std::filesystem::path& shaders, const VkFormat targetFormat)
-        : mDevice(device)
-        , mPuffs(puffs)
+        : mPuffs(puffs)
         , mBloom(device, shaders)
         , mExposure(device, shaders)
         , mSunGlare(device, shaders)
@@ -78,27 +78,36 @@ namespace Rtx
     void DisplayChain::record(const VkCommandBuffer commands, const Display& what)
     {
         const VisibilityInputs& inputs = what.mTrace.mInputs;
-        const Image& shown = *inputs.mShown;
+        const Image& shown = what.mShown;
         assert(shown.getWidth() >= what.mExtent.width && shown.getHeight() >= what.mExtent.height);
+
+        const FrameLook* const look = what.mFrame.has_value() ? &*what.mFrame : nullptr;
+        GpuTimer* const timer = look != nullptr ? &look->mTimer : nullptr;
+
+        // Written whole before anything reads it. The last frame may still be reading it, and the
+        // head barrier `CommandPool::begin` recorded is what orders this image after it, so the
+        // discard itself waits for nothing.
+        what.mTarget.transition(commands, Use::sUndefined, Use::sComputeWrite);
 
         // The puffs over the picture, at its own extent, and then the picture is what the lens
         // spreads and the curve maps. The bloom samples what this leaves, rather than loading it —
         // `BloomPass` binds the frame as a combined image sampler — so the scope after it names
         // both reads.
-        const GBuffer& channels = *inputs.mChannels;
+        const GBuffer& channels = inputs.mChannels;
 
-        mPuffs.recordSpriteComposite(commands, inputs, what.mExtent,
-            VkExtent2D{ what.mSampled.mCamera.mWidth, what.mSampled.mCamera.mHeight }, what.mTimer);
+        shown.transition(commands, what.mShownFrom, Use::sTraceReadWrite);
+        mPuffs.recordSpriteComposite(commands, inputs, shown, what.mExtent,
+            VkExtent2D{ what.mSampled.mCamera.mWidth, what.mSampled.mCamera.mHeight }, timer);
         shown.transition(commands, Use::sTraceReadWrite, Use::sComputeReadOrSample);
 
         // What the lens will spread, built here and applied by the curve. Nothing is written back
         // over the frame — `BloomPass` says why the trace's own answer has to reach `readComposite`
         // untouched.
-        if (what.mBloom)
+        if (look != nullptr)
         {
-            openZone(what.mTimer, commands, "bloom");
+            openZone(timer, commands, "bloom");
             mBloom.record(commands, shown);
-            closeZone(what.mTimer, commands);
+            closeZone(timer, commands);
         }
 
         // Measured off the image the curve is about to map, which is the upscaled one wherever
@@ -106,18 +115,18 @@ namespace Rtx
         // `mShown` feeds both, so the two cannot come apart. A picture is measured off nothing, or
         // the same armour would be a different brightness in two windows.
         const Buffer* exposure = &mExposure.getPictureExposure();
-        if (!std::holds_alternative<Display::Picture>(what.mExposure))
+        if (look != nullptr)
         {
-            openZone(what.mTimer, commands, "exposure");
-            if (const auto* fixed = std::get_if<Display::Fixed>(&what.mExposure); fixed != nullptr)
+            openZone(timer, commands, "exposure");
+            if (const auto* fixed = std::get_if<FrameLook::Fixed>(&look->mExposure); fixed != nullptr)
                 mExposure.recordFixed(commands, fixed->mValue);
             else
             {
-                const Display::Measured& measured = std::get<Display::Measured>(what.mExposure);
+                const FrameLook::Measured& measured = std::get<FrameLook::Measured>(look->mExposure);
                 mExposure.record(commands, shown, measured.mSeconds, measured.mReset || mExposureStale, measured.mBias);
                 mExposureStale = false;
             }
-            closeZone(what.mTimer, commands);
+            closeZone(timer, commands);
             exposure = &mExposure.getExposure();
         }
 
@@ -125,16 +134,16 @@ namespace Rtx
         // the glare fader over the picture by. Read after the trace and before the curve, on the
         // device: a frame's own count is a frame's own wash.
         const Buffer* share = &mSunGlare.getNoShare();
-        if (what.mGlare.has_value())
+        if (look != nullptr)
         {
-            openZone(what.mTimer, commands, "glare");
-            mSunGlare.record(commands, what.mGlare->mSeconds, what.mGlare->mReset || mGlareStale);
+            openZone(timer, commands, "glare");
+            mSunGlare.record(commands, look->mGlare.mSeconds, look->mGlare.mReset || mGlareStale);
             mGlareStale = false;
-            closeZone(what.mTimer, commands);
+            closeZone(timer, commands);
             share = &mSunGlare.getShare();
         }
 
-        openZone(what.mTimer, commands, "tone");
+        openZone(timer, commands, "tone");
         mTone.record(commands,
             Tone{
                 .mColour = shown,
@@ -142,38 +151,37 @@ namespace Rtx
                 .mSunGlare = *share,
                 .mBackdrop = channels.get(Channel::Backdrop),
                 .mPuffs = channels.get(Channel::Puffs),
-                .mBloom = what.mBloom ? mBloom.getPyramid() : nullptr,
-                .mTextures = inputs.mTextures,
+                .mBloom = look != nullptr ? mBloom.getPyramid() : nullptr,
+                .mTextures = inputs.mSubject.mScene->getTextures(),
                 .mTarget = what.mTarget,
-                .mConstants = toneFor(what.mSampled, what.mGlare.has_value() ? what.mGlare->mFader : SunGlare{},
-                    what.mTrace.mSpriteTileList, what.mTrace.mSpritePresence, inputs.mTextureTexels, what.mExtent.width,
-                    what.mExtent.height),
+                .mConstants = toneFor(what.mSampled, look != nullptr ? look->mGlare.mFader : SunGlare{},
+                    what.mTrace.mSpriteTileList, what.mTrace.mSpritePresence,
+                    inputs.mSubject.mScene->getTextureTexels(), what.mExtent.width, what.mExtent.height),
             });
-        closeZone(what.mTimer, commands);
+        closeZone(timer, commands);
 
-        recordDebugLines(commands, what);
+        if (look != nullptr)
+            recordDebugLines(commands, what, *look);
     }
 
-    void DisplayChain::recordDebugLines(const VkCommandBuffer commands, const Display& what)
+    void DisplayChain::recordDebugLines(const VkCommandBuffer commands, const Display& what, const FrameLook& look)
     {
-        const DebugLines& debug = what.mDebug;
+        const DebugLines& debug = look.mDebug;
         if (debug.empty())
             return;
 
-        assert(what.mDebugVertices != nullptr && "lines to draw and no buffer to draw them from");
-        const GBuffer& channels = *what.mTrace.mInputs.mChannels;
+        const GBuffer& channels = what.mTrace.mInputs.mChannels;
 
         // The lines first and the triangles after them, in the slot's own buffer: the frame
         // behind read its own slot's, so nothing here is written under a submit.
         const std::size_t count = debug.mLines.size() + debug.mTriangles.size();
-        outgrow(*what.mDebugVertices, mDevice, BufferKind::HostWritten, count * sizeof(DebugVertex),
-            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "debug vertices");
+        look.mDebugVertices.outgrow(count * sizeof(DebugVertex));
 
-        const std::span<DebugVertex> written = what.mDebugVertices->writable<DebugVertex>(0, count);
+        const std::span<DebugVertex> written = look.mDebugVertices.get().writable<DebugVertex>(0, count);
         std::copy(debug.mLines.begin(), debug.mLines.end(), written.begin());
         std::copy(debug.mTriangles.begin(), debug.mTriangles.end(), written.begin() + debug.mLines.size());
 
-        openZone(what.mTimer, commands, "lines");
+        openZone(&look.mTimer, commands, "lines");
 
         // Drawn over what the curve wrote, and left where the curve left it: the interface and
         // the presenter both take the target from there.
@@ -190,13 +198,13 @@ namespace Rtx
                     .mNear = what.mSampled.mNear,
                     .mTraced = Shaders::uvec2(channels.getWidth(), channels.getHeight()),
                 },
-                .mVertices = what.mDebugVertices->getHandle(),
+                .mVertices = look.mDebugVertices.get().getHandle(),
                 .mLineCount = static_cast<std::uint32_t>(debug.mLines.size()),
                 .mTriangleCount = static_cast<std::uint32_t>(debug.mTriangles.size()),
             });
 
         target.transition(commands, Use::sColourAttachment, Use::sComputeWrite);
 
-        closeZone(what.mTimer, commands);
+        closeZone(&look.mTimer, commands);
     }
 }
