@@ -66,6 +66,9 @@ namespace RtxTool
         /// every length below is counted in frames by, and `--fps` is one over.
         float mStep = MWRender::sStepSeconds;
 
+        /// How long a film is where the command line names neither its length nor its speed.
+        static constexpr float sLengthByDefault = 20.0f;
+
         /// World units a second the eye flies at along the path, key to key, where `mLength` does
         /// not set it.
         float mSpeed = 800.0f;

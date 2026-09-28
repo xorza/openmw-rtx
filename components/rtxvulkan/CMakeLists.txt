@@ -79,6 +79,7 @@ set(RTX_SHADERS
     shaders/line.vert
     shaders/mipchain.comp
     shaders/morph.comp
+    shaders/normalspread.comp
     shaders/ripplecompose.comp
     shaders/ripplestep.comp
     shaders/shadingmap.comp
@@ -182,6 +183,7 @@ set(RTX_SHADER_LIB
     shaders/lib/hitrecord.glsl
     shaders/lib/lights.glsl
     shaders/lib/medium.glsl
+    shaders/lib/normaldecode.glsl
     shaders/lib/payload.glsl
     shaders/lib/pixels.glsl
     shaders/lib/random.glsl
@@ -288,6 +290,8 @@ set(RTX_VULKAN_FILES
     mipchainpass.hpp
     memory.cpp
     memory.hpp
+    normalspreadpass.cpp
+    normalspreadpass.hpp
     owned.hpp
     pacedmodes.cpp
     pacedmodes.hpp

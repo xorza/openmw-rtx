@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -19,6 +20,7 @@
 #include <components/rtx/mipchain.hpp>
 #include <components/rtx/runs.hpp>
 #include <components/rtx/shaders/ground.h>
+#include <components/rtx/shaders/normalspread.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtx/texturebuilder.hpp>
@@ -53,6 +55,40 @@ namespace Rtx
             return Image::tryMake(use, device, Shaders::SHADING_EXTENT, Shaders::SHADING_EXTENT,
                 toVulkanFormat(SHADING_MAP_FORMAT),
                 VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, shadingName);
+        }
+
+        /// A normal map's spread, `NormalSpreadPass`'s: a byte a texel from half the map's `width` by
+        /// `height` down to one texel, sampled and written by the pass a level at a time.
+        Result<Image, std::string_view> makeSpreadMap(
+            const Device& device, std::string_view name, MemoryUse use, std::uint32_t width, std::uint32_t height)
+        {
+            std::string spreadName;
+            if constexpr (sDebugNames)
+                spreadName = std::string(name) + " spread";
+
+            const std::uint32_t across = std::max(width / 2, 1u);
+            const std::uint32_t down = std::max(height / 2, 1u);
+            return Image::tryMake(use, device, across, down, toVulkanFormat(NORMAL_SPREAD_FORMAT),
+                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, spreadName, levelsTo1x1(across, down));
+        }
+
+        /// The float means `spread` is built through, shaped as it is: made with the texture and let
+        /// go of with the batch that builds it.
+        Result<Image, std::string_view> makeSpreadMeans(
+            const Device& device, std::string_view name, MemoryUse use, const Image& spread)
+        {
+            return Image::tryMake(use, device, spread.getWidth(), spread.getHeight(),
+                toVulkanFormat(NORMAL_SPREAD_MEAN_FORMAT), VK_IMAGE_USAGE_STORAGE_BIT, name, spread.getMipLevels());
+        }
+
+        /// What a spread costs in the accounting `Texture::getBytes` reports: a byte a texel over its
+        /// levels.
+        std::size_t spreadBytes(const Image& spread)
+        {
+            std::size_t texels = 0;
+            for (std::uint32_t level = 0; level < spread.getMipLevels(); ++level)
+                texels += std::size_t{ spread.getWidthAt(level) } * spread.getHeightAt(level);
+            return texels;
         }
 
         /// Fills `map` with the neutral factor, as the float the unorm is rounded from, and leaves
@@ -153,7 +189,7 @@ namespace Rtx
         constexpr std::array<VkDescriptorSetLayoutBinding, 3> sBindings{
             VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_IMAGES, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 Shaders::TEXTURE_SLOTS, sStages },
-            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_SHADING, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_COMPANIONS, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 Shaders::TEXTURE_SLOTS, sStages },
             VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_ALONG, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 Shaders::TEXTURE_SLOTS, sStages },
@@ -261,10 +297,23 @@ namespace Rtx
         made.mWrap = data.mWrap;
 
         // Estimated off the texture about to be made, by a dispatch behind it, or cleared to the
-        // neutral factor where nothing is to be estimated — `TextureData::hasNeutralShading`.
-        Result<Image, std::string_view> shading = makeShadingMap(device, name, use);
+        // neutral factor where nothing is to be estimated — `TextureData::getCompanion`. A normal
+        // map's spread, with the means it is built through, made here with every other image.
+        const TextureCompanion companion = data.getCompanion();
+        Result<Image, std::string_view> shading = companion == TextureCompanion::Spread
+            ? makeSpreadMap(device, name, use, top.mWidth, top.mHeight)
+            : makeShadingMap(device, name, use);
         if (!shading.isOk())
             return Err{ shading.error() };
+
+        std::optional<Image> means;
+        if (companion == TextureCompanion::Spread)
+        {
+            Result<Image, std::string_view> built = makeSpreadMeans(device, name, use, shading.value());
+            if (!built.isOk())
+                return Err{ built.error() };
+            means = std::move(built.value());
+        }
 
         if (!data.mCompleteChain)
         {
@@ -306,20 +355,30 @@ namespace Rtx
             made.mBytes = chainBytes(made.mImage);
         }
 
-        made.mShading = std::move(shading.value());
-        if (data.hasNeutralShading())
-            clearNeutral(batch, made.mShading);
-        else
-            passes.mShading.record(batch.getCommands(), made.mImage, made.mShading, isBc1(data.mFormat));
-
-        made.mBytes += sShadingBytes;
+        made.mCompanion = std::move(shading.value());
+        switch (companion)
+        {
+            case TextureCompanion::Neutral:
+                clearNeutral(batch, made.mCompanion);
+                made.mBytes += sShadingBytes;
+                break;
+            case TextureCompanion::Shading:
+                passes.mShading.record(batch.getCommands(), made.mImage, made.mCompanion, isBc1(data.mFormat));
+                made.mBytes += sShadingBytes;
+                break;
+            case TextureCompanion::Spread:
+                passes.mSpread.record(batch.getCommands(), made.mImage, *means, made.mCompanion);
+                batch.keep(std::move(*means));
+                made.mBytes += spreadBytes(made.mCompanion);
+                break;
+        }
         return made;
     }
 
     void Texture::buryIn(Graveyard& graveyard)
     {
         graveyard.bury(std::move(mImage));
-        graveyard.bury(std::move(mShading));
+        graveyard.bury(std::move(mCompanion));
         *this = Texture();
     }
 
@@ -347,8 +406,8 @@ namespace Rtx
         // `TextureTable::addBaked` says of its row.
         made.mWrap = TextureWrap::Clamp;
 
-        made.mShading = std::move(shading.value());
-        clearNeutral(batch, made.mShading);
+        made.mCompanion = std::move(shading.value());
+        clearNeutral(batch, made.mCompanion);
 
         made.mBytes = chainBytes(made.mImage) + sShadingBytes;
         return made;
@@ -365,8 +424,8 @@ namespace Rtx
         } };
         uploadImage(batch, mImage, std::as_bytes(std::span<const float>(texel)), regions);
 
-        mShading = std::move(makeShadingMap(device, name, MemoryUse::Essential).value());
-        clearNeutral(batch, mShading);
+        mCompanion = std::move(makeShadingMap(device, name, MemoryUse::Essential).value());
+        clearNeutral(batch, mCompanion);
         mBytes = sizeof(texel) + sShadingBytes;
     }
 
@@ -396,8 +455,8 @@ namespace Rtx
         // `TextureTable::addBaked` says of its row.
         made.mWrap = TextureWrap::Clamp;
 
-        made.mShading = std::move(shading.value());
-        clearNeutral(batch, made.mShading);
+        made.mCompanion = std::move(shading.value());
+        clearNeutral(batch, made.mCompanion);
 
         made.mBytes = chainBytes(made.mImage) + sShadingBytes;
         return made;
@@ -754,8 +813,8 @@ namespace Rtx
             const std::size_t wrap = static_cast<std::size_t>(held.getWrap());
             const VkSampler sampler = mSamplers[wrap].get();
             queueWrite(set, Shaders::TEXTURE_BIND_IMAGES, at, held.describe(sampler), mImageScratch, mWriteScratch);
-            queueWrite(
-                set, Shaders::TEXTURE_BIND_SHADING, at, held.describeShading(sampler), mImageScratch, mWriteScratch);
+            queueWrite(set, Shaders::TEXTURE_BIND_COMPANIONS, at, held.describeCompanion(sampler), mImageScratch,
+                mWriteScratch);
             queueWrite(set, Shaders::TEXTURE_BIND_ALONG, at, held.describe(mFootprintSamplers[wrap].get()),
                 mImageScratch, mWriteScratch);
         }

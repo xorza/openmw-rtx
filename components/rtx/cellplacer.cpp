@@ -121,12 +121,12 @@ namespace Rtx
             const Index slot = mScene.textures().add(layer.mTexture->mPath, layer.mTexture->mImage.get());
             row.mDiffuse = slot != sNoIndex ? slot : Shaders::TEXTURE_NEUTRAL;
 
-            // A normal map is data and tiles with the diffuse; one the table has no room for is
-            // no normal map, and the layer keeps the chunk's normal and its own coordinates.
+            // A normal map tiles with the diffuse; one the table has no room for is no normal map,
+            // and the layer keeps the chunk's normal and its own coordinates.
             if (layer.mNormalTexture != nullptr)
             {
                 row.mNormal = mScene.textures().add(layer.mNormalTexture->mPath, layer.mNormalTexture->mImage.get(),
-                    TextureWrap::Repeat, TextureEncoding::Data);
+                    TextureWrap::Repeat, TextureEncoding::Normal);
                 if (layer.mParallax && row.mNormal != sNoIndex)
                     row.mFlags |= Shaders::LAYER_PARALLAX;
             }

@@ -197,7 +197,7 @@ namespace Rtx
             EXPECT_EQ(scene.textures().findFile(stone), 0u);
 
             constexpr VFS::Path::NormalizedView normal("textures/tx_stone_01_n.dds");
-            const Index normalOnly = scene.textures().add(normal, TextureWrap::Repeat, TextureEncoding::Data);
+            const Index normalOnly = scene.textures().add(normal, TextureWrap::Repeat, TextureEncoding::Normal);
             EXPECT_EQ(scene.textures().findFile(normal), sNoIndex) << "data is no bake's source";
 
             // The file leaves the lookup with its last slot of either encoding, and not before.
@@ -793,6 +793,8 @@ namespace Rtx
             SceneDesc scene;
             const Index mesh = Testing::addQuadMesh(scene);
             const Index leaf = scene.textures().add(VFS::Path::NormalizedView("textures/leaf.dds"));
+            const Index ripples = scene.textures().add(
+                VFS::Path::NormalizedView("textures/ripples_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
 
             // A cutout: blended, all there, with a diffuse map to read a mask out of.
             const Index foliage = scene.addMaterial(Material{ .mDiffuse = leaf, .mAlphaMode = AlphaMode::Blend });
@@ -839,7 +841,7 @@ namespace Rtx
             // A normal map and a specular map each count as mapped, and a reclass that takes both
             // away takes the count back: the sea's one placement, then the arms' as well.
             EXPECT_EQ(counts().mMapped, 0u);
-            scene.setMaterial(sea, Material{ .mKind = MaterialKind::Water, .mNormal = leaf });
+            scene.setMaterial(sea, Material{ .mKind = MaterialKind::Water, .mNormal = ripples });
             EXPECT_EQ(counts().mMapped, 1u);
             scene.setMaterial(foliage, Material{ .mDiffuse = leaf, .mSpecular = leaf });
             EXPECT_EQ(counts().mMapped, 2u);
@@ -1730,11 +1732,11 @@ namespace Rtx
             // them, and a slot missing from it would be freed under the material that wears it. A
             // ground layer's normal map is held beside the layer's diffuse, for the same reason.
             const Index normal = scene.textures().add(
-                VFS::Path::NormalizedView("textures/tx_stone_n.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                VFS::Path::NormalizedView("textures/tx_stone_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
             const Index specular = scene.textures().add(
                 VFS::Path::NormalizedView("textures/tx_stone_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
             const Index layerNormal = scene.textures().add(
-                VFS::Path::NormalizedView("textures/tx_sand_nh.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                VFS::Path::NormalizedView("textures/tx_sand_nh.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
 
             scene.addMaterial(Material{ .mDiffuse = shared });
             const Index second = scene.addMaterial(

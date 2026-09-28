@@ -405,7 +405,7 @@ namespace Rtx::Testing
             const auto [ignored, ignoredRows] = extractOne(SpecularLayout::Ignore, TextureRole::NormalHeight);
             ASSERT_NE(ignored.mNormal, sNoIndex);
             EXPECT_EQ(ignoredRows[ignored.mNormal].mPath, VFS::Path::NormalizedView("textures/tx_a_steel_nh.dds"));
-            EXPECT_EQ(ignoredRows[ignored.mNormal].mEncoding, TextureEncoding::Data);
+            EXPECT_EQ(ignoredRows[ignored.mNormal].mEncoding, TextureEncoding::Normal);
             EXPECT_EQ(ignoredRows[ignored.mDiffuse].mEncoding, TextureEncoding::Colour);
             EXPECT_EQ(ignored.mSpecular, sNoIndex);
             EXPECT_EQ(ignoredRows.size(), 2u) << "a specular map read by nothing takes no slot";

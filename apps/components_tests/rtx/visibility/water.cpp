@@ -763,6 +763,74 @@ namespace Rtx::Testing
             EXPECT_NEAR(forward / backward, 13.7, 1.5) << forward << " toward the sun, " << backward << " away";
         }
 
+        /// A shaft's shadow is the share of the sun's disc an edge hides, and not the share of a line.
+        ///
+        /// **Every point the light met the water at sees the same part of the disc hidden.** The sun
+        /// travels along y, and so does the middle column's every ray, so each point where the light
+        /// the column scatters met the surface has an x of nought. A lid a hundred units over the
+        /// water with its edge along y then stands, from each of them, at the same offset from the
+        /// sun's line: `292.4` units up that line at 70 degrees, where the disc's radius is
+        /// `292.4 · tan(asin 0.0349) = 10.21`, so an edge at `x = −5.105` is half a radius out and
+        /// hides `(acos 0.5 − 0.5 √0.75) / π = 0.1955` of the disc from every one of them.
+        ///
+        /// **So the shaft keeps `0.8045` of itself, in every pixel of the column.** What the light
+        /// is, the caustic and the phase are the same in both frames and cancel in the ratio. The
+        /// lid reaches three hundred thousand units, because a ray under the water that finds
+        /// nothing is water to the far plane, and a march that ran on past the lid's end was lit
+        /// there by a sun the lid no longer hid.
+        ///
+        /// **What the tolerance holds.** A pixel's four steps are weighed by how much light each
+        /// sends, and on a ray that runs level one of them carries nearly all of it, so a frame is
+        /// one draw at worst: `√(0.8 · 0.2 / 128) = 0.035` a pixel over a hundred and twenty-eight
+        /// frames, and `0.0062` over the 33. The aim that came off the march's single offset, whose
+        /// four steps lie on four fixed lines across the square the disc is drawn from, kept
+        /// `0.729`: the share of those lines the edge crossed, and twelve spreads out.
+        TEST_F(RtxVisibilityTest, aShaftsShadowIsTheShareOfTheSunsDiscAnEdgeHides)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::uint32_t column = size / 2;
+            constexpr float over = 100.0f;
+            const float away = over / std::cos(osg::DegreesToRadians(70.0f));
+            const float radius = away * std::tan(std::asin(Shaders::SUN_SHADOW_SINE));
+            const float edge = -0.5f * radius;
+            const double hidden = (std::acos(0.5) - 0.5 * std::sqrt(0.75)) / osg::PI;
+
+            SceneDesc lidded = makeOpenWater(4000.0f);
+            constexpr float wide = 300000.0f;
+            const std::array<osg::Vec3f, 4> lid{ osg::Vec3f(-wide, -wide, over), osg::Vec3f(edge, -wide, over),
+                osg::Vec3f(edge, wide, over), osg::Vec3f(-wide, wide, over) };
+            addQuad(lidded, lid);
+
+            const auto shafts = [&](const SceneDesc& scene) {
+                Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(0.0f, 0.0f, -1000.0f),
+                    osg::Vec3f(0.0f, -1000.0f, -1000.0f), 60.0f, size, size, 100000.0f);
+                camera.mWaterLevel = 0.0f;
+                camera.mSun.mDirection = sunStandingAt(osg::DegreesToRadians(70.0f));
+                camera.mSun.mLimb = Shaders::SUN_SHADOW_SINE;
+                constexpr float blazing = 100.0f * sSunOverWater;
+                camera.mSun.mIrradiance = osg::Vec3f(blazing, blazing, blazing);
+
+                const Frame frame = shoot(
+                    scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mFrames = 128 });
+
+                std::vector<double> green;
+                for (std::uint32_t row = 0; row < size; ++row)
+                    green.push_back(double{ frame.at((std::size_t{ row } * size + column) * 4 + 1) });
+                return green;
+            };
+
+            const std::vector<double> open = shafts(makeOpenWater(4000.0f));
+            const std::vector<double> shaded = shafts(lidded);
+
+            double kept = 0.0;
+            for (std::uint32_t row = 0; row < size; ++row)
+            {
+                ASSERT_GT(open[row], 0.0) << "a shaft to shadow, row " << row;
+                kept += shaded[row] / open[row];
+            }
+            EXPECT_NEAR(kept / double{ size }, 1.0 - hidden, 0.02) << "the share of the disc the edge leaves";
+        }
+
         /// The sky loses the column of water over a bed just as the sun does.
         ///
         /// **The half a bounce could quietly skip.** A bounce that escapes to the sky is the sky

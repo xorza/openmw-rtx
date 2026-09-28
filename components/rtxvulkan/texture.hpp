@@ -33,10 +33,12 @@ namespace Rtx
     class GroundCompositePass;
     struct TexturePasses;
 
-    /// A sampled image on the GPU, the levels a content file brought for it, and the light the
-    /// file already had painted into it — two `Image`s: the first uploaded, the second the shading
-    /// map, `SHADING_EXTENT` squared, estimated off the first on the device as it arrives. The map
-    /// travels with the texture because it is measured on it and read at its coordinates.
+    /// A sampled image on the GPU, the levels a content file brought for it, and what was measured
+    /// on it — two `Image`s: the first uploaded, the second its companion, made off the first on the
+    /// device as it arrives (`TextureCompanion`): for a colour, the shading map, `SHADING_EXTENT`
+    /// squared, of the light the file already had painted into it; for a normal map, the spread its
+    /// levels lost; neutral for anything else. The companion travels with the texture because it is
+    /// measured on it and read at its coordinates.
     class Texture
     {
     public:
@@ -50,8 +52,8 @@ namespace Rtx
         /// batch. Why there is none where the device has no room for it as `use`. Every image is
         /// made before anything is recorded, so a refusal leaves the batch as it found it.
         ///
-        /// @param passes what makes the chain and estimates the map, or fills the map with the
-        ///        neutral one where `data` says the texture is not to be estimated.
+        /// @param passes what makes the chain and measures the companion, or fills it with the
+        ///        neutral shading map where `data` says nothing is to be measured.
         /// @param first the level the image begins at: nought for the file as it is, and further
         ///        down for one held to a smaller side. Nought where the device completes the chain,
         ///        which begins at the file's one level.
@@ -90,16 +92,16 @@ namespace Rtx
         /// sample either.
         void buryIn(Graveyard& graveyard);
 
-        /// The texture and its shading map as a sampled descriptor takes them, through `sampler`,
-        /// from the read-only layout an upload leaves them in.
+        /// The texture and its companion as a sampled descriptor takes them, through `sampler`, from
+        /// the read-only layout an upload leaves them in.
         VkDescriptorImageInfo describe(VkSampler sampler) const
         {
             return mImage.describeSampled(sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }
 
-        VkDescriptorImageInfo describeShading(VkSampler sampler) const
+        VkDescriptorImageInfo describeCompanion(VkSampler sampler) const
         {
-            return mShading.describeSampled(sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            return mCompanion.describeSampled(sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }
 
         // Read by the tests, the interface's pass, which draws with one, and the array, which
@@ -111,13 +113,13 @@ namespace Rtx
         /// binds it through.
         TextureWrap getWrap() const { return mWrap; }
 
-        /// The size of the data uploaded, the map's included, which for a block-compressed image is
-        /// what it occupies.
+        /// The size of the data uploaded, the companion's included, which for a block-compressed image
+        /// is what it occupies.
         VkDeviceSize getBytes() const { return mBytes; }
 
     private:
         Image mImage;
-        Image mShading;
+        Image mCompanion;
 
         TextureWrap mWrap = TextureWrap::Repeat;
         VkDeviceSize mBytes = 0;
@@ -136,9 +138,9 @@ namespace Rtx
     };
 
     /// Every texture a scene uses, in one descriptor array a shader indexes by material, and every
-    /// texture's shading map in a second array beside it at the same slot. The maps are an array
-    /// and not a buffer, because a map is a grid the texture unit filters; an array of their own
-    /// for the reason `texturearray.glsl` gives.
+    /// texture's companion in a second array beside it at the same slot. The companions are an
+    /// array and not a buffer, because each is a grid the texture unit filters; an array of their
+    /// own for the reason `texturearray.glsl` gives.
     ///
     /// **One set per frame in flight, and a debt per set**, the way `SlotTable` keeps its copies:
     /// an arrival writes the slots it brought into the set the next placement binds and owes them

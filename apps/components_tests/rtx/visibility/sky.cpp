@@ -13,6 +13,7 @@
 #include <osg/Vec3f>
 
 #include <components/rtx/camera.hpp>
+#include <components/rtx/frameimage.hpp>
 #include <components/rtx/frameworld.hpp>
 #include <components/rtx/mesh.hpp>
 #include <components/rtx/moonbuilder.hpp>
@@ -50,7 +51,9 @@ namespace Rtx::Testing
             return camera;
         }
 
-        /// A ray that hits nothing comes back with the sky the weather named, not a constant.
+        /// A ray that hits nothing comes back with the sky the weather named, not a constant, and
+        /// tells an upscaler what the DLSS-RR integration guide says a sky pixel is: a diffuse
+        /// albedo of a half, and a specular albedo, a normal and a roughness of nought.
         TEST_F(RtxVisibilityTest, theSkyIsTheWeathersOwnColourAndRunsFromHorizonToZenith)
         {
             constexpr std::uint32_t size = 33;
@@ -78,6 +81,20 @@ namespace Rtx::Testing
             const std::size_t top = std::size_t{ size / 2 } * 4;
             EXPECT_LT(frame.byte(top), 255) << "less horizon overhead";
             EXPECT_GT(frame.byte(top + 2), 0) << "and some zenith";
+
+            std::vector<float> diffuse;
+            std::vector<float> specular;
+            std::vector<float> guide;
+            mRenderer.readChannel(Channel::Albedo, diffuse);
+            mRenderer.readChannel(Channel::Specular, specular);
+            mRenderer.readChannel(Channel::Guide, guide);
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                EXPECT_EQ(diffuse[middle + channel], 0.5f) << "the guide's sky albedo, channel " << channel;
+                EXPECT_EQ(specular[middle + channel], 0.0f) << "channel " << channel;
+                EXPECT_EQ(guide[middle + channel], 0.0f) << "no normal, channel " << channel;
+            }
+            EXPECT_EQ(guide[middle + 3], 0.0f) << "the guide's sky roughness";
         }
 
         /// Both moons light a floor, and the two slots are one code path.

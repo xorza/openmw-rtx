@@ -106,15 +106,6 @@ void triangleNormals(uvec3 corner, out vec3 normal[3])
     normal[2] = block.at[at.z];
 }
 
-/// The same interpolated across the triangle, which is what a hit shades with.
-vec3 triangleNormal(uvec3 corner, vec2 bary)
-{
-    vec3 normal[3];
-    triangleNormals(corner, normal);
-
-    return acrossTriangle(normal[0], normal[1], normal[2], bary);
-}
-
 /// The vertex tangents interpolated across the triangle, in the mesh's own space, with the
 /// bitangent's handedness in `w` interpolated with them — which is what the rasterizer's
 /// `passTangent` is, and what `normals.glsl` builds its frame from. Nought where the mesh carries

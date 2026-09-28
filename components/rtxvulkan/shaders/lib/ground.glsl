@@ -49,7 +49,7 @@ layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) read
 /// the values they stand for, because the decode is affine.
 float paintedLight(uint slot, vec2 at)
 {
-    return shadingFactor(textureLod(shadingMaps[nonuniformEXT(slot)], at, 0.0).r);
+    return shadingFactor(textureLod(companions[nonuniformEXT(slot)], at, 0.0).r);
 }
 
 /// `texel`, read from `slot` at `at`, with `delight` of the light painted into it divided back out.

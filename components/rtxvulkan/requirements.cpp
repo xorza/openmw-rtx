@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <string>
 
+#include <components/rtx/shaders/normalspread.h>
 #include <components/rtx/shaders/shadingmap.h>
 
 #include "formats.hpp"
@@ -221,12 +222,15 @@ namespace Rtx
 
     namespace
     {
-        constexpr std::array<RequiredFormat, 1> sRequiredFormats{
+        constexpr std::array<RequiredFormat, 2> sRequiredFormats{
             // The shading estimate is written by a dispatch straight into the sixteen-bit map the
             // trace samples — `ShadingPass` — and a sixteen-bit unorm as a storage image is one of
             // the features Vulkan leaves optional.
             RequiredFormat{
                 toVulkanFormat(SHADING_MAP_FORMAT), VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT, "the shading map's dispatch" },
+            // And a normal map's spread into its byte, the same way — `NormalSpreadPass`.
+            RequiredFormat{ toVulkanFormat(NORMAL_SPREAD_FORMAT), VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
+                "the normal spread's dispatch" },
         };
     }
 

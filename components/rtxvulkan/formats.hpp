@@ -47,6 +47,8 @@ namespace Rtx
         {
             case Shaders::StorageFormat::Rgba8:
                 return VK_FORMAT_R8G8B8A8_UNORM;
+            case Shaders::StorageFormat::R8:
+                return VK_FORMAT_R8_UNORM;
             case Shaders::StorageFormat::R16:
                 return VK_FORMAT_R16_UNORM;
             case Shaders::StorageFormat::R16f:

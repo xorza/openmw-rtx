@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from omw.build import carried_ngx
+from omw.build import CONFIGURED_FROM, carried_ngx, configured_from
 from omw.fetch import download, settle
 from omw.package import used_osg_plugins
 from omw.system import Refusal, environment_key, parse_set_output
@@ -31,6 +31,26 @@ class CarriedNgxTest(unittest.TestCase):
         ]
         self.assertEqual(carried_ngx(entries),
                          ["-DNGX_ROOT:PATH=/sdk", "-DNGX_LIBRARY:FILEPATH=/sdk/lib/libnvsdk_ngx.a"])
+
+
+class ConfiguredFromTest(unittest.TestCase):
+    def test_a_directory_is_configured_only_with_its_stamp_its_cache_and_its_ninja_file(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        self.assertFalse(configured_from(folder, "abc"), "an empty directory")
+
+        (folder / CONFIGURED_FROM).write_text("abc\n")
+        (folder / "CMakeCache.txt").write_text("")
+        (folder / "build.ninja").write_text("")
+        self.assertTrue(configured_from(folder, "abc"))
+        self.assertFalse(configured_from(folder, "abd"), "a preset that has changed since")
+
+        for missing in ("CMakeCache.txt", "build.ninja", CONFIGURED_FROM):
+            with self.subTest(missing=missing):
+                content = (folder / missing).read_text()
+                (folder / missing).unlink()
+                self.assertFalse(configured_from(folder, "abc"))
+                (folder / missing).write_text(content)
 
 
 class SettleTest(unittest.TestCase):

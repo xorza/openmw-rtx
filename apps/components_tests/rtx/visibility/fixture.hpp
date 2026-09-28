@@ -384,7 +384,7 @@ namespace Rtx::Testing
             mRenderer.setSea(shot.mSea);
             mRenderer.setAnisotropy(shot.mAnisotropy);
             if (shot.mSetScene)
-                mRenderer.setScene(Rtx::SceneSlot::world(), scene, inSceneOrder(textures));
+                mRenderer.setScene(Rtx::SceneSlot::world(), scene, inSceneOrder(scene, textures));
             else
                 mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
 
@@ -626,11 +626,19 @@ namespace Rtx::Testing
         ///
         /// **The span reaches into `mNumbered` and the next render overwrites it**, which is safe
         /// because `shoot` is the one caller and hands it straight to `setScene`.
-        std::span<const TextureData> inSceneOrder(std::span<const TextureData> textures)
+        /// `textures` at the slots `scene` numbers them by, each under the encoding the slot was
+        /// taken as: what `TextureBuilder` makes of a scene's table, so a normal map is described as
+        /// one and stood with its spread whatever the test's own description says.
+        std::span<const TextureData> inSceneOrder(const SceneDesc& scene, std::span<const TextureData> textures)
         {
+            const std::span<const TextureRow> rows = scene.textures().getRows();
             mNumbered.assign(textures.begin(), textures.end());
             for (std::size_t at = 0; at < mNumbered.size(); ++at)
+            {
                 mNumbered[at].mSlot = static_cast<std::uint32_t>(at);
+                if (at < rows.size() && !scene.textures().isFree(static_cast<Index>(at)))
+                    mNumbered[at].mEncoding = rows[at].mEncoding;
+            }
 
             return mNumbered;
         }

@@ -2,6 +2,11 @@
 
 #include <cassert>
 
+#include <components/rtx/contract.hpp>
+
+#include "textureencoding.hpp"
+#include "texturetable.hpp"
+
 namespace Rtx
 {
     Index MaterialTable::add(TextureTable& textures, const Material& material)
@@ -47,6 +52,13 @@ namespace Rtx
 
     void MaterialTable::holdTextures(TextureTable& textures, const Material& material)
     {
+        // The trace reads what a normal map's levels lost beside it (`normalMapSlopes`), which only
+        // a slot taken as a normal map has: bound as any other data, it has the neutral shading map
+        // there, and that read as a loss is a gloss gone matt.
+        Rtx::contract(
+            material.mNormal == sNoIndex || textures.getRows()[material.mNormal].mEncoding == TextureEncoding::Normal,
+            "a material's normal map in a slot not taken as one");
+
         forEachTexture(material, [&](const Index texture) { textures.hold(texture); });
     }
 

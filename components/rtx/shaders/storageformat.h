@@ -30,6 +30,7 @@ namespace Rtx::Shaders
     enum class StorageFormat : std::uint8_t
     {
         Rgba8,
+        R8,
         R16,
         R16f,
         R32f,
@@ -41,6 +42,7 @@ namespace Rtx::Shaders
 }
 
 #define STORAGE_RGBA8 ::Rtx::Shaders::StorageFormat::Rgba8
+#define STORAGE_R8 ::Rtx::Shaders::StorageFormat::R8
 #define STORAGE_R16 ::Rtx::Shaders::StorageFormat::R16
 #define STORAGE_R16F ::Rtx::Shaders::StorageFormat::R16f
 #define STORAGE_R32F ::Rtx::Shaders::StorageFormat::R32f
@@ -52,6 +54,7 @@ namespace Rtx::Shaders
 #else
 
 #define STORAGE_RGBA8 rgba8
+#define STORAGE_R8 r8
 #define STORAGE_R16 r16
 #define STORAGE_R16F r16f
 #define STORAGE_R32F r32f

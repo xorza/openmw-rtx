@@ -1599,7 +1599,7 @@ namespace Rtx::Testing
                     .mPositions = positions, .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 scene.textures().add(VFS::Path::NormalizedView("red.dds"));
                 scene.textures().add(
-                    VFS::Path::NormalizedView("red_nh.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                    VFS::Path::NormalizedView("red_nh.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
                 scene.textures().add(VFS::Path::NormalizedView("grey_diffusespec.dds"));
                 scene.textures().add(
                     VFS::Path::NormalizedView("gloss.dds"), TextureWrap::Repeat, TextureEncoding::Data);
@@ -1754,7 +1754,7 @@ namespace Rtx::Testing
                     .mIndices = sQuadIndices });
                 const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("ramp.dds"));
                 const Index normalMap = scene.textures().add(
-                    VFS::Path::NormalizedView("ramp_nh.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                    VFS::Path::NormalizedView("ramp_nh.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
 
                 Material material;
                 if (ground)

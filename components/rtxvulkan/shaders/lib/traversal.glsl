@@ -360,6 +360,14 @@ struct Hit
     /// handedness in `w` — or nought where the mesh carries none, which is every vanilla mesh.
     /// Brought across here for the reason `mShading` is: the matrix does not survive the call.
     vec4 mTangent;
+
+    /// How the vertex normal at the second corner and at the third differs from the first's, in
+    /// world space and not unit, as `mShading` is interpolated from them — nought where the mesh
+    /// carries no normals. What the shading normal's bend across the triangle is made of
+    /// (`slopesUnder`), brought across for the reason `mShading` is, off the three normals that one
+    /// was already interpolated from.
+    vec3 mSecondTurn;
+    vec3 mThirdTurn;
 };
 
 /// A ray that committed nothing, as far away as anything can be.
@@ -376,6 +384,8 @@ Hit noHit()
     hit.mEdges = TriangleEdges(vec3(0.0), vec3(0.0));
     hit.mShading = vec3(0.0);
     hit.mTangent = vec4(0.0);
+    hit.mSecondTurn = vec3(0.0);
+    hit.mThirdTurn = vec3(0.0);
 
     return hit;
 }
@@ -403,8 +413,13 @@ Hit committedHit(
     const GpuMesh mesh = meshAt(hit.mMesh);
     hit.mCorner = triangleCorners(mesh, primitive);
 
-    const vec3 shading = triangleNormal(hit.mCorner, bary);
-    hit.mShading = dot(shading, shading) > 1e-8 ? mat3(toWorld) * shading : vec3(0.0);
+    vec3 normals[3];
+    triangleNormals(hit.mCorner, normals);
+    const vec3 shading = acrossTriangle(normals[0], normals[1], normals[2], bary);
+    const bool carried = dot(shading, shading) > 1e-8;
+    hit.mShading = carried ? mat3(toWorld) * shading : vec3(0.0);
+    hit.mSecondTurn = carried ? mat3(toWorld) * (normals[1] - normals[0]) : vec3(0.0);
+    hit.mThirdTurn = carried ? mat3(toWorld) * (normals[2] - normals[0]) : vec3(0.0);
 
     // **Three more words, and only off a mesh that carries them.** The bit is on the row this already
     // read, so a hit on anything no normal map is read through — every hit in a vanilla scene —
@@ -733,6 +748,10 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
     const vec3 normal = dot(hit.mShading, hit.mShading) > 0.0 ? normalize(hit.mShading) : surface.mGeometric;
 
+    // What the footprint averages of the mesh's own bend, and below of what the normal maps' levels
+    // lost, which together widen the lobe once the roughness is read.
+    float lostSlopes = slopesUnder(cone, hit.mSecondTurn, hit.mThirdTurn, hit.mShading, surface.mFootprint);
+
     // **Which side the ray met is the plane's answer, and the shading normal is not allowed to give
     // a different one.** Morrowind's vertex normals are authored coarsely enough to point clean
     // through their own triangle: a stretch of the floor in the Seyda Neen customs office
@@ -801,6 +820,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
         }
 
         const vec3 painted = sampleNormalMap(material.mNormal, point);
+        lostSlopes += normalMapSlopes(material.mNormal, point);
         const vec3 mapped = normalize(tangent * painted.x + bitangent * painted.y + normal * painted.z);
 
         surface.mNormal = facingRay(turned ? -mapped : mapped, surface.mSmooth, direction, SHADING_MIN_FACING);
@@ -822,6 +842,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     float weights = 0.0;
     float reflecting = 0.0;
     float roughness = 0.0;
+    float spread = 0.0;
     vec3 painted = vec3(0.0);
     bool relief = false;
 
@@ -883,6 +904,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
                 const bool mapped = detailed && holdsTexture(layer.mNormal);
                 painted += showing * (mapped ? sampleNormalMap(layer.mNormal, at) : vec3(0.0, 0.0, 1.0));
+                spread += mapped ? showing * normalMapSlopes(layer.mNormal, at) : 0.0;
                 relief = relief || mapped;
             }
         }
@@ -898,6 +920,9 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
             surface.mNormal = facingRay(turned ? -mapped : mapped, surface.mSmooth, direction, SHADING_MIN_FACING);
         }
+
+        // And what the layers' maps lost, weighted as their roughness is.
+        lostSlopes += weights > 0.0 ? spread / weights : 0.0;
     }
     else if (HAS_MAPS && holdsTexture(material.mSpecular))
         albedo = sampleDiffuse(material.mDiffuse, point).rgb;
@@ -944,6 +969,13 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
         surface.mRoughness = painted.y;
         surface.mAlbedo *= 1.0 - painted.x;
     }
+
+    // **Widened by what the footprint averages away**, before anything reads the roughness: the
+    // lobe, the energy it keeps, the guide the upscaler is told and the cone a reflection leaves
+    // in. A surface that turns under a pixel reflects all the ways it turns there, and one ray
+    // drawn from the unwidened lobe shows one of them each frame — the sparkle on a curved glossy
+    // surface, and a reflection sharper than the pixel can hold. A Lambert surface stays one.
+    surface.mRoughness = widenedRoughness(surface.mRoughness, lostSlopes);
 
     // **Fetched again rather than kept from the albedo.** `sampleAlbedo` drops the alpha on purpose,
     // for the reason written over it: it is the hottest sampler in the shader and an out-parameter

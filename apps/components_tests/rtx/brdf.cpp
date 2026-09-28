@@ -202,7 +202,8 @@ namespace Rtx
         /// of `sigma = 0.1` along each axis are a variance of `0.02` over both, which is GGX's
         /// `alpha = sqrt(2) * 0.1 = 0.1414214` and a roughness of its root, `0.3760603`; a variance
         /// of `0.09` is `alpha = 0.3`, the cone test's; none is a mirror; and a sea rougher than GGX
-        /// states is held at a roughness of one.
+        /// states is held at a roughness of one. A painted roughness widened by slopes a footprint
+        /// averages is the same sum.
         TEST(RtxBrdfTest, aFieldOfSlopesIsTheRoughnessAMapWouldStateForIt)
         {
             EXPECT_NEAR(Shaders::slopeRoughness(0.02f), 0.3760603f, 1e-6f);
@@ -210,6 +211,22 @@ namespace Rtx
             EXPECT_NEAR(Shaders::ggxAlpha(Shaders::slopeRoughness(0.09f)), 0.3f, 1e-6f);
             EXPECT_EQ(Shaders::slopeRoughness(0.0f), 0.0f);
             EXPECT_EQ(Shaders::slopeRoughness(2.0f), 1.0f);
+
+            // Widened by lost slopes, which add to `alpha²`: a roughness of a half is `alpha² =
+            // 0.0625`, and `0.1875` more is `0.25`, whose root's root is `√0.5`. A mirror takes the
+            // lost slopes' roughness whole, one stays one, and nothing lost is the roughness itself.
+            EXPECT_NEAR(Shaders::widenedRoughness(0.5f, 0.1875f), std::sqrt(0.5f), 1e-6f);
+            EXPECT_NEAR(Shaders::widenedRoughness(0.0f, 0.09f), std::sqrt(0.3f), 1e-6f);
+            EXPECT_EQ(Shaders::widenedRoughness(1.0f, 0.3f), 1.0f);
+            EXPECT_EQ(Shaders::widenedRoughness(0.37f, 0.0f), 0.37f);
+
+            // And the slopes a normal map's level lost: normals that agree lose none; a mean nine
+            // tenths long, a loss of `1 - 0.81 = 0.19`, stands for `2 · 0.19 / (0.9 · 2.19) =
+            // 0.192796`, which is `2 (1 - r²) / (r (3 - r²))` at `r = 0.9` as well; and normals that
+            // cancel are past the widest roughness there is.
+            EXPECT_EQ(Shaders::normalSpreadSlopes(0.0f), 0.0f);
+            EXPECT_NEAR(Shaders::normalSpreadSlopes(0.19f), 0.38f / (0.9f * 2.19f), 1e-6f);
+            EXPECT_EQ(Shaders::slopeRoughness(Shaders::normalSpreadSlopes(1.0f)), 1.0f);
         }
 
         /// **The distribution is normalised**: `∫ D (n.h) dω` is one for every alpha, which in
