@@ -797,7 +797,7 @@ namespace MWGui
             return;
         }
 
-        Log(Debug::Info) << "A script's message box, not shown because nobody is there to answer it: \"" << message
+        Log(Debug::Info) << "A script's message box, not shown because the engine's host shows none: \"" << message
                          << '"';
     }
 

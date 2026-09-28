@@ -273,7 +273,7 @@ namespace MWGui
         void scriptMessageBox(std::string_view message, const std::vector<std::string>& buttons) override;
 
         /// Whether `scriptMessageBox` shows its box: the engine's host's answer
-        /// (`OMW::EngineHost::answersScriptMessageBoxes`).
+        /// (`OMW::EngineHost::showsScriptMessageBoxes`).
         void setScriptMessageBoxesShown(bool shown) { mScriptMessageBoxesShown = shown; }
 
         int readPressedButton() override; ///< returns the index of the pressed button or -1 if no button was pressed
