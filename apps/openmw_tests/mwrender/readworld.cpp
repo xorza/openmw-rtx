@@ -8,9 +8,9 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
-#include <apps/openmw/mwrender/precipitation.hpp>
 #include <apps/openmw/mwrender/rtx/skyreader.hpp>
 #include <apps/openmw/mwrender/sceneframe.hpp>
+#include <apps/openmw/mwrender/sky.hpp>
 #include <apps/openmw/mwrender/skystate.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/fallback/fallback.hpp>

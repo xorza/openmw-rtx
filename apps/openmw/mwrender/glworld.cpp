@@ -31,7 +31,6 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwgui/postprocessorhud.hpp"
 #include "postprocessor.hpp"
-#include "precipitation.hpp"
 #include "precipitationocclusion.hpp"
 #include "renderingmanager.hpp"
 #include "sky.hpp"

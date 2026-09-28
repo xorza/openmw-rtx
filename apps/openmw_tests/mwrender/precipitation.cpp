@@ -4,7 +4,7 @@
 #include <osg/Group>
 #include <osg/ref_ptr>
 
-#include <apps/openmw/mwrender/precipitation.hpp>
+#include <apps/openmw/mwrender/sky.hpp>
 #include <apps/openmw/mwrender/skystate.hpp>
 #include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/imagemanager.hpp>

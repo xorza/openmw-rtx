@@ -18,9 +18,9 @@
 #include "../mwworld/timestamp.hpp"
 #include "camera.hpp"
 #include "fogmanager.hpp"
-#include "precipitation.hpp"
 #include "renderer.hpp"
 #include "renderingmanager.hpp"
+#include "sky.hpp"
 #include "skystate.hpp"
 
 namespace MWRender

@@ -234,3 +234,10 @@ set(RTX_TEST_FILES_EITHER
     sceneutil/paintedtexture.cpp
     terrain/refstack.cpp
 )
+
+openmw_rtx_expect_listed("${CMAKE_CURRENT_SOURCE_DIR}"
+    MATCHING rtx/*.cpp rtx/*.hpp rtxtool/*.cpp rtxtool/*.hpp
+    LISTED ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT} ${RTX_GPU_TEST_FILES} ${RTX_GPU_TEST_SUPPORT}
+           ${RTX_TEST_FILES_FIFO} ${RTX_TEST_FILES_UPSTREAM} ${RTX_TEST_FILES_EITHER}
+           ${RTX_GPU_TEST_FILES_DLSS} ${RTX_GPU_TEST_FILES_NO_DLSS})
+list(APPEND UNITTEST_SRC_FILES ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT} ${RTX_TEST_FILES_UPSTREAM})

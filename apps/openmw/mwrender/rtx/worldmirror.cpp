@@ -36,8 +36,8 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "../../mwworld/cellstore.hpp"
-#include "../precipitation.hpp"
 #include "../sceneframe.hpp"
+#include "../sky.hpp"
 #include "../vismask.hpp"
 #include "classmasks.hpp"
 
