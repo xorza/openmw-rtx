@@ -103,12 +103,13 @@ function(openmw_rtx_target target)
 endfunction()
 
 # A library of this fork's own, out of the files named: grouped for an IDE under its directory
-# the way upstream groups its own, static like every library in this tree, and compiled with the
-# flags above. What each library links, and why publicly, stays in its own file.
+# the way upstream groups its own, with a group for each folder inside it, static like every
+# library in this tree, and compiled with the flags above. What each library links, and why
+# publicly, stays in its own file.
 function(openmw_rtx_library target)
     file(RELATIVE_PATH group "${OpenMW_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}")
     string(REPLACE "/" "\\" group "${group}")
-    source_group("${group}" FILES ${ARGN})
+    source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "${group}" FILES ${ARGN})
     add_library(${target} STATIC ${ARGN})
     openmw_rtx_target(${target})
 endfunction()

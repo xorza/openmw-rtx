@@ -13,11 +13,11 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/files/configurationmanager.hpp>
-#include <components/rtx/kernelprogress.hpp>
-#include <components/rtx/renderer.hpp>
-#include <components/rtxvulkan/instance.hpp>
-#include <components/rtxvulkan/physicaldevice.hpp>
-#include <components/rtxvulkan/validation.hpp>
+#include <components/rtx/renderer/kernelprogress.hpp>
+#include <components/rtx/renderer/renderer.hpp>
+#include <components/rtxvulkan/device/instance.hpp>
+#include <components/rtxvulkan/device/physicaldevice.hpp>
+#include <components/rtxvulkan/device/validation.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 
 #include "../death.hpp"

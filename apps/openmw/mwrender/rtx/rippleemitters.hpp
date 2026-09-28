@@ -5,7 +5,7 @@
 
 #include <osg/Vec3f>
 
-#include <components/rtx/ripple.hpp>
+#include <components/rtx/scene/ripple.hpp>
 
 #include "../../mwworld/ptr.hpp"
 #include "../sceneframe.hpp"

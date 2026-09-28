@@ -8,7 +8,7 @@
 #include <SDL_stdinc.h>
 #include <osg/Camera>
 
-#include <components/rtx/renderer.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 #include "../renderer.hpp"
 

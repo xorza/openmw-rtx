@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 
-#include <components/rtx/renderer.hpp>
-#include <components/rtx/scratch.hpp>
+#include <components/rtx/common/scratch.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 #include "instruments/cardwatch.hpp"
 #include "instruments/frametimes.hpp"

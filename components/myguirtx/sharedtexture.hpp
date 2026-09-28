@@ -2,7 +2,7 @@
 
 #include <osg/ref_ptr>
 
-#include <components/rtx/guirenderer.hpp>
+#include <components/rtx/renderer/guirenderer.hpp>
 
 #include "mirrortexture.hpp"
 

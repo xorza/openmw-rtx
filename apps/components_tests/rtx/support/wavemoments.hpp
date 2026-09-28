@@ -6,8 +6,8 @@
 
 #include <osg/Vec2f>
 
+#include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/shaders/scene.h>
-#include <components/rtx/wavecascade.hpp>
 
 namespace Rtx::Testing
 {

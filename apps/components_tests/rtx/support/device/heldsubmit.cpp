@@ -7,8 +7,8 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtxvulkan/commands.hpp>
-#include <components/rtxvulkan/result.hpp>
+#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/result.hpp>
 
 namespace Rtx::Testing
 {

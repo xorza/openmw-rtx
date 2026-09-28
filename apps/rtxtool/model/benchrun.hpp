@@ -11,8 +11,8 @@
 #include <osg/Vec3f>
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
-#include <components/rtx/frameworld.hpp>
-#include <components/rtx/renderer.hpp>
+#include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 #include "benchrecord.hpp"
 #include "benchspec.hpp"

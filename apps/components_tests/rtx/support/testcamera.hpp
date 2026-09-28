@@ -7,7 +7,7 @@
 #include <osg/Matrixf>
 #include <osg/Vec3f>
 
-#include <components/rtx/camera.hpp>
+#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/shaders/visibility.h>
 
 namespace Rtx::Testing

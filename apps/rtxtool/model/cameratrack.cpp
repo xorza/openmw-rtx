@@ -5,7 +5,7 @@
 #include <numbers>
 #include <utility>
 
-#include <components/rtx/contract.hpp>
+#include <components/rtx/common/contract.hpp>
 
 namespace RtxTool
 {

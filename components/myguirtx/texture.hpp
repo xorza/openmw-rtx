@@ -7,7 +7,7 @@
 
 #include <MyGUI_RenderFormat.h>
 
-#include <components/rtx/guirenderer.hpp>
+#include <components/rtx/renderer/guirenderer.hpp>
 
 #include "slottexture.hpp"
 

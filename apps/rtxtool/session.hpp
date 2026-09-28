@@ -9,7 +9,7 @@
 #include <apps/openmw/engine.hpp>
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
-#include <components/rtx/frameworld.hpp>
+#include <components/rtx/environment/frameworld.hpp>
 
 #include "cameradriver.hpp"
 #include "homekey.hpp"

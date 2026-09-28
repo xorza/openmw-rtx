@@ -6,8 +6,8 @@
 #include <cstring>
 #include <span>
 
-#include <components/rtx/guirenderer.hpp>
-#include <components/rtx/slot.hpp>
+#include <components/rtx/renderer/guirenderer.hpp>
+#include <components/rtx/renderer/slot.hpp>
 
 namespace Rtx::Testing
 {

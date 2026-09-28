@@ -19,12 +19,12 @@
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/colour.hpp>
-#include <components/rtx/fogbuilder.hpp>
-#include <components/rtx/frameworld.hpp>
-#include <components/rtx/moonbuilder.hpp>
+#include <components/rtx/environment/fogbuilder.hpp>
+#include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/environment/moonbuilder.hpp>
+#include <components/rtx/environment/skybuilder.hpp>
+#include <components/rtx/image/colour.hpp>
 #include <components/rtx/shaders/look.h>
-#include <components/rtx/skybuilder.hpp>
 #include <components/sky/skyclock.hpp>
 #include <components/vfs/manager.hpp>
 

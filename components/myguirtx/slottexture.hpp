@@ -5,8 +5,8 @@
 #include <MyGUI_IRenderTarget.h>
 #include <MyGUI_ITexture.h>
 
-#include <components/rtx/guirenderer.hpp>
-#include <components/rtx/slot.hpp>
+#include <components/rtx/renderer/guirenderer.hpp>
+#include <components/rtx/renderer/slot.hpp>
 
 namespace osg
 {

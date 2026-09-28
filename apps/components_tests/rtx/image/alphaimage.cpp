@@ -1,0 +1,399 @@
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <initializer_list>
+#include <span>
+#include <vector>
+
+#include <gtest/gtest.h>
+
+#include <osg/GL>
+#include <osg/Image>
+#include <osg/Texture>
+#include <osg/ref_ptr>
+
+#include <apps/components_tests/rtx/support/allocations.hpp>
+#include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <components/rtx/image/alphaimage.hpp>
+#include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
+
+namespace Rtx
+{
+    namespace
+    {
+        /// One block of `format`, described the way a file's texture arrives (`TextureData`).
+        Testing::TestTexture oneBlock(const TextureFormat format, std::initializer_list<std::uint8_t> bytes)
+        {
+            Testing::TestTexture texture;
+            texture.mBytes.assign(bytes);
+            texture.mLevels.assign(1, MipLevel{ 0, 4, 4 });
+            texture.describe(4, 4, "one block", format);
+            return texture;
+        }
+
+        /// BC2 states alpha outright: four bits a texel, widened so that fifteen is opaque.
+        ///
+        /// The nibbles below run 0, 1, 2 … 15 across the block in texel order, so every one of the
+        /// sixteen values is asserted at once and a decoder that swapped the two halves of a byte or
+        /// walked the texels in column order fails on the second texel.
+        TEST(RtxAlphaImageTest, bc2StatesFourBitsATexelWidenedSoFifteenIsOpaque)
+        {
+            // Texel 0 in the low nibble of the first byte, texel 1 in its high nibble.
+            const Testing::TestTexture block = oneBlock(
+                TextureFormat::Bc2Srgb, { 0x10, 0x32, 0x54, 0x76, 0x98, 0xBA, 0xDC, 0xFE, 0, 0, 0, 0, 0, 0, 0, 0 });
+
+            const AlphaImage alpha(block.mData);
+            ASSERT_EQ(alpha.getWidth(), 4u);
+
+            for (std::uint32_t texel = 0; texel < 16; ++texel)
+            {
+                // Seventeen and not sixteen: fifteen has to land on 255, or nothing is ever opaque.
+                const auto expected = static_cast<std::uint8_t>(texel * 17);
+                EXPECT_EQ(alpha.at(0, texel % 4, texel / 4), expected) << "texel " << texel;
+            }
+
+            EXPECT_EQ(alpha.at(0, 3, 3), 255) << "the last nibble is fifteen and must be fully opaque";
+        }
+
+        /// BC3 builds a palette from two endpoints, and which palette depends on their order.
+        ///
+        /// **Both spellings, because a decoder that assumed one reads half the blocks wrong.** With the
+        /// first endpoint the larger, all eight entries are interpolated between them; with it smaller,
+        /// six are and the last two are nought and full outright — which is the spelling a texture with
+        /// hard cutout edges is compressed into.
+        TEST(RtxAlphaImageTest, bc3InterpolatesEightWaysDescendingAndSixWithTheEndsAscending)
+        {
+            // Indices are three bits each, little-endian over six bytes. All zero picks endpoint one,
+            // so the first texel is the first endpoint in both spellings below.
+            const Testing::TestTexture descending = oneBlock(
+                TextureFormat::Bc3Srgb, { 255, 0, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0, 0, 0, 0, 0, 0, 0, 0 });
+            const Testing::TestTexture ascending = oneBlock(
+                TextureFormat::Bc3Srgb, { 0, 255, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0, 0, 0, 0, 0, 0, 0, 0 });
+
+            // 0x888888888888 taken three bits at a time from the bottom gives indices 0, 1, 2, 4
+            // repeating, which reaches four of the eight entries without hand-packing all sixteen.
+            const AlphaImage high(descending.mData);
+            const AlphaImage low(ascending.mData);
+
+            EXPECT_EQ(high.at(0, 0, 0), 255) << "index nought is the first endpoint";
+            EXPECT_EQ(low.at(0, 0, 0), 0);
+
+            // Entry one is the second endpoint under both spellings.
+            EXPECT_EQ(high.at(0, 1, 0), 0);
+            EXPECT_EQ(low.at(0, 1, 0), 255);
+
+            // Entry two is where the two palettes part: descending divides the span into sevenths and
+            // ascending into fifths, so (6*255)/7 = 218 against (1*255)/5 = 51.
+            EXPECT_EQ(high.at(0, 2, 0), 218);
+            EXPECT_EQ(low.at(0, 2, 0), 51);
+
+            // And entry four, further along the same two ramps: (4*255)/7 = 145 against (3*255)/5 = 153.
+            EXPECT_EQ(high.at(0, 3, 0), 145);
+            EXPECT_EQ(low.at(0, 3, 0), 153);
+
+            // **The last two entries are what the ascending spelling is for**, and the case a cutout
+            // texture is compressed into: they are nought and full outright rather than interpolated,
+            // so a hard edge survives the block. Indices six and seven, packed into the first two
+            // texels: 0b111'110 is 0x3E.
+            const Testing::TestTexture ends
+                = oneBlock(TextureFormat::Bc3Srgb, { 0, 255, 0x3E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+            const Testing::TestTexture ramp
+                = oneBlock(TextureFormat::Bc3Srgb, { 255, 0, 0x3E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+
+            const AlphaImage terminal(ends.mData);
+            EXPECT_EQ(terminal.at(0, 0, 0), 0) << "entry six is nothing at all, not an interpolated step";
+            EXPECT_EQ(terminal.at(0, 1, 0), 255) << "and entry seven is fully opaque";
+
+            // The same indices under the descending spelling are ordinary steps of the ramp, which is
+            // what says the two palettes really are different tables and not one with a flag on it.
+            const AlphaImage stepped(ramp.mData);
+            EXPECT_EQ(stepped.at(0, 0, 0), 72);
+            EXPECT_EQ(stepped.at(0, 1, 0), 36);
+        }
+
+        /// BC1 has no alpha channel at all — it has a fourth palette entry meaning "nothing here", and
+        /// only when the endpoints are stored ascending.
+        TEST(RtxAlphaImageTest, bc1IsCutoutOrNothingAndOnlyWhenItsEndpointsAscend)
+        {
+            // Endpoints 0x0000 then 0xFFFF: ascending, so index three is the transparent entry.
+            const Testing::TestTexture cutout
+                = oneBlock(TextureFormat::Bc1RgbaSrgb, { 0x00, 0x00, 0xFF, 0xFF, 0xE4, 0, 0, 0 });
+
+            // The same block with the endpoints the other way round is opaque throughout, index three
+            // included — the bits did not move, only what they mean.
+            const Testing::TestTexture opaque
+                = oneBlock(TextureFormat::Bc1RgbaSrgb, { 0xFF, 0xFF, 0x00, 0x00, 0xE4, 0, 0, 0 });
+
+            const AlphaImage cut(cutout.mData);
+            const AlphaImage solid(opaque.mData);
+
+            // 0xE4 is 11 10 01 00: texels 0..3 take indices 0, 1, 2, 3.
+            EXPECT_EQ(cut.at(0, 0, 0), 255);
+            EXPECT_EQ(cut.at(0, 1, 0), 255);
+            EXPECT_EQ(cut.at(0, 2, 0), 255);
+            EXPECT_EQ(cut.at(0, 3, 0), 0) << "index three is the hole, and only in the ascending spelling";
+
+            for (std::uint32_t x = 0; x < 4; ++x)
+                EXPECT_EQ(solid.at(0, x, 0), 255) << "descending endpoints spend index three on a colour";
+        }
+
+        /// Uncompressed textures state alpha as the fourth byte whichever order the three colours are in.
+        TEST(RtxAlphaImageTest, theUncompressedSpellingsTakeAlphaFromTheFourthByte)
+        {
+            for (const TextureFormat format :
+                { TextureFormat::Rgba8Unorm, TextureFormat::Rgba8Srgb, TextureFormat::Bgra8Srgb })
+            {
+                std::vector<std::byte> bytes(4 * 4 * 4, std::byte{ 0 });
+                for (std::uint32_t texel = 0; texel < 16; ++texel)
+                    bytes[texel * 4 + 3] = std::byte{ static_cast<std::uint8_t>(texel * 16) };
+
+                const MipLevel level{ 0, 4, 4 };
+                const TextureData texture{
+                    .mFormat = format,
+                    .mWidth = 4,
+                    .mHeight = 4,
+                    .mBytes = bytes,
+                    .mLevels = std::span(&level, 1),
+                };
+
+                const AlphaImage alpha(texture);
+                for (std::uint32_t texel = 0; texel < 16; ++texel)
+                    EXPECT_EQ(alpha.at(0, texel % 4, texel / 4), static_cast<std::uint8_t>(texel * 16))
+                        << "texel " << texel << " of format " << static_cast<int>(format);
+            }
+        }
+
+        /// The whole mip chain is decoded, because the whole mip chain is what the shader can read.
+        ///
+        /// `candidateStops` samples the mask at the level the ray's cone resolves to, so a classifier that
+        /// saw only the largest level would be bounding a fetch that never happens. The two levels below
+        /// disagree outright — a level that was read from the wrong offset, or skipped, comes back with
+        /// the other one's values.
+        TEST(RtxAlphaImageTest, everyLevelTheFileCarriesIsDecodedAndNotOnlyTheLargest)
+        {
+            // Four by four at 40, then two by two at 200. A real chain averages; these do not, so that
+            // reading the wrong level is a failure rather than a rounding difference.
+            std::vector<std::byte> bytes(4 * 4 * 4 + 2 * 2 * 4, std::byte{ 0 });
+            for (std::size_t texel = 0; texel < 16; ++texel)
+                bytes[texel * 4 + 3] = std::byte{ 40 };
+            for (std::size_t texel = 0; texel < 4; ++texel)
+                bytes[4 * 4 * 4 + texel * 4 + 3] = std::byte{ 200 };
+
+            const std::array<MipLevel, 2> levels{ MipLevel{ 0, 4, 4 }, MipLevel{ 4 * 4 * 4, 2, 2 } };
+            const TextureData texture{
+                .mFormat = TextureFormat::Rgba8Unorm,
+                .mWidth = 4,
+                .mHeight = 4,
+                .mBytes = bytes,
+                .mLevels = levels,
+            };
+
+            const AlphaImage alpha(texture);
+
+            ASSERT_EQ(alpha.getLevelCount(), 2u);
+            EXPECT_EQ(alpha.getWidth(), 4u);
+            EXPECT_EQ(alpha.getHeight(), 4u);
+            EXPECT_EQ(alpha.getLevel(1).mWidth, 2u);
+            EXPECT_EQ(alpha.getLevel(1).mHeight, 2u);
+
+            for (std::uint32_t texel = 0; texel < 16; ++texel)
+                EXPECT_EQ(alpha.at(0, texel % 4, texel / 4), 40) << "texel " << texel << " of the largest level";
+            for (std::uint32_t texel = 0; texel < 4; ++texel)
+                EXPECT_EQ(alpha.at(1, texel % 2, texel / 2), 200) << "texel " << texel << " of the level below it";
+        }
+
+        /// A texture with no levels is one whose cutout could not be read, and nothing is invented for
+        /// it: a caller that cannot answer for a mask has to leave its geometry asking.
+        TEST(RtxAlphaImageTest, aTextureWithNothingInItDecodesToNothingAtAll)
+        {
+            const TextureData nothing{};
+            const AlphaImage alpha(nothing);
+
+            EXPECT_TRUE(alpha.isEmpty());
+            EXPECT_EQ(alpha.getLevelCount(), 0u);
+            EXPECT_EQ(alpha.getWidth(), 0u);
+        }
+
+        /// An image read again is the texture it was handed and nothing of the one before, and it
+        /// costs the heap nothing to say so.
+        ///
+        /// **What lets `MipChain` and `SceneTextures` keep one of these.** Both read a cell's worth
+        /// of textures through a single image; one that carried the last texture's levels through
+        /// would weigh one texture's colours by another's alpha, and one that gave its room back
+        /// would go to the heap once a texture on the frame the cell lands.
+        TEST(RtxAlphaImageTest, anImageReadAgainIsTheNewTextureAndKeepsTheRoomOfTheLast)
+        {
+            std::vector<std::byte> bytes(2 * 2 * 4, std::byte{ 0 });
+            for (std::size_t texel = 0; texel < 4; ++texel)
+                bytes[texel * 4 + 3] = std::byte{ 77 };
+
+            const std::array<MipLevel, 1> levels{ MipLevel{ 0, 2, 2 } };
+            const TextureData texture{
+                .mFormat = TextureFormat::Rgba8Unorm,
+                .mWidth = 2,
+                .mHeight = 2,
+                .mBytes = bytes,
+                .mLevels = levels,
+            };
+
+            AlphaImage alpha;
+            alpha.build(texture);
+            ASSERT_EQ(alpha.getLevelCount(), 1u);
+            ASSERT_EQ(alpha.at(0, 0, 0), 77);
+
+            alpha.build(TextureData{});
+            EXPECT_TRUE(alpha.isEmpty()) << "the last texture's levels came through";
+
+            const std::size_t before = Testing::getAllocationCount();
+            alpha.build(texture);
+            const std::size_t spent = Testing::getAllocationCount() - before;
+
+            EXPECT_EQ(spent, 0u) << "a rebuild reached the heap " << spent << " times";
+            EXPECT_EQ(alpha.at(0, 1, 1), 77);
+        }
+
+        /// Two texels by two, in the plain spelling `describeImage` reads.
+        osg::ref_ptr<osg::Image> makeAlphaImage(std::array<std::uint8_t, 4> alphas)
+        {
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName("paint.dds");
+            image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+
+            for (std::size_t texel = 0; texel < alphas.size(); ++texel)
+            {
+                for (std::size_t channel = 0; channel < 3; ++channel)
+                    image->data()[texel * 4 + channel] = 255;
+                image->data()[texel * 4 + 3] = alphas[texel];
+            }
+
+            return image;
+        }
+
+        /// A wisp is told from a mask by whether the paint ever closes, and 255 is the whole test.
+        ///
+        /// **One below solid is a wisp and solid is a mask**, because that is the difference between
+        /// a cloud and a leaf: a leaf card is opaque wherever the artist drew leaf, and `Tx_Dagoth
+        /// _Cloud` peaks at seven fifteenths of the way up — 119 — over the whole of its 128 by 128.
+        /// A test at anything but the top would call some leaf in the game a cloud.
+        ///
+        /// The solid texel is last, so a walk that answered off the first texel it read fails.
+        TEST(RtxAlphaImageTest, reachesSolidIsTrueOnlyWhereSomeTexelIsFullyOpaque)
+        {
+            // One preprocessor for all four, which is how a thread holds it: a cell asks this once
+            // per translucent diffuse map it arrives with.
+            ContentPreprocessor content;
+
+            EXPECT_TRUE(content.reachesSolid(*makeAlphaImage({ 0, 119, 254, 255 }))) << "one solid texel is a mask";
+            EXPECT_FALSE(content.reachesSolid(*makeAlphaImage({ 0, 119, 254, 254 }))) << "one short of solid is a wisp";
+            EXPECT_FALSE(content.reachesSolid(*makeAlphaImage({ 119, 119, 119, 119 })))
+                << "the blight cloud's own peak";
+            EXPECT_TRUE(content.reachesSolid(*makeAlphaImage({ 255, 255, 255, 255 })))
+                << "an untextured surface's stand-in";
+        }
+
+        /// How many bytes OpenSceneGraph counts in one level of `spelling`, which `describeImage` holds
+        /// an image's levels to.
+        std::size_t countedBytes(GLenum spelling, std::uint32_t width, std::uint32_t height)
+        {
+            return osg::Image::computeImageSizeInBytes(
+                static_cast<int>(width), static_cast<int>(height), 1, spelling, GL_UNSIGNED_BYTE, 1);
+        }
+
+        /// One block of `spelling`, `width` by `height` texels of it in the image — fewer than four
+        /// where the block pads past the picture's edge, which a BC file two texels wide does. The
+        /// block is handed over whole, as the DDS loader hands over a file's: `allocateImage` counts
+        /// a level under four texels a side by its texels, four bytes of a two-by-two BC3's sixteen.
+        osg::ref_ptr<osg::Image> makeBlockImage(
+            GLenum spelling, std::uint32_t width, std::uint32_t height, std::initializer_list<std::uint8_t> bytes)
+        {
+            auto* const data = new unsigned char[bytes.size()];
+            std::copy(bytes.begin(), bytes.end(), data);
+
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName("block.dds");
+            image->setImage(static_cast<int>(width), static_cast<int>(height), 1, static_cast<GLint>(spelling),
+                spelling, GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE);
+            return image;
+        }
+
+        /// A block format answers a block at a time, and stops at the first solid one, so the
+        /// answer is read off the block's own spelling: a BC1 block with its endpoints descending
+        /// has four opaque colours and no hole; ascending, its fourth index is the hole and any
+        /// other index is paint. A BC3 block ascending spends index seven on 255 outright.
+        ///
+        /// **A texel the block pads past the picture's edge says nothing about the picture.** A
+        /// two-by-two BC3 image is one sixteen-texel block, and a 255 in a texel outside the two
+        /// by two is one nothing ever draws. The block below puts 200 in the four texels of the
+        /// picture and 255 in texel three, which is inside the block and outside a two-by-two, and
+        /// inside a four-by-four: indices `1, 1, 0, 7, 1, 1` over texels nought to five are
+        /// `1 | 1 << 3 | 7 << 9 | 1 << 12 | 1 << 15 = 0x9E09`, little-endian `09 9E`.
+        TEST(RtxAlphaImageTest, aBlockFormatReachesSolidByItsBlocksAndNeverByItsPadding)
+        {
+            ContentPreprocessor content;
+
+            EXPECT_TRUE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF })))
+                << "descending endpoints: four colours and no hole";
+            EXPECT_FALSE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF })))
+                << "ascending endpoints and every index three: all hole";
+            EXPECT_TRUE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFC, 0xFF, 0xFF, 0xFF })))
+                << "ascending endpoints and one index nought: one texel of paint";
+
+            // Where OpenSceneGraph counts the level short of its block, `describeImage` refuses the
+            // image, and a refused image answers what changes nothing about how the surface is traced.
+            const bool wholeBlock = countedBytes(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2) == 16;
+            EXPECT_EQ(content.reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2,
+                          { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })),
+                !wholeBlock)
+                << "the 255 is in the padding";
+            EXPECT_TRUE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4, { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })))
+                << "the same block whole: texel three is in the picture";
+            EXPECT_FALSE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4, { 200, 0, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })))
+                << "descending from 200, index seven is a step of the ramp and nothing reaches 255";
+        }
+
+        /// The second image a preprocessor reads costs the heap nothing, and reads as itself.
+        ///
+        /// **What holding one is for.** `MaterialResolver` asks this of every translucent diffuse
+        /// map a cell arrives with, and a reading that took its levels table and its decoded alpha
+        /// from the heap would take them again for each of those, on the frame the cell lands.
+        /// Reading as itself is the other half: a scratch that carried the last image's levels
+        /// through would answer for a texture it was never shown.
+        TEST(RtxAlphaImageTest, aScratchTheCallerKeepsAnswersForEachImageAndAllocatesForNone)
+        {
+            const osg::ref_ptr<osg::Image> mask = makeAlphaImage({ 0, 119, 254, 255 });
+            const osg::ref_ptr<osg::Image> wisp = makeAlphaImage({ 0, 119, 254, 254 });
+
+            ContentPreprocessor content;
+            ASSERT_TRUE(content.reachesSolid(*mask)) << "the image this one has to stop carrying";
+
+            const std::size_t before = Testing::getAllocationCount();
+            const bool answer = content.reachesSolid(*wisp);
+            const std::size_t spent = Testing::getAllocationCount() - before;
+
+            EXPECT_FALSE(answer) << "the last image's alpha came through";
+            EXPECT_EQ(spent, 0u) << "a second reading reached the heap " << spent << " times";
+        }
+
+        /// An image in a format nothing in the game produces is one this cannot answer for.
+        ///
+        /// **True and not false**, because false is what turns a surface into a volume: a texture
+        /// nobody can read is one to go on tracing exactly as before rather than one to stop
+        /// stopping on.
+        TEST(RtxAlphaImageTest, aFormatNobodyShipsReachesSolidRatherThanBecomingAMedium)
+        {
+            osg::ref_ptr<osg::Image> luminance = new osg::Image;
+            luminance->setFileName("odd.dds");
+            luminance->allocateImage(2, 2, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE);
+
+            ContentPreprocessor content;
+            EXPECT_TRUE(content.reachesSolid(*luminance));
+        }
+    }
+}

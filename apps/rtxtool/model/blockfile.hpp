@@ -11,7 +11,7 @@
 
 #include <osg/Vec3f>
 
-#include <components/rtx/frameworld.hpp>
+#include <components/rtx/environment/frameworld.hpp>
 
 namespace RtxTool
 {

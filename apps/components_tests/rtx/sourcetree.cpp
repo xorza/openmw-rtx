@@ -6,6 +6,7 @@
 #include <fstream>
 #include <functional>
 #include <initializer_list>
+#include <iterator>
 #include <map>
 #include <optional>
 #include <set>
@@ -117,18 +118,29 @@ namespace Rtx
             return std::nullopt;
         }
 
-        /// What a `#include "..."` line names, or nothing for any other line.
-        std::optional<std::string> includedBy(const std::string_view line)
+        /// What an `#include` line names, and whether between quotes or angle brackets.
+        struct Included
+        {
+            std::string mPath;
+            bool mQuoted = false;
+        };
+
+        /// What an `#include` line names, or nothing for any other line.
+        std::optional<Included> includedBy(const std::string_view line)
         {
             if (!line.starts_with("#include"))
                 return std::nullopt;
 
-            const std::size_t open = line.find('"');
-            const std::size_t close = open == std::string_view::npos ? open : line.find('"', open + 1);
+            const std::size_t open = line.find_first_of("\"<");
+            if (open == std::string_view::npos)
+                return std::nullopt;
+
+            const bool quoted = line[open] == '"';
+            const std::size_t close = line.find(quoted ? '"' : '>', open + 1);
             if (close == std::string_view::npos)
                 return std::nullopt;
 
-            return std::string(line.substr(open + 1, close - open - 1));
+            return Included{ .mPath = std::string(line.substr(open + 1, close - open - 1)), .mQuoted = quoted };
         }
 
         std::string joined(const std::vector<std::string>& lines)
@@ -139,7 +151,7 @@ namespace Rtx
             return all;
         }
 
-        /// Every line `match` accepts of every `.cpp` and `.hpp` straight under `places`, as
+        /// Every line `match` accepts of every `.cpp` and `.hpp` anywhere under `places`, as
         /// `file:line: code`, the files named in `exempt` left out. Comments are stripped before
         /// the match, because a rule's own prose and the comments that explain a site name what
         /// the rule looks for.
@@ -150,7 +162,8 @@ namespace Rtx
             std::vector<std::string> found;
             for (const std::filesystem::path& place : places)
             {
-                for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(place))
+                for (const std::filesystem::directory_entry& entry :
+                    std::filesystem::recursive_directory_iterator(place))
                 {
                     const std::filesystem::path& file = entry.path();
                     if (file.extension() != ".cpp" && file.extension() != ".hpp")
@@ -258,8 +271,7 @@ namespace Rtx
             const std::set<std::string> exempt{ "death.hpp", "sourcetree.cpp" };
 
             const std::vector<std::string> found
-                = linesMatching({ tests / "rtx", tests / "rtx" / "visibility", tests / "rtx" / "extractor",
-                                    tests / "rtx" / "support", tests / "rtx" / "support" / "device", tests / "rtxtool",
+                = linesMatching({ tests / "rtx", tests / "rtxvulkan", tests / "myguirtx", tests / "rtxtool",
                                     sRoot / "apps" / "openmw_tests" / "mwrender" },
                     exempt, [](const std::string_view code) {
                         return code.find("_DEATH(") != std::string_view::npos
@@ -271,8 +283,27 @@ namespace Rtx
                                        << joined(found);
         }
 
-        /// Every file `file` reaches through `#include "..."`, itself included, by the paths the
-        /// sources spell: relative to the including file.
+        /// Where a quoted `#include` is looked for when the including file's folder does not hold
+        /// it: the two roots the shader build passes with `-I`.
+        const std::array<std::filesystem::path, 2> sShaderRoots{ sBackend / "shaders",
+            sRoot / "components" / "rtx" / "shaders" };
+
+        /// Where a quoted `#include` is found, or nothing for one outside the tree: beside the
+        /// including file, then under a shader root.
+        std::optional<std::filesystem::path> quotedTarget(const std::filesystem::path& from, const std::string& path)
+        {
+            if (std::filesystem::path beside = from.parent_path() / path; std::filesystem::exists(beside))
+                return beside;
+            for (const std::filesystem::path& root : sShaderRoots)
+                if (std::filesystem::path under = root / path; std::filesystem::exists(under))
+                    return under;
+            return std::nullopt;
+        }
+
+        /// Every file `file` reaches through `#include`, itself included, by the paths the sources
+        /// spell: a quoted one as `quotedTarget` finds it, and one in angle brackets from the source
+        /// root where it names `apps/`. Not `components/`, which reaches upstream's whole graph and
+        /// nothing a rule here asks about.
         void reachedBy(const std::filesystem::path& file, std::set<std::filesystem::path>& reached)
         {
             const std::filesystem::path normal = file.lexically_normal();
@@ -281,10 +312,18 @@ namespace Rtx
 
             for (const std::string& line : linesOf(normal))
             {
-                if (const std::optional<std::string> included = includedBy(line))
+                const std::optional<Included> included = includedBy(line);
+                if (!included.has_value())
+                    continue;
+
+                if (included->mQuoted)
                 {
-                    const std::filesystem::path named = normal.parent_path() / *included;
-                    if (std::filesystem::exists(named))
+                    if (const std::optional<std::filesystem::path> named = quotedTarget(normal, included->mPath))
+                        reachedBy(*named, reached);
+                }
+                else if (included->mPath.starts_with("apps/"))
+                {
+                    if (const std::filesystem::path named = sRoot / included->mPath; std::filesystem::exists(named))
                         reachedBy(named, reached);
                 }
             }
@@ -301,7 +340,7 @@ namespace Rtx
             const std::filesystem::path shaders = sBackend / "shaders";
 
             std::vector<std::string> found;
-            for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(shaders))
+            for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(shaders))
             {
                 if (entry.path().extension() != ".comp")
                     continue;
@@ -323,6 +362,97 @@ namespace Rtx
             EXPECT_TRUE(found.empty()) << "a compute shader traces a ray, which answers differently under another "
                                           "process's preemption — make the pass a launch:\n"
                                        << joined(found);
+        }
+
+        /// One library's folders in the order they may include each other: a folder includes only
+        /// the folders before it, and a folder inside one of them is a part of it, which the two may
+        /// both reach into. `""` is a file straight under the library's root.
+        struct FolderOrder
+        {
+            std::string_view mLibrary;
+            std::vector<std::string_view> mOrder;
+        };
+
+        const std::array<FolderOrder, 2> sFolderOrders{
+            FolderOrder{ "rtx",
+                { "shaders", "common", "image", "preprocess", "scene", "frame", "renderer", "mirror", "environment",
+                    "view" } },
+            FolderOrder{ "rtxvulkan",
+                { "spirv", "device", "pipeline", "texture", "scene", "trace", "upscale", "display", "present", "gui",
+                    "" } },
+        };
+
+        /// The folder of the library a path under its root stands in: the first of its names, or
+        /// `""` for a file straight under the root.
+        std::string topFolderOf(const std::filesystem::path& relative)
+        {
+            const auto first = relative.begin();
+            return std::next(first) == relative.end() ? std::string() : first->string();
+        }
+
+        /// **A folder includes only the folders before it**, which is what the folders are: a layer
+        /// each, so that what a file may reach is read off where it stands. A quoted include names a
+        /// header of the file's own folder, and any other is spelled from the root, so the direction
+        /// is read off every line that crosses a folder.
+        TEST(RtxSourceTreeTest, everyFolderIncludesOnlyTheFoldersBeforeIt)
+        {
+            std::vector<std::string> found;
+            for (const FolderOrder& library : sFolderOrders)
+            {
+                const std::filesystem::path root = sRoot / "components" / library.mLibrary;
+                const std::string rooted = "components/" + std::string(library.mLibrary) + '/';
+                const auto rankOf = [&](const std::string_view folder) -> std::optional<std::size_t> {
+                    const auto at = std::find(library.mOrder.begin(), library.mOrder.end(), folder);
+                    if (at == library.mOrder.end())
+                        return std::nullopt;
+                    return static_cast<std::size_t>(at - library.mOrder.begin());
+                };
+
+                for (const std::filesystem::directory_entry& entry :
+                    std::filesystem::recursive_directory_iterator(root))
+                {
+                    const std::filesystem::path& file = entry.path();
+                    if (file.extension() != ".cpp" && file.extension() != ".hpp")
+                        continue;
+
+                    const std::string relative = file.lexically_relative(sRoot).generic_string();
+                    const std::string folder = topFolderOf(file.lexically_relative(root));
+                    const std::optional<std::size_t> from = rankOf(folder);
+                    if (!from.has_value())
+                    {
+                        found.push_back(relative + ": its folder is in no order — name it in `sFolderOrders`");
+                        continue;
+                    }
+
+                    for (const std::string& line : linesOf(file))
+                    {
+                        const std::optional<Included> included = includedBy(line);
+                        if (!included.has_value())
+                            continue;
+
+                        if (included->mQuoted)
+                        {
+                            if (!std::filesystem::exists(file.parent_path() / included->mPath))
+                                found.push_back(relative + ": \"" + included->mPath
+                                    + "\" is not in its own folder — spell it from the root");
+                            continue;
+                        }
+
+                        if (!included->mPath.starts_with(rooted))
+                            continue;
+
+                        const std::string target = topFolderOf(included->mPath.substr(rooted.size()));
+                        const std::optional<std::size_t> to = rankOf(target);
+                        if (!to.has_value())
+                            found.push_back(relative + ": <" + included->mPath + "> is in no folder of the order");
+                        else if (target != folder && *to > *from)
+                            found.push_back(relative + ": <" + included->mPath + "> comes after `" + folder
+                                + "/` — move the file where what it includes allows, or split it");
+                    }
+                }
+            }
+
+            EXPECT_TRUE(found.empty()) << joined(found);
         }
 
         /// The files `rtx/sources.cmake` names in its list `list`, as paths.
@@ -423,7 +553,8 @@ namespace Rtx
         {
             std::vector<std::filesystem::path> documents;
             for (const std::filesystem::path& directory : { sRoot / "docs" / "rtx", sRoot / "components" / "rtx" })
-                for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(directory))
+                for (const std::filesystem::directory_entry& entry :
+                    std::filesystem::recursive_directory_iterator(directory))
                     if (entry.path().extension() == ".md")
                         documents.push_back(entry.path());
             return documents;

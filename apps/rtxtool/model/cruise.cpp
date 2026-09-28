@@ -5,7 +5,7 @@
 #include <vector>
 
 #include <components/crashcatcher/crash.hpp>
-#include <components/rtx/contract.hpp>
+#include <components/rtx/common/contract.hpp>
 
 namespace RtxTool
 {

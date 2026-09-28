@@ -2,14 +2,13 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/guirenderer.hpp>
-#include <components/rtx/reconstruction.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/renderer/guirenderer.hpp>
+#include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/shaders/visibility.h>
-#include <components/rtx/slot.hpp>
-
-#include "buffer.hpp"
-#include "image.hpp"
-#include "tracechain.hpp"
+#include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/trace/tracechain.hpp>
 
 namespace Rtx
 {

@@ -1,0 +1,97 @@
+#pragma once
+
+#include <cstdint>
+
+#include <components/rtx/preprocess/contentstats.hpp>
+
+namespace Rtx
+{
+    /// What one extraction pass did. The reused counts are the interesting half: a mirror that
+    /// adds nothing on a second pass over an unchanged graph is only visible as a number.
+    struct ExtractionStats
+    {
+        /// Distinct geometry met for the first time, so one new entry in the scene each.
+        std::uint32_t mMeshesAdded = 0;
+        std::uint32_t mMaterialsAdded = 0;
+
+        /// What computing from the content cost: the ring reader's for the cells this walk adopted,
+        /// and on the frame's thread — the shapes of the meshes added above, a translucent map's
+        /// alpha, an additive map's mean — what the frame's owner took once after its last walk
+        /// (`SceneExtractor::getPreprocessor`). Timed rather than counted, because what it costs
+        /// is triangles and texels and not drawables: one entry of `mMeshesAdded` can be a building
+        /// and its neighbour a crate.
+        Preprocessed mPreprocessed;
+
+        /// Drawables that resolved to something already known. A count of lookups, not of meshes:
+        /// a hundred crates sharing one model contribute a hundred here and one above.
+        std::uint32_t mMeshesReused = 0;
+        std::uint32_t mMaterialsReused = 0;
+        std::uint32_t mInstances = 0;
+
+        /// Of the instances, the placements found under their path and standing another mesh,
+        /// material or class than the walk resolved, so dropped and stood again. A path is a hash
+        /// of node addresses, and the game reuses an address the frame it frees it; the count says
+        /// how often a walk met one, and a walk over a world standing still owes nought.
+        std::uint32_t mRestood = 0;
+
+        /// Drawables whose vertices are recomputed every frame and so were posed rather than read
+        /// from the cache: skinned bodies and morphed faces. Each one already met is a dispatch and
+        /// a bottom-level structure a backend has to refit, which is what makes this the cost of an
+        /// actor rather than a count of them.
+        std::uint32_t mDeformed = 0;
+
+        /// Skinned drawables mirrored as they stand, because `SceneUtil::RigGeometry::getBones`
+        /// answered nothing. The rasterizer draws such a rig in its bind pose too; the number says
+        /// a walk reached a rig before the update that should have found its skeleton.
+        std::uint32_t mUnskinned = 0;
+
+        /// Particle systems met, and the live particles they were holding — sprites and not
+        /// triangles, so neither number is a mesh or an instance. An emitter whose particles have
+        /// all died is not counted.
+        std::uint32_t mEmitters = 0;
+        std::uint32_t mSprites = 0;
+
+        /// Drawables this cannot read at all, which is OpenMW's own debug drawing. A canary for a
+        /// new kind of drawable arriving unnoticed.
+        std::uint32_t mSkippedUnknown = 0;
+
+        /// Surfaces the content pipeline never described, drawn as a default `Material` —
+        /// untextured, opaque and one-sided. A canary that should be zero: `NifOsg` describes
+        /// everything it builds.
+        std::uint32_t mUndescribedSurfaces = 0;
+
+        /// How many images an animated material dropped from what it keeps worn, because it had
+        /// worn more distinct ones than `MaterialResolver::Worn` holds. Nought on the shipped
+        /// content, whose longest cycle is exactly what is held.
+        std::uint32_t mWornBeyondKept = 0;
+
+        /// Geometry this walk found to have no vertices or no triangles. Morrowind ships some, and
+        /// the game draws nothing for them either. Filed where it is found, so a walk after counts
+        /// none of it again. What the content has and this renderer cannot take is not
+        /// here: that is `SceneDesc::refusals`.
+        std::uint32_t mSkippedEmpty = 0;
+
+        /// Every lamp the scene has: the `LightSource`s taken off the graph, and the `LIGH`
+        /// records the cell ring stands for the cells the game has not loaded. A `LIGH` record is
+        /// what Morrowind lights with, and a glowing texture lights nothing.
+        std::uint32_t mLights = 0;
+
+        /// Placements the cell ring stood this walk: the distant statics, as instances of their
+        /// templates rather than as the paging's merged chunks, and the cells' ground, one
+        /// placement a cell. Among `mInstances` as well.
+        std::uint32_t mDistantStatics = 0;
+        std::uint32_t mGroundCells = 0;
+
+        ExtractionStats& operator+=(const ExtractionStats& other);
+    };
+
+    /// What one sweep dropped.
+    struct Retirement
+    {
+        std::uint32_t mMeshes = 0;
+        std::uint32_t mMaterials = 0;
+
+        bool empty() const { return mMeshes == 0 && mMaterials == 0; }
+    };
+
+}

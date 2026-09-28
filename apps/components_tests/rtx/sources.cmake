@@ -7,87 +7,78 @@
 # `RTX_GPU_TEST_SUPPORT` into the second alone, and two more lists at the end name the tests that
 # take the flags differently.
 set(RTX_TEST_FILES
-    rtx/alphaimage.cpp
-    rtx/bluenoise.cpp
-    rtx/brdf.cpp
-    rtx/camera.cpp
-    rtx/cellgrid.cpp
-    rtx/cellring.cpp
-    rtx/cloudshell.cpp
-    rtx/colour.cpp
-    rtx/compositequeue.cpp
-    rtx/contentkey.cpp
-    rtx/contentpreprocessor.cpp
-    rtx/creasesplit.cpp
-    rtx/dispatch.cpp
-    rtx/exposure.cpp
-    rtx/extractor/fixture.hpp
-    rtx/extractor/lights.cpp
-    rtx/extractor/materials.cpp
-    rtx/extractor/particles.cpp
-    rtx/extractor/retire.cpp
-    rtx/extractor/skinning.cpp
-    rtx/extractor/stats.cpp
-    rtx/extractor/walk.cpp
-    rtx/fogbuilder.cpp
-    rtx/formats.cpp
-    rtx/frameimage.cpp
-    rtx/framesampling.cpp
-    rtx/frameworld.cpp
-    rtx/groundreader.cpp
-    rtx/halfstep.cpp
-    rtx/hitrecords.cpp
-    rtx/instance.cpp
-    rtx/instancerecord.cpp
-    rtx/latencypacer.cpp
-    rtx/lightbuilder.cpp
-    rtx/lightgrid.cpp
-    rtx/memoryreport.cpp
-    rtx/meshreader.cpp
-    rtx/mipchain.cpp
-    rtx/mirroridentity.cpp
-    rtx/monitor.cpp
-    rtx/moonbuilder.cpp
-    rtx/namedenum.cpp
-    rtx/nodekind.cpp
-    rtx/offscreentrace.cpp
-    rtx/pacedmodes.cpp
-    rtx/pacing.cpp
-    rtx/parallel.cpp
-    rtx/physicaldevice.cpp
-    rtx/pixelgrid.cpp
-    rtx/reconstruction.cpp
-    rtx/refusals.cpp
-    rtx/requirements.cpp
-    rtx/result.cpp
-    rtx/runs.cpp
-    rtx/scenedesc.cpp
-    rtx/sceneuploader.cpp
-    rtx/shaderdirectory.cpp
-    rtx/shading.cpp
-    rtx/shadingmap.cpp
-    rtx/shapefold.cpp
-    rtx/sharedtexture.cpp
-    rtx/skybuilder.cpp
-    rtx/skylight.cpp
-    rtx/slots.cpp
+    myguirtx/sharedtexture.cpp
+    rtx/common/monitor.cpp
+    rtx/common/namedenum.cpp
+    rtx/common/parallel.cpp
+    rtx/common/result.cpp
+    rtx/common/runs.cpp
+    rtx/common/slots.cpp
+    rtx/common/stepped.cpp
+    rtx/common/worker.cpp
+    rtx/environment/cloudshell.cpp
+    rtx/environment/fogbuilder.cpp
+    rtx/environment/frameworld.cpp
+    rtx/environment/moonbuilder.cpp
+    rtx/environment/skybuilder.cpp
+    rtx/environment/skylight.cpp
+    rtx/environment/sun.cpp
+    rtx/environment/wavecascade.cpp
+    rtx/environment/wavespectrum.cpp
+    rtx/frame/bluenoise.cpp
+    rtx/frame/camera.cpp
+    rtx/frame/framesampling.cpp
+    rtx/frame/pacing.cpp
+    rtx/frame/reconstruction.cpp
+    rtx/frame/specularalbedo.cpp
+    rtx/frame/spritelistsize.cpp
+    rtx/image/alphaimage.cpp
+    rtx/image/colour.cpp
+    rtx/image/mipchain.cpp
+    rtx/image/shadingmap.cpp
+    rtx/image/spritelight.cpp
+    rtx/image/texels.cpp
+    rtx/mirror/cells/cellgrid.cpp
+    rtx/mirror/cells/cellring.cpp
+    rtx/mirror/cells/groundreader.cpp
+    rtx/mirror/cells/templatewalk.cpp
+    rtx/mirror/extractor/fixture.hpp
+    rtx/mirror/extractor/lights.cpp
+    rtx/mirror/extractor/materials.cpp
+    rtx/mirror/extractor/particles.cpp
+    rtx/mirror/extractor/retire.cpp
+    rtx/mirror/extractor/skinning.cpp
+    rtx/mirror/extractor/stats.cpp
+    rtx/mirror/extractor/walk.cpp
+    rtx/mirror/meshreader.cpp
+    rtx/mirror/mirroridentity.cpp
+    rtx/mirror/nodekind.cpp
+    rtx/mirror/shading.cpp
+    rtx/preprocess/contentkey.cpp
+    rtx/preprocess/contentpreprocessor.cpp
+    rtx/preprocess/shape/creasesplit.cpp
+    rtx/preprocess/shape/shapefold.cpp
+    rtx/renderer/frameimage.cpp
+    rtx/renderer/memoryreport.cpp
+    rtx/renderer/png.cpp
+    rtx/renderer/sceneuploader.cpp
+    rtx/renderer/shaderdirectory.cpp
+    rtx/scene/compositequeue.cpp
+    rtx/scene/instancerecord.cpp
+    rtx/scene/lightbuilder.cpp
+    rtx/scene/lightgrid.cpp
+    rtx/scene/refusals.cpp
+    rtx/scene/scenedesc.cpp
+    rtx/scene/scenetextures.cpp
+    rtx/scene/surface.cpp
+    rtx/scene/tangent.cpp
+    rtx/shaders/brdf.cpp
+    rtx/shaders/exposure.cpp
+    rtx/shaders/hitrecords.cpp
+    rtx/shaders/pixelgrid.cpp
     rtx/sourcetree.cpp
-    rtx/specularalbedo.cpp
-    rtx/spirvdigest.cpp
-    rtx/spirvfile.cpp
-    rtx/spirvpin.cpp
-    rtx/spritelight.cpp
-    rtx/spritelistsize.cpp
-    rtx/stepped.cpp
-    rtx/sun.cpp
-    rtx/surface.cpp
-    rtx/tangent.cpp
-    rtx/templatewalk.cpp
-    rtx/texels.cpp
-    rtx/texturebuilder.cpp
-    rtx/wavecascade.cpp
-    rtx/wavespectrum.cpp
-    rtx/worker.cpp
+    rtx/support/halfstep.cpp
+    rtx/view/offscreentrace.cpp
     rtxtool/benchrecord.cpp
     rtxtool/benchrun.cpp
     rtxtool/benchspec.cpp
@@ -108,6 +99,16 @@ set(RTX_TEST_FILES
     rtxtool/run.cpp
     rtxtool/scenedigest.cpp
     rtxtool/skycrossing.cpp
+    rtxvulkan/device/instance.cpp
+    rtxvulkan/device/memory/formats.cpp
+    rtxvulkan/device/physicaldevice.cpp
+    rtxvulkan/device/requirements.cpp
+    rtxvulkan/pipeline/dispatch.cpp
+    rtxvulkan/present/latencypacer.cpp
+    rtxvulkan/present/pacedmodes.cpp
+    rtxvulkan/spirv/spirvdigest.cpp
+    rtxvulkan/spirv/spirvfile.cpp
+    rtxvulkan/spirv/spirvpin.cpp
     sky/skyclock.cpp
     sky/sundisc.cpp
 )
@@ -149,60 +150,60 @@ set(RTX_GPU_TEST_SUPPORT
 )
 
 set(RTX_GPU_TEST_FILES
-    rtx/bloompass.cpp
-    rtx/bottomlevelstore.cpp
-    rtx/buffer.cpp
-    rtx/commands.cpp
-    rtx/computepipeline.cpp
-    rtx/device.cpp
-    rtx/digestpass.cpp
-    rtx/exposurepass.cpp
-    rtx/framering.cpp
-    rtx/frames.cpp
-    rtx/gputimer.cpp
-    rtx/groundcompositepass.cpp
-    rtx/guipass.cpp
-    rtx/guitextures.cpp
-    rtx/memory.cpp
-    rtx/mipchainpass.cpp
-    rtx/normalspreadpass.cpp
-    rtx/pinnedarithmetic.cpp
-    rtx/pipelinecache.cpp
-    rtx/probe.cpp
-    rtx/readstamp.cpp
-    rtx/ripplepass.cpp
-    rtx/shadingpass.cpp
-    rtx/skinpass.cpp
-    rtx/slottable.cpp
-    rtx/spritelightpass.cpp
-    rtx/spritepasses.cpp
-    rtx/stresspass.cpp
-    rtx/structurestorage.cpp
-    rtx/texturearray.cpp
-    rtx/tracepipeline.cpp
-    rtx/visibility/filter.cpp
-    rtx/visibility/fixture.hpp
-    rtx/visibility/fog.cpp
-    rtx/visibility/frame.cpp
-    rtx/visibility/framecost.cpp
-    rtx/visibility/kernels.cpp
-    rtx/visibility/light.cpp
-    rtx/visibility/sea.cpp
-    rtx/visibility/sky.cpp
-    rtx/visibility/sprites.cpp
-    rtx/visibility/surfaces.cpp
-    rtx/visibility/water.cpp
-    rtx/wavefield.cpp
-    rtx/waveline.cpp
-    rtx/wavepass.cpp
+    rtxvulkan/device/commands.cpp
+    rtxvulkan/device/device.cpp
+    rtxvulkan/device/gputimer.cpp
+    rtxvulkan/device/memory/buffer.cpp
+    rtxvulkan/device/memory/memory.cpp
+    rtxvulkan/device/memory/slottable.cpp
+    rtxvulkan/device/memory/structurestorage.cpp
+    rtxvulkan/device/pipelinecache.cpp
+    rtxvulkan/device/probe.cpp
+    rtxvulkan/device/readstamp.cpp
+    rtxvulkan/display/bloompass.cpp
+    rtxvulkan/display/digestpass.cpp
+    rtxvulkan/display/exposurepass.cpp
+    rtxvulkan/framering.cpp
+    rtxvulkan/frames.cpp
+    rtxvulkan/gui/guipass.cpp
+    rtxvulkan/gui/guitextures.cpp
+    rtxvulkan/pipeline/computepipeline.cpp
+    rtxvulkan/pipeline/tracepipeline.cpp
+    rtxvulkan/scene/bottomlevelstore.cpp
+    rtxvulkan/scene/skinpass.cpp
+    rtxvulkan/scene/spritepasses.cpp
+    rtxvulkan/spirv/pinnedarithmetic.cpp
+    rtxvulkan/texture/groundcompositepass.cpp
+    rtxvulkan/texture/mipchainpass.cpp
+    rtxvulkan/texture/normalspreadpass.cpp
+    rtxvulkan/texture/shadingpass.cpp
+    rtxvulkan/texture/spritelightpass.cpp
+    rtxvulkan/texture/texturearray.cpp
+    rtxvulkan/trace/ripplepass.cpp
+    rtxvulkan/trace/stresspass.cpp
+    rtxvulkan/trace/visibility/filter.cpp
+    rtxvulkan/trace/visibility/fixture.hpp
+    rtxvulkan/trace/visibility/fog.cpp
+    rtxvulkan/trace/visibility/frame.cpp
+    rtxvulkan/trace/visibility/framecost.cpp
+    rtxvulkan/trace/visibility/kernels.cpp
+    rtxvulkan/trace/visibility/light.cpp
+    rtxvulkan/trace/visibility/sea.cpp
+    rtxvulkan/trace/visibility/sky.cpp
+    rtxvulkan/trace/visibility/sprites.cpp
+    rtxvulkan/trace/visibility/surfaces.cpp
+    rtxvulkan/trace/visibility/water.cpp
+    rtxvulkan/trace/wavefield.cpp
+    rtxvulkan/trace/waveline.cpp
+    rtxvulkan/trace/wavepass.cpp
 )
 
 
 # What is read off a fifo, where the platform has one.
 # Ray Reconstruction's tests where this build has DLSS, and the one skipped test that says it has not
 # where it has not: one or the other, and both named for the check that every file is.
-set(RTX_GPU_TEST_FILES_DLSS rtx/dlss.cpp)
-set(RTX_GPU_TEST_FILES_NO_DLSS rtx/nodlss.cpp)
+set(RTX_GPU_TEST_FILES_DLSS rtxvulkan/upscale/dlss.cpp)
+set(RTX_GPU_TEST_FILES_NO_DLSS rtxvulkan/upscale/nodlss.cpp)
 if (OPENMW_RTX_DLSS)
     list(APPEND RTX_GPU_TEST_FILES ${RTX_GPU_TEST_FILES_DLSS})
 else()
@@ -227,7 +228,7 @@ endif()
 # Reads a NIF through upstream's loader, whose headers are not warning-free under the extra
 # checks, so it takes the errors alone.
 set(RTX_TEST_FILES_UPSTREAM
-    rtx/nifsurface.cpp
+    rtx/scene/nifsurface.cpp
 )
 
 # This fork's tests of what a build without the ray tracer compiles as well, and the allocation
@@ -242,7 +243,8 @@ set(RTX_TEST_FILES_EITHER
 )
 
 openmw_rtx_expect_listed("${CMAKE_CURRENT_SOURCE_DIR}"
-    MATCHING rtx/*.cpp rtx/*.hpp rtxtool/*.cpp rtxtool/*.hpp
+    MATCHING rtx/*.cpp rtx/*.hpp rtxvulkan/*.cpp rtxvulkan/*.hpp myguirtx/*.cpp myguirtx/*.hpp rtxtool/*.cpp
+             rtxtool/*.hpp
     LISTED ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT} ${RTX_GPU_TEST_FILES} ${RTX_GPU_TEST_SUPPORT}
            ${RTX_TEST_FILES_FIFO} ${RTX_TEST_FILES_UPSTREAM} ${RTX_TEST_FILES_EITHER}
            ${RTX_GPU_TEST_FILES_DLSS} ${RTX_GPU_TEST_FILES_NO_DLSS})

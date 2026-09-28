@@ -12,19 +12,19 @@
 #include <osg/ref_ptr>
 
 #include <components/esm3/refnum.hpp>
-#include <components/rtx/cellring.hpp>
-#include <components/rtx/cellworld.hpp>
-#include <components/rtx/compositequeue.hpp>
-#include <components/rtx/contentpreprocessor.hpp>
-#include <components/rtx/extractionstats.hpp>
-#include <components/rtx/framespend.hpp>
-#include <components/rtx/frameworld.hpp>
-#include <components/rtx/mirrorpass.hpp>
-#include <components/rtx/ripple.hpp>
-#include <components/rtx/scenedesc.hpp>
-#include <components/rtx/sceneextractor.hpp>
-#include <components/rtx/sceneuploader.hpp>
-#include <components/rtx/specularlayout.hpp>
+#include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/mirror/cells/cellring.hpp>
+#include <components/rtx/mirror/cells/cellworld.hpp>
+#include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/mirror/mirrorpass.hpp>
+#include <components/rtx/mirror/sceneextractor.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/sceneuploader.hpp>
+#include <components/rtx/scene/compositequeue.hpp>
+#include <components/rtx/scene/ripple.hpp>
+#include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/specularlayout.hpp>
 
 namespace Resource
 {

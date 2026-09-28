@@ -14,9 +14,9 @@
 #include <utility>
 
 #include <components/files/conversion.hpp>
-#include <components/rtx/contract.hpp>
-#include <components/rtx/error.hpp>
-#include <components/rtx/renderer.hpp>
+#include <components/rtx/common/contract.hpp>
+#include <components/rtx/common/error.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 namespace RtxTool
 {

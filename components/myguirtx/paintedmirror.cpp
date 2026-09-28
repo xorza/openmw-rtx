@@ -6,7 +6,7 @@
 
 #include <osg/Image>
 
-#include <components/rtx/guirenderer.hpp>
+#include <components/rtx/renderer/guirenderer.hpp>
 #include <components/sceneutil/paintedtexture.hpp>
 
 namespace MyGUIRtx

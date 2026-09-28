@@ -2,4 +2,4 @@
 - audit #pragmas
 
 - fsr and other denoisers and upscalers + AMD
-- folder structure
+- Result<>

@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include <components/rtx/renderer.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 namespace Rtx
 {

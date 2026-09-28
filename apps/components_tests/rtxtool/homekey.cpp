@@ -16,9 +16,9 @@
 #include <apps/rtxtool/homekey.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/run.hpp>
-#include <components/rtx/frameextents.hpp>
-#include <components/rtx/renderer.hpp>
-#include <components/rtx/texels.hpp>
+#include <components/rtx/frame/frameextents.hpp>
+#include <components/rtx/renderer/png.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/testing/util.hpp>
 
 #include "../rtx/support/pngtext.hpp"

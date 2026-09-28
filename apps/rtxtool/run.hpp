@@ -11,8 +11,8 @@
 #include <boost/program_options/variables_map.hpp>
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
-#include <components/rtx/frameworld.hpp>
-#include <components/rtx/upscale.hpp>
+#include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 
 #include "model/benchrun.hpp"

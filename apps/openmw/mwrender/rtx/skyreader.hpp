@@ -4,9 +4,9 @@
 
 #include <osg/Vec3f>
 
-#include <components/rtx/frameworld.hpp>
-#include <components/rtx/moonbuilder.hpp>
-#include <components/rtx/skybuilder.hpp>
+#include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/environment/moonbuilder.hpp>
+#include <components/rtx/environment/skybuilder.hpp>
 #include <components/sky/skyclock.hpp>
 #include <components/vfs/pathutil.hpp>
 

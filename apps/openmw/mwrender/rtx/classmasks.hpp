@@ -5,7 +5,7 @@
 
 #include <osg/Node>
 
-#include <components/rtx/mesh.hpp>
+#include <components/rtx/scene/mesh.hpp>
 
 #include "../vismask.hpp"
 

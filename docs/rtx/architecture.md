@@ -57,7 +57,7 @@ its files by hand, and a file that no list names stops the configure.
 
 Shaders are GLSL, compiled by `glslc` and validated by `spirv-val` in one build step, so an
 invalid module fails the build. Between the two, `Rtx::pinFloatArithmetic`
-(`components/rtxvulkan/spirvpin.hpp`) fixes the order and fusion of every float operation the
+(`components/rtxvulkan/spirv/spirvpin.hpp`) fixes the order and fusion of every float operation the
 Vulkan specification leaves open, so every compile of a module, the driver's recompiles
 included, computes the same frame. The structures both languages read live in
 `components/rtx/shaders/*.h`, which compile as C++ and as GLSL.
@@ -128,10 +128,27 @@ orders from the core, and a mode added without a label on each page stops the bu
 `components/rtx/`. What is true of Morrowind's content, of light transport, and of what the
 scene is. Written once and read by every backend.
 
-- **`Rtx::Renderer`** (`renderer.hpp`) is one traced image, whichever API makes it. Each call is
-  worth a whole scene or a whole frame, never an instance or a pixel: build, extend or place a
-  scene; render, collect and present a frame; the reports.
-- **`Rtx::SceneDesc`** (`scenedesc.hpp`) is everything a backend needs to know about a world:
+The files stand in folders by what they are for, in an order: a folder includes only the folders
+before it, and a folder inside another is a part of it, which the two may both reach into. A
+source-tree test holds the order.
+
+| folder              | holds                                                                   |
+|---------------------|-------------------------------------------------------------------------|
+| `common/`           | what knows no scene: contracts, results, slots, runs, threads, the clock |
+| `image/`            | a texture file read: its formats, texels, alpha, levels and painted light |
+| `preprocess/`       | `ContentPreprocessor`, its keys, cache and costs; the passes in `shape/` and `texture/` |
+| `scene/`            | `SceneDesc`, its rows and tables, and what makes lights and textures of it |
+| `frame/`            | what a frame is asked for and sampled with: the camera, the reconstruction |
+| `renderer/`         | `Rtx::Renderer` and what it hands, reports and writes                    |
+| `mirror/`           | the walk from the scene graph; the cell ring in `cells/`, which runs inside it |
+| `environment/`      | the sky, the air and the sea a frame is told                             |
+| `view/`             | the pictures traced away from the eye                                    |
+| `shaders/`          | the structures C++ and GLSL both read                                    |
+
+- **`Rtx::Renderer`** (`renderer/renderer.hpp`) is one traced image, whichever API makes it. Each
+  call is worth a whole scene or a whole frame, never an instance or a pixel: build, extend or
+  place a scene; render, collect and present a frame; the reports.
+- **`Rtx::SceneDesc`** (`scene/scenedesc.hpp`) is everything a backend needs to know about a world:
   meshes, materials, textures, placements, deformers, and the per-frame lists (lights, sprites,
   emitters, ripples). It appends and deduplicates. A slot is a name and is never renumbered, so a
   hit reads it back as its index. `shaders/scene.h` states the device layout once for both
@@ -139,10 +156,9 @@ scene is. Written once and read by every backend.
 - **`Rtx::SceneExtractor`** mirrors an OSG subtree into a `SceneDesc`. Its identity maps live
   across walks, so an object met again resolves to what was already uploaded, and a still frame
   costs what moved. What a walk did not meet is swept after it.
-- **The cell ring** (`cellring.hpp` and its neighbours) stands the world past the loaded cells,
-  because rays reach it: the ground from the land records, the statics as instances of their
-  templates, the lamps. A reader thread prepares cells, and the frame adopts them a little at a
-  time.
+- **The cell ring** (`mirror/cells/`) stands the world past the loaded cells, because rays reach
+  it: the ground from the land records, the statics as instances of their templates, the lamps.
+  A reader thread prepares cells, and the frame adopts them a little at a time.
 - **`Rtx::ContentPreprocessor`** is the one way anything is computed from what the content files
   hold — a shape's fold and the normals it smoothed across a hard edge split, a texture's alpha and
   mean. One lives on each thread that reads content: the frame's walk and the ring's reader. Every
@@ -151,14 +167,14 @@ scene is. Written once and read by every backend.
   `preprocess` row of a frame.
 - **`Rtx::SceneUploader`** hands a scene to the backend once a frame, in the cheapest of three
   ways: place what moved, extend with what arrived, or rebuild.
-- **The world a frame is told** (`frameworld.hpp` and the builders beside it) turns a
-  `WorldReading` into the frame's constants: sun, moons, sky, clouds, fog, water.
+- **The world a frame is told** (`environment/`) turns a `WorldReading` into the frame's
+  constants: sun, moons, sky, clouds, fog, water.
 - **Materials.** `ShadingMap` estimates the light painted into a vanilla texture, to divide it
   out. Companion maps (`_n`, `_nh`, `_spec`) and tangents reach the material as data slots. The
   surface model is glTF 2.0's metal-roughness (`shaders/brdf.h`), shared with the host, which
   integrates it once into the table the shader reads for energy compensation. A vanilla surface
   is that model with no specular reflectance.
-- **Reconstruction** (`reconstruction.hpp`). `RenderProfile` is what a run decides once.
+- **Reconstruction** (`frame/reconstruction.hpp`). `RenderProfile` is what a run decides once.
   `Reconstruction::resolve` is the one rule for everything that follows from how a frame is put
   back together: the denoiser, the jitter, the noise source, the texture level bias.
 
@@ -170,6 +186,22 @@ refused draws as a stand-in, and anything else refused is left out.
 
 `components/rtxvulkan/`. `VulkanRenderer` is `Rtx::Renderer` over Vulkan. Members are declared
 in construction order, and everything is built on the device.
+
+The folders keep the core's rule, in this order. `VulkanRenderer` and the owners beside it stand
+at the top, over all of them.
+
+| folder              | holds                                                                   |
+|---------------------|-------------------------------------------------------------------------|
+| `spirv/`            | the pinning and the kernel digest, a library of its own the build runs  |
+| `device/`           | the instance, the device, the timeline, the graveyard; `memory/` for buffers and images |
+| `pipeline/`         | compute, graphics and ray tracing pipelines, and how a dispatch is sized |
+| `texture/`          | the bindless array and the passes a texture is made with as it arrives |
+| `scene/`            | `DeviceScene`: its tables, structures, skinning and sprites             |
+| `trace/`            | `TraceChain` and its passes, the sea and the fog; the denoiser in `denoise/` |
+| `upscale/`          | `Upscaler` and DLSS                                                     |
+| `display/`          | `DisplayChain` and its passes                                           |
+| `present/`          | the swapchain, the present and the driver's pacing                      |
+| `gui/`              | the interface's pass and textures                                       |
 
 - **The device.** `Device` holds the queue, the command pool, the `Timeline` and the
   `Graveyard`. The timeline is the one clock: each submit signals it, each wait is the device's,
@@ -191,10 +223,11 @@ in construction order, and everything is built on the device.
 - **`DisplayChain`** runs after the trace and the upscaler: bloom, exposure, glare, tone, debug
   lines. The GUI draws after it, in display values. The renderer blits to the swapchain and never
   draws into it.
-- **`Upscaler`** is the one seam to DLSS. A build without it links `noupscaler.cpp`.
+- **`Upscaler`** is the one seam to DLSS. A build without it links `upscale/noupscaler.cpp`.
 - **`LatencyPacer`** is the driver's frame pacing (Reflex) where the device offers it.
 
-**The shaders** (`shaders/`, shared pieces in `shaders/lib/`). One ray generation shader traces
+**The shaders** (`shaders/`, in the folders of the passes that dispatch them, shared pieces in
+`shaders/lib/`). One ray generation shader traces
 one ray per pixel and composes the path. Closest-hit shaders are picked by the shader table per
 material kind. Secondary visibility in a hit uses ray queries. The rest are compute passes: the
 fog, the sprites, the denoiser, the composite, the display chain, skinning, texture preparation,
@@ -301,22 +334,22 @@ Rendering changes are checked without a window. `AGENTS.md` lists the commands.
 
 ## 14. Where to look
 
-| to know                                   | open                                                                  |
-|-------------------------------------------|-----------------------------------------------------------------------|
-| what the game asks of a renderer          | `apps/openmw/mwrender/renderer.hpp`, `sceneframe.hpp`                  |
-| how the ray tracer answers it             | `apps/openmw/mwrender/rtx/rtxrenderer.hpp`                             |
-| the walk, the sweep, the hand-over        | `mwrender/rtx/worldmirror.hpp`, `components/rtx/sceneextractor.hpp`, `sceneuploader.hpp` |
-| what the scene is                         | `components/rtx/scenedesc.hpp`                                         |
-| the cells past the active grid            | `components/rtx/cellring.hpp`                                          |
-| what is computed from content, and cached | `components/rtx/contentpreprocessor.hpp`, `contentpass.hpp`            |
-| the sky, the air and the sea              | `components/rtx/frameworld.hpp`, `mwrender/rtx/skyreader.hpp`          |
-| the surface model                         | `components/rtx/shaders/brdf.h`                                        |
-| what a frame is on the device             | `components/rtx/shaders/visibility.h`, `scene.h`                       |
-| the backend's frame                       | `components/rtxvulkan/vulkanrenderer.hpp`, `tracechain.hpp`, `displaychain.hpp` |
-| a scene on the device                     | `components/rtxvulkan/devicescene.hpp`                                 |
-| the light transport                       | `components/rtxvulkan/shaders/visibility.rgen`, `lib/`                 |
-| the denoiser and the upscaler             | `components/rtx/reconstruction.hpp`, `components/rtxvulkan/upscaler.hpp` |
-| the GUI                                   | `components/myguirtx/rendermanager.hpp`, `components/rtx/guirenderer.hpp` |
-| the two hosts                             | `mwrender/rtx/rtxrun.hpp`, `apps/rtxtool/session.hpp`                  |
-| the pinned arithmetic                     | `components/rtxvulkan/spirvpin.hpp`                                    |
-| the build                                 | `components/rtx/build.cmake`, `CMakePresets.json`, `tools/omw`         |
+| to know                                   | open                                                                                  |
+|-------------------------------------------|---------------------------------------------------------------------------------------|
+| what the game asks of a renderer          | `apps/openmw/mwrender/renderer.hpp`, `sceneframe.hpp`                                  |
+| how the ray tracer answers it             | `apps/openmw/mwrender/rtx/rtxrenderer.hpp`                                             |
+| the walk, the sweep, the hand-over        | `mwrender/rtx/worldmirror.hpp`, `components/rtx/mirror/sceneextractor.hpp`, `components/rtx/renderer/sceneuploader.hpp` |
+| what the scene is                         | `components/rtx/scene/scenedesc.hpp`                                                   |
+| the cells past the active grid            | `components/rtx/mirror/cells/cellring.hpp`                                             |
+| what is computed from content, and cached | `components/rtx/preprocess/contentpreprocessor.hpp`, `contentpass.hpp`                 |
+| the sky, the air and the sea              | `components/rtx/environment/frameworld.hpp`, `mwrender/rtx/skyreader.hpp`              |
+| the surface model                         | `components/rtx/shaders/brdf.h`                                                        |
+| what a frame is on the device             | `components/rtx/shaders/visibility.h`, `scene.h`                                       |
+| the backend's frame                       | `components/rtxvulkan/vulkanrenderer.hpp`, `trace/tracechain.hpp`, `display/displaychain.hpp` |
+| a scene on the device                     | `components/rtxvulkan/scene/devicescene.hpp`                                           |
+| the light transport                       | `components/rtxvulkan/shaders/trace/visibility.rgen`, `lib/`                           |
+| the denoiser and the upscaler             | `components/rtx/frame/reconstruction.hpp`, `components/rtxvulkan/upscale/upscaler.hpp` |
+| the GUI                                   | `components/myguirtx/rendermanager.hpp`, `components/rtx/renderer/guirenderer.hpp`     |
+| the two hosts                             | `mwrender/rtx/rtxrun.hpp`, `apps/rtxtool/session.hpp`                                  |
+| the pinned arithmetic                     | `components/rtxvulkan/spirv/spirvpin.hpp`                                              |
+| the build                                 | `components/rtx/build.cmake`, `CMakePresets.json`, `tools/omw`                         |

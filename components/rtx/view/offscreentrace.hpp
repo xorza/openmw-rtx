@@ -1,0 +1,216 @@
+#pragma once
+
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <span>
+
+#include <osg/Matrixf>
+#include <osg/Node>
+#include <osg/Vec4f>
+#include <osg/ref_ptr>
+
+#include <components/rtx/mirror/mirrorpass.hpp>
+#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/sceneuploader.hpp>
+#include <components/rtx/renderer/slot.hpp>
+#include <components/rtx/scene/specularlayout.hpp>
+#include <components/rtx/shaders/visibility.h>
+#include <components/sceneutil/offscreenframing.hpp>
+
+#include "viewscene.hpp"
+
+namespace osg
+{
+    class FrameStamp;
+}
+
+namespace Rtx
+{
+    class PoseCull;
+    class PoseUpdate;
+    class SceneDesc;
+    class SceneExtractor;
+
+    /// What a picture traced from somewhere other than the eye is asked for, once, when it is
+    /// made. What changes between redraws — the view and the extent — is asked of the trace.
+    struct ViewRequest
+    {
+        /// The picture, in pixels. `OffscreenTrace::setExtent` may go on to fill less of it.
+        std::uint32_t mWidth = 0;
+        std::uint32_t mHeight = 0;
+
+        /// Which classes the picture's camera draws, `Shaders::MASK_*`. A map tile leaves out the
+        /// actors, the effects and the particles; a doll asks for every class.
+        std::uint32_t mRayMask = 0;
+
+        /// How the picture is projected and where it is clipped.
+        SceneUtil::Framing mFraming{};
+
+        /// The only light there is, in the numbers a rasterizer's object shaders were written for.
+        /// A Lambertian surface returns `albedo / pi * E * cos`, so the `E` that makes that equal
+        /// `albedo * diffuse` at `cos = 1` is `diffuse * pi`. `mDirection` is normalised on the way
+        /// in.
+        SceneUtil::FlatLight mLight{};
+
+        /// What the picture is left as where nothing was hit. An alpha below one is the whole of
+        /// "the picture stops here".
+        osg::Vec4f mClear{};
+
+        /// Which end of the picture the trace writes first — a delivery convention:
+        /// `MWRender::OffscreenView::getTexture` promises rows bottom-first because that is what an
+        /// OpenGL render-to-texture produces, and a file wants them the other way. Flipping the
+        /// camera's up vector costs nothing.
+        RowOrder mRowOrder = RowOrder::TopFirst;
+
+        /// A subtree assembled for this picture alone, or null for a picture of the world the
+        /// renderer already holds — for which nothing is mirrored, so one taken before the first
+        /// frame is a picture of nothing.
+        osg::Node* mSubject = nullptr;
+
+        /// Which nodes the walk of the subject may descend into, AND-ed at every node.
+        osg::Node::NodeMask mSubjectMask = ~0u;
+
+        /// Where the subject's walk and the pick's traversal numbers come from, shared with
+        /// everything else that can reach the same nodes, because a subtree two walks reach would
+        /// otherwise be run by whichever got there first and frozen for the other. Left out, the
+        /// walk keeps a sequence of its own.
+        Traversals* mTraversals = nullptr;
+
+        /// What the subject's `_spec` maps mean — the world's, so a doll wears what the world does.
+        SpecularLayout mSpecularLayout = SpecularLayout::Ignore;
+    };
+
+    /// One picture traced from somewhere other than the eye: an inventory doll, a map tile. The
+    /// trace writes straight into a slot of the renderer's GUI texture table, so the picture is
+    /// never a framebuffer and never in main memory unless somebody asks `readGuiTexture`. Two
+    /// kinds, and `ViewRequest::mSubject` says which: a picture of the world traces against the
+    /// scene the renderer already holds, and a picture of a subject is of a group assembled for it,
+    /// mirrored into a scene of its own and walked again whenever the picture is asked for. The
+    /// slot is handed to `traceInto` rather than owned here, so the harness can draw a doll with no
+    /// GUI under it.
+    class OffscreenTrace
+    {
+    public:
+        OffscreenTrace(Renderer& renderer, const ViewRequest& request);
+
+        /// Out of line because `SceneDesc`, `SceneExtractor` and the update visitor are only forward
+        /// declared here.
+        ~OffscreenTrace();
+
+        /// Where the picture is taken from. Takes effect on the next trace.
+        void setView(const osg::Matrixf& view);
+
+        /// Fill only this much of the picture, from its top-left corner, and leave the rest at the
+        /// clear colour. Clamped to the size this was made at. For the inventory doll, whose window
+        /// resizes while the texture behind it does not.
+        void setExtent(std::uint32_t width, std::uint32_t height);
+
+        bool isOfWorld() const { return mSubject == nullptr; }
+
+        /// The size the picture was made at: the texture's, whatever `setExtent` fills of it.
+        std::uint32_t getWidth() const { return mRequest.mWidth; }
+
+        /// How the picture is projected, as it was asked for, and where it is taken from, as
+        /// `setView` last said: what says which piece of the world a tile is a picture of.
+        const SceneUtil::Framing& getFraming() const { return mRequest.mFraming; }
+        const osg::Matrixf& getView() const { return mView; }
+        std::uint32_t getHeight() const { return mRequest.mHeight; }
+
+        /// The mirror of the subject, or null for a picture of the world — which has no scene of its
+        /// own, and traces against the one the frame's own walk built.
+        const SceneDesc* getScene() const;
+
+        /// Poses the subject, mirrors it and hands it to the renderer, and answers whether the
+        /// result has anything in it. Nothing at all, and true, for a picture of the world.
+        ///
+        /// @param posing what the update traversal runs on — the caller's own drawing clock, because
+        ///        a skeleton keeps the last number it saw and a clock that stood still would move the
+        ///        doll's bones the first time and never again.
+        bool rebuildSubject(const osg::FrameStamp& posing);
+
+        /// Traces the picture into `texture`, a slot from `Renderer::addGuiTexture`, and leaves a
+        /// copy for `takeCopy` where `readBack` asks for one.
+        void traceInto(GuiSlot texture, bool readBack = false);
+
+        /// The copy the last `traceInto(texture, true)` left, into `into`, or false while the
+        /// trace that leaves it has not landed — `Renderer::takeGuiCopy`, through the renderer
+        /// this traces with, so a view reaches no further than its own trace for its picture.
+        bool takeCopy(GuiSlot texture, std::span<std::uint8_t> into) const;
+
+        /// What is at this point of the picture, in normalised device coordinates, as the path
+        /// through the subject to whatever was hit. Nothing for a picture of the world. On the
+        /// processor and against the graph, because the caller wants a node path to ask the
+        /// animation which equipment slot that was; the ray is the one the trace would have sent
+        /// through that point. The one place a skinned body is still posed on the processor: the
+        /// drawable's own copy holds the bind pose, so the subject is put through a cull of its own
+        /// once per pick.
+        bool pick(float x, float y, osg::NodePath& hit) const;
+
+    private:
+        /// The camera this picture is taken with, as the trace takes it. What `traceInto` traces
+        /// with and what `pick` builds its ray from, so the two cannot disagree. Nothing for a view
+        /// with no basis, which neither can use.
+        std::optional<Shaders::VisibilityConstants> describeCamera() const;
+
+        Renderer& mRenderer;
+
+        /// Everything a picture of its own subject needs, and a picture of the world has none of:
+        /// `mSubject` being null is the whole of what "this is a picture of the world" means.
+        struct Subject
+        {
+            /// Out of line with the destructor, because a constructor that unwinds needs the
+            /// forward-declared types complete too.
+            Subject() = default;
+            ~Subject();
+
+            /// Not const, because a picture is taken by changing it: the update traversal poses
+            /// the subject and the intersection visitor walks it, and both take a mutable node.
+            osg::ref_ptr<osg::Node> mNode;
+
+            /// The mirror of it, and the extractor that fills it.
+            std::unique_ptr<SceneDesc> mScene;
+            std::unique_ptr<SceneExtractor> mExtractor;
+
+            /// Its own, because the only state one carries between calls is the clock it is
+            /// given. The camera callback the game hangs on a doll's subtree is what finds the
+            /// head to look at, and it runs in an update traversal — so a picture drawn between
+            /// frames has to run one.
+            std::unique_ptr<PoseUpdate> mUpdate;
+
+            /// The cull traversal `pick` poses the subject with, and the clock it reads. Made once,
+            /// because a cull carries a state graph and a render stage; the stamp is a copy of the
+            /// last `rebuildSubject`'s, so a pick poses at the time the picture was taken.
+            std::unique_ptr<PoseCull> mPose;
+            osg::ref_ptr<osg::FrameStamp> mPoseStamp;
+
+            /// A doll takes the same three branches a cell does, so a race-creation slider drag
+            /// that redraws the same subject every frame is a placement rather than an acceleration
+            /// structure and a texture array built from nothing sixty times a second.
+            SceneUploader mUploader;
+
+            /// The slot the renderer keeps this scene's acceleration structures in, given back
+            /// with the subject.
+            ViewScene mSlot;
+
+            /// The traversal number the subject's update last ran at, which `rebuildSubject` hands
+            /// the update traversal and the walk after it. A pick's own cull is dated after it.
+            unsigned int mPosedFrame = 0;
+        };
+
+        /// Null for a picture of the world, which traces against the scene the frame's own walk
+        /// built.
+        std::unique_ptr<Subject> mSubject;
+
+        /// What this picture was asked for, as it was asked: its size is what `setExtent` is
+        /// clamped against, and the camera is built from the rest at every trace.
+        ViewRequest mRequest;
+
+        osg::Matrixf mView;
+
+        /// How much of the picture is filled, from its top-left corner.
+        std::uint32_t mExtentWidth = 0;
+        std::uint32_t mExtentHeight = 0;
+    };
+}

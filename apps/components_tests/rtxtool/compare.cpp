@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/compare.hpp>
-#include <components/rtx/texels.hpp>
+#include <components/rtx/renderer/png.hpp>
 
 namespace RtxTool
 {

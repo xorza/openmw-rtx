@@ -6,8 +6,8 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtxvulkan/device.hpp>
-#include <components/rtxvulkan/handles.hpp>
+#include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/handles.hpp>
 
 namespace Rtx::Testing
 {

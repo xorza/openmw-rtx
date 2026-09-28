@@ -4,11 +4,11 @@
 #include <optional>
 #include <string_view>
 
-#include <components/rtx/cellworld.hpp>
-#include <components/rtx/frameworld.hpp>
-#include <components/rtx/pacing.hpp>
-#include <components/rtx/reconstruction.hpp>
-#include <components/rtx/renderer.hpp>
+#include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/frame/pacing.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/mirror/cells/cellworld.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 namespace MWRender
 {

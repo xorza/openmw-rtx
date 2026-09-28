@@ -8,7 +8,7 @@
 #include <string_view>
 #include <vector>
 
-#include <components/rtx/texturedata.hpp>
+#include <components/rtx/image/texturedata.hpp>
 
 namespace Rtx::Testing
 {

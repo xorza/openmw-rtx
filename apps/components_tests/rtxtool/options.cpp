@@ -19,7 +19,7 @@
 #include <apps/rtxtool/run.hpp>
 #include <apps/rtxtool/verbs.hpp>
 #include <components/files/configurationmanager.hpp>
-#include <components/rtx/renderer.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool

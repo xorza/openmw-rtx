@@ -12,7 +12,7 @@
 #include <utility>
 
 #include <components/files/conversion.hpp>
-#include <components/rtx/skylight.hpp>
+#include <components/rtx/environment/skylight.hpp>
 
 #include "benchrun.hpp"
 

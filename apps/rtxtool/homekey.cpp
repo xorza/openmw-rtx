@@ -14,9 +14,9 @@
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
-#include <components/rtx/contract.hpp>
-#include <components/rtx/renderer.hpp>
-#include <components/rtx/texels.hpp>
+#include <components/rtx/common/contract.hpp>
+#include <components/rtx/renderer/png.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 #include "model/benchrun.hpp"
 #include "run.hpp"

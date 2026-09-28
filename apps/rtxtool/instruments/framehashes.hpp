@@ -9,10 +9,10 @@
 #include <string_view>
 #include <vector>
 
-#include <components/rtx/framedigest.hpp>
-#include <components/rtx/frameimage.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/renderer/framedigest.hpp>
+#include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/digest.h>
-#include <components/rtx/upscale.hpp>
 
 #include "scenedigest.hpp"
 

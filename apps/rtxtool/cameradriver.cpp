@@ -24,7 +24,7 @@
 #include <components/esm/position.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/fallback/fallback.hpp>
-#include <components/rtx/skylight.hpp>
+#include <components/rtx/environment/skylight.hpp>
 
 #include "model/benchrun.hpp"
 #include "model/cameratrack.hpp"

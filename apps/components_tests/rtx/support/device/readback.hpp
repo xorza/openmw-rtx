@@ -9,8 +9,8 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtxvulkan/device.hpp>
-#include <components/rtxvulkan/image.hpp>
+#include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/memory/image.hpp>
 
 namespace Rtx::Testing
 {

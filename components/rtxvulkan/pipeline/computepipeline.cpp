@@ -1,0 +1,45 @@
+#include "computepipeline.hpp"
+
+#include <components/crashcatcher/crashnote.hpp>
+#include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/result.hpp>
+
+namespace Rtx
+{
+    ComputePipeline::ComputePipeline(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
+        std::uint32_t pushConstantBytes, const SharedSetLayouts& shared, const std::filesystem::path& module,
+        std::string_view name, std::span<const std::uint32_t> specialization)
+        : Pipeline(
+            PipelineLayout(device, bindings,
+                VkPushConstantRange{ .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT, .size = pushConstantBytes }, shared),
+            VK_PIPELINE_BIND_POINT_COMPUTE)
+    {
+        const Crash::NoteScope noted("compiling the pipeline \"{}\"", name);
+        const ShaderModule compiled = loadShaderModule(device, module);
+        const Specialization constants(specialization);
+
+        const VkComputePipelineCreateInfo pipeline{
+            .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+            // Asked for at creation, because it cannot be asked for afterwards. The cost is
+            // to compiling the pipeline and not to running it, and every pipeline here is made
+            // once — where the answer it buys is the only way to see a register count, which is
+            // what an occupancy figure is made of.
+            .flags = VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR,
+            .stage = {
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+                .module = compiled.get(),
+                .pName = "main",
+                .pSpecializationInfo = constants.getInfo(),
+            },
+            .layout = mLayout.getHandle(),
+        };
+        checkVk(vkCreateComputePipelines(device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr,
+                    mHandle.put(device.getHandle())),
+            "vkCreateComputePipelines");
+
+        device.setName(mHandle.get(), name);
+        device.reportPipeline(mHandle.get(), name);
+    }
+}

@@ -1,0 +1,288 @@
+#include "skybuilder.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <string>
+#include <string_view>
+
+#include <osg/Image>
+#include <osg/Vec2f>
+#include <osg/ref_ptr>
+
+#include <components/fallback/fallback.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/resource/scenemanager.hpp>
+#include <components/rtx/common/result.hpp>
+#include <components/rtx/image/imagedescription.hpp>
+#include <components/rtx/image/texels.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/scene/refusals.hpp>
+#include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/shaders/colour.h>
+#include <components/rtx/shaders/look.h>
+#include <components/rtx/shaders/scene.h>
+#include <components/rtx/shaders/sky.h>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
+
+#include "frameworld.hpp"
+#include "skylight.hpp"
+
+namespace Rtx
+{
+    namespace
+    {
+        /// Where a storm drives, as the pair a rotation about the zenith is written with: for a unit
+        /// `(x, y)` measured from north the cosine and the sine are `y` and `x`. A direction nobody
+        /// set is zero rather than north, so the shader is given north instead.
+        osg::Vec2f bearingOf(const osg::Vec3f& storm)
+        {
+            const osg::Vec2f flat(storm.y(), storm.x());
+
+            return flat.length2() > 0.0f ? flat : osg::Vec2f(1.0f, 0.0f);
+        }
+
+    }
+
+    std::uint32_t SkyContent::cloudsOf(std::uint32_t weather) const
+    {
+        if (weather >= mClouds.size() || mClouds[weather] == sNoIndex)
+            return Shaders::NO_TEXTURE;
+
+        return static_cast<std::uint32_t>(mClouds[weather]);
+    }
+
+    float SkyContent::meanOf(std::uint32_t weather) const
+    {
+        return weather < mCloudMean.size() ? mCloudMean[weather] : 0.0f;
+    }
+
+    float SkyContent::coverOf(std::uint32_t weather) const
+    {
+        return weather < mCloudCover.size() ? mCloudCover[weather] : 0.0f;
+    }
+
+    SkyContent addSkyContent(
+        SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes, ContentPreprocessor& content)
+    {
+        const VFS::Manager& vfs = *scenes.getVFS();
+
+        SkyContent loaded;
+
+        for (std::uint32_t weather = 0; weather < Shaders::WEATHER_COUNT; ++weather)
+        {
+            // A bare file name the archive holds under `textures/`, and empty where the weather
+            // names none, which the shipped fallbacks do for ash and blight.
+            const std::string_view sheet
+                = Fallback::Map::getString("Weather_" + std::string(weatherName(weather)) + "_Cloud_Texture");
+            if (sheet.empty())
+                continue;
+
+            // `Morrowind.ini` spells every deck `.tga` and every one ships as `.dds`, so a name
+            // joined by hand leaves the two weathers an importer writes with no deck, in silence.
+            // `correctTexturePath` is the same question `mwrender/sky.cpp` asks.
+            const VFS::Path::Normalized path
+                = Misc::ResourceHelpers::correctTexturePath(VFS::Path::toNormalized(sheet), vfs);
+            if (!vfs.exists(path))
+            {
+                scene.refusals().refuse(Refused::SkyLayer, path.value(), "the archives hold no such file");
+                continue;
+            }
+
+            // Opened and asked here, where the deck's mean and cover are read off the image anyway:
+            // a sheet the upload cannot take is left out here, refused as the sky layer it is, and
+            // takes no slot to stand in, which the device would read as no deck.
+            const Result<osg::ref_ptr<const osg::Image>, std::string> image
+                = openImage(*scenes.getImageManager(), path);
+            if (!image.isOk())
+            {
+                scene.refusals().refuse(Refused::SkyLayer, path.value(), image.error());
+                continue;
+            }
+            if (const Result<void, std::string> uploadable = checkUploadable(*image.value()); !uploadable.isOk())
+            {
+                scene.refusals().refuse(Refused::SkyLayer, path.value(), uploadable.error());
+                continue;
+            }
+
+            loaded.mClouds[weather] = scene.textures().take(path, *image.value());
+
+            // Read here and not on the frame that needs it. Averaging a 512-square sheet is a
+            // quarter of a million texels, and there are six of them; the image is the one the
+            // upload is about to take out of the same cache.
+            const MeanTexel painted = content.meanTexel(*image.value());
+            loaded.mCloudMean[weather] = painted.opaque() * Shaders::LUMINANCE_WEIGHTS;
+            loaded.mCloudCover[weather] = painted.mAlpha;
+        }
+
+        // The shape the deck hangs on is the mesh's, both of its numbers: how high the layer is
+        // in tiles of its own sheet, and how far it falls away over the ground it covers.
+        if (const Result<CloudShell, std::string> shell = readCloudShell(scenes, meshes.mClouds); shell.isOk())
+            loaded.mShell = shell.value();
+        else
+            scene.refusals().refuse(Refused::SkyLayer, meshes.mClouds.value(), shell.error());
+
+        // The night sky is the mesh's, every number of it: which sheet the field wears, how much
+        // sky a tile of it covers, where it fades out, and where the six patches sit.
+        if (const Result<NightSky, std::string> night
+            = readNightSky(scene, scenes, meshes.mStars, meshes.mStarsFallback, content);
+            night.isOk())
+            loaded.mNight = night.value();
+        else
+            scene.refusals().refuse(Refused::SkyLayer, meshes.mStars.value(), night.error());
+
+        return loaded;
+    }
+
+    void dropSkyContent(SceneDesc& scene, const SkyContent& content)
+    {
+        // `sNoIndex` is a drop of nothing: a weather the content files record no deck for holds
+        // none.
+        for (const Index deck : content.mClouds)
+            scene.textures().drop(deck);
+        dropNightSky(scene, content.mNight);
+    }
+
+    DeckLight deckLight(const Sun& sun, const osg::Vec3f& skyMean, std::span<const MoonPlacement, 2> moons)
+    {
+        // The sky's own radiance, less what the deck keeps of it. A layer under a hemisphere of
+        // radiance `L` receives `pi L` and spreads what leaves its base over the hemisphere below,
+        // so what comes back is `T * pi L / pi` — the `pi` divides out and a deck is simply a
+        // fraction of the sky it hides.
+        const osg::Vec3f fromSky = skyMean * Shaders::CLOUD_TRANSMISSION;
+
+        // A direction has to be turned into a level surface's share of it first. The layer is
+        // flat and the light is not overhead, so what lands is `E cos`, and what leaves the base is
+        // that spread over the lower hemisphere.
+        const auto sentDown = [](const osg::Vec3f& irradiance, const osg::Vec3f& towards) {
+            return irradiance * (std::max(towards.z(), 0.0f) * Shaders::INV_PI * Shaders::CLOUD_TRANSMISSION);
+        };
+
+        osg::Vec3f direct = sentDown(sun.mIrradiance, sun.mPosition);
+        for (const MoonPlacement& moon : moons)
+            direct += sentDown(moon.getPaintedIrradiance(), moon.mDirection);
+
+        return DeckLight{ .mLit = fromSky + direct, .mShadowed = fromSky };
+    }
+
+    Shaders::CloudDeck describeClouds(const CloudCrossing& clouds, const DeckLight& light, const SkyContent& textures)
+    {
+        const std::uint32_t weather = clouds.mWeather;
+        const std::uint32_t next = clouds.mNext;
+        const float blend = clouds.mBlend;
+        const osg::Vec3f& storm = clouds.mDirection;
+        const osg::Vec3f& nextStorm = clouds.mNextDirection;
+        const float scroll = clouds.mScroll;
+        const std::uint32_t slot = textures.cloudsOf(weather);
+
+        // Written so a NaN lands on nought, which `std::clamp` does not do: the blend comes off a
+        // content file by way of a division, and a NaN through `clamp` blacks out the sky.
+        const float mixed = blend > 0.0f ? (blend < 1.0f ? blend : 1.0f) : 0.0f;
+
+        // The level the sheet is read against crosses with the sheet, and falls back the way it
+        // does. Where the weather ahead names no deck the near sheet stands at both ends of the
+        // blend, on its own bearing, so what the shader reads is that sheet alone and so is the
+        // mean it is read against — and the shader mixes unconditionally, because this is where
+        // the fallback is made.
+        const std::uint32_t ahead = textures.cloudsOf(next);
+        const bool crosses = ahead != Shaders::NO_TEXTURE;
+        const auto crossing = [&](float from, float to) { return crosses ? from * (1.0f - mixed) + to * mixed : from; };
+
+        const float mean = crossing(textures.meanOf(weather), textures.meanOf(next));
+        const float cover = crossing(textures.coverOf(weather), textures.coverOf(next));
+
+        return Shaders::CloudDeck{
+            // A weather whose deck was never loaded has no deck, and neither has a sky whose mesh
+            // gave up no shape to hang one on — which is the same thing an interior has, said the
+            // same way.
+            .mOpacity = slot == Shaders::NO_TEXTURE || !(textures.mShell.mTiles.x() > 0.0f) ? 0.0f : 1.0f,
+
+            .mLit = light.mLit,
+            .mShadowed = light.mShadowed,
+            .mMean = mean,
+            .mCover = cover,
+
+            // A world height and a tile's own width, which is what anchors the sheet to the
+            // ground under it rather than to the eye. `Rtx::sCloudAltitude` is the chosen number and
+            // the mesh's own height in tiles is what turns it into a width.
+            .mAltitude = sCloudAltitude,
+            .mPerTile = textures.mShell.mTiles / sCloudAltitude,
+
+            .mBlend = mixed,
+            .mScroll = scroll,
+
+            // Turned to face where each weather is driving, which is what the engine does to
+            // each of its two cloud meshes: the deck of an ashstorm runs the way the ash does. A
+            // weather with nothing to drive leaves the direction due north, and this due north too.
+            .mBearing = bearingOf(storm),
+            .mNextBearing = bearingOf(crosses ? nextStorm : storm),
+
+            .mCurvature = textures.mShell.mCurvature,
+            .mRings = textures.mShell.mRings,
+
+            .mTexture = slot,
+            .mNext = crosses ? ahead : slot,
+        };
+    }
+
+    Shaders::StarField describeStars(float fade, float glare, float turn, const SkyContent& textures)
+    {
+        const float seen = fade * glare;
+
+        const bool drawn = seen > 0.0f && textures.mNight.mField != sNoIndex && textures.mNight.mTile > 0.0f;
+
+        return Shaders::StarField{
+            .mFade = seen,
+            .mGlow = textures.mNight.mGlow * seen,
+            .mTurn = turn,
+            .mTile = textures.mNight.mTile,
+            .mHorizon = textures.mNight.mHorizon,
+
+            // A sheet nobody can see is one nothing has to sample, and saying so here is what keeps
+            // the test out of the shader's hot path.
+            .mTexture = drawn ? static_cast<std::uint32_t>(textures.mNight.mField) : Shaders::NO_TEXTURE,
+        };
+    }
+
+    void describePatches(
+        float turn, const SkyContent& textures, std::span<Shaders::SkyPatch, Shaders::SKY_PATCH_COUNT> patches)
+    {
+        // Straight up with no texture, which is a patch the sky skips — and what an interior and a
+        // mesh with fewer than six of them both leave behind.
+        const Shaders::SkyPatch none = noPatch();
+
+        for (std::size_t patch = 0; patch < patches.size(); ++patch)
+        {
+            const NightSky::Patch& placed = textures.mNight.mPatches[patch];
+            if (placed.mTexture == sNoIndex || !(placed.mAngularRadius > 0.0f))
+            {
+                patches[patch] = none;
+                continue;
+            }
+
+            // Turned with the star sphere, because that is the mesh they are painted on: a rotation
+            // about the zenith, which is what the engine gives the whole night node.
+            const osg::Vec3f towards(placed.mDirection.x() * std::cos(turn) - placed.mDirection.y() * std::sin(turn),
+                placed.mDirection.x() * std::sin(turn) + placed.mDirection.y() * std::cos(turn), placed.mDirection.z());
+
+            // A canonical orientation, because the mesh's own is not recoverable from a centre and
+            // a radius. What a patch is painted with is a soft wash or a scatter of stars, neither
+            // of which reads as turned the wrong way; keeping `mUp` as near the zenith as the patch
+            // allows is what stops one drifting as the sphere rolls.
+            osg::Vec3f up = osg::Vec3f(0.0f, 0.0f, 1.0f) - towards * towards.z();
+            if (up.length2() < 1.0e-6f)
+                up = osg::Vec3f(0.0f, 1.0f, 0.0f);
+            up.normalize();
+
+            osg::Vec3f right = up ^ towards;
+            right.normalize();
+
+            patches[patch] = Shaders::SkyPatch{ .mDirection = towards,
+                .mRight = right,
+                .mUp = up,
+                .mLimb = std::sin(placed.mAngularRadius),
+                .mTexture = static_cast<std::uint32_t>(placed.mTexture) };
+        }
+    }
+}

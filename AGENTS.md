@@ -58,6 +58,10 @@ backend ever arrives.
   `MWRender::Renderer` — the seam, and `GlRenderer` beside upstream's files in `mwrender/`.
 - `docs/rtx/architecture.md` — the shape of the above as a reader meets it: the seam, the
   layers, who owns whom, and the order a frame is computed in. The headers hold the detail.
+- The core and the backend stand in folders by responsibility, in the order `architecture.md`
+  lists: a folder includes only the folders before it, and a folder inside another is a part of
+  it. `RtxSourceTreeTest` holds the order, so a file goes where what it includes allows, and a
+  folder that needs a later one is a file in the wrong folder or a file to split.
 
 ## Verification
 
@@ -116,10 +120,11 @@ the posture behind them does.
 
 - **`#pragma once`, and includes in five blocks** a blank line apart: the file's own header, the C++
   standard library, `<gtest/...>`, other libraries, `<components/...>` and `<apps/...>`, then quoted
-  local headers. `.clang-format` preserves the blocks and sorts inside each, so the order is the
-  author's and the sorting is not. A conditional `#include` goes last, and a block out of order
-  carries the comment saying why, the way `dlsspass.cpp` does for NGX. `components/rtx/shaders/*.h`
-  is the one exception to `#pragma once`, and `portable.h` says why.
+  local headers — of the file's own folder only, and any other folder is spelled from the root.
+  `.clang-format` preserves the blocks and sorts inside each, so the order is the author's and the
+  sorting is not. A conditional `#include` goes last, and a block out of order carries the comment
+  saying why, the way `dlsspass.cpp` does for NGX. `components/rtx/shaders/*.h` is the one exception
+  to `#pragma once`, and `portable.h` says why.
 - **Include what you name.** A file that spells `std::size_t` includes `<cstddef>`. A `.cpp` may
   lean on its own header for what that header's interface already needs, and on nothing else.
 - **The preprocessor switches only where nothing else can.** What systems spell differently goes
@@ -149,7 +154,7 @@ the posture behind them does.
 - **Whatever can be computed once is computed once** — at initialization or at load. A frame reads
   what it was handed.
 - **A shader's float arithmetic is the build's, not the driver's.** Every module is pinned
-  (`components/rtxvulkan/spirvpin.hpp`), so GLSL is written as usual; an operation the pinning
+  (`components/rtxvulkan/spirv/spirvpin.hpp`), so GLSL is written as usual; an operation the pinning
   refuses stops the build, and the message says what it is. `precise` is for a value two shaders
   must compute to the bit.
 - **One path through a shader.** A single computation covering every case beats a tree that skips

@@ -6,7 +6,7 @@
 #include <optional>
 #include <string_view>
 
-#include <components/rtx/latencyreport.hpp>
+#include <components/rtx/renderer/latencyreport.hpp>
 
 namespace MWRender
 {

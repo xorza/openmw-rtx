@@ -19,11 +19,11 @@
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/constants.hpp>
-#include <components/rtx/contract.hpp>
-#include <components/rtx/reconstruction.hpp>
-#include <components/rtx/renderer.hpp>
-#include <components/rtx/surfaceview.hpp>
-#include <components/rtx/upscale.hpp>
+#include <components/rtx/common/contract.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/surfaceview.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 #include "film.hpp"
 #include "model/blockfile.hpp"

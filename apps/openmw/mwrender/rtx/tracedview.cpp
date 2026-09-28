@@ -16,8 +16,8 @@
 
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/myguirtx/texture.hpp>
-#include <components/rtx/frameimage.hpp>
-#include <components/rtx/mirrorpass.hpp>
+#include <components/rtx/mirror/mirrorpass.hpp>
+#include <components/rtx/renderer/frameimage.hpp>
 #include <components/sceneutil/offscreenframing.hpp>
 
 #include "classmasks.hpp"

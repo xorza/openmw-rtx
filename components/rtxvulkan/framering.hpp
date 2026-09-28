@@ -8,16 +8,15 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/framedigest.hpp>
-#include <components/rtx/reconstruction.hpp>
-#include <components/rtx/renderer.hpp>
+#include <components/rtx/common/stepped.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/renderer/framedigest.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/counts.h>
-#include <components/rtx/stepped.hpp>
-
-#include "buffer.hpp"
-#include "frameslots.hpp"
-#include "gputimer.hpp"
-#include "growablebuffer.hpp"
+#include <components/rtxvulkan/device/gputimer.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/device/memory/frameslots.hpp>
+#include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 
 namespace Rtx
 {

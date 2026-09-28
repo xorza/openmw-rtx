@@ -6,7 +6,7 @@
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/openmw/mwrender/rtx/frametimer.hpp>
-#include <components/rtx/latencyreport.hpp>
+#include <components/rtx/renderer/latencyreport.hpp>
 
 namespace MWRender
 {

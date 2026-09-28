@@ -90,10 +90,10 @@ can be higher or lower than the estimate. Phase 2 gives the friend a release bui
 | part | file | what matters for stereo |
 |---|---|---|
 | shared camera | `components/rtx/shaders/camera.h` | `Camera` builds `mForward + mRight*x - mUp*y`, `x`,`y` in [-1, 1]. The frustum is symmetric. `screenOf` inverts it with an orthogonal basis. |
-| camera builders | `components/rtx/camera.hpp/.cpp` | `makeCameraFromView(view, verticalFov, w, h, near, far)`, `viewBasisOf`, `cameraAtFieldOfView` |
+| camera builders | `components/rtx/frame/camera.hpp/.cpp` | `makeCameraFromView(view, verticalFov, w, h, near, far)`, `viewBasisOf`, `cameraAtFieldOfView` |
 | frame block | `components/rtx/shaders/visibility.h` | 1320 bytes. Per eye: `mOrigin`, `mCamera`, `mArms`, `mArmsSpread`, `mCameraMotion`, `mPreviousForward/Right/Up`. All other fields describe the world. |
 | frame block binding | `lib/bindings.glsl` | one buffer, read as `frame` in every shader |
-| per-camera trace state | `components/rtxvulkan/tracechain.hpp` | `TraceChain`: G-buffer, fog volume, sprite bins, denoiser history. One per camera by design. The frame has `mFrame`, pictures have `mView`. |
+| per-camera trace state | `components/rtxvulkan/trace/tracechain.hpp` | `TraceChain`: G-buffer, fog volume, sprite bins, denoiser history. One per camera by design. The frame has `mFrame`, pictures have `mView`. |
 | per-frame renderer state | `vulkanrenderer.hpp` | per eye: `mFrame`, `mPreviousCamera`, `mUpscaler`, `mSum`, `mTargets`. World: `mWorld`, `mWaves`, `mRipples`, `mFog`, `mSkinPass`, the radiance cache. |
 | camera fill-in | `VulkanRenderer::sampleCamera` | jitter, motion vectors from `previous`, the arms' jitter |
 | where the game builds the camera | `RtxRenderer::describeTrace` | `makeCameraFromView(view, frame.mEye.mFieldOfView, renderW, renderH, …)` |

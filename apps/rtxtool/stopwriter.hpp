@@ -7,7 +7,7 @@
 #include <vector>
 
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
-#include <components/rtx/renderer.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 #include "instruments/frametimes.hpp"
 #include "model/benchrecord.hpp"

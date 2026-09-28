@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include <components/rtx/namedenum.hpp>
+#include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/shaders/visibility.h>
 
 namespace Rtx

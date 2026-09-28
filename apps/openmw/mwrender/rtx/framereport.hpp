@@ -5,13 +5,13 @@
 
 #include <osg/Vec3f>
 
-#include <components/rtx/contentstats.hpp>
-#include <components/rtx/extractionstats.hpp>
-#include <components/rtx/framespend.hpp>
-#include <components/rtx/frameworld.hpp>
-#include <components/rtx/latencyreport.hpp>
-#include <components/rtx/reconstruction.hpp>
-#include <components/rtx/renderer.hpp>
+#include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/latencyreport.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/visibility.h>
 
 namespace Rtx

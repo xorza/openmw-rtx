@@ -17,15 +17,15 @@
 #include <osg/Vec4f>
 
 #include <apps/rtxtool/instruments/scenedigest.hpp>
-#include <components/rtx/deformertable.hpp>
-#include <components/rtx/instancerecord.hpp>
-#include <components/rtx/lightbuilder.hpp>
-#include <components/rtx/material.hpp>
-#include <components/rtx/mesh.hpp>
-#include <components/rtx/runs.hpp>
-#include <components/rtx/scenedesc.hpp>
+#include <components/rtx/common/runs.hpp>
+#include <components/rtx/scene/deformertable.hpp>
+#include <components/rtx/scene/instancerecord.hpp>
+#include <components/rtx/scene/lightbuilder.hpp>
+#include <components/rtx/scene/material.hpp>
+#include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/shaders/skinning.h>
-#include <components/rtx/sprite.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace RtxTool
