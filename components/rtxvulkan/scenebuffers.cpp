@@ -114,8 +114,7 @@ namespace Rtx
 
     SceneBuffers::SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
         std::span<const InstanceRecord> records, const std::uint32_t slots)
-        : mDevice(device)
-        , mLayers(device, BufferKind::DeviceLocal, sTableFilledUsage, "layers")
+        : mLayers(device, BufferKind::DeviceLocal, sTableFilledUsage, "layers")
         , mMasks(device, BufferKind::DeviceLocal, sTableFilledUsage, "masks")
         , mTables([&](FrameSlot) { return Tables(device); })
     {
