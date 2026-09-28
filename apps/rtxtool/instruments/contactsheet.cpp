@@ -74,7 +74,8 @@ namespace RtxTool
             // The estimate the device makes as the texture arrives, made here for the sheet: the
             // host's `ShadingMap` is the reference that dispatch is held to, and neutral where the
             // texture is one nothing estimates.
-            const std::optional<Rtx::ShadingMap> painted = texture.hasNeutralShading() || !(strength > 0.0f)
+            const std::optional<Rtx::ShadingMap> painted
+                = texture.getCompanion() != Rtx::TextureCompanion::Shading || !(strength > 0.0f)
                 ? std::nullopt
                 : std::optional<Rtx::ShadingMap>(std::in_place, texture);
 

@@ -689,7 +689,7 @@ namespace Rtx::Testing
                       const Index map = scene.textures().add(
                           VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
                       const Index normalMap = scene.textures().add(
-                          VFS::Path::NormalizedView("base_n.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                          VFS::Path::NormalizedView("base_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
                       scene.addInstance(MeshInstance{ .mMesh = mesh,
                           .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse,
                               .mNormal = leaning ? normalMap : sNoIndex,
@@ -782,6 +782,112 @@ namespace Rtx::Testing
             EXPECT_EQ(lit(255, false, SurfaceView::Specular), osg::Vec3f(base, base, base));
         }
 
+        /// **A glossy surface that turns under a pixel is as rough as the turns it averages.** The
+        /// wall's corner normals are `(k x, -1, k z)` and not unit, so the normal the hit
+        /// interpolates is `(0, -1, 0)` at the middle of the frame and turns by exactly `k` a unit
+        /// along both of the wall's axes there. The eye a hundred units off looks at it square on,
+        /// so the footprint is a circle `w = 100 · spread` across, and a point spread evenly over it
+        /// sees slopes of `w² / 16 · k²` along each axis: `w² k² / 8` of variance over both, which
+        /// `widenedRoughness` adds to the painted `alpha²`. A wall that does not turn keeps the map's
+        /// roughness to the bit.
+        TEST_F(RtxVisibilityTest, aGlossySurfaceThatTurnsUnderAPixelIsAsRoughAsTheTurnsItAverages)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr float distance = 100.0f;
+            constexpr float painted = 128.0f / 255.0f;
+            constexpr std::array<std::uint8_t, 4> baseTexel{ 128, 128, 128, 255 };
+            constexpr std::array<std::uint8_t, 4> mapTexel{ 0, 128, 255, 255 };
+            const std::array<TextureData, 2> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1) };
+
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -distance, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            const auto roughnessUnder = [&](float turn) {
+                std::array<osg::Vec3f, 4> normals;
+                for (std::size_t at = 0; at < normals.size(); ++at)
+                    normals[at] = osg::Vec3f(turn * sWallQuad[at].x(), -1.0f, turn * sWallQuad[at].z());
+
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(MeshArrays{
+                    .mPositions = sWallQuad, .mNormals = normals, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                const Index map = scene.textures().add(
+                    VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                scene.addInstance(MeshInstance{
+                    .mMesh = mesh, .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
+
+                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mShow = SurfaceView::Roughness });
+                return frame.at(centre);
+            };
+
+            const float footprint = distance * camera.mCamera.mSpreadAngle;
+            for (const float turn : { 0.1f, 0.2f })
+                EXPECT_NEAR(roughnessUnder(turn),
+                    Shaders::widenedRoughness(painted, footprint * footprint * turn * turn / 8.0f), 1e-4f)
+                    << "turning " << turn << " a unit, under a footprint " << footprint << " across";
+
+            EXPECT_EQ(roughnessUnder(0.0f), painted) << "a wall that does not turn";
+            EXPECT_GT(roughnessUnder(0.2f), roughnessUnder(0.1f) + 0.01f) << "the more it turns, the rougher";
+        }
+
+        /// **A glossy surface is as rough as its normal map's level has lost**, where the trace reads
+        /// the map at a level that averages its normals. The map is two texels square, leaning
+        /// forty-five degrees one way and the other in bytes that mirror each other, so its second
+        /// level is their mean, a loss of a half: the byte of 221 `RtxNormalSpreadPassTest` works
+        /// out, and a lost roughness of `221 / 255`. A cone read eight levels past the map's finest
+        /// takes all of it, `widenedRoughness(0.502, (221 / 255)⁴)`, and one read eight levels
+        /// short of it none. The wall is flat, so its bend loses nothing to add to either.
+        TEST_F(RtxVisibilityTest, aGlossySurfaceIsAsRoughAsItsNormalMapsLevelHasLost)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr float painted = 128.0f / 255.0f;
+            constexpr std::array<std::uint8_t, 4> baseTexel{ 128, 128, 128, 255 };
+            constexpr std::array<std::uint8_t, 4> mapTexel{ 0, 128, 255, 255 };
+            constexpr std::array<std::uint8_t, 16> leaning{ 218, 128, 218, 255, 37, 128, 218, 255, 37, 128, 218, 255,
+                218, 128, 218, 255 };
+
+            TestTexture relief;
+            paintFlat(relief, 2, leaning, "leaning");
+            relief.mData.mSlot = 2;
+            const std::array<TextureData, 3> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1),
+                relief.mData };
+
+            const osg::Vec3f normal(0.0f, -1.0f, 0.0f);
+            const std::array<osg::Vec3f, 4> normals{ normal, normal, normal, normal };
+            const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
+            const std::array<osg::Vec4f, 4> tangents{ tangent, tangent, tangent, tangent };
+
+            SceneDesc scene;
+            const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
+                .mNormals = normals,
+                .mTexCoords = sQuadUv,
+                .mTangents = tangents,
+                .mIndices = sQuadIndices });
+            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+            const Index map = scene.textures().add(
+                VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+            const Index normalMap = scene.textures().add(
+                VFS::Path::NormalizedView("leaning_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
+            scene.addInstance(MeshInstance{ .mMesh = mesh,
+                .mMaterial
+                = scene.addMaterial(Material{ .mDiffuse = diffuse, .mNormal = normalMap, .mSpecular = map }) });
+
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            const auto roughnessAt = [&](float levels) {
+                return shoot(
+                    scene, textures, camera, size, Shot{ .mLevelEpsilon = levels, .mShow = SurfaceView::Roughness })
+                    .at(centre);
+            };
+
+            const float lost = 221.0f / 255.0f;
+            EXPECT_NEAR(roughnessAt(8.0f), Shaders::widenedRoughness(painted, lost * lost * lost * lost), 1e-4f)
+                << "read past the map's finest level";
+            EXPECT_EQ(roughnessAt(-8.0f), painted) << "and at it, where nothing is averaged";
+        }
+
         /// **A map that stands in is read as no map**, in every role an object's map has: a normal
         /// map, a specular map, a dark map, an emissive map and an environment sheet. The slot is
         /// described as the stand-in, as the builder describes a file that does not read and as the
@@ -835,10 +941,12 @@ namespace Rtx::Testing
                     .mTexCoords = sQuadUv,
                     .mTangents = tangents,
                     .mIndices = sQuadIndices });
-                const bool data = role == Role::Normal || role == Role::Specular;
+                const TextureEncoding encoding = role == Role::Normal ? TextureEncoding::Normal
+                    : role == Role::Specular                          ? TextureEncoding::Data
+                                                                      : TextureEncoding::Colour;
                 const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-                const Index map = scene.textures().add(VFS::Path::NormalizedView("map.dds"), TextureWrap::Repeat,
-                    data ? TextureEncoding::Data : TextureEncoding::Colour);
+                const Index map
+                    = scene.textures().add(VFS::Path::NormalizedView("map.dds"), TextureWrap::Repeat, encoding);
                 const Index behind = scene.textures().add(
                     VFS::Path::NormalizedView("behind_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
 

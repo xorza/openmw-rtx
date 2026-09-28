@@ -1,0 +1,85 @@
+#version 460
+
+#extension GL_EXT_samplerless_texture_functions : require
+#extension GL_GOOGLE_include_directive : require
+
+// A normal map's spread, measured on the device as it arrives.
+//
+// **What each level of the map has lost of the normals it averages**, as the roughness that loss
+// stands for (`normalSpreadSlopes`): a level's texel is the mean of the texels over it, and where
+// they point different ways the mean is shorter than one, which is how much of the relief a cone
+// that reads the level can no longer show. `NormalSpreadPass` says why it is kept.
+//
+// **The means are carried, and the loss beside them**, because a spread is not an average of
+// spreads: four texels that each agree with themselves and disagree with each other have a spread
+// none of the four has. The loss is `1 - |mean|²`, and the variance of a set of vectors is what
+// adds it up level by level exactly: the mean of the four children's losses, and what the four
+// means lose to each other, `Σ |mᵢ - mⱼ|² / 32` over the sixteen ordered pairs. That is a sum of
+// differences, so normals that agree lose nought to the bit, where `1 - |mean|²` taken from the
+// mean's own length loses a float's last place. The first level boxes the map's own texels,
+// decoded as the trace decodes them and made unit, which lose nothing of their own.
+
+#include "brdf.h"
+#include "normalspread.h"
+#include "sets.h"
+
+#include "lib/normaldecode.glsl"
+#include "lib/pixels.glsl"
+
+layout(local_size_x = NORMAL_SPREAD_WORKGROUP, local_size_y = NORMAL_SPREAD_WORKGROUP) in;
+
+/// The normal map, at its finest level.
+layout(set = SET_PASS, binding = NORMALSPREAD_BIND_SOURCE) uniform texture2D source;
+
+/// The means of the level before the one written. Bound to the level written for the first
+/// dispatch, which reads the map instead.
+layout(set = SET_PASS, binding = NORMALSPREAD_BIND_ABOVE, NORMAL_SPREAD_MEAN_FORMAT) uniform readonly image2D above;
+
+/// The means of the level written, for the dispatch after this one.
+layout(set = SET_PASS, binding = NORMALSPREAD_BIND_MEAN, NORMAL_SPREAD_MEAN_FORMAT) uniform writeonly image2D mean;
+
+/// What the level written has lost, which the trace reads.
+layout(set = SET_PASS, binding = NORMALSPREAD_BIND_SPREAD, NORMAL_SPREAD_FORMAT) uniform writeonly image2D spread;
+
+layout(push_constant, scalar) uniform Push
+{
+    NormalSpreadConstants level;
+};
+
+void main()
+{
+    const uvec2 texel = gl_GlobalInvocationID.xy;
+    if (outsideOf(texel, uvec2(level.mWidth, level.mHeight)))
+        return;
+
+    // The level before's last texel serves twice along an odd edge, as `mipchain.comp` halves one.
+    // Which level this is holds for the whole dispatch, so the two reads are a branch no lane
+    // diverges on.
+    const bool first = level.mLevel == 1u;
+    const ivec2 last = first ? textureSize(source, 0) - 1 : imageSize(above) - 1;
+
+    vec4 child[4];
+    for (int at = 0; at < 4; ++at)
+    {
+        const ivec2 from = min(ivec2(2u * texel.x + uint(at & 1), 2u * texel.y + uint(at >> 1)), last);
+        if (first)
+            child[at] = vec4(normalize(decodeNormal(texelFetch(source, from, 0).rgb)), 0.0);
+        else
+            child[at] = imageLoad(above, from);
+    }
+
+    const vec3 averaged = (child[0].xyz + child[1].xyz + child[2].xyz + child[3].xyz) / 4.0;
+    float apart = 0.0;
+    for (int one = 0; one < 4; ++one)
+        for (int other = one + 1; other < 4; ++other)
+        {
+            const vec3 between = child[one].xyz - child[other].xyz;
+            apart += dot(between, between);
+        }
+
+    // Each unordered pair twice over the sixteen, so the thirty-second is a sixteenth of these.
+    const float loss = (child[0].w + child[1].w + child[2].w + child[3].w) / 4.0 + apart / 16.0;
+
+    imageStore(mean, ivec2(texel), vec4(averaged, loss));
+    imageStore(spread, ivec2(texel), vec4(slopeRoughness(normalSpreadSlopes(loss)), 0.0, 0.0, 0.0));
+}

@@ -482,7 +482,7 @@ namespace Rtx::Testing
                 const TextureRow& normal = mScene.textures().getRows()[layers[1].mNormal];
                 EXPECT_EQ(normal.mPath, "textures/rock_nh.dds");
                 EXPECT_EQ(normal.mWrap, TextureWrap::Repeat);
-                EXPECT_EQ(normal.mEncoding, TextureEncoding::Data);
+                EXPECT_EQ(normal.mEncoding, TextureEncoding::Normal);
 
                 // Each slot keeps the image the reader opened on its thread, which is what the
                 // upload reads: the frame it lands on opens no file.

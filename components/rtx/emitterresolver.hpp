@@ -141,7 +141,7 @@ namespace Rtx
         void takeSprite(const osgParticle::ParticleSystem& particles, HeldSprite& held);
 
         /// The one take a sprite makes, as a `RefusedTakes` bit.
-        static constexpr std::uint8_t sSpriteTake = 1;
+        static constexpr std::uint16_t sSpriteTake = 1;
 
         /// Gives back the slots `held` took, where it took any.
         void releaseSprite(const HeldSprite& held);

@@ -13,6 +13,7 @@
 #include "bindings.glsl"
 #include "geometry.glsl"
 #include "ground.glsl"
+#include "normaldecode.glsl"
 
 /// What the hit's own triangle contributes to a mip level, before any texture is named.
 ///
@@ -72,6 +73,35 @@ SurfaceCone surfaceConeAt(TriangleEdges edges, vec3 direction)
     const float squared = area * area;
     return SurfaceCone(area, facing, cross(edges.mSecond, crossed) / squared, cross(crossed, edges.mFirst) / squared,
         cross(normal, along), along / facing);
+}
+
+/// The variance of the shading normal's slopes over the ellipse a cone `footprint` wide makes on
+/// the surface, both axes together, which is what `widenedRoughness` takes.
+///
+/// **Exact for the normal a hit shades with**, which is `m / |m|` for `m` the corner normals
+/// interpolated by the corner weights. Across the triangle `m` moves with the weights, so its rate
+/// along a step `d` over the surface is `s₂ (∂w₂·d) + s₃ (∂w₃·d)`: the difference at each of the
+/// second and third corner times how fast that corner's weight changes. The unit normal's rate is
+/// that with the part along the normal taken out, over `|m|`. A point spread evenly over an ellipse
+/// whose axes are `a` and `b` long has a second moment of `(aaᵀ + bbᵀ) / 16`, so the variance is
+/// `w² / 16` times the squared rate along the two axes `SurfaceCone` gives for a cone one unit wide,
+/// the long one `1 / facing` of the short.
+///
+/// @param secondTurn,thirdTurn,interpolated `Hit::mSecondTurn`, `mThirdTurn` and `mShading`: the
+///        differences and `m`, in world space and not unit. Nought where the mesh has no normals,
+///        which bends nothing.
+float slopesUnder(SurfaceCone cone, vec3 secondTurn, vec3 thirdTurn, vec3 interpolated, float footprint)
+{
+    // Floored and not tested: a mesh with no normals has no differences either, and bends nothing.
+    const float squared = max(dot(interpolated, interpolated), 1e-20);
+    const vec3 normal = interpolated * inversesqrt(squared);
+    const vec3 across
+        = secondTurn * dot(cone.mToSecond, cone.mAcross) + thirdTurn * dot(cone.mToThird, cone.mAcross);
+    const vec3 along = secondTurn * dot(cone.mToSecond, cone.mAlong) + thirdTurn * dot(cone.mToThird, cone.mAlong);
+    const vec3 bentAcross = across - normal * dot(normal, across);
+    const vec3 bentAlong = along - normal * dot(normal, along);
+
+    return footprint * footprint / 16.0 * (dot(bentAcross, bentAcross) + dot(bentAlong, bentAlong)) / squared;
 }
 
 /// A base at or below which every texture reads its finest level, whatever its own resolution adds.
@@ -277,19 +307,25 @@ vec4 sampleDiffuse(uint slot, TexturePoint point)
     return textureLod(textures[nonuniformEXT(slot)], point.mAt, coneLod(slot, point));
 }
 
-/// A tangent-space normal off a normal map, read at the level its cone can resolve: `2 rgb - 1`, as
-/// `objects.frag` decodes it, and not unit — the frame it is carried through is normalised after.
-///
-/// **A map of two channels reads nought in blue**, and no map of three holds that: its blue is the
-/// normal's height over the surface, from a half up. So a blue of nought is a BC5 or an RG map, and
-/// the third is rebuilt from the two, as the rasterizer rebuilds it for exactly those formats.
+/// A tangent-space normal off a normal map, read at the level its cone can resolve and decoded as
+/// `decodeNormal` says, not unit — the frame it is carried through is normalised after.
 vec3 sampleNormalMap(uint slot, TexturePoint point)
 {
-    const vec3 stored = sampleDiffuse(slot, point).rgb;
-    const vec2 across = stored.xy * 2.0 - 1.0;
-    const float up = stored.z > 0.0 ? stored.z * 2.0 - 1.0 : sqrt(max(1.0 - dot(across, across), 0.0));
+    return decodeNormal(sampleDiffuse(slot, point).rgb);
+}
 
-    return vec3(across, up);
+/// The slope variance a normal map's level has lost under the cone that reads it: its spread
+/// (`NormalSpreadPass`), at the level `sampleNormalMap` reads the map at, which is what
+/// `widenedRoughness` takes. **A level down, because the spread begins at the map's second level**:
+/// its first averages nothing and loses nothing, so the chain stores none of it, and between the
+/// two the loss rises from nought as a filter between the two levels would carry it.
+float normalMapSlopes(uint slot, TexturePoint point)
+{
+    const float level = coneLod(slot, point);
+    const float lost = textureLod(companions[nonuniformEXT(slot)], point.mAt, max(level - 1.0, 0.0)).r;
+    const float roughness = lost * clamp(level, 0.0, 1.0);
+
+    return roughness * roughness * roughness * roughness;
 }
 
 /// A `_spec` map's metalness and perceptual roughness — `GpuMaterial::mSpecular`. **The occlusion

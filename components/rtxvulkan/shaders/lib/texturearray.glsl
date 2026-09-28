@@ -28,14 +28,18 @@
 /// at all until it does; `spirv-val` passes either way and the validation layers say nothing.
 layout(set = SET_TEXTURES, binding = TEXTURE_BIND_IMAGES) uniform sampler2D textures[];
 
-/// What each texture already has painted into it, `SHADING_EXTENT` squared, at the slot of the
-/// texture it was measured on and through the same sampler, which wraps as the texture does.
+/// What was measured on each texture as it arrived (`Rtx::TextureCompanion`), at the slot of the
+/// texture it was measured on and through the same sampler, which wraps as the texture does: for a
+/// colour, the light painted into it, `SHADING_EXTENT` squared and stored over the range
+/// `SHADING_FLOOR` to `SHADING_CEILING`, which `paintedLight` decodes; for a normal map, what each
+/// of its levels lost, which `normalMapSlopes` reads. What a slot holds is the role its texture was
+/// taken for, so each reader asks the one it reads.
 ///
 /// **A binding of its own and not slots between the textures**, because `coneLod` measures the
-/// array it reads for the level a cone resolves, and a map interleaved with the textures is one it
-/// would measure. A slot with a texture always has a map, neutral where nothing could estimate one.
-/// Stored over the range `SHADING_FLOOR` to `SHADING_CEILING`, which `paintedLight` decodes.
-layout(set = SET_TEXTURES, binding = TEXTURE_BIND_SHADING) uniform sampler2D shadingMaps[];
+/// array it reads for the level a cone resolves, and a companion interleaved with the textures is
+/// one it would measure. A slot with a texture always has a companion, the neutral shading map
+/// where nothing is measured.
+layout(set = SET_TEXTURES, binding = TEXTURE_BIND_COMPANIONS) uniform sampler2D companions[];
 
 /// The same textures at the same slots, through samplers with anisotropic filtering on: what a read
 /// along a footprint (`textureGrad`) goes through, and nothing else.

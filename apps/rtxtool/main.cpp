@@ -902,15 +902,7 @@ namespace RtxTool
             pacing.mStep = *framed.mSetup.mStep;
             pacing.mSpeed = variables["speed"].as<float>();
             pacing.mEase = variables["ease"].as<float>();
-            if (variables.count("length") > 0)
-            {
-                if (!variables["speed"].defaulted())
-                    throw std::runtime_error("--length sets the speed, so --speed cannot be named beside it");
-                pacing.mLength = variables["length"].as<float>();
-                if (!(*pacing.mLength > 0.0f) || !std::isfinite(*pacing.mLength))
-                    throw std::runtime_error(
-                        std::format("--length is {}, which is no length of film", *pacing.mLength));
-            }
+            pacing.mLength = filmLengthFrom(variables);
             pacing.mPanSeconds = variables["pan-seconds"].as<float>();
             pacing.mHourSeconds = variables["hour-seconds"].as<float>();
             pacing.mCrossingSeconds = variables["crossing"].as<float>();

@@ -162,6 +162,7 @@ set(RTX_GPU_TEST_FILES
     rtx/guitextures.cpp
     rtx/memory.cpp
     rtx/mipchainpass.cpp
+    rtx/normalspreadpass.cpp
     rtx/pinnedarithmetic.cpp
     rtx/pipelinecache.cpp
     rtx/probe.cpp

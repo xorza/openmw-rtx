@@ -50,6 +50,16 @@ def carried_ngx(entries: list[str]) -> list[str]:
     return carried
 
 
+def configured_from(directory: Path, digest: str) -> bool:
+    """Whether `directory` stands configured from the preset `digest` names, so a build there need
+    only bring what CMake wrote up to date: the stamp of a configure that succeeded from that digest,
+    and both halves of what the configure left — the cache the regeneration reads and the Ninja file
+    it writes. A directory missing either is configured again, whatever its stamp says."""
+    stamp = directory / CONFIGURED_FROM
+    return (stamp.is_file() and stamp.read_text().strip() == digest
+            and (directory / "CMakeCache.txt").is_file() and (directory / "build.ninja").is_file())
+
+
 class Build:
     def __init__(self, flavour: str):
         if flavour not in FLAVOURS:
@@ -103,8 +113,10 @@ class Build:
         """**Configured again whenever what its preset expands from changes, and from nothing
         else.** A directory configured once and never again keeps the cache it was first given, so a
         preset edited later never reached it: `build-release` went on building the tests its preset
-        had since turned off. The digest is written once a configure has succeeded, so a failed one
-        is tried again rather than handed to Ninja.
+        had since turned off. **The stamp says a configure succeeded, and nothing more**: removed as
+        one starts and written once it has succeeded, so one that failed or was stopped is tried
+        again rather than handed to Ninja — a fresh configure drops the cache first, and an old
+        stamp beside no cache sent the build to a regeneration with nothing to regenerate from.
 
         **Fresh, and not the preset laid over the old cache**: a variable a preset stops naming would
         otherwise keep the value it last set. What is carried over is NGX, as every `NGX_` entry the
@@ -116,9 +128,8 @@ class Build:
         translation rule writes into the tree, so Ninja logs them as outputs, and both delete them."""
         env = self.env
         digest = presets.digest(env)
-        configured_from = self.dir / CONFIGURED_FROM
-        configured = configured_from.read_text().strip() if configured_from.is_file() else None
-        if (self.dir / "build.ninja").is_file() and configured == digest:
+        stamp = self.dir / CONFIGURED_FROM
+        if configured_from(self.dir, digest):
             # What CMake wrote is brought up to date with the CMake files as Ninja would before a
             # build, so what is asked of it before one — the tests it has — is not a stale answer.
             run(["cmake", "--build", self.dir, "--target", "build.ninja"], env=env, stdout=subprocess.DEVNULL)
@@ -141,6 +152,7 @@ class Build:
             sdl = deps.windows_sdl(windows_deps)
             qt = deps.windows_qt(env["QT_VER"]) if self.flavour in QT_FLAVOURS else None
 
+        stamp.unlink(missing_ok=True)
         run(["cmake", "-S", ROOT, "--preset", self.preset, "--fresh", *carried], env=env, stdout=stdout)
 
         if WINDOWS:
@@ -148,7 +160,7 @@ class Build:
             if qt is not None:
                 self._place_windows_qt(qt)
 
-        configured_from.write_text(digest + "\n")
+        stamp.write_text(digest + "\n")
 
     def _place_windows_runtime(self, windows_deps: Path, sdl: Path) -> None:
         """**What vcpkg's own copy step misses, placed the way upstream's MSVC script places it.**

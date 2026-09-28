@@ -306,7 +306,7 @@ namespace Rtx
         HeldTexture& held = known->second;
         Index& slot = held.mSlots[static_cast<std::size_t>(encoding)][static_cast<std::size_t>(use.mWrap)];
         const std::uint64_t freed = mScene.textures().getFreedCount();
-        const std::uint8_t bit = static_cast<std::uint8_t>(
+        const auto bit = static_cast<std::uint16_t>(
             1u << (static_cast<std::size_t>(encoding) * sTextureWrapCount + static_cast<std::size_t>(use.mWrap)));
         if (slot == sNoIndex && !held.mRefused.stands(bit, freed))
         {
@@ -432,7 +432,7 @@ namespace Rtx
 
         // The companion maps are data, and a specular map is read only in the layout the player
         // named: a classic one read as metalness and roughness is wrong, so none is read.
-        material.mNormal = takeTexture(described->getTextureUse(SurfaceMap::Normal), worn, TextureEncoding::Data);
+        material.mNormal = takeTexture(described->getTextureUse(SurfaceMap::Normal), worn, TextureEncoding::Normal);
         if (mSpecularLayout == SpecularLayout::MetalRoughness)
             material.mSpecular
                 = takeTexture(described->getTextureUse(SurfaceMap::Specular), worn, TextureEncoding::Data);

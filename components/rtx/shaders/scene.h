@@ -68,9 +68,9 @@ namespace Rtx::Shaders
     ///
     /// **Named on both sides because a swap would be silent.** All are `TEXTURE_SLOTS` combined
     /// image samplers, so a layout and a shader that disagreed on which is which would pass every
-    /// check the layers make, and the trace would sample shading maps as colour.
+    /// check the layers make, and the trace would sample companions as colour.
     const uint TEXTURE_BIND_IMAGES = 0;
-    const uint TEXTURE_BIND_SHADING = 1;
+    const uint TEXTURE_BIND_COMPANIONS = 1;
     const uint TEXTURE_BIND_ALONG = 2;
 
 /// What every texture this renderer writes is stored as: a chain a file did not carry, a sprite's

@@ -33,9 +33,16 @@ struct SurfaceResponse
 };
 
 /// A pixel with no surface behind it: the sky, or a ray that reached nothing.
+///
+/// **The upscaler's own values for one, because the record is in its terms**: the DLSS-RR
+/// integration guide gives the sky a diffuse albedo of a half and a specular albedo, a normal and a
+/// roughness of nought (§3.4.1 to §3.4.4). An albedo of nought left Ray Reconstruction nothing to
+/// divide the sky's colour by. Nothing of this renderer's own reads the sky's albedo or roughness:
+/// the composite multiplies it into a bounce of nought, and the filters know the sky by its normal,
+/// which stays nought.
 SurfaceResponse noResponse()
 {
-    return SurfaceResponse(vec3(0.0), vec3(0.0), vec3(0.0), 1.0);
+    return SurfaceResponse(vec3(0.0), vec3(0.5), vec3(0.0), 0.0);
 }
 
 /// What a water surface reflects, which is not where the water is.

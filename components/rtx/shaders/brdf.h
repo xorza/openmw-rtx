@@ -147,6 +147,36 @@ namespace Rtx::Shaders
         return min(sqrt(sqrt(max(slopes, 0.0f))), 1.0f);
     }
 
+    /// The slope variance, both axes together, that unit normals stand for whose mean's squared
+    /// length falls short of one by `loss`: what a normal map's level has lost of the normals it
+    /// averages (Toksvig, *Mipmapping Normal Maps*, 2005). Read through the von Mises–Fisher lobe
+    /// those normals are fitted to (Han et al., *Frequency Domain Normal Map Filtering*, 2007),
+    /// whose sharpness is `(3r − r³) / (1 − r²)` for a mean of length `r` and whose slopes spread
+    /// `1 / sharpness` along each axis: `2 loss / (r (2 + loss))` with `r = √(1 − loss)`.
+    ///
+    /// **In the loss and not the length**, because a mean of normals that agree is one long only to
+    /// a float's last place, and that last place, taken to the fourth root a roughness is, is a
+    /// lost roughness of two hundredths on every flat map. Nought where the normals agree, to the
+    /// bit, and past GGX's widest where they cancel.
+    RTX_SHADER float normalSpreadSlopes(float loss)
+    {
+        const float lost = clamp(loss, 0.0f, 1.0f);
+        const float r = max(sqrt(1.0f - lost), 1e-4f);
+        return 2.0f * lost / (r * (2.0f + lost));
+    }
+
+    /// `roughness` widened by `lost` of slope variance, both axes together: what a footprint
+    /// averages of a surface whose normal turns under it, as a mesh's bend or a normal map's spread
+    /// (Tokuyoshi and Kaplanyan, *Improved Geometric Specular Antialiasing*, I3D 2019). Independent
+    /// slopes' variances add, so `alpha²` takes the lost slopes on and `slopeRoughness` turns the sum
+    /// back. **The roughness itself where nothing is lost**, selected and not recomputed, so a
+    /// surface that loses nothing keeps the roughness it was painted with to the bit.
+    RTX_SHADER float widenedRoughness(float roughness, float lost)
+    {
+        const float alpha = roughness * roughness;
+        return lost > 0.0f ? slopeRoughness(alpha * alpha + lost) : roughness;
+    }
+
     /// How wide, across, the cone is that the lobe's reflected rays fill down to half their peak
     /// density, at normal incidence — or `widest`, where that is narrower.
     ///

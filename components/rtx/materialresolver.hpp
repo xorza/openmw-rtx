@@ -158,7 +158,7 @@ namespace Rtx
         /// What the scene knows one image as under each encoding and wrap, and whether its alpha
         /// ever reaches solid, unset until something asks, because the walk over its texels is only
         /// worth doing for a material that has to tell a wisp from a mask. `Known::mIndex` stays
-        /// unset: the slots are eight, and the sweep reads the epoch and the holds alone.
+        /// unset: the slots are twelve, and the sweep reads the epoch and the holds alone.
         struct HeldTexture : Known
         {
             using Slots = std::array<std::array<Index, sTextureWrapCount>, sTextureEncodingCount>;
@@ -181,7 +181,7 @@ namespace Rtx
             /// path to be refused. Per slot and not per image, because another wrap of the same
             /// file may stand already, and the table answers that one full or not.
             RefusedTakes mRefused;
-            static_assert(sTextureEncodingCount * sTextureWrapCount <= 8, "a refusal bit per slot");
+            static_assert(sTextureEncodingCount * sTextureWrapCount <= 16, "a refusal bit per slot");
 
             /// Its mean texel in the process's cache, `MeanTexels`, or null until an additive
             /// material asks. Null too for an image that is not a file, whose mean the cache

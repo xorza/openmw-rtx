@@ -118,7 +118,8 @@ namespace Rtx
 
         /// **A companion map is described as data: its blocks without the curve, and no painted light
         /// taken out of it**, because a normal map is no picture of anything lit. A two-channel file is
-        /// taken as data and refused as a colour, where it has lost its blue.
+        /// taken as data and refused as a colour, where it has lost its blue. Taken as a normal map, it
+        /// is stored as data is and measured for the spread of its levels instead.
         TEST(RtxTextureBuilderTest, dataIsDescribedWithoutTheCurveAndWithNeutralShading)
         {
             std::vector<Rtx::MipLevel> levels;
@@ -129,12 +130,19 @@ namespace Rtx
                                                 .value();
             EXPECT_EQ(normal.mFormat, Rtx::TextureFormat::Bc3Unorm);
             EXPECT_EQ(normal.mEncoding, Rtx::TextureEncoding::Data);
-            EXPECT_TRUE(normal.hasNeutralShading());
+            EXPECT_EQ(normal.getCompanion(), Rtx::TextureCompanion::Neutral);
+
+            const Rtx::TextureData mapped = describeImage(
+                *makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT), levels, texels, Rtx::TextureEncoding::Normal)
+                                                .value();
+            EXPECT_EQ(mapped.mFormat, Rtx::TextureFormat::Bc3Unorm) << "stored as data is";
+            EXPECT_EQ(mapped.getCompanion(), Rtx::TextureCompanion::Spread) << "and measured for its spread";
 
             const Rtx::TextureData colour
                 = describeImage(*makeBlock(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT), levels, texels).value();
             EXPECT_EQ(colour.mEncoding, Rtx::TextureEncoding::Colour);
-            EXPECT_FALSE(colour.hasNeutralShading()) << "a colour file's painted light is estimated";
+            EXPECT_EQ(colour.getCompanion(), Rtx::TextureCompanion::Shading)
+                << "a colour file's painted light is estimated";
 
             EXPECT_EQ(
                 describeImage(*makeBlock(GL_COMPRESSED_RED_GREEN_RGTC2_EXT), levels, texels, Rtx::TextureEncoding::Data)
@@ -589,7 +597,7 @@ namespace Rtx
             EXPECT_EQ(described.getDescriptions()[0].mFrom, source);
             EXPECT_TRUE(described.getDescriptions()[0].mBytes.empty()) << "a bake carries no bytes";
             EXPECT_TRUE(described.getDescriptions()[0].mLevels.empty()) << "a bake is shaped like its source";
-            EXPECT_TRUE(described.getDescriptions()[0].hasNeutralShading());
+            EXPECT_EQ(described.getDescriptions()[0].getCompanion(), Rtx::TextureCompanion::Neutral);
             EXPECT_TRUE(described.getRefusals().empty());
         }
 
@@ -625,7 +633,7 @@ namespace Rtx
             EXPECT_EQ(described.getDescriptions()[0].mFormat, Rtx::TextureFormat::Rgba8Srgb);
             EXPECT_TRUE(described.getDescriptions()[0].mBytes.empty()) << "a composite carries no bytes";
             EXPECT_TRUE(described.getDescriptions()[0].mLevels.empty()) << "a composite is shaped by the pass";
-            EXPECT_TRUE(described.getDescriptions()[0].hasNeutralShading());
+            EXPECT_EQ(described.getDescriptions()[0].getCompanion(), Rtx::TextureCompanion::Neutral);
             EXPECT_TRUE(described.getRefusals().empty());
 
             queue.releaseFinished();
@@ -660,7 +668,8 @@ namespace Rtx
             EXPECT_EQ(described.getDescriptions()[0].mBytes.data(), reinterpret_cast<const std::byte*>(image->data()))
                 << "the file's own bytes, spanned and not copied";
             EXPECT_EQ(described.getDescriptions()[0].mSource, Rtx::TextureSource::File);
-            EXPECT_FALSE(described.getDescriptions()[0].hasNeutralShading()) << "a file is estimated on the device";
+            EXPECT_EQ(described.getDescriptions()[0].getCompanion(), Rtx::TextureCompanion::Shading)
+                << "a file is estimated on the device";
         }
     }
 }

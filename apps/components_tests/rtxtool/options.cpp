@@ -1,5 +1,6 @@
 #include <array>
 #include <filesystem>
+#include <optional>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -43,6 +44,38 @@ namespace RtxTool
             bpo::notify(variables);
 
             return variables["validation"].as<std::string>();
+        }
+
+        /// **A film is twenty seconds unless its length or its speed is named**, and never both: the
+        /// length sets the speed, so two named would be two answers to one question.
+        TEST(RtxToolOptionsTest, aFilmIsItsLengthUnlessItsSpeedIsNamed)
+        {
+            const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
+            const auto length = [&](const std::vector<std::string>& line) {
+                bpo::variables_map variables;
+                bpo::store(parse(options, line), variables);
+                bpo::notify(variables);
+                return filmLengthFrom(variables);
+            };
+            const auto refusal = [&](const std::vector<std::string>& line) {
+                try
+                {
+                    length(line);
+                }
+                catch (const std::runtime_error& error)
+                {
+                    return std::string(error.what());
+                }
+                return std::string("nothing was refused");
+            };
+
+            EXPECT_EQ(length({}), FilmPacing::sLengthByDefault);
+            EXPECT_EQ(FilmPacing::sLengthByDefault, 20.0f);
+            EXPECT_EQ(length({ "--length=35" }), 35.0f);
+            EXPECT_EQ(length({ "--speed=500" }), std::nullopt);
+            EXPECT_EQ(refusal({ "--length=35", "--speed=500" }),
+                "--length sets the speed, so --speed cannot be named beside it");
+            EXPECT_EQ(refusal({ "--length=0" }), "--length is 0, which is no length of film");
         }
 
         /// The build decides the level nobody named, and the level is spelled the way the table
@@ -169,15 +202,17 @@ namespace RtxTool
 
             // **A number a line states is the number the code reads**, formatted from it: eight
             // milliseconds, four seconds, `512 × 30 / 3600` game hours, sixty frames a second for
-            // twenty seconds, 800 units at 69.99 a metre, 16384 units of 8192-unit cells, and the
-            // encoder's own three settings.
+            // twenty seconds, 800 units at 69.99 a metre, a film of twenty seconds, 16384 units of
+            // 8192-unit cells, and the encoder's own three settings.
             EXPECT_NE(lineFor("hold").find("`check` holds 8 unless"), std::string::npos) << lineFor("hold");
             EXPECT_NE(lineFor("turn-weather").find("each crossing takes 4 seconds"), std::string::npos);
             EXPECT_NE(lineFor("clock").find("--clock=512 is 4.27 game hours a second"), std::string::npos)
                 << lineFor("clock");
             EXPECT_NE(lineFor("seconds").find("steps 1/60 of a second"), std::string::npos) << lineFor("seconds");
             EXPECT_NE(lineFor("seconds").find("the 20 seconds nobody named are 1200 frames"), std::string::npos);
-            EXPECT_NE(lineFor("speed").find("11 metres a second by default"), std::string::npos) << lineFor("speed");
+            EXPECT_NE(lineFor("speed").find("11 metres a second is a drone"), std::string::npos) << lineFor("speed");
+            EXPECT_NE(lineFor("length").find("seconds, 20 where neither this nor --speed is named"), std::string::npos)
+                << lineFor("length");
             EXPECT_NE(lineFor("cut-distance").find(": 2 exterior cells by default"), std::string::npos);
             EXPECT_NE(lineFor("encode").find("with libx264 at CRF 18 in yuv420p"), std::string::npos);
             EXPECT_EQ(lineFor("warmup").find("forty-five"), std::string::npos) << "the settle it described is gone";

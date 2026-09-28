@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -56,6 +57,12 @@ namespace RtxTool
     /// so `omw repeat` holds its second leg as far as `check` does without a copy of the number.
     /// Throws `std::runtime_error` for anything else, a negative hold among it.
     double parseHold(std::string_view text);
+
+    /// How long a film is to be, or nothing where it flies at `--speed`: `--length`, or
+    /// `FilmPacing::sLengthByDefault` where neither is named — a film of a set length whatever the
+    /// keys add up to, and of a set pace only where somebody asked for the pace. Throws
+    /// `std::runtime_error` for both named at once, and for a length that is none.
+    std::optional<float> filmLengthFrom(const boost::program_options::variables_map& variables);
 
     /// Where the engine's own state goes when this tool drives it: the settings it saves on its
     /// way out, its log, its key bindings, its Lua storage. Under the cache path, because every

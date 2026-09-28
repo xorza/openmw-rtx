@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <charconv>
+#include <cmath>
 #include <cstdint>
 #include <format>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -439,14 +441,17 @@ namespace RtxTool
             "frames a second of film, which is also what the world steps by");
         option(Verbs::Film, "speed", bpo::value<float>()->default_value(pacing.mSpeed),
             std::format("world units a second the camera flies along its path through the keys, one speed "
-                        "from the first key to the last, {:.0f} metres a second by default: a drone and not "
-                        "a run. A turn, the clock or a crossing on a flight takes the flight's time, and "
-                        "--plan says where one asks for longer",
+                        "from the first key to the last, in place of --length: {:.0f} metres a second is a "
+                        "drone and not a run. A turn, the clock or a crossing on a flight takes the flight's "
+                        "time, and --plan says where one asks for longer",
                 pacing.mSpeed / Constants::UnitsPerMeter));
         option(Verbs::Film, "length", bpo::value<float>(),
-            "the film's length in seconds, in place of --speed: every flight at the one speed that fills "
-            "it, which is the path's whole length over what is left once the holds, the stills, what "
-            "stands on the spot and the keys' own seconds are taken out");
+            std::format("the film's length in seconds, {:g} where neither this nor --speed is named: every "
+                        "flight at the one speed that fills it, which is the path's whole length over what "
+                        "is left once the holds, the stills, what stands on the spot and the keys' own "
+                        "seconds are taken out",
+                FilmPacing::sLengthByDefault)
+                .c_str());
         option(Verbs::Film, "ease", bpo::value<float>()->default_value(pacing.mEase),
             "seconds the camera takes to reach its speed from a rest and to come back to one: at a "
             "take's ends, at a hold, and beside a turn on the spot. Nought flies at full speed from "
@@ -552,6 +557,19 @@ namespace RtxTool
         Files::ConfigurationManager::addCommonOptions(result.mDescription);
 
         return result;
+    }
+
+    std::optional<float> filmLengthFrom(const bpo::variables_map& variables)
+    {
+        if (variables.count("length") == 0)
+            return variables["speed"].defaulted() ? std::optional(FilmPacing::sLengthByDefault) : std::nullopt;
+
+        if (!variables["speed"].defaulted())
+            throw std::runtime_error("--length sets the speed, so --speed cannot be named beside it");
+        const float length = variables["length"].as<float>();
+        if (!(length > 0.0f) || !std::isfinite(length))
+            throw std::runtime_error(std::format("--length is {}, which is no length of film", length));
+        return length;
     }
 
     double parseHold(std::string_view text)

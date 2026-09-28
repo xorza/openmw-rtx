@@ -62,7 +62,7 @@ namespace Rtx
     /// **A slot is a file, its wrap and its encoding.** The same file bound clamped and bound
     /// repeating is two slots, because a sampler is per slot and the wrap is the sampler's; the
     /// same file bound as a colour and as data is two, because the encoding is the image's format.
-    /// A file names up to eight, one per `TextureWrap` and `TextureEncoding`.
+    /// A file names up to twelve, one per `TextureWrap` and `TextureEncoding`.
     class TextureTable
     {
     public:
@@ -185,7 +185,7 @@ namespace Rtx
         FormatCensus mFormats;
     };
 
-    /// Which of up to eight takes of one image the table refused, and how many slots it had freed
+    /// Which of up to sixteen takes of one image the table refused, and how many slots it had freed
     /// then (`TextureTable::getFreedCount`). A refused take is asked again once that count moves,
     /// because nothing else makes room, and not before, because until then asking is a path built
     /// to be refused. The one rule for every resolver that takes a texture.
@@ -193,9 +193,9 @@ namespace Rtx
     {
     public:
         /// Whether take `bit` was refused and the table has freed nothing since.
-        bool stands(std::uint8_t bit, std::uint64_t freed) const { return mAt == freed && (mBits & bit) != 0; }
+        bool stands(std::uint16_t bit, std::uint64_t freed) const { return mAt == freed && (mBits & bit) != 0; }
 
-        void refuse(std::uint8_t bit, std::uint64_t freed)
+        void refuse(std::uint16_t bit, std::uint64_t freed)
         {
             if (mAt != freed)
                 mBits = 0;
@@ -205,7 +205,7 @@ namespace Rtx
         }
 
     private:
-        std::uint8_t mBits = 0;
+        std::uint16_t mBits = 0;
         std::uint64_t mAt = 0;
     };
 }
