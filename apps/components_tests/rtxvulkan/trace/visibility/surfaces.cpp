@@ -609,7 +609,7 @@ namespace Rtx::Testing
             }
         }
 
-        /// What crosses the execute comes back as it went in: the guide the upscaler reads is the
+        /// What crosses the execute comes back as it went in: the guide the filter reads is the
         /// surface's own normal, roughness and albedo, through the halves and the octahedral word
         /// `payload.glsl` packs them into.
         ///

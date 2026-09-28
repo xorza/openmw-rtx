@@ -68,25 +68,16 @@ layout(set = SET_CHANNELS, binding = CHANNEL_DIRECT) uniform writeonly image2D d
 /// **And the water and the air ride here rather than with the albedo.** Both are `colour * a + b`
 /// over everything in front of the eye, so applying them to a sum applies them to each term: `b`
 /// goes into `direct` and `a` belongs to whichever term it attenuated, which is this one. Putting
-/// it on the albedo instead made that channel a product of a surface and a path, and an upscaler
+/// it on the albedo instead made that channel a product of a surface and a path, and a filter
 /// asking what the surface is got the weather in the answer.
 layout(set = SET_CHANNELS, binding = CHANNEL_INDIRECT) uniform writeonly image2D indirect;
 
 /// The surface's own diffuse albedo, and nothing else.
 ///
-/// What the composite multiplies the bounce back in by, and what Ray Reconstruction demodulates the
-/// diffuse half of a pixel by. Zero where there is no diffuse response at all — the sky, and the
-/// water, which answers a ray with a reflection and a refraction and no Lambert term.
+/// What the composite multiplies the bounce back in by. Zero where there is no diffuse response at
+/// all — the sky, and the water, which answers a ray with a reflection and a refraction and no
+/// Lambert term.
 layout(set = SET_CHANNELS, binding = CHANNEL_ALBEDO, GBUFFER_ALBEDO) uniform writeonly image2D albedo;
-
-/// The specular albedo, which is what an upscaler demodulates the mirrored half of a pixel by.
-///
-/// **Zero wherever the shading was Lambert, which is every vanilla solid.** That is a statement
-/// about the shading model and not a placeholder: a surface with no specular map reflects nothing —
-/// `DIELECTRIC_F0` says why — so only the water and a mapped surface's lobe have a specular albedo
-/// to report. Half floats, because an albedo is a fraction that is never accumulated — the argument
-/// for full floats on the radiance channels does not reach here.
-layout(set = SET_CHANNELS, binding = CHANNEL_SPECULAR, GBUFFER_ALBEDO) uniform writeonly image2D specular;
 
 /// The shading normal in `xyz` and the surface's roughness in `w`.
 ///
@@ -102,11 +93,6 @@ layout(set = SET_CHANNELS, binding = CHANNEL_MOTION, GBUFFER_MOTION) uniform wri
 /// whatever filters it. Two questions, and one number cannot answer both. Read back by
 /// `spritecomposite.rgen` for where a sprite is hidden, which is why it is not `writeonly`.
 layout(set = SET_CHANNELS, binding = CHANNEL_DEPTH, GBUFFER_DEPTH) uniform image2D depth;
-
-/// Where what the water reflects stood on the previous frame's screen, in pixels. Nought everywhere
-/// that is not water reflecting a surface.
-layout(set = SET_CHANNELS, binding = CHANNEL_REFLECTION_MOTION, GBUFFER_MOTION)
-    uniform writeonly image2D reflectionMotion;
 
 /// How much of the backdrop this pixel still shows, per channel, in `rgb` — everything the trace put
 /// between the backdrop and the eye, multiplied together. The backdrop is the star field behind a

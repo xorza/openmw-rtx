@@ -46,7 +46,7 @@ namespace RtxTool
     /// **A frame's picture is measured here and judged by its hashes.** `frames` names the files
     /// among `files` that are frames of the run, and those are subtracted for the figure — where a
     /// difference the hashes reported sits, and how large it is — and never for the status: where
-    /// a network reconstructed the frame the picture is the network's, and where none did the
+    /// an upscaler reconstructed the frame the picture is the upscaler's, and where none did the
     /// hashes already hold the same bytes. Every other picture is traced without one and is judged
     /// here.
     int compareRuns(const std::filesystem::path& wrote, const std::filesystem::path& against,

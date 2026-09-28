@@ -13,7 +13,7 @@ the tree, `--help` or a commit already answers does not belong here.
 ## Posture
 
 A 2002 game made to look astonishing on current hardware — ray-traced visibility, path-traced
-indirect light, materials recovered from pre-lit vanilla textures, DLSS Ray Reconstruction. Vanilla
+indirect light, materials recovered from pre-lit vanilla textures. Vanilla
 content and the PBR replacers made for OpenMW, new light transport: what a replacer's companion
 maps add reaches the trace, and a vanilla picture does not change because the renderer can read
 them.
@@ -31,9 +31,9 @@ them.
 - One binary ships both renderers, and the one not chosen never starts.
 - Opacity micromaps (`VK_EXT_opacity_micromap`) for the cutouts were tried and declined: the
   trace did not get faster, and building the maps only added loading time. Do not propose them again.
-- Async compute (a second queue, the next trace beside this frame's Ray Reconstruction) was tried
-  and declined: RR with a trace on the other queue faults the card (Xid 109, then 31), and the
-  overlap that is left gained 0.1–0.2 ms. The branch `async` has the record. Do not propose it again.
+- Async compute (a second queue, the next trace beside this frame's reconstruction) was tried and
+  declined: the overlap gained 0.1–0.2 ms. The branch `async` has the record. Do not propose it
+  again.
 - Keep the diff against upstream minimal, but never at the cost of reuse or of the abstraction's
   quality. The `[RTX]` settings pages and their translations are a fine price, and so is
   `components/crashcatcher`: upstream's crash catcher is replaced whole by the fork's own, a
@@ -70,16 +70,15 @@ backend ever arrives.
   Compiling is not verifying.
 - `./omw` at the root is the one way in, `omw [flavour] <verb>`, and `./omw help` lists both. The
   flavour is `debug` unless named: every assert and the tests. `release` is the build a number is
-  quoted from, and `profile` runs in it whatever is named. `asan` adds the sanitizers, `nodlss` is
-  the other binary, `plain` is upstream's tree with its suites whole, and `package` is the one
-  `archive` puts into `dist/`.
+  quoted from, and `profile` runs in it whatever is named. `asan` adds the sanitizers, `plain` is
+  upstream's tree with its suites whole, and `package` is the one `archive` puts into `dist/`.
 - `./omw test <binary> --gtest_filter=...` builds and runs one test binary with a filter.
 - `./omw test` once before saying it works: the `fork` label of CTest — the fork's half of
   `components-tests` and `openmw-tests`, `rtx-gpu-tests`, and the crash matrix. `--all` adds
   upstream's suites. The GPU binary fails without a device rather than skipping, so a green run
   means a device ran it; `--without-device` leaves it out on a box with no driver.
-- `./omw gate` once at the end: format check, the driver's tests, build, the release and no-DLSS
-  compiles, tests, `check`, one repeat pair, stopping at the first failure. Never a gate beside a
+- `./omw gate` once at the end: format check, the driver's tests, build, the release compile,
+  tests, `check`, one repeat pair, stopping at the first failure. Never a gate beside a
   build or another gate.
 - Do not open the game window to check a rendering change. The harness's verbs go through the
   driver, which builds `openmw-rtxtool` and runs it in the flavour's directory:
@@ -111,7 +110,7 @@ backend ever arrives.
   `./omw release exec nsys profile ./openmw-rtxtool bench ...` for the GPU. `ncu` is not installed.
 - `./omw crash <dump>` reads a player's crash dump against a release's `-symbols.zip`, or the
   newest in `dist/`. `./omw game` is the game on the newest quicksave. A fresh box takes
-  `./omw bootstrap` for the pinned Vulkan SDK and NGX, and `./omw setup <morrowind dir>`.
+  `./omw bootstrap` for the pinned Vulkan SDK, and `./omw setup <morrowind dir>`.
 
 ## Conventions
 
@@ -123,8 +122,8 @@ the posture behind them does.
   local headers — of the file's own folder only, and any other folder is spelled from the root.
   `.clang-format` preserves the blocks and sorts inside each, so the order is the author's and the
   sorting is not. A conditional `#include` goes last, and a block out of order carries the comment
-  saying why, the way `dlsspass.cpp` does for NGX. `components/rtx/shaders/*.h` is the one exception
-  to `#pragma once`, and `portable.h` says why.
+  saying why, the way `memory.cpp` does for the allocator. `components/rtx/shaders/*.h` is the one
+  exception to `#pragma once`, and `portable.h` says why.
 - **Include what you name.** A file that spells `std::size_t` includes `<cstddef>`. A `.cpp` may
   lean on its own header for what that header's interface already needs, and on nothing else.
 - **The preprocessor switches only where nothing else can.** What systems spell differently goes
@@ -132,8 +131,8 @@ the posture behind them does.
   `components/platform` (`Platform::Process`, `Platform::SharedMemory`), the crash catcher's own
   in its `…system.hpp`. A build flag is defined in every build as `0` or `1` and read once into a
   `constexpr bool` (`Rtx::sDebugNames`, `Settings::sRayTracingBuilt`), which code asks with
-  `if constexpr`. Code only one build has is a file CMake chooses (`noupscaler.cpp`,
-  `nortxrenderer.cpp`, `nodlss.cpp`), never an `#ifdef` around it. A test of an `assert` calls
+  `if constexpr`. Code only one build has is a file CMake chooses (`nortxrenderer.cpp`), never an
+  `#ifdef` around it. A test of an `assert` calls
   `Testing::expectAssertDies`, not `#ifndef NDEBUG`. What stays: a chain inside the one file that
   owns a system's difference (Linux beside macOS in a POSIX file), an include only one system has,
   and the headers GLSL and C++ both read, whose differences `shaders/portable.h` holds.

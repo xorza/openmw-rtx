@@ -254,9 +254,6 @@ namespace Rtx::Shaders
     /// spreads a star over saturates, and what shows is a hard dot. Nothing here clips, so the level
     /// has to put a star where the content puts it rather than rely on the ceiling to do it.
     ///
-    /// **Set through the path the game ships** — 1920 by 1080 under `--upscale quality`, a clear
-    /// midnight — because Ray Reconstruction takes a fifth off a star that nothing else does.
-    ///
     /// **A star is still never brighter than a full moon**, read against Masser's brightest texel and
     /// not its mean: a portrait's peak is several times its mean.
     ///
@@ -413,8 +410,7 @@ namespace Rtx::Shaders
     ///
     /// **No real material reflects under 2% at normal incidence**, so less is taken as specular
     /// occlusion the content painted and the edge darkens with it — Filament's "specular occlusion"
-    /// and Unreal's `F_Schlick`, and the factor the Ray Reconstruction guide's `EnvBRDFApprox2`
-    /// carries. It is also what makes a reflectance of nought reflect exactly nothing at every angle,
+    /// and Unreal's `F_Schlick`. It is also what makes a reflectance of nought reflect exactly nothing at every angle,
     /// which is what keeps a vanilla surface the Lambert surface it was.
     const float SPECULAR_EDGE_SCALE = 50.0f;
 
@@ -433,9 +429,9 @@ namespace Rtx::Shaders
     /// drawn at `AMBIENT_EXTERIOR_RATE`.
     ///
     /// **Drawn and divided, so the estimate is unbiased by construction** rather than a guess at what
-    /// the unlit half would have said. What it hands the filter is variance in the channel Ray
-    /// Reconstruction demodulates and filters hardest, which is why it is judged on a moving camera
-    /// rather than a still.
+    /// the unlit half would have said. What it hands the filter is variance in the indirect
+    /// channel, which the wavelet filters, and which is why it is judged on a moving camera rather
+    /// than a still.
     ///
     /// **Half the rays are not half the time.** The rays here are short: a lane that skips one does
     /// not release the warp, which runs on until the lanes that kept theirs are done, and a hashed
@@ -460,10 +456,9 @@ namespace Rtx::Shaders
     /// to 3.83–3.84 and 3.38–3.41 to 2.76. Four to six per cent of the frame.
     ///
     /// **Drawn and divided, so the estimate is unbiased by construction.** What it hands the filter
-    /// is the indirect term at nought or twice itself, which is the variance Ray Reconstruction is
-    /// built for and the reason it is judged on a moving camera: a denoised still moves by under
-    /// half a part in 255 on average, at either place. A third is untested, and would hand the
-    /// filter the term at three times itself.
+    /// is the indirect term at nought or twice itself, which is the reason it is judged on a moving
+    /// camera: a denoised still moves by under half a part in 255 on average, at either place. A third is untested, and
+    /// would hand the filter the term at three times itself.
     ///
     /// **Drawn after the escape and not before it**, so a pixel `BOUNCE_REACH` handed the sky keeps
     /// the sky: that pixel paid for nothing, and rating it would add noise and save no time.
@@ -483,7 +478,7 @@ namespace Rtx::Shaders
     /// **Beyond it the hemisphere is not traced and the escape is taken as though nothing stood in the
     /// way.** The far half of an exterior is thousands of pixels whose bounce ray leaves a mountainside,
     /// crosses the whole acceleration structure and mostly finds sky anyway — and whose indirect term
-    /// the upscaler then averages flat, because a pixel that far away covers a hillside. What the ray
+    /// the filter then averages flat, because a pixel that far away covers a hillside. What the ray
     /// was proving is that nothing was there, at the price of the longest traversal in the frame.
     ///
     /// One cell, which is the distance Morrowind itself builds a world in. Nearer than that a bounce is

@@ -37,9 +37,6 @@ def gate(build: Build, args: list[str]) -> int:
     # can now prove reaches a null — is one the debug build never sees. Every target the fork owns,
     # since the flags that make a warning an error reach each of them.
     Build("release").build(["openmw-rtx-all"])
-    # **The backend without the SDK, compiled the way a machine without one compiles it.** The
-    # backend alone, because that is the one library the SDK divides.
-    Build("nodlss").build(["openmw-rtx-vulkan"])
 
     if targets:
         if testing.test(build, []) != 0:

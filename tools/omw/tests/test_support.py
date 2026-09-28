@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from omw.build import CONFIGURED_FROM, carried_ngx, configured_from
+from omw.build import CONFIGURED_FROM, configured_from
 from omw.fetch import download, settle
 from omw.package import used_osg_plugins
 from omw.system import Refusal, environment_key, parse_set_output
@@ -17,20 +17,6 @@ class ParseSetOutputTest(unittest.TestCase):
             environment_key("A"): "1", environment_key("Path"): "x;y", environment_key("EMPTY"): "",
             environment_key("B"): "c=d",
         })
-
-
-class CarriedNgxTest(unittest.TestCase):
-    def test_only_the_ngx_entries_that_hold_a_value(self):
-        entries = [
-            "NGX_ROOT:PATH=/sdk",
-            "NGX_LIBRARY:FILEPATH=/sdk/lib/libnvsdk_ngx.a",
-            "NGX_INCLUDE_DIR:PATH=NGX_INCLUDE_DIR-NOTFOUND",
-            "NGX_EMPTY:STRING=",
-            "NGX_FOUND:INTERNAL=1",
-            "OTHER:PATH=/elsewhere",
-        ]
-        self.assertEqual(carried_ngx(entries),
-                         ["-DNGX_ROOT:PATH=/sdk", "-DNGX_LIBRARY:FILEPATH=/sdk/lib/libnvsdk_ngx.a"])
 
 
 class ConfiguredFromTest(unittest.TestCase):

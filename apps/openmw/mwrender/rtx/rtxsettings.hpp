@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <string_view>
 
-#include <components/rtx/frame/pacing.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 
@@ -19,15 +18,12 @@ namespace MWRender
     struct RtxSettingValues
     {
         std::string_view mUpscale;
-        std::string_view mPreset;
-        std::string_view mReflex;
         float mDistantLandCells = 0.0f;
         float mViewingDistance = 0.0f;
         bool mObjectPaging = true;
         float mObjectPagingMinSize = 0.0f;
         std::string_view mSpecularMapLayout;
         int mAnisotropy = 0;
-        bool mReflexFlash = false;
         bool mGroundcover = false;
 
         /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging, `[General] anisotropy` and
@@ -39,17 +35,19 @@ namespace MWRender
     struct RtxSettings
     {
         Rtx::Upscaling mUpscaling;
-        Rtx::LatencyMode mLatency = Rtx::LatencyMode::Off;
         Rtx::MirrorKnobs mMirror;
 
         /// `RenderProfile::mAnisotropy`: the setting, where nought means what one does.
         std::uint32_t mAnisotropy = 1;
 
-        /// `RunSetup::mReflexFlash`.
-        bool mReflexFlash = false;
-
         /// Throws `Rtx::InputError` for a spelling that names no mode: a setting refused rather
         /// than defaulted, so a typo is said at once and not traced under for a session.
         static RtxSettings derive(const RtxSettingValues& values);
+
+        /// What a played session runs of these: without an upscaler in the build, every mode traces
+        /// at the window's size. A player's `[RTX] upscale` is one file across every build they run,
+        /// and one that stopped the renderer from starting would be no answer to it. A measured run
+        /// keeps the refusal, since its mode is its command line's.
+        RtxSettings playedIn(bool upscalerBuilt) const;
     };
 }

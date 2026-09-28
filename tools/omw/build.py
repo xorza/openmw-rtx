@@ -18,7 +18,6 @@ from omw.system import (
     SYSTEM,
     WINDOWS,
     Refusal,
-    environment_key,
     jobs,
     msvc_environment,
     output,
@@ -26,28 +25,13 @@ from omw.system import (
     run,
 )
 
-FLAVOURS = ("debug", "release", "asan", "nodlss", "package", "plain")
+FLAVOURS = ("debug", "release", "asan", "package", "plain")
 
 # The flavours that build the programs Qt draws: the launcher and the wizard, and the CS.
 QT_FLAVOURS = ("package", "plain")
 
 # The file a directory keeps the digest it was last configured from in.
 CONFIGURED_FROM = "omw-preset.sha256"
-# The file a directory keeps the NGX entries it carries across a fresh configure in.
-CARRIED = "omw-carried.txt"
-
-
-def carried_ngx(entries: list[str]) -> list[str]:
-    """The `-D` that carries each `NGX_` entry holding a value across a fresh configure: a path, a
-    file or a string that was found, and nothing CMake keeps for itself."""
-    carried = []
-    for entry in entries:
-        name_type, _, value = entry.partition("=")
-        name, _, kind = name_type.partition(":")
-        if name.startswith("NGX_") and kind in ("PATH", "FILEPATH", "STRING", "UNINITIALIZED") \
-                and value and not value.endswith("-NOTFOUND"):
-            carried.append(f"-D{entry}")
-    return carried
 
 
 def configured_from(directory: Path, digest: str) -> bool:
@@ -80,9 +64,9 @@ class Build:
 
     @property
     def env(self) -> dict[str, str]:
-        """The environment every command of this flavour runs under: the SDKs `omw bootstrap`
-        fetched, MSVC's and the versions the Windows presets read, and the test preset's own —
-        the sanitizers' options, without which the asan build has no device."""
+        """The environment every command of this flavour runs under: the Vulkan SDK `omw bootstrap`
+        fetched, MSVC's and the versions the Windows presets read, and the test preset's own — the
+        sanitizers' options, without which the asan build has no device."""
         if self._env is None:
             env = dict(os.environ)
             deps.sdk_environment(env)
@@ -119,10 +103,7 @@ class Build:
         stamp beside no cache sent the build to a regeneration with nothing to regenerate from.
 
         **Fresh, and not the preset laid over the old cache**: a variable a preset stops naming would
-        otherwise keep the value it last set. What is carried over is NGX, as every `NGX_` entry the
-        cache holds a value in — `NGX_ROOT` where a `-D` named the checkout, and what FindNGX found
-        with it — and only where the environment names no checkout of its own, which is then the
-        one to find.
+        otherwise keep the value it last set.
 
         **Neither `--clean-first` nor `ninja -t cleandead`**: files/lang/*.ts are source that a Qt
         translation rule writes into the tree, so Ninja logs them as outputs, and both delete them."""
@@ -135,25 +116,13 @@ class Build:
             run(["cmake", "--build", self.dir, "--target", "build.ninja"], env=env, stdout=subprocess.DEVNULL)
             return
 
-        # Written down before the configure starts, since a fresh one that fails has already
-        # dropped the cache it read them from, and the next would carry nothing.
-        carried: list[str] = []
-        remembered = self.dir / CARRIED
-        if not env.get(environment_key("NGX_ROOT")):
-            carried = carried_ngx(self.cache_entries())
-            if carried:
-                self.dir.mkdir(exist_ok=True)
-                remembered.write_text("\n".join(carried) + "\n")
-            elif remembered.is_file():
-                carried = remembered.read_text().split("\n")[:-1]
-
         if WINDOWS:
             windows_deps = deps.windows_set(env["VCPKG_TAG"])
             sdl = deps.windows_sdl(windows_deps)
             qt = deps.windows_qt(env["QT_VER"]) if self.flavour in QT_FLAVOURS else None
 
         stamp.unlink(missing_ok=True)
-        run(["cmake", "-S", ROOT, "--preset", self.preset, "--fresh", *carried], env=env, stdout=stdout)
+        run(["cmake", "-S", ROOT, "--preset", self.preset, "--fresh"], env=env, stdout=stdout)
 
         if WINDOWS:
             self._place_windows_runtime(windows_deps, sdl)

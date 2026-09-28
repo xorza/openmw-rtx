@@ -28,8 +28,7 @@ namespace Rtx
 
         /// Two, and full floats rather than halves: a clip depth has little precision left at the
         /// far end of a Morrowind view, and the distance beside it runs past thirty thousand units
-        /// where a half's steps are thirty-two units wide. NGX reads the first and is handed the
-        /// pair, which costs it nothing measurable.
+        /// where a half's steps are thirty-two units wide.
         constexpr VkFormat sDepth = toVulkanFormat(GBUFFER_DEPTH);
 
         /// Half floats for the layer the eye sees through: nothing sums it, and a reference is
@@ -39,14 +38,12 @@ namespace Rtx
         /// Four bytes for four fractions, which is what `gbuffer.h` argues a modulation is.
         constexpr VkFormat sBackdrop = toVulkanFormat(GBUFFER_BACKDROP);
 
-        /// `SAMPLED` on all of them, and it is not decoration. DLSS samples every input it is
-        /// handed; one without the bit reads as zero, NGX returns success and the validation layers
-        /// say nothing, so the whole frame comes back black with nothing pointing at the cause. It
-        /// costs no memory, so every channel carries it rather than only the five DLSS reads today.
+        /// `SAMPLED` on all of them: an upscaler samples what it is handed, and the bit costs no
+        /// memory, so every channel carries it rather than only the ones an upscaler reads.
         constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-        /// The channels a caller can ask to read back: the bounce, the two albedos, the guide,
-        /// the two motion fields and the depth. See `Rtx::Channel`. And the direct channel, which
+        /// The channels a caller can ask to read back: the bounce, the albedo, the guide, the
+        /// motion and the depth. See `Rtx::Channel`. And the direct channel, which
         /// is the frame once composed: `readComposite` copies it out, the frame a measurement is
         /// taken on, where `readPixels` gives the one a display would show.
         constexpr VkImageUsageFlags sReadable = sUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
@@ -67,11 +64,9 @@ namespace Rtx
                 every[bindingOf(Channel::Direct)] = { VK_FORMAT_UNDEFINED, sReadable };
                 every[bindingOf(Channel::Indirect)] = { VK_FORMAT_UNDEFINED, sReadable };
                 every[bindingOf(Channel::Albedo)] = { sAlbedo, sReadable };
-                every[bindingOf(Channel::Specular)] = { sAlbedo, sReadable };
                 every[bindingOf(Channel::Guide)] = { sGuide, sReadable };
                 every[bindingOf(Channel::Motion)] = { sMotion, sReadable };
                 every[bindingOf(Channel::Depth)] = { sDepth, sReadable };
-                every[bindingOf(Channel::ReflectionMotion)] = { sMotion, sReadable };
                 every[bindingOf(Channel::Backdrop)] = { sBackdrop, sUsage };
                 every[bindingOf(Channel::Puffs)] = { sLayer, sUsage };
 
@@ -124,8 +119,7 @@ namespace Rtx
     {
         // From undefined, because every pixel is written before any is read. One set of channels
         // serves every frame and two are in flight, and the head barrier `CommandPool::begin`
-        // recorded is what orders this buffer after the last frame's readers — NGX among them,
-        // whose stages are its own.
+        // recorded is what orders this buffer after the last frame's readers.
         Barriers barriers(commands);
         for (const Image& image : mChannels)
             barriers.add(image.describeTransition(Use::sUndefined, Use::sTraceWrite));
@@ -137,7 +131,7 @@ namespace Rtx
     {
         // A read after a write, and nothing more: every channel is read-only from here to the end
         // of the frame but the direct one, which a composite writes the frame over and orders for
-        // itself. Sampled as well as loaded, because DLSS samples every guide it is handed.
+        // itself. Sampled as well as loaded, because an upscaler samples what it is handed.
         Barriers barriers(commands);
         for (const Image& image : mChannels)
             barriers.add(image.describeTransition(Use::sTraceWrite, Use::sAnyShaderRead));

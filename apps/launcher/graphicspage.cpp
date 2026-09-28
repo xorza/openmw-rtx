@@ -4,7 +4,6 @@
 
 #include <components/misc/display.hpp>
 #include <components/rtx/common/menu.hpp>
-#include <components/rtx/frame/pacing.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/settings/values.hpp>
 
@@ -36,16 +35,9 @@ namespace
         { "performance", QT_TRANSLATE_NOOP("GraphicsPage", "Performance") },
         { "balanced", QT_TRANSLATE_NOOP("GraphicsPage", "Balanced") },
         { "quality", QT_TRANSLATE_NOOP("GraphicsPage", "Quality") },
-        { "dlaa", QT_TRANSLATE_NOOP("GraphicsPage", "DLAA") },
+        { "native", QT_TRANSLATE_NOOP("GraphicsPage", "Native") },
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
-
-    constexpr std::array<Rtx::MenuLabel, Rtx::sLatencyMenu.size()> sLatencyLabels{ {
-        { "off", QT_TRANSLATE_NOOP("GraphicsPage", "Off") },
-        { "on", QT_TRANSLATE_NOOP("GraphicsPage", "On") },
-        { "boost", QT_TRANSLATE_NOOP("GraphicsPage", "On + Boost") },
-    } };
-    static_assert(Rtx::followsMenu(sLatencyLabels, Rtx::sLatencyMenu));
 
     void addMenuItems(QComboBox* box, std::span<const Rtx::MenuLabel> labels)
     {
@@ -66,7 +58,6 @@ Launcher::GraphicsPage::GraphicsPage(QWidget* parent)
     customHeightSpinBox->setMaximum(res.height());
 
     addMenuItems(rayTracingUpscaleComboBox, sUpscaleLabels);
-    addMenuItems(rayTracingReflexComboBox, sLatencyLabels);
     rayTracingDistantLandSpinBox->setRange(static_cast<int>(Settings::RTXCategory::sMinDistantLandCellsInMenu),
         static_cast<int>(Settings::RTXCategory::sMaxDistantLandCells));
 
@@ -140,9 +131,6 @@ bool Launcher::GraphicsPage::loadSettings()
     const std::optional<std::size_t> offered = Rtx::menuIndex(Rtx::sUpscaleMenu, Settings::rtx().mUpscale.get());
     rayTracingUpscaleComboBox->setCurrentIndex(offered ? static_cast<int>(*offered) : -1);
 
-    const std::optional<std::size_t> pacing = Rtx::menuIndex(Rtx::sLatencyMenu, Settings::rtx().mReflex.get());
-    rayTracingReflexComboBox->setCurrentIndex(pacing ? static_cast<int>(*pacing) : -1);
-
     // The box holds whole cells from the menu's fewest, so it shows nought or 4.5 as another value:
     // saveSettings writes the reach only when the player moved it
     rayTracingDistantLandSpinBox->setValue(static_cast<int>(std::lround(Settings::rtx().mDistantLandCells)));
@@ -154,12 +142,16 @@ bool Launcher::GraphicsPage::loadSettings()
         const QString why = tr("This build was made without the ray tracing renderer.");
         for (QWidget* widget :
             { static_cast<QWidget*>(rayTracingCheckBox), static_cast<QWidget*>(rayTracingUpscaleComboBox),
-                static_cast<QWidget*>(rayTracingReflexComboBox), static_cast<QWidget*>(rayTracingDistantLandSpinBox) })
+                static_cast<QWidget*>(rayTracingDistantLandSpinBox) })
         {
             widget->setEnabled(false);
             widget->setToolTip(why);
         }
     }
+
+    // A renderer without an upscaler traces at the window's size whatever the mode, so it offers none.
+    rayTracingUpscaleLabel->setVisible(Rtx::sUpscalerBuilt);
+    rayTracingUpscaleComboBox->setVisible(Rtx::sUpscalerBuilt);
 
     // aaValue is the actual value (0, 1, 2, 4, 8, 16)
     const int aaValue = Settings::video().mAntialiasing;
@@ -213,11 +205,6 @@ void Launcher::GraphicsPage::saveSettings()
         if (const std::optional<std::string_view> chosen
             = Rtx::menuName(Rtx::sUpscaleMenu, static_cast<std::size_t>(chosenIndex)))
             Settings::rtx().mUpscale.set(std::string(*chosen));
-    const int pacingIndex = rayTracingReflexComboBox->currentIndex();
-    if (pacingIndex >= 0)
-        if (const std::optional<std::string_view> chosen
-            = Rtx::menuName(Rtx::sLatencyMenu, static_cast<std::size_t>(pacingIndex)))
-            Settings::rtx().mReflex.set(std::string(*chosen));
     if (rayTracingDistantLandSpinBox->value() != mLoadedDistantLandCells)
         Settings::rtx().mDistantLandCells.set(static_cast<float>(rayTracingDistantLandSpinBox->value()));
 

@@ -139,13 +139,13 @@ namespace RtxTool
             EXPECT_NE(report.find("the scene was the same on every frame"), std::string::npos) << report;
         }
 
-        TEST(RtxFrameHashesTest, aPictureThatMovedPastANetworkIsReportedAndNeverAVerdict)
+        TEST(RtxFrameHashesTest, aPictureThatMovedPastAnUpscalerIsReportedAndNeverAVerdict)
         {
             const FrameHashes::ViewDifference difference
                 = onlyView(runOf(partsOf(100), sOtherPixels, digestOf(100), Rtx::Upscale::Quality)
                                .against(plainRun(Rtx::Upscale::Quality)));
 
-            EXPECT_TRUE(difference.mDiffering.empty()) << "the picture is the network's";
+            EXPECT_TRUE(difference.mDiffering.empty()) << "the picture is the upscaler's";
             EXPECT_EQ(difference.mReconstructedDiffering, std::vector<std::uint32_t>{ 1u });
             EXPECT_TRUE(difference.same()) << "the trace and the scene were the same, which is the whole verdict";
 
@@ -154,7 +154,7 @@ namespace RtxTool
             EXPECT_NE(report.find("the reconstructed picture differs on 1"), std::string::npos) << report;
             EXPECT_NE(report.find("not a verdict"), std::string::npos) << report;
 
-            // And either run past a network is enough: a reference drawn without one and a run
+            // And either run past an upscaler is enough: a reference drawn without one and a run
             // drawn with one are two configurations, which is its own finding.
             const FrameHashes::ViewDifference mixed
                 = onlyView(runOf(partsOf(100), sOtherPixels, digestOf(100), Rtx::Upscale::Quality).against(plainRun()));
@@ -171,7 +171,7 @@ namespace RtxTool
             Rtx::FrameDigest moved = digestOf(100);
             moved.mImages[Rtx::bindingOf(Rtx::Channel::Albedo)] = hashOf(4242);
 
-            // The same picture, past a network: the trace column alone says the run moved.
+            // The same picture, past an upscaler: the trace column alone says the run moved.
             const FrameHashes::ViewDifference difference = onlyView(
                 runOf(partsOf(100), sPixels, moved, Rtx::Upscale::Quality).against(plainRun(Rtx::Upscale::Quality)));
 

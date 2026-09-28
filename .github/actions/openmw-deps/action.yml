@@ -1,13 +1,13 @@
 # What every build of the tree takes from its system before `omw` configures it: the Python `omw` runs
 # on, upstream's package list on Linux with what `omw` asks for there, the cache of what `omw` fetches
-# into deps/, and, for the builds of the ray tracer, `omw bootstrap`: the Vulkan SDK and NGX, fetched
-# the way a fresh desk fetches them.
+# into deps/, and, for the builds of the ray tracer, `omw bootstrap`: the Vulkan SDK, fetched the way a
+# fresh desk fetches it.
 name: OpenMW dependencies
 description: The packages and SDKs a build of the tree needs, per system.
 
 inputs:
   sdks:
-    description: Whether to fetch the Vulkan SDK and NGX, which only the ray tracer's builds read.
+    description: Whether to fetch the Vulkan SDK, which only the ray tracer's builds read.
     default: "true"
   cache:
     description: Whether to restore and save the deps/ cache; false for a release.
@@ -44,20 +44,18 @@ runs:
 
     - name: Windows dependencies cache
       # Everything `omw` fetches into deps/ on Windows — upstream's prebuilt set, SDL's own package, Qt
-      # and the Vulkan SDK — but NGX, which a clone brings as fast as a cache would. The key names the
+      # and the Vulkan SDK. The key names the
       # tags upstream pins and the file `omw` pins the rest in, so a bump of either saves afresh; an
       # older cache is restored all the same, because `omw` judges each thing by the directory it
       # leaves and fetches only what a bump changed.
       if: runner.os == 'Windows' && inputs.cache == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: |
-          deps
-          !deps/dlss-*
+        path: deps
         key: deps-${{ runner.os }}-${{ hashFiles('CI/deps_versions.msvc.sh', 'tools/omw/pins.py') }}
         restore-keys: deps-${{ runner.os }}-
 
-    - name: The Vulkan SDK and NGX
+    - name: The Vulkan SDK
       if: inputs.sdks == 'true'
       shell: bash
       run: python omw bootstrap

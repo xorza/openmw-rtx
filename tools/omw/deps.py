@@ -140,23 +140,9 @@ def crash_tool(name: str) -> Path:
     return tool
 
 
-def ngx_version() -> str:
-    """The NGX release `components/rtxvulkan/CMakeLists.txt` asks FindNGX for, exactly, read off it so
-    the two cannot name different releases."""
-    text = (ROOT / "components" / "rtxvulkan" / "CMakeLists.txt").read_text()
-    match = re.search(r"^\s*find_package\(NGX ([0-9.]+) EXACT REQUIRED\)$", text, re.MULTILINE)
-    if match is None:
-        raise Refusal("components/rtxvulkan/CMakeLists.txt asks for no exact NGX version")
-    return match.group(1)
-
-
 def vulkan_sdk_dir() -> Path:
     version = pins.VULKAN_SDK_WINDOWS_VERSION if WINDOWS else pins.VULKAN_SDK_LINUX_VERSION
     return DEPS / f"vulkan-sdk-{version}"
-
-
-def ngx_dir() -> Path:
-    return DEPS / f"dlss-{ngx_version()}"
 
 
 def vulkan_sdk() -> Path:
@@ -237,32 +223,11 @@ def _vulkan_sdk_windows(into: Path) -> None:
     loader.unlink()
 
 
-def ngx() -> Path:
-    """**NGX, a sparse clone of NVIDIA's public repository at the tag of the release asked for**: the
-    headers, the static library and the release features, and neither the debug features nor the
-    other system's — about 150 MB either way."""
-    checkout = ngx_dir()
-    if checkout.is_dir():
-        return checkout
-    partial = fetch.partial_of(checkout)
-    shutil.rmtree(partial, ignore_errors=True)
-    run(["git", "clone", "--quiet", "--depth", "1", "--branch", f"v{ngx_version()}", "--filter=blob:none",
-         "--sparse", "https://github.com/NVIDIA/DLSS.git", partial])
-    if WINDOWS:
-        paths = ["include", "lib/Windows_x86_64/rel", "lib/Windows_x86_64/x64"]
-    else:
-        paths = ["include", "lib/Linux_x86_64/rel"]
-    run(["git", "-C", partial, "sparse-checkout", "set", *paths])
-    partial.rename(checkout)
-    return checkout
-
-
 def sdk_environment(env: dict[str, str]) -> None:
     """**What `omw bootstrap` fetched, handed to every command**, the way the SDK's `setup-env.sh`
     would: FindVulkan reads `VULKAN_SDK` for the headers and, on Linux, `CMAKE_PREFIX_PATH` for the
     loader's prefix; the tests load the loader from `LD_LIBRARY_PATH` or from the PATH beside glslc.
-    FindNGX reads `NGX_ROOT`, which a person's own environment may name first. Nothing where
-    nothing was fetched: a desk with the SDK installed builds against that."""
+    Nothing where nothing was fetched: a desk with the SDK installed builds against that."""
     sdk = vulkan_sdk_dir()
     if sdk.is_dir():
         if WINDOWS:
@@ -274,16 +239,12 @@ def sdk_environment(env: dict[str, str]) -> None:
             prepend_path(env, "CMAKE_PREFIX_PATH", base / "lib" / "VulkanLoader")
             prepend_path(env, "LD_LIBRARY_PATH", base / "lib" / "VulkanLoader" / "lib")
             prepend_path(env, "PATH", base / "bin")
-    checkout = ngx_dir()
-    if checkout.is_dir() and not env.get(environment_key("NGX_ROOT")):
-        env[environment_key("NGX_ROOT")] = str(checkout)
 
 
 def bootstrap() -> None:
-    """The Vulkan SDK and NGX, each run once to prove it: a tool left out, or one that needs a library
-    it did not bring, stops here by name and not in the middle of a configure."""
+    """The Vulkan SDK, run once to prove it: a tool left out, or one that needs a library it did not
+    bring, stops here by name and not in the middle of a configure."""
     sdk = vulkan_sdk()
-    checkout = ngx()
     env = dict(os.environ)
     sdk_environment(env)
     for tool in ("glslc", "spirv-val", "spirv-opt"):
@@ -291,4 +252,4 @@ def bootstrap() -> None:
         if found is None:
             raise Refusal(f"{sdk} holds no {tool}")
         subprocess.run([found, "--version"], check=True, env=env, stdout=subprocess.DEVNULL)
-    print(f"Vulkan SDK: {sdk}\nNGX: {checkout}")
+    print(f"Vulkan SDK: {sdk}")

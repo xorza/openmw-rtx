@@ -114,13 +114,10 @@ namespace Rtx::Shaders
 
         /// The star field, drawn here rather than by the trace.
         ///
-        /// **A point source is what a temporal upscaler removes.** Through the upscaler a clear
-        /// midnight keeps a third of its bright star pixels, a third lost to the network and the rest
-        /// to the resolution, and no guide buffer moves it: an eye-facing normal, the bias mask over
-        /// every sky pixel, and the four before-and-after colour pairs all come out neutral or worse.
-        /// So the field is drawn where it is shown, and the trace draws the rest of the sky — and
-        /// hands this pass `Channel::Backdrop`, because a moon, a deck, a pane, the water and
-        /// the air all stand between the field and the eye and none of them is here.
+        /// **A point source is what a temporal upscaler removes**: a star one traced pixel wide is
+        /// averaged away across frames, and one the traced grid misses is never there. So the field is drawn where it
+        /// is shown, and the trace draws the rest of the sky — and hands this pass `Channel::Backdrop`, because a moon,
+        /// a deck, a pane, the water and the air all stand between the field and the eye and none of them is here.
         StarField mStars;
 
         /// The sun glare fader's wash: its colour, and how much of it this frame lays over the

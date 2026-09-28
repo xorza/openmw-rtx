@@ -321,7 +321,7 @@ void main()
     // though it stood at one thousand, and moving it along the path changed nothing at all: the same
     // fault the split below was written for, one layer deeper.
     //
-    // **Their motion vector, their depth and the guide the upscaler demodulates by all stay the
+    // **Their motion vector, their depth and the albedo the filter demodulates by all stay the
     // surface behind them**, which is right while the stack is mostly see-through and wrong as it
     // approaches opaque. A motion vector of the pane's own is what answering that properly looks
     // like, and no pane in the game is near enough to opaque to have earned one.
@@ -361,9 +361,8 @@ void main()
 
     // **What the surface is, kept apart from what the path did to it.** An albedo multiplied by
     // every transmittance on the way to the eye is what the composite wants back and is not what
-    // an upscaler demodulates by: a foggy wall reporting an albedo with the fog in it is Ray
-    // Reconstruction dividing the light by the wrong number wherever there is weather — which
-    // outdoors is nearly everywhere.
+    // the filter demodulates by: a foggy wall reporting an albedo with the fog in it is the light
+    // divided by the wrong number wherever there is weather — which outdoors is nearly everywhere.
     vec3 transmittance = vec3(1.0);
 
     // A camera under the surface sees everything through the water in front of it, **the surface
@@ -466,8 +465,8 @@ void main()
     // **The bounce carries what the path took off it, and the albedo carries only the surface.**
     // The composite still multiplies the two, so the picture is the same product it always was; what
     // moved is which of the two the water and the air are folded into. They belong to the light,
-    // which is what they attenuated — and the channel that is left is then the albedo an upscaler
-    // asks for.
+    // which is what they attenuated — and the channel that is left is then the albedo the filter
+    // demodulates by.
     //
     // Filtering the bounce with the transmittance already in it averages a quantity that varies as
     // slowly as fog does, which is to say it changes nothing.
@@ -484,13 +483,11 @@ void main()
     RTX_STORE_COUNTED(direct, at, BOUNDARY_COLOUR, vec4(light, 1.0))
     RTX_STORE_COUNTED(indirect, at, BOUNDARY_COLOUR, vec4(bounce, 1.0))
     RTX_STORE_COUNTED(albedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mDiffuse, 1.0))
-    RTX_STORE_COUNTED(specular, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mSpecular, 1.0))
     RTX_STORE_COUNTED(guide, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mNormal, answer.mResponse.mRoughness))
 
-    // **Both vectors as the shader that answered worked them out**: where the surface, the sky or
-    // what the water reflects stood last frame. `Answer::mMotion` says whose and why there.
+    // **The vector as the shader that answered worked it out**: where the surface or the sky stood
+    // last frame. `Answer::mMotion` says whose and why there.
     RTX_STORE_COUNTED(motion, at, BOUNDARY_GUIDE, vec4(answer.mMotion, 0.0, 0.0))
-    RTX_STORE_COUNTED(reflectionMotion, at, BOUNDARY_GUIDE, vec4(answer.mMirrorMotion, 0.0, 0.0))
 
     // **What the display pass has to draw the backdrop through**, which is everything this frame
     // put between it and the eye: the sky's own layers in `mBackdropShown`, and the panes, the arms,

@@ -42,10 +42,10 @@ namespace RtxTool
     /// hashes say about this one: `shot --against` for a run rather than a still, because a stale
     /// table or a history reprojected onto the wrong surface needs a second frame to show.
     ///
-    /// **Three things a frame, and the verdict is never the picture past a network.** The trace's
+    /// **Three things a frame, and the verdict is never the picture past an upscaler.** The trace's
     /// own images and what the frame handed the reconstruction are what the tree computed, and two
     /// runs of one build compute them the same to the bit. The picture is the same only where
-    /// nothing reconstructed it: a network keeps a history, and the smallest difference in what it
+    /// nothing reconstructed it: an upscaler keeps a history, and the smallest difference in what it
     /// was handed on one frame stays in its picture for the rest of the run, so its picture is
     /// written for a look and compared for the record, and a run under it is the same run where
     /// the trace and the scene are. The scene beside both, because a run that differs has either
@@ -105,7 +105,7 @@ namespace RtxTool
             /// Frames whose picture differs where nothing reconstructed it, in order.
             std::vector<std::uint32_t> mDiffering;
 
-            /// Frames whose picture differs past a network, in order. Reported and never a verdict.
+            /// Frames whose picture differs past an upscaler, in order. Reported and never a verdict.
             std::vector<std::uint32_t> mReconstructedDiffering;
 
             /// Frames where any part of the scene differs, in order.

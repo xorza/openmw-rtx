@@ -193,29 +193,12 @@ namespace RtxTool
         option(otherThan(Verbs::Info | Verbs::Film), "upscale",
             bpo::value<std::string>()->default_value(
                 std::string(Rtx::sUpscaleNames.name(byDefault.mSetup.mProfile.mUpscaling.mMode))),
-            std::format("put DLSS Ray Reconstruction between the trace and the picture: {}. --size "
-                        "is what comes out, and what gets traced is DLSS's answer for it. It "
-                        "denoises for itself, so --filter stops applying. `{}` by default in this "
-                        "build — quality where it has DLSS, so a plain run is the renderer with "
-                        "everything switched on without quartering the pixels it traced; "
-                        "--upscale=performance is the 1920x1080 to 3840x2160 the frame budget is "
-                        "written against, and --upscale=off is what an A/B against the unupscaled "
-                        "path needs. A reference cannot be built through a denoiser. `film` is always `{}`",
+            std::format("put the upscaler between the trace and the picture: {}. --size is what "
+                        "comes out, and what gets traced is the upscaler's answer for it. `{}` by "
+                        "default, and a renderer without an upscaler refuses every other mode by "
+                        "name. `film` is always `{}`",
                 Rtx::sUpscaleNames.list(), Rtx::sUpscaleNames.name(sUpscaleByDefault),
                 Rtx::sUpscaleNames.name(sFilmUpscale))
-                .c_str());
-
-        option(sFramed, "preset",
-            bpo::value<std::string>()->default_value(
-                std::string(Rtx::sPresetNames.name(byDefault.mSetup.mProfile.mUpscaling.mPreset))),
-            std::format("which Ray Reconstruction network to run: {}. Ray Reconstruction keeps its "
-                        "own presets, and they are not super-resolution's -- A through C are retired, d and e "
-                        "are the first generation's transformer models, and f is the second generation, the "
-                        "SDK's default from 310.9.1. `default` hands the choice to the "
-                        "installed library, which has changed between SDK versions and between the "
-                        "convolutional and transformer models, so two runs under it are not the same "
-                        "measurement. Pinned to f so that they are",
-                Rtx::sPresetNames.list())
                 .c_str());
 
         option(sFramed, "exposure", bpo::value<std::string>()->default_value("auto"),
@@ -327,16 +310,14 @@ namespace RtxTool
             "cache of their own, apart from the one every other run reads");
 
         option(sFramed, "noise", bpo::value<std::string>()->default_value("auto"),
-            std::format("where the trace's per-pixel draws come from: auto, {}. Auto follows the "
-                        "denoiser — the tile under the wavelet, the hash under Ray Reconstruction, "
-                        "which asks for independent draws. Naming one is the A/B",
+            std::format("where the trace's per-pixel draws come from: auto, {}. Auto is the tile, "
+                        "which the wavelet is built to read. Naming one is the A/B",
                 Rtx::sNoiseSourceNames.list())
                 .c_str());
 
         option(sFramed, "level-epsilon", bpo::value<float>()->default_value(0.0f),
-            "levels added to the texture level bias past the ratio the upscaler sets: the DLSS "
-            "guide's epsilon, negative for sharper. Nought is the ratio alone, and off the "
-            "upscaler nothing is biased");
+            "levels added to the texture level bias past the ratio the upscaler sets, negative for "
+            "sharper. Nought is the ratio alone, and off the upscaler nothing is biased");
 
         option(sFramed, "reorder", bpo::value<std::string>()->default_value("none"),
             std::format("sort the launch's threads by what they hit before the hit's shader runs "
@@ -401,8 +382,8 @@ namespace RtxTool
             "a corpus in the tree: the picture is a function of the driver and the card as much as "
             "of the code. The verdict is the trace's own images, what the frame handed the "
             "reconstruction, and the scene, which two runs of one build compute to the bit; the "
-            "picture is the verdict only where nothing upscaled it, because a network keeps a "
-            "history and the smallest difference handed to it on one frame stays in its picture "
+            "picture is the verdict only where nothing upscaled it, because an upscaler keeps "
+            "a history and the smallest difference handed to it on one frame stays in its picture "
             "for the rest of the run, so that picture is reported beside the verdict and never as "
             "one");
 
@@ -492,10 +473,6 @@ namespace RtxTool
             "image size, as WIDTHxHEIGHT");
         option(sFramed, "fov", bpo::value<float>()->default_value(byDefault.mWindow.mFieldOfView),
             "vertical field of view, in degrees");
-        option(Verbs::View | Verbs::Bench, "reflex", bpo::value<std::string>(),
-            "how the driver paces the window: off, on or boost, as `[RTX] reflex` spells them. Not "
-            "given, the player's own under `view` and `off` for a measured run, where the driver's "
-            "sleep is a limiter with no limit and its markers a measurement");
         option(sPlaces, "pos", bpo::value<std::string>()->default_value(""),
             "where to put the camera, as x,y,z. Defaults to the view's, and without a view to where the "
             "game puts a player arriving in the cell, facing where it faces them. Write "

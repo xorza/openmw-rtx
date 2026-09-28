@@ -95,8 +95,7 @@ namespace Rtx
         // Before the first targets, because a windowed renderer is sized by its surface rather
         // than by what the caller guessed the window would come up at.
         if (options.mWindow != nullptr)
-            mPresenter = std::make_unique<Presenter>(
-                mDevice, mInstance, options.mWindow, options.mVerticalSync, options.mPacing);
+            mPresenter = std::make_unique<Presenter>(mDevice, mInstance, options.mWindow, options.mVerticalSync);
 
         const VkExtent2D output
             = mPresenter != nullptr ? mPresenter->getExtent() : VkExtent2D{ options.mWidth, options.mHeight };
@@ -215,14 +214,7 @@ namespace Rtx
 
         report += mDevice.getPhysicalDevice().describe();
 
-        report += "\nDLSS Ray Reconstruction: " + describeUpscaling(mDevice, mInstance.getHandle()) + '\n';
-
-        // The device's half of the driver's pacing; the surface's half is a window's to answer,
-        // and this verb has none.
-        report += "frame pacing:      "
-            + std::string(mDevice.hasLatencyPacing() ? "the driver paces (VK_NV_low_latency2, presentId)"
-                                                     : "the host paces its own frames")
-            + '\n';
+        report += "\nupscaler:          " + describeUpscaling(mDevice, mInstance.getHandle()) + '\n';
 
         // Reaching here is the part that proves the rest: the device resolved every entry point the
         // required extensions promise, and a driver advertising one it cannot dispatch fails before
@@ -434,22 +426,6 @@ namespace Rtx
         mPresenter->setVerticalSync(mode);
     }
 
-    bool VulkanRenderer::pacesFrames() const
-    {
-        return mPresenter != nullptr && mPresenter->pacesFrames();
-    }
-
-    void VulkanRenderer::setPacing(const Pacing& pacing)
-    {
-        if (mPresenter == nullptr)
-            return;
-
-        // A handed-over batch is submitted first, as a vertical sync change does: the present mode
-        // may move with the pacing, and a rebuild frees what a batch may be sitting beside.
-        mGui.getTextures().finish();
-        mPresenter->setPacing(pacing);
-    }
-
     void VulkanRenderer::setAnisotropy(const std::uint32_t anisotropy)
     {
         if (anisotropy == mProfile.mAnisotropy)
@@ -457,28 +433,6 @@ namespace Rtx
 
         mProfile.mAnisotropy = anisotropy;
         mScenes.forEach([&](DeviceScene& scene) { scene.setAnisotropy(anisotropy); });
-    }
-
-    void VulkanRenderer::awaitFrame()
-    {
-        if (mPresenter != nullptr)
-            mPresenter->awaitFrame();
-    }
-
-    void VulkanRenderer::endSimulation(const bool flash)
-    {
-        assert(!mRing.isOpen() && "a frame the world was placed in was neither traced nor skipped");
-
-        if (mPresenter != nullptr)
-            mPresenter->endSimulation(flash);
-    }
-
-    std::optional<LatencyReport> VulkanRenderer::describeLatency() const
-    {
-        if (mPresenter == nullptr)
-            return std::nullopt;
-
-        return mPresenter->describeLatency();
     }
 
     void VulkanRenderer::skipFrame()
@@ -607,8 +561,8 @@ namespace Rtx
         assert(camera.mCamera.mWidth == mFrame.getWidth() && camera.mCamera.mHeight == mFrame.getHeight()
             && "the camera has to be built for the render extent; ask getExtents");
 
-        // Coverage and an upscaler do not meet: NGX writes the upscaled image itself and was never
-        // given `pInAlpha`, so a picture that stops where nothing was hit is `traceGuiTexture`'s.
+        // Coverage and an upscaler do not meet: an upscaler writes the upscaled image itself and is
+        // handed no coverage, so a picture that stops where nothing was hit is `traceGuiTexture`'s.
         assert((camera.mTransparentBackground == 0 || mProfile.mUpscaling.mMode == Upscale::Off)
             && "a frame that stops where nothing was hit belongs to traceGuiTexture, which does not upscale");
 
@@ -673,9 +627,6 @@ namespace Rtx
                 .mSampled = sampled,
                 .mAccumulate = options.mAccumulate,
                 .mPastLost = basisLost,
-                // Ray Reconstruction is itself the denoiser, and handing it a frame the wavelet
-                // already blurred is asking it to recover what was thrown away — which is why
-                // `resolve` never answers with both.
                 .mFilter = reconstruction.filtered(),
                 .mTimer = &timer,
             });
@@ -704,12 +655,8 @@ namespace Rtx
             mUpscaler->record(commands,
                 UpscaleInputs{
                     .mColour = traced.mColour,
-                    .mDiffuseAlbedo = channels.get(Channel::Albedo),
-                    .mSpecularAlbedo = channels.get(Channel::Specular),
-                    .mNormalRoughness = channels.get(Channel::Guide),
                     .mDepth = channels.get(Channel::Depth),
                     .mMotion = channels.get(Channel::Motion),
-                    .mReflectionMotion = channels.get(Channel::ReflectionMotion),
                     .mJitter = sampled.mCamera.mJitter,
                     .mFrameDeltaMs = sinceLastMs,
                     .mReset = upscalerLost,

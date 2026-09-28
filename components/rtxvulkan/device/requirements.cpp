@@ -58,12 +58,10 @@ namespace Rtx
         constexpr std::array sMemoryBudget{ VK_EXT_MEMORY_BUDGET_EXTENSION_NAME };
         constexpr std::array sPresentFences{ VK_KHR_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME };
         constexpr std::array sCheckpoints{ VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME };
-        constexpr std::array sPacing{ VK_KHR_PRESENT_ID_EXTENSION_NAME, VK_NV_LOW_LATENCY_2_EXTENSION_NAME };
 
-        /// What the registry says a swapchain's extensions rest on beside core 1.4: the swapchain
-        /// itself, which a device takes only where its instance has a surface, and for a present
-        /// fence the instance's half of swapchain maintenance as well.
-        constexpr std::array sSwapchain{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+        /// What the registry says a present fence rests on beside core 1.4: the swapchain, which a
+        /// device takes only where its instance has a surface, and the instance's half of swapchain
+        /// maintenance.
         constexpr std::array sMaintainedSwapchain{
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
             VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME,
@@ -84,10 +82,6 @@ namespace Rtx
             = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPresentFences); },
             .mField
             = [](OptionalFeatures& features) -> VkBool32& { return features.mPresentFences.swapchainMaintenance1; },
-        };
-        constexpr OptionalFeature sPresentIdFeature{
-            .mStructure = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPresentId); },
-            .mField = [](OptionalFeatures& features) -> VkBool32& { return features.mPresentId.presentId; },
         };
 
         constexpr std::array sOptionalExtensions{
@@ -114,14 +108,6 @@ namespace Rtx
             // stage reached rather than an address: `GpuTimer::open` sets one per zone in a build
             // that names things, and `Device::describeFault` reads them back.
             OptionalExtensions{ DeviceOption::Checkpoints, sCheckpoints, {}, sDebugNames },
-            // The driver's frame pacing — Reflex — and the number each present carries so the
-            // driver can tell one frame's markers from the next's. Both or neither: the pacing
-            // needs the present id, and the id alone is a number nothing reads. `LatencyPacer` is
-            // what uses them, and only where there is a window.
-            OptionalExtensions{ .mOption = DeviceOption::Pacing,
-                .mExtensions = sPacing,
-                .mNeeds = sSwapchain,
-                .mFeature = &sPresentIdFeature },
         };
 
         /// A table out of `DeviceOption`'s order is an option read as another.
@@ -262,7 +248,6 @@ namespace Rtx
         // whose extension is not enabled is one the driver was never told to expect.
         mFault.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT;
         mPresentFences.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR;
-        mPresentId.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR;
     }
 
     DeviceProperties::DeviceProperties()

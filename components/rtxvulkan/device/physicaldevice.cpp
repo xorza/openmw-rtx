@@ -240,7 +240,7 @@ namespace Rtx
         // at `vkCreateDevice`.
         if (const std::string missing = listMissingUpscalerExtensions(extensions); !missing.empty())
         {
-            profile.mObstacle = "missing extensions DLSS Ray Reconstruction needs: " + missing;
+            profile.mObstacle = "missing extensions the upscaler needs: " + missing;
             return profile;
         }
 

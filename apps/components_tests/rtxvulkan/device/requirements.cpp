@@ -81,14 +81,9 @@ namespace Rtx
             EXPECT_EQ(seen.size(), getRequiredDeviceFeatures().size());
         }
 
-        /// The driver's pacing is optional, both halves of it as one option, and never required: a
-        /// card without Reflex traces as it did. Named here so a list edited to require one cannot
-        /// pass.
-        ///
-        /// **And what each option rests on is stated**, which the registry's `depends` says: the
-        /// present id rests on a swapchain, and a present fence on a swapchain and the instance's
-        /// half of its maintenance. Taken without them, the present id went to every headless
-        /// device.
+        /// **What each option rests on is stated**, which the registry's `depends` says: a present
+        /// fence rests on a swapchain and the instance's half of its maintenance. Taken without
+        /// them, it would go to every headless device. No option is also required.
         TEST(RtxRequirementsTest, theOptionsAreTheirExtensionsWholeAndStateWhatTheyRestOn)
         {
             const auto names = [](std::span<const char* const> list) {
@@ -96,12 +91,6 @@ namespace Rtx
             };
             const std::span<const OptionalExtensions> options = getOptionalExtensions();
             ASSERT_EQ(options.size(), sDeviceOptions);
-
-            const OptionalExtensions& pacing = options[static_cast<std::size_t>(DeviceOption::Pacing)];
-            EXPECT_EQ(names(pacing.mExtensions),
-                (std::vector<std::string_view>{
-                    VK_KHR_PRESENT_ID_EXTENSION_NAME, VK_NV_LOW_LATENCY_2_EXTENSION_NAME }));
-            EXPECT_EQ(names(pacing.mNeeds), (std::vector<std::string_view>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME }));
 
             const OptionalExtensions& fences = options[static_cast<std::size_t>(DeviceOption::PresentFences)];
             EXPECT_EQ(names(fences.mNeeds),
@@ -144,8 +133,6 @@ namespace Rtx
             reaches(DeviceOption::PresentFences, &features.mPresentFences,
                 &features.mPresentFences.swapchainMaintenance1,
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR);
-            reaches(DeviceOption::Pacing, &features.mPresentId, &features.mPresentId.presentId,
-                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR);
             for (const DeviceOption bare : { DeviceOption::MemoryBudget, DeviceOption::Checkpoints })
                 EXPECT_EQ(options[static_cast<std::size_t>(bare)].mFeature, nullptr) << static_cast<int>(bare);
         }

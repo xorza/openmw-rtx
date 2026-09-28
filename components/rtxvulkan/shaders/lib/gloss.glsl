@@ -2,7 +2,7 @@
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_GLOSS_GLSL
 
 // The specular half of a surface: the lobe `brdf.h` states, taken at each light a surface is lit by
-// and drawn for its bounce, and what the upscaler is told it reflects.
+// and drawn for its bounce, and how much it reflects beside the diffuse half.
 //
 // **A surface with no reflectance has no specular half, and is not asked for one.** Every vanilla
 // surface is that, so `glossOf` answers it with one test and every step after reads a flag that is
@@ -59,8 +59,8 @@ struct Gloss
     /// `specularCompensation`: the energy one scattering event loses, put back.
     vec3 mCompensation;
 
-    /// The directional albedo the lobe reflects toward the eye, compensated: what the upscaler
-    /// demodulates the specular half by.
+    /// The directional albedo the lobe reflects toward the eye, compensated: what `bounceDraw`
+    /// weighs the lobe by against the diffuse albedo.
     vec3 mAlbedo;
 
     /// The surface's diffuse albedo, `Surface::mAlbedo`: what a light's weight reads beside the lobe

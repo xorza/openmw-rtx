@@ -32,9 +32,9 @@
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/skylight.hpp>
-#include <components/rtx/frame/pacing.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
@@ -274,17 +274,12 @@ namespace RtxTool
             // **The settings the ray tracer reads, from the harness's own sources and through the
             // game's one derivation.** Given on the line, the line's; a window's, the player's; a
             // measured run's, the file's default — but for the upscaler, whose default for a run is
-            // the harness's own (`sUpscaleByDefault`), and the Reflex mode, off for the reason
-            // `RunSetup::mLatency` gives. The size rule's constant is the player's own, since no
+            // the harness's own (`sUpscaleByDefault`). The size rule's constant is the player's own, since no
             // option names it, and the viewing distance only decides where the cells say nought. The
             // specular map layout is the player's in every run: it says what the content's files mean,
             // as the `[Shaders]` switches beside it say whether to look for them.
             const MWRender::RtxSettings derived = MWRender::RtxSettings::derive(MWRender::RtxSettingValues{
                 .mUpscale = typed("upscale") ? spelled("upscale") : Settings::rtx().mUpscale.get(),
-                .mPreset = typed("preset") ? spelled("preset") : Settings::rtx().mPreset.get(),
-                .mReflex = given("reflex") ? spelled("reflex")
-                    : watched              ? Settings::rtx().mReflex.get()
-                                           : Rtx::sLatencyModeNames.name(Rtx::LatencyMode::Off),
                 .mDistantLandCells = given("distant-cells") ? variables["distant-cells"].as<float>()
                     : watched                               ? Settings::rtx().mDistantLandCells.get()
                               : std::stof(shippedDefault(command.mConfig, "RTX", "distant land cells")),
@@ -297,7 +292,6 @@ namespace RtxTool
                 .mAnisotropy = watched ? Settings::general().mAnisotropy.get()
                                        : std::stoi(shippedDefault(command.mConfig, "General", "anisotropy")),
             });
-            framed.mSetup.mLatency = derived.mLatency;
             framed.mSetup.mMirror = derived.mMirror;
 
             // **The layers the command's row says, unless the line names some**: `VerbPolicy`.
@@ -308,7 +302,10 @@ namespace RtxTool
                 framed.mSetup.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
 
             Rtx::RenderProfile& profile = framed.mSetup.mProfile;
-            profile.mUpscaling = derived.mUpscaling;
+            // A watched window is the player's session, and plays their mode as the game does in a
+            // build without an upscaler; a mode the line typed is still refused there.
+            profile.mUpscaling
+                = typed("upscale") ? derived.mUpscaling : derived.playedIn(Rtx::sUpscalerBuilt).mUpscaling;
             profile.mAnisotropy = derived.mAnisotropy;
             profile.mDelight = variables["delight"].as<float>();
             profile.mReconstruction.mFilter = variables["filter"].as<bool>();
@@ -659,8 +656,8 @@ namespace RtxTool
         /// **The frame is judged by its hashes and not by its pixels.** Every frame of a stop is
         /// hashed the way a `bench --hashes` hashes one — the trace's own images, what the frame
         /// handed the reconstruction, the scene — into `hashes.csv` beside the pictures, and
-        /// `--against` compares that table first. `FrameHashes` says why the picture past Ray
-        /// Reconstruction cannot be the verdict; the tile, the doll and the sheet are traced
+        /// `--against` compares that table first. `FrameHashes` says why the picture past an
+        /// upscaler cannot be the verdict; the tile, the doll and the sheet are traced
         /// without it and are compared as pictures.
         int commandShot(const Command& command)
         {
@@ -871,7 +868,7 @@ namespace RtxTool
         /// keys came to are where a wrong one shows: a flight of forty seconds where ten were meant
         /// is a key too far away, and the plan says so before a frame is drawn.
         ///
-        /// **Stepped at the film's own rate, settled, unvalidated and under DLAA.** The world moves a
+        /// **Stepped at the film's own rate, settled, unvalidated and natively reconstructed.** The world moves a
         /// frame's worth between frames, so the water and the people move at their own speed in the
         /// video; every walk waits for the cells it collects, so no cell arrives on screen; the
         /// layers, which a film does not ask about, stay off unless named, as a bench's do; and every

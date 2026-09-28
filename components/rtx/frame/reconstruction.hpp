@@ -15,9 +15,7 @@
 
 namespace Rtx
 {
-    /// What put a frame's indirect light back together — three states and not two flags, because
-    /// an upscaler denoises for itself and asking for the wavelet as well is a contradiction that
-    /// resolves silently.
+    /// What put a frame's indirect light back together.
     enum class Denoiser
     {
         /// The raw bounce, as the trace wrote it. What a converged reference is built from, because
@@ -26,50 +24,7 @@ namespace Rtx
 
         /// The à-trous wavelet over the indirect channel.
         Wavelet,
-
-        /// DLSS Ray Reconstruction, which denoises and upscales in one.
-        RayReconstruction,
     };
-
-    /// How a `Denoiser` is spelled in a report. The one list of the names, for the reason
-    /// `sUpscaleNames` gives.
-    inline constexpr NamedEnum sDenoiserNames{ std::array{
-        std::pair{ Denoiser::None, std::string_view("none") },
-        std::pair{ Denoiser::Wavelet, std::string_view("wavelet") },
-        std::pair{ Denoiser::RayReconstruction, std::string_view("ray-reconstruction") },
-    } };
-
-    /// Which network Ray Reconstruction runs, named for the letters NVIDIA uses. Ray Reconstruction
-    /// keeps its own set, distinct from super-resolution's: `nvsdk_ngx_defs_dlssd.h` names D to F,
-    /// where `nvsdk_ngx_defs.h` names J through M, and reading one for the other selects a network
-    /// that does not exist.
-    enum class Preset
-    {
-        /// Whatever the installed feature library picks, which has changed between SDK versions and
-        /// again between the convolutional and transformer models. Two runs are not comparable
-        /// under this, which is the whole reason the rest of the enum is here.
-        Default,
-
-        /// NVIDIA's preset D — the first transformer model.
-        D,
-
-        /// NVIDIA's preset E — the later transformer model, and the one a depth-of-field guide asks
-        /// for.
-        E,
-
-        /// NVIDIA's preset F — the second generation of the network, which the SDK makes its default
-        /// from 310.9.1, and the only one that takes a responsivity mask.
-        F,
-    };
-
-    /// How a `Preset` is spelled on a command line, in a setting file and in a report. The one list
-    /// of the names, for the reason `sUpscaleNames` gives.
-    inline constexpr NamedEnum sPresetNames{ std::array{
-        std::pair{ Preset::Default, std::string_view("default") },
-        std::pair{ Preset::D, std::string_view("d") },
-        std::pair{ Preset::E, std::string_view("e") },
-        std::pair{ Preset::F, std::string_view("f") },
-    } };
 
     /// Where the trace's per-pixel draws come from — the shadow ray's place on the source, the
     /// bounce's direction, the fog's and the water's — as against the reservoirs, which step a
@@ -82,9 +37,8 @@ namespace Rtx
         BlueNoiseTile,
 
         /// A hashed counter seeded by the pixel, the frame and the stream: independent draws with
-        /// no arrangement at all, which is what a network trained on independent samples asks
-        /// for — the DLSS-RR integration guide, section 3.5, and the reason the tile is not
-        /// handed to it.
+        /// no arrangement at all, for the A/B against the tile. Named by a run and never chosen by
+        /// `resolve`.
         WhiteHash,
     };
 
@@ -116,16 +70,11 @@ namespace Rtx
         std::pair{ Reorder::Texture, std::string_view("texture") },
     } };
 
-    /// What the upscaler is built with, decided once per set of targets: the mode says whether an
-    /// upscaler runs and at what ratio, and the preset which network it runs. A feature is created
-    /// per resolution with both.
+    /// What the upscaler is built with, decided once per set of targets: whether one runs, and at
+    /// what quality.
     struct Upscaling
     {
         Upscale mMode = Upscale::Off;
-
-        /// Which network to pin, where one runs at all. Pinned rather than left to the library,
-        /// whose default has changed between SDK versions, so that two runs are comparable.
-        Preset mPreset = Preset::F;
 
         bool operator==(const Upscaling& other) const = default;
     };
@@ -140,14 +89,13 @@ namespace Rtx
         bool mJitter = false;
 
         /// Where the trace's draws come from, where a run names a source. Nothing hands the
-        /// choice to `resolve`, which follows the denoiser; naming one is the A/B.
+        /// choice to `resolve`, which keeps the tile; naming one is the A/B.
         std::optional<NoiseSource> mNoise;
 
-        /// What is added to the texture level bias past the ratio the upscaler sets, in levels:
-        /// the DLSS programming guide's epsilon (section 3.5), which a run walks on a sign and a
-        /// book. Nought is the ratio alone. Without an upscaler the ratio is nought and this is
-        /// the whole of the bias, which is what lets a test and an A/B read a level off the
-        /// unupscaled path.
+        /// What is added to the texture level bias past the ratio the upscaler sets, in levels,
+        /// which a run walks on a sign and a book. Nought is the ratio alone. Without an upscaler
+        /// the ratio is nought and this is the whole of the bias, which is what lets a test and an
+        /// A/B read a level off the unupscaled path.
         float mLevelEpsilon = 0.0f;
 
         bool operator==(const ReconstructionRequest& other) const = default;
@@ -161,33 +109,22 @@ namespace Rtx
     {
         Denoiser mDenoiser = Denoiser::None;
 
-        /// What upscaled the frame: off wherever nothing did, which is also every frame the wavelet
-        /// can run in, and then `Preset::Default` rather than the preset nobody used.
-        Upscaling mUpscaling{ .mMode = Upscale::Off, .mPreset = Preset::Default };
+        /// What upscaled the frame: off wherever nothing did.
+        Upscaling mUpscaling;
 
-        /// Whether the primary ray moved inside its pixel this frame.
-        bool mJitter = false;
-
-        /// The wavelet was wanted and did not run, because an upscaler denoises for itself. True of
-        /// nearly every upscaled frame, since `ReconstructionRequest::mFilter` is on by default;
-        /// worth saying only to a caller that knows the switch was given outright.
-        bool mFilterSuppressed = false;
-
-        /// The frame jittered although nothing asked it to, because an upscaler always jitters:
+        /// Whether the primary ray moved inside its pixel this frame. Always under an upscaler:
         /// reconstruction across several frames of one sample point is reconstruction from one
         /// sample.
-        bool mJitterForced = false;
+        bool mJitter = false;
 
-        /// Where the trace drew from: the tile under the wavelet or nothing, and the hash under an
-        /// upscaler, unless the request named one. A consequence of the denoiser, because the
-        /// tile is an arrangement the wavelet reads and the network does not want.
+        /// Where the trace drew from: the tile, unless the request named a source.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
 
         /// What every texture level is offset by, in levels: the shown pixel's cone is narrower
         /// than the traced one by the upscaler's ratio, and a level chosen for the traced pixel
-        /// reads every texture that much coarser than the picture shows. The DLSS programming
-        /// guide, section 3.5: `log2(render / display)`, plus the request's epsilon. The ratio is
-        /// nought where nothing upscales, and the epsilon stands on its own there.
+        /// reads every texture that much coarser than the picture shows — `log2(render / display)`,
+        /// plus the request's epsilon. The ratio is nought where nothing upscales, and the epsilon
+        /// stands on its own there.
         float mLevelBias = 0.0f;
 
         /// Whether the wavelet ran over the indirect channel — one comparison, because the backend
@@ -197,37 +134,37 @@ namespace Rtx
         /// Whether an upscaler reconstructed the frame.
         bool upscaled() const { return mUpscaling.mMode != Upscale::Off; }
 
-        /// The whole of the rule, and the only copy of it.
+        /// The whole of the rule, and the only copy of it. An upscaler reconstructs the frame the
+        /// trace chain composed, so the wavelet runs under one as it runs without.
         ///
         /// @param extents what the frame is traced at and shown at, read only under an upscaler
-        ///        and only for its widths — the DLSS guide states its ratio in X, and the pixels
-        ///        are square.
+        ///        and only for its widths, since the pixels are square.
         static Reconstruction resolve(
             const Upscaling& upscaling, const ReconstructionRequest& asked, const FrameExtents& extents)
         {
+            const Denoiser denoiser = asked.mFilter ? Denoiser::Wavelet : Denoiser::None;
+            const NoiseSource noise = asked.mNoise.value_or(NoiseSource::BlueNoiseTile);
             if (upscaling.mMode == Upscale::Off)
             {
                 return Reconstruction{
-                    .mDenoiser = asked.mFilter ? Denoiser::Wavelet : Denoiser::None,
+                    .mDenoiser = denoiser,
                     .mJitter = asked.mJitter,
-                    .mNoise = asked.mNoise.value_or(NoiseSource::BlueNoiseTile),
+                    .mNoise = noise,
                     .mLevelBias = asked.mLevelEpsilon,
                 };
             }
 
             return Reconstruction{
-                .mDenoiser = Denoiser::RayReconstruction,
+                .mDenoiser = denoiser,
                 .mUpscaling = upscaling,
                 .mJitter = true,
-                .mFilterSuppressed = asked.mFilter,
-                .mJitterForced = !asked.mJitter,
-                .mNoise = asked.mNoise.value_or(NoiseSource::WhiteHash),
+                .mNoise = noise,
                 .mLevelBias = levelBiasOf(extents, asked.mLevelEpsilon),
             };
         }
 
     private:
-        /// The guide's formula with the epsilon the request adds.
+        /// The ratio's levels with the epsilon the request adds.
         static float levelBiasOf(const FrameExtents& extents, const float epsilon)
         {
             assert(extents.mRenderWidth > 0 && extents.mOutputWidth > 0 && "an upscaler with no extents to bias by");

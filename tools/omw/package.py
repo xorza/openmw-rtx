@@ -63,13 +63,7 @@ def _archive_linux(build: Build, name: str) -> None:
     AppStream validation is off: upstream's metainfo carries warnings appstreamcli refuses. The tools
     are AppImages themselves and a runner has no FUSE, so they extract and run. What the image takes
     from the host is the AppImage exclude list — glibc and libstdc++, the GL stack, X11, Wayland,
-    fontconfig, ALSA — at the versions of a bare Ubuntu 24.04.
-
-    **The DLSS library is out of the AppDir while linuxdeploy runs.** Its last pass patches an rpath
-    into every ELF file it finds there, and NVIDIA's feature library is signed: with an rpath added,
-    NGX said the device offered no Ray Reconstruction. So the deploy pass runs without it, the file
-    goes back untouched, and the image is then written by the AppImage plugin called on its own,
-    which patches nothing."""
+    fontconfig, ALSA — at the versions of a bare Ubuntu 24.04."""
     qmake = require("qmake6", "the Qt plugin reads Qt's layout off it: qt6-base-dev-tools")
     require("pkg-config", "OSG's version and library directory come off its .pc: pkg-config")
     require("zsyncmake", "the update information wants a .zsync beside the image: zsync")
@@ -90,12 +84,6 @@ def _archive_linux(build: Build, name: str) -> None:
     hooks.mkdir()
     (hooks / "osg-plugins.sh").write_text('export OSG_LIBRARY_PATH="$this_dir/usr/lib"\n')
 
-    kept = ROOT / "AppDir.kept"
-    shutil.rmtree(kept, ignore_errors=True)
-    kept.mkdir()
-    for signed in (appdir / "usr" / "bin").glob("libnvidia-ngx-*.so.*"):
-        signed.rename(kept / signed.name)
-
     executables: list[str | Path] = []
     for file in sorted((appdir / "usr" / "bin").iterdir()):
         if file.is_file() and os.access(file, os.X_OK):
@@ -109,10 +97,6 @@ def _archive_linux(build: Build, name: str) -> None:
          "--desktop-file", appdir / "usr" / "share" / "applications" / "org.openmw.launcher.desktop",
          "--icon-file", appdir / "usr" / "share" / "pixmaps" / "openmw.png",
          "--plugin", "qt"], env=env)
-
-    for signed in kept.iterdir():
-        signed.rename(appdir / "usr" / "bin" / signed.name)
-    kept.rmdir()
 
     # From dist/, because appimagetool writes the .zsync into the working directory and the image
     # where it is told.

@@ -149,10 +149,6 @@ namespace RtxTool
 
             FrameSamples mSamples;
 
-            /// The driver's input-to-present figure of every measured frame it timed, in
-            /// milliseconds: a window the driver paces has one a frame, a headless run none.
-            std::vector<double> mLatencyMs;
-
             GpuBreakdown mGpu;
             HoldTimes mHold;
 
@@ -160,12 +156,12 @@ namespace RtxTool
             /// how much of the last frame hit something go straight in, and the rest at `finish`.
             BenchPlace mPlace;
 
-            /// Empties it for the next stop, keeping the room the frame series, the latency series and
-            /// the zones' rows grew — what the longest stop of a run reserves.
+            /// Empties it for the next stop, keeping the room the frame series and the zones' rows
+            /// grew — what the longest stop of a run reserves.
             ///
             /// **Every field not named is reset by being unnamed**, so a field added to the struct is
             /// reset here whether or not its author remembered to.
-            void restart() { Rtx::reuseKeeping(*this, &Progress::mSamples, &Progress::mLatencyMs, &Progress::mGpu); }
+            void restart() { Rtx::reuseKeeping(*this, &Progress::mSamples, &Progress::mGpu); }
         };
 
         const SessionRequest& mRequest;

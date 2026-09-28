@@ -5,7 +5,6 @@
 #include <string_view>
 
 #include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/frame/pacing.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -43,18 +42,6 @@ namespace MWRender
         /// two. Here and not written into the registry by the harness, because the registry is the
         /// player's and a knob of a run travels with the run.
         Rtx::MirrorKnobs mMirror;
-
-        /// How the driver paces the frame, as the run decided: the harness off for a measured run,
-        /// where the driver's sleep is a limiter with no limit and its markers a measurement, and
-        /// the player's for a watched window and a played session. Here and not written into the
-        /// registry by the harness, for the reason `mMirror` gives. The frame-rate limit is not
-        /// here: it is the engine's, which hands it to whichever renderer it made.
-        Rtx::LatencyMode mLatency = Rtx::LatencyMode::Off;
-
-        /// Whether a click flashes the driver's latency marker, which a tool measuring the click to
-        /// the screen watches for: the player's `[RTX] reflex flash`, and never a harness's, whose
-        /// clicks nobody makes.
-        bool mReflexFlash = false;
 
         /// Whether the window stays hidden, which saves a present per frame and nothing else.
         bool mHeadless = false;

@@ -102,8 +102,9 @@ namespace Rtx
 
         // **An option is taken whole where the device offers every extension of it and every one
         // it needs is already taken**, by the instance or by this device. The table's order is the
-        // order the needs are met in. What a driver offers is not what a device may enable: the
-        // present id is offered to a device with no window, and rests on a swapchain it has none of.
+        // order the needs are met in. What a driver offers is not what a device may enable: a
+        // present fence is offered to a device with no window, and rests on a swapchain it has none
+        // of.
         std::array<bool, sDeviceOptions> taken{};
         const auto listed = [&](const char* const name) {
             return std::any_of(extensions.begin(), extensions.end(),
@@ -172,7 +173,6 @@ namespace Rtx
 
         const bool describesFault = has(DeviceOption::FaultReport);
         mPresentFences = has(DeviceOption::PresentFences);
-        const bool paces = has(DeviceOption::Pacing);
 
         const float priority = 1.0f;
         const VkDeviceQueueCreateInfo queue{
@@ -222,15 +222,6 @@ namespace Rtx
         {
             load(mHandle.get(), mCmdSetCheckpoint, "vkCmdSetCheckpointNV");
             load(mHandle.get(), mGetQueueCheckpointData, "vkGetQueueCheckpointDataNV");
-        }
-
-        if (paces)
-        {
-            load(mHandle.get(), mLatency.mSetSleepMode, "vkSetLatencySleepModeNV");
-            load(mHandle.get(), mLatency.mSleep, "vkLatencySleepNV");
-            load(mHandle.get(), mLatency.mSetMarker, "vkSetLatencyMarkerNV");
-            load(mHandle.get(), mLatency.mGetTimings, "vkGetLatencyTimingsNV");
-            mLatency.mWaitSemaphores = vkWaitSemaphores;
         }
 
         if (instance.hasDebugUtils())

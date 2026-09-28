@@ -20,10 +20,9 @@ namespace Rtx
             return static_cast<std::uint32_t>(std::ceil(Shaders::specularTableColumn(cosine)));
         }
 
-        /// The Ray Reconstruction guide's `EnvBRDFApprox2`, as its scale on the reflectance at normal
-        /// incidence and its bias before the green's gate: the fit Ray Tracing Gems chapter 32 made
-        /// to a split-sum table. Transcribed from the Streamline programming guide.
-        osg::Vec2f envBrdfApprox2(float alpha, float cosine)
+        /// The fit Ray Tracing Gems chapter 32 made to a split-sum table, as its scale on the
+        /// reflectance at normal incidence and its bias before the green's gate.
+        osg::Vec2f splitSumFit(float alpha, float cosine)
         {
             const float x[4] = { 1.0f, cosine, cosine * cosine, cosine * cosine * cosine };
             const float y[4] = { 1.0f, alpha, alpha * alpha, alpha * alpha * alpha };
@@ -86,13 +85,12 @@ namespace Rtx
             }
         }
 
-        /// **The Ray Reconstruction guide's fit lands near the table away from grazing**, as its
-        /// scale and its bias against the table's two shares. The fit is to another lobe's table —
-        /// another masking term — and over the cosines from a half up the two are at most 0.053
-        /// apart, at a roughness of one. What this catches is a channel swapped or a factor lost,
-        /// which moves them by far more; toward grazing the lobes part by up to 0.31, and the
-        /// guide's own number would not demodulate the light this lobe reflects.
-        TEST(RtxSpecularAlbedoTest, theRayReconstructionFitLandsNearTheTableAwayFromGrazing)
+        /// **Ray Tracing Gems' fit lands near the table away from grazing**, as its scale and its
+        /// bias against the table's two shares. The fit is to another lobe's table — another
+        /// masking term — and over the cosines from a half up the two are at most 0.053 apart, at a
+        /// roughness of one. What this catches is a channel swapped or a factor lost, which moves
+        /// them by far more; toward grazing the lobes part by up to 0.31.
+        TEST(RtxSpecularAlbedoTest, theRayTracingGemsFitLandsNearTheTableAwayFromGrazing)
         {
             const SpecularAlbedo& table = SpecularAlbedo::shared();
             for (std::uint32_t row = 0; row < Shaders::SPECULAR_TABLE_SIZE; ++row)
@@ -101,7 +99,7 @@ namespace Rtx
                     const float roughness = Shaders::specularTableRoughness(row);
                     const float cosine = Shaders::specularTableCosine(column);
                     const osg::Vec2f read = table.at(cosine, roughness);
-                    const osg::Vec2f fitted = envBrdfApprox2(roughness * roughness, cosine);
+                    const osg::Vec2f fitted = splitSumFit(roughness * roughness, cosine);
 
                     EXPECT_NEAR(fitted.x(), read.y() - read.x(), 0.06) << "scale at " << cosine << ' ' << roughness;
                     EXPECT_NEAR(fitted.y(), read.x(), 0.06) << "bias at " << cosine << ' ' << roughness;

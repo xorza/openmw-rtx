@@ -37,9 +37,6 @@ namespace Rtx
     ///
     /// Where no filter stands between the two, the trace composes it there itself
     /// (`VisibilityConstants::mComposed`). Either way the direct channel is the frame afterwards.
-    ///
-    /// Ray Reconstruction asks for exactly this — demodulated radiance, the albedo to put back,
-    /// normals and depth — so the split earns its place whichever filter runs over it.
     class GBuffer
     {
     public:

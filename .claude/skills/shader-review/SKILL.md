@@ -63,12 +63,12 @@ Never commit. A review with no findings is a normal result.
   every vanilla view unchanged. Each new tuple is one more pipeline to compile cold.
 - **`visibility.rgen` holds hit objects: a subgroup operation there loses the device.**
   `reorderThreadEXT` is only in `RTX_SHADE`, under `REORDER`.
-- The payload is fourteen packed words with one boundary (`packAnswer`,
+- The payload is twelve packed words with one boundary (`packAnswer`,
   `unpackAnswer`); traversal has its own small payload. Hit shaders trace with ray
   queries, so `maxPipelineRayRecursionDepth` is 1; a `traceRayEXT` there needs it raised.
 - Harness-only writes sit behind `COUNTING`. Every loop's bound is a shader constant
   (`LAMPS_AT_A_POINT`). Each random decision takes the next `SEED_*`, never a reused draw.
-  Under DLSS the noise is a white hash, otherwise the blue-noise tile.
+  The noise is the blue-noise tile unless a run names the white hash.
 
 ## Instruments `AGENTS.md` does not list
 
@@ -78,8 +78,6 @@ Never commit. A review with no findings is a normal result.
 - `--validation=gpu` catches out-of-range descriptor indices.
 - `--show=albedo|normal|roughness|specular` writes one surface input.
 - `bench --reorder=…` and `bench --variants=false` measure the sort and the tuples.
-- DLSS-RR's rules: `$NGX_ROOT/doc/DLSS-RR Integration Guide.pdf` (`NGX_ROOT` is in
-  `build-debug/CMakeCache.txt`).
 
 ## Sources
 

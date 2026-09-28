@@ -28,7 +28,6 @@ set(RTX_TEST_FILES
     rtx/frame/bluenoise.cpp
     rtx/frame/camera.cpp
     rtx/frame/framesampling.cpp
-    rtx/frame/pacing.cpp
     rtx/frame/reconstruction.cpp
     rtx/frame/specularalbedo.cpp
     rtx/frame/spritelistsize.cpp
@@ -104,8 +103,6 @@ set(RTX_TEST_FILES
     rtxvulkan/device/physicaldevice.cpp
     rtxvulkan/device/requirements.cpp
     rtxvulkan/pipeline/dispatch.cpp
-    rtxvulkan/present/latencypacer.cpp
-    rtxvulkan/present/pacedmodes.cpp
     rtxvulkan/spirv/spirvdigest.cpp
     rtxvulkan/spirv/spirvfile.cpp
     rtxvulkan/spirv/spirvpin.cpp
@@ -196,20 +193,11 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/trace/wavefield.cpp
     rtxvulkan/trace/waveline.cpp
     rtxvulkan/trace/wavepass.cpp
+    rtxvulkan/upscale/upscaler.cpp
 )
 
 
 # What is read off a fifo, where the platform has one.
-# Ray Reconstruction's tests where this build has DLSS, and the one skipped test that says it has not
-# where it has not: one or the other, and both named for the check that every file is.
-set(RTX_GPU_TEST_FILES_DLSS rtxvulkan/upscale/dlss.cpp)
-set(RTX_GPU_TEST_FILES_NO_DLSS rtxvulkan/upscale/nodlss.cpp)
-if (OPENMW_RTX_DLSS)
-    list(APPEND RTX_GPU_TEST_FILES ${RTX_GPU_TEST_FILES_DLSS})
-else()
-    list(APPEND RTX_GPU_TEST_FILES ${RTX_GPU_TEST_FILES_NO_DLSS})
-endif()
-
 # `Platform::Process` as each system's shell answers it: one file a system, so neither asks which
 # system it is on.
 set(RTX_TEST_FILES_PROCESS_POSIX platform/processposix.cpp)
@@ -246,6 +234,5 @@ openmw_rtx_expect_listed("${CMAKE_CURRENT_SOURCE_DIR}"
     MATCHING rtx/*.cpp rtx/*.hpp rtxvulkan/*.cpp rtxvulkan/*.hpp myguirtx/*.cpp myguirtx/*.hpp rtxtool/*.cpp
              rtxtool/*.hpp
     LISTED ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT} ${RTX_GPU_TEST_FILES} ${RTX_GPU_TEST_SUPPORT}
-           ${RTX_TEST_FILES_FIFO} ${RTX_TEST_FILES_UPSTREAM} ${RTX_TEST_FILES_EITHER}
-           ${RTX_GPU_TEST_FILES_DLSS} ${RTX_GPU_TEST_FILES_NO_DLSS})
+           ${RTX_TEST_FILES_FIFO} ${RTX_TEST_FILES_UPSTREAM} ${RTX_TEST_FILES_EITHER})
 list(APPEND UNITTEST_SRC_FILES ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT} ${RTX_TEST_FILES_UPSTREAM})

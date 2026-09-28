@@ -259,11 +259,11 @@
         <translation></translation>
     </message>
     <message>
-        <source>DLSS Ray Reconstruction</source>
+        <source>Upscaling</source>
         <translation></translation>
     </message>
     <message>
-        <source>How hard DLSS Ray Reconstruction works. It denoises and antialiases the traced frame whichever mode is chosen, and every mode but DLAA also traces fewer pixels than it shows.</source>
+        <source>How far below the window&apos;s size the ray tracer traces. The upscaler reconstructs the frame across frames whichever mode is chosen, and every mode but Native traces fewer pixels than it shows.</source>
         <translation></translation>
     </message>
     <message>
@@ -271,7 +271,7 @@
         <translation></translation>
     </message>
     <message>
-        <source>DLAA</source>
+        <source>Native</source>
         <translation></translation>
     </message>
     <message>
@@ -284,26 +284,6 @@
     </message>
     <message>
         <source>Quality</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>NVIDIA Reflex</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>How the driver paces the frame. On holds the game before each frame&apos;s input is read, so the input is sampled as late as it will still reach the screen on time. Boost holds the card at its top clock as well, at a power cost. Off leaves the driver&apos;s pacing as a frame limiter.</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>Off</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>On</source>
-        <translation></translation>
-    </message>
-    <message>
-        <source>On + Boost</source>
         <translation></translation>
     </message>
     <message>

@@ -2,7 +2,7 @@ OpenMW RTX
 ==========
 
 A fork of [OpenMW](https://openmw.org) that makes Morrowind work your GPU hard again:
-ray-traced lighting, path-traced indirect light and DLSS upscaling.
+ray-traced lighting and path-traced indirect light.
 
 This tree is OpenMW 0.52 plus one renderer. Everything about the engine itself — what it is,
 how to install it, how to build it, the data path, the command line — is in the
@@ -49,23 +49,21 @@ A 2002 game made to look astonishing on current hardware. Vanilla content, new l
 Requirements
 ------------
 
-* NVIDIA only: an RTX card, Turing (RTX 20 series) or later. The renderer is built on NVIDIA's
-  extensions and on DLSS, so no AMD or Intel GPU runs it.
+* An NVIDIA RTX card, Turing (RTX 20 series) or later, which is what the renderer is written and
+  tested for.
 * Vulkan 1.4 with ray tracing pipelines, ray queries, position fetch and shader invocation
   reorder. A device missing any of them refuses to start rather than falling back.
 * NVIDIA driver 595 or later, on Windows or Linux. It is the first to offer
   `VK_EXT_ray_tracing_invocation_reorder` on RTX cards, Turing included, so an RTX 20 card on an
   older driver is refused for that extension and runs once the driver is updated.
-* DLSS Ray Reconstruction as the denoiser and upscaler (NGX, on by default at build time)
 
 Tested on one machine so far: a laptop RTX 4090 at 150 W, which is about a desktop RTX 4070.
 
 Building and running
 --------------------
 
-The renderer is built by default. `-DOPENMW_RTX=OFF` leaves it out. `OPENMW_RTX_DLSS` (default
-`ON`) links NGX and needs `NGX_ROOT`. Turn the renderer on with `[RTX] enabled = true` in
-`settings.cfg`.
+The renderer is built by default. `-DOPENMW_RTX=OFF` leaves it out. Turn the renderer on with
+`[RTX] enabled = true` in `settings.cfg`.
 
 * [Architecture](docs/rtx/architecture.md) — the seam, the layers, who owns whom, the order a
   frame is computed in

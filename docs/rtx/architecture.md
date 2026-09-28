@@ -16,9 +16,10 @@ rasterizer is not modified. Both renderers stand behind one interface, one binar
 and the one not chosen never starts.
 
 The target is NVIDIA RTX, Turing and later, through Vulkan with ray tracing pipelines, ray
-queries and shader invocation reorder. DLSS Ray Reconstruction is the default denoiser and
-upscaler. Vanilla content is read as it is: its textures are pre-lit, so the renderer estimates
-the painted light and divides it out. A PBR replacer's companion maps reach the trace, and a
+queries and shader invocation reorder. The renderer's own wavelet filter is the denoiser, and
+every frame is traced at the window's size: the upscaler seam has no upscaler behind it yet.
+Vanilla content is read as it is: its textures are pre-lit, so the renderer estimates the painted
+light and divides it out. A PBR replacer's companion maps reach the trace, and a
 vanilla scene draws the same whether or not the renderer can read them.
 
 `[RTX] enabled` chooses the renderer. `-DOPENMW_RTX=OFF` builds without it. The player's settings
@@ -35,7 +36,7 @@ apps/openmw                      the game
   └── RtxRenderer                the game-side owner (apps/openmw/mwrender/rtx/)
         │  Rtx::Renderer         the core's interface to a backend
         ├── components/rtx       the core: what the scene is; no graphics API, no game headers
-        └── components/rtxvulkan the backend: everything true of Vulkan, NGX included
+        └── components/rtxvulkan the backend: everything true of Vulkan
 
 Beside the stack:
   components/myguirtx            MyGUI's backend over Rtx::GuiRenderer
@@ -51,7 +52,7 @@ content loader whatever draws: the scene arrives as an `osg::Node` graph, and th
 ## 3. The build
 
 `OPENMW_RTX` (on by default) builds the renderer, its tests and the harness.
-`OPENMW_RTX_DLSS` (on by default) links NGX and needs `NGX_ROOT`. `components/rtx/build.cmake`
+`components/rtx/build.cmake`
 sets the fork's flags (warnings are errors) and adds its directories. Each fork directory lists
 its files by hand, and a file that no list names stops the configure.
 
@@ -198,9 +199,9 @@ at the top, over all of them.
 | `texture/`          | the bindless array and the passes a texture is made with as it arrives |
 | `scene/`            | `DeviceScene`: its tables, structures, skinning and sprites             |
 | `trace/`            | `TraceChain` and its passes, the sea and the fog; the denoiser in `denoise/` |
-| `upscale/`          | `Upscaler` and DLSS                                                     |
+| `upscale/`          | `Upscaler`, the seam an upscaler stands behind                          |
 | `display/`          | `DisplayChain` and its passes                                           |
-| `present/`          | the swapchain, the present and the driver's pacing                      |
+| `present/`          | the swapchain and the present                                           |
 | `gui/`              | the interface's pass and textures                                       |
 
 - **The device.** `Device` holds the queue, the command pool, the `Timeline` and the
@@ -223,8 +224,8 @@ at the top, over all of them.
 - **`DisplayChain`** runs after the trace and the upscaler: bloom, exposure, glare, tone, debug
   lines. The GUI draws after it, in display values. The renderer blits to the swapchain and never
   draws into it.
-- **`Upscaler`** is the one seam to DLSS. A build without it links `upscale/noupscaler.cpp`.
-- **`LatencyPacer`** is the driver's frame pacing (Reflex) where the device offers it.
+- **`Upscaler`** is the one seam an upscaler stands behind. None does yet, and
+  `upscale/upscaler.cpp` refuses one by name.
 
 **The shaders** (`shaders/`, in the folders of the passes that dispatch them, shared pieces in
 `shaders/lib/`). One ray generation shader traces
@@ -281,14 +282,13 @@ On the host, in order:
 6. **GUI and present.** The host returns without waiting for the device.
 
 On the device, in record order: the sea and the ripples, the sprites, the fog, the trace, the
-denoiser where it runs, the composite where a denoiser or a sum needs one, DLSS Ray Reconstruction,
-the display chain, the GUI, the present.
+denoiser where it runs, the composite where a denoiser or a sum needs one, the upscaler where one
+runs, the display chain, the GUI, the present.
 
 Four clocks drive a frame, each with one source: host time (the wall in play, the frame count
 times a stated step in a measured run), simulation time, game time (the hour), and the sky's
 clock. The wall is read only to measure. A cut (a teleport, a worldspace change, a time skip)
-resets every history. A setting that changes the extent, the upscaler or the pacing takes effect
-at once.
+resets every history. A setting that changes the extent or the upscaler takes effect at once.
 
 ## 11. Threads
 

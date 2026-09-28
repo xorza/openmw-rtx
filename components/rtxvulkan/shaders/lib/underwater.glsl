@@ -177,7 +177,7 @@ float skyVisibleThrough(SkySource sky, vec3 position, vec2 draw)
 /// sun's half below has carried all along.
 ///
 /// **Kept apart rather than applied**, for the reason `fogAlong` gives: the two halves separate
-/// later, because an upscaler demodulates the frame by its albedo and what a path took is not part
+/// later, because the filter demodulates the bounce by the albedo and what a path took is not part
 /// of one. A caller that wants the single number has `throughWater`.
 struct WaterColumn
 {

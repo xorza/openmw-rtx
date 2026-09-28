@@ -1,21 +1,21 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_RECORDS_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_RECORDS_GLSL
 
-// The records that cross the frame and belong to no walk: what a surface is in the upscaler's
-// terms, and what a water surface reflects.
+// The records that cross the frame and belong to no walk: what a surface is in the filter's and
+// the composite's terms.
 //
 // **Their own file because the payload and the reprojection read them and nothing else of the
 // walks that fill them.** Declared where they were filled, the miss shader compiled the whole of
 // the water and the shading to hold a `VisibilityPayload`, and the reprojection pulled in the
 // water for one struct.
 
-/// What a shading model made of a surface, in the terms a temporal upscaler demodulates by.
+/// What a shading model made of a surface, in the terms the filter and the composite read.
 ///
-/// **Reported by whatever shaded the pixel rather than guessed after it.** Ray Reconstruction
-/// separates a noisy pixel into a diffuse and a specular half using the albedos and the roughness it
-/// is handed, so those three have to describe what this renderer actually did — and only the
-/// function that did it knows. A constant roughness of one, a permanently zero specular albedo and
-/// the *flat quad's* normal for water is a description of a renderer nobody wrote.
+/// **Reported by whatever shaded the pixel rather than guessed after it.** The composite puts the
+/// bounce back by the albedo, and the filter tells surfaces apart by the normal and the roughness,
+/// so those three have to describe what this renderer actually did — and only the function that
+/// did it knows. A constant roughness of one and the *flat quad's* normal for water is a
+/// description of a renderer nobody wrote.
 struct SurfaceResponse
 {
     /// The normal the shading used, which for water is the wave's and not the plane's.
@@ -25,40 +25,16 @@ struct SurfaceResponse
     /// none of what the path took off it between here and the eye.
     vec3 mDiffuse;
 
-    /// What the specular half is multiplied by — the surface's reflectance at this angle.
-    vec3 mSpecular;
-
     /// Nought for a mirror and one for Lambert.
     float mRoughness;
 };
 
 /// A pixel with no surface behind it: the sky, or a ray that reached nothing.
 ///
-/// **The upscaler's own values for one, because the record is in its terms**: the DLSS-RR
-/// integration guide gives the sky a diffuse albedo of a half and a specular albedo, a normal and a
-/// roughness of nought (§3.4.1 to §3.4.4). An albedo of nought left Ray Reconstruction nothing to
-/// divide the sky's colour by. Nothing of this renderer's own reads the sky's albedo or roughness:
-/// the composite multiplies it into a bounce of nought, and the filters know the sky by its normal,
-/// which stays nought.
+/// **Nought throughout.** Nothing reads the sky's albedo or roughness: the composite multiplies the
+/// albedo into a bounce of nought, and the filters know the sky by its normal, which stays nought.
 SurfaceResponse noResponse()
 {
-    return SurfaceResponse(vec3(0.0), vec3(0.5), vec3(0.0), 0.0);
+    return SurfaceResponse(vec3(0.0), vec3(0.0), 0.0);
 }
-
-/// What a water surface reflects, which is not where the water is.
-struct WaterMirror
-{
-    /// Where the reflected surface stands, in world units.
-    vec3 mAt;
-
-    /// The direction the reflection left along, for the case where it found no surface at all.
-    vec3 mAlong;
-
-    /// Which instance row it came off, so the frame can ask where that used to be.
-    uint mInstance;
-
-    /// False where the reflection reached the sky, which is a reflection with no distance to it and
-    /// not a reflection of nothing: `mAlong` is the whole of the answer there.
-    bool mFound;
-};
 #endif

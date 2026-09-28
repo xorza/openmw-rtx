@@ -117,7 +117,7 @@ void answerSolid(inout Answer answer, Surface surface)
     // **The colour is replaced and the surface is not.** What these views change is what a pixel is
     // painted with; the guides still describe a surface there, and saying otherwise hands every
     // reader of them a frame with no normals in it — which the wavelet reads as "no surface
-    // anywhere" and the upscaler reconstructs accordingly.
+    // anywhere".
     if (frame.mShow != SHOW_SHADED)
     {
         if (frame.mShow == SHOW_ALBEDO)
@@ -164,11 +164,6 @@ void answerWater(inout Answer answer, Surface surface)
     answer.mRadiance = water.mRadiance;
     answer.mResponse = water.mResponse;
 
-    // **The one surface in the frame that shows something standing somewhere else.** Water is
-    // shaded where it is seen, so its own motion describes the surface and not what is in it; this
-    // is the other one, and the upscaler weighs the two by the specular albedo it is handed.
-    answer.mMirrorMotion = mirrorMotionOf(pixel, origin, water.mMirror);
-
     const float shore = water.mShore;
     if (shore >= 1.0)
         return;
@@ -187,8 +182,7 @@ void answerWater(inout Answer answer, Surface surface)
     // back against carries the share.
     answer.mRadiance = mix(bedLight, answer.mRadiance, shore);
     answer.mResponse = SurfaceResponse(normalize(mix(lambert.mNormal, answer.mResponse.mNormal, shore)),
-        lambert.mDiffuse * (1.0 - shore), answer.mResponse.mSpecular * shore,
-        mix(lambert.mRoughness, answer.mResponse.mRoughness, shore));
+        lambert.mDiffuse * (1.0 - shore), mix(lambert.mRoughness, answer.mResponse.mRoughness, shore));
 }
 
 void main()

@@ -259,20 +259,20 @@
         <translation>Eksperymentalne śledzenie promieni</translation>
     </message>
     <message>
-        <source>DLSS Ray Reconstruction</source>
-        <translation>DLSS Ray Reconstruction</translation>
+        <source>Upscaling</source>
+        <translation>Skalowanie</translation>
     </message>
     <message>
-        <source>How hard DLSS Ray Reconstruction works. It denoises and antialiases the traced frame whichever mode is chosen, and every mode but DLAA also traces fewer pixels than it shows.</source>
-        <translation>Jak mocno pracuje DLSS Ray Reconstruction. W każdym trybie odszumia i wygładza śledzoną klatkę, a każdy tryb poza DLAA śledzi też mniej pikseli, niż wyświetla.</translation>
+        <source>How far below the window&apos;s size the ray tracer traces. The upscaler reconstructs the frame across frames whichever mode is chosen, and every mode but Native traces fewer pixels than it shows.</source>
+        <translation>Jak bardzo poniżej rozmiaru okna odbywa się śledzenie promieni. Skaler odtwarza obraz z wielu klatek w każdym trybie, a każdy tryb poza Natywna śledzi mniej pikseli, niż pokazuje.</translation>
     </message>
     <message>
         <source>Ultra Performance</source>
         <translation>Ultra wydajność</translation>
     </message>
     <message>
-        <source>DLAA</source>
-        <translation>DLAA</translation>
+        <source>Native</source>
+        <translation>Natywna</translation>
     </message>
     <message>
         <source>Performance</source>
@@ -285,26 +285,6 @@
     <message>
         <source>Quality</source>
         <translation>Jakość</translation>
-    </message>
-    <message>
-        <source>NVIDIA Reflex</source>
-        <translation>NVIDIA Reflex</translation>
-    </message>
-    <message>
-        <source>How the driver paces the frame. On holds the game before each frame&apos;s input is read, so the input is sampled as late as it will still reach the screen on time. Boost holds the card at its top clock as well, at a power cost. Off leaves the driver&apos;s pacing as a frame limiter.</source>
-        <translation>Jak sterownik taktuje klatki. „Wł.” wstrzymuje grę przed odczytem wejścia każdej klatki, tak by wejście było próbkowane najpóźniej, jak to możliwe, a klatka wciąż trafiła na ekran na czas. „Boost” dodatkowo utrzymuje kartę na najwyższym taktowaniu, kosztem poboru mocy. „Wył.” pozostawia taktowanie sterownika jako ogranicznik klatek.</translation>
-    </message>
-    <message>
-        <source>Off</source>
-        <translation>Wył.</translation>
-    </message>
-    <message>
-        <source>On</source>
-        <translation>Wł.</translation>
-    </message>
-    <message>
-        <source>On + Boost</source>
-        <translation>Wł. + Boost</translation>
     </message>
     <message>
         <source>Ray Tracing Distant Land</source>

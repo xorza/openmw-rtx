@@ -48,7 +48,6 @@ namespace RtxTool
                 longest = std::max(longest, stop.mSchedule.mSpec.getMeasured(request.mSetup.getWorldStep()));
 
         mProgress.mSamples.reserve(longest);
-        mProgress.mLatencyMs.reserve(longest);
         mProgress.mGpu.reserve(longest);
 
         // **From here and not from the first frame**, because the window before the first stop
@@ -194,11 +193,6 @@ namespace RtxTool
         // one it was drawn under. Not in a session somebody plays, whose pauses are theirs.
         if (report.mPaused && !mRequest.mPlayed && mProgress.mPausedFrames++ == 0)
             mProgress.mPausedBy = Stager::describePause();
-
-        // The driver's own figure of the newest frame it finished, kept where there is one: a
-        // series of its own and not a row, because it is not a stretch of the host's frame.
-        if (report.mLatency.has_value())
-            mProgress.mLatencyMs.push_back(static_cast<double>(report.mLatency->mInputToPresentUs) / 1000.0);
 
         // **Counted here and not where the route moved**, because a crossing is a dropped frame and
         // this is where what it dropped is known. The move pulls the next ring in and that read
@@ -391,8 +385,6 @@ namespace RtxTool
         place.mWallSeconds = mProgress.mWallMs / 1000.0;
         for (std::size_t at = 0; at < Rtx::sTimingCount; ++at)
             place.mRows[at] = summarise(mProgress.mSamples.mRows[at]);
-        if (!mProgress.mLatencyMs.empty())
-            place.mLatency = summarise(mProgress.mLatencyMs);
         place.mTravelled = travelled;
         place.mScene = renderer.getSceneStats();
         place.mMemory = renderer.getMemoryReport();

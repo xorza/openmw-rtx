@@ -704,10 +704,9 @@ void OMW::Engine::go()
     MWWorld::DateTimeManager& timeManager = *mWorld->getTimeManager();
     while (!mStateManager->hasQuitRequest())
     {
-        // The renderer says when the frame may begin — the frame-rate limit, and the driver's
-        // pacing where there is one — and moves the clock by what the wall says the last frame
-        // took, which a host's stated step overrules. Before input, because what is read after this
-        // is what the frame shows.
+        // The renderer holds the frame to the frame-rate limit and moves the clock by what the wall
+        // says the last frame took, which a host's stated step overrules. Before input, because
+        // what is read after this is what the frame shows.
         const double dt = mRenderer->openFrame() * timeManager.getSimulationTimeScale();
 
         mRenderer->advance(timeManager.getRenderingSimulationTime());
