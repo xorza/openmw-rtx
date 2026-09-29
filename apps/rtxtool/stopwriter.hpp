@@ -12,6 +12,7 @@
 #include "instruments/frametimes.hpp"
 #include "model/benchrecord.hpp"
 #include "model/benchrun.hpp"
+#include "picturemean.hpp"
 
 namespace osg
 {
@@ -97,6 +98,9 @@ namespace RtxTool
         /// The last measured frame, as a PNG.
         void writeCapture(const Writing& into, const std::filesystem::path& file);
 
+        /// The last measured frame, added to `mean`, which is written once it holds its count.
+        void addToMean(const Writing& into, const Actions::Mean& mean);
+
         /// Every measured frame's figures, a frame a line.
         void writeFrameTimes(const Writing& into, const std::filesystem::path& file, const FrameSamples& samples);
 
@@ -135,5 +139,10 @@ namespace RtxTool
 
         /// What a read back lands in, refilled per stop and never freed.
         std::vector<std::uint8_t> mPixels;
+
+        /// The mean `addToMean` is building, and where it goes: one at a time, since the stops one
+        /// mean takes run one after another.
+        PictureMean mMean;
+        std::filesystem::path mMeanFile;
     };
 }

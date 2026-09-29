@@ -1,6 +1,7 @@
 #include "stopwriter.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -97,6 +98,9 @@ namespace RtxTool
         if (!actions.mCapture.empty())
             writeCapture(into, actions.mCapture);
 
+        if (actions.mMean.has_value())
+            addToMean(into, *actions.mMean);
+
         if (!actions.mFrameTimes.empty())
             writeFrameTimes(into, actions.mFrameTimes, facts.mSamples);
 
@@ -117,6 +121,40 @@ namespace RtxTool
 
         if (!actions.mChecks.empty())
             runChecks(into, actions.mChecks, facts);
+    }
+
+    void StopWriter::addToMean(const Writing& into, const Actions::Mean& mean)
+    {
+        assert(mean.mOf > 0 && "a mean of no frames");
+        if (mean.mFile != mMeanFile)
+        {
+            assert(mMean.getCount() == 0 && "a mean left behind before it was written");
+            mMean.clear();
+            mMeanFile = mean.mFile;
+        }
+
+        Rtx::Renderer& renderer = into.mContext.mRenderer.getBackend();
+        const Rtx::FrameExtents extents = renderer.getExtents();
+        renderer.readPixels(mPixels);
+        mMean.add(mPixels, extents.mOutputWidth, extents.mOutputHeight);
+        if (mMean.getCount() < mean.mOf)
+            return;
+
+        mMean.mean(mPixels);
+        mMean.clear();
+        mMeanFile.clear();
+        try
+        {
+            Rtx::writePng(mean.mFile, extents.mOutputWidth, extents.mOutputHeight, mPixels);
+            into.mRecord.note(std::format("wrote {} {}x{}, the mean of {} frames\n",
+                Files::pathToUnicodeString(mean.mFile), extents.mOutputWidth, extents.mOutputHeight, mean.mOf));
+        }
+        catch (const std::exception& failed)
+        {
+            into.mRecord.note(
+                std::format("could not write {}: {}\n", Files::pathToUnicodeString(mean.mFile), failed.what()));
+            into.mRecord.fail();
+        }
     }
 
     void StopWriter::writeCapture(const Writing& into, const std::filesystem::path& file)

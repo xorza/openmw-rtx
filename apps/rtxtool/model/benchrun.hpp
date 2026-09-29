@@ -248,6 +248,16 @@ namespace RtxTool
         /// Where the last measured frame is written as a PNG, or empty for none.
         std::filesystem::path mCapture;
 
+        /// A mean the last measured frame is added to, which the stop that adds the `mOf`th writes
+        /// to `mFile` as a PNG: what a picture converges to, which no one stop draws. The stops one
+        /// mean takes run one after another.
+        struct Mean
+        {
+            std::filesystem::path mFile;
+            std::uint32_t mOf = 0;
+        };
+        std::optional<Mean> mMean;
+
         /// Where every measured frame's figures are written, a frame a line, or empty for none:
         /// `writeFrameTimes` says what for.
         std::filesystem::path mFrameTimes;

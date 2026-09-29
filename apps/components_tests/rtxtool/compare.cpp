@@ -110,6 +110,38 @@ namespace RtxTool
             EXPECT_EQ(after(1, Rtx::Upscale::UltraPerformance), 1u);
         }
 
+        /// **A bias is the difference that survives the blur.** A constant offset survives whole, the
+        /// picture's edge held; one pixel 127 apart in the middle of a 21 by 21 picture spreads its 127
+        /// over the kernel and comes back as `127 / 441` = 0.288 of a level on average, the kernel lying
+        /// inside the picture; and a checkerboard 127 either side of the reference is noise at the
+        /// finest scale, gone at `sNoiseBiasBlur` and whole under a blur a tenth of a pixel wide.
+        TEST(RtxCompareTest, aBiasIsTheDifferenceThatSurvivesTheBlur)
+        {
+            const Rtx::PngImage reference = flat(21, 21, 128);
+            EXPECT_EQ(blurredDifference(reference, reference, sNoiseBiasBlur), 0.0);
+
+            Rtx::PngImage offset = reference;
+            for (std::uint32_t y = 0; y < 21; ++y)
+                for (std::uint32_t x = 0; x < 21; ++x)
+                    channelAt(offset, x, y, 1) = 132;
+            EXPECT_NEAR(*blurredDifference(offset, reference, sNoiseBiasBlur), 4.0, 1e-4);
+
+            Rtx::PngImage impulse = reference;
+            channelAt(impulse, 10, 10, 0) = 255;
+            EXPECT_NEAR(*blurredDifference(impulse, reference, sNoiseBiasBlur), 127.0 / 441.0, 1e-4);
+
+            Rtx::PngImage checker = reference;
+            for (std::uint32_t y = 0; y < 21; ++y)
+                for (std::uint32_t x = 0; x < 21; ++x)
+                    for (std::size_t channel = 0; channel < 3; ++channel)
+                        channelAt(checker, x, y, channel) = (x + y) % 2 == 0 ? 255 : 1;
+            EXPECT_LT(*blurredDifference(checker, reference, sNoiseBiasBlur), 1.0);
+            EXPECT_NEAR(*blurredDifference(checker, reference, 0.1f), 127.0, 1e-3);
+
+            EXPECT_FALSE(blurredDifference(reference, flat(21, 20, 128), sNoiseBiasBlur).has_value());
+            EXPECT_FALSE(blurredDifference(Rtx::PngImage{}, reference, sNoiseBiasBlur).has_value());
+        }
+
         /// Two sizes are not a delta, and neither is a reference that was never written.
         TEST(RtxCompareTest, nothingToSubtractIsSaidRatherThanCountedAsZero)
         {

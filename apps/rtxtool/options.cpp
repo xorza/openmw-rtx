@@ -406,8 +406,9 @@ namespace RtxTool
             "the directory to write every picture into, as <view>.png beside <view>-doll.png, "
             "<view>-map.png and <view>-textures.png, a film's frames/000000.png onwards and "
             "<keys>.mp4, the picture of each Home press in a `view` as <view>-<n>.png, with the "
-            "block Home prints inside it as the PNG's Description, or `noise`'s three pictures of a "
-            "place as <view>.png beside <view>-reference.png and <view>-averaged.png: \"shot\", "
+            "block Home prints inside it as the PNG's Description, or `noise`'s five pictures of a "
+            "place as <view>.png beside <view>-mean.png, <view>-reference.png, <view>-averaged.png "
+            "and <view>-averaged-limit.png: \"shot\", "
             "\"check\", \"film\", \"view\" and \"noise\" unless named");
 
         const FilmPacing pacing;
