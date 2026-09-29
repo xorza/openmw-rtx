@@ -895,15 +895,16 @@ namespace RtxTool
             unfiltered.mFilter = false;
             const Rtx::ExposureRule held{ .mHeld = true };
 
-            // One picture of `place`: `frames` frames summed where it is more than one.
+            // One picture of `place` after `frames` frames: their sum where `summed`, and the last of
+            // them where not.
             const auto picture
-                = [&](const Stop& place, const std::string_view suffix, const std::uint32_t frames,
+                = [&](const Stop& place, const std::string_view suffix, const std::uint32_t frames, const bool summed,
                       const std::optional<Rtx::ReconstructionRequest>& reconstruction,
                       const std::optional<Rtx::ExposureRule>& exposure, const std::optional<Rtx::Upscale> upscale) {
                       Stop stop = place;
                       stop.mName += suffix;
                       measureFrames(stop, variables, frames);
-                      stop.mSchedule.mAccumulate = frames > 1 ? frames : 0;
+                      stop.mSchedule.mAccumulate = summed ? frames : 0;
                       stop.mSchedule.mReconstruction = reconstruction;
                       stop.mSchedule.mExposure = exposure;
                       stop.mSchedule.mUpscale = upscale;
@@ -911,21 +912,47 @@ namespace RtxTool
                       return stop;
                   };
 
+            const float strafe = variables["strafe"].as<float>();
+            if (!(strafe >= 0.0f) || !std::isfinite(strafe))
+                throw std::runtime_error(std::format("--strafe is {}, which is no distance", strafe));
+
             std::vector<Stop> stops;
             stops.reserve(places.size() * 3);
             std::vector<std::string> names;
             names.reserve(places.size());
+            std::vector<std::size_t> frames;
+            frames.reserve(places.size());
             for (const Stop& place : places)
             {
                 names.push_back(place.mName);
+                stops.push_back(picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true, reference,
+                    std::nullopt, Rtx::Upscale::Off));
+                stops.push_back(
+                    picture(place, sNoiseBarSuffix, sNoiseBarFrames, true, unfiltered, held, Rtx::Upscale::Off));
+                frames.push_back(stops.size());
                 stops.push_back(picture(
-                    place, sNoiseReferenceSuffix, sNoiseReferenceFrames, reference, std::nullopt, Rtx::Upscale::Off));
-                stops.push_back(picture(place, sNoiseBarSuffix, sNoiseBarFrames, unfiltered, held, Rtx::Upscale::Off));
-                stops.push_back(picture(place, "", 1, std::nullopt, held, std::nullopt));
+                    place, "", strafe > 0.0f ? sNoiseStrafeFrames : 1, false, std::nullopt, held, std::nullopt));
             }
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             request.mSuite = run.mSuite;
+
+            // **After the command's row**, which takes every route off a stop that stands still: the
+            // frame is given one of its own and stays frozen, so the world it flies through is the
+            // world the reference stands in.
+            if (strafe > 0.0f)
+                for (const std::size_t at : frames)
+                {
+                    Stop& frame = request.mStops[at];
+                    if (!frame.mStand.mEye.has_value())
+                        throw std::runtime_error(
+                            std::format("--strafe needs a place that names an eye, and {} names none", frame.mName));
+
+                    Approach approach
+                        = frame.mStand.approachFromSide(strafe, request.mSetup.getWorldStep(), sNoiseStrafeFrames);
+                    frame.mStand = std::move(approach.mFrom);
+                    frame.mSchedule.mRoute = approach.mRoute;
+                }
 
             if (const int status
                 = runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));

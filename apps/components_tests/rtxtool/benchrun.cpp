@@ -74,6 +74,34 @@ namespace RtxTool
             EXPECT_EQ(Stand::forwardOf(osg::Vec3f()), osg::Vec3f(0.0f, 1.0f, 0.0f));
         }
 
+        /// **A strafe flies in from the stand's left and arrives on the last frame.** 150 units over
+        /// thirty frames of a sixtieth of a second: twenty-nine steps, so 150 · 60 / 29 = 310.345
+        /// units a second. Facing north, the left is west; facing east, it is north.
+        TEST(RtxBenchRunTest, aStrafeFliesInFromTheStandsLeftAndArrivesOnTheLastFrame)
+        {
+            const Stand north{ .mCell = "Balmora",
+                .mEye = osg::Vec3f(100.0f, 200.0f, 300.0f),
+                .mLook = osg::Vec3f(100.0f, 1200.0f, 300.0f) };
+            const Approach fromWest = north.approachFromSide(150.0f, 1.0f / 60.0f, 30);
+            EXPECT_EQ(fromWest.mFrom.mCell, "Balmora");
+            EXPECT_NEAR(fromWest.mFrom.mEye->x(), -50.0f, 1e-4f);
+            EXPECT_NEAR(fromWest.mFrom.mEye->y(), 200.0f, 1e-4f);
+            EXPECT_NEAR(fromWest.mFrom.mEye->z(), 300.0f, 1e-4f);
+            EXPECT_EQ(fromWest.mFrom.mLook, north.mLook) << "it faces the stand's own point all the way";
+            EXPECT_EQ(fromWest.mRoute.mTo, *north.mEye);
+            EXPECT_EQ(fromWest.mRoute.mLookTo, *north.mLook);
+            EXPECT_NEAR(fromWest.mRoute.mSpeed, 310.345f, 1e-3f);
+
+            const Stand east{ .mEye = osg::Vec3f(100.0f, 200.0f, 300.0f),
+                .mLook = osg::Vec3f(1100.0f, 200.0f, 300.0f) };
+            const osg::Vec3f fromNorth = *east.approachFromSide(150.0f, 1.0f / 60.0f, 30).mFrom.mEye;
+            EXPECT_NEAR(fromNorth.x(), 100.0f, 1e-4f);
+            EXPECT_NEAR(fromNorth.y(), 350.0f, 1e-4f);
+
+            // Twice as far in the same frames is twice as fast: the distance matters.
+            EXPECT_NEAR(north.approachFromSide(300.0f, 1.0f / 60.0f, 30).mRoute.mSpeed, 620.690f, 1e-3f);
+        }
+
         /// **Every check has a row, and the row says when it may be asked.** A check with no name
         /// would print empty in the report and be unreachable from the command line; the four that
         /// depend on the stop's shape answer no where the stop cannot answer them.

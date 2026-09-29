@@ -65,6 +65,10 @@ namespace RtxTool
     inline constexpr std::uint32_t sNoiseReferenceFrames = 256;
     inline constexpr std::uint32_t sNoiseBarFrames = 16;
 
+    /// How many frames `noise --strafe` flies its frame into the place over: half a second of world,
+    /// which at a strafe of 150 units is a player running.
+    inline constexpr std::uint32_t sNoiseStrafeFrames = 30;
+
     /// What `noise` names the reference and the bar of a place, after the place's own name.
     inline constexpr std::string_view sNoiseReferenceSuffix = "-reference";
     inline constexpr std::string_view sNoiseBarSuffix = "-averaged";
