@@ -88,7 +88,9 @@ bool peeled(Surface surface)
     return isSeenThrough(surface.mOpacity) && record.mLayer < PEEL_LAYERS;
 }
 
-/// Fills the payload in for a pane the launch has still to peel.
+/// Fills the payload in for a pane the launch has still to peel: its glow as the radiance, what was
+/// drawn for it as the bounce and the lobe's light, and its own response — `SeenPane`, which the
+/// launch stacks into `CHANNEL_PANE` for the pane filter.
 ///
 /// **Direct light, the path's end for everything else, and a lamp sequence of its own.**
 /// `bounceLight` draws from the pixel and nothing else, so a pane and the wall behind it would
@@ -102,12 +104,14 @@ bool peeled(Surface surface)
 void answerPane(inout Answer answer, Surface surface)
 {
     const uint key = pixelKey(stagePixel());
+    const SeenPane seen = shadePane(surface, key + paneAmbientSeed(record.mLayer), key + paneSeed(record.mLayer));
 
     answer.mPane = true;
     answer.mOpacity = surface.mOpacity;
-    answer.mRadiance = composed(shadeAtPathEnd(
-        surface, key + paneAmbientSeed(record.mLayer), key + paneSeed(record.mLayer), PATH_SEEN, false,
-        AMBIENT_UNFILTERED_RATE));
+    answer.mRadiance = seen.mGlow;
+    answer.mBounced = seen.mDiffuse;
+    answer.mSpecular = seen.mSpecular;
+    answer.mResponse = seen.mResponse;
 }
 
 /// Fills the payload in with what the pixel shows but the filtered channels, and the sky's source
@@ -222,12 +226,10 @@ void main()
 
     // **Where the surface stood last frame, worked out where the rows already are.** The instance,
     // its mesh and where on the triangle the ray landed are this stage's own, so the launch reads
-    // none of them again. A pane has no motion of its own: the pixel keeps the surface behind the
-    // stack, and that surface's stage says where it stood.
-    if (!pane)
-        answer.mMotion = motionOf(stagePixel(), gl_WorldRayOriginEXT, gl_WorldRayDirectionEXT, gl_HitTEXT,
-            uint(gl_InstanceCustomIndexEXT), uint(gl_PrimitiveID), barycentrics, gl_ObjectToWorldEXT,
-            stageSpread());
+    // none of them again. A pane's is its own, which the pane filter reprojects its history by; the
+    // pixel's motion stays the surface's behind the stack.
+    answer.mMotion = motionOf(stagePixel(), gl_WorldRayOriginEXT, gl_WorldRayDirectionEXT, gl_HitTEXT,
+        uint(gl_InstanceCustomIndexEXT), uint(gl_PrimitiveID), barycentrics, gl_ObjectToWorldEXT, stageSpread());
 
     answer.mHit = true;
     answer.mDistance = gl_HitTEXT;

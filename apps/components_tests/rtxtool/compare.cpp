@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/compare.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/png.hpp>
 
 namespace RtxTool
@@ -89,6 +90,24 @@ namespace RtxTool
 
             EXPECT_TRUE(measureError(picture, flat(10, 9, 100)).mMismatched);
             EXPECT_TRUE(measureError(Rtx::PngImage{}, reference).mMismatched);
+        }
+
+        /// **The bar holds what the history could.** Thirty frames at 1920 by 1080: native traces
+        /// every shown pixel and is held to the sixteen of a still frame; quality traces 1280 by 720,
+        /// `30 * 921600 / 2073600` = 13.3 samples a shown pixel, held to 13; ultra performance traces
+        /// 640 by 360, 3.3, held to 3. And never nought, however short the history.
+        TEST(RtxCompareTest, aStrafedBarAveragesAsManyFramesAsTheHistoryCouldHold)
+        {
+            const auto after = [](std::uint32_t frames, Rtx::Upscale mode) {
+                return noiseBarFramesAfter(frames, Rtx::extentsFor(1920, 1080, mode));
+            };
+
+            EXPECT_EQ(after(30, Rtx::Upscale::Off), sNoiseBarFrames);
+            EXPECT_EQ(after(30, Rtx::Upscale::Native), sNoiseBarFrames);
+            EXPECT_EQ(after(30, Rtx::Upscale::Quality), 13u);
+            EXPECT_EQ(after(30, Rtx::Upscale::UltraPerformance), 3u);
+            EXPECT_EQ(after(8, Rtx::Upscale::Native), 8u);
+            EXPECT_EQ(after(1, Rtx::Upscale::UltraPerformance), 1u);
         }
 
         /// Two sizes are not a delta, and neither is a reference that was never written.

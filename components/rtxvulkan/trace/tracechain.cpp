@@ -34,6 +34,7 @@ namespace Rtx
         , mHistory(device)
         , mShadows(device)
         , mSpeculars(device)
+        , mPanes(device)
     {
     }
 
@@ -49,6 +50,7 @@ namespace Rtx
         mHistory.resize(mWidth, mHeight);
         mShadows.resize(mWidth, mHeight);
         mSpeculars.resize(mWidth, mHeight);
+        mPanes.resize(mWidth, mHeight);
         if (mFilterScratch.isEmpty() || mFilterScratch.getWidth() != mWidth || mFilterScratch.getHeight() != mHeight)
             mFilterScratch = AtrousPass::makeScratch(mDevice, mWidth, mHeight);
 
@@ -118,6 +120,17 @@ namespace Rtx
         else
             mSpeculars.reset();
 
+        // **Wherever the wavelet runs**, since any frame may hold a layer — a window, and every actor
+        // the game fades at the edge of its range. Where none stands the pass averages noughts.
+        openZone(timer, commands, "pane");
+        const Image& pane = mPasses.mPane.record(commands, mPanes.turn(), *mChannels,
+            PanePass::Frame{
+                .mCamera = camera,
+                .mDistanceScale = held.mDistanceScale,
+                .mReset = historyLost,
+            });
+        closeZone(timer, commands);
+
         // The cascade reads what the accumulator just wrote, and it reads through the texture unit
         // — so the dependency names the sampled access and not only the storage one. The history
         // the cascade writes for the next frame is ordered by the discard `AccumulatePass::record`
@@ -129,7 +142,7 @@ namespace Rtx
             commands, *mChannels, blended, mHistory.getHistory(), mFilterScratch, camera, sampled.mArms);
         closeZone(timer, commands);
 
-        return Denoised{ .mIndirect = indirect, .mSpecular = *specular, .mShadow = shadow };
+        return Denoised{ .mIndirect = indirect, .mSpecular = *specular, .mPane = pane, .mShadow = shadow };
     }
 
     void TraceChain::resetHistory()
@@ -137,6 +150,7 @@ namespace Rtx
         mHistory.reset();
         mShadows.reset();
         mSpeculars.reset();
+        mPanes.reset();
         mAirStale = true;
     }
 
@@ -216,11 +230,12 @@ namespace Rtx
         mPasses.mVisibility.record(commands, inputs, what.mSampled, what.mTimer);
         mChannels->handOver(commands);
 
-        // Where the bounce and the lobe's light ended up: the filters' answers, or the channels the
-        // trace wrote where nothing filtered them. And the shadow only where something filtered it,
-        // since the trace composed the sun itself everywhere else.
+        // Where the bounce, the lobe's light and the layers' ended up: the filters' answers, or the
+        // channels the trace wrote where nothing filtered them. And the shadow only where something
+        // filtered it, since the trace composed the sun itself everywhere else.
         const Image* indirect = &mChannels->get(Channel::Indirect);
         const Image* specular = &mChannels->get(Channel::Specular);
+        const Image* pane = &mChannels->get(Channel::Pane);
         const Image* shadow = nullptr;
         if (what.mFilter)
         {
@@ -228,6 +243,7 @@ namespace Rtx
                 = recordDenoise(commands, what.mSampled, inputs.mSubject.mMapped, what.mPastLost, what.mTimer);
             indirect = &denoised.mIndirect;
             specular = &denoised.mSpecular;
+            pane = &denoised.mPane;
             shadow = denoised.mShadow;
         }
 
@@ -242,7 +258,7 @@ namespace Rtx
             frame.transition(commands, Use::sAnyShaderRead, Use::sComputeReadWrite);
 
             openZone(what.mTimer, commands, "composite");
-            mPasses.mComposite.record(commands, *mChannels, *indirect, *specular, shadow,
+            mPasses.mComposite.record(commands, *mChannels, *indirect, *specular, *pane, shadow,
                 mSum.isEmpty() ? nullptr : &mSum,
                 Shaders::CompositeConstants{
                     .mWidth = what.mSampled.mCamera.mWidth,

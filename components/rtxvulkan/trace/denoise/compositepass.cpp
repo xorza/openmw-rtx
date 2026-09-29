@@ -15,7 +15,7 @@ namespace Rtx
 {
     namespace
     {
-        /// Five channels in, the direct one written back as the frame, the shadow denoiser's answer
+        /// Seven channels in, the direct one written back as the frame, the shadow denoiser's answer
         /// and the running sum — all storage images, all pushed.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::COMPOSITE_BINDINGS> sBindings
             = computeBindings<Shaders::COMPOSITE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -30,7 +30,7 @@ namespace Rtx
     }
 
     void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Image& indirect,
-        const Image& specular, const Image* shadow, const Image* sum,
+        const Image& specular, const Image& pane, const Image* shadow, const Image* sum,
         const Shaders::CompositeConstants& constants) const
     {
         assert((constants.mShadowed != 0) == (shadow != nullptr)
@@ -38,6 +38,7 @@ namespace Rtx
         assert(buffer.getWidth() >= constants.mWidth && buffer.getHeight() >= constants.mHeight);
         assert(indirect.getWidth() >= constants.mWidth && indirect.getHeight() >= constants.mHeight);
         assert(specular.getWidth() >= constants.mWidth && specular.getHeight() >= constants.mHeight);
+        assert(pane.getWidth() >= constants.mWidth && pane.getHeight() >= constants.mHeight);
 
         // A sum has to cover the frame it is a sum of; a stand-in never read does not.
         assert(constants.mAccumulate == 0 || sum != nullptr);
@@ -57,6 +58,8 @@ namespace Rtx
         writes.image(Shaders::COMPOSITE_BIND_SUNLIT, buffer.get(Channel::Sunlit).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_SHADOW, shadowBound.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_SPECULAR, specular.describeStorage());
+        writes.image(Shaders::COMPOSITE_BIND_PANE, pane.describeStorage());
+        writes.image(Shaders::COMPOSITE_BIND_PANE_ALBEDO, buffer.get(Channel::PaneAlbedo).describeStorage());
 
         dispatch(commands, mPipeline, writes.get(), constants,
             groupsFor(constants.mWidth, Shaders::COMPOSITE_WORKGROUP),

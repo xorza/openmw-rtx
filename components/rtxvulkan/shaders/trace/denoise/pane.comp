@@ -1,0 +1,113 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// The pane filter: what was drawn for the see-through layers in front of the surface,
+// `CHANNEL_PANE`, averaged with what was drawn for the same layer on the frames before.
+//
+// **Over time and not across the screen**, as the glossy filter is. A layer is shaded at the end of
+// a path — one occlusion ray, one lamp and one sun ray a frame — so its light is as noisy as a
+// bounce's, but a layer is thin: a window's frame, a ghost's sleeve. A spatial filter would have to
+// know where a layer ends at every tap, and FSR's accumulation stands behind this at every mode but
+// `off`.
+//
+// **Its own history, reprojected by the nearest layer's own motion and held against the nearest
+// layer's own surface**, which the channels the other filters read do not describe: those are the
+// surface behind the stack. Demodulated, as the bounce is, so what a history carries across a
+// moving window is the light on it and not its texture — and a layer fading in or out moves the
+// albedo it is multiplied back by and not its history.
+//
+// **The glossy filter's rules otherwise**: bilinear over the four texels the motion lands between,
+// each only if it is this layer by `heldSurfaceMatches`, and `blendedMean` into the history, with the
+// whole of it kept — a layer's light does not turn with the view.
+
+#include "accumulate.h"
+#include "gbuffer.h"
+#include "look.h"
+#include "pane.h"
+#include "sets.h"
+
+#include "lib/pixels.glsl"
+#include "lib/runningmean.glsl"
+#include "lib/surfacematch.glsl"
+
+layout(local_size_x = PANE_WORKGROUP, local_size_y = PANE_WORKGROUP) in;
+
+/// What was drawn for the layers, demodulated. No format, as radiance has none here.
+layout(set = SET_PASS, binding = PANE_BIND_PANE) uniform readonly image2D paneChannel;
+
+/// The nearest layer's surface and motion.
+layout(set = SET_PASS, binding = PANE_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D paneSurface;
+layout(set = SET_PASS, binding = PANE_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D paneMotion;
+
+/// The layer the history belongs to, as `heldSurfaceMatches` reads one: last frame's, and this one's.
+layout(set = SET_PASS, binding = PANE_BIND_HELD_BEFORE, ACCUMULATE_SURFACE) uniform readonly image2D heldBefore;
+layout(set = SET_PASS, binding = PANE_BIND_HELD, ACCUMULATE_SURFACE) uniform writeonly image2D held;
+
+/// The mean in `rgb` and the second moment of its luminance in `a`: last frame's, and this frame's,
+/// which the composite multiplies back by `CHANNEL_PANE_ALBEDO`.
+layout(set = SET_PASS, binding = PANE_BIND_MEAN_BEFORE, PANE_MEAN) uniform readonly image2D meanBefore;
+layout(set = SET_PASS, binding = PANE_BIND_MEAN, PANE_MEAN) uniform writeonly image2D mean;
+
+/// How many frames the mean holds, nought where no layer stood: last frame's, and this one's.
+layout(set = SET_PASS, binding = PANE_BIND_FRAMES_BEFORE, PANE_FRAMES) uniform readonly image2D framesBefore;
+layout(set = SET_PASS, binding = PANE_BIND_FRAMES, PANE_FRAMES) uniform writeonly image2D framesOut;
+
+layout(push_constant, scalar) uniform Push
+{
+    PaneConstants frame;
+};
+
+void main()
+{
+    const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
+    const uvec2 extent = uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight);
+    if (outsideOf(uvec2(at), extent))
+        return;
+
+    const vec3 sampled = imageLoad(paneChannel, at).rgb;
+    const vec2 seen = imageLoad(paneSurface, at).xy;
+    const vec3 normal = unpackSurfaceNormal(seen.x);
+    const float scaled = seen.y * frame.mDistanceScale;
+
+    // A pixel no layer stands in writes its sample, which is nought, and a history of nothing.
+    const bool stands = dot(normal, normal) > 0.0;
+
+    const HistoryFootprint footprint = historyFootprint(at, frame.mCamera.mJitter, imageLoad(paneMotion, at).xy);
+
+    vec4 heldMean = vec4(0.0);
+    float frames = 0.0;
+    float weight = 0.0;
+
+    if (frame.mReset == 0u)
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            const float bilinear = historyShare(footprint, i);
+            const ivec2 tap = historyTap(footprint, i);
+            if (bilinear <= 0.0 || outsideOf(tap, extent)
+                || !heldSurfaceMatches(imageLoad(heldBefore, tap), normal, scaled, frame.mDistanceScale))
+                continue;
+
+            // A texel no layer stood in holds no history, and would pull the mean toward nought.
+            const float was = imageLoad(framesBefore, tap).r;
+            if (was <= 0.0)
+                continue;
+
+            heldMean += imageLoad(meanBefore, tap) * bilinear;
+            frames += was * bilinear;
+            weight += bilinear;
+        }
+    }
+
+    RunningMean blended = startedMean(sampled);
+    if (weight > 0.0)
+        blended = blendedMean(sampled, RunningMean(heldMean / weight, frames / weight), 1.0);
+
+    // Selected and not branched around, for the rule the tree keeps: a lane with no layer runs the
+    // blend over a history of nothing and keeps none of it.
+    imageStore(mean, at, stands ? blended.mMean : vec4(sampled, 0.0));
+    imageStore(framesOut, at, vec4(stands ? blended.mFrames : 0.0));
+    imageStore(held, at, stands ? vec4(normal, scaled) : vec4(0.0));
+}

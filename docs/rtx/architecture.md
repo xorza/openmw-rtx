@@ -234,8 +234,10 @@ at the top, over all of them.
 - **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
   the diffuse light over time and the wavelet spreads it across the screen. The shadow denoiser
   filters the one bit a pixel's sun ray came back with, where the sky has a source that lights.
-  The glossy filter averages the lobe's light over time, where the scene wears a map. The three
-  temporal passes read one surface history, the accumulator's.
+  The glossy filter averages the lobe's light over time, where the scene wears a map. The pane
+  filter averages what was drawn for the see-through layers over time, against a history of the
+  nearest layer's own surface and motion. The accumulator, the shadow denoiser and the glossy filter
+  read one surface history, the accumulator's.
 
 **The shaders** (`shaders/`, in the folders of the passes that dispatch them, shared pieces in
 `shaders/lib/`). One ray generation shader traces
@@ -292,7 +294,8 @@ On the host, in order:
 6. **GUI and present.** The host returns without waiting for the device.
 
 On the device, in record order: the sea and the ripples, the sprites, the fog, the trace, the
-denoiser where it runs (the accumulator, the shadow denoiser, the glossy filter, the wavelet), the
+denoiser where it runs (the accumulator, the shadow denoiser, the glossy filter, the pane filter, the
+wavelet), the
 composite where a denoiser or a sum needs one, the upscaler where one runs, the display chain, the
 GUI, the present.
 

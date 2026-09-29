@@ -122,6 +122,15 @@ layout(set = SET_CHANNELS, binding = CHANNEL_SUNLIT) uniform writeonly image2D s
 /// `CHANNEL_SPECULAR`. No format, as radiance has none here.
 layout(set = SET_CHANNELS, binding = CHANNEL_SPECULAR) uniform writeonly image2D specular;
 
+/// The see-through layers' drawn light, demodulated, and what puts it back: `CHANNEL_PANE` and
+/// `CHANNEL_PANE_ALBEDO`. The light has no format, as radiance has none here.
+layout(set = SET_CHANNELS, binding = CHANNEL_PANE) uniform writeonly image2D pane;
+layout(set = SET_CHANNELS, binding = CHANNEL_PANE_ALBEDO, GBUFFER_ALBEDO) uniform writeonly image2D paneAlbedo;
+
+/// The nearest layer's own surface and motion — `CHANNEL_PANE_SURFACE` and `CHANNEL_PANE_MOTION`.
+layout(set = SET_CHANNELS, binding = CHANNEL_PANE_SURFACE, GBUFFER_SURFACE) uniform writeonly image2D paneSurface;
+layout(set = SET_CHANNELS, binding = CHANNEL_PANE_MOTION, GBUFFER_MOTION) uniform writeonly image2D paneMotion;
+
 // One atomic per hit on a single address, which looks like contention and costs nothing a subgroup
 // reduction in its place gives back: few rays hit, and the reduction would cost the device a
 // subgroup-arithmetic requirement it does not otherwise need. Measure again if a pass ever hits

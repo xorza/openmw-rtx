@@ -111,7 +111,16 @@ namespace RtxTool
         };
     }
 
-    int judgeNoise(const std::filesystem::path& wrote, const std::span<const std::string> places)
+    std::uint32_t noiseBarFramesAfter(const std::uint32_t frames, const Rtx::FrameExtents& extents)
+    {
+        const std::uint64_t traced = std::uint64_t{ extents.mRenderWidth } * extents.mRenderHeight;
+        const std::uint64_t shown = std::uint64_t{ extents.mOutputWidth } * extents.mOutputHeight;
+        const std::uint64_t held = frames * traced / shown;
+        return static_cast<std::uint32_t>(std::clamp<std::uint64_t>(held, 1, sNoiseBarFrames));
+    }
+
+    int judgeNoise(
+        const std::filesystem::path& wrote, const std::span<const std::string> places, const std::uint32_t barFrames)
     {
         const auto read = [&](const std::string& place, const std::string_view suffix) {
             return Rtx::readPng(wrote / (place + std::string(suffix) + ".png"));
@@ -136,17 +145,17 @@ namespace RtxTool
                 ++noisier;
 
             out() << std::format("  {:<28} frame mean {:.2f} p99 {}, {} averaged mean {:.2f} p99 {} — {}\n", place,
-                frame.mMean, frame.mP99, sNoiseBarFrames, bar.mMean, bar.mP99, clean ? "as clean" : "noisier");
+                frame.mMean, frame.mP99, barFrames, bar.mMean, bar.mP99, clean ? "as clean" : "noisier");
         }
 
         if (noisier == 0 && missing == 0)
         {
-            out() << std::format("  every frame is as clean as {} frames averaged\n", sNoiseBarFrames);
+            out() << std::format("  every frame is as clean as {} frames averaged\n", barFrames);
             return 0;
         }
 
         out() << std::format("  {} of {} frames noisier than {} frames averaged, {} could not be measured\n", noisier,
-            places.size(), sNoiseBarFrames, missing);
+            places.size(), barFrames, missing);
         return 1;
     }
 

@@ -39,7 +39,8 @@ struct Answer
 
     /// The diffuse light this hit gathered from its lamps and its one bounce, kept apart because the
     /// filter runs over it demodulated by the albedo in `mResponse`, and the composite multiplies the
-    /// two back together afterwards.
+    /// two back together afterwards. A pane's is what its path end drew, `SeenPane::mDiffuse`, which
+    /// the pane filter takes the same way.
     vec3 mBounced;
 
     /// What the sky's source adds to what the eye sees — the solid it found, or what the water's
@@ -51,17 +52,18 @@ struct Answer
 
     /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, and the
     /// lobe's roughness: `SeenSolid::mSpecular` and `mRoughness`. Nought and `SPECULAR_NO_LOBE`
-    /// wherever nothing split it off, as `mSunlit` is nought there.
+    /// wherever nothing split it off, as `mSunlit` is nought there. A pane's lobe light is here too,
+    /// `SeenPane::mSpecular`, with no roughness: the pane filter keeps no lobe's rule.
     vec3 mSpecular;
     float mRoughness;
 
     /// What the shading model made of the surface, for the filter and the composite. `noResponse`
-    /// where nothing was shaded — a pane, whose response is the surface behind it.
+    /// where nothing was shaded. A pane's own, which the launch stacks into the pane's channels; the
+    /// pixel's response is the surface's behind the stack.
     SurfaceResponse mResponse;
 
     /// Where what the pixel shows stood on the previous frame's screen, less where it stands on this
-    /// one, in pixels: `motionOf` for a surface, `skyMotionOf` for the sky. Nought where nothing
-    /// was shaded for the frame to keep — a pane, whose motion is the surface behind it.
+    /// one, in pixels: `motionOf` for a surface or a pane, `skyMotionOf` for the sky.
     vec2 mMotion;
 
     /// The miss only: how much of the backdrop the pixel shows through what the sky drew — the star
@@ -74,7 +76,7 @@ struct Answer
     /// Whether the launch peels what was shaded — `peeled` in the hit shader, decided there on the
     /// opacity at full precision. **Carried and not asked again of `mOpacity`**, which crosses as
     /// a half: an opacity within 2^-12 of one rounds up to it, and a launch that asked the half
-    /// kept, whole, a pane the hit had already answered with no motion and no response.
+    /// kept, whole, a pane the hit had answered as a pane and not as a solid.
     bool mPane;
 
     /// Whether what was shaded is water, which the glare's query counts as nothing that writes

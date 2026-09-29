@@ -8,6 +8,7 @@
 #include <components/rtxvulkan/trace/denoise/accumulatepass.hpp>
 #include <components/rtxvulkan/trace/denoise/atrouspass.hpp>
 #include <components/rtxvulkan/trace/denoise/compositepass.hpp>
+#include <components/rtxvulkan/trace/denoise/panepass.hpp>
 #include <components/rtxvulkan/trace/denoise/shadowpass.hpp>
 #include <components/rtxvulkan/trace/denoise/specularpass.hpp>
 
@@ -49,6 +50,7 @@ namespace Rtx
         AccumulatePass mAccumulate;
         ShadowPass mShadow;
         SpecularPass mSpecular;
+        PanePass mPane;
         AtrousPass mFilter;
     };
 }

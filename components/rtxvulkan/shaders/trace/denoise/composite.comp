@@ -58,6 +58,12 @@ layout(set = SET_PASS, binding = COMPOSITE_BIND_SHADOW, SHADOW_REPROJECTED) unif
 /// did not. No format, for the reason `indirect` has none.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SPECULAR) uniform readonly image2D specular;
 
+/// What was drawn for the see-through layers, demodulated: the pane filter's mean where it ran, and
+/// `CHANNEL_PANE` itself where it did not. No format, for the reason `indirect` has none. And what
+/// puts it back, `CHANNEL_PANE_ALBEDO`.
+layout(set = SET_PASS, binding = COMPOSITE_BIND_PANE) uniform readonly image2D pane;
+layout(set = SET_PASS, binding = COMPOSITE_BIND_PANE_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D paneAlbedo;
+
 /// The running sum, when `mAccumulate` asks for one.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SUM, COMPOSITE_SUM_FORMAT) uniform image2D sum;
 
@@ -79,7 +85,7 @@ void main()
         const vec4 sun = imageLoad(sunlit, at);
         const float seen = frame.mShadowed != 0u ? imageLoad(shadow, at).r : sun.a;
         resolved = composedLight(resolved, imageLoad(albedo, at).rgb, imageLoad(indirect, at).rgb, sun.rgb, seen,
-            imageLoad(specular, at).rgb);
+            imageLoad(specular, at).rgb, imageLoad(paneAlbedo, at).rgb, imageLoad(pane, at).rgb);
     }
 
     // In linear, which is what everything downstream of here now works in. Summing an encoded frame

@@ -109,3 +109,11 @@ Only under the PBR profile: the Zed tasks that start the game with `~/.config/op
   seen through the water, which the shadow denoiser now filters.
 - **Glass and faded actors** trace every occlusion ray now. Look at a window or a fading ghost in
   daylight for less grain.
+
+## The pane filter
+
+- **Windows and glass.** Look at the Mages Guild's windows in Balmora at `Off` and at quality: no
+  dark specks, and the texture as sharp as before. Walk past them: look for smearing of the light on
+  the glass.
+- **Faded actors.** Cast Chameleon, or watch an actor fade at the edge of its range while it moves:
+  the faded body should not drag a trail of old light behind it.

@@ -87,11 +87,18 @@ struct PaneStack
     vec3 mRadiance;
     float mThrough;
     vec3 mScattered;
+
+    /// What was drawn for the layers, `SeenPane`'s albedo times its drawn light and its lobe's, and
+    /// their albedos, each by what reaches the eye of that layer: `CHANNEL_PANE` before it is
+    /// divided, and `CHANNEL_PANE_ALBEDO` before the floor. Kept out of `mRadiance`, which holds
+    /// what they glow with and the air between them.
+    vec3 mDrawn;
+    vec3 mAlbedo;
 };
 
 PaneStack noPanes()
 {
-    return PaneStack(vec3(0.0), 1.0, vec3(0.0));
+    return PaneStack(vec3(0.0), 1.0, vec3(0.0), vec3(0.0), vec3(0.0));
 }
 
 /// One more layer, behind every one already in `stack`: the stretch of medium since the layer in
@@ -99,10 +106,33 @@ PaneStack noPanes()
 /// front of it left.
 void stackLayer(inout PaneStack stack, MediumAhead ahead, Answer layer)
 {
+    const vec3 reaching = stack.mThrough * ahead.mThrough * layer.mOpacity;
+    stack.mDrawn += reaching * (layer.mResponse.mDiffuse * layer.mBounced + layer.mSpecular);
+    stack.mAlbedo += reaching * layer.mResponse.mDiffuse;
+
     stack.mRadiance
         += stack.mThrough * (ahead.mScattered - stack.mScattered + ahead.mThrough * (layer.mRadiance * layer.mOpacity));
     stack.mThrough *= 1.0 - layer.mOpacity;
     stack.mScattered = ahead.mScattered;
+}
+
+/// The nearest see-through layer's own surface and motion, which the pane filter's history is
+/// matched and reprojected by: `CHANNEL_PANE_SURFACE` and `CHANNEL_PANE_MOTION`.
+struct NearestPane
+{
+    float mNormal;
+    float mDistance;
+    vec2 mMotion;
+};
+
+NearestPane noNearestPane()
+{
+    return NearestPane(SURFACE_NO_NORMAL, 0.0, vec2(0.0));
+}
+
+NearestPane nearestPaneOf(Answer layer)
+{
+    return NearestPane(layer.mResponse.mNormal, layer.mDistance, layer.mMotion);
 }
 
 /// `stack` over `behind`, the whole path it stands part of the way along — the identity the launch
@@ -189,6 +219,9 @@ void main()
     // what is left is the world's picture exactly, and where they let nothing through it is theirs.
     PaneStack armsStack = noPanes();
 
+    // The layer met first, whichever eye's stack it stands in: the peel's budget counts from it.
+    NearestPane nearest = noNearestPane();
+
     if (arms && answer.mPane)
     {
         const Cone armsCone = coneAt(frame.mArms);
@@ -201,6 +234,8 @@ void main()
             const MediumAhead ahead = mediumAhead(pixel, WorldRay(origin, direction), distance, distance,
                 armsCone.mWidth + armsCone.mSpread * distance, armsSubmerged);
 
+            if (layer == 0u)
+                nearest = nearestPaneOf(answer);
             stackLayer(armsStack, ahead, answer);
 
             // Unshaded where it misses, as the arms' first ray is: a miss here is the world's to
@@ -259,10 +294,12 @@ void main()
     // though it stood at one thousand, and moving it along the path changed nothing at all: the same
     // fault the split below was written for, one layer deeper.
     //
-    // **Their motion vector, their depth and the albedo the filter demodulates by all stay the
+    // **The pixel's motion vector, its depth and the albedo the filter demodulates by all stay the
     // surface behind them**, which is right while the stack is mostly see-through and wrong as it
-    // approaches opaque. A motion vector of the pane's own is what answering that properly looks
-    // like, and no pane in the game is near enough to opaque to have earned one.
+    // approaches opaque. **What was drawn for the layers is apart**: a layer is shaded at the end of a
+    // path, and one draw a frame composited over the frame speckled every window of a room. So it
+    // goes to `CHANNEL_PANE`, beside the nearest layer's own surface and motion, and the pane filter
+    // averages it over the frames that layer stood in.
     //
     // **The world's alone.** An arm the stack above ended on is a solid, so a pane here is always
     // the world's own ray carried on.
@@ -274,6 +311,8 @@ void main()
         const MediumAhead ahead = mediumAhead(
             pixel, WorldRay(origin, direction), distance, distance, cone.mWidth + cone.mSpread * distance, submerged);
 
+        if (layer == 0u)
+            nearest = nearestPaneOf(answer);
         stackLayer(panes, ahead, answer);
 
         // The layer this trace is for, which on the last one the budget allows is the record that
@@ -412,6 +451,15 @@ void main()
     const float sunOpen = answer.mSunOpen ? 1.0 : 0.0;
     const vec3 lobe = answer.mSpecular * transmittance;
 
+    // **The layers' drawn light, the world's behind the arms' as their pictures meet.** Divided by
+    // what puts it back, so the pane filter averages light and not the texture it lands on — the
+    // bounce's demodulation, for the bounce's reason.
+    const vec3 paneDrawn = armsStack.mDrawn + armsStack.mThrough * panes.mDrawn;
+    const vec3 paneAlbedoSum = armsStack.mAlbedo + armsStack.mThrough * panes.mAlbedo;
+    const vec3 paneModulation
+        = mix(vec3(1.0), paneAlbedoSum, greaterThanEqual(paneAlbedoSum, vec3(PANE_ALBEDO_FLOOR)));
+    const vec3 paneLight = paneDrawn / paneModulation;
+
     // **Composed here where nothing filters the bounce** — `mComposed` says why. A select and not a
     // factor of nought, so a bounce that is not finite stays out of a direct channel a filter
     // reads apart from it.
@@ -420,13 +468,18 @@ void main()
     // frame's digest hashes every channel, which one left undefined would make differ between
     // two runs of the same frame.
     const vec3 light = frame.mComposed != 0u
-        ? composedLight(shaded, answer.mResponse.mDiffuse, bounce, sunLight, sunOpen, lobe)
+        ? composedLight(
+              shaded, answer.mResponse.mDiffuse, bounce, sunLight, sunOpen, lobe, paneModulation, paneLight)
         : shaded;
     RTX_STORE_COUNTED(direct, at, BOUNDARY_COLOUR, vec4(light, 1.0))
     RTX_STORE_COUNTED(indirect, at, BOUNDARY_COLOUR, vec4(bounce, 1.0))
     RTX_STORE_COUNTED(sunlit, at, BOUNDARY_COLOUR, vec4(sunLight, sunOpen))
     RTX_STORE_COUNTED(specular, at, BOUNDARY_COLOUR, vec4(lobe, answer.mRoughness))
     RTX_STORE_COUNTED(albedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mDiffuse, 1.0))
+    RTX_STORE_COUNTED(pane, at, BOUNDARY_COLOUR, vec4(paneLight, 1.0))
+    RTX_STORE_COUNTED(paneAlbedo, at, BOUNDARY_GUIDE, vec4(paneModulation, 1.0))
+    RTX_STORE_COUNTED(paneSurface, at, BOUNDARY_GUIDE, vec4(nearest.mNormal, nearest.mDistance, 0.0, 0.0))
+    RTX_STORE_COUNTED(paneMotion, at, BOUNDARY_GUIDE, vec4(nearest.mMotion, 0.0, 0.0))
 
     // **The vector as the shader that answered worked it out**: where the surface or the sky stood
     // last frame. `Answer::mMotion` says whose and why there.

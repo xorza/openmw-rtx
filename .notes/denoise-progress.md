@@ -497,3 +497,36 @@ The pond joins the `[noise]` suite; the pier and the guild did not move (2.59/12
 
 Cost, two A/B legs back to back (frame median; trace; shadow filter): the pond 5.40 → 5.59 and 5.33 →
 5.52 ms, trace +0.09, shadow +0.07; the shore +0.08 and +0.10; the ship +0.00 and +0.07.
+
+## The strafed bar and the pane filter
+
+**The strafed bar.** Strafed, every upscaled mode failed `noise`, in the order of its traced share:
+the pond 2.64 at quality to 3.41 at ultra performance, against 2.54. After the strafe's 30 frames a
+mode tracing a share `s` of the shown pixels holds at most `30 s` samples a shown pixel — 13 at
+quality, 3 at ultra performance — so a bar of 16 failed it by arithmetic. The strafed bar now averages
+`min(16, 30 s)` frames (`noiseBarFramesAfter`); still frames keep 16. Mirror motion vectors on the
+water were tried first, as the cause the edges suggested, and changed nothing (the water's edge error
+16.7 → 17.7).
+
+**The pane filter.** At `off`, the guild failed `noise` at 4.77/76: its windows are panes, each
+shaded at the end of a path — one occlusion ray, one lamp, one sun ray a frame — and composited over
+the frame, where nothing filtered them. With no occlusion ray on panes the frame passed at 3.15/33,
+which named the cause. Now the trace keeps what was drawn for the layers apart (`CHANNEL_PANE`,
+demodulated by `CHANNEL_PANE_ALBEDO`) beside the nearest layer's own surface and motion, and the pane
+filter (`pane.comp`) averages it over time against a history of its own; the composite puts it back.
+The glossy filter and the pane filter share one blend (`lib/runningmean.glsl`). Panes draw their
+occlusion ray at `AMBIENT_EXTERIOR_RATE` again, as a filtered path end does.
+
+`noise` after both (frame / bar):
+
+| | pier | pond | guild |
+|---|---|---|---|
+| `off` | 2.29/12 | 1.80/13 | 3.30/33 (was 4.77/76, failing) |
+| `off`, strafed | 2.23/13 | 1.73/13 | 3.36/34 |
+| quality | 2.59/12 | 2.22/12 | 3.88/33 (was 3.99/33) |
+| quality, strafed (bar 13) | 2.86/15 | 2.64/21 against 2.77/20, failing | 4.69/37 (was 4.96/39) |
+| ultra performance, strafed (bar 3) | 4.50/25 | 3.41/29 | 6.50/48 |
+
+`shot --views=all --map --upscale=off`: 8 of 56 pictures moved — the guild's windows (worst 179, and
+the exposure by a level elsewhere), and a few panes at Ald-ruhn (28), Balmora (44) and the storm (21).
+The pane filter's zone is 0.03–0.04 ms at quality's render extent; the composite rose by 0.01.

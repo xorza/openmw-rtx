@@ -71,6 +71,7 @@ set(RTX_SHADERS
     shaders/trace/denoise/accumulate.comp
     shaders/trace/denoise/atrous.comp
     shaders/trace/denoise/composite.comp
+    shaders/trace/denoise/pane.comp
     shaders/trace/denoise/shadowfilter.comp
     shaders/trace/denoise/shadowmask.comp
     shaders/trace/denoise/shadowtiles.comp
@@ -194,6 +195,7 @@ set(RTX_SHADER_LIB
     shaders/lib/random.glsl
     shaders/lib/records.glsl
     shaders/lib/reproject.glsl
+    shaders/lib/runningmean.glsl
     shaders/lib/runs.glsl
     shaders/lib/sea.glsl
     shaders/lib/shading.glsl
@@ -356,6 +358,10 @@ set(RTX_VULKAN_FILES
     trace/denoise/shadowhistory.hpp
     trace/denoise/shadowpass.cpp
     trace/denoise/shadowpass.hpp
+    trace/denoise/panehistory.cpp
+    trace/denoise/panehistory.hpp
+    trace/denoise/panepass.cpp
+    trace/denoise/panepass.hpp
     trace/denoise/specularhistory.cpp
     trace/denoise/specularhistory.hpp
     trace/denoise/specularpass.cpp
