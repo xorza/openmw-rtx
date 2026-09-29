@@ -244,6 +244,7 @@ namespace Rtx
                 .mRefNum = ref.mRefNum,
                 .mTransform = transformOf(ref),
                 .mRadius = read->mRadius * ref.mScale,
+                .mGate = ref.mGate,
             });
         }
     }

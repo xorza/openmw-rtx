@@ -124,7 +124,7 @@ namespace RtxTool
         TEST(RtxBenchRunTest, everyCheckIsNamedAndSaysWhenItMayBeAsked)
         {
             const std::span<const Check> every = everyCheck();
-            EXPECT_EQ(every.size(), 13u);
+            EXPECT_EQ(every.size(), 14u);
             for (const Check check : every)
                 EXPECT_FALSE(checkName(check).empty()) << static_cast<int>(check);
 
@@ -141,6 +141,7 @@ namespace RtxTool
             EXPECT_FALSE(canAsk(Check::QueueHeld, still, unheld)) << "a hold nobody asked for";
             EXPECT_TRUE(canAsk(Check::QueueHeld, still, held));
             EXPECT_TRUE(canAsk(Check::Finite, still, unheld)) << "every frame counts what it wrote";
+            EXPECT_TRUE(canAsk(Check::GatesAgree, still, unheld)) << "a place holds gated cells or holds none";
 
             Stop routed = still;
             routed.mSchedule.mRoute = Route{ .mTo = osg::Vec3f(100.0f, 0.0f, 0.0f), .mSpeed = 10.0f };

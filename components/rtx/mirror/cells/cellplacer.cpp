@@ -38,11 +38,10 @@ namespace Rtx
         else if (!enabled && !known)
             mDisabled.insert(at, refnum);
 
-        // A blacklisted reference stays down whatever the script says.
-        if (enabled && std::binary_search(mBlacklisted.begin(), mBlacklisted.end(), refnum))
-            return;
-
-        setHeldEnabled(refnum, enabled, held);
+        forEachPlacementOf(refnum, held, [&](Placement& placement, bool shown) {
+            placement.mDisabled = !enabled;
+            restand(placement, shown);
+        });
     }
 
     void CellPlacer::blacklistReference(const ESM::RefNum refnum, const std::span<HeldCell> held)
@@ -52,17 +51,36 @@ namespace Rtx
             return;
 
         mBlacklisted.insert(at, refnum);
-        setHeldEnabled(refnum, false, held);
+        forEachPlacementOf(refnum, held, [&](Placement& placement, bool shown) {
+            placement.mBlacklisted = true;
+            restand(placement, shown);
+        });
     }
 
-    void CellPlacer::setHeldEnabled(const ESM::RefNum refnum, const bool enabled, const std::span<HeldCell> held)
+    void CellPlacer::setGate(const std::uint32_t gate, const Terrain::GateState state, const std::span<HeldCell> held)
+    {
+        assert(gate != Terrain::sNoGate && "a gate told of that is none");
+        if (gate >= mGates.size())
+            mGates.resize(gate + 1, Terrain::GateState::Unknown);
+        mGates[gate] = state;
+
+        // Every cell, for the reason a script's toggle walks them all: a gate moves when the story
+        // does, which is rarer still.
+        for (HeldCell& cell : held)
+            for (std::size_t slot = 0; slot < cell.mPlacements.size(); ++slot)
+                if (cell.mPlacements[slot].mGate == gate)
+                    restand(cell.mPlacements[slot], slot < cell.mShown);
+    }
+
+    template <class Visit>
+    void CellPlacer::forEachPlacementOf(const ESM::RefNum refnum, const std::span<HeldCell> held, Visit visit)
     {
         // Every cell, because which one holds the reference is not said; a script's toggle is rare
         // enough that the walk is cheaper than an index kept for it.
         for (HeldCell& cell : held)
             for (std::size_t slot = 0; slot < cell.mPlacements.size(); ++slot)
                 if (cell.mPlacements[slot].mRefNum == refnum)
-                    setPlacementEnabled(cell.mPlacements[slot], slot < cell.mShown, enabled);
+                    visit(cell.mPlacements[slot], slot < cell.mShown);
     }
 
     void CellPlacer::forgetReferences(const std::span<HeldCell> held)
@@ -72,26 +90,85 @@ namespace Rtx
 
         for (HeldCell& cell : held)
             for (std::size_t slot = 0; slot < cell.mPlacements.size(); ++slot)
-                if (cell.mPlacements[slot].mDisabled)
-                    setPlacementEnabled(cell.mPlacements[slot], slot < cell.mShown, true);
+            {
+                Placement& placement = cell.mPlacements[slot];
+                if (!placement.mDisabled && !placement.mBlacklisted)
+                    continue;
+
+                placement.mDisabled = false;
+                placement.mBlacklisted = false;
+                restand(placement, slot < cell.mShown);
+            }
     }
 
-    void CellPlacer::setPlacementEnabled(Placement& placement, const bool shown, const bool enabled)
+    bool CellPlacer::stands(const Placement& placement) const
     {
-        placement.mDisabled = !enabled;
+        if (placement.mBlacklisted)
+            return false;
+        if (placement.mGate == Terrain::sNoGate)
+            return !placement.mDisabled;
+
+        // A gate that decided is the game's answer for the cells it has not loaded, and a script's
+        // word on the reference is an answer the gate has since moved past: the stage a visit
+        // took down stands again from afar once the story reaches it.
+        switch (stateOf(placement.mGate))
+        {
+            case Terrain::GateState::Open:
+                return true;
+            case Terrain::GateState::Closed:
+            case Terrain::GateState::Unknown:
+                return false;
+            case Terrain::GateState::Undecided:
+                break;
+        }
+
+        return !placement.mDisabled;
+    }
+
+    void CellPlacer::restand(Placement& placement, const bool shown)
+    {
         if (!shown)
             return;
 
-        if (enabled && !placement.mStood.isStanding())
+        const bool wanted = stands(placement);
+        if (wanted && !placement.mStood.isStanding())
             stand(placement.mStood, mPlaced);
-        else if (!enabled)
+        else if (!wanted)
             drop(placement.mStood, mPlaced);
     }
 
-    bool CellPlacer::isDisabled(const ESM::RefNum refnum) const
+    void CellPlacer::collectGateVerdicts(const HeldCell& cell, std::vector<GateVerdict>& into) const
     {
-        return (!mDisabled.empty() && std::binary_search(mDisabled.begin(), mDisabled.end(), refnum))
-            || (!mBlacklisted.empty() && std::binary_search(mBlacklisted.begin(), mBlacklisted.end(), refnum));
+        const std::size_t first = into.size();
+        for (const Placement& placement : cell.mPlacements)
+        {
+            if (placement.mGate == Terrain::sNoGate)
+                continue;
+
+            const Terrain::GateState state = stateOf(placement.mGate);
+            if (state == Terrain::GateState::Open || state == Terrain::GateState::Closed)
+                into.push_back(
+                    GateVerdict{ .mRefNum = placement.mRefNum, .mStands = state == Terrain::GateState::Open });
+        }
+
+        // A model of several parts is several placements of one reference, next to each other
+        // only by chance once the size rule's sort has run.
+        const auto begin = into.begin() + static_cast<std::ptrdiff_t>(first);
+        std::sort(begin, into.end(),
+            [](const GateVerdict& left, const GateVerdict& right) { return left.mRefNum < right.mRefNum; });
+        into.erase(std::unique(begin, into.end(),
+                       [](const GateVerdict& left, const GateVerdict& right) { return left.mRefNum == right.mRefNum; }),
+            into.end());
+    }
+
+    Terrain::GateState CellPlacer::stateOf(const std::uint32_t gate) const
+    {
+        return gate < mGates.size() ? mGates[gate] : Terrain::GateState::Unknown;
+    }
+
+    bool CellPlacer::isListed(const std::vector<ESM::RefNum>& sorted, const ESM::RefNum refnum)
+    {
+        return !sorted.empty() && std::binary_search(sorted.begin(), sorted.end(), refnum);
     }
 
     bool CellPlacer::wantsFlattening(const osg::Vec2i& cell, const Material& ground, const WorldAround& around)
@@ -193,7 +270,8 @@ namespace Rtx
         {
             const PreparedModel& model = *cell.mModels[ref.mModel];
             const CellHolds::HeldModel& adopted = holds.knownOf(model);
-            const bool disabled = isDisabled(ref.mRefNum);
+            const bool disabled = isListed(mDisabled, ref.mRefNum);
+            const bool blacklisted = isListed(mBlacklisted, ref.mRefNum);
 
             for (std::size_t at = 0; at < adopted.mParts.size(); ++at)
                 held.mPlacements.push_back(Placement{
@@ -204,7 +282,9 @@ namespace Rtx
                     },
                     .mRadius = ref.mRadius,
                     .mRefNum = ref.mRefNum,
+                    .mGate = ref.mGate,
                     .mDisabled = disabled,
+                    .mBlacklisted = blacklisted,
                 });
         }
 
@@ -290,7 +370,7 @@ namespace Rtx
         for (std::size_t at = 0; at < cell.mPlacements.size(); ++at)
         {
             const Placement& placement = cell.mPlacements[at];
-            if (!standsAs(placement.mStood, at < cell.mShown && !placement.mDisabled))
+            if (!standsAs(placement.mStood, at < cell.mShown && stands(placement)))
                 return false;
         }
 
@@ -356,7 +436,7 @@ namespace Rtx
             : 0;
 
         for (std::size_t at = cell.mShown; at < wanted; ++at)
-            if (!placements[at].mDisabled)
+            if (stands(placements[at]))
                 stand(placements[at].mStood, mPlaced);
         for (std::size_t at = wanted; at < cell.mShown; ++at)
             drop(placements[at].mStood, mPlaced);

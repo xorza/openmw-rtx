@@ -24,6 +24,11 @@ namespace MWRender
         return false;
     }
 
+    void TracedGround::setGate(const std::uint32_t gate, const Terrain::GateState state)
+    {
+        mMirror.setGate(gate, state);
+    }
+
     void TracedGround::clear()
     {
         mMirror.forgetReferences();

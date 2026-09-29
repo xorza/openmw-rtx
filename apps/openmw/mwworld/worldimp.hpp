@@ -643,6 +643,8 @@ namespace MWWorld
         /// Return terrain height at \a worldPos position.
         float getTerrainHeightAt(const osg::Vec3f& worldPos, ESM::RefId worldspace) const override;
 
+        void setVisibilityGate(std::uint32_t gate, Terrain::GateState state) override;
+
         /// Return physical or rendering half extents of the given actor.
         osg::Vec3f getHalfExtents(const MWWorld::ConstPtr& actor, bool rendering = false) const override;
 

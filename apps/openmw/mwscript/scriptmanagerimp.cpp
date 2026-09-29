@@ -2,8 +2,11 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <exception>
+#include <optional>
 #include <sstream>
+#include <string_view>
 
 #include <components/debug/debuglog.hpp>
 
@@ -17,6 +20,9 @@
 #include <components/compiler/quickfileparser.hpp>
 #include <components/compiler/scanner.hpp>
 
+#include "../mwbase/environment.hpp"
+#include "../mwbase/journal.hpp"
+#include "../mwbase/world.hpp"
 #include "../mwworld/esmstore.hpp"
 
 #include "extensions.hpp"
@@ -24,6 +30,34 @@
 
 namespace MWScript
 {
+    namespace
+    {
+        /// The globals and the journal of the game in progress, as a gate reads them.
+        class GameReads final : public VisibilityReads
+        {
+        public:
+            char getGlobalType(std::string_view name) const override
+            {
+                return MWBase::Environment::get().getWorld()->getGlobalVariableType(name);
+            }
+
+            int getGlobalInt(std::string_view name) const override
+            {
+                return MWBase::Environment::get().getWorld()->getGlobalInt(name);
+            }
+
+            float getGlobalFloat(std::string_view name) const override
+            {
+                return MWBase::Environment::get().getWorld()->getGlobalFloat(name);
+            }
+
+            int getJournalIndex(const ESM::RefId& quest) const override
+            {
+                return MWBase::Environment::get().getJournal()->getJournalIndex(quest);
+            }
+        };
+    }
+
     ScriptManager::ScriptManager(const MWWorld::ESMStore& store, Compiler::Context& compilerContext, int warningsMode)
         : mErrorHandler()
         , mStore(store)
@@ -134,6 +168,62 @@ namespace MWScript
         }
 
         mGlobalScripts.clear();
+        mVisibilityGates.reset();
+    }
+
+    void ScriptManager::buildVisibilityGates()
+    {
+        class Compiled final : public GateScripts
+        {
+        public:
+            explicit Compiled(ScriptManager& manager)
+                : mManager(manager)
+            {
+            }
+
+            std::optional<GateScript> compiled(const ESM::RefId& script) override
+            {
+                auto found = mManager.mScripts.find(script);
+                if (found == mManager.mScripts.end() && mManager.compile(script))
+                    found = mManager.mScripts.find(script);
+                if (found == mManager.mScripts.end())
+                    return std::nullopt;
+
+                return GateScript{ .mProgram = &found->second.mProgram, .mLocals = &found->second.mLocals };
+            }
+
+        private:
+            ScriptManager& mManager;
+        };
+
+        Compiled compiled(*this);
+        mVisibilityGates.build(mStore, compiled);
+        Log(Debug::Info) << "Visibility gates: " << mVisibilityGates.getGateCount()
+                         << " scripts decide whether their references stand in the distance";
+    }
+
+    void ScriptManager::updateVisibilityGates()
+    {
+        mGateChanges.clear();
+        mVisibilityGates.update(GameReads(), mGateChanges);
+        if (mGateChanges.empty())
+            return;
+
+        std::size_t open = 0;
+        std::size_t undecided = 0;
+        for (const GateChange& change : mGateChanges)
+        {
+            open += change.mState == Terrain::GateState::Open ? 1 : 0;
+            undecided += change.mState == Terrain::GateState::Undecided ? 1 : 0;
+            MWBase::Environment::get().getWorld()->setVisibilityGate(change.mGate, change.mState);
+        }
+
+        // A load or a step of the story, and never a frame's routine.
+        Log(Debug::Verbose) << "Visibility gates: " << mGateChanges.size() << " changed, " << open << " open, "
+                            << undecided << " undecided, " << mGateChanges.size() - open - undecided << " closed";
+        for (const GateChange& change : mGateChanges)
+            if (change.mState == Terrain::GateState::Undecided)
+                Log(Debug::Verbose) << "Visibility gate undecided: " << mVisibilityGates.getScript(change.mGate);
     }
 
     std::pair<int, int> ScriptManager::compileAll()

@@ -3,6 +3,7 @@
 
 #include "rotationflags.hpp"
 
+#include <cstdint>
 #include <deque>
 #include <map>
 #include <set>
@@ -58,6 +59,11 @@ namespace ESM
     struct TimeStamp;
     class RefId;
     struct ExteriorCellLocation;
+}
+
+namespace Terrain
+{
+    enum class GateState : std::uint8_t;
 }
 
 namespace MWPhysics
@@ -575,6 +581,9 @@ namespace MWBase
 
         /// Return terrain height at \a worldPos position.
         virtual float getTerrainHeightAt(const osg::Vec3f& worldPos, ESM::RefId worldspace) const = 0;
+
+        /// What a visibility gate now says of the references behind it — `MWScript::VisibilityGates`.
+        virtual void setVisibilityGate(std::uint32_t gate, Terrain::GateState state) = 0;
 
         /// Return physical or rendering half extents of the given actor.
         virtual osg::Vec3f getHalfExtents(const MWWorld::ConstPtr& actor, bool rendering = false) const = 0;

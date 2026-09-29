@@ -1,6 +1,7 @@
 #ifndef GAME_MWBASE_SCRIPTMANAGER_H
 #define GAME_MWBASE_SCRIPTMANAGER_H
 
+#include <cstdint>
 #include <string_view>
 
 namespace Interpreter
@@ -57,6 +58,11 @@ namespace MWBase
         ///< Return locals for script \a name.
 
         virtual MWScript::GlobalScripts& getGlobalScripts() = 0;
+
+        /// Which gate a record's references stand behind in the distance, or `Terrain::sNoGate` —
+        /// `MWScript::VisibilityGates`. Asked by the renderers' reader threads, which the table
+        /// allows: it is built at load and not written again.
+        virtual std::uint32_t getVisibilityGate(const ESM::RefId& record) const = 0;
 
         virtual const Compiler::Extensions& getExtensions() const = 0;
     };

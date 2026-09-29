@@ -3584,6 +3584,11 @@ namespace MWWorld
         return mPlayerTraveling;
     }
 
+    void World::setVisibilityGate(std::uint32_t gate, Terrain::GateState state)
+    {
+        mRendering->setVisibilityGate(gate, state);
+    }
+
     float World::getTerrainHeightAt(const osg::Vec3f& worldPos, ESM::RefId worldspace) const
     {
         return mRendering->getTerrainHeightAt(worldPos, worldspace);

@@ -16,6 +16,7 @@
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/mirror/sceneadopter.hpp>
+#include <components/terrain/objectstorage.hpp>
 
 #include "prepared.hpp"
 
@@ -52,10 +53,17 @@ namespace Rtx
         float mRadius = 0.0f;
         ESM::RefNum mRefNum;
 
-        /// A script has disabled the reference: no slot however large it is. Set as the cell is
-        /// adopted and flipped by `CellPlacer::setReferenceEnabled`, which is what keeps it off
-        /// the walk every frame makes.
+        /// The gate the game decides its standing by, or `Terrain::sNoGate` — `CellPlacer::setGate`.
+        std::uint32_t mGate = Terrain::sNoGate;
+
+        /// A script has disabled the reference. Set as the cell is adopted and flipped by
+        /// `CellPlacer::setReferenceEnabled`, which is what keeps it off the walk every frame makes.
+        /// Behind a gate that decided, the gate's answer stands in for it: `CellPlacer::stands`.
         bool mDisabled = false;
+
+        /// The game moved, deleted or animates the reference: no slot, whatever a script or a gate
+        /// says.
+        bool mBlacklisted = false;
     };
 
     /// A cell's ground as the frame holds it: its rows, where it stands, and the readings of its

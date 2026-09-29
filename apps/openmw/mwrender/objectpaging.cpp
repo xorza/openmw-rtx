@@ -50,6 +50,7 @@
 #include <components/vfs/manager.hpp>
 
 #include "apps/openmw/mwbase/environment.hpp"
+#include "apps/openmw/mwbase/scriptmanager.hpp"
 #include "apps/openmw/mwbase/world.hpp"
 #include "apps/openmw/mwclass/esm4base.hpp"
 #include "apps/openmw/mwworld/esmstore.hpp"
@@ -1165,6 +1166,10 @@ namespace MWRender
             visitESM4References(size, startCell, worldspace, kinds, buffer.mStack);
 
         buffer.mStack.reduceInto(into);
+
+        const MWBase::ScriptManager& scripts = *MWBase::Environment::get().getScriptManager();
+        for (Terrain::PagedCellRef& ref : into)
+            ref.mGate = scripts.getVisibilityGate(ref.mRefId);
     }
 
     std::unique_ptr<Terrain::RefCollector> ObjectStorage::makeCollector() const

@@ -1249,6 +1249,11 @@ namespace MWRender
             return;
         mGround->blacklistReference(type, ptr);
     }
+    void RenderingManager::setVisibilityGate(std::uint32_t gate, Terrain::GateState state)
+    {
+        mGround->setGate(gate, state);
+    }
+
     bool RenderingManager::pagingUnlockCache()
     {
         return mGround->unlockCache();
