@@ -25,6 +25,7 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
+#include "compare.hpp"
 #include "film.hpp"
 #include "model/blockfile.hpp"
 #include "run.hpp"
@@ -260,6 +261,13 @@ namespace RtxTool
         option(Verbs::Bench | Verbs::Check | Verbs::Noise, "suite", bpo::value<std::string>()->default_value(""),
             "which list of places in resources/rtx/benches.cfg to visit: [default] for `bench`, "
             "[check] for `check` and [noise] for `noise` unless named. Overridden by --views");
+
+        option(Verbs::Noise, "strafe", bpo::value<float>()->default_value(0.0f),
+            std::format("with `noise`, how many world units to the side the frame starts: it flies into "
+                        "the place over the last {} frames, facing it, through a world as still as the "
+                        "reference's, so the frame is taken after a history the eye moved through. Nought "
+                        "takes it standing still",
+                sNoiseStrafeFrames));
 
         option(sRuns, "views", bpo::value<std::string>()->default_value(""),
             "which views.cfg views to visit, comma separated, by name rather than by suite. "

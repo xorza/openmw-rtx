@@ -105,6 +105,8 @@ namespace RtxTool
     /// from whether it passes. Beside the name in one table, so a new check says both.
     bool canAsk(Check check, const Stop& stop, const Rtx::RenderProfile& profile);
 
+    struct Approach;
+
     /// Where a stop stands: a cell, and where the eye is inside it.
     struct Stand
     {
@@ -140,6 +142,13 @@ namespace RtxTool
         /// The unit vector a body with `rotation` faces, which is `getRotation`'s inverse: a stand
         /// read back off a body the harness rotated by a stand is that stand.
         static osg::Vec3f forwardOf(const osg::Vec3f& rotation);
+
+        /// A flight into this stand from `across` units to its left, facing its look all the way
+        /// and arriving at the last of `frames` frames of `step` seconds: what `noise --strafe`
+        /// takes a frame at the end of, with the history the eye moved through. Left along the
+        /// level of the yaw, so a stand looking straight down strafes along its bearing's left.
+        /// Only for a stand that names an eye, and for two frames or more.
+        Approach approachFromSide(float across, float step, std::uint32_t frames) const;
     };
 
     /// What the sky does at a stop, asked of the game's own weather system rather than derived.
@@ -180,6 +189,13 @@ namespace RtxTool
 
         /// World units a second, more than nought. A Morrowind exterior cell is 8,192 across.
         float mSpeed = 0.0f;
+    };
+
+    /// Where a flight into a stand leaves from, and the route it flies: `Stand::approachFromSide`.
+    struct Approach
+    {
+        Stand mFrom;
+        Route mRoute;
     };
 
     /// How long a stop runs and what moves while it does.
