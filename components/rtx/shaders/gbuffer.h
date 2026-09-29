@@ -45,7 +45,7 @@
 // So each format is one line naming a `storageformat.h` layout, which is both the qualifier the
 // shader declares and what the host creates the image as.
 
-// **The two radiance channels are the one pair with no format here.** How wide they are is a
+// **The radiance channels are the ones with no format here.** How wide they are is a
 // run's choice — `Rtx::RadianceWidth` says which run gets which and why — so the host picks
 // between `GBUFFER_RADIANCE_SHOWN` and `GBUFFER_RADIANCE_SUMMED` at creation, and every shader that
 // reads or writes one declares it with no format at all and lets the load or the store convert.
@@ -100,8 +100,15 @@ namespace Rtx::Shaders
     /// nothing the composite draws moves with the jitter the traced grid is sampled at.
     const uint CHANNEL_PUFFS = 6;
 
+    /// What the sun, or a moon at night, adds to the solid the eye found, as though every ray to it
+    /// got through, in `rgb` — the albedo, the lobe and the path's transmittance already in — and in
+    /// `a` whether they did, one or nought. The one bit a pixel's shadow is, which the shadow denoiser
+    /// filters in its place: `rgb` is exact per pixel, so a texture under a penumbra stays sharp.
+    /// Nought and one wherever nothing split it off, which no filter reads as a shadow.
+    const uint CHANNEL_SUNLIT = 7;
+
     /// How many the set declares, which is the last of them and one more.
-    const uint CHANNEL_COUNT = 7;
+    const uint CHANNEL_COUNT = 8;
 
     /// How many steps either side of nought the surface channel holds an octahedral axis at: twelve
     /// bits an axis, so a code is under 2^24 and a float holds it exactly.

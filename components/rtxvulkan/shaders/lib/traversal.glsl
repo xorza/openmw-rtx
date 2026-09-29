@@ -434,8 +434,23 @@ Hit committedHit(
     return hit;
 }
 
-/// How much of what stands `distance` away along `towards` reaches `from`, past the surfaces whose
-/// faces `faces` does not cull — `lightThrough` and `ambientThrough`, which say which.
+/// What a ray toward a light met: whether a surface stopped it outright, and what the surfaces it
+/// crossed let through.
+///
+/// **Two numbers, because two filters want them apart.** Whether the ray was stopped is the one bit a
+/// shadow denoiser filters (`CHANNEL_SUNLIT`), and what a leaf or a pane let through is a fraction the
+/// same ray measures exactly — so it stays in the light the bit multiplies, and nothing blurs it.
+struct Passage
+{
+    /// One where nothing opaque stood in the way, and nought where something did.
+    float mOpen;
+
+    /// What the translucent surfaces crossed let through, from nought to one.
+    float mThrough;
+};
+
+/// What the ray from `from` to what stands `distance` away along `towards` meets, past the surfaces
+/// whose faces `faces` does not cull — `lightThrough` and `ambientThrough`, which say which.
 ///
 /// No cone here, so the cutout is decided at the finest mip. A shadow ray carries no footprint, and
 /// aliasing in a leaf's shadow is worth far less than aliasing on the leaf.
@@ -461,10 +476,10 @@ Hit committedHit(
 ///
 /// @param faces the ray flags that cull one face or none. **A literal at every call**, so each
 ///        caller's traversal is compiled for its own.
-float throughToward(vec3 from, vec3 towards, float distance, uint faces)
+Passage passageToward(vec3 from, vec3 towards, float distance, uint faces)
 {
     if (distance <= SHADOW_BIAS)
-        return 1.0;
+        return Passage(1.0, 1.0);
 
     uint blocked = 0u;
 
@@ -475,10 +490,17 @@ float throughToward(vec3 from, vec3 towards, float distance, uint faces)
         solidMask(frame.mRayMask) | MASK_MEDIUM, from, SHADOW_BIAS, towards, distance);
     RTX_RESOLVE(query, towards, 0.0, blocked, true, false)
 
-    if (rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT)
-        return 0.0;
+    const bool stopped = rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
+    return Passage(stopped ? 0.0 : 1.0, throughBlocked(blocked));
+}
 
-    return throughBlocked(blocked);
+/// How much of what stands `distance` away along `towards` reaches `from`: `passageToward`'s two
+/// halves as one number. **The product is exact**: the open half is nought or one, so it either
+/// is the other half or is nought, and every caller reads what it read before the two were apart.
+float throughToward(vec3 from, vec3 towards, float distance, uint faces)
+{
+    const Passage passage = passageToward(from, towards, distance, faces);
+    return passage.mOpen * passage.mThrough;
 }
 
 /// How much of a light `distance` away along `towards` reaches `from`: the sun, a moon or a lamp.
@@ -496,6 +518,12 @@ float throughToward(vec3 from, vec3 towards, float distance, uint faces)
 float lightThrough(vec3 from, vec3 towards, float distance)
 {
     return throughToward(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT);
+}
+
+/// The same ray as `lightThrough`, with its two halves apart.
+Passage lightPassage(vec3 from, vec3 towards, float distance)
+{
+    return passageToward(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT);
 }
 
 /// How much of the ambient along `towards` reaches `from`, past whatever stands within `distance`.

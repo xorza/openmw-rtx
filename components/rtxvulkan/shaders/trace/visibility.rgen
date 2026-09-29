@@ -406,6 +406,11 @@ void main()
     // slowly as fog does, which is to say it changes nothing.
     const vec3 bounce = answer.mBounced * transmittance;
 
+    // **The sky's source rides the same path as the bounce**, and the light it would add is taken
+    // down by what the path took, as the bounce is. Its bit is the one a shadow denoiser filters.
+    const vec3 sunLight = answer.mSunlit * transmittance;
+    const float sunOpen = answer.mSunOpen ? 1.0 : 0.0;
+
     // **Composed here where nothing filters the bounce** — `mComposed` says why. A select and not a
     // factor of nought, so a bounce that is not finite stays out of a direct channel a filter
     // reads apart from it.
@@ -413,9 +418,12 @@ void main()
     // **The indirect channel is written either way**: a test reads the bounce alone, and a
     // frame's digest hashes every channel, which one left undefined would make differ between
     // two runs of the same frame.
-    const vec3 light = frame.mComposed != 0u ? composedLight(shaded, answer.mResponse.mDiffuse, bounce) : shaded;
+    const vec3 light = frame.mComposed != 0u
+        ? composedLight(shaded, answer.mResponse.mDiffuse, bounce, sunLight, sunOpen)
+        : shaded;
     RTX_STORE_COUNTED(direct, at, BOUNDARY_COLOUR, vec4(light, 1.0))
     RTX_STORE_COUNTED(indirect, at, BOUNDARY_COLOUR, vec4(bounce, 1.0))
+    RTX_STORE_COUNTED(sunlit, at, BOUNDARY_COLOUR, vec4(sunLight, sunOpen))
     RTX_STORE_COUNTED(albedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mDiffuse, 1.0))
 
     // **The vector as the shader that answered worked it out**: where the surface or the sky stood

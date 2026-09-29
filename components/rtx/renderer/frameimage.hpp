@@ -25,6 +25,7 @@ namespace Rtx
         Motion = Shaders::CHANNEL_MOTION,
         Backdrop = Shaders::CHANNEL_BACKDROP,
         Puffs = Shaders::CHANNEL_PUFFS,
+        Sunlit = Shaders::CHANNEL_SUNLIT,
     };
 
     inline constexpr std::uint32_t sChannelCount = Shaders::CHANNEL_COUNT;
@@ -44,6 +45,7 @@ namespace Rtx
         { Channel::Motion, "g-motion" },
         { Channel::Backdrop, "g-backdrop" },
         { Channel::Puffs, "g-puffs" },
+        { Channel::Sunlit, "g-sunlit" },
     } } };
 
     /// Every channel in binding order, for a walk that wants them all.

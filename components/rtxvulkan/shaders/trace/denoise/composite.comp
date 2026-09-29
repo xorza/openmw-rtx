@@ -22,6 +22,7 @@
 #include "composite.h"
 #include "gbuffer.h"
 #include "sets.h"
+#include "shadow.h"
 
 #include "lib/compose.glsl"
 #include "lib/pixels.glsl"
@@ -46,6 +47,13 @@ layout(set = SET_PASS, binding = COMPOSITE_BIND_INDIRECT) uniform readonly image
 /// What to put back: the surface's own albedo, and nothing of the path.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D albedo;
 
+/// What the sky's source adds as though its rays got through, and whether they did —
+/// `CHANNEL_SUNLIT`. No format, as `direct` has none.
+layout(set = SET_PASS, binding = COMPOSITE_BIND_SUNLIT) uniform readonly image2D sunlit;
+
+/// How much of it got through, as the shadow denoiser filtered the rays' bits: its mean in `r`.
+layout(set = SET_PASS, binding = COMPOSITE_BIND_SHADOW, SHADOW_REPROJECTED) uniform readonly image2D shadow;
+
 /// The running sum, when `mAccumulate` asks for one.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SUM, COMPOSITE_SUM_FORMAT) uniform image2D sum;
 
@@ -63,7 +71,11 @@ void main()
     const ivec2 at = ivec2(pixel);
     vec3 resolved = imageLoad(direct, at).rgb;
     if (frame.mComposed == 0u)
-        resolved = composedLight(resolved, imageLoad(albedo, at).rgb, imageLoad(indirect, at).rgb);
+    {
+        const vec4 sun = imageLoad(sunlit, at);
+        const float seen = frame.mShadowed != 0u ? imageLoad(shadow, at).r : sun.a;
+        resolved = composedLight(resolved, imageLoad(albedo, at).rgb, imageLoad(indirect, at).rgb, sun.rgb, seen);
+    }
 
     // In linear, which is what everything downstream of here now works in. Summing an encoded frame
     // would add up rounded numbers and clip every sample past the display's range to the same value

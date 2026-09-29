@@ -30,13 +30,16 @@ namespace Rtx
     {
     }
 
-    void AccumulatePass::record(VkCommandBuffer commands, AccumulateHistory& history, const GBuffer& buffer,
-        const Shaders::Camera& camera, float far, bool reset) const
+    float AccumulatePass::distanceScaleFor(const float far)
     {
         assert(far > 0.0f && "a frame with no far plane to scale a stored distance by");
-        assert(history.getWidth() >= camera.mWidth && history.getHeight() >= camera.mHeight);
+        return Shaders::ACCUMULATE_DISTANCE_RANGE / far;
+    }
 
-        const AccumulateHistory::Turn turn = history.turn();
+    void AccumulatePass::record(VkCommandBuffer commands, const AccumulateHistory::Turn& turn, const GBuffer& buffer,
+        const Shaders::Camera& camera, float far, bool reset) const
+    {
+        assert(turn.mBlended.getWidth() >= camera.mWidth && turn.mBlended.getHeight() >= camera.mHeight);
 
         // Every image this frame writes is written whole before it is read, so each is discarded;
         // the last frame's accesses to all of them — the cascade's writes over the blend among them —
@@ -71,7 +74,7 @@ namespace Rtx
         const Shaders::AccumulateConstants constants{
             .mCamera = camera,
             .mReset = (reset || turn.mFresh) ? 1u : 0u,
-            .mDistanceScale = Shaders::ACCUMULATE_DISTANCE_RANGE / far,
+            .mDistanceScale = distanceScaleFor(far),
         };
 
         dispatch(commands, mPipeline, writes.get(), constants, groupsFor(camera.mWidth, Shaders::ACCUMULATE_WORKGROUP),

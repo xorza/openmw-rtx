@@ -14,6 +14,7 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/scene/spritebin.hpp>
 #include <components/rtxvulkan/trace/denoise/accumulatehistory.hpp>
+#include <components/rtxvulkan/trace/denoise/shadowhistory.hpp>
 
 #include "fogvolume.hpp"
 #include "gbuffer.hpp"
@@ -43,7 +44,7 @@ namespace Rtx
         /// Builds the chain at exactly this extent, whatever it was before. The caller has waited
         /// for anything still reading what this replaces.
         ///
-        /// @param radiance how wide the two radiance channels and the frame composed from them are
+        /// @param radiance how wide the radiance channels and the frame composed from them are
         ///        stored — the run's choice, which `Rtx::RadianceWidth` argues.
         void resize(std::uint32_t width, std::uint32_t height, RadianceWidth radiance);
 
@@ -94,13 +95,22 @@ namespace Rtx
         /// which may have grown the table.
         VkDeviceAddress getSpriteTileList(const VisibilityInputs& inputs) const;
 
-        /// The bounce resolved: the temporal mean, and then the cascade over it, with the barrier
-        /// between them that makes this one call.
+        /// What the denoiser hands the composite: where the bounce ended up, and how much of the sky's
+        /// source got through — null where the frame had no sky source to shadow.
+        struct Denoised
+        {
+            const Image& mIndirect;
+            const Image* mShadow;
+        };
+
+        /// The light resolved: the temporal mean, the shadow denoiser over the sky's source's rays,
+        /// and then the cascade over the bounce, with the barriers between them that make this one
+        /// call.
         ///
         /// @param timer null where the run is not being timed, which a picture is not.
         ///
         /// @param sampled the camera the trace sampled: its eye, its arms' eye and its far plane.
-        const Image& recordDenoise(
+        Denoised recordDenoise(
             VkCommandBuffer commands, const Shaders::VisibilityConstants& sampled, bool historyLost, GpuTimer* timer);
 
         const Device& mDevice;
@@ -120,6 +130,9 @@ namespace Rtx
         /// filter's other half of the ping-pong (`AtrousPass::makeScratch`). Both at the extent.
         AccumulateHistory mHistory;
         Image mFilterScratch;
+
+        /// What the shadow denoiser keeps of this camera, at the extent.
+        ShadowHistory mShadows;
 
         /// Set by `resetHistory` and spent by the next trace, which always integrates the air.
         bool mAirStale = false;

@@ -110,17 +110,21 @@ vec3 lightThroughWater(vec3 position, vec3 toward, float footprint)
 /// point and the surface is an occluder the ray in the air cannot meet. A branch on the depth and not
 /// a factor, because a sunlit bed and the ground beside the water are regions of the picture and not
 /// neighbouring lanes, and a ray of no length is a traversal all the same.
-float skyVisibleThrough(SkySource sky, vec3 position, vec2 draw)
+///
+/// **In `Passage`'s two halves**: stopped where either ray was, and what both let through otherwise.
+Passage skyPassageThrough(SkySource sky, vec3 position, vec2 draw)
 {
     const float depth = waterOver(position);
     if (!(depth > 0.0))
-        return skyVisible(sky, position, draw);
+        return skyPassage(sky, position, draw);
 
     const SunUnderWater bent = sunUnderWater(sky.mDirection);
     const float path = depth * bent.mSlant;
     const vec3 met = vec3(position.xy - bent.mTravelling.xy * path, frame.mWaterLevel);
 
-    return lightThrough(position, -bent.mTravelling, path) * skyVisible(sky, met, draw);
+    const Passage under = lightPassage(position, -bent.mTravelling, path);
+    const Passage over = skyPassage(sky, met, draw);
+    return Passage(under.mOpen * over.mOpen, under.mThrough * over.mThrough);
 }
 
 /// What a stretch of water sends toward whoever is looking down it.
