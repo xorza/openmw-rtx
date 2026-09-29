@@ -211,6 +211,11 @@ void main()
     }
 
     const bool receiver = inFrame && receives(at);
+
+    // The count was set to nought above, and a lane that added to it before the first lane had
+    // done so would be lost: the rows and the reset are behind this barrier, the additions after it.
+    barrier();
+
     if (receiver)
         atomicAdd(gReceivers, 1u);
 
