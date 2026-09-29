@@ -48,12 +48,11 @@ namespace Rtx
         Shaders::Camera mCamera;
         Shaders::Camera mArms;
 
-        /// How long since the previous frame, in milliseconds, or nought where there was none.
-        float mFrameDeltaMs = 0.0f;
+        /// `Reconstruction::mJitterPhases`: what the jitter the trace sampled with repeats after.
+        std::uint32_t mJitterPhases = 0;
 
-        /// Whether the previous frame is worth anything. True after a jump no motion vector can
-        /// describe: a new cell, a teleport, the first frame after a resize.
-        bool mReset = false;
+        /// How long since the previous frame, in seconds, or nought where there was none.
+        float mSeconds = 0.0f;
 
         /// The frame in flight this reconstruction is recorded into, whose constants it writes.
         FrameSlot mSlot;
@@ -86,6 +85,13 @@ namespace Rtx
         /// The image `record` writes, which the display composites the puffs over and maps.
         const Image& getOutput() const;
 
+        /// Says the history is worthless, until the next `record`: after a jump no motion vector can
+        /// describe, a new cell or a teleport. A `resize` says it too.
+        void reset() { mFrame.reset(); }
+
+        /// Whether the next `record` reads no history.
+        bool isFresh() const { return mFrame.isFresh(); }
+
         /// Records one reconstruction into `getOutput`, at the output extent, and leaves it as
         /// `Use::sAnyGeneralWrite`. After `resize`.
         void record(VkCommandBuffer commands, const UpscaleInputs& inputs);
@@ -104,7 +110,7 @@ namespace Rtx
             Instability,
             Accumulate,
         };
-        static constexpr std::size_t sPasses = 7;
+        static constexpr std::size_t sPasses = static_cast<std::size_t>(Pass::Accumulate) + 1;
 
     private:
         struct Targets;

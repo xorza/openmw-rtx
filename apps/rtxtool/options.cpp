@@ -176,9 +176,9 @@ namespace RtxTool
             "how much of the lighting painted into each texture to divide back out, from 0 to 1. "
             "Zero is the A/B that says what it did");
         option(sFramed, "filter",
-            bpo::value<bool>()->default_value(byDefault.mSetup.mProfile.mReconstruction.mFilter)->implicit_value(true),
-            "run the denoiser over the indirect light. Off shows the raw bounce, and is what a "
-            "reference is made with");
+            bpo::value<bool>()->default_value(byDefault.mSetup.mProfile.mReconstruction.mDenoise)->implicit_value(true),
+            "run the denoisers over the light. Off shows the raw light, and is what a reference is "
+            "made with");
         option(Verbs::Shot, "doll", bpo::value<std::string>()->default_value(""),
             "also write the inventory doll of this person, by NPC record id -- fargoth, \"caius "
             "cosades\" -- traced against a scene of their own. They arrive dressed out of their "
@@ -193,7 +193,7 @@ namespace RtxTool
 
         option(otherThan(Verbs::Info | Verbs::Film), "upscale",
             bpo::value<std::string>()->default_value(
-                std::string(Rtx::sUpscaleNames.name(byDefault.mSetup.mProfile.mUpscaling.mMode))),
+                std::string(Rtx::sUpscaleNames.name(byDefault.mSetup.mProfile.mUpscale))),
             std::format("put the upscaler, FSR 3.1, between the trace and the picture: {}. --size is "
                         "what comes out, and what gets traced is --size over the mode's ratio. `{}` "
                         "by default. `film` is always `{}`",

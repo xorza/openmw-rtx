@@ -5,18 +5,17 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/shadow.h>
-#include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
-#include "accumulatehistory.hpp"
-#include "shadowhistory.hpp"
+#include "denoiseframe.hpp"
+#include "denoisehistory.hpp"
 
 namespace Rtx
 {
     class Device;
     class GBuffer;
+    class Image;
 
     /// The shadow denoiser: a port of AMD's FidelityFX Shadow Denoiser over the one bit a pixel's
     /// rays to the sun or a moon came back with, `CHANNEL_SUNLIT`'s alpha. A pass that packs the
@@ -29,24 +28,11 @@ namespace Rtx
     public:
         ShadowPass(const Device& device, const std::filesystem::path& shaderDirectory);
 
-        /// What a frame hands the pass beside the images.
-        struct Frame
-        {
-            /// The two eyes the trace cast rays through, as the wavelet takes them.
-            Shaders::Camera mCamera;
-            Shaders::Camera mArms;
-
-            /// The surface this frame's history belongs to, `HeldSurface`.
-            HeldSurface mHeld;
-
-            /// True where there is no history worth carrying, as the accumulator is told.
-            bool mReset;
-        };
-
         /// Records the five dispatches and hands back the filtered visibility, its mean in `r`,
-        /// ordered for a compute read. `buffer` must have been handed over.
-        const Image& record(
-            VkCommandBuffer commands, const ShadowHistory::Turn& turn, const GBuffer& buffer, const Frame& frame) const;
+        /// ordered for a compute read. `buffer` must have been handed over, and
+        /// `DenoiseHistory::discard` has readied the images.
+        const Image& record(VkCommandBuffer commands, const DenoiseHistory::ShadowImages& images, const GBuffer& buffer,
+            const DenoiseFrame& frame) const;
 
     private:
         ComputePipeline mMask;

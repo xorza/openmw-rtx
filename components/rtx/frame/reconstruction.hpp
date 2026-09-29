@@ -16,17 +16,6 @@
 
 namespace Rtx
 {
-    /// What put a frame's indirect light back together.
-    enum class Denoiser
-    {
-        /// The raw bounce, as the trace wrote it. What a converged reference is built from, because
-        /// a thousand filtered frames converge on the filter's opinion rather than on the truth.
-        None,
-
-        /// The à-trous wavelet over the indirect channel.
-        Wavelet,
-    };
-
     /// Where the trace's per-pixel draws come from — the shadow ray's place on the source, the
     /// bounce's direction, the fog's and the water's — as against the reservoirs, which step a
     /// hashed counter whichever this says.
@@ -49,20 +38,11 @@ namespace Rtx
         std::pair{ NoiseSource::WhiteHash, std::string_view("white-hash") },
     } };
 
-    /// What the upscaler is built with, decided once per set of targets: whether one runs, and at
-    /// what quality.
-    struct Upscaling
-    {
-        Upscale mMode = Upscale::Off;
-
-        bool operator==(const Upscaling& other) const = default;
-    };
-
     /// What a frame asks of the reconstruction, before the upscaler has its say.
     struct ReconstructionRequest
     {
-        /// Whether the wavelet was wanted over the indirect channel.
-        bool mFilter = true;
+        /// Whether the denoisers were wanted over the light.
+        bool mDenoise = true;
 
         /// Whether the primary ray was wanted moved inside its pixel.
         bool mJitter = false;
@@ -82,14 +62,17 @@ namespace Rtx
 
     /// What actually reconstructs a frame, worked out once from what was asked of it, by a
     /// function of its inputs and nothing else: the renderer drives the frame from what this says
-    /// and a report prints the same value, where `mFilter && !upscaling` in the middle of the
-    /// frame path answered nobody.
+    /// and a report prints the same value.
     struct Reconstruction
     {
-        Denoiser mDenoiser = Denoiser::None;
+        /// Whether the denoisers put the light back together: the temporal filters, and the wavelet
+        /// over the bounce. False leaves the raw light as the trace wrote it, which is what a
+        /// converged reference is built from, because a thousand filtered frames converge on the
+        /// filter's opinion rather than on the truth.
+        bool mDenoised = false;
 
         /// What upscaled the frame: off wherever nothing did.
-        Upscaling mUpscaling;
+        Upscale mUpscale = Upscale::Off;
 
         /// Whether the primary ray moved inside its pixel this frame. Always under an upscaler:
         /// reconstruction across several frames of one sample point is reconstruction from one
@@ -118,12 +101,8 @@ namespace Rtx
         /// coarser moved the noise down again and the bias up: 0.80, the pond 1.38.
         float mLevelBias = 0.0f;
 
-        /// Whether the wavelet ran over the indirect channel — one comparison, because the backend
-        /// records the accumulator where this holds.
-        bool filtered() const { return mDenoiser == Denoiser::Wavelet; }
-
         /// Whether an upscaler reconstructed the frame.
-        bool upscaled() const { return mUpscaling.mMode != Upscale::Off; }
+        bool upscaled() const { return upscales(mUpscale); }
 
         /// The whole of the rule, and the only copy of it. An upscaler reconstructs the frame the
         /// trace chain composed, so the wavelet runs under one as it runs without.
@@ -131,14 +110,13 @@ namespace Rtx
         /// @param extents what the frame is traced at and shown at, read only under an upscaler
         ///        and only for its widths, since the pixels are square.
         static Reconstruction resolve(
-            const Upscaling& upscaling, const ReconstructionRequest& asked, const FrameExtents& extents)
+            const Upscale upscale, const ReconstructionRequest& asked, const FrameExtents& extents)
         {
-            const Denoiser denoiser = asked.mFilter ? Denoiser::Wavelet : Denoiser::None;
             const NoiseSource noise = asked.mNoise.value_or(NoiseSource::BlueNoiseTile);
-            if (upscaling.mMode == Upscale::Off)
+            if (!upscales(upscale))
             {
                 return Reconstruction{
-                    .mDenoiser = denoiser,
+                    .mDenoised = asked.mDenoise,
                     .mJitter = asked.mJitter,
                     .mNoise = noise,
                     .mLevelBias = asked.mLevelEpsilon,
@@ -146,14 +124,19 @@ namespace Rtx
             }
 
             return Reconstruction{
-                .mDenoiser = denoiser,
-                .mUpscaling = upscaling,
+                .mDenoised = asked.mDenoise,
+                .mUpscale = upscale,
                 .mJitter = true,
                 .mJitterPhases = jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth),
                 .mNoise = noise,
                 .mLevelBias = levelBiasOf(extents, asked.mLevelEpsilon),
             };
         }
+
+        /// What reconstructs a doll or a map tile: one frame with nothing before it and nothing to
+        /// put it together across frames, so denoised as a single frame is, with no jitter, the
+        /// tile's noise and no level bias.
+        static Reconstruction forPicture() { return Reconstruction{ .mDenoised = true }; }
 
     private:
         /// The ratio's levels, and the epsilon the request adds.
@@ -199,11 +182,12 @@ namespace Rtx
     /// Everything a run decides once about how the picture is made, in one bag for both hosts,
     /// handed to the backend inside `RendererOptions` and read there. A frame reads what the run
     /// was handed rather than asking the registry per knob per frame, and only a menu moves it
-    /// afterwards: `Renderer::setUpscale` changes `mUpscaling`, which `getProfile` then answers.
+    /// afterwards: `Renderer::setUpscale` changes `mUpscale`, which `getProfile` then answers.
     struct RenderProfile
     {
-        /// What the upscaler is built with.
-        Upscaling mUpscaling;
+        /// What the upscaler is built with, decided once per set of targets: whether one runs, and
+        /// at what quality.
+        Upscale mUpscale = Upscale::Off;
 
         /// What every frame asks of the reconstruction, before the upscaler has its say —
         /// `Reconstruction::resolve` is the rule. Jitter is off unless something puts the frames

@@ -8,6 +8,8 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
+#include "denoised.hpp"
+
 namespace Rtx
 {
     class Device;
@@ -27,22 +29,15 @@ namespace Rtx
 
         /// @param buffer must have been handed over, so its writes are visible to this read, and
         ///        its direct channel made writable by compute, which is where the frame goes. Its
-        ///        indirect channel is not read: `indirect` says where the bounce actually is.
-        /// @param indirect the bounce to put the albedo back into — the filter's output, or the
-        ///        buffer's own channel where nothing filtered it.
-        /// @param specular the lobe's light to add — the glossy filter's mean, or the buffer's own
-        ///        channel where nothing filtered it.
-        /// @param pane what was drawn for the see-through layers, to multiply back by the buffer's
-        ///        `Channel::PaneAlbedo` — the pane filter's mean, or the buffer's own channel where
-        ///        nothing filtered it.
-        /// @param shadow what the shadow denoiser made of the sky's source's rays, which scales the
-        ///        buffer's sunlit channel. Null where the pass did not run, which `mShadowed` says.
+        ///        indirect, specular and pane channels are read only where `denoised` names them.
+        /// @param denoised where the bounce, the lobe's light and the layers' light are, and the
+        ///        shadow denoiser's answer, which scales the buffer's sunlit channel where it ran.
         /// @param sum the running total a reference is built out of, at least as large as
         ///        the frame and in `VK_IMAGE_LAYOUT_GENERAL`. Null where `mAccumulate` is zero, which
         ///        is every frame that is not building a reference.
-        void record(VkCommandBuffer commands, const GBuffer& buffer, const Image& indirect, const Image& specular,
-            const Image& pane, const Image* shadow, const Image* sum,
-            const Shaders::CompositeConstants& constants) const;
+        /// @param constants the frame's, less `mShadowed`, which is `denoised`'s to say.
+        void record(VkCommandBuffer commands, const GBuffer& buffer, const Denoised& denoised, const Image* sum,
+            Shaders::CompositeConstants constants) const;
 
     private:
         ComputePipeline mPipeline;

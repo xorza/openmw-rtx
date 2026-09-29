@@ -13,11 +13,7 @@ namespace Rtx
         , mComposite(device, shaders)
         , mSpriteBin(device, shaders)
         , mSpriteShade(device, shaders)
-        , mAccumulate(device, shaders)
-        , mShadow(device, shaders)
-        , mSpecular(device, shaders)
-        , mPane(device, shaders)
-        , mFilter(device, shaders)
+        , mDenoise(device, shaders)
     {
     }
 }

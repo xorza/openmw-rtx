@@ -445,7 +445,7 @@ namespace Rtx::Testing
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = shot.mFrames > 0 && shot.mAverage ? at + 1 : 0,
                         .mGlare = shot.mGlare,
-                        .mReconstruction = ReconstructionRequest{ .mFilter = shot.mFilter,
+                        .mReconstruction = ReconstructionRequest{ .mDenoise = shot.mFilter,
                             .mJitter = shot.mJitter,
                             .mNoise = shot.mNoise,
                             .mLevelEpsilon = shot.mLevelEpsilon },

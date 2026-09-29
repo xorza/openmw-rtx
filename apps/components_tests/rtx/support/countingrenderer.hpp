@@ -103,7 +103,7 @@ namespace Rtx::Testing
         const Rtx::SceneStats& getSceneStats() const override { return mStats; }
         Rtx::MemoryReport getMemoryReport() const override { return {}; }
         void resize(std::uint32_t, std::uint32_t) override {}
-        void setUpscale(Upscale upscale) override { mProfile.mUpscaling.mMode = upscale; }
+        void setUpscale(Upscale upscale) override { mProfile.mUpscale = upscale; }
         void setVerticalSync(SDLUtil::VSyncMode) override {}
         void setAnisotropy(std::uint32_t) override {}
         Rtx::KernelProgress awaitKernels(std::chrono::milliseconds) override { return {}; }

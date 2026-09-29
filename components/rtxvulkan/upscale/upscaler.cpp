@@ -4,6 +4,7 @@
 #include <cassert>
 #include <span>
 #include <utility>
+#include <vector>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -229,6 +230,15 @@ namespace Rtx
         }
         static_assert(everyPassInBindingOrder(), "a pass's bindings out of binding order");
 
+        constexpr bool everyPassHasAModule()
+        {
+            for (const PassSpec& pass : sPassSpecs)
+                if (pass.mModule.empty())
+                    return false;
+            return true;
+        }
+        static_assert(everyPassHasAModule(), "a pass `Pass` names and `sPassSpecs` leaves out");
+
         ComputePipeline makePass(const Device& device, const std::filesystem::path& shaders, const PassSpec& pass)
         {
             std::array<VkDescriptorSetLayoutBinding, sMostBindings> bindings{};
@@ -278,35 +288,34 @@ namespace Rtx
                 return Image(device, extent.width, extent.height, format, sUsage, name, levels);
             };
 
-            mAccumulation = { make(render, VK_FORMAT_R8_UNORM, "fsr-accumulation-0"),
-                make(render, VK_FORMAT_R8_UNORM, "fsr-accumulation-1") };
-            mLuma = { make(render, VK_FORMAT_R16_SFLOAT, "fsr-luma-0"),
-                make(render, VK_FORMAT_R16_SFLOAT, "fsr-luma-1") };
-            mIntermediate = make(render, VK_FORMAT_R16_SFLOAT, "fsr-intermediate");
-            mShadingChange = make(half, VK_FORMAT_R8_UNORM, "fsr-shading-change");
-            mNewLocks = make(output, VK_FORMAT_R8_UNORM, "fsr-new-locks");
-            mHistory = { make(output, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-history-0"),
-                make(output, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-history-1") };
-            mSpdMips = make(half, VK_FORMAT_R16G16_SFLOAT, "fsr-spd-mips", levelsTo1x1(half.width, half.height));
-            mFarthestDepthMip1 = make(half, VK_FORMAT_R16_SFLOAT, "fsr-farthest-depth-mip1");
-            mLumaHistory = { make(render, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-luma-history-0"),
-                make(render, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-luma-history-1") };
-            mSpdAtomic = make(VkExtent2D{ 1, 1 }, VK_FORMAT_R32_UINT, "fsr-spd-atomic");
-            mDilatedMasks = make(render, VK_FORMAT_R8G8B8A8_UNORM, "fsr-dilated-masks");
-            mFrameInfo = make(VkExtent2D{ 1, 1 }, VK_FORMAT_R32G32B32A32_SFLOAT, "fsr-frame-info");
-            mDilatedDepth = make(render, VK_FORMAT_R32_SFLOAT, "fsr-dilated-depth");
-            mDilatedMotion = make(render, VK_FORMAT_R16G16_SFLOAT, "fsr-dilated-motion");
-            mPreviousDepth = make(render, VK_FORMAT_R32_UINT, "fsr-previous-depth");
-            mOutputImage = make(output, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-output");
+            add(mAccumulation[0], make(render, VK_FORMAT_R8_UNORM, "fsr-accumulation-0"));
+            add(mAccumulation[1], make(render, VK_FORMAT_R8_UNORM, "fsr-accumulation-1"));
+            add(mLuma[0], make(render, VK_FORMAT_R16_SFLOAT, "fsr-luma-0"));
+            add(mLuma[1], make(render, VK_FORMAT_R16_SFLOAT, "fsr-luma-1"));
+            add(mIntermediate, make(render, VK_FORMAT_R16_SFLOAT, "fsr-intermediate"));
+            add(mShadingChange, make(half, VK_FORMAT_R8_UNORM, "fsr-shading-change"));
+            add(mNewLocks, make(output, VK_FORMAT_R8_UNORM, "fsr-new-locks"));
+            add(mHistory[0], make(output, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-history-0"));
+            add(mHistory[1], make(output, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-history-1"));
+            add(mSpdMips, make(half, VK_FORMAT_R16G16_SFLOAT, "fsr-spd-mips", levelsTo1x1(half.width, half.height)));
+            add(mFarthestDepthMip1, make(half, VK_FORMAT_R16_SFLOAT, "fsr-farthest-depth-mip1"));
+            add(mLumaHistory[0], make(render, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-luma-history-0"));
+            add(mLumaHistory[1], make(render, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-luma-history-1"));
+            add(mSpdAtomic, make(VkExtent2D{ 1, 1 }, VK_FORMAT_R32_UINT, "fsr-spd-atomic"));
+            add(mDilatedMasks, make(render, VK_FORMAT_R8G8B8A8_UNORM, "fsr-dilated-masks"));
+            add(mFrameInfo, make(VkExtent2D{ 1, 1 }, VK_FORMAT_R32G32B32A32_SFLOAT, "fsr-frame-info"));
+            add(mDilatedDepth, make(render, VK_FORMAT_R32_SFLOAT, "fsr-dilated-depth"));
+            add(mDilatedMotion, make(render, VK_FORMAT_R16G16_SFLOAT, "fsr-dilated-motion"));
+            add(mPreviousDepth, make(render, VK_FORMAT_R32_UINT, "fsr-previous-depth"));
+            add(mOutputImage, make(output, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-output"));
         }
 
-        std::array<const Image*, 20> every() const
-        {
-            return { &mAccumulation[0], &mAccumulation[1], &mLuma[0], &mLuma[1], &mIntermediate, &mShadingChange,
-                &mNewLocks, &mHistory[0], &mHistory[1], &mSpdMips, &mFarthestDepthMip1, &mLumaHistory[0],
-                &mLumaHistory[1], &mSpdAtomic, &mDilatedMasks, &mFrameInfo, &mDilatedDepth, &mDilatedMotion,
-                &mPreviousDepth, &mOutputImage };
-        }
+        Targets(const Targets&) = delete;
+        Targets& operator=(const Targets&) = delete;
+
+        /// Every image the constructor made, which is what a resize clears: the one list `add` fills,
+        /// so an image cannot be made and left out of it.
+        const std::vector<const Image*>& every() const { return mEvery; }
 
         VkExtent2D mRender;
         VkExtent2D mOutput;
@@ -327,6 +336,15 @@ namespace Rtx
         Image mDilatedMotion;
         Image mPreviousDepth;
         Image mOutputImage;
+
+    private:
+        std::vector<const Image*> mEvery;
+
+        void add(Image& member, Image image)
+        {
+            member = std::move(image);
+            mEvery.push_back(&member);
+        }
     };
 
     Upscaler::Upscaler(const Device& device, const std::filesystem::path& shaderDirectory)
@@ -375,14 +393,14 @@ namespace Rtx
         assert(mTargets != nullptr && "an upscale before a resize");
         Targets& targets = *mTargets;
 
+        const bool reset = mFrame.isFresh();
         const Shaders::FsrConstants& constants = mFrame.advance(FsrFrame::Frame{
             .mRender = targets.mRender,
             .mOutput = targets.mOutput,
             .mCamera = inputs.mCamera,
-            .mDeltaMs = inputs.mFrameDeltaMs,
-            .mReset = inputs.mReset,
+            .mJitterPhases = inputs.mJitterPhases,
+            .mSeconds = inputs.mSeconds,
         });
-        const bool reset = constants.mFrameIndex == 0.0f;
         const FsrFrame::Pyramid pyramid = FsrFrame::pyramidFor(targets.mRender);
 
         const Buffer& blocks = mBlocks.at(inputs.mSlot);

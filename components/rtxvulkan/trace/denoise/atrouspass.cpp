@@ -8,7 +8,6 @@
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
-#include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
@@ -19,9 +18,9 @@ namespace Rtx
     {
         /// The channel coming in with its variance, which says where the edges in the light are,
         /// the channel going out, the one that says where the edges in the surface are, and the
-        /// puffs. All
-        /// pushed. Sampled on the three this pass only reads, because a twenty-five tap gather wants the texture
-        /// unit's cache — a few per cent of the cascade — and legal from `VK_IMAGE_LAYOUT_GENERAL`.
+        /// puffs. All pushed. Sampled on the three this pass only reads, because a twenty-five tap
+        /// gather wants the texture unit's cache — a few per cent of the cascade — and legal from
+        /// `VK_IMAGE_LAYOUT_GENERAL`.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ATROUS_BINDINGS> sBindings{
             computeBinding(Shaders::ATROUS_BIND_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_FILTERED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
@@ -54,31 +53,24 @@ namespace Rtx
     {
     }
 
-    Image AtrousPass::makeScratch(const Device& device, std::uint32_t width, std::uint32_t height)
+    const Image& AtrousPass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
+        const GBuffer& buffer, const DenoiseFrame& frame) const
     {
-        // `SAMPLED` because a level reads what the level before it wrote, and it reads through
-        // the texture unit. See `sBindings`.
-        return Image(device, width, height, toVulkanFormat(ATROUS_CHANNEL),
-            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "atrous-scratch");
-    }
-
-    const Image& AtrousPass::record(VkCommandBuffer commands, const GBuffer& buffer, const Image& blended,
-        const Image& history, const Image& scratch, const Shaders::Camera& camera, const Shaders::Camera& arms) const
-    {
-        assert(!scratch.isEmpty() && "a filter with no scratch to ping-pong through");
+        const Shaders::Camera& camera = frame.mSampled.mCamera;
+        const Image& blended = images.mBlended;
+        const Image& history = images.mColour;
+        const Image& scratch = images.mScratch;
         assert(scratch.getWidth() >= camera.mWidth && scratch.getHeight() >= camera.mHeight);
         assert(buffer.getWidth() >= camera.mWidth && buffer.getHeight() >= camera.mHeight);
 
-        // Nothing has written the scratch yet this frame, so the first level may discard it. Every
-        // level after reads what the one before wrote, which is what the barriers below order.
-        scratch.transition(commands, Use::sUndefined, Use::sComputeWrite);
-
         // One assignment and not eight, so the filter's rays and the trace's cannot come to
         // differ: this pass is handed the one struct, and the shader rebuilds the rays with the
-        // trace's own `rayAt`.
+        // trace's own `rayAt`. The scratch was discarded with the rest of the frame's images
+        // (`DenoiseHistory::discard`); every level after the first reads what the one before
+        // wrote, which is what the barriers below order.
         Shaders::AtrousConstants level{
             .mCamera = camera,
-            .mArms = arms,
+            .mArms = frame.mSampled.mArms,
             .mStep = 1,
         };
 

@@ -203,7 +203,7 @@ namespace RtxTool
         /// What upscaled the run's frames, as `Reconstruction` reports it: the mode, or `Off` where
         /// nothing did. **Read off a frame and not off the renderer**,
         /// which answers the mode alone.
-        Rtx::Upscaling mUpscaling{ .mMode = Rtx::Upscale::Off };
+        Rtx::Upscale mUpscale = Rtx::Upscale::Off;
 
         /// Where the trace drew from and what its texture levels were offset by, as the frame's
         /// `Reconstruction` resolved them.

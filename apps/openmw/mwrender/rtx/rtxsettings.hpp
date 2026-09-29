@@ -34,7 +34,7 @@ namespace MWRender
     /// What those values mean for a ray tracer: the one derivation, for both hosts.
     struct RtxSettings
     {
-        Rtx::Upscaling mUpscaling;
+        Rtx::Upscale mUpscale = Rtx::Upscale::Off;
         Rtx::MirrorKnobs mMirror;
 
         /// `RenderProfile::mAnisotropy`: the setting, where nought means what one does.

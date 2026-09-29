@@ -5,6 +5,7 @@
 
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/framesampling.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/shaders/counts.h>
 #include <components/rtx/shaders/glare.h>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -57,9 +58,11 @@ namespace Rtx
 
         const TraceSubject subject = mMedia.describe(traced, camera, mCounts, mGlareCounts, FrameSlot{});
 
-        // Nothing reconstructs a picture, so nothing jitters it, and it has no frame before it.
+        // Nothing puts a picture together across frames, so nothing jitters it, and it has no frame
+        // before it.
+        const Reconstruction reconstruction = Reconstruction::forPicture();
         Shaders::VisibilityConstants sampled
-            = sampleFrame(camera, FrameOptions{}, profile, Reconstruction{}, traced.getCounts(), nullptr);
+            = sampleFrame(camera, FrameOptions{}, profile, reconstruction, traced.getCounts(), nullptr);
 
         // The world's ripple field where the picture is of the world, which is the one place it
         // could have a wake in it; a subject of its own stands in no sea.
@@ -78,6 +81,8 @@ namespace Rtx
                     .mSubject = subject,
                     .mAsked = camera,
                     .mSampled = sampled,
+                    .mReconstruction = reconstruction,
+                    .mPastLost = true,
                 });
 
             // The puffs over the picture — a torch's flame in a doll's hand is a sprite — and the

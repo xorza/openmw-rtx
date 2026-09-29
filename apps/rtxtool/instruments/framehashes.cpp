@@ -126,7 +126,7 @@ namespace RtxTool
             row->mTraced[image] = finished.mDigest->mImages[image];
         row->mTraced[sReconstructionColumn] = digestHanded(*finished.mDigest);
 
-        row->mUpscale = finished.mReconstruction.mUpscaling.mMode;
+        row->mUpscale = finished.mReconstruction.mUpscale;
         row->mPictured = true;
 
         return Pictured{ .mView = row->mView, .mFrame = row->mFrame };
@@ -357,7 +357,7 @@ namespace RtxTool
             // one build are allowed to disagree about it.
             if (found->mHash != held.mHash)
             {
-                if (found->mUpscale == Rtx::Upscale::Off && held.mUpscale == Rtx::Upscale::Off)
+                if (!Rtx::upscales(found->mUpscale) && !Rtx::upscales(held.mUpscale))
                     difference.mDiffering.push_back(held.mFrame);
                 else
                     difference.mReconstructedDiffering.push_back(held.mFrame);

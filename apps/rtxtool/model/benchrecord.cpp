@@ -343,7 +343,7 @@ namespace RtxTool
              << '\n'
              << std::format(R"(  "render": [{}, {}],)", header.mExtents.mRenderWidth, header.mExtents.mRenderHeight)
              << '\n'
-             << std::format(R"(  "upscale": "{}",)", Rtx::sUpscaleNames.name(header.mUpscaling.mMode)) << '\n'
+             << std::format(R"(  "upscale": "{}",)", Rtx::sUpscaleNames.name(header.mUpscale)) << '\n'
              << std::format(R"(  "noise": "{}", "levelBias": {:.3f},)", Rtx::sNoiseSourceNames.name(header.mNoise),
                     header.mLevelBias)
              << '\n'

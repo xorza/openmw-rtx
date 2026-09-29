@@ -29,12 +29,15 @@ namespace Rtx
     {
     }
 
-    void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Image& indirect,
-        const Image& specular, const Image& pane, const Image* shadow, const Image* sum,
-        const Shaders::CompositeConstants& constants) const
+    void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Denoised& denoised,
+        const Image* sum, Shaders::CompositeConstants constants) const
     {
-        assert((constants.mShadowed != 0) == (shadow != nullptr)
-            && "a shadow handed over and not read, or read and not handed over");
+        assert(constants.mShadowed == 0 && "the shadow is the denoiser's to say, and not the caller's");
+        constants.mShadowed = denoised.mShadow != nullptr ? 1u : 0u;
+
+        const Image& indirect = denoised.mIndirect;
+        const Image& specular = denoised.mSpecular;
+        const Image& pane = denoised.mPane;
         assert(buffer.getWidth() >= constants.mWidth && buffer.getHeight() >= constants.mHeight);
         assert(indirect.getWidth() >= constants.mWidth && indirect.getHeight() >= constants.mHeight);
         assert(specular.getWidth() >= constants.mWidth && specular.getHeight() >= constants.mHeight);
@@ -48,7 +51,7 @@ namespace Rtx
         // command buffer, and the head barrier `CommandPool::begin` recorded orders that after the
         // last one.
         const Image& bound = sum != nullptr ? *sum : mNoSum;
-        const Image& shadowBound = shadow != nullptr ? *shadow : mNoShadow;
+        const Image& shadowBound = denoised.mShadow != nullptr ? *denoised.mShadow : mNoShadow;
 
         DescriptorWrites<Shaders::COMPOSITE_BINDINGS> writes;
         writes.image(Shaders::COMPOSITE_BIND_DIRECT, buffer.get(Channel::Direct).describeStorage());

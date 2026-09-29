@@ -143,7 +143,7 @@ namespace Rtx
         /// Whether a frame is upscaled, which is the mode alone: a mode that wants a runtime has
         /// one, because `setUpscale` raises it before it moves the mode. The runtime outlives a
         /// mode being turned off, because raising it again costs a quarter of a second.
-        bool upscaling() const { return mProfile.mUpscaling.mMode != Upscale::Off; }
+        bool upscaling() const { return upscales(mProfile.mUpscale); }
 
         // Declaration order is destruction order reversed, and everything below the device is built
         // on it.
@@ -157,7 +157,7 @@ namespace Rtx
 
         /// What the run decided once, read where each knob is used: how wide both chains store
         /// their radiance, how long the queue is held, and what the frames are traced under —
-        /// `mUpscaling` as it was handed over, and then whatever `setUpscale` moved it to, which
+        /// `mUpscale` as it was handed over, and then whatever `setUpscale` moved it to, which
         /// rebuilds every target and is why the mode is a setting rather than a frame option. What
         /// a frame carries — the reconstruction request, the exposure, the delight, the sample —
         /// is read off the frame's own blocks instead, which is where a frame that asks otherwise
@@ -171,11 +171,6 @@ namespace Rtx
 
         /// The frames in flight and what each came to. After the flag it is handed.
         FrameRing mRing{ mDevice, mReadsCounts };
-
-        /// Whether the upscaler's history is worthless. Set by `resetHistory` and spent by the next
-        /// frame that upscales, which is not always the one after. The other histories keep their
-        /// own: the chain's, `TraceChain::resetHistory`, and the display's.
-        bool mUpscalerStale = false;
 
         /// The frame as bytes at the output extent, which is what anything outside this reads: two
         /// images, swapped by every present, and the one the last present read. It is also where

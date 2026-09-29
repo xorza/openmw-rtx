@@ -154,9 +154,9 @@ namespace RtxTool
         /// shaders and budget, hidden and stepped at the harness's own rate until a command says
         /// otherwise. The request `sessionFor` builds carries it as it is, so a knob `RunSetup`
         /// gains reaches every command by being read here.
-        MWRender::RunSetup mSetup{ .mProfile = { .mUpscaling = { .mMode = sUpscaleByDefault } },
-            .mHeadless = true,
-            .mStep = MWRender::sStepSeconds };
+        MWRender::RunSetup mSetup{
+            .mProfile = { .mUpscale = sUpscaleByDefault }, .mHeadless = true, .mStep = MWRender::sStepSeconds
+        };
 
         /// Which day, counted from the one a new game begins on. Only the moons read it.
         int mDay = 0;

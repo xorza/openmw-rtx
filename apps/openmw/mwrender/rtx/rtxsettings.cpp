@@ -26,9 +26,7 @@ namespace MWRender
     RtxSettings RtxSettings::derive(const RtxSettingValues& values)
     {
         return RtxSettings{
-            .mUpscaling = {
-                .mMode = Rtx::sUpscaleNames.require(values.mUpscale, "an upscale mode"),
-            },
+            .mUpscale = Rtx::sUpscaleNames.require(values.mUpscale, "an upscale mode"),
             .mMirror = {
                 .mReach = Rtx::distantLandReach(values.mDistantLandCells, values.mViewingDistance),
                 .mDistantStatics = values.mObjectPaging,

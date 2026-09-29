@@ -2,10 +2,10 @@
 
 #include <algorithm>
 #include <bit>
+#include <cassert>
 #include <cfloat>
 #include <cstdint>
 
-#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 
@@ -13,8 +13,8 @@ namespace Rtx
 {
     const Shaders::FsrConstants& FsrFrame::advance(const Frame& frame)
     {
-        const bool reset = frame.mReset || mFirst;
-        mFirst = false;
+        const bool reset = mFresh;
+        mFresh = false;
         mParity = 1 - mParity;
 
         Shaders::FsrConstants& at = mConstants;
@@ -56,7 +56,8 @@ namespace Rtx
         at.mMotionVectorJitterCancellation = Shaders::vec2(0.0f, 0.0f);
 
         // A change of the phase count walks the count a step a frame, as the SDK's lock logic wants.
-        const float phases = static_cast<float>(jitterPhasesFor(frame.mRender.width, frame.mOutput.width));
+        assert(frame.mJitterPhases > 0 && "an upscaled frame whose jitter has no period");
+        const float phases = static_cast<float>(frame.mJitterPhases);
         if (reset || at.mJitterPhases == 0.0f)
             at.mJitterPhases = phases;
         else if (phases > at.mJitterPhases)
@@ -64,7 +65,7 @@ namespace Rtx
         else if (phases < at.mJitterPhases)
             at.mJitterPhases -= 1.0f;
 
-        at.mDeltaTime = std::clamp(frame.mDeltaMs / 1000.0f, 0.0f, 1.0f);
+        at.mDeltaTime = std::clamp(frame.mSeconds, 0.0f, 1.0f);
         at.mFrameIndex = reset ? 0.0f : at.mFrameIndex + 1.0f;
 
         at.mVelocityFactor = 1.0f;

@@ -303,10 +303,10 @@ namespace RtxTool
                 framed.mSetup.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
 
             Rtx::RenderProfile& profile = framed.mSetup.mProfile;
-            profile.mUpscaling = derived.mUpscaling;
+            profile.mUpscale = derived.mUpscale;
             profile.mAnisotropy = derived.mAnisotropy;
             profile.mDelight = variables["delight"].as<float>();
-            profile.mReconstruction.mFilter = variables["filter"].as<bool>();
+            profile.mReconstruction.mDenoise = variables["filter"].as<bool>();
             profile.mShow = Rtx::sSurfaceViewNames.require(variables["show"].as<std::string>(), "a surface view");
             profile.mReconstruction.mJitter = variables["jitter"].as<bool>();
             profile.mExposure = Rtx::ExposureRule{ .mFixed = parseExposure(variables["exposure"].as<std::string>()) };
@@ -899,7 +899,7 @@ namespace RtxTool
 
             const Rtx::ReconstructionRequest& played = framed.mSetup.mProfile.mReconstruction;
             Rtx::ReconstructionRequest reference = played;
-            reference.mFilter = false;
+            reference.mDenoise = false;
             reference.mJitter = true;
             reference.mNoise = Rtx::NoiseSource::WhiteHash;
             // **The truth reads every texture at the level its footprint asks**, whatever the run's
@@ -907,7 +907,7 @@ namespace RtxTool
             // take the frame's softness for its own and report no bias at all.
             reference.mLevelEpsilon = 0.0f;
             Rtx::ReconstructionRequest unfiltered = played;
-            unfiltered.mFilter = false;
+            unfiltered.mDenoise = false;
             const Rtx::ExposureRule held{ .mHeld = true };
 
             // One picture of `place` after `frames` frames: their sum where `summed`, and the last of
@@ -937,8 +937,8 @@ namespace RtxTool
 
             // A frame taken standing still has a history as long as the warm-up, which is more than
             // any mode needs to hold sixteen samples a shown pixel.
-            const Rtx::FrameExtents extents = Rtx::extentsFor(
-                framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mProfile.mUpscaling.mMode);
+            const Rtx::FrameExtents extents
+                = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mProfile.mUpscale);
             const std::uint32_t barFrames = flies ? noiseBarFramesAfter(sNoiseFlightFrames, extents) : sNoiseBarFrames;
 
             // The frame's own stop, flying in where the line asks: a route that holds the world, so
@@ -1036,7 +1036,7 @@ namespace RtxTool
                 throw std::runtime_error(std::format("--fps is {}, which is not more than nought", framesPerSecond));
             framed.mSetup.mStep = 1.0f / framesPerSecond;
             framed.mSetup.mSettled = true;
-            framed.mSetup.mProfile.mUpscaling.mMode = sFilmUpscale;
+            framed.mSetup.mProfile.mUpscale = sFilmUpscale;
 
             FilmPacing pacing;
             pacing.mStep = *framed.mSetup.mStep;
