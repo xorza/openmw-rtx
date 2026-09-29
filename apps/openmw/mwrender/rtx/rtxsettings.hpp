@@ -43,11 +43,5 @@ namespace MWRender
         /// Throws `Rtx::InputError` for a spelling that names no mode: a setting refused rather
         /// than defaulted, so a typo is said at once and not traced under for a session.
         static RtxSettings derive(const RtxSettingValues& values);
-
-        /// What a played session runs of these: without an upscaler in the build, every mode traces
-        /// at the window's size. A player's `[RTX] upscale` is one file across every build they run,
-        /// and one that stopped the renderer from starting would be no answer to it. A measured run
-        /// keeps the refusal, since its mode is its command line's.
-        RtxSettings playedIn(bool upscalerBuilt) const;
     };
 }

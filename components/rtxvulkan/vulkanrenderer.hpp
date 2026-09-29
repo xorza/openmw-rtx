@@ -37,6 +37,7 @@
 #include <components/rtxvulkan/trace/tracechain.hpp>
 #include <components/rtxvulkan/trace/tracemedia.hpp>
 #include <components/rtxvulkan/trace/tracepasses.hpp>
+#include <components/rtxvulkan/upscale/upscaler.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 
 #include "framering.hpp"
@@ -45,7 +46,6 @@
 namespace Rtx
 {
     class Presenter;
-    class Upscaler;
 
     /// `Renderer` over Vulkan.
     class VulkanRenderer final : public Renderer
@@ -131,9 +131,6 @@ namespace Rtx
         /// @param width, height what the frame is presented at. What it is traced at is the
         ///        upscaler's answer for that, or the same numbers where nothing upscales.
         void createTargets(std::uint32_t width, std::uint32_t height);
-
-        /// Brings the upscaler's runtime up if it is not already, and throws where it cannot be.
-        void startUpscaler();
 
         /// Everything the queue was given and everything waiting to be given it, finished, and
         /// everything buried let go: what a rebuild, a resize and a scene going away do before
@@ -231,11 +228,10 @@ namespace Rtx
         /// `VUID-vkDestroyImage-image-01000`.
         std::unique_ptr<Presenter> mPresenter;
 
-        /// Raised by `startUpscaler` the first time a mode wants one and null otherwise. It
+        /// FSR, made with the renderer: seven compute pipelines and nothing it keeps until a mode
+        /// wants it, so a player who never upscales pays their compile once, from the cache. It
         /// outlives a mode being turned off, so `upscaling` and not this says whether a frame is
-        /// upscaled; `describeDevice` reports from `describeUpscaling`, which asks the device
-        /// without standing a runtime up. Which library is behind it, and whether this build has
-        /// one, is `makeUpscaler`'s to say.
-        std::unique_ptr<Upscaler> mUpscaler;
+        /// upscaled.
+        Upscaler mUpscaler;
     };
 }

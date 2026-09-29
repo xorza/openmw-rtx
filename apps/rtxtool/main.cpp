@@ -302,10 +302,7 @@ namespace RtxTool
                 framed.mSetup.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
 
             Rtx::RenderProfile& profile = framed.mSetup.mProfile;
-            // A watched window is the player's session, and plays their mode as the game does in a
-            // build without an upscaler; a mode the line typed is still refused there.
-            profile.mUpscaling
-                = typed("upscale") ? derived.mUpscaling : derived.playedIn(Rtx::sUpscalerBuilt).mUpscaling;
+            profile.mUpscaling = derived.mUpscaling;
             profile.mAnisotropy = derived.mAnisotropy;
             profile.mDelight = variables["delight"].as<float>();
             profile.mReconstruction.mFilter = variables["filter"].as<bool>();
@@ -868,8 +865,11 @@ namespace RtxTool
         /// is a sequence neither of the others draws from, so it shares no sample with them; its
         /// exposure is measured as a played frame's is. The bar averages `sNoiseBarFrames` frames,
         /// unfiltered and as the run otherwise traces. The frame is the run's own, after the warm-up
-        /// its history converges over. The bar and the frame hold the exposure the reference ended
-        /// on, so all three are mapped by one curve and the scale is derived rather than stated.
+        /// its history converges over, upscaled as the run is. The reference and the bar are traced
+        /// with no upscaler, at the frame's own output size, so an upscaled frame is held to the
+        /// picture it stands for and not to another upscale of it. The bar and the frame hold the
+        /// exposure the reference ended on, so all three are mapped by one curve and the scale is
+        /// derived rather than stated.
         ///
         /// **Judged against the bar and not against a number**: a frame is as clean as the bar when
         /// it stands no further from the reference, by the mean and at the 99th percentile. The bar is
@@ -896,18 +896,20 @@ namespace RtxTool
             const Rtx::ExposureRule held{ .mHeld = true };
 
             // One picture of `place`: `frames` frames summed where it is more than one.
-            const auto picture = [&](const Stop& place, const std::string_view suffix, const std::uint32_t frames,
-                                     const std::optional<Rtx::ReconstructionRequest>& reconstruction,
-                                     const std::optional<Rtx::ExposureRule>& exposure) {
-                Stop stop = place;
-                stop.mName += suffix;
-                measureFrames(stop, variables, frames);
-                stop.mSchedule.mAccumulate = frames > 1 ? frames : 0;
-                stop.mSchedule.mReconstruction = reconstruction;
-                stop.mSchedule.mExposure = exposure;
-                stop.mActions.mCapture = out / (stop.mName + ".png");
-                return stop;
-            };
+            const auto picture
+                = [&](const Stop& place, const std::string_view suffix, const std::uint32_t frames,
+                      const std::optional<Rtx::ReconstructionRequest>& reconstruction,
+                      const std::optional<Rtx::ExposureRule>& exposure, const std::optional<Rtx::Upscale> upscale) {
+                      Stop stop = place;
+                      stop.mName += suffix;
+                      measureFrames(stop, variables, frames);
+                      stop.mSchedule.mAccumulate = frames > 1 ? frames : 0;
+                      stop.mSchedule.mReconstruction = reconstruction;
+                      stop.mSchedule.mExposure = exposure;
+                      stop.mSchedule.mUpscale = upscale;
+                      stop.mActions.mCapture = out / (stop.mName + ".png");
+                      return stop;
+                  };
 
             std::vector<Stop> stops;
             stops.reserve(places.size() * 3);
@@ -916,9 +918,10 @@ namespace RtxTool
             for (const Stop& place : places)
             {
                 names.push_back(place.mName);
-                stops.push_back(picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, reference, std::nullopt));
-                stops.push_back(picture(place, sNoiseBarSuffix, sNoiseBarFrames, unfiltered, held));
-                stops.push_back(picture(place, "", 1, std::nullopt, held));
+                stops.push_back(picture(
+                    place, sNoiseReferenceSuffix, sNoiseReferenceFrames, reference, std::nullopt, Rtx::Upscale::Off));
+                stops.push_back(picture(place, sNoiseBarSuffix, sNoiseBarFrames, unfiltered, held, Rtx::Upscale::Off));
+                stops.push_back(picture(place, "", 1, std::nullopt, held, std::nullopt));
             }
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));

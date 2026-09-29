@@ -225,6 +225,7 @@ set(RTX_SHADER_HEADERS
     shaders/counts.h
     shaders/digest.h
     shaders/exposure.h
+    shaders/fsr.h
     shaders/fogvolume.h
     shaders/gbuffer.h
     shaders/glare.h

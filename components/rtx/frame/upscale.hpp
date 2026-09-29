@@ -12,14 +12,8 @@
 
 namespace Rtx
 {
-    /// Whether the renderer has an upscaler, which one without refuses every mode but `Off` for.
-    /// None yet: the seam stands for the one to come, and every frame is traced at the window's
-    /// size until then.
-    inline constexpr bool sUpscalerBuilt = false;
-
     /// How the frame gets from the size it is traced at to the size it is shown at — a quality
-    /// level rather than a ratio, because the ratio is the upscaler's to choose. A renderer without
-    /// an upscaler refuses anything but `Off`.
+    /// level rather than a ratio, because the ratio is the upscaler's: `upscaleRatio`.
     enum class Upscale
     {
         /// Trace and present at the same size, with no upscaler in the frame at all — what every

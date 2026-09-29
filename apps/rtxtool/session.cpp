@@ -127,6 +127,14 @@ namespace RtxTool
         return currentStop().mSchedule.mExposure;
     }
 
+    std::optional<Rtx::Upscale> Session::getUpscale() const
+    {
+        if (mDone || !mStarted)
+            return std::nullopt;
+
+        return currentStop().mSchedule.mUpscale;
+    }
+
     bool Session::wantsSecondWalk() const
     {
         return !mDone && mStarted && currentStop().mActions.walksTwice();

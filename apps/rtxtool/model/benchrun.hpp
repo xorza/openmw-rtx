@@ -13,6 +13,7 @@
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "benchrecord.hpp"
@@ -203,6 +204,10 @@ namespace RtxTool
         /// the profile's, or nothing for the profile's: `MWRender::RtxRun::getReconstruction`.
         std::optional<Rtx::ReconstructionRequest> mReconstruction;
         std::optional<Rtx::ExposureRule> mExposure;
+
+        /// What the stop upscales by in place of the run's mode, or nothing for the run's:
+        /// `MWRender::RtxRun::getUpscale`.
+        std::optional<Rtx::Upscale> mUpscale;
 
         /// Whether the world's clock is held still while the stop runs, so a still frame traced
         /// many times is the same frame. `DateTimeManager::setSimulationTimeScale` is where it

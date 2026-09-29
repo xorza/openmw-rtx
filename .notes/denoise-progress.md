@@ -15,7 +15,8 @@ The plan is `.notes/denoise-and-upscale.md`. What a person has to look at is
 | 5a lamps join the diffuse signal | done | a5d9d089da |
 | 6a fast history | stopped, reverted; a lag guard kept | f426a7e18e |
 | — race in the shadow classification | fixed | 5ff7a51f80 |
-| 7 the upscaler's sizes in the core | done | (this commit) |
+| 7 the upscaler's sizes in the core | done | f7c1f5c891 |
+| 8 FSR 3.1.4 | done | (this commit) |
 
 ## Phase 4: the shadow denoiser
 
@@ -168,3 +169,49 @@ taken with the race in; they may move by a little.
   the level biases with the upscaler's own level, the wrapped jitter.
 - Proof: nothing upscales yet, and three runs of every view agree by hash; `./omw test` green, gate
   clean.
+
+## Phase 8: FSR 3.1.4
+
+- `extern/fidelityfx/`: the nineteen SDK headers the seven passes include, unchanged, at tag v1.1.4
+  (commit c6efa6bf7f), with the SDK's licence and a README. Every pass compiled, pinned and validated
+  as the SDK wrote it with `FFX_HALF=0`: no pinning refusal, no wave operation.
+- `shaders/upscale/fsrcallbacks.glsl`, derived from the SDK's callbacks: the constant blocks are
+  `fsr.h`'s structs (scalar); one linear sampler; the depth worked out from `CHANNEL_SURFACE`'s
+  distance through the eye the puffs channel names (reversed, infinite, near plane 1); the motion
+  vector the channel's minus `Jitter()`; the reactive and composition masks answered as nought and
+  bound to nothing (the SDK reads a 1×1 default at full pixel coordinates, undefined in Vulkan); the
+  luma history declared `rgba16f`, the format the SDK's host creates it in (the SDK declared `rgba8`,
+  a format mismatch).
+- Seven pass entry files, generated from the SDK's with the tree's binding names.
+- Host: `FsrFrame` (the SDK's per-frame constants, no device, tested by hand-worked numbers) and
+  `Upscaler` (the SDK's resources, clears and dispatch order, from binding tables). The upscaler is
+  a plain member of the renderer, made with it; `makeUpscaler`, `describeUpscaling`,
+  `sUpscalerBuilt` and `RtxSettings::playedIn` are gone. A menu's mode change and a stop's own mode
+  (`RtxRun::getUpscale`, `Schedule::mUpscale`) take effect at the next frame's start.
+- `noise` traces its reference and its bar with no upscaler, the frame at the run's mode.
+- `[RTX] upscale = native` by default (D8); the harness keeps quality (D14).
+
+**The jitter sign, derived and measured.** FSR reads a sample at `pixel + 0.5 - Jitter()`, the trace
+aims at `pixel + 0.5 + jitter`, so FSR's jitter is the trace's negated. Flipped for one run, native
+`noise` was worse at both places: pier 2.77/15 against 2.64/13, guild 4.51/38 against 4.18/35.
+
+`omw release noise` (frame mean / p99; bars 5.92/30 and 4.54/38):
+
+| Mode | seyda-neen-pier | balmora-mages-guild |
+|---|---|---|
+| off | 2.29 / 12 | 4.77 / 76 |
+| native | 2.64 / 13 | 4.18 / 35 — every frame as clean as the bar |
+| quality | 4.27 / 21 | 5.40 / 42 |
+
+Native's pass at the guild is FSR accumulating the paper screens no filter reaches.
+
+Cost (default suite, taken under the session): `upscale` 0.60 / 0.56 / 0.64 ms at native, 0.38 /
+0.44 / 0.41 at quality; frame median off 9.60 / 10.54 / 7.61, native 10.50 / 11.27 / 8.26, quality
+5.81 / 6.29 / 4.32.
+
+Proofs: `anEvenFrameReconstructsToItself` (native, within a byte), `theSameFramesUpscaleToTheSamePicture`
+(byte for byte), the `FsrFrame` tests; `shot --upscale=off` identical to phase 7 by hash; `repeat
+--pairs=10` identical; `./omw test` green; gate clean (its `check` now runs at quality).
+
+A comment-checker note: `RtxSourceTreeTest.everyMemberACommentNamesIsDeclared` reads `Resource::…`
+in any comment as a member of any enum called `Resource`; the port's enum is named `Bound` for it.

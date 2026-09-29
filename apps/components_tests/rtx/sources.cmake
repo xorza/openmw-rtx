@@ -106,6 +106,7 @@ set(RTX_TEST_FILES
     rtxvulkan/spirv/spirvdigest.cpp
     rtxvulkan/spirv/spirvfile.cpp
     rtxvulkan/spirv/spirvpin.cpp
+    rtxvulkan/upscale/fsrframe.cpp
     sky/skyclock.cpp
     sky/sundisc.cpp
 )
@@ -190,11 +191,11 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/trace/visibility/sky.cpp
     rtxvulkan/trace/visibility/sprites.cpp
     rtxvulkan/trace/visibility/surfaces.cpp
+    rtxvulkan/trace/visibility/upscale.cpp
     rtxvulkan/trace/visibility/water.cpp
     rtxvulkan/trace/wavefield.cpp
     rtxvulkan/trace/waveline.cpp
     rtxvulkan/trace/wavepass.cpp
-    rtxvulkan/upscale/upscaler.cpp
 )
 
 

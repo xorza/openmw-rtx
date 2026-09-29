@@ -33,3 +33,18 @@ spinner, a choice the plan left to taste. Each item says what to run and what to
   pass of its own; the per-pixel clamp was tried and made the picture noisier and darker
   (`.notes/denoise-progress.md`).
 
+## Phase 8: FSR 3.1
+
+Pictures of every view, taken with the release build: `~/rtx-review/off`, `~/rtx-review/native`,
+`~/rtx-review/quality` (same file names).
+
+- **Anti-aliasing and sharpness.** Compare `native` with `off`: edges should be smooth and textures
+  no softer. The level bias is FSR's minus one level, so textures may read slightly sharper.
+- **Motion.** Only a moving picture shows ghosting and smearing: play with `upscale = native`, then
+  `quality`, and walk and turn fast past the Seyda Neen docks, water, torches, and the player's own
+  arms. Look for trails behind moving things, and for water and fog that smear (FSR is given no
+  reactive mask for them; the next step would be one).
+- **Quality mode's guild.** At quality the Mages Guild is a little noisier than the bar (p99 42
+  against 38). Say whether it reads acceptable.
+- **Sharpening.** RCAS is off. Say whether native or quality want it.
+

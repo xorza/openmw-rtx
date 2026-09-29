@@ -92,12 +92,7 @@ namespace MWRender
         /// by frames, and at two hundred of them a second the world ran three times over.
         RunSetup playedRunSetup()
         {
-            const RtxSettings asked = RtxSettings::derive(RtxSettingValues::fromRegistry());
-            const RtxSettings settings = asked.playedIn(Rtx::sUpscalerBuilt);
-            if (settings.mUpscaling.mMode != asked.mUpscaling.mMode)
-                Log(Debug::Warning) << "Ray tracing: this renderer has no upscaler, so [RTX] upscale "
-                                    << Rtx::sUpscaleNames.name(asked.mUpscaling.mMode)
-                                    << " traces at the window's size";
+            const RtxSettings settings = RtxSettings::derive(RtxSettingValues::fromRegistry());
 
             return RunSetup{
                 .mProfile = {
@@ -231,6 +226,7 @@ namespace MWRender
             Log(Debug::Warning) << "Groundcover is on, and the ray tracer draws none";
 
         mRenderer = Rtx::createVulkanRenderer(options);
+        mUpscale = setup.mProfile.mUpscaling.mMode;
 
         Log(Debug::Info) << "Ray tracing on " << mRenderer->describeDevice();
 
@@ -621,21 +617,9 @@ namespace MWRender
 
     void RtxRenderer::setUpscale(const Rtx::Upscale upscale)
     {
-        try
-        {
-            mRenderer->setUpscale(upscale);
-        }
-        catch (const Rtx::Unsupported& what)
-        {
-            // What asks is somebody choosing from a menu, and a machine that cannot run the mode they
-            // picked is an answer rather than a fault: the renderer keeps drawing under the one it
-            // had, and the setting is put back to that one, so the menu reads the mode the frames
-            // are traced under and the next launch does not refuse at construction what this one
-            // refused here.
-            Log(Debug::Warning) << "Ray tracing kept the upscaler it had: " << what.what();
-            Settings::rtx().mUpscale.set(
-                std::string(Rtx::sUpscaleNames.name(mRenderer->getProfile().mUpscaling.mMode)));
-        }
+        // Taken at the next frame's start, where a stop's own mode is: one place changes the
+        // targets, ahead of the camera that is built for them.
+        mUpscale = upscale;
     }
 
     MyGUI::ITexture& RtxRenderer::freezeFrame() noexcept
@@ -728,6 +712,12 @@ namespace MWRender
         // **Ahead of the trace and not after the present**, so the frame this draws is the one the
         // window's own extent asked for rather than the one behind it.
         mWindow.fit(*mRenderer, getCamera(), getFrameClock().getNow());
+
+        // **The stop's upscaling, where it asks for one, and the run's otherwise** — beside the fit,
+        // because both rebuild the targets, and the camera below is built for the extent they leave.
+        if (const Rtx::Upscale wanted = mRun.getUpscale().value_or(mUpscale);
+            wanted != mRenderer->getProfile().mUpscaling.mMode)
+            mRenderer->setUpscale(wanted);
 
         // **A frame with the world hidden is the interface and nothing else.** No walk, because the
         // update traversal did not run either, and no trace, because the interface covers every

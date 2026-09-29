@@ -117,17 +117,14 @@ namespace RtxTool
     std::string_view writeSkyNote(std::span<char> room, const SkyNote& note);
 
     /// What a frame is upscaled by when nobody names a mode. The one knob whose default is the
-    /// harness's own and not `settings-default.cfg`'s: a renderer without an upscaler refuses every
-    /// mode but `off` by name, so a run has to ask for what it can have. Quality rather than
-    /// Performance where there is a choice, so a plain run is the renderer with everything on and
-    /// not one that quietly quartered its pixels.
-    inline constexpr Rtx::Upscale sUpscaleByDefault = Rtx::sUpscalerBuilt ? Rtx::Upscale::Quality : Rtx::Upscale::Off;
+    /// harness's own and not `settings-default.cfg`'s. Quality rather than Performance, so a plain
+    /// run is the renderer with everything on and not one that quietly quartered its pixels.
+    inline constexpr Rtx::Upscale sUpscaleByDefault = Rtx::Upscale::Quality;
 
     /// What every film is made under, and no line chooses another: native, every pixel traced and
     /// the upscaler still reconstructing across frames, because a film is watched and never timed,
-    /// and the one picture a person keeps is the best one the renderer draws. Without an upscaler
-    /// it draws what it can, which is the trace alone.
-    inline constexpr Rtx::Upscale sFilmUpscale = Rtx::sUpscalerBuilt ? Rtx::Upscale::Native : Rtx::Upscale::Off;
+    /// and the one picture a person keeps is the best one the renderer draws.
+    inline constexpr Rtx::Upscale sFilmUpscale = Rtx::Upscale::Native;
 
     /// Where a hosted run's frames are presented: what goes into the settings the engine makes its
     /// window from, and nothing the renderer is made with.

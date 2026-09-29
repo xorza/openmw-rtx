@@ -74,6 +74,13 @@ set(RTX_SHADERS
     shaders/trace/denoise/shadowfilter.comp
     shaders/trace/denoise/shadowmask.comp
     shaders/trace/denoise/shadowtiles.comp
+    shaders/upscale/fsraccumulate.comp
+    shaders/upscale/fsrchange.comp
+    shaders/upscale/fsrchangepyramid.comp
+    shaders/upscale/fsrinputs.comp
+    shaders/upscale/fsrinstability.comp
+    shaders/upscale/fsrlumapyramid.comp
+    shaders/upscale/fsrreactivity.comp
     shaders/trace/fogdepth.rgen
     shaders/trace/fogintegrate.comp
     shaders/trace/fogscatter.rgen
@@ -111,6 +118,9 @@ set(RTX_SHADER_OUTPUTS)
 # every folder a shader sits in.
 set(RTX_SHADER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 
+# AMD's FSR headers, which the upscaler's passes include unchanged: `extern/fidelityfx/README.md`.
+set(RTX_SHADER_VENDORED "${OpenMW_SOURCE_DIR}/extern/fidelityfx/gpu")
+
 # -g always, into the source set: source correlation in Nsight is what makes a shader debuggable.
 # The set every renderer reads is the same module with the source stripped, for the reason
 # `RTX_SPIRV_DIR` gives — and stripped rather than compiled twice, so the two can differ in nothing
@@ -128,7 +138,8 @@ foreach (shader ${RTX_SHADERS})
         OUTPUT "${sourced}" "${spv}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${RTX_SPIRV_DIR}" "${RTX_SPIRV_SOURCE_DIR}"
         COMMAND "${OPENMW_GLSLC}" ${RTX_GLSLC_FLAGS} --target-env=vulkan1.4 -I "${RTX_SHADER_INCLUDE}"
-                -I "${RTX_SHADER_ROOT}" -MD -MF "${depfile}" -o "${sourced}" "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
+                -I "${RTX_SHADER_ROOT}" -I "${RTX_SHADER_VENDORED}" -MD -MF "${depfile}" -o "${sourced}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
         COMMAND openmw-rtx-spirv-pin "${sourced}"
         # --scalar-block-layout because the shared C++/GLSL headers rely on the feature the
         # device enables; without the flag the validator applies std430 straddling rules.
@@ -197,6 +208,7 @@ set(RTX_SHADER_LIB
     shaders/lib/underwater.glsl
     shaders/lib/variants.glsl
     shaders/lib/water.glsl
+    shaders/upscale/fsrcallbacks.glsl
 )
 
 add_custom_target(openmw-rtx-vulkan-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS}
@@ -361,6 +373,8 @@ set(RTX_VULKAN_FILES
     trace/visibilitypass.hpp
     trace/wavepass.cpp
     trace/wavepass.hpp
+    upscale/fsrframe.cpp
+    upscale/fsrframe.hpp
     upscale/upscaler.cpp
     upscale/upscaler.hpp
     vulkanrenderer.cpp

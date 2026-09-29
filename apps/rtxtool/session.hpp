@@ -60,6 +60,7 @@ namespace RtxTool
         std::uint32_t getAccumulated() const override;
         std::optional<Rtx::ReconstructionRequest> getReconstruction() const override;
         std::optional<Rtx::ExposureRule> getExposure() const override;
+        std::optional<Rtx::Upscale> getUpscale() const override;
         bool wantsSecondWalk() const override;
         bool wantsFrameCopy() const override;
         std::optional<Rtx::AirClock> getHeldAir() const override;
