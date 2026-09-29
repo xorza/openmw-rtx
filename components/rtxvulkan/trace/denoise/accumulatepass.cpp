@@ -6,8 +6,6 @@
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/accumulate.h>
 #include <components/rtx/shaders/camera.h>
-#include <components/rtxvulkan/device/memory/barriers.hpp>
-#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
@@ -29,45 +27,28 @@ namespace Rtx
     {
     }
 
-    void AccumulatePass::record(VkCommandBuffer commands, const AccumulateHistory::Turn& turn, const GBuffer& buffer,
-        const Shaders::Camera& camera, float far, bool reset) const
+    void AccumulatePass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
+        const GBuffer& buffer, const DenoiseFrame& frame) const
     {
-        assert(turn.mBlended.getWidth() >= camera.mWidth && turn.mBlended.getHeight() >= camera.mHeight);
-
-        // Every image this frame writes is written whole before it is read, so each is discarded;
-        // the last frame's accesses to all of them — the cascade's writes over the blend among them —
-        // are behind the head barrier `CommandPool::begin` recorded. The first frame after a resize
-        // has nothing behind it, and an image whose contents were never written is not zero — it is
-        // whatever the allocation held, in no layout at all. Discarding the history too is what
-        // makes the reset below a statement about the history rather than about the memory; on
-        // every frame after, it rests where the last frame's writes left it.
-        Barriers barriers(commands);
-
-        if (turn.mFresh)
-            for (const Image* image : { &turn.mColourBefore, &turn.mSurfaceBefore, &turn.mMomentsBefore })
-                barriers.add(image->describeTransition(Use::sUndefined, Use::sComputeRead));
-
-        for (const Image* image : { &turn.mColour, &turn.mSurface, &turn.mMoments, &turn.mBlended })
-            barriers.add(image->describeTransition(Use::sUndefined, Use::sComputeWrite));
-
-        barriers.flush();
+        const Shaders::Camera& camera = frame.mSampled.mCamera;
+        assert(images.mBlended.getWidth() >= camera.mWidth && images.mBlended.getHeight() >= camera.mHeight);
 
         DescriptorWrites<Shaders::ACCUMULATE_BINDINGS> writes;
         writes.image(Shaders::ACCUMULATE_BIND_INDIRECT, buffer.get(Channel::Indirect).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_COLOUR, turn.mColourBefore.describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_SURFACE, turn.mSurfaceBefore.describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_MOMENTS, turn.mMomentsBefore.describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_SURFACE_OUT, turn.mSurface.describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_MOMENTS_OUT, turn.mMoments.describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_BLENDED_OUT, turn.mBlended.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_COLOUR, images.mColourBefore.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_SURFACE, images.mSurfaceBefore.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_MOMENTS, images.mMomentsBefore.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_SURFACE_OUT, images.mSurface.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_MOMENTS_OUT, images.mMoments.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_BLENDED_OUT, images.mBlended.describeStorage());
         assert(writes.size() == Shaders::ACCUMULATE_BINDINGS && "a binding the layout declares was left unwritten");
 
         const Shaders::AccumulateConstants constants{
             .mCamera = camera,
-            .mReset = (reset || turn.mFresh) ? 1u : 0u,
-            .mDistanceScale = AccumulateHistory::distanceScaleFor(far),
+            .mReset = images.mFresh ? 1u : 0u,
+            .mDistanceScale = frame.mDistanceScale,
         };
 
         dispatch(commands, mPipeline, writes.get(), constants, groupsFor(camera.mWidth, Shaders::ACCUMULATE_WORKGROUP),

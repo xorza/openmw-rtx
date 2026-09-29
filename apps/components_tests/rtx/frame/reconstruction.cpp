@@ -29,30 +29,30 @@ namespace Rtx
         {
             // Nothing upscaling: the two switches mean exactly what they say.
             const Reconstruction wavelet = Reconstruction::resolve(
-                Upscaling{}, ReconstructionRequest{ .mFilter = true, .mJitter = false }, sUnscaled);
-            EXPECT_EQ(wavelet.mDenoiser, Denoiser::Wavelet);
+                Upscale::Off, ReconstructionRequest{ .mDenoise = true, .mJitter = false }, sUnscaled);
+            EXPECT_TRUE(wavelet.mDenoised);
             EXPECT_FALSE(wavelet.mJitter);
-            EXPECT_EQ(wavelet.mUpscaling.mMode, Upscale::Off);
+            EXPECT_EQ(wavelet.mUpscale, Upscale::Off);
 
             const Reconstruction raw = Reconstruction::resolve(
-                Upscaling{}, ReconstructionRequest{ .mFilter = false, .mJitter = true }, sUnscaled);
-            EXPECT_EQ(raw.mDenoiser, Denoiser::None) << "which is what a converged reference is built from";
+                Upscale::Off, ReconstructionRequest{ .mDenoise = false, .mJitter = true }, sUnscaled);
+            EXPECT_FALSE(raw.mDenoised) << "which is what a converged reference is built from";
             EXPECT_TRUE(raw.mJitter) << "and jitter is what makes that reference antialiased";
 
             // **The same request, and an upscaler behind it.** The wavelet runs as it was asked,
             // since an upscaler reconstructs the frame the trace chain composed; the frame jitters
             // because reconstruction across frames of one sample point is reconstruction from one
             // sample.
-            const Reconstruction upscaled = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Quality },
-                ReconstructionRequest{ .mFilter = true, .mJitter = false }, sHalved);
-            EXPECT_EQ(upscaled.mDenoiser, Denoiser::Wavelet);
+            const Reconstruction upscaled = Reconstruction::resolve(
+                Upscale::Quality, ReconstructionRequest{ .mDenoise = true, .mJitter = false }, sHalved);
+            EXPECT_TRUE(upscaled.mDenoised);
             EXPECT_TRUE(upscaled.mJitter);
             EXPECT_NE(upscaled.mJitter, wavelet.mJitter) << "the same request, a different jitter";
-            EXPECT_EQ(upscaled.mUpscaling.mMode, Upscale::Quality);
+            EXPECT_EQ(upscaled.mUpscale, Upscale::Quality);
 
-            const Reconstruction unfiltered = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Quality },
-                ReconstructionRequest{ .mFilter = false, .mJitter = false }, sHalved);
-            EXPECT_EQ(unfiltered.mDenoiser, Denoiser::None) << "an upscaler denoises nothing of its own";
+            const Reconstruction unfiltered = Reconstruction::resolve(
+                Upscale::Quality, ReconstructionRequest{ .mDenoise = false, .mJitter = false }, sHalved);
+            EXPECT_FALSE(unfiltered.mDenoised) << "an upscaler denoises nothing of its own";
             EXPECT_TRUE(unfiltered.mJitter);
         }
 
@@ -63,32 +63,31 @@ namespace Rtx
             // With no upscaler the ratio's term is nought — the traced pixel is the shown one — and
             // the epsilon is the whole of the bias, which is how a test reads a level off this path.
             const Reconstruction wavelet = Reconstruction::resolve(
-                Upscaling{}, ReconstructionRequest{ .mFilter = true, .mLevelEpsilon = -0.5f }, sUnscaled);
+                Upscale::Off, ReconstructionRequest{ .mDenoise = true, .mLevelEpsilon = -0.5f }, sUnscaled);
             EXPECT_EQ(wavelet.mNoise, NoiseSource::BlueNoiseTile);
             EXPECT_FLOAT_EQ(wavelet.mLevelBias, -0.5f);
-            EXPECT_EQ(Reconstruction::resolve(Upscaling{}, ReconstructionRequest{}, sUnscaled).mLevelBias, 0.0f)
+            EXPECT_EQ(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mLevelBias, 0.0f)
                 << "and nought where nothing was asked";
 
             // The bias is log2(render / display), the shown pixel's own level: 1920 over 3840 is
             // exactly minus one; balanced traces 2258 of 3840 and reads log2(0.5880) = -0.7661, which
             // is the number a texture moves by.
             const Reconstruction performance
-                = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Performance }, ReconstructionRequest{}, sHalved);
+                = Reconstruction::resolve(Upscale::Performance, ReconstructionRequest{}, sHalved);
             EXPECT_EQ(performance.mNoise, NoiseSource::BlueNoiseTile) << "the upscaler does not choose the noise";
             EXPECT_FLOAT_EQ(performance.mLevelBias, -1.0f);
 
-            const Reconstruction balanced = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Balanced },
-                ReconstructionRequest{}, FrameExtents{ .mRenderWidth = 2258, .mOutputWidth = 3840 });
+            const Reconstruction balanced = Reconstruction::resolve(
+                Upscale::Balanced, ReconstructionRequest{}, FrameExtents{ .mRenderWidth = 2258, .mOutputWidth = 3840 });
             EXPECT_NEAR(balanced.mLevelBias, -0.7661f, 0.0005f);
 
             // Native traces every pixel, so its level is the traced one: nought exactly.
-            const Reconstruction native
-                = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Native }, ReconstructionRequest{}, sUnscaled);
+            const Reconstruction native = Reconstruction::resolve(Upscale::Native, ReconstructionRequest{}, sUnscaled);
             EXPECT_EQ(native.mLevelBias, 0.0f);
 
             // The epsilon is added past the ratio, and a request may name the source outright:
             // that is the A/B.
-            const Reconstruction tuned = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Performance },
+            const Reconstruction tuned = Reconstruction::resolve(Upscale::Performance,
                 ReconstructionRequest{ .mNoise = NoiseSource::WhiteHash, .mLevelEpsilon = -0.25f }, sHalved);
             EXPECT_EQ(tuned.mNoise, NoiseSource::WhiteHash) << "asked for by name";
             EXPECT_FLOAT_EQ(tuned.mLevelBias, -1.25f);
@@ -126,31 +125,37 @@ namespace Rtx
                 EXPECT_EQ(jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth), row.mPhases)
                     << sUpscaleNames.name(row.mMode);
 
-                const Reconstruction resolved
-                    = Reconstruction::resolve(Upscaling{ .mMode = row.mMode }, ReconstructionRequest{}, extents);
+                const Reconstruction resolved = Reconstruction::resolve(row.mMode, ReconstructionRequest{}, extents);
                 EXPECT_EQ(resolved.mJitterPhases, row.mPhases) << sUpscaleNames.name(row.mMode);
             }
 
             const FrameExtents unscaled = extentsFor(1920, 1080, Upscale::Off);
             EXPECT_EQ(unscaled.mRenderWidth, 1920u);
             EXPECT_EQ(unscaled.mRenderHeight, 1080u);
-            EXPECT_EQ(Reconstruction::resolve(Upscaling{}, ReconstructionRequest{}, unscaled).mJitterPhases, 0u)
+            EXPECT_EQ(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, unscaled).mJitterPhases, 0u)
                 << "nothing upscaling cycles nothing";
         }
 
-        /// The wavelet ran exactly where it was asked for, upscaled or not.
-        TEST(RtxReconstructionTest, aFrameIsFilteredWhereTheWaveletWasAskedFor)
+        /// A picture — a doll, a map tile — is one frame, denoised as one: the wavelet and the
+        /// accumulator's pass-through, no jitter since nothing puts it together across frames, the
+        /// tile's noise and the texture level its footprint asks. Every field against the rule for
+        /// the same request with nothing upscaling, which is what a picture is.
+        TEST(RtxReconstructionTest, aPictureIsOneDenoisedFrameWithNothingMovedInsideItsPixel)
         {
-            const Reconstruction wavelet
-                = Reconstruction::resolve(Upscaling{}, ReconstructionRequest{ .mFilter = true }, sUnscaled);
-            const Reconstruction raw
-                = Reconstruction::resolve(Upscaling{}, ReconstructionRequest{ .mFilter = false }, sUnscaled);
-            const Reconstruction upscaled = Reconstruction::resolve(
-                Upscaling{ .mMode = Upscale::Quality }, ReconstructionRequest{ .mFilter = true }, sHalved);
+            const Reconstruction picture = Reconstruction::forPicture();
+            EXPECT_TRUE(picture.mDenoised);
+            EXPECT_EQ(picture.mUpscale, Upscale::Off);
+            EXPECT_FALSE(picture.mJitter);
+            EXPECT_EQ(picture.mJitterPhases, 0u);
+            EXPECT_EQ(picture.mNoise, NoiseSource::BlueNoiseTile);
+            EXPECT_EQ(picture.mLevelBias, 0.0f);
 
-            EXPECT_TRUE(wavelet.filtered());
-            EXPECT_FALSE(raw.filtered()) << "nothing denoised it, which is what a reference is built from";
-            EXPECT_TRUE(upscaled.filtered()) << "the upscaler reconstructs the filtered frame";
+            const Reconstruction asked = Reconstruction::resolve(
+                Upscale::Off, ReconstructionRequest{ .mDenoise = true, .mJitter = false }, sUnscaled);
+            EXPECT_EQ(picture.mDenoised, asked.mDenoised);
+            EXPECT_EQ(picture.mJitter, asked.mJitter);
+            EXPECT_EQ(picture.mLevelBias, asked.mLevelBias);
+            EXPECT_NE(picture.mDenoised, Reconstruction{}.mDenoised) << "the default is the raw light";
         }
 
         /// The spellings a report and a command line write, and `auto` left to the harness as its

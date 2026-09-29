@@ -99,7 +99,7 @@ namespace Rtx
         std::filesystem::path mCacheDirectory;
 
         /// The size the frame is presented at. What it is traced at follows from
-        /// `mProfile.mUpscaling.mMode`.
+        /// `mProfile.mUpscale`.
         std::uint32_t mWidth = 1920;
         std::uint32_t mHeight = 1080;
 

@@ -33,8 +33,8 @@ namespace Rtx
         /// nearer than it reads as standing on it, which `fsrcallbacks.glsl` clamps to.
         static constexpr float sNear = 1.0f;
 
-        /// What one frame is: the extents, where the trace sampled in its pixel, how long since the
-        /// last frame, and whether the history is worth anything.
+        /// What one frame is: the extents, where the trace sampled in its pixel, how many phases its
+        /// jitter cycles through, and how long since the last frame.
         struct Frame
         {
             VkExtent2D mRender;
@@ -43,12 +43,16 @@ namespace Rtx
             /// The eye the trace sampled through, its jitter set: what the field of view is read off.
             Shaders::Camera mCamera;
 
-            float mDeltaMs = 0.0f;
-            bool mReset = false;
+            /// `Reconstruction::mJitterPhases`: what the sequence the trace sampled from repeats
+            /// after, which the state walks toward a step a frame.
+            std::uint32_t mJitterPhases = 0;
+
+            /// How long since the last frame, in seconds, or nought where there was none.
+            float mSeconds = 0.0f;
         };
 
         /// Steps the state to `frame` and answers the main block the passes read — FSR's
-        /// `fsr3upscalerDispatch` up to its first dispatch.
+        /// `fsr3upscalerDispatch` up to its first dispatch. Spends a `reset`.
         const Shaders::FsrConstants& advance(const Frame& frame);
 
         /// The luma pyramids' block for a render extent, `ffxSpdSetup` over the whole of it, and how
@@ -65,12 +69,20 @@ namespace Rtx
         /// (`false`) or the second. FSR's `resourceFrameIndex & 1`, which turns every frame.
         bool readsSecond() const { return mParity != 0; }
 
-        /// Forgets everything, as a new context would: the next frame is a first frame.
+        /// Says the history is worthless, after a jump no motion vector can describe: the next frame
+        /// starts the count again, and keeps what it carries as the previous frame's.
+        void reset() { mFresh = true; }
+
+        /// Whether the next `advance` is a first frame, which reads no history.
+        bool isFresh() const { return mFresh; }
+
+        /// Forgets everything, as a new context would: the next frame is a first frame, and carries
+        /// nothing.
         void restart() { *this = FsrFrame{}; }
 
     private:
         Shaders::FsrConstants mConstants{};
         std::uint32_t mParity = 1;
-        bool mFirst = true;
+        bool mFresh = true;
     };
 }

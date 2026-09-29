@@ -34,7 +34,7 @@ namespace MWRender
             {
                 RtxSettingValues values = valid();
                 values.mUpscale = spelling;
-                EXPECT_EQ(RtxSettings::derive(values).mUpscaling.mMode, mode) << spelling;
+                EXPECT_EQ(RtxSettings::derive(values).mUpscale, mode) << spelling;
             }
             for (const auto& [layout, spelling] : Rtx::sSpecularLayoutNames.mNames)
             {
@@ -44,7 +44,7 @@ namespace MWRender
             }
 
             const RtxSettings derived = RtxSettings::derive(valid());
-            EXPECT_EQ(derived.mUpscaling.mMode, Rtx::Upscale::Balanced);
+            EXPECT_EQ(derived.mUpscale, Rtx::Upscale::Balanced);
             EXPECT_EQ(derived.mMirror.mReach, 49152.0f) << "six cells of 8192 units";
             EXPECT_FALSE(derived.mMirror.mDistantStatics);
             EXPECT_EQ(derived.mMirror.mMinSize, 0.025f);

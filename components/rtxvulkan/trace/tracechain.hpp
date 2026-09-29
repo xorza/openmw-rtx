@@ -7,16 +7,11 @@
 
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
-#include <components/rtx/shaders/camera.h>
-#include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/scene/spritebin.hpp>
-#include <components/rtxvulkan/trace/denoise/accumulatehistory.hpp>
-#include <components/rtxvulkan/trace/denoise/panehistory.hpp>
-#include <components/rtxvulkan/trace/denoise/shadowhistory.hpp>
-#include <components/rtxvulkan/trace/denoise/specularhistory.hpp>
+#include <components/rtxvulkan/trace/denoise/denoisehistory.hpp>
 
 #include "fogvolume.hpp"
 #include "gbuffer.hpp"
@@ -24,7 +19,6 @@
 namespace Rtx
 {
     class Device;
-    class GpuTimer;
     struct TracePasses;
     struct TraceRecording;
     struct TraceResult;
@@ -96,28 +90,6 @@ namespace Rtx
         /// which may have grown the table.
         VkDeviceAddress getSpriteTileList(const VisibilityInputs& inputs) const;
 
-        /// What the denoiser hands the composite: where the bounce, the lobe's light and the layers'
-        /// light ended up, and how much of the sky's source got through — null where the frame had no
-        /// sky source to shadow.
-        struct Denoised
-        {
-            const Image& mIndirect;
-            const Image& mSpecular;
-            const Image& mPane;
-            const Image* mShadow;
-        };
-
-        /// The light resolved: the temporal mean, the shadow denoiser over the sky's source's rays,
-        /// the glossy filter over the lobe's light, the pane filter over the layers', and then the
-        /// cascade over the bounce, with the barriers between them that make this one call.
-        ///
-        /// @param timer null where the run is not being timed, which a picture is not.
-        ///
-        /// @param sampled the camera the trace sampled: its eye, its arms' eye and its far plane.
-        /// @param mapped `TraceSubject::mMapped`: whether any surface of the frame has a lobe.
-        Denoised recordDenoise(VkCommandBuffer commands, const Shaders::VisibilityConstants& sampled, bool mapped,
-            bool historyLost, GpuTimer* timer);
-
         const Device& mDevice;
         const TracePasses& mPasses;
 
@@ -131,16 +103,8 @@ namespace Rtx
         /// behind keeps the tables its trace reads while this frame's bin writes its own.
         PerSlot<SpriteBin> mBins;
 
-        /// What the shared denoising passes keep of this camera: the accumulator's history, and the
-        /// filter's other half of the ping-pong (`AtrousPass::makeScratch`). Both at the extent.
-        AccumulateHistory mHistory;
-        Image mFilterScratch;
-
-        /// What the shadow denoiser, the glossy filter and the pane filter keep of this camera, at
-        /// the extent.
-        ShadowHistory mShadows;
-        SpecularHistory mSpeculars;
-        PaneHistory mPanes;
+        /// What the shared denoising passes keep of this camera, at the extent.
+        DenoiseHistory mDenoise;
 
         /// Set by `resetHistory` and spent by the next trace, which always integrates the air.
         bool mAirStale = false;

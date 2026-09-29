@@ -345,27 +345,25 @@ set(RTX_VULKAN_FILES
     texture/texture.cpp
     texture/texture.hpp
     texture/texturepasses.hpp
-    trace/denoise/accumulatehistory.cpp
-    trace/denoise/accumulatehistory.hpp
     trace/denoise/accumulatepass.cpp
     trace/denoise/accumulatepass.hpp
     trace/denoise/atrouspass.cpp
     trace/denoise/atrouspass.hpp
     trace/denoise/compositepass.cpp
     trace/denoise/compositepass.hpp
-    trace/denoise/historyturns.hpp
-    trace/denoise/shadowhistory.cpp
-    trace/denoise/shadowhistory.hpp
-    trace/denoise/shadowpass.cpp
-    trace/denoise/shadowpass.hpp
-    trace/denoise/panehistory.cpp
-    trace/denoise/panehistory.hpp
+    trace/denoise/denoised.hpp
+    trace/denoise/denoiseframe.hpp
+    trace/denoise/denoisehistory.cpp
+    trace/denoise/denoisehistory.hpp
+    trace/denoise/denoisepasses.cpp
+    trace/denoise/denoisepasses.hpp
     trace/denoise/panepass.cpp
     trace/denoise/panepass.hpp
-    trace/denoise/specularhistory.cpp
-    trace/denoise/specularhistory.hpp
+    trace/denoise/shadowpass.cpp
+    trace/denoise/shadowpass.hpp
     trace/denoise/specularpass.cpp
     trace/denoise/specularpass.hpp
+    trace/denoise/temporalturns.hpp
     trace/fogvolume.cpp
     trace/fogvolume.hpp
     trace/gbuffer.cpp

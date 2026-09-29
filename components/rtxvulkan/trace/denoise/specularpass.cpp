@@ -2,10 +2,11 @@
 
 #include <array>
 #include <cassert>
+#include <cstdint>
 
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/specular.h>
-#include <components/rtxvulkan/device/memory/barriers.hpp>
+#include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
@@ -24,34 +25,22 @@ namespace Rtx
     {
     }
 
-    const Image& SpecularPass::record(
-        VkCommandBuffer commands, const SpecularHistory::Turn& turn, const GBuffer& buffer, const Frame& frame) const
+    const Image& SpecularPass::record(VkCommandBuffer commands, const DenoiseHistory::SpecularImages& images,
+        const GBuffer& buffer, const DenoiseFrame& frame) const
     {
         const Shaders::VisibilityConstants& sampled = frame.mSampled;
         const std::uint32_t width = sampled.mCamera.mWidth;
         const std::uint32_t height = sampled.mCamera.mHeight;
-        assert(turn.mMean.getWidth() >= width && turn.mMean.getHeight() >= height);
-
-        // As the accumulator's: what this frame writes whole is discarded, and the history too where
-        // there is none, so the reset is a statement about the history and not about the memory.
-        {
-            Barriers barriers(commands);
-            if (turn.mFresh)
-                barriers.add(turn.mMeanBefore.describeTransition(Use::sUndefined, Use::sComputeRead));
-
-            barriers.add(turn.mMean.describeTransition(Use::sUndefined, Use::sComputeWrite));
-
-            barriers.flush();
-        }
+        assert(images.mMean.getWidth() >= width && images.mMean.getHeight() >= height);
 
         DescriptorWrites<Shaders::SPECULAR_BINDINGS> writes;
         writes.image(Shaders::SPECULAR_BIND_SPECULAR, buffer.get(Channel::Specular).describeStorage());
         writes.image(Shaders::SPECULAR_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
         writes.image(Shaders::SPECULAR_BIND_PUFFS, buffer.get(Channel::Puffs).describeStorage());
-        writes.image(Shaders::SPECULAR_BIND_HELD_SURFACE, frame.mHeld.mImage.describeStorage());
-        writes.image(Shaders::SPECULAR_BIND_MEAN_BEFORE, turn.mMeanBefore.describeStorage());
-        writes.image(Shaders::SPECULAR_BIND_MEAN, turn.mMean.describeStorage());
+        writes.image(Shaders::SPECULAR_BIND_HELD_SURFACE, images.mHeldSurface.describeStorage());
+        writes.image(Shaders::SPECULAR_BIND_MEAN_BEFORE, images.mMeanBefore.describeStorage());
+        writes.image(Shaders::SPECULAR_BIND_MEAN, images.mMean.describeStorage());
         assert(writes.size() == Shaders::SPECULAR_BINDINGS && "a binding the layout declares was left unwritten");
 
         const Shaders::SpecularConstants constants{
@@ -61,14 +50,14 @@ namespace Rtx
             .mPreviousRight = sampled.mPreviousRight,
             .mPreviousUp = sampled.mPreviousUp,
             .mArmsSpread = sampled.mArmsSpread,
-            .mReset = (frame.mReset || frame.mHeld.mFresh || turn.mFresh) ? 1u : 0u,
-            .mDistanceScale = frame.mHeld.mDistanceScale,
+            .mReset = images.mFresh ? 1u : 0u,
+            .mDistanceScale = frame.mDistanceScale,
         };
 
         dispatch(commands, mPipeline, writes.get(), constants, groupsFor(width, Shaders::SPECULAR_WORKGROUP),
             groupsFor(height, Shaders::SPECULAR_WORKGROUP));
 
-        turn.mMean.transition(commands, Use::sComputeWrite, Use::sComputeRead);
-        return turn.mMean;
+        images.mMean.transition(commands, Use::sComputeWrite, Use::sComputeRead);
+        return images.mMean;
     }
 }

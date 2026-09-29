@@ -56,62 +56,48 @@ namespace Rtx
     {
     }
 
-    const Image& ShadowPass::record(
-        VkCommandBuffer commands, const ShadowHistory::Turn& turn, const GBuffer& buffer, const Frame& frame) const
+    const Image& ShadowPass::record(VkCommandBuffer commands, const DenoiseHistory::ShadowImages& images,
+        const GBuffer& buffer, const DenoiseFrame& frame) const
     {
-        const std::uint32_t width = frame.mCamera.mWidth;
-        const std::uint32_t height = frame.mCamera.mHeight;
-        assert(turn.mVisibility.getWidth() >= width && turn.mVisibility.getHeight() >= height);
+        const Shaders::Camera& camera = frame.mSampled.mCamera;
+        const std::uint32_t width = camera.mWidth;
+        const std::uint32_t height = camera.mHeight;
+        assert(images.mVisibility.getWidth() >= width && images.mVisibility.getHeight() >= height);
         assert(buffer.getWidth() >= width && buffer.getHeight() >= height);
 
-        // What this frame writes whole is discarded, and the history and the moments the temporal
-        // pass reads are discarded too where there are none — as the accumulator's are, so the reset
-        // is a statement about the history and not about the memory. The last frame's accesses are
-        // behind the head barrier `CommandPool::begin` recorded.
-        {
-            Barriers barriers(commands);
-            if (turn.mFresh)
-                for (const Image* image : { &turn.mHistory, &turn.mMomentsBefore })
-                    barriers.add(image->describeTransition(Use::sUndefined, Use::sComputeRead));
-
-            for (const Image* image : { &turn.mScratch, &turn.mMoments, &turn.mVisibility, &turn.mTiles, &turn.mMask })
-                barriers.add(image->describeTransition(Use::sUndefined, Use::sComputeWrite));
-
-            barriers.flush();
-        }
-
-        const std::array<const Image*, 4> taken{ &turn.mHistory, &turn.mScratch, &turn.mTiles, &turn.mVisibility };
+        const std::array<const Image*, 4> taken{ &images.mHistory, &images.mScratch, &images.mTiles,
+            &images.mVisibility };
 
         {
             DescriptorWrites<Shaders::SHADOW_MASK_BINDINGS> writes;
             writes.image(Shaders::SHADOW_MASK_BIND_SUNLIT, buffer.get(Channel::Sunlit).describeStorage());
-            writes.image(Shaders::SHADOW_MASK_BIND_MASK, turn.mMask.describeStorage());
+            writes.image(Shaders::SHADOW_MASK_BIND_MASK, images.mMask.describeStorage());
 
             dispatch(commands, mMask, writes.get(), Shaders::ShadowMaskConstants{ .mWidth = width, .mHeight = height },
                 groupsFor(width, Shaders::SHADOW_MASK_WIDTH), groupsFor(height, 2 * Shaders::SHADOW_MASK_HEIGHT));
         }
 
-        turn.mMask.transition(commands, Use::sComputeWrite, Use::sComputeRead);
+        images.mMask.transition(commands, Use::sComputeWrite, Use::sComputeRead);
 
         {
             DescriptorWrites<Shaders::SHADOW_TILES_BINDINGS> writes;
             writes.image(Shaders::SHADOW_TILES_BIND_SUNLIT, buffer.get(Channel::Sunlit).describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
-            writes.image(Shaders::SHADOW_TILES_BIND_HELD_SURFACE, frame.mHeld.mImage.describeStorage());
-            writes.image(Shaders::SHADOW_TILES_BIND_HISTORY, turn.mHistory.describeStorage());
-            writes.image(Shaders::SHADOW_TILES_BIND_MOMENTS_BEFORE, turn.mMomentsBefore.describeStorage());
-            writes.image(Shaders::SHADOW_TILES_BIND_MOMENTS, turn.mMoments.describeStorage());
-            writes.image(Shaders::SHADOW_TILES_BIND_REPROJECTED, turn.mScratch.describeStorage());
-            writes.image(Shaders::SHADOW_TILES_BIND_TILES, turn.mTiles.describeStorage());
-            writes.image(Shaders::SHADOW_TILES_BIND_MASK, turn.mMask.describeStorage());
+            writes.image(Shaders::SHADOW_TILES_BIND_HELD_SURFACE, images.mHeldSurface.describeStorage());
+            writes.image(Shaders::SHADOW_TILES_BIND_HISTORY, images.mHistory.describeStorage());
+            writes.image(Shaders::SHADOW_TILES_BIND_MOMENTS_BEFORE, images.mMomentsBefore.describeStorage());
+            writes.image(Shaders::SHADOW_TILES_BIND_MOMENTS, images.mMoments.describeStorage());
+            writes.image(Shaders::SHADOW_TILES_BIND_REPROJECTED, images.mScratch.describeStorage());
+            writes.image(Shaders::SHADOW_TILES_BIND_TILES, images.mTiles.describeStorage());
+            writes.image(Shaders::SHADOW_TILES_BIND_MASK, images.mMask.describeStorage());
             assert(
                 writes.size() == Shaders::SHADOW_TILES_BINDINGS && "a binding the layout declares was left unwritten");
 
             const Shaders::ShadowTilesConstants constants{
-                .mCamera = frame.mCamera,
-                .mReset = (frame.mReset || frame.mHeld.mFresh || turn.mFresh) ? 1u : 0u,
-                .mDistanceScale = frame.mHeld.mDistanceScale,
+                .mCamera = camera,
+                .mReset = images.mFresh ? 1u : 0u,
+                .mDistanceScale = frame.mDistanceScale,
             };
 
             dispatch(commands, mTiles, writes.get(), constants, groupsFor(width, Shaders::SHADOW_WORKGROUP),
@@ -121,12 +107,12 @@ namespace Rtx
         // The SDK's order: the temporal blend into the first level, whose answer is the history the
         // next frame reads; the second back into the scratch, which a cleared tile leaves holding the
         // temporal pass's exact value; and the third into what the composite reads.
-        const std::array<const Image*, Shaders::SHADOW_FILTER_LEVELS> sources{ &turn.mScratch, &turn.mHistory,
-            &turn.mScratch };
-        const std::array<const Image*, Shaders::SHADOW_FILTER_LEVELS> targets{ &turn.mHistory, &turn.mScratch,
-            &turn.mVisibility };
+        const std::array<const Image*, Shaders::SHADOW_FILTER_LEVELS> sources{ &images.mScratch, &images.mHistory,
+            &images.mScratch };
+        const std::array<const Image*, Shaders::SHADOW_FILTER_LEVELS> targets{ &images.mHistory, &images.mScratch,
+            &images.mVisibility };
 
-        const Shaders::ShadowFilterConstants constants{ .mCamera = frame.mCamera, .mArms = frame.mArms };
+        const Shaders::ShadowFilterConstants constants{ .mCamera = camera, .mArms = frame.mSampled.mArms };
         for (std::uint32_t level = 0; level < Shaders::SHADOW_FILTER_LEVELS; ++level)
         {
             orderDispatches(commands, taken);
@@ -134,7 +120,7 @@ namespace Rtx
             DescriptorWrites<Shaders::SHADOW_FILTER_BINDINGS> writes;
             writes.image(Shaders::SHADOW_FILTER_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
             writes.image(Shaders::SHADOW_FILTER_BIND_PUFFS, buffer.get(Channel::Puffs).describeStorage());
-            writes.image(Shaders::SHADOW_FILTER_BIND_TILES, turn.mTiles.describeStorage());
+            writes.image(Shaders::SHADOW_FILTER_BIND_TILES, images.mTiles.describeStorage());
             writes.image(Shaders::SHADOW_FILTER_BIND_SOURCE, sources[level]->describeStorage());
             writes.image(Shaders::SHADOW_FILTER_BIND_FILTERED, targets[level]->describeStorage());
 
@@ -142,7 +128,7 @@ namespace Rtx
                 groupsFor(height, Shaders::SHADOW_WORKGROUP));
         }
 
-        turn.mVisibility.transition(commands, Use::sComputeWrite, Use::sComputeRead);
-        return turn.mVisibility;
+        images.mVisibility.transition(commands, Use::sComputeWrite, Use::sComputeRead);
+        return images.mVisibility;
     }
 }

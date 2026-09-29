@@ -165,15 +165,15 @@ namespace Rtx::Testing
             };
 
             measure(
-                "a plain frame", FrameOptions{ .mReconstruction = ReconstructionRequest{ .mFilter = false } }, still);
-            measure(
-                "a filtered frame", FrameOptions{ .mReconstruction = ReconstructionRequest{ .mFilter = true } }, still);
+                "a plain frame", FrameOptions{ .mReconstruction = ReconstructionRequest{ .mDenoise = false } }, still);
+            measure("a filtered frame", FrameOptions{ .mReconstruction = ReconstructionRequest{ .mDenoise = true } },
+                still);
             measure("an accumulating frame",
-                FrameOptions{ .mAccumulate = 1, .mReconstruction = ReconstructionRequest{ .mFilter = true } }, still);
+                FrameOptions{ .mAccumulate = 1, .mReconstruction = ReconstructionRequest{ .mDenoise = true } }, still);
             measure(
-                "a body walking", FrameOptions{ .mReconstruction = ReconstructionRequest{ .mFilter = true } }, walk);
+                "a body walking", FrameOptions{ .mReconstruction = ReconstructionRequest{ .mDenoise = true } }, walk);
             measure("a storm thickening and thinning",
-                FrameOptions{ .mReconstruction = ReconstructionRequest{ .mFilter = true } }, thicken);
+                FrameOptions{ .mReconstruction = ReconstructionRequest{ .mDenoise = true } }, thicken);
 
             // **And one that keeps thickening, a new high every frame.** Past sixty-four every table
             // a frame writes doubles its room at the first new high, so the thirty-two highs from

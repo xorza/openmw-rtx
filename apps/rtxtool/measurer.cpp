@@ -350,7 +350,7 @@ namespace RtxTool
             // not the renderer's mode alone.
             BenchHeader& header = mRecord.getHeader();
             header.mExtents = extents;
-            header.mUpscaling = report.mReconstruction.mUpscaling;
+            header.mUpscale = report.mReconstruction.mUpscale;
             header.mNoise = report.mReconstruction.mNoise;
             header.mLevelBias = report.mReconstruction.mLevelBias;
             header.mValidating = renderer.isValidating();

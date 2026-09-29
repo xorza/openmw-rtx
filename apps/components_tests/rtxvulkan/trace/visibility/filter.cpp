@@ -571,7 +571,7 @@ namespace Rtx::Testing
         /// A reset survives a frame that has no history to reset.
         ///
         /// **`resetHistory` is spent by the frame that answers it, and a frame with neither denoiser
-        /// answers nothing.** `Denoiser::None` runs no accumulator and `Upscale::Off` runs no
+        /// answers nothing.** A frame not `mDenoised` runs no accumulator and `Upscale::Off` runs no
         /// upscaler, so nothing reads the signal — and a renderer that cleared it at the end of every
         /// frame regardless dropped the reset rather than deferring it. What the game does with that
         /// is walk through a door on an unfiltered frame and reproject one room onto another on the
@@ -610,7 +610,7 @@ namespace Rtx::Testing
                 sampled.mFrame = frame;
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = 0,
-                        .mReconstruction = ReconstructionRequest{ .mFilter = filter },
+                        .mReconstruction = ReconstructionRequest{ .mDenoise = filter },
                         .mExposure = ExposureRule{ .mFixed = 1.0f } });
             };
 

@@ -96,7 +96,7 @@ namespace MWRender
 
             return RunSetup{
                 .mProfile = {
-                    .mUpscaling = settings.mUpscaling,
+                    .mUpscale = settings.mUpscale,
                     .mAnisotropy = settings.mAnisotropy,
                     .mExposure = Rtx::ExposureRule{},
                     .mRadianceWidth = Rtx::RadianceWidth::Shown,
@@ -217,7 +217,7 @@ namespace MWRender
         // session runs, so it does not belong in the periodic line; what that line carries is the
         // one word a reader of any single line needs, and the rest — at what pair of sizes — is here,
         // where it was chosen.
-        Log(Debug::Info) << "Ray tracing: upscale " << Rtx::sUpscaleNames.name(setup.mProfile.mUpscaling.mMode);
+        Log(Debug::Info) << "Ray tracing: upscale " << Rtx::sUpscaleNames.name(setup.mProfile.mUpscale);
 
         // **Grass hangs off the quad tree, and this renderer has the game build none**: its ground is
         // the cell ring's. Said and not refused, because a game that asked for grass plays the same
@@ -226,7 +226,7 @@ namespace MWRender
             Log(Debug::Warning) << "Groundcover is on, and the ray tracer draws none";
 
         mRenderer = Rtx::createVulkanRenderer(options);
-        mUpscale = setup.mProfile.mUpscaling.mMode;
+        mUpscale = setup.mProfile.mUpscale;
 
         Log(Debug::Info) << "Ray tracing on " << mRenderer->describeDevice();
 
@@ -603,7 +603,7 @@ namespace MWRender
         }
 
         if (upscale)
-            setUpscale(settings->mUpscaling.mMode);
+            setUpscale(settings->mUpscale);
 
         // The menu moves the reach while the game runs, and the ring, the air and the map all
         // follow it: a slider that took effect at the next start was a slider that did nothing.
@@ -716,7 +716,7 @@ namespace MWRender
         // **The stop's upscaling, where it asks for one, and the run's otherwise** — beside the fit,
         // because both rebuild the targets, and the camera below is built for the extent they leave.
         if (const Rtx::Upscale wanted = mRun.getUpscale().value_or(mUpscale);
-            wanted != mRenderer->getProfile().mUpscaling.mMode)
+            wanted != mRenderer->getProfile().mUpscale)
             mRenderer->setUpscale(wanted);
 
         // **A frame with the world hidden is the interface and nothing else.** No walk, because the

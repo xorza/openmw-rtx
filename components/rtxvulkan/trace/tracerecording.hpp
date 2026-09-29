@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/shaders/visibility.h>
 
 #include "visibilitypass.hpp"
@@ -32,6 +33,9 @@ namespace Rtx
         /// medium and the layer decision are already in it. What the composite covers is its extent.
         Shaders::VisibilityConstants mSampled;
 
+        /// What reconstructs this trace: whether the denoisers run is what the chain reads of it.
+        const Reconstruction& mReconstruction;
+
         /// How many frames the chain's running total holds, this one included, or nought where
         /// nothing is averaging (`FrameOptions::mAccumulate`).
         std::uint32_t mAccumulate = 0;
@@ -39,11 +43,7 @@ namespace Rtx
         /// Whether the camera has no past to reproject from: a picture never has one, and a frame
         /// after a jump no motion vector can describe has lost it. What `TraceChain::resetHistory`
         /// said is the chain's own to add.
-        bool mPastLost = true;
-
-        /// Whether the wavelet runs. False for a frame an upscaler will denoise itself —
-        /// `Reconstruction` is what resolves that, and never answers with both.
-        bool mFilter = true;
+        bool mPastLost;
 
         /// Null where the run is not being timed, which a picture is not.
         GpuTimer* mTimer = nullptr;

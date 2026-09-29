@@ -108,6 +108,7 @@ set(RTX_TEST_FILES
     rtxvulkan/spirv/spirvdigest.cpp
     rtxvulkan/spirv/spirvfile.cpp
     rtxvulkan/spirv/spirvpin.cpp
+    rtxvulkan/trace/denoise/temporalturns.cpp
     rtxvulkan/upscale/fsrframe.cpp
     sky/skyclock.cpp
     sky/sundisc.cpp

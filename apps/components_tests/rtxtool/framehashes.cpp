@@ -70,7 +70,7 @@ namespace RtxTool
                 finished.mFrame = mFrame;
                 finished.mPixels = mPixels;
                 finished.mDigest = mDigest;
-                finished.mReconstruction.mUpscaling.mMode = mUpscale;
+                finished.mReconstruction.mUpscale = mUpscale;
                 return finished;
             }
         };

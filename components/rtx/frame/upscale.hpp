@@ -52,6 +52,12 @@ namespace Rtx
     /// each menu gives it a label.
     inline constexpr std::array<std::string_view, sUpscaleNames.mNames.size()> sUpscaleMenu = sUpscaleNames.spellings();
 
+    /// Whether a mode runs the upscaler at all, which every mode but `Off` does — `Native` too.
+    constexpr bool upscales(Upscale mode)
+    {
+        return mode != Upscale::Off;
+    }
+
     /// What the output is divided by to give the extent a frame is traced at, per axis: FSR 3.1's
     /// fixed ratios (`ffxFsr3UpscalerGetUpscaleRatioFromQualityMode`) — 3, 2, 1.7 and 1.5 from ultra
     /// performance to quality, and one where every pixel is traced, natively or with no upscaler.

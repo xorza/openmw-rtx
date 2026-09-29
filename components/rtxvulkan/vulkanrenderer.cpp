@@ -117,7 +117,7 @@ namespace Rtx
     {
         mFrame.resetHistory();
         mDisplay.resetHistory();
-        mUpscalerStale = true;
+        mUpscaler.reset();
         mMedia.resetRipples();
     }
 
@@ -133,10 +133,10 @@ namespace Rtx
 
     void VulkanRenderer::setUpscale(Upscale upscale)
     {
-        if (upscale == mProfile.mUpscaling.mMode)
+        if (upscale == mProfile.mUpscale)
             return;
 
-        mProfile.mUpscaling.mMode = upscale;
+        mProfile.mUpscale = upscale;
 
         // What is about to be replaced may still be in flight.
         drain();
@@ -164,7 +164,7 @@ namespace Rtx
         // What to trace at is the mode's arithmetic, `extentsFor`, and the output where nothing
         // upscales.
         const VkExtent2D output{ width, height };
-        const FrameExtents extents = extentsFor(width, height, mProfile.mUpscaling.mMode);
+        const FrameExtents extents = extentsFor(width, height, mProfile.mUpscale);
         const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
         mFrame.resize(render.width, render.height, mProfile.mRadianceWidth);
 
@@ -543,7 +543,7 @@ namespace Rtx
 
         // Coverage and an upscaler do not meet: an upscaler writes the upscaled image itself and is
         // handed no coverage, so a picture that stops where nothing was hit is `traceGuiTexture`'s.
-        assert((camera.mTransparentBackground == 0 || mProfile.mUpscaling.mMode == Upscale::Off)
+        assert((camera.mTransparentBackground == 0 || !upscaling())
             && "a frame that stops where nothing was hit belongs to traceGuiTexture, which does not upscale");
 
         // The frame `placeScene` opened, or a new one where nothing was placed.
@@ -562,7 +562,7 @@ namespace Rtx
         // this rather than working the interaction out again; the same value goes back in the frame
         // result, so what a run reports and what it did are one answer.
         const Reconstruction reconstruction = Reconstruction::resolve(
-            mProfile.mUpscaling, options.mReconstruction.value_or(mProfile.mReconstruction), getExtents());
+            mProfile.mUpscale, options.mReconstruction.value_or(mProfile.mReconstruction), getExtents());
         frame.mReconstruction = reconstruction;
 
         Shaders::VisibilityConstants sampled
@@ -579,7 +579,8 @@ namespace Rtx
         // another. What `resetHistory` said is each history's own, spent by the frame that reads
         // that history, so a reset before an unfiltered frame waits for the frame that filters.
         const bool basisLost = mPreviousCamera.mCamera.mForward.length2() <= 0.0f;
-        const bool upscalerLost = reconstruction.upscaled() && (basisLost || mUpscalerStale);
+        if (basisLost)
+            mUpscaler.reset();
 
         GpuTimer& timer = frame.mTimer;
         const VkCommandBuffer commands = frame.mWorld.mCommands;
@@ -605,9 +606,9 @@ namespace Rtx
                 .mSubject = subject,
                 .mAsked = camera,
                 .mSampled = sampled,
+                .mReconstruction = reconstruction,
                 .mAccumulate = options.mAccumulate,
                 .mPastLost = basisLost,
-                .mFilter = reconstruction.filtered(),
                 .mTimer = &timer,
             });
         const GBuffer& channels = traced.mInputs.mChannels;
@@ -625,7 +626,7 @@ namespace Rtx
                 .mJitterX = sampled.mCamera.mJitter.x(),
                 .mJitterY = sampled.mCamera.mJitter.y(),
                 .mFrameDeltaMs = sinceLastMs,
-                .mReset = upscalerLost ? 1u : 0u,
+                .mReset = reconstruction.upscaled() && mUpscaler.isFresh() ? 1u : 0u,
             };
         }
 
@@ -641,12 +642,11 @@ namespace Rtx
                     .mMasks = channels.get(Channel::UpscaleMasks),
                     .mCamera = sampled.mCamera,
                     .mArms = sampled.mArms,
-                    .mFrameDeltaMs = sinceLastMs,
-                    .mReset = upscalerLost,
+                    .mJitterPhases = reconstruction.mJitterPhases,
+                    .mSeconds = options.mSinceLast,
                     .mSlot = mRing.getRecordingSlot(),
                 });
             timer.close(commands);
-            mUpscalerStale = false;
         }
 
         // The rest of the frame, over the reconstruction where something upscales and over the
