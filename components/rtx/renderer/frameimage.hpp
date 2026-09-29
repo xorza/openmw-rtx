@@ -31,6 +31,7 @@ namespace Rtx
         PaneAlbedo = Shaders::CHANNEL_PANE_ALBEDO,
         PaneSurface = Shaders::CHANNEL_PANE_SURFACE,
         PaneMotion = Shaders::CHANNEL_PANE_MOTION,
+        UpscaleMasks = Shaders::CHANNEL_UPSCALE_MASKS,
     };
 
     inline constexpr std::uint32_t sChannelCount = Shaders::CHANNEL_COUNT;
@@ -56,6 +57,7 @@ namespace Rtx
         { Channel::PaneAlbedo, "g-pane-albedo" },
         { Channel::PaneSurface, "g-pane-surface" },
         { Channel::PaneMotion, "g-pane-motion" },
+        { Channel::UpscaleMasks, "g-upscale-masks" },
     } } };
 
     /// Every channel in binding order, for a walk that wants them all.

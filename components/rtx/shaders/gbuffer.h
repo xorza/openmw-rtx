@@ -58,6 +58,7 @@
 #define GBUFFER_MOTION STORAGE_RG16F
 #define GBUFFER_LAYER STORAGE_RGBA16F
 #define GBUFFER_BACKDROP STORAGE_RGBA8
+#define GBUFFER_UPSCALE_MASKS STORAGE_RG8
 
 // Which binding of `SET_CHANNELS` each channel is.
 //
@@ -142,8 +143,26 @@ namespace Rtx::Shaders
     const uint CHANNEL_PANE_SURFACE = 11;
     const uint CHANNEL_PANE_MOTION = 12;
 
+    /// What the upscaler is told its motion vector does not describe: the share of the pixel's light
+    /// whose image moves apart from `CHANNEL_MOTION`, each share times how far apart —
+    /// `motionsApart`. In `r` the see-through layers', which move by the nearest layer's own motion:
+    /// FSR's reactive mask, which AMD's documentation names for alpha-blended objects. In `g` what
+    /// the water's two rays found, which moves by the parallax of an image the waves bend: its
+    /// transparency and composition mask, named for ray-traced reflections. Nought wherever the eye
+    /// and the world stand still, so no still picture is touched.
+    ///
+    /// **A byte a mask**, the width AMD's own masks are stored at: a fraction the upscaler blends by.
+    const uint CHANNEL_UPSCALE_MASKS = 13;
+
     /// How many the set declares, which is the last of them and one more.
-    const uint CHANNEL_COUNT = 13;
+    const uint CHANNEL_COUNT = 14;
+
+    /// How far apart, in traced pixels, an image and the motion vector its pixel is handed may move
+    /// in one frame before the upscaler is told to trust none of that image's history: half a
+    /// pixel, where a bilinear fetch of the history has left the texel it belongs to for another.
+    /// At the pond a quarter, a half and a whole pixel measured alike, so the fetch's own reach is
+    /// what chooses.
+    const float MISMOVED_FULL = 0.5f;
 
     /// The least albedo `CHANNEL_PANE` is divided by, a channel at a time: under it the layers are
     /// black there, what they send is their lobe's alone, and dividing it by nearly nought would

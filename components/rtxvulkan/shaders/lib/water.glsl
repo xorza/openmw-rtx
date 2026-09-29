@@ -164,6 +164,39 @@ SplitLight alongLeg(WaterPath path, WorldRay leg, bool underwater, float footpri
     return SplitLight(throughAir(light.mRest, air), light.mSunlit * air.w, light.mSunOpen);
 }
 
+/// Where the images the water's two rays found appear to stand along the eye's own ray, and what
+/// share of the water's light each brings: what the surface's motion vector does not describe.
+///
+/// **A plane's images, as the place to ask how they move.** A mirror folds the path, so what the
+/// reflection found appears the whole path away; a refraction shortens it, so what lies past the
+/// surface appears at its distance over the index it crosses into. The waves bend both, and no
+/// place describes a bent image exactly; what these say is how far it stands from the surface, and
+/// so how far apart the two move.
+struct WaterImage
+{
+    /// Nought where the ray went down and found nothing: the water's own column, which has no image.
+    float mShare;
+    float mAway;
+
+    /// Whether the ray went up and found nothing: the sky, which stands at infinity and moves as the
+    /// sky does.
+    bool mOnSky;
+};
+
+struct WaterImages
+{
+    WaterImage mMirror;
+    WaterImage mBed;
+};
+
+/// What `path` shows, `share` of the water's light, seen from `before` along the eye's ray: at
+/// `folded` of the path past the surface, and at infinity where it went up and found nothing.
+WaterImage imageOf(WaterPath path, WorldRay leg, float share, float before, float folded)
+{
+    const bool imaged = path.mFound || leg.mAlong.z > 0.0;
+    return WaterImage(imaged ? share : 0.0, before + path.mDistance * folded, !path.mFound);
+}
+
 /// What a water surface answers with: what it sends back along the ray, what it is in the
 /// filter's terms, what it reflects, and how much of the pixel is water at all.
 struct WaterShading
@@ -173,6 +206,8 @@ struct WaterShading
     SplitLight mLight;
 
     SurfaceResponse mResponse;
+
+    WaterImages mImages;
 
     /// How much of the pixel is water at all, from nothing at the waterline to one over half a
     /// metre of depth. **The caller mixes the ground in, and not `shadeWater`**, because what a
@@ -194,6 +229,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const uint key = pixelKey(pixel);
 
     WaterShading shaded;
+    shaded.mImages = WaterImages(WaterImage(0.0, 0.0, false), WaterImage(0.0, 0.0, false));
 
     // **Which side of the water a ray is on is a question about the plane, not about a wave.** At a
     // glancing angle a facet can tilt far enough to face away from the ray, and reading that as "the
@@ -271,6 +307,8 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
         // there is nothing behind it to see: the reflection whole, which is the Fresnel term's own
         // answer there, and no refraction to trace.
         shaded.mLight = reflected;
+        shaded.mImages = WaterImages(
+            imageOf(bounced, mirrored, 1.0, surface.mDistance, 1.0), WaterImage(0.0, 0.0, false));
         return shaded;
     }
 
@@ -286,6 +324,14 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const WaterPath behind = waterRay(across, Cone(surface.mFootprint, cone.mSpread), lobe * WATER_REFRACTION_BEND,
         key + SEED_LAMPS_THROUGH, key + SEED_AMBIENT_THROUGH);
     const SplitLight refracted = alongLeg(behind, across, !fromBelow, surface.mFootprint, pixel, before);
+
+    // **Shared by the luminance each ray adds**, as `mixSplit` shares the sun's bit. A ray that went
+    // down and found nothing brought the column's own colour, which has no image to move.
+    const float fromMirror = dot(composed(reflected) * fresnel, LUMINANCE_WEIGHTS);
+    const float fromBed = dot(composed(refracted) * (1.0 - fresnel), LUMINANCE_WEIGHTS);
+    const float whole = max(fromMirror + fromBed, 1e-6);
+    shaded.mImages = WaterImages(imageOf(bounced, mirrored, fromMirror / whole, surface.mDistance, 1.0),
+        imageOf(behind, across, fromBed / whole, surface.mDistance, fromBelow ? WATER_IOR : 1.0 / WATER_IOR));
 
     uint legs = randomSeed(key + SEED_SUN_LEGS);
     shaded.mLight = mixSplit(refracted, reflected, fresnel, randomNext(legs));

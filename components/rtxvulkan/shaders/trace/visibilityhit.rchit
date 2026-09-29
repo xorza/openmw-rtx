@@ -155,7 +155,29 @@ void answerSolid(inout Answer answer, Surface surface)
     answer.mRoughness = seen.mRoughness;
 }
 
-/// Fills the payload in for a water surface, and for the ground showing through its last half metre.
+/// How far `image` moves apart from `surfaceMotion` in a frame, `motionsApart`: where the image stood
+/// on the previous frame's screen, through the same reprojection the surface's own took, of a point
+/// standing still at its place along the eye's ray — or of the sky's direction, where it stands at
+/// infinity.
+float apartFrom(WaterImage image, vec2 surfaceMotion)
+{
+    const vec3 direction = gl_WorldRayDirectionEXT;
+    const vec2 moved = image.mOnSky
+        ? skyMotionOf(stagePixel(), direction)
+        : reprojected(stagePixel(), fma(direction, vec3(image.mAway), frame.mCameraMotion), stageSpread());
+    return motionsApart(moved, surfaceMotion);
+}
+
+/// What share of the water's light moves apart from `surfaceMotion`, each ray's share times how far
+/// apart its image moves: `Answer::mMisMoved`.
+float misMovedOf(WaterImages images, vec2 surfaceMotion)
+{
+    return images.mMirror.mShare * apartFrom(images.mMirror, surfaceMotion)
+        + images.mBed.mShare * apartFrom(images.mBed, surfaceMotion);
+}
+
+/// Fills the payload in for a water surface, and for the ground showing through its last half
+/// metre, and hands back where what its rays found appears to stand.
 ///
 /// **A pixel of water with no water under it is the ground it stands on, shaded as the ground is.**
 /// The surface fades out over the last half metre of depth, and fading toward the bed shaded at the
@@ -170,7 +192,10 @@ void answerSolid(inout Answer answer, Surface surface)
 /// and a trace that started past it found nothing, kept the whole water, and drew the line it was
 /// there to remove as a bright hair. Solids only: nothing solid is nearer than a surface the eye's
 /// own trace found first, so what this finds is the bed.
-void answerWater(inout Answer answer, Surface surface)
+///
+/// **The images' shares are the water's share of the pixel**, and none of the ground a shore mixes
+/// in, which stands where the surface does to within the half metre that fades it.
+WaterImages answerWater(inout Answer answer, Surface surface)
 {
     const uvec2 pixel = stagePixel();
     const vec3 origin = gl_WorldRayOriginEXT;
@@ -182,16 +207,17 @@ void answerWater(inout Answer answer, Surface surface)
     const WaterShading water = shadeWater(surface, direction, pixel, cone);
     answerLight(answer, water.mLight);
     answer.mResponse = water.mResponse;
+    WaterImages images = water.mImages;
 
     const float shore = water.mShore;
     if (shore >= 1.0)
-        return;
+        return images;
 
     // Drawn, because this is what the eye sees through the water.
     const Surface bed = trace(
         WorldRay(origin, direction), max(surface.mDistance - SHADOW_BIAS, 0.0), cone, solidMask(frame.mRayMask), true);
     if (!bed.mHit)
-        return;
+        return images;
 
     const SeenSolid seen = shadeSolid(bed, pixel, cone);
 
@@ -207,6 +233,9 @@ void answerWater(inout Answer answer, Surface surface)
     answer.mSpecular = seen.mSpecular * (1.0 - shore);
     answer.mRoughness = seen.mRoughness;
     answer.mResponse = SurfaceResponse(packSurfaceNormal(normal), seen.mResponse.mDiffuse * (1.0 - shore));
+    images.mMirror.mShare *= shore;
+    images.mBed.mShare *= shore;
+    return images;
 }
 
 void main()
@@ -216,9 +245,10 @@ void main()
     const Surface surface
         = resolveFor(stageHit(barycentrics), gl_WorldRayOriginEXT, gl_WorldRayDirectionEXT, LAYERED, true);
 
+    WaterImages images = WaterImages(WaterImage(0.0, 0.0, false), WaterImage(0.0, 0.0, false));
     const bool pane = !(WATER && HAS_SEA) && peeled(surface);
     if (WATER && HAS_SEA)
-        answerWater(answer, surface);
+        images = answerWater(answer, surface);
     else if (pane)
         answerPane(answer, surface);
     else
@@ -227,9 +257,12 @@ void main()
     // **Where the surface stood last frame, worked out where the rows already are.** The instance,
     // its mesh and where on the triangle the ray landed are this stage's own, so the launch reads
     // none of them again. A pane's is its own, which the pane filter reprojects its history by; the
-    // pixel's motion stays the surface's behind the stack.
+    // pixel's motion stays the surface's behind the stack. **After the shading**, so the vector is
+    // not held across it: worked out first, it cost the guild's trace 0.04 ms.
     answer.mMotion = motionOf(stagePixel(), gl_WorldRayOriginEXT, gl_WorldRayDirectionEXT, gl_HitTEXT,
         uint(gl_InstanceCustomIndexEXT), uint(gl_PrimitiveID), barycentrics, gl_ObjectToWorldEXT, stageSpread());
+    if (WATER && HAS_SEA)
+        answer.mMisMoved = misMovedOf(images, answer.mMotion);
 
     answer.mHit = true;
     answer.mDistance = gl_HitTEXT;

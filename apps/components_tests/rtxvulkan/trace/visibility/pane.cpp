@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -140,7 +141,9 @@ namespace Rtx::Testing
         /// pixels at this size and field; the sky, at no distance a step can cross, moves nought.
         /// The pane's own channel says the first, the pixel's motion the second — and the history,
         /// fetched from where the pane stood, carries sixteen frames across the step: the filtered
-        /// frame stands under half the raw frame's error from the average at the new eye.
+        /// frame stands under half the raw frame's error from the average at the new eye. The pane is
+        /// the whole of the frame's light, so the upscaler's reactive mask is how far apart the two
+        /// motions stand, past `MISMOVED_FULL` and so whole; and nought for the eye standing still.
         TEST_F(RtxVisibilityTest, aPaneIsReprojectedByItsOwnMotionAndNotTheSurfacesBehindIt)
         {
             const SceneDesc scene = paneUnderLamps().mScene;
@@ -152,10 +155,22 @@ namespace Rtx::Testing
             after.mFrame = 2016;
             const Frame raw = shoot(scene, {}, after, sSize);
 
-            shoot(scene, {}, before, sSize, filteredRun(16, 2000));
-            const Frame filtered = shoot(scene, {}, after, sSize, { .mFilter = true, .mSetScene = false });
-
+            // Jittered, as every frame an upscaler takes is: the jitter is no motion, and must mark
+            // nothing.
+            Shot still = filteredRun(16, 2000);
+            still.mJitter = true;
+            shoot(scene, {}, before, sSize, still);
             const std::size_t centre = centreOf(sSize);
+            std::vector<float> masks;
+            mRenderer.readChannel(Channel::UpscaleMasks, masks);
+            EXPECT_EQ(*std::max_element(masks.begin(), masks.end()), 0.0f)
+                << "an eye standing still moves nothing apart";
+
+            const Frame filtered = shoot(scene, {}, after, sSize, { .mFilter = true, .mSetScene = false });
+            mRenderer.readChannel(Channel::UpscaleMasks, masks);
+            EXPECT_EQ(masks[centre * 2], 1.0f) << "the pane moved a pixel apart from the sky behind it";
+            EXPECT_EQ(masks[centre * 2 + 1], 0.0f) << "no water stands anywhere";
+
             std::vector<float> paneMotion;
             mRenderer.readChannel(Channel::PaneMotion, paneMotion);
             std::vector<float> motion;

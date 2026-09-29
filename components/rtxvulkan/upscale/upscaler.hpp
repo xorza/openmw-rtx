@@ -40,6 +40,10 @@ namespace Rtx
         /// `CHANNEL_PUFFS`, for the one bit that says which eye a pixel's ray left.
         const Image& mPuffs;
 
+        /// `CHANNEL_UPSCALE_MASKS`: the reactive mask and the transparency and composition mask, as
+        /// the trace measured what `mMotion` does not describe.
+        const Image& mMasks;
+
         /// The two eyes the trace sampled through, jitter and all.
         Shaders::Camera mCamera;
         Shaders::Camera mArms;

@@ -10,6 +10,7 @@
 
 #include <osg/Math>
 #include <osg/Matrixf>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
@@ -18,6 +19,7 @@
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/ripple.hpp>
@@ -923,6 +925,62 @@ namespace Rtx::Testing
             }
             ASSERT_GT(lowest, 0.0f) << "the water shows the wall nowhere";
             EXPECT_NEAR(highest, lowest, lowest * 1e-4f) << "the wall's reflection is speckled";
+        }
+
+        /// **What the water shows is marked for the upscaler by how far its image moves apart from the
+        /// surface.** A flat sea under an eye 100 units over it, looking 10° down: the middle pixel's
+        /// ray, the eye's own axis at 65 pixels, meets the water `100 / sin 10°` = 575.88 away and
+        /// reflects a lamp-lit wall 2000 units ahead, whose image stands `2000 / cos 10°` = 2030.85
+        /// along it. Nothing lights the water's column and no bed stands under it, so the reflection
+        /// is the whole of the water's light.
+        ///
+        /// Standing still the two move alike, and the mask is nought. A step of four units along X
+        /// moves the surface `32.5 / tan 30° · 4 / 575.88` = 0.3910 pixels and the image 0.1109: 0.2801
+        /// apart, which `motionsApart` makes `0.2801 / 0.5` = 0.560.
+        TEST_F(RtxVisibilityTest, whatTheWaterShowsIsMarkedForTheUpscalerByHowFarItsImageMovesApart)
+        {
+            constexpr std::uint32_t size = 65;
+            constexpr std::size_t centre = centreOf(size);
+            const float down = osg::DegreesToRadians(10.0f);
+            const osg::Vec3f along(0.0f, std::cos(down), -std::sin(down));
+
+            SceneDesc scene = makeOpenWater(4000.0f);
+            addQuad(scene, uprightQuadAt(2000.0f, 2000.0f, osg::Vec2f(0.0f, 500.0f)));
+            scene.addLight(Light{ .mPosition = osg::Vec3f(0.0f, 1800.0f, 250.0f),
+                .mIntensity = osg::Vec3f(40000.0f, 40000.0f, 40000.0f),
+                .mReach = 1000.0f });
+
+            const auto eyeAt = [&](float x) {
+                const osg::Vec3f eye(x, 0.0f, 100.0f);
+                Shaders::VisibilityConstants camera
+                    = Testing::makeCamera(eye, eye + along, 60.0f, size, size, 100000.0f);
+                camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f());
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f();
+                camera.mWaterLevel = 0.0f;
+                return camera;
+            };
+
+            const SeaState flat{ .mSignificantHeight = 0.0f };
+            std::vector<float> masks;
+            std::vector<float> motion;
+
+            // Jittered, as every frame an upscaler takes is: the jitter is no motion, and must mark
+            // nothing.
+            shoot(scene, {}, eyeAt(0.0f), size, { .mSea = flat, .mFrames = 8, .mAverage = false, .mJitter = true });
+            mRenderer.readChannel(Channel::UpscaleMasks, masks);
+            EXPECT_EQ(*std::max_element(masks.begin(), masks.end()), 0.0f)
+                << "an eye standing still moves nothing apart";
+
+            const Frame stepped
+                = shoot(scene, {}, eyeAt(4.0f), size, { .mSea = flat, .mJitter = true, .mSetScene = false });
+            ASSERT_GT(stepped.at(centre * 4 + 1), 0.0f) << "a water that shows nothing proves nothing";
+            mRenderer.readChannel(Channel::UpscaleMasks, masks);
+            mRenderer.readChannel(Channel::Motion, motion);
+            EXPECT_NEAR(motion[centre * 2], 0.3910f, 0.01f) << "the surface's own step";
+            EXPECT_NEAR(masks[centre * 2 + 1], 0.560f, 0.02f) << "the reflection's image, apart from it";
+            EXPECT_EQ(masks[centre * 2], 0.0f) << "no pane stands anywhere";
         }
     }
 }
