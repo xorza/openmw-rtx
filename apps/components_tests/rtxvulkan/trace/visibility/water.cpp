@@ -978,7 +978,7 @@ namespace Rtx::Testing
             ASSERT_GT(stepped.at(centre * 4 + 1), 0.0f) << "a water that shows nothing proves nothing";
             mRenderer.readChannel(Channel::UpscaleMasks, masks);
             mRenderer.readChannel(Channel::Motion, motion);
-            EXPECT_NEAR(motion[centre * 2], 0.3910f, 0.01f) << "the surface's own step";
+            EXPECT_NEAR(motion[centre * 4], 0.3910f, 0.01f) << "the surface's own step";
             EXPECT_NEAR(masks[centre * 2 + 1], 0.560f, 0.02f) << "the reflection's image, apart from it";
             EXPECT_EQ(masks[centre * 2], 0.0f) << "no pane stands anywhere";
         }

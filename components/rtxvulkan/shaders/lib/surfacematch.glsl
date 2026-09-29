@@ -25,9 +25,9 @@ struct HistoryFootprint
 /// fraction every frame, which is a still image that shakes.
 ///
 /// @param moved the pixel's `CHANNEL_MOTION`.
-HistoryFootprint historyFootprint(ivec2 at, vec2 jitter, vec2 moved)
+HistoryFootprint historyFootprint(ivec2 at, vec2 jitter, vec3 moved)
 {
-    const vec2 before = vec2(at) + 0.5 + jitter + moved;
+    const vec2 before = vec2(at) + 0.5 + jitter + moved.xy;
     const vec2 corner = before - 0.5;
     return HistoryFootprint(ivec2(floor(corner)), fract(corner));
 }
@@ -50,17 +50,25 @@ float historyShare(HistoryFootprint footprint, int corner)
 
 /// Whether a history texel belongs to the surface now in front of the pixel.
 ///
+/// **Measured from the eye the history was measured from.** The history's distance is the one the
+/// previous frame found, so this pixel's is taken back there by the step `CHANNEL_MOTION` carries.
+/// Compared from this frame's eye instead, an eye walking toward a surface nearer than its step
+/// over `ACCUMULATE_DEPTH` — two hundred and fifty units at a run of five a frame — finds each
+/// frame's history a different surface, and the filter shows one frame's noise.
+///
 /// @param was the surface the history belongs to: its normal in `xyz`, nought where nothing was
-///        accumulated, and its distance in `w`, scaled as `scaled` is.
-/// @param scaled how far this pixel's surface is, times `distanceScale` —
+///        accumulated, and its distance in `w`, times `distanceScale` —
 ///        `AccumulateConstants::mDistanceScale` says what those units are and why.
-bool heldSurfaceMatches(vec4 was, vec3 normal, float scaled, float distanceScale)
+/// @param distance how far this pixel's surface is, in world units.
+/// @param moved the pixel's `CHANNEL_MOTION`.
+bool heldSurfaceMatches(vec4 was, vec3 normal, float distance, vec3 moved, float distanceScale)
 {
     if (dot(was.xyz, was.xyz) <= 0.0)
         return false;
 
+    const float before = (distance + moved.z) * distanceScale;
     return dot(was.xyz, normal) >= ACCUMULATE_FACING
-        && abs(was.w - scaled) <= ACCUMULATE_DEPTH * max(scaled, distanceScale);
+        && abs(was.w - before) <= ACCUMULATE_DEPTH * max(before, distanceScale);
 }
 
 /// Where the trace's ray through `pixel` ended up, `away` along it, through `eye`.

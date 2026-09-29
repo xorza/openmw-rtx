@@ -127,12 +127,12 @@ struct NearestPane
 {
     float mNormal;
     float mDistance;
-    vec2 mMotion;
+    vec3 mMotion;
 };
 
 NearestPane noNearestPane()
 {
-    return NearestPane(SURFACE_NO_NORMAL, 0.0, vec2(0.0));
+    return NearestPane(SURFACE_NO_NORMAL, 0.0, vec3(0.0));
 }
 
 NearestPane nearestPaneOf(Answer layer)
@@ -473,7 +473,7 @@ void main()
         = composedLight(shaded, answer.mResponse.mDiffuse, bounce, sunLight, sunOpen, lobe, paneModulation, paneLight);
     const float pixelLit = max(dot(pixelLight, LUMINANCE_WEIGHTS), 1e-6);
     const vec3 paneOwn = armsStack.mGlow + armsStack.mThrough * panes.mGlow + paneDrawn;
-    const float paneApart = motionsApart(nearest.mMotion, answer.mMotion);
+    const float paneApart = motionsApart(nearest.mMotion.xy, answer.mMotion.xy);
     const float paneMisMoved = min(dot(paneOwn, LUMINANCE_WEIGHTS) / pixelLit, 1.0) * paneApart;
     const float waterMisMoved = answer.mMisMoved * panes.mThrough * armsStack.mThrough;
 
@@ -493,12 +493,12 @@ void main()
     RTX_STORE_COUNTED(pane, at, BOUNDARY_COLOUR, vec4(paneLight, 1.0))
     RTX_STORE_COUNTED(paneAlbedo, at, BOUNDARY_GUIDE, vec4(paneModulation, 1.0))
     RTX_STORE_COUNTED(paneSurface, at, BOUNDARY_GUIDE, vec4(nearest.mNormal, nearest.mDistance, 0.0, 0.0))
-    RTX_STORE_COUNTED(paneMotion, at, BOUNDARY_GUIDE, vec4(nearest.mMotion, 0.0, 0.0))
+    RTX_STORE_COUNTED(paneMotion, at, BOUNDARY_GUIDE, vec4(nearest.mMotion, 0.0))
     RTX_STORE_COUNTED(upscaleMasks, at, BOUNDARY_GUIDE, vec4(paneMisMoved, waterMisMoved, 0.0, 0.0))
 
     // **The vector as the shader that answered worked it out**: where the surface or the sky stood
     // last frame. `Answer::mMotion` says whose and why there.
-    RTX_STORE_COUNTED(motion, at, BOUNDARY_GUIDE, vec4(answer.mMotion, 0.0, 0.0))
+    RTX_STORE_COUNTED(motion, at, BOUNDARY_GUIDE, vec4(answer.mMotion, 0.0))
 
     // **What the display pass has to draw the backdrop through**, which is everything this frame
     // put between it and the eye: the sky's own layers in `mBackdropShown`, and the panes, the arms,

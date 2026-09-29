@@ -159,12 +159,12 @@ vec2 horizontalNeighbourhood(uint row, uint column)
 }
 
 /// Whether the history at `at` belongs to the surface this pixel shows.
-bool sameSurface(ivec2 at, vec3 normal, float scaled)
+bool sameSurface(ivec2 at, vec3 normal, float distance, vec3 moved)
 {
     if (outsideOf(at, uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight)))
         return false;
 
-    return heldSurfaceMatches(imageLoad(heldSurface, at), normal, scaled, frame.mDistanceScale);
+    return heldSurfaceMatches(imageLoad(heldSurface, at), normal, distance, moved, frame.mDistanceScale);
 }
 
 void main()
@@ -284,13 +284,13 @@ void main()
 
         const vec2 seen = imageLoad(surfaceChannel, at).rg;
         const vec3 normal = unpackSurfaceNormal(seen.x);
-        const float scaled = seen.y * frame.mDistanceScale;
-        const HistoryFootprint before = historyFootprint(at, frame.mCamera.mJitter, imageLoad(motion, at).xy);
+        const vec3 moved = imageLoad(motion, at).xyz;
+        const HistoryFootprint before = historyFootprint(at, frame.mCamera.mJitter, moved);
 
         // The moments at the nearest texel, as the SDK fetches them, and none where that texel is
         // another surface: the SDK's disocclusion.
         const ivec2 nearest = before.mLow + ivec2(greaterThanEqual(before.mAcross, vec2(0.5)));
-        const bool held = frame.mReset == 0u && sameSurface(nearest, normal, scaled);
+        const bool held = frame.mReset == 0u && sameSurface(nearest, normal, seen.y, moved);
         const vec3 previousMoments = held ? imageLoad(momentsBefore, nearest).xyz : vec3(0.0);
 
         const float samples = previousMoments.z + 1.0;
@@ -316,7 +316,7 @@ void main()
             {
                 const float share = historyShare(before, i);
                 const ivec2 tap = historyTap(before, i);
-                if (share <= 0.0 || !sameSurface(tap, normal, scaled))
+                if (share <= 0.0 || !sameSurface(tap, normal, seen.y, moved))
                     continue;
 
                 sum += imageLoad(history, tap).x * share;

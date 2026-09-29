@@ -239,7 +239,8 @@ at the top, over all of them.
   The glossy filter averages the lobe's light over time, where the scene wears a map. The pane
   filter averages what was drawn for the see-through layers over time, against a history of the
   nearest layer's own surface and motion. The accumulator, the shadow denoiser and the glossy filter
-  read one surface history, the accumulator's.
+  read one surface history, the accumulator's. Every history is matched from the eye it was measured
+  from: the motion vector carries how much farther the surface stood from the previous eye.
 
 **The shaders** (`shaders/`, in the folders of the passes that dispatch them, shared pieces in
 `shaders/lib/`). One ray generation shader traces

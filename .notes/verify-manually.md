@@ -131,3 +131,9 @@ Only under the PBR profile: the Zed tasks that start the game with `~/.config/op
 - **Texture crispness at quality and native.** Textures are read at the shown pixel's own level, not
   one finer: look at ground, walls and signs at quality for softness that reads as blur rather than as
   less shimmer, against the tree before this change.
+
+## The history on a walk
+
+- **The sail while running.** At `seyda-neen-sail`, run forward and back fast: the sail stays as
+  quiet as standing still, with no blotches. Then an NPC walking toward the eye, and the arms with a
+  weapon drawn while running: no trail and no smear behind them.

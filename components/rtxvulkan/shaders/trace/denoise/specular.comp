@@ -107,12 +107,12 @@ vec3 toEyeBefore(HistoryFootprint footprint, bool arms)
 }
 
 /// Whether the history at `at` belongs to the surface this pixel shows.
-bool sameSurface(ivec2 at, vec3 normal, float scaled)
+bool sameSurface(ivec2 at, vec3 normal, float distance, vec3 moved)
 {
     if (outsideOf(at, uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight)))
         return false;
 
-    return heldSurfaceMatches(imageLoad(heldSurface, at), normal, scaled, frame.mDistanceScale);
+    return heldSurfaceMatches(imageLoad(heldSurface, at), normal, distance, moved, frame.mDistanceScale);
 }
 
 void main()
@@ -124,7 +124,6 @@ void main()
     const vec4 sampled = imageLoad(specular, at);
     const vec2 seen = imageLoad(surfaceChannel, at).xy;
     const vec3 normal = unpackSurfaceNormal(seen.x);
-    const float scaled = seen.y * frame.mDistanceScale;
 
     // A pixel with no surface reflects nothing, and a surface with no lobe has nothing to average.
     // Both write their sample, which is nought, and a history of no frames.
@@ -134,7 +133,8 @@ void main()
     const bool arms = puffsOnArms(puffed);
     const vec3 toEye = -rayAt(eyeOfPixel(puffed, frame.mCamera, frame.mArms), vec2(at)).mDirection;
 
-    const HistoryFootprint footprint = historyFootprint(at, frame.mCamera.mJitter, imageLoad(motion, at).xy);
+    const vec3 moved = imageLoad(motion, at).xyz;
+    const HistoryFootprint footprint = historyFootprint(at, frame.mCamera.mJitter, moved);
 
     // Where there was no previous frame the basis is nought, and there is no direction to compare:
     // no history, as a reset has none.
@@ -151,7 +151,7 @@ void main()
         {
             const float bilinear = historyShare(footprint, i);
             const ivec2 tap = historyTap(footprint, i);
-            if (bilinear <= 0.0 || !sameSurface(tap, normal, scaled))
+            if (bilinear <= 0.0 || !sameSurface(tap, normal, seen.y, moved))
                 continue;
 
             // A texel that reflected nothing holds no history, and would pull the mean toward nought.

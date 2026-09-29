@@ -150,21 +150,28 @@ namespace RtxTool
         return osg::Vec3f(std::sin(rotation.z()) * level, std::cos(rotation.z()) * level, -std::sin(rotation.x()));
     }
 
-    Approach Stand::approachFromSide(const float across, const float step, const std::uint32_t frames) const
+    osg::Vec3f Stand::getLevelAhead() const
+    {
+        const float yaw = getRotation().z();
+        return osg::Vec3f(std::sin(yaw), std::cos(yaw), 0.0f);
+    }
+
+    Approach Stand::approachFrom(
+        const float left, const float behind, const float step, const std::uint32_t frames) const
     {
         assert(mEye.has_value() && frames >= 2 && step > 0.0f);
 
-        const float yaw = getRotation().z();
-        const osg::Vec3f right(std::cos(yaw), -std::sin(yaw), 0.0f);
+        const osg::Vec3f ahead = getLevelAhead();
+        const osg::Vec3f right(ahead.y(), -ahead.x(), 0.0f);
         const osg::Vec3f look = getLook();
 
         // **Arriving at the last frame and not before it**: the route moves the eye at each measured
         // frame, `frames - 1` steps from the first to the last.
         return Approach{
-            .mFrom = Stand{ .mCell = mCell, .mEye = *mEye - right * across, .mLook = look },
+            .mFrom = Stand{ .mCell = mCell, .mEye = *mEye - right * left - ahead * behind, .mLook = look },
             .mRoute = Route{ .mTo = *mEye,
                 .mLookTo = look,
-                .mSpeed = across / (step * static_cast<float>(frames - 1)),
+                .mSpeed = std::hypot(left, behind) / (step * static_cast<float>(frames - 1)),
                 .mWorldHeld = true },
         };
     }

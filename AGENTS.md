@@ -98,8 +98,8 @@ backend ever arrives.
   only a window shows, and `film` flies through the keys `view --keys` wrote. `noise` holds the
   frame's noise — its distance from the mean of its own independent draws — against sixteen frames
   averaged, and fails a frame noisier; beside it, each one's bias against a converged reference;
-  `--strafe=150` takes the frame after the eye flew in from the side, which is what a history
-  length or a filter's reach shows in.
+  `--strafe=150` takes the frame after the eye flew in from the side, and `--walk=150` from
+  behind, which is what a history length or a filter's reach shows in.
 - `./omw kernels > before.txt` ahead of a shader change and `--against=before.txt` after
   it names the kernels the change moved, per tuple of their constants; a tuple it did not name
   draws what it drew.

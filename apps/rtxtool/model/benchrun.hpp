@@ -143,12 +143,17 @@ namespace RtxTool
         /// read back off a body the harness rotated by a stand is that stand.
         static osg::Vec3f forwardOf(const osg::Vec3f& rotation);
 
-        /// A flight into this stand from `across` units to its left, facing its look all the way,
-        /// arriving at the last of `frames` frames of `step` seconds, through a world held still:
-        /// what `noise --strafe` takes a frame at the end of, with the history the eye moved through. Left along the
-        /// level of the yaw, so a stand looking straight down strafes along its bearing's left.
-        /// Only for a stand that names an eye, and for two frames or more.
-        Approach approachFromSide(float across, float step, std::uint32_t frames) const;
+        /// The unit vector along the level of the yaw: the way a player facing like this stand walks.
+        osg::Vec3f getLevelAhead() const;
+
+        /// A flight into this stand from `left` units to its left and `behind` units behind it,
+        /// facing its look all the way, arriving at the last of `frames` frames of `step` seconds,
+        /// through a world held still: what `noise --strafe` and `--walk` take a frame at the end
+        /// of, with the history the eye moved through. Both along the level of the yaw, as a player
+        /// walks, so a stand looking straight down flies along its bearing. A negative `behind`
+        /// starts in front of the stand and walks back. Only for a stand that names an eye, and for
+        /// two frames or more.
+        Approach approachFrom(float left, float behind, float step, std::uint32_t frames) const;
     };
 
     /// What the sky does at a stop, asked of the game's own weather system rather than derived.
@@ -191,13 +196,13 @@ namespace RtxTool
         float mSpeed = 0.0f;
 
         /// Whether the world stays as the stop holds it while the eye flies: a flight a command
-        /// stages into a place a still reference stands at (`Stand::approachFromSide`). False for a
+        /// stages into a place a still reference stands at (`Stand::approachFrom`). False for a
         /// view's route, which walks through a living world — the route `VerbPolicy::mFliesRoutes`
         /// speaks of.
         bool mWorldHeld = false;
     };
 
-    /// Where a flight into a stand leaves from, and the route it flies: `Stand::approachFromSide`.
+    /// Where a flight into a stand leaves from, and the route it flies: `Stand::approachFrom`.
     struct Approach
     {
         Stand mFrom;

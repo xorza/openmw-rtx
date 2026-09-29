@@ -88,15 +88,12 @@ layout(push_constant, scalar) uniform Push
 const float NO_HISTORY_VARIANCE = 1.0;
 
 /// Whether the history at `at` belongs to the surface now in front of this pixel.
-///
-/// @param scaled how far that surface is, in the units `surfaceOut` holds rather than in world
-///        ones. `AccumulateConstants::mDistanceScale` says what those are and why.
-bool sameSurface(ivec2 at, vec3 normal, float scaled)
+bool sameSurface(ivec2 at, vec3 normal, float distance, vec3 moved)
 {
     if (outsideOf(at, uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight)))
         return false;
 
-    return heldSurfaceMatches(imageLoad(historySurface, at), normal, scaled, frame.mDistanceScale);
+    return heldSurfaceMatches(imageLoad(historySurface, at), normal, distance, moved, frame.mDistanceScale);
 }
 
 void main()
@@ -129,7 +126,8 @@ void main()
     // tap is a history that steps a whole pixel at a time, which under any camera motion is a crawl
     // along every edge; weighting the four and dropping the ones that are a different surface is
     // what keeps it smooth without dragging the wall behind into the floor in front.
-    const HistoryFootprint before = historyFootprint(at, frame.mCamera.mJitter, imageLoad(motion, at).xy);
+    const vec3 moved = imageLoad(motion, at).xyz;
+    const HistoryFootprint before = historyFootprint(at, frame.mCamera.mJitter, moved);
 
     vec3 mean = vec3(0.0);
     vec2 moments = vec2(0.0);
@@ -142,7 +140,7 @@ void main()
         {
             const float bilinear = historyShare(before, i);
             const ivec2 tap = historyTap(before, i);
-            if (bilinear <= 0.0 || !sameSurface(tap, normal, scaled))
+            if (bilinear <= 0.0 || !sameSurface(tap, normal, seen.y, moved))
                 continue;
 
             const vec4 heldMoments = imageLoad(historyMoments, tap);

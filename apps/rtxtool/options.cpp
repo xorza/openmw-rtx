@@ -267,7 +267,12 @@ namespace RtxTool
                         "reference's, so the frame is taken after a history the eye moved through, and held "
                         "to as many frames averaged as that history could hold samples a shown pixel. "
                         "Nought takes it standing still",
-                sNoiseStrafeFrames));
+                sNoiseFlightFrames));
+
+        option(Verbs::Noise, "walk", bpo::value<float>()->default_value(0.0f),
+            "with `noise`, how many world units behind the place the frame starts, as --strafe does to "
+            "the side: it walks in along the level of its facing, and a negative distance starts in "
+            "front and walks back. Adds to --strafe, which it flies in beside");
 
         option(sRuns, "views", bpo::value<std::string>()->default_value(""),
             "which views.cfg views to visit, comma separated, by name rather than by suite. "
