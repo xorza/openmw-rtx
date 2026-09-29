@@ -22,7 +22,7 @@ The plan is `.notes/denoise-and-upscale.md`. What a person has to look at is
 | 11 parity of the optional features | done | 4a2680be3b |
 | — `noise --strafe` | done | 7406a4e4b5 |
 | 12 the documents | done | 56e5a44d90 |
-| 10 the rates and the levels | done | (this commit) |
+| 10 the rates and the levels | done | 577d532959 |
 | 5b ReSTIR DI temporal | not run: its condition does not hold | — |
 
 ## Phase 4: the shadow denoiser

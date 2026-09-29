@@ -29,6 +29,9 @@ namespace Rtx
 {
     namespace
     {
+        /// The words the buffer markers are written into: the top of the pipe's, then the bottom's.
+        using MarkerWords = std::array<std::uint32_t, 2>;
+
         /// Which stage a checkpoint was reported for, for the handful a queue reports on and
         /// the number for the rest.
         std::string checkpointStageName(const VkPipelineStageFlagBits stage)
@@ -243,8 +246,8 @@ namespace Rtx
         if (mCmdWriteBufferMarker != nullptr)
         {
             mMarkerWords = std::make_unique<Buffer>(
-                Buffer::readBack(*this, 2 * sizeof(std::uint32_t), VK_BUFFER_USAGE_TRANSFER_DST_BIT, "markers"));
-            std::memset(mMarkerWords->map(), 0, 2 * sizeof(std::uint32_t));
+                Buffer::readBack(*this, sizeof(MarkerWords), VK_BUFFER_USAGE_TRANSFER_DST_BIT, "markers"));
+            std::memset(mMarkerWords->map(), 0, sizeof(MarkerWords));
         }
     }
 
@@ -382,11 +385,11 @@ namespace Rtx
         {
             // Read as the device left them: the loss ended every write, and the memory is the
             // host's cached kind, which the device writes across the bus coherently.
-            std::uint32_t words[2];
-            std::memcpy(words, mMarkerWords->map(), sizeof(words));
+            MarkerWords words;
+            std::memcpy(words.data(), mMarkerWords->map(), sizeof(words));
 
             std::string report;
-            for (std::size_t at = 0; at < 2; ++at)
+            for (std::size_t at = 0; at < words.size(); ++at)
             {
                 const Checkpoint* const checkpoint = mMarkers.find(words[at]);
                 const std::string stage = checkpointStageName(
