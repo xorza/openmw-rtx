@@ -95,6 +95,7 @@ set(RTX_TEST_FILES
     rtxtool/gpuclock.cpp
     rtxtool/homekey.cpp
     rtxtool/options.cpp
+    rtxtool/picturemean.cpp
     rtxtool/run.cpp
     rtxtool/scenedigest.cpp
     rtxtool/skycrossing.cpp

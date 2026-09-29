@@ -46,6 +46,8 @@ set(RTXTOOL_FILES
     model/skycrossing.hpp
     options.cpp
     options.hpp
+    picturemean.cpp
+    picturemean.hpp
     run.cpp
     run.hpp
     skykeys.cpp

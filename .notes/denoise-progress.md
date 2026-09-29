@@ -563,3 +563,29 @@ difference was the run's make-up, four places against one, which moves every pla
 Cost, two A/B legs: the pond's trace +0.03 ms, the upscaler +0.01; the guild's trace level once the
 motion vector is worked out after the shading again — worked out first, to hand the water, it was
 held across the shading and cost the guild 0.04 ms.
+
+## `noise` measures noise
+
+**Cause of the shore's verdict.** Three native frames of independent draws stood 0.27 apart and each
+1.83 from the reference, and their mean stood 1.83 from it too: not noise, but FSR's reconstruction
+against the reference's box over the pixel, on a place dense in texture (fine detail, as the
+Laplacian's RMS: the reference 9.3, the bar and `off` 18.9, native 12.9, quality 9.5). The bar is
+traced at `off`, so it shared `off`'s centre-sampling and no upscaled mode's kernel.
+
+**Now** (`judgeNoise`): the frame's noise is its distance from the mean of 32 independent draws of
+itself (`sNoiseMeanDraws`, each after 64 frames of warm-up), the bar's from its own limit (32 times its
+frames); the verdict is noise against noise. Each one's bias, its mean against the reference blurred
+by 1.5 pixels, is reported beside it. The suite takes 60–120 s for four places, against about 30.
+
+Frame noise / bar noise (mean / p99), bias frame / bar:
+
+| mode | shore | pier | pond | guild |
+|---|---|---|---|---|
+| off | 0.38/5 : 0.56/5, 0.44 : 0.37 | 0.94/4 : 5.76/29, 1.96 : 0.38 | 0.81/6 : 2.08/15, 1.18 : 0.39 | 0.65/10 : 3.99/26, 2.26 : 1.08 |
+| native | 0.34/2, 0.73 | 0.60/2, 1.32 | 0.47/2, 1.19 | 0.59/3, 2.22 |
+| quality | **0.60/3**, 0.92 | 0.84/4, 1.81 | 0.71/4, 1.55 | 0.92/6, 2.40 |
+| ultra performance | **0.76/5**, 1.25 | 1.12/5, 2.67 | 0.91/5, 2.01 | 1.18/8, 3.36 |
+| quality, strafed (bar 13) | **1.16/13** : 0.61/5 | 1.55/11 : 6.45/33 | 1.30/12 : 2.31/17 | 1.74/16 : 4.21/28 |
+
+Bold is noisier than the bar. The still bar is traced at `off` whatever the mode, so its figures are
+the `off` row's.

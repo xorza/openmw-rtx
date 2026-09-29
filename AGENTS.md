@@ -96,7 +96,8 @@ backend ever arrives.
   `quality` unless told, and an upscaled picture moves with anything its history saw. `scene` reports what the renderer was handed. `check` asserts
   the tree's claims at every place of its suite. `bench` has the moving camera. `view` is for what
   only a window shows, and `film` flies through the keys `view --keys` wrote. `noise` holds the
-  frame against a converged reference, and fails a frame noisier than sixteen frames averaged;
+  frame's noise — its distance from the mean of its own independent draws — against sixteen frames
+  averaged, and fails a frame noisier; beside it, each one's bias against a converged reference;
   `--strafe=150` takes the frame after the eye flew in from the side, which is what a history
   length or a filter's reach shows in.
 - `./omw kernels > before.txt` ahead of a shader change and `--against=before.txt` after

@@ -862,10 +862,12 @@ namespace RtxTool
             return runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));
         }
 
-        /// How far the frame a player sees stands from the picture it converges to, at each place of a
-        /// suite: three pictures of each place, in one run, and a verdict on them.
+        /// How noisy the frame a player sees is, against sixteen frames averaged, and how far what it
+        /// converges to stands from the truth, at each place of a suite: five pictures of each place,
+        /// in one run, and a verdict on them.
         ///
-        /// **The reference, the bar and the frame, in that order.** The reference averages
+        /// **The reference, the bar, the bar's limit, the frame and the frame's mean, in that
+        /// order.** The reference averages
         /// `sNoiseReferenceFrames` frames traced unfiltered and jittered, from the white hash, which
         /// is a sequence neither of the others draws from, so it shares no sample with them; its
         /// exposure is measured as a played frame's is. The bar averages `sNoiseBarFrames` frames,
@@ -874,13 +876,16 @@ namespace RtxTool
         /// its history converges over, upscaled as the run is — or, with `--strafe`, after it flew into
         /// the place from the side (`Stand::approachFromSide`). The reference and the bar are traced
         /// with no upscaler, at the frame's own output size, so an upscaled frame is held to the
-        /// picture it stands for and not to another upscale of it. The bar and the frame hold the
-        /// exposure the reference ended on, so all three are mapped by one curve and the scale is
-        /// derived rather than stated.
+        /// picture it stands for and not to another upscale of it. The bar's limit is the bar drawn
+        /// `sNoiseMeanDraws` times as long, and the frame's mean is `sNoiseMeanDraws` draws of the
+        /// frame, each its own stop that warms up past every history first: what each converges
+        /// to, drawn its own way. Every picture but the reference holds the exposure the reference
+        /// ended on, so all are mapped by one curve and the scale is derived rather than stated.
         ///
-        /// **Judged against the bar and not against a number**: a frame is as clean as the bar when
-        /// it stands no further from the reference, by the mean and at the 99th percentile. The bar is
-        /// measured at the same place, so it carries the place's own difficulty and aliasing with it.
+        /// **Judged against the bar and not against a number**: a frame is as clean as the bar when it
+        /// stands no further from its own mean than the bar from its limit, by the mean and at the 99th
+        /// percentile — `judgeNoise` says why noise against noise. The bar is measured at the same
+        /// place, so it carries the place's own difficulty with it.
         int commandNoise(const Command& command)
         {
             const bpo::variables_map& variables = command.mVariables;
@@ -949,7 +954,7 @@ namespace RtxTool
             };
 
             std::vector<Stop> stops;
-            stops.reserve(places.size() * 3);
+            stops.reserve(places.size() * (4 + sNoiseMeanDraws));
             std::vector<std::string> names;
             names.reserve(places.size());
             for (const Stop& place : places)
@@ -958,7 +963,22 @@ namespace RtxTool
                 stops.push_back(picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true, reference,
                     std::nullopt, Rtx::Upscale::Off));
                 stops.push_back(picture(place, sNoiseBarSuffix, barFrames, true, unfiltered, held, Rtx::Upscale::Off));
+                stops.push_back(picture(place, sNoiseBarLimitSuffix, barFrames * sNoiseMeanDraws, true, unfiltered,
+                    held, Rtx::Upscale::Off));
                 stops.push_back(frame(place));
+
+                for (std::uint32_t draw = 0; draw < sNoiseMeanDraws; ++draw)
+                {
+                    Stop drawn = frame(place);
+                    drawn.mName += sNoiseMeanSuffix;
+                    drawn.mSchedule.mSpec.mWarm = BenchSpan{ .mFrames = sNoiseMeanWarmup };
+                    drawn.mActions.mCapture.clear();
+                    drawn.mActions.mMean = Actions::Mean{
+                        .mFile = out / (place.mName + std::string(sNoiseMeanSuffix) + ".png"),
+                        .mOf = sNoiseMeanDraws,
+                    };
+                    stops.push_back(std::move(drawn));
+                }
             }
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
@@ -1110,7 +1130,8 @@ namespace RtxTool
             Verb{ Verbs::Check, "assert what the renderer is handed and what it draws, at every place of a suite",
                 commandCheck },
             Verb{ Verbs::Film, "fly through the keys `view --keys` wrote, into frames and a video", commandFilm },
-            Verb{ Verbs::Noise, "how far the frame stands from its converged reference, at every place of a suite",
+            Verb{ Verbs::Noise,
+                "how noisy the frame is against 16 frames averaged, and how biased, at every place of a suite",
                 commandNoise },
         };
 
