@@ -865,7 +865,8 @@ namespace RtxTool
         /// is a sequence neither of the others draws from, so it shares no sample with them; its
         /// exposure is measured as a played frame's is. The bar averages `sNoiseBarFrames` frames,
         /// unfiltered and as the run otherwise traces. The frame is the run's own, after the warm-up
-        /// its history converges over, upscaled as the run is. The reference and the bar are traced
+        /// its history converges over, upscaled as the run is — or, with `--strafe`, after it flew into
+        /// the place from the side (`Stand::approachFromSide`). The reference and the bar are traced
         /// with no upscaler, at the frame's own output size, so an upscaled frame is held to the
         /// picture it stands for and not to another upscale of it. The bar and the frame hold the
         /// exposure the reference ended on, so all three are mapped by one curve and the scale is

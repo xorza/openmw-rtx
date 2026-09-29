@@ -194,10 +194,9 @@ namespace RtxTool
         option(otherThan(Verbs::Info | Verbs::Film), "upscale",
             bpo::value<std::string>()->default_value(
                 std::string(Rtx::sUpscaleNames.name(byDefault.mSetup.mProfile.mUpscaling.mMode))),
-            std::format("put the upscaler between the trace and the picture: {}. --size is what "
-                        "comes out, and what gets traced is the upscaler's answer for it. `{}` by "
-                        "default, and a renderer without an upscaler refuses every other mode by "
-                        "name. `film` is always `{}`",
+            std::format("put the upscaler, FSR 3.1, between the trace and the picture: {}. --size is "
+                        "what comes out, and what gets traced is --size over the mode's ratio. `{}` "
+                        "by default. `film` is always `{}`",
                 Rtx::sUpscaleNames.list(), Rtx::sUpscaleNames.name(sUpscaleByDefault),
                 Rtx::sUpscaleNames.name(sFilmUpscale))
                 .c_str());

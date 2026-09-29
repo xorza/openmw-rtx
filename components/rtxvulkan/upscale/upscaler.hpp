@@ -6,7 +6,6 @@
 #include <memory>
 #include <string_view>
 
-#include <osg/Vec2f>
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/shaders/camera.h>
