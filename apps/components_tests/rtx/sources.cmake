@@ -188,6 +188,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/trace/visibility/light.cpp
     rtxvulkan/trace/visibility/sea.cpp
     rtxvulkan/trace/visibility/shadow.cpp
+    rtxvulkan/trace/visibility/specular.cpp
     rtxvulkan/trace/visibility/sky.cpp
     rtxvulkan/trace/visibility/sprites.cpp
     rtxvulkan/trace/visibility/surfaces.cpp

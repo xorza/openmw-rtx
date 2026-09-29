@@ -107,8 +107,20 @@ namespace Rtx::Shaders
     /// Nought and one wherever nothing split it off, which no filter reads as a shadow.
     const uint CHANNEL_SUNLIT = 7;
 
+    /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, whole, times
+    /// the path's transmittance, in `rgb`, and the lobe's perceptual roughness in `a`: the glossy
+    /// light a PBR replacer's surface sends, which the glossy filter takes over time and nothing
+    /// takes across the screen. Nought and `SPECULAR_NO_LOBE` wherever there is no specular half,
+    /// which is every vanilla surface.
+    const uint CHANNEL_SPECULAR = 8;
+
+    /// The roughness `CHANNEL_SPECULAR` holds where there is no lobe: below every roughness, so the
+    /// glossy filter tells a surface with nothing to reflect from a lobe whose draw this frame
+    /// returned nought.
+    const float SPECULAR_NO_LOBE = -1.0f;
+
     /// How many the set declares, which is the last of them and one more.
-    const uint CHANNEL_COUNT = 8;
+    const uint CHANNEL_COUNT = 9;
 
     /// How many steps either side of nought the surface channel holds an octahedral axis at: twelve
     /// bits an axis, so a code is under 2^24 and a float holds it exactly.

@@ -424,9 +424,9 @@ struct Bounce
     /// diffuse albedo.
     vec3 mDiffuse;
 
-    /// Whole: what the lobe reflects toward the eye. **It joins the direct light, because it is not
-    /// multiplied by the diffuse albedo** — a metal has none, and in the indirect term its whole
-    /// reflection would be multiplied by nought.
+    /// Whole: what the lobe reflects toward the eye. **It stays out of the indirect channel, because
+    /// it is not multiplied by the diffuse albedo** — a metal has none, and in the indirect term its
+    /// whole reflection would be multiplied by nought.
     vec3 mSpecular;
 };
 
@@ -625,9 +625,7 @@ Bounce bounceLight(Surface surface, Gloss gloss, uvec2 pixel, Cone cone)
 /// What a solid the eye found sends back, in the channels' pieces.
 struct SeenSolid
 {
-    /// Everything resolved but the sky's source and the diffuse light the filter takes: the glow, the
-    /// lamps' lobe, and the lobe's bounce, which joins the direct light for the reason
-    /// `Bounce::mSpecular` gives.
+    /// Everything resolved but what a filter takes: the glow.
     vec3 mDirect;
 
     /// The diffuse light the wavelet filters, per unit albedo: the one bounce, and the lamps.
@@ -640,10 +638,17 @@ struct SeenSolid
     /// whether they did: `CHANNEL_SUNLIT`'s two halves.
     vec3 mSunlit;
     float mSunOpen;
+
+    /// What the lobe reflects of the lamps and of the one bounce, whole, and the perceptual
+    /// roughness of the lobe that reflects it, or `SPECULAR_NO_LOBE`: `CHANNEL_SPECULAR`. Not
+    /// multiplied by the diffuse albedo, for the reason `Bounce::mSpecular` gives.
+    vec3 mSpecular;
+    float mRoughness;
 };
 
 /// What a solid the eye found is: its direct light, the one bounce it gathers, the sky's source
-/// apart for the shadow denoiser, and what it is in the filter's terms.
+/// apart for the shadow denoiser, the lobe's light apart for the glossy filter, and what it is in the
+/// filter's terms.
 ///
 /// **One statement of what a ground pixel is, used twice** — for the hit itself, and for the bed
 /// under a waterline pixel, which is that ground and has to be shaded exactly as it. Written twice
@@ -659,10 +664,13 @@ SeenSolid shadeSolid(Surface hit, uvec2 pixel, Cone cone)
     // **The lamps' diffuse half joins the bounce, and the filter takes both**, which is what a
     // shipped path tracer does with its direct lights (RTXDI's diffuse beside the indirect, under
     // ReLAX): one lamp drawn a pixel is as noisy as one bounce, and both are demodulated the same way.
-    // Split, `gather`'s diffuse half holds the lamps alone. Their lobe stays in the direct light.
+    // Split, `gather`'s diffuse half holds the lamps alone, and its specular half their lobe, which
+    // joins the bounce's lobe for the glossy filter.
     SeenSolid seen;
-    seen.mDirect = litSurface(hit, vec3(0.0), lit.mSpecular) + bounced.mSpecular;
+    seen.mDirect = litSurface(hit, vec3(0.0), vec3(0.0));
     seen.mBounce = bounced.mDiffuse + lit.mDiffuse;
+    seen.mSpecular = lit.mSpecular + bounced.mSpecular;
+    seen.mRoughness = gloss.mGlossy ? hit.mRoughness : SPECULAR_NO_LOBE;
     seen.mResponse = responseOf(hit);
     seen.mSunlit = hit.mAlbedo * lit.mSkyDiffuse + lit.mSkySpecular;
     seen.mSunOpen = lit.mSkyOpen;

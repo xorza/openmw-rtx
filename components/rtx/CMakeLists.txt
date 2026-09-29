@@ -246,6 +246,7 @@ set(RTX_SHADER_HEADERS
     shaders/shadow.h
     shaders/skinning.h
     shaders/sky.h
+    shaders/specular.h
     shaders/spritebin.h
     shaders/spritelight.h
     shaders/spriteshade.h

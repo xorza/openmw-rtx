@@ -16,7 +16,8 @@ The plan is `.notes/denoise-and-upscale.md`. What a person has to look at is
 | 6a fast history | stopped, reverted; a lag guard kept | f426a7e18e |
 | — race in the shadow classification | fixed | 5ff7a51f80 |
 | 7 the upscaler's sizes in the core | done | f7c1f5c891 |
-| 8 FSR 3.1.4 | done | (this commit) |
+| 8 FSR 3.1.4 | done | a815be83d9 |
+| 9 the glossy filter | done | (this commit) |
 
 ## Phase 4: the shadow denoiser
 
@@ -215,3 +216,53 @@ Proofs: `anEvenFrameReconstructsToItself` (native, within a byte), `theSameFrame
 
 A comment-checker note: `RtxSourceTreeTest.everyMemberACommentNamesIsDeclared` reads `Resource::…`
 in any comment as a member of any enum called `Resource`; the port's enum is named `Bound` for it.
+
+## Phase 9: the glossy filter
+
+- `CHANNEL_SPECULAR` (8): the lamps' lobe and the bounce's lobe times the transmittance in `rgb`,
+  the lobe's roughness in `a`, `SPECULAR_NO_LOBE` (−1) where there is no lobe. The payload grows to
+  18 words; the roughness rides in a spare byte of the flags word.
+- `specular.comp`, `SpecularPass`, `SpecularHistory`: ReLAX's surface-motion rule (the history is kept
+  while the view turns less than `atan(3 r²) · N·V`, floored at a pixel's angle), the accumulator's
+  bilinear reprojection against its own surface history, and its outlier clamp, counted by the
+  history the view kept. Recorded only where `TraceSubject::mMapped` (the answer `HAS_MAPS` reads);
+  the composite reads the channel itself everywhere else.
+- `TraceSubject::mMapped` replaces the pass's own `getCounts().mMapped > 0`.
+
+Where the build differs from the plan, and why:
+
+- **The mean is a full float.** In halves, sixteen frames of a metal floor stood 0.13–0.2% under the
+  average of the same frames: this card rounds a stored half toward nought, and a running mean
+  stores it sixteen times. With a full float the filter over a still eye equals the average of its
+  frames (`overAStillEyeTheGlossyFilterIsTheMeanOfItsFrames`). The first moment is the mean's
+  luminance, so the second rides in its fourth channel and the count in an `r16f` of its own.
+- **The lobe's presence travels explicitly.** A first version took a sample of nought as "no lobe",
+  so a glossy pixel whose lamp draw came back shadowed lost its history. Found in review, fixed
+  before any measurement below.
+- **The history length follows the view's turn** (ReLAX), not a fixed eight frames: the plan's fixed
+  length would drag a sharp highlight behind the camera.
+
+Tests: `overAStillEyeTheGlossyFilterIsTheMeanOfItsFrames` (to a thousandth of the mean);
+`aLobeKeepsItsHistoryOverATurnOfTheViewAsWideAsTheLobe` (a 0.395 rad turn: roughness 0.302 drops the
+history, the frame equals the raw one to a half's rounding; roughness 1 keeps it, 11–12% nearer the
+reference in red and green, level in blue); the lamp-noise test asserts a floor with no map writes
+nought to the channel.
+
+Proofs: `shot --views=all --map --upscale=off`, filtered and unfiltered, identical to the phase 8 and
+phase 5a pictures pixel for pixel (the hashes cannot be compared across the new channel's column);
+`repeat --pairs=10` identical under both profiles; vanilla `noise` at native unchanged (2.64/13,
+4.18/35).
+
+`omw release noise` under PBR (frame mean / p99; bars 7.06/34 and 7.34/53):
+
+| Mode | seyda-neen-pier before | after | balmora-mages-guild before | after |
+|---|---|---|---|---|
+| off | 6.59 / 68 | 5.09 / 19 | 10.25 / 105 | 7.67 / 97 |
+| native | 5.33 / 22 | 5.10 / 20 | 7.04 / 49 | 6.35 / 47 |
+| quality | 5.66 / 25 | 5.57 / 24 | 7.68 / 53 | 7.53 / 54 |
+
+The guild at `off` keeps the paper screens no filter reaches (phase 8); at quality it stands one p99
+level over its bar.
+
+Cost (noise run's zones, PBR): `specular` 0.31 (off) and 0.35 ms (native), 0.15 ms at quality; the
+trace 3.41 → 3.43 ms at native, inside a run's spread. None in a vanilla scene.

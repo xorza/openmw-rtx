@@ -15,6 +15,7 @@ namespace Rtx
         , mSpriteShade(device, shaders)
         , mAccumulate(device, shaders)
         , mShadow(device, shaders)
+        , mSpecular(device, shaders)
         , mFilter(device, shaders)
     {
     }

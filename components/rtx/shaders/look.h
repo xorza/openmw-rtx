@@ -1126,6 +1126,14 @@ namespace Rtx::Shaders
     /// 0.164, eleven binades clear of where a half stops holding proportion.
     const float ACCUMULATE_DISTANCE_RANGE = 32768.0f;
 
+    /// What share of the lobe's volume the glossy filter's lobe angle holds: ReLAX's
+    /// `GetSpecLobeTanHalfAngle` default, whose half angle is `atan(r² · v / (1 - v))` for a
+    /// perceptual roughness `r` — three `r²` at this share.
+    ///
+    /// **ReLAX's, because it is the one published rule for how far a view may turn before a glossy
+    /// history describes a different reflection**, and the constant is what that rule was tuned at.
+    const float SPECULAR_LOBE_VOLUME = 0.75f;
+
     /// How sharply a tap's normal has to agree with the centre's, as the exponent on their cosine.
     ///
     /// A hundred and twenty-eight keeps a tap at more than about six degrees of tilt from

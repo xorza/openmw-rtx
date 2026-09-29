@@ -54,6 +54,10 @@ layout(set = SET_PASS, binding = COMPOSITE_BIND_SUNLIT) uniform readonly image2D
 /// How much of it got through, as the shadow denoiser filtered the rays' bits: its mean in `r`.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SHADOW, SHADOW_REPROJECTED) uniform readonly image2D shadow;
 
+/// The lobe's light: the glossy filter's mean where it ran, and `CHANNEL_SPECULAR` itself where it
+/// did not. No format, for the reason `indirect` has none.
+layout(set = SET_PASS, binding = COMPOSITE_BIND_SPECULAR) uniform readonly image2D specular;
+
 /// The running sum, when `mAccumulate` asks for one.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SUM, COMPOSITE_SUM_FORMAT) uniform image2D sum;
 
@@ -74,7 +78,8 @@ void main()
     {
         const vec4 sun = imageLoad(sunlit, at);
         const float seen = frame.mShadowed != 0u ? imageLoad(shadow, at).r : sun.a;
-        resolved = composedLight(resolved, imageLoad(albedo, at).rgb, imageLoad(indirect, at).rgb, sun.rgb, seen);
+        resolved = composedLight(resolved, imageLoad(albedo, at).rgb, imageLoad(indirect, at).rgb, sun.rgb, seen,
+            imageLoad(specular, at).rgb);
     }
 
     // In linear, which is what everything downstream of here now works in. Summing an encoded frame

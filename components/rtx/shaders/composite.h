@@ -22,7 +22,8 @@ namespace Rtx::Shaders
     const uint COMPOSITE_BIND_SUM = 3;
     const uint COMPOSITE_BIND_SUNLIT = 4;
     const uint COMPOSITE_BIND_SHADOW = 5;
-    const uint COMPOSITE_BINDINGS = 6;
+    const uint COMPOSITE_BIND_SPECULAR = 6;
+    const uint COMPOSITE_BINDINGS = 7;
 
 /// What the running sum a reference is built in is kept as: full floats, for the reason
 /// `GBUFFER_RADIANCE_SUMMED` is.

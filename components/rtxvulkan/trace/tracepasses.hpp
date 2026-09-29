@@ -9,6 +9,7 @@
 #include <components/rtxvulkan/trace/denoise/atrouspass.hpp>
 #include <components/rtxvulkan/trace/denoise/compositepass.hpp>
 #include <components/rtxvulkan/trace/denoise/shadowpass.hpp>
+#include <components/rtxvulkan/trace/denoise/specularpass.hpp>
 
 #include "visibilitypass.hpp"
 
@@ -47,6 +48,7 @@ namespace Rtx
         /// and the scratch its own camera needs.
         AccumulatePass mAccumulate;
         ShadowPass mShadow;
+        SpecularPass mSpecular;
         AtrousPass mFilter;
     };
 }
