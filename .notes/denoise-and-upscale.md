@@ -15,8 +15,8 @@ The recommendation, in short:
    through a dedicated shadow denoiser, a port of AMD's FidelityFX Shadow Denoiser (MIT). The lamps'
    diffuse light joins the bounce in the one demodulated diffuse signal that the accumulator and the
    wavelet filter. The accumulator gets a fast history against lag. ReSTIR for the lamps comes only
-   if the measure asks for it. Glossy light gets a temporal filter only, when PBR content is here to
-   test it.
+   if the measure asks for it. Glossy light gets a temporal filter only, measured under the PBR
+   profile on this machine.
 3. **Upscale and anti-alias with FSR 3.1**, ported into the backend (MIT, analytic, every vendor).
    FSR's native mode is the renderer's anti-aliasing.
 4. **No vendor ML library.** DLSS, FSR 4, FSR Ray Regeneration, XeSS and NRD all have licences that
@@ -153,10 +153,14 @@ takes it in.
 - **F7. The harness upscales by default once an upscaler exists.** `sUpscaleByDefault` in
   `apps/rtxtool/run.hpp` becomes `Quality`. Every `shot` baseline and every `--against` run must name
   `--upscale=off` from phase 8 on, and `noise` must trace its reference and its bar at `off`.
-- **F8. One thing is blocked on this machine.** There is no PBR replacer in the data (vanilla
-  `Morrowind.esm`, `Tribunal.esm`, `Bloodmoon.esm` only), so the glossy filter (phase 9) has nothing
-  to be measured on. The drm-shim can be built: `python-mako` is installed, the installed RADV is
-  Mesa 26.2.3, and `~/Projects/mesa` stands at the tag `mesa-26.2.3`.
+- **F8. Nothing is blocked on this machine.** The default profile is vanilla, but
+  `~/.config/openmw-pbr` stacks MVR and its PBR retextures (`/home/Games/Morrowind-PBR/mods`, 3,390
+  `_spec` maps) with `specular map layout = metal roughness`. The harness takes it as
+  `--replace=config --config="$HOME/.config/openmw-pbr"`, which the Zed tasks already use. Measured
+  headless: at `seyda-neen-ship`, 453 of 636 materials wear a specular map, and `glossOf` gives every
+  one of them a lobe (a dielectric's reflectance is 0.04, not nought). The drm-shim can be built:
+  `python-mako` is installed, the installed RADV is Mesa 26.2.3, and `~/Projects/mesa` stands at the
+  tag `mesa-26.2.3`.
 - **F9. The tree uses no subgroup operations.** No shader reads a subgroup, and no requirement names
   one. The ports keep it so. AMD compiles compute at wave32 or wave64 and Intel at SIMD8 to SIMD32,
   and a reduction written for an 8×4 wave is wrong on both.
@@ -183,12 +187,12 @@ together. Water, emission, the sky and the fog stay resolved in the trace, as no
 | The sun's or a moon's light at the eye's surface, with visibility one, and whether its ray got through | `gather` for the eye's solid | shadow denoiser (5.1) over the bit | new: `CHANNEL_SUNLIT` |
 | Lamps' diffuse light, demodulated | `gather` for the eye's solid | the diffuse denoiser (5.2, 5.3) | joins `CHANNEL_INDIRECT` |
 | The bounce, demodulated | the trace | the diffuse denoiser | `CHANNEL_INDIRECT` |
-| Glossy light of the lamps and the bounce | the trace | none now, temporal later (5.5) | `CHANNEL_DIRECT` |
+| Glossy light of the lamps and the bounce, whole | `gather` and the bounce for the eye's solid | temporal only (5.5) | new: `CHANNEL_SPECULAR` |
 | Emission, sky, water, fog, panes, what a pane or a water ray shades | the trace | none | `CHANNEL_DIRECT` |
 
 The composite becomes
 
-    colour = direct + sunlit.rgb × shadow + albedo × filter(indirect)
+    colour = direct + sunlit.rgb × shadow + albedo × filter(indirect) + temporal(specular)
 
 where `shadow` is the filtered visibility. Where nothing filters (`--filter=0`, a reference, a
 picture inside the interface), the trace composes the frame itself, as now, with the bit in place of
@@ -335,10 +339,27 @@ Only if the guild still fails its bar after 5.1 to 5.3 (phase 5b's rule).
   The noise measure's mean error shows a bias. The motion vector has to be known before `gather`
   runs, so `main` of the closest-hit shader computes `motionOf` first.
 
-### 5.5 Glossy light (deferred)
+### 5.5 Glossy light
 
-Temporal only, as in Q2RTX: reproject by the surface motion, clamp to the neighbourhood, blend. Only
-surfaces with a lobe write here. It waits for a PBR replacer on this machine (F8).
+Temporal only, as in Q2RTX: a spatial filter smears a normal-mapped highlight.
+
+- **What goes in.** After phase 4, the sky source's lobe rides `CHANNEL_SUNLIT` under the shadow
+  denoiser. What is left of the glossy light is the lamps' lobe (`kept.mSpecular * lampShare`) and
+  the bounce's lobe (`Bounce::mSpecular`), and the second one is the noisy one: one lobe sample per
+  pixel. Both go to a new `CHANNEL_SPECULAR` (radiance width, whole, not demodulated: a temporal
+  filter does not blur across texels, so the specular albedo needs no channel), and `direct` loses
+  them where `split` is set.
+- **The pass.** `specular.comp` with `SpecularHistory` (a mean pair, `STORAGE_RGBA16F`, and the
+  frame count in its alpha): reproject by the surface's motion vector with the accumulator's taps and
+  `sameSurface` (`lib/history.glsl`), clamp the history to the 3×3 neighbourhood's mean ± `SPECULAR_SIGMAS`
+  × its spread (luminance moments over the nine taps, as a TAA clamp), and blend at
+  `alpha = 1 / min(frames + 1, SPECULAR_FRAMES)`, `SPECULAR_FRAMES = 8`.
+- **Recorded only where the scene holds a specular map** — the count `scene` already reports. A
+  vanilla frame records nothing and composites nought, so its picture does not move (the posture of
+  `AGENTS.md`).
+- **A reflection moves with parallax, not with the surface.** Reprojecting by the surface's motion is
+  right for a rough lobe and wrong for a mirror. The clamp keeps a mirror's error to a lag, not a
+  ghost. A reflection's own motion vector is the later step, and only if the pictures ask for it.
 
 ### 5.6 The order of a frame
 
@@ -501,6 +522,12 @@ Each test states its expected values and how they were derived. The GPU tests ex
    driver found.
 8. **ReSTIR** (only with 5b): with one lamp, the temporal estimate equals the direct one frame for
    frame; with a lamp removed, the reservoir never names it again (the row map).
+9. **The glossy filter**, in `shadow.cpp`'s neighbour `specular.cpp`: a glossy floor (a test texture
+   with a metal-roughness specular map) under one lamp: the filtered mean stays within the
+   `filter.cpp` tolerance of the raw mean and the spread falls. The same floor with no specular map:
+   `CHANNEL_SPECULAR` is nought everywhere and the pass was not recorded.
+10. **Both profiles.** Every `noise` a phase takes runs twice: vanilla, and under the PBR profile
+    (`--replace=config --config="$HOME/.config/openmw-pbr"`). The two are two tables in the record.
 
 ## 9. Licences
 
@@ -547,15 +574,17 @@ repository's commit style and no other trailer. If not, after each green phase w
 change since the start into a patch — `git add -A && git diff --cached --binary > <scratchpad>/phase-N.patch
 && git reset -q` — and record its path. No commit, no stash, no tag.
 
-**Order.** 4, 5a, 6a, 7, 8, 10, 3, 11, 12, then 5b if its condition holds. The value first: the
-pier's shadows, the lamps, the anti-aliasing. Section 11 says which phases depend on which.
+**Order.** 4, 5a, 6a, 7, 8, 9, 10, 3, 11, 12, then 5b if its condition holds. The value first: the
+pier's shadows, the lamps, the anti-aliasing, the glossy replacers. Section 11 says which phases
+depend on which.
 
 **Each phase, in this order.**
 
 1. Read the files the phase names, and what calls them.
 2. Baselines, before any edit: `./omw shot --views=all --map --upscale=off --out=<scratchpad>/pN-before`
    (and `--filter=0` a second time where test 2 applies), `./omw kernels > <scratchpad>/pN-kernels.txt`
-   for a shader phase, and `./omw release noise` for a phase that moves the picture.
+   for a shader phase, and `./omw release noise` for a phase that moves the picture, under both
+   profiles (test 10).
 3. Build the change. Build the touched targets. Run the covering test binary with a filter.
    `./omw format`.
 4. The phase's tests (section 8), then `./omw test`.
@@ -667,9 +696,27 @@ Depends on phase 7. Design: 6.2 to 6.4.
 Expected: `noise` at `native` is lower than the unupscaled frame at every place, because FSR
 accumulates across frames. At `quality` it is a new number; the record gives it without a verdict.
 
+### Phase 9: the glossy filter
+
+Depends on phase 4 (the sky's lobe leaves `direct` there) and on `lib/history.glsl`. Design: 5.5.
+
+1. `DirectLight` keeps the lamps' lobe apart under `split`; `shadeSolid` hands the lamps' lobe and the
+   bounce's lobe on as `specular`; the payload carries it (three whole floats: 18 words); the launch
+   stores `specular * transmittance` into `CHANNEL_SPECULAR`, and adds it where it composes.
+2. `specular.h`, `specular.comp`, `SpecularPass`, `SpecularHistory`; `TraceChain::recordDenoise` records
+   it after the wavelet, only where the scene holds a specular map; the composite's binding.
+3. Test 9, then the proof: `shot --views=all --upscale=off` **identical by hash** in the vanilla
+   profile, filtered and unfiltered (nothing vanilla writes the channel); test 2 under the PBR profile;
+   `noise` under both profiles; the bench under both.
+4. The payload's growth (15 to 18 words) is measured by the trace's own zone under the PBR profile and
+   under vanilla, and the record says what it cost.
+
+Expected: under the PBR profile the glossy speckle on metal and wet stone falls. Vanilla does not
+move at all.
+
 ### Phase 10: the rates and the levels
 
-Depends on 4, 5a, 6a and 8.
+Depends on 4, 5a, 6a, 8 and 9. Each measure here runs under both profiles.
 
 1. For each of `INDIRECT_LIGHT_RATE`, `BOUNCE_RATE`, `AMBIENT_EXTERIOR_RATE` (each 0.5 now): trace at
    0.25, 0.5 and 1.0, with `noise` and the bench at each. Keep the cheapest value whose noise at both
@@ -737,7 +784,6 @@ spread and the pier does not rise.
 ### Not in the unattended run
 
 - **6b, A-SVGF temporal gradients** (F11): a design of its own.
-- **9, the glossy filter**: needs a PBR replacer on this machine (F8).
 - **The FSR reactive mask** for water and fog: a person has to look at a moving picture.
 - **13, Intel**: after AMD is done (D9).
 
