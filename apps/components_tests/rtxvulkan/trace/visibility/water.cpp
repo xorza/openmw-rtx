@@ -891,5 +891,38 @@ namespace Rtx::Testing
                     << "channel " << channel;
             }
         }
+
+        /// **What a water ray finds asks every occlusion ray it draws, because nothing filters it.**
+        /// `sGrazedWall` under `grazingTheWater`'s eye, lit by the ambient alone, with nothing over it
+        /// and nothing under the water: every occlusion ray the wall asks reaches the sky. Drawn at
+        /// `AMBIENT_EXTERIOR_RATE`, a ray answers nought or twice, and one frame of the reflection is
+        /// a speckle of the two. At `AMBIENT_UNFILTERED_RATE` it answers one, and every pixel's rays
+        /// are parallel to every other's, so the frame is one value.
+        TEST_F(RtxVisibilityTest, whatAWaterRayFindsAsksEveryOcclusionRayBecauseNothingFiltersIt)
+        {
+            constexpr std::uint32_t size = 32;
+
+            Shaders::VisibilityConstants camera = grazingTheWater(size);
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f());
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mAmbient = osg::Vec3f(1.0f, 1.0f, 1.0f);
+            camera.mAmbientFromSky = 1.0f;
+
+            SceneDesc scene = makeOpenWater(4000.0f);
+            addQuad(scene, sGrazedWall);
+
+            const Frame frame = shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
+
+            float lowest = frame.at(1);
+            float highest = lowest;
+            for (std::size_t value = 1; value < frame.mRadiance.size(); value += 4)
+            {
+                lowest = std::min(lowest, frame.at(value));
+                highest = std::max(highest, frame.at(value));
+            }
+            ASSERT_GT(lowest, 0.0f) << "the water shows the wall nowhere";
+            EXPECT_NEAR(highest, lowest, lowest * 1e-4f) << "the wall's reflection is speckled";
+        }
     }
 }

@@ -100,11 +100,13 @@ namespace Rtx::Shaders
     /// nothing the composite draws moves with the jitter the traced grid is sampled at.
     const uint CHANNEL_PUFFS = 6;
 
-    /// What the sun, or a moon at night, adds to the solid the eye found, as though every ray to it
-    /// got through, in `rgb` — the albedo, the lobe and the path's transmittance already in — and in
-    /// `a` whether they did, one or nought. The one bit a pixel's shadow is, which the shadow denoiser
-    /// filters in its place: `rgb` is exact per pixel, so a texture under a penumbra stays sharp.
-    /// Nought and one wherever nothing split it off, which no filter reads as a shadow.
+    /// What the sun, or a moon at night, adds to what the eye sees as though every ray to it got
+    /// through, in `rgb` — the albedo, the lobe and the path's transmittance already in — and in `a`
+    /// whether they did, one or nought. What the eye sees is the solid it found, or what the water
+    /// reflects and what is seen through it, whose `a` is one of their two bits (`mixSplit`). The
+    /// one bit a pixel's shadow is, which the shadow denoiser filters in its place: `rgb` is exact
+    /// per pixel, so a texture under a penumbra stays sharp. Nought and one wherever nothing split
+    /// it off, which no filter reads as a shadow.
     const uint CHANNEL_SUNLIT = 7;
 
     /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, whole, times

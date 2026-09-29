@@ -463,3 +463,37 @@ taken through the upscaler before this was taken with the fault in.
 The launcher and the settings window offer `off`, first: the denoisers and no upscaler.
 `sUpscaleMenu` is every mode `sUpscaleNames` spells; each language's label reuses its launcher's
 existing word for Off.
+
+## The water's speckle
+
+Reported: at the pond east of Seyda Neen (`seyda-neen-pond`) what the water reflects and shows
+through it is speckled, and the rock itself is clean. Measured with one term removed at a time at
+`off`: the sun's shadow ray at the far end of each water ray is most of it (the rock stands in the
+leaves' penumbra), and the ambient occlusion ray, drawn at a rate of one half, most of the rest. The
+lamps, the water column and the wave normal add nothing. A 256-frame reference says the mean was
+right: it is variance, and the water's light went to the direct channel, which no filter reads.
+
+**Fix:** the water's rays split the sun off as the eye's solid does (`SplitLight`), and the pixel's
+one bit is one of the two rays', drawn in proportion to the luminance each adds (`mixSplit`); the
+shore band draws between the bed and the water the same way. The water's rays and the panes trace
+every occlusion ray (`AMBIENT_UNFILTERED_RATE`).
+
+Error against the reference at `off`, in codes (band at the waterline / under the water; the dry rock
+1.86):
+
+| | band | under |
+|---|---|---|
+| before | 16.97 | 15.48 |
+| the brighter ray's bit kept, the other composed | 8.38 | 5.89 |
+| a bit drawn by the shares | 5.27 | 4.71 |
+| and every occlusion ray | 3.40 | 3.03 |
+
+The drawn bit's converged picture stands within 0.6 of a code of the exact one in every channel —
+under the noise of two 256-frame pictures.
+
+`noise` at the pond: 2.62/28 before and 1.80/13 after at `off`; 2.30/13 and 2.22/12 at quality.
+Strafed at quality it is "noisier" before and after (2.69/22, 2.64/21): the upscaler's short history.
+The pond joins the `[noise]` suite; the pier and the guild did not move (2.59/12, 3.99/33).
+
+Cost, two A/B legs back to back (frame median; trace; shadow filter): the pond 5.40 → 5.59 and 5.33 →
+5.52 ms, trace +0.09, shadow +0.07; the shore +0.08 and +0.10; the ship +0.00 and +0.07.

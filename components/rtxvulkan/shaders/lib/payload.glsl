@@ -42,10 +42,10 @@ struct Answer
     /// two back together afterwards.
     vec3 mBounced;
 
-    /// What the sky's source adds to the solid the eye found, as though its rays got through, and
-    /// whether they did: `SeenSolid::mSunlit` and `mSunOpen`. Nought and open wherever nothing split
-    /// it off — a pane, the water's own light, the sky — so a shadow denoiser reads such a pixel as
-    /// lit and as nothing to filter.
+    /// What the sky's source adds to what the eye sees — the solid it found, or what the water's
+    /// legs found — as though its rays got through, and whether they did: a `SplitLight`'s two
+    /// halves. Nought and open wherever nothing split it off — a pane, the sky — so a shadow
+    /// denoiser reads such a pixel as lit and as nothing to filter.
     vec3 mSunlit;
     bool mSunOpen;
 

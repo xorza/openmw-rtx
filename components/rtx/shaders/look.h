@@ -547,6 +547,10 @@ namespace Rtx::Shaders
     /// is what the filter is for — and it is the same trade the moon pick makes. Nothing downstream
     /// clamps it: `pathEnd` and a sprite's fill both multiply, so a doubled sample stays worth double.
     ///
+    /// **Only where a filter takes the answer**: the bounce's far hit and the fog's froxels. What
+    /// the water's rays find, and a pane, go to the picture as they are, and draw at
+    /// `AMBIENT_UNFILTERED_RATE`.
+    ///
     /// **Hashed rather than blue noise, because two callers must not agree.** The bounce and a water
     /// reflection each ask this, and the water's two rays already take separate seeds so that a
     /// reflection and a refraction do not keep one answer between them. A screen-space tile has one
@@ -559,6 +563,17 @@ namespace Rtx::Shaders
     /// pier's and the guild's noise where the half does, to the second decimal, still and strafing
     /// in, which is the argument above for stopping at a half.
     const float AMBIENT_EXTERIOR_RATE = 0.5f;
+
+    /// What share of the occlusion rays out of doors are traced where nothing filters the answer:
+    /// all of them.
+    ///
+    /// **The half is a trade against a filter, and there is no filter here.** What a water ray
+    /// finds and what a pane shows reach the picture as they are traced, so a point open to the
+    /// sky came back as nought or twice its light — a speckle over every reflection, which the
+    /// shadow denoiser, filtering the sun's bit, left standing. At the pond under a canopy that
+    /// `-1,-9` looks at, every ray took the water's error against a reference from 5.3 codes to
+    /// 3.4, where the rock beside it stands at 1.9.
+    const float AMBIENT_UNFILTERED_RATE = 1.0f;
 
     /// How far a ray carries fog before whatever is behind it stops mattering.
     ///
