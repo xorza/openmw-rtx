@@ -11,7 +11,8 @@ The plan is `.notes/denoise-and-upscale.md`. What a person has to look at is
 
 | Phase | State | Commit |
 |---|---|---|
-| 4 shadow denoiser | done | (this commit) |
+| 4 shadow denoiser | done | 85c2647ea6 |
+| 5a lamps join the diffuse signal | done | (this commit) |
 
 ## Phase 4: the shadow denoiser
 
@@ -94,3 +95,28 @@ baseline; the 27 map tiles moved, because a map is a picture the wavelet always 
 shadow denoiser now filters it too (one frame, no history). `repeat --pairs=10` identical. `./omw
 test` green. `./omw gate` clean.
 
+
+## Phase 5a: the lamps join the diffuse signal
+
+Where `gather` splits, its diffuse half is the lamps alone, so no new field was needed:
+`shadeSolid` adds it to the bounce, and `litSurface` now takes the diffuse and the specular light
+apart instead of a `DirectLight`.
+
+Test (`theFilterTakesTheLampsNoiseOffAFloorAndLeavesTheirLightWhereItWas`, four coloured lamps):
+the filtered error is 0.21–0.23 of the raw, channel by channel, and the mean within 0.2–0.7%.
+
+| Profile | Place | Before | After | Bar |
+|---|---|---|---|---|
+| vanilla | seyda-neen-pier | 2.33 / 12 | 2.29 / 12 | 5.92 / 30 |
+| vanilla | balmora-mages-guild | 7.11 / 90 | 4.77 / 76 | 4.54 / 38 |
+| PBR | seyda-neen-pier | 6.70 / 68 | 6.59 / 68 | 7.06 / 34 |
+| PBR | balmora-mages-guild | 12.21 / 111 | 10.25 / 105 | 7.34 / 53 |
+
+**What is left in the guild is the paper screens.** Nearly every pixel over 60 levels off the
+reference is on the screens the lamps light from behind: a see-through layer's light is composed in
+the trace and never reaches a filter. FSR's accumulation (phase 8) is the next thing that acts on
+it; measured again there.
+
+Cost: unchanged (default suite, trace 4.25 / 4.77 / 2.82, filter 2.38 / 1.85 / 3.12, shadow 0.42 /
+0.52). Proofs: every frame within 1 level unfiltered; the map tiles moved again, because the lamps
+are now filtered in them too. `repeat --pairs=10` identical, `./omw test` green, gate clean.

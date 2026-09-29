@@ -10,6 +10,7 @@
 
 #include <osg/Math>
 #include <osg/Matrixf>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
@@ -18,6 +19,7 @@
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/look.h>
@@ -97,6 +99,60 @@ namespace Rtx::Testing
 
             const Frame summed = shoot(scene, {}, camera, size, { .mFrames = 1 });
             EXPECT_EQ(summed.mRadiance, raw.mRadiance) << "the sum of one unfiltered frame is that frame";
+        }
+
+        /// **The lamps' light is the filter's as well, and it comes out quieter and where it was.** Four
+        /// lamps of four colours over a floor under a black sky, so the reservoir's one draw a pixel
+        /// is the whole of the noise: each pixel holds one lamp, weighed against the other three,
+        /// and a neighbour holds another. The lamps' diffuse half rides the indirect channel
+        /// demodulated, as the bounce does, so the wavelet takes the draw's noise off it. Measured
+        /// against 256 unfiltered frames, a raw frame and a filtered one after sixteen of history.
+        TEST_F(RtxVisibilityTest, theFilterTakesTheLampsNoiseOffAFloorAndLeavesTheirLightWhereItWas)
+        {
+            constexpr std::uint32_t size = 64;
+
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, 0.0f));
+            const std::array<std::pair<osg::Vec2f, osg::Vec3f>, 4> lamps{ {
+                { osg::Vec2f(-100.0f, -100.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f) },
+                { osg::Vec2f(100.0f, -100.0f), osg::Vec3f(0.0f, 4000.0f, 0.0f) },
+                { osg::Vec2f(-100.0f, 100.0f), osg::Vec3f(0.0f, 0.0f, 4000.0f) },
+                { osg::Vec2f(100.0f, 100.0f), osg::Vec3f(4000.0f, 4000.0f, 0.0f) },
+            } };
+            for (const auto& [place, intensity] : lamps)
+                scene.addLight(Light{
+                    .mPosition = osg::Vec3f(place.x(), place.y(), 60.0f),
+                    .mIntensity = intensity,
+                    .mReach = 500.0f,
+                });
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 300.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mSun.mIrradiance = osg::Vec3f();
+
+            const Frame reference = shoot(scene, {}, camera, size, { .mFrames = 256 });
+
+            camera.mFrame = 1000;
+            const Frame raw = shoot(scene, {}, camera, size);
+            const Frame filtered = shoot(scene, {}, camera, size,
+                { .mFrames = 16, .mAverage = false, .mFirstFrame = 2000, .mFilter = true, .mResetHistory = true });
+
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                const float rawError = raw.errorFrom(reference, channel);
+                const float filteredError = filtered.errorFrom(reference, channel);
+                ASSERT_GT(rawError, 0.005f) << "channel " << channel << ": four lamps drawn one a pixel are noisy";
+                // Measured at 0.21 to 0.23 of the raw error, channel by channel.
+                EXPECT_LT(filteredError, rawError * 0.3f)
+                    << "channel " << channel << ": raw " << rawError << ", filtered " << filteredError;
+
+                // Measured within 0.2 to 0.7 per cent: what the accumulator's outlier clamp and its
+                // half-float history take off a mean, which `accumulate.h` says of both.
+                EXPECT_NEAR(filtered.mean(channel), reference.mean(channel), reference.mean(channel) * 0.01f)
+                    << "channel " << channel << " keeps its light";
+            }
         }
 
         /// **The filter rebuilds an arm's pixels through the arms' own eye**, as the trace cast them,

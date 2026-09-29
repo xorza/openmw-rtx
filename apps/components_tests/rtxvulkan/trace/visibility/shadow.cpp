@@ -1,6 +1,4 @@
-#include <algorithm>
 #include <array>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -43,18 +41,6 @@ namespace Rtx::Testing
                 osg::Vec3f(right, 4000.0f, height),
                 osg::Vec3f(left, 4000.0f, height),
             };
-        }
-
-        /// The root mean square of the first colour channel's difference between two frames.
-        float rmsBetween(const Frame& a, const Frame& b)
-        {
-            float squares = 0.0f;
-            for (std::size_t value = 0; value < a.mRadiance.size(); value += 4)
-            {
-                const float difference = a.at(value) - b.at(value);
-                squares += difference * difference;
-            }
-            return std::sqrt(squares / static_cast<float>(a.mRadiance.size() / 4));
         }
 
         /// **A floor every ray reaches, and a floor no ray reaches, come back exact.** Every tile of
@@ -114,8 +100,8 @@ namespace Rtx::Testing
             const Frame denoised = shoot(scene, {}, camera, size,
                 { .mFrames = 16, .mAverage = false, .mFirstFrame = 2000, .mFilter = true, .mResetHistory = true });
 
-            const float rawError = rmsBetween(raw, reference);
-            const float denoisedError = rmsBetween(denoised, reference);
+            const float rawError = raw.errorFrom(reference);
+            const float denoisedError = denoised.errorFrom(reference);
             ASSERT_GT(rawError, 0.01f) << "a penumbra one ray a pixel draws is noisy, or this proves nothing";
             // Measured at a thirteenth: 0.0762 raw against 0.0058 denoised.
             EXPECT_LT(denoisedError, rawError * 0.1f) << "raw " << rawError << ", denoised " << denoisedError;

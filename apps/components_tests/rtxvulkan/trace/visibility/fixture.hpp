@@ -242,6 +242,20 @@ namespace Rtx::Testing
             return sum / static_cast<float>(mRadiance.size() / 4);
         }
 
+        /// The root mean square of one channel's difference from `reference`, over the frame: how
+        /// far a noisy or a filtered frame stands from a converged one.
+        float errorFrom(const Frame& reference, std::size_t channel = 0) const
+        {
+            float squares = 0.0f;
+            for (std::size_t value = channel; value < mRadiance.size(); value += 4)
+            {
+                const float difference = mRadiance[value] - reference.mRadiance[value];
+                squares += difference * difference;
+            }
+
+            return std::sqrt(squares / static_cast<float>(mRadiance.size() / 4));
+        }
+
         /// The byte a test names for one value: the display curve over a colour, and coverage,
         /// which the curve does not touch, over the fourth.
         std::uint8_t byte(std::size_t value) const

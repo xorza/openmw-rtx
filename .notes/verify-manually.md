@@ -17,3 +17,11 @@ spinner, a choice the plan left to taste. Each item says what to run and what to
 - **Arms in the sun.** The filter rebuilds an arm's pixels through the arms' own eye, as the wavelet
   does. Look at the player's arms in full sun in first person.
 
+## Phase 5a: the lamps in the filter
+
+- **Lamp shadows.** A lamp's shadow edge is now filtered by the wavelet with the bounce. Look at the
+  shadows candles and lanterns cast in the Mages Guild (`./omw release view --view=balmora-mages-guild`):
+  are sharp contact shadows blurred more than you want?
+- **Flickering torches.** The accumulator keeps up to sixteen frames of lamp light now. A torch's
+  flicker may lag or smear until phase 6a's fast history lands. Look at a flickering torch.
+
