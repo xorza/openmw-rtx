@@ -16,9 +16,9 @@ namespace Rtx
     /// level rather than a ratio, because the ratio is the upscaler's: `upscaleRatio`.
     enum class Upscale
     {
-        /// Trace and present at the same size, with no upscaler in the frame at all — what every
-        /// test and every reference render uses. Reachable by name and offered by no menu
-        /// (`sUpscaleMenu`).
+        /// Trace and present at the same size, with no upscaler in the frame at all: the denoisers
+        /// and nothing after them, and no anti-aliasing — what every test and every reference
+        /// render uses.
         Off,
 
         /// The fewest pixels traced for a given output.
@@ -47,19 +47,10 @@ namespace Rtx
     } };
 
     /// The modes the launcher and the settings window offer, in the order both list them, spelled
-    /// as `[RTX] upscale` takes them: fewest pixels traced first, every pixel last. `off` is not
-    /// among them: it is the absence of an upscaler, and a menu shows that by offering no mode.
-    /// Derived from `sUpscaleNames`, the one list of the
-    /// spellings, so a mode added there stops the build until each menu gives it a label.
-    inline constexpr std::array<std::string_view, sUpscaleNames.mNames.size() - 1> sUpscaleMenu = [] {
-        std::array<std::string_view, sUpscaleNames.mNames.size() - 1> offered{};
-        std::size_t at = 0;
-        for (const auto& [mode, spelling] : sUpscaleNames.mNames)
-            if (mode != Upscale::Off)
-                offered[at++] = spelling;
-
-        return offered;
-    }();
+    /// as `[RTX] upscale` takes them: no upscaler first, then fewest pixels traced to every pixel.
+    /// Every mode `sUpscaleNames` spells, in its order, so a mode added there stops the build until
+    /// each menu gives it a label.
+    inline constexpr std::array<std::string_view, sUpscaleNames.mNames.size()> sUpscaleMenu = sUpscaleNames.spellings();
 
     /// What the output is divided by to give the extent a frame is traced at, per axis: FSR 3.1's
     /// fixed ratios (`ffxFsr3UpscalerGetUpscaleRatioFromQualityMode`) — 3, 2, 1.7 and 1.5 from ultra

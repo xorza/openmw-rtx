@@ -192,6 +192,7 @@ RayTracingUnavailable: "Ta wersja została zbudowana bez renderera ze śledzenie
 RayTracingUpscale: "Skalowanie"
 RayTracingUpscaleBalanced: "Zrównoważony"
 RayTracingUpscaleNative: "Natywna"
+RayTracingUpscaleOff: "Wyłączone"
 RayTracingUpscalePerformance: "Wydajność"
 RayTracingUpscaleQuality: "Jakość"
 RayTracingUpscaleUltraPerformance: "Ultra wydajność"

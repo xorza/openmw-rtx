@@ -267,6 +267,10 @@
         <translation>Насколько ниже размера окна выполняется трассировка лучей. Масштабировщик восстанавливает кадр по нескольким кадрам в любом режиме, и каждый режим, кроме «Нативное», трассирует меньше пикселей, чем показывает.</translation>
     </message>
     <message>
+        <source>Off</source>
+        <translation>Отключено</translation>
+    </message>
+    <message>
         <source>Ultra Performance</source>
         <translation>Ультрапроизводительность</translation>
     </message>

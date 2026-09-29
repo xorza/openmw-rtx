@@ -37,9 +37,8 @@ namespace Settings
             makeClampSanitizerFloat(0.0f, sMaxDistantLandCells) };
 
         /// How hard the upscaler works, or `off`: a name `Rtx::sUpscaleNames` refuses rather than
-        /// defaults. Changing it rebuilds every target, and a machine that cannot reach
-        /// the mode keeps the one it had and says so in the log. `Rtx::sUpscaleMenu` is what the
-        /// launcher and the settings window offer of it.
+        /// defaults. Changing it rebuilds every target. `Rtx::sUpscaleMenu` is what the launcher and
+        /// the settings window offer of it.
         SettingValue<std::string> mUpscale{ mIndex, "RTX", "upscale" };
 
         /// What the content's `_spec` maps mean, as `Rtx::sSpecularLayoutNames` spells the layouts:

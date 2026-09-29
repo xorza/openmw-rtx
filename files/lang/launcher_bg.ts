@@ -267,6 +267,10 @@
         <translation>Колко под размера на прозореца трасира трасирането на лъчи. Мащабиращият реконструира кадъра от няколко кадъра във всеки режим, и всеки режим освен Естествена трасира по-малко пиксели, отколкото показва.</translation>
     </message>
     <message>
+        <source>Off</source>
+        <translation>Изключено</translation>
+    </message>
+    <message>
         <source>Ultra Performance</source>
         <translation>Ултра производителност</translation>
     </message>

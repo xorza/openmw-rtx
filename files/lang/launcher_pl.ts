@@ -267,6 +267,10 @@
         <translation>Jak bardzo poniżej rozmiaru okna odbywa się śledzenie promieni. Skaler odtwarza obraz z wielu klatek w każdym trybie, a każdy tryb poza Natywna śledzi mniej pikseli, niż pokazuje.</translation>
     </message>
     <message>
+        <source>Off</source>
+        <translation>Wyłączone</translation>
+    </message>
+    <message>
         <source>Ultra Performance</source>
         <translation>Ultra wydajność</translation>
     </message>

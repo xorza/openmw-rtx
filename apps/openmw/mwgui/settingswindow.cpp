@@ -169,6 +169,7 @@ namespace
     }
 
     constexpr std::array<Rtx::MenuLabel, Rtx::sUpscaleMenu.size()> sUpscaleLabels{ {
+        { "off", "#{OMWEngine:RayTracingUpscaleOff}" },
         { "ultraperformance", "#{OMWEngine:RayTracingUpscaleUltraPerformance}" },
         { "performance", "#{OMWEngine:RayTracingUpscalePerformance}" },
         { "balanced", "#{OMWEngine:RayTracingUpscaleBalanced}" },

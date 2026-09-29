@@ -89,3 +89,14 @@ Only under the PBR profile: the Zed tasks that start the game with `~/.config/op
   session ran. Close the editor and the terminal's animation and run
   `./omw release bench --upscale=native` twice, then once with the PBR profile, to confirm the frame
   times in "The finished frame".
+
+## The upscaler's shake, fixed
+
+- **Ultra performance, standing still and walking.** The frame no longer follows the jitter (the
+  motion vector fault, `.notes/denoise-progress.md`). Stand still at ultra performance and at quality:
+  nothing should shake. Walk: ghosting behind moving things may differ from before, because the
+  history is now reprojected where it should be.
+- **The PBR pier at native** measured a little noisier after the fix (5.94 against 5.09, under its bar).
+  Look at glossy stone on the pier at native for sparkle.
+- **`Off` in the menus.** Pick it in the settings window while playing: the picture is traced at the
+  window's size, denoised, with no anti-aliasing.

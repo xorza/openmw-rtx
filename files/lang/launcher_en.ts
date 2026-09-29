@@ -267,6 +267,10 @@
         <translation></translation>
     </message>
     <message>
+        <source>Off</source>
+        <translation></translation>
+    </message>
+    <message>
         <source>Ultra Performance</source>
         <translation></translation>
     </message>
