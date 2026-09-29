@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <utility>
 #include <vector>
@@ -289,6 +290,12 @@ namespace Rtx
         mPlacer.forgetReferences(std::span<HeldCell>(mCells.begin(), mCells.end()));
     }
 
+    void CellRing::setGate(const std::uint32_t gate, const Terrain::GateState state)
+    {
+        mTurn.expect(Turn::Collected);
+        mPlacer.setGate(gate, state, std::span<HeldCell>(mCells.begin(), mCells.end()));
+    }
+
     void CellRing::dropPlacements()
     {
         for (HeldCell& cell : mCells)
@@ -301,6 +308,13 @@ namespace Rtx
             for (std::size_t at = 0; at < cell.mShown; ++at)
                 if (cell.mPlacements[at].mStood.isStanding())
                     into.push_back(cell.mPlacements[at].mRefNum);
+    }
+
+    void CellRing::collectGateVerdicts(std::vector<GateVerdict>& into) const
+    {
+        for (const HeldCell& cell : mCells)
+            if (inActiveGrid(cell.mCell, mAround.mActiveGrid))
+                mPlacer.collectGateVerdicts(cell, into);
     }
 
     bool CellRing::standsAsHeld() const

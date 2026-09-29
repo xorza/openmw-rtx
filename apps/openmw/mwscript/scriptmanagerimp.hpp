@@ -1,9 +1,11 @@
 #ifndef GAME_SCRIPT_SCRIPTMANAGER_H
 #define GAME_SCRIPT_SCRIPTMANAGER_H
 
+#include <cstdint>
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <components/compiler/fileparser.hpp>
 #include <components/compiler/streamerrorhandler.hpp>
@@ -16,6 +18,7 @@
 #include "../mwbase/scriptmanager.hpp"
 
 #include "globalscripts.hpp"
+#include "visibilitygates.hpp"
 
 namespace MWWorld
 {
@@ -60,6 +63,11 @@ namespace MWScript
         GlobalScripts mGlobalScripts;
         std::unordered_map<ESM::RefId, Compiler::Locals> mOtherLocals;
 
+        VisibilityGates mVisibilityGates;
+
+        // Refilled by every `updateVisibilityGates`.
+        std::vector<GateChange> mGateChanges;
+
     public:
         ScriptManager(const MWWorld::ESMStore& store, Compiler::Context& compilerContext, int warningsMode);
 
@@ -80,6 +88,18 @@ namespace MWScript
         ///< Return locals for script \a name.
 
         GlobalScripts& getGlobalScripts() override;
+
+        std::uint32_t getVisibilityGate(const ESM::RefId& record) const override
+        {
+            return mVisibilityGates.gateOf(record);
+        }
+
+        /// Makes the gates, once the content is loaded and before a renderer reads a cell.
+        void buildVisibilityGates();
+
+        /// Runs the gates whose inputs moved and tells the world what they now say. Once a frame
+        /// while a game is on.
+        void updateVisibilityGates();
 
         const Compiler::Extensions& getExtensions() const override;
     };

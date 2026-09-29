@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include <osg/Vec4i>
@@ -16,6 +17,7 @@ namespace Terrain
 {
     class Storage;
     class World;
+    enum class GateState : std::uint8_t;
 }
 
 namespace MWWorld
@@ -75,6 +77,11 @@ namespace MWRender
         /// does not stand it a second time. A renderer that stands nothing inside the grid adds
         /// nothing.
         virtual void collectPagedRefnums(const osg::Vec4i& activeGrid, std::vector<ESM::RefNum>& out) {}
+
+        /// What a visibility gate now says of the references behind it, which the content files
+        /// mark with it (`Terrain::PagedCellRef::mGate`). A renderer whose distance stands what
+        /// the content files say, as upstream's paging does, hears nothing.
+        virtual void setGate(std::uint32_t gate, Terrain::GateState state) {}
 
         /// A new game or a load: nothing a script said about a reference holds any more.
         virtual void clear() = 0;

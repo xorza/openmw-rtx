@@ -192,6 +192,10 @@ namespace MWRender
         /// `WorldMirror::collectStanding`, for the harness's check that no static stands twice.
         void collectStanding(std::vector<ESM::RefNum>& into) const { mMirror.collectStanding(into); }
 
+        /// `WorldMirror::collectGateVerdicts`, for the harness's check that the gates agree with
+        /// the game.
+        void collectGateVerdicts(std::vector<Rtx::GateVerdict>& into) const { mMirror.collectGateVerdicts(into); }
+
         /// The pictures inside the interface this renderer holds, for the harness to find the
         /// game's own map tile in.
         ViewQueue& getViews() { return mViews; }

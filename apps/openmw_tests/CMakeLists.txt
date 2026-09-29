@@ -21,6 +21,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwlua/testobjectcache.cpp
 
     mwscript/testscripts.cpp
+    mwscript/visibilitygates.cpp
 
     mwsound/testheadcache.cpp
     mwsound/testwarmqueue.cpp

@@ -43,7 +43,9 @@ them.
   quality. The `[RTX]` settings pages and their translations are a fine price, and so is
   `components/crashcatcher`: upstream's crash catcher is replaced whole by the fork's own, a
   Crashpad monitor process, and that diff is accepted rather than kept small. So are `README.md`,
-  which is the fork's own page and what a package ships, and `CI/`.
+  which is the fork's own page and what a package ships, and `CI/`. So are the visibility gates
+  (`MWScript::VisibilityGates` and the calls that feed them): without them the distance stands
+  scripted stages the game keeps down.
 
 ## Where the code lives
 

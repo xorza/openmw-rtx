@@ -112,6 +112,9 @@ namespace MWRender
         /// disabled it, or enabled it again, or the game moved it and the distance must never
         /// stand it. A cleared world says it of none.
         void setReferenceEnabled(ESM::RefNum refnum, bool enabled) { mRing.setReferenceEnabled(refnum, enabled); }
+
+        /// What a visibility gate says of the references behind it — `CellRing::setGate`.
+        void setGate(std::uint32_t gate, Terrain::GateState state) { mRing.setGate(gate, state); }
         void blacklistReference(ESM::RefNum refnum) { mRing.blacklistReference(refnum); }
         void forgetReferences() { mRing.forgetReferences(); }
 
@@ -156,6 +159,10 @@ namespace MWRender
         /// `Rtx::CellRing::collectStanding`: every reference the ring stands, for the harness's
         /// check that the game stands none of them.
         void collectStanding(std::vector<ESM::RefNum>& into) const { mRing.collectStanding(into); }
+
+        /// `Rtx::CellRing::collectGateVerdicts`, for the harness's check that the gates agree with
+        /// the game.
+        void collectGateVerdicts(std::vector<Rtx::GateVerdict>& into) const { mRing.collectGateVerdicts(into); }
 
     private:
         /// Shared by everything that can reach one graph — the world's walk and every traced view.

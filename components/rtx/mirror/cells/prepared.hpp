@@ -25,6 +25,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/sceneutil/lightcommon.hpp>
+#include <components/terrain/objectstorage.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace Rtx
@@ -232,6 +233,9 @@ namespace Rtx
 
         /// The model's radius at the reference's scale, which the size rule reads.
         float mRadius = 0.0f;
+
+        /// The gate the game decides its standing by — `Terrain::PagedCellRef::mGate`.
+        std::uint32_t mGate = Terrain::sNoGate;
     };
 
     /// One `LIGH` reference a cell stands: where it stands and what its record says. The record

@@ -283,6 +283,7 @@ namespace MWRender
 
         bool pagingEnableObject(int type, const MWWorld::ConstPtr& ptr, bool enabled);
         void pagingBlacklistObject(int type, const MWWorld::ConstPtr& ptr);
+        void setVisibilityGate(std::uint32_t gate, Terrain::GateState state);
         bool pagingUnlockCache();
         void getPagedRefnums(const osg::Vec4i& activeGrid, std::vector<ESM::RefNum>& out);
 

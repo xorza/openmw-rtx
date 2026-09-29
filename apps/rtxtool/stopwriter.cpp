@@ -647,6 +647,39 @@ namespace RtxTool
                 return doubled == 0;
             }
 
+            case Check::GatesAgree:
+            {
+                // A cell of the active grid is loaded, so its references are in the registry as
+                // the cell's scripts left them.
+                const MWWorld::WorldModel& model = *MWBase::Environment::get().getWorldModel();
+                std::vector<Rtx::GateVerdict> verdicts;
+                context.mRenderer.collectGateVerdicts(verdicts);
+
+                std::size_t disagree = 0;
+                std::string first;
+                for (const Rtx::GateVerdict& verdict : verdicts)
+                {
+                    const MWWorld::Ptr held = model.getPtr(verdict.mRefNum);
+                    if (held.isEmpty())
+                        continue;
+                    const bool stands
+                        = held.getRefData().isEnabled() && held.getCellRef().getCount() > 0 && !held.mRef->isDeleted();
+                    if (stands == verdict.mStands)
+                        continue;
+
+                    if (disagree++ == 0)
+                        first = std::format(", the first {} at {}, which the gate {} and the game {}",
+                            held.getCellRef().getRefId().toDebugString(), held.getCell()->getCell()->getDescription(),
+                            verdict.mStands ? "stands" : "keeps down", stands ? "stands" : "keeps down");
+                }
+
+                found = std::format(
+                    "{} references behind a gate that decided in the active grid, {} of them "
+                    "otherwise in the game{}",
+                    verdicts.size(), disagree, first);
+                return disagree == 0;
+            }
+
             case Check::TexturesReadable:
             {
                 const std::uint32_t refused = scene.refusals().count(Rtx::Refused::Texture);

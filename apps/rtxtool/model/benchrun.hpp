@@ -65,6 +65,12 @@ namespace RtxTool
         /// the game put none, until the ring let go of it.
         StaticsNotDoubled,
 
+        /// Every gate that decided agrees with the game in the cells it has loaded: a reference
+        /// behind an open gate is up there and one behind a closed gate is down, as the reference's
+        /// own script left it. A disagreement is a gate whose run is not the script's first frame,
+        /// and a stage seen from afar that the cell changes as it loads.
+        GatesAgree,
+
         /// Every texture the scene named could be read; an unreadable one is drawn grey.
         TexturesReadable,
 

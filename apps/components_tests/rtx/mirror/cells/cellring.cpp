@@ -83,6 +83,7 @@ namespace Rtx::Testing
             osg::Vec3f mPosition;
             osg::Vec3f mRotation;
             float mScale = 1.0f;
+            std::uint32_t mGate = Terrain::sNoGate;
         };
 
         /// One `LIGH` reference a storage stands, and the record it names. The id is the record's
@@ -149,6 +150,7 @@ namespace Rtx::Testing
                                 .mPosition = placed.mPosition,
                                 .mRotation = placed.mRotation,
                                 .mScale = placed.mScale,
+                                .mGate = placed.mGate,
                             });
 
                 if (Terrain::holds(kinds, Terrain::RefKinds::Lit))
@@ -852,6 +854,71 @@ namespace Rtx::Testing
             mRing.forgetReferences();
             EXPECT_EQ(heights(standing()), trees({ 1, 2, 3, 4, 5 }));
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 6u);
+        }
+
+        /// **A gate is the game's answer for the references behind it, over a script's word.** Three
+        /// trees in cell 3 at scales three to one — lifted `105 s`, so 315, 210 and 105 — the first
+        /// two behind gate 0, and a fourth behind gate 1 in cell (3, 1), whose gate closes before
+        /// its cell is held. A gate never told keeps its trees down; open, they stand whatever a
+        /// script said of one; undecided, each stands by the script's word as an ungated tree does;
+        /// closed, none does. The blacklist wins over an open gate, and a cleared world keeps the
+        /// gates, which the game tells again anyway.
+        TEST_F(RtxCellRingTest, aGateDecidesItsReferencesInTheDistanceOverAScriptsWord)
+        {
+            for (std::uint32_t scale = 3; scale >= 1; --scale)
+                mStorage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(3, 0),
+                    .mModel = "tree.nif",
+                    .mRefNum = ESM::RefNum{ scale, 0 },
+                    .mPosition = osg::Vec3f(3.5f * sCellSize, 0.5f * sCellSize, 100.0f * static_cast<float>(scale)),
+                    .mScale = static_cast<float>(scale),
+                    .mGate = scale >= 2 ? 0u : Terrain::sNoGate });
+            mStorage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(3, 1),
+                .mModel = "tree.nif",
+                .mRefNum = ESM::RefNum{ 4, 0 },
+                .mPosition = osg::Vec3f(3.5f * sCellSize, 1.5f * sCellSize, 400.0f),
+                .mScale = 4.0f,
+                .mGate = 1 });
+
+            const auto heights = [this] {
+                std::vector<float> lifted;
+                for (const PlacementRow& row : mScene.placements().getRows())
+                {
+                    const auto height = static_cast<float>(row.mInstance.mTransform.getTrans().z());
+                    if (row.mInstance.isPlaced() && height > 50.0f)
+                        lifted.push_back(height);
+                }
+                std::sort(lifted.begin(), lifted.end());
+                return lifted;
+            };
+            const std::vector<float> none = { 105.0f };
+            const std::vector<float> all = { 105.0f, 210.0f, 315.0f };
+
+            mRing.setGate(1, Terrain::GateState::Closed);
+            start();
+            fill();
+            EXPECT_EQ(heights(), none) << "gate 0 was never told, and gate 1 closed before its cell arrived";
+
+            mRing.setGate(0, Terrain::GateState::Open);
+            EXPECT_EQ(heights(), all) << "open, at once";
+            mRing.setReferenceEnabled(ESM::RefNum{ 3, 0 }, false);
+            EXPECT_EQ(heights(), all) << "a script's word under an open gate is one the gate moved past";
+
+            mRing.setGate(0, Terrain::GateState::Undecided);
+            EXPECT_EQ(heights(), (std::vector<float>{ 105.0f, 210.0f })) << "undecided: the script's word stands";
+
+            mRing.setGate(0, Terrain::GateState::Closed);
+            EXPECT_EQ(heights(), none);
+
+            mRing.blacklistReference(ESM::RefNum{ 2, 0 });
+            mRing.setGate(0, Terrain::GateState::Open);
+            EXPECT_EQ(heights(), (std::vector<float>{ 105.0f, 315.0f })) << "the blacklist wins over an open gate";
+
+            mRing.forgetReferences();
+            EXPECT_EQ(heights(), all) << "a cleared world forgets the blacklist and keeps the gate";
+            EXPECT_EQ(walk(mWalked++).mDistantStatics, 3u) << "and the walk keeps what the gates say";
+
+            mRing.setGate(1, Terrain::GateState::Open);
+            EXPECT_EQ(walk(mWalked++).mDistantStatics, 4u) << "the tree in the next cell stands once its gate opens";
         }
 
         /// A model the frame lets go of and a delivered cell names again inside the same settled

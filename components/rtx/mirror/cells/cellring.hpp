@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <vector>
 
@@ -15,6 +16,7 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneadopter.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
+#include <components/terrain/objectstorage.hpp>
 
 #include "cellplacer.hpp"
 #include "cellsupply.hpp"
@@ -98,6 +100,9 @@ namespace Rtx
         void blacklistReference(ESM::RefNum refnum);
         void forgetReferences();
 
+        /// `CellPlacer::setGate`, over the cells held, between frames as the three above are.
+        void setGate(std::uint32_t gate, Terrain::GateState state);
+
         /// Hands `into` everything held that the graph does not parent, and adds what it stood to
         /// `stats` — the walk's own, because the ring is stood inside the walk.
         void collect(SceneAdopter& into, ExtractionStats& stats);
@@ -109,6 +114,11 @@ namespace Rtx
         /// Appends the reference number of every static standing in the top level, for a check
         /// that asks the game whether it stands the same one.
         void collectStanding(std::vector<ESM::RefNum>& into) const;
+
+        /// Appends what every gate that decided says of each reference behind it in a cell of the
+        /// active grid, for a check that asks the game whether its own scripts left each the same
+        /// way — `CellPlacer::collectGateVerdicts`.
+        void collectGateVerdicts(std::vector<GateVerdict>& into) const;
 
         // Read by the tests and by nothing else.
         /// How many cells the prepared ring holds.

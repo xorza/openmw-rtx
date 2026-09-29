@@ -10,6 +10,7 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
+#include <components/terrain/objectstorage.hpp>
 
 #include "cellworld.hpp"
 #include "held.hpp"
@@ -19,6 +20,13 @@ namespace Rtx
     class CellHolds;
     class SceneDesc;
     struct PreparedCell;
+
+    /// What a gate that decided says of one reference: whether it stands.
+    struct GateVerdict
+    {
+        ESM::RefNum mRefNum;
+        bool mStands = false;
+    };
 
     /// Where the cells the ring holds stand: which of their placements are in the top level, by
     /// the rings and the size rule, and how their ground shades, by the grid. `CellRing` decides
@@ -54,6 +62,12 @@ namespace Rtx
         /// the cells `held` at once, and kept out of the cells not yet held.
         void blacklistReference(ESM::RefNum refnum, std::span<HeldCell> held);
 
+        /// What a visibility gate says of the references behind it, for the cells no one has
+        /// loaded: stand, stand not, or stand by what the game says of each. Applied to the cells
+        /// `held` at once, as a script's word is, and remembered for the cells not yet held. A
+        /// gate never told keeps its references down.
+        void setGate(std::uint32_t gate, Terrain::GateState state, std::span<HeldCell> held);
+
         /// Forgets everything a script said and everything the game blacklisted: the world is
         /// cleared for a new game or a saved one, and what was kept out of the old one stands in
         /// the new. Every reference kept out of the cells `held` stands again at once, as
@@ -82,6 +96,12 @@ namespace Rtx
         /// @return how many lamps were stood.
         std::uint32_t place(HeldCell& cell, const WorldAround& around);
 
+        /// Appends a verdict for every reference of `cell` behind a gate that decided, once each.
+        /// **Where the cell is active the game has run the reference's script**, so the verdict is
+        /// what the script left it as, or the gate's run is not the script's first frame — and the
+        /// distance shows a stage the cell takes down as it loads.
+        void collectGateVerdicts(const HeldCell& cell, std::vector<GateVerdict>& into) const;
+
         /// How many statics and how many grounds stand in the top level.
         std::uint32_t getPlaced() const { return mPlaced; }
         std::uint32_t getGroundPlaced() const { return mGroundPlaced; }
@@ -99,15 +119,21 @@ namespace Rtx
         bool standsNoMore() const;
 
     private:
-        /// Whether a script or the blacklist keeps the reference down.
-        bool isDisabled(ESM::RefNum refnum) const;
+        /// Whether `refnum` is in the sorted list.
+        static bool isListed(const std::vector<ESM::RefNum>& sorted, ESM::RefNum refnum);
 
-        /// `setPlacementEnabled` over every placement of the reference in the cells `held`.
-        void setHeldEnabled(ESM::RefNum refnum, bool enabled, std::span<HeldCell> held);
+        /// Calls `visit(placement, shown)` for every placement of the reference in the cells `held`.
+        template <class Visit>
+        void forEachPlacementOf(ESM::RefNum refnum, std::span<HeldCell> held, Visit visit);
 
-        /// What a script's word does to one placement: the flag, and the slot where the size rule
-        /// has the placement `shown`.
-        void setPlacementEnabled(Placement& placement, bool shown, bool enabled);
+        /// What `gate` said last, `Unknown` where it said nothing yet.
+        Terrain::GateState stateOf(std::uint32_t gate) const;
+
+        /// Whether nothing keeps the placement down: the blacklist, its gate, or a script's word.
+        bool stands(const Placement& placement) const;
+
+        /// Stands or drops the placement by `stands`, where the size rule has it `shown`.
+        void restand(Placement& placement, bool shown);
 
         /// Puts `stood` in the top level under the ring's name and counts it in `standing`, and
         /// takes it out again. Dropping what does not stand is nothing.
@@ -130,6 +156,9 @@ namespace Rtx
         /// References the game blacklisted, sorted. Apart from the disabled, because a script may
         /// enable one of those again and never one of these.
         std::vector<ESM::RefNum> mBlacklisted;
+
+        /// What each gate said last, `Unknown` past the last one told.
+        std::vector<Terrain::GateState> mGates;
 
         std::uint32_t mPlaced = 0;
         std::uint32_t mGroundPlaced = 0;
