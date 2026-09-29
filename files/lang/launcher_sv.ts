@@ -199,6 +199,10 @@
         <translation>Hur långt under fönstrets storlek strålspårningen sker. Uppskalaren rekonstruerar bilden över flera bilder i varje läge, och varje läge utom Nativ spårar färre pixlar än det visar.</translation>
     </message>
     <message>
+        <source>Off</source>
+        <translation>Av</translation>
+    </message>
+    <message>
         <source>Ultra Performance</source>
         <translation>Ultraprestanda</translation>
     </message>

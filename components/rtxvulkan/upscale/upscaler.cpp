@@ -489,8 +489,16 @@ namespace Rtx
                             VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
                         break;
                     case Access::Storage:
-                        writes.image(bind.mBinding, pick(bind.mBound).describeStorage(bind.mLevel));
+                    {
+                        // **A level past the chain's end is bound as its last**, as the SDK's Vulkan
+                        // backend binds it (`ffx_vk.cpp`): the pyramid passes declare six levels and
+                        // write only the `MipCount` a small render extent has, and every binding the
+                        // layout declares still needs a view.
+                        const Image& image = pick(bind.mBound);
+                        writes.image(
+                            bind.mBinding, image.describeStorage(std::min(bind.mLevel, image.getMipLevels() - 1)));
                         break;
+                    }
                     case Access::Block:
                         writes.buffer(bind.mBinding, blockOf(bind.mBound), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
                         break;

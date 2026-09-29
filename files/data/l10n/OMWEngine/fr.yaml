@@ -192,6 +192,7 @@ RayTracingUnavailable: "Cette version a été compilée sans le moteur de rendu 
 RayTracingUpscale: "Mise à l'échelle"
 RayTracingUpscaleBalanced: "Équilibré"
 RayTracingUpscaleNative: "Native"
+RayTracingUpscaleOff: "Inactif"
 RayTracingUpscalePerformance: "Performance"
 RayTracingUpscaleQuality: "Qualité"
 RayTracingUpscaleUltraPerformance: "Ultra performance"

@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/Vec2d>
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
@@ -55,6 +56,71 @@ namespace Rtx::Testing
             camera.mSkyZenith = osg::Vec3f();
             camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(2.0f, 2.0f, 2.0f));
             return camera;
+        }
+
+        /// **A still picture holds still through every upscale.** A square floor under the sun against
+        /// a black sky, from a still eye: its edges are the hardest thing a jittered frame aliases, so
+        /// a sample the upscaler places even a fraction of a render pixel out moves them. The shown
+        /// picture's brightness centroid, frame by frame over the last half of 64 frames, may move by a
+        /// quarter of an output pixel at most, in every mode.
+        ///
+        /// Measured: 0.01 to 0.08 of a pixel. With the jitter taken off the motion vector a second
+        /// time (`fsrcallbacks.glsl`), the history followed the jitter and the swing was 0.5 of a
+        /// pixel at native and 2.6 at ultra performance, growing with the ratio. At 96 pixels ultra
+        /// performance traces 32, and its luma pyramid has five levels where the pass declares six:
+        /// what `Upscaler::record` binds in place of the sixth.
+        TEST_F(RtxVisibilityTest, aStillPictureHoldsStillThroughEveryUpscale)
+        {
+            constexpr std::uint32_t size = 96;
+            constexpr std::uint32_t frames = 64;
+            SceneDesc scene;
+            addQuad(scene, sheetAt(100.0f, 0.0f));
+
+            for (const Upscale mode : { Upscale::Native, Upscale::Quality, Upscale::Balanced, Upscale::Performance,
+                     Upscale::UltraPerformance })
+            {
+                SCOPED_TRACE(sUpscaleNames.name(mode));
+                mRenderer.resize(size, size);
+                const UpscaleFor upscale(mRenderer, mode);
+                mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+                mRenderer.resetHistory();
+
+                // The camera the trace is handed is built for the render extent, which is the mode's:
+                // square, as the output is.
+                const Shaders::VisibilityConstants camera = overTheFloor(mRenderer.getExtents().mRenderWidth);
+
+                osg::Vec2d lowest(1e9, 1e9);
+                osg::Vec2d highest(-1e9, -1e9);
+                std::vector<std::uint8_t> pixels;
+                for (std::uint32_t at = 0; at < frames; ++at)
+                {
+                    Shaders::VisibilityConstants sampled = camera;
+                    sampled.mFrame = at;
+                    mRenderer.renderFrame(sampled, FrameOptions{ .mExposure = ExposureRule{ .mFixed = 1.0f } });
+                    ASSERT_TRUE(mRenderer.finishFrame().has_value());
+                    if (at < frames / 2)
+                        continue;
+
+                    mRenderer.readPixels(pixels);
+                    double sum = 0.0;
+                    osg::Vec2d weighted;
+                    for (std::uint32_t y = 0; y < size; ++y)
+                        for (std::uint32_t x = 0; x < size; ++x)
+                        {
+                            const double lit = pixels[(y * size + x) * 4 + 1];
+                            sum += lit;
+                            weighted += osg::Vec2d(x, y) * lit;
+                        }
+                    ASSERT_GT(sum, 0.0) << "a floor that shows nothing proves nothing";
+
+                    const osg::Vec2d centroid = weighted / sum;
+                    lowest = osg::Vec2d(std::min(lowest.x(), centroid.x()), std::min(lowest.y(), centroid.y()));
+                    highest = osg::Vec2d(std::max(highest.x(), centroid.x()), std::max(highest.y(), centroid.y()));
+                }
+
+                EXPECT_LE(highest.x() - lowest.x(), 0.25) << "the picture moved across";
+                EXPECT_LE(highest.y() - lowest.y(), 0.25) << "the picture moved down";
+            }
         }
 
         /// **An even frame reconstructs to itself.** FSR at native size, over 24 jittered frames — past

@@ -192,6 +192,7 @@ RayTracingUnavailable: "Эта сборка собрана без рендере
 RayTracingUpscale: "Масштабирование"
 RayTracingUpscaleBalanced: "Сбалансированное"
 RayTracingUpscaleNative: "Нативное"
+RayTracingUpscaleOff: "Отключено"
 RayTracingUpscalePerformance: "Производительность"
 RayTracingUpscaleQuality: "Качество"
 RayTracingUpscaleUltraPerformance: "Ультрапроизводительность"

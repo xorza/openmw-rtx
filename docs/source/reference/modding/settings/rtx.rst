@@ -49,8 +49,8 @@ also follow the settings window while the game runs.
    comes out; what gets traced is that size over the mode's ratio: 3 for :code:`ultraperformance`,
    2 for :code:`performance`, 1.7 for :code:`balanced`, 1.5 for :code:`quality` and 1 for
    :code:`native`, which upscales nothing and reconstructs each frame from the frames before it, as
-   the anti-aliasing. :code:`off` traces at the window's size with no anti-aliasing, and the menus do
-   not offer it. A name this does not know is refused rather than quietly defaulted.
+   the anti-aliasing. :code:`off` traces at the window's size with no upscaler: the denoisers alone,
+   and no anti-aliasing. A name this does not know is refused rather than quietly defaulted.
 
 .. omw-setting::
    :title: specular map layout

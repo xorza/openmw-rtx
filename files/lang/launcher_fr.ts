@@ -199,6 +199,10 @@
         <translation>À quelle distance sous la taille de la fenêtre le ray tracing est calculé. Le module de mise à l&apos;échelle reconstruit l&apos;image sur plusieurs images quel que soit le mode, et chaque mode sauf Native calcule moins de pixels qu&apos;il n&apos;en affiche.</translation>
     </message>
     <message>
+        <source>Off</source>
+        <translation>Inactif</translation>
+    </message>
+    <message>
         <source>Ultra Performance</source>
         <translation>Ultra performance</translation>
     </message>

@@ -192,6 +192,7 @@ RayTracingUnavailable: "Det här bygget skapades utan strålspårningsrenderaren
 RayTracingUpscale: "Uppskalning"
 RayTracingUpscaleBalanced: "Balanserad"
 RayTracingUpscaleNative: "Nativ"
+RayTracingUpscaleOff: "Av"
 RayTracingUpscalePerformance: "Prestanda"
 RayTracingUpscaleQuality: "Kvalitet"
 RayTracingUpscaleUltraPerformance: "Ultraprestanda"

@@ -421,3 +421,45 @@ may read lower (`verify-manually.md`).
 
 The filter's zone at the ship: 2.47 → 1.49 ms at native, 1.10 → 0.64 at quality. The glossy filter
 under PBR: 0.19–0.21 ms at the ship.
+
+## The upscaler shook the frame (found after the run)
+
+Reported: at ultra performance the whole frame shimmered and shook. Measured with a still camera on
+a square floor against a black sky, the shown picture's centroid swung with the jitter's period by
+0.6 of a pixel at native, 0.9 at quality, 1.6 at performance and 3.2 at ultra performance. FSR's own
+masks said every pixel accumulated fully, with no disocclusion and no shading change, and its output
+swung by the same amounts, so the display chain was clear. The output edge followed each frame's
+jitter (correlation −0.74 to −0.83, slope about −0.55 of the ratio).
+
+**Cause:** `LoadInputMotionVector` took `Jitter()` off `CHANNEL_MOTION`, which is already the unjittered
+motion of the point the ray hit (both ends are that point, on unjittered screens). A still picture was
+handed a motion of one jitter offset a frame, and the history, reprojected by it, followed the jitter.
+The jitter's sign was checked again with the fix in: the derived sign holds (flipped, the swing is
+0.23 px at ultra performance against 0.02).
+
+**A second fault the test found at 96 pixels:** ultra performance traces 32, the SPD pyramid at half
+of it has five levels, and the pyramid passes declare six. `Upscaler::record` now binds a level past
+the chain's end as its last, as AMD's Vulkan backend does (`ffx_vk.cpp`).
+
+`aStillPictureHoldsStillThroughEveryUpscale` holds every mode to a quarter of a pixel (measured 0.01
+to 0.08; with the fault 0.5 to 2.6).
+
+`omw release noise` after the fix (frame mean / p99; bars 5.92/30, 4.54/38; PBR 7.06/34, 7.34/53):
+
+| Mode | vanilla pier | vanilla guild | PBR pier | PBR guild |
+|---|---|---|---|---|
+| native, before | 2.63 / 13 | 4.15 / 35 | 5.09 / 20 | 6.34 / 47 |
+| native | 2.28 / 10 | 4.04 / 32 | 5.94 / 21 | 6.30 / 45 |
+| quality, before (phase 8/9) | 4.27 / 21 | 5.40 / 42 | 5.57 / 24 | 7.53 / 54 |
+| quality | 2.59 / 12 | 3.99 / 33 | 5.08 / 18 | 6.21 / 45 |
+| ultra performance | 3.76 / 22 | 5.14 / 39 | 5.54 / 25 | 7.33 / 52 |
+
+Strafed at native: 2.32 / 11 and 4.36 / 36. The PBR pier at native is the one figure that rose (5.09
+to 5.94, p99 20 to 21), still under its bar; the others fell, quality most. Every phase's figure
+taken through the upscaler before this was taken with the fault in.
+
+## `off` in the menus
+
+The launcher and the settings window offer `off`, first: the denoisers and no upscaler.
+`sUpscaleMenu` is every mode `sUpscaleNames` spells; each language's label reuses its launcher's
+existing word for Off.

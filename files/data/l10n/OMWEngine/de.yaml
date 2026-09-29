@@ -191,6 +191,7 @@ RayTracingUnavailable: "Diese Version wurde ohne den Raytracing-Renderer kompili
 RayTracingUpscale: "Hochskalierung"
 RayTracingUpscaleBalanced: "Ausgewogen"
 RayTracingUpscaleNative: "Nativ"
+RayTracingUpscaleOff: "Aus"
 RayTracingUpscalePerformance: "Leistung"
 RayTracingUpscaleQuality: "Qualität"
 RayTracingUpscaleUltraPerformance: "Ultra-Leistung"

@@ -30,11 +30,13 @@
 // - **The depth is worked out, not bound.** The trace keeps the distance along each pixel's ray,
 //   not a device depth; `LoadInputDepth` makes the reversed, infinite one the SDK is built for, on
 //   the frames FSR runs, and the host sets the depth flags to say so.
-// - **The motion vector is the trace's made the SDK's.** `CHANNEL_MOTION` runs from the jittered
-//   sample to where the surface stood on the last frame's unjittered screen; the SDK wants it from
-//   the pixel's centre. The trace samples at `+ jitter`, and FSR's `Jitter()` is the same offset
-//   negated (`Upscaler` says why), so the centre is `sample - (-Jitter())` away and the vector is
-//   the channel's `- Jitter()`.
+// - **The motion vector is the trace's as it is.** `CHANNEL_MOTION` is where the surface the pixel's
+//   ray hit stood on the last frame's unjittered screen, less where it stands on this frame's
+//   unjittered screen: both ends one point, so the jitter the ray was aimed with is in neither, and
+//   the vector is the unjittered one the SDK asks for (`JITTERED_MOTION_VECTORS 0`). Taking the
+//   jitter off it as well handed a still picture a motion of one jitter offset a frame, and the
+//   history, reprojected by it, followed the jitter: the whole frame shook, by more the fewer pixels
+//   were traced (`aStillPictureHoldsStillThroughEveryUpscale`).
 // - **No reactive and no composition mask.** The SDK binds a 1×1 default for each and reads it at
 //   full pixel coordinates, which Vulkan leaves undefined past the edge; here the loads answer the
 //   default, nought, and nothing is bound.
@@ -191,7 +193,7 @@ layout (set = 0, binding = FSR3UPSCALER_BIND_SRV_INPUT_MOTION_VECTORS) uniform t
 
 FfxFloat32x2 LoadInputMotionVector(FfxInt32x2 iPxDilatedMotionVectorPos)
 {
-	FfxFloat32x2 fSrcMotionVector = texelFetch(r_input_motion_vectors, iPxDilatedMotionVectorPos, 0).xy - Jitter();
+	const FfxFloat32x2 fSrcMotionVector = texelFetch(r_input_motion_vectors, iPxDilatedMotionVectorPos, 0).xy;
 
 	FfxFloat32x2 fUvMotionVector = fSrcMotionVector * MotionVectorScale();
 

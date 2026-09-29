@@ -199,6 +199,10 @@
         <translation>Wie weit unter der Fenstergröße der Raytracer rendert. Der Hochskalierer rekonstruiert das Bild in jedem Modus über mehrere Bilder, und alle Modi außer Nativ tracen weniger Pixel, als sie anzeigen.</translation>
     </message>
     <message>
+        <source>Off</source>
+        <translation>Aus</translation>
+    </message>
+    <message>
         <source>Ultra Performance</source>
         <translation>Ultra-Leistung</translation>
     </message>

@@ -38,6 +38,8 @@ namespace Rtx
             EXPECT_EQ(sFruitNames.named(""), std::nullopt);
 
             EXPECT_EQ(sFruitNames.values(), (std::array{ Fruit::Pear, Fruit::Apple, Fruit::Plum }));
+            EXPECT_EQ(sFruitNames.spellings(),
+                (std::array{ std::string_view("pear"), std::string_view("apple"), std::string_view("plum") }));
             EXPECT_EQ(sFruitNames.list(), "pear, apple or plum");
 
             EXPECT_EQ(sFruitNames.require("pear", "a fruit"), Fruit::Pear);

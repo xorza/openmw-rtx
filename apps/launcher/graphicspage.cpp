@@ -31,6 +31,7 @@ namespace
 {
     // In the context the .ui's own strings are translated in, which is where these came from
     constexpr std::array<Rtx::MenuLabel, Rtx::sUpscaleMenu.size()> sUpscaleLabels{ {
+        { "off", QT_TRANSLATE_NOOP("GraphicsPage", "Off") },
         { "ultraperformance", QT_TRANSLATE_NOOP("GraphicsPage", "Ultra Performance") },
         { "performance", QT_TRANSLATE_NOOP("GraphicsPage", "Performance") },
         { "balanced", QT_TRANSLATE_NOOP("GraphicsPage", "Balanced") },
