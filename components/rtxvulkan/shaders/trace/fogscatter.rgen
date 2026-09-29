@@ -237,7 +237,8 @@ void main()
     // point. Over the whole sphere, because the air has no side — `ambientReaching` says what that
     // means in a room and out of one.
     const float ambientSeen
-        = ambientReaching(position, vec3(0.0), vec3(0.0), 0.0, froxelKey(uvec2(column), slice) + SEED_AMBIENT_FOG);
+        = ambientReaching(position, vec3(0.0), vec3(0.0), 0.0, froxelKey(uvec2(column), slice) + SEED_AMBIENT_FOG,
+            AMBIENT_EXTERIOR_RATE);
 
     // **Whatever the moons deliver, whether or not they were worth a ray.** `mMoonlit` gates the
     // shadow and nothing else: gating the energy with it stepped both moons out of the frame the

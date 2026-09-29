@@ -100,3 +100,12 @@ Only under the PBR profile: the Zed tasks that start the game with `~/.config/op
   Look at glossy stone on the pier at native for sparkle.
 - **`Off` in the menus.** Pick it in the settings window while playing: the picture is traced at the
   window's size, denoised, with no anti-aliasing.
+
+## The water's speckle, fixed
+
+- **Water under trees.** `openmw-rtxtool view --view=seyda-neen-pond`, and any pond or shore in the
+  shade of leaves: what the water reflects and shows through it should be as clean as the rock or
+  bank beside it, with no black-and-white grain. Walk along the shore: look for smearing of shadows
+  seen through the water, which the shadow denoiser now filters.
+- **Glass and faded actors** trace every occlusion ray now. Look at a window or a fading ghost in
+  daylight for less grain.

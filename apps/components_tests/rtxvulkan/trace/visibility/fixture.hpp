@@ -17,6 +17,7 @@
 
 #include <osg/Math>
 #include <osg/Matrixf>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
@@ -113,6 +114,31 @@ namespace Rtx::Testing
         camera.mSkyZenith = osg::Vec3f();
         camera.mWaterLevel = 0.0f;
     }
+
+    /// An orthographic eye ten degrees over the water, which it sees from 500 to 100 units short of
+    /// y = 0: every pixel's reflection and refraction are parallel to every other pixel's, so a flat
+    /// sea sends each pixel's rays to the same angles, and Schlick's term is one number,
+    /// `0.02 + 0.98 (1 - sin 10°)^5` = 0.40. The reflection rises at ten degrees and meets y = 0
+    /// `0.176 |y|` up, 17.6 to 88 units: the height of `sGrazedWall`. The refraction bends to 47.6
+    /// degrees off the vertical and travels 1.09 of whatever depth it crosses toward it.
+    inline Shaders::VisibilityConstants grazingTheWater(std::uint32_t size)
+    {
+        const float grazing = osg::DegreesToRadians(10.0f);
+        const osg::Vec3f along(0.0f, std::cos(grazing), -std::sin(grazing));
+        const osg::Vec3f middle(0.0f, -300.0f, 0.0f);
+        const osg::Matrixf view = osg::Matrixf::lookAt(middle - along * 1000.0f, middle, osg::Vec3f(0.0f, 0.0f, 1.0f));
+
+        // 400 units of water along the view, which the frame sees `sin 10°` of.
+        const float across = 400.0f * std::sin(grazing);
+        Shaders::VisibilityConstants camera
+            = makeOrthographicCameraFromView(view, across, across, size, size, 1.0f, 5000.0f).value();
+        camera.mWaterLevel = 0.0f;
+        return camera;
+    }
+
+    /// The wall `grazingTheWater` reflects: a hundred units square standing on the water at y = 0,
+    /// facing back at the eye, and wider than the frame.
+    inline const std::array<osg::Vec3f, 4> sGrazedWall = uprightQuadAt(50.0f, 0.0f, osg::Vec2f(0.0f, 50.0f));
 
     /// The wall `sWallQuad` names, on its own, as a scene.
     ///

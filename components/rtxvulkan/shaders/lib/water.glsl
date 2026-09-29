@@ -44,8 +44,8 @@ const float WATER_MIN_FACING = 0.03;
 /// What a ray sent out from the water surface found.
 struct WaterPath
 {
-    /// The light coming back along it, already shaded.
-    vec3 mRadiance;
+    /// The light coming back along it, already shaded, with the sky's source apart on what it found.
+    SplitLight mLight;
 
     /// How far it went to find that, or `WATER_MAX_PATH` where it found nothing.
     float mDistance;
@@ -100,7 +100,7 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint seed, uint ambientS
     {
         path.mDistance = hit.mDistance;
 
-        path.mRadiance = shadeAtPathEnd(hit, ambientSeed, seed, PATH_SEEN);
+        path.mLight = shadeAtPathEnd(hit, ambientSeed, seed, PATH_SEEN, true, AMBIENT_UNFILTERED_RATE);
         return path;
     }
 
@@ -112,7 +112,7 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint seed, uint ambientS
     if (direction.z < 0.0)
     {
         path.mDistance = WATER_UNBOUNDED_PATH;
-        path.mRadiance = vec3(0.0);
+        path.mLight = SplitLight(vec3(0.0), vec3(0.0), 1.0);
         return path;
     }
 
@@ -124,7 +124,7 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint seed, uint ambientS
     // says and is the same rule `tone.comp` draws by.
     const float blur = pixelBlur(frame.mCamera) + 0.5 * lobe;
 
-    path.mRadiance = reflectedSky(origin, direction, blur, true);
+    path.mLight = SplitLight(reflectedSky(origin, direction, blur, true), vec3(0.0), 1.0);
 
     return path;
 }
@@ -148,20 +148,29 @@ float airSpan(WaterPath path)
 ///        both legs, since both leave the same point.
 /// @param before how far the eye's own ray had come, which a leg into the air carries on from —
 ///        `fogAlongLeg` says why it asks.
-vec3 alongLeg(WaterPath path, WorldRay leg, bool underwater, float footprint, uvec2 pixel, float before)
+SplitLight alongLeg(WaterPath path, WorldRay leg, bool underwater, float footprint, uvec2 pixel, float before)
 {
+    // The sky's source is taken down by what the medium lets through and gains none of what it
+    // scatters, which stays with the rest: each medium is `radiance * through + scattered`.
+    const SplitLight light = path.mLight;
     if (underwater)
-        return throughWater(path.mRadiance, waterColumn(leg.mFrom, leg.mAlong, path.mDistance, footprint, pixel));
+    {
+        const WaterColumn column = waterColumn(leg.mFrom, leg.mAlong, path.mDistance, footprint, pixel);
+        return SplitLight(
+            throughWater(light.mRest, column), light.mSunlit * column.mTransmittance, light.mSunOpen);
+    }
 
-    return throughAir(path.mRadiance, fogAlongLeg(leg.mFrom, leg.mAlong, airSpan(path), before));
+    const vec4 air = fogAlongLeg(leg.mFrom, leg.mAlong, airSpan(path), before);
+    return SplitLight(throughAir(light.mRest, air), light.mSunlit * air.w, light.mSunOpen);
 }
 
 /// What a water surface answers with: what it sends back along the ray, what it is in the
 /// filter's terms, what it reflects, and how much of the pixel is water at all.
 struct WaterShading
 {
-    /// The water's whole answer, as if there were water all the way down.
-    vec3 mRadiance;
+    /// The water's whole answer, as if there were water all the way down, with the sky's source of
+    /// what its two rays found apart: both sources, and one of their bits, as `mixSplit` says.
+    SplitLight mLight;
 
     SurfaceResponse mResponse;
 
@@ -253,7 +262,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const WorldRay mirrored = WorldRay(leaving, reflect(incident, normal));
     const WaterPath bounced = waterRay(
         mirrored, Cone(surface.mFootprint, cone.mSpread), lobe, key + SEED_LAMPS_MIRROR, key + SEED_AMBIENT_MIRROR);
-    const vec3 reflected = alongLeg(bounced, mirrored, fromBelow, surface.mFootprint, pixel, before);
+    const SplitLight reflected = alongLeg(bounced, mirrored, fromBelow, surface.mFootprint, pixel, before);
 
     const vec3 bent = refract(incident, normal, fromBelow ? WATER_IOR : 1.0 / WATER_IOR);
     if (dot(bent, bent) < 1e-6)
@@ -261,7 +270,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
         // Past the critical angle looking up from underwater, where the surface is a mirror and
         // there is nothing behind it to see: the reflection whole, which is the Fresnel term's own
         // answer there, and no refraction to trace.
-        shaded.mRadiance = reflected;
+        shaded.mLight = reflected;
         return shaded;
     }
 
@@ -276,9 +285,10 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const WorldRay across = WorldRay(leaving, through);
     const WaterPath behind = waterRay(across, Cone(surface.mFootprint, cone.mSpread), lobe * WATER_REFRACTION_BEND,
         key + SEED_LAMPS_THROUGH, key + SEED_AMBIENT_THROUGH);
-    const vec3 refracted = alongLeg(behind, across, !fromBelow, surface.mFootprint, pixel, before);
+    const SplitLight refracted = alongLeg(behind, across, !fromBelow, surface.mFootprint, pixel, before);
 
-    shaded.mRadiance = mix(refracted, reflected, fresnel);
+    uint legs = randomSeed(key + SEED_SUN_LEGS);
+    shaded.mLight = mixSplit(refracted, reflected, fresnel, randomNext(legs));
     return shaded;
 }
 

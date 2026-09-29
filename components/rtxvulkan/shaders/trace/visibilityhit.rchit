@@ -105,8 +105,18 @@ void answerPane(inout Answer answer, Surface surface)
 
     answer.mPane = true;
     answer.mOpacity = surface.mOpacity;
-    answer.mRadiance
-        = shadeAtPathEnd(surface, key + paneAmbientSeed(record.mLayer), key + paneSeed(record.mLayer), PATH_SEEN);
+    answer.mRadiance = composed(shadeAtPathEnd(
+        surface, key + paneAmbientSeed(record.mLayer), key + paneSeed(record.mLayer), PATH_SEEN, false,
+        AMBIENT_UNFILTERED_RATE));
+}
+
+/// Fills the payload in with what the pixel shows but the filtered channels, and the sky's source
+/// apart for the shadow denoiser.
+void answerLight(inout Answer answer, SplitLight light)
+{
+    answer.mRadiance = light.mRest;
+    answer.mSunlit = light.mSunlit;
+    answer.mSunOpen = light.mSunOpen > 0.0;
 }
 
 /// Fills the payload in for an ordinary lit surface.
@@ -134,11 +144,9 @@ void answerSolid(inout Answer answer, Surface surface)
     }
 
     const SeenSolid seen = shadeSolid(surface, stagePixel(), stageCone());
-    answer.mRadiance = seen.mDirect;
+    answerLight(answer, seen.mLight);
     answer.mBounced = seen.mBounce;
     answer.mResponse = seen.mResponse;
-    answer.mSunlit = seen.mSunlit;
-    answer.mSunOpen = seen.mSunOpen > 0.0;
     answer.mSpecular = seen.mSpecular;
     answer.mRoughness = seen.mRoughness;
 }
@@ -168,7 +176,7 @@ void answerWater(inout Answer answer, Surface surface)
     answer.mWater = true;
 
     const WaterShading water = shadeWater(surface, direction, pixel, cone);
-    answer.mRadiance = water.mRadiance;
+    answerLight(answer, water.mLight);
     answer.mResponse = water.mResponse;
 
     const float shore = water.mShore;
@@ -184,17 +192,16 @@ void answerWater(inout Answer answer, Surface surface)
     const SeenSolid seen = shadeSolid(bed, pixel, cone);
 
     // The direct light and the response as a blend, and the bounce whole, since the albedo it is put
-    // back against carries the share. The sky's source is the bed's alone, so it takes the bed's
-    // share of the blend. The two normals arrive as codes and leave as one, so a shore pixel's is
-    // rounded twice — within twice the code's bound, on the few pixels a waterline crosses.
+    // back against carries the share. The two normals arrive as codes and leave as one, so a shore
+    // pixel's is rounded twice — within twice the code's bound, on the few pixels a waterline
+    // crosses.
     const vec3 normal = normalize(mix(unpackSurfaceNormal(seen.mResponse.mNormal),
         unpackSurfaceNormal(answer.mResponse.mNormal), shore));
-    answer.mRadiance = mix(seen.mDirect, answer.mRadiance, shore);
+    uint kept = randomSeed(pixelKey(pixel) + SEED_SUN_SHORE);
+    answerLight(answer, mixSplit(seen.mLight, water.mLight, shore, randomNext(kept)));
     answer.mBounced = seen.mBounce;
-    answer.mSunlit = seen.mSunlit * (1.0 - shore);
     answer.mSpecular = seen.mSpecular * (1.0 - shore);
     answer.mRoughness = seen.mRoughness;
-    answer.mSunOpen = seen.mSunOpen > 0.0;
     answer.mResponse = SurfaceResponse(packSurfaceNormal(normal), seen.mResponse.mDiffuse * (1.0 - shore));
 }
 

@@ -81,7 +81,9 @@ struct DirectLight
 ///        whether the rest of this is drawn at `INDIRECT_LIGHT_RATE` or spent on every hit.
 /// @param split whether the sky's source is handed back apart, `DirectLight::mSkyDiffuse` and the
 ///        two beside it, for the shadow denoiser (`CHANNEL_SUNLIT`). **A literal at every call**:
-///        only the eye's own solid splits, and every other caller composes what it composed before.
+///        what the eye sees splits — its own solid, and what the water's legs find — and the pane and
+///        the bounce compose. Only with `PATH_SEEN`: the split terms do not carry the rate that
+///        `PATH_INDIRECT` draws at.
 DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path, bool split)
 {
     const vec3 position = surface.mPosition;
@@ -287,15 +289,71 @@ vec3 litSurface(Surface surface, vec3 diffuse, vec3 specular)
     return surface.mAlbedo * (diffuse + surface.mEmissiveColour * EMISSIVE_INTENSITY) + surface.mEmitted + specular;
 }
 
-/// `litSurface` over the whole of `gather`'s light, the sky's source included.
+/// What a surface sends back, with the sky's source kept apart: `CHANNEL_SUNLIT`'s two halves
+/// beside everything else.
+struct SplitLight
+{
+    /// Everything but the sky's source.
+    vec3 mRest;
+
+    /// What the sky's source adds as though its rays got through, albedo and lobe included, and
+    /// whether they did, one or nought. Nought and one where nothing split it off.
+    vec3 mSunlit;
+    float mSunOpen;
+};
+
+/// The whole of a split light, with the sky's source as its own ray found it.
+vec3 composed(SplitLight light)
+{
+    return light.mRest + light.mSunlit * light.mSunOpen;
+}
+
+/// What the sky's source adds to a surface as though its rays got through, out of what `gather`
+/// split off.
+vec3 skyLight(Surface surface, DirectLight lit)
+{
+    return surface.mAlbedo * lit.mSkyDiffuse + lit.mSkySpecular;
+}
+
+/// Two split lights that one pixel shows, `mix(a, b, t)`, with one bit between them.
+///
+/// **The bit is one of the two, drawn in proportion to the luminance each source adds.** A pixel
+/// has one bit for the shadow denoiser to filter, and what it filters to is then the two
+/// visibilities weighed by those shares — under the sum of both sources, which makes the pixel's
+/// luminance exact on average. What is not exact is its hue, where the two sources differ in colour
+/// and in visibility: the water's legs do, since only one of them crosses the water. At the pond
+/// under a canopy that `-1,-9` looks at, the converged picture stands within 0.6 of a code of the
+/// exact one in every channel.
+///
+/// **Keeping the brighter source's bit and composing the other was exact and lost.** The other
+/// term keeps its own ray's noise at its share of the pixel, and where the Fresnel term is near a
+/// half both shares are large: the same pond's error against a reference fell from 17 codes to 8.4,
+/// and to 5.3 drawn. And it is not exact once filtered either, because a neighbour that kept the
+/// other source's bit is averaged in.
+///
+/// @param draw one number in `[0, 1)`, from a sequence of the caller's own.
+SplitLight mixSplit(SplitLight a, SplitLight b, float t, float draw)
+{
+    const vec3 fromA = a.mSunlit * (1.0 - t);
+    const vec3 fromB = b.mSunlit * t;
+    const float shareA = dot(fromA, LUMINANCE_WEIGHTS);
+    const float shareB = dot(fromB, LUMINANCE_WEIGHTS);
+
+    return SplitLight(
+        mix(a.mRest, b.mRest, t), fromA + fromB, draw * (shareA + shareB) < shareB ? b.mSunOpen : a.mSunOpen);
+}
+
+/// `litSurface` over the whole of `gather`'s light, with the sky's source apart where `split` asks.
 ///
 /// @param gloss the surface's specular half, `glossOf`.
 /// @param incoming what arrives from everything that is not a light, `pathEnd` at the hit a
 ///        hemisphere found.
-vec3 shadeSurface(Surface surface, Gloss gloss, vec3 incoming, uint seed, uint path)
+/// @param split as `gather` takes it, and a literal at every call for the same reason.
+SplitLight shadeSurface(Surface surface, Gloss gloss, vec3 incoming, uint seed, uint path, bool split)
 {
-    const DirectLight lit = gather(surface, gloss, seed, path, false);
-    return litSurface(surface, incoming + lit.mDiffuse, lit.mSpecular);
+    const DirectLight lit = gather(surface, gloss, seed, path, split);
+    return SplitLight(
+        litSurface(surface, incoming + lit.mDiffuse, lit.mSpecular), skyLight(surface, lit), lit.mSkyOpen);
 }
 
 /// Which face of a surface a diffuse sample leaves by, and what the sample is then worth.
@@ -348,10 +406,10 @@ bool behindTheFace(vec3 towards, vec3 plane, float face)
 /// stood over it. This is the missing half, and it is a visibility ray rather than a bounce: nothing
 /// is shaded at the far end, only asked whether there is one.
 ///
-/// **One sample, and it is binary — half a sample out of doors.** That is as noisy as a single
-/// sample can be, and it multiplies a term already carried by one, so it rides the same filter. The
-/// estimator stays unbiased at either rate, which a cheaper guess would not be. See
-/// `AMBIENT_EXTERIOR_RATE`.
+/// **One sample, and it is binary — `rate` of a sample out of doors.** That is as noisy as a single
+/// sample can be, and it multiplies a term already carried by one, so it rides the same filter where
+/// there is one. The estimator stays unbiased at any rate, which a cheaper guess would not be. See
+/// `AMBIENT_EXTERIOR_RATE` and `AMBIENT_UNFILTERED_RATE`.
 ///
 /// **A sheet asks both faces**, by `sampledFace`: a leaf in the open sees the sky over its back as
 /// well, at `transmission` of what it sees over its front, so what reaches it runs to
@@ -366,7 +424,9 @@ bool behindTheFace(vec3 towards, vec3 plane, float face)
 ///        side to face away from, so what stands over it is asked over the whole sphere rather than
 ///        over a hemisphere.
 /// @param plane the surface's own triangle, as `behindTheFace` takes it.
-float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission, uint seed)
+/// @param rate what share of the rays out of doors are traced: `AMBIENT_EXTERIOR_RATE` where a
+///        filter takes the answer, and `AMBIENT_UNFILTERED_RATE` where none does.
+float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission, uint seed, float rate)
 {
     uint state = randomSeed(seed);
     const vec2 draw = vec2(randomNext(state), randomNext(state));
@@ -395,10 +455,10 @@ float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission
         return weight * ambientThrough(position, towards, ROOM_FILL_REACH);
 
     // Drawn last, so a solid's direction and a sheet's side are the numbers they were.
-    if (randomNext(state) >= AMBIENT_EXTERIOR_RATE)
+    if (randomNext(state) >= rate)
         return 0.0;
 
-    return weight * ambientThrough(position, towards, frame.mReach) / AMBIENT_EXTERIOR_RATE;
+    return weight * ambientThrough(position, towards, frame.mReach) / rate;
 }
 
 /// What a surface a path ends at sends back: `pathEnd`, dimmed by one occlusion ray of its own,
@@ -407,14 +467,21 @@ float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission
 /// **One statement of the tail every path shares**, because three ended it for themselves: the
 /// pane the eye looks through, the far end of a water ray, and the hit the eye's bounce found.
 ///
+/// **The water's legs split the sky's source off**, because what they find is what the pixel shows:
+/// under a canopy, one shadow ray a pixel speckles a reflection that the same rock seen directly
+/// hands to the shadow denoiser. The pane composes it, as nothing filters a pane, and so does the
+/// bounce, whose whole light the wavelet filters.
+///
 /// @param ambientSeed the sequence the occlusion ray draws from, and `lampSeed` the one the lamp
 ///        reservoir steps. Two, for the reason `SEED_AMBIENT_REACHING` gives.
-vec3 shadeAtPathEnd(Surface hit, uint ambientSeed, uint lampSeed, uint path)
+/// @param split as `gather` takes it.
+/// @param ambientRate as `ambientReaching` takes it.
+SplitLight shadeAtPathEnd(Surface hit, uint ambientSeed, uint lampSeed, uint path, bool split, float ambientRate)
 {
-    const float reaching
-        = ambientReaching(hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, ambientSeed);
+    const float reaching = ambientReaching(
+        hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, ambientSeed, ambientRate);
 
-    return shadeSurface(hit, glossOf(hit), pathEnd(hit.mPosition, reaching), lampSeed, path);
+    return shadeSurface(hit, glossOf(hit), pathEnd(hit.mPosition, reaching), lampSeed, path, split);
 }
 
 /// What one bounce brings back, in the two halves `shadeSolid` hands on apart.
@@ -582,8 +649,8 @@ vec3 bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel)
     // the path is two copies, and a warp whose lanes drew both halves runs them one after the
     // other. Chosen at run time, the diffuse half's hit asks the moons and finds they weigh nought.
     return weight
-        * shadeAtPathEnd(hit, pixelKey(pixel) + SEED_AMBIENT_REACHING, pixelKey(pixel) + SEED_LAMPS_BOUNCE,
-            drawn.mSpecular ? PATH_SEEN : PATH_INDIRECT);
+        * composed(shadeAtPathEnd(hit, pixelKey(pixel) + SEED_AMBIENT_REACHING, pixelKey(pixel) + SEED_LAMPS_BOUNCE,
+            drawn.mSpecular ? PATH_SEEN : PATH_INDIRECT, false, AMBIENT_EXTERIOR_RATE));
 }
 
 /// What reaches a surface from everything that is not a light: one bounce, off the half
@@ -625,19 +692,15 @@ Bounce bounceLight(Surface surface, Gloss gloss, uvec2 pixel, Cone cone)
 /// What a solid the eye found sends back, in the channels' pieces.
 struct SeenSolid
 {
-    /// Everything resolved but what a filter takes: the glow.
-    vec3 mDirect;
+    /// Everything resolved but what a filter takes, the glow, in `mRest`, and what the sky's source
+    /// adds and whether its rays got through: `CHANNEL_SUNLIT`'s two halves.
+    SplitLight mLight;
 
     /// The diffuse light the wavelet filters, per unit albedo: the one bounce, and the lamps.
     vec3 mBounce;
 
     /// What the solid is in the filter's terms.
     SurfaceResponse mResponse;
-
-    /// What the sky's source adds as though its rays got through, albedo and lobe included, and
-    /// whether they did: `CHANNEL_SUNLIT`'s two halves.
-    vec3 mSunlit;
-    float mSunOpen;
 
     /// What the lobe reflects of the lamps and of the one bounce, whole, and the perceptual
     /// roughness of the lobe that reflects it, or `SPECULAR_NO_LOBE`: `CHANNEL_SPECULAR`. Not
@@ -667,13 +730,11 @@ SeenSolid shadeSolid(Surface hit, uvec2 pixel, Cone cone)
     // Split, `gather`'s diffuse half holds the lamps alone, and its specular half their lobe, which
     // joins the bounce's lobe for the glossy filter.
     SeenSolid seen;
-    seen.mDirect = litSurface(hit, vec3(0.0), vec3(0.0));
+    seen.mLight = SplitLight(litSurface(hit, vec3(0.0), vec3(0.0)), skyLight(hit, lit), lit.mSkyOpen);
     seen.mBounce = bounced.mDiffuse + lit.mDiffuse;
     seen.mSpecular = lit.mSpecular + bounced.mSpecular;
     seen.mRoughness = gloss.mGlossy ? hit.mRoughness : SPECULAR_NO_LOBE;
     seen.mResponse = responseOf(hit);
-    seen.mSunlit = hit.mAlbedo * lit.mSkyDiffuse + lit.mSkySpecular;
-    seen.mSunOpen = lit.mSkyOpen;
     return seen;
 }
 
