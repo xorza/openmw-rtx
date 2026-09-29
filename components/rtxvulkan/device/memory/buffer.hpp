@@ -188,9 +188,16 @@ namespace Rtx
         }
 
         /// Copies `data` to `offset` bytes in.
+        ///
+        /// **Nothing at all for nothing**: an empty span's data may be null, and `memcpy` is
+        /// undefined on a null pointer whatever the size — a scene with no lamps writes its light
+        /// table so.
         template <class T>
         void writeAt(VkDeviceSize offset, std::span<const T> data) const
         {
+            if (data.empty())
+                return;
+
             std::memcpy(writable<T>(offset, data.size()).data(), data.data(), data.size_bytes());
         }
 

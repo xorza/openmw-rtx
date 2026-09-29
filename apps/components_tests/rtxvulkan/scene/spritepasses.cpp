@@ -270,13 +270,15 @@ namespace Rtx
                         list, presence, nullptr);
                 });
 
-                result.mList.resize(words);
-                std::memcpy(result.mList.data(), list.map(), words * sizeof(std::uint32_t));
+                // Assigned from the mapped words rather than copied into a vector sized first, which
+                // an empty bin would hand `memcpy` as a null destination.
+                const auto* const listWords = static_cast<const std::uint32_t*>(list.map());
+                result.mList.assign(listWords, listWords + words);
                 std::memcpy(&result.mReport, report.map(), sizeof(result.mReport));
-                result.mRects.resize(count);
-                std::memcpy(result.mRects.data(), rects.map(), count * sizeof(std::uint64_t));
-                result.mPresence.resize(result.getTileCount());
-                std::memcpy(result.mPresence.data(), presence.map(), result.getTileCount() * sizeof(std::uint32_t));
+                const auto* const rectWords = static_cast<const std::uint64_t*>(rects.map());
+                result.mRects.assign(rectWords, rectWords + count);
+                const auto* const presenceWords = static_cast<const std::uint32_t*>(presence.map());
+                result.mPresence.assign(presenceWords, presenceWords + result.getTileCount());
 
                 if (!result.isUnbinned())
                     result.expectRunsMatchRects(count);
