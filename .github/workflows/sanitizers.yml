@@ -1,5 +1,5 @@
 # The tests under the sanitizers, called by `daily.yml` every day and by `rtx-release.yml` before a
-# release is made.
+# release is made, and started by hand for a branch.
 #
 # The sanitizers are upstream's, from its GitLab pipeline: AddressSanitizer and
 # UndefinedBehaviorSanitizer over its suites, with a finding a failure. Here the fork's `asan` flavour,
@@ -14,6 +14,14 @@ on:
         description: Whether to restore and save the build caches; false for a release.
         type: boolean
         required: true
+  # By hand, for a branch that wants its sanitizers read before the daily run reaches it: the daily
+  # run is the default branch's alone, and it files an issue where this only fails.
+  workflow_dispatch:
+    inputs:
+      cache:
+        description: Whether to restore and save the build caches.
+        type: boolean
+        default: true
 
 # Nothing by default, and each job names what it needs.
 permissions: {}
