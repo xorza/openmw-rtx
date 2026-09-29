@@ -15,43 +15,10 @@
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "pagedcellref.hpp"
+
 namespace Terrain
 {
-    /// No gate: the reference stands by the content files and by what the game says of it.
-    inline constexpr std::uint32_t sNoGate = ~0u;
-
-    /// What the game says of a gate: whether the references behind it stand in the distance.
-    enum class GateState : std::uint8_t
-    {
-        /// Not yet evaluated, and so nothing behind it stands: a stage the game has not decided on
-        /// is more often down than up, and a gate is told before the frame that reads it.
-        Unknown,
-
-        Open,
-        Closed,
-
-        /// The script's answer rests on something only an active cell has — an activation that
-        /// takes the reference down, another reference's state, an instruction the evaluation does
-        /// not model — so each reference stands by what the game says of it, as an ungated one
-        /// does.
-        Undecided,
-    };
-
-    /// One reference a chunk stands, reduced to what the paging needs of it.
-    struct PagedCellRef
-    {
-        ESM::RefId mRefId{};
-        ESM::RefNum mRefNum{};
-        osg::Vec3f mPosition{};
-        osg::Vec3f mRotation{};
-        float mScale = 1.f;
-
-        /// The gate that says whether it stands in the distance, where its record's own script can
-        /// enable or disable it — a script that runs only while its cell is active, so the content
-        /// files' answer is not the game's. `MWScript::VisibilityGates` says which.
-        std::uint32_t mGate = sNoGate;
-    };
-
     /// Which references one walk of a cell's records collects, as a set of the two kinds.
     enum class RefKinds : unsigned int
     {

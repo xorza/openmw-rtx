@@ -1,9 +1,9 @@
 #ifndef GAME_SCRIPT_SCRIPTMANAGER_H
 #define GAME_SCRIPT_SCRIPTMANAGER_H
 
-#include <cstdint>
 #include <map>
 #include <set>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -89,10 +89,7 @@ namespace MWScript
 
         GlobalScripts& getGlobalScripts() override;
 
-        std::uint32_t getVisibilityGate(const ESM::RefId& record) const override
-        {
-            return mVisibilityGates.gateOf(record);
-        }
+        void markVisibilityGates(std::span<Terrain::PagedCellRef> cell) const override { mVisibilityGates.mark(cell); }
 
         /// Makes the gates, once the content is loaded and before a renderer reads a cell.
         void buildVisibilityGates();
