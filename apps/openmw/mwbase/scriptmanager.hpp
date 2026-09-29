@@ -1,8 +1,10 @@
 #ifndef GAME_MWBASE_SCRIPTMANAGER_H
 #define GAME_MWBASE_SCRIPTMANAGER_H
 
-#include <cstdint>
+#include <span>
 #include <string_view>
+
+#include <components/terrain/pagedcellref.hpp>
 
 namespace Interpreter
 {
@@ -59,10 +61,10 @@ namespace MWBase
 
         virtual MWScript::GlobalScripts& getGlobalScripts() = 0;
 
-        /// Which gate a record's references stand behind in the distance, or `Terrain::sNoGate` —
-        /// `MWScript::VisibilityGates`. Asked by the renderers' reader threads, which the table
-        /// allows: it is built at load and not written again.
-        virtual std::uint32_t getVisibilityGate(const ESM::RefId& record) const = 0;
+        /// Marks each reference of one cell with the gate it stands behind in the distance —
+        /// `MWScript::VisibilityGates::mark`. Asked by the renderers' reader threads, which the
+        /// tables allow: they are built at load and not written again.
+        virtual void markVisibilityGates(std::span<Terrain::PagedCellRef> cell) const = 0;
 
         virtual const Compiler::Extensions& getExtensions() const = 0;
     };

@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <initializer_list>
 #include <map>
 #include <optional>
 #include <sstream>
@@ -19,8 +20,9 @@
 #include <components/esm3/loadcont.hpp>
 #include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadscpt.hpp>
+#include <components/esm3/loadstat.hpp>
 #include <components/interpreter/program.hpp>
-#include <components/terrain/objectstorage.hpp>
+#include <components/terrain/pagedcellref.hpp>
 
 #include "apps/openmw/mwscript/visibilitygates.hpp"
 #include "apps/openmw/mwscript/visibilityrun.hpp"
@@ -88,7 +90,10 @@ End
             return name == "stronghold" || name == "flag" ? 's' : ' ';
         }
 
-        bool isId(const ESM::RefId& name) const override { return name == "player" || name == "plank"; }
+        bool isId(const ESM::RefId& name) const override
+        {
+            return name == "player" || name == "plank" || name == "plank_b";
+        }
     };
 
     class FakeReads final : public MWScript::VisibilityReads
@@ -148,7 +153,17 @@ End
         {
             const Compiled compiled = compile(text);
             inputs.clear();
-            return mRun.run(compiled.mProgram, compiled.mLocals, mReads, inputs);
+            return mRun.run(compiled.mProgram, compiled.mLocals, mReads, inputs, mNamed);
+        }
+
+        /// What the last `run` left the one name it toggled, or nothing where it named none.
+        std::optional<GateState> plank() const
+        {
+            if (mNamed.empty())
+                return std::nullopt;
+            EXPECT_EQ(mNamed.size(), 1u);
+            EXPECT_EQ(mNamed[0].mName, ESM::RefId::stringRefId("plank"));
+            return mNamed[0].mState;
         }
 
         TestErrorHandler mErrors;
@@ -157,6 +172,7 @@ End
         Compiler::FileParser mParser;
         MWScript::VisibilityRun mRun;
         FakeReads mReads;
+        std::vector<MWScript::VisibilityNamed> mNamed;
     };
 
     /// **A run answers what a reference's frames in an active cell would leave it as.** A
@@ -198,7 +214,9 @@ End
     /// a run sets is its own and read back as set, and only the read before the write is an
     /// input; `GetDisabled` reads the run's own answer; an activation decides nothing where the
     /// reference stands the same either way, and leaves it undecided where it does not; an
-    /// instruction nobody modelled is undecided too — but only on the path the run takes.
+    /// instruction nobody modelled is undecided too — but only on the path the run takes. A name
+    /// the script enables or disables is decided apart from the reference: by its last word, on
+    /// every path alike, and undecided where a path leaves it alone or another says otherwise.
     TEST_F(VisibilityGatesTest, aRunKeepsWhatItWritesAndDoesNotGuessWhatItCannotSee)
     {
         std::vector<MWScript::VisibilityInput> inputs;
@@ -234,19 +252,34 @@ End
             << "a menu and a stopped script say nothing of the reference, which stands as the files have it";
         EXPECT_EQ(run("begin s\n\"plank\"->enable\ndisable\nend s\n", inputs), GateState::Closed)
             << "another reference enabled by name says nothing of this one";
+        EXPECT_EQ(plank(), GateState::Open) << "and is enabled";
+        run("begin s\n\"plank\"->disable\n\"plank\"->enable\nend s\n", inputs);
+        EXPECT_EQ(plank(), GateState::Open) << "the last word";
+        EXPECT_EQ(run("begin s\nif ( OnActivate == 1 )\n\"plank\"->disable\nendif\nend s\n", inputs), GateState::Open);
+        EXPECT_EQ(plank(), GateState::Undecided) << "a path that leaves it alone leaves it to its history";
+        run("begin s\nif ( CellChanged == 1 )\n\"plank\"->enable\nelse\n\"plank\"->disable\nendif\nend s\n", inputs);
+        EXPECT_EQ(plank(), GateState::Undecided) << "two paths that say otherwise";
+        run("begin s\nif ( OnActivate == 1 )\n\"plank\"->disable\nelse\n\"plank\"->disable\nendif\nend s\n", inputs);
+        EXPECT_EQ(plank(), GateState::Closed) << "every path alike";
+        EXPECT_EQ(run("begin s\n\"plank\"->disable\nlock 50\nend s\n", inputs), GateState::Undecided);
+        EXPECT_EQ(plank(), std::nullopt) << "a run that could not finish decides no name";
         EXPECT_EQ(
             run("begin s\nif ( \"plank\"->GetDisabled == 1 )\ndisable\nendif\nend s\n", inputs), GateState::Undecided)
             << "another reference's state is one only its loaded cell has";
     }
 
-    /// **One gate a script that toggles its own reference, however many records wear it.** Two
-    /// activators and a door wear the stage's script and share its gate; a container wears the
-    /// Ghostfence's; the next stage's hall reads the same global as the first stage; an activator
-    /// whose script only plays a sound, and one with no script, stand behind none. A run reports
-    /// every gate once, and after that only a gate whose input moved and whose answer changed —
-    /// both stages run when the global moves, and each reports only where it changed; a reset
-    /// reports them all again, for the renderers a new game clears.
-    TEST_F(VisibilityGatesTest, aGateIsAScriptThatTogglesItsOwnReferenceAndMovesWithItsInputs)
+    /// **A gate for the references a script toggles: its own, however many records wear it, and
+    /// each it names beside it.** Two activators and a door wear the stage's script and share its
+    /// gate; a container wears the Ghostfence's; the next stage's hall reads the same global as the
+    /// first stage; Thirsk's door names two planks, a gate each, and the player, an actor the
+    /// distance never shows and so no gate; an activator whose script only plays a sound, and one
+    /// with no script, stand behind none. A plank stands behind its gate in
+    /// the door's cell, and nowhere else: not alone, and not as one of two planks of a record. A
+    /// run reports every gate once, and after that only a gate whose input moved and whose answer
+    /// changed — both stages run when the global moves, and each reports only where it changed;
+    /// the planks follow the hall's journal, one decided on each path and the other left alone on
+    /// one; a reset reports them all again, for the renderers a new game clears.
+    TEST_F(VisibilityGatesTest, aScriptGatesWhatItTogglesBesideItAndMovesWithItsInputs)
     {
         MWWorld::ESMStore store;
         const auto script = [&](std::string_view id, std::string_view text) {
@@ -259,6 +292,9 @@ End
         script("ghostfencescript", sFenceScript);
         script("chimes", "begin chimes\nplaysound \"chimes\"\nend chimes\n");
         script("stage_two", "begin stage_two\nif ( Stronghold == 2 )\nenable\nelse\ndisable\nendif\nend stage_two\n");
+        script("thirsk",
+            "begin thirsk\nif ( GetJournalIndex bm_meadhall < 40 )\n\"plank\"->disable\n\"plank_b\"->disable\nelse\n"
+            "\"plank\"->enable\nendif\n\"player\"->disable\nend thirsk\n");
 
         const auto wears = [](std::string_view id, std::string_view worn) {
             ESM::Activator record;
@@ -275,10 +311,20 @@ End
         door.mId = ESM::RefId::stringRefId("stage_door");
         door.mScript = ESM::RefId::stringRefId("strong1_construct");
         store.insertStatic(door);
+        ESM::Door hallDoor;
+        hallDoor.mId = ESM::RefId::stringRefId("hall_door");
+        hallDoor.mScript = ESM::RefId::stringRefId("thirsk");
+        store.insertStatic(hallDoor);
         ESM::Container fence;
         fence.mId = ESM::RefId::stringRefId("fence_crate");
         fence.mScript = ESM::RefId::stringRefId("ghostfencescript");
         store.insertStatic(fence);
+        for (const std::string_view plank : { "plank", "plank_b" })
+        {
+            ESM::Static board;
+            board.mId = ESM::RefId::stringRefId(plank);
+            store.insertStatic(board);
+        }
         store.setUp();
 
         class FromStore final : public MWScript::GateScripts
@@ -312,24 +358,53 @@ End
         MWScript::VisibilityGates gates;
         gates.build(store, scripts);
 
-        EXPECT_EQ(gates.getGateCount(), 3u);
-        EXPECT_EQ(scripts.mCompiled, 3u) << "the chimes' text names neither instruction, so it is never compiled";
-        const std::uint32_t hall = gates.gateOf(ESM::RefId::stringRefId("hall"));
-        const std::uint32_t stage = gates.gateOf(ESM::RefId::stringRefId("stage_a"));
-        const std::uint32_t ghost = gates.gateOf(ESM::RefId::stringRefId("fence_crate"));
+        EXPECT_EQ(gates.getGateCount(), 5u)
+            << "three scripts' own references, and the two planks: the player is no record the distance shows";
+        EXPECT_EQ(scripts.mCompiled, 4u) << "the chimes' text names neither instruction, so it is never compiled";
+
+        // The gates of one cell's references, in the order given.
+        const auto cell = [&](std::initializer_list<std::string_view> records) {
+            std::vector<Terrain::PagedCellRef> refs;
+            for (const std::string_view record : records)
+                refs.push_back(Terrain::PagedCellRef{ .mRefId = ESM::RefId::stringRefId(record) });
+            gates.mark(refs);
+            std::vector<std::uint32_t> marked;
+            for (const Terrain::PagedCellRef& ref : refs)
+                marked.push_back(ref.mGate);
+            return marked;
+        };
+
+        const std::vector<std::uint32_t> worn
+            = cell({ "stage_a", "stage_b", "stage_door", "fence_crate", "hall", "chime", "rock", "hall_door" });
+        const std::uint32_t stage = worn[0];
+        const std::uint32_t ghost = worn[3];
+        const std::uint32_t hall = worn[4];
         EXPECT_NE(stage, Terrain::sNoGate);
         EXPECT_NE(ghost, Terrain::sNoGate);
+        EXPECT_NE(hall, Terrain::sNoGate);
         EXPECT_NE(stage, ghost);
-        EXPECT_EQ(gates.gateOf(ESM::RefId::stringRefId("stage_b")), stage);
-        EXPECT_EQ(gates.gateOf(ESM::RefId::stringRefId("stage_door")), stage);
-        EXPECT_EQ(gates.gateOf(ESM::RefId::stringRefId("chime")), Terrain::sNoGate);
-        EXPECT_EQ(gates.gateOf(ESM::RefId::stringRefId("rock")), Terrain::sNoGate);
+        EXPECT_EQ(worn[1], stage);
+        EXPECT_EQ(worn[2], stage);
+        EXPECT_EQ(worn[5], Terrain::sNoGate) << "a script that plays a sound";
+        EXPECT_EQ(worn[6], Terrain::sNoGate) << "no script";
+        EXPECT_EQ(worn[7], Terrain::sNoGate) << "the door's script names others and leaves the door alone";
+
+        const std::vector<std::uint32_t> beside = cell({ "plank", "hall_door", "plank_b" });
+        const std::uint32_t plank = beside[0];
+        const std::uint32_t plankB = beside[2];
+        EXPECT_NE(plank, Terrain::sNoGate);
+        EXPECT_NE(plankB, Terrain::sNoGate);
+        EXPECT_NE(plank, plankB);
+        EXPECT_EQ(cell({ "plank" })[0], Terrain::sNoGate) << "with no door in its cell";
+        EXPECT_EQ(cell({ "plank", "hall_door", "plank" }),
+            (std::vector<std::uint32_t>{ Terrain::sNoGate, Terrain::sNoGate, Terrain::sNoGate }))
+            << "two planks of one record, and which the door means is the game's to say";
 
         std::vector<MWScript::GateChange> changes;
         mReads.mGlobals["stronghold"] = 0;
         mReads.mJournal["c3_destroydagoth"] = 0;
         gates.update(mReads, changes);
-        ASSERT_EQ(changes.size(), 3u) << "every gate, once";
+        ASSERT_EQ(changes.size(), 5u) << "every gate, once";
 
         changes.clear();
         gates.update(mReads, changes);
@@ -358,8 +433,17 @@ End
         EXPECT_EQ(changes[0].mState, GateState::Closed);
 
         changes.clear();
+        mReads.mJournal["bm_meadhall"] = 50;
+        gates.update(mReads, changes);
+        ASSERT_EQ(changes.size(), 2u) << "the planks";
+        EXPECT_EQ(changes[0].mGate, plank);
+        EXPECT_EQ(changes[0].mState, GateState::Open);
+        EXPECT_EQ(changes[1].mGate, plankB);
+        EXPECT_EQ(changes[1].mState, GateState::Undecided) << "left alone on the hall's path past 40";
+
+        changes.clear();
         gates.reset();
         gates.update(mReads, changes);
-        EXPECT_EQ(changes.size(), 3u) << "a reset tells every gate again";
+        EXPECT_EQ(changes.size(), 5u) << "a reset tells every gate again";
     }
 }

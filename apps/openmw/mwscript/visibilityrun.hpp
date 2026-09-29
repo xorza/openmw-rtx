@@ -6,7 +6,7 @@
 
 #include <components/esm/refid.hpp>
 #include <components/interpreter/interpreter.hpp>
-#include <components/terrain/objectstorage.hpp>
+#include <components/terrain/pagedcellref.hpp>
 
 namespace Compiler
 {
@@ -63,20 +63,28 @@ namespace MWScript
         double mValue = 0.0;
     };
 
+    /// What a run left a reference its script names by `Enable` and `Disable` as: `Undecided` where
+    /// the paths the run tried did not all leave it the same way, or some left it alone.
+    struct VisibilityNamed
+    {
+        ESM::RefId mName;
+        Terrain::GateState mState = Terrain::GateState::Undecided;
+    };
+
     /// Runs a reference's own script as a frame in an active cell would, and answers whether the
     /// reference stands after it — for a reference in a cell no one has loaded, whose script has
     /// never run.
     ///
     /// **An interpreter of its own, with only the instructions it models.** Control flow,
     /// arithmetic, locals and globals are the interpreter's own; `Enable`, `Disable` and
-    /// `GetDisabled` act on the run's answer; `GetJournalIndex` reads the journal; `StopScript`,
-    /// the sound instructions and an `Enable` or `Disable` of another reference do nothing,
-    /// because none of them says anything about this one. An activation, a cell change, an open
-    /// menu and a playing sound are what only a frame of an active cell knows, and the script
-    /// is run under every answer to the ones it asks: the reference's answer is the run's where
-    /// they all agree, and `Undecided` where they do not. Every other instruction is one the run
-    /// does not model, and makes the answer `Undecided` too. Nothing the run does reaches the
-    /// game: a global it sets is its own for the rest of the run.
+    /// `GetDisabled` act on the run's answer, and an `Enable` or `Disable` of a reference by name
+    /// on that name's; `GetJournalIndex` reads the journal; `StopScript` and the sound
+    /// instructions do nothing, because neither says anything about a reference. An activation,
+    /// a cell change, an open menu and a playing sound are what only a frame of an active cell
+    /// knows, and the script is run under every answer to the ones it asks: the reference's
+    /// answer is the run's where they all agree, and `Undecided` where they do not. Every other instruction is one the
+    /// run does not model, and makes the answer `Undecided` too. Nothing the run does reaches the game: a global it
+    /// sets is its own for the rest of the run.
     class VisibilityRun
     {
     public:
@@ -86,11 +94,18 @@ namespace MWScript
         VisibilityRun& operator=(const VisibilityRun&) = delete;
 
         /// Runs `program` over a reference the content files stand, with every local at nought,
-        /// and appends to `inputs` every global and journal entry it read.
+        /// appends to `inputs` every global and journal entry it read, and fills `named` with
+        /// what it left each reference it names — nothing where the run itself is `Undecided`.
         Terrain::GateState run(const Interpreter::Program& program, const Compiler::Locals& locals,
-            const VisibilityReads& reads, std::vector<VisibilityInput>& inputs);
+            const VisibilityReads& reads, std::vector<VisibilityInput>& inputs, std::vector<VisibilityNamed>& named);
 
     private:
+        /// Folds what this way left each name into `named`, where `before` says a way came first.
+        void agree(std::vector<VisibilityNamed>& named, bool before) const;
+
         Interpreter::Interpreter mInterpreter;
+
+        // What one way of the events left each name, refilled by every way.
+        std::vector<VisibilityNamed> mWay;
     };
 }

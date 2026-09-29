@@ -198,8 +198,8 @@ namespace MWScript
 
         Compiled compiled(*this);
         mVisibilityGates.build(mStore, compiled);
-        Log(Debug::Info) << "Visibility gates: " << mVisibilityGates.getGateCount()
-                         << " scripts decide whether their references stand in the distance";
+        Log(Debug::Info) << "Visibility gates: " << mVisibilityGates.getScriptCount()
+                         << " scripts enable or disable references, " << mVisibilityGates.getGateCount() << " gates";
     }
 
     void ScriptManager::updateVisibilityGates()
@@ -223,7 +223,7 @@ namespace MWScript
                             << undecided << " undecided, " << mGateChanges.size() - open - undecided << " closed";
         for (const GateChange& change : mGateChanges)
             if (change.mState == Terrain::GateState::Undecided)
-                Log(Debug::Verbose) << "Visibility gate undecided: " << mVisibilityGates.getScript(change.mGate);
+                Log(Debug::Verbose) << "Visibility gate undecided: " << mVisibilityGates.describe(change.mGate);
     }
 
     std::pair<int, int> ScriptManager::compileAll()

@@ -46,18 +46,30 @@ namespace MWScript
         public:
             /// @param events one bit an `Event`: what each answers in this run.
             RunContext(const Compiler::Locals& locals, const VisibilityReads& reads,
-                std::vector<VisibilityInput>& inputs, unsigned events)
+                std::vector<VisibilityInput>& inputs, std::vector<VisibilityNamed>& named, unsigned events)
                 : mEvents(events)
                 , mShorts(locals.get('s').size(), 0)
                 , mLongs(locals.get('l').size(), 0)
                 , mFloats(locals.get('f').size(), 0.0f)
                 , mReads(reads)
                 , mInputs(inputs)
+                , mNamed(named)
             {
             }
 
             bool isEnabled() const { return mEnabled; }
             void setEnabled(bool enabled) { mEnabled = enabled; }
+
+            void setNamed(const ESM::RefId& name, bool enabled)
+            {
+                const Terrain::GateState state = enabled ? Terrain::GateState::Open : Terrain::GateState::Closed;
+                const auto known = std::find_if(
+                    mNamed.begin(), mNamed.end(), [&](const VisibilityNamed& named) { return named.mName == name; });
+                if (known != mNamed.end())
+                    known->mState = state;
+                else
+                    mNamed.push_back(VisibilityNamed{ .mName = name, .mState = state });
+            }
 
             int ask(Event event)
             {
@@ -179,6 +191,9 @@ namespace MWScript
 
             const VisibilityReads& mReads;
             std::vector<VisibilityInput>& mInputs;
+
+            /// What this way left each name, the last word on it.
+            std::vector<VisibilityNamed>& mNamed;
         };
 
         RunContext& contextOf(Interpreter::Runtime& runtime)
@@ -191,6 +206,19 @@ namespace MWScript
         {
         public:
             void execute(Interpreter::Runtime& runtime) override { contextOf(runtime).setEnabled(Enabled); }
+        };
+
+        /// `Enable` or `Disable` of a reference by name, which is the one argument.
+        template <bool Enabled>
+        class OpSetNamed final : public Interpreter::Opcode0
+        {
+        public:
+            void execute(Interpreter::Runtime& runtime) override
+            {
+                const ESM::RefId name = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                runtime.pop();
+                contextOf(runtime).setNamed(name, Enabled);
+            }
         };
 
         class OpGetDisabled final : public Interpreter::Opcode0
@@ -260,10 +288,8 @@ namespace MWScript
         mInterpreter.installSegment5<OpSoundPlaying>(Compiler::Sound::opcodeGetSoundPlaying);
         mInterpreter.installSegment5<OpNothing<1>>(Compiler::Misc::opcodeStopScript);
 
-        // Another reference, named: the game tells the renderers of it when the script runs, and
-        // this reference's answer is not moved by it. Its name is the one argument.
-        mInterpreter.installSegment5<OpNothing<1>>(Compiler::Misc::opcodeEnableExplicit);
-        mInterpreter.installSegment5<OpNothing<1>>(Compiler::Misc::opcodeDisableExplicit);
+        mInterpreter.installSegment5<OpSetNamed<true>>(Compiler::Misc::opcodeEnableExplicit);
+        mInterpreter.installSegment5<OpSetNamed<false>>(Compiler::Misc::opcodeDisableExplicit);
 
         // `cXX` takes the sound's name and ignores the rest; `cff` takes the volume and the pitch
         // after it.
@@ -277,8 +303,9 @@ namespace MWScript
     }
 
     Terrain::GateState VisibilityRun::run(const Interpreter::Program& program, const Compiler::Locals& locals,
-        const VisibilityReads& reads, std::vector<VisibilityInput>& inputs)
+        const VisibilityReads& reads, std::vector<VisibilityInput>& inputs, std::vector<VisibilityNamed>& named)
     {
+        named.clear();
         // **Every way the events the script asked about could answer, and one answer from all of
         // them or none.** A script that asks whether it was activated only to show a message
         // stands the same whatever the answer; one that takes itself down when activated stands
@@ -288,6 +315,8 @@ namespace MWScript
         std::uint32_t tried = 0;
         unsigned asked = 0;
         std::optional<bool> answer;
+        // Kept on after the reference's own answer is lost, for the names that may still agree.
+        Terrain::GateState own = Terrain::GateState::Open;
         for (unsigned before = ~0u; before != asked;)
         {
             before = asked;
@@ -297,7 +326,8 @@ namespace MWScript
                     continue;
                 tried |= 1u << events;
 
-                RunContext context(locals, reads, inputs, events);
+                mWay.clear();
+                RunContext context(locals, reads, inputs, mWay, events);
                 try
                 {
                     mInterpreter.run(program, context);
@@ -306,20 +336,49 @@ namespace MWScript
                 // own: the one kind of answer a run cannot give is a wrong one.
                 catch (const Undecided&)
                 {
+                    named.clear();
                     return Terrain::GateState::Undecided;
                 }
                 catch (const std::exception&)
                 {
+                    named.clear();
                     return Terrain::GateState::Undecided;
                 }
 
                 asked |= context.getAsked();
+                agree(named, answer.has_value());
                 if (answer.has_value() && *answer != context.isEnabled())
-                    return Terrain::GateState::Undecided;
+                    own = Terrain::GateState::Undecided;
                 answer = context.isEnabled();
             }
         }
 
+        if (own == Terrain::GateState::Undecided)
+            return own;
         return *answer ? Terrain::GateState::Open : Terrain::GateState::Closed;
+    }
+
+    void VisibilityRun::agree(std::vector<VisibilityNamed>& named, const bool before) const
+    {
+        // The first way says what each name is; every way after it must say the same of every
+        // name, and a name one way left alone is a name the frame's history decides.
+        if (!before)
+        {
+            named = mWay;
+            return;
+        }
+
+        for (VisibilityNamed& was : named)
+        {
+            const auto now = std::find_if(
+                mWay.begin(), mWay.end(), [&](const VisibilityNamed& way) { return way.mName == was.mName; });
+            if (now == mWay.end() || now->mState != was.mState)
+                was.mState = Terrain::GateState::Undecided;
+        }
+
+        for (const VisibilityNamed& way : mWay)
+            if (std::none_of(
+                    named.begin(), named.end(), [&](const VisibilityNamed& was) { return was.mName == way.mName; }))
+                named.push_back(VisibilityNamed{ .mName = way.mName, .mState = Terrain::GateState::Undecided });
     }
 }

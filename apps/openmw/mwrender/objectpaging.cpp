@@ -1167,9 +1167,7 @@ namespace MWRender
 
         buffer.mStack.reduceInto(into);
 
-        const MWBase::ScriptManager& scripts = *MWBase::Environment::get().getScriptManager();
-        for (Terrain::PagedCellRef& ref : into)
-            ref.mGate = scripts.getVisibilityGate(ref.mRefId);
+        MWBase::Environment::get().getScriptManager()->markVisibilityGates(into);
     }
 
     std::unique_ptr<Terrain::RefCollector> ObjectStorage::makeCollector() const

@@ -162,9 +162,10 @@ source-tree test holds the order.
   costs what moved. What a walk did not meet is swept after it.
 - **The cell ring** (`mirror/cells/`) stands the world past the loaded cells, because rays reach
   it: the ground from the land records, the statics as instances of their templates, the lamps.
-  A reader thread prepares cells, and the frame adopts them a little at a time. A reference whose
-  own script enables or disables it stands behind a gate the game evaluates
-  (`MWScript::VisibilityGates`), because in a cell no one has loaded that script has never run.
+  A reader thread prepares cells, and the frame adopts them a little at a time. A reference a
+  local script enables or disables — its own, or one it names in its cell — stands behind a gate
+  the game evaluates (`MWScript::VisibilityGates`), because in a cell no one has loaded that
+  script has never run.
 - **`Rtx::ContentPreprocessor`** is the one way anything is computed from what the content files
   hold — a shape's fold and the normals it smoothed across a hard edge split, a texture's alpha and
   mean. One lives on each thread that reads content: the frame's walk and the ring's reader. Every
