@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/png.hpp>
 
 namespace RtxTool
@@ -61,13 +62,26 @@ namespace RtxTool
     /// from it at the 99th percentile at the Seyda Neen pier, a seventh of the bar's 33 there, so
     /// what is left of its own noise does not decide a verdict. **The bar at 16 is a decision, not a
     /// derivation**: the frame a player sees is to be as clean as sixteen samples a pixel, a quarter
-    /// of one sample's noise. Moving it moves what the claim says.
+    /// of one sample's noise. Moving it moves what the claim says. A frame whose history could not
+    /// hold that many is held to what it could — `noiseBarFramesAfter`.
     inline constexpr std::uint32_t sNoiseReferenceFrames = 256;
     inline constexpr std::uint32_t sNoiseBarFrames = 16;
 
     /// How many frames `noise --strafe` flies its frame into the place over: half a second of world,
     /// which at a strafe of 150 units is a player running.
     inline constexpr std::uint32_t sNoiseStrafeFrames = 30;
+
+    /// How many frames the bar averages for a frame whose history is `frames` long: as many samples a
+    /// shown pixel as that history could hold, and never more than `sNoiseBarFrames`.
+    ///
+    /// **A trace that covers fewer pixels than it shows has fewer samples to show.** An upscaled mode
+    /// traces the share `extents` say of the shown pixels, so after the strafe's thirty frames quality
+    /// holds at most 13 samples a shown pixel and ultra performance 3, however well each is used.
+    /// Held to sixteen, every upscaled mode failed strafed by arithmetic, in the order of their
+    /// shares (the pond 2.64 at quality to 3.41 at ultra performance, against 2.54); held to what it
+    /// had, the verdict says whether the chain uses its samples as well as plain averaging does.
+    /// Rounded down, since the history holds at most that many; never under one.
+    std::uint32_t noiseBarFramesAfter(std::uint32_t frames, const Rtx::FrameExtents& extents);
 
     /// What `noise` names the reference and the bar of a place, after the place's own name.
     inline constexpr std::string_view sNoiseReferenceSuffix = "-reference";
@@ -77,7 +91,9 @@ namespace RtxTool
     /// each frame is as clean as its bar: no worse than the bar against the reference, by the mean
     /// and at the 99th percentile. Returns a process exit status, non-zero where any frame is
     /// noisier than its bar or any picture is missing.
-    int judgeNoise(const std::filesystem::path& wrote, std::span<const std::string> places);
+    ///
+    /// @param barFrames how many frames the bars averaged, which the report names.
+    int judgeNoise(const std::filesystem::path& wrote, std::span<const std::string> places, std::uint32_t barFrames);
 
     /// Reads back what a run wrote and says what moved since `against`: a directory an earlier run
     /// wrote on this machine, never a corpus in the tree, because the picture is a function of the

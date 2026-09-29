@@ -152,12 +152,12 @@ namespace Rtx::Testing
     }
 
     /// One see-through quad in `scene`, of `colour` and its own alpha, faded as the game fades a
-    /// placement.
+    /// placement. Returns its slot, which a test moves it by.
     ///
     /// **The two numbers an opacity is made of, added the one way.** The shader multiplies a
     /// material's alpha by a placement's fade, and a helper that built either of them its own way
     /// would be holding up a surface this renderer does not have.
-    inline void addPane(SceneDesc& scene, std::span<const osg::Vec3f, 4> quad, const osg::Vec4f& colour,
+    inline Index addPane(SceneDesc& scene, std::span<const osg::Vec3f, 4> quad, const osg::Vec4f& colour,
         float fade = 1.0f, bool twoSided = false)
     {
         // A test states a pane as a colour and how much of it there is, which is the pair the
@@ -170,7 +170,8 @@ namespace Rtx::Testing
             .mTwoSided = twoSided,
         });
 
-        scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene, quad), .mMaterial = glass, .mOpacity = fade });
+        return scene.addInstance(
+            MeshInstance{ .mMesh = addQuadMesh(scene, quad), .mMaterial = glass, .mOpacity = fade });
     }
 
     /// The eye and the sun every test over that wall stands it under: the sun along +Y, square to

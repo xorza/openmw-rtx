@@ -37,10 +37,10 @@ namespace Rtx
         /// what it is handed, and the bit costs no memory, so every channel carries it.
         constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-        /// The channels a caller can ask to read back: the bounce, the albedo, the surface and the
-        /// motion. See `Rtx::Channel`. And the direct channel, which
-        /// is the frame once composed: `readComposite` copies it out, the frame a measurement is
-        /// taken on, where `readPixels` gives the one a display would show.
+        /// The channels a caller can ask to read back: every one but the backdrop and the puffs. See
+        /// `Rtx::Channel`. The direct channel among them is the frame once composed: `readComposite`
+        /// copies it out, the frame a measurement is taken on, where `readPixels` gives the one a
+        /// display would show.
         constexpr VkImageUsageFlags sReadable = sUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
         struct ChannelFormat
@@ -65,6 +65,10 @@ namespace Rtx
                 every[bindingOf(Channel::Puffs)] = { sLayer, sUsage };
                 every[bindingOf(Channel::Sunlit)] = { VK_FORMAT_UNDEFINED, sReadable };
                 every[bindingOf(Channel::Specular)] = { VK_FORMAT_UNDEFINED, sReadable };
+                every[bindingOf(Channel::Pane)] = { VK_FORMAT_UNDEFINED, sReadable };
+                every[bindingOf(Channel::PaneAlbedo)] = { sAlbedo, sReadable };
+                every[bindingOf(Channel::PaneSurface)] = { sSurface, sReadable };
+                every[bindingOf(Channel::PaneMotion)] = { sMotion, sReadable };
 
                 return every;
             }();

@@ -32,6 +32,7 @@
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -868,7 +869,8 @@ namespace RtxTool
         /// `sNoiseReferenceFrames` frames traced unfiltered and jittered, from the white hash, which
         /// is a sequence neither of the others draws from, so it shares no sample with them; its
         /// exposure is measured as a played frame's is. The bar averages `sNoiseBarFrames` frames,
-        /// unfiltered and as the run otherwise traces. The frame is the run's own, after the warm-up
+        /// unfiltered and as the run otherwise traces — or, strafed, as many as the frame's history
+        /// could hold, `noiseBarFramesAfter`. The frame is the run's own, after the warm-up
         /// its history converges over, upscaled as the run is — or, with `--strafe`, after it flew into
         /// the place from the side (`Stand::approachFromSide`). The reference and the bar are traced
         /// with no upscaler, at the frame's own output size, so an upscaled frame is held to the
@@ -921,6 +923,13 @@ namespace RtxTool
             if (!(strafe >= 0.0f) || !std::isfinite(strafe))
                 throw std::runtime_error(std::format("--strafe is {}, which is no distance", strafe));
 
+            // A frame taken standing still has a history as long as the warm-up, which is more than
+            // any mode needs to hold sixteen samples a shown pixel.
+            const Rtx::FrameExtents extents = Rtx::extentsFor(
+                framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mProfile.mUpscaling.mMode);
+            const std::uint32_t barFrames
+                = strafe > 0.0f ? noiseBarFramesAfter(sNoiseStrafeFrames, extents) : sNoiseBarFrames;
+
             // The frame's own stop, strafing in where the line asks: a route that holds the world, so
             // the frame flies through the world the reference stands in (`applyPolicy`).
             const auto frame = [&](const Stop& place) {
@@ -948,8 +957,7 @@ namespace RtxTool
                 names.push_back(place.mName);
                 stops.push_back(picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true, reference,
                     std::nullopt, Rtx::Upscale::Off));
-                stops.push_back(
-                    picture(place, sNoiseBarSuffix, sNoiseBarFrames, true, unfiltered, held, Rtx::Upscale::Off));
+                stops.push_back(picture(place, sNoiseBarSuffix, barFrames, true, unfiltered, held, Rtx::Upscale::Off));
                 stops.push_back(frame(place));
             }
 
@@ -961,7 +969,7 @@ namespace RtxTool
                 status != 0)
                 return status;
 
-            return judgeNoise(out, names);
+            return judgeNoise(out, names, barFrames);
         }
 
         /// A film of the keys a window wrote: every take drawn headless, its frames numbered through

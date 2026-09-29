@@ -121,8 +121,34 @@ namespace Rtx::Shaders
     /// returned nought.
     const float SPECULAR_NO_LOBE = -1.0f;
 
+    /// What the see-through layers in front of the surface send of the light a path end drew — the
+    /// light arriving at each and its lobe's, each times what the layers and the media in front of it
+    /// let through and its own opacity — divided by `CHANNEL_PANE_ALBEDO`, in `rgb`: the channel the
+    /// pane filter averages over time. A pane is shaded at the end of a path, one occlusion ray, one
+    /// lamp and one sun ray a frame, and composited over the frame, so this is as noisy as a bounce
+    /// and nothing else takes it. Nought where no layer stands. What a layer glows with is
+    /// deterministic, and stays in `CHANNEL_DIRECT`.
+    const uint CHANNEL_PANE = 9;
+
+    /// What `CHANNEL_PANE` is multiplied back by: the layers' albedos, each times the same weight,
+    /// in `rgb`, and one in a channel where they sum to under `PANE_ALBEDO_FLOOR`. Demodulated for
+    /// the reason the bounce is, so texture a history is reprojected across stays sharp.
+    const uint CHANNEL_PANE_ALBEDO = 10;
+
+    /// The nearest layer's own surface, as `CHANNEL_SURFACE` holds the solid's — the normal's code,
+    /// and the distance along the ray — and its own motion, as `CHANNEL_MOTION` holds the solid's:
+    /// what the pane filter's history is matched and reprojected by. `SURFACE_NO_NORMAL` and nought
+    /// where no layer stands.
+    const uint CHANNEL_PANE_SURFACE = 11;
+    const uint CHANNEL_PANE_MOTION = 12;
+
     /// How many the set declares, which is the last of them and one more.
-    const uint CHANNEL_COUNT = 9;
+    const uint CHANNEL_COUNT = 13;
+
+    /// The least albedo `CHANNEL_PANE` is divided by, a channel at a time: under it the layers are
+    /// black there, what they send is their lobe's alone, and dividing it by nearly nought would
+    /// hand the filter a number the albedo channel's halves cannot bring back. A texel's step.
+    const float PANE_ALBEDO_FLOOR = 1.0f / 255.0f;
 
     /// How many steps either side of nought the surface channel holds an octahedral axis at: twelve
     /// bits an axis, so a code is under 2^24 and a float holds it exactly.

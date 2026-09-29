@@ -264,8 +264,9 @@ namespace RtxTool
         option(Verbs::Noise, "strafe", bpo::value<float>()->default_value(0.0f),
             std::format("with `noise`, how many world units to the side the frame starts: it flies into "
                         "the place over the last {} frames, facing it, through a world as still as the "
-                        "reference's, so the frame is taken after a history the eye moved through. Nought "
-                        "takes it standing still",
+                        "reference's, so the frame is taken after a history the eye moved through, and held "
+                        "to as many frames averaged as that history could hold samples a shown pixel. "
+                        "Nought takes it standing still",
                 sNoiseStrafeFrames));
 
         option(sRuns, "views", bpo::value<std::string>()->default_value(""),

@@ -464,13 +464,12 @@ float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission
 /// What a surface a path ends at sends back: `pathEnd`, dimmed by one occlusion ray of its own,
 /// through `shadeSurface`.
 ///
-/// **One statement of the tail every path shares**, because three ended it for themselves: the
-/// pane the eye looks through, the far end of a water ray, and the hit the eye's bounce found.
+/// **One statement of the tail the paths share**: the far end of a water ray, and the hit the eye's
+/// bounce found. A pane ends its path in `shadePane`, the same terms kept apart for its filter.
 ///
 /// **The water's legs split the sky's source off**, because what they find is what the pixel shows:
 /// under a canopy, one shadow ray a pixel speckles a reflection that the same rock seen directly
-/// hands to the shadow denoiser. The pane composes it, as nothing filters a pane, and so does the
-/// bounce, whose whole light the wavelet filters.
+/// hands to the shadow denoiser. The bounce composes it, since the wavelet filters its whole light.
 ///
 /// @param ambientSeed the sequence the occlusion ray draws from, and `lampSeed` the one the lamp
 ///        reservoir steps. Two, for the reason `SEED_AMBIENT_REACHING` gives.
@@ -482,6 +481,40 @@ SplitLight shadeAtPathEnd(Surface hit, uint ambientSeed, uint lampSeed, uint pat
         hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, ambientSeed, ambientRate);
 
     return shadeSurface(hit, glossOf(hit), pathEnd(hit.mPosition, reaching), lampSeed, path, split);
+}
+
+/// What a see-through layer sends back, in the pieces the pane filter takes apart.
+struct SeenPane
+{
+    /// What it glows with, which nothing drew: `litSurface` with no light arriving.
+    vec3 mGlow;
+
+    /// What a path end drew for it, per unit albedo — `pathEnd` under its one occlusion ray, and
+    /// `gather`'s diffuse half — and what its lobe reflects of that, whole.
+    vec3 mDiffuse;
+    vec3 mSpecular;
+
+    SurfaceResponse mResponse;
+};
+
+/// `shadeAtPathEnd` for a layer the eye looks through, with what was drawn kept apart from what was
+/// not: the pane filter averages the one over time, and the glow is exact as it stands.
+///
+/// **The same terms, so a pane composed from these is the pane `shadeAtPathEnd` shades**: the glow
+/// plus the albedo times the drawn light plus the lobe is `litSurface` of the two, to its rounding.
+///
+/// **At `AMBIENT_EXTERIOR_RATE`**, because the pane filter takes what it draws, as the glossy filter
+/// takes what a lobe's path end draws at the same rate.
+///
+/// @param ambientSeed,lampSeed as `shadeAtPathEnd` takes them.
+SeenPane shadePane(Surface hit, uint ambientSeed, uint lampSeed)
+{
+    const float reaching = ambientReaching(
+        hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, ambientSeed, AMBIENT_EXTERIOR_RATE);
+    const DirectLight lit = gather(hit, glossOf(hit), lampSeed, PATH_SEEN, false);
+
+    return SeenPane(litSurface(hit, vec3(0.0), vec3(0.0)), pathEnd(hit.mPosition, reaching) + lit.mDiffuse,
+        lit.mSpecular, responseOf(hit));
 }
 
 /// What one bounce brings back, in the two halves `shadeSolid` hands on apart.

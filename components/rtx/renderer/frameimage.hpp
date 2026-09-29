@@ -27,6 +27,10 @@ namespace Rtx
         Puffs = Shaders::CHANNEL_PUFFS,
         Sunlit = Shaders::CHANNEL_SUNLIT,
         Specular = Shaders::CHANNEL_SPECULAR,
+        Pane = Shaders::CHANNEL_PANE,
+        PaneAlbedo = Shaders::CHANNEL_PANE_ALBEDO,
+        PaneSurface = Shaders::CHANNEL_PANE_SURFACE,
+        PaneMotion = Shaders::CHANNEL_PANE_MOTION,
     };
 
     inline constexpr std::uint32_t sChannelCount = Shaders::CHANNEL_COUNT;
@@ -48,6 +52,10 @@ namespace Rtx
         { Channel::Puffs, "g-puffs" },
         { Channel::Sunlit, "g-sunlit" },
         { Channel::Specular, "g-specular" },
+        { Channel::Pane, "g-pane" },
+        { Channel::PaneAlbedo, "g-pane-albedo" },
+        { Channel::PaneSurface, "g-pane-surface" },
+        { Channel::PaneMotion, "g-pane-motion" },
     } } };
 
     /// Every channel in binding order, for a walk that wants them all.

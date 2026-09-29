@@ -14,6 +14,7 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/scene/spritebin.hpp>
 #include <components/rtxvulkan/trace/denoise/accumulatehistory.hpp>
+#include <components/rtxvulkan/trace/denoise/panehistory.hpp>
 #include <components/rtxvulkan/trace/denoise/shadowhistory.hpp>
 #include <components/rtxvulkan/trace/denoise/specularhistory.hpp>
 
@@ -95,19 +96,20 @@ namespace Rtx
         /// which may have grown the table.
         VkDeviceAddress getSpriteTileList(const VisibilityInputs& inputs) const;
 
-        /// What the denoiser hands the composite: where the bounce and the lobe's light ended up, and
-        /// how much of the sky's source got through — null where the frame had no sky source to
-        /// shadow.
+        /// What the denoiser hands the composite: where the bounce, the lobe's light and the layers'
+        /// light ended up, and how much of the sky's source got through — null where the frame had no
+        /// sky source to shadow.
         struct Denoised
         {
             const Image& mIndirect;
             const Image& mSpecular;
+            const Image& mPane;
             const Image* mShadow;
         };
 
         /// The light resolved: the temporal mean, the shadow denoiser over the sky's source's rays,
-        /// the glossy filter over the lobe's light, and then the cascade over the bounce, with the
-        /// barriers between them that make this one call.
+        /// the glossy filter over the lobe's light, the pane filter over the layers', and then the
+        /// cascade over the bounce, with the barriers between them that make this one call.
         ///
         /// @param timer null where the run is not being timed, which a picture is not.
         ///
@@ -134,9 +136,11 @@ namespace Rtx
         AccumulateHistory mHistory;
         Image mFilterScratch;
 
-        /// What the shadow denoiser and the glossy filter keep of this camera, at the extent.
+        /// What the shadow denoiser, the glossy filter and the pane filter keep of this camera, at
+        /// the extent.
         ShadowHistory mShadows;
         SpecularHistory mSpeculars;
+        PaneHistory mPanes;
 
         /// Set by `resetHistory` and spent by the next trace, which always integrates the air.
         bool mAirStale = false;

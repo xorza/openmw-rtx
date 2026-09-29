@@ -24,8 +24,7 @@
 //
 // **The accumulator's rules otherwise**: bilinear over the four texels the motion lands between,
 // each only if it is this surface by `heldSurfaceMatches`, against the accumulator's own surface
-// history; the mean, its second moment and the frame count in a history of this pass's own; and the
-// outlier clamp at `ACCUMULATE_SIGMAS` once `ACCUMULATE_SETTLED` frames have measured a spread.
+// history; and `blendedMean` into a history of this pass's own.
 
 #include "accumulate.h"
 #include "colour.h"
@@ -35,6 +34,7 @@
 #include "specular.h"
 
 #include "lib/pixels.glsl"
+#include "lib/runningmean.glsl"
 #include "lib/spritelist.glsl"
 #include "lib/surfacematch.glsl"
 
@@ -165,44 +165,16 @@ void main()
         }
     }
 
-    const float lit = dot(sampled.rgb, LUMINANCE_WEIGHTS);
-
-    vec3 blended = sampled.rgb;
-    float blendedSquare = lit * lit;
-    float count = 1.0;
-
+    RunningMean blended = startedMean(sampled.rgb);
     if (weight > 0.0)
     {
-        held /= weight;
-        frames /= weight;
-        const float heldLit = dot(held.rgb, LUMINANCE_WEIGHTS);
-
         const float facing = abs(dot(normal, toEye));
         const float kept = reflectionKept(toEye, toEyeBefore(footprint, arms), turnAllowed(sampled.a, facing));
-
-        // The accumulator's outlier clamp, for the accumulator's reason: a firefly is a number of
-        // deviations from what the pixel has been seeing, and not a radiance. **Counted by what the
-        // view kept of it**, since a history the eye turned from measured another reflection's spread.
-        if (frames * kept >= ACCUMULATE_SETTLED && lit > 0.0)
-        {
-            const float spread = sqrt(max(held.a - heldLit * heldLit, 0.0));
-            const float ceiling = heldLit + ACCUMULATE_SIGMAS * spread;
-            if (lit > ceiling)
-                blended = sampled.rgb * (ceiling / lit);
-        }
-
-        // ReLAX's `max(1 - confidence, 1 / (1 + frames))`. The count kept is what the blend made
-        // of it, so a history the view turned away from is as short as its weight says.
-        const float alpha = max(1.0 - kept, 1.0 / min(frames + 1.0, ACCUMULATE_FRAMES));
-        count = 1.0 / alpha;
-
-        const float clampedLit = dot(blended, LUMINANCE_WEIGHTS);
-        blended = mix(held.rgb, blended, alpha);
-        blendedSquare = mix(held.a, clampedLit * clampedLit, alpha);
+        blended = blendedMean(sampled.rgb, RunningMean(held / weight, frames / weight), kept);
     }
 
     // Selected and not branched around, for the rule the tree keeps: a lane with no lobe runs the
     // blend over a history of nothing and keeps none of it.
-    imageStore(mean, at, reflects ? vec4(blended, blendedSquare) : vec4(sampled.rgb, 0.0));
-    imageStore(framesOut, at, vec4(reflects ? count : 0.0));
+    imageStore(mean, at, reflects ? blended.mMean : vec4(sampled.rgb, 0.0));
+    imageStore(framesOut, at, vec4(reflects ? blended.mFrames : 0.0));
 }
