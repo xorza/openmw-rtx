@@ -18,7 +18,6 @@
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
 #include "result.hpp"
-#include "upscalerextensions.hpp"
 
 namespace Rtx
 {
@@ -87,16 +86,6 @@ namespace Rtx
             std::string missing;
             for (const std::string_view feature : lacking)
                 appendListed(missing, feature);
-
-            return missing;
-        }
-
-        std::string listMissingUpscalerExtensions(std::span<const std::string> offered)
-        {
-            std::string missing;
-            for (const char* const needed : upscalerDeviceExtensions())
-                if (!has(offered, needed))
-                    appendListed(missing, needed);
 
             return missing;
         }
@@ -231,16 +220,6 @@ namespace Rtx
         if (profile.mHostWrittenBytes == 0)
         {
             profile.mObstacle = "no memory type the host writes into and the device reads";
-            return profile;
-        }
-
-        // Last, because what the trace needs is the more fundamental answer. `Device` enables these
-        // beside the required list, so a device without them cannot be made — and asked here, a
-        // GPU that lacks them is passed over for the next one rather than chosen and then failing
-        // at `vkCreateDevice`.
-        if (const std::string missing = listMissingUpscalerExtensions(extensions); !missing.empty())
-        {
-            profile.mObstacle = "missing extensions the upscaler needs: " + missing;
             return profile;
         }
 

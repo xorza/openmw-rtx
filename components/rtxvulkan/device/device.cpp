@@ -23,7 +23,6 @@
 #include "requirements.hpp"
 #include "result.hpp"
 #include "timeline.hpp"
-#include "upscalerextensions.hpp"
 
 namespace Rtx
 {
@@ -122,13 +121,6 @@ namespace Rtx
             taken[static_cast<std::size_t>(option.mOption)] = true;
         }
         const auto has = [&](const DeviceOption option) { return taken[static_cast<std::size_t>(option)]; };
-
-        // What the upscaler's runtime asks for, which it will not start without. Appended rather
-        // than added to the required list because that list is what this renderer needs to trace
-        // at all, and a build without an upscaler must not fail on a device that lacks them.
-        for (const char* const name : upscalerDeviceExtensions())
-            if (!listed(name))
-                extensions.push_back(name);
 
         DeviceFeatures features;
         requestRequiredFeatures(features);

@@ -73,6 +73,16 @@ namespace Rtx
             EXPECT_FLOAT_EQ(sampled.mCamera.mJitter.x(), 0.125f);
             EXPECT_NEAR(sampled.mCamera.mJitter.y(), 7.0f / 9.0f - 0.5f, 1e-6f);
             EXPECT_EQ(sampled.mArms.mJitter, sampled.mCamera.mJitter) << "the arms sample where the eye does";
+
+            // Under an upscaler's period the index wraps: frame four of three phases is phase one,
+            // Halton's second term less a half, (1/4, 2/3) - 1/2 = (-0.25, 0.16667).
+            Reconstruction cycling = jittering;
+            cycling.mJitterPhases = 3;
+            const Shaders::VisibilityConstants wrapped
+                = sampleFrame(stated(), FrameOptions{}, RenderProfile{}, cycling, counts, &previous);
+            EXPECT_EQ(wrapped.mCamera.mJitter, haltonJitter(1));
+            EXPECT_FLOAT_EQ(wrapped.mCamera.mJitter.x(), -0.25f);
+            EXPECT_NEAR(wrapped.mCamera.mJitter.y(), 2.0f / 3.0f - 0.5f, 1e-6f);
             EXPECT_EQ(sampled.mNoise, Shaders::NOISE_WHITE_HASH);
             EXPECT_EQ(sampled.mLevelBias, -0.5f);
             EXPECT_EQ(sampled.mArmsSpread, osg::Vec2f(1.5f, 1.0f));

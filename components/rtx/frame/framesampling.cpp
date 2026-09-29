@@ -46,9 +46,11 @@ namespace Rtx
         Shaders::VisibilityConstants sampled = stated;
 
         // Where in the pixel this frame samples. Here rather than by the caller because the
-        // sequence belongs to the frame index, which the renderer walks.
-        sampled.mCamera.mJitter
-            = reconstruction.mJitter ? haltonJitter(stated.mFrame) : options.mJitter.value_or(osg::Vec2f());
+        // sequence belongs to the frame index, which the renderer walks — and cycles, where an
+        // upscaler's history is written against a period of phases.
+        const std::uint32_t phase
+            = reconstruction.mJitterPhases > 0 ? stated.mFrame % reconstruction.mJitterPhases : stated.mFrame;
+        sampled.mCamera.mJitter = reconstruction.mJitter ? haltonJitter(phase) : options.mJitter.value_or(osg::Vec2f());
 
         // The two consequences of the reconstruction the trace reads for itself: where its draws
         // come from, and how far the shown pixel narrows every texture level. A picture's

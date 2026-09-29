@@ -10,7 +10,6 @@
 
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
-#include <components/rtxvulkan/device/upscalerextensions.hpp>
 
 namespace Rtx
 {
@@ -23,15 +22,12 @@ namespace Rtx
             .timestampValidBits = 64,
         };
 
-        /// The extensions this build requires — the trace's and its upscaler's — as a device would
-        /// list them back.
+        /// The extensions this build requires, as a device would list them back.
         std::vector<std::string> everyRequiredExtension()
         {
             std::vector<std::string> names;
             for (const RequiredExtension& required : getRequiredDeviceExtensions())
                 names.emplace_back(required.mName);
-            for (const char* const needed : upscalerDeviceExtensions())
-                names.emplace_back(needed);
 
             return names;
         }

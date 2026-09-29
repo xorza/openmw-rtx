@@ -1,7 +1,6 @@
 #include "upscaler.hpp"
 
 #include <components/rtx/common/error.hpp>
-#include <components/rtxvulkan/device/upscalerextensions.hpp>
 
 namespace Rtx
 {
@@ -15,15 +14,5 @@ namespace Rtx
     std::string describeUpscaling(const Device&, VkInstance)
     {
         return "none";
-    }
-
-    std::span<const char* const> upscalerInstanceExtensions()
-    {
-        return {};
-    }
-
-    std::span<const char* const> upscalerDeviceExtensions()
-    {
-        return {};
     }
 }

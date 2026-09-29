@@ -13,7 +13,6 @@
 
 #include "requirements.hpp"
 #include "result.hpp"
-#include "upscalerextensions.hpp"
 
 namespace Rtx
 {
@@ -54,10 +53,6 @@ namespace Rtx
                 "against " + versionString(sApiVersion));
 
         std::vector<const char*> extensions(surfaceExtensions.begin(), surfaceExtensions.end());
-        // The upscaler's runtime names instance extensions of its own, and will not start without
-        // them.
-        for (const char* const name : upscalerInstanceExtensions())
-            extensions.push_back(name);
         std::vector<const char*> layers;
 
         // Object names and command-buffer labels are what make a capture readable, and a capture is
