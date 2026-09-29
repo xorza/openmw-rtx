@@ -144,7 +144,9 @@ namespace RtxTool
             // and not the report still walks twice.
             Actions actions;
             EXPECT_FALSE(actions.walksTwice());
-            actions.mChecks = { Check::Finite };
+            // Pushed and not assigned a braced list: GCC 13 at -O2 under the sanitizers reads the
+            // one-element copy as an overread (-Wstringop-overread), a false warning the build stops on.
+            actions.mChecks.push_back(Check::Finite);
             EXPECT_FALSE(actions.walksTwice());
             actions.mChecks.push_back(Check::WalkTwice);
             EXPECT_TRUE(actions.walksTwice());
