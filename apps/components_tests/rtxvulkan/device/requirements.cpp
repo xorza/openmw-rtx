@@ -95,15 +95,17 @@ namespace Rtx
                 (std::vector<std::string_view>{
                     VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME }));
 
-            for (const DeviceOption alone :
-                { DeviceOption::FaultReport, DeviceOption::MemoryBudget, DeviceOption::Checkpoints })
+            for (const DeviceOption alone : { DeviceOption::FaultReport, DeviceOption::MemoryBudget,
+                     DeviceOption::Checkpoints, DeviceOption::BufferMarkers })
                 EXPECT_TRUE(options[static_cast<std::size_t>(alone)].mNeeds.empty())
                     << "an option core 1.4 carries alone names a need";
 
-            // Checkpoints are set where the build names things, and taken only there.
+            // Checkpoints and markers are set where the build names things, and taken only there.
             for (const OptionalExtensions& option : options)
             {
-                EXPECT_EQ(option.mRead, sDebugNames || option.mOption != DeviceOption::Checkpoints);
+                const bool breadcrumb
+                    = option.mOption == DeviceOption::Checkpoints || option.mOption == DeviceOption::BufferMarkers;
+                EXPECT_EQ(option.mRead, sDebugNames || !breadcrumb);
             }
 
             const std::span<const RequiredExtension> required = getRequiredDeviceExtensions();
@@ -131,7 +133,8 @@ namespace Rtx
             reaches(DeviceOption::PresentFences, &features.mPresentFences,
                 &features.mPresentFences.swapchainMaintenance1,
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR);
-            for (const DeviceOption bare : { DeviceOption::MemoryBudget, DeviceOption::Checkpoints })
+            for (const DeviceOption bare :
+                { DeviceOption::MemoryBudget, DeviceOption::Checkpoints, DeviceOption::BufferMarkers })
                 EXPECT_EQ(options[static_cast<std::size_t>(bare)].mFeature, nullptr) << static_cast<int>(bare);
         }
 

@@ -68,3 +68,6 @@ Only under the PBR profile: the Zed tasks that start the game with `~/.config/op
   executes nothing. If you have access to an RX 6000, 7000 or 9000 with Mesa 26.2 or later, run
   `openmw-rtxtool info` and one `bench`. The trace kernels spill heavily on every AMD chip
   (`.notes/denoise-progress.md`, phase 3).
+- **A device loss on AMD.** A debug build now writes AMD buffer markers where NVIDIA's checkpoints
+  are not offered. If an AMD card ever loses the device, the fault report should name the last zone
+  at the top and the bottom of the pipe.

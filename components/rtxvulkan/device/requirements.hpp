@@ -134,9 +134,10 @@ namespace Rtx
         MemoryBudget,
         PresentFences,
         Checkpoints,
+        BufferMarkers,
     };
 
-    inline constexpr std::size_t sDeviceOptions = static_cast<std::size_t>(DeviceOption::Checkpoints) + 1;
+    inline constexpr std::size_t sDeviceOptions = static_cast<std::size_t>(DeviceOption::BufferMarkers) + 1;
 
     /// The features the options bring, each in its own structure: what a device that took an option
     /// is asked for, and enabled with where it has it. Outside `DeviceFeatures`, which is what the
@@ -171,8 +172,8 @@ namespace Rtx
         std::span<const char* const> mNeeds;
 
         /// Whether this build reads the option at all. One it does not is never taken: an
-        /// extension enabled for nothing, and for checkpoints a fault report that says the queue
-        /// passed none where none was set.
+        /// extension enabled for nothing, and for checkpoints and markers a fault report that says
+        /// the queue passed none where none was set.
         bool mRead = true;
 
         /// The feature the option is no use without, or nothing where its extensions are all it is.

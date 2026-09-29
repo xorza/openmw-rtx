@@ -9,6 +9,7 @@
 #include <components/rtx/common/monitor.hpp>
 #include <components/rtx/common/worker.hpp>
 
+#include "amdgpu.hpp"
 #include "gpuclock.hpp"
 #include "nvml.hpp"
 
@@ -131,7 +132,10 @@ namespace RtxTool
         /// Takes one last reading, answers the window and begins the next. Under the lock.
         CardReading close();
 
+        /// Where the clock is read: NVML where it opens, and amdgpu's sysfs files where it does
+        /// not. The holders are NVML's alone — `AmdGpu` says why.
         Nvml mNvml;
+        AmdGpu mAmdGpu;
 
         /// The lock over everything below but the worker.
         Rtx::Monitor mMonitor;

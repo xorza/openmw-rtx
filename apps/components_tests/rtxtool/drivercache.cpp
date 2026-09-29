@@ -56,6 +56,10 @@ namespace RtxTool
             EXPECT_EQ(variable("__GL_SHADER_DISK_CACHE_PATH"), cache.getDirectory().string());
             EXPECT_EQ(variable("__GL_SHADER_DISK_CACHE_SIZE"), "8589934592") << "eight gibibytes, 8 << 30";
             EXPECT_EQ(variable("__GL_SHADER_DISK_CACHE_SKIP_CLEANUP"), "1");
+
+            EXPECT_EQ(variable("MESA_SHADER_CACHE_DISABLE"), "false");
+            EXPECT_EQ(variable("MESA_SHADER_CACHE_DIR"), cache.getDirectory().string());
+            EXPECT_EQ(variable("MESA_SHADER_CACHE_MAX_SIZE"), "8G") << "the same eight gibibytes, in Mesa's unit";
         }
 
         /// **A build that changed a shader has one cache, the new one.** The old cache is of modules

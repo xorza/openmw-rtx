@@ -18,7 +18,8 @@ The plan is `.notes/denoise-and-upscale.md`. What a person has to look at is
 | 7 the upscaler's sizes in the core | done | f7c1f5c891 |
 | 8 FSR 3.1.4 | done | a815be83d9 |
 | 9 the glossy filter | done | 84b3aefc2e |
-| 3 the driver floors | done | (this commit) |
+| 3 the driver floors | done | 7952c16b0f |
+| 11 parity of the optional features | done | (this commit) |
 
 ## Phase 4: the shadow denoiser
 
@@ -312,3 +313,20 @@ RADV the registers, spills, scratch size and compile time, the figures above. A 
 same lines again. NVIDIA reports statistics for the compute pipelines and "no executable" for the
 ray tracing ones, so the NVIDIA column the plan wanted beside the AMD one does not exist for the
 trace.
+
+## Phase 11: parity of the optional features
+
+- `DeviceOption::BufferMarkers` for `VK_AMD_buffer_marker`, taken where the build names things, as
+  the checkpoints are. `Device::checkpoint` writes a number at the top and the bottom of the pipe
+  into two host-read words; `MarkerRing` keeps what the last 256 numbers name, and
+  `describeCheckpoints` reads the words back after a loss. Under the shim, navi31's RADV offers the
+  extension and the device takes it. Nothing here could make a device lose itself on AMD, so the
+  report's text after a real loss is unseen (`verify-manually.md`).
+- `instruments/amdgpu.{hpp,cpp}`: the current core and memory clock levels (`pp_dpm_sclk`,
+  `pp_dpm_mclk`) and the edge temperature, from the first card whose PCI vendor is AMD's. `CardWatch`
+  reads NVML where it opens and amdgpu where it does not, which is `Nvml`'s own assumption of one
+  card a box. Parsers tested on fixtures. **Not built**: the busy share and the power the plan
+  listed. The report has no line for either on NVIDIA; adding them is a new report feature for both
+  vendors, not parity. The holders stay NVML's: amdgpu counts use per open file, not per card.
+- `DriverCache`: `MESA_SHADER_CACHE_DISABLE=false`, `MESA_SHADER_CACHE_DIR` and
+  `MESA_SHADER_CACHE_MAX_SIZE=8G` beside NVIDIA's variables (Mesa's `docs/envvars.rst`).

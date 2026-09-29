@@ -88,7 +88,7 @@ namespace RtxTool
 
     void CardWatch::read()
     {
-        mClock.add(mNvml.readClock());
+        mClock.add(mNvml.isOpen() ? mNvml.readClock() : mAmdGpu.readClock());
 
         mNvml.readSamples(mSamples);
         for (const CardSample& sample : mSamples)
@@ -113,7 +113,8 @@ namespace RtxTool
         if (!mNvml.hasSamples())
         {
             reading.mShare.mViewed = false;
-            reading.mShare.mWhyNot = mNvml.describeUnsampled();
+            reading.mShare.mWhyNot
+                = mNvml.isOpen() || !mAmdGpu.isOpen() ? mNvml.describeUnsampled() : AmdGpu::describeUnsampled();
         }
 
         mClock = GpuClock{};

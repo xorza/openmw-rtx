@@ -8,6 +8,8 @@ set(RTXTOOL_FILES
     film.hpp
     homekey.cpp
     homekey.hpp
+    instruments/amdgpu.cpp
+    instruments/amdgpu.hpp
     instruments/cardwatch.cpp
     instruments/cardwatch.hpp
     instruments/contactsheet.cpp
