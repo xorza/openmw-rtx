@@ -156,9 +156,15 @@ namespace Rtx
 
         // Made now and not when first asked for, so no thread ever makes one: a pool with no block
         // holds nothing.
+        //
+        // **Not over AMD's device-coherent types**, which the library leaves out of every choice
+        // unless asked for them, and refuses a pool over: RADV on RDNA 2 and 3 and AMD's own driver
+        // list device-local ones, and a pool asked of each stopped those cards at start-up.
         for (std::uint32_t type = 0; type < mMemory.memoryTypeCount; ++type)
         {
-            if ((mMemory.memoryTypes[type].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == 0)
+            const VkMemoryPropertyFlags flags = mMemory.memoryTypes[type].propertyFlags;
+            if ((flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == 0
+                || (flags & VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD) != 0)
                 continue;
 
             const VmaPoolCreateInfo pool{ .memoryTypeIndex = type, .blockSize = sBlockBytes };

@@ -58,22 +58,23 @@ namespace Rtx
             list += item;
         }
 
-        /// @param driver what the device says of its driver: an extension an NVIDIA driver is only
-        ///        too old for is named with the release that has it and the one that does not.
+        /// @param driver what the device says of its driver: an extension its driver is only too old
+        ///        for is named with the release that has it and the one that does not.
         std::string listMissingExtensions(
             std::span<const std::string> offered, const VkPhysicalDeviceVulkan12Properties& driver)
         {
-            const bool nvidia = driver.driverID == VK_DRIVER_ID_NVIDIA_PROPRIETARY;
-
             std::string missing;
             for (const RequiredExtension& required : getRequiredDeviceExtensions())
-                if (!has(offered, required.mName))
-                {
-                    appendListed(missing, required.mName);
-                    if (nvidia && !required.mNvidiaDriver.empty())
-                        missing += std::format(
-                            " (NVIDIA driver {} or later; this one is {})", required.mNvidiaDriver, driver.driverInfo);
-                }
+            {
+                if (has(offered, required.mName))
+                    continue;
+
+                appendListed(missing, required.mName);
+                const auto floor = std::ranges::find(required.mFloors, driver.driverID, &DriverFloor::mDriver);
+                if (floor != required.mFloors.end())
+                    missing += std::format(
+                        " ({} {} or later; this one is {})", floor->mDriverName, floor->mRelease, driver.driverInfo);
+            }
 
             return missing;
         }

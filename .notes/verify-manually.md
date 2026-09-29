@@ -61,3 +61,10 @@ Only under the PBR profile: the Zed tasks that start the game with `~/.config/op
   move than when you stand, which is the rule working.
 - **Glossy arms and armour.** A glossy gauntlet in first person: turn quickly and look for a highlight
   that lags.
+
+## Phase 3: AMD cards
+
+- **On a real Radeon.** Nothing here ran on AMD hardware; the shim fakes the kernel driver and
+  executes nothing. If you have access to an RX 6000, 7000 or 9000 with Mesa 26.2 or later, run
+  `openmw-rtxtool info` and one `bench`. The trace kernels spill heavily on every AMD chip
+  (`.notes/denoise-progress.md`, phase 3).

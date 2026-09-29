@@ -17,7 +17,8 @@ The plan is `.notes/denoise-and-upscale.md`. What a person has to look at is
 | — race in the shadow classification | fixed | 5ff7a51f80 |
 | 7 the upscaler's sizes in the core | done | f7c1f5c891 |
 | 8 FSR 3.1.4 | done | a815be83d9 |
-| 9 the glossy filter | done | (this commit) |
+| 9 the glossy filter | done | 84b3aefc2e |
+| 3 the driver floors | done | (this commit) |
 
 ## Phase 4: the shadow denoiser
 
@@ -266,3 +267,48 @@ level over its bar.
 
 Cost (noise run's zones, PBR): `specular` 0.31 (off) and 0.35 ms (native), 0.15 ms at quality; the
 trace 3.41 → 3.43 ms at native, inside a run's spread. None in a vanilla scene.
+
+## Phase 3: the driver floors
+
+Order changed: phase 3 ran before phase 10, because phase 10's measurements need a quiet card for
+hours and phase 3 does not touch the picture.
+
+- `DriverFloor { mDriver, mDriverName, mRelease }`, a span of them per required extension.
+  `VK_KHR_shader_fma`: NVIDIA driver 595, AMD driver 26.3.1 (Adrenalin 26.3.1 release notes), Mesa
+  26.2 for RADV, NVK and ANV (Mesa 26.2.0 release notes, `docs/relnotes/26.2.0.rst`, which add the
+  extension to all three at once). The refusal: "(AMD driver 26.3.1 or later; this one is 26.2.1
+  (LLPC))".
+- Fixtures: the plan wanted each fixture from a database report. The database's listing is loaded by
+  script and answered nothing to a plain request; a single report page loads. The refusal quotes the
+  driver's own text beside the floor and compares nothing, so what a fixture needs is the text's
+  form: AMD's from report 51246 ("26.7.1 (LLPC)", an RX 760M on Windows), Mesa's from a release
+  string. The test holds AMD, RADV and NVK each to its floor, and a driver the table does not name
+  (MoltenVK) to the extension alone.
+- The drm-shim: `~/Projects/mesa/build-shim` at `mesa-26.2.3`, built and not installed (`meson setup
+  build-shim -Dbuildtype=release -Dgallium-drivers= -Dvulkan-drivers=amd -Dtools=drm-shim
+  -Dplatforms= -Dglx=disabled -Degl=disabled -Dgbm=disabled -Dllvm=disabled`). The build's ICD file
+  names the install path, so the run uses one in the scratch that names the built library.
+
+**A bug the shim found.** navi21 and navi31 stopped at start-up: `vmaCreatePool failed:
+VK_ERROR_FEATURE_NOT_PRESENT`. RADV on RDNA 2 and 3 lists AMD device-coherent memory types that are
+device-local; VMA leaves those types out unless the allocator asks for them, and refuses a pool over
+one; the allocator made a pool over every device-local type. AMD's own driver lists the same types,
+so every Radeon of those generations was refused. The content pools now skip them. After the fix,
+under the shim, `openmw-rtxtool info` stands the device up and compiles every kernel on all three:
+
+| Chip | Device | Trace kernels: VGPRs | Spilled VGPRs, fewest – most | Scratch, bytes | Slowest compile |
+|---|---|---|---|---|---|
+| navi21 | RX 6800 | 128 | 2204 – 27241 | 26624 – 44032 | 18.9 s |
+| navi31 | RX 7900 XTX | 144 | 551 – 20168 | 24064 – 41728 | 20.0 s |
+| gfx1201 | RX 9070 XT | 144 | 420 – 15830 | 23808 – 40704 | 20.8 s |
+
+The fewest is the plain `visibility` kernel, the most `visibility sun moons sea maps`. Every compute
+pass (the denoisers, the glossy filter, FSR's seven) compiles with no spill. The trace kernels spill
+heavily on every AMD chip; what that costs cannot be measured without the hardware.
+
+**No `compile` verb.** `info` already builds every one of the 81 pipelines and logs, per pipeline
+and at verbose level, what the driver reports of it (`device.cpp`, the pipeline statistics): on
+RADV the registers, spills, scratch size and compile time, the figures above. A verb would print the
+same lines again. NVIDIA reports statistics for the compute pipelines and "no executable" for the
+ray tracing ones, so the NVIDIA column the plan wanted beside the AMD one does not exist for the
+trace.
