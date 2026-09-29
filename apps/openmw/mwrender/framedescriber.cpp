@@ -7,6 +7,7 @@
 #include <osg/FrameStamp>
 
 #include <components/sceneutil/lightmanager.hpp>
+#include <components/settings/values.hpp>
 #include <components/sky/sundisc.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -80,6 +81,8 @@ namespace MWRender
         described.mPlayerPosition = player.getRefData().getPosition().asVec3();
 
         described.mGameHour = simulation.getTimeStamp().getHour();
+        if (Settings::game().mDayNightSwitches)
+            described.mNightDayMode = simulation.getNightDayMode();
         described.mGameTime = simulation.getTimeManager()->getGameTime();
         described.mTimeScale = simulation.getTimeManager()->getGameTimeScale();
         described.mWeatherId = simulation.getCurrentWeatherScriptId();

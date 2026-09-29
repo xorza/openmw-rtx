@@ -1189,7 +1189,13 @@ namespace MWRender
     VFS::Path::Normalized ObjectStorage::getModel(const ESM::RefId& id) const
     {
         const MWWorld::ESMStore& store = MWBase::Environment::get().getWorld()->getStore();
-        return MWRender::getModel(store.findStatic(id), id, store);
+        const int type = store.findStatic(id);
+
+        // Apart from the paging's own answer, which never meets a lamp: `REC_LIGH` is no paged type.
+        if (type == ESM::REC_LIGH)
+            return store.get<ESM::Light>().searchStatic(id)->mModel.getNormalized();
+
+        return MWRender::getModel(type, id, store);
     }
 
 }

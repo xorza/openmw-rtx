@@ -38,10 +38,9 @@ namespace Rtx
         else if (!enabled && !known)
             mDisabled.insert(at, refnum);
 
-        forEachPlacementOf(refnum, held, [&](Placement& placement, bool shown) {
-            placement.mDisabled = !enabled;
-            restand(placement, shown);
-        });
+        changeReferencesWhere(
+            held, [&](const ReferenceState& state) { return state.mRefNum == refnum; },
+            [&](ReferenceState& state) { state.mDisabled = !enabled; });
     }
 
     void CellPlacer::blacklistReference(const ESM::RefNum refnum, const std::span<HeldCell> held)
@@ -51,10 +50,9 @@ namespace Rtx
             return;
 
         mBlacklisted.insert(at, refnum);
-        forEachPlacementOf(refnum, held, [&](Placement& placement, bool shown) {
-            placement.mBlacklisted = true;
-            restand(placement, shown);
-        });
+        changeReferencesWhere(
+            held, [&](const ReferenceState& state) { return state.mRefNum == refnum; },
+            [](ReferenceState& state) { state.mBlacklisted = true; });
     }
 
     void CellPlacer::setGate(const std::uint32_t gate, const Terrain::GateState state, const std::span<HeldCell> held)
@@ -64,23 +62,50 @@ namespace Rtx
             mGates.resize(gate + 1, Terrain::GateState::Unknown);
         mGates[gate] = state;
 
-        // Every cell, for the reason a script's toggle walks them all: a gate moves when the story
-        // does, which is rarer still.
-        for (HeldCell& cell : held)
-            for (std::size_t slot = 0; slot < cell.mPlacements.size(); ++slot)
-                if (cell.mPlacements[slot].mGate == gate)
-                    restand(cell.mPlacements[slot], slot < cell.mShown);
+        changeReferencesWhere(
+            held, [&](const ReferenceState& reference) { return reference.mGate == gate; }, [](ReferenceState&) {});
     }
 
-    template <class Visit>
-    void CellPlacer::forEachPlacementOf(const ESM::RefNum refnum, const std::span<HeldCell> held, Visit visit)
+    void CellPlacer::setNightDay(const NightDayMode mode, const std::span<HeldCell> held)
     {
-        // Every cell, because which one holds the reference is not said; a script's toggle is rare
-        // enough that the walk is cheaper than an index kept for it.
+        if (mode == mNightDay)
+            return;
+        mNightDay = mode;
+
+        // One frame restands every switched placement held, as the game turns every switch of its
+        // own cells on that frame.
+        forEachPlacementWhere(
+            held, [](const Placement& placement) { return !placement.mModes.isEvery(); },
+            [&](Placement& placement, bool shown) { restand(placement, shown); });
+    }
+
+    template <class Match, class Visit>
+    void CellPlacer::forEachPlacementWhere(const std::span<HeldCell> held, Match match, Visit visit)
+    {
+        // Every cell, because none is indexed by what is asked: a script's toggle, a gate and the
+        // day-night mode each move rarely enough that the walk is cheaper than an index kept for it.
         for (HeldCell& cell : held)
             for (std::size_t slot = 0; slot < cell.mPlacements.size(); ++slot)
-                if (cell.mPlacements[slot].mRefNum == refnum)
+                if (match(cell.mPlacements[slot]))
                     visit(cell.mPlacements[slot], slot < cell.mShown);
+    }
+
+    template <class Match, class Change>
+    void CellPlacer::changeReferencesWhere(const std::span<HeldCell> held, Match match, Change change)
+    {
+        forEachPlacementWhere(
+            held, [&](const Placement& placement) { return match(placement.mState); },
+            [&](Placement& placement, bool shown) {
+                change(placement.mState);
+                restand(placement, shown);
+            });
+
+        // Nothing to restand: `place` builds every lamp's light again on every walk, and reads
+        // the state then.
+        for (HeldCell& cell : held)
+            for (HeldLight& lamp : cell.mLights)
+                if (match(lamp.mState))
+                    change(lamp.mState);
     }
 
     void CellPlacer::forgetReferences(const std::span<HeldCell> held)
@@ -88,30 +113,30 @@ namespace Rtx
         mDisabled.clear();
         mBlacklisted.clear();
 
-        for (HeldCell& cell : held)
-            for (std::size_t slot = 0; slot < cell.mPlacements.size(); ++slot)
-            {
-                Placement& placement = cell.mPlacements[slot];
-                if (!placement.mDisabled && !placement.mBlacklisted)
-                    continue;
-
-                placement.mDisabled = false;
-                placement.mBlacklisted = false;
-                restand(placement, slot < cell.mShown);
-            }
+        changeReferencesWhere(
+            held, [](const ReferenceState& state) { return state.mDisabled || state.mBlacklisted; },
+            [](ReferenceState& state) {
+                state.mDisabled = false;
+                state.mBlacklisted = false;
+            });
     }
 
     bool CellPlacer::stands(const Placement& placement) const
     {
-        if (placement.mBlacklisted)
+        return placement.mModes.has(mNightDay) && standsBy(placement.mState);
+    }
+
+    bool CellPlacer::standsBy(const ReferenceState& reference) const
+    {
+        if (reference.mBlacklisted)
             return false;
-        if (placement.mGate == Terrain::sNoGate)
-            return !placement.mDisabled;
+        if (reference.mGate == Terrain::sNoGate)
+            return !reference.mDisabled;
 
         // A gate that decided is the game's answer for the cells it has not loaded, and a script's
         // word on the reference is an answer the gate has since moved past: the stage a visit
         // took down stands again from afar once the story reaches it.
-        switch (stateOf(placement.mGate))
+        switch (stateOf(reference.mGate))
         {
             case Terrain::GateState::Open:
                 return true;
@@ -122,7 +147,7 @@ namespace Rtx
                 break;
         }
 
-        return !placement.mDisabled;
+        return !reference.mDisabled;
     }
 
     void CellPlacer::restand(Placement& placement, const bool shown)
@@ -140,19 +165,23 @@ namespace Rtx
     void CellPlacer::collectGateVerdicts(const HeldCell& cell, std::vector<GateVerdict>& into) const
     {
         const std::size_t first = into.size();
-        for (const Placement& placement : cell.mPlacements)
-        {
-            if (placement.mGate == Terrain::sNoGate)
-                continue;
+        const auto verdictOn = [&](const ReferenceState& reference) {
+            if (reference.mGate == Terrain::sNoGate)
+                return;
 
-            const Terrain::GateState state = stateOf(placement.mGate);
+            const Terrain::GateState state = stateOf(reference.mGate);
             if (state == Terrain::GateState::Open || state == Terrain::GateState::Closed)
                 into.push_back(
-                    GateVerdict{ .mRefNum = placement.mRefNum, .mStands = state == Terrain::GateState::Open });
-        }
+                    GateVerdict{ .mRefNum = reference.mRefNum, .mStands = state == Terrain::GateState::Open });
+        };
+        for (const Placement& placement : cell.mPlacements)
+            verdictOn(placement.mState);
+        for (const HeldLight& lamp : cell.mLights)
+            verdictOn(lamp.mState);
 
-        // A model of several parts is several placements of one reference, next to each other
-        // only by chance once the size rule's sort has run.
+        // A model of several parts is several placements of one reference, and a lamp is its
+        // placements and its light, next to each other only by chance once the size rule's sort
+        // has run.
         const auto begin = into.begin() + static_cast<std::ptrdiff_t>(first);
         std::sort(begin, into.end(),
             [](const GateVerdict& left, const GateVerdict& right) { return left.mRefNum < right.mRefNum; });
@@ -270,8 +299,7 @@ namespace Rtx
         {
             const PreparedModel& model = *cell.mModels[ref.mModel];
             const CellHolds::HeldModel& adopted = holds.knownOf(model);
-            const bool disabled = isListed(mDisabled, ref.mRefNum);
-            const bool blacklisted = isListed(mBlacklisted, ref.mRefNum);
+            const ReferenceState state = heard(ref.mRefNum, ref.mGate);
 
             for (std::size_t at = 0; at < adopted.mParts.size(); ++at)
                 held.mPlacements.push_back(Placement{
@@ -281,10 +309,8 @@ namespace Rtx
                         .mTransform = model.mParts[at].mLocal * ref.mTransform,
                     },
                     .mRadius = ref.mRadius,
-                    .mRefNum = ref.mRefNum,
-                    .mGate = ref.mGate,
-                    .mDisabled = disabled,
-                    .mBlacklisted = blacklisted,
+                    .mModes = model.mParts[at].mModes,
+                    .mState = state,
                 });
         }
 
@@ -294,7 +320,23 @@ namespace Rtx
         std::stable_sort(held.mPlacements.begin(), held.mPlacements.end(),
             [](const Placement& larger, const Placement& smaller) { return larger.mRadius > smaller.mRadius; });
 
-        held.mLights.assign(cell.mLights.begin(), cell.mLights.end());
+        held.mLights.clear();
+        for (const PreparedLight& lamp : cell.mLights)
+            held.mLights.push_back(HeldLight{
+                .mPosition = lamp.mPosition,
+                .mRecord = lamp.mRecord,
+                .mState = heard(lamp.mRefNum, lamp.mGate),
+            });
+    }
+
+    ReferenceState CellPlacer::heard(const ESM::RefNum refnum, const std::uint32_t gate) const
+    {
+        return ReferenceState{
+            .mRefNum = refnum,
+            .mGate = gate,
+            .mDisabled = isListed(mDisabled, refnum),
+            .mBlacklisted = isListed(mBlacklisted, refnum),
+        };
     }
 
     void CellPlacer::stand(Stood& stood, std::uint32_t& standing)
@@ -448,10 +490,13 @@ namespace Rtx
             return 0;
 
         std::uint32_t lit = 0;
-        for (const PreparedLight& lamp : cell.mLights)
+        for (const HeldLight& lamp : cell.mLights)
         {
+            if (!standsBy(lamp.mState))
+                continue;
+
             const Result<std::optional<Light>, std::string_view> light = makeLight(
-                lamp.mRecord, lamp.mPosition, around.mSimulationTime, static_cast<int>(lamp.mRefNum.mIndex));
+                lamp.mRecord, lamp.mPosition, around.mSimulationTime, static_cast<int>(lamp.mState.mRefNum.mIndex));
             assert(light.isOk() && "a lamp the reader carried that the frame refuses");
             if (!light.value().has_value())
                 continue;

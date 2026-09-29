@@ -136,8 +136,8 @@ namespace Terrain
         /// of. A second reading of the same eight fields is a second answer waiting to drift.
         virtual std::optional<SceneUtil::LightCommon> getLight(const ESM::RefId& id) const = 0;
 
-        /// The model a reference's record names, or empty where it names none — a marker, or a
-        /// type that draws nothing.
+        /// The model a reference's record names, a lamp's included, or empty where it names none —
+        /// a marker, or a type that draws nothing.
         virtual VFS::Path::Normalized getModel(const ESM::RefId& id) const = 0;
     };
 }

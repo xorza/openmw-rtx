@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <memory>
 #include <string_view>
 #include <vector>
@@ -10,6 +9,7 @@
 #include <osg/Image>
 #include <osg/Node>
 #include <osg/Vec2i>
+#include <osg/Vec3f>
 
 #include <components/esm/refid.hpp>
 #include <components/rtx/common/scratch.hpp>
@@ -40,9 +40,9 @@ namespace Rtx
         CellReader(const Terrain::ObjectStorage& storage, Terrain::Storage& ground, ContentSource& content,
             ESM::RefId worldspace, osg::Node::NodeMask mask);
 
-        /// Reads the cell at `cell`: its ground, its `LIGH` references, and — where `statics` —
-        /// every reference that pages and names a model with something to trace, as one
-        /// `PreparedRef` each. The cell is lent, and `giveBack` is where it returns; every model and
+        /// Reads the cell at `cell`: its ground, the lights of its `LIGH` references, and — where
+        /// `statics` — every reference that names a model with something to trace, a lamp's
+        /// included, as one `PreparedRef` each. The cell is lent, and `giveBack` is where it returns; every model and
         /// every ground texture it names is lent to it as well, one hold each, and those come back
         /// on their own.
         PreparedCell& read(const osg::Vec2i& cell, bool statics);
@@ -62,6 +62,21 @@ namespace Rtx
         /// Reads the cell into `prepared`, which `read` has taken and lends after: the whole of a
         /// read but the pool's part.
         void fill(PreparedCell& prepared, const osg::Vec2i& cell, bool statics);
+
+        /// Carries the light of `ref` where its record is a lamp's that casts, and says whether it
+        /// did: a lamp is its own light's brightest surface, and a point of light long after it is
+        /// a pixel.
+        bool readLamp(const Terrain::PagedCellRef& ref, PreparedCell& prepared);
+
+        /// Appends `ref` as a `PreparedRef` where it names a model with something to trace, out of
+        /// the size rule's reach where `givesLight` or the model emits.
+        void readStatic(const Terrain::PagedCellRef& ref, bool givesLight, PreparedCell& prepared);
+
+        /// The model path `record` names, as `readModel` files it — empty where it names none.
+        const VFS::Path::Normalized& modelPathOf(const ESM::RefId& record);
+
+        /// Where the light of a lamp record stands in its reference's own space — `anchorIn`.
+        osg::Vec3f anchorOf(const ESM::RefId& lamp);
 
         /// The model at `path`, read whole where this holds none under that path. Null where
         /// nothing stands for the path. Refused, with no part and `PreparedModel::mRefused` saying
@@ -88,9 +103,6 @@ namespace Rtx
         // Refilled per cell, per model and per image.
         std::vector<Terrain::PagedCellRef> mRefScratch;
 
-        /// A byte per reference of `mRefScratch`, set where the reference is a lamp.
-        std::vector<std::uint8_t> mIsLampScratch;
-
         Spares<PreparedCell> mCells;
         Spares<PreparedModel> mModels;
         Spares<PreparedTexture> mTextures;
@@ -115,5 +127,10 @@ namespace Rtx
         /// reader's life, because a record's model does not change and building the path is two
         /// strings, which every static reference of every cell read would otherwise pay.
         boost::container::flat_map<ESM::RefId, VFS::Path::Normalized> mModelPaths;
+
+        /// Where each lamp record's light stands, found the first time a reference to it is met
+        /// and kept for the same reason: apart from the model's reading, because the light is
+        /// carried whether or not the statics are read.
+        boost::container::flat_map<ESM::RefId, osg::Vec3f> mAnchors;
     };
 }

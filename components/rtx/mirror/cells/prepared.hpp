@@ -28,6 +28,8 @@
 #include <components/terrain/objectstorage.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "nightday.hpp"
+
 namespace Rtx
 {
     /// One image, named where the model that names it was read, so that the frame adopts a layer
@@ -158,6 +160,10 @@ namespace Rtx
         Run mIndices;
 
         FoldedShape mShape;
+
+        /// The modes the part is shown in: every branch of a `NightDaySwitch` is read, because
+        /// which one the world shows is the frame's to say (`CellPlacer::setNightDay`).
+        NightDayModes mModes;
     };
 
     /// A model read whole on a thread that is not the frame's: its parts, the folded geometry of
@@ -175,6 +181,10 @@ namespace Rtx
 
         /// The template's own bound, which is what the paging measured a reference by.
         float mRadius = 0.0f;
+
+        /// Whether a part, in any branch of a day-night switch, gives light of its own
+        /// (`SurfaceDescription::emits`), which exempts its references from the size rule.
+        bool mEmits = false;
 
         std::vector<PreparedPart> mParts;
 
@@ -231,7 +241,10 @@ namespace Rtx
         /// the game composes them for the transform it stands a clone under.
         osg::Matrixf mTransform;
 
-        /// The model's radius at the reference's scale, which the size rule reads.
+        /// The model's radius at the reference's scale, which the size rule reads, and infinite
+        /// for a model that emits and for a lamp whose light is carried: a lit window is a point of light
+        /// long after it is a pixel, and the size rule measures a surface by what it covers of the
+        /// screen.
         float mRadius = 0.0f;
 
         /// The gate the game decides its standing by — `Terrain::PagedCellRef::mGate`.
@@ -243,12 +256,16 @@ namespace Rtx
     /// frame builds one from this every walk (`Rtx::makeLight`).
     struct PreparedLight
     {
-        /// The reference's own origin, and not the model's `AttachLight` node. Finding that means
-        /// loading the mesh, and the mesh is what the paging refuses to stand out here; the offset
-        /// between the two is the height of a lamp, against a cell of distance.
+        /// The model's `AttachLight` node where the reference stands it, which is where the game
+        /// attaches the light (`SceneUtil::addLight`), and the reference's own origin for a model
+        /// with none.
         osg::Vec3f mPosition;
 
         ESM::RefNum mRefNum;
+
+        /// The gate the game decides its standing by — `Terrain::PagedCellRef::mGate`.
+        std::uint32_t mGate = Terrain::sNoGate;
+
         SceneUtil::LightCommon mRecord;
     };
 

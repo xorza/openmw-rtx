@@ -105,6 +105,7 @@ set(RTX_FILES
     mirror/cells/groundreader.hpp
     mirror/cells/held.cpp
     mirror/cells/held.hpp
+    mirror/cells/nightday.hpp
     mirror/cells/prepared.hpp
     mirror/cells/templatewalk.cpp
     mirror/cells/templatewalk.hpp

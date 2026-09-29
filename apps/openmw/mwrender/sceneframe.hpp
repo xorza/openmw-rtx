@@ -123,6 +123,10 @@ namespace MWRender
 
         float mGameHour = 0.0f;
 
+        /// Which child every `NightDaySwitch` of the world's objects shows, `World::getNightDayMode`,
+        /// or nothing where `day night switches` is off and each shows the child its file opens on.
+        std::optional<unsigned int> mNightDayMode;
+
         /// Game seconds since the game began, `MWWorld::DateTimeManager::getGameTime`: what the star
         /// sphere is turned by (`Sky::starRoll`), as a function of the clock and not a sum of
         /// frames, so a clock set or run forward turns the stars with it.

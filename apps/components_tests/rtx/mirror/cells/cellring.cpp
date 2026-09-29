@@ -21,13 +21,16 @@
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/Image>
+#include <osg/Material>
 #include <osg/Matrix>
 #include <osg/MatrixTransform>
 #include <osg/Matrixf>
 #include <osg/Node>
 #include <osg/Quat>
+#include <osg/Switch>
 #include <osg/Vec2i>
 #include <osg/Vec3f>
+#include <osg/Vec4f>
 #include <osg/Vec4i>
 #include <osg/ref_ptr>
 
@@ -48,6 +51,7 @@
 #include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/mirror/cells/cellsupply.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
+#include <components/rtx/mirror/cells/nightday.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
@@ -94,6 +98,7 @@ namespace Rtx::Testing
             const char* mRecord = nullptr;
             ESM::RefNum mRefNum;
             osg::Vec3f mPosition;
+            std::uint32_t mGate = Terrain::sNoGate;
         };
 
         /// A `LIGH` record reduced the way the engine reduces one: a white lamp of radius 100,
@@ -160,6 +165,7 @@ namespace Rtx::Testing
                                 .mRefId = ESM::RefId::stringRefId(lamp.mRecord),
                                 .mRefNum = lamp.mRefNum,
                                 .mPosition = lamp.mPosition,
+                                .mGate = lamp.mGate,
                             });
             }
 
@@ -180,8 +186,8 @@ namespace Rtx::Testing
             mutable int mModelsAsked = 0;
         };
 
-        /// Templates by name — a square sheet of a radius the size rule can be asked about, five
-        /// units up under a transform of its own — and an image for every path the ground asks.
+        /// Templates by name — square sheets of a radius the size rule can be asked about, each
+        /// lifted under a transform of its own — and an image for every path the ground asks.
         class FewContent final : public ContentSource
         {
         public:
@@ -193,6 +199,12 @@ namespace Rtx::Testing
                     return mTree;
                 if (path.value() == "meshes/fern.nif")
                     return mFern;
+                if (path.value() == "meshes/window.nif")
+                    return mWindow;
+                if (path.value() == "meshes/ember.nif")
+                    return mEmber;
+                if (path.value() == "meshes/flame" || path.value() == "meshes/dark")
+                    return mLantern;
                 if (path.value() == "meshes/broken.nif")
                 {
                     ++mBrokenAsked;
@@ -218,8 +230,46 @@ namespace Rtx::Testing
                 return image;
             }();
 
-            osg::ref_ptr<osg::Group> mTree = makeSheet(300.0f);
-            osg::ref_ptr<osg::Group> mFern = makeSheet(20.0f);
+            osg::ref_ptr<osg::Group> mTree = makeSheet(300.0f, 5.0f);
+            osg::ref_ptr<osg::Group> mFern = makeSheet(20.0f, 5.0f);
+
+            /// A fern's sheet that glows, which the size rule never thins.
+            osg::ref_ptr<osg::Group> mEmber = [this] {
+                osg::ref_ptr<osg::Material> glow = new osg::Material;
+                glow->setEmission(osg::Material::FRONT_AND_BACK, osg::Vec4f(1.0f, 0.5f, 0.0f, 1.0f));
+
+                osg::ref_ptr<osg::Group> root = makeSheet(20.0f, 5.0f);
+                root->getOrCreateStateSet()->setAttribute(glow);
+                return root;
+            }();
+
+            /// The model of the `flame` and the `dark` lamps: a fern's sheet, and its `AttachLight` 30 units up
+            /// under a transform 10 units along x — `sLanternAnchor`.
+            osg::ref_ptr<osg::Group> mLantern = [this] {
+                osg::ref_ptr<osg::MatrixTransform> anchor
+                    = new osg::MatrixTransform(osg::Matrix::translate(0.0f, 0.0f, 30.0f));
+                anchor->setName("AttachLight");
+                osg::ref_ptr<osg::MatrixTransform> along
+                    = new osg::MatrixTransform(osg::Matrix::translate(10.0f, 0.0f, 0.0f));
+                along->addChild(anchor);
+
+                osg::ref_ptr<osg::Group> root = makeSheet(20.0f, 5.0f);
+                root->addChild(along);
+                return root;
+            }();
+
+            /// A `NightDaySwitch` of two sheets, the day's lifted five units and the night's seven,
+            /// whose file opens on the night's.
+            osg::ref_ptr<osg::Group> mWindow = [this] {
+                osg::ref_ptr<osg::Switch> branches = new osg::Switch;
+                branches->setName(Constants::NightDayLabel);
+                branches->addChild(makeSheet(300.0f, 5.0f), false);
+                branches->addChild(makeSheet(300.0f, 7.0f), true);
+
+                osg::ref_ptr<osg::Group> root = new osg::Group;
+                root->addChild(branches);
+                return root;
+            }();
 
             /// A template whose triangles name a vertex it does not have, and how often it was
             /// asked for.
@@ -231,7 +281,7 @@ namespace Rtx::Testing
             std::uint32_t mBrokenAsked = 0;
 
         private:
-            osg::ref_ptr<osg::Group> makeSheet(float extent) const
+            osg::ref_ptr<osg::Group> makeSheet(float extent, float lift) const
             {
                 osg::ref_ptr<osg::Geometry> sheet = new osg::Geometry;
                 const auto corners = sheetAt(extent, 0.0f);
@@ -240,7 +290,7 @@ namespace Rtx::Testing
                 paint(*sheet->getOrCreateStateSet(), *mBark);
 
                 osg::ref_ptr<osg::MatrixTransform> lifted
-                    = new osg::MatrixTransform(osg::Matrix::translate(0.0f, 0.0f, 5.0f));
+                    = new osg::MatrixTransform(osg::Matrix::translate(0.0f, 0.0f, lift));
                 lifted->addChild(sheet);
 
                 osg::ref_ptr<osg::Group> root = new osg::Group;
@@ -248,6 +298,9 @@ namespace Rtx::Testing
                 return root;
             }
         };
+
+        /// Where the `flame` lamp's model attaches its light — `FewContent::mLantern`.
+        const osg::Vec3f sLanternAnchor(10.0f, 0.0f, 30.0f);
 
         /// Where the game stands a clone of a reference: the transform `MWRender::Objects` builds,
         /// with the quaternion the paging and the objects both spell.
@@ -387,6 +440,21 @@ namespace Rtx::Testing
             }
 
             std::uint32_t placed() const { return mScene.placements().getCounts().mPlaced; }
+
+            /// The height of every placement standing above fifty units, lowest first: what a test
+            /// lifted its statics to, apart from the ground at nought.
+            std::vector<float> lifted() const
+            {
+                std::vector<float> heights;
+                for (const PlacementRow& row : mScene.placements().getRows())
+                {
+                    const auto height = static_cast<float>(row.mInstance.mTransform.getTrans().z());
+                    if (row.mInstance.isPlaced() && height > 50.0f)
+                        heights.push_back(height);
+                }
+                std::sort(heights.begin(), heights.end());
+                return heights;
+            }
 
             /// The placement standing the ground of `cell`, which is the one translated to the
             /// cell's centre.
@@ -609,8 +677,9 @@ namespace Rtx::Testing
         /// grid only, because inside it the game's own graph carries them and a lantern must not be
         /// counted twice; where the record casts at all; and as the light the walk would build from
         /// the graph's own node at the same hour, so a lamp the game loads later is the lamp that
-        /// was there. The frame's clock reaches them: a flame at one second is not the flame at
-        /// nought.
+        /// was there: at the model's `AttachLight`, where the game attaches it, and with its model
+        /// standing as a static does. The frame's clock reaches them: a flame at one second is not
+        /// the flame at nought.
         ///
         /// **A fake and not a cell, because the shipped content cannot ask about an unlit lamp.**
         /// Every one of the 1559 exterior cells of `Morrowind.esm`, `Tribunal.esm` and
@@ -633,13 +702,15 @@ namespace Rtx::Testing
                 << "one lamp is in reach, outside the grid and lit: (4, 0). (0, 0) is the game's, (3, 0) is off "
                    "by default and (7, 0) is out of reach";
             EXPECT_EQ(filled.mLights, 1u) << "and the walk's report counts it";
+            EXPECT_EQ(filled.mDistantStatics, 1u) << "the lantern's model, the one lamp that has one";
 
+            const osg::Vec3f anchored = far + sLanternAnchor;
             const Light stood = mScene.lights().front();
-            EXPECT_EQ(stood.mPosition, far);
+            EXPECT_EQ(stood.mPosition, anchored) << "through both transforms above the anchor";
 
             // The light the walk builds from the graph's own node, to the bit: one rule, in
             // `makeLight`, phased by the reference number.
-            const std::optional<Light> built = makeLight(mStorage.mRecords.at("flame"), far, 0.0, 7).value();
+            const std::optional<Light> built = makeLight(mStorage.mRecords.at("flame"), anchored, 0.0, 7).value();
             ASSERT_TRUE(built.has_value());
             EXPECT_EQ(stood.mIntensity, built->mIntensity);
             EXPECT_EQ(stood.mReach, built->mReach);
@@ -652,11 +723,23 @@ namespace Rtx::Testing
             ASSERT_EQ(mScene.lights().size(), std::size_t{ 1 });
             EXPECT_NE(mScene.lights().front().mIntensity, stood.mIntensity) << "a flame that stood still";
             EXPECT_EQ(mScene.lights().front().mIntensity,
-                makeLight(mStorage.mRecords.at("flame"), far, 1.0, 7).value()->mIntensity);
+                makeLight(mStorage.mRecords.at("flame"), anchored, 1.0, 7).value()->mIntensity);
+
+            // What the game says of the lamp reaches its light as it reaches its model.
+            mRing.setReferenceEnabled(ESM::RefNum{ 7, 0 }, false);
+            const ExtractionStats disabled = walk(mWalked++);
+            EXPECT_EQ(disabled.mLights, 0u) << "a lamp a script disabled";
+            EXPECT_EQ(disabled.mDistantStatics, 0u) << "and its model with it";
+            mRing.setReferenceEnabled(ESM::RefNum{ 7, 0 }, true);
+            EXPECT_EQ(walk(mWalked++).mLights, 1u) << "enabled again";
+            mRing.blacklistReference(ESM::RefNum{ 7, 0 });
+            EXPECT_EQ(walk(mWalked++).mLights, 0u) << "a lantern the player took";
+            mRing.forgetReferences();
+            EXPECT_EQ(walk(mWalked++).mLights, 1u) << "a cleared world";
 
             // The grid grows over the lamp's cell, and the game's graph is what carries it now.
             around(osg::Vec4i(-1, -1, 5, 2));
-            walk(mWalked++);
+            EXPECT_EQ(walk(mWalked++).mDistantStatics, 0u) << "nor its model";
             EXPECT_TRUE(mScene.lights().empty()) << "a lamp inside the active grid would be counted twice";
 
             // And back out again, on the frame the grid leaves it.
@@ -701,7 +784,9 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.refusals().count(Refused::Lamp), 1u);
             EXPECT_EQ(mContent.mBrokenAsked, 1u) << "a refused model walked again for its second reference";
 
-            EXPECT_EQ(filled.mDistantStatics, 1u) << "the tree beside the broken models stands";
+            EXPECT_EQ(filled.mDistantStatics, 2u)
+                << "the tree beside the broken models stands, and so does the dark lamp's lantern: a light this "
+                   "refuses is no model it refuses";
             ASSERT_EQ(mScene.lights().size(), std::size_t{ 1 }) << "and the lamp beside the dark one burns";
             EXPECT_EQ(mScene.lights().front().mPosition, inCell);
 
@@ -712,7 +797,9 @@ namespace Rtx::Testing
         }
 
         /// The paging's size rule, per reference: a radius under the threshold at the eye's distance
-        /// to the cell is not stood, and the threshold is the eye's and not the chunk's.
+        /// to the cell is not stood, and the threshold is the eye's and not the chunk's. A model
+        /// that glows is never thinned, however small, and nor is a lamp whose light stands; a lamp
+        /// this cannot light, one that takes light away, is thinned as a fern is.
         TEST_F(RtxCellRingTest, theSizeRuleIsTheEyesDistanceTimesTheSetting)
         {
             const Placed tree{ .mCell = osg::Vec2i(3, 0),
@@ -723,20 +810,38 @@ namespace Rtx::Testing
                 .mModel = "fern.nif",
                 .mRefNum = ESM::RefNum{ 2, 0 },
                 .mPosition = osg::Vec3f(3.5f * sCellSize, 0.5f * sCellSize, 0.0f) };
-            mStorage.mPlaced = { tree, fern };
+            const Placed ember{ .mCell = osg::Vec2i(3, 0),
+                .mModel = "ember.nif",
+                .mRefNum = ESM::RefNum{ 3, 0 },
+                .mPosition = osg::Vec3f(3.5f * sCellSize, 0.5f * sCellSize, 0.0f) };
+            mStorage.mPlaced = { tree, fern, ember };
+            const osg::Vec3f lampAt(3.5f * sCellSize, 0.5f * sCellSize, 40.0f);
+            mStorage.mLit = {
+                Lit{ .mCell = osg::Vec2i(3, 0),
+                    .mRecord = "flame",
+                    .mRefNum = ESM::RefNum{ 4, 0 },
+                    .mPosition = lampAt },
+                Lit{
+                    .mCell = osg::Vec2i(3, 0), .mRecord = "dark", .mRefNum = ESM::RefNum{ 5, 0 }, .mPosition = lampAt },
+            };
 
             // The eye stands half a cell in, so cell 3 begins two and a half cells away: 20480
-            // units, and a hundredth of that is 204.8. The tree's sheet reaches 300 * sqrt(2) and
-            // the fern's 20 * sqrt(2).
+            // units, and a hundredth of that is 204.8. The tree's sheet reaches 300 * sqrt(2), and
+            // the fern's, the ember's and each lantern's 20 * sqrt(2).
             mRing.setMinSize(0.01f);
             start();
 
-            EXPECT_EQ(fill().mDistantStatics, 1u) << "the tree clears 204.8 and the fern does not";
+            EXPECT_EQ(fill().mDistantStatics, 3u) << "the tree clears 204.8, the ember glows and the flame gives "
+                                                     "light; the fern and the dark lamp do not";
 
             // Nearer, the fern clears too: at a hundredth of 8192 the threshold is 81.92, and the
             // fern's 28.28 still does not — so the threshold is lowered instead.
             mRing.setMinSize(0.001f);
-            EXPECT_EQ(walk(mWalked++).mDistantStatics, 2u) << "at 20.48 both clear";
+            EXPECT_EQ(walk(mWalked++).mDistantStatics, 5u) << "at 20.48 all five clear";
+
+            // A threshold of 20480 thins even the tree.
+            mRing.setMinSize(1.0f);
+            EXPECT_EQ(walk(mWalked++).mDistantStatics, 2u) << "the ember and the flame alone";
         }
 
         /// What the size rule admits is a prefix of the cell's placements, largest first, and a
@@ -858,11 +963,13 @@ namespace Rtx::Testing
 
         /// **A gate is the game's answer for the references behind it, over a script's word.** Three
         /// trees in cell 3 at scales three to one — lifted `105 s`, so 315, 210 and 105 — the first
-        /// two behind gate 0, and a fourth behind gate 1 in cell (3, 1), whose gate closes before
-        /// its cell is held. A gate never told keeps its trees down; open, they stand whatever a
-        /// script said of one; undecided, each stands by the script's word as an ungated tree does;
-        /// closed, none does. The blacklist wins over an open gate, and a cleared world keeps the
-        /// gates, which the game tells again anyway.
+        /// two behind gate 0 with a lamp that has no model, and a fourth behind gate 1 in cell
+        /// (3, 1), whose gate closes before its cell is held. A gate never told keeps its trees and
+        /// the lamp's light down; open, they stand whatever a script said of one; undecided, each
+        /// stands by the script's word as an ungated tree does; closed, none does. The blacklist
+        /// wins over an open gate, and a cleared world keeps the gates, which the game tells again
+        /// anyway. Once the grid covers both cells, every reference behind a gate that decided has
+        /// its verdict, the lamp's among them.
         TEST_F(RtxCellRingTest, aGateDecidesItsReferencesInTheDistanceOverAScriptsWord)
         {
             for (std::uint32_t scale = 3; scale >= 1; --scale)
@@ -878,47 +985,98 @@ namespace Rtx::Testing
                 .mPosition = osg::Vec3f(3.5f * sCellSize, 1.5f * sCellSize, 400.0f),
                 .mScale = 4.0f,
                 .mGate = 1 });
+            mStorage.mLit.push_back(Lit{ .mCell = osg::Vec2i(3, 0),
+                .mRecord = "lit",
+                .mRefNum = ESM::RefNum{ 5, 0 },
+                .mPosition = osg::Vec3f(3.5f * sCellSize, 0.5f * sCellSize, 40.0f),
+                .mGate = 0 });
+            const auto lit = [this] { return walk(mWalked++).mLights; };
 
-            const auto heights = [this] {
-                std::vector<float> lifted;
-                for (const PlacementRow& row : mScene.placements().getRows())
-                {
-                    const auto height = static_cast<float>(row.mInstance.mTransform.getTrans().z());
-                    if (row.mInstance.isPlaced() && height > 50.0f)
-                        lifted.push_back(height);
-                }
-                std::sort(lifted.begin(), lifted.end());
-                return lifted;
-            };
             const std::vector<float> none = { 105.0f };
             const std::vector<float> all = { 105.0f, 210.0f, 315.0f };
 
             mRing.setGate(1, Terrain::GateState::Closed);
             start();
-            fill();
-            EXPECT_EQ(heights(), none) << "gate 0 was never told, and gate 1 closed before its cell arrived";
+            EXPECT_EQ(fill().mLights, 0u) << "the lamp behind gate 0 is dark";
+            EXPECT_EQ(lifted(), none) << "gate 0 was never told, and gate 1 closed before its cell arrived";
 
             mRing.setGate(0, Terrain::GateState::Open);
-            EXPECT_EQ(heights(), all) << "open, at once";
+            EXPECT_EQ(lifted(), all) << "open, at once";
             mRing.setReferenceEnabled(ESM::RefNum{ 3, 0 }, false);
-            EXPECT_EQ(heights(), all) << "a script's word under an open gate is one the gate moved past";
+            mRing.setReferenceEnabled(ESM::RefNum{ 5, 0 }, false);
+            EXPECT_EQ(lifted(), all) << "a script's word under an open gate is one the gate moved past";
+            EXPECT_EQ(lit(), 1u) << "the lamp's too";
 
             mRing.setGate(0, Terrain::GateState::Undecided);
-            EXPECT_EQ(heights(), (std::vector<float>{ 105.0f, 210.0f })) << "undecided: the script's word stands";
+            EXPECT_EQ(lifted(), (std::vector<float>{ 105.0f, 210.0f })) << "undecided: the script's word stands";
+            EXPECT_EQ(lit(), 0u) << "the lamp's too";
 
             mRing.setGate(0, Terrain::GateState::Closed);
-            EXPECT_EQ(heights(), none);
+            EXPECT_EQ(lifted(), none);
 
             mRing.blacklistReference(ESM::RefNum{ 2, 0 });
+            mRing.blacklistReference(ESM::RefNum{ 5, 0 });
             mRing.setGate(0, Terrain::GateState::Open);
-            EXPECT_EQ(heights(), (std::vector<float>{ 105.0f, 315.0f })) << "the blacklist wins over an open gate";
+            EXPECT_EQ(lifted(), (std::vector<float>{ 105.0f, 315.0f })) << "the blacklist wins over an open gate";
+            EXPECT_EQ(lit(), 0u) << "over the lamp's too";
 
             mRing.forgetReferences();
-            EXPECT_EQ(heights(), all) << "a cleared world forgets the blacklist and keeps the gate";
-            EXPECT_EQ(walk(mWalked++).mDistantStatics, 3u) << "and the walk keeps what the gates say";
+            EXPECT_EQ(lifted(), all) << "a cleared world forgets the blacklist and keeps the gate";
+            const ExtractionStats cleared = walk(mWalked++);
+            EXPECT_EQ(cleared.mDistantStatics, 3u) << "and the walk keeps what the gates say";
+            EXPECT_EQ(cleared.mLights, 1u) << "the lamp's with them";
 
             mRing.setGate(1, Terrain::GateState::Open);
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 4u) << "the tree in the next cell stands once its gate opens";
+
+            around(osg::Vec4i(-1, -1, 4, 2));
+            std::vector<GateVerdict> verdicts;
+            mRing.collectGateVerdicts(verdicts);
+            std::vector<std::uint32_t> judged;
+            for (const GateVerdict& verdict : verdicts)
+            {
+                EXPECT_TRUE(verdict.mStands) << verdict.mRefNum.mIndex << ": both gates are open";
+                judged.push_back(verdict.mRefNum.mIndex);
+            }
+            EXPECT_EQ(judged, (std::vector<std::uint32_t>{ 2, 3, 5, 4 }))
+                << "cell (3, 0)'s two trees and its lamp, then cell (3, 1)'s tree, once each";
+        }
+
+        /// A window in cell 3 at a height of 100, whose day sheet stands at 105 and night sheet at
+        /// 107, beside a tree at 200, which stands at 205 in every mode. A cell arriving at night
+        /// stands the night's sheet; each mode after it moves the sheet on the next follow, before
+        /// any walk: the day's at dawn, the day's again in a mode past the switch's two children,
+        /// which `DayNightCallback` answers with the first, and the night's where the game drives
+        /// no switch, because the file opens on it.
+        TEST_F(RtxCellRingTest, aDayNightSwitchStandsTheBranchOfTheWorldsMode)
+        {
+            mStorage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(3, 0),
+                .mModel = "window.nif",
+                .mRefNum = ESM::RefNum{ 1, 0 },
+                .mPosition = osg::Vec3f(3.5f * sCellSize, 0.5f * sCellSize, 100.0f) });
+            mStorage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(3, 0),
+                .mModel = "tree.nif",
+                .mRefNum = ESM::RefNum{ 2, 0 },
+                .mPosition = osg::Vec3f(3.5f * sCellSize, 0.25f * sCellSize, 200.0f) });
+
+            const std::vector<float> day = { 105.0f, 205.0f };
+            const std::vector<float> night = { 107.0f, 205.0f };
+
+            mAround.mNightDay = NightDayMode::ExteriorNight;
+            start();
+            fill();
+            EXPECT_EQ(lifted(), night) << "a cell that arrives at night";
+
+            for (const auto& [mode, stands] :
+                { std::pair{ NightDayMode::Default, day }, std::pair{ NightDayMode::InteriorDay, day },
+                    std::pair{ NightDayMode::Authored, night }, std::pair{ NightDayMode::ExteriorNight, night } })
+            {
+                mAround.mNightDay = mode;
+                mRing.follow(mAround);
+                EXPECT_EQ(lifted(), stands) << static_cast<int>(mode) << ": at once";
+                EXPECT_EQ(walk(mWalked++).mDistantStatics, 2u) << static_cast<int>(mode) << ": one sheet and the tree";
+                EXPECT_EQ(lifted(), stands) << static_cast<int>(mode) << ": and the walk keeps it";
+            }
         }
 
         /// A model the frame lets go of and a delivered cell names again inside the same settled

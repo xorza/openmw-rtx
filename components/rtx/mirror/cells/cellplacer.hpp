@@ -14,6 +14,7 @@
 
 #include "cellworld.hpp"
 #include "held.hpp"
+#include "nightday.hpp"
 
 namespace Rtx
 {
@@ -51,9 +52,9 @@ namespace Rtx
         void setSpecularLayout(SpecularLayout layout) { mSpecularLayout = layout; }
 
         /// What the game says of one reference, which the content files cannot: a script has
-        /// disabled it, or enabled it again. Applied to the cells `held` at once, because `place`
-        /// walks only what the size rule changed since the last frame. Remembered for the cells not
-        /// yet held, which arrive with the flag set.
+        /// disabled it, or enabled it again. Applied to the cells `held` at once, its placements and
+        /// its lamp's light, because `place` walks only what the size rule changed since the last
+        /// frame. Remembered for the cells not yet held, which arrive with the flag set.
         void setReferenceEnabled(ESM::RefNum refnum, bool enabled, std::span<HeldCell> held);
 
         /// The game moved, deleted or animates the reference, so it is never stood again whatever
@@ -68,6 +69,11 @@ namespace Rtx
         /// gate never told keeps its references down.
         void setGate(std::uint32_t gate, Terrain::GateState state, std::span<HeldCell> held);
 
+        /// Which child the world's day-night switches show, for the placements a switch shows in
+        /// some modes and not others. Applied to the cells `held` at once, as a gate is, and
+        /// remembered for the cells not yet held.
+        void setNightDay(NightDayMode mode, std::span<HeldCell> held);
+
         /// Forgets everything a script said and everything the game blacklisted: the world is
         /// cleared for a new game or a saved one, and what was kept out of the old one stands in
         /// the new. Every reference kept out of the cells `held` stands again at once, as
@@ -80,7 +86,7 @@ namespace Rtx
 
         /// Fills `held.mPlacements` from the cell's references, one per part of each model as
         /// `holds` adopted it, disabled where a script said so, and sorted for `place`; and
-        /// `held.mLights` from the cell's lamps, whole.
+        /// `held.mLights` from the cell's lamps, with what the game said of each.
         void adoptPlacements(const PreparedCell& cell, HeldCell& held, CellHolds& holds);
 
         /// Lets a cell's ground go: its slot and its rows. The sweep after this walk is what frees
@@ -91,8 +97,9 @@ namespace Rtx
         void dropSlots(HeldCell& cell);
 
         /// Places and drops one cell by the reach and the size rule, flattens its ground by the
-        /// grid, and stands its lamps where the cell is in reach and outside the grid — the game's
-        /// own graph carries the lamps inside it, and a lantern must not be counted twice.
+        /// grid, and stands the lamps nothing the game says keeps down, where the cell is in reach
+        /// and outside the grid — the game's own graph carries the lamps inside it, and a lantern
+        /// must not be counted twice.
         /// @return how many lamps were stood.
         std::uint32_t place(HeldCell& cell, const WorldAround& around);
 
@@ -122,15 +129,28 @@ namespace Rtx
         /// Whether `refnum` is in the sorted list.
         static bool isListed(const std::vector<ESM::RefNum>& sorted, ESM::RefNum refnum);
 
-        /// Calls `visit(placement, shown)` for every placement of the reference in the cells `held`.
-        template <class Visit>
-        void forEachPlacementOf(ESM::RefNum refnum, std::span<HeldCell> held, Visit visit);
+        /// Calls `visit(placement, shown)` for every placement in the cells `held` that `match`es.
+        template <class Match, class Visit>
+        void forEachPlacementWhere(std::span<HeldCell> held, Match match, Visit visit);
+
+        /// Calls `change(state)` for every reference state in the cells `held` that `match`es, a
+        /// placement's and a lamp's, and restands each placement changed.
+        template <class Match, class Change>
+        void changeReferencesWhere(std::span<HeldCell> held, Match match, Change change);
 
         /// What `gate` said last, `Unknown` where it said nothing yet.
         Terrain::GateState stateOf(std::uint32_t gate) const;
 
-        /// Whether nothing keeps the placement down: the blacklist, its gate, or a script's word.
+        /// Whether nothing keeps the placement down: the day-night mode, or what the game says of
+        /// its reference.
         bool stands(const Placement& placement) const;
+
+        /// Whether nothing the game says keeps the reference down: the blacklist, its gate, or a
+        /// script's word. The one rule for a placement and a lamp's light.
+        bool standsBy(const ReferenceState& reference) const;
+
+        /// What the game has said of `refnum` so far, for a reference of a cell being adopted.
+        ReferenceState heard(ESM::RefNum refnum, std::uint32_t gate) const;
 
         /// Stands or drops the placement by `stands`, where the size rule has it `shown`.
         void restand(Placement& placement, bool shown);
@@ -159,6 +179,8 @@ namespace Rtx
 
         /// What each gate said last, `Unknown` past the last one told.
         std::vector<Terrain::GateState> mGates;
+
+        NightDayMode mNightDay = NightDayMode::Default;
 
         std::uint32_t mPlaced = 0;
         std::uint32_t mGroundPlaced = 0;

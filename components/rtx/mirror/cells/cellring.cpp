@@ -57,6 +57,7 @@ namespace Rtx
         // ring of no world whether or not a walk came between.
         mTurn.step(Turn::Followed, Turn::Collected, Turn::Followed);
         mAround = around;
+        mPlacer.setNightDay(around.mNightDay, std::span<HeldCell>(mCells.begin(), mCells.end()));
 
         if (mSupply.isReading(around.mWorld))
             return;
@@ -307,7 +308,7 @@ namespace Rtx
         for (const HeldCell& cell : mCells)
             for (std::size_t at = 0; at < cell.mShown; ++at)
                 if (cell.mPlacements[at].mStood.isStanding())
-                    into.push_back(cell.mPlacements[at].mRefNum);
+                    into.push_back(cell.mPlacements[at].mState.mRefNum);
     }
 
     void CellRing::collectGateVerdicts(std::vector<GateVerdict>& into) const

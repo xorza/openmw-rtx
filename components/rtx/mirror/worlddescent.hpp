@@ -52,7 +52,8 @@ namespace Rtx
     /// once. An LOD is answered with its nearest level at every distance, because a range is a
     /// rasterizer's budget and a ray is owed the finest child, not the one a distance test picked
     /// and not every level standing at once. That is why both walks stay in
-    /// `TRAVERSE_ALL_CHILDREN` and share this one rule.
+    /// `TRAVERSE_ALL_CHILDREN` and share this one rule — save a `NightDaySwitch`, whose every
+    /// branch a template walk reads (`TemplateWalk`).
     ///
     /// @param stepSequence run on a sequence before its frame is read. The mirror runs the
     ///        flipbook's clock here, because it lives in a traversal this renderer does not run;

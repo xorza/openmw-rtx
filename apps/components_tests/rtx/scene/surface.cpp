@@ -443,5 +443,74 @@ namespace Rtx
             EXPECT_EQ(material.mTextureScale, osg::Vec2f(2.0f, 4.0f));
             EXPECT_EQ(material.mTextureOffset, osg::Vec2f(-0.25f, 0.5f));
         }
+
+        /// A surface emits by any one of the five things `litSurface` adds past the light it
+        /// receives, and by nothing else: a colour its multiplier leaves at nought is none, and an
+        /// additive blend counts only where the surface blends at all.
+        TEST(RtxSurfaceTest, aSurfaceEmitsByAnyOfTheFiveThingsTheTraceAddsOfItsOwn)
+        {
+            struct Way
+            {
+                const char* mName = nullptr;
+                void (*mSet)(SurfaceDescription&, const osg::Image&) = nullptr;
+                bool mEmits = false;
+            };
+
+            const Way ways[] = {
+                { "nothing", [](SurfaceDescription&, const osg::Image&) {}, false },
+                { "an emissive colour",
+                    [](SurfaceDescription& into, const osg::Image&) {
+                        into.mEmissiveColour = { 0.5f, 0.0f, 0.0f };
+                    },
+                    true },
+                { "an emissive colour at a multiplier of nought",
+                    [](SurfaceDescription& into, const osg::Image&) {
+                        into.mEmissiveColour = { 0.5f, 0.0f, 0.0f };
+                        into.mEmissiveMult = 0.0f;
+                    },
+                    false },
+                { "an emissive map",
+                    [](SurfaceDescription& into, const osg::Image& image) {
+                        into.setTexture(SurfaceMap::Emissive, &image);
+                    },
+                    true },
+                { "colours that are a glow",
+                    [](SurfaceDescription& into, const osg::Image&) { into.mVertexColour = VertexColour::Glow; },
+                    true },
+                { "an ambient override",
+                    [](SurfaceDescription& into, const osg::Image&) {
+                        into.mAmbientOverride = EncodedColour{ 1.0f, 1.0f, 1.0f };
+                    },
+                    true },
+                { "an additive blend",
+                    [](SurfaceDescription& into, const osg::Image&) {
+                        into.mAlphaMode = AlphaMode::Blend;
+                        into.mBlend = BlendKind::Add;
+                    },
+                    true },
+                { "an additive blend whole",
+                    [](SurfaceDescription& into, const osg::Image&) {
+                        into.mAlphaMode = AlphaMode::Blend;
+                        into.mBlend = BlendKind::AddWhole;
+                    },
+                    true },
+                { "additive factors on a surface that does not blend",
+                    [](SurfaceDescription& into, const osg::Image&) { into.mBlend = BlendKind::Add; }, false },
+                { "a diffuse map and a tint",
+                    [](SurfaceDescription& into, const osg::Image& image) {
+                        into.setTexture(SurfaceMap::Diffuse, &image);
+                        into.mDiffuseColour = { 0.5f, 0.5f, 0.5f };
+                    },
+                    false },
+            };
+
+            const osg::ref_ptr<osg::Image> image = new osg::Image;
+            for (const Way& way : ways)
+            {
+                SurfaceDescription surface;
+                way.mSet(surface, *image);
+                EXPECT_EQ(surface.emits(), way.mEmits) << way.mName;
+            }
+        }
     }
 }

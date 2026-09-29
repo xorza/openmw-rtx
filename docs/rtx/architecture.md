@@ -165,7 +165,10 @@ source-tree test holds the order.
   A reader thread prepares cells, and the frame adopts them a little at a time. A reference a
   local script enables or disables — its own, or one it names in its cell — stands behind a gate
   the game evaluates (`MWScript::VisibilityGates`), because in a cell no one has loaded that
-  script has never run.
+  script has never run. A model's `NightDaySwitch` is read in every branch, and the game's
+  day-night mode picks the one that stands, as it picks the one a loaded cell shows. The size rule
+  thins what reflects light and never what gives its own: a lit window is a point of light long
+  after it is a pixel.
 - **`Rtx::ContentPreprocessor`** is the one way anything is computed from what the content files
   hold — a shape's fold and the normals it smoothed across a hard edge split, a texture's alpha and
   mean. One lives on each thread that reads content: the frame's walk and the ring's reader. Every
