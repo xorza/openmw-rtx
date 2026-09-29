@@ -20,6 +20,18 @@ namespace Rtx
             next = &structure;
         }
 
+        /// Where `VK_KHR_shader_fma` starts. NVIDIA: the Vulkan beta drivers carried it from 580.94;
+        /// of the release drivers, the Vulkan Hardware Database's reports list it from 595.02 on and
+        /// not at 591.86, so the floor names the branch, 595. AMD: Adrenalin 26.3.1's release notes.
+        /// Mesa: 26.2.0's release notes, for RADV, NVK and ANV at once.
+        constexpr std::array sFmaFloors{
+            DriverFloor{ VK_DRIVER_ID_NVIDIA_PROPRIETARY, "NVIDIA driver", "595" },
+            DriverFloor{ VK_DRIVER_ID_AMD_PROPRIETARY, "AMD driver", "26.3.1" },
+            DriverFloor{ VK_DRIVER_ID_MESA_RADV, "Mesa", "26.2" },
+            DriverFloor{ VK_DRIVER_ID_MESA_NVK, "Mesa", "26.2" },
+            DriverFloor{ VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA, "Mesa", "26.2" },
+        };
+
         constexpr std::array sRequiredDeviceExtensions{
             RequiredExtension{ VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, {} },
             RequiredExtension{ VK_KHR_RAY_QUERY_EXTENSION_NAME, {} },
@@ -39,10 +51,8 @@ namespace Rtx
             RequiredExtension{ VK_KHR_SHADER_CLOCK_EXTENSION_NAME, {} },
             // The one fused multiply-add the specification rounds once and exactly, which is how the
             // build fuses what it pins (`Rtx::pinFloatArithmetic`); `fma()` of the GLSL set may be
-            // two roundings or one. The Vulkan beta drivers carried it from 580.94; of the release
-            // drivers, the Vulkan Hardware Database's reports list it from 595.02 on and not at
-            // 591.86, so a refusal names the branch, 595.
-            RequiredExtension{ VK_KHR_SHADER_FMA_EXTENSION_NAME, "595" },
+            // two roundings or one.
+            RequiredExtension{ VK_KHR_SHADER_FMA_EXTENSION_NAME, sFmaFloors },
         };
 
         constexpr std::array sFaultReport{ VK_EXT_DEVICE_FAULT_EXTENSION_NAME };

@@ -198,9 +198,24 @@ namespace Rtx
                 EXPECT_EQ(dated.profile().mObstacle,
                     "missing extensions: VK_KHR_shader_fma (NVIDIA driver 595 or later; this one is 590.48.01)");
 
-                // NVIDIA's releases say nothing of another vendor's driver on the same card.
-                dated.mProperties.mVulkan12.driverID = VK_DRIVER_ID_MESA_NVK;
-                EXPECT_EQ(dated.profile().mObstacle, "missing extensions: VK_KHR_shader_fma");
+                // Each driver is named with its own floor, and quoted as it describes itself: AMD's
+                // as report 51246 does ("26.7.1 (LLPC)"), Mesa's as a release of it does ("Mesa
+                // 26.2.3"), each a release short of the floor.
+                const auto refusedUnder = [&](VkDriverId driver, std::string_view info) {
+                    dated.mProperties.mVulkan12.driverID = driver;
+                    std::ranges::fill(dated.mProperties.mVulkan12.driverInfo, '\0');
+                    std::ranges::copy(info, dated.mProperties.mVulkan12.driverInfo);
+                    return dated.profile().mObstacle;
+                };
+                EXPECT_EQ(refusedUnder(VK_DRIVER_ID_AMD_PROPRIETARY, "26.2.1 (LLPC)"),
+                    "missing extensions: VK_KHR_shader_fma (AMD driver 26.3.1 or later; this one is 26.2.1 (LLPC))");
+                EXPECT_EQ(refusedUnder(VK_DRIVER_ID_MESA_RADV, "Mesa 26.1.4"),
+                    "missing extensions: VK_KHR_shader_fma (Mesa 26.2 or later; this one is Mesa 26.1.4)");
+                EXPECT_EQ(refusedUnder(VK_DRIVER_ID_MESA_NVK, "Mesa 26.1.4"),
+                    "missing extensions: VK_KHR_shader_fma (Mesa 26.2 or later; this one is Mesa 26.1.4)");
+
+                // A driver the table says nothing of is refused for the extension alone.
+                EXPECT_EQ(refusedUnder(VK_DRIVER_ID_MOLTENVK, "1.4.1"), "missing extensions: VK_KHR_shader_fma");
             }
             {
                 // What a Radeon or an Arc lists — reports 51246 and 51371: everything the trace needs,

@@ -103,14 +103,23 @@ namespace Rtx
         std::string_view mFor;
     };
 
-    /// An extension the renderer will not start without, and the NVIDIA driver that first offers it
-    /// on every RTX card where that driver is later than the first to report Vulkan 1.4 — empty where
-    /// it is not. A card refused for such an extension is a driver update from running, and the
-    /// refusal says so rather than reading as a limit of the hardware.
+    /// The first release of one driver that offers an extension, as a refusal names it: "NVIDIA
+    /// driver 595", "Mesa 26.2".
+    struct DriverFloor
+    {
+        VkDriverId mDriver;
+        std::string_view mDriverName;
+        std::string_view mRelease;
+    };
+
+    /// An extension the renderer will not start without, and for each driver that came to offer it
+    /// after its first Vulkan 1.4 release, the release that did — empty where every 1.4 release of
+    /// every driver that has it does. A card refused for such an extension is a driver update from
+    /// running, and the refusal says so rather than reading as a limit of the hardware.
     struct RequiredExtension
     {
         const char* mName;
-        std::string_view mNvidiaDriver;
+        std::span<const DriverFloor> mFloors;
     };
 
     std::span<const RequiredExtension> getRequiredDeviceExtensions();
