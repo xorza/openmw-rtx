@@ -1,10 +1,11 @@
 #pragma once
 
 #include <array>
-#include <cstddef>
 #include <cstdint>
 
 #include <components/rtxvulkan/device/memory/image.hpp>
+
+#include "historyturns.hpp"
 
 namespace Rtx
 {
@@ -23,7 +24,7 @@ namespace Rtx
         void resize(std::uint32_t width, std::uint32_t height);
 
         /// Says the history is worthless, until the next `turn`.
-        void reset() { mFresh = true; }
+        void reset() { mTurns.reset(); }
 
         /// What one frame reads and writes.
         ///
@@ -67,9 +68,6 @@ namespace Rtx
         /// One word an 8×4 tile of the rays' bits.
         Image mMask;
 
-        /// Which of the moments this frame writes. Flipped by `turn`.
-        std::size_t mCurrent = 0;
-
-        bool mFresh = true;
+        HistoryTurns mTurns;
     };
 }

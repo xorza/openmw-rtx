@@ -1,6 +1,7 @@
 #include "shadowhistory.hpp"
 
 #include <cassert>
+#include <cstddef>
 
 #include <vulkan/vulkan_core.h>
 
@@ -35,29 +36,24 @@ namespace Rtx
             groupsFor(height, Shaders::SHADOW_MASK_HEIGHT), toVulkanFormat(SHADOW_MASK), VK_IMAGE_USAGE_STORAGE_BIT,
             "shadow-mask");
 
-        mCurrent = 0;
-        mFresh = true;
+        mTurns.restart();
     }
 
     ShadowHistory::Turn ShadowHistory::turn()
     {
         assert(!mVisibility.isEmpty() && "a turn before resize");
 
-        const std::size_t previous = mCurrent;
-        mCurrent = 1 - mCurrent;
-
-        const bool fresh = mFresh;
-        mFresh = false;
+        const HistoryTurns::Step step = mTurns.next();
 
         return Turn{
-            .mMomentsBefore = mMoments[previous],
-            .mMoments = mMoments[mCurrent],
+            .mMomentsBefore = mMoments[step.mBefore],
+            .mMoments = mMoments[step.mNow],
             .mHistory = mHistory,
             .mScratch = mScratch,
             .mVisibility = mVisibility,
             .mTiles = mTiles,
             .mMask = mMask,
-            .mFresh = fresh,
+            .mFresh = step.mFresh,
         };
     }
 }

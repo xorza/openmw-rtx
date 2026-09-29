@@ -98,7 +98,7 @@ namespace Rtx
             writes.image(Shaders::SHADOW_TILES_BIND_SUNLIT, buffer.get(Channel::Sunlit).describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
-            writes.image(Shaders::SHADOW_TILES_BIND_HELD_SURFACE, frame.mHeldSurface.describeStorage());
+            writes.image(Shaders::SHADOW_TILES_BIND_HELD_SURFACE, frame.mHeld.mImage.describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_HISTORY, turn.mHistory.describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_MOMENTS_BEFORE, turn.mMomentsBefore.describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_MOMENTS, turn.mMoments.describeStorage());
@@ -110,8 +110,8 @@ namespace Rtx
 
             const Shaders::ShadowTilesConstants constants{
                 .mCamera = frame.mCamera,
-                .mReset = (frame.mReset || turn.mFresh) ? 1u : 0u,
-                .mDistanceScale = frame.mDistanceScale,
+                .mReset = (frame.mReset || frame.mHeld.mFresh || turn.mFresh) ? 1u : 0u,
+                .mDistanceScale = frame.mHeld.mDistanceScale,
             };
 
             dispatch(commands, mTiles, writes.get(), constants, groupsFor(width, Shaders::SHADOW_WORKGROUP),

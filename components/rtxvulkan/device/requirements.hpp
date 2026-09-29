@@ -103,14 +103,32 @@ namespace Rtx
         std::string_view mFor;
     };
 
-    /// The first release of one driver that offers an extension, as a refusal names it: "NVIDIA
-    /// driver 595", "Mesa 26.2".
+    /// The first release of one driver that offers an extension, in the driver's own numbering:
+    /// "595" for NVIDIA's, "26.2" for Mesa's. `releaseSeriesOf` names whose numbering it is.
     struct DriverFloor
     {
         VkDriverId mDriver;
-        std::string_view mDriverName;
         std::string_view mRelease;
     };
+
+    /// What a driver's releases are called, as a refusal puts a number after it: "NVIDIA driver",
+    /// "AMD driver", "Mesa". Empty for a driver no floor names.
+    constexpr std::string_view releaseSeriesOf(const VkDriverId driver)
+    {
+        switch (driver)
+        {
+            case VK_DRIVER_ID_NVIDIA_PROPRIETARY:
+                return "NVIDIA driver";
+            case VK_DRIVER_ID_AMD_PROPRIETARY:
+                return "AMD driver";
+            case VK_DRIVER_ID_MESA_RADV:
+            case VK_DRIVER_ID_MESA_NVK:
+            case VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA:
+                return "Mesa";
+            default:
+                return {};
+        }
+    }
 
     /// An extension the renderer will not start without, and for each driver that came to offer it
     /// after its first Vulkan 1.4 release, the release that did — empty where every 1.4 release of

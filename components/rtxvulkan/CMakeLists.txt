@@ -218,7 +218,8 @@ add_custom_target(openmw-rtx-vulkan-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS}
 set(RTX_VULKAN_FILES
     createrenderer.cpp
     createrenderer.hpp
-    device/checkpoint.hpp
+    device/buffermarkers.cpp
+    device/buffermarkers.hpp
     device/commands.cpp
     device/commands.hpp
     device/device.cpp
@@ -350,6 +351,7 @@ set(RTX_VULKAN_FILES
     trace/denoise/atrouspass.hpp
     trace/denoise/compositepass.cpp
     trace/denoise/compositepass.hpp
+    trace/denoise/historyturns.hpp
     trace/denoise/shadowhistory.cpp
     trace/denoise/shadowhistory.hpp
     trace/denoise/shadowpass.cpp

@@ -1,6 +1,7 @@
 #include "specularhistory.hpp"
 
 #include <cassert>
+#include <cstddef>
 
 #include <vulkan/vulkan_core.h>
 
@@ -27,26 +28,20 @@ namespace Rtx
                 i == 0 ? "specular-frames-0" : "specular-frames-1");
         }
 
-        mCurrent = 0;
-        mFresh = true;
+        mTurns.restart();
     }
 
     SpecularHistory::Turn SpecularHistory::turn()
     {
         assert(!mMeans[0].isEmpty() && "a turn before resize");
 
-        const std::size_t previous = mCurrent;
-        mCurrent = 1 - mCurrent;
-
-        const bool fresh = mFresh;
-        mFresh = false;
-
+        const HistoryTurns::Step step = mTurns.next();
         return Turn{
-            .mMeanBefore = mMeans[previous],
-            .mFramesBefore = mFrames[previous],
-            .mMean = mMeans[mCurrent],
-            .mFrames = mFrames[mCurrent],
-            .mFresh = fresh,
+            .mMeanBefore = mMeans[step.mBefore],
+            .mFramesBefore = mFrames[step.mBefore],
+            .mMean = mMeans[step.mNow],
+            .mFrames = mFrames[step.mNow],
+            .mFresh = step.mFresh,
         };
     }
 }

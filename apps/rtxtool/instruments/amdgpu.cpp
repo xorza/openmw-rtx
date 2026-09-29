@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 
 namespace RtxTool
 {
@@ -41,7 +42,13 @@ namespace RtxTool
         }
     }
 
-    AmdGpu::AmdGpu()
+    AmdGpu::AmdGpu(std::filesystem::path device, std::filesystem::path temperature)
+        : mDevice(std::move(device))
+        , mTemperature(std::move(temperature))
+    {
+    }
+
+    std::optional<AmdGpu> AmdGpu::find()
     {
         std::error_code error;
         std::array<char, 512> text;
@@ -59,25 +66,24 @@ namespace RtxTool
             if (!vendor.has_value() || !vendor->starts_with(sAmdVendor))
                 continue;
 
-            mDevice = device;
+            std::filesystem::path temperature;
             for (const std::filesystem::directory_entry& hwmon :
                 std::filesystem::directory_iterator(device / "hwmon", error))
             {
                 if (std::filesystem::exists(hwmon.path() / "temp1_input", error))
                 {
-                    mTemperature = hwmon.path() / "temp1_input";
+                    temperature = hwmon.path() / "temp1_input";
                     break;
                 }
             }
-            return;
+            return AmdGpu(device, std::move(temperature));
         }
+
+        return std::nullopt;
     }
 
     GpuClock AmdGpu::readClock() const
     {
-        if (!isOpen())
-            return {};
-
         std::array<char, 512> text;
         const std::optional<std::string_view> core = readSmall(mDevice / "pp_dpm_sclk", text);
         const std::optional<std::uint32_t> coreMhz = core.has_value() ? currentLevelMhz(*core) : std::nullopt;

@@ -6,7 +6,6 @@
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/accumulate.h>
 #include <components/rtx/shaders/camera.h>
-#include <components/rtx/shaders/look.h>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -28,12 +27,6 @@ namespace Rtx
         : mPipeline(device, sBindings, sizeof(Shaders::AccumulateConstants), {},
             shaderDirectory / "accumulate.comp.spv", "accumulate")
     {
-    }
-
-    float AccumulatePass::distanceScaleFor(const float far)
-    {
-        assert(far > 0.0f && "a frame with no far plane to scale a stored distance by");
-        return Shaders::ACCUMULATE_DISTANCE_RANGE / far;
     }
 
     void AccumulatePass::record(VkCommandBuffer commands, const AccumulateHistory::Turn& turn, const GBuffer& buffer,
@@ -74,7 +67,7 @@ namespace Rtx
         const Shaders::AccumulateConstants constants{
             .mCamera = camera,
             .mReset = (reset || turn.mFresh) ? 1u : 0u,
-            .mDistanceScale = distanceScaleFor(far),
+            .mDistanceScale = AccumulateHistory::distanceScaleFor(far),
         };
 
         dispatch(commands, mPipeline, writes.get(), constants, groupsFor(camera.mWidth, Shaders::ACCUMULATE_WORKGROUP),

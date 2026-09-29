@@ -3,7 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include <components/rtxvulkan/device/checkpoint.hpp>
+#include <components/rtxvulkan/device/buffermarkers.hpp>
 
 namespace Rtx
 {

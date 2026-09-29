@@ -1,11 +1,13 @@
 #include "accumulatehistory.hpp"
 
 #include <cassert>
+#include <cstddef>
 
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/shaders/accumulate.h>
 #include <components/rtx/shaders/atrous.h>
+#include <components/rtx/shaders/look.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 
 namespace Rtx
@@ -16,6 +18,12 @@ namespace Rtx
         /// takes its taps through the texture unit and a sampled descriptor needs the bit at
         /// creation, which is a promise made here and kept there.
         constexpr VkImageUsageFlags sReadAndWrite = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    }
+
+    float AccumulateHistory::distanceScaleFor(const float far)
+    {
+        assert(far > 0.0f && "a frame with no far plane to scale a stored distance by");
+        return Shaders::ACCUMULATE_DISTANCE_RANGE / far;
     }
 
     AccumulateHistory::AccumulateHistory(const Device& device)
@@ -40,45 +48,39 @@ namespace Rtx
 
         mBlended = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "accumulate-blended");
 
-        mCurrent = 0;
-        mFresh = true;
+        mTurns.restart();
     }
 
     AccumulateHistory::Turn AccumulateHistory::turn()
     {
         assert(!mBlended.isEmpty() && "a turn before resize");
 
-        const std::size_t previous = mCurrent;
-        mCurrent = 1 - mCurrent;
-
-        const bool fresh = mFresh;
-        mFresh = false;
-
+        const HistoryTurns::Step step = mTurns.next();
         return Turn{
-            .mColourBefore = mColour[previous],
-            .mSurfaceBefore = mSurface[previous],
-            .mMomentsBefore = mMoments[previous],
-            .mColour = mColour[mCurrent],
-            .mSurface = mSurface[mCurrent],
-            .mMoments = mMoments[mCurrent],
+            .mColourBefore = mColour[step.mBefore],
+            .mSurfaceBefore = mSurface[step.mBefore],
+            .mMomentsBefore = mMoments[step.mBefore],
+            .mColour = mColour[step.mNow],
+            .mSurface = mSurface[step.mNow],
+            .mMoments = mMoments[step.mNow],
             .mBlended = mBlended,
-            .mFresh = fresh,
+            .mFresh = step.mFresh,
         };
     }
 
     const Image& AccumulateHistory::getBlended() const
     {
         assert(!mBlended.isEmpty() && "the blend asked for before a resize made one");
-        assert(!mFresh && "the blend asked for before any frame was accumulated into it");
+        assert(!mTurns.isFresh() && "the blend asked for before any frame was accumulated into it");
 
         return mBlended;
     }
 
     const Image& AccumulateHistory::getHistory() const
     {
-        assert(!mColour[mCurrent].isEmpty() && "the history asked for before a resize made one");
-        assert(!mFresh && "the history asked for before the frame that hands it over");
+        assert(!mColour[mTurns.getNow()].isEmpty() && "the history asked for before a resize made one");
+        assert(!mTurns.isFresh() && "the history asked for before the frame that hands it over");
 
-        return mColour[mCurrent];
+        return mColour[mTurns.getNow()];
     }
 }

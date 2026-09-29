@@ -459,14 +459,20 @@ namespace Rtx
             Crash::fatal("an upscaler resource that is not an image");
         };
 
-        const auto blockOf = [&](const Bound resource) {
-            const VkDeviceSize offset = resource == R::Constants
-                ? Shaders::FSR_BLOCK_CONSTANTS
-                : (resource == R::Pyramid ? Shaders::FSR_BLOCK_PYRAMID : Shaders::FSR_BLOCK_INPUTS);
-            const VkDeviceSize range = resource == R::Constants
-                ? sizeof(Shaders::FsrConstants)
-                : (resource == R::Pyramid ? sizeof(Shaders::FsrPyramidConstants) : sizeof(Shaders::FsrInputConstants));
-            return VkDescriptorBufferInfo{ blocks.getHandle(), offset, range };
+        const auto blockOf = [&](const Bound resource) -> VkDescriptorBufferInfo {
+            switch (resource)
+            {
+                case R::Constants:
+                    return { blocks.getHandle(), Shaders::FSR_BLOCK_CONSTANTS, sizeof(Shaders::FsrConstants) };
+                case R::Pyramid:
+                    return { blocks.getHandle(), Shaders::FSR_BLOCK_PYRAMID, sizeof(Shaders::FsrPyramidConstants) };
+                case R::Inputs:
+                    return { blocks.getHandle(), Shaders::FSR_BLOCK_INPUTS, sizeof(Shaders::FsrInputConstants) };
+                default:
+                    break;
+            }
+
+            Crash::fatal("an upscaler resource that is not a constant block");
         };
 
         const auto between = [&] { handOver(commands, sPassWork, sPassWork); };

@@ -1,14 +1,32 @@
 #pragma once
 
 #include <array>
-#include <cstddef>
 #include <cstdint>
 
 #include <components/rtxvulkan/device/memory/image.hpp>
 
+#include "historyturns.hpp"
+
 namespace Rtx
 {
     class Device;
+
+    /// The surface last frame's histories belong to, as every temporal pass reads it: the normal and
+    /// the distance the accumulator wrote for each pixel, the scale its distances are stored at, and
+    /// whether it holds anything at all. **One surface history for every pass that asks whether a
+    /// texel is still the same surface** (`heldSurfaceMatches`), since each asks it of the same pixels
+    /// of the same frames; the accumulator writes it, and the others only read it.
+    struct HeldSurface
+    {
+        const Image& mImage;
+
+        /// What a world distance is multiplied by before the history holds it,
+        /// `AccumulateHistory::distanceScaleFor`.
+        float mDistanceScale;
+
+        /// The first frame after a `resize` or a `reset`, when there is no surface to hold.
+        bool mFresh;
+    };
 
     /// One camera's history for `AccumulatePass`, at one extent: what the last frame left for this
     /// one, and where this one's blend goes. A chain's and not the pass's, because the pass is a
@@ -24,7 +42,11 @@ namespace Rtx
 
         /// Says the history is worthless, until the next `turn`: the frame after it starts again
         /// as the first after a resize does.
-        void reset() { mFresh = true; }
+        void reset() { mTurns.reset(); }
+
+        /// What a world distance is multiplied by before the surface history holds it, for a frame
+        /// whose far plane is `far`: `AccumulateConstants::mDistanceScale`, which says why.
+        static float distanceScaleFor(float far);
 
         /// What one frame reads and writes: the half of each pair the last frame wrote, the half
         /// this one writes, the blend, and whether there is any history at all.
@@ -40,6 +62,15 @@ namespace Rtx
 
             /// The first frame after a `resize` or a `reset`, whose history is worthless.
             bool mFresh = false;
+
+            /// The surface history as the other temporal passes read it, on a frame whose far
+            /// plane is `far`.
+            HeldSurface held(const float far) const
+            {
+                return HeldSurface{
+                    .mImage = mSurfaceBefore, .mDistanceScale = distanceScaleFor(far), .mFresh = mFresh
+                };
+            }
         };
 
         /// Turns to the other half of each pair for the frame being recorded. From here on the
@@ -72,11 +103,8 @@ namespace Rtx
         /// overwrites it. Empty until `resize`.
         Image mBlended;
 
-        /// Which half of each pair this frame writes. Flipped by `turn`.
-        std::size_t mCurrent = 0;
-
-        /// Set by `resize`, so the first frame after one does not read an image nothing has
-        /// written, and by `reset`.
-        bool mFresh = true;
+        /// Restarted by `resize`, so the first frame after one does not read an image nothing has
+        /// written.
+        HistoryTurns mTurns;
     };
 }

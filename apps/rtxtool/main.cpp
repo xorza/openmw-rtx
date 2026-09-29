@@ -405,16 +405,20 @@ namespace RtxTool
         ///
         /// **Frozen is what still means.** The world does not step, so what one frame differs from
         /// the next by is the renderer and nothing else — which is what a picture, a digest and a
-        /// pixel comparison are each about. A route is flown with the clock going, because a camera
-        /// crossing a stopped world measures the streaming and nothing that lives in it.
+        /// pixel comparison are each about. A view's route is flown with the clock going, because a
+        /// camera crossing a stopped world measures the streaming and nothing that lives in it. A
+        /// route that holds the world is the command's own staging and not a view's, and the row
+        /// leaves it as it is.
         void applyPolicy(const VerbPolicy& policy, Stop& stop)
         {
-            if (!policy.mFliesRoutes)
-                stop.mSchedule.mRoute.reset();
+            std::optional<Route>& route = stop.mSchedule.mRoute;
+            const bool held = route.has_value() && route->mWorldHeld;
+            if (!policy.mFliesRoutes && !held)
+                route.reset();
             if (!policy.mFollowsTracks)
                 stop.mSchedule.mTrack.reset();
 
-            stop.mSchedule.mFrozen = policy.mFreezes && !stop.mSchedule.mRoute.has_value();
+            stop.mSchedule.mFrozen = policy.mFreezes && (!route.has_value() || held);
             stop.mActions.mHash = stop.mActions.mHash || policy.mHashes;
         }
 
@@ -917,12 +921,28 @@ namespace RtxTool
             if (!(strafe >= 0.0f) || !std::isfinite(strafe))
                 throw std::runtime_error(std::format("--strafe is {}, which is no distance", strafe));
 
+            // The frame's own stop, strafing in where the line asks: a route that holds the world, so
+            // the frame flies through the world the reference stands in (`applyPolicy`).
+            const auto frame = [&](const Stop& place) {
+                if (!(strafe > 0.0f))
+                    return picture(place, "", 1, false, std::nullopt, held, std::nullopt);
+
+                if (!place.mStand.mEye.has_value())
+                    throw std::runtime_error(
+                        std::format("--strafe needs a place that names an eye, and {} names none", place.mName));
+
+                Stop stop = picture(place, "", sNoiseStrafeFrames, false, std::nullopt, held, std::nullopt);
+                Approach approach
+                    = stop.mStand.approachFromSide(strafe, framed.mSetup.getWorldStep(), sNoiseStrafeFrames);
+                stop.mStand = std::move(approach.mFrom);
+                stop.mSchedule.mRoute = approach.mRoute;
+                return stop;
+            };
+
             std::vector<Stop> stops;
             stops.reserve(places.size() * 3);
             std::vector<std::string> names;
             names.reserve(places.size());
-            std::vector<std::size_t> frames;
-            frames.reserve(places.size());
             for (const Stop& place : places)
             {
                 names.push_back(place.mName);
@@ -930,30 +950,11 @@ namespace RtxTool
                     std::nullopt, Rtx::Upscale::Off));
                 stops.push_back(
                     picture(place, sNoiseBarSuffix, sNoiseBarFrames, true, unfiltered, held, Rtx::Upscale::Off));
-                frames.push_back(stops.size());
-                stops.push_back(picture(
-                    place, "", strafe > 0.0f ? sNoiseStrafeFrames : 1, false, std::nullopt, held, std::nullopt));
+                stops.push_back(frame(place));
             }
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             request.mSuite = run.mSuite;
-
-            // **After the command's row**, which takes every route off a stop that stands still: the
-            // frame is given one of its own and stays frozen, so the world it flies through is the
-            // world the reference stands in.
-            if (strafe > 0.0f)
-                for (const std::size_t at : frames)
-                {
-                    Stop& frame = request.mStops[at];
-                    if (!frame.mStand.mEye.has_value())
-                        throw std::runtime_error(
-                            std::format("--strafe needs a place that names an eye, and {} names none", frame.mName));
-
-                    Approach approach
-                        = frame.mStand.approachFromSide(strafe, request.mSetup.getWorldStep(), sNoiseStrafeFrames);
-                    frame.mStand = std::move(approach.mFrom);
-                    frame.mSchedule.mRoute = approach.mRoute;
-                }
 
             if (const int status
                 = runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));

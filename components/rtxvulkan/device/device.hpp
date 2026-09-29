@@ -8,13 +8,12 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "checkpoint.hpp"
 #include "physicaldevice.hpp"
 #include "requirements.hpp"
 
 namespace Rtx
 {
-    class Buffer;
+    class BufferMarkers;
     class CommandPool;
     class Graveyard;
     class Instance;
@@ -110,6 +109,15 @@ namespace Rtx
 
         PFN_vkGetPipelineExecutablePropertiesKHR mGetPipelineExecutableProperties = nullptr;
         PFN_vkGetPipelineExecutableStatisticsKHR mGetPipelineExecutableStatistics = nullptr;
+    };
+
+    /// What a checkpoint on the queue points at: the zone the timer opened and the frame it was
+    /// opened for, so a device loss can say "frame 83, `tlas`". Owned by the timer that set it
+    /// and stable while the timer's slot lives, which is longer than a fault takes to be reported.
+    struct Checkpoint
+    {
+        std::string_view mName;
+        std::uint64_t mFrame = 0;
     };
 
     /// The logical device's own handle, with the destructor `Owned` cannot give it: a device is
@@ -230,8 +238,8 @@ namespace Rtx
             {
                 if (mCmdSetCheckpoint != nullptr)
                     mCmdSetCheckpoint(commands, checkpoint);
-                if (mCmdWriteBufferMarker != nullptr)
-                    writeMarkers(commands, mMarkers.mark(checkpoint));
+                if (mMarkers != nullptr)
+                    writeMarker(commands, checkpoint);
             }
         }
 
@@ -269,10 +277,8 @@ namespace Rtx
         /// Nothing where the driver offers neither checkpoints nor buffer markers.
         std::string describeCheckpoints() const;
 
-        /// `marker` into both words of `mMarkerWords`: at the top of the pipe, which the queue
-        /// passes as it reaches the zone, and at the bottom, which it passes once everything
-        /// before the zone is done — the two stages AMD's breadcrumbs read.
-        void writeMarkers(VkCommandBuffer commands, std::uint32_t marker) const;
+        /// `BufferMarkers::mark`, out of line, where the markers' type is whole.
+        void writeMarker(VkCommandBuffer commands, const Checkpoint* checkpoint) const;
 
         void setNameImpl(VkObjectType type, std::uint64_t handle, const char* name) const;
         void beginLabelImpl(VkCommandBuffer commands, const char* name) const;
@@ -295,12 +301,6 @@ namespace Rtx
         PFN_vkCmdSetCheckpointNV mCmdSetCheckpoint = nullptr;
         PFN_vkGetQueueCheckpointDataNV mGetQueueCheckpointData = nullptr;
 
-        /// Null where the driver offers no `VK_AMD_buffer_marker`, and then `mMarkerWords` is
-        /// empty. Written from `checkpoint`, which a recording calls on the one thread that
-        /// records.
-        PFN_vkCmdWriteBufferMarkerAMD mCmdWriteBufferMarker = nullptr;
-        mutable MarkerRing mMarkers;
-
         bool mPresentFences = false;
 
         // Last, so that they are torn down first, and in this order, because a later one dies
@@ -313,9 +313,9 @@ namespace Rtx
         std::unique_ptr<CommandPool> mPool;
         std::unique_ptr<Graveyard> mGraveyard;
 
-        /// The two words the markers are written into — the top of the pipe's, then the
-        /// bottom's — in memory the host reads after a loss. Made on the allocator, so torn down
-        /// before it; null where the driver offers no markers.
-        std::unique_ptr<Buffer> mMarkerWords;
+        /// AMD's breadcrumbs, null where the driver offers no `VK_AMD_buffer_marker`. Made on the
+        /// allocator, so torn down before it. Marked from `checkpoint`, which a recording calls on
+        /// the one thread that records.
+        std::unique_ptr<BufferMarkers> mMarkers;
     };
 }

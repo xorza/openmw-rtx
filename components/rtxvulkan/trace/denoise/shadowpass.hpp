@@ -10,6 +10,7 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
+#include "accumulatehistory.hpp"
 #include "shadowhistory.hpp"
 
 namespace Rtx
@@ -35,11 +36,8 @@ namespace Rtx
             Shaders::Camera mCamera;
             Shaders::Camera mArms;
 
-            /// The accumulator's surface history for this frame, `AccumulateHistory::Turn`'s
-            /// `mSurfaceBefore`, and the scale its distances are in: the same history, because it
-            /// belongs to the same pixels of the same frames.
-            const Image& mHeldSurface;
-            float mDistanceScale;
+            /// The surface this frame's history belongs to, `HeldSurface`.
+            HeldSurface mHeld;
 
             /// True where there is no history worth carrying, as the accumulator is told.
             bool mReset;

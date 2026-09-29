@@ -51,7 +51,7 @@ namespace Rtx
         writes.image(Shaders::SPECULAR_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
         writes.image(Shaders::SPECULAR_BIND_PUFFS, buffer.get(Channel::Puffs).describeStorage());
-        writes.image(Shaders::SPECULAR_BIND_HELD_SURFACE, frame.mHeldSurface.describeStorage());
+        writes.image(Shaders::SPECULAR_BIND_HELD_SURFACE, frame.mHeld.mImage.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN_BEFORE, turn.mMeanBefore.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_FRAMES_BEFORE, turn.mFramesBefore.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN, turn.mMean.describeStorage());
@@ -65,8 +65,8 @@ namespace Rtx
             .mPreviousRight = sampled.mPreviousRight,
             .mPreviousUp = sampled.mPreviousUp,
             .mArmsSpread = sampled.mArmsSpread,
-            .mReset = (frame.mReset || turn.mFresh) ? 1u : 0u,
-            .mDistanceScale = frame.mDistanceScale,
+            .mReset = (frame.mReset || frame.mHeld.mFresh || turn.mFresh) ? 1u : 0u,
+            .mDistanceScale = frame.mHeld.mDistanceScale,
         };
 
         dispatch(commands, mPipeline, writes.get(), constants, groupsFor(width, Shaders::SPECULAR_WORKGROUP),

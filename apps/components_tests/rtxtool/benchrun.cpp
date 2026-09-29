@@ -91,6 +91,7 @@ namespace RtxTool
             EXPECT_EQ(fromWest.mRoute.mTo, *north.mEye);
             EXPECT_EQ(fromWest.mRoute.mLookTo, *north.mLook);
             EXPECT_NEAR(fromWest.mRoute.mSpeed, 310.345f, 1e-3f);
+            EXPECT_TRUE(fromWest.mRoute.mWorldHeld) << "the world the reference stands in, and not a walk";
 
             const Stand east{ .mEye = osg::Vec3f(100.0f, 200.0f, 300.0f),
                 .mLook = osg::Vec3f(1100.0f, 200.0f, 300.0f) };

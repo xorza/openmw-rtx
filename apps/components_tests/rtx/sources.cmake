@@ -98,7 +98,7 @@ set(RTX_TEST_FILES
     rtxtool/run.cpp
     rtxtool/scenedigest.cpp
     rtxtool/skycrossing.cpp
-    rtxvulkan/device/checkpoint.cpp
+    rtxvulkan/device/buffermarkers.cpp
     rtxvulkan/device/instance.cpp
     rtxvulkan/device/memory/formats.cpp
     rtxvulkan/device/physicaldevice.cpp

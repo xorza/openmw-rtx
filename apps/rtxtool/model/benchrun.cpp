@@ -162,8 +162,10 @@ namespace RtxTool
         // frame, `frames - 1` steps from the first to the last.
         return Approach{
             .mFrom = Stand{ .mCell = mCell, .mEye = *mEye - right * across, .mLook = look },
-            .mRoute
-            = Route{ .mTo = *mEye, .mLookTo = look, .mSpeed = across / (step * static_cast<float>(frames - 1)) },
+            .mRoute = Route{ .mTo = *mEye,
+                .mLookTo = look,
+                .mSpeed = across / (step * static_cast<float>(frames - 1)),
+                .mWorldHeld = true },
         };
     }
 
