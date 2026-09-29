@@ -869,18 +869,17 @@ namespace RtxTool
         /// **The reference, the bar, the bar's limit, the frame and the frame's mean, in that
         /// order.** The reference averages
         /// `sNoiseReferenceFrames` frames traced unfiltered and jittered, from the white hash, which
-        /// is a sequence neither of the others draws from, so it shares no sample with them; its
-        /// exposure is measured as a played frame's is. The bar averages `sNoiseBarFrames` frames,
-        /// unfiltered and as the run otherwise traces — or, strafed, as many as the frame's history
-        /// could hold, `noiseBarFramesAfter`. The frame is the run's own, after the warm-up
-        /// its history converges over, upscaled as the run is — or, with `--strafe`, after it flew into
-        /// the place from the side (`Stand::approachFromSide`). The reference and the bar are traced
-        /// with no upscaler, at the frame's own output size, so an upscaled frame is held to the
-        /// picture it stands for and not to another upscale of it. The bar's limit is the bar drawn
-        /// `sNoiseMeanDraws` times as long, and the frame's mean is `sNoiseMeanDraws` draws of the
-        /// frame, each its own stop that warms up past every history first: what each converges
-        /// to, drawn its own way. Every picture but the reference holds the exposure the reference
-        /// ended on, so all are mapped by one curve and the scale is derived rather than stated.
+        /// is a sequence neither of the others draws from, so it shares no sample with them, and at
+        /// no texture level epsilon; its exposure is measured as a played frame's is. The bar averages
+        /// `sNoiseBarFrames` frames, unfiltered and as the run otherwise traces — or, strafed, as many as the frame's
+        /// history could hold, `noiseBarFramesAfter`. The frame is the run's own, after the warm-up its history
+        /// converges over, upscaled as the run is — or, with `--strafe`, after it flew into the place from the side
+        /// (`Stand::approachFromSide`). The reference and the bar are traced with no upscaler, at the frame's own
+        /// output size, so an upscaled frame is held to the picture it stands for and not to another upscale of it. The
+        /// bar's limit is the bar drawn `sNoiseMeanDraws` times as long, and the frame's mean is `sNoiseMeanDraws`
+        /// draws of the frame, each its own stop that warms up past every history first: what each converges to, drawn
+        /// its own way. Every picture but the reference holds the exposure the reference ended on, so all are mapped by
+        /// one curve and the scale is derived rather than stated.
         ///
         /// **Judged against the bar and not against a number**: a frame is as clean as the bar when it
         /// stands no further from its own mean than the bar from its limit, by the mean and at the 99th
@@ -903,6 +902,10 @@ namespace RtxTool
             reference.mFilter = false;
             reference.mJitter = true;
             reference.mNoise = Rtx::NoiseSource::WhiteHash;
+            // **The truth reads every texture at the level its footprint asks**, whatever the run's
+            // epsilon: an epsilon is a knob on the frame, and a reference that moved with it would
+            // take the frame's softness for its own and report no bias at all.
+            reference.mLevelEpsilon = 0.0f;
             Rtx::ReconstructionRequest unfiltered = played;
             unfiltered.mFilter = false;
             const Rtx::ExposureRule held{ .mHeld = true };

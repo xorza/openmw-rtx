@@ -88,8 +88,4 @@ namespace Rtx
     /// eighteen at quality: enough phases that every output pixel is sampled at eight places.
     std::uint32_t jitterPhasesFor(std::uint32_t renderWidth, std::uint32_t outputWidth);
 
-    /// What the texture level bias moves by past the ratio's own levels wherever the upscaler runs,
-    /// native included: FSR's guide has `log2(render / output) - 1`, because a frame the upscaler
-    /// accumulates across jitter phases resolves texture finer than one frame's pixel.
-    inline constexpr float sUpscaleLevelBias = -1.0f;
 }

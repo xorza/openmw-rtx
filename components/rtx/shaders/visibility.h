@@ -511,9 +511,9 @@ namespace Rtx::Shaders
 
         /// What every texture level is offset by, in levels: `Rtx::Reconstruction::mLevelBias`,
         /// the level bias for the pixel that is shown rather than the one that is traced, below nought under an
-        /// upscaler and whatever the epsilon says past that. Added where a level is chosen from a cone — `coneBase`,
-        /// `waveLevel`, `rippleLevel` — and nowhere else, because `mSpreadAngle` also sizes the sun's disc and the wave
-        /// filter's taps, which are not levels.
+        /// upscaler that traces fewer pixels than it shows and whatever the epsilon says past that. Added where a level
+        /// is chosen from a cone — `coneBase`, `waveLevel`, `rippleLevel` — and nowhere else, because `mSpreadAngle`
+        /// also sizes the sun's disc and the wave filter's taps, which are not levels.
         float mLevelBias;
 
         /// Where every table a hit reads is. `GpuTables` says why it rides here.

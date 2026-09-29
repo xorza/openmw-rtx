@@ -125,3 +125,9 @@ Only under the PBR profile: the Zed tasks that start the game with `~/.config/op
   the land beside them. Stand still: the water should look as it did.
 - **Glass and faded actors while moving.** Strafe past a window, and past a Chameleon actor: no
   trail of the old picture behind the glass or the body.
+
+## The texture level under the upscaler
+
+- **Texture crispness at quality and native.** Textures are read at the shown pixel's own level, not
+  one finer: look at ground, walls and signs at quality for softness that reads as blur rather than as
+  less shimmer, against the tree before this change.

@@ -69,29 +69,29 @@ namespace Rtx
             EXPECT_EQ(Reconstruction::resolve(Upscaling{}, ReconstructionRequest{}, sUnscaled).mLevelBias, 0.0f)
                 << "and nought where nothing was asked";
 
-            // The bias is log2(render / display) and the upscaler's own minus one past it: 1920 over
-            // 3840 is exactly minus one, and minus two with FSR's level; balanced traces 2258 of 3840
-            // and reads log2(0.5880) - 1 = -1.7661, which is the number a texture moves by.
+            // The bias is log2(render / display), the shown pixel's own level: 1920 over 3840 is
+            // exactly minus one; balanced traces 2258 of 3840 and reads log2(0.5880) = -0.7661, which
+            // is the number a texture moves by.
             const Reconstruction performance
                 = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Performance }, ReconstructionRequest{}, sHalved);
             EXPECT_EQ(performance.mNoise, NoiseSource::BlueNoiseTile) << "the upscaler does not choose the noise";
-            EXPECT_FLOAT_EQ(performance.mLevelBias, -2.0f);
+            EXPECT_FLOAT_EQ(performance.mLevelBias, -1.0f);
 
             const Reconstruction balanced = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Balanced },
                 ReconstructionRequest{}, FrameExtents{ .mRenderWidth = 2258, .mOutputWidth = 3840 });
-            EXPECT_NEAR(balanced.mLevelBias, -1.7661f, 0.0005f);
+            EXPECT_NEAR(balanced.mLevelBias, -0.7661f, 0.0005f);
 
-            // Native traces every pixel and still takes FSR's level: minus one exactly.
+            // Native traces every pixel, so its level is the traced one: nought exactly.
             const Reconstruction native
                 = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Native }, ReconstructionRequest{}, sUnscaled);
-            EXPECT_FLOAT_EQ(native.mLevelBias, -1.0f);
+            EXPECT_EQ(native.mLevelBias, 0.0f);
 
             // The epsilon is added past the ratio, and a request may name the source outright:
             // that is the A/B.
             const Reconstruction tuned = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Performance },
                 ReconstructionRequest{ .mNoise = NoiseSource::WhiteHash, .mLevelEpsilon = -0.25f }, sHalved);
             EXPECT_EQ(tuned.mNoise, NoiseSource::WhiteHash) << "asked for by name";
-            EXPECT_FLOAT_EQ(tuned.mLevelBias, -2.25f);
+            EXPECT_FLOAT_EQ(tuned.mLevelBias, -1.25f);
         }
 
         /// **What FSR traces at and how many phases it cycles, at 1920×1080, by hand.** Each axis is
