@@ -27,8 +27,10 @@ namespace Rtx
         /// Formats and Vulkan Formats" table, one row per qualifier `storageformat.h` spells.
         TEST(RtxFormatsTest, aStorageFormatIsTheOneTheSpecificationPairsItsQualifierWith)
         {
-            constexpr std::array<std::pair<StorageFormat, VkFormat>, 9> sTable{ {
+            constexpr std::array<std::pair<StorageFormat, VkFormat>, 11> sTable{ {
                 { StorageFormat::Rgba8, VK_FORMAT_R8G8B8A8_UNORM },
+                { StorageFormat::R8, VK_FORMAT_R8_UNORM },
+                { StorageFormat::Rg8, VK_FORMAT_R8G8_UNORM },
                 { StorageFormat::R16, VK_FORMAT_R16_UNORM },
                 { StorageFormat::R16f, VK_FORMAT_R16_SFLOAT },
                 { StorageFormat::R32f, VK_FORMAT_R32_SFLOAT },
@@ -87,8 +89,8 @@ namespace Rtx
                 TexelDecode mDecode;
             };
             constexpr std::array<Row, 14> sTable{ {
-                { VK_FORMAT_R8_UNORM, 1, TexelDecode::Bytes },
-                { VK_FORMAT_R8G8_UNORM, 2, TexelDecode::Bytes },
+                { VK_FORMAT_R8_UNORM, 1, TexelDecode::Unorm8 },
+                { VK_FORMAT_R8G8_UNORM, 2, TexelDecode::Unorm8 },
                 { VK_FORMAT_R16_UNORM, 2, TexelDecode::Bytes },
                 { VK_FORMAT_R16_SFLOAT, 2, TexelDecode::Half },
                 { VK_FORMAT_R8G8B8A8_UNORM, 4, TexelDecode::Bytes },

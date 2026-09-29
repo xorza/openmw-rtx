@@ -33,6 +33,9 @@ namespace Rtx
         /// Four bytes for four fractions, which is what `gbuffer.h` argues a modulation is.
         constexpr VkFormat sBackdrop = toVulkanFormat(GBUFFER_BACKDROP);
 
+        /// A byte a mask, the width AMD stores its own at.
+        constexpr VkFormat sUpscaleMasks = toVulkanFormat(GBUFFER_UPSCALE_MASKS);
+
         /// `SAMPLED` on all of them: the cascade samples the surface and the puffs, an upscaler samples
         /// what it is handed, and the bit costs no memory, so every channel carries it.
         constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -69,6 +72,7 @@ namespace Rtx
                 every[bindingOf(Channel::PaneAlbedo)] = { sAlbedo, sReadable };
                 every[bindingOf(Channel::PaneSurface)] = { sSurface, sReadable };
                 every[bindingOf(Channel::PaneMotion)] = { sMotion, sReadable };
+                every[bindingOf(Channel::UpscaleMasks)] = { sUpscaleMasks, sReadable };
 
                 return every;
             }();

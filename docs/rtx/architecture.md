@@ -230,7 +230,9 @@ at the top, over all of them.
 - **`Upscaler`** is FSR 3.1.4's seven passes, from AMD's own headers in `extern/fidelityfx/`, with
   the renderer's callbacks (`shaders/upscale/fsrcallbacks.glsl`). It needs no extension, so it
   runs on every device the renderer does. `FsrFrame` holds its per-frame constants, with no
-  device in it.
+  device in it. Its reactive and transparency-and-composition masks are the trace's own
+  (`CHANNEL_UPSCALE_MASKS`): the share of a pixel's light whose image moves apart from the pixel's
+  motion vector — the see-through layers', and what the water's rays show.
 - **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
   the diffuse light over time and the wavelet spreads it across the screen. The shadow denoiser
   filters the one bit a pixel's sun ray came back with, where the sky has a source that lights.

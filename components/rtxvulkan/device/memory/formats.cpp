@@ -9,8 +9,9 @@ namespace Rtx
         switch (format)
         {
             case VK_FORMAT_R8_UNORM:
-                return FormatInfo{ 1, TexelDecode::Bytes };
+                return FormatInfo{ 1, TexelDecode::Unorm8 };
             case VK_FORMAT_R8G8_UNORM:
+                return FormatInfo{ 2, TexelDecode::Unorm8 };
             case VK_FORMAT_R16_UNORM:
                 return FormatInfo{ 2, TexelDecode::Bytes };
             case VK_FORMAT_R16_SFLOAT:

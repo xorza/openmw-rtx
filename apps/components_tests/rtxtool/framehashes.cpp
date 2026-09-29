@@ -283,7 +283,7 @@ namespace RtxTool
             EXPECT_EQ(header.substr(0, 37), "hashes 4: view,frame,upscale,picture,");
             EXPECT_NE(header.find(",g-direct,"), std::string::npos) << header;
             EXPECT_NE(header.find(",g-puffs,g-sunlit,g-specular,g-pane,g-pane-albedo,g-pane-surface,g-pane-motion,"
-                                  "reconstruction,positions,"),
+                                  "g-upscale-masks,reconstruction,positions,"),
                 std::string::npos)
                 << header;
             EXPECT_NE(header.find(",textures,"), std::string::npos) << header;

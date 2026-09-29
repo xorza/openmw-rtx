@@ -131,6 +131,10 @@ layout(set = SET_CHANNELS, binding = CHANNEL_PANE_ALBEDO, GBUFFER_ALBEDO) unifor
 layout(set = SET_CHANNELS, binding = CHANNEL_PANE_SURFACE, GBUFFER_SURFACE) uniform writeonly image2D paneSurface;
 layout(set = SET_CHANNELS, binding = CHANNEL_PANE_MOTION, GBUFFER_MOTION) uniform writeonly image2D paneMotion;
 
+/// What the upscaler is told its motion vector does not describe — `CHANNEL_UPSCALE_MASKS`.
+layout(set = SET_CHANNELS, binding = CHANNEL_UPSCALE_MASKS, GBUFFER_UPSCALE_MASKS) uniform writeonly image2D
+    upscaleMasks;
+
 // One atomic per hit on a single address, which looks like contention and costs nothing a subgroup
 // reduction in its place gives back: few rays hit, and the reduction would cost the device a
 // subgroup-arithmetic requirement it does not otherwise need. Measure again if a pass ever hits

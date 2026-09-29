@@ -10,11 +10,12 @@
 
 namespace Rtx
 {
-    /// How a read of floats decodes a texel read back to the host: from halves, as floats, or not at
-    /// all, for a format only a read of bytes takes.
+    /// How a read of floats decodes a texel read back to the host: from halves, as floats, from
+    /// bytes each a fraction of 255, or not at all, for a format only a read of bytes takes.
     enum class TexelDecode
     {
         Bytes,
+        Unorm8,
         Half,
         Float,
     };
@@ -49,6 +50,8 @@ namespace Rtx
                 return VK_FORMAT_R8G8B8A8_UNORM;
             case Shaders::StorageFormat::R8:
                 return VK_FORMAT_R8_UNORM;
+            case Shaders::StorageFormat::Rg8:
+                return VK_FORMAT_R8G8_UNORM;
             case Shaders::StorageFormat::R16:
                 return VK_FORMAT_R16_UNORM;
             case Shaders::StorageFormat::R16f:

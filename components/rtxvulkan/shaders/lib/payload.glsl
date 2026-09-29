@@ -70,6 +70,11 @@ struct Answer
     /// field behind a sky, and the interface, whole, behind a picture that has none.
     float mBackdropShown;
 
+    /// The hit only: what share of what was shaded moves apart from `mMotion`, each share times how
+    /// far apart — the water's, whose two rays show images the waves bend. What
+    /// `CHANNEL_UPSCALE_MASKS` takes, in `g`.
+    float mMisMoved;
+
     /// How much of the surface the ray met is there: what the launch composites a pane by.
     float mOpacity;
 
@@ -106,6 +111,7 @@ Answer noAnswer()
     answer.mResponse = noResponse();
     answer.mMotion = vec2(0.0);
     answer.mBackdropShown = 0.0;
+    answer.mMisMoved = 0.0;
     answer.mOpacity = 1.0;
     answer.mPane = false;
     answer.mWater = false;
@@ -117,7 +123,8 @@ Answer noAnswer()
 
 /// The record as it crosses the trace: eighteen words, laid out once here.
 ///
-/// The flags word carries the backdrop's share as a half in its high bits, the lobe's roughness in
+/// The flags word carries the backdrop's share as a half in its high bits — or a hit's
+/// `mMisMoved`, since only a miss shows the backdrop and only a hit moves — the lobe's roughness in
 /// the byte under them, and four facts in its low bits: whether the ray hit, whether the launch
 /// peels the surface, whether it is water, and whether the sky's source reached it.
 struct VisibilityPayload
@@ -169,7 +176,8 @@ VisibilityPayload packAnswer(Answer answer)
     packed.mNormal = floatBitsToUint(answer.mResponse.mNormal);
     packed.mMotion = packHalf2x16(answer.mMotion);
     packed.mDistance = answer.mDistance;
-    packed.mFlags = packHalf2x16(vec2(0.0, answer.mBackdropShown)) | (answer.mWater ? ANSWER_WATER : 0u)
+    packed.mFlags = packHalf2x16(vec2(0.0, answer.mHit ? answer.mMisMoved : answer.mBackdropShown))
+        | (answer.mWater ? ANSWER_WATER : 0u)
         | (answer.mPane ? ANSWER_PANE : 0u) | (answer.mHit ? ANSWER_HIT : 0u)
         | (answer.mSunOpen ? ANSWER_SUN_OPEN : 0u)
         | ((answer.mRoughness < 0.0 ? ANSWER_NO_LOBE
@@ -195,11 +203,13 @@ Answer unpackAnswer(VisibilityPayload packed)
     answer.mSunOpen = (packed.mFlags & ANSWER_SUN_OPEN) != 0u;
     answer.mResponse = SurfaceResponse(uintBitsToFloat(packed.mNormal), vec3(diffuseRg, diffuseBOpacity.x));
     answer.mMotion = unpackHalf2x16(packed.mMotion);
-    answer.mBackdropShown = unpackHalf2x16(packed.mFlags).y;
     answer.mOpacity = diffuseBOpacity.y;
     answer.mPane = (packed.mFlags & ANSWER_PANE) != 0u;
     answer.mWater = (packed.mFlags & ANSWER_WATER) != 0u;
     answer.mHit = (packed.mFlags & ANSWER_HIT) != 0u;
+    const float highHalf = unpackHalf2x16(packed.mFlags).y;
+    answer.mBackdropShown = answer.mHit ? 0.0 : highHalf;
+    answer.mMisMoved = answer.mHit ? highHalf : 0.0;
     answer.mDistance = packed.mDistance;
 
     return answer;

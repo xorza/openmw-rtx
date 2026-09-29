@@ -530,3 +530,36 @@ occlusion ray at `AMBIENT_EXTERIOR_RATE` again, as a filtered path end does.
 `shot --views=all --map --upscale=off`: 8 of 56 pictures moved — the guild's windows (worst 179, and
 the exposure by a level elsewhere), and a few panes at Ald-ruhn (28), Balmora (44) and the storm (21).
 The pane filter's zone is 0.03–0.04 ms at quality's render extent; the composite rose by 0.01.
+
+## The upscaler's masks
+
+**Cause of the strafed pond's miss** (2.64/21 against a bar of 2.77/20 at quality): the tail at the
+outlines of the sky's reflection on the water and at the canopy's leaf cutouts. Not the verdict's
+noise (three warm-ups read 2.64/21 each), not FSR's motion handling (a probe with an exact input:
+a plain edge 1.15 moving against 1.13 still, no lag), and not the reflection's motion vector alone
+(exact mirror vectors: 16.7 → 17.7). The water: FSR reprojected every water pixel's history by the
+surface's motion, and what the pixel shows moves by the parallax of an image the waves bend — what
+AMD's documentation gives the transparency and composition mask for, and the port handed none. The
+leaves: FSR's own limit on sub-pixel detail in motion (thin bars in the probe, 14 still → 32 moving
+at native), which no knob moves (`velocityFactor` 0 made it 39 against 34).
+
+**The masks** (`CHANNEL_UPSCALE_MASKS`): the share of a pixel's light whose image moves apart from
+its motion vector, times how far apart (`motionsApart`, full at half a pixel). The water's two rays
+(`WaterImages`: the mirror's image the whole path along the eye's ray, the bed's at its distance over
+the index) go to the transparency and composition mask; the see-through layers' (the nearest layer's
+own motion) to the reactive mask. Nought when still, so no still picture moves.
+
+| frame mean / p99 | none | all water masked | the masks |
+|---|---|---|---|
+| pond, quality, strafed (bar 2.77/20) | 2.64/21 | 2.53/19 | 2.53/19 |
+| pond, quality, still | 2.22/12 | 2.29/14 | 2.22/12 |
+| shore, quality, still | 2.06/12 | 2.37/17 | 2.06/12 |
+| shore, ultra performance, still | 2.40/17 | 3.00/23 | 2.40/17 |
+| guild, quality, strafed (bar 4.76/38) | 4.69/37 | — | 4.47/37 |
+
+A floor under the ramp was tried for a still guild that read 3.91 against 3.88 and removed: the
+difference was the run's make-up, four places against one, which moves every place's draws.
+
+Cost, two A/B legs: the pond's trace +0.03 ms, the upscaler +0.01; the guild's trace level once the
+motion vector is worked out after the shading again — worked out first, to hand the water, it was
+held across the shading and cost the guild 0.04 ms.

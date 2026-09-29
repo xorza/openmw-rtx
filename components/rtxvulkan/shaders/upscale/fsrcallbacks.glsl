@@ -37,9 +37,10 @@
 //   jitter off it as well handed a still picture a motion of one jitter offset a frame, and the
 //   history, reprojected by it, followed the jitter: the whole frame shook, by more the fewer pixels
 //   were traced (`aStillPictureHoldsStillThroughEveryUpscale`).
-// - **No reactive and no composition mask.** The SDK binds a 1×1 default for each and reads it at
-//   full pixel coordinates, which Vulkan leaves undefined past the edge; here the loads answer the
-//   default, nought, and nothing is bound.
+// - **The two masks are one image**, `CHANNEL_UPSCALE_MASKS`, the trace's own measure of what its
+//   motion vector does not describe: the reactive mask in `r`, read where the SDK reads its
+//   resource, and the transparency and composition mask in `g`, sampled where the SDK samples its
+//   resource, at the render extent.
 // - **Formats the SDK's host creates**: the luma history is `R16G16B16A16_FLOAT` there and was
 //   declared `rgba8` here, a view whose format is not the declared one; and the output is the
 //   renderer's `rgba16f`.
@@ -155,10 +156,14 @@ FfxFloat32 LoadInputDepth(FfxInt32x2 iPxPos)
 }
 #endif
 
+#if defined(FSR3UPSCALER_BIND_SRV_REACTIVE_MASK) || defined(FSR3UPSCALER_BIND_SRV_TRANSPARENCY_AND_COMPOSITION_MASK)
+layout (set = 0, binding = FSR_REACTIVITY_BIND_MASKS) uniform texture2D r_upscale_masks;
+#endif
+
 #if defined(FSR3UPSCALER_BIND_SRV_REACTIVE_MASK)
 FfxFloat32 LoadReactiveMask(FfxInt32x2 iPxPos)
 {
-    return 0.0;
+    return texelFetch(r_upscale_masks, iPxPos, 0).r;
 }
 #endif
 
@@ -170,7 +175,7 @@ FfxInt32x2 GetTransparencyAndCompositionMaskResourceDimensions()
 
 FfxFloat32 SampleTransparencyAndCompositionMask(FfxFloat32x2 fUV)
 {
-    return 0.0;
+    return textureLod(sampler2D(r_upscale_masks, s_LinearClamp), fUV, 0.0).g;
 }
 #endif
 

@@ -117,3 +117,11 @@ Only under the PBR profile: the Zed tasks that start the game with `~/.config/op
   the glass.
 - **Faded actors.** Cast Chameleon, or watch an actor fade at the edge of its range while it moves:
   the faded body should not drag a trail of old light behind it.
+
+## The upscaler's masks
+
+- **Water while moving, at quality and ultra performance.** `view --view=seyda-neen-pond` and
+  `--view=seyda-neen-shore`, and walk: the reflections' outlines should not smear or crawl more than
+  the land beside them. Stand still: the water should look as it did.
+- **Glass and faded actors while moving.** Strafe past a window, and past a Chameleon actor: no
+  trail of the old picture behind the glass or the body.

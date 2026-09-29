@@ -186,4 +186,11 @@ vec2 skyMotionOf(uvec2 pixel, vec3 direction)
     return reprojected(pixel, direction, vec2(1.0));
 }
 
+/// How far an image's motion stands from the motion vector its pixel hands the upscaler, as what
+/// `CHANNEL_UPSCALE_MASKS` takes of it: in proportion, and one from `MISMOVED_FULL` on.
+float motionsApart(vec2 image, vec2 handed)
+{
+    return min(length(image - handed) / MISMOVED_FULL, 1.0);
+}
+
 #endif

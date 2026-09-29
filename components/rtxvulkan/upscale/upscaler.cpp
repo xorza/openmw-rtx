@@ -27,6 +27,7 @@ namespace Rtx
             Surface,
             Colour,
             Puffs,
+            Masks,
             DilatedMotion,
             DilatedDepth,
             PreviousDepth,
@@ -155,6 +156,7 @@ namespace Rtx
             Bind{ F::FSR_REACTIVITY_BIND_PREVIOUS_DEPTH, S::Sampled, R::PreviousDepth },
             Bind{ F::FSR_REACTIVITY_BIND_DILATED_MOTION, S::Sampled, R::DilatedMotion },
             Bind{ F::FSR_REACTIVITY_BIND_DILATED_DEPTH, S::Sampled, R::DilatedDepth },
+            Bind{ F::FSR_REACTIVITY_BIND_MASKS, S::Sampled, R::Masks },
             Bind{ F::FSR_REACTIVITY_BIND_ACCUMULATION, S::Sampled, R::AccumulationBefore },
             Bind{ F::FSR_REACTIVITY_BIND_SHADING_CHANGE, S::Sampled, R::ShadingChange },
             Bind{ F::FSR_REACTIVITY_BIND_CURRENT_LUMA, S::Sampled, R::LumaNow },
@@ -409,6 +411,8 @@ namespace Rtx
                     return inputs.mColour;
                 case R::Puffs:
                     return inputs.mPuffs;
+                case R::Masks:
+                    return inputs.mMasks;
                 case R::DilatedMotion:
                     return targets.mDilatedMotion;
                 case R::DilatedDepth:
