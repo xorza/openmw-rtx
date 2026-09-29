@@ -82,6 +82,8 @@ backend ever arrives.
   `components-tests` and `openmw-tests`, `rtx-gpu-tests`, and the crash matrix. `--all` adds
   upstream's suites. The GPU binary fails without a device rather than skipping, so a green run
   means a device ran it; `--without-device` leaves it out on a box with no driver.
+- The first run after a shader change includes the driver compiling its pipelines (`rtx.gpu` 23 s,
+  then 17 s): time a suite on a second run.
 - `./omw gate` once at the end: format check, the driver's tests, build, the release compile,
   tests, `check`, one repeat pair, stopping at the first failure. Never a gate beside a
   build or another gate.

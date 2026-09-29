@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -416,36 +417,71 @@ namespace CrashTests
             return std::nullopt;
         }
 
+        /// Where a mode's errors go, and its monitor's, which share them: to show where the mode fails.
+        /// Its output apart, because the log is teed to it, and the matrix's own is the table.
+        std::filesystem::path errorsIn(const std::filesystem::path& folder)
+        {
+            return folder / "stderr.txt";
+        }
+
+        /// What one mode of the matrix came to: where it wrote, why it failed or nothing, and how
+        /// long it took.
+        struct Outcome
+        {
+            std::filesystem::path mFolder;
+            std::optional<std::string> mWrong;
+            std::chrono::milliseconds mTook;
+        };
+
+        Outcome runMode(const std::filesystem::path& self, const std::filesystem::path& root, const Mode& mode)
+        {
+            const std::filesystem::path folder = root / std::string(mode.mName);
+            std::filesystem::remove_all(folder);
+            std::filesystem::create_directories(folder);
+
+            const auto start = std::chrono::steady_clock::now();
+            const auto word = [](const std::filesystem::path& path) {
+                return Platform::Process::shellWord(Files::pathToUnicodeString(path));
+            };
+            const Platform::Process::CommandEnd ended
+                = Platform::Process::runShell(word(self) + " " + std::string(mode.mName) + " " + word(folder) + " >"
+                    + word(folder / "stdout.txt") + " 2>" + word(errorsIn(folder)));
+
+            const auto took
+                = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+
+            return Outcome{ .mFolder = folder, .mWrong = check(mode, folder, ended), .mTook = took };
+        }
+
         int matrix(const std::filesystem::path& self, const std::filesystem::path& root)
         {
-            int failed = 0;
-            for (const Mode& mode : modesOfThisSystem())
+            // **Side by side, because the modes wait rather than work.** Each is a process with a
+            // folder of its own, and six of them stand still for seconds while a hang limit passes:
+            // one after another the matrix took 36 s, and side by side it takes its longest mode's 8.
+            // `runShell` is `std::system`, which glibc and the MSVC runtime make safe to call from
+            // several threads; POSIX does not promise it, and where a libc locks it, this is serial.
+            const std::vector<Mode> modes = modesOfThisSystem();
+            std::vector<Outcome> outcomes(modes.size());
             {
-                const std::filesystem::path folder = root / std::string(mode.mName);
-                std::filesystem::remove_all(folder);
-                std::filesystem::create_directories(folder);
+                std::vector<std::jthread> running;
+                running.reserve(modes.size());
+                for (std::size_t at = 0; at < modes.size(); ++at)
+                    running.emplace_back([&, at] { outcomes[at] = runMode(self, root, modes[at]); });
+            }
 
-                const auto start = std::chrono::steady_clock::now();
-                // Its errors and its monitor's, which share them, to show where the mode fails. Its
-                // output apart, because the log is teed to it, and the matrix's own is the table.
-                const std::filesystem::path errors = folder / "stderr.txt";
-                const auto word = [](const std::filesystem::path& path) {
-                    return Platform::Process::shellWord(Files::pathToUnicodeString(path));
-                };
-                const Platform::Process::CommandEnd ended
-                    = Platform::Process::runShell(word(self) + " " + std::string(mode.mName) + " " + word(folder) + " >"
-                        + word(folder / "stdout.txt") + " 2>" + word(errors));
-                const auto took
-                    = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
-
-                const std::optional<std::string> wrong = check(mode, folder, ended);
-                std::cout << (wrong ? "FAIL " : "ok   ") << mode.mName << " (" << took.count() << " ms)"
+            int failed = 0;
+            for (std::size_t at = 0; at < modes.size(); ++at)
+            {
+                const Mode& mode = modes[at];
+                const std::optional<std::string>& wrong = outcomes[at].mWrong;
+                std::cout << (wrong ? "FAIL " : "ok   ") << mode.mName << " (" << outcomes[at].mTook.count() << " ms)"
                           << (wrong ? ": " + *wrong : "") << '\n';
                 failed += wrong ? 1 : 0;
 
                 // Where a harness keeps nothing but this output, as CI does, it is all there is to read.
+                const std::filesystem::path& folder = outcomes[at].mFolder;
                 if (wrong)
-                    for (const std::filesystem::path& file : { folder / "crash-tests.log", errors })
+                    for (const std::filesystem::path& file : { folder / "crash-tests.log", errorsIn(folder) })
                     {
                         std::ifstream text(file);
                         for (std::string line; std::getline(text, line);)
@@ -453,7 +489,7 @@ namespace CrashTests
                     }
             }
 
-            std::cout << "crash-tests: " << failed << " of " << modesOfThisSystem().size() << " modes failed\n";
+            std::cout << "crash-tests: " << failed << " of " << modes.size() << " modes failed\n";
             return failed == 0 ? 0 : 1;
         }
     }
