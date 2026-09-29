@@ -1,11 +1,13 @@
 #include <chrono>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
 
 #include <gtest/gtest.h>
 
+#include <apps/rtxtool/instruments/amdgpu.hpp>
 #include <apps/rtxtool/instruments/cardwatch.hpp>
 #include <apps/rtxtool/instruments/nvml.hpp>
 #include <components/platform/process.hpp>
@@ -72,6 +74,25 @@ namespace RtxTool
             EXPECT_EQ(describeCard(blind), "card not watched");
             blind.mWhyNot = "the driver keeps no process samples for this device";
             EXPECT_EQ(describeCard(blind), "card not watched: the driver keeps no process samples for this device");
+        }
+
+        /// amdgpu's files read as the driver writes them: the marked level of a clock, the sleep
+        /// level's "S" among them, and millidegrees rounded to the degree.
+        TEST(RtxAmdGpuTest, theClockIsTheMarkedLevelAndTheTemperatureIsRounded)
+        {
+            EXPECT_EQ(AmdGpu::currentLevelMhz("0: 500Mhz \n1: 1600Mhz *\n2: 2482Mhz \n"), 1600u);
+            EXPECT_EQ(AmdGpu::currentLevelMhz("S: 800Mhz *\n0: 500Mhz \n1: 2482Mhz \n"), 800u);
+            EXPECT_EQ(AmdGpu::currentLevelMhz("0: 96Mhz \n1: 456Mhz \n2: 1250Mhz *"), 1250u)
+                << "the last line with no line break after it";
+            EXPECT_EQ(AmdGpu::currentLevelMhz("0: 500Mhz \n1: 2482Mhz \n"), std::nullopt) << "no level marked";
+            EXPECT_EQ(AmdGpu::currentLevelMhz(""), std::nullopt);
+            EXPECT_EQ(AmdGpu::currentLevelMhz("*: nothing\n"), std::nullopt) << "a marked line with no number";
+
+            EXPECT_EQ(AmdGpu::wholeDegrees("54000\n"), 54u);
+            EXPECT_EQ(AmdGpu::wholeDegrees("54499"), 54u);
+            EXPECT_EQ(AmdGpu::wholeDegrees("54500"), 55u);
+            EXPECT_EQ(AmdGpu::wholeDegrees("0"), 0u);
+            EXPECT_EQ(AmdGpu::wholeDegrees("hot"), std::nullopt);
         }
 
         /// A process is named by its executable alone, whatever else the driver hands back.

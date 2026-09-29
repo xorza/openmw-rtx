@@ -218,6 +218,7 @@ add_custom_target(openmw-rtx-vulkan-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS}
 set(RTX_VULKAN_FILES
     createrenderer.cpp
     createrenderer.hpp
+    device/checkpoint.hpp
     device/commands.cpp
     device/commands.hpp
     device/device.cpp

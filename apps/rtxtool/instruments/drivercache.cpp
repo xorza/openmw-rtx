@@ -15,8 +15,10 @@ namespace RtxTool
     namespace
     {
         /// Far past what one set of these shaders takes, which is under a hundred megabytes: the
-        /// size the driver prunes a cache at.
-        constexpr std::uint64_t sDriverCacheBytes = std::uint64_t{ 8 } << 30;
+        /// size the driver prunes a cache at. In bytes for NVIDIA's variable, and in gibibytes, the
+        /// unit Mesa's `MESA_SHADER_CACHE_MAX_SIZE` reads a bare `G` as, for Mesa's.
+        constexpr std::uint64_t sDriverCacheGibibytes = 8;
+        constexpr std::uint64_t sDriverCacheBytes = sDriverCacheGibibytes << 30;
     }
 
     DriverCache::DriverCache(const std::filesystem::path& shaders)
@@ -32,6 +34,13 @@ namespace RtxTool
         Platform::Process::setEnvironment("__GL_SHADER_DISK_CACHE_PATH", mDirectory.string().c_str());
         Platform::Process::setEnvironment("__GL_SHADER_DISK_CACHE_SIZE", std::to_string(sDriverCacheBytes).c_str());
         Platform::Process::setEnvironment("__GL_SHADER_DISK_CACHE_SKIP_CLEANUP", "1");
+
+        // Mesa's, for RADV, ANV and NVK: its cache goes in a directory of its own name under this
+        // one, so the two drivers' files never meet.
+        Platform::Process::setEnvironment("MESA_SHADER_CACHE_DISABLE", "false");
+        Platform::Process::setEnvironment("MESA_SHADER_CACHE_DIR", mDirectory.string().c_str());
+        Platform::Process::setEnvironment(
+            "MESA_SHADER_CACHE_MAX_SIZE", (std::to_string(sDriverCacheGibibytes) + "G").c_str());
     }
 
     void DriverCache::sweep() const

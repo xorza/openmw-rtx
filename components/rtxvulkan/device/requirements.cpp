@@ -59,6 +59,7 @@ namespace Rtx
         constexpr std::array sMemoryBudget{ VK_EXT_MEMORY_BUDGET_EXTENSION_NAME };
         constexpr std::array sPresentFences{ VK_KHR_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME };
         constexpr std::array sCheckpoints{ VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME };
+        constexpr std::array sBufferMarkers{ VK_AMD_BUFFER_MARKER_EXTENSION_NAME };
 
         /// What the registry says a present fence rests on beside core 1.4: the swapchain, which a
         /// device takes only where its instance has a surface, and the instance's half of swapchain
@@ -109,6 +110,10 @@ namespace Rtx
             // stage reached rather than an address: `GpuTimer::open` sets one per zone in a build
             // that names things, and `Device::describeFault` reads them back.
             OptionalExtensions{ DeviceOption::Checkpoints, sCheckpoints, {}, sDebugNames },
+            // The same for the drivers that have no checkpoints: AMD's own and RADV. A number
+            // written at a stage and not a pointer, so the host keeps what each number names
+            // (`MarkerRing`).
+            OptionalExtensions{ DeviceOption::BufferMarkers, sBufferMarkers, {}, sDebugNames },
         };
 
         /// A table out of `DeviceOption`'s order is an option read as another.

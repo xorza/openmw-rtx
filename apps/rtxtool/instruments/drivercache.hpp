@@ -26,8 +26,9 @@ namespace RtxTool
 
         const std::filesystem::path& getDirectory() const { return mDirectory; }
 
-        /// Points the driver at the directory, through the variables the NVIDIA driver reads, with a
-        /// size far past what one set of these shaders takes, so the driver prunes nothing. Before
+        /// Points the driver at the directory, through the variables the NVIDIA driver and Mesa's
+        /// drivers read, with a size far past what one set of these shaders takes, so the driver
+        /// prunes nothing. Before
         /// anything makes a device, because the driver reads them once. A driver that reads none of
         /// them keeps its own cache.
         void applyToDriver() const;

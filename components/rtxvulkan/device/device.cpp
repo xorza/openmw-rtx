@@ -14,6 +14,7 @@
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
 #include "commands.hpp"
@@ -216,6 +217,9 @@ namespace Rtx
             load(mHandle.get(), mGetQueueCheckpointData, "vkGetQueueCheckpointDataNV");
         }
 
+        if (has(DeviceOption::BufferMarkers))
+            load(mHandle.get(), mCmdWriteBufferMarker, "vkCmdWriteBufferMarkerAMD");
+
         if (instance.hasDebugUtils())
         {
             mSetObjectName = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(
@@ -234,6 +238,14 @@ namespace Rtx
         // `new` and not `make_unique`, which the pool's private constructor does not admit.
         mPool.reset(new CommandPool(*this));
         mGraveyard = std::make_unique<Graveyard>(*this);
+
+        // Nought before the first marker, which is what `MarkerRing::find` reads as none written.
+        if (mCmdWriteBufferMarker != nullptr)
+        {
+            mMarkerWords = std::make_unique<Buffer>(
+                Buffer::readBack(*this, 2 * sizeof(std::uint32_t), VK_BUFFER_USAGE_TRANSFER_DST_BIT, "markers"));
+            std::memset(mMarkerWords->map(), 0, 2 * sizeof(std::uint32_t));
+        }
     }
 
     Device::~Device()
@@ -356,8 +368,36 @@ namespace Rtx
         mPool->collectIdle();
     }
 
+    void Device::writeMarkers(const VkCommandBuffer commands, const std::uint32_t marker) const
+    {
+        mMarkerWords->nameForNext();
+        mCmdWriteBufferMarker(commands, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, mMarkerWords->getHandle(), 0, marker);
+        mCmdWriteBufferMarker(
+            commands, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, mMarkerWords->getHandle(), sizeof(std::uint32_t), marker);
+    }
+
     std::string Device::describeCheckpoints() const
     {
+        if (mMarkerWords != nullptr)
+        {
+            // Read as the device left them: the loss ended every write, and the memory is the
+            // host's cached kind, which the device writes across the bus coherently.
+            std::uint32_t words[2];
+            std::memcpy(words, mMarkerWords->map(), sizeof(words));
+
+            std::string report;
+            for (std::size_t at = 0; at < 2; ++at)
+            {
+                const Checkpoint* const checkpoint = mMarkers.find(words[at]);
+                const std::string stage = checkpointStageName(
+                    at == 0 ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+                report += checkpoint == nullptr
+                    ? std::format("\n  {} passed no marker the host still names", stage)
+                    : std::format("\n  {} last passed `{}` of frame {}", stage, checkpoint->mName, checkpoint->mFrame);
+            }
+            return report;
+        }
+
         if (mGetQueueCheckpointData == nullptr)
             return {};
 
