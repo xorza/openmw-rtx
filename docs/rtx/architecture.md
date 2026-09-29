@@ -15,9 +15,12 @@ primary visibility, shadows, direct and indirect light, sky, water and fog are r
 rasterizer is not modified. Both renderers stand behind one interface, one binary ships both,
 and the one not chosen never starts.
 
-The target is NVIDIA RTX, Turing and later, through Vulkan with ray tracing pipelines and ray
-queries. The renderer's own wavelet filter is the denoiser, and
-every frame is traced at the window's size: the upscaler seam has no upscaler behind it yet.
+The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vulkan with ray
+tracing pipelines and ray queries. The denoiser is the renderer's own, in three parts: a temporal
+accumulator and a wavelet over the diffuse light, a port of AMD's FidelityFX Shadow Denoiser over
+the sun's and the moons' shadow, and a temporal filter over the glossy light. The upscaler is a
+port of AMD's FSR 3.1.4 in compute shaders. At `native` it is the anti-aliasing, and every other
+mode traces fewer pixels than the window shows.
 Vanilla content is read as it is: its textures are pre-lit, so the renderer estimates the painted
 light and divides it out. A PBR replacer's companion maps reach the trace, and a
 vanilla scene draws the same whether or not the renderer can read them.
@@ -199,7 +202,7 @@ at the top, over all of them.
 | `texture/`          | the bindless array and the passes a texture is made with as it arrives |
 | `scene/`            | `DeviceScene`: its tables, structures, skinning and sprites             |
 | `trace/`            | `TraceChain` and its passes, the sea and the fog; the denoiser in `denoise/` |
-| `upscale/`          | `Upscaler`, the seam an upscaler stands behind                          |
+| `upscale/`          | `Upscaler`: FSR 3.1.4, ported, and `FsrFrame`, its constants            |
 | `display/`          | `DisplayChain` and its passes                                           |
 | `present/`          | the swapchain and the present                                           |
 | `gui/`              | the interface's pass and textures                                       |
@@ -224,8 +227,15 @@ at the top, over all of them.
 - **`DisplayChain`** runs after the trace and the upscaler: bloom, exposure, glare, tone, debug
   lines. The GUI draws after it, in display values. The renderer blits to the swapchain and never
   draws into it.
-- **`Upscaler`** is the one seam an upscaler stands behind. None does yet, and
-  `upscale/upscaler.cpp` refuses one by name.
+- **`Upscaler`** is FSR 3.1.4's seven passes, from AMD's own headers in `extern/fidelityfx/`, with
+  the renderer's callbacks (`shaders/upscale/fsrcallbacks.glsl`). It needs no extension, so it
+  runs on every device the renderer does. `FsrFrame` holds its per-frame constants, with no
+  device in it.
+- **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
+  the diffuse light over time and the wavelet spreads it across the screen. The shadow denoiser
+  filters the one bit a pixel's sun ray came back with, where the sky has a source that lights.
+  The glossy filter averages the lobe's light over time, where the scene wears a map. The three
+  temporal passes read one surface history, the accumulator's.
 
 **The shaders** (`shaders/`, in the folders of the passes that dispatch them, shared pieces in
 `shaders/lib/`). One ray generation shader traces
@@ -282,8 +292,9 @@ On the host, in order:
 6. **GUI and present.** The host returns without waiting for the device.
 
 On the device, in record order: the sea and the ripples, the sprites, the fog, the trace, the
-denoiser where it runs, the composite where a denoiser or a sum needs one, the upscaler where one
-runs, the display chain, the GUI, the present.
+denoiser where it runs (the accumulator, the shadow denoiser, the glossy filter, the wavelet), the
+composite where a denoiser or a sum needs one, the upscaler where one runs, the display chain, the
+GUI, the present.
 
 Four clocks drive a frame, each with one source: host time (the wall in play, the frame count
 times a stated step in a measured run), simulation time, game time (the hour), and the sky's
@@ -348,7 +359,7 @@ Rendering changes are checked without a window. `AGENTS.md` lists the commands.
 | the backend's frame                       | `components/rtxvulkan/vulkanrenderer.hpp`, `trace/tracechain.hpp`, `display/displaychain.hpp` |
 | a scene on the device                     | `components/rtxvulkan/scene/devicescene.hpp`                                           |
 | the light transport                       | `components/rtxvulkan/shaders/trace/visibility.rgen`, `lib/`                           |
-| the denoiser and the upscaler             | `components/rtx/frame/reconstruction.hpp`, `components/rtxvulkan/upscale/upscaler.hpp` |
+| the denoiser and the upscaler             | `components/rtx/frame/reconstruction.hpp`, `components/rtxvulkan/trace/tracechain.hpp`, `components/rtxvulkan/upscale/upscaler.hpp` |
 | the GUI                                   | `components/myguirtx/rendermanager.hpp`, `components/rtx/renderer/guirenderer.hpp`     |
 | the two hosts                             | `mwrender/rtx/rtxrun.hpp`, `apps/rtxtool/session.hpp`                                  |
 | the pinned arithmetic                     | `components/rtxvulkan/spirv/spirvpin.hpp`                                              |

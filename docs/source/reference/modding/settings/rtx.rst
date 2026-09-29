@@ -5,10 +5,10 @@ The experimental Vulkan ray tracing renderer. It replaces primary visibility, sh
 indirect light, sky, water and fog; the OpenGL renderer is untouched and is what you get with
 :code:`enabled = false`.
 
-A build configured with :code:`-DOPENMW_RTX=OFF` leaves it out. It needs an NVIDIA GPU with
-hardware ray tracing, Turing or later: acceleration structures, ray query, ray tracing pipelines,
-position fetch and the fused multiply-add of :code:`VK_KHR_shader_fma` are all required, and a device
-missing any of them refuses to start rather than falling back.
+A build configured with :code:`-DOPENMW_RTX=OFF` leaves it out. It needs a GPU with hardware ray
+tracing, NVIDIA Turing or AMD RDNA 2 or later: acceleration structures, ray query, ray tracing
+pipelines, position fetch and the fused multiply-add of :code:`VK_KHR_shader_fma` are all required,
+and a device missing any of them refuses to start rather than falling back.
 
 Most settings here are read once, at startup. :code:`upscale` and :code:`distant land cells`
 also follow the settings window while the game runs.
