@@ -139,6 +139,8 @@ void answerSolid(inout Answer answer, Surface surface)
     answer.mResponse = seen.mResponse;
     answer.mSunlit = seen.mSunlit;
     answer.mSunOpen = seen.mSunOpen > 0.0;
+    answer.mSpecular = seen.mSpecular;
+    answer.mRoughness = seen.mRoughness;
 }
 
 /// Fills the payload in for a water surface, and for the ground showing through its last half metre.
@@ -190,6 +192,8 @@ void answerWater(inout Answer answer, Surface surface)
     answer.mRadiance = mix(seen.mDirect, answer.mRadiance, shore);
     answer.mBounced = seen.mBounce;
     answer.mSunlit = seen.mSunlit * (1.0 - shore);
+    answer.mSpecular = seen.mSpecular * (1.0 - shore);
+    answer.mRoughness = seen.mRoughness;
     answer.mSunOpen = seen.mSunOpen > 0.0;
     answer.mResponse = SurfaceResponse(packSurfaceNormal(normal), seen.mResponse.mDiffuse * (1.0 - shore));
 }

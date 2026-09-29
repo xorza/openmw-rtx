@@ -7,10 +7,10 @@
 // the launch's own, so its origin and direction stay there; whether it hit and how far it went are
 // the shader's to say, and travel here.
 //
-// **What crosses the trace is what it costs**, and this is it: fifteen words. Every field the
+// **What crosses the trace is what it costs**, and this is it: eighteen words. Every field the
 // tail reads travels, and travels as small as the frame keeps it — the albedo, the scalars and
 // the motion vector as halves, which is the width of the channels they are stored in, and the
-// normal as the surface channel's own code. What stays whole is the three radiances, because a
+// normal as the surface channel's own code. What stays whole is the four radiances, because a
 // reference is a sum of a thousand frames and a term rounded to a half before the sum does not
 // average away. `Answer` is the same record unpacked, which is what the shaders write and the launch
 // reads; `packAnswer` and `unpackAnswer` are the whole of the boundary.
@@ -48,6 +48,12 @@ struct Answer
     /// lit and as nothing to filter.
     vec3 mSunlit;
     bool mSunOpen;
+
+    /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, and the
+    /// lobe's roughness: `SeenSolid::mSpecular` and `mRoughness`. Nought and `SPECULAR_NO_LOBE`
+    /// wherever nothing split it off, as `mSunlit` is nought there.
+    vec3 mSpecular;
+    float mRoughness;
 
     /// What the shading model made of the surface, for the filter and the composite. `noResponse`
     /// where nothing was shaded — a pane, whose response is the surface behind it.
@@ -93,6 +99,8 @@ Answer noAnswer()
     answer.mBounced = vec3(0.0);
     answer.mSunlit = vec3(0.0);
     answer.mSunOpen = true;
+    answer.mSpecular = vec3(0.0);
+    answer.mRoughness = SPECULAR_NO_LOBE;
     answer.mResponse = noResponse();
     answer.mMotion = vec2(0.0);
     answer.mBackdropShown = 0.0;
@@ -105,16 +113,17 @@ Answer noAnswer()
     return answer;
 }
 
-/// The record as it crosses the trace: fifteen words, laid out once here.
+/// The record as it crosses the trace: eighteen words, laid out once here.
 ///
-/// The flags word carries the backdrop's share as a half in its high bits, and four facts in its
-/// low ones: whether the ray hit, whether the launch peels the surface, whether it is water, and
-/// whether the sky's source reached it.
+/// The flags word carries the backdrop's share as a half in its high bits, the lobe's roughness in
+/// the byte under them, and four facts in its low bits: whether the ray hit, whether the launch
+/// peels the surface, whether it is water, and whether the sky's source reached it.
 struct VisibilityPayload
 {
     vec3 mRadiance;
     vec3 mBounced;
     vec3 mSunlit;
+    vec3 mSpecular;
 
     /// The response's diffuse, then the opacity: four halves in two words.
     uvec2 mHalves;
@@ -137,12 +146,22 @@ const uint ANSWER_PANE = 1u << 1u;
 const uint ANSWER_HIT = 1u << 2u;
 const uint ANSWER_SUN_OPEN = 1u << 3u;
 
+/// Where the roughness sits in the flags word, as a byte: nought to one in steps of 1/254, and
+/// `ANSWER_NO_LOBE` for `SPECULAR_NO_LOBE`.
+///
+/// **A byte, because the only reader is how long the glossy filter keeps a history**, and that is a
+/// smooth function of the roughness a step of 1/254 does not move by a frame.
+const uint ANSWER_ROUGHNESS_SHIFT = 8u;
+const uint ANSWER_ROUGHNESS_STEPS = 254u;
+const uint ANSWER_NO_LOBE = 255u;
+
 VisibilityPayload packAnswer(Answer answer)
 {
     VisibilityPayload packed;
     packed.mRadiance = answer.mRadiance;
     packed.mBounced = answer.mBounced;
     packed.mSunlit = answer.mSunlit;
+    packed.mSpecular = answer.mSpecular;
     packed.mHalves = uvec2(packHalf2x16(answer.mResponse.mDiffuse.rg),
         packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mOpacity)));
     packed.mNormal = floatBitsToUint(answer.mResponse.mNormal);
@@ -150,7 +169,10 @@ VisibilityPayload packAnswer(Answer answer)
     packed.mDistance = answer.mDistance;
     packed.mFlags = packHalf2x16(vec2(0.0, answer.mBackdropShown)) | (answer.mWater ? ANSWER_WATER : 0u)
         | (answer.mPane ? ANSWER_PANE : 0u) | (answer.mHit ? ANSWER_HIT : 0u)
-        | (answer.mSunOpen ? ANSWER_SUN_OPEN : 0u);
+        | (answer.mSunOpen ? ANSWER_SUN_OPEN : 0u)
+        | ((answer.mRoughness < 0.0 ? ANSWER_NO_LOBE
+                                     : uint(round(min(answer.mRoughness, 1.0) * float(ANSWER_ROUGHNESS_STEPS))))
+            << ANSWER_ROUGHNESS_SHIFT);
 
     return packed;
 }
@@ -164,6 +186,10 @@ Answer unpackAnswer(VisibilityPayload packed)
     answer.mRadiance = packed.mRadiance;
     answer.mBounced = packed.mBounced;
     answer.mSunlit = packed.mSunlit;
+    answer.mSpecular = packed.mSpecular;
+    const uint roughness = (packed.mFlags >> ANSWER_ROUGHNESS_SHIFT) & 0xffu;
+    answer.mRoughness
+        = roughness == ANSWER_NO_LOBE ? SPECULAR_NO_LOBE : float(roughness) / float(ANSWER_ROUGHNESS_STEPS);
     answer.mSunOpen = (packed.mFlags & ANSWER_SUN_OPEN) != 0u;
     answer.mResponse = SurfaceResponse(uintBitsToFloat(packed.mNormal), vec3(diffuseRg, diffuseBOpacity.x));
     answer.mMotion = unpackHalf2x16(packed.mMotion);

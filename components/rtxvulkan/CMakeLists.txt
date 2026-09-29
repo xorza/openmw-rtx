@@ -74,6 +74,7 @@ set(RTX_SHADERS
     shaders/trace/denoise/shadowfilter.comp
     shaders/trace/denoise/shadowmask.comp
     shaders/trace/denoise/shadowtiles.comp
+    shaders/trace/denoise/specular.comp
     shaders/upscale/fsraccumulate.comp
     shaders/upscale/fsrchange.comp
     shaders/upscale/fsrchangepyramid.comp
@@ -352,6 +353,10 @@ set(RTX_VULKAN_FILES
     trace/denoise/shadowhistory.hpp
     trace/denoise/shadowpass.cpp
     trace/denoise/shadowpass.hpp
+    trace/denoise/specularhistory.cpp
+    trace/denoise/specularhistory.hpp
+    trace/denoise/specularpass.cpp
+    trace/denoise/specularpass.hpp
     trace/fogvolume.cpp
     trace/fogvolume.hpp
     trace/gbuffer.cpp

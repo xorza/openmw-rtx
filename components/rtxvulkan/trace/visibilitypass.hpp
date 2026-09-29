@@ -73,6 +73,11 @@ namespace Rtx
         /// The one answer the synthesis, the ripple step and `HAS_SEA` all read, so the kernel
         /// never samples tiles that nothing wrote this frame.
         bool mSea = false;
+
+        /// Whether the scene places a material that wears a map (`InstanceCounts::mMapped`), which
+        /// is the only way a surface comes to have a lobe. The one answer `HAS_MAPS` and the glossy
+        /// filter both read, so the filter runs over every frame whose kernel can reflect.
+        bool mMapped = false;
     };
 
     /// What every launch of one trace binds: its subject, and the chain's channels and air, which

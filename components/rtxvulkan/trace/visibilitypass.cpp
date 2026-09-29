@@ -602,8 +602,8 @@ namespace Rtx
 
         // Resolved from the constants this frame is about to be traced with, and from nothing
         // kept between frames: a dusk moves the tuple and a doorway moves it again.
-        const VisibilityVariant variant = VisibilityVariant::resolve(
-            constants, inputs.mSubject.mSea, inputs.mSubject.mScene->getCounts().mMapped > 0);
+        const VisibilityVariant variant
+            = VisibilityVariant::resolve(constants, inputs.mSubject.mSea, inputs.mSubject.mMapped);
 
         const FrameSlot trace = inputs.mSubject.mTraceSlot;
         inputs.mFogVolume.begin(commands, trace);

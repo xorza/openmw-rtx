@@ -48,3 +48,16 @@ Pictures of every view, taken with the release build: `~/rtx-review/off`, `~/rtx
   against 38). Say whether it reads acceptable.
 - **Sharpening.** RCAS is off. Say whether native or quality want it.
 
+## Phase 9: the glossy filter
+
+Only under the PBR profile: the Zed tasks that start the game with `~/.config/openmw-pbr`, or
+`./omw release view --view=balmora-mages-guild --replace=config --config="$HOME/.config/openmw-pbr"`.
+
+- **Glossy speckle.** Look at polished floors, metal and wet stone under lamps: the cyan and white
+  sparkles should be gone at `native` and at `off`.
+- **Reflection lag when the view turns.** The history is kept while the view turns less than the
+  lobe's half angle, and dropped past it (ReLAX's rule). Walk and turn past a glossy floor under a
+  lamp: a highlight should not trail behind the camera. A sharp highlight may be noisier while you
+  move than when you stand, which is the rule working.
+- **Glossy arms and armour.** A glossy gauntlet in first person: turn quickly and look for a highlight
+  that lags.

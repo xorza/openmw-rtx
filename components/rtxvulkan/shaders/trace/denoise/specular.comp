@@ -1,0 +1,201 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// The glossy filter: what the lobe reflects, `CHANNEL_SPECULAR`, averaged with what the same surface
+// reflected on the frames before, for as long as that is still the reflection the eye sees.
+//
+// **Over time and not across the screen.** A highlight is as wide as its lobe and no wider, so a
+// spatial filter that did not know the lobe would blur it; ReLAX's spatial passes know it, at a
+// cost the frame has not found a need for. What this leaves, the upscaler's own accumulation takes,
+// at every mode, native included.
+//
+// **How long the history is kept is ReLAX's rule for surface motion**
+// (`RELAX_TemporalAccumulation.cs.hlsl`, NRD 4.x): the history counts in proportion to how little
+// the direction the surface is seen from turned since, against the lobe's half angle, narrowed by
+// how squarely the eye meets the surface. A rough lobe keeps its reflection over a wide turn and a
+// mirror over none, since what a mirror shows moves with the eye.
+//
+// **What the port leaves out is ReLAX's second history**, the one reprojected along the reflected
+// ray to follow a sharp reflection by its own parallax. Without it a sharp lobe starts again every
+// frame the eye turns: a noisier sharp reflection in motion, and never a reflection dragged behind
+// the thing it reflects.
+//
+// **The accumulator's rules otherwise**: bilinear over the four texels the motion lands between,
+// each only if it is this surface by `heldSurfaceMatches`, against the accumulator's own surface
+// history; the mean, its second moment and the frame count in a history of this pass's own; and the
+// outlier clamp at `ACCUMULATE_SIGMAS` once `ACCUMULATE_SETTLED` frames have measured a spread.
+
+#include "accumulate.h"
+#include "colour.h"
+#include "gbuffer.h"
+#include "look.h"
+#include "sets.h"
+#include "specular.h"
+
+#include "lib/pixels.glsl"
+#include "lib/spritelist.glsl"
+#include "lib/surfacematch.glsl"
+
+layout(local_size_x = SPECULAR_WORKGROUP, local_size_y = SPECULAR_WORKGROUP) in;
+
+/// The lobe's light in `rgb` and its roughness in `a`, `SPECULAR_NO_LOBE` where there is none. No
+/// format, because it is as wide as the run keeps radiance.
+layout(set = SET_PASS, binding = SPECULAR_BIND_SPECULAR) uniform readonly image2D specular;
+
+layout(set = SET_PASS, binding = SPECULAR_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
+layout(set = SET_PASS, binding = SPECULAR_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D motion;
+
+/// For the one bit that says which eye a pixel's ray left, `puffsOnArms`.
+layout(set = SET_PASS, binding = SPECULAR_BIND_PUFFS, GBUFFER_LAYER) uniform readonly image2D puffs;
+
+/// The surface the accumulator's history belongs to, which this history belongs to as well: both
+/// were written over the same pixels of the same frame.
+layout(set = SET_PASS, binding = SPECULAR_BIND_HELD_SURFACE, ACCUMULATE_SURFACE) uniform readonly image2D heldSurface;
+
+/// The mean in `rgb` and the second moment of its luminance in `a`: last frame's, and this frame's,
+/// whose `rgb` the composite adds.
+layout(set = SET_PASS, binding = SPECULAR_BIND_MEAN_BEFORE, SPECULAR_MEAN) uniform readonly image2D meanBefore;
+layout(set = SET_PASS, binding = SPECULAR_BIND_MEAN, SPECULAR_MEAN) uniform writeonly image2D mean;
+
+/// How many frames the mean holds, nought where it holds no reflection: last frame's, and this one's.
+layout(set = SET_PASS, binding = SPECULAR_BIND_FRAMES_BEFORE, SPECULAR_FRAMES) uniform readonly image2D framesBefore;
+layout(set = SET_PASS, binding = SPECULAR_BIND_FRAMES, SPECULAR_FRAMES) uniform writeonly image2D framesOut;
+
+layout(push_constant, scalar) uniform Push
+{
+    SpecularConstants frame;
+};
+
+/// How far the direction a surface is seen from may turn, in radians, before the reflection its
+/// history holds is another one: the lobe's half angle times the cosine to the eye, ReLAX's
+/// `lobeHalfAngle * NoV`.
+///
+/// **Never under the angle one pixel subtends**, where ReLAX floors the lobe at what its normals'
+/// encoding resolves: a turn the frame cannot show is no turn, and a still eye rounds the two
+/// directions an ulp apart.
+float turnAllowed(float roughness, float facing)
+{
+    const float lobe = atan(roughness * roughness * SPECULAR_LOBE_VOLUME / (1.0 - SPECULAR_LOBE_VOLUME));
+    return max(lobe * facing, frame.mCamera.mSpreadAngle);
+}
+
+/// How much of the history is still the reflection the eye sees: ReLAX's
+/// `GetEncodingAwareNormalWeight(V, Vprev, allowed, 0, 0)`, one where the view did not turn and
+/// nought once it turned by `allowed`.
+///
+/// **The angle from the chord**, `2 asin(|a - b| / 2)`, which is exactly nought for two equal
+/// directions, where an arc cosine of their dot product is not.
+float reflectionKept(vec3 toEye, vec3 toEyeBefore, float allowed)
+{
+    const float turned = 2.0 * asin(min(0.5 * length(toEye - toEyeBefore), 1.0));
+    const float kept = smoothstep(0.0, 1.0, 1.0 - turned / allowed);
+    return smoothstep(0.05, 0.95, kept);
+}
+
+/// The direction toward the previous eye from where the surface stood, read off the previous
+/// basis at the point on the previous screen the footprint was taken around. The arms' plane is
+/// the previous basis at the arms' half extents, as `previousScreenThrough` reads it.
+vec3 toEyeBefore(HistoryFootprint footprint, bool arms)
+{
+    const vec2 before = vec2(footprint.mLow) + footprint.mAcross + 0.5;
+    const vec2 uv = before / vec2(frame.mCamera.mWidth, frame.mCamera.mHeight) * 2.0 - 1.0;
+    const vec2 spread = arms ? frame.mArmsSpread : vec2(1.0);
+    return -normalize(
+        frame.mPreviousForward + frame.mPreviousRight * (uv.x * spread.x) - frame.mPreviousUp * (uv.y * spread.y));
+}
+
+void main()
+{
+    const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
+    if (outsideOf(uvec2(at), uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight)))
+        return;
+
+    const vec4 sampled = imageLoad(specular, at);
+    const vec2 seen = imageLoad(surfaceChannel, at).xy;
+    const vec3 normal = unpackSurfaceNormal(seen.x);
+    const float scaled = seen.y * frame.mDistanceScale;
+
+    // A pixel with no surface reflects nothing, and a surface with no lobe has nothing to average.
+    // Both write their sample, which is nought, and a history of no frames.
+    const bool reflects = dot(normal, normal) > 0.0 && sampled.a >= 0.0;
+
+    const bool arms = puffsOnArms(imageLoad(puffs, at));
+    const Camera eye = arms ? frame.mArms : frame.mCamera;
+    const vec3 toEye = -rayAt(eye, vec2(at)).mDirection;
+
+    const vec2 moved = imageLoad(motion, at).xy;
+    const HistoryFootprint footprint = historyFootprint(at, frame.mCamera.mJitter, moved);
+
+    // Where there was no previous frame the basis is nought, and there is no direction to compare:
+    // no history, as a reset has none.
+    const bool previous = frame.mReset == 0u && frame.mCamera.mOrthographic == 0u
+        && dot(frame.mPreviousForward, frame.mPreviousForward) > 0.0;
+
+    vec4 held = vec4(0.0);
+    float frames = 0.0;
+    float weight = 0.0;
+
+    if (previous)
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            const float bilinear = historyShare(footprint, i);
+            const ivec2 tap = historyTap(footprint, i);
+            if (bilinear <= 0.0 || outsideOf(uvec2(tap), uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight))
+                || !heldSurfaceMatches(imageLoad(heldSurface, tap), normal, scaled, frame.mDistanceScale))
+                continue;
+
+            // A texel that reflected nothing holds no history, and would pull the mean toward nought.
+            const float was = imageLoad(framesBefore, tap).r;
+            if (was <= 0.0)
+                continue;
+
+            held += imageLoad(meanBefore, tap) * bilinear;
+            frames += was * bilinear;
+            weight += bilinear;
+        }
+    }
+
+    const float lit = dot(sampled.rgb, LUMINANCE_WEIGHTS);
+
+    vec3 blended = sampled.rgb;
+    float blendedSquare = lit * lit;
+    float count = 1.0;
+
+    if (weight > 0.0)
+    {
+        held /= weight;
+        frames /= weight;
+        const float heldLit = dot(held.rgb, LUMINANCE_WEIGHTS);
+
+        const float facing = abs(dot(normal, toEye));
+        const float kept = reflectionKept(toEye, toEyeBefore(footprint, arms), turnAllowed(sampled.a, facing));
+
+        // The accumulator's outlier clamp, for the accumulator's reason: a firefly is a number of
+        // deviations from what the pixel has been seeing, and not a radiance. **Counted by what the
+        // view kept of it**, since a history the eye turned from measured another reflection's spread.
+        if (frames * kept >= ACCUMULATE_SETTLED && lit > 0.0)
+        {
+            const float spread = sqrt(max(held.a - heldLit * heldLit, 0.0));
+            const float ceiling = heldLit + ACCUMULATE_SIGMAS * spread;
+            if (lit > ceiling)
+                blended = sampled.rgb * (ceiling / lit);
+        }
+
+        // ReLAX's `max(1 - confidence, 1 / (1 + frames))`. The count kept is what the blend made
+        // of it, so a history the view turned away from is as short as its weight says.
+        const float alpha = max(1.0 - kept, 1.0 / min(frames + 1.0, ACCUMULATE_FRAMES));
+        count = 1.0 / alpha;
+
+        const float keptLit = dot(blended, LUMINANCE_WEIGHTS);
+        blended = mix(held.rgb, blended, alpha);
+        blendedSquare = mix(held.a, keptLit * keptLit, alpha);
+    }
+
+    // Selected and not branched around, for the rule the tree keeps: a lane with no lobe runs the
+    // blend over a history of nothing and keeps none of it.
+    imageStore(mean, at, reflects ? vec4(blended, blendedSquare) : vec4(sampled.rgb, 0.0));
+    imageStore(framesOut, at, vec4(reflects ? count : 0.0));
+}

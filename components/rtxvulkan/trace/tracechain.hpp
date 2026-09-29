@@ -15,6 +15,7 @@
 #include <components/rtxvulkan/scene/spritebin.hpp>
 #include <components/rtxvulkan/trace/denoise/accumulatehistory.hpp>
 #include <components/rtxvulkan/trace/denoise/shadowhistory.hpp>
+#include <components/rtxvulkan/trace/denoise/specularhistory.hpp>
 
 #include "fogvolume.hpp"
 #include "gbuffer.hpp"
@@ -80,9 +81,8 @@ namespace Rtx
         /// measured exposure and the display curve.
         TraceResult record(VkCommandBuffer commands, const TraceRecording& what);
 
-        /// Says the accumulator's history and the air's are worthless, each until the next trace
-        /// that reads it: the air is read by every trace, and the accumulator only where the
-        /// wavelet runs.
+        /// Says every denoiser's history and the air's are worthless, each until the next trace that
+        /// reads it: the air is read by every trace, and the denoisers' only where the wavelet runs.
         void resetHistory();
 
         /// Lets go of the running total, which a new scene or a new size has no use for: a sum over
@@ -95,23 +95,26 @@ namespace Rtx
         /// which may have grown the table.
         VkDeviceAddress getSpriteTileList(const VisibilityInputs& inputs) const;
 
-        /// What the denoiser hands the composite: where the bounce ended up, and how much of the sky's
-        /// source got through — null where the frame had no sky source to shadow.
+        /// What the denoiser hands the composite: where the bounce and the lobe's light ended up, and
+        /// how much of the sky's source got through — null where the frame had no sky source to
+        /// shadow.
         struct Denoised
         {
             const Image& mIndirect;
+            const Image& mSpecular;
             const Image* mShadow;
         };
 
         /// The light resolved: the temporal mean, the shadow denoiser over the sky's source's rays,
-        /// and then the cascade over the bounce, with the barriers between them that make this one
-        /// call.
+        /// the glossy filter over the lobe's light, and then the cascade over the bounce, with the
+        /// barriers between them that make this one call.
         ///
         /// @param timer null where the run is not being timed, which a picture is not.
         ///
         /// @param sampled the camera the trace sampled: its eye, its arms' eye and its far plane.
-        Denoised recordDenoise(
-            VkCommandBuffer commands, const Shaders::VisibilityConstants& sampled, bool historyLost, GpuTimer* timer);
+        /// @param mapped `TraceSubject::mMapped`: whether any surface of the frame has a lobe.
+        Denoised recordDenoise(VkCommandBuffer commands, const Shaders::VisibilityConstants& sampled, bool mapped,
+            bool historyLost, GpuTimer* timer);
 
         const Device& mDevice;
         const TracePasses& mPasses;
@@ -131,8 +134,9 @@ namespace Rtx
         AccumulateHistory mHistory;
         Image mFilterScratch;
 
-        /// What the shadow denoiser keeps of this camera, at the extent.
+        /// What the shadow denoiser and the glossy filter keep of this camera, at the extent.
         ShadowHistory mShadows;
+        SpecularHistory mSpeculars;
 
         /// Set by `resetHistory` and spent by the next trace, which always integrates the air.
         bool mAirStale = false;

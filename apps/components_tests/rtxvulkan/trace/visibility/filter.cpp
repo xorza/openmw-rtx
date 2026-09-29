@@ -153,6 +153,14 @@ namespace Rtx::Testing
                 EXPECT_NEAR(filtered.mean(channel), reference.mean(channel), reference.mean(channel) * 0.01f)
                     << "channel " << channel << " keeps its light";
             }
+
+            // A floor with no specular map has no lobe, and the lobe's channel holds nought light.
+            std::vector<float> lobe;
+            mRenderer.readChannel(Channel::Specular, lobe);
+            ASSERT_EQ(lobe.size(), std::size_t{ size } * size * 4);
+            for (std::size_t value = 0; value < lobe.size(); value += 4)
+                ASSERT_EQ(osg::Vec3f(lobe[value], lobe[value + 1], lobe[value + 2]), osg::Vec3f())
+                    << "pixel " << value / 4 << " of a floor with no lobe";
         }
 
         /// **A lamp that goes out leaves the history within a few frames.** One lamp over a floor for

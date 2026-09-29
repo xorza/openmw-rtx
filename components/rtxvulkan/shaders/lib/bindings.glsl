@@ -118,6 +118,10 @@ layout(set = SET_CHANNELS, binding = CHANNEL_PUFFS, GBUFFER_LAYER) uniform image
 /// reason `direct` has none: it is radiance, as wide as the run keeps radiance.
 layout(set = SET_CHANNELS, binding = CHANNEL_SUNLIT) uniform writeonly image2D sunlit;
 
+/// What the lobe reflects of the lamps and the bounce, times what the path took off it —
+/// `CHANNEL_SPECULAR`. No format, as radiance has none here.
+layout(set = SET_CHANNELS, binding = CHANNEL_SPECULAR) uniform writeonly image2D specular;
+
 // One atomic per hit on a single address, which looks like contention and costs nothing a subgroup
 // reduction in its place gives back: few rays hit, and the reduction would cost the device a
 // subgroup-arithmetic requirement it does not otherwise need. Measure again if a pass ever hits

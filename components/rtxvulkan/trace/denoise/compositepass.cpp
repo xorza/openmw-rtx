@@ -15,7 +15,7 @@ namespace Rtx
 {
     namespace
     {
-        /// Four channels in, the direct one written back as the frame, the shadow denoiser's answer
+        /// Five channels in, the direct one written back as the frame, the shadow denoiser's answer
         /// and the running sum — all storage images, all pushed.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::COMPOSITE_BINDINGS> sBindings
             = computeBindings<Shaders::COMPOSITE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -30,12 +30,14 @@ namespace Rtx
     }
 
     void CompositePass::record(VkCommandBuffer commands, const GBuffer& buffer, const Image& indirect,
-        const Image* shadow, const Image* sum, const Shaders::CompositeConstants& constants) const
+        const Image& specular, const Image* shadow, const Image* sum,
+        const Shaders::CompositeConstants& constants) const
     {
         assert((constants.mShadowed != 0) == (shadow != nullptr)
             && "a shadow handed over and not read, or read and not handed over");
         assert(buffer.getWidth() >= constants.mWidth && buffer.getHeight() >= constants.mHeight);
         assert(indirect.getWidth() >= constants.mWidth && indirect.getHeight() >= constants.mHeight);
+        assert(specular.getWidth() >= constants.mWidth && specular.getHeight() >= constants.mHeight);
 
         // A sum has to cover the frame it is a sum of; a stand-in never read does not.
         assert(constants.mAccumulate == 0 || sum != nullptr);
@@ -54,6 +56,7 @@ namespace Rtx
         writes.image(Shaders::COMPOSITE_BIND_SUM, bound.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_SUNLIT, buffer.get(Channel::Sunlit).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_SHADOW, shadowBound.describeStorage());
+        writes.image(Shaders::COMPOSITE_BIND_SPECULAR, specular.describeStorage());
 
         dispatch(commands, mPipeline, writes.get(), constants,
             groupsFor(constants.mWidth, Shaders::COMPOSITE_WORKGROUP),
