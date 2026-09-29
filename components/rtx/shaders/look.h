@@ -1109,23 +1109,6 @@ namespace Rtx::Shaders
     /// that can be reasoned about.
     const float ACCUMULATE_FRAMES = 16.0f;
 
-    /// How far above the running mean a sample may sit before it is taken as an outlier rather than
-    /// as light, in standard deviations.
-    ///
-    /// **A count of sigmas and not a radiance, which is the whole reason this waited for a history.**
-    /// An absolute ceiling on the bounce cannot be derived — a lamp's intensity is content, and
-    /// `falloff` hands a bounce that lands on one whatever that lamp was given. Against a mean and a
-    /// variance the same question has a scene-independent answer: a sample this far from what the
-    /// pixel has been seeing is not what the pixel is looking at.
-    ///
-    /// **Where it declines to fire is an interior full of lamps**, because a pixel that sees a bright
-    /// thing *consistently* raises the mean to meet it and is never an outlier — which is the design
-    /// working, not failing.
-    ///
-    /// Four sigma leaves a Gaussian tail of one sample in sixteen thousand, which at sixteen frames
-    /// of history is a clamp that fires on nothing that is really there.
-    const float ACCUMULATE_SIGMAS = 4.0f;
-
     /// How squarely two normals must agree before their pixels are the same surface, and the
     /// history at one may be carried to the other.
     ///
@@ -1145,9 +1128,8 @@ namespace Rtx::Shaders
     /// How many frames a pixel needs before its second moment describes a spread rather than a
     /// coincidence.
     ///
-    /// **Under this the outlier clamp holds off and the cascade is told the pixel is as uncertain as
-    /// a pixel can be.** Both are the same admission: a mean of two samples has a variance, and it
-    /// is not one anybody should filter by.
+    /// **Under this the cascade is told the pixel is as uncertain as a pixel can be**: a mean of two
+    /// samples has a variance, and it is not one anybody should filter by.
     const float ACCUMULATE_SETTLED = 4.0f;
 
     /// Where the far plane lands once a distance has been scaled for `ACCUMULATE_SURFACE`.

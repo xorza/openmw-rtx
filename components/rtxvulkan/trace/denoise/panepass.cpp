@@ -35,10 +35,10 @@ namespace Rtx
         {
             Barriers barriers(commands);
             if (turn.mFresh)
-                for (const Image* image : { &turn.mMeanBefore, &turn.mFramesBefore, &turn.mHeldBefore })
+                for (const Image* image : { &turn.mMeanBefore, &turn.mHeldBefore })
                     barriers.add(image->describeTransition(Use::sUndefined, Use::sComputeRead));
 
-            for (const Image* image : { &turn.mMean, &turn.mFrames, &turn.mHeld })
+            for (const Image* image : { &turn.mMean, &turn.mHeld })
                 barriers.add(image->describeTransition(Use::sUndefined, Use::sComputeWrite));
 
             barriers.flush();
@@ -51,9 +51,7 @@ namespace Rtx
         writes.image(Shaders::PANE_BIND_HELD_BEFORE, turn.mHeldBefore.describeStorage());
         writes.image(Shaders::PANE_BIND_HELD, turn.mHeld.describeStorage());
         writes.image(Shaders::PANE_BIND_MEAN_BEFORE, turn.mMeanBefore.describeStorage());
-        writes.image(Shaders::PANE_BIND_FRAMES_BEFORE, turn.mFramesBefore.describeStorage());
         writes.image(Shaders::PANE_BIND_MEAN, turn.mMean.describeStorage());
-        writes.image(Shaders::PANE_BIND_FRAMES, turn.mFrames.describeStorage());
         assert(writes.size() == Shaders::PANE_BINDINGS && "a binding the layout declares was left unwritten");
 
         const Shaders::PaneConstants constants{

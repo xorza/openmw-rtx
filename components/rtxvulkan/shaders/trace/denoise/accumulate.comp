@@ -171,29 +171,21 @@ void main()
         moments /= weight;
         frames /= weight;
 
-        // **The outlier test, and it needs no number that is about this game.** What a firefly is
-        // cannot be said in radiance — a bounce that lands on a lamp returns that lamp's intensity,
-        // and a lamp's intensity is content — but it can be said in standard deviations from what
-        // this pixel has been seeing. Under `ACCUMULATE_SETTLED` frames there is not enough history
-        // to have measured a spread with, and the clamp holds off rather than inventing one.
-        if (frames >= ACCUMULATE_SETTLED && lit > 0.0)
-        {
-            const float spread = sqrt(max(moments.y - moments.x * moments.x, 0.0));
-            const float ceiling = moments.x + ACCUMULATE_SIGMAS * spread;
-            if (lit > ceiling)
-                blended = sampled * (ceiling / lit);
-        }
-
         // One over the count, floored at the longest history a pixel may keep: an exact mean while
         // the history is short, an exponential one once it is long enough that its oldest frames
         // describe a surface the light has since moved off.
         count = min(frames + 1.0, ACCUMULATE_FRAMES);
 
         const float alpha = 1.0 / count;
-        const float kept = dot(blended, LUMINANCE_WEIGHTS);
 
-        blended = mix(mean, blended, alpha);
-        blendedMoments = mix(moments, vec2(kept, kept * kept), alpha);
+        // **No outlier clamp on the sample.** A bounce is often a rare bright event: one that finds
+        // a sunlit surface with probability `p` stands `sqrt((1 - p) / p)` deviations over the mean,
+        // so a ceiling of `k` deviations cuts every such sample where `p < 1 / (1 + k²)`, whatever
+        // `k` is — at four, 42% of the light of a two-per-cent event. Clamped at four, the still
+        // sail at Seyda Neen stood 2.2 levels darker than the truth and 2.6 times as noisy. An
+        // outlier is the wavelet's to spread, weighed by the variance it raises.
+        blended = mix(mean, sampled, alpha);
+        blendedMoments = mix(moments, vec2(lit, lit * lit), alpha);
 
         if (frames >= ACCUMULATE_SETTLED)
             variance = max(blendedMoments.y - blendedMoments.x * blendedMoments.x, 0.0);

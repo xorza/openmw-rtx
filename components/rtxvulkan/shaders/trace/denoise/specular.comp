@@ -54,14 +54,10 @@ layout(set = SET_PASS, binding = SPECULAR_BIND_PUFFS, GBUFFER_LAYER) uniform rea
 /// were written over the same pixels of the same frame.
 layout(set = SET_PASS, binding = SPECULAR_BIND_HELD_SURFACE, ACCUMULATE_SURFACE) uniform readonly image2D heldSurface;
 
-/// The mean in `rgb` and the second moment of its luminance in `a`: last frame's, and this frame's,
-/// whose `rgb` the composite adds.
+/// The history as `RunningMean` stores it, nought frames where it holds no reflection: last frame's,
+/// and this frame's, whose `rgb` the composite adds.
 layout(set = SET_PASS, binding = SPECULAR_BIND_MEAN_BEFORE, SPECULAR_MEAN) uniform readonly image2D meanBefore;
 layout(set = SET_PASS, binding = SPECULAR_BIND_MEAN, SPECULAR_MEAN) uniform writeonly image2D mean;
-
-/// How many frames the mean holds, nought where it holds no reflection: last frame's, and this one's.
-layout(set = SET_PASS, binding = SPECULAR_BIND_FRAMES_BEFORE, SPECULAR_FRAMES) uniform readonly image2D framesBefore;
-layout(set = SET_PASS, binding = SPECULAR_BIND_FRAMES, SPECULAR_FRAMES) uniform writeonly image2D framesOut;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -142,7 +138,6 @@ void main()
         && dot(frame.mPreviousForward, frame.mPreviousForward) > 0.0;
 
     vec4 held = vec4(0.0);
-    float frames = 0.0;
     float weight = 0.0;
 
     if (previous)
@@ -155,12 +150,11 @@ void main()
                 continue;
 
             // A texel that reflected nothing holds no history, and would pull the mean toward nought.
-            const float was = imageLoad(framesBefore, tap).r;
-            if (was <= 0.0)
+            const vec4 was = imageLoad(meanBefore, tap);
+            if (was.a <= 0.0)
                 continue;
 
-            held += imageLoad(meanBefore, tap) * bilinear;
-            frames += was * bilinear;
+            held += was * bilinear;
             weight += bilinear;
         }
     }
@@ -170,11 +164,10 @@ void main()
     {
         const float facing = abs(dot(normal, toEye));
         const float kept = reflectionKept(toEye, toEyeBefore(footprint, arms), turnAllowed(sampled.a, facing));
-        blended = blendedMean(sampled.rgb, RunningMean(held / weight, frames / weight), kept);
+        blended = blendedMean(sampled.rgb, runningMeanOf(held, weight), kept);
     }
 
     // Selected and not branched around, for the rule the tree keeps: a lane with no lobe runs the
     // blend over a history of nothing and keeps none of it.
-    imageStore(mean, at, reflects ? blended.mMean : vec4(sampled.rgb, 0.0));
-    imageStore(framesOut, at, vec4(reflects ? blended.mFrames : 0.0));
+    imageStore(mean, at, reflects ? texelOf(blended) : vec4(sampled.rgb, 0.0));
 }

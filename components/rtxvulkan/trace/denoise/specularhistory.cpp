@@ -24,8 +24,6 @@ namespace Rtx
         {
             mMeans[i] = Image(mDevice, width, height, toVulkanFormat(SPECULAR_MEAN), VK_IMAGE_USAGE_STORAGE_BIT,
                 i == 0 ? "specular-mean-0" : "specular-mean-1");
-            mFrames[i] = Image(mDevice, width, height, toVulkanFormat(SPECULAR_FRAMES), VK_IMAGE_USAGE_STORAGE_BIT,
-                i == 0 ? "specular-frames-0" : "specular-frames-1");
         }
 
         mTurns.restart();
@@ -38,9 +36,7 @@ namespace Rtx
         const HistoryTurns::Step step = mTurns.next();
         return Turn{
             .mMeanBefore = mMeans[step.mBefore],
-            .mFramesBefore = mFrames[step.mBefore],
             .mMean = mMeans[step.mNow],
-            .mFrames = mFrames[step.mNow],
             .mFresh = step.mFresh,
         };
     }

@@ -148,8 +148,8 @@ namespace Rtx::Testing
                 EXPECT_LT(filteredError, rawError * 0.3f)
                     << "channel " << channel << ": raw " << rawError << ", filtered " << filteredError;
 
-                // Measured within 0.2 to 0.7 per cent: what the accumulator's outlier clamp and its
-                // half-float history take off a mean, which `accumulate.h` says of both.
+                // Measured within 0.2 to 0.7 per cent: what the accumulator's half-float history takes
+                // off a mean, which `accumulate.h` says of it.
                 EXPECT_NEAR(filtered.mean(channel), reference.mean(channel), reference.mean(channel) * 0.01f)
                     << "channel " << channel << " keeps its light";
             }

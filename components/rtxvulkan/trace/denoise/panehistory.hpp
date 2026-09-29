@@ -11,9 +11,9 @@ namespace Rtx
 {
     class Device;
 
-    /// One camera's images for `PanePass`, at one extent: the mean, its frame count and the layer it
-    /// belongs to as the last frame left them, and the three this one writes. A chain's and not the
-    /// pass's, for the reason `ShadowHistory` gives.
+    /// One camera's images for `PanePass`, at one extent: the mean with its frame count, and the
+    /// layer it belongs to, as the last frame left them, and the two this one writes. A chain's and
+    /// not the pass's, for the reason `ShadowHistory` gives.
     class PaneHistory
     {
     public:
@@ -30,10 +30,8 @@ namespace Rtx
         struct Turn
         {
             const Image& mMeanBefore;
-            const Image& mFramesBefore;
             const Image& mHeldBefore;
             const Image& mMean;
-            const Image& mFrames;
             const Image& mHeld;
 
             /// The first frame after a `resize` or a `reset`, whose history is worthless.
@@ -48,7 +46,6 @@ namespace Rtx
 
         /// Two of each, because this frame reads what the last one wrote. Empty until `resize`.
         std::array<Image, 2> mMeans;
-        std::array<Image, 2> mFrames;
         std::array<Image, 2> mHeld;
 
         HistoryTurns mTurns;

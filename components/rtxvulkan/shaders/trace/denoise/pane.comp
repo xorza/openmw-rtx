@@ -45,14 +45,10 @@ layout(set = SET_PASS, binding = PANE_BIND_MOTION, GBUFFER_MOTION) uniform reado
 layout(set = SET_PASS, binding = PANE_BIND_HELD_BEFORE, ACCUMULATE_SURFACE) uniform readonly image2D heldBefore;
 layout(set = SET_PASS, binding = PANE_BIND_HELD, ACCUMULATE_SURFACE) uniform writeonly image2D held;
 
-/// The mean in `rgb` and the second moment of its luminance in `a`: last frame's, and this frame's,
-/// which the composite multiplies back by `CHANNEL_PANE_ALBEDO`.
+/// The history as `RunningMean` stores it, nought frames where no layer stood: last frame's, and
+/// this frame's, whose `rgb` the composite multiplies back by `CHANNEL_PANE_ALBEDO`.
 layout(set = SET_PASS, binding = PANE_BIND_MEAN_BEFORE, PANE_MEAN) uniform readonly image2D meanBefore;
 layout(set = SET_PASS, binding = PANE_BIND_MEAN, PANE_MEAN) uniform writeonly image2D mean;
-
-/// How many frames the mean holds, nought where no layer stood: last frame's, and this one's.
-layout(set = SET_PASS, binding = PANE_BIND_FRAMES_BEFORE, PANE_FRAMES) uniform readonly image2D framesBefore;
-layout(set = SET_PASS, binding = PANE_BIND_FRAMES, PANE_FRAMES) uniform writeonly image2D framesOut;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -78,7 +74,6 @@ void main()
     const HistoryFootprint footprint = historyFootprint(at, frame.mCamera.mJitter, moved);
 
     vec4 heldMean = vec4(0.0);
-    float frames = 0.0;
     float weight = 0.0;
 
     if (frame.mReset == 0u)
@@ -92,23 +87,21 @@ void main()
                 continue;
 
             // A texel no layer stood in holds no history, and would pull the mean toward nought.
-            const float was = imageLoad(framesBefore, tap).r;
-            if (was <= 0.0)
+            const vec4 was = imageLoad(meanBefore, tap);
+            if (was.a <= 0.0)
                 continue;
 
-            heldMean += imageLoad(meanBefore, tap) * bilinear;
-            frames += was * bilinear;
+            heldMean += was * bilinear;
             weight += bilinear;
         }
     }
 
     RunningMean blended = startedMean(sampled);
     if (weight > 0.0)
-        blended = blendedMean(sampled, RunningMean(heldMean / weight, frames / weight), 1.0);
+        blended = blendedMean(sampled, runningMeanOf(heldMean, weight), 1.0);
 
     // Selected and not branched around, for the rule the tree keeps: a lane with no layer runs the
     // blend over a history of nothing and keeps none of it.
-    imageStore(mean, at, stands ? blended.mMean : vec4(sampled, 0.0));
-    imageStore(framesOut, at, vec4(stands ? blended.mFrames : 0.0));
+    imageStore(mean, at, stands ? texelOf(blended) : vec4(sampled, 0.0));
     imageStore(held, at, stands ? vec4(normal, scaled) : vec4(0.0));
 }
