@@ -91,15 +91,15 @@ namespace RtxTool
     /// does not.
     inline constexpr float sNoiseBiasBlur = 1.5f;
 
-    /// How many frames `noise --strafe` flies its frame into the place over: half a second of world,
-    /// which at a strafe of 150 units is a player running.
-    inline constexpr std::uint32_t sNoiseStrafeFrames = 30;
+    /// How many frames `noise --strafe` and `--walk` fly the frame into the place over: half a second
+    /// of world, which over 150 units is a player running.
+    inline constexpr std::uint32_t sNoiseFlightFrames = 30;
 
     /// How many frames the bar averages for a frame whose history is `frames` long: as many samples a
     /// shown pixel as that history could hold, and never more than `sNoiseBarFrames`.
     ///
     /// **A trace that covers fewer pixels than it shows has fewer samples to show.** An upscaled mode
-    /// traces the share `extents` say of the shown pixels, so after the strafe's thirty frames quality
+    /// traces the share `extents` say of the shown pixels, so after a flight's thirty frames quality
     /// holds at most 13 samples a shown pixel and ultra performance 3, however well each is used.
     /// Held to sixteen, every upscaled mode failed strafed by arithmetic, in the order of their
     /// shares (the pond 2.64 at quality to 3.41 at ultra performance, against 2.54); held to what it

@@ -7,7 +7,7 @@
 // the launch's own, so its origin and direction stay there; whether it hit and how far it went are
 // the shader's to say, and travel here.
 //
-// **What crosses the trace is what it costs**, and this is it: eighteen words. Every field the
+// **What crosses the trace is what it costs**, and this is it: nineteen words. Every field the
 // tail reads travels, and travels as small as the frame keeps it — the albedo, the scalars and
 // the motion vector as halves, which is the width of the channels they are stored in, and the
 // normal as the surface channel's own code. What stays whole is the four radiances, because a
@@ -62,9 +62,9 @@ struct Answer
     /// pixel's response is the surface's behind the stack.
     SurfaceResponse mResponse;
 
-    /// Where what the pixel shows stood on the previous frame's screen, less where it stands on this
-    /// one, in pixels: `motionOf` for a surface or a pane, `skyMotionOf` for the sky.
-    vec2 mMotion;
+    /// What `CHANNEL_MOTION` holds for what the pixel shows: `motionOf` for a surface or a pane,
+    /// and `skyMotionOf` for the sky, whose distance does not change.
+    vec3 mMotion;
 
     /// The miss only: how much of the backdrop the pixel shows through what the sky drew — the star
     /// field behind a sky, and the interface, whole, behind a picture that has none.
@@ -109,7 +109,7 @@ Answer noAnswer()
     answer.mSpecular = vec3(0.0);
     answer.mRoughness = SPECULAR_NO_LOBE;
     answer.mResponse = noResponse();
-    answer.mMotion = vec2(0.0);
+    answer.mMotion = vec3(0.0);
     answer.mBackdropShown = 0.0;
     answer.mMisMoved = 0.0;
     answer.mOpacity = 1.0;
@@ -121,7 +121,7 @@ Answer noAnswer()
     return answer;
 }
 
-/// The record as it crosses the trace: eighteen words, laid out once here.
+/// The record as it crosses the trace: nineteen words, laid out once here.
 ///
 /// The flags word carries the backdrop's share as a half in its high bits — or a hit's
 /// `mMisMoved`, since only a miss shows the backdrop and only a hit moves — the lobe's roughness in
@@ -141,8 +141,8 @@ struct VisibilityPayload
     /// never a NaN, so the word comes back as the float it went in as.
     uint mNormal;
 
-    /// The motion vector, a pair of halves: the width `GBUFFER_MOTION` stores it at.
-    uint mMotion;
+    /// The motion vector, three halves in two words: the width `GBUFFER_MOTION` stores it at.
+    uvec2 mMotion;
 
     /// Whole, because the launch places the layers, the water and the surface channel by it.
     float mDistance;
@@ -174,7 +174,7 @@ VisibilityPayload packAnswer(Answer answer)
     packed.mHalves = uvec2(packHalf2x16(answer.mResponse.mDiffuse.rg),
         packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mOpacity)));
     packed.mNormal = floatBitsToUint(answer.mResponse.mNormal);
-    packed.mMotion = packHalf2x16(answer.mMotion);
+    packed.mMotion = uvec2(packHalf2x16(answer.mMotion.xy), packHalf2x16(vec2(answer.mMotion.z, 0.0)));
     packed.mDistance = answer.mDistance;
     packed.mFlags = packHalf2x16(vec2(0.0, answer.mHit ? answer.mMisMoved : answer.mBackdropShown))
         | (answer.mWater ? ANSWER_WATER : 0u)
@@ -202,7 +202,7 @@ Answer unpackAnswer(VisibilityPayload packed)
         = roughness == ANSWER_NO_LOBE ? SPECULAR_NO_LOBE : float(roughness) / float(ANSWER_ROUGHNESS_STEPS);
     answer.mSunOpen = (packed.mFlags & ANSWER_SUN_OPEN) != 0u;
     answer.mResponse = SurfaceResponse(uintBitsToFloat(packed.mNormal), vec3(diffuseRg, diffuseBOpacity.x));
-    answer.mMotion = unpackHalf2x16(packed.mMotion);
+    answer.mMotion = vec3(unpackHalf2x16(packed.mMotion.x), unpackHalf2x16(packed.mMotion.y).x);
     answer.mOpacity = diffuseBOpacity.y;
     answer.mPane = (packed.mFlags & ANSWER_PANE) != 0u;
     answer.mWater = (packed.mFlags & ANSWER_WATER) != 0u;

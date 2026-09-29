@@ -30,7 +30,13 @@
 // step is two pixels, on a vector that left the screen twice over. Inside the frame, where a vector
 // is read, that step is a sixtieth of a pixel at sixteen and a thousandth at one.
 //
-// Four bytes a pixel, and 8 MiB of that at 1080p.
+// **Its third half is the step in distance**, which a half carries for the same reason: it is never
+// longer than the eye and the surface moved in a frame, whatever the surface's distance. A half
+// rounds it by 2^-11 of itself, and while the step is shorter than the distance that is a fortieth
+// of the `ACCUMULATE_DEPTH` a history is matched within.
+//
+// Eight bytes a pixel, and 16 MiB of that at 1080p: there is no three-half storage format, and
+// the fourth stays nought.
 //
 // **The surface is one texel of two floats: the normal as a code, and the distance whole.** They are
 // what the filters tell two surfaces apart by, and the cascade reads both at every tap — twenty-five
@@ -55,7 +61,7 @@
 #define GBUFFER_RADIANCE_SUMMED STORAGE_RGBA32F
 #define GBUFFER_ALBEDO STORAGE_RGBA16F
 #define GBUFFER_SURFACE STORAGE_RG32F
-#define GBUFFER_MOTION STORAGE_RG16F
+#define GBUFFER_MOTION STORAGE_RGBA16F
 #define GBUFFER_LAYER STORAGE_RGBA16F
 #define GBUFFER_BACKDROP STORAGE_RGBA8
 #define GBUFFER_UPSCALE_MASKS STORAGE_RG8
@@ -86,7 +92,10 @@ namespace Rtx::Shaders
     /// what a filter compares surfaces by, and where the eye's view ends.
     const uint CHANNEL_SURFACE = 3;
 
-    /// Where things stood on the previous frame's screen.
+    /// Where things stood on the previous frame's screen, and how far from the previous eye: in
+    /// `xy` the step on the screen in pixels, and in `z` how much farther from the previous eye
+    /// the surface stood than it stands from this one — a 2.5D motion vector. The distance is what
+    /// tells a history the eye walked toward from a history of another surface.
     const uint CHANNEL_MOTION = 4;
 
     /// How much of the backdrop a pixel still shows, for the pass that draws it, and what the arms

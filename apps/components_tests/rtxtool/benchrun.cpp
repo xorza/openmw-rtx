@@ -74,15 +74,17 @@ namespace RtxTool
             EXPECT_EQ(Stand::forwardOf(osg::Vec3f()), osg::Vec3f(0.0f, 1.0f, 0.0f));
         }
 
-        /// **A strafe flies in from the stand's left and arrives on the last frame.** 150 units over
-        /// thirty frames of a sixtieth of a second: twenty-nine steps, so 150 · 60 / 29 = 310.345
-        /// units a second. Facing north, the left is west; facing east, it is north.
-        TEST(RtxBenchRunTest, aStrafeFliesInFromTheStandsLeftAndArrivesOnTheLastFrame)
+        /// **A flight comes in from the stand's left and from behind it, and arrives on the last
+        /// frame.** 150 units over thirty frames of a sixtieth of a second: twenty-nine steps, so
+        /// 150 · 60 / 29 = 310.345 units a second. Facing north, the left is west and behind is
+        /// south; facing east, the left is north. A negative walk starts in front, and a strafe and
+        /// a walk of 150 each are one flight of 150 √2 = 212.132 units, at 438.894 a second.
+        TEST(RtxBenchRunTest, aFlightComesInFromTheStandsLeftAndFromBehindAndArrivesOnTheLastFrame)
         {
             const Stand north{ .mCell = "Balmora",
                 .mEye = osg::Vec3f(100.0f, 200.0f, 300.0f),
                 .mLook = osg::Vec3f(100.0f, 1200.0f, 300.0f) };
-            const Approach fromWest = north.approachFromSide(150.0f, 1.0f / 60.0f, 30);
+            const Approach fromWest = north.approachFrom(150.0f, 0.0f, 1.0f / 60.0f, 30);
             EXPECT_EQ(fromWest.mFrom.mCell, "Balmora");
             EXPECT_NEAR(fromWest.mFrom.mEye->x(), -50.0f, 1e-4f);
             EXPECT_NEAR(fromWest.mFrom.mEye->y(), 200.0f, 1e-4f);
@@ -95,12 +97,25 @@ namespace RtxTool
 
             const Stand east{ .mEye = osg::Vec3f(100.0f, 200.0f, 300.0f),
                 .mLook = osg::Vec3f(1100.0f, 200.0f, 300.0f) };
-            const osg::Vec3f fromNorth = *east.approachFromSide(150.0f, 1.0f / 60.0f, 30).mFrom.mEye;
+            const osg::Vec3f fromNorth = *east.approachFrom(150.0f, 0.0f, 1.0f / 60.0f, 30).mFrom.mEye;
             EXPECT_NEAR(fromNorth.x(), 100.0f, 1e-4f);
             EXPECT_NEAR(fromNorth.y(), 350.0f, 1e-4f);
 
-            // Twice as far in the same frames is twice as fast: the distance matters.
-            EXPECT_NEAR(north.approachFromSide(300.0f, 1.0f / 60.0f, 30).mRoute.mSpeed, 620.690f, 1e-3f);
+            // Along the level of the yaw, whatever the pitch: a stand looking down walks as far.
+            EXPECT_NEAR((north.getLevelAhead() - osg::Vec3f(0.0f, 1.0f, 0.0f)).length(), 0.0f, 1e-6f);
+            const Stand down{ .mEye = osg::Vec3f(100.0f, 200.0f, 300.0f),
+                .mLook = osg::Vec3f(100.0f, 1200.0f, -700.0f) };
+            const osg::Vec3f fromSouth = *down.approachFrom(0.0f, 150.0f, 1.0f / 60.0f, 30).mFrom.mEye;
+            EXPECT_NEAR(fromSouth.x(), 100.0f, 1e-4f);
+            EXPECT_NEAR(fromSouth.y(), 50.0f, 1e-4f);
+            EXPECT_NEAR(fromSouth.z(), 300.0f, 1e-4f);
+            EXPECT_NEAR(north.approachFrom(0.0f, -150.0f, 1.0f / 60.0f, 30).mFrom.mEye->y(), 350.0f, 1e-4f)
+                << "a negative walk starts in front and walks back";
+
+            // Twice as far in the same frames is twice as fast: the distance matters, and a strafe
+            // and a walk add as the sides of a triangle.
+            EXPECT_NEAR(north.approachFrom(300.0f, 0.0f, 1.0f / 60.0f, 30).mRoute.mSpeed, 620.690f, 1e-3f);
+            EXPECT_NEAR(north.approachFrom(150.0f, 150.0f, 1.0f / 60.0f, 30).mRoute.mSpeed, 438.894f, 1e-3f);
         }
 
         /// **Every check has a row, and the row says when it may be asked.** A check with no name

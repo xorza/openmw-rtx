@@ -351,45 +351,75 @@ namespace Rtx
         /// point now under the centre pixel was to its left. Read twice, so the sign is not a
         /// guess about the instance path, and once more on a frame nothing moved, which is the
         /// copies agreeing.
+        ///
+        /// **Ten units toward the eye moves the distance and not the screen.** The centre ray leans
+        /// `a = tan 30° / 64` off the axis on two sides, so the point it finds at 190 units ahead
+        /// is `190 sqrt(1 + 2a²)` = 190.0155 off and stood `sqrt(200² + 2 (190a)²)` = 200.0147 off
+        /// the eye a frame ago: 9.9992 farther.
         TEST_F(RtxFramesTest, aPoseMovesAMotionVectorAsAnInstanceDoes)
         {
             constexpr std::size_t centre = std::size_t{ sSize / 2 } * sSize + sSize / 2;
             const auto centreMotion = [&] {
                 std::vector<float> motion;
                 mRenderer.readChannel(Channel::Motion, motion);
-                return osg::Vec2f(motion[centre * 2], motion[centre * 2 + 1]);
+                return osg::Vec3f(motion[centre * 4], motion[centre * 4 + 1], motion[centre * 4 + 2]);
             };
 
-            // By the instance, as the reprojection always knew how to.
-            mRenderer.renderFrame(ahead(), FrameOptions{});
-            mScene.placements().move(mInstance, osg::Matrixf::translate(4.0f, 0.0f, 0.0f));
-            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
-            mRenderer.renderFrame(ahead(), FrameOptions{});
-            const osg::Vec2f byInstance = centreMotion();
-            EXPECT_NEAR(byInstance.x(), -1.1085f, 0.02f) << "the surface went right, so the point came from the left";
-            EXPECT_NEAR(byInstance.y(), 0.0f, 1e-3f);
+            struct Moved
+            {
+                osg::Vec3f mByInstance;
+                osg::Vec3f mByPose;
+            };
 
-            // Back where it was, and then by the pose alone: the instance stands still and the
-            // bone carries the wall the same four units.
-            mScene.placements().move(mInstance, osg::Matrixf::identity());
-            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
-            mRenderer.renderFrame(ahead(), FrameOptions{});
-            mScene.clearPlacement();
-            Testing::poseByOneBone(mScene, mWall, osg::Matrixf::translate(4.0f, 0.0f, 0.0f));
-            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
-            mRenderer.renderFrame(ahead(), FrameOptions{});
-            const osg::Vec2f byPose = centreMotion();
-            EXPECT_NEAR(byPose.x(), byInstance.x(), 1e-3f) << "a pose and an instance moved the same four units";
-            EXPECT_NEAR(byPose.y(), byInstance.y(), 1e-3f);
+            // From the bind pose held two frames, so both copies of the poses hold it: by the
+            // instance, as the reprojection always knew how to; then back where it was, and by the
+            // pose alone: the instance stands still and the bone carries the wall as far.
+            const auto movedBy = [&](const osg::Vec3f& step) {
+                mScene.clearPlacement();
+                Testing::poseByOneBone(mScene, mWall, osg::Matrixf::identity());
+                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                mRenderer.renderFrame(ahead(), FrameOptions{});
+                mScene.clearPlacement();
+                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                mRenderer.renderFrame(ahead(), FrameOptions{});
+                mScene.placements().move(mInstance, osg::Matrixf::translate(step));
+                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                mRenderer.renderFrame(ahead(), FrameOptions{});
+                const osg::Vec3f byInstance = centreMotion();
+
+                mScene.placements().move(mInstance, osg::Matrixf::identity());
+                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                mRenderer.renderFrame(ahead(), FrameOptions{});
+                mScene.clearPlacement();
+                Testing::poseByOneBone(mScene, mWall, osg::Matrixf::translate(step));
+                mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+                mRenderer.renderFrame(ahead(), FrameOptions{});
+
+                return Moved{ .mByInstance = byInstance, .mByPose = centreMotion() };
+            };
+
+            const Moved across = movedBy(osg::Vec3f(4.0f, 0.0f, 0.0f));
+            EXPECT_NEAR(across.mByInstance.x(), -1.1085f, 0.02f)
+                << "the surface went right, so the point came from the left";
+            EXPECT_NEAR(across.mByInstance.y(), 0.0f, 1e-3f);
+
+            const Moved toward = movedBy(osg::Vec3f(0.0f, -10.0f, 0.0f));
+            EXPECT_NEAR(toward.mByInstance.z(), 9.9992f, 0.01f) << "the surface came ten units nearer";
+
+            for (const Moved& moved : { across, toward })
+                for (std::size_t axis = 0; axis < 3; ++axis)
+                    EXPECT_NEAR(moved.mByPose[axis], moved.mByInstance[axis], 1e-3f)
+                        << "axis " << axis << ": a pose and an instance moved the same step";
 
             // A frame on which the body did not move: the copy this frame traces and the copy it
             // did not hold the same pose, so the step is nought exactly and not a rounding.
             mScene.clearPlacement();
             mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
             mRenderer.renderFrame(ahead(), FrameOptions{});
-            const osg::Vec2f still = centreMotion();
+            const osg::Vec3f still = centreMotion();
             EXPECT_EQ(still.x(), 0.0f) << "nothing moved and the vector says something did";
             EXPECT_EQ(still.y(), 0.0f);
+            EXPECT_EQ(still.z(), 0.0f);
 
             while (mRenderer.finishFrame().has_value())
             {

@@ -143,12 +143,20 @@ vec3 deformedBy(GpuInstance instance, GpuMesh mesh, uint primitive, vec2 bary, m
     return vec3(dot(rows[0].xyz, back), dot(rows[1].xyz, back), dot(rows[2].xyz, back));
 }
 
+/// What `CHANNEL_MOTION` holds for a surface: where it stood on the previous frame's screen less
+/// where it stands on this one, in pixels, and how much farther it stood from the previous eye
+/// than `distance`, which is the distance its history was measured at.
+///
+/// **The distance of the offset `reprojected` projects**, so the eye's walk, the instance's motion
+/// and the pose's each move it as they move the point. Nought under a parallel projection, for the
+/// reason `reprojected` has no answer there.
+///
 /// @param spread which image plane the surface projects through — the eye's at one, or the arms'
 ///        at `frame.mArmsSpread` for a surface the arms' ray found.
 /// @param primitive which triangle of the instance's mesh the ray landed on, and `bary` where
 ///        on it: what a deforming mesh needs to say where that point stood last frame. Read
 ///        only for a mesh that deforms.
-vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint instance, uint primitive, vec2 bary,
+vec3 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint instance, uint primitive, vec2 bary,
     mat4x3 toWorld, vec2 spread)
 {
     const vec3 point = origin + direction * distance;
@@ -157,15 +165,26 @@ vec2 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
     const GpuInstance placed = instanceAt(instance);
     const GpuMesh mesh = meshAt(placed.mMesh);
 
+    // **The small steps summed before the long offset takes them**, so a point that stood still
+    // adds exact noughts and a moving one rounds its steps against each other and not against a
+    // distance thousands of units long.
+    const vec3 moved
+        = frame.mCameraMotion + movedBy(placed, point) + deformedBy(placed, mesh, primitive, bary, toWorld);
+
     // **One fused step for the offset, and a product of its own.** The hit shader that calls this
     // has made `point` already, as `origin + direction * distance` fused into one rounding; the same
     // product written out here would be one value with two readers, which no build fuses, and the
     // surface's whole shading would take the rounding that leaves. `fma` is its own operation and
     // shares nothing, and it rounds this sum once where a product and an add round twice.
-    return reprojected(pixel,
-        fma(direction, vec3(distance), frame.mCameraMotion) + movedBy(placed, point)
-            + deformedBy(placed, mesh, primitive, bary, toWorld),
-        spread);
+    const vec3 was = fma(direction, vec3(distance), moved);
+
+    // **`|a + m| - |a|` as `m · (2a + m) / (|a + m| + |a|)`**, with `a` the offset from this eye and
+    // `m` the step: the same number without the cancellation. Subtracted, two distances fifty
+    // thousand units long lose the step to their last bit, 0.004 units, and a point that stood still
+    // would come out a rounding off nought.
+    const float farther = dot(moved, fma(direction, vec3(2.0 * distance), moved)) / (length(was) + distance);
+
+    return vec3(reprojected(pixel, was, spread), frame.mCamera.mOrthographic != 0u ? 0.0 : farther);
 }
 
 /// Where the sky a ray found stood on the previous frame's screen, in pixels.

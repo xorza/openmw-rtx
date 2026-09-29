@@ -262,7 +262,7 @@ void main()
     answer.mMotion = motionOf(stagePixel(), gl_WorldRayOriginEXT, gl_WorldRayDirectionEXT, gl_HitTEXT,
         uint(gl_InstanceCustomIndexEXT), uint(gl_PrimitiveID), barycentrics, gl_ObjectToWorldEXT, stageSpread());
     if (WATER && HAS_SEA)
-        answer.mMisMoved = misMovedOf(images, answer.mMotion);
+        answer.mMisMoved = misMovedOf(images, answer.mMotion.xy);
 
     answer.mHit = true;
     answer.mDistance = gl_HitTEXT;

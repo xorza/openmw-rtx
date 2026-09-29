@@ -397,7 +397,7 @@ namespace Rtx::Testing
 
                       std::vector<float> motion;
                       mRenderer.readChannel(Channel::Motion, motion);
-                      return osg::Vec2f(motion[centre * 2], motion[centre * 2 + 1]);
+                      return osg::Vec3f(motion[centre * 4], motion[centre * 4 + 1], motion[centre * 4 + 2]);
                   };
 
             /// The same, at the origin, where a formulation that subtracts world points still works.
@@ -408,10 +408,11 @@ namespace Rtx::Testing
             // **A still camera.** An unproject followed by a project with a float rounding between
             // them, so this is not exactly zero and must not be far from it.
             {
-                const osg::Vec2f held = motionAt(200.0f, osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f));
+                const osg::Vec3f held = motionAt(200.0f, osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f));
 
                 EXPECT_NEAR(held.x(), 0.0f, 1e-3f) << "a frame that did not move";
                 EXPECT_NEAR(held.y(), 0.0f, 1e-3f);
+                EXPECT_EQ(held.z(), 0.0f) << "and its distance is its history's to the bit";
             }
 
             // **A still camera that jitters**, which is every frame an upscaler ever sees. Where in
@@ -446,8 +447,8 @@ namespace Rtx::Testing
 
                 // A quarter pixel and better than a third: the second and third Halton terms, which
                 // is what a reprojection that carried the jitter would report here.
-                EXPECT_NEAR(motion[centre * 2], 0.0f, 1e-3f) << "a jittered frame that did not move";
-                EXPECT_NEAR(motion[centre * 2 + 1], 0.0f, 1e-3f);
+                EXPECT_NEAR(motion[centre * 4], 0.0f, 1e-3f) << "a jittered frame that did not move";
+                EXPECT_NEAR(motion[centre * 4 + 1], 0.0f, 1e-3f);
             }
 
             // **A camera that steps**, four units along +x. The point now straight ahead was to the
@@ -458,6 +459,21 @@ namespace Rtx::Testing
 
                 EXPECT_NEAR(near, 1.1085f, 0.02f) << "two hundred units away";
                 EXPECT_NEAR(far, 0.5543f, 0.02f) << "and four hundred";
+            }
+
+            // **A camera that walks**, four units along +y toward the wall. The centre ray leans
+            // `a = tan 30° / 64` off the axis on two sides, so the point it finds 196 units ahead is
+            // `196 sqrt(1 + 2a²)` = 196.0159 off the eye and `sqrt(200² + 2 (196a)²)` = 200.0156 off
+            // the last one: 3.9997 farther, which is what the history's distance was measured at.
+            {
+                const osg::Vec3f walked(0.0f, 4.0f, 0.0f);
+                const float nearer = motionAt(200.0f, walked, walked + osg::Vec3f(0.0f, 100.0f, 0.0f)).z();
+                const float out = motionFrom(
+                    osg::Vec3f(100000.0f, 100000.0f, 0.0f), 200.0f, walked, walked + osg::Vec3f(0.0f, 100.0f, 0.0f))
+                                      .z();
+
+                EXPECT_NEAR(nearer, 3.9997f, 0.002f) << "the wall came four units nearer";
+                EXPECT_EQ(out, nearer) << "and as near a long way from the origin";
             }
 
             // **The same step, a hundred thousand units from the origin**, which is where Morrowind
@@ -505,8 +521,8 @@ namespace Rtx::Testing
                 // The centre pixel's ray leans `0.5 / 32` of the half width off the axis either way,
                 // which at ninety degrees is `200 sqrt(1 + 2 (1 / 64)^2)` = 200.0488 units.
                 EXPECT_NEAR(surface[centre * 2 + 1], 200.0488f, 0.01f) << "the arms' eye did not find the wall";
-                EXPECT_NEAR(motion[centre * 2], 0.64f, 0.02f) << "the arms reprojected through the world's plane";
-                EXPECT_NEAR(motion[centre * 2 + 1], 0.0f, 1e-3f);
+                EXPECT_NEAR(motion[centre * 4], 0.64f, 0.02f) << "the arms reprojected through the world's plane";
+                EXPECT_NEAR(motion[centre * 4 + 1], 0.0f, 1e-3f);
             }
 
             // **And the sky seen past a see-through arm is the world's eye's.** The arms faded to
@@ -535,9 +551,9 @@ namespace Rtx::Testing
 
                 EXPECT_EQ(surface[centre * 2], Shaders::SURFACE_NO_NORMAL)
                     << "the ray peeled the arm and found nothing behind it";
-                EXPECT_NEAR(motion[centre * 2], 0.0f, 1e-3f)
+                EXPECT_NEAR(motion[centre * 4], 0.0f, 1e-3f)
                     << "the sky past the arms reprojected through the world's plane";
-                EXPECT_NEAR(motion[centre * 2 + 1], 0.0f, 1e-3f);
+                EXPECT_NEAR(motion[centre * 4 + 1], 0.0f, 1e-3f);
             }
 
             // **A camera that only turns**, about its own position and by the same angle whichever
@@ -593,7 +609,7 @@ namespace Rtx::Testing
 
                 std::vector<float> moved;
                 mRenderer.readChannel(Channel::Motion, moved);
-                return osg::Vec2f(moved[centre * 2], moved[centre * 2 + 1]);
+                return osg::Vec2f(moved[centre * 4], moved[centre * 4 + 1]);
             };
 
             // **A camera that only turns.** Twenty units across a hundred out is a little over eleven

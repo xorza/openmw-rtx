@@ -618,3 +618,35 @@ gone; the level is the ratio's alone.
 **What stays** is the upscaler's own limit on sub-pixel detail, which the probe measured: the shore at
 ultra performance still (0.71/4 against 0.56/5), and strafed at quality (0.99/12 against 0.61/5). Every
 other mode and place passes.
+
+## The sail on a walk, and the 2.5D motion vector
+
+**Cause.** Walking fast toward or away from the ship's sail (`seyda-neen-sail`) showed low-frequency
+blotches: the wavelet over a history of one frame. `heldSurfaceMatches` compared the distance the
+history kept, from the previous eye, with this frame's distance, from this eye; the two differ by
+the step, and `ACCUMULATE_DEPTH` allows 2% of the distance, so at five units a frame every surface
+nearer than about 250 units lost its history each frame. A probe with `ACCUMULATE_DEPTH` at 0.1 took
+the sail's box from 1.92 to 1.34.
+
+**Fix: the motion channel is a 2.5D motion vector** (the practice NRD takes its motion in):
+`CHANNEL_MOTION` and `CHANNEL_PANE_MOTION` are `rgba16f`, `z` how much farther the surface stood from
+the previous eye, from the offset the reprojection projects — the eye's step, the instance's and
+the pose's. Written `m · (2a + m) / (|a + m| + |a|)`, exact nought for anything that stood still, no
+cancellation at a distance. Every history test matches at `distance + z`. The payload is nineteen
+words. `noise --walk` flies the frame in from behind (negative: from in front).
+
+`noise`, sail, frame mean/p99 (bars 6.45/39 off, 7.27/47 quality, every run as clean):
+
+| | old rule | 2.5D |
+|---|---|---|
+| off, walked in 150 | 1.37/21 | 0.92/6 |
+| off, walked back 150 | 1.63/24 | 1.21/11 |
+| quality, walked in | 1.50/15 | 1.36/14 |
+| quality, walked back | 1.89/19 | 1.79/18 |
+
+Still and strafed unchanged (quality 0.75/4 and 2.77/33). Cost, `release bench` back to back, base
+and new twice each: the trace 2.14/2.16 against 2.20/2.17 ms at the ship, 2.38/2.37 against 2.40/2.39
+at dawn, 1.17/1.20 against 1.19/1.17 at the guild — within the legs' own spread. `shot --against`: the
+motion channels on every view (their width); pictures on nine views with bodies that move — two by
+the rule (a moving body keeps its history), seven by the motion's new rounding (the small steps
+summed before the offset).

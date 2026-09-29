@@ -74,7 +74,8 @@ void main()
     // A pixel no layer stands in writes its sample, which is nought, and a history of nothing.
     const bool stands = dot(normal, normal) > 0.0;
 
-    const HistoryFootprint footprint = historyFootprint(at, frame.mCamera.mJitter, imageLoad(paneMotion, at).xy);
+    const vec3 moved = imageLoad(paneMotion, at).xyz;
+    const HistoryFootprint footprint = historyFootprint(at, frame.mCamera.mJitter, moved);
 
     vec4 heldMean = vec4(0.0);
     float frames = 0.0;
@@ -87,7 +88,7 @@ void main()
             const float bilinear = historyShare(footprint, i);
             const ivec2 tap = historyTap(footprint, i);
             if (bilinear <= 0.0 || outsideOf(tap, extent)
-                || !heldSurfaceMatches(imageLoad(heldBefore, tap), normal, scaled, frame.mDistanceScale))
+                || !heldSurfaceMatches(imageLoad(heldBefore, tap), normal, seen.y, moved, frame.mDistanceScale))
                 continue;
 
             // A texel no layer stood in holds no history, and would pull the mean toward nought.

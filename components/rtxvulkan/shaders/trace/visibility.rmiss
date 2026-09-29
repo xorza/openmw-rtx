@@ -38,7 +38,7 @@ void main()
     // **The sky moves too, and only its turn moves it** — `skyMotionOf` says why storing nothing
     // here is a smear across every camera rotation. Whatever the answer below: the water a ray
     // finds under the surface and a picture's background turn with the eye as the sky does.
-    answer.mMotion = skyMotionOf(gl_LaunchIDEXT.xy, direction);
+    answer.mMotion = vec3(skyMotionOf(gl_LaunchIDEXT.xy, direction), 0.0);
 
     // **A ray that goes down from under the surface and finds nothing found water, and water is not
     // the sky.** `waterUnbounded` is the whole argument, and the launch asks it again for the column

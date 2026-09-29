@@ -871,15 +871,15 @@ namespace RtxTool
         /// `sNoiseReferenceFrames` frames traced unfiltered and jittered, from the white hash, which
         /// is a sequence neither of the others draws from, so it shares no sample with them, and at
         /// no texture level epsilon; its exposure is measured as a played frame's is. The bar averages
-        /// `sNoiseBarFrames` frames, unfiltered and as the run otherwise traces — or, strafed, as many as the frame's
+        /// `sNoiseBarFrames` frames, unfiltered and as the run otherwise traces — or, flown in, as many as the frame's
         /// history could hold, `noiseBarFramesAfter`. The frame is the run's own, after the warm-up its history
-        /// converges over, upscaled as the run is — or, with `--strafe`, after it flew into the place from the side
-        /// (`Stand::approachFromSide`). The reference and the bar are traced with no upscaler, at the frame's own
-        /// output size, so an upscaled frame is held to the picture it stands for and not to another upscale of it. The
-        /// bar's limit is the bar drawn `sNoiseMeanDraws` times as long, and the frame's mean is `sNoiseMeanDraws`
-        /// draws of the frame, each its own stop that warms up past every history first: what each converges to, drawn
-        /// its own way. Every picture but the reference holds the exposure the reference ended on, so all are mapped by
-        /// one curve and the scale is derived rather than stated.
+        /// converges over, upscaled as the run is — or, with `--strafe` or `--walk`, after it flew into the place
+        /// from the side or from behind (`Stand::approachFrom`). The reference and the bar are traced with no upscaler,
+        /// at the frame's own output size, so an upscaled frame is held to the picture it stands for and not to another
+        /// upscale of it. The bar's limit is the bar drawn `sNoiseMeanDraws` times as long, and the frame's mean is
+        /// `sNoiseMeanDraws` draws of the frame, each its own stop that warms up past every history first: what each
+        /// converges to, drawn its own way. Every picture but the reference holds the exposure the reference ended on,
+        /// so all are mapped by one curve and the scale is derived rather than stated.
         ///
         /// **Judged against the bar and not against a number**: a frame is as clean as the bar when it
         /// stands no further from its own mean than the bar from its limit, by the mean and at the 99th
@@ -930,27 +930,36 @@ namespace RtxTool
             const float strafe = variables["strafe"].as<float>();
             if (!(strafe >= 0.0f) || !std::isfinite(strafe))
                 throw std::runtime_error(std::format("--strafe is {}, which is no distance", strafe));
+            const float walk = variables["walk"].as<float>();
+            if (!std::isfinite(walk))
+                throw std::runtime_error(std::format("--walk is {}, which is no distance", walk));
+            const bool flies = strafe > 0.0f || walk != 0.0f;
 
             // A frame taken standing still has a history as long as the warm-up, which is more than
             // any mode needs to hold sixteen samples a shown pixel.
             const Rtx::FrameExtents extents = Rtx::extentsFor(
                 framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mProfile.mUpscaling.mMode);
-            const std::uint32_t barFrames
-                = strafe > 0.0f ? noiseBarFramesAfter(sNoiseStrafeFrames, extents) : sNoiseBarFrames;
+            const std::uint32_t barFrames = flies ? noiseBarFramesAfter(sNoiseFlightFrames, extents) : sNoiseBarFrames;
 
-            // The frame's own stop, strafing in where the line asks: a route that holds the world, so
+            // The frame's own stop, flying in where the line asks: a route that holds the world, so
             // the frame flies through the world the reference stands in (`applyPolicy`).
             const auto frame = [&](const Stop& place) {
-                if (!(strafe > 0.0f))
+                if (!flies)
                     return picture(place, "", 1, false, std::nullopt, held, std::nullopt);
 
                 if (!place.mStand.mEye.has_value())
-                    throw std::runtime_error(
-                        std::format("--strafe needs a place that names an eye, and {} names none", place.mName));
+                    throw std::runtime_error(std::format(
+                        "--strafe and --walk need a place that names an eye, and {} names none", place.mName));
 
-                Stop stop = picture(place, "", sNoiseStrafeFrames, false, std::nullopt, held, std::nullopt);
+                // An eye that started past the point it faces would fly in facing backwards.
+                if (walk < 0.0f
+                    && -walk >= (place.mStand.getLook() - *place.mStand.mEye) * place.mStand.getLevelAhead())
+                    throw std::runtime_error(
+                        std::format("--walk={} starts past the point {} faces", walk, place.mName));
+
+                Stop stop = picture(place, "", sNoiseFlightFrames, false, std::nullopt, held, std::nullopt);
                 Approach approach
-                    = stop.mStand.approachFromSide(strafe, framed.mSetup.getWorldStep(), sNoiseStrafeFrames);
+                    = stop.mStand.approachFrom(strafe, walk, framed.mSetup.getWorldStep(), sNoiseFlightFrames);
                 stop.mStand = std::move(approach.mFrom);
                 stop.mSchedule.mRoute = approach.mRoute;
                 return stop;
