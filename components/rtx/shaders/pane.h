@@ -9,12 +9,11 @@
 // What the pane filter needs: a temporal accumulator over `CHANNEL_PANE`, which `pane.comp` says the
 // shape of. Included verbatim by both sides, for the reason `visibility.h` is.
 //
-// **The mean in full floats and its count in a half**, for the reasons `specular.h` gives for the
+// **The mean in full floats and its count beside it**, for the reasons `specular.h` gives for the
 // glossy filter's, which keeps the same history. **And the surface the history belongs to, of its
 // own**, as the accumulator's surface — the layer's, which the accumulator's does not describe.
 
 #define PANE_MEAN STORAGE_RGBA32F
-#define PANE_FRAMES STORAGE_R16F
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders
@@ -28,10 +27,8 @@ namespace Rtx::Shaders
     const uint PANE_BIND_HELD_BEFORE = 3;
     const uint PANE_BIND_HELD = 4;
     const uint PANE_BIND_MEAN_BEFORE = 5;
-    const uint PANE_BIND_FRAMES_BEFORE = 6;
-    const uint PANE_BIND_MEAN = 7;
-    const uint PANE_BIND_FRAMES = 8;
-    const uint PANE_BINDINGS = 9;
+    const uint PANE_BIND_MEAN = 6;
+    const uint PANE_BINDINGS = 7;
 
     /// Threads along each edge of the pane filter's workgroup.
     const uint PANE_WORKGROUP = 8;

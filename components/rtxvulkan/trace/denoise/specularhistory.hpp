@@ -12,7 +12,7 @@ namespace Rtx
     class Device;
 
     /// One camera's images for `SpecularPass`, at one extent: the mean and its frame count the last
-    /// frame left, and the pair this one writes. A chain's and not the pass's, for the reason
+    /// frame left, and the one this frame writes. A chain's and not the pass's, for the reason
     /// `ShadowHistory` gives.
     class SpecularHistory
     {
@@ -30,9 +30,7 @@ namespace Rtx
         struct Turn
         {
             const Image& mMeanBefore;
-            const Image& mFramesBefore;
             const Image& mMean;
-            const Image& mFrames;
 
             /// The first frame after a `resize` or a `reset`, whose history is worthless.
             bool mFresh = false;
@@ -44,9 +42,8 @@ namespace Rtx
     private:
         const Device& mDevice;
 
-        /// Two of each, because this frame reads what the last one wrote. Empty until `resize`.
+        /// Two, because this frame reads what the last one wrote. Empty until `resize`.
         std::array<Image, 2> mMeans;
-        std::array<Image, 2> mFrames;
 
         HistoryTurns mTurns;
     };

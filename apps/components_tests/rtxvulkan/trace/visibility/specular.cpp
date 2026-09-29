@@ -82,9 +82,10 @@ namespace Rtx::Testing
         /// **Over a still eye the glossy filter is the mean of its frames.** The floor at half
         /// roughness: sixteen frames filtered from an empty history, against the same sixteen
         /// averaged unfiltered. Under sixteen frames the blend's weight is one over the count, so the
-        /// history is the running mean exactly, but for the half it is kept in and an outlier clamp
-        /// that fires on nothing here. The metal has no diffuse half, so the wavelet filters nought
-        /// and the whole of the difference from the last raw frame is the glossy filter's.
+        /// history is the running mean exactly, to the rounding of its floats: measured at 2e-5 to
+        /// 6e-5 of the raw frame's error, and 8e-7 of the light. The metal has no diffuse half, so the
+        /// wavelet filters nought and the whole of the difference from the last raw frame is the
+        /// glossy filter's.
         TEST_F(RtxVisibilityTest, overAStillEyeTheGlossyFilterIsTheMeanOfItsFrames)
         {
             const MetalFloor floor(128);
@@ -103,9 +104,9 @@ namespace Rtx::Testing
                 const float filteredError = filtered.errorFrom(averaged, channel);
                 ASSERT_GT(rawError, averaged.mean(channel) * 0.05f)
                     << "channel " << channel << ": four lamps drawn one a pixel are noisy";
-                EXPECT_LT(filteredError, rawError * 0.02f)
+                EXPECT_LT(filteredError, rawError * 1e-4f)
                     << "channel " << channel << ": raw " << rawError << ", filtered " << filteredError;
-                EXPECT_NEAR(filtered.mean(channel), averaged.mean(channel), averaged.mean(channel) * 0.001f)
+                EXPECT_NEAR(filtered.mean(channel), averaged.mean(channel), averaged.mean(channel) * 1e-5f)
                     << "channel " << channel << " keeps its light";
             }
         }

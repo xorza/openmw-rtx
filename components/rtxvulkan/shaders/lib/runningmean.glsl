@@ -5,32 +5,37 @@
 // the pane filter each keep a history of, over the texels `surfacematch.glsl` says are the surface.
 //
 // **One statement of the blend, so the two filters cannot come to disagree about what a history
-// is worth**: the mean, the second moment of its luminance beside it, and the frame count, the
-// accumulator's outlier clamp once a spread has been measured, and ReLAX's weight on the frame.
+// is worth**: the mean, the frame count, and ReLAX's weight on the frame. No outlier clamp, for the
+// accumulator's reason (`accumulate.comp`).
 
-#include "colour.h"
 #include "look.h"
 
-/// A pixel's history as a filter holds it: the mean in `rgb` and the second moment of its
-/// luminance in `a`, and how many frames it holds.
+/// A pixel's history as a filter holds it, and as one texel stores it: the mean in `rgb`, and how
+/// many frames it holds in `a`, nought where it holds none.
 struct RunningMean
 {
-    vec4 mMean;
+    vec3 mMean;
     float mFrames;
 };
 
-/// This frame's `sampled` light with no history under it: one frame, and its own moment.
+/// The history a texel holds, or the bilinear sum of several over the `weight` they sum to.
+RunningMean runningMeanOf(vec4 texel, float weight)
+{
+    return RunningMean(texel.rgb / weight, texel.a / weight);
+}
+
+vec4 texelOf(RunningMean mean)
+{
+    return vec4(mean.mMean, mean.mFrames);
+}
+
+/// This frame's `sampled` light with no history under it: one frame.
 RunningMean startedMean(vec3 sampled)
 {
-    const float lit = dot(sampled, LUMINANCE_WEIGHTS);
-    return RunningMean(vec4(sampled, lit * lit), 1.0);
+    return RunningMean(sampled, 1.0);
 }
 
 /// `sampled` blended into `held`, a history `kept` of which is still the light this pixel sees.
-///
-/// **The accumulator's outlier clamp, for the accumulator's reason**: a firefly is a number of
-/// deviations from what the pixel has been seeing, and not a radiance. **Counted by what was kept
-/// of the history**, since a history the eye turned from measured another light's spread.
 ///
 /// **ReLAX's `max(1 - confidence, 1 / (1 + frames))`.** The count kept is what the blend made of it,
 /// so a history kept in part is as short as its weight says.
@@ -39,22 +44,8 @@ RunningMean startedMean(vec3 sampled)
 ///        and one wherever the light does not turn with the view.
 RunningMean blendedMean(vec3 sampled, RunningMean held, float kept)
 {
-    const float lit = dot(sampled, LUMINANCE_WEIGHTS);
-    const float heldLit = dot(held.mMean.rgb, LUMINANCE_WEIGHTS);
-
-    vec3 clamped = sampled;
-    if (held.mFrames * kept >= ACCUMULATE_SETTLED && lit > 0.0)
-    {
-        const float spread = sqrt(max(held.mMean.a - heldLit * heldLit, 0.0));
-        const float ceiling = heldLit + ACCUMULATE_SIGMAS * spread;
-        if (lit > ceiling)
-            clamped = sampled * (ceiling / lit);
-    }
-
     const float alpha = max(1.0 - kept, 1.0 / min(held.mFrames + 1.0, ACCUMULATE_FRAMES));
-    const float clampedLit = dot(clamped, LUMINANCE_WEIGHTS);
-    return RunningMean(
-        vec4(mix(held.mMean.rgb, clamped, alpha), mix(held.mMean.a, clampedLit * clampedLit, alpha)), 1.0 / alpha);
+    return RunningMean(mix(held.mMean, sampled, alpha), 1.0 / alpha);
 }
 
 #endif

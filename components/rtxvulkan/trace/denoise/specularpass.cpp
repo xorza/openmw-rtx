@@ -37,11 +37,9 @@ namespace Rtx
         {
             Barriers barriers(commands);
             if (turn.mFresh)
-                for (const Image* image : { &turn.mMeanBefore, &turn.mFramesBefore })
-                    barriers.add(image->describeTransition(Use::sUndefined, Use::sComputeRead));
+                barriers.add(turn.mMeanBefore.describeTransition(Use::sUndefined, Use::sComputeRead));
 
-            for (const Image* image : { &turn.mMean, &turn.mFrames })
-                barriers.add(image->describeTransition(Use::sUndefined, Use::sComputeWrite));
+            barriers.add(turn.mMean.describeTransition(Use::sUndefined, Use::sComputeWrite));
 
             barriers.flush();
         }
@@ -53,9 +51,7 @@ namespace Rtx
         writes.image(Shaders::SPECULAR_BIND_PUFFS, buffer.get(Channel::Puffs).describeStorage());
         writes.image(Shaders::SPECULAR_BIND_HELD_SURFACE, frame.mHeld.mImage.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN_BEFORE, turn.mMeanBefore.describeStorage());
-        writes.image(Shaders::SPECULAR_BIND_FRAMES_BEFORE, turn.mFramesBefore.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN, turn.mMean.describeStorage());
-        writes.image(Shaders::SPECULAR_BIND_FRAMES, turn.mFrames.describeStorage());
         assert(writes.size() == Shaders::SPECULAR_BINDINGS && "a binding the layout declares was left unwritten");
 
         const Shaders::SpecularConstants constants{

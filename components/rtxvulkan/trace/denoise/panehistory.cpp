@@ -25,8 +25,6 @@ namespace Rtx
         {
             mMeans[i] = Image(mDevice, width, height, toVulkanFormat(PANE_MEAN), VK_IMAGE_USAGE_STORAGE_BIT,
                 i == 0 ? "pane-mean-0" : "pane-mean-1");
-            mFrames[i] = Image(mDevice, width, height, toVulkanFormat(PANE_FRAMES), VK_IMAGE_USAGE_STORAGE_BIT,
-                i == 0 ? "pane-frames-0" : "pane-frames-1");
             mHeld[i] = Image(mDevice, width, height, toVulkanFormat(ACCUMULATE_SURFACE), VK_IMAGE_USAGE_STORAGE_BIT,
                 i == 0 ? "pane-held-0" : "pane-held-1");
         }
@@ -41,10 +39,8 @@ namespace Rtx
         const HistoryTurns::Step step = mTurns.next();
         return Turn{
             .mMeanBefore = mMeans[step.mBefore],
-            .mFramesBefore = mFrames[step.mBefore],
             .mHeldBefore = mHeld[step.mBefore],
             .mMean = mMeans[step.mNow],
-            .mFrames = mFrames[step.mNow],
             .mHeld = mHeld[step.mNow],
             .mFresh = step.mFresh,
         };
