@@ -8,6 +8,7 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
+#include "accumulatehistory.hpp"
 #include "specularhistory.hpp"
 
 namespace Rtx
@@ -31,10 +32,8 @@ namespace Rtx
             /// plane against it.
             const Shaders::VisibilityConstants& mSampled;
 
-            /// The accumulator's surface history for this frame and the scale its distances are in,
-            /// as `ShadowPass::Frame` takes them.
-            const Image& mHeldSurface;
-            float mDistanceScale;
+            /// The surface this frame's history belongs to, `HeldSurface`.
+            HeldSurface mHeld;
 
             /// True where there is no history worth carrying, as the accumulator is told.
             bool mReset;

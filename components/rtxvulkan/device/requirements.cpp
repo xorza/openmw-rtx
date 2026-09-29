@@ -25,12 +25,21 @@ namespace Rtx
         /// not at 591.86, so the floor names the branch, 595. AMD: Adrenalin 26.3.1's release notes.
         /// Mesa: 26.2.0's release notes, for RADV, NVK and ANV at once.
         constexpr std::array sFmaFloors{
-            DriverFloor{ VK_DRIVER_ID_NVIDIA_PROPRIETARY, "NVIDIA driver", "595" },
-            DriverFloor{ VK_DRIVER_ID_AMD_PROPRIETARY, "AMD driver", "26.3.1" },
-            DriverFloor{ VK_DRIVER_ID_MESA_RADV, "Mesa", "26.2" },
-            DriverFloor{ VK_DRIVER_ID_MESA_NVK, "Mesa", "26.2" },
-            DriverFloor{ VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA, "Mesa", "26.2" },
+            DriverFloor{ VK_DRIVER_ID_NVIDIA_PROPRIETARY, "595" },
+            DriverFloor{ VK_DRIVER_ID_AMD_PROPRIETARY, "26.3.1" },
+            DriverFloor{ VK_DRIVER_ID_MESA_RADV, "26.2" },
+            DriverFloor{ VK_DRIVER_ID_MESA_NVK, "26.2" },
+            DriverFloor{ VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA, "26.2" },
         };
+
+        constexpr bool everyFloorsDriverIsNamed()
+        {
+            for (const DriverFloor& floor : sFmaFloors)
+                if (releaseSeriesOf(floor.mDriver).empty())
+                    return false;
+            return true;
+        }
+        static_assert(everyFloorsDriverIsNamed(), "a driver floor whose releases have no name for a refusal");
 
         constexpr std::array sRequiredDeviceExtensions{
             RequiredExtension{ VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, {} },

@@ -69,11 +69,10 @@ namespace Rtx
         const Shaders::VisibilityConstants& sampled, const bool mapped, const bool historyLost, GpuTimer* const timer)
     {
         const Shaders::Camera& camera = sampled.mCamera;
-        const float distanceScale = AccumulatePass::distanceScaleFor(sampled.mFar);
-
         // One turn of the history for every temporal pass: the shadow denoiser and the glossy
         // filter read the surface the accumulator's history belongs to, in the same frame.
         const AccumulateHistory::Turn turn = mHistory.turn();
+        const HeldSurface held = turn.held(sampled.mFar);
 
         // The temporal half first: the accumulator hands on the variance of its mean, which is
         // what lets the levels below stop at an edge in the light and not only in the geometry.
@@ -94,9 +93,8 @@ namespace Rtx
                 ShadowPass::Frame{
                     .mCamera = camera,
                     .mArms = sampled.mArms,
-                    .mHeldSurface = turn.mSurfaceBefore,
-                    .mDistanceScale = distanceScale,
-                    .mReset = historyLost || turn.mFresh,
+                    .mHeld = held,
+                    .mReset = historyLost,
                 });
             closeZone(timer, commands);
         }
@@ -112,9 +110,8 @@ namespace Rtx
             specular = &mPasses.mSpecular.record(commands, mSpeculars.turn(), *mChannels,
                 SpecularPass::Frame{
                     .mSampled = sampled,
-                    .mHeldSurface = turn.mSurfaceBefore,
-                    .mDistanceScale = distanceScale,
-                    .mReset = historyLost || turn.mFresh,
+                    .mHeld = held,
+                    .mReset = historyLost,
                 });
             closeZone(timer, commands);
         }

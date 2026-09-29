@@ -54,7 +54,8 @@ namespace RtxTool
     }
 
     CardWatch::CardWatch(const std::chrono::milliseconds period)
-        : mPeriod(period)
+        : mAmdGpu(mNvml.isOpen() ? std::nullopt : AmdGpu::find())
+        , mPeriod(period)
         , mTally(Platform::Process::currentId())
         , mBegan(std::chrono::steady_clock::now())
     {
@@ -88,7 +89,7 @@ namespace RtxTool
 
     void CardWatch::read()
     {
-        mClock.add(mNvml.isOpen() ? mNvml.readClock() : mAmdGpu.readClock());
+        mClock.add(mAmdGpu.has_value() ? mAmdGpu->readClock() : mNvml.readClock());
 
         mNvml.readSamples(mSamples);
         for (const CardSample& sample : mSamples)
@@ -113,8 +114,7 @@ namespace RtxTool
         if (!mNvml.hasSamples())
         {
             reading.mShare.mViewed = false;
-            reading.mShare.mWhyNot
-                = mNvml.isOpen() || !mAmdGpu.isOpen() ? mNvml.describeUnsampled() : AmdGpu::describeUnsampled();
+            reading.mShare.mWhyNot = mAmdGpu.has_value() ? AmdGpu::describeUnsampled() : mNvml.describeUnsampled();
         }
 
         mClock = GpuClock{};

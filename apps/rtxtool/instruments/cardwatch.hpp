@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -132,10 +133,11 @@ namespace RtxTool
         /// Takes one last reading, answers the window and begins the next. Under the lock.
         CardReading close();
 
-        /// Where the clock is read: NVML where it opens, and amdgpu's sysfs files where it does
-        /// not. The holders are NVML's alone — `AmdGpu` says why.
+        /// Where the clock is read: NVML where it opens, and amdgpu's sysfs files where it does not
+        /// and the box has an AMD card — chosen once, since which card a box has does not change
+        /// under a run. The holders are NVML's alone, `AmdGpu` says why.
         Nvml mNvml;
-        AmdGpu mAmdGpu;
+        std::optional<AmdGpu> mAmdGpu;
 
         /// The lock over everything below but the worker.
         Rtx::Monitor mMonitor;

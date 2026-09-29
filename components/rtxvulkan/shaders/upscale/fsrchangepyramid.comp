@@ -28,18 +28,8 @@
 
 // The shading change pyramid: how far the luma moved from the last frame's, by the same downsampler.
 //
-// The SDK's pass file with the renderer's binding names (`fsr.h`) and its configuration stated here
-// rather than on a command line: GLSL, full floats, a frame in HDR radiance, motion vectors at the
-// render extent and from the pixel's centre, and a reversed depth.
-
-#define FFX_GPU 1
-#define FFX_GLSL 1
-#define FFX_HALF 0
-#define FFX_FSR3UPSCALER_OPTION_HDR_COLOR_INPUT 1
-#define FFX_FSR3UPSCALER_OPTION_LOW_RESOLUTION_MOTION_VECTORS 1
-#define FFX_FSR3UPSCALER_OPTION_JITTERED_MOTION_VECTORS 0
-#define FFX_FSR3UPSCALER_OPTION_INVERTED_DEPTH 1
-#define FFX_FSR3UPSCALER_OPTION_APPLY_SHARPENING 0
+// The SDK's pass file with the renderer's binding names (`fsr.h`). The configuration is
+// `fsrcallbacks.glsl`'s.
 
 #define FSR3UPSCALER_BIND_SRV_CURRENT_LUMA FSR_CHANGE_PYRAMID_BIND_CURRENT_LUMA
 #define FSR3UPSCALER_BIND_SRV_PREVIOUS_LUMA FSR_CHANGE_PYRAMID_BIND_PREVIOUS_LUMA

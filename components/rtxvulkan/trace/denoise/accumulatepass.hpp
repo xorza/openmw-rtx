@@ -39,10 +39,6 @@ namespace Rtx
         void record(VkCommandBuffer commands, const AccumulateHistory::Turn& turn, const GBuffer& buffer,
             const Shaders::Camera& camera, float far, bool reset) const;
 
-        /// What a world distance is multiplied by before the surface history holds it, for a frame
-        /// whose far plane is `far`: `AccumulateConstants::mDistanceScale`.
-        static float distanceScaleFor(float far);
-
     private:
         ComputePipeline mPipeline;
     };

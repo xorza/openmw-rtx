@@ -143,9 +143,9 @@ namespace RtxTool
         /// read back off a body the harness rotated by a stand is that stand.
         static osg::Vec3f forwardOf(const osg::Vec3f& rotation);
 
-        /// A flight into this stand from `across` units to its left, facing its look all the way
-        /// and arriving at the last of `frames` frames of `step` seconds: what `noise --strafe`
-        /// takes a frame at the end of, with the history the eye moved through. Left along the
+        /// A flight into this stand from `across` units to its left, facing its look all the way,
+        /// arriving at the last of `frames` frames of `step` seconds, through a world held still:
+        /// what `noise --strafe` takes a frame at the end of, with the history the eye moved through. Left along the
         /// level of the yaw, so a stand looking straight down strafes along its bearing's left.
         /// Only for a stand that names an eye, and for two frames or more.
         Approach approachFromSide(float across, float step, std::uint32_t frames) const;
@@ -180,7 +180,7 @@ namespace RtxTool
     };
 
     /// Where a stop flies to, and how fast. A route is what puts a cell arriving into a
-    /// measurement at all. The view file states all three or none, `loadViews`.
+    /// measurement at all. The view file states the first three or none, `loadViews`.
     struct Route
     {
         /// Where the eye ends and what it looks at there.
@@ -189,6 +189,12 @@ namespace RtxTool
 
         /// World units a second, more than nought. A Morrowind exterior cell is 8,192 across.
         float mSpeed = 0.0f;
+
+        /// Whether the world stays as the stop holds it while the eye flies: a flight a command
+        /// stages into a place a still reference stands at (`Stand::approachFromSide`). False for a
+        /// view's route, which walks through a living world — the route `VerbPolicy::mFliesRoutes`
+        /// speaks of.
+        bool mWorldHeld = false;
     };
 
     /// Where a flight into a stand leaves from, and the route it flies: `Stand::approachFromSide`.

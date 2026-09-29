@@ -72,8 +72,8 @@ namespace Rtx
                 appendListed(missing, required.mName);
                 const auto floor = std::ranges::find(required.mFloors, driver.driverID, &DriverFloor::mDriver);
                 if (floor != required.mFloors.end())
-                    missing += std::format(
-                        " ({} {} or later; this one is {})", floor->mDriverName, floor->mRelease, driver.driverInfo);
+                    missing += std::format(" ({} {} or later; this one is {})", releaseSeriesOf(driver.driverID),
+                        floor->mRelease, driver.driverInfo);
             }
 
             return missing;

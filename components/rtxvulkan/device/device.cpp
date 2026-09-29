@@ -14,9 +14,9 @@
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/error.hpp>
-#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
+#include "buffermarkers.hpp"
 #include "commands.hpp"
 #include "graveyard.hpp"
 #include "instance.hpp"
@@ -29,9 +29,6 @@ namespace Rtx
 {
     namespace
     {
-        /// The words the buffer markers are written into: the top of the pipe's, then the bottom's.
-        using MarkerWords = std::array<std::uint32_t, 2>;
-
         /// Which stage a checkpoint was reported for, for the handful a queue reports on and
         /// the number for the rest.
         std::string checkpointStageName(const VkPipelineStageFlagBits stage)
@@ -53,6 +50,16 @@ namespace Rtx
                 default:
                     return std::format("stage {:#x}", static_cast<std::uint32_t>(stage));
             }
+        }
+
+        /// One line of a fault report: the last checkpoint `stage` passed, or that the host no longer
+        /// names the one it passed.
+        std::string describePassed(const VkPipelineStageFlagBits stage, const Checkpoint* const checkpoint)
+        {
+            return checkpoint == nullptr
+                ? std::format("\n  {} passed no checkpoint the host still names", checkpointStageName(stage))
+                : std::format("\n  {} last passed `{}` of frame {}", checkpointStageName(stage), checkpoint->mName,
+                    checkpoint->mFrame);
         }
 
         /// What a faulting address was being used for, as the header spells it.
@@ -220,8 +227,9 @@ namespace Rtx
             load(mHandle.get(), mGetQueueCheckpointData, "vkGetQueueCheckpointDataNV");
         }
 
+        PFN_vkCmdWriteBufferMarkerAMD markerWrite = nullptr;
         if (has(DeviceOption::BufferMarkers))
-            load(mHandle.get(), mCmdWriteBufferMarker, "vkCmdWriteBufferMarkerAMD");
+            load(mHandle.get(), markerWrite, "vkCmdWriteBufferMarkerAMD");
 
         if (instance.hasDebugUtils())
         {
@@ -242,13 +250,8 @@ namespace Rtx
         mPool.reset(new CommandPool(*this));
         mGraveyard = std::make_unique<Graveyard>(*this);
 
-        // Nought before the first marker, which is what `MarkerRing::find` reads as none written.
-        if (mCmdWriteBufferMarker != nullptr)
-        {
-            mMarkerWords = std::make_unique<Buffer>(
-                Buffer::readBack(*this, sizeof(MarkerWords), VK_BUFFER_USAGE_TRANSFER_DST_BIT, "markers"));
-            std::memset(mMarkerWords->map(), 0, sizeof(MarkerWords));
-        }
+        if (markerWrite != nullptr)
+            mMarkers = std::make_unique<BufferMarkers>(*this, markerWrite);
     }
 
     Device::~Device()
@@ -371,34 +374,18 @@ namespace Rtx
         mPool->collectIdle();
     }
 
-    void Device::writeMarkers(const VkCommandBuffer commands, const std::uint32_t marker) const
+    void Device::writeMarker(const VkCommandBuffer commands, const Checkpoint* const checkpoint) const
     {
-        mMarkerWords->nameForNext();
-        mCmdWriteBufferMarker(commands, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, mMarkerWords->getHandle(), 0, marker);
-        mCmdWriteBufferMarker(
-            commands, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, mMarkerWords->getHandle(), sizeof(std::uint32_t), marker);
+        mMarkers->mark(commands, checkpoint);
     }
 
     std::string Device::describeCheckpoints() const
     {
-        if (mMarkerWords != nullptr)
+        if (mMarkers != nullptr)
         {
-            // Read as the device left them: the loss ended every write, and the memory is the
-            // host's cached kind, which the device writes across the bus coherently.
-            MarkerWords words;
-            std::memcpy(words.data(), mMarkerWords->map(), sizeof(words));
-
-            std::string report;
-            for (std::size_t at = 0; at < words.size(); ++at)
-            {
-                const Checkpoint* const checkpoint = mMarkers.find(words[at]);
-                const std::string stage = checkpointStageName(
-                    at == 0 ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
-                report += checkpoint == nullptr
-                    ? std::format("\n  {} passed no marker the host still names", stage)
-                    : std::format("\n  {} last passed `{}` of frame {}", stage, checkpoint->mName, checkpoint->mFrame);
-            }
-            return report;
+            const BufferMarkers::Passed passed = mMarkers->read();
+            return describePassed(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, passed.mTop)
+                + describePassed(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, passed.mBottom);
         }
 
         if (mGetQueueCheckpointData == nullptr)
@@ -421,8 +408,7 @@ namespace Rtx
             if (checkpoint == nullptr)
                 continue;
 
-            report += std::format("\n  {} last passed `{}` of frame {}", checkpointStageName(passed[at].stage),
-                checkpoint->mName, checkpoint->mFrame);
+            report += describePassed(passed[at].stage, checkpoint);
         }
 
         return report;

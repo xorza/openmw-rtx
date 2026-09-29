@@ -42,6 +42,19 @@
 //   declared `rgba8` here, a view whose format is not the declared one; and the output is the
 //   renderer's `rgba16f`.
 // - The passes the renderer does not run (the reactive generators, RCAS, the debug view) are gone.
+//
+// **The SDK's configuration, stated here for every pass rather than on a command line**: GLSL, full
+// floats, a frame in HDR radiance, motion vectors at the render extent and from the pixel's centre,
+// a reversed depth, and no sharpening. Before any SDK header, which reads it.
+
+#define FFX_GPU 1
+#define FFX_GLSL 1
+#define FFX_HALF 0
+#define FFX_FSR3UPSCALER_OPTION_HDR_COLOR_INPUT 1
+#define FFX_FSR3UPSCALER_OPTION_LOW_RESOLUTION_MOTION_VECTORS 1
+#define FFX_FSR3UPSCALER_OPTION_JITTERED_MOTION_VECTORS 0
+#define FFX_FSR3UPSCALER_OPTION_INVERTED_DEPTH 1
+#define FFX_FSR3UPSCALER_OPTION_APPLY_SHARPENING 0
 
 #include "camera.h"
 #include "fsr.h"
