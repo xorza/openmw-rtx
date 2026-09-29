@@ -403,3 +403,21 @@ Its condition: the guild's frame still fails its bar at p99 after 4, 5a and 6a. 
 played default, it passes under both profiles (4.18/35 against 4.54/38; 6.35/47 against 7.34/53).
 At `off` it fails (4.77/76), on the paper screens: pane light, which no filter reads and which
 ReSTIR's reuse of lamp samples would not reach.
+
+## The finished frame
+
+`omw release bench`, default suite, 1920×1080, after a warm-up leg; frame median / p99 / worst, ms.
+Taken under the session (the `card` lines name kwin and zed in a few samples), so a quiet desktop
+may read lower (`verify-manually.md`).
+
+| Build | ship | ship at dawn | guild |
+|---|---|---|---|
+| phase 8, native | 10.50 / 14.05 / 20.47 | 11.27 / 14.85 / 15.72 | 8.26 / 11.29 / 12.05 |
+| now, native | 9.14 / 13.59 / 16.41 | 10.11 / 13.34 / 14.98 | 6.97 / 9.43 / 9.77 |
+| now, native, PBR | 10.91 / 14.41 / 15.82 | 12.30 / 15.65 / 16.62 | 8.05 / 10.55 / 11.10 |
+| phase 8, quality | 5.81 / 7.67 / 8.59 | 6.29 / 8.85 / 10.51 | 4.32 / 6.28 / 7.04 |
+| now, quality | 5.21 / 6.89 / 7.85 | 5.70 / 7.73 / 8.70 | 3.60 / 5.39 / 7.78 |
+| now, quality, PBR | 6.12 / 8.43 / 10.56 | 6.77 / 8.81 / 9.95 | 4.17 / 5.96 / 6.66 |
+
+The filter's zone at the ship: 2.47 → 1.49 ms at native, 1.10 → 0.64 at quality. The glossy filter
+under PBR: 0.19–0.21 ms at the ship.

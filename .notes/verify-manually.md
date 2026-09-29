@@ -82,3 +82,10 @@ Only under the PBR profile: the Zed tasks that start the game with `~/.config/op
   The pictures moved by a few levels; say whether any looks noisier.
 - **Stars.** `STAR_RADIANCE` fell from 0.45 to 0.36 (the level was matched through DLSS, which took a
   fifth off a star). Look at a clear night sky and say whether the stars read as Morrowind's.
+
+## The whole run
+
+- **A bench on a quiet desktop.** Every figure in `.notes/denoise-progress.md` was taken while this
+  session ran. Close the editor and the terminal's animation and run
+  `./omw release bench --upscale=native` twice, then once with the PBR profile, to confirm the frame
+  times in "The finished frame".
