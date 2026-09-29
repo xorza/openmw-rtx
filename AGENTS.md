@@ -27,7 +27,9 @@ them.
 - Both renderers stand behind one interface that exposes no implementation detail. Where the game
   would branch on which renderer it has, the seam abstracts the question instead.
 - Performance matters. Compute nothing twice; compute as early as possible.
-- Target hardware: NVIDIA RTX 20 series and later.
+- Target hardware: NVIDIA RTX 20 series and later, and AMD RDNA 2 and later. Only the NVIDIA card
+  here runs anything; an AMD device is stood up under Mesa's drm-shim (`~/Projects/mesa/build-shim`),
+  which compiles every kernel and executes none.
 - One binary ships both renderers, and the one not chosen never starts.
 - Opacity micromaps (`VK_EXT_opacity_micromap`) for the cutouts were tried and declined: the
   trace did not get faster, and building the maps only added loading time. Do not propose them again.
@@ -45,7 +47,7 @@ them.
 
 ## Where the code lives
 
-**Vulkan on ray-tracing NVIDIA hardware, Turing and later**, behind an API-neutral core rather than
+**Vulkan on ray-tracing hardware, NVIDIA Turing and AMD RDNA 2 and later**, behind an API-neutral core rather than
 a portability layer. A fact about Vulkan that leaks into the core is a bug whether or not a second
 backend ever arrives.
 
@@ -87,11 +89,14 @@ backend ever arrives.
   driver, which builds `openmw-rtxtool` and runs it in the flavour's directory:
   `./omw [flavour] info|scene|shot|view|bench|check|film|noise`, and `./omw exec ./openmw-rtxtool --help`
   for their options. The places are `files/rtx/views.cfg`, the suites `files/rtx/benches.cfg`.
-- `./omw shot --views=all --map --out=<dir>` ahead of a change and `--against=<dir>` after it says
-  which pictures the change moved. `scene` reports what the renderer was handed. `check` asserts
+- `./omw shot --views=all --map --upscale=off --out=<dir>` ahead of a change and `--against=<dir>`
+  after it says which pictures the change moved. `--upscale=off`, because the harness upscales at
+  `quality` unless told, and an upscaled picture moves with anything its history saw. `scene` reports what the renderer was handed. `check` asserts
   the tree's claims at every place of its suite. `bench` has the moving camera. `view` is for what
   only a window shows, and `film` flies through the keys `view --keys` wrote. `noise` holds the
-  frame against a converged reference, and fails a frame noisier than sixteen frames averaged.
+  frame against a converged reference, and fails a frame noisier than sixteen frames averaged;
+  `--strafe=150` takes the frame after the eye flew in from the side, which is what a history
+  length or a filter's reach shows in.
 - `./omw kernels > before.txt` ahead of a shader change and `--against=before.txt` after
   it names the kernels the change moved, per tuple of their constants; a tuple it did not name
   draws what it drew.

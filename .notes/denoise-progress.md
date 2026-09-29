@@ -19,7 +19,9 @@ The plan is `.notes/denoise-and-upscale.md`. What a person has to look at is
 | 8 FSR 3.1.4 | done | a815be83d9 |
 | 9 the glossy filter | done | 84b3aefc2e |
 | 3 the driver floors | done | 7952c16b0f |
-| 11 parity of the optional features | done | (this commit) |
+| 11 parity of the optional features | done | 4a2680be3b |
+| — `noise --strafe` | done | 7406a4e4b5 |
+| 12 the documents | done | (this commit) |
 
 ## Phase 4: the shadow denoiser
 
@@ -330,3 +332,10 @@ trace.
   vendors, not parity. The holders stay NVML's: amdgpu counts use per open file, not per card.
 - `DriverCache`: `MESA_SHADER_CACHE_DISABLE=false`, `MESA_SHADER_CACHE_DIR` and
   `MESA_SHADER_CACHE_MAX_SIZE=8G` beside NVIDIA's variables (Mesa's `docs/envvars.rst`).
+
+## Phase 12: the documents
+
+`architecture.md` (the target, the three denoisers and where each runs, the upscaler, the frame's
+record order), `README.md` and `rtx.rst` (AMD RDNA 2 and later as a target, every driver's floor),
+`AGENTS.md` (the target and the shim; `shot` baselines with `--upscale=off`; `noise --strafe`).
+Intel is named nowhere (D9). The settings text and its translations were brought to FSR in phase 8.

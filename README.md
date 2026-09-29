@@ -50,11 +50,12 @@ Requirements
 ------------
 
 * An NVIDIA RTX card, Turing (RTX 20 series) or later, which is what the renderer is written and
-  tested for.
+  tested for. An AMD card, RDNA 2 (RX 6000 series) or later, starts too, but nothing has run on
+  one yet.
 * Vulkan 1.4 with ray tracing pipelines, ray queries, position fetch and `VK_KHR_shader_fma`. A
   device missing any of them refuses to start rather than falling back.
-* NVIDIA driver 595 or later, on Windows or Linux. It is the first to offer `VK_KHR_shader_fma`, so
-  an older driver is refused for that extension and runs once the driver is updated.
+* A driver that offers `VK_KHR_shader_fma`: NVIDIA 595 or later, AMD 26.3.1 or later, or Mesa 26.2
+  or later on Linux. An older driver is refused for that extension and runs once it is updated.
 
 Tested on one machine so far: a laptop RTX 4090 at 150 W, which is about a desktop RTX 4070.
 
