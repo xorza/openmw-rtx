@@ -21,7 +21,9 @@ The plan is `.notes/denoise-and-upscale.md`. What a person has to look at is
 | 3 the driver floors | done | 7952c16b0f |
 | 11 parity of the optional features | done | 4a2680be3b |
 | — `noise --strafe` | done | 7406a4e4b5 |
-| 12 the documents | done | (this commit) |
+| 12 the documents | done | 56e5a44d90 |
+| 10 the rates and the levels | done | (this commit) |
+| 5b ReSTIR DI temporal | not run: its condition does not hold | — |
 
 ## Phase 4: the shadow denoiser
 
@@ -339,3 +341,65 @@ trace.
 record order), `README.md` and `rtx.rst` (AMD RDNA 2 and later as a target, every driver's floor),
 `AGENTS.md` (the target and the shim; `shot` baselines with `--upscale=off`; `noise --strafe`).
 Intel is named nowhere (D9). The settings text and its translations were brought to FSR in phase 8.
+
+## Phase 10: the rates and the levels
+
+Order: 10 ran after 3, 11 and 12, in the `~/Projects/openmw-base` worktree, so its builds did not
+mix with the work in this tree. One constant at a time from the tree's values, `noise` at `native`
+under both profiles. The still frame could not see what the rates were chosen for (their comments
+say "judged on a moving camera"), so `noise --strafe=150` was built (7406a4e4b5) and the sweep ran
+again with it. The first strafe run summed its thirty frames into one picture; fixed before any
+figure below.
+
+Frame mean / p99, `native` (bars: vanilla 5.92/30 and 4.54/38; PBR 7.06/34 and 7.34/53):
+
+| Change | vanilla pier | vanilla guild | PBR pier | PBR guild | strafed: vanilla pier | guild | PBR pier | guild |
+|---|---|---|---|---|---|---|---|---|
+| none | 2.64/13 | 4.18/35 | 5.10/20 | 6.35/47 | 2.32/12 | 4.40/36 | 5.12/21 | 6.99/52 |
+| `INDIRECT_LIGHT_RATE` 0.25 | 2.64/13 | 4.18/35 | 5.11/20 | 6.35/47 | 2.33/12 | 4.40/36 | 5.14/21 | 6.99/52 |
+| `INDIRECT_LIGHT_RATE` 1 | 2.64/13 | 4.18/35 | 5.10/20 | 6.35/47 | | | | |
+| `BOUNCE_RATE` 0.25 | 3.03/14 | 4.26/41 | 6.14/22 | 6.86/55 | | | | |
+| `BOUNCE_RATE` 1 | 2.51/13 | 4.10/30 | 4.50/19 | 6.01/42 | 2.05/11 | 4.34/32 | 4.56/19 | 6.67/48 |
+| `AMBIENT_EXTERIOR_RATE` 0.25 | 2.64/13 | 4.18/35 | 5.10/20 | 6.35/47 | 2.32/12 | 4.40/36 | 5.12/21 | 6.99/52 |
+| `AMBIENT_EXTERIOR_RATE` 1 | 2.64/13 | 4.18/35 | 5.10/20 | 6.35/47 | | | | |
+| `ATROUS_LEVELS` 4 | 2.64/13 | 4.16/35 | 5.09/20 | 6.35/47 | 2.33/12 | 4.35/36 | 5.12/21 | 6.97/52 |
+| `ATROUS_LEVELS` 3 | 2.63/13 | 4.15/35 | 5.09/20 | 6.34/47 | 2.33/12 | 4.32/36 | 5.12/21 | 6.97/52 |
+
+**The rule's spread.** `noise` is deterministic, so two runs never differ; the spread the plan's
+rule needs is the reference's own error. A 256-frame reference stands about a sixteenth of a raw
+frame's error from the truth: 18.54 / 16 = 1.16 at the vanilla pier, 12.21 / 16 = 0.76 at the PBR
+guild.
+
+**Decisions:**
+
+- `ATROUS_LEVELS` 5 → **3**. Level with five, still and strafing, under both profiles; the filter's
+  zone 2.98 and 3.23 ms → 1.76 and 1.72 at the two places (taken on a busy desktop, but two fewer
+  full-screen dispatches is not a figure the desktop moves). The local map tiles, which have no
+  history and are all the wavelet's: at most 20 levels apart on Vivec's dark tile, most pixels
+  within one, nothing visible (`maps-compare`). `theFilterRebuildsAnArmThroughTheArmsOwnEye`
+  measured again: the arms' eye 3.2%, the world's 6.4%; the bound went from 2.5% to 4.5%.
+- `BOUNCE_RATE` stays **0.5**. One is cleaner, by less than the reference's error, for 0.5–0.6 ms
+  of trace; a quarter is outside the error at the PBR guild (6.86 against 6.01, spread 0.76) and
+  fails its p99 bar.
+- `INDIRECT_LIGHT_RATE` and `AMBIENT_EXTERIOR_RATE` stay **0.5**. A quarter and one leave the noise
+  where a half does, to 0.02. The rule would take the cheaper value, but a quarter is not shown
+  cheaper: the trace zones on a busy desktop moved by less than their run-to-run scatter, and both
+  comments record why a warp waits out a skipped short ray anyway. A cost that cannot be shown is
+  not taken.
+- The two issues: `STAR_RADIANCE` 0.45 → **0.36** (the level matched through DLSS's fifth; FSR at
+  native leaves a star's peak where no upscaler does, a median of 119 against 113 of 255 at
+  Balmora, clear, one in the morning). The indirect rate is judged, above. Both are gone from
+  `ISSUES.md`.
+
+Proofs, after the change: `noise` at native 2.63/13 and 4.15/35, PBR 5.09/20 and 6.34/47, strafed
+2.33/12 and 4.32/36, the filter's zone 1.75–1.90 ms; `repeat --pairs=10` identical; unfiltered
+`shot --views=all --map --upscale=off` identical to phase 9's but for the 26 map tiles, which the
+wavelet always filters (at most 32 levels on Arkngthand's dark tile, nothing visible); the filtered
+pictures move by up to 25 levels, as fewer levels should.
+
+## Phase 5b: not run
+
+Its condition: the guild's frame still fails its bar at p99 after 4, 5a and 6a. At `native`, the
+played default, it passes under both profiles (4.18/35 against 4.54/38; 6.35/47 against 7.34/53).
+At `off` it fails (4.77/76), on the paper screens: pane light, which no filter reads and which
+ReSTIR's reuse of lamp samples would not reach.

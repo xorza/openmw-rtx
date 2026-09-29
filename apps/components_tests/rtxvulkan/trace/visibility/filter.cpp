@@ -250,10 +250,10 @@ namespace Rtx::Testing
             const auto [filteredMean, filteredSpread] = spreadOf(true);
             ASSERT_GT(rawSpread, 0.0f) << "a bounce with no noise proves nothing";
             EXPECT_NEAR(filteredMean, rawMean, 0.004f) << "the arm keeps its light";
-            // Measured: the arms' eye leaves 1.0 per cent of the spread, and the world's 4.9 — its
-            // levels past the first two turn their taps away. A bound between the two, at half
-            // the world's figure.
-            EXPECT_LT(filteredSpread, rawSpread * 0.025f) << "the arm's noise was not taken away";
+            // Measured over the cascade's three levels: the arms' eye leaves 3.2 per cent of the
+            // spread, and the world's 6.4 — its coarser levels turn their taps away. A bound between
+            // the two.
+            EXPECT_LT(filteredSpread, rawSpread * 0.045f) << "the arm's noise was not taken away";
         }
 
         /// The same floor at a grazing angle, against the answer it is trying to reach.
@@ -356,7 +356,7 @@ namespace Rtx::Testing
             // **The accumulator may not make this worse, and on this surface that is the whole of
             // what it can be asked.** Measured here, the cascade alone already lands at 0.0020 of
             // the converged reference — a flat sheet under a smooth sky is precisely
-            // where five levels of à-trous have every advantage, since the signal is uniform and
+            // where à-trous has every advantage, since the signal is uniform and
             // every neighbour is a valid sample of it. What the history is for is the case this
             // scene does not have: contact regions, small geometry, and pixels with few neighbours
             // looking at the same thing, which is what
@@ -409,8 +409,8 @@ namespace Rtx::Testing
         /// filter is that it refuses to mix two surfaces that happen to be neighbours on screen.
         ///
         /// So this measures the one place where that shows: the step from one row to the next
-        /// across the crease. Away from it a blur is nearly harmless, because five levels of a
-        /// B3 kernel put most of their weight near the centre however far the taps reach — which is
+        /// across the crease. Away from it a blur is nearly harmless, because every level of a
+        /// B3 kernel puts most of its weight near the centre however far the taps reach — which is
         /// exactly why a test comparing the two ends of the frame passes with the guide switched
         /// off, and this one does not.
         ///

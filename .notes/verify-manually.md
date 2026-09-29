@@ -71,3 +71,14 @@ Only under the PBR profile: the Zed tasks that start the game with `~/.config/op
 - **A device loss on AMD.** A debug build now writes AMD buffer markers where NVIDIA's checkpoints
   are not offered. If an AMD card ever loses the device, the fault report should name the last zone
   at the top and the bottom of the pipe.
+
+## Phase 10: three wavelet levels
+
+- **Where a history is lost.** The wavelet now runs three levels, not five, which saves 1.2–1.5 ms.
+  Still and strafing frames measure the same, but a frame right after a door, a teleport or a
+  fast turn leans on the wavelet alone. Walk through a door and turn fast in the Seyda Neen docks:
+  look for a noisier first frame or two than before.
+- **Map tiles.** Open the local map in a few cells: a tile is one frame the wavelet filters alone.
+  The pictures moved by a few levels; say whether any looks noisier.
+- **Stars.** `STAR_RADIANCE` fell from 0.45 to 0.36 (the level was matched through DLSS, which took a
+  fifth off a star). Look at a clear night sky and say whether the stars read as Morrowind's.

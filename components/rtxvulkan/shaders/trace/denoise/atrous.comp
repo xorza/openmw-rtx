@@ -153,7 +153,7 @@ void main()
     // What one pixel covers where this surface is, which is the scale every plane offset below is
     // measured against. Reading `mSpreadAngle` for it instead lands on nought for a parallel
     // projection, and a footprint of nought rejects every tap but the centre — a map tile running
-    // five levels of this and coming out exactly as it went in.
+    // every level of this and coming out exactly as it went in.
     const float footprint = footprintAlong(eyeAt(at), away);
 
     // **How noisy this pixel still is, which is what makes the brightness test mean anything.** A

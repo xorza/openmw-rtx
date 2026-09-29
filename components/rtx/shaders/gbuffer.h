@@ -34,7 +34,7 @@
 //
 // **The surface is one texel of two floats: the normal as a code, and the distance whole.** They are
 // what the filters tell two surfaces apart by, and the cascade reads both at every tap — twenty-five
-// times a pixel at each of five levels, the largest read in the frame — so one fetch of eight bytes
+// times a pixel at each of the cascade's levels, the largest read in the frame — so one fetch of eight bytes
 // a tap and not two of sixteen. The distance is whole because the plane test measures offsets of a
 // fraction of a pixel's footprint at any distance. The normal is `packSurfaceNormal`'s code, twelve
 // bits an octahedral axis: 0.06 degrees at the worst against the six degrees of tilt the cascade's
