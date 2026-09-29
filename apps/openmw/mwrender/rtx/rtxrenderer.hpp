@@ -15,6 +15,7 @@
 #include <components/esm3/refnum.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -250,8 +251,7 @@ namespace MWRender
             Gui,
         };
 
-        /// How hard the upscaler between the trace and the picture works, which a machine that
-        /// cannot reach the mode refuses.
+        /// How hard the upscaler between the trace and the picture works, from the next frame.
         void setUpscale(Rtx::Upscale upscale);
 
         /// Traces the world the walk has just mirrored: the frame behind finished, the scene handed
@@ -346,6 +346,10 @@ namespace MWRender
         osg::Timer_t mStartTick = 0;
 
         std::unique_ptr<Rtx::Renderer> mRenderer;
+
+        /// What the settings or the command line upscale by, which a stop may set aside for its own
+        /// frames (`RtxRun::getUpscale`) and a menu moves (`setUpscale`).
+        Rtx::Upscale mUpscale = Rtx::Upscale::Off;
 
         /// After the backend, because its slot is in the backend's table and goes back before the
         /// table does.

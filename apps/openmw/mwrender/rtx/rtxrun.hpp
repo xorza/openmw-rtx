@@ -6,6 +6,7 @@
 
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
@@ -114,6 +115,12 @@ namespace MWRender
         virtual std::optional<Rtx::ReconstructionRequest> getReconstruction() const = 0;
         virtual std::optional<Rtx::ExposureRule> getExposure() const = 0;
 
+        /// What the stop upscales by in place of what the settings or the command line asked, or
+        /// nothing for that: a reference is traced with no upscaler, whatever the frame it is
+        /// compared with is upscaled by. A change rebuilds the targets, as a resize does, so a run
+        /// changes it at a stop's edge and not inside one.
+        virtual std::optional<Rtx::Upscale> getUpscale() const = 0;
+
         /// Whether the stop wants the graph walked a second time, so it can report what that added.
         virtual bool wantsSecondWalk() const = 0;
 
@@ -151,6 +158,7 @@ namespace MWRender
         std::uint32_t getAccumulated() const override { return 0; }
         std::optional<Rtx::ReconstructionRequest> getReconstruction() const override { return std::nullopt; }
         std::optional<Rtx::ExposureRule> getExposure() const override { return std::nullopt; }
+        std::optional<Rtx::Upscale> getUpscale() const override { return std::nullopt; }
         bool wantsSecondWalk() const override { return false; }
         bool wantsFrameCopy() const override { return false; }
         std::optional<Rtx::AirClock> getHeldAir() const override { return std::nullopt; }

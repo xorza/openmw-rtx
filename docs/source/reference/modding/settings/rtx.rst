@@ -43,14 +43,14 @@ also follow the settings window while the game runs.
    :title: upscale
    :type: string
    :range: off, ultraperformance, performance, balanced, quality, native
-   :default: off
+   :default: native
 
-   Put the upscaler between the trace and the screen. The window's size is what comes out; what
-   gets traced is the upscaler's answer for it. :code:`native` reconstructs across frames without
-   upscaling. :code:`off` traces at the window's size with the renderer's own filter.
-
-   The renderer has no upscaler yet, so it traces at the window's size whatever this says, and its
-   menus do not offer it. A name this does not know is refused rather than quietly defaulted.
+   Put the upscaler, AMD's FSR 3.1, between the trace and the screen. The window's size is what
+   comes out; what gets traced is that size over the mode's ratio: 3 for :code:`ultraperformance`,
+   2 for :code:`performance`, 1.7 for :code:`balanced`, 1.5 for :code:`quality` and 1 for
+   :code:`native`, which upscales nothing and reconstructs each frame from the frames before it, as
+   the anti-aliasing. :code:`off` traces at the window's size with no anti-aliasing, and the menus do
+   not offer it. A name this does not know is refused rather than quietly defaulted.
 
 .. omw-setting::
    :title: specular map layout

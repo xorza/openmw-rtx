@@ -149,10 +149,6 @@ bool Launcher::GraphicsPage::loadSettings()
         }
     }
 
-    // A renderer without an upscaler traces at the window's size whatever the mode, so it offers none.
-    rayTracingUpscaleLabel->setVisible(Rtx::sUpscalerBuilt);
-    rayTracingUpscaleComboBox->setVisible(Rtx::sUpscalerBuilt);
-
     // aaValue is the actual value (0, 1, 2, 4, 8, 16)
     const int aaValue = Settings::video().mAntialiasing;
     // aaIndex is the index into the allowed values in the pull down.

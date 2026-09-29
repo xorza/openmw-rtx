@@ -82,12 +82,9 @@ namespace Rtx
         , mScenes(mDevice)
         , mGui(mDevice, options.mShaderDirectory, PresentTargets::sFormat)
         , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures())
+        , mUpscaler(mDevice, options.mShaderDirectory)
     {
         mDevice.getMemory().limitBudget(options.mMemoryBudget);
-
-        // Before the first targets, because what to trace at is its answer and not ours.
-        if (mProfile.mUpscaling.mMode != Upscale::Off)
-            startUpscaler();
 
         if (mProfile.mStressOverlapMs > 0.0)
             mStress = std::make_unique<StressPass>(mDevice, options.mShaderDirectory, mProfile.mStressOverlapMs);
@@ -116,17 +113,6 @@ namespace Rtx
         mDevice.collectIdle();
     }
 
-    void VulkanRenderer::startUpscaler()
-    {
-        if (mUpscaler != nullptr)
-            return;
-
-        // A quarter of a second, which is why it waits to be wanted. Bringing the runtime up
-        // loads the feature libraries; a player who never upscales should not spend that at every
-        // start, and one who turns it on in the menu spends it once.
-        mUpscaler = makeUpscaler(mDevice, mInstance.getHandle());
-    }
-
     void VulkanRenderer::resetHistory()
     {
         mFrame.resetHistory();
@@ -149,11 +135,6 @@ namespace Rtx
     {
         if (upscale == mProfile.mUpscaling.mMode)
             return;
-
-        // Before anything is torn down, so a mode this machine cannot reach leaves the renderer
-        // drawing exactly as it was rather than half way between two of them.
-        if (upscale != Upscale::Off)
-            startUpscaler();
 
         mProfile.mUpscaling.mMode = upscale;
 
@@ -191,12 +172,11 @@ namespace Rtx
         // the present is still blitting out of. `PresentTargets` is what holds that rule.
         mTargets.resize(mDevice, width, height);
 
-        // A runtime that is up because somebody upscaled and then turned it off keeps nothing
-        // but itself: the feature and its image go with the mode.
+        // An upscaler a mode turned off keeps nothing but its pipelines: its images go with the mode.
         if (upscaling())
-            mUpscaler->resize(render, output, mProfile.mUpscaling);
-        else if (mUpscaler != nullptr)
-            mUpscaler->release();
+            mUpscaler.resize(render, output);
+        else
+            mUpscaler.release();
 
         // Over the output extent, which is what the frame is by the time the curve maps it: the
         // upscaler's output where one runs, and the trace itself, at the same size, where none does.
@@ -214,7 +194,7 @@ namespace Rtx
 
         report += mDevice.getPhysicalDevice().describe();
 
-        report += "\nupscaler:          " + describeUpscaling(mDevice, mInstance.getHandle()) + '\n';
+        report += "\nupscaler:          " + std::string(Upscaler::describe()) + '\n';
 
         // Reaching here is the part that proves the rest: the device resolved every entry point the
         // required extensions promise, and a driver advertising one it cannot dispatch fails before
@@ -652,14 +632,17 @@ namespace Rtx
         if (reconstruction.upscaled())
         {
             timer.open(commands, "upscale");
-            mUpscaler->record(commands,
+            mUpscaler.record(commands,
                 UpscaleInputs{
                     .mColour = traced.mColour,
                     .mSurface = channels.get(Channel::Surface),
                     .mMotion = channels.get(Channel::Motion),
-                    .mJitter = sampled.mCamera.mJitter,
+                    .mPuffs = channels.get(Channel::Puffs),
+                    .mCamera = sampled.mCamera,
+                    .mArms = sampled.mArms,
                     .mFrameDeltaMs = sinceLastMs,
                     .mReset = upscalerLost,
+                    .mSlot = mRing.getRecordingSlot(),
                 });
             timer.close(commands);
             mUpscalerStale = false;
@@ -683,7 +666,7 @@ namespace Rtx
         mDisplay.record(commands,
             Display{
                 .mTrace = traced,
-                .mShown = upscaled ? mUpscaler->getOutput() : traced.mColour,
+                .mShown = upscaled ? mUpscaler.getOutput() : traced.mColour,
                 .mShownFrom = upscaled ? Use::sAnyGeneralWrite : Use::sAnyGeneralRead,
                 .mExtent = mTargets.getExtent(),
                 .mSampled = sampled,

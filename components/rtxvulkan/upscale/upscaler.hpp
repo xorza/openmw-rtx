@@ -1,85 +1,123 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
+#include <filesystem>
 #include <memory>
-#include <string>
+#include <string_view>
 
 #include <osg/Vec2f>
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/shaders/camera.h>
+#include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/device/memory/frameslots.hpp>
+#include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/pipeline/computepipeline.hpp>
+
+#include "fsrframe.hpp"
 
 namespace Rtx
 {
     class Device;
-    class Image;
 
-    /// Everything one reconstruction reads: what a temporal upscaler takes, and no guide one
-    /// upscaler alone asks for. Every image is created with `VK_IMAGE_USAGE_SAMPLED_BIT`, since an
-    /// upscaler may sample any of them.
+    /// Everything one reconstruction reads. Every image is created with `VK_IMAGE_USAGE_SAMPLED_BIT`,
+    /// since the upscaler samples all of them.
     struct UpscaleInputs
     {
-        /// The frame at render resolution, as the trace chain composed it: denoised by the wavelet
-        /// where it ran, and the trace's own composite where nothing filtered it.
+        /// The frame at render resolution, as the trace chain composed it: denoised where the
+        /// denoisers ran, and the trace's own composite where nothing filtered it.
         const Image& mColour;
 
-        /// `CHANNEL_SURFACE`: the distance from the eye along each pixel's ray in `g`. An upscaler
-        /// that compares depths derives the one a rasterizer would have written from it, on the
-        /// frames it upscales, rather than every frame storing one for it.
+        /// `CHANNEL_SURFACE`: the distance from the eye along each pixel's ray in `g`, which the
+        /// upscaler's depth is worked out from (`fsrcallbacks.glsl`).
         const Image& mSurface;
 
-        /// Where each surface stood on the previous frame's screen, less where it stands now, in
-        /// render pixels.
+        /// Where each surface stood on the previous frame's screen, less where it was sampled on this
+        /// one, in render pixels.
         const Image& mMotion;
 
-        /// Where inside its pixel this frame sampled, in render pixels — the same offset the trace
-        /// was given.
-        osg::Vec2f mJitter;
+        /// `CHANNEL_PUFFS`, for the one bit that says which eye a pixel's ray left.
+        const Image& mPuffs;
 
-        /// How long since the previous frame, in milliseconds, or nought where there was none: a
-        /// motion vector says how far something went and not how fast.
+        /// The two eyes the trace sampled through, jitter and all.
+        Shaders::Camera mCamera;
+        Shaders::Camera mArms;
+
+        /// How long since the previous frame, in milliseconds, or nought where there was none.
         float mFrameDeltaMs = 0.0f;
 
         /// Whether the previous frame is worth anything. True after a jump no motion vector can
         /// describe: a new cell, a teleport, the first frame after a resize.
         bool mReset = false;
+
+        /// The frame in flight this reconstruction is recorded into, whose constants it writes.
+        FrameSlot mSlot;
     };
 
-    /// What the frame asks of whatever reconstructs it across frames: what to trace at, and the
-    /// frame at the output extent. None stands behind it yet, so `makeUpscaler` refuses by name,
-    /// and nothing else in the frame path knows whether one does.
+    /// FSR 3.1.4, ported: AMD's temporal upscaler, which also reconstructs a frame at its own size,
+    /// as the anti-aliasing. The passes are AMD's (`extern/fidelityfx/`), the bindings and the
+    /// inputs the port's (`shaders/upscale/`), and this is the SDK host's dispatch
+    /// (`ffx_fsr3upscaler.cpp`): the resources, the order, the clears. `FsrFrame` is its constants.
+    ///
+    /// **Compute shaders and nothing else**, so every device that runs the renderer runs it: no
+    /// extension, no library, no vendor.
     class Upscaler
     {
     public:
-        virtual ~Upscaler() = default;
+        Upscaler(const Device& device, const std::filesystem::path& shaderDirectory);
+        ~Upscaler();
 
         Upscaler(const Upscaler&) = delete;
         Upscaler& operator=(const Upscaler&) = delete;
 
         /// Builds what the upscaler keeps for one pair of extents and the image it writes, releasing
-        /// the last, so nothing is left behind for a pair that may not come back. Once per
-        /// resolution, and never per frame.
-        virtual void resize(VkExtent2D render, VkExtent2D output, const Upscaling& how) = 0;
+        /// the last, and clears all of it: the frame after starts a history of its own. Once per
+        /// resolution, and never per frame. The caller has waited for anything still reading the old.
+        void resize(VkExtent2D render, VkExtent2D output);
 
-        /// Lets what `resize` built go and keeps the upscaler, for a mode turned off that may not come
-        /// back.
-        virtual void release() = 0;
+        /// Lets what `resize` built go and keeps the pipelines, for a mode turned off that may come back.
+        void release();
 
         /// The image `record` writes, which the display composites the puffs over and maps.
-        virtual const Image& getOutput() const = 0;
+        const Image& getOutput() const;
 
-        /// Records one reconstruction into `getOutput`, at the output extent, and leaves it in
-        /// `Use::sAnyGeneralWrite`: what the reconstruction recorded is its own, and nothing here
-        /// knows which stages it used. After `resize`.
-        virtual void record(VkCommandBuffer commands, const UpscaleInputs& inputs) = 0;
+        /// Records one reconstruction into `getOutput`, at the output extent, and leaves it as
+        /// `Use::sAnyGeneralWrite`. After `resize`.
+        void record(VkCommandBuffer commands, const UpscaleInputs& inputs);
 
-    protected:
-        Upscaler() = default;
+        /// One line for `info`: which upscaler this renderer has.
+        static std::string_view describe() { return "FSR 3.1.4, ported"; }
+
+        /// What the passes are, in the order `record` dispatches them.
+        enum class Pass : std::uint8_t
+        {
+            Inputs,
+            LumaPyramid,
+            ChangePyramid,
+            Change,
+            Reactivity,
+            Instability,
+            Accumulate,
+        };
+        static constexpr std::size_t sPasses = 7;
+
+    private:
+        struct Targets;
+
+        const Device& mDevice;
+
+        std::array<ComputePipeline, sPasses> mPipelines;
+        Sampler mSampler;
+
+        /// The three constant blocks, one buffer a frame in flight: `FSR_BLOCKS_BYTES` written whole
+        /// by the host before the frame's dispatches read it.
+        PerSlot<Buffer> mBlocks;
+
+        FsrFrame mFrame;
+
+        /// Empty until `resize`, and after `release`.
+        std::unique_ptr<Targets> mTargets;
     };
-
-    /// Brings the upscaler up, or throws `Unsupported` naming what is missing.
-    std::unique_ptr<Upscaler> makeUpscaler(const Device& device, VkInstance instance);
-
-    /// One line for `info`: which upscaler this renderer has, or none.
-    std::string describeUpscaling(const Device& device, VkInstance instance);
 }

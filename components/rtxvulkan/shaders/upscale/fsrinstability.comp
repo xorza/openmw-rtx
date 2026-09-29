@@ -1,0 +1,64 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_samplerless_texture_functions : require
+
+// Derived from the FidelityFX SDK (v1.1.4), `ffx_fsr3upscaler_luma_instability_pass.glsl`, whose notice
+// follows.
+//
+// Copyright (C) 2024 Advanced Micro Devices, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files(the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions :
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+// How unstable each pixel's luma has been over the last frames, which the accumulation damps by.
+//
+// The SDK's pass file with the renderer's binding names (`fsr.h`) and its configuration stated here
+// rather than on a command line: GLSL, full floats, a frame in HDR radiance, motion vectors at the
+// render extent and from the pixel's centre, and a reversed depth.
+
+#define FFX_GPU 1
+#define FFX_GLSL 1
+#define FFX_HALF 0
+#define FFX_FSR3UPSCALER_OPTION_HDR_COLOR_INPUT 1
+#define FFX_FSR3UPSCALER_OPTION_LOW_RESOLUTION_MOTION_VECTORS 1
+#define FFX_FSR3UPSCALER_OPTION_JITTERED_MOTION_VECTORS 0
+#define FFX_FSR3UPSCALER_OPTION_INVERTED_DEPTH 1
+#define FFX_FSR3UPSCALER_OPTION_APPLY_SHARPENING 0
+
+#define FSR3UPSCALER_BIND_SRV_INPUT_EXPOSURE FSR_INSTABILITY_BIND_EXPOSURE
+#define FSR3UPSCALER_BIND_SRV_DILATED_REACTIVE_MASKS FSR_INSTABILITY_BIND_DILATED_MASKS
+#define FSR3UPSCALER_BIND_SRV_DILATED_MOTION_VECTORS FSR_INSTABILITY_BIND_DILATED_MOTION
+#define FSR3UPSCALER_BIND_SRV_FRAME_INFO FSR_INSTABILITY_BIND_FRAME_INFO
+#define FSR3UPSCALER_BIND_SRV_LUMA_HISTORY FSR_INSTABILITY_BIND_LUMA_HISTORY
+#define FSR3UPSCALER_BIND_SRV_FARTHEST_DEPTH_MIP1 FSR_INSTABILITY_BIND_FARTHEST_DEPTH_MIP1
+#define FSR3UPSCALER_BIND_SRV_CURRENT_LUMA FSR_INSTABILITY_BIND_CURRENT_LUMA
+#define FSR3UPSCALER_BIND_UAV_LUMA_HISTORY FSR_INSTABILITY_BIND_LUMA_HISTORY_OUT
+#define FSR3UPSCALER_BIND_UAV_LUMA_INSTABILITY FSR_INSTABILITY_BIND_INSTABILITY
+#define FSR3UPSCALER_BIND_CB_FSR3UPSCALER FSR_INSTABILITY_BIND_CONSTANTS
+
+#include "upscale/fsrcallbacks.glsl"
+#include "fsr3upscaler/ffx_fsr3upscaler_common.h"
+#include "fsr3upscaler/ffx_fsr3upscaler_luma_instability.h"
+
+layout(local_size_x = FSR_WORKGROUP, local_size_y = FSR_WORKGROUP) in;
+
+void main()
+{
+    LumaInstability(FfxInt32x2(gl_GlobalInvocationID.xy));
+}

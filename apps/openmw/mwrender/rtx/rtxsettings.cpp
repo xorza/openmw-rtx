@@ -38,12 +38,4 @@ namespace MWRender
             .mAnisotropy = static_cast<std::uint32_t>(std::max(values.mAnisotropy, 1)),
         };
     }
-
-    RtxSettings RtxSettings::playedIn(const bool upscalerBuilt) const
-    {
-        RtxSettings played = *this;
-        if (!upscalerBuilt)
-            played.mUpscaling.mMode = Rtx::Upscale::Off;
-        return played;
-    }
 }

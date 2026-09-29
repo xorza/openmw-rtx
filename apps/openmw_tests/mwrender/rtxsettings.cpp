@@ -61,26 +61,6 @@ namespace MWRender
             EXPECT_EQ(RtxSettings::derive(unfiltered).mAnisotropy, 1u) << "nought filters as one does";
         }
 
-        /// **A played session starts in every build.** Without an upscaler, each mode the file can
-        /// name traces at the window's size and nothing else of the settings moves; with one, each
-        /// mode is kept as it was asked.
-        TEST(RtxSettingsTest, aBuildWithoutAnUpscalerPlaysEveryModeAtTheWindowsSize)
-        {
-            for (const auto& [mode, spelling] : Rtx::sUpscaleNames.mNames)
-            {
-                RtxSettingValues values = valid();
-                values.mUpscale = spelling;
-                const RtxSettings asked = RtxSettings::derive(values);
-
-                const RtxSettings without = asked.playedIn(false);
-                EXPECT_EQ(without.mUpscaling.mMode, Rtx::Upscale::Off) << spelling;
-                EXPECT_EQ(without.mMirror.mReach, asked.mMirror.mReach) << spelling;
-                EXPECT_EQ(without.mAnisotropy, asked.mAnisotropy) << spelling;
-
-                EXPECT_EQ(asked.playedIn(true).mUpscaling.mMode, mode) << spelling;
-            }
-        }
-
         /// A spelling that names no mode is refused rather than defaulted, whichever of the two it
         /// is: a typo that quietly traced under `off` would be a session of the wrong picture.
         TEST(RtxSettingsTest, aSpellingNoModeHasIsRefused)

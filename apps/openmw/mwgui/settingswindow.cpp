@@ -360,9 +360,8 @@ namespace MWGui
             { static_cast<MyGUI::Widget*>(mRayTracingDistantLand), mRayTracingDistantLandText })
             widget->setVisible(rayTracing);
 
-        // A renderer without an upscaler traces at the window's size whatever the mode, so it offers none.
         for (MyGUI::Widget* widget : { static_cast<MyGUI::Widget*>(mRayTracingUpscale), mRayTracingUpscaleText })
-            widget->setVisible(rayTracing && Rtx::sUpscalerBuilt);
+            widget->setVisible(rayTracing);
 
         addMenuItems(mRayTracingUpscale, sUpscaleLabels);
         mRayTracingUpscale->eventComboChangePosition
