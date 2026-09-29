@@ -181,6 +181,24 @@ namespace Rtx
         AddWhole,
     };
 
+    /// Whether what is behind a surface is meant to show through it. `AlphaMode::Blend` alone
+    /// does not say so: Morrowind keeps its foliage under `NiAlphaProperty`, so a leaf card and a
+    /// pane of glass carry the same mode, and what tells them apart is the surface's own alpha. An
+    /// additive surface is neither: it covers nothing at any alpha. The one rule, over the three
+    /// facts as the content states them, so a reading made off a description and a material made
+    /// from it cannot answer differently.
+    inline bool translucentSurface(const AlphaMode mode, const float opacity, const BlendKind blend)
+    {
+        return mode == AlphaMode::Blend && opacity < 1.0f && blend == BlendKind::Over;
+    }
+
+    /// Whether a surface adds to what is behind it and covers nothing — `BlendKind::Add` or
+    /// `AddWhole` under a blend. The same rule over the same two facts, for the same reason.
+    inline bool additiveSurface(const AlphaMode mode, const BlendKind blend)
+    {
+        return mode == AlphaMode::Blend && blend != BlendKind::Over;
+    }
+
     /// What a parent state set has claimed for the rest of a chain.
     ///
     /// **OpenGL resolves a chain root first, and a parent that set a value with `OVERRIDE` keeps
@@ -307,6 +325,16 @@ namespace Rtx
         /// imageless textures clear the map, which is what a placeholder a flip controller has
         /// not filled in yet amounts to.
         void setTexture(SurfaceMap map, const osg::Texture* texture);
+
+        /// Whether the surface gives light of its own, which the trace adds past the light it
+        /// receives (`litSurface`): an emissive colour, an emissive map, colours that are a glow,
+        /// the ambient a magic effect overrides, or an additive blend.
+        bool emits() const
+        {
+            const bool coloured = mEmissiveMult > 0.0f && mEmissiveColour != EncodedColour{};
+            return coloured || getTexture(SurfaceMap::Emissive) != nullptr || mVertexColour == VertexColour::Glow
+                || mAmbientOverride.has_value() || additiveSurface(mAlphaMode, mBlend);
+        }
 
         bool operator==(const SurfaceDescription& other) const = default;
     };

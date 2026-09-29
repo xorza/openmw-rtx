@@ -107,8 +107,9 @@ namespace
     class DayNightCallback : public SceneUtil::NodeCallback<DayNightCallback, osg::Switch*>
     {
     public:
+        // No mode, so the first update sets the child: the file may open the switch on any of them.
         DayNightCallback()
-            : mCurrentState(0)
+            : mCurrentState(std::numeric_limits<unsigned int>::max())
         {
         }
 

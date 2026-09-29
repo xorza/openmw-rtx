@@ -16,8 +16,10 @@
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/mirror/sceneadopter.hpp>
+#include <components/sceneutil/lightcommon.hpp>
 #include <components/terrain/objectstorage.hpp>
 
+#include "nightday.hpp"
 #include "prepared.hpp"
 
 namespace osg
@@ -43,6 +45,26 @@ namespace Rtx
         bool isStanding() const { return mSlot != sNoIndex; }
     };
 
+    /// What the game says of one reference the ring holds, which the content files cannot. One for
+    /// each placement of it and one for its lamp, so a lamp's light hears what its model hears —
+    /// `CellPlacer::standsBy`.
+    struct ReferenceState
+    {
+        ESM::RefNum mRefNum;
+
+        /// The gate the game decides its standing by, or `Terrain::sNoGate` — `CellPlacer::setGate`.
+        std::uint32_t mGate = Terrain::sNoGate;
+
+        /// A script has disabled the reference. Set as the cell is adopted and flipped by
+        /// `CellPlacer::setReferenceEnabled`, which is what keeps it off the walk every frame makes.
+        /// Behind a gate that decided, the gate's answer stands in for it.
+        bool mDisabled = false;
+
+        /// The game moved, deleted or animates the reference: nothing of it stands, whatever a
+        /// script or a gate says.
+        bool mBlacklisted = false;
+    };
+
     /// One placement the ring may stand: a part of a model at a reference.
     struct Placement
     {
@@ -51,19 +73,20 @@ namespace Rtx
         /// What the size rule reads. A cell's placements are sorted by it, largest first, so what
         /// the rule admits at any threshold is a prefix — `HeldCell::mShown`.
         float mRadius = 0.0f;
-        ESM::RefNum mRefNum;
 
-        /// The gate the game decides its standing by, or `Terrain::sNoGate` — `CellPlacer::setGate`.
-        std::uint32_t mGate = Terrain::sNoGate;
+        /// The modes its part is shown in — `PreparedPart::mModes`.
+        NightDayModes mModes;
 
-        /// A script has disabled the reference. Set as the cell is adopted and flipped by
-        /// `CellPlacer::setReferenceEnabled`, which is what keeps it off the walk every frame makes.
-        /// Behind a gate that decided, the gate's answer stands in for it: `CellPlacer::stands`.
-        bool mDisabled = false;
+        ReferenceState mState;
+    };
 
-        /// The game moved, deleted or animates the reference: no slot, whatever a script or a gate
-        /// says.
-        bool mBlacklisted = false;
+    /// One lamp's light the ring may stand: what `CellPlacer::place` builds a light from on every
+    /// walk, and what the game says of the lamp.
+    struct HeldLight
+    {
+        osg::Vec3f mPosition;
+        SceneUtil::LightCommon mRecord;
+        ReferenceState mState;
     };
 
     /// A cell's ground as the frame holds it: its rows, where it stands, and the readings of its
@@ -110,7 +133,7 @@ namespace Rtx
         HeldGround mGround;
 
         /// The cell's lamps, which `CellPlacer::place` stands on every walk at the frame's own hour.
-        std::vector<PreparedLight> mLights;
+        std::vector<HeldLight> mLights;
 
         /// Empties it for the next cell, keeping the room every list grew.
         void reuse()

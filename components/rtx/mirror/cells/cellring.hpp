@@ -53,10 +53,10 @@ namespace Rtx
     ///
     /// **The lamps of the cells the game has not loaded are the ring's too.** `REC_LIGH` is not a
     /// paged type and must not become one, because both renderers read the paging's type filter;
-    /// what this fork cannot keep is the light, because rays go everywhere, and a town four cells
+    /// what this fork cannot keep is the lamp, because rays go everywhere, and a town four cells
     /// away that goes dark at dusk is the world stating something the content files do not. Read
-    /// with the cell's other records in one walk of them, off the frame, and stood by
-    /// `CellPlacer::place`, which says where.
+    /// with the cell's other records in one walk of them, off the frame: the light stood by
+    /// `CellPlacer::place`, which says where, and the model as any static's.
     class CellRing
     {
     public:
@@ -69,8 +69,9 @@ namespace Rtx
         ~CellRing();
 
         /// Where the world is now, and what of it is read. A world with no content stands nothing,
-        /// and a change of what is read drops everything held and starts again. Told once a frame,
-        /// before the walk.
+        /// and a change of what is read drops everything held and starts again. A change of the
+        /// day-night mode moves the switches of every cell held at once —
+        /// `CellPlacer::setNightDay`. Told once a frame, before the walk.
         void follow(const WorldAround& around);
 
         /// Whether the ring stands the distance's statics at all. The ground stands either way;

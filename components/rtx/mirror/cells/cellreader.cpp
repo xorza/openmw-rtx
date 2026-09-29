@@ -3,14 +3,18 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <utility>
 
+#include <osg/Matrix>
 #include <osg/Matrixf>
+#include <osg/Node>
 #include <osg/Quat>
+#include <osg/Transform>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
@@ -22,6 +26,7 @@
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/sceneutil/lightcommon.hpp>
+#include <components/sceneutil/visitor.hpp>
 
 #include "cellworld.hpp"
 #include "prepared.hpp"
@@ -44,6 +49,22 @@ namespace Rtx
             return transform;
         }
 
+        /// Where `SceneUtil::addLight` attaches a lamp's light in the model at `root`: the first
+        /// node named `AttachLight` its visitor meets, or the root.
+        osg::Vec3f anchorIn(const osg::Node& root)
+        {
+            // OSG's visitor API is non-const throughout, and neither walk writes anything.
+            osg::Node& walked = const_cast<osg::Node&>(root);
+            SceneUtil::FindByNameVisitor find("AttachLight");
+            walked.accept(find);
+            if (find.mFoundNode == nullptr)
+                return osg::Vec3f();
+
+            // A template's nodes have no parents outside it: the game's clone copies every node.
+            const osg::NodePathList paths = find.mFoundNode->getParentalNodePaths(&walked);
+            assert(!paths.empty() && "a node the walk found that no path leads to");
+            return osg::Vec3f() * osg::computeLocalToWorld(paths.front());
+        }
     }
 
     CellReader::CellReader(const Terrain::ObjectStorage& storage, Terrain::Storage& ground, ContentSource& content,
@@ -116,6 +137,33 @@ namespace Rtx
         return &model;
     }
 
+    const VFS::Path::Normalized& CellReader::modelPathOf(const ESM::RefId& record)
+    {
+        auto named = mModelPaths.find(record);
+        if (named == mModelPaths.end())
+        {
+            VFS::Path::Normalized model = mStorage.getModel(record);
+            if (!model.empty())
+                model = Misc::ResourceHelpers::correctMeshPath(model);
+            named = mModelPaths.emplace(record, std::move(model)).first;
+        }
+
+        return named->second;
+    }
+
+    osg::Vec3f CellReader::anchorOf(const ESM::RefId& lamp)
+    {
+        auto anchored = mAnchors.find(lamp);
+        if (anchored == mAnchors.end())
+        {
+            const VFS::Path::Normalized& model = modelPathOf(lamp);
+            const osg::ref_ptr<const osg::Node> node = model.empty() ? nullptr : mContent.getTemplate(model);
+            anchored = mAnchors.emplace(lamp, node != nullptr ? anchorIn(*node) : osg::Vec3f()).first;
+        }
+
+        return anchored->second;
+    }
+
     PreparedCell& CellReader::read(const osg::Vec2i& cell, const bool statics)
     {
         PreparedCell& prepared = mCells.take([&](PreparedCell& into) {
@@ -151,102 +199,96 @@ namespace Rtx
 
         // One cell at a time, which is the paging's near answer: containers page here as they do
         // in the active grid's own chunks, and the size rule is what thins them with distance. One
-        // walk of the cell's records answers the lights too, which the paging never stands, and a
-        // reference is a lamp where its record is a `LIGH`: the paging draws no lamp's mesh in the
-        // distance, so neither is one stood here.
+        // walk of the cell's records answers the lamps too, which the paging never stands, and a
+        // reference is a lamp where its record is a `LIGH`: its light is carried whether or not
+        // the statics are read, and its model stands as any static's does.
         mStorage.collect(1.0f, cell, mWorldspace, Terrain::RefKinds::Both, *mCollector, mRefScratch);
 
-        // Which references are lamps, asked once per reference: the statics below skip them.
-        mIsLampScratch.assign(mRefScratch.size(), 0);
-        for (std::size_t at = 0; at < mRefScratch.size(); ++at)
+        for (const Terrain::PagedCellRef& ref : mRefScratch)
         {
-            const Terrain::PagedCellRef& ref = mRefScratch[at];
-            const std::optional<SceneUtil::LightCommon> record = mStorage.getLight(ref.mRefId);
-            if (!record.has_value())
-                continue;
-
-            mIsLampScratch[at] = 1;
-
-            // Made once here to be judged, and again every walk to be stood, because a flame is a
-            // function of the hour and whether a lamp is refused is not. A record off by default
-            // casts nothing wherever it is placed, so it is not carried.
-            const Result<std::optional<Light>, std::string_view> made
-                = makeLight(*record, ref.mPosition, 0.0, static_cast<int>(ref.mRefNum.mIndex));
-            if (!made.isOk())
-                prepared.mRefusals.push_back(Refusal{
-                    .mKind = Refused::Lamp, .mName = ref.mRefId.toDebugString(), .mWhy = std::string(made.error()) });
-            else if (made.value().has_value())
-                prepared.mLights.push_back(PreparedLight{
-                    .mPosition = ref.mPosition,
-                    .mRefNum = ref.mRefNum,
-                    .mRecord = *record,
-                });
+            const bool givesLight = readLamp(ref, prepared);
+            if (statics)
+                readStatic(ref, givesLight, prepared);
         }
+    }
 
-        if (!statics)
+    bool CellReader::readLamp(const Terrain::PagedCellRef& ref, PreparedCell& prepared)
+    {
+        const std::optional<SceneUtil::LightCommon> record = mStorage.getLight(ref.mRefId);
+        if (!record.has_value())
+            return false;
+
+        // Made once here to be judged, and again every walk to be stood, because a flame is a
+        // function of the hour and whether a lamp is refused is not. A record off by default
+        // casts nothing wherever it is placed, so it is not carried.
+        const osg::Vec3f position = anchorOf(ref.mRefId) * transformOf(ref);
+        const Result<std::optional<Light>, std::string_view> made
+            = makeLight(*record, position, 0.0, static_cast<int>(ref.mRefNum.mIndex));
+        if (!made.isOk())
+        {
+            prepared.mRefusals.push_back(Refusal{
+                .mKind = Refused::Lamp, .mName = ref.mRefId.toDebugString(), .mWhy = std::string(made.error()) });
+            return false;
+        }
+        if (!made.value().has_value())
+            return false;
+
+        prepared.mLights.push_back(PreparedLight{
+            .mPosition = position,
+            .mRefNum = ref.mRefNum,
+            .mGate = ref.mGate,
+            .mRecord = *record,
+        });
+        return true;
+    }
+
+    void CellReader::readStatic(const Terrain::PagedCellRef& ref, const bool givesLight, PreparedCell& prepared)
+    {
+        // A reference naming no record is the content's to answer for, and the game draws
+        // nothing for one either.
+        if (Misc::ResourceHelpers::isHiddenMarker(ref.mRefId))
             return;
 
-        for (std::size_t at = 0; at < mRefScratch.size(); ++at)
+        const VFS::Path::Normalized& model = modelPathOf(ref.mRefId);
+        if (model.empty())
+            return;
+
+        // A model this cannot read is a reference left out and refused, and never a cell
+        // left out: a settled walk waits for every cell of the ring, and one that never came
+        // would hold it for ever.
+        PreparedModel* read = readModel(model);
+        if (read == nullptr)
+            return;
+
+        if (!read->mRefused.empty())
         {
-            const Terrain::PagedCellRef& ref = mRefScratch[at];
-
-            // A lamp, carried above; a reference naming no record is the content's to answer for,
-            // and the game draws nothing for one either.
-            if (mIsLampScratch[at] != 0 || Misc::ResourceHelpers::isHiddenMarker(ref.mRefId))
-                continue;
-
-            // The path a record names, built once for the record and not once for every
-            // reference to it: a town is a few hundred references to a few dozen models.
-            auto named = mModelPaths.find(ref.mRefId);
-            if (named == mModelPaths.end())
-            {
-                VFS::Path::Normalized model = mStorage.getModel(ref.mRefId);
-                if (!model.empty())
-                    model = Misc::ResourceHelpers::correctMeshPath(model);
-                named = mModelPaths.emplace(ref.mRefId, std::move(model)).first;
-            }
-
-            const VFS::Path::Normalized& model = named->second;
-            if (model.empty())
-                continue;
-
-            // A model this cannot read is a reference left out and refused, and never a cell
-            // left out: a settled walk waits for every cell of the ring, and one that never came
-            // would hold it for ever.
-            PreparedModel* read = readModel(model);
-            if (read == nullptr)
-                continue;
-
-            if (!read->mRefused.empty())
-            {
-                prepared.mRefusals.push_back(
-                    Refusal{ .mKind = Refused::Model, .mName = read->mPath, .mWhy = read->mRefused });
-                continue;
-            }
-
-            if (read->mParts.empty())
-                continue;
-
-            std::uint32_t index = 0;
-            for (; index < prepared.mModels.size(); ++index)
-                if (prepared.mModels[index] == read)
-                    break;
-
-            // One hold for the cell, however many of its references stand the model.
-            if (index == prepared.mModels.size())
-            {
-                prepared.mModels.push_back(read);
-                mModels.lend(*read);
-            }
-
-            prepared.mRefs.push_back(PreparedRef{
-                .mModel = index,
-                .mRefNum = ref.mRefNum,
-                .mTransform = transformOf(ref),
-                .mRadius = read->mRadius * ref.mScale,
-                .mGate = ref.mGate,
-            });
+            prepared.mRefusals.push_back(
+                Refusal{ .mKind = Refused::Model, .mName = read->mPath, .mWhy = read->mRefused });
+            return;
         }
+
+        if (read->mParts.empty())
+            return;
+
+        std::uint32_t index = 0;
+        for (; index < prepared.mModels.size(); ++index)
+            if (prepared.mModels[index] == read)
+                break;
+
+        // One hold for the cell, however many of its references stand the model.
+        if (index == prepared.mModels.size())
+        {
+            prepared.mModels.push_back(read);
+            mModels.lend(*read);
+        }
+
+        prepared.mRefs.push_back(PreparedRef{
+            .mModel = index,
+            .mRefNum = ref.mRefNum,
+            .mTransform = transformOf(ref),
+            .mRadius = givesLight || read->mEmits ? std::numeric_limits<float>::infinity() : read->mRadius * ref.mScale,
+            .mGate = ref.mGate,
+        });
     }
 
     void CellReader::giveBack(PreparedCell& cell)

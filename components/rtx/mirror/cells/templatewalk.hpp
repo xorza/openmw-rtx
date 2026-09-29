@@ -15,6 +15,8 @@
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/meantexels.hpp>
 
+#include "nightday.hpp"
+
 namespace osg
 {
     class Drawable;
@@ -32,7 +34,10 @@ namespace Rtx
     /// another thread may write nothing into it. `SceneUtil::CopyOp` shares the drawables, state
     /// sets and transforms, so a mesh read here is the mesh the frame's walk finds under the clone.
     /// A sequence is walked at the frame it stands on, an LOD at its nearest level: `descendInWorld`
-    /// is the rule both walks share. Not thread-safe: one a thread.
+    /// is the rule both walks share. **Save a `NightDaySwitch`, whose every branch is read**, each
+    /// part marked with the modes it is shown in: the game sets a clone's switch by the hour, and
+    /// nothing sets the template's, which stays at the branch its file opens on. Not thread-safe:
+    /// one a thread.
     class TemplateWalk final : public osg::NodeVisitor
     {
     public:
@@ -55,7 +60,8 @@ namespace Rtx
         void apply(osg::Drawable& drawable) override;
 
     private:
-        /// Descends into the children of `node` that are in the world, running no clock on the way.
+        /// Descends into the children of `node` that are in the world, running no clock on the way,
+        /// and into every branch of a day-night switch.
         void descend(osg::Node& node);
 
         /// Puts `stateSet` at the near end of the chain, with the fade resolved through it.
@@ -78,6 +84,9 @@ namespace Rtx
         /// `computeLocalToWorldMatrix` works in, and narrowed where a drawable is handed over, as
         /// the frame's walk narrows it.
         osg::Matrix mHere;
+
+        /// The modes the day-night switches above where the walk is standing show it in.
+        NightDayModes mModes;
 
         /// The state sets in force where the walk is standing, nearest last. Kept across walks and
         /// refilled, because a model is hundreds of drawables and the thread reads thousands.

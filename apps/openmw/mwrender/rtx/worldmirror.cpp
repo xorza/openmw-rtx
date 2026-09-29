@@ -27,6 +27,7 @@
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
+#include <components/rtx/mirror/cells/nightday.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -36,6 +37,7 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "../../mwworld/cellstore.hpp"
+#include "../../mwworld/weather.hpp"
 #include "../sceneframe.hpp"
 #include "../sky.hpp"
 #include "../vismask.hpp"
@@ -69,6 +71,22 @@ namespace MWRender
         private:
             Resource::SceneManager& mScenes;
         };
+
+        /// Which child the ring's day-night switches show: the game's mode, whose value is the
+        /// child's index as the ring's is, or the child each file opens on where the game drives
+        /// no switch.
+        Rtx::NightDayMode nightDayOf(const WorldState& world)
+        {
+            static_assert(static_cast<unsigned int>(Rtx::NightDayMode::Default) == MWWorld::Default
+                && static_cast<unsigned int>(Rtx::NightDayMode::ExteriorNight) == MWWorld::ExteriorNight
+                && static_cast<unsigned int>(Rtx::NightDayMode::InteriorDay) == MWWorld::InteriorDay);
+
+            if (!world.mNightDayMode.has_value())
+                return Rtx::NightDayMode::Authored;
+
+            assert(*world.mNightDayMode <= MWWorld::InteriorDay && "a day-night mode the ring has no name for");
+            return static_cast<Rtx::NightDayMode>(*world.mNightDayMode);
+        }
 
         /// What every walk this renderer makes takes: an exclusion of what the ray tracer draws
         /// itself, never a selection of what a walk is interested in. A node mask is AND-ed at
@@ -240,9 +258,9 @@ namespace MWRender
         mSea->setNodeMask(frame.mWorld.mWater.isShown() ? ~0u : 0u);
         mExtractor.extract(*mSea, osg::Matrixf::identity(), Anchor::Sea, frameNumber);
 
-        // The eye, the reach, the world's own grid and the hour, said once to the ring: what the
-        // game has stood for itself is what the ring may not stand again, and its lamps burn at
-        // the world's clock as the graph's do.
+        // The eye, the reach, the world's own grid, the hour and the day-night mode, said once to
+        // the ring: what the game has stood for itself is what the ring may not stand again, and
+        // its lamps burn and its windows light at the world's clock as the graph's do.
         const Rtx::WorldAround around{
             .mWorld = {
                 .mStorage = &frame.mObjectStorage,
@@ -259,6 +277,7 @@ namespace MWRender
             .mActiveGrid = frame.mTerrain.getActiveGrid(),
             .mExterior = !frame.mWorld.isInteriorCell(),
             .mSimulationTime = frame.mWhen.getSimulationTime(),
+            .mNightDay = nightDayOf(frame.mWorld),
         };
 
         // Told once a frame, because what the graph does not hold is the frame's to say. The

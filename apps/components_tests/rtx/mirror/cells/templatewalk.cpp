@@ -1,7 +1,9 @@
 #include <cstddef>
 #include <initializer_list>
+#include <iterator>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -23,8 +25,10 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/graph.hpp>
+#include <components/misc/constants.hpp>
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/mirror/cells/nightday.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/rtx/mirror/cells/templatewalk.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
@@ -134,6 +138,83 @@ namespace Rtx::Testing
             // **Nothing was stepped.** A frame's walk moves a flipbook's clock; this one may not,
             // because the template is every clone's and every thread's.
             EXPECT_EQ(frames->getValue(), 1);
+        }
+
+        /// The modes named, one bit each.
+        NightDayModes modesOf(std::initializer_list<NightDayMode> shown)
+        {
+            NightDayModes modes{ .mBits = 0 };
+            for (const NightDayMode mode : shown)
+                modes = modes | NightDayModes::only(mode);
+            return modes;
+        }
+
+        /// **Every branch of a `NightDaySwitch` is read**, under the modes that show it, and a quad
+        /// outside the switch under every mode. The game's mode `m` shows child `m` of a switch of
+        /// more than `m` children and child 0 of any other (`DayNightCallback`), and `Authored` the
+        /// child the file opens on:
+        /// - two children, opening on 1: child 0 in `Default` and `InteriorDay` (two is not more
+        ///   than two), child 1 in `ExteriorNight` and `Authored`;
+        /// - four, opening on 0: each of the first three in the mode of its index, child 0 in
+        ///   `Authored` too, and child 3 in none, so it is not read;
+        /// - two opening on 0, inside child 1 of two opening on 0, which shows in `ExteriorNight`
+        ///   alone: the inner child 0 would show in `Default`, `InteriorDay` and `Authored`, and
+        ///   meets the outer's in none, so it is not read; the inner child 1 in `ExteriorNight`.
+        TEST(RtxTemplateWalkTest, everyBranchOfADayNightSwitchIsReadUnderTheModesThatShowIt)
+        {
+            using enum NightDayMode;
+
+            const auto dayNight = [](std::initializer_list<osg::Node*> children, unsigned int opensOn) {
+                osg::ref_ptr<osg::Switch> branches = new osg::Switch;
+                branches->setName(Constants::NightDayLabel);
+                for (osg::Node* child : children)
+                    branches->addChild(child, false);
+                branches->setSingleChildOn(opensOn);
+                return branches;
+            };
+
+            struct Read
+            {
+                const osg::Drawable* mDrawable = nullptr;
+                NightDayModes mModes;
+            };
+
+            const osg::ref_ptr<osg::Geometry> quads[] = { makeQuad(), makeQuad(), makeQuad(), makeQuad() };
+            const osg::ref_ptr<osg::Group> outerNight = new osg::Group;
+            outerNight->addChild(dayNight({ quads[2], quads[3] }, 0));
+
+            const std::pair<osg::ref_ptr<osg::Switch>, std::vector<Read>> cases[] = {
+                { dayNight({ quads[0], quads[1] }, 1),
+                    { { quads[0], modesOf({ Default, InteriorDay }) },
+                        { quads[1], modesOf({ ExteriorNight, Authored }) } } },
+                { dayNight({ quads[0], quads[1], quads[2], quads[3] }, 0),
+                    { { quads[0], modesOf({ Default, Authored }) }, { quads[1], modesOf({ ExteriorNight }) },
+                        { quads[2], modesOf({ InteriorDay }) } } },
+                { dayNight({ quads[0], outerNight }, 0),
+                    { { quads[0], modesOf({ Default, InteriorDay, Authored }) },
+                        { quads[3], modesOf({ ExteriorNight }) } } },
+            };
+
+            TemplateWalk walk;
+            for (std::size_t at = 0; at < std::size(cases); ++at)
+            {
+                const auto& [branches, read] = cases[at];
+                const osg::ref_ptr<osg::Geometry> plain = makeQuad();
+                osg::ref_ptr<osg::Group> root = new osg::Group;
+                root->addChild(plain);
+                root->addChild(branches);
+
+                PreparedModel model;
+                ASSERT_TRUE(walk.read(*root, ~0u, model).isOk()) << at;
+                ASSERT_EQ(model.mParts.size(), 1 + read.size()) << at;
+                EXPECT_EQ(model.mParts[0].mDrawable, plain.get()) << at;
+                EXPECT_TRUE(model.mParts[0].mModes.isEvery()) << at << ": outside the switch";
+                for (std::size_t part = 0; part < read.size(); ++part)
+                {
+                    EXPECT_EQ(model.mParts[1 + part].mDrawable, read[part].mDrawable) << at << ", " << part;
+                    EXPECT_EQ(model.mParts[1 + part].mModes, read[part].mModes) << at << ", " << part;
+                }
+            }
         }
 
         /// **A mesh this cannot build refuses its model on the reader's thread**, where the reader
