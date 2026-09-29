@@ -153,9 +153,10 @@ takes it in.
 - **F7. The harness upscales by default once an upscaler exists.** `sUpscaleByDefault` in
   `apps/rtxtool/run.hpp` becomes `Quality`. Every `shot` baseline and every `--against` run must name
   `--upscale=off` from phase 8 on, and `noise` must trace its reference and its bar at `off`.
-- **F8. Two things are blocked on this machine.** There is no PBR replacer in the data (vanilla
+- **F8. One thing is blocked on this machine.** There is no PBR replacer in the data (vanilla
   `Morrowind.esm`, `Tribunal.esm`, `Bloodmoon.esm` only), so the glossy filter (phase 9) has nothing
-  to be measured on. The drm-shim build needs `python-mako`, which is not installed.
+  to be measured on. The drm-shim can be built: `python-mako` is installed, the installed RADV is
+  Mesa 26.2.3, and `~/Projects/mesa` stands at the tag `mesa-26.2.3`.
 - **F9. The tree uses no subgroup operations.** No shader reads a subgroup, and no requirement names
   one. The ports keep it so. AMD compiles compute at wave32 or wave64 and Intel at SIMD8 to SIMD32,
   and a reduction written for an 8×4 wave is wrong on both.
@@ -689,8 +690,23 @@ Depends on nothing.
 2. Fixtures in `apps/components_tests/rtxvulkan/device/physicaldevice.cpp`, with the extension lists
    and properties from vulkan.gpuinfo.org reports of those drivers. Each fixture's comment names its
    report.
-3. The drm-shim half (every pipeline compiled for navi21, navi31 and gfx1201) stays blocked until
-   `python-mako` is installed (F8). The record gives the command.
+3. The drm-shim (D5), built and never installed. In `~/Projects/mesa`, at `mesa-26.2.3` (the
+   installed RADV's tag; check `pacman -Q vulkan-radeon` again first):
+   `meson setup build-shim -Dbuildtype=release -Dgallium-drivers= -Dvulkan-drivers=amd -Dtools=drm-shim`,
+   then `ninja -C build-shim`. No `ninja install`. The run needs
+   `LD_PRELOAD=<mesa>/build-shim/src/amd/drm-shim/libamdgpu_noop_drm_shim.so`, `AMDGPU_GPU_ID` set to
+   the chip, and `VK_ICD_FILENAMES` set to the build's own RADV ICD JSON. Read the shim's source for
+   the exact spelling of the chip names and for what it fakes, before the first run.
+4. Under the shim, for navi21 (RDNA 2), navi31 (RDNA 3) and gfx1201 (RDNA 4): `./omw exec
+   ./openmw-rtxtool info`. The device must be accepted, or refused with a reason the record then
+   explains.
+5. Every pipeline compiled for each chip: a harness verb `compile` that builds every kernel tuple
+   (`./omw kernels` lists them) on the device and prints, per pipeline, the registers, the spills and
+   the scratch size from `VK_KHR_pipeline_executable_properties`. It runs on the real card as well, so
+   the NVIDIA figures stand beside the AMD ones. The verb goes through `sVerbs`, `VerbPolicy`,
+   `tools/omw/main.py` and `AGENTS.md`'s verb line, as `noise` did.
+6. Stop rule of its own: if the shim cannot stand a device up (the renderer needs more of the device
+   than a noop shim fakes), record where it stopped and keep items 1 and 2.
 
 ### Phase 11: parity of the optional features
 
