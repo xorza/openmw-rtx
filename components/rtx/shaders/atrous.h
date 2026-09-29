@@ -22,8 +22,8 @@
 // radiance at full width, `RadianceWidth::Summed`, is entirely about a term added to a thousand
 // others.
 //
-// **What it costs is a floor, and the floor is measured.** Five levels each round what they store,
-// which puts about 3e-4 of the value under the cascade's own error — visible only where the cascade
+// **What it costs is a floor, and the floor is measured.** Each level rounds what it stores, which
+// over five levels put about 3e-4 of the value under the cascade's own error — visible only where the cascade
 // had already driven that error below it, which is a flat sheet under a smooth sky.
 // `theFilterAndItsHistoryConvergeOnAGrazingSurface` is that scene, and it carries the pair of
 // figures.

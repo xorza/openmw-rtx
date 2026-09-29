@@ -261,7 +261,13 @@ namespace Rtx::Shaders
     /// which carries the sheets as one mean — `NightSky::mGlow` — so raising this raises that too
     /// and `Skylight::mFill` takes it back out of the weather's own ambient. The night's light does
     /// not move.
-    const float STAR_RADIANCE = 0.45f;
+    ///
+    /// **The level a star was matched to the content at, and not the number it was matched with.**
+    /// It was judged through DLSS, which took a fifth off the brightest star, so what was matched
+    /// was 0.45 of a texel times four fifths. Nothing between the trace and the screen dims a star
+    /// now: the wavelet never reads the sky, and FSR at `native` left a clear night's star peaks
+    /// where no upscaler did (a median of 119 against 113 of 255 at Balmora at one in the morning).
+    const float STAR_RADIANCE = 0.36f;
 
     /// What a texel of the three nebulae is worth as radiance.
     ///
@@ -443,6 +449,11 @@ namespace Rtx::Shaders
     /// its lamps seen once off a wall, so rating it there halves the samples of the term that carries
     /// the room, where outside the sun has already lit everything the bounce lands on. Every interior
     /// view renders bit-identically under this, which `shot --against` says.
+    ///
+    /// **Judged again under the accumulator, the wavelet and FSR**, still and strafing in, under both
+    /// profiles: a quarter, a half and all of it stand within 0.02 of each other at the pier and in
+    /// the guild, far inside the reference's own error. What a lower rate would save is a short ray
+    /// a warp waits out anyway, so the half stays.
     const float INDIRECT_LIGHT_RATE = 0.5f;
 
     /// What share of the eye's hits trace their bounce at all, the rest paying by weight.
@@ -464,6 +475,12 @@ namespace Rtx::Shaders
     /// the sky: that pixel paid for nothing, and rating it would add noise and save no time.
     ///
     /// Reaches the shader as `VisibilityConstants::mBounceRate` and not by name, which says why.
+    ///
+    /// **Judged again under the accumulator, the wavelet and FSR at `native`.** Tracing every bounce
+    /// is cleaner — the pier strafed in 2.05 against 2.32, the PBR guild 6.67 against 6.99 — for half
+    /// a millisecond of trace, and by less than the reference's own error, about a sixteenth of a raw
+    /// frame's. A quarter falls outside it: the PBR guild still 6.86 against 6.01, with a spread of
+    /// 0.76. So the half stays.
     const float BOUNCE_RATE = 0.5f;
 
     /// How fast a bounce ray's cone widens, against a primary ray's.
@@ -537,6 +554,10 @@ namespace Rtx::Shaders
     ///
     /// The interior ray keeps every point: it is short, and a room is where this term does its
     /// visible work.
+    ///
+    /// **Judged again under the accumulator, the wavelet and FSR**: a quarter and all of it leave the
+    /// pier's and the guild's noise where the half does, to the second decimal, still and strafing
+    /// in, which is the argument above for stopping at a half.
     const float AMBIENT_EXTERIOR_RATE = 0.5f;
 
     /// How far a ray carries fog before whatever is behind it stops mattering.
@@ -1159,13 +1180,20 @@ namespace Rtx::Shaders
     /// one holds its detail. SVGF's own figure.
     const float ATROUS_LUMINANCE_SIGMA = 4.0f;
 
-    /// How far apart a level's taps stand, doubling each level: 1, 2, 4, 8, 16.
+    /// How many levels the cascade runs, its taps standing 1, 2 and 4 pixels apart.
     ///
-    /// **Five levels of a 5×5 kernel reach sixty-two pixels.** Each takes two taps at its own
-    /// spacing, so the cascade's support is twice `1 + 2 + 4 + 8 + 16`. That is the à-trous trick —
-    /// the holes between taps grow while the tap count does not, so a hundred and twenty-five
-    /// samples do what a single kernel of that reach would need fifteen thousand for.
-    const uint ATROUS_LEVELS = 5;
+    /// **Three levels of a 5×5 kernel reach fourteen pixels**: each takes two taps at its own
+    /// spacing, so the support is twice `1 + 2 + 4`. That is the à-trous trick — the holes between
+    /// taps grow while the tap count does not.
+    ///
+    /// **Three and not the five SVGF runs, because what the wide levels did is done over time now.**
+    /// The accumulator averages sixteen frames ahead of the cascade and FSR accumulates behind it, so
+    /// a level past the third spreads light that is already quiet. Measured at native under both
+    /// profiles, still and strafing in (`noise --strafe=150`), three levels stand level with five
+    /// (the guild 4.15/35 still and 4.32/36 strafing, against 4.18/35 and 4.40/36), the local map
+    /// tiles — one frame, no history — move by a few levels at most, and the filter's zone falls
+    /// from 3.0 ms to 1.75 at 1920×1080 (`.notes/denoise-progress.md`, phase 10).
+    const uint ATROUS_LEVELS = 3;
 
     /// How much of a froxel's answer comes from where it stood last frame.
     ///

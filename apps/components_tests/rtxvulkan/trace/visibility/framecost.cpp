@@ -68,7 +68,7 @@ namespace Rtx::Testing
         /// Asked of the renderer, all of it is measured and none of it can drift.
         ///
         /// **Five shapes, because they light different code.** A plain frame traces and composites; a
-        /// filtered one adds the wavelet's five levels and its history; an accumulating one adds the
+        /// filtered one adds the wavelet's levels and its history; an accumulating one adds the
         /// sum image; a body walking is the one thing the frame path *computes* rather than copies —
         /// a pose the host writes, a dispatch, a refit, and a rebuild of what moved; and a storm
         /// thickening and thinning is every table a frame writes changing length under it, below the
