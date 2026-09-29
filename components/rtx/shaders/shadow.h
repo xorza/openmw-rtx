@@ -8,7 +8,8 @@
 
 // What the shadow denoiser needs: a port of AMD's FidelityFX Shadow Denoiser (SDK v1.1.4), over the
 // one bit `CHANNEL_SUNLIT` holds per pixel. Included verbatim by both sides, for the reason
-// `visibility.h` is. `lib/shadowdenoise.glsl` says what the port keeps and what it changes.
+// `visibility.h` is. `shadowtiles.comp` and `shadowfilter.comp` each say what their half of the port
+// keeps and what it changes.
 
 // What the passes keep, said once for both sides that have to agree.
 //

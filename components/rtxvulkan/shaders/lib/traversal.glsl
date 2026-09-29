@@ -116,8 +116,8 @@ float sampledOpacity(float opacity, float painted)
     return clamp(painted * opacity, 0.0, 1.0);
 }
 
-/// The same, for a caller that has not read the texture yet — which is every caller but the one
-/// that wants the colour beside the alpha. `gatherAlong` is that one.
+/// The same, for a caller that wants nothing of the texel but this. `gatherAlong` wants its colour
+/// beside it, and `candidateStops` its alpha against the cutoff.
 ///
 /// @param point where the hit lands on the material's own texture, made once by the caller.
 float sampledOpacity(float opacity, GpuMaterial material, TexturePoint point)
@@ -259,9 +259,15 @@ bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, TriangleEdges
     const TexturePoint point = candidatePoint(
         triangleCorners(meshAt(instance.mMesh), primitive), material, bary, edges, direction, coneWidth, detailed);
 
+    // **A hole is a hole to the ray that walks past as well.** A placement the game is fading
+    // makes its cutout see-through, and the eye still passes a texel under the cutoff before it
+    // peels what is left — so a shadow ray charged by that texel was a shadow of nothing the eye
+    // sees. Selected, so a pane with no mask pays the one compare.
     if (walkPast)
     {
-        blocked = addShare(blocked, blockedBy(sampledOpacity(opacity, material, point)));
+        const float painted = sampleDiffuse(material.mDiffuse, point).a;
+        const bool hole = hasMask(material) && painted < material.mAlphaCutoff;
+        blocked = addShare(blocked, blockedBy(hole ? 0.0 : sampledOpacity(opacity, painted)));
         return false;
     }
 

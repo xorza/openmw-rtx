@@ -291,8 +291,10 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
             solidWithin(WorldRay(leaving, vec3(0.0, 0.0, -1.0)), SHADOW_BIAS, WATER_SHORE_FADE,
                 Cone(surface.mFootprint, cone.mSpread)));
 
-    // How far the eye's own ray had come, which a leg leaving into the air carries on from.
-    const float before = distance(surface.mPosition, frame.mOrigin);
+    // How far the eye's own ray had come, which a leg leaving into the air carries on from and
+    // what the images stand past: the hit's own distance, and not one taken back off six-figure
+    // coordinates.
+    const float before = surface.mDistance;
 
     // The reflection stays on the eye's side of the plane, and the refraction crosses it.
     const WorldRay mirrored = WorldRay(leaving, reflect(incident, normal));
@@ -308,7 +310,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
         // answer there, and no refraction to trace.
         shaded.mLight = reflected;
         shaded.mImages = WaterImages(
-            imageOf(bounced, mirrored, 1.0, surface.mDistance, 1.0), WaterImage(0.0, 0.0, false));
+            imageOf(bounced, mirrored, 1.0, before, 1.0), WaterImage(0.0, 0.0, false));
         return shaded;
     }
 
@@ -330,8 +332,8 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const float fromMirror = dot(composed(reflected) * fresnel, LUMINANCE_WEIGHTS);
     const float fromBed = dot(composed(refracted) * (1.0 - fresnel), LUMINANCE_WEIGHTS);
     const float whole = max(fromMirror + fromBed, 1e-6);
-    shaded.mImages = WaterImages(imageOf(bounced, mirrored, fromMirror / whole, surface.mDistance, 1.0),
-        imageOf(behind, across, fromBed / whole, surface.mDistance, fromBelow ? WATER_IOR : 1.0 / WATER_IOR));
+    shaded.mImages = WaterImages(imageOf(bounced, mirrored, fromMirror / whole, before, 1.0),
+        imageOf(behind, across, fromBed / whole, before, fromBelow ? WATER_IOR : 1.0 / WATER_IOR));
 
     uint legs = randomSeed(key + SEED_SUN_LEGS);
     shaded.mLight = mixSplit(refracted, reflected, fresnel, randomNext(legs));

@@ -1189,7 +1189,7 @@ namespace Rtx::Shaders
     /// profiles, still and strafing in (`noise --strafe=150`), three levels stand level with five
     /// (the guild 4.15/35 still and 4.32/36 strafing, against 4.18/35 and 4.40/36), the local map
     /// tiles — one frame, no history — move by a few levels at most, and the filter's zone falls
-    /// from 3.0 ms to 1.75 at 1920×1080 (`.notes/denoise-progress.md`, phase 10).
+    /// from 3.0 ms to 1.75 at 1920×1080.
     const uint ATROUS_LEVELS = 3;
 
     /// How much of a froxel's answer comes from where it stood last frame.

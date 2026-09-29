@@ -352,6 +352,36 @@ namespace Rtx::Testing
 
             // A pane that stops nothing is a pane that is not there.
             EXPECT_EQ(litThroughPane(occluder, white(0.0f), bright), 153);
+
+            // **A cutout the game is fading lets the sun through its holes, as the eye sees them.**
+            // The eye passes a texel under the cutoff and peels what is left by its alpha times the
+            // fade, so a shadow ray walking past the same surface is charged the same: nothing by a
+            // hole, and a half by an opaque texel of a placement at half. Charged a hole's own
+            // alpha instead, a quarter under a half fade, the wall stood at 144 where the eye saw
+            // nothing standing in the sun's way.
+            const auto throughFadedCutout = [&](std::uint8_t alpha, float fade) {
+                constexpr std::uint32_t size = 33;
+
+                const std::array<std::uint8_t, 4> texel{ 255, 255, 255, alpha };
+                const std::array<TextureData, 1> textures{ describeTexel(texel) };
+
+                SceneDesc scene = makeWall();
+                const Index material = scene.addMaterial(Material{
+                    .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("cutout.dds")),
+                    .mAlphaRef = 0.5f,
+                    .mAlphaMode = AlphaMode::Cutout,
+                });
+                scene.addInstance(
+                    MeshInstance{ .mMesh = addQuadMesh(scene, occluder), .mMaterial = material, .mOpacity = fade });
+
+                const Frame frame = shoot(scene, textures, wallCamera(size, bright), size);
+                EXPECT_GT(frame.mHits, 0u);
+                return frame.byte(centreValueOf(size));
+            };
+
+            EXPECT_EQ(throughFadedCutout(64, 1.0f), 153) << "a hole in a cutout the game shows whole";
+            EXPECT_EQ(throughFadedCutout(64, 0.5f), 153) << "and in one the game is fading";
+            EXPECT_EQ(throughFadedCutout(255, 0.5f), 111) << "whose opaque texels are half there, as half a pane is";
         }
 
         /// A glow, which the engine treats as two different things and so does this.
