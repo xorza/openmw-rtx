@@ -1,3 +1,5 @@
+#include <array>
+#include <cstdint>
 #include <optional>
 
 #include <gtest/gtest.h>
@@ -67,24 +69,73 @@ namespace Rtx
             EXPECT_EQ(Reconstruction::resolve(Upscaling{}, ReconstructionRequest{}, sUnscaled).mLevelBias, 0.0f)
                 << "and nought where nothing was asked";
 
-            // The bias is log2(render / display): 1920 over 3840 is exactly minus one; balanced
-            // traces 2227 of 3840 and reads log2(0.58) = -0.7860, which is the number a texture
-            // moves by.
+            // The bias is log2(render / display) and the upscaler's own minus one past it: 1920 over
+            // 3840 is exactly minus one, and minus two with FSR's level; balanced traces 2258 of 3840
+            // and reads log2(0.5880) - 1 = -1.7661, which is the number a texture moves by.
             const Reconstruction performance
                 = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Performance }, ReconstructionRequest{}, sHalved);
             EXPECT_EQ(performance.mNoise, NoiseSource::BlueNoiseTile) << "the upscaler does not choose the noise";
-            EXPECT_FLOAT_EQ(performance.mLevelBias, -1.0f);
+            EXPECT_FLOAT_EQ(performance.mLevelBias, -2.0f);
 
             const Reconstruction balanced = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Balanced },
-                ReconstructionRequest{}, FrameExtents{ .mRenderWidth = 2227, .mOutputWidth = 3840 });
-            EXPECT_NEAR(balanced.mLevelBias, -0.7860f, 0.0005f);
+                ReconstructionRequest{}, FrameExtents{ .mRenderWidth = 2258, .mOutputWidth = 3840 });
+            EXPECT_NEAR(balanced.mLevelBias, -1.7661f, 0.0005f);
+
+            // Native traces every pixel and still takes FSR's level: minus one exactly.
+            const Reconstruction native
+                = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Native }, ReconstructionRequest{}, sUnscaled);
+            EXPECT_FLOAT_EQ(native.mLevelBias, -1.0f);
 
             // The epsilon is added past the ratio, and a request may name the source outright:
             // that is the A/B.
             const Reconstruction tuned = Reconstruction::resolve(Upscaling{ .mMode = Upscale::Performance },
                 ReconstructionRequest{ .mNoise = NoiseSource::WhiteHash, .mLevelEpsilon = -0.25f }, sHalved);
             EXPECT_EQ(tuned.mNoise, NoiseSource::WhiteHash) << "asked for by name";
-            EXPECT_FLOAT_EQ(tuned.mLevelBias, -1.25f);
+            EXPECT_FLOAT_EQ(tuned.mLevelBias, -2.25f);
+        }
+
+        /// **What FSR traces at and how many phases it cycles, at 1920×1080, by hand.** Each axis is
+        /// the output over the mode's ratio, truncated in floats; the phases are `8 * (output /
+        /// render)²`, truncated. Balanced: 1920 / 1.7 = 1129.41 and 1080 / 1.7 = 635.29, so 1129×635,
+        /// and (1920 / 1129)² × 8 = 23.14, so 23. The phases reach the frame through the
+        /// reconstruction, and nothing upscaling has none.
+        TEST(RtxReconstructionTest, theUpscalersExtentsAndPhasesAreFsrsArithmetic)
+        {
+            struct Row
+            {
+                Upscale mMode;
+                std::uint32_t mWidth;
+                std::uint32_t mHeight;
+                std::uint32_t mPhases;
+            };
+            constexpr std::array<Row, 5> sTable{ {
+                { Upscale::UltraPerformance, 640, 360, 72 },
+                { Upscale::Performance, 960, 540, 32 },
+                { Upscale::Balanced, 1129, 635, 23 },
+                { Upscale::Quality, 1280, 720, 18 },
+                { Upscale::Native, 1920, 1080, 8 },
+            } };
+
+            for (const Row& row : sTable)
+            {
+                const FrameExtents extents = extentsFor(1920, 1080, row.mMode);
+                EXPECT_EQ(extents.mRenderWidth, row.mWidth) << sUpscaleNames.name(row.mMode);
+                EXPECT_EQ(extents.mRenderHeight, row.mHeight) << sUpscaleNames.name(row.mMode);
+                EXPECT_EQ(extents.mOutputWidth, 1920u);
+                EXPECT_EQ(extents.mOutputHeight, 1080u);
+                EXPECT_EQ(jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth), row.mPhases)
+                    << sUpscaleNames.name(row.mMode);
+
+                const Reconstruction resolved
+                    = Reconstruction::resolve(Upscaling{ .mMode = row.mMode }, ReconstructionRequest{}, extents);
+                EXPECT_EQ(resolved.mJitterPhases, row.mPhases) << sUpscaleNames.name(row.mMode);
+            }
+
+            const FrameExtents unscaled = extentsFor(1920, 1080, Upscale::Off);
+            EXPECT_EQ(unscaled.mRenderWidth, 1920u);
+            EXPECT_EQ(unscaled.mRenderHeight, 1080u);
+            EXPECT_EQ(Reconstruction::resolve(Upscaling{}, ReconstructionRequest{}, unscaled).mJitterPhases, 0u)
+                << "nothing upscaling cycles nothing";
         }
 
         /// The wavelet ran exactly where it was asked for, upscaled or not.

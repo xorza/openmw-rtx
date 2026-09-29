@@ -255,7 +255,6 @@ set(RTX_VULKAN_FILES
     device/retiring.hpp
     device/timeline.cpp
     device/timeline.hpp
-    device/upscalerextensions.hpp
     device/validation.cpp
     device/validation.hpp
     display/bloompass.cpp

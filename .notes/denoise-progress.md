@@ -13,7 +13,9 @@ The plan is `.notes/denoise-and-upscale.md`. What a person has to look at is
 |---|---|---|
 | 4 shadow denoiser | done | 85c2647ea6 |
 | 5a lamps join the diffuse signal | done | a5d9d089da |
-| 6a fast history | stopped, reverted; a lag guard kept | (this commit) |
+| 6a fast history | stopped, reverted; a lag guard kept | f426a7e18e |
+| — race in the shadow classification | fixed | 5ff7a51f80 |
+| 7 the upscaler's sizes in the core | done | (this commit) |
 
 ## Phase 4: the shadow denoiser
 
@@ -144,3 +146,25 @@ neighbourhood* (a 3×3 or 5×5 box of it, in a pass of its own), which is the se
 and its benefit want a person looking at a flickering torch, so it is not built tonight. The code is
 reverted. `aLampThatGoesOutLeavesTheHistoryWithinAFewFrames` stays, as a guard on today's lag (24%,
 bound 30%).
+
+## A race in phase 4's classification (found in phase 7)
+
+Phase 7 changes no shader, yet `shot --against` phase 5a's pictures differed on 0.1–0.2% of the
+pixels of every sunlit exterior, by up to 147 levels, and on no interior. The cause: rewriting the
+classification for the mask words dropped the barrier between lane 0's reset of the shared
+receiver count and the other lanes' additions, so a tile was skipped or filtered by its lanes'
+timing. `repeat --pairs=10` had passed over it twice; a hash comparison of two runs found it. Fixed
+in 5ff7a51f80, and three runs of every view agree by hash. The phase 4 and 5a noise figures were
+taken with the race in; they may move by a little.
+
+## Phase 7: the upscaler's sizes in the core
+
+- `upscaleRatio`, `extentsFor`, `jitterPhasesFor` and `sUpscaleLevelBias` in `frame/upscale.hpp`;
+  `Reconstruction::mJitterPhases`; the level bias takes FSR's minus one; `sampleFrame` wraps the
+  Halton index at the phase count.
+- `device/upscalerextensions.hpp` and its uses in the instance, the device and the profile are gone;
+  `Upscaler::renderSizeFor` is gone and `createTargets` asks `extentsFor`.
+- Tests: the 1920×1080 table (640×360/72, 960×540/32, 1129×635/23, 1280×720/18, 1920×1080/8),
+  the level biases with the upscaler's own level, the wrapped jitter.
+- Proof: nothing upscales yet, and three runs of every view agree by hash; `./omw test` green, gate
+  clean.

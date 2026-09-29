@@ -180,11 +180,11 @@ namespace Rtx
     {
         assert(width > 0 && height > 0);
 
-        // Whatever upscales picks the render size. Asked of the mode and not of the runtime: a
-        // runtime that is up because somebody upscaled and then turned it off is kept for the next
-        // time, and asking it what to trace at for no upscaling is a question it refuses.
+        // What to trace at is the mode's arithmetic, `extentsFor`, and the output where nothing
+        // upscales.
         const VkExtent2D output{ width, height };
-        const VkExtent2D render = upscaling() ? mUpscaler->renderSizeFor(output, mProfile.mUpscaling.mMode) : output;
+        const FrameExtents extents = extentsFor(width, height, mProfile.mUpscaling.mMode);
+        const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
         mFrame.resize(render.width, render.height, mProfile.mRadianceWidth);
 
         // Two, and interchangeable, because the frame after this one must not rewrite the image

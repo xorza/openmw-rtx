@@ -64,6 +64,7 @@ set(RTX_FILES
     frame/sunglare.cpp
     frame/sunglare.hpp
     frame/surfaceview.hpp
+    frame/upscale.cpp
     frame/upscale.hpp
     image/alphaimage.cpp
     image/alphaimage.hpp

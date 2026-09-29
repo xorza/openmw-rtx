@@ -2,10 +2,13 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <string_view>
 #include <utility>
 
 #include <components/rtx/common/namedenum.hpp>
+
+#include "frameextents.hpp"
 
 namespace Rtx
 {
@@ -63,4 +66,45 @@ namespace Rtx
 
         return offered;
     }();
+
+    /// What the output is divided by to give the extent a frame is traced at, per axis: FSR 3.1's
+    /// fixed ratios (`ffxFsr3UpscalerGetUpscaleRatioFromQualityMode`) — 3, 2, 1.7 and 1.5 from ultra
+    /// performance to quality, and one where every pixel is traced, natively or with no upscaler.
+    ///
+    /// **The upscaler's arithmetic, stated in the core**, because the upscaler is FSR and FSR's
+    /// sizes are arithmetic: a table a backend answered was a question a test needed a device for.
+    constexpr float upscaleRatio(Upscale mode)
+    {
+        switch (mode)
+        {
+            case Upscale::UltraPerformance:
+                return 3.0f;
+            case Upscale::Performance:
+                return 2.0f;
+            case Upscale::Balanced:
+                return 1.7f;
+            case Upscale::Quality:
+                return 1.5f;
+            case Upscale::Off:
+            case Upscale::Native:
+                break;
+        }
+
+        return 1.0f;
+    }
+
+    /// What a frame shown at `outputWidth` by `outputHeight` is traced at under `mode`: each axis the
+    /// output over `upscaleRatio`, truncated, in floats — `ffxFsr3UpscalerGetRenderResolutionFromQualityMode`
+    /// to the bit, so the extent FSR was written against is the one it is handed.
+    FrameExtents extentsFor(std::uint32_t outputWidth, std::uint32_t outputHeight, Upscale mode);
+
+    /// How many jitter phases the reconstruction cycles through before a pixel's samples repeat:
+    /// `8 * (output / render)²`, truncated — `ffxFsr3UpscalerGetJitterPhaseCount`. Eight at native,
+    /// eighteen at quality: enough phases that every output pixel is sampled at eight places.
+    std::uint32_t jitterPhasesFor(std::uint32_t renderWidth, std::uint32_t outputWidth);
+
+    /// What the texture level bias moves by past the ratio's own levels wherever the upscaler runs,
+    /// native included: FSR's guide has `log2(render / output) - 1`, because a frame the upscaler
+    /// accumulates across jitter phases resolves texture finer than one frame's pixel.
+    inline constexpr float sUpscaleLevelBias = -1.0f;
 }

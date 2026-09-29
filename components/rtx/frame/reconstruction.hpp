@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -95,14 +96,19 @@ namespace Rtx
         /// sample.
         bool mJitter = false;
 
+        /// How many phases the jitter cycles through before it repeats, `jitterPhasesFor`: what the
+        /// upscaler's history is written against. Nought where nothing upscales, and the sequence
+        /// then runs on without a period.
+        std::uint32_t mJitterPhases = 0;
+
         /// Where the trace drew from: the tile, unless the request named a source.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
 
         /// What every texture level is offset by, in levels: the shown pixel's cone is narrower
         /// than the traced one by the upscaler's ratio, and a level chosen for the traced pixel
         /// reads every texture that much coarser than the picture shows — `log2(render / display)`,
-        /// plus the request's epsilon. The ratio is nought where nothing upscales, and the epsilon
-        /// stands on its own there.
+        /// and `sUpscaleLevelBias` past it, plus the request's epsilon. Where nothing upscales the
+        /// epsilon stands on its own.
         float mLevelBias = 0.0f;
 
         /// Whether the wavelet ran over the indirect channel — one comparison, because the backend
@@ -136,19 +142,20 @@ namespace Rtx
                 .mDenoiser = denoiser,
                 .mUpscaling = upscaling,
                 .mJitter = true,
+                .mJitterPhases = jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth),
                 .mNoise = noise,
                 .mLevelBias = levelBiasOf(extents, asked.mLevelEpsilon),
             };
         }
 
     private:
-        /// The ratio's levels with the epsilon the request adds.
+        /// The ratio's levels, the upscaler's own, and the epsilon the request adds.
         static float levelBiasOf(const FrameExtents& extents, const float epsilon)
         {
             assert(extents.mRenderWidth > 0 && extents.mOutputWidth > 0 && "an upscaler with no extents to bias by");
 
             return std::log2(static_cast<float>(extents.mRenderWidth) / static_cast<float>(extents.mOutputWidth))
-                + epsilon;
+                + sUpscaleLevelBias + epsilon;
         }
     };
 

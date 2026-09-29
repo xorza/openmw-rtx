@@ -56,11 +56,6 @@ namespace Rtx
         Upscaler(const Upscaler&) = delete;
         Upscaler& operator=(const Upscaler&) = delete;
 
-        /// What to trace at to produce `output` under `mode`, which must not be `Off`: the
-        /// upscaler's answer and not a ratio applied here, because the ratio is the upscaler's to
-        /// choose. Throws `Unsupported` where it will not answer.
-        virtual VkExtent2D renderSizeFor(VkExtent2D output, Upscale mode) const = 0;
-
         /// Builds what the upscaler keeps for one pair of extents and the image it writes, releasing
         /// the last, so nothing is left behind for a pair that may not come back. Once per
         /// resolution, and never per frame.
