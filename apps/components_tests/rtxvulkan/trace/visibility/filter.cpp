@@ -155,6 +155,50 @@ namespace Rtx::Testing
             }
         }
 
+        /// **A lamp that goes out leaves the history within a few frames.** One lamp over a floor for
+        /// 32 frames, then the same floor without it, placed and not handed over, so every history
+        /// carries on. Measured eight frames on, at the pixel under the lamp: 24% of the lamp's light
+        /// is left. A fast history the long one is clamped to took that to 8%, and was not kept:
+        /// clamped to a per-pixel fast mean, the four-lamp floor came out noisier and a lone pixel's
+        /// history darker (`.notes/denoise-progress.md`, phase 6a). This holds the lag to where it is.
+        TEST_F(RtxVisibilityTest, aLampThatGoesOutLeavesTheHistoryWithinAFewFrames)
+        {
+            constexpr std::uint32_t size = 32;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            SceneDesc unlit;
+            addQuad(unlit, sheetAt(4000.0f, 0.0f));
+
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, 0.0f));
+            scene.addLight(Light{
+                .mPosition = osg::Vec3f(0.0f, 0.0f, 60.0f),
+                .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
+                .mReach = 500.0f,
+            });
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 300.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mSun.mIrradiance = osg::Vec3f();
+
+            const float dark = shoot(
+                unlit, {}, camera, size, { .mFrames = 32, .mAverage = false, .mFilter = true, .mResetHistory = true })
+                                   .at(centre);
+            const float lit = shoot(
+                scene, {}, camera, size, { .mFrames = 32, .mAverage = false, .mFilter = true, .mResetHistory = true })
+                                  .at(centre);
+            ASSERT_GT(lit - dark, 0.01f) << "a lamp that lights nothing proves nothing";
+
+            // The lamp goes: the per-frame lists are emptied and the floor placed again.
+            scene.clearPlacement();
+            const float after = shoot(scene, {}, camera, size,
+                { .mFrames = 8, .mAverage = false, .mFirstFrame = 32, .mFilter = true, .mSetScene = false })
+                                    .at(centre);
+            EXPECT_LT(after - dark, (lit - dark) * 0.3f) << "lit " << lit << ", dark " << dark << ", after " << after;
+        }
+
         /// **The filter rebuilds an arm's pixels through the arms' own eye**, as the trace cast them,
         /// and so smooths an arm as it smooths the floor. The player's arms are traced through a
         /// ninety-degree eye beside the world's thirty here, and rebuilt through the world's, a flat

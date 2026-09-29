@@ -12,7 +12,8 @@ The plan is `.notes/denoise-and-upscale.md`. What a person has to look at is
 | Phase | State | Commit |
 |---|---|---|
 | 4 shadow denoiser | done | 85c2647ea6 |
-| 5a lamps join the diffuse signal | done | (this commit) |
+| 5a lamps join the diffuse signal | done | a5d9d089da |
+| 6a fast history | stopped, reverted; a lag guard kept | (this commit) |
 
 ## Phase 4: the shadow denoiser
 
@@ -120,3 +121,26 @@ it; measured again there.
 Cost: unchanged (default suite, trace 4.25 / 4.77 / 2.82, filter 2.38 / 1.85 / 3.12, shadow 0.42 /
 0.52). Proofs: every frame within 1 level unfiltered; the map tiles moved again, because the lamps
 are now filtered in them too. `repeat --pairs=10` identical, `./omw test` green, gate clean.
+
+## Phase 6a: the fast history — stopped
+
+The design (plan 5.3): a fast mean of each pixel's luminance over `ACCUMULATE_FAST_FRAMES = 4`,
+kept in the accumulator's free moment channel, and the long mean clamped to it ± k sigmas of one
+sample, with its frame count cut to the fast one's where the clamp moved it.
+
+What it did (GPU tests):
+
+| Setting | Lamp out, light left after 8 frames | Four lamps, filtered/raw error | Lone pixel with history |
+|---|---|---|---|
+| no clamp (today) | 24% | 0.21–0.23 | quieter than alone, mean in 2% |
+| k = 2 | 8% | 0.31 | noisier than alone, mean 2.4% dark |
+| k = 3 | 8% | fails the mean by 1% | noisier, mean 2.1% dark |
+| k = 4 | ≤ 12% | passes | 0.0044 against 0.0048 alone: history nearly worthless |
+
+**Why:** one lamp drawn out of four gives heavy-tailed samples, and a per-pixel mean of four of
+them sits below its expectation most of the time. Clamping the long mean to it biases the picture
+dark and throws the history away on noise. ReLAX clamps to the fast history's *spatial
+neighbourhood* (a 3×3 or 5×5 box of it, in a pass of its own), which is the second design; its cost
+and its benefit want a person looking at a flickering torch, so it is not built tonight. The code is
+reverted. `aLampThatGoesOutLeavesTheHistoryWithinAFewFrames` stays, as a guard on today's lag (24%,
+bound 30%).
