@@ -33,7 +33,7 @@ void main()
     // `fogColumn`'s and is taken exactly, per sprite, by the walk.
     const vec3 toCentre = emitter.mCentre - frame.mOrigin;
     const bool parallel = frame.mCamera.mOrthographic != 0u;
-    const vec3 forward = normalize(frame.mCamera.mForward);
+    const vec3 forward = frame.mCamera.mForward;
     const float along = parallel ? dot(toCentre, forward) : length(toCentre);
     const vec3 halfway = parallel ? emitter.mCentre - forward * (0.5 * along) : frame.mOrigin + toCentre * 0.5;
 

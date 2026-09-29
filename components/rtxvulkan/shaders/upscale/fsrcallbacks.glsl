@@ -151,7 +151,7 @@ FfxFloat32 LoadInputDepth(FfxInt32x2 iPxPos)
 {
     const vec2 seen = texelFetch(r_input_surface, iPxPos, 0).rg;
     const Camera eye = eyeOfPixel(texelFetch(r_input_puffs, iPxPos, 0), cbInputs.mCamera, cbInputs.mArms);
-    const float along = seen.y * dot(rayAt(eye, vec2(iPxPos)).mDirection, normalize(eye.mForward));
+    const float along = seen.y * dot(rayAt(eye, vec2(iPxPos)).mDirection, eye.mForward);
     return seen.x == SURFACE_NO_NORMAL ? 0.0 : cbInputs.mNear / max(along, cbInputs.mNear);
 }
 #endif

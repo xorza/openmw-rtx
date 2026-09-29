@@ -33,6 +33,8 @@ namespace Rtx::Shaders
         /// distance, so a ray is `mForward + mRight * x - mUp * y` for `x` and `y` in [-1, 1] and no
         /// trigonometry in the shader. **`y` runs down the image**, because it is the pixel index
         /// the jitter is added to, which is why it is subtracted: `mUp` points the other way.
+        ///
+        /// **`mForward` is unit**, as `Rtx::viewBasisOf` normalises it.
         vec3 mForward;
         vec3 mRight;
         vec3 mUp;

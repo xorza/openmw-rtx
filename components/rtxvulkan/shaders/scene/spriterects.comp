@@ -50,7 +50,7 @@ struct Frame
 Frame frameOf(Camera camera)
 {
     Frame frame;
-    frame.mForward = normalize(camera.mForward);
+    frame.mForward = camera.mForward;
     frame.mHalfWidth = length(camera.mRight);
     frame.mHalfHeight = length(camera.mUp);
     frame.mRight = camera.mRight / frame.mHalfWidth;
