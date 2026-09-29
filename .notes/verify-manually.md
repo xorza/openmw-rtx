@@ -25,3 +25,11 @@ spinner, a choice the plan left to taste. Each item says what to run and what to
 - **Flickering torches.** The accumulator keeps up to sixteen frames of lamp light now. A torch's
   flicker may lag or smear until phase 6a's fast history lands. Look at a flickering torch.
 
+## Phase 6a: the fast history (not built)
+
+- **Is the lag a problem?** A lamp that goes out leaves 24% of its light eight frames later (about
+  0.13 s at 60 fps). Walk past flickering torches in the Mages Guild and say whether the light
+  trails. If it does, the next step is ReLAX's clamp to the fast history's spatial neighbourhood, a
+  pass of its own; the per-pixel clamp was tried and made the picture noisier and darker
+  (`.notes/denoise-progress.md`).
+
