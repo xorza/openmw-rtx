@@ -6,6 +6,7 @@
 #include <utility>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/shaders/fsr.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -196,7 +197,8 @@ namespace Rtx
         };
 
         /// The most bindings a pass has, which is how much room one push's writes take.
-        constexpr std::size_t sMostBindings = 14;
+        constexpr std::size_t sMostBindings = std::max({ sInputs.size(), sLumaPyramid.size(), sChangePyramid.size(),
+            sChange.size(), sReactivity.size(), sInstability.size(), sAccumulate.size() });
 
         struct PassSpec
         {
@@ -215,19 +217,15 @@ namespace Rtx
             { sAccumulate, "fsraccumulate.comp.spv", "fsr accumulate" },
         } };
 
-        constexpr bool everyPassFits()
+        constexpr bool everyPassInBindingOrder()
         {
             for (const PassSpec& pass : sPassSpecs)
-            {
-                if (pass.mBinds.size() > sMostBindings)
-                    return false;
                 for (std::size_t at = 1; at < pass.mBinds.size(); ++at)
                     if (pass.mBinds[at - 1].mBinding >= pass.mBinds[at].mBinding)
                         return false;
-            }
             return true;
         }
-        static_assert(everyPassFits(), "a pass with more bindings than a push holds, or out of binding order");
+        static_assert(everyPassInBindingOrder(), "a pass's bindings out of binding order");
 
         ComputePipeline makePass(const Device& device, const std::filesystem::path& shaders, const PassSpec& pass)
         {
@@ -251,15 +249,15 @@ namespace Rtx
         constexpr VkImageUsageFlags sUsage
             = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-        std::uint32_t levelsOf(const VkExtent2D extent)
-        {
-            std::uint32_t levels = 1;
-            for (std::uint32_t side = std::max(extent.width, extent.height); side > 1; side /= 2)
-                ++levels;
-            return levels;
-        }
-
         constexpr VkClearColorValue sNought{ .float32 = { 0.0f, 0.0f, 0.0f, 0.0f } };
+
+        /// What one dispatch does and the next may do to whatever the last one touched: every pass
+        /// reads what one before it wrote, and several write what one before them read — the SDK's
+        /// backend puts a barrier on every resource that changes state, which is every one. The
+        /// clears stand ahead of the first pass.
+        constexpr BufferUse sPassWork{ VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_CLEAR_BIT,
+            VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT
+                | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT };
 
         /// FSR's frame info at a reset: an exposure it has not measured, `-1`, and a luma of one.
         constexpr VkClearColorValue sFreshFrameInfo{ .float32 = { -1.0f, 1.0f, 0.0f, 0.0f } };
@@ -287,7 +285,7 @@ namespace Rtx
             mNewLocks = make(output, VK_FORMAT_R8_UNORM, "fsr-new-locks");
             mHistory = { make(output, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-history-0"),
                 make(output, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-history-1") };
-            mSpdMips = make(half, VK_FORMAT_R16G16_SFLOAT, "fsr-spd-mips", levelsOf(half));
+            mSpdMips = make(half, VK_FORMAT_R16G16_SFLOAT, "fsr-spd-mips", levelsTo1x1(half.width, half.height));
             mFarthestDepthMip1 = make(half, VK_FORMAT_R16_SFLOAT, "fsr-farthest-depth-mip1");
             mLumaHistory = { make(render, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-luma-history-0"),
                 make(render, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-luma-history-1") };
@@ -471,22 +469,7 @@ namespace Rtx
             return VkDescriptorBufferInfo{ blocks.getHandle(), offset, range };
         };
 
-        // One dependency between each pair of dispatches, over all memory: every pass reads what one
-        // before it wrote, and several write what one before them read — the SDK's backend puts a
-        // barrier on every resource that changes state, which is every one.
-        const auto between = [&] {
-            Barriers barriers(commands);
-            barriers.add(VkMemoryBarrier2{
-                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
-                .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_CLEAR_BIT,
-                .srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT
-                    | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_CLEAR_BIT,
-                .dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT
-                    | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            });
-            barriers.flush();
-        };
+        const auto between = [&] { handOver(commands, sPassWork, sPassWork); };
 
         const auto run = [&](const Pass pass, const std::uint32_t groupsX, const std::uint32_t groupsY) {
             const PassSpec& spec = sPassSpecs[static_cast<std::size_t>(pass)];

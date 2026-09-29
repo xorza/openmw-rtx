@@ -13,6 +13,7 @@
 //
 // Nothing here reads the frame, so a pass with no frame block reaches it.
 
+#include "camera.h"
 #include "scene.h"
 
 layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer SpriteTable
@@ -107,6 +108,14 @@ float puffsThrough(vec4 packed)
 bool puffsOnArms(vec4 packed)
 {
     return (floatBitsToUint(packed.a) & 0x80000000u) != 0u;
+}
+
+/// The eye the trace cast a pixel's ray from: the arms' where it drew the pixel on an arm, the
+/// world's everywhere else. Asked by every pass that rebuilds a pixel's ray, so no two of them can
+/// rebuild it through different eyes.
+Camera eyeOfPixel(vec4 packed, Camera world, Camera arms)
+{
+    return puffsOnArms(packed) ? arms : world;
 }
 
 /// The `PRESENCE_` kinds a ray through a traced pixel's tile can meet — every kind where the frame

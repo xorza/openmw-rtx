@@ -1,11 +1,13 @@
 #include "fsrframe.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cfloat>
-#include <cmath>
+#include <cstdint>
 
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/shaders/scene.h>
+#include <components/rtxvulkan/pipeline/dispatch.hpp>
 
 namespace Rtx
 {
@@ -77,12 +79,13 @@ namespace Rtx
     FsrFrame::Pyramid FsrFrame::pyramidFor(const VkExtent2D render)
     {
         // `ffxSpdSetup` over the rectangle from the corner: a workgroup a 64-pixel tile, and as many
-        // levels as the longer side halves in whole, twelve at most.
-        const std::uint32_t groupsX = (render.width - 1) / 64 + 1;
-        const std::uint32_t groupsY = (render.height - 1) / 64 + 1;
-        const std::uint32_t longest = std::max(render.width, render.height);
-        const auto mips
-            = static_cast<std::uint32_t>(std::min(std::floor(std::log2(static_cast<float>(longest))), 12.0f));
+        // levels as the longer side halves in whole, twelve at most — the SDK's `floor(log2(side))`,
+        // which in integers is the side's bit width less one.
+        constexpr std::uint32_t tile = 64;
+        const std::uint32_t groupsX = groupsFor(render.width, tile);
+        const std::uint32_t groupsY = groupsFor(render.height, tile);
+        const auto mips = std::min(
+            static_cast<std::uint32_t>(std::bit_width(std::max(render.width, render.height))) - 1, std::uint32_t{ 12 });
 
         return Pyramid{
             .mConstants = Shaders::FsrPyramidConstants{

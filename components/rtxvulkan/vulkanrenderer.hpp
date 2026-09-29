@@ -128,8 +128,8 @@ namespace Rtx
         /// frame, at the first of the trace and the interface to want it.
         Image& claimTarget();
 
-        /// @param width, height what the frame is presented at. What it is traced at is the
-        ///        upscaler's answer for that, or the same numbers where nothing upscales.
+        /// @param width, height what the frame is presented at. What it is traced at is that over
+        ///        the mode's ratio, `extentsFor`.
         void createTargets(std::uint32_t width, std::uint32_t height);
 
         /// Everything the queue was given and everything waiting to be given it, finished, and

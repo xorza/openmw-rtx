@@ -64,8 +64,8 @@ layout(set = SET_PASS, binding = ATROUS_BIND_FILTERED, ATROUS_CHANNEL) uniform w
 /// so the sky neither contributes nor gets filtered.
 layout(set = SET_PASS, binding = ATROUS_BIND_SURFACE) uniform texture2D surfaceChannel;
 
-/// The puffs the trace left, read for the one bit that says whether a pixel was drawn on an arm,
-/// `puffsOnArms`, and so which eye its ray left.
+/// The puffs the trace left, read for the one bit that says which eye a pixel's ray left,
+/// `eyeOfPixel`.
 layout(set = SET_PASS, binding = ATROUS_BIND_PUFFS) uniform texture2D puffs;
 
 layout(push_constant, scalar) uniform Push
@@ -116,11 +116,9 @@ float varianceAround(ivec2 at)
     return sum / weight;
 }
 
-/// The eye the trace's ray through `pixel` left: the arms' where it drew an arm, the world's
-/// otherwise.
 Camera eyeAt(ivec2 pixel)
 {
-    return puffsOnArms(texelFetch(puffs, pixel, 0)) ? level.mArms : level.mCamera;
+    return eyeOfPixel(texelFetch(puffs, pixel, 0), level.mCamera, level.mArms);
 }
 
 /// Where the trace's ray through `pixel` ended up, `away` along it, through the eye that cast it.

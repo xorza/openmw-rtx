@@ -47,7 +47,7 @@ layout(set = SET_PASS, binding = SPECULAR_BIND_SPECULAR) uniform readonly image2
 layout(set = SET_PASS, binding = SPECULAR_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 layout(set = SET_PASS, binding = SPECULAR_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D motion;
 
-/// For the one bit that says which eye a pixel's ray left, `puffsOnArms`.
+/// For the one bit that says which eye a pixel's ray left, `eyeOfPixel`.
 layout(set = SET_PASS, binding = SPECULAR_BIND_PUFFS, GBUFFER_LAYER) uniform readonly image2D puffs;
 
 /// The surface the accumulator's history belongs to, which this history belongs to as well: both
@@ -106,6 +106,15 @@ vec3 toEyeBefore(HistoryFootprint footprint, bool arms)
         frame.mPreviousForward + frame.mPreviousRight * (uv.x * spread.x) - frame.mPreviousUp * (uv.y * spread.y));
 }
 
+/// Whether the history at `at` belongs to the surface this pixel shows.
+bool sameSurface(ivec2 at, vec3 normal, float scaled)
+{
+    if (outsideOf(at, uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight)))
+        return false;
+
+    return heldSurfaceMatches(imageLoad(heldSurface, at), normal, scaled, frame.mDistanceScale);
+}
+
 void main()
 {
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
@@ -121,12 +130,11 @@ void main()
     // Both write their sample, which is nought, and a history of no frames.
     const bool reflects = dot(normal, normal) > 0.0 && sampled.a >= 0.0;
 
-    const bool arms = puffsOnArms(imageLoad(puffs, at));
-    const Camera eye = arms ? frame.mArms : frame.mCamera;
-    const vec3 toEye = -rayAt(eye, vec2(at)).mDirection;
+    const vec4 puffed = imageLoad(puffs, at);
+    const bool arms = puffsOnArms(puffed);
+    const vec3 toEye = -rayAt(eyeOfPixel(puffed, frame.mCamera, frame.mArms), vec2(at)).mDirection;
 
-    const vec2 moved = imageLoad(motion, at).xy;
-    const HistoryFootprint footprint = historyFootprint(at, frame.mCamera.mJitter, moved);
+    const HistoryFootprint footprint = historyFootprint(at, frame.mCamera.mJitter, imageLoad(motion, at).xy);
 
     // Where there was no previous frame the basis is nought, and there is no direction to compare:
     // no history, as a reset has none.
@@ -143,8 +151,7 @@ void main()
         {
             const float bilinear = historyShare(footprint, i);
             const ivec2 tap = historyTap(footprint, i);
-            if (bilinear <= 0.0 || outsideOf(uvec2(tap), uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight))
-                || !heldSurfaceMatches(imageLoad(heldSurface, tap), normal, scaled, frame.mDistanceScale))
+            if (bilinear <= 0.0 || !sameSurface(tap, normal, scaled))
                 continue;
 
             // A texel that reflected nothing holds no history, and would pull the mean toward nought.
@@ -189,9 +196,9 @@ void main()
         const float alpha = max(1.0 - kept, 1.0 / min(frames + 1.0, ACCUMULATE_FRAMES));
         count = 1.0 / alpha;
 
-        const float keptLit = dot(blended, LUMINANCE_WEIGHTS);
+        const float clampedLit = dot(blended, LUMINANCE_WEIGHTS);
         blended = mix(held.rgb, blended, alpha);
-        blendedSquare = mix(held.a, keptLit * keptLit, alpha);
+        blendedSquare = mix(held.a, clampedLit * clampedLit, alpha);
     }
 
     // Selected and not branched around, for the rule the tree keeps: a lane with no lobe runs the
