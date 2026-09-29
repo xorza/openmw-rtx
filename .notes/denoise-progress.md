@@ -589,3 +589,32 @@ Frame noise / bar noise (mean / p99), bias frame / bar:
 
 Bold is noisier than the bar. The still bar is traced at `off` whatever the mode, so its figures are
 the `off` row's.
+
+## The shore's shimmer, and the texture level
+
+**Cause.** Under the new verdict the shore was noisier than its bar at quality (0.60/3 against 0.56/5),
+ultra performance and strafed. The frame noise sat on high-contrast edges: the skyline's leaves and
+the castle against a bright sky, 2.3 from the frame's own mean at quality and 1.0 at native. The
+jitter matches the SDK's `ffxFsr3UpscalerGetJitterOffset` exactly. An exact-input probe after
+convergence (a frame against the mean of 72 consecutive frames, every phase count's multiple): a plain
+edge 0.05 native, 0.13 quality, 0.21 ultra performance; bars 4 units wide — 1.5, 1 and 0.5 traced
+pixels — 0.44, 0.72 and 24.7. FSR resolves an edge and shimmers on detail under a traced pixel.
+
+**The one lever: the texture level.** FSR's guide reads textures one level finer than the shown
+pixel's (`log2(render / display) - 1`), which on this trace made the frame sharper than the truth and
+noisier. `--level-epsilon` at quality (the reference now held at no epsilon):
+
+| epsilon (level past the shown pixel's) | shore noise, bias | pond bias | guild bias |
+|---|---|---|---|
+| 0 (−1) | 0.60/3, 0.92 | 1.55 | 2.40 |
+| 0.5 (−0.5) | 0.56/3, 0.84 | 1.45 | 2.36 |
+| 1 (0) | 0.54/3, 0.75 | 1.30 | 2.30 |
+| 1.5 (+0.5) | 0.50/3, 0.80 | 1.38 | 2.51 |
+
+At the shown pixel's own level the bias is least everywhere, and every mode and place is no worse on
+either column (native: the shore's bias 0.73 → 0.44, the pond's 1.19 → 0.81). `sUpscaleLevelBias` is
+gone; the level is the ratio's alone.
+
+**What stays** is the upscaler's own limit on sub-pixel detail, which the probe measured: the shore at
+ultra performance still (0.71/4 against 0.56/5), and strafed at quality (0.99/12 against 0.61/5). Every
+other mode and place passes.

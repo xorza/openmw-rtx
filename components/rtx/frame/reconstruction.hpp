@@ -107,8 +107,15 @@ namespace Rtx
         /// What every texture level is offset by, in levels: the shown pixel's cone is narrower
         /// than the traced one by the upscaler's ratio, and a level chosen for the traced pixel
         /// reads every texture that much coarser than the picture shows — `log2(render / display)`,
-        /// and `sUpscaleLevelBias` past it, plus the request's epsilon. Where nothing upscales the
-        /// epsilon stands on its own.
+        /// plus the request's epsilon. Where nothing upscales the epsilon stands on its own.
+        ///
+        /// **The shown pixel's own level, and not FSR's guide's one finer.** The guide has
+        /// `log2(render / display) - 1`, for a frame the upscaler accumulates across jitter phases.
+        /// Held against the truth, that level was the sharper one and the noisier: at quality the
+        /// Seyda Neen shore's frame stood 0.92 from the reference blurred by 1.5 pixels and moved
+        /// 0.60 from its own mean, and at the shown pixel's level 0.75 and 0.54 — the pond 1.55 and
+        /// 1.30, and every mode and place of the noise suite no worse on either. Half a level
+        /// coarser moved the noise down again and the bias up: 0.80, the pond 1.38.
         float mLevelBias = 0.0f;
 
         /// Whether the wavelet ran over the indirect channel — one comparison, because the backend
@@ -149,13 +156,13 @@ namespace Rtx
         }
 
     private:
-        /// The ratio's levels, the upscaler's own, and the epsilon the request adds.
+        /// The ratio's levels, and the epsilon the request adds.
         static float levelBiasOf(const FrameExtents& extents, const float epsilon)
         {
             assert(extents.mRenderWidth > 0 && extents.mOutputWidth > 0 && "an upscaler with no extents to bias by");
 
             return std::log2(static_cast<float>(extents.mRenderWidth) / static_cast<float>(extents.mOutputWidth))
-                + sUpscaleLevelBias + epsilon;
+                + epsilon;
         }
     };
 
