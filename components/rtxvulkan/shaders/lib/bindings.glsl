@@ -58,8 +58,8 @@ layout(set = SET_PASS, binding = BIND_SCENE) uniform accelerationStructureEXT sc
 /// view holds.
 layout(set = SET_CHANNELS, binding = CHANNEL_DIRECT) uniform writeonly image2D direct;
 
-/// One bounce with the albedo divided out, times whatever the path took off it on the way to the
-/// eye — the only channel a filter is allowed to touch.
+/// The lamps and the one bounce with the albedo divided out, times whatever the path took off it on
+/// the way to the eye — the channel the wavelet filters.
 ///
 /// **Demodulated because a blur must not touch texture.** What varies slowly across a wall is the
 /// light landing on it; what varies fast is the wall. Dividing the albedo out leaves only the first,

@@ -37,8 +37,9 @@ struct Answer
     /// the sprites the launch composites in front of it.
     vec3 mRadiance;
 
-    /// The one bounce this hit gathered, kept apart because the filter runs over it demodulated by
-    /// the albedo in `mResponse`, and the composite multiplies the two back together afterwards.
+    /// The diffuse light this hit gathered from its lamps and its one bounce, kept apart because the
+    /// filter runs over it demodulated by the albedo in `mResponse`, and the composite multiplies the
+    /// two back together afterwards.
     vec3 mBounced;
 
     /// What the sky's source adds to the solid the eye found, as though its rays got through, and

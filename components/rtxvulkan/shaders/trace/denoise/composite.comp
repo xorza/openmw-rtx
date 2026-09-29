@@ -34,8 +34,8 @@ layout(local_size_x = COMPOSITE_WORKGROUP, local_size_y = COMPOSITE_WORKGROUP) i
 /// run decides its width too, and a load and a store with no format both convert.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_DIRECT) uniform image2D direct;
 
-/// One bounce with the albedo divided out, times whatever the water and the air took off it on the
-/// way to the eye — the only channel a filter is allowed to touch.
+/// The lamps and the one bounce with the albedo divided out, times whatever the water and the air
+/// took off them on the way to the eye — the channel the wavelet filters.
 ///
 /// **Declared with no format, because this is two images.** A denoised frame hands over the
 /// cascade's last level and an undenoised one hands over `CHANNEL_INDIRECT` itself, and those are

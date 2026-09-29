@@ -264,14 +264,15 @@ SurfaceResponse responseOf(Surface surface)
     return SurfaceResponse(packSurfaceNormal(surface.mNormal), surface.mAlbedo);
 }
 
-/// What an ordinary lit surface sends back along the ray that found it.
+/// What an ordinary lit surface sends back along the ray that found it. **One statement of what a
+/// diffuse surface does with light, used at every depth** — writing it twice is how two would come
+/// to disagree.
 ///
-/// @param incoming what arrives from everything that is not a light: a gathered hemisphere at the
-///        hit the eye found, and `pathEnd` at the hit that hemisphere found. **One statement of what
-///        a diffuse surface does with light, used at both depths** — writing it twice is how the two
-///        would come to disagree.
-/// @param lit what `gather` found at the surface.
-vec3 litSurface(Surface surface, vec3 incoming, DirectLight lit)
+/// @param diffuse what reaches the diffuse half, per unit albedo: the lights `gather` found and what
+///        arrives from everything that is not a light — `pathEnd` at the hit a hemisphere found — or
+///        whichever part of that the caller has not handed to a filter.
+/// @param specular what the lobe reflects toward the eye, whole.
+vec3 litSurface(Surface surface, vec3 diffuse, vec3 specular)
 {
     // The emissive colour joins the light rather than the albedo, which is where the original engine
     // puts it: it sums the term with the diffuse and ambient light and multiplies the whole by the
@@ -283,16 +284,18 @@ vec3 litSurface(Surface surface, vec3 incoming, DirectLight lit)
     // made of rather than being tinted by it.
     //
     // The lobe's light is added last, and whole.
-    return surface.mAlbedo * (incoming + lit.mDiffuse + surface.mEmissiveColour * EMISSIVE_INTENSITY)
-        + surface.mEmitted + lit.mSpecular;
+    return surface.mAlbedo * (diffuse + surface.mEmissiveColour * EMISSIVE_INTENSITY) + surface.mEmitted + specular;
 }
 
 /// `litSurface` over the whole of `gather`'s light, the sky's source included.
 ///
 /// @param gloss the surface's specular half, `glossOf`.
+/// @param incoming what arrives from everything that is not a light, `pathEnd` at the hit a
+///        hemisphere found.
 vec3 shadeSurface(Surface surface, Gloss gloss, vec3 incoming, uint seed, uint path)
 {
-    return litSurface(surface, incoming, gather(surface, gloss, seed, path, false));
+    const DirectLight lit = gather(surface, gloss, seed, path, false);
+    return litSurface(surface, incoming + lit.mDiffuse, lit.mSpecular);
 }
 
 /// Which face of a surface a diffuse sample leaves by, and what the sample is then worth.
@@ -622,11 +625,12 @@ Bounce bounceLight(Surface surface, Gloss gloss, uvec2 pixel, Cone cone)
 /// What a solid the eye found sends back, in the channels' pieces.
 struct SeenSolid
 {
-    /// Everything resolved but the sky's source: the lamps, the glow, and the lobe's bounce, which
-    /// joins the direct light for the reason `Bounce::mSpecular` gives.
+    /// Everything resolved but the sky's source and the diffuse light the filter takes: the glow, the
+    /// lamps' lobe, and the lobe's bounce, which joins the direct light for the reason
+    /// `Bounce::mSpecular` gives.
     vec3 mDirect;
 
-    /// The one bounce, per unit albedo.
+    /// The diffuse light the wavelet filters, per unit albedo: the one bounce, and the lamps.
     vec3 mBounce;
 
     /// What the solid is in the filter's terms.
@@ -652,9 +656,13 @@ SeenSolid shadeSolid(Surface hit, uvec2 pixel, Cone cone)
     const DirectLight lit = gather(hit, gloss, pixelKey(pixel) + SEED_LAMPS_EYE, PATH_SEEN, true);
     const Bounce bounced = bounceLight(hit, gloss, pixel, cone);
 
+    // **The lamps' diffuse half joins the bounce, and the filter takes both**, which is what a
+    // shipped path tracer does with its direct lights (RTXDI's diffuse beside the indirect, under
+    // ReLAX): one lamp drawn a pixel is as noisy as one bounce, and both are demodulated the same way.
+    // Split, `gather`'s diffuse half holds the lamps alone. Their lobe stays in the direct light.
     SeenSolid seen;
-    seen.mDirect = litSurface(hit, vec3(0.0), lit) + bounced.mSpecular;
-    seen.mBounce = bounced.mDiffuse;
+    seen.mDirect = litSurface(hit, vec3(0.0), lit.mSpecular) + bounced.mSpecular;
+    seen.mBounce = bounced.mDiffuse + lit.mDiffuse;
     seen.mResponse = responseOf(hit);
     seen.mSunlit = hit.mAlbedo * lit.mSkyDiffuse + lit.mSkySpecular;
     seen.mSunOpen = lit.mSkyOpen;

@@ -45,10 +45,11 @@
 
 layout(local_size_x = ATROUS_WORKGROUP, local_size_y = ATROUS_WORKGROUP) in;
 
-/// One bounce, albedo divided out, as the last level left it, and in `a` the variance of its
-/// luminance: the accumulator's for the first level, and what the last level's average left of it
-/// for every level after. One where a pixel has no history to have measured a spread with, which
-/// reads as "trust the neighbours entirely" and is the honest answer for a single sample.
+/// The lamps and the one bounce, albedo divided out, as the last level left it, and in `a` the
+/// variance of its luminance: the accumulator's for the first level, and what the last level's
+/// average left of it for every level after. One where a pixel has no history to have measured a
+/// spread with, which reads as "trust the neighbours entirely" and is the honest answer for a single
+/// sample.
 ///
 /// **A sampled image and not a storage one, on every input this pass only reads.**
 /// `AtrousPass::sBindings` carries the measurement. A sampled declaration states no format, which

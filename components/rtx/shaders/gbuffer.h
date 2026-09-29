@@ -75,7 +75,7 @@ namespace Rtx::Shaders
     /// frame, once composed into it (`VisibilityConstants::mComposed`).
     const uint CHANNEL_DIRECT = 0;
 
-    /// The one bounce, demodulated — the only channel a filter may touch.
+    /// The lamps' diffuse light and the one bounce, demodulated — the channel the wavelet filters.
     const uint CHANNEL_INDIRECT = 1;
 
     /// What the composite multiplies the bounce back in by.
