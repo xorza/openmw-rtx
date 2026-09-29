@@ -27,11 +27,12 @@ namespace Rtx
         /// Formats and Vulkan Formats" table, one row per qualifier `storageformat.h` spells.
         TEST(RtxFormatsTest, aStorageFormatIsTheOneTheSpecificationPairsItsQualifierWith)
         {
-            constexpr std::array<std::pair<StorageFormat, VkFormat>, 8> sTable{ {
+            constexpr std::array<std::pair<StorageFormat, VkFormat>, 9> sTable{ {
                 { StorageFormat::Rgba8, VK_FORMAT_R8G8B8A8_UNORM },
                 { StorageFormat::R16, VK_FORMAT_R16_UNORM },
                 { StorageFormat::R16f, VK_FORMAT_R16_SFLOAT },
                 { StorageFormat::R32f, VK_FORMAT_R32_SFLOAT },
+                { StorageFormat::R32ui, VK_FORMAT_R32_UINT },
                 { StorageFormat::Rg16f, VK_FORMAT_R16G16_SFLOAT },
                 { StorageFormat::Rg32f, VK_FORMAT_R32G32_SFLOAT },
                 { StorageFormat::Rgba16f, VK_FORMAT_R16G16B16A16_SFLOAT },
@@ -85,7 +86,7 @@ namespace Rtx
                 std::uint32_t mBytes;
                 TexelDecode mDecode;
             };
-            constexpr std::array<Row, 13> sTable{ {
+            constexpr std::array<Row, 14> sTable{ {
                 { VK_FORMAT_R8_UNORM, 1, TexelDecode::Bytes },
                 { VK_FORMAT_R8G8_UNORM, 2, TexelDecode::Bytes },
                 { VK_FORMAT_R16_UNORM, 2, TexelDecode::Bytes },
@@ -96,6 +97,7 @@ namespace Rtx
                 { VK_FORMAT_B8G8R8A8_SRGB, 4, TexelDecode::Bytes },
                 { VK_FORMAT_R16G16_SFLOAT, 4, TexelDecode::Half },
                 { VK_FORMAT_R32_SFLOAT, 4, TexelDecode::Float },
+                { VK_FORMAT_R32_UINT, 4, TexelDecode::Bytes },
                 { VK_FORMAT_R16G16B16A16_SFLOAT, 8, TexelDecode::Half },
                 { VK_FORMAT_R32G32_SFLOAT, 8, TexelDecode::Float },
                 { VK_FORMAT_R32G32B32A32_SFLOAT, 16, TexelDecode::Float },
@@ -109,9 +111,9 @@ namespace Rtx
             }
 
             // Every storage layout a pass declares can be read back, since a channel is one.
-            for (const StorageFormat format :
-                { StorageFormat::Rgba8, StorageFormat::R16, StorageFormat::R16f, StorageFormat::R32f,
-                    StorageFormat::Rg16f, StorageFormat::Rg32f, StorageFormat::Rgba16f, StorageFormat::Rgba32f })
+            for (const StorageFormat format : { StorageFormat::Rgba8, StorageFormat::R16, StorageFormat::R16f,
+                     StorageFormat::R32f, StorageFormat::R32ui, StorageFormat::Rg16f, StorageFormat::Rg32f,
+                     StorageFormat::Rgba16f, StorageFormat::Rgba32f })
                 EXPECT_GT(formatInfoOf(toVulkanFormat(format)).mTexelBytes, 0u) << static_cast<int>(format);
 
             Testing::expectDies(

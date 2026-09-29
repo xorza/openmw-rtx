@@ -55,6 +55,8 @@ namespace Rtx
                 return VK_FORMAT_R16_SFLOAT;
             case Shaders::StorageFormat::R32f:
                 return VK_FORMAT_R32_SFLOAT;
+            case Shaders::StorageFormat::R32ui:
+                return VK_FORMAT_R32_UINT;
             case Shaders::StorageFormat::Rg16f:
                 return VK_FORMAT_R16G16_SFLOAT;
             case Shaders::StorageFormat::Rg32f:

@@ -8,6 +8,7 @@
 #include <components/rtxvulkan/trace/denoise/accumulatepass.hpp>
 #include <components/rtxvulkan/trace/denoise/atrouspass.hpp>
 #include <components/rtxvulkan/trace/denoise/compositepass.hpp>
+#include <components/rtxvulkan/trace/denoise/shadowpass.hpp>
 
 #include "visibilitypass.hpp"
 
@@ -42,9 +43,10 @@ namespace Rtx
         SpriteBinPass mSpriteBin;
         SpriteShadePass mSpriteShade;
 
-        /// The denoiser's two passes, one pipeline each for every chain: each chain keeps the
-        /// history and the scratch its own camera needs.
+        /// The denoiser's passes, one set of pipelines for every chain: each chain keeps the history
+        /// and the scratch its own camera needs.
         AccumulatePass mAccumulate;
+        ShadowPass mShadow;
         AtrousPass mFilter;
     };
 }

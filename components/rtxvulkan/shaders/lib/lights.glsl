@@ -42,11 +42,21 @@ SkySource skySourceAt(uint source)
 /// What the water over the point takes is not here: that is per channel and it is the caustic as
 /// well as the absorption, and `lightThroughWater` is the one place it is answered.
 ///
+/// **Two halves, `Passage`'s**: whether the ray was stopped, and the rest — what the translucent
+/// surfaces it crossed and the deck let through.
+///
 /// @param draw one pair in `[0, 1)`, which aims the ray inside the disc's cone.
+Passage skyPassage(SkySource sky, vec3 position, vec2 draw)
+{
+    const Passage passage = lightPassage(position, coneDirection(sky.mDirection, sky.mLimb, draw), frame.mReach);
+    return Passage(passage.mOpen, passage.mThrough * cloudShadow(position, sky.mDirection));
+}
+
+/// The same as one number, which is exactly the product `lightThrough` makes of its own halves.
 float skyVisible(SkySource sky, vec3 position, vec2 draw)
 {
-    return lightThrough(position, coneDirection(sky.mDirection, sky.mLimb, draw), frame.mReach)
-        * cloudShadow(position, sky.mDirection);
+    const Passage passage = skyPassage(sky, position, draw);
+    return passage.mOpen * passage.mThrough;
 }
 
 /// The same for a caller that has an index and not a source.

@@ -1,0 +1,206 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// Derived from the FidelityFX SDK (v1.1.4), `ffx_denoiser_shadows_filter.h`, whose notice follows.
+//
+// Copyright (C) 2024 Advanced Micro Devices, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files(the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions :
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+// One level of the shadow denoiser's spatial half: a 3×3 edge-stopping filter with its taps `1 <<
+// SHADOW_LEVEL` apart, over the temporal pass's blend and its variance, run three times.
+//
+// **What the port keeps**: the 16×16 square each workgroup reads into shared memory once, the 3×3
+// Gaussian over the variance before its square root is the brightness test's scale, the separable
+// kernel of 1 and 2/3, the brightness test `exp(-|a - b| / sigma)`, the variance carried by the
+// squares of the weights, the cleared tiles copied rather than filtered — and not at the middle
+// level, which is how the temporal pass's exact value reaches the last one — and the first level's
+// answer kept as the next frame's history.
+//
+// **What it changes, and why:**
+//
+// - **Full floats.** The SDK's filter works only with half-float arithmetic, `FFX_HALF`: without it
+//   the functions are stubs. Here the arithmetic is full floats, and halves are only what shared
+//   memory holds, as they are there.
+// - **The tree's two surface tests** in place of the SDK's depth and normal ones: `coplanarWeight`,
+//   over positions rebuilt through the eye that cast each ray, and `facingWeight`. The wavelet stops
+//   at the same edges, so a shadow does not bleed across an edge the bounce under it stops at.
+// - **No contrast step.** The SDK's last level raises its mean to `max(1.2 - variance, 1)`, which
+//   darkens a penumbra on purpose: 3.4% of a penumbra's light, against a 256-frame reference, in
+//   `theShadowDenoiserTakesTheNoiseOffAPenumbraAndLeavesItsLightWhereItWas`. A picture darker than
+//   the light it stands for is a picture read wrong, and the noise measure counts it as error.
+// - **A tap that receives nothing weighs nought**, where the SDK drops only the sky: a surface the
+//   source does not light carries a value that is not a shadow, and it must not darken the
+//   terminator beside it.
+
+#include "gbuffer.h"
+#include "sets.h"
+#include "shadow.h"
+
+#include "lib/pixels.glsl"
+#include "lib/spritelist.glsl"
+#include "lib/surfacematch.glsl"
+
+/// Which of the `SHADOW_FILTER_LEVELS` this module is: its taps are `1 << SHADOW_LEVEL` apart.
+layout(constant_id = 0) const uint SHADOW_LEVEL = 0u;
+
+layout(local_size_x = SHADOW_WORKGROUP, local_size_y = SHADOW_WORKGROUP) in;
+
+layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
+
+/// For the one bit that says which eye a pixel's ray left, `puffsOnArms`.
+layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_PUFFS, GBUFFER_LAYER) uniform readonly image2D puffs;
+
+layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_TILES, SHADOW_TILES) uniform readonly image2D tiles;
+
+/// The level before's mean and variance, or the temporal pass's: `SHADOW_NO_RECEIVER` for the
+/// variance of a pixel the sky's source does not light.
+layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_SOURCE, SHADOW_REPROJECTED) uniform readonly image2D source;
+layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_FILTERED, SHADOW_REPROJECTED) uniform writeonly image2D filtered;
+
+layout(push_constant, scalar) uniform Push
+{
+    ShadowFilterConstants level;
+};
+
+/// The side of the square a workgroup reads: its own eight pixels and four either side, which is as
+/// far as the widest level's taps reach.
+const uint SPAN = 2u * SHADOW_WORKGROUP;
+const int APRON = int(SHADOW_WORKGROUP) / 2;
+
+/// The level's input as two halves in a word, the surface's normal code — `SURFACE_NO_NORMAL` where
+/// the pixel receives nothing, so no test passes it — and where the surface stands.
+shared uint gInput[SPAN][SPAN];
+shared float gNormal[SPAN][SPAN];
+shared vec3 gPosition[SPAN][SPAN];
+
+Camera eyeAt(ivec2 pixel)
+{
+    return puffsOnArms(imageLoad(puffs, pixel)) ? level.mArms : level.mCamera;
+}
+
+/// Fills the workgroup's square, four texels a lane, clamped to the frame as the SDK clamps them.
+void readSquare(ivec2 corner)
+{
+    const ivec2 last = ivec2(level.mCamera.mWidth, level.mCamera.mHeight) - 1;
+    for (uint i = gl_LocalInvocationIndex; i < SPAN * SPAN; i += SHADOW_WORKGROUP * SHADOW_WORKGROUP)
+    {
+        const uvec2 square = uvec2(i % SPAN, i / SPAN);
+        const ivec2 pixel = clamp(corner + ivec2(square), ivec2(0), last);
+
+        const vec2 seen = imageLoad(surfaceChannel, pixel).rg;
+        const vec2 value = imageLoad(source, pixel).rg;
+        const bool lit = value.y != SHADOW_NO_RECEIVER;
+
+        gInput[square.y][square.x] = packHalf2x16(value);
+        gNormal[square.y][square.x] = lit ? seen.x : SURFACE_NO_NORMAL;
+        gPosition[square.y][square.x] = lit ? positionAlong(eyeAt(pixel), pixel, seen.y) : vec3(0.0);
+    }
+}
+
+vec2 inputAt(ivec2 square)
+{
+    return unpackHalf2x16(gInput[square.y][square.x]);
+}
+
+/// The SDK's 3×3 Gaussian over the variance, `1/4` at the centre, `1/8` along the axes and `1/16`
+/// at the corners. A select and not a table, for the reason `atrous.comp`'s `kernelAt` gives. A
+/// pixel that receives nothing adds a variance of nought, as the SDK's sky does.
+float filteredVariance(ivec2 square)
+{
+    float variance = 0.0;
+    for (int y = -1; y <= 1; ++y)
+        for (int x = -1; x <= 1; ++x)
+        {
+            const float weight = (x == 0 ? 0.5 : 0.25) * (y == 0 ? 0.5 : 0.25);
+            variance += weight * max(inputAt(square + ivec2(x, y)).y, 0.0);
+        }
+    return variance;
+}
+
+/// The SDK's separable kernel: 1 at the centre, 2/3 one step out.
+float kernelAt(int offset)
+{
+    return offset == 0 ? 1.0 : 2.0 / 3.0;
+}
+
+void main()
+{
+    const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
+    const bool inFrame = !outsideOf(uvec2(at), uvec2(level.mCamera.mWidth, level.mCamera.mHeight));
+
+    // **A cleared tile is copied**: its value is the temporal pass's exact nought or one. Not at the
+    // middle level, whose target is the temporal pass's own image, so the value is already there
+    // for the last level to read.
+    if (imageLoad(tiles, ivec2(gl_WorkGroupID.xy)).r > 0.5)
+    {
+        if (SHADOW_LEVEL != 1u && inFrame)
+            imageStore(filtered, at, imageLoad(source, at));
+        return;
+    }
+
+    readSquare(ivec2(gl_WorkGroupID.xy * SHADOW_WORKGROUP) - APRON);
+    barrier();
+
+    if (!inFrame)
+        return;
+
+    const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + APRON;
+    const float normalCode = gNormal[centre.y][centre.x];
+
+    // One that receives nothing is nought, with nothing to filter, and says so to the next level.
+    vec2 result = vec2(0.0, SHADOW_NO_RECEIVER);
+    if (normalCode != SURFACE_NO_NORMAL)
+    {
+        const vec2 here = inputAt(centre);
+        const vec3 normal = unpackSurfaceNormal(normalCode);
+        const vec3 position = gPosition[centre.y][centre.x];
+        const float footprint = footprintAlong(eyeAt(at), imageLoad(surfaceChannel, at).g);
+        const float deviation = sqrt(max(filteredVariance(centre) + 1e-9, 0.0));
+
+        const int step = 1 << SHADOW_LEVEL;
+        float weightSum = 1.0;
+        vec2 sum = here;
+        for (int y = -1; y <= 1; ++y)
+            for (int x = -1; x <= 1; ++x)
+            {
+                if (x == 0 && y == 0)
+                    continue;
+
+                const ivec2 tap = centre + ivec2(x, y) * step;
+                const float tapNormal = gNormal[tap.y][tap.x];
+                if (tapNormal == SURFACE_NO_NORMAL)
+                    continue;
+
+                const vec2 there = inputAt(tap);
+                const float weight = kernelAt(x) * kernelAt(y) * exp(-abs(here.x - there.x) / deviation)
+                    * coplanarWeight(normal, position, gPosition[tap.y][tap.x], footprint)
+                    * facingWeight(normal, unpackSurfaceNormal(tapNormal));
+
+                sum += vec2(weight, weight * weight) * there;
+                weightSum += weight;
+            }
+
+        result = vec2(sum.x / weightSum, sum.y / (weightSum * weightSum));
+    }
+
+    imageStore(filtered, at, vec4(result, 0.0, 0.0));
+}

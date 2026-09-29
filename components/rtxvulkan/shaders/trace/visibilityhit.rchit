@@ -133,7 +133,12 @@ void answerSolid(inout Answer answer, Surface surface)
         return;
     }
 
-    shadeSolid(surface, stagePixel(), stageCone(), answer.mRadiance, answer.mBounced, answer.mResponse);
+    const SeenSolid seen = shadeSolid(surface, stagePixel(), stageCone());
+    answer.mRadiance = seen.mDirect;
+    answer.mBounced = seen.mBounce;
+    answer.mResponse = seen.mResponse;
+    answer.mSunlit = seen.mSunlit;
+    answer.mSunOpen = seen.mSunOpen > 0.0;
 }
 
 /// Fills the payload in for a water surface, and for the ground showing through its last half metre.
@@ -174,18 +179,19 @@ void answerWater(inout Answer answer, Surface surface)
     if (!bed.mHit)
         return;
 
-    vec3 bedLight;
-    SurfaceResponse lambert;
-    shadeSolid(bed, pixel, cone, bedLight, answer.mBounced, lambert);
+    const SeenSolid seen = shadeSolid(bed, pixel, cone);
 
     // The direct light and the response as a blend, and the bounce whole, since the albedo it is put
-    // back against carries the share. The two normals arrive as codes and leave as one, so a shore
-    // pixel's is rounded twice — within twice the code's bound, on the few pixels a waterline
-    // crosses.
-    const vec3 normal = normalize(mix(unpackSurfaceNormal(lambert.mNormal),
+    // back against carries the share. The sky's source is the bed's alone, so it takes the bed's
+    // share of the blend. The two normals arrive as codes and leave as one, so a shore pixel's is
+    // rounded twice — within twice the code's bound, on the few pixels a waterline crosses.
+    const vec3 normal = normalize(mix(unpackSurfaceNormal(seen.mResponse.mNormal),
         unpackSurfaceNormal(answer.mResponse.mNormal), shore));
-    answer.mRadiance = mix(bedLight, answer.mRadiance, shore);
-    answer.mResponse = SurfaceResponse(packSurfaceNormal(normal), lambert.mDiffuse * (1.0 - shore));
+    answer.mRadiance = mix(seen.mDirect, answer.mRadiance, shore);
+    answer.mBounced = seen.mBounce;
+    answer.mSunlit = seen.mSunlit * (1.0 - shore);
+    answer.mSunOpen = seen.mSunOpen > 0.0;
+    answer.mResponse = SurfaceResponse(packSurfaceNormal(normal), seen.mResponse.mDiffuse * (1.0 - shore));
 }
 
 void main()

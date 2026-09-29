@@ -1,0 +1,343 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// Derived from the FidelityFX SDK (v1.1.4), `ffx_denoiser_shadows_tileclassification.h`, whose
+// notice follows.
+//
+// Copyright (C) 2024 Advanced Micro Devices, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files(the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions :
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+// The shadow denoiser's temporal half: which tiles need filtering at all, and for those that do,
+// this frame's bit blended with what the same surface held before, clamped to what its neighbours
+// say now.
+//
+// **What the port keeps is the algorithm**: the 17×17 kernel over the bits that gives each pixel its
+// local mean and spread, the clamp of the history to half a deviation of it, the sample count damped
+// by how far the history stood off, the variance boosted over the first sixteen frames, and the
+// blend of five per cent a frame once the history is eight deep. Each constant is the SDK's.
+//
+// **What it changes, and why:**
+//
+// - **No subgroup operation.** The SDK's all-true takes a wave-wide vote where a wave is the
+//   workgroup, and falls back to shared memory where it is not; the fallback is the one kept, since
+//   AMD's waves are 32 or 64 lanes and Intel's 8 to 32. The words `shadowmask.comp` packed are laid
+//   out as rows of the square in shared memory, one word a row.
+// - **The tree's reprojection.** The SDK fetches its history at `uv + velocity`, dilated to the
+//   nearest depth of a quad, and calls a pixel disoccluded by a depth through projection matrices.
+//   This fetches where the accumulator fetches and keeps a tap only where `heldSurfaceMatches` says it
+//   is this surface, against the accumulator's own surface history: one rule for "the same surface
+//   as last frame", and no depth history beside it.
+// - **The frame's edge is not a shadow.** The local mean is taken over the pixels the frame holds,
+//   where the SDK counts those off it as shadowed; `horizontalNeighbourhood` says what that cost.
+// - **Who receives.** A receiver is a surface the sky's source lights at all — `sunlit.rgb` not
+//   nought — so a room, which has none, skips every tile here.
+
+#include "accumulate.h"
+#include "colour.h"
+#include "gbuffer.h"
+#include "sets.h"
+#include "shadow.h"
+
+#include "lib/pixels.glsl"
+#include "lib/surfacematch.glsl"
+
+layout(local_size_x = SHADOW_WORKGROUP, local_size_y = SHADOW_WORKGROUP) in;
+
+/// The light the sky's source would add and the bit that says whether its rays got through —
+/// `CHANNEL_SUNLIT`. No format, because it is as wide as the run keeps radiance.
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_SUNLIT) uniform readonly image2D sunlit;
+
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D motion;
+
+/// The surface the accumulator's history belongs to, which this history belongs to as well: both
+/// were written over the same pixels of the same frame.
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_HELD_SURFACE, ACCUMULATE_SURFACE)
+    uniform readonly image2D heldSurface;
+
+/// Last frame's first filter level: the mean the SDK carries forward, as SVGF carries the wavelet's.
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_HISTORY, SHADOW_REPROJECTED) uniform readonly image2D history;
+
+/// The mean, the running sum of squared deviations and the sample count, last frame's and this one's.
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MOMENTS_BEFORE, SHADOW_MOMENTS)
+    uniform readonly image2D momentsBefore;
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MOMENTS, SHADOW_MOMENTS) uniform writeonly image2D moments;
+
+/// This frame's blend and its variance, which the first filter level reads.
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_REPROJECTED, SHADOW_REPROJECTED)
+    uniform writeonly image2D reprojected;
+
+/// One where the tile was cleared, nought where the filter runs over it.
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_TILES, SHADOW_TILES) uniform writeonly image2D tiles;
+
+/// The rays' bits, a word an 8×4 tile — `shadowmask.comp`.
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MASK, SHADOW_MASK) uniform readonly uimage2D mask;
+
+layout(push_constant, scalar) uniform Push
+{
+    ShadowTilesConstants frame;
+};
+
+/// The side of the square of bits a workgroup reads.
+const uint SPAN = SHADOW_WORKGROUP + 2u * SHADOW_APRON;
+
+/// The square's bits, one row a word: bit `c` of row `r` is the pixel `c` columns and `r` rows from
+/// the square's corner. `open` is set where the pixel's rays got through, which the mask says only of
+/// a pixel inside the frame, and `inside` where the pixel is inside the frame at all.
+shared uint gOpen[SPAN];
+shared uint gInside[SPAN];
+
+/// How many of the workgroup's pixels receive: the SDK's all-true, by its shared-memory path.
+shared uint gReceivers;
+
+/// Each column's horizontal kernel over three rows eight apart, which the vertical half then reads:
+/// the weight of the open pixels, and the weight of the pixels inside the frame.
+shared vec2 gRows[SHADOW_WORKGROUP][3u * SHADOW_WORKGROUP];
+
+/// The SDK's local-neighbourhood kernel: a Gaussian of radius eight, `exp(-3 i² / 81)`, normalised
+/// over its seventeen taps.
+const float KERNEL_RADIUS = 8.0;
+const float KERNEL_SUM = 1.0
+    + 2.0
+        * (exp(-3.0 * 1.0 / 81.0) + exp(-3.0 * 4.0 / 81.0) + exp(-3.0 * 9.0 / 81.0) + exp(-3.0 * 16.0 / 81.0)
+            + exp(-3.0 * 25.0 / 81.0) + exp(-3.0 * 36.0 / 81.0) + exp(-3.0 * 49.0 / 81.0)
+            + exp(-3.0 * 64.0 / 81.0));
+
+float kernelWeight(float offset)
+{
+    return exp(-3.0 * offset * offset / ((KERNEL_RADIUS + 1.0) * (KERNEL_RADIUS + 1.0))) / KERNEL_SUM;
+}
+
+/// Whether the sky's source lights the surface at `at` at all.
+bool receives(ivec2 at)
+{
+    return imageLoad(surfaceChannel, at).r != SURFACE_NO_NORMAL
+        && dot(imageLoad(sunlit, at).rgb, LUMINANCE_WEIGHTS) > 0.0;
+}
+
+/// The horizontal half of the 17×17 kernel over row `row` of the square, centred on column
+/// `column + SHADOW_APRON`: the SDK's `HorizontalNeighborhood`, off the shared row rather than off
+/// three tile words — the weight of the open pixels, and beside it the weight of those inside the
+/// frame.
+///
+/// **What the SDK does not carry is the second**: it counts a pixel off the frame as shadowed, so the
+/// local mean of a lit floor falls toward the frame's edge and the clamp pulls the history down with
+/// it. Measured on a penumbra that runs off the frame, the denoised mean stood 1.3% under a
+/// 256-frame reference. The two sums make the mean one over what the frame holds.
+vec2 horizontalNeighbourhood(uint row, uint column)
+{
+    const uint open = gOpen[row] >> column;
+    const uint inside = gInside[row] >> column;
+
+    vec2 moment = vec2(0.0);
+    for (int i = 0; i <= 16; ++i)
+    {
+        const float weight = kernelWeight(float(i - 8));
+        moment += vec2(((open >> uint(i)) & 1u) != 0u ? weight : 0.0, ((inside >> uint(i)) & 1u) != 0u ? weight : 0.0);
+    }
+
+    return moment;
+}
+
+/// Whether the history at `at` belongs to the surface this pixel shows.
+bool sameSurface(ivec2 at, vec3 normal, float scaled)
+{
+    if (outsideOf(at, uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight)))
+        return false;
+
+    return heldSurfaceMatches(imageLoad(heldSurface, at), normal, scaled, frame.mDistanceScale);
+}
+
+void main()
+{
+    const uvec2 extent = uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight);
+    const uvec2 local = gl_LocalInvocationID.xy;
+    const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
+    const bool inFrame = !outsideOf(uvec2(at), extent);
+    const ivec2 corner = ivec2(gl_WorkGroupID.xy * SHADOW_WORKGROUP) - int(SHADOW_APRON);
+
+    if (gl_LocalInvocationIndex == 0u)
+        gReceivers = 0u;
+
+    // A row of the square a lane: the byte of each of the three tiles across it that holds the row.
+    // The square's corner stands on a tile's, so its columns are whole tiles.
+    if (gl_LocalInvocationIndex < SPAN)
+    {
+        const uint row = gl_LocalInvocationIndex;
+        const int y = corner.y + int(row);
+
+        uint open = 0u;
+        uint inside = 0u;
+        if (y >= 0 && y < int(extent.y))
+        {
+            const uint shift = (uint(y) % SHADOW_MASK_HEIGHT) * SHADOW_MASK_WIDTH;
+            const int tiles = int((extent.x + SHADOW_MASK_WIDTH - 1u) / SHADOW_MASK_WIDTH);
+            for (uint across = 0u; across < SPAN / SHADOW_MASK_WIDTH; ++across)
+            {
+                const int tile = corner.x / int(SHADOW_MASK_WIDTH) + int(across);
+                if (tile < 0 || tile >= tiles)
+                    continue;
+
+                const uint word = imageLoad(mask, ivec2(tile, y / int(SHADOW_MASK_HEIGHT))).r;
+                open |= ((word >> shift) & 0xFFu) << (across * SHADOW_MASK_WIDTH);
+            }
+
+            const int first = max(-corner.x, 0);
+            const int last = min(int(extent.x) - corner.x, int(SPAN));
+            inside = ((1u << uint(last - first)) - 1u) << uint(first);
+        }
+
+        gOpen[row] = open;
+        gInside[row] = inside;
+    }
+
+    const bool receiver = inFrame && receives(at);
+    if (receiver)
+        atomicAdd(gReceivers, 1u);
+
+    barrier();
+
+    // **Whole tiles out, uniformly**, before any pixel of them costs anything: the branch is the
+    // workgroup's, so no lane waits on another. The SDK's two early outs, in its order.
+    const bool noReceiver = gReceivers == 0u;
+
+    bool allLit = true;
+    bool allShadowed = true;
+    for (uint row = 0u; row < SPAN; ++row)
+    {
+        allLit = allLit && gOpen[row] == gInside[row];
+        allShadowed = allShadowed && gOpen[row] == 0u;
+    }
+
+    if (noReceiver || allLit || allShadowed)
+    {
+        // Every pixel's answer is exact, and the neighbours' filter levels may read it.
+        const float value = !noReceiver && allLit ? 1.0 : 0.0;
+        if (gl_LocalInvocationIndex == 0u)
+            imageStore(tiles, ivec2(gl_WorkGroupID.xy), vec4(1.0));
+        if (inFrame)
+        {
+            imageStore(reprojected, at, vec4(value, receiver ? 0.0 : SHADOW_NO_RECEIVER, 0.0, 0.0));
+            imageStore(moments, at, vec4(value, 0.0, receiver ? 1.0 : 0.0, 0.0));
+        }
+        return;
+    }
+
+    if (gl_LocalInvocationIndex == 0u)
+        imageStore(tiles, ivec2(gl_WorkGroupID.xy), vec4(0.0));
+
+    // The local mean of the bits, which with one sample a pixel is its variance as well: the
+    // horizontal half at three rows eight apart, then the vertical half down the column.
+    gRows[local.x][local.y] = horizontalNeighbourhood(local.y, local.x);
+    gRows[local.x][local.y + SHADOW_WORKGROUP] = horizontalNeighbourhood(local.y + SHADOW_APRON, local.x);
+    gRows[local.x][local.y + 2u * SHADOW_WORKGROUP]
+        = horizontalNeighbourhood(local.y + 2u * SHADOW_APRON, local.x);
+
+    barrier();
+
+    if (!inFrame)
+        return;
+
+    vec2 kernel = gRows[local.x][local.y + SHADOW_WORKGROUP] * kernelWeight(0.0)
+        + (gRows[local.x][local.y] + gRows[local.x][local.y + 2u * SHADOW_WORKGROUP]) * kernelWeight(KERNEL_RADIUS);
+    for (uint i = 1u; i < uint(KERNEL_RADIUS); ++i)
+    {
+        const uint row = SHADOW_WORKGROUP + local.y;
+        kernel += (gRows[local.x][row - i] + gRows[local.x][row + i]) * kernelWeight(float(i));
+    }
+
+    // The pixel is inside the frame, so the weight of what is inside is at least its own.
+    const float neighbourhood = kernel.x / kernel.y;
+
+    vec3 momentsNow = vec3(0.0);
+    float variance = SHADOW_NO_RECEIVER;
+    float blended = 0.0;
+
+    if (receiver)
+    {
+        const uvec2 square = local + SHADOW_APRON;
+        const float current = ((gOpen[square.y] >> square.x) & 1u) != 0u ? 1.0 : 0.0;
+
+        const vec2 seen = imageLoad(surfaceChannel, at).rg;
+        const vec3 normal = unpackSurfaceNormal(seen.x);
+        const float scaled = seen.y * frame.mDistanceScale;
+        const HistoryFootprint before = historyFootprint(at, frame.mCamera.mJitter, imageLoad(motion, at).xy);
+
+        // The moments at the nearest texel, as the SDK fetches them, and none where that texel is
+        // another surface: the SDK's disocclusion.
+        const ivec2 nearest = before.mLow + ivec2(greaterThanEqual(before.mAcross, vec2(0.5)));
+        const bool held = frame.mReset == 0u && sameSurface(nearest, normal, scaled);
+        const vec3 previousMoments = held ? imageLoad(momentsBefore, nearest).xyz : vec3(0.0);
+
+        const float samples = previousMoments.z + 1.0;
+        const float mean = previousMoments.x + (current - previousMoments.x) / samples;
+        const float deviations = previousMoments.y + (current - previousMoments.x) * (current - mean);
+        variance = samples > 1.0 ? deviations / (samples - 1.0) : 1.0;
+        momentsNow = vec3(mean, deviations, samples);
+
+        // The bounds the history is clamped to: half a deviation either side of the local mean.
+        const float spatialVariance = max(neighbourhood - neighbourhood * neighbourhood, 0.0);
+        const float deviation = sqrt(spatialVariance);
+        const float low = neighbourhood - 0.5 * deviation;
+        const float high = neighbourhood + 0.5 * deviation;
+
+        // The history bilinear over the taps that are this surface, as the accumulator takes its
+        // own; the frame's own bit where none is, which is a history of one sample.
+        float previous = current;
+        if (frame.mReset == 0u)
+        {
+            float sum = 0.0;
+            float weight = 0.0;
+            for (int i = 0; i < 4; ++i)
+            {
+                const float share = historyShare(before, i);
+                const ivec2 tap = historyTap(before, i);
+                if (share <= 0.0 || !sameSurface(tap, normal, scaled))
+                    continue;
+
+                sum += imageLoad(history, tap).x * share;
+                weight += share;
+            }
+            if (weight > 0.0)
+                previous = sum / weight;
+        }
+
+        const float clamped = clamp(previous, low, high);
+
+        // A history that stood well off the neighbourhood is worth fewer samples than it counted.
+        const float discontinuity = (previous - neighbourhood) / max(0.5 * deviation, 0.001);
+        momentsNow.z *= exp(-discontinuity * discontinuity / 20.0);
+
+        // The first sixteen frames of a history know their variance poorly, and say so.
+        if (momentsNow.z < 16.0)
+        {
+            variance = max(variance, spatialVariance);
+            variance *= max(16.0 - momentsNow.z, 1.0);
+        }
+
+        const float historyWeight = sqrt(max(8.0 - momentsNow.z, 0.0) / 8.0);
+        blended = mix(clamped, current, mix(0.05, 1.0, historyWeight));
+    }
+
+    imageStore(reprojected, at, vec4(blended, variance, 0.0, 0.0));
+    imageStore(moments, at, vec4(momentsNow, 0.0));
+}

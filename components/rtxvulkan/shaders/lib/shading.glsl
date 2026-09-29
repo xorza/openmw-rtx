@@ -39,6 +39,13 @@ struct DirectLight
     /// What the lobe reflects toward the eye, whole: a specular half is not multiplied by the
     /// diffuse albedo.
     vec3 mSpecular;
+
+    /// The sky's source, kept out of the two above where `gather` was asked to split it: its diffuse
+    /// half per unit albedo and net of the lobe's share, and its lobe whole, each as though its rays
+    /// got through — and whether they did, one or nought. Nought and one where it was not split.
+    vec3 mSkyDiffuse;
+    vec3 mSkySpecular;
+    float mSkyOpen;
 };
 
 /// The *direct* light arriving at a point and turning back out of it: per unit albedo for the
@@ -72,7 +79,10 @@ struct DirectLight
 ///        correlated lamps at both ends of it.
 /// @param path `PATH_SEEN` or `PATH_INDIRECT`. It decides whether the moons are asked at all, and
 ///        whether the rest of this is drawn at `INDIRECT_LIGHT_RATE` or spent on every hit.
-DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path)
+/// @param split whether the sky's source is handed back apart, `DirectLight::mSkyDiffuse` and the
+///        two beside it, for the shadow denoiser (`CHANNEL_SUNLIT`). **A literal at every call**:
+///        only the eye's own solid splits, and every other caller composes what it composed before.
+DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path, bool split)
 {
     const vec3 position = surface.mPosition;
     const Facing facing = facingOf(surface);
@@ -88,6 +98,8 @@ DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path)
     vec3 specular = vec3(0.0);
     vec3 taken = vec3(0.0);
 
+    DirectLight lit = DirectLight(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), 1.0);
+
     // **Drawn before anything else and out of a sequence of its own**: the ordering below is what
     // keeps a lamp arriving in the next cell from moving the penumbra of the one already there, and
     // a draw taken from that sequence would move every one of them.
@@ -96,9 +108,9 @@ DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path)
     {
         // Only the bounce shades as indirect, so `seed` is its pixel's key and `SEED_LAMPS_BOUNCE`,
         // and the draw is the key's own entry of the chain.
-        uint lit = randomSeed(seed - SEED_LAMPS_BOUNCE + SEED_INDIRECT_LIGHT);
-        if (randomNext(lit) >= INDIRECT_LIGHT_RATE)
-            return DirectLight(radiance, specular);
+        uint rate = randomSeed(seed - SEED_LAMPS_BOUNCE + SEED_INDIRECT_LIGHT);
+        if (randomNext(rate) >= INDIRECT_LIGHT_RATE)
+            return lit;
 
         rated = 1.0 / INDIRECT_LIGHT_RATE;
     }
@@ -158,17 +170,31 @@ DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path)
     {
         const SkyChoice picked = pick.mIndex == 0u ? sun : (pick.mIndex == 1u ? masser : secunda);
 
-        const float skySeen = skyVisibleThrough(picked.mSky, leaving, sunDraw);
+        // Split, the rays' own bit is handed back and the rest of the estimate is made as though
+        // they got through: the product of the two is the estimate unsplit, and the bit is what a
+        // denoiser filters in its place.
+        const Passage passage = skyPassageThrough(picked.mSky, leaving, sunDraw);
+        const float skySeen = split ? passage.mThrough : passage.mOpen * passage.mThrough;
         const vec3 water = lightThroughWater(position, picked.mSky.mDirection, surface.mFootprint);
         const vec3 skyArriving = picked.mSky.mIrradiance * water;
         const float skyLit = picked.mCosine * INV_PI * skySeen;
         const vec3 skyDiffuse = skyArriving * (pick.mWhole ? skyLit : skyLit / pick.mChance);
-        radiance += skyDiffuse;
+        const vec3 skySpecular = gloss.mGlossy
+            ? water * picked.mLight.mSpecular * (pick.mWhole ? skySeen : skySeen / pick.mChance)
+            : vec3(0.0);
+        const vec3 skyTaken = gloss.mGlossy ? skyDiffuse * picked.mLight.mFresnel : vec3(0.0);
 
-        if (gloss.mGlossy)
+        if (split)
         {
-            specular += water * picked.mLight.mSpecular * (pick.mWhole ? skySeen : skySeen / pick.mChance);
-            taken += skyDiffuse * picked.mLight.mFresnel;
+            lit.mSkyDiffuse = skyDiffuse - skyTaken;
+            lit.mSkySpecular = skySpecular;
+            lit.mSkyOpen = passage.mOpen;
+        }
+        else
+        {
+            radiance += skyDiffuse;
+            specular += skySpecular;
+            taken += skyTaken;
         }
     }
 
@@ -206,7 +232,9 @@ DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path)
         taken += lampDiffuse * kept.mFresnel;
     }
 
-    return DirectLight((radiance - taken) * rated, specular * rated);
+    lit.mDiffuse = (radiance - taken) * rated;
+    lit.mSpecular = specular * rated;
+    return lit;
 }
 
 /// What terminates a path: the cell's own ambient, dimmed by whatever stands over the point.
@@ -242,8 +270,8 @@ SurfaceResponse responseOf(Surface surface)
 ///        hit the eye found, and `pathEnd` at the hit that hemisphere found. **One statement of what
 ///        a diffuse surface does with light, used at both depths** — writing it twice is how the two
 ///        would come to disagree.
-/// @param gloss the surface's specular half, `glossOf`.
-vec3 shadeSurface(Surface surface, Gloss gloss, vec3 incoming, uint seed, uint path)
+/// @param lit what `gather` found at the surface.
+vec3 litSurface(Surface surface, vec3 incoming, DirectLight lit)
 {
     // The emissive colour joins the light rather than the albedo, which is where the original engine
     // puts it: it sums the term with the diffuse and ambient light and multiplies the whole by the
@@ -255,9 +283,16 @@ vec3 shadeSurface(Surface surface, Gloss gloss, vec3 incoming, uint seed, uint p
     // made of rather than being tinted by it.
     //
     // The lobe's light is added last, and whole.
-    const DirectLight lit = gather(surface, gloss, seed, path);
     return surface.mAlbedo * (incoming + lit.mDiffuse + surface.mEmissiveColour * EMISSIVE_INTENSITY)
         + surface.mEmitted + lit.mSpecular;
+}
+
+/// `litSurface` over the whole of `gather`'s light, the sky's source included.
+///
+/// @param gloss the surface's specular half, `glossOf`.
+vec3 shadeSurface(Surface surface, Gloss gloss, vec3 incoming, uint seed, uint path)
+{
+    return litSurface(surface, incoming, gather(surface, gloss, seed, path, false));
 }
 
 /// Which face of a surface a diffuse sample leaves by, and what the sample is then worth.
@@ -584,25 +619,46 @@ Bounce bounceLight(Surface surface, Gloss gloss, uvec2 pixel, Cone cone)
     return drawn.mSpecular ? Bounce(vec3(0.0), arriving) : Bounce(arriving, vec3(0.0));
 }
 
-/// What a solid the eye found is: its direct light, the one bounce it gathers, and what it is in the
-/// filter's terms. The lobe's bounce joins the direct light, for the reason `Bounce::mSpecular`
-/// gives.
+/// What a solid the eye found sends back, in the channels' pieces.
+struct SeenSolid
+{
+    /// Everything resolved but the sky's source: the lamps, the glow, and the lobe's bounce, which
+    /// joins the direct light for the reason `Bounce::mSpecular` gives.
+    vec3 mDirect;
+
+    /// The one bounce, per unit albedo.
+    vec3 mBounce;
+
+    /// What the solid is in the filter's terms.
+    SurfaceResponse mResponse;
+
+    /// What the sky's source adds as though its rays got through, albedo and lobe included, and
+    /// whether they did: `CHANNEL_SUNLIT`'s two halves.
+    vec3 mSunlit;
+    float mSunOpen;
+};
+
+/// What a solid the eye found is: its direct light, the one bounce it gathers, the sky's source
+/// apart for the shadow denoiser, and what it is in the filter's terms.
 ///
 /// **One statement of what a ground pixel is, used twice** — for the hit itself, and for the bed
 /// under a waterline pixel, which is that ground and has to be shaded exactly as it. Written twice
 /// is how the two would come to disagree.
 ///
 /// @param cone as `bounceDraw` takes it.
-void shadeSolid(
-    Surface hit, uvec2 pixel, Cone cone, out vec3 direct, out vec3 bounce, out SurfaceResponse response)
+SeenSolid shadeSolid(Surface hit, uvec2 pixel, Cone cone)
 {
     const Gloss gloss = glossOf(hit);
-    const vec3 lit = shadeSurface(hit, gloss, vec3(0.0), pixelKey(pixel) + SEED_LAMPS_EYE, PATH_SEEN);
+    const DirectLight lit = gather(hit, gloss, pixelKey(pixel) + SEED_LAMPS_EYE, PATH_SEEN, true);
     const Bounce bounced = bounceLight(hit, gloss, pixel, cone);
 
-    direct = lit + bounced.mSpecular;
-    bounce = bounced.mDiffuse;
-    response = responseOf(hit);
+    SeenSolid seen;
+    seen.mDirect = litSurface(hit, vec3(0.0), lit) + bounced.mSpecular;
+    seen.mBounce = bounced.mDiffuse;
+    seen.mResponse = responseOf(hit);
+    seen.mSunlit = hit.mAlbedo * lit.mSkyDiffuse + lit.mSkySpecular;
+    seen.mSunOpen = lit.mSkyOpen;
+    return seen;
 }
 
 #endif

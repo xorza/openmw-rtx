@@ -545,6 +545,17 @@ namespace Rtx::Shaders
         return SkySource{ direction, irradiance, SUN_SHADOW_SINE };
     }
 
+    /// Whether a source in the sky lights anything this frame: the sun, or a moon. A moon that is
+    /// drawn and lights nothing — one fading out around dawn — does not count, and neither does a
+    /// room, whose sky has no sources. Where none does, no pixel has a sky source's light to shadow.
+    inline bool skySourceLights(const VisibilityConstants& frame)
+    {
+        bool lights = frame.mSun.mIrradiance != vec3();
+        for (const MoonDisc& moon : frame.mMoons)
+            lights = lights || moon.mSource.mIrradiance != vec3();
+        return lights;
+    }
+
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
     static_assert(offsetof(VisibilityConstants, mTables) == 1200, "GpuTables must land eight-aligned and last");

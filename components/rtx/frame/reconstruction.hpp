@@ -152,8 +152,8 @@ namespace Rtx
         }
     };
 
-    /// How wide the radiance the trace writes is stored: `direct`, `indirect` and the composite's
-    /// own frame.
+    /// How wide the radiance the trace writes is stored: `direct`, `indirect`, `sunlit` and the
+    /// composite's own frame.
     ///
     /// **Full floats where a reference sums them, and half floats where a frame is shown.** A
     /// reference is a sum of a thousand frames, and rounding every term before adding it only

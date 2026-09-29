@@ -25,6 +25,7 @@
 #include "sets.h"
 
 #include "lib/pixels.glsl"
+#include "lib/surfacematch.glsl"
 
 layout(local_size_x = ACCUMULATE_WORKGROUP, local_size_y = ACCUMULATE_WORKGROUP) in;
 
@@ -95,12 +96,7 @@ bool sameSurface(ivec2 at, vec3 normal, float scaled)
     if (outsideOf(at, uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight)))
         return false;
 
-    const vec4 was = imageLoad(historySurface, at);
-    if (dot(was.xyz, was.xyz) <= 0.0)
-        return false;
-
-    return dot(was.xyz, normal) >= ACCUMULATE_FACING
-        && abs(was.w - scaled) <= ACCUMULATE_DEPTH * max(scaled, frame.mDistanceScale);
+    return heldSurfaceMatches(imageLoad(historySurface, at), normal, scaled, frame.mDistanceScale);
 }
 
 void main()
@@ -129,20 +125,11 @@ void main()
         return;
     }
 
-    // **Where this surface was, in the same coordinates the vector was written against.** The trace
-    // aims through `pixel + 0.5 + jitter` and `reprojected` differences against exactly that, so
-    // undoing it has to add the same offset back or the history is fetched a fraction of a pixel out
-    // — by a different fraction every frame, which is a still image that shakes.
-    const vec2 moved = imageLoad(motion, at).xy;
-    const vec2 before = vec2(at) + 0.5 + frame.mCamera.mJitter + moved;
-
     // **Bilinear over the four it landed between, each taken only if it is this surface.** A nearest
     // tap is a history that steps a whole pixel at a time, which under any camera motion is a crawl
     // along every edge; weighting the four and dropping the ones that are a different surface is
     // what keeps it smooth without dragging the wall behind into the floor in front.
-    const vec2 corner = before - 0.5;
-    const vec2 across = fract(corner);
-    const ivec2 low = ivec2(floor(corner));
+    const HistoryFootprint before = historyFootprint(at, frame.mCamera.mJitter, imageLoad(motion, at).xy);
 
     vec3 mean = vec3(0.0);
     vec2 moments = vec2(0.0);
@@ -151,15 +138,10 @@ void main()
 
     if (frame.mReset == 0u)
     {
-        // Which of the four, and its share, are arithmetic on the counter rather than two tables
-        // read at it — `atrous.comp`'s `kernelAt` says why a fixed table is not one here.
         for (int i = 0; i < 4; ++i)
         {
-            const ivec2 quadCorner = ivec2(i & 1, i >> 1);
-            const vec2 share = mix(vec2(1.0) - across, across, vec2(quadCorner));
-            const float bilinear = share.x * share.y;
-
-            const ivec2 tap = low + quadCorner;
+            const float bilinear = historyShare(before, i);
+            const ivec2 tap = historyTap(before, i);
             if (bilinear <= 0.0 || !sameSurface(tap, normal, scaled))
                 continue;
 

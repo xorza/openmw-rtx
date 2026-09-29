@@ -71,6 +71,9 @@ set(RTX_SHADERS
     shaders/trace/denoise/accumulate.comp
     shaders/trace/denoise/atrous.comp
     shaders/trace/denoise/composite.comp
+    shaders/trace/denoise/shadowfilter.comp
+    shaders/trace/denoise/shadowmask.comp
+    shaders/trace/denoise/shadowtiles.comp
     shaders/trace/fogdepth.rgen
     shaders/trace/fogintegrate.comp
     shaders/trace/fogscatter.rgen
@@ -186,6 +189,7 @@ set(RTX_SHADER_LIB
     shaders/lib/spritelist.glsl
     shaders/lib/sprites.glsl
     shaders/lib/starfield.glsl
+    shaders/lib/surfacematch.glsl
     shaders/lib/texturearray.glsl
     shaders/lib/texturing.glsl
     shaders/lib/traversal.glsl
@@ -333,6 +337,10 @@ set(RTX_VULKAN_FILES
     trace/denoise/atrouspass.hpp
     trace/denoise/compositepass.cpp
     trace/denoise/compositepass.hpp
+    trace/denoise/shadowhistory.cpp
+    trace/denoise/shadowhistory.hpp
+    trace/denoise/shadowpass.cpp
+    trace/denoise/shadowpass.hpp
     trace/fogvolume.cpp
     trace/fogvolume.hpp
     trace/gbuffer.cpp

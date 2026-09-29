@@ -51,7 +51,7 @@ namespace Rtx
 
         /// What each channel is made of, at its own binding, placed by name so a channel added to
         /// `Rtx::Channel` and forgotten here is a compile error rather than an image bound at the
-        /// wrong number. The two radiance channels take the run's width and the rest are fixed.
+        /// wrong number. The radiance channels take the run's width and the rest are fixed.
         ChannelFormat formatOf(const Channel channel, const RadianceWidth width)
         {
             static constexpr auto sFormats = [] {
@@ -63,6 +63,7 @@ namespace Rtx
                 every[bindingOf(Channel::Motion)] = { sMotion, sReadable };
                 every[bindingOf(Channel::Backdrop)] = { sBackdrop, sUsage };
                 every[bindingOf(Channel::Puffs)] = { sLayer, sUsage };
+                every[bindingOf(Channel::Sunlit)] = { VK_FORMAT_UNDEFINED, sReadable };
 
                 return every;
             }();

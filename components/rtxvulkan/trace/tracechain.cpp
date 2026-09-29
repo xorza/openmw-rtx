@@ -13,6 +13,8 @@
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
+#include <components/rtxvulkan/trace/denoise/accumulatepass.hpp>
+#include <components/rtxvulkan/trace/denoise/shadowpass.hpp>
 
 #include "tracemedia.hpp"
 #include "tracepasses.hpp"
@@ -29,6 +31,7 @@ namespace Rtx
             return SpriteBin{ device, passes.mSpriteShade, passes.mSpriteBin };
         })
         , mHistory(device)
+        , mShadows(device)
     {
     }
 
@@ -42,6 +45,7 @@ namespace Rtx
         mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, radiance);
         mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight);
         mHistory.resize(mWidth, mHeight);
+        mShadows.resize(mWidth, mHeight);
         if (mFilterScratch.isEmpty() || mFilterScratch.getWidth() != mWidth || mFilterScratch.getHeight() != mHeight)
             mFilterScratch = AtrousPass::makeScratch(mDevice, mWidth, mHeight);
 
@@ -58,16 +62,42 @@ namespace Rtx
         resize(std::max(mWidth, width), std::max(mHeight, height), radiance);
     }
 
-    const Image& TraceChain::recordDenoise(const VkCommandBuffer commands, const Shaders::VisibilityConstants& sampled,
-        const bool historyLost, GpuTimer* const timer)
+    TraceChain::Denoised TraceChain::recordDenoise(const VkCommandBuffer commands,
+        const Shaders::VisibilityConstants& sampled, const bool historyLost, GpuTimer* const timer)
     {
         const Shaders::Camera& camera = sampled.mCamera;
+
+        // One turn of the history for both temporal passes: the shadow denoiser reads the surface
+        // the accumulator's history belongs to, in the same frame.
+        const AccumulateHistory::Turn turn = mHistory.turn();
+
         // The temporal half first: the accumulator hands on the variance of its mean, which is
         // what lets the levels below stop at an edge in the light and not only in the geometry.
         openZone(timer, commands, "accumulate");
-        mPasses.mAccumulate.record(commands, mHistory, *mChannels, camera, sampled.mFar, historyLost);
+        mPasses.mAccumulate.record(commands, turn, *mChannels, camera, sampled.mFar, historyLost);
         const Image& blended = mHistory.getBlended();
         closeZone(timer, commands);
+
+        // **Only where a source in the sky lights anything.** A room has none, and every tile of it
+        // would be classified, found to receive nothing and copied through: 0.34 ms of a guild's
+        // frame, measured, for a factor of one on a light of nought. The history is reset instead,
+        // since the frames it would have carried were not recorded.
+        const Image* shadow = nullptr;
+        if (Shaders::skySourceLights(sampled))
+        {
+            openZone(timer, commands, "shadow");
+            shadow = &mPasses.mShadow.record(commands, mShadows.turn(), *mChannels,
+                ShadowPass::Frame{
+                    .mCamera = camera,
+                    .mArms = sampled.mArms,
+                    .mHeldSurface = turn.mSurfaceBefore,
+                    .mDistanceScale = AccumulatePass::distanceScaleFor(sampled.mFar),
+                    .mReset = historyLost || turn.mFresh,
+                });
+            closeZone(timer, commands);
+        }
+        else
+            mShadows.reset();
 
         // The cascade reads what the accumulator just wrote, and it reads through the texture unit
         // — so the dependency names the sampled access and not only the storage one. The history
@@ -80,12 +110,13 @@ namespace Rtx
             commands, *mChannels, blended, mHistory.getHistory(), mFilterScratch, camera, sampled.mArms);
         closeZone(timer, commands);
 
-        return indirect;
+        return Denoised{ .mIndirect = indirect, .mShadow = shadow };
     }
 
     void TraceChain::resetHistory()
     {
         mHistory.reset();
+        mShadows.reset();
         mAirStale = true;
     }
 
@@ -166,10 +197,16 @@ namespace Rtx
         mChannels->handOver(commands);
 
         // Where the bounce ended up: the filter's last level, or the channel the trace wrote where
-        // nothing filtered it.
+        // nothing filtered it. And the shadow only where something filtered it, since the trace
+        // composed the sun itself everywhere else.
         const Image* indirect = &mChannels->get(Channel::Indirect);
+        const Image* shadow = nullptr;
         if (what.mFilter)
-            indirect = &recordDenoise(commands, what.mSampled, what.mPastLost, what.mTimer);
+        {
+            const Denoised denoised = recordDenoise(commands, what.mSampled, what.mPastLost, what.mTimer);
+            indirect = &denoised.mIndirect;
+            shadow = denoised.mShadow;
+        }
 
         // **Only where something is left to do**: a filter to put the albedo back in behind, or a sum
         // to add the frame to. Anything else was composed by the trace, into the channel that is
@@ -182,12 +219,13 @@ namespace Rtx
             frame.transition(commands, Use::sAnyShaderRead, Use::sComputeReadWrite);
 
             openZone(what.mTimer, commands, "composite");
-            mPasses.mComposite.record(commands, *mChannels, *indirect, mSum.isEmpty() ? nullptr : &mSum,
+            mPasses.mComposite.record(commands, *mChannels, *indirect, shadow, mSum.isEmpty() ? nullptr : &mSum,
                 Shaders::CompositeConstants{
                     .mWidth = what.mSampled.mCamera.mWidth,
                     .mHeight = what.mSampled.mCamera.mHeight,
                     .mAccumulate = what.mAccumulate,
                     .mComposed = composed ? 1u : 0u,
+                    .mShadowed = shadow != nullptr ? 1u : 0u,
                 });
             closeZone(what.mTimer, commands);
 

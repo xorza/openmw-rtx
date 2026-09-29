@@ -17,7 +17,7 @@ namespace Rtx
 {
     class Device;
 
-    /// What the two radiance channels, and the frame composed from them, are made of at a width:
+    /// What the radiance channels, and the frame composed from them, are made of at a width:
     /// `Rtx::RadianceWidth` carries the argument for each.
     constexpr VkFormat radianceFormat(const RadianceWidth width)
     {
@@ -40,7 +40,7 @@ namespace Rtx
     class GBuffer
     {
     public:
-        /// @param radiance how wide the two radiance channels are stored, which is the run's choice
+        /// @param radiance how wide the radiance channels are stored, which is the run's choice
         ///        and `Rtx::RadianceWidth`'s argument.
         GBuffer(const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height,
             RadianceWidth radiance);
