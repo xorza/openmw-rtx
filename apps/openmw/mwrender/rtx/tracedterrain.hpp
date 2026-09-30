@@ -68,7 +68,7 @@ namespace MWRender
         /// geometry under it whose positions are the storage's.
         struct CellGrid
         {
-            osg::Vec2i mCell;
+            osg::Vec2i mCell{};
             osg::ref_ptr<osg::PositionAttitudeTransform> mRoot;
             osg::ref_ptr<osg::Geometry> mGeometry;
             osg::ref_ptr<osg::Vec3Array> mPositions;

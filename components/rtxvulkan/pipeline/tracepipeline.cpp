@@ -62,6 +62,8 @@ namespace Rtx
                   compiled.push_back(loadShaderModule(device, module));
                   stages.push_back(VkPipelineShaderStageCreateInfo{
                       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                      .pNext = nullptr,
+                      .flags = 0,
                       .stage = stage,
                       .module = compiled.back().get(),
                       .pName = "main",
@@ -74,11 +76,13 @@ namespace Rtx
         const auto addGeneral = [&](std::uint32_t stage) {
             groups.push_back(VkRayTracingShaderGroupCreateInfoKHR{
                 .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
+                .pNext = nullptr,
                 .type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR,
                 .generalShader = stage,
                 .closestHitShader = VK_SHADER_UNUSED_KHR,
                 .anyHitShader = VK_SHADER_UNUSED_KHR,
                 .intersectionShader = VK_SHADER_UNUSED_KHR,
+                .pShaderGroupCaptureReplayHandle = nullptr,
             });
         };
 
@@ -100,11 +104,13 @@ namespace Rtx
             for (std::uint32_t record = 0; record < shaders.mHitRecordsPerShader; ++record)
                 groups.push_back(VkRayTracingShaderGroupCreateInfoKHR{
                     .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
+                    .pNext = nullptr,
                     .type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR,
                     .generalShader = VK_SHADER_UNUSED_KHR,
                     .closestHitShader = closestHit,
                     .anyHitShader = anyHit,
                     .intersectionShader = VK_SHADER_UNUSED_KHR,
+                    .pShaderGroupCaptureReplayHandle = nullptr,
                 });
         }
 
@@ -141,7 +147,12 @@ namespace Rtx
             // not recursion and cost the stack nothing. Nothing a hit or a miss runs calls
             // `traceRayEXT`, so no second level exists to be sized for.
             .maxPipelineRayRecursionDepth = 1,
+            .pLibraryInfo = nullptr,
+            .pLibraryInterface = nullptr,
+            .pDynamicState = nullptr,
             .layout = layout,
+            .basePipelineHandle = VK_NULL_HANDLE,
+            .basePipelineIndex = 0,
         };
         Owned<VkPipeline, vkDestroyPipeline> handle;
         checkVk(device.getFunctions().mCreateRayTracingPipelines(device.getHandle(), VK_NULL_HANDLE,

@@ -39,7 +39,9 @@ namespace Rtx
         /// out the real one.
         TEST_F(RtxDeviceTest, aWaitOnADeviceThatNeverAnswersEndsAndNamesItself)
         {
-            const VkFenceCreateInfo unsignalled{ .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+            const VkFenceCreateInfo unsignalled{
+                .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .pNext = nullptr, .flags = 0
+            };
 
             VkFence fence = VK_NULL_HANDLE;
             ASSERT_EQ(vkCreateFence(mHarness.mDevice->getHandle(), &unsignalled, nullptr, &fence), VK_SUCCESS);

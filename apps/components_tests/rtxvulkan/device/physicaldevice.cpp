@@ -20,6 +20,7 @@ namespace Rtx
             .queueFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT,
             .queueCount = 16,
             .timestampValidBits = 64,
+            .minImageTransferGranularity = {},
         };
 
         /// The extensions this build requires, as a device would list them back.
@@ -103,7 +104,8 @@ namespace Rtx
                 // Every required format offered whole, in optimal tiling, which is where an image
                 // the trace samples lives.
                 for (const RequiredFormat& required : getRequiredFormats())
-                    mFormats.push_back(VkFormatProperties{ .optimalTilingFeatures = required.mFeatures });
+                    mFormats.push_back(VkFormatProperties{
+                        .linearTilingFeatures = 0, .optimalTilingFeatures = required.mFeatures, .bufferFeatures = 0 });
             }
 
             PhysicalDevice::Profile profile()
@@ -235,7 +237,9 @@ namespace Rtx
                 // lives, and so not offered.
                 Card flat(&describeTuring);
                 flat.mFormats.front()
-                    = VkFormatProperties{ .linearTilingFeatures = getRequiredFormats().front().mFeatures };
+                    = VkFormatProperties{ .linearTilingFeatures = getRequiredFormats().front().mFeatures,
+                          .optimalTilingFeatures = 0,
+                          .bufferFeatures = 0 };
                 EXPECT_EQ(flat.profile().mObstacle,
                     "missing format features for " + std::string(getRequiredFormats().front().mFor));
             }

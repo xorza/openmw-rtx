@@ -23,6 +23,7 @@ namespace Rtx
     {
         const VkCommandPoolCreateInfo create{
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .pNext = nullptr,
             .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
             .queueFamilyIndex = device.getQueueFamily(),
         };
@@ -44,11 +45,15 @@ namespace Rtx
         for (const VkCommandBuffer deferred : mDeferred)
             mSubmitScratch.push_back(VkCommandBufferSubmitInfo{
                 .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                .pNext = nullptr,
                 .commandBuffer = deferred,
+                .deviceMask = 0,
             });
         mSubmitScratch.push_back(VkCommandBufferSubmitInfo{
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+            .pNext = nullptr,
             .commandBuffer = commands,
+            .deviceMask = 0,
         });
 
         // The timeline's signal and then whatever the caller adds, which is a present's.
@@ -61,6 +66,8 @@ namespace Rtx
 
         const VkSubmitInfo2 submit{
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+            .pNext = nullptr,
+            .flags = 0,
             .waitSemaphoreInfoCount = static_cast<std::uint32_t>(waits.size()),
             .pWaitSemaphoreInfos = waits.data(),
             .commandBufferInfoCount = static_cast<std::uint32_t>(mSubmitScratch.size()),
@@ -139,6 +146,7 @@ namespace Rtx
 
         const VkCommandBufferAllocateInfo allocate{
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .pNext = nullptr,
             .commandPool = mHandle.get(),
             .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             .commandBufferCount = 1,
@@ -213,7 +221,9 @@ namespace Rtx
     {
         const VkCommandBufferBeginInfo begin{
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .pNext = nullptr,
             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+            .pInheritanceInfo = nullptr,
         };
         checkVk(vkBeginCommandBuffer(commands, &begin), "vkBeginCommandBuffer");
 

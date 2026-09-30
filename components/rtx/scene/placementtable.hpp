@@ -41,11 +41,11 @@ namespace Rtx
 
         /// The slots wearing the same material, headed by `PlacementTable::mFirstWearing`, so a
         /// material rewrite reaches its wearers alone.
-        PlacementLinks mWearing;
+        PlacementLinks mWearing{};
 
         /// The slots placing the same mesh, headed by `PlacementTable::mFirstPlacing`, so a
         /// backend that moved a mesh's structure rewrites its placements alone.
-        PlacementLinks mPlacing;
+        PlacementLinks mPlacing{};
     };
 
     /// Where every mesh stands, where it stood, what each counts as and which rows a backend has

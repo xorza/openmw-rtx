@@ -69,7 +69,7 @@ namespace Rtx
 
             /// For a bake, the slot of the sprite texture it is made from on the device, or
             /// `sNoIndex` where the table no longer holds that. Nothing for a slot that is no bake.
-            std::optional<Index> mBakedFrom;
+            std::optional<Index> mBakedFrom{};
 
             /// The file's image, or why none reads. Null for a slot that names no file.
             Result<osg::ref_ptr<const osg::Image>, std::string> mImage = osg::ref_ptr<const osg::Image>();

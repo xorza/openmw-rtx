@@ -26,13 +26,13 @@ namespace MWRender
 
         /// Which validation layers the run asked for. Carried here and never in a settings file,
         /// for the reason `sValidationByDefault` gives.
-        Rtx::ValidationOptions mValidation;
+        Rtx::ValidationOptions mValidation{};
 
         /// How much world the mirror builds and what of it, as the run decided: the harness from
         /// its command line, a played session from `[RTX] distant land cells` and the paging's
         /// two. Here and not written into the registry by the harness, because the registry is the
         /// player's and a knob of a run travels with the run.
-        Rtx::MirrorKnobs mMirror;
+        Rtx::MirrorKnobs mMirror{};
 
         /// Whether the window stays hidden, which saves a present per frame and nothing else.
         bool mHeadless = false;
@@ -55,11 +55,11 @@ namespace MWRender
         /// Whether each walk waits for the cell it adopts, or nothing to let `mStep` decide: a
         /// stated step waits. Settled is what makes two processes draw one picture; a run timing the
         /// streaming path says no (`Rtx::CellRing::setSettled`).
-        std::optional<bool> mSettled;
+        std::optional<bool> mSettled{};
 
         /// `RendererOptions::mMemoryBudget`: the harness's, for a run that asks what a smaller
         /// card does, and never a played session's.
-        std::optional<std::uint64_t> mMemoryBudget;
+        std::optional<std::uint64_t> mMemoryBudget{};
 
         /// Whether the renderer reads its shaders with their source in them, for a profiler that
         /// shows a shader's lines (`Rtx::shaderDirectory`). The harness's, and never a played

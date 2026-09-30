@@ -102,7 +102,7 @@ namespace Rtx::Shaders
 
         /// What rounds the block to the eight its addresses are aligned to, which the host's
         /// `sizeof` counts and a scalar block does not.
-        uint mPadding;
+        uint mPadding RTX_ZERO;
     };
 
 #ifdef RTX_HOST

@@ -60,13 +60,13 @@ namespace Rtx
 
         /// One run word per vertex this rig skins. Never empty for a rig, because an allocator
         /// hands out no run of nothing, which is why the run is kept rather than the count.
-        Run mRuns;
+        Run mRuns{};
 
         /// The influences those runs name. Never empty for a rig, for the same reason.
-        Run mInfluences;
+        Run mInfluences{};
 
         /// Every target's offsets, target by target and `getVertexCount` apiece, for a morph.
-        Run mOffsets;
+        Run mOffsets{};
 
         /// Rows one pose takes: the rig's bones, or the morph's targets, the base's included.
         Index mRows = 0;

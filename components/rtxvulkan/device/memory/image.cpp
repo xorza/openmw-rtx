@@ -97,6 +97,7 @@ namespace Rtx
         const std::array<VkFormat, 2> formats{ format, storageFormat };
         const VkImageFormatListCreateInfo list{
             .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO,
+            .pNext = nullptr,
             .viewFormatCount = 2,
             .pViewFormats = formats.data(),
         };
@@ -116,6 +117,8 @@ namespace Rtx
             .tiling = VK_IMAGE_TILING_OPTIMAL,
             .usage = usage,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = nullptr,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         };
         mHandle = Owned<VkImage, vkDestroyImage>::make(device, vkCreateImage, create, "vkCreateImage");
@@ -134,14 +137,17 @@ namespace Rtx
 
         const VkImageViewUsageCreateInfo sampledOnly{
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
+            .pNext = nullptr,
             .usage = mUsage & ~VkImageUsageFlags{ VK_IMAGE_USAGE_STORAGE_BIT },
         };
         const VkImageViewCreateInfo view{
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .pNext = twoFormats ? &sampledOnly : nullptr,
+            .flags = 0,
             .image = mHandle.get(),
             .viewType = volume ? VK_IMAGE_VIEW_TYPE_3D : VK_IMAGE_VIEW_TYPE_2D,
             .format = mFormat,
+            .components = {},
             .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, mMipLevels, 0, 1 },
         };
         mView = Owned<VkImageView, vkDestroyImageView>::make(device, vkCreateImageView, view, "vkCreateImageView");
@@ -257,7 +263,9 @@ namespace Rtx
 
         const VkImageCopy region{
             .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+            .srcOffset = {},
             .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+            .dstOffset = {},
             .extent = { extent.width, extent.height, 1 },
         };
         vkCmdCopyImage(
@@ -362,10 +370,7 @@ namespace Rtx
         transition(commands, before, Use::sCopyRead);
         into.nameForNext();
 
-        const VkBufferImageCopy region{
-            .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, level, 0, 1 },
-            .imageExtent = { getWidthAt(level), getHeightAt(level), 1 },
-        };
+        const VkBufferImageCopy region = wholeLevel(0, level, VkExtent3D{ getWidthAt(level), getHeightAt(level), 1 });
         vkCmdCopyImageToBuffer(
             commands, mHandle.get(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, into.getHandle(), 1, &region);
 
@@ -449,5 +454,17 @@ namespace Rtx
         });
 
         return made;
+    }
+
+    VkBufferImageCopy wholeLevel(const VkDeviceSize offset, const std::uint32_t level, const VkExtent3D& extent)
+    {
+        return VkBufferImageCopy{
+            .bufferOffset = offset,
+            .bufferRowLength = 0,
+            .bufferImageHeight = 0,
+            .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, level, 0, 1 },
+            .imageOffset = {},
+            .imageExtent = extent,
+        };
     }
 }

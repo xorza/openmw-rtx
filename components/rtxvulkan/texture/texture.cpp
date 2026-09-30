@@ -186,11 +186,11 @@ namespace Rtx
         /// identically defined. The maximum costs a few hundred kilobytes of pool, paid once.
         constexpr std::array<VkDescriptorSetLayoutBinding, 3> sBindings{
             VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_IMAGES, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                Shaders::TEXTURE_SLOTS, sStages },
+                Shaders::TEXTURE_SLOTS, sStages, nullptr },
             VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_COMPANIONS, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                Shaders::TEXTURE_SLOTS, sStages },
+                Shaders::TEXTURE_SLOTS, sStages, nullptr },
             VkDescriptorSetLayoutBinding{ Shaders::TEXTURE_BIND_ALONG, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                Shaders::TEXTURE_SLOTS, sStages },
+                Shaders::TEXTURE_SLOTS, sStages, nullptr },
         };
 
         /// One footprint sampler per `TextureWrap`, indexed by it, filtering by `anisotropy`.
@@ -284,11 +284,8 @@ namespace Rtx
         for (std::uint32_t level = 0; level < levels; ++level)
         {
             const MipLevel& from = data.mLevels[first + level];
-            regions.push_back(VkBufferImageCopy{
-                .bufferOffset = from.mOffset - top.mOffset,
-                .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, level, 0, 1 },
-                .imageExtent = { from.mWidth, from.mHeight, 1 },
-            });
+            regions.push_back(
+                wholeLevel(from.mOffset - top.mOffset, level, VkExtent3D{ from.mWidth, from.mHeight, 1 }));
         }
 
         Texture made;
@@ -409,10 +406,7 @@ namespace Rtx
         mImage = Image(device, 1, 1, VK_FORMAT_R32G32B32A32_SFLOAT, sUploaded, name, 1);
 
         const std::array<float, 4> texel{ colour.x(), colour.y(), colour.z(), colour.w() };
-        std::array<VkBufferImageCopy, 1> regions{ VkBufferImageCopy{
-            .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-            .imageExtent = { 1, 1, 1 },
-        } };
+        std::array<VkBufferImageCopy, 1> regions{ wholeLevel(0, 0, VkExtent3D{ 1, 1, 1 }) };
         uploadImage(batch, mImage, std::as_bytes(std::span<const float>(texel)), regions);
 
         mCompanion = std::move(makeShadingMap(device, name, MemoryUse::Essential).value());
@@ -464,6 +458,7 @@ namespace Rtx
         constexpr std::array<VkDescriptorBindingFlags, 3> flags{ sBound, sBound, sBound };
         const VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlags{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
+            .pNext = nullptr,
             .bindingCount = static_cast<std::uint32_t>(flags.size()),
             .pBindingFlags = flags.data(),
         };
@@ -919,12 +914,15 @@ namespace Rtx
         images.push_back(image);
         writes.push_back(VkWriteDescriptorSet{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = nullptr,
             .dstSet = set,
             .dstBinding = binding,
             .dstArrayElement = slot,
             .descriptorCount = 1,
             .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
             .pImageInfo = &images.back(),
+            .pBufferInfo = nullptr,
+            .pTexelBufferView = nullptr,
         });
     }
 

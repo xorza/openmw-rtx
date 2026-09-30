@@ -59,7 +59,7 @@ namespace Rtx
         /// anything is `getPaintedIrradiance`. Zero exactly where the fade is, which is the one
         /// test a shader makes before it spends a shadow ray; a new moon is three parts in ten
         /// thousand, which is what the photometry says.
-        osg::Vec3f mIrradiance;
+        osg::Vec3f mIrradiance{};
 
         /// What the air leaves of it, per channel — `Rtx::airTransmittance` at its own elevation,
         /// which is what lets a moon rise where the engine draws none under
@@ -69,7 +69,7 @@ namespace Rtx
         /// The mean opaque texel of this moon's portrait, linear and unscaled — what the disc falls
         /// back to where no portrait is loaded. `Shaders::MOON_RADIANCE` takes either moon to
         /// radiance, so the two keep their relationship.
-        osg::Vec3f mColour;
+        osg::Vec3f mColour{};
 
         /// What a script painted the face, linear: `Moons_Script_Color` while the game says
         /// Secunda is red, and white otherwise. Over the face and over what the moon delivers

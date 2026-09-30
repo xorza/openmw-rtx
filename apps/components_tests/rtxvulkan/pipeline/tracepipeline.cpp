@@ -23,7 +23,8 @@ namespace Rtx
     {
         /// Where each invocation writes what its launch index was.
         constexpr std::array<VkDescriptorSetLayoutBinding, 1> sBindings{
-            VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR },
+            VkDescriptorSetLayoutBinding{
+                0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr },
         };
 
         /// A grid that is neither square nor a multiple of a warp, so a launch that rounded its

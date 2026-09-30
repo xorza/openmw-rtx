@@ -19,8 +19,8 @@ namespace Rtx
         /// One texture, pushed per batch. Nothing else: a GUI vertex carries its own colour and
         /// its own position, and there is no transform to hand down.
         constexpr std::array<VkDescriptorSetLayoutBinding, 1> sBindings{
-            VkDescriptorSetLayoutBinding{
-                Shaders::GUI_BIND_TEXTURE, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+            VkDescriptorSetLayoutBinding{ Shaders::GUI_BIND_TEXTURE, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+                VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
         };
 
         constexpr std::array<VkVertexInputBindingDescription, 1> sVertexBindings{

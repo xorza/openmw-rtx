@@ -53,7 +53,7 @@ namespace RtxTool
         /// The line the section opens on, which a refusal of the whole block names.
         std::size_t mLine = 0;
 
-        std::vector<BlockField> mFields;
+        std::vector<BlockField> mFields{};
     };
 
     /// Why `hour` is no hour of the day, or nothing where it is one: the rule a view file and the

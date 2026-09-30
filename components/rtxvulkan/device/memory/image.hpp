@@ -222,4 +222,8 @@ namespace Rtx
     /// frame. Laid out once by `usage` and never moved again. Submits and waits, so it belongs to a
     /// pass's construction rather than to a frame.
     Image makeStandIn(const Device& device, VkFormat format, VkImageUsageFlags usage, std::string_view name);
+
+    /// All of one colour level, `extent` texels, against bytes packed tightly from `offset`: the
+    /// region an upload or a read-back of a whole level names.
+    VkBufferImageCopy wholeLevel(VkDeviceSize offset, std::uint32_t level, const VkExtent3D& extent);
 }

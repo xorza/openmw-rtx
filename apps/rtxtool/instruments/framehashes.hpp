@@ -102,24 +102,24 @@ namespace RtxTool
 
             /// Frames where any traced column differs, in order: the renderer drew one scene two
             /// ways, or handed the reconstruction something else.
-            std::vector<std::uint32_t> mTraceDiffering;
+            std::vector<std::uint32_t> mTraceDiffering{};
 
             /// How many frames each traced column differs on, indexed as `tracedName`.
             std::array<std::uint32_t, sTracedColumns> mTracedDiffering{};
 
             /// Frames whose picture differs where nothing reconstructed it, in order.
-            std::vector<std::uint32_t> mDiffering;
+            std::vector<std::uint32_t> mDiffering{};
 
             /// Frames whose picture differs past an upscaler, in order. Reported and never a verdict.
-            std::vector<std::uint32_t> mReconstructedDiffering;
+            std::vector<std::uint32_t> mReconstructedDiffering{};
 
             /// Frames of two denoised runs where the composed frame or the picture differs and no
             /// other column does, in order: what the card's arithmetic under the wavelet leaves.
             /// Reported and never a verdict.
-            std::vector<std::uint32_t> mDenoisedDiffering;
+            std::vector<std::uint32_t> mDenoisedDiffering{};
 
             /// Frames where any part of the scene differs, in order.
-            std::vector<std::uint32_t> mSceneDiffering;
+            std::vector<std::uint32_t> mSceneDiffering{};
 
             /// How many frames each part differs on, indexed by `ScenePart`.
             std::array<std::uint32_t, static_cast<std::size_t>(ScenePart::Count)> mPartsDiffering{};

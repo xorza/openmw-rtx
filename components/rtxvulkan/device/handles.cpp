@@ -18,6 +18,8 @@ namespace Rtx
 
         const VkShaderModuleCreateInfo createInfo{
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .codeSize = words.size() * sizeof(std::uint32_t),
             .pCode = words.data(),
         };
@@ -31,7 +33,9 @@ namespace Rtx
 
     Semaphore makeSemaphore(const Device& device)
     {
-        const VkSemaphoreCreateInfo create{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+        const VkSemaphoreCreateInfo create{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, .pNext = nullptr, .flags = 0
+        };
         return Semaphore::make(device, vkCreateSemaphore, create, "vkCreateSemaphore");
     }
 
@@ -39,12 +43,14 @@ namespace Rtx
     {
         const VkSemaphoreTypeCreateInfo type{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+            .pNext = nullptr,
             .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
             .initialValue = 0,
         };
         const VkSemaphoreCreateInfo create{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
             .pNext = &type,
+            .flags = 0,
         };
         Immediate<VkSemaphore, vkDestroySemaphore> handle = Immediate<VkSemaphore, vkDestroySemaphore>::make(
             device.getHandle(), vkCreateSemaphore, create, "vkCreateSemaphore");
@@ -56,6 +62,7 @@ namespace Rtx
     {
         const VkFenceCreateInfo create{
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            .pNext = nullptr,
             .flags = VK_FENCE_CREATE_SIGNALED_BIT,
         };
         return Fence::make(device, vkCreateFence, create, "vkCreateFence");
@@ -85,40 +92,52 @@ namespace Rtx
             return handle;
         }
 
-        /// Linear over the whole chain, addressed as the file said: `makeContentSampler`'s shape.
-        VkSamplerCreateInfo describeContent(const TextureWrap wrap)
+        /// Linear within a level, over the whole chain, and comparing nothing: what every sampler here
+        /// shares, with the levels blended as `mipmaps` says and each axis addressed as its mode says.
+        VkSamplerCreateInfo describeLinear(const VkSamplerMipmapMode mipmaps, const VkSamplerAddressMode u,
+            const VkSamplerAddressMode v, const VkSamplerAddressMode w)
         {
             return VkSamplerCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
                 .magFilter = VK_FILTER_LINEAR,
                 .minFilter = VK_FILTER_LINEAR,
-                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-                .addressModeU = clampsS(wrap) ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                .addressModeV = clampsT(wrap) ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                .mipmapMode = mipmaps,
+                .addressModeU = u,
+                .addressModeV = v,
+                .addressModeW = w,
+                .mipLodBias = 0.0f,
                 // Off, and not an oversight: every fetch through a content sampler names its own
                 // level, and the device moves an explicit level under anisotropic filtering —
                 // `makeFootprintSampler` turns it on for the reads that state a footprint instead.
                 .anisotropyEnable = VK_FALSE,
+                .maxAnisotropy = 0.0f,
+                .compareEnable = VK_FALSE,
+                .compareOp = VK_COMPARE_OP_NEVER,
+                .minLod = 0.0f,
                 .maxLod = VK_LOD_CLAMP_NONE,
+                .borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
+                .unnormalizedCoordinates = VK_FALSE,
             };
+        }
+
+        /// Addressed as the file said: `makeContentSampler`'s shape.
+        VkSamplerCreateInfo describeContent(const TextureWrap wrap)
+        {
+            return describeLinear(VK_SAMPLER_MIPMAP_MODE_LINEAR,
+                clampsS(wrap) ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                clampsT(wrap) ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                VK_SAMPLER_ADDRESS_MODE_REPEAT);
         }
     }
 
     Sampler makeTargetSampler(const Device& device, std::string_view name)
     {
-        const VkSamplerCreateInfo describe{
-            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-            .magFilter = VK_FILTER_LINEAR,
-            .minFilter = VK_FILTER_LINEAR,
-            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST,
-            .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-            .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-            .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-            .maxLod = VK_LOD_CLAMP_NONE,
-        };
-
-        return createSampler(device, describe, name);
+        return createSampler(device,
+            describeLinear(VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE),
+            name);
     }
 
     Sampler makeContentSampler(const Device& device, std::string_view name, const TextureWrap wrap)
@@ -141,19 +160,10 @@ namespace Rtx
 
     Sampler makeBorderSampler(const Device& device, std::string_view name)
     {
-        const VkSamplerCreateInfo describe{
-            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-            .magFilter = VK_FILTER_LINEAR,
-            .minFilter = VK_FILTER_LINEAR,
-            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-            .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-            .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-            .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-            .maxLod = VK_LOD_CLAMP_NONE,
-            .borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
-        };
-
-        return createSampler(device, describe, name);
+        return createSampler(device,
+            describeLinear(VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER),
+            name);
     }
 
     PipelineLayout::PipelineLayout(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
@@ -177,6 +187,8 @@ namespace Rtx
         const bool pushes = push.size > 0;
         const VkPipelineLayoutCreateInfo pipelineLayout{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .setLayoutCount = mSetCount,
             .pSetLayouts = sets.data(),
             .pushConstantRangeCount = pushes ? 1u : 0u,

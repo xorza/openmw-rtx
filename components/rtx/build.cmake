@@ -27,19 +27,14 @@ endif()
 # nothing today. Three more were tried and rejected: `-Wfloat-equal` fires 29 times on deliberate
 # sentinels, and `-Wold-style-cast` and `-Wuseless-cast` fire inside OpenMW's own headers.
 #
-# `-Wno-missing-field-initializers` is the one subtraction. Vulkan's create-info structs are
-# filled with designated initializers, which value-initialise every field not named — that is the
-# point of using them, and GCC does not distinguish it from an accidentally short aggregate.
-#
 # **Two lists, because some of this fork's files read the game's own headers.** Those headers are
-# not clean under the extra checks — `-Wsuggest-override` and `-Wzero-as-null-pointer-constant`
-# fire inside them — so a file that includes one cannot take the checks. What it can take is the
-# posture: `OPENMW_RTX_ERRORS` is the errors and the subtraction, for every file of this fork's
-# wherever it is built; `OPENMW_RTX_CHECKS` is the extra checks, for every file free of those
-# headers. Left on upstream's flags, a file that reads them warned about its designated
-# initializers and nobody saw it, since nothing there is an error. The two functions below are
-# how a target and a file take them, and a file that takes the errors alone is named where its
-# target is, with the reason.
+# not clean under the extra checks — `-Wsuggest-override` and `-Wzero-as-null-pointer-constant` fire
+# inside them — so a file that includes one cannot take the checks. What it can take is the posture:
+# `OPENMW_RTX_ERRORS` is the errors, for every file of this fork's wherever it is built;
+# `OPENMW_RTX_CHECKS` is the extra checks, for every file free of those headers. Left on upstream's
+# flags, a file that reads them warns and nobody sees it, since nothing there is an error. The two
+# functions below are how a target and a file take them, and a file that takes the errors alone is
+# named where its target is, with the reason.
 #
 # Told apart by the command line a compiler takes, which is what the flags are about: clang-cl
 # reports itself as Clang and takes MSVC's, and `MSVC` is set for it as well.
@@ -53,7 +48,7 @@ if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL MSVC OR MSVC)
     set(OPENMW_RTX_ERRORS /WX /wd4244 /wd4267)
     set(OPENMW_RTX_CHECKS)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
-    set(OPENMW_RTX_ERRORS -Werror -Wno-missing-field-initializers)
+    set(OPENMW_RTX_ERRORS -Werror)
     set(OPENMW_RTX_CHECKS -Wsuggest-override -Wzero-as-null-pointer-constant -Wnull-dereference -Wcast-qual)
 
     # Two checks GCC 13 gets wrong, measured on Ubuntu 24.04's compiler and taken off there:

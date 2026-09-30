@@ -155,6 +155,8 @@ namespace Rtx
 
         const VkSwapchainCreateInfoKHR create{
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+            .pNext = nullptr,
+            .flags = 0,
             .surface = mSurface,
             .minImageCount = images,
             .imageFormat = mFormat.format,
@@ -163,10 +165,13 @@ namespace Rtx
             .imageArrayLayers = 1,
             .imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
             .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = nullptr,
             .preTransform = capabilities.currentTransform,
             .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
             .presentMode = mPresentMode,
             .clipped = VK_TRUE,
+            .oldSwapchain = VK_NULL_HANDLE,
         };
         mHandle = Immediate<VkSwapchainKHR, vkDestroySwapchainKHR>::make(
             mDevice.getHandle(), vkCreateSwapchainKHR, create, "vkCreateSwapchainKHR");
@@ -233,6 +238,7 @@ namespace Rtx
         // The fence only where the device signals one.
         const VkSwapchainPresentFenceInfoKHR signalled{
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_KHR,
+            .pNext = nullptr,
             .swapchainCount = 1,
             .pFences = &presented,
         };
@@ -246,6 +252,7 @@ namespace Rtx
             .swapchainCount = 1,
             .pSwapchains = &presenting,
             .pImageIndices = &index,
+            .pResults = nullptr,
         };
 
         const VkResult result = vkQueuePresentKHR(mDevice.getQueue(), &present);

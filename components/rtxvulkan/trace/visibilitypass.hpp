@@ -225,7 +225,7 @@ namespace Rtx
         struct Wanted
         {
             Kernel mKernel = Kernel::Visibility;
-            VisibilityVariant mVariant;
+            VisibilityVariant mVariant{};
         };
 
         /// Starts making every kernel this pass can ever need, on a thread of its own, because the

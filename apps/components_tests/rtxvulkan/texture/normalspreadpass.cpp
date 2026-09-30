@@ -46,10 +46,7 @@ namespace Rtx
                 Batch upload(getPool());
                 Image map(device, width, height, VK_FORMAT_R8G8B8A8_UNORM,
                     VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "normal spread test map", 1);
-                std::vector<VkBufferImageCopy> regions{ VkBufferImageCopy{
-                    .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-                    .imageExtent = { width, height, 1 },
-                } };
+                std::vector<VkBufferImageCopy> regions{ wholeLevel(0, 0, VkExtent3D{ width, height, 1 }) };
                 uploadImage(upload, map, std::as_bytes(texels), regions);
                 passes.mSpread.record(upload.getCommands(), map, means, spread);
                 upload.flush();

@@ -40,7 +40,7 @@ namespace Rtx
     struct Refusal
     {
         Refused mKind = Refused::Mesh;
-        std::string mName;
+        std::string mName{};
         std::string mWhy;
     };
 }

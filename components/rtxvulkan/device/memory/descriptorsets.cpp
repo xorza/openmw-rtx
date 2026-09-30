@@ -25,6 +25,7 @@ namespace Rtx
 
         const VkDescriptorPoolCreateInfo describePool{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+            .pNext = nullptr,
             .flags = flags,
             .maxSets = count,
             .poolSizeCount = static_cast<std::uint32_t>(sizes.size()),
@@ -36,6 +37,7 @@ namespace Rtx
         const std::vector<VkDescriptorSetLayout> layouts(count, layout);
         const VkDescriptorSetAllocateInfo allocate{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            .pNext = nullptr,
             .descriptorPool = mPool.get(),
             .descriptorSetCount = count,
             .pSetLayouts = layouts.data(),

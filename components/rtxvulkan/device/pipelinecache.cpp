@@ -146,6 +146,8 @@ namespace Rtx
 
         const VkPipelineCacheCreateInfo describe{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .initialDataSize = mLoaded.size(),
             .pInitialData = mLoaded.empty() ? nullptr : mLoaded.data(),
         };

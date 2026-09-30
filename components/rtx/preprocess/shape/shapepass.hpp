@@ -25,7 +25,7 @@ namespace Rtx
             std::span<const osg::Vec3f> mPositions;
 
             /// Empty where the drawable names none, which nothing is split for.
-            std::span<const osg::Vec3f> mNormals;
+            std::span<const osg::Vec3f> mNormals{};
 
             /// As the drawable named them.
             std::span<const std::uint32_t> mTriangles;
@@ -47,7 +47,7 @@ namespace Rtx
             std::vector<osg::Vec3f>& mNormals;
             std::vector<std::uint32_t>& mSources;
 
-            FoldedShape mShape;
+            FoldedShape mShape{};
         };
 
         static constexpr ContentPassId sPass = ContentPassId::Shape;

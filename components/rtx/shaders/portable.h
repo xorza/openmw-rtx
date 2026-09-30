@@ -38,4 +38,15 @@
 #define RTX_PRECISE precise
 #endif
 
+// A member the host leaves zero where an initialiser does not name it, which is what the device
+// reads of a record the host did not fill. C++ says so on the member, so a designated initialiser
+// that names some members is not taken for one that forgot the rest; GLSL has no member
+// initialisers and nothing to say. Not on an array of `vec3` or of a structure: GCC 16.2 stops with
+// an internal error in `gimple_add_tmp_var` on `T{}` of a record that holds one.
+#ifdef RTX_HOST
+#define RTX_ZERO = {}
+#else
+#define RTX_ZERO
+#endif
+
 #endif

@@ -18,12 +18,16 @@ namespace Rtx
             .flags = PipelineCreation::sFlags,
             .stage = {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
                 .stage = VK_SHADER_STAGE_COMPUTE_BIT,
                 .module = compiled.get(),
                 .pName = "main",
                 .pSpecializationInfo = constants.getInfo(),
             },
             .layout = layout,
+            .basePipelineHandle = VK_NULL_HANDLE,
+            .basePipelineIndex = 0,
         };
         Owned<VkPipeline, vkDestroyPipeline> handle;
         checkVk(vkCreateComputePipelines(

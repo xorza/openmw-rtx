@@ -9,10 +9,22 @@
 # `./resources` as the tool does.
 enable_testing()
 
+# **What a test binary is compiled with beside the build's own flags**, where a preset names any.
+# A test's files are its assertions and fixtures, and the code they test is compiled as the build
+# compiles it; optimized as that code is, a test file took twice as long to build as at `-Og`, for
+# binaries that run in seconds. Every test still runs, against the same production code.
+set(OPENMW_TEST_COMPILE_OPTIONS "" CACHE STRING "Compile options added to the test binaries alone")
+
 function(openmw_add_test name target)
     cmake_parse_arguments(TEST "" "FILTER" "LABELS;ARGS" ${ARGN})
     if (NOT TARGET ${target})
         return()
+    endif()
+    # Once a binary, which a suite split in two registers twice.
+    get_target_property(optioned ${target} OPENMW_TEST_OPTIONED)
+    if (OPENMW_TEST_COMPILE_OPTIONS AND NOT optioned)
+        target_compile_options(${target} PRIVATE ${OPENMW_TEST_COMPILE_OPTIONS})
+        set_target_properties(${target} PROPERTIES OPENMW_TEST_OPTIONED ON)
     endif()
     set(filter)
     if (TEST_FILTER)
@@ -40,8 +52,12 @@ openmw_add_test(cs openmw-cs-tests LABELS upstream)
 # build after a run, so a failed mode leaves what it wrote; each mode empties its own folder first.
 openmw_add_test(crash.matrix crash-tests ARGS --matrix "${RUNTIME_OUTPUT_DIRECTORY}/crash-matrix" LABELS fork)
 
-# Alone, because the device does its work one frame at a time and a second process only waits.
-openmw_add_test(rtx.gpu rtx-gpu-tests LABELS fork device)
-if (TEST rtx.gpu)
-    set_tests_properties(rtx.gpu PROPERTIES RUN_SERIAL ON)
-endif()
+# **In two processes that share the device.** What one does on the host — making pipelines, filling a
+# scene, reading a picture back — the other's work runs under on the device: the binary took 17 s
+# rather than 23, and three came to no less than two. The suites that run on the host run beside them.
+foreach (shard RANGE 1)
+    openmw_add_test(rtx.gpu.${shard} rtx-gpu-tests LABELS fork device)
+    if (TEST rtx.gpu.${shard})
+        set_tests_properties(rtx.gpu.${shard} PROPERTIES ENVIRONMENT "GTEST_TOTAL_SHARDS=2;GTEST_SHARD_INDEX=${shard}")
+    endif()
+endforeach()

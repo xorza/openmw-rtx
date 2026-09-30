@@ -53,7 +53,7 @@ namespace Rtx
 
         /// Masser and Secunda, placed and with their faces named. An input and not a derivation:
         /// the angles come from the weather system, and nothing here can work them out.
-        std::array<MoonPlacement, 2> mMoons;
+        std::array<MoonPlacement, 2> mMoons{};
 
         /// Which weather is over the eye and which is arriving, and how the two decks stand.
         CloudCrossing mClouds;
@@ -118,7 +118,7 @@ namespace Rtx
     struct AirClock
     {
         Sky::SkyClock mSky;
-        osg::Vec2d mCarried;
+        osg::Vec2d mCarried{};
     };
 
     /// `seconds` as two floats whose sum is it, for a shader to reduce exactly (`turnsAt`): the

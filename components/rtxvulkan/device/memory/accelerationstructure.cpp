@@ -25,10 +25,13 @@ namespace Rtx
 
         const VkAccelerationStructureCreateInfoKHR create{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
+            .pNext = nullptr,
+            .createFlags = 0,
             .buffer = buffer,
             .offset = offset,
             .size = size,
             .type = type,
+            .deviceAddress = 0,
         };
         checkVk(functions.mCreateAccelerationStructure(device.getHandle(), &create, nullptr, &mHandle),
             "vkCreateAccelerationStructureKHR");
@@ -37,6 +40,7 @@ namespace Rtx
         // moment it is created, and what a barrier orders is the contents arriving.
         const VkAccelerationStructureDeviceAddressInfoKHR address{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
+            .pNext = nullptr,
             .accelerationStructure = mHandle,
         };
         mAddress = functions.mGetAccelerationStructureDeviceAddress(device.getHandle(), &address);

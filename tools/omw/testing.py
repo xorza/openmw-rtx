@@ -25,9 +25,11 @@ def test(build: Build, args: list[str]) -> int:
 
 
 def ctest_arguments(flavour: str, args: list[str]) -> list[str]:
-    """The line's own switches in CTest's words, and the rest as it is."""
+    """The line's own switches in CTest's words, and the rest as it is. **The suites run side by
+    side**, one job to a processor: here and not in the test preset, whose version takes only a fixed
+    count."""
     whole = flavour == "plain"
-    passed: list[str] = []
+    passed: list[str] = ["--parallel"]
     for arg in args:
         if arg == "--all":
             whole = True

@@ -109,8 +109,8 @@ namespace Rtx::Shaders
         /// Nought is no lens, which is what a doll and a map tile are drawn with: the pyramid is the
         /// frame's and neither of those is a frame. The shader samples nothing at all where this is
         /// nought, so what is bound there need not be a pyramid.
-        float mBloom;
-        vec2 mBloomTexel;
+        float mBloom RTX_ZERO;
+        vec2 mBloomTexel RTX_ZERO;
 
         /// The star field, drawn here rather than by the trace.
         ///
