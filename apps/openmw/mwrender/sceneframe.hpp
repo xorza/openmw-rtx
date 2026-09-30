@@ -174,7 +174,7 @@ namespace MWRender
     {
         float mNearClip = 0.0f;
         float mViewDistance = 0.0f;
-        osg::Matrixf mProjectionMatrix;
+        osg::Matrixf mProjectionMatrix{};
 
         /// The one the world settled on: the override wherever something asked for one, and the
         /// setting only where nothing did.
