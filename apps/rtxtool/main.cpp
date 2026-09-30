@@ -684,6 +684,9 @@ namespace RtxTool
                 = variables["out"].defaulted() ? "shot" : variables["out"].as<std::string>();
             std::filesystem::create_directories(out);
 
+            if (const std::optional<std::string> why = refuseAgainst(out, against))
+                throw std::runtime_error(*why);
+
             // **What each picture is held to is where it came from.** A frame the wavelet composed and
             // nothing upscaled is the picture the hashes cannot judge; a doll and a tile are always
             // denoised (`Reconstruction::forPicture`); the sheet is the textures and nothing traced.
@@ -718,12 +721,12 @@ namespace RtxTool
             if (!against.empty())
                 request.mAgainst = against / sShotHashes;
 
-            if (const int status
+            // Compared whatever the session answered, because a moved frame is what fails it, and
+            // the run where something moved is the run whose tiles, dolls and sheets are wanted.
+            const int status
                 = runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request));
-                status != 0)
-                return status;
-
-            return compareRuns(out, against, written);
+            const int compared = compareRuns(out, against, written);
+            return status != 0 ? status : compared;
         }
 
         int commandBench(const Command& command)

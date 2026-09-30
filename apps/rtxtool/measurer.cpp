@@ -314,6 +314,11 @@ namespace RtxTool
         while (const std::optional<Rtx::FrameResult> finished = renderer.finishFrame())
             answered(stop, *finished, extents);
 
+        // Drained, so a film frame still numbered is one whose picture will not come: the film
+        // stops at that gap, and the run that made it may not end as though it had not.
+        if (stop.mActions.mFilm.has_value() && mProgress.mFilmPending > 0 && mFailure.empty())
+            mFailure = std::format("{} of the film's last frames never came back", mProgress.mFilmPending);
+
         if (mProgress.mPausedFrames > 0)
         {
             // The same guard over the measured frames, where a pause is no longer the world

@@ -546,6 +546,7 @@ namespace Rtx
         // were never made.
         mGlow.reset();
         mGlows.clear();
+        mEmitters.begin();
 
         // Non-const because the walk writes. It poses every actor it reaches and it runs every
         // state-set controller it finds, which is what makes an actor behind the camera posed and a

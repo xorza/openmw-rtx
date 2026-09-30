@@ -64,6 +64,11 @@ namespace Rtx
         EmitterResolver(const EmitterResolver&) = delete;
         EmitterResolver& operator=(const EmitterResolver&) = delete;
 
+        /// Forgets what a walk that threw left noted and never placed, ahead of the next walk: its
+        /// places and its effects belong to a walk that is over, and an effect index into a list
+        /// the next walk refilled reads past its end.
+        void begin() { mPending.clear(); }
+
         /// Notes one system the walk met, to be read when the walk is over.
         ///
         /// @param glow which effect the system stood under, as an index into what `flush` is

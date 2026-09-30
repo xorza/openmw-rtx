@@ -115,8 +115,6 @@ void OMW::Engine::executeLocalScripts()
 
 bool OMW::Engine::frame(unsigned frameNumber, float frametime)
 {
-    Crash::heartbeat();
-
     const osg::Timer_t frameStart = mRenderer->getStartTick();
     const osg::Timer* const timer = osg::Timer::instance();
     osg::Stats* const stats = &mRenderer->getStats();

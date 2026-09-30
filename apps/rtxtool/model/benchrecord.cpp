@@ -10,6 +10,8 @@
 #include <string>
 #include <string_view>
 
+#include <components/files/conversion.hpp>
+#include <components/rtx/common/error.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 
@@ -390,5 +392,11 @@ namespace RtxTool
         }
 
         file << "  ]\n}\n";
+
+        // Checked as `FrameHashes::write` checks, for its reason: a record compared across commits
+        // that was never written leaves the last one at its path to be compared as this one.
+        file.flush();
+        if (!file)
+            throw Rtx::InputError("could not write " + Files::pathToUnicodeString(path));
     }
 }

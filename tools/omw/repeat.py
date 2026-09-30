@@ -33,6 +33,18 @@ def _tail(log: Path) -> str:
     return "\n".join(log.read_text(errors="replace").splitlines()[-20:])
 
 
+def _differs(block: list[str]) -> bool:
+    """Whether a view of the `against` block moved. The verdict and not the exit code, because a leg
+    that failed for another reason — a pause over its measured frames — prints the block too, every
+    view of it the same, and that is a run that failed rather than a run that did not repeat."""
+    views = []
+    for line in block:
+        if not line.startswith("  "):
+            break
+        views.append(line)
+    return any("every one of them the same" not in view and "the same on every one" not in view for view in views)
+
+
 def repeat(build: Build, args: list[str]) -> int:
     pairs = 1
     place: list[str] = []
@@ -70,7 +82,7 @@ def repeat(build: Build, args: list[str]) -> int:
         against = next((i for i, line in enumerate(lines) if line.startswith("against ")), None)
         if ended.returncode == 0:
             print(f"pair {pair} of {pairs}: identical")
-        elif against is not None:
+        elif against is not None and _differs(lines[against + 1:]):
             status = 1
             print(f"pair {pair} of {pairs}: NOT repeatable", file=sys.stderr)
             print("\n".join(lines[against:]), file=sys.stderr)
