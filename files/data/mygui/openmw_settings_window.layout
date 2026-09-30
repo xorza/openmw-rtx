@@ -959,10 +959,6 @@
                                 <Property key="Caption" value="#{OMWEngine:RayTracingRestart}"/>
                             </Widget>
 
-                            <Widget type="AutoSizedTextBox" skin="SandText" name="RayTracingUnavailableHint">
-                                <Property key="Caption" value="#{OMWEngine:RayTracingUnavailable}"/>
-                            </Widget>
-
                             <Widget type="Widget" position="0 0 0 8" align="Top HStretch">
                                 <UserString key="HStretch" value="true"/>
                             </Widget>

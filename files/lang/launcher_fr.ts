@@ -467,7 +467,7 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
     </message>
     <message>
         <source>This build was made without the ray tracing renderer.</source>
-        <translation>Cette version a été compilée sans le moteur de rendu par ray tracing.</translation>
+        <translation type="vanished">Cette version a été compilée sans le moteur de rendu par ray tracing.</translation>
     </message>
     <message>
         <source>Error receiving resolutions</source>
