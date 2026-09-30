@@ -77,8 +77,10 @@ void main()
     const float damping = RIPPLE_DAMPING;
     const float next = a * neighbours + ((2.0 - 2.0 * damping) - 4.0 * a) * held.x - (1.0 - damping) * held.y;
 
+    // Bounded by the constant as every loop here is, and the count below it: the host never hands
+    // more than the buffer holds, and a count that said otherwise would read past it.
     vec2 heights = vec2(next, held.x);
-    for (uint at = 0u; at < step.mCount; ++at)
+    for (uint at = 0u; at < min(step.mCount, RIPPLE_IMPULSES_MOST); ++at)
         heights = pressed(heights, impulses[at], vec2(texel) + 0.5);
 
     imageStore(after, texel, vec4(heights, 0.0, 0.0));

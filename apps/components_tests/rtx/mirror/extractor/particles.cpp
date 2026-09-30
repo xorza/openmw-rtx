@@ -3,12 +3,15 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 #include <osg/Group>
 #include <osg/Math>
 #include <osg/Matrix>
+#include <osg/Node>
+#include <osg/NodeVisitor>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
 #include <osg/Texture2D>
@@ -642,6 +645,32 @@ namespace Rtx::Testing
             EXPECT_EQ(seen, 20u);
 
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u) << "a walk on a clock that did not move emits nothing";
+        }
+
+        /// A node whose walk ends the walk, as a content file the walk cannot read does.
+        struct Throwing : osg::Node
+        {
+            void accept(osg::NodeVisitor&) override { throw std::runtime_error("a node the walk cannot read"); }
+        };
+
+        /// **A walk that threw leaves nothing for the next one to place.** The emitters a walk met
+        /// are read when it ends, and a throw is an end with no reading: the next walk placed the
+        /// thrown walk's emitters as its own, at their old places, and read their effects out of a
+        /// list it had refilled.
+        TEST_F(RtxSceneExtractorTest, aWalkThatThrewLeavesNoEmitterForTheNext)
+        {
+            const Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
+            emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+
+            osg::ref_ptr<osg::Group> thrown = new osg::Group;
+            thrown->addChild(plume.mRoot);
+            thrown->addChild(new Throwing);
+            EXPECT_THROW(walk(*thrown), std::runtime_error);
+
+            osg::ref_ptr<osg::Group> empty = new osg::Group;
+            const ExtractionStats next = walk(*empty);
+            EXPECT_EQ(next.mEmitters, 0u);
+            EXPECT_EQ(next.mSprites, 0u) << "the thrown walk's plume, placed by the walk after it";
         }
 
         /// **An emitter's sprites are read from its entry as the map holds it after the walk**, and

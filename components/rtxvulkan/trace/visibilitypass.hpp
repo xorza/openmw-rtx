@@ -48,10 +48,10 @@ namespace Rtx
         /// the list of no sprites. One for everything traced.
         const TraceMedia* mMedia = nullptr;
 
-        /// Which of the chain's sprite bins this trace records into and reads, and which copy of
-        /// the air it writes, the other being its history: the frame's own slot in the world's
-        /// chain, so the frame behind keeps its bin and its history, and the first of each in the
-        /// pictures' chain.
+        /// Which of the chain's sprite bins this trace records into and reads: the frame's own
+        /// slot in the world's chain, so the frame behind keeps its bin, and the first in the
+        /// pictures' chain. Not which copy of the air it writes, which is a turn a trace
+        /// (`FogVolume::turn`) and so stays paired across a frame that traced nothing.
         FrameSlot mTraceSlot;
 
         /// What the trace sums its census into: the frame's own, or for a picture inside the

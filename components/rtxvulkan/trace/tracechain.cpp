@@ -76,6 +76,7 @@ namespace Rtx
         if (what.mPastLost)
             resetHistory();
 
+        mFogVolume->turn();
         const VisibilityInputs inputs{ .mSubject = what.mSubject, .mChannels = *mChannels, .mFogVolume = *mFogVolume };
 
         // Made by the first trace that averages, and that trace is the one that fills it: the first

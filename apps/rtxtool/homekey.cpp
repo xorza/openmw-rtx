@@ -61,9 +61,15 @@ namespace RtxTool
 
             if (!mKeys.empty())
             {
-                std::ofstream(mKeys, std::ios::app) << '\n' << describeKey(*left);
-                Log(Debug::Info) << "Ray tracing session: a film's key appended to "
-                                 << Files::pathToUnicodeString(mKeys);
+                std::ofstream keys(mKeys, std::ios::app);
+                keys << '\n' << describeKey(*left);
+                keys.flush();
+                if (keys)
+                    Log(Debug::Info) << "Ray tracing session: a film's key appended to "
+                                     << Files::pathToUnicodeString(mKeys);
+                else
+                    Log(Debug::Error) << "Ray tracing session: could not append a film's key to "
+                                      << Files::pathToUnicodeString(mKeys);
             }
         }
 

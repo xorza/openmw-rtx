@@ -7,7 +7,6 @@
 
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/descriptorsets.hpp>
-#include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 
 namespace Rtx
@@ -57,13 +56,19 @@ namespace Rtx
         std::uint32_t getColumns() const { return mColumns; }
         std::uint32_t getRows() const { return mRows; }
 
-        /// The set every pass binds for a trace in this slot: the point pair as it stood at the
+        /// Turns to the other half of the point pair, for the trace about to be recorded: the half
+        /// the last trace wrote becomes this one's history. Once a trace and never once a frame,
+        /// because a frame the ring closes untraced wrote no air, and a turn for it left the next
+        /// trace reading the air of the trace before last.
+        void turn() { mNow = 1 - mNow; }
+
+        /// The set every pass binds for the trace being recorded: the point pair as it stood at the
         /// last trace, the same pair and the lamps to write this one, and the integrated pair.
-        VkDescriptorSet getSet(const FrameSlot trace) const { return mSets.get(trace.get()); }
+        VkDescriptorSet getSet() const { return mSets.get(mNow); }
 
         /// Discards every image the trace ahead writes whole before it reads it. The history rests
         /// where the last trace left it, behind the head barrier the command buffer opened with.
-        void begin(VkCommandBuffer commands, FrameSlot trace) const;
+        void begin(VkCommandBuffer commands) const;
 
         /// Orders the pass that finds each column's surface against every pass that loads it: the
         /// one that fills the froxels, the one that integrates the columns, and the trace.
@@ -71,19 +76,20 @@ namespace Rtx
 
         /// Orders the pass that fills the froxels against the pass that integrates the columns, and
         /// against the trace, which reads what the lamps deliver to a puff of smoke (`puffLight`).
-        void scattered(VkCommandBuffer commands, FrameSlot trace) const;
+        void scattered(VkCommandBuffer commands) const;
 
         /// Orders the dispatch that wrote the accumulation, the slices and the averaged seeing against
         /// the trace.
         void handOver(VkCommandBuffer commands) const;
 
     private:
-        /// The point pair, and so the sets: one wired each way round. Which of the pair a trace
-        /// writes is its `FrameSlot`, the other being its history — the trace's own slot and not
-        /// the sample index's parity, which the host advances on frames that trace nothing and a
-        /// run restarts at every stop, so two traces in a row could land on one copy.
-        static_assert(sFrameSlots == 2, "the point pair is one copy per trace in flight");
-        static constexpr std::uint32_t sParities = sFrameSlots;
+        /// The point pair, and so the sets: one wired each way round. Two whatever the frames in
+        /// flight, because each trace's head barrier orders it after the last one's writes.
+        static constexpr std::uint32_t sParities = 2;
+
+        /// Which of the pair the trace being recorded writes, the other being its history —
+        /// `turn`.
+        std::uint32_t mNow = 0;
 
         std::uint32_t mColumns = 0;
         std::uint32_t mRows = 0;

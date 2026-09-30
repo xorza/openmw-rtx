@@ -34,7 +34,10 @@ const uint SPRITE_SHADE_SUN = 0u;
 
 layout(local_size_x = SPRITE_SHADE_WORKGROUP) in;
 
-layout(buffer_reference, buffer_reference_align = TABLE_ALIGN_BLOCKS, scalar) buffer Order
+/// Coherent, because the lanes of a workgroup read the keys each other swapped a stage before:
+/// without it the barrier below orders the writes and does not make them visible, which a workgroup
+/// that spans two caches reads as a stale key.
+layout(buffer_reference, buffer_reference_align = TABLE_ALIGN_BLOCKS, scalar) coherent buffer Order
 {
     uint64_t at[];
 };
@@ -183,10 +186,10 @@ void sortRun(Order run, uint first, uint count)
                 }
             }
 
-            // **`barrier` alone would not publish these**, and the keys are in a buffer. It is an
-            // execution barrier whose memory semantics name workgroup storage and nothing else, so
-            // a stage's swaps would reach the next stage's reads by the hardware's good manners
-            // rather than by the specification. `groupMemoryBarrier` is what names the rest.
+            // **`barrier` alone would not order these**, and the keys are in a buffer. It is an
+            // execution barrier whose memory semantics name workgroup storage and nothing else.
+            // `groupMemoryBarrier` orders the buffer's writes, and `Order` being coherent is what
+            // makes them visible to the other lanes.
             groupMemoryBarrier();
             barrier();
         }

@@ -469,7 +469,7 @@ namespace Rtx
         bindSets(commands, pipeline,
             SharedSetBinds{ .mTextures = inputs.mSubject.mScene->getTextures(),
                 .mChannels = buffer.getSet(),
-                .mVolume = inputs.mFogVolume.getSet(inputs.mSubject.mTraceSlot) });
+                .mVolume = inputs.mFogVolume.getSet() });
     }
 
     void VisibilityPass::writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs, const SpriteBin& bin,
@@ -598,8 +598,7 @@ namespace Rtx
         const VisibilityVariant variant
             = VisibilityVariant::resolve(constants, inputs.mSubject.mSea, inputs.mSubject.mMapped);
 
-        const FrameSlot trace = inputs.mSubject.mTraceSlot;
-        inputs.mFogVolume.begin(commands, trace);
+        inputs.mFogVolume.begin(commands);
 
         const TracePipeline<NoConstants>& scatter = scatterPipelineFor(variant);
 
@@ -631,7 +630,7 @@ namespace Rtx
 
         closeZone(timer, commands);
 
-        inputs.mFogVolume.scattered(commands, trace);
+        inputs.mFogVolume.scattered(commands);
 
         openZone(timer, commands, "column");
 

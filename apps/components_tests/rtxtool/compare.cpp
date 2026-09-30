@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 
 #include <gtest/gtest.h>
 
@@ -22,6 +23,27 @@ namespace RtxTool
         std::uint8_t& channelAt(Rtx::PngImage& image, std::uint32_t x, std::uint32_t y, std::size_t channel)
         {
             return image.mPixels[(std::size_t{ y } * image.mWidth + x) * 4 + channel];
+        }
+
+        /// **A shot is refused against the directory it writes**, however the two are spelled: the
+        /// pictures land over their references before either is read, so every one would judge the
+        /// same. Another directory, one that does not exist yet, and no `--against` at all are not.
+        TEST(RtxCompareTest, aRunIsNotComparedAgainstWhatItWrites)
+        {
+            const std::filesystem::path root = std::filesystem::temp_directory_path() / "openmw-rtxtool-refuse-against";
+            std::filesystem::remove_all(root);
+            std::filesystem::create_directories(root / "shot");
+            std::filesystem::create_directories(root / "before");
+
+            EXPECT_TRUE(refuseAgainst(root / "shot", root / "shot").has_value());
+            EXPECT_TRUE(refuseAgainst(root / "shot", root / "before" / ".." / "shot").has_value())
+                << "one directory spelled two ways";
+            EXPECT_FALSE(refuseAgainst(root / "shot", root / "before").has_value());
+            EXPECT_FALSE(refuseAgainst(root / "shot", root / "missing").has_value())
+                << "a reference nobody wrote has nothing to overwrite";
+            EXPECT_FALSE(refuseAgainst(root / "shot", {}).has_value());
+
+            std::filesystem::remove_all(root);
         }
 
         /// The whole of what the report says, on a picture whose differences are counted by hand.

@@ -172,6 +172,12 @@ namespace RtxTool
     /// @param barFrames how many frames the bars averaged, which the report names.
     int judgeNoise(const std::filesystem::path& wrote, std::span<const std::string> places, std::uint32_t barFrames);
 
+    /// Why a run that writes its pictures into `out` cannot be compared against `against`, or
+    /// nothing where it can. The pictures are written over their references before the two
+    /// directories are read, so one directory named twice judges every picture the same: `shot`
+    /// and then `shot --against=shot` is the pair this refuses.
+    std::optional<std::string> refuseAgainst(const std::filesystem::path& out, const std::filesystem::path& against);
+
     /// Reads back what a run wrote and says what moved since `against`: a directory an earlier run
     /// wrote on this machine, never a corpus in the tree, because the picture is a function of the
     /// driver and the card as much as of the code. Each of `pictures` is looked for under `against`
