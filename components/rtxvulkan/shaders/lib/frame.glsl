@@ -44,6 +44,20 @@ float waterOver(vec3 position)
     return HAS_SEA ? max(frame.mWaterLevel - position.z, 0.0) : 0.0;
 }
 
+/// How far a ray that starts in the water stays in it, over the `distance` it runs: all of it where
+/// it runs level or down, and as far as it rises through the plane where it climbs.
+///
+/// **The plane and not the surface's mesh**, because the plane is what `waterOver` measures and has
+/// absolute sides: a ray from an eye under the water that rises where no mesh stands crosses no
+/// surface, and is in air from the plane on all the same. A column taken over the whole of such a
+/// ray charged the air above the plane with the water's scattering and its extinction. A select and
+/// not a branch: the divide is by a climb, and the level ray takes the other side.
+float waterAlong(vec3 from, vec3 direction, float distance)
+{
+    const float rise = waterOver(from) / max(direction.z, 1.0e-20);
+    return direction.z > 0.0 ? min(distance, rise) : distance;
+}
+
 /// Whether a ray that found nothing was under the surface looking down, which is water and not sky.
 ///
 /// **The plane has absolute sides**, so below it there is water whether or not this renderer was

@@ -804,10 +804,10 @@ vec4 fogAlongLeg(vec3 origin, vec3 direction, float span, float before)
 /// whole of the weather's air in front of it and arrives dimmed by exactly that.
 vec4 fogAlong(uvec2 pixel, WorldRay ray, float distance)
 {
-    // **Air only, and an eye under the surface has none of it in front of it.** Every ray from a
-    // submerged eye ends at the water or short of it — `MASK_WATER` stops the trace and stops
-    // `fogdepth.rgen`'s column alike — so none of the path is in air, and `waterColumn` has already
-    // charged the whole of it for the water.
+    // **Air only, and an eye under the surface has none of it in front of it.** The water stands
+    // in front, and what air a ray reaches past the plane is behind it — `mediumAhead` charges that
+    // as a leg's air, from where the ray rose through the plane, because the froxels hold none of
+    // it: `MASK_WATER` stops `fogdepth.rgen`'s column at the surface.
     //
     // **Here rather than in each element, because only one of the three could tell.**
     // `fogCoverageAt` gives nothing under the surface and `fogColumn` integrates nothing there, so

@@ -152,6 +152,10 @@ SplitLight alongLeg(WaterPath path, WorldRay leg, bool underwater, float footpri
     const SplitLight light = path.mLight;
     if (underwater)
     {
+        // **Water whole, and not split at the plane as the eye's own ray is** (`waterAlong`). A leg
+        // on the water's side left the underside of its surface, and a facet a wave tilted can send
+        // a reflection climbing — which the surface above it would turn back down, and which, sent
+        // into the air instead, drew the bright world over the water as specks along the horizon.
         const WaterColumn column = waterColumn(leg.mFrom, leg.mAlong, path.mDistance, footprint, pixel);
         return SplitLight(
             throughWater(light.mRest, column), light.mSunlit * column.mTransmittance, light.mSunOpen);
