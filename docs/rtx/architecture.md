@@ -12,7 +12,10 @@ field's words in [`components/rtx/GLOSSARY.md`](../../components/rtx/GLOSSARY.md
 Upstream OpenMW stays the host engine: cells, references, physics, scripts, animation, weather,
 GUI logic. A second renderer stands beside the OpenGL rasterizer and replaces the whole picture:
 primary visibility, shadows, direct and indirect light, sky, water and fog are ray traced. The
-rasterizer is not modified. Both renderers stand behind one interface, one binary ships both,
+rasterizer's picture is upstream's but for three corrections the ray tracer needed, each where
+upstream's was wrong: the optimizer merges in child order, an exterior map tile keeps its land
+where the quad tree has not built the chunk yet, and a `NightDaySwitch` shows its mode's child from
+its first frame. Both renderers stand behind one interface, one binary ships both,
 and the one not chosen never starts.
 
 The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vulkan with ray

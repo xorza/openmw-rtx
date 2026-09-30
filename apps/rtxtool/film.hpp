@@ -11,8 +11,6 @@
 
 #include <osg/Vec3f>
 
-#include <apps/openmw/mwrender/rtx/rtxrun.hpp>
-
 #include "model/benchrun.hpp"
 #include "model/camerapath.hpp"
 #include "model/cameratrack.hpp"
@@ -64,7 +62,7 @@ namespace RtxTool
     {
         /// How long one frame of the film stands for: the run's own step (`RunSetup::mStep`), which
         /// every length below is counted in frames by, and `--fps` is one over.
-        float mStep = MWRender::sStepSeconds;
+        float mStep = sStepSeconds;
 
         /// How long a film is where the command line names neither its length nor its speed.
         static constexpr float sLengthByDefault = 20.0f;

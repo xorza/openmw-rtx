@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 #include <new>
+#include <numeric>
 #include <span>
 #include <type_traits>
 #include <vector>
@@ -16,6 +17,15 @@ namespace Rtx
     using Index = std::uint32_t;
 
     inline constexpr Index sNoIndex = ~Index{ 0 };
+
+    /// `into`, refilled with every index below `count`: a whole table walked through the path a list
+    /// of arrivals takes.
+    inline std::span<const Index> everyIndexBelow(std::size_t count, std::vector<Index>& into)
+    {
+        into.resize(count);
+        std::iota(into.begin(), into.end(), Index{ 0 });
+        return into;
+    }
 
     template <class T>
     class BlockedValues;

@@ -14,6 +14,7 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -213,12 +214,12 @@ namespace Rtx
             EXPECT_NEAR(second.mColour.x(), 1.0f, 1e-5f) << "the second image was read";
             EXPECT_EQ(means.size(), 1u);
 
+            // An image with no name is one the texture table refuses, so nothing asks its mean.
             osg::ref_ptr<osg::Image> unnamed
                 = makeSheetImage({ 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255 });
             unnamed->setFileName("");
-            EXPECT_NEAR(means.of(*unnamed).mColour.y(), 1.0f, 1e-5f);
-            EXPECT_EQ(means.size(), 1u) << "an unnamed image was kept";
-            EXPECT_EQ(&means.of(*red), &first) << "an unnamed ask moved a file's entry";
+            Testing::expectAssertDies(
+                [&] { means.of(*unnamed); }, "the mean of an image the texture table would have refused");
         }
     }
 

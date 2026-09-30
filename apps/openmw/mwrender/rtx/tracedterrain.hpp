@@ -1,10 +1,9 @@
 #pragma once
 
-#include <map>
-#include <utility>
 #include <vector>
 
 #include <osg/Array>
+#include <osg/Vec2i>
 #include <osg/ref_ptr>
 
 #include <components/esm/refid.hpp>
@@ -65,10 +64,11 @@ namespace MWRender
         bool getBordersVisible() override { return false; }
 
     private:
-        /// One cell's grid: the transform at the cell's middle, and the geometry under it whose
-        /// positions are the storage's.
+        /// One cell's grid: which cell it stands, the transform at the cell's middle, and the
+        /// geometry under it whose positions are the storage's.
         struct CellGrid
         {
+            osg::Vec2i mCell;
             osg::ref_ptr<osg::PositionAttitudeTransform> mRoot;
             osg::ref_ptr<osg::Geometry> mGeometry;
             osg::ref_ptr<osg::Vec3Array> mPositions;
@@ -77,6 +77,9 @@ namespace MWRender
         /// A grid to stand a cell on: one a cell gave back, or a new one.
         CellGrid takeGrid();
 
+        /// The grid standing `cell`, or null.
+        CellGrid* findGrid(const osg::Vec2i& cell);
+
         /// The rasterizer's own triangles over a cell's vertices, shared by every grid.
         Terrain::BufferCache mBuffers;
 
@@ -84,7 +87,9 @@ namespace MWRender
         osg::ref_ptr<osg::Vec3Array> mNormals;
         osg::ref_ptr<osg::Vec4ubArray> mColours;
 
-        std::map<std::pair<int, int>, CellGrid> mCells;
+        /// The standing grids, searched by cell: a ring's worth, and a vector because a map allocated
+        /// a node for every cell that arrived.
+        std::vector<CellGrid> mCells;
         std::vector<CellGrid> mSpare;
     };
 }

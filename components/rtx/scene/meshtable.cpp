@@ -5,12 +5,23 @@
 #include <cstdint>
 #include <string>
 
-#include "tangent.hpp"
+#include <osg/Vec3f>
+#include <osg/Vec4f>
+
+#include <components/rtx/shaders/tangent.h>
 
 namespace Rtx
 {
     namespace
     {
+        /// A vertex's tangent as the device stores it, `Shaders::TANGENT_*`, from
+        /// `osgUtil::TangentSpaceGenerator`'s: a direction, and in `w` the handedness the bitangent
+        /// `cross(N, T) * w` is taken with.
+        std::uint32_t packTangent(const osg::Vec4f& tangent)
+        {
+            return Shaders::packTangent(osg::Vec3f(tangent.x(), tangent.y(), tangent.z()), tangent.w() < 0.0f);
+        }
+
         /// The box every one of `positions` fits in.
         osg::BoundingBoxf boundsOf(std::span<const osg::Vec3f> positions)
         {
@@ -66,8 +77,8 @@ namespace Rtx
         assert(indices.size() % 3 == 0);
         assert(std::all_of(indices.begin(), indices.end(), [&](std::uint32_t i) { return i < positions.size(); }));
         assert(deformer == sNoIndex
-            || (deformer < deformers.getDeformers().size() && deformers.getDeformers()[deformer].mKind != Deform::None
-                && deformers.getDeformers()[deformer].getVertexCount() == positions.size()
+            || (deformer < deformers.getRows().size() && deformers.getRows()[deformer].mKind != Deform::None
+                && deformers.getRows()[deformer].getVertexCount() == positions.size()
                 && "a deformer moves exactly the vertices of the mesh on it"));
 
         ++mRevision;
@@ -191,8 +202,7 @@ namespace Rtx
         MeshRange& range = mRows.at(mesh);
         mVertexRuns.release(range.mVertices);
         mIndexRuns.release(range.mIndices);
-        if (range.mSecondTexCoords.mCount > 0)
-            mSecondRuns.release(range.mSecondTexCoords);
+        mSecondRuns.release(range.mSecondTexCoords);
         deformers.release(range);
         mTriangles -= range.getTriangleCount();
 

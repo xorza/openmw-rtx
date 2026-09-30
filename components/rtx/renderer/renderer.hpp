@@ -18,7 +18,6 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
-#include <components/rtx/scene/debuglines.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/visibility.h>
@@ -36,24 +35,20 @@ namespace Rtx
 {
     class SceneDesc;
 
-    /// Which of the validation layers' checks a run loads. One level and not three switches,
-    /// because the three implied one another — either finer check needs the layer under it — and
-    /// the two finer checks together took the device down in three runs of four: four of the eight
-    /// combinations meant anything, and a fifth was fatal.
+    /// How much of the graphics API's own checking a run loads. One level and not three switches,
+    /// because each finer check needs the one under it and the two finer ones are never loaded
+    /// together: what each costs and why is the backend's to say.
     enum class ValidationLevel
     {
         Off,
 
-        /// The core checks.
+        /// The API's core checks.
         On,
 
-        /// The core checks and synchronization validation, which catches a missing barrier. Costs
-        /// enough to be opt-in among developers.
+        /// The core checks and the checks of how the device's work is ordered.
         Sync,
 
-        /// The core checks and GPU-assisted validation, which instruments every shader and
-        /// catches what a ray query does with its own arguments, at about half the frame rate. The
-        /// layer itself asks not to be run beside the core checks, so it is never a default.
+        /// The core checks and the checks of what the shaders do on the device.
         Gpu,
     };
 
@@ -176,8 +171,9 @@ namespace Rtx
         std::uint64_t mCompactableBytes = 0;
         std::uint64_t mCompactableNowBytes = 0;
 
-        /// How many refitted structures the rota has built whole again since the scene was made —
-        /// `SceneAcceleration::sRebuildEvery` says the rule.
+        /// How many refitted structures the rota has built whole again since the scene was made. A
+        /// refit keeps a structure's shape as its placements move and so loses its quality, which a
+        /// rebuild on a rota wins back; how often is the backend's.
         std::uint64_t mRebuilt = 0;
 
         /// Every texture the renderer holds and what those come to, from one walk of the array, so

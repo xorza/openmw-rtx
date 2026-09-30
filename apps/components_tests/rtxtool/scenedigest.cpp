@@ -16,6 +16,7 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <apps/rtxtool/instruments/digest.hpp>
 #include <apps/rtxtool/instruments/scenedigest.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/deformertable.hpp>

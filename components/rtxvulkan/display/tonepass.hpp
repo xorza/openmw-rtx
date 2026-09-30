@@ -15,8 +15,8 @@ namespace Rtx
 
     /// What one run of the curve is over. A frame's and a picture's inside the interface differ
     /// in the pyramid and the sun's share and in nothing else, so the two are one record and not
-    /// two argument lists — four of the fields below are an `Image`, and a list of them takes any
-    /// two of the four in either order.
+    /// two argument lists — five of the fields below are an `Image`, and a list of them takes any
+    /// two of the five in either order.
     struct Tone
     {
         /// The finished frame in linear radiance, in `VK_IMAGE_LAYOUT_GENERAL`.

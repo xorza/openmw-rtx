@@ -19,8 +19,6 @@
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 
-#include "spritepasses.hpp"
-
 namespace Rtx
 {
     namespace
@@ -111,7 +109,7 @@ namespace Rtx
     }
 
     SceneBuffers::SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
-        std::span<const InstanceRecord> records, const std::uint32_t slots)
+        std::span<const Index> everyMesh, std::span<const InstanceRecord> records, const std::uint32_t slots)
         : mLayers(device, BufferKind::DeviceLocal, sTableFilledUsage, "layers")
         , mMasks(device, BufferKind::DeviceLocal, sTableFilledUsage, "masks")
         , mTables([&](FrameSlot) { return Tables(device); })
@@ -126,12 +124,7 @@ namespace Rtx
         mNormalTable.open(device, slots, sTableUsage, "normals");
         mTangentTable.open(device, slots, sTableUsage, "tangents");
 
-        // Every mesh the scene holds, which is the same path an arrival takes with a shorter list.
-        std::vector<Index> every(scene.meshes().getRows().size());
-        for (std::size_t at = 0; at < every.size(); ++at)
-            every[at] = static_cast<Index>(at);
-
-        writeMeshes(batch, scene, every);
+        writeMeshes(batch, scene, everyMesh);
         writeMaterialRuns(batch, scene);
         orderStagedWrites(batch);
 

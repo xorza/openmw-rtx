@@ -45,7 +45,7 @@ namespace RtxTool
         std::uint32_t longest = 0;
         for (const Stop& stop : request.mStops)
             if (!stop.mSchedule.mSpec.mRun.isUntilClosed())
-                longest = std::max(longest, stop.mSchedule.mSpec.getMeasured(request.mSetup.getWorldStep()));
+                longest = std::max(longest, stop.mSchedule.mSpec.getMeasured(worldStep(request.mSetup)));
 
         mProgress.mSamples.reserve(longest);
         mProgress.mGpu.reserve(longest);
@@ -62,7 +62,7 @@ namespace RtxTool
         // that a field added to it is reset here whether or not its author remembered to.
         mProgress.restart();
 
-        mProgress.mWarmup = stop.mSchedule.mSpec.getWarmup(mRequest.mSetup.getWorldStep());
+        mProgress.mWarmup = stop.mSchedule.mSpec.getWarmup(worldStep(mRequest.mSetup));
         mProgress.mCell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
         mProgress.mPlace.mView = stop.mName;
         mProgress.mPlace.mCell = stop.mStand.mCell;
@@ -87,7 +87,7 @@ namespace RtxTool
     {
         Rtx::Renderer& renderer = context.mRenderer.getBackend();
         const double frameMs = report.mSpend.at(Rtx::Timing::Frame);
-        const float step = mRequest.mSetup.getWorldStep();
+        const float step = worldStep(mRequest.mSetup);
         const std::uint32_t measured = stop.mSchedule.mSpec.getMeasured(step);
 
         if (!mProgress.mMeasuredFrom.has_value() && mProgress.mWarmedRan == mProgress.mWarmup)
@@ -297,7 +297,7 @@ namespace RtxTool
         const MWRender::FrameReport& report, const float travelled, StopWriter& writer)
     {
         Rtx::Renderer& renderer = context.mRenderer.getBackend();
-        const float step = mRequest.mSetup.getWorldStep();
+        const float step = worldStep(mRequest.mSetup);
 
         mProfiling.disable();
 

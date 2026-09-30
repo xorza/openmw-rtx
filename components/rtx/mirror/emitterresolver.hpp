@@ -126,7 +126,7 @@ namespace Rtx
             RefusedTakes mRefused;
 
             /// That image's mean texel, or null until an effect's glow asks for it: read then and
-            /// kept, because `MeanTexels` keeps a named file's mean for the process, and every
+            /// kept, because `MeanTexels` keeps a named file's mean for as long as its thread runs, and every
             /// image here is a named file. Nulled with `mSprite`.
             const MeanTexel* mMean = nullptr;
         };

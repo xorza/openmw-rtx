@@ -10,6 +10,7 @@
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/Matrixf>
 #include <osg/Node>
+#include <osg/Vec3f>
 
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/stepped.hpp>
@@ -164,11 +165,22 @@ namespace Rtx
         ExtractionStats extractWorld(const osg::Node& root, const osg::Matrixf& transform, std::size_t anchor,
             std::size_t frame, CellRing& ring);
 
-        /// `extract`, for what falls from the sky: every emitter met under `node` is placed as one
+        /// `extract`, for what the weather drops: every emitter met under `fall` is placed as one
         /// whose sprites a roof keeps off — `MirrorPass::mFalls`. The precipitation's walk and
         /// nothing else, because a hearth's smoke under a roof is where it belongs.
-        ExtractionStats extractFalling(
-            const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame = 0);
+        ///
+        /// **Stood at `eye`**: the drops hang under the sky's camera-relative transform, so their
+        /// particles are placed about the origin, and the eye they were driven with is the one place
+        /// the box travels nowhere — a sprite's travel between two frames is then its fall. **Not
+        /// walked where the eye is under water**: the sky manager freezes the drops where they stand,
+        /// and walked anyway they hang in the air.
+        ///
+        /// @param fall the sky manager's rain box or its driven effect, or null for a world with
+        ///        nothing of that kind over it.
+        /// @param anchor as `extract` takes it: the rain and the driven effect are two roots the walk
+        ///        cannot tell apart by structure.
+        ExtractionStats extractPrecipitation(
+            const osg::Node* fall, const osg::Vec3f& eye, bool underwater, std::size_t anchor, std::size_t frame = 0);
 
         /// Where this walk's traversal numbers come from — the one handed in, or its own.
         Traversals& getTraversals() { return mTraversals; }

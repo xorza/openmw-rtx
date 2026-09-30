@@ -14,7 +14,7 @@
 
 #include <apps/openmw/mwrender/rtx/debugwalk.hpp>
 #include <apps/openmw/mwrender/vismask.hpp>
-#include <components/rtx/scene/debuglines.hpp>
+#include <components/rtx/frame/debuglines.hpp>
 
 namespace MWRender
 {

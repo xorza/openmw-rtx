@@ -423,6 +423,15 @@ namespace RtxTool
         return found == views.end() ? nullptr : &*found;
     }
 
+    const Stop& requireView(const std::vector<Stop>& views, std::string_view name)
+    {
+        const Stop* view = findView(views, name);
+        if (view == nullptr)
+            throw std::runtime_error(std::format("no view is called \"{}\"; --list-views prints them", name));
+
+        return *view;
+    }
+
     std::vector<Stop> chooseViews(const std::vector<Stop>& views, const std::vector<std::string>& named)
     {
         // **"all" is a name nothing may take, and it means every view.** `bench` reaches this
@@ -438,16 +447,14 @@ namespace RtxTool
         chosen.reserve(named.size());
         for (const std::string& name : named)
         {
-            const Stop* view = findView(views, name);
-            if (view == nullptr)
-                throw std::runtime_error("no view is called \"" + name + "\"; --list-views prints them");
+            const Stop& view = requireView(views, name);
 
             // A view named twice is one place visited twice under one name, and every table the
             // run writes by name — the frame hashes first — refuses it once written.
             if (findView(chosen, name) != nullptr)
                 throw std::runtime_error("the view \"" + name + "\" is named twice");
 
-            chosen.push_back(*view);
+            chosen.push_back(view);
         }
 
         return chosen;

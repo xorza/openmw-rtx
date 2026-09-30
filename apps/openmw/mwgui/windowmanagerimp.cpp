@@ -777,10 +777,7 @@ namespace MWGui
                 MWBase::Environment::get().getInputManager()->update(dt, true, false);
 
                 if (!mWindowVisible)
-                {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
-                    mRenderer.advance(mRenderer.getFrameStamp().getSimulationTime());
-                }
+                    mRenderer.skipGuiFrame();
                 else
                     mRenderer.renderGuiFrame();
             }
@@ -1436,11 +1433,6 @@ namespace MWGui
                 cycleActiveControllerWindow(true);
             }
         }
-    }
-
-    void WindowManager::setCullMask(uint32_t mask)
-    {
-        mRenderer.setViewMask(mask);
     }
 
     void WindowManager::popGuiMode(bool forceExit)
@@ -2105,8 +2097,7 @@ namespace MWGui
             if (!mWindowVisible)
             {
                 mVideoWidget->pause();
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
-                mRenderer.advance(mRenderer.getFrameStamp().getSimulationTime());
+                mRenderer.skipGuiFrame();
             }
             else
             {

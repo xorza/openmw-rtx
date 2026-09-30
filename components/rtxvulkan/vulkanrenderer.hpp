@@ -13,7 +13,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/kernelprogress.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
@@ -135,9 +135,9 @@ namespace Rtx
         /// submits the ring does not count; and the graveyard last, once nothing can be reading.
         void drain();
 
-        /// Whether a frame is upscaled, which is the mode alone: a mode that wants a runtime has
-        /// one, because `setUpscale` raises it before it moves the mode. The runtime outlives a
-        /// mode being turned off, because raising it again costs a quarter of a second.
+        /// Whether a frame is upscaled, which is the mode alone: the upscaler's pipelines are built
+        /// with the renderer whatever the mode, and `createTargets` makes its images where a mode
+        /// upscales and lets them go where it does not.
         bool upscaling() const { return upscales(mProfile.mUpscale); }
 
         // Declaration order is destruction order reversed, and everything below the device is built

@@ -54,6 +54,7 @@ class Build:
         self.dir = ROOT / f"build-{flavour}"
         self.preset = f"{flavour}-{SYSTEM}"
         self._env: dict[str, str] | None = None
+        self._configured = False
 
     @property
     def default_targets(self) -> list[str]:
@@ -106,7 +107,12 @@ class Build:
         otherwise keep the value it last set.
 
         **Neither `--clean-first` nor `ninja -t cleandead`**: files/lang/*.ts are source that a Qt
-        translation rule writes into the tree, so Ninja logs them as outputs, and both delete them."""
+        translation rule writes into the tree, so Ninja logs them as outputs, and both delete them.
+
+        **Once a run**: what the presets expand from does not move while the driver runs, and a
+        cache edited since is Ninja's to notice, since `build.ninja` depends on it."""
+        if self._configured:
+            return
         env = self.env
         digest = presets.digest(env)
         stamp = self.dir / CONFIGURED_FROM
@@ -114,6 +120,7 @@ class Build:
             # What CMake wrote is brought up to date with the CMake files as Ninja would before a
             # build, so what is asked of it before one — the tests it has — is not a stale answer.
             run(["cmake", "--build", self.dir, "--target", "build.ninja"], env=env, stdout=subprocess.DEVNULL)
+            self._configured = True
             return
 
         if WINDOWS:
@@ -130,6 +137,7 @@ class Build:
                 self._place_windows_qt(qt)
 
         stamp.write_text(digest + "\n")
+        self._configured = True
 
     def _place_windows_runtime(self, windows_deps: Path, sdl: Path) -> None:
         """**What vcpkg's own copy step misses, placed the way upstream's MSVC script places it.**

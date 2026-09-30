@@ -169,7 +169,7 @@ foreach (directory "${RTX_SPIRV_DIR}" "${RTX_SPIRV_SOURCE_DIR}")
     endforeach()
 endforeach()
 
-# What the trace's five shaders are made of. Included rather than compiled — each has its own entry
+# What the shaders of every folder are made of. Included rather than compiled — each shader has its own entry
 # point and these have none, and glslc's depfile is what makes editing one rebuild every shader that
 # reads it. Named here so an IDE lists them beside the shaders they belong to, which is the only
 # thing the build wants them for.
@@ -328,10 +328,7 @@ set(RTX_VULKAN_FILES
     scene/skinpass.hpp
     scene/skintables.cpp
     scene/skintables.hpp
-    scene/spritebin.cpp
-    scene/spritebin.hpp
-    scene/spritepasses.cpp
-    scene/spritepasses.hpp
+    scene/spritesource.hpp
     scene/structurebuild.cpp
     scene/structurebuild.hpp
     texture/groundcompositepass.cpp
@@ -372,6 +369,10 @@ set(RTX_VULKAN_FILES
     trace/gbuffer.hpp
     trace/ripplepass.cpp
     trace/ripplepass.hpp
+    trace/spritebin.cpp
+    trace/spritebin.hpp
+    trace/spritepasses.cpp
+    trace/spritepasses.hpp
     trace/stresspass.cpp
     trace/stresspass.hpp
     trace/sunglarepass.cpp

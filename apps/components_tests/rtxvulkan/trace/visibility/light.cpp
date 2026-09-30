@@ -25,7 +25,7 @@
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>

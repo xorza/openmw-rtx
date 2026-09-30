@@ -68,6 +68,7 @@ namespace MWRender
         {
             Rtx::Testing::FakeLand land;
             land.mWithData.push_back(osg::Vec2i(0, 0));
+            land.mWithData.push_back(osg::Vec2i(1, 0));
 
             osg::ref_ptr<osg::Group> sceneRoot = new osg::Group;
             TracedTerrain ground(*sceneRoot, land, sTerrainMask, ESM::Cell::sDefaultWorldspaceId);
@@ -100,6 +101,18 @@ namespace MWRender
             // The other cell of the same worldspace is not the one that was loaded.
             ground.loadCell(0, 0);
             EXPECT_FALSE(groundUnder(*sceneRoot, middle + cell, middle).has_value());
+
+            // Two cells, and the first to arrive leaves first: the one that stays is still found,
+            // stood once however often it is loaded, and taken down by its own unload.
+            const osg::Group& terrainRoot = *sceneRoot->getChild(0)->asGroup();
+            ground.loadCell(1, 0);
+            EXPECT_EQ(terrainRoot.getNumChildren(), 2u);
+            ground.unloadCell(0, 0);
+            EXPECT_FALSE(groundUnder(*sceneRoot, middle, middle).has_value());
+            ground.loadCell(1, 0);
+            EXPECT_EQ(terrainRoot.getNumChildren(), 1u) << "a standing cell was stood twice";
+            ground.unloadCell(1, 0);
+            EXPECT_EQ(terrainRoot.getNumChildren(), 0u) << "the cell that stayed was lost";
         }
     }
 }

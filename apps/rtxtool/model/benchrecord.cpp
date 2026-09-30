@@ -332,9 +332,9 @@ namespace RtxTool
         return out;
     }
 
-    std::string describeTotal(std::span<const BenchPlace> places, const bool stopped)
+    std::string describeTotal(std::span<const BenchPlace> places)
     {
-        if (places.size() < 2 && !stopped)
+        if (places.size() < 2)
             return {};
 
         std::uint32_t frames = 0;
@@ -345,8 +345,7 @@ namespace RtxTool
             lasted += place.mWallSeconds;
         }
 
-        return std::format("\n{} {}, {} frames in {:.1f} s{}\n", places.size(), places.size() == 1 ? "place" : "places",
-            frames, lasted, stopped ? " — stopped early" : "");
+        return std::format("\n{} places, {} frames in {:.1f} s\n", places.size(), frames, lasted);
     }
 
     void writeJson(

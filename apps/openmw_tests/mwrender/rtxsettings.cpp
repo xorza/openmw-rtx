@@ -23,7 +23,6 @@ namespace MWRender
                 .mObjectPagingMinSize = 0.025f,
                 .mSpecularMapLayout = "metal roughness",
                 .mAnisotropy = 8,
-                .mGroundcover = true,
             };
         }
 

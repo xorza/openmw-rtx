@@ -10,8 +10,8 @@
 #include <vector>
 
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/digest.h>
 
 #include "scenedigest.hpp"

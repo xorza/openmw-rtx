@@ -19,7 +19,7 @@
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
-#include <components/rtx/preprocess/texture/finesttexels.hpp>
+#include <components/rtx/preprocess/texture/texturepass.hpp>
 
 namespace Rtx
 {

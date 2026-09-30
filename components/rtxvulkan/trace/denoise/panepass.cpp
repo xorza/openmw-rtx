@@ -4,7 +4,7 @@
 #include <cassert>
 #include <cstdint>
 
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/pane.h>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>

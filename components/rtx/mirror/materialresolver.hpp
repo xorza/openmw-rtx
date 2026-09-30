@@ -82,7 +82,7 @@ namespace Rtx
         /// @param pass the walk in progress: its sweep stamp and its counts, read at every call.
         ///        Borrowed, so that the mirror and everything resolving into it cannot come to hold
         ///        two answers.
-        /// @param means the process's mean texels, shared with the emitters for the reason
+        /// @param means the thread's mean texels, shared with the emitters for the reason
         ///        `EmitterResolver` gives.
         /// @param content the walk's thread's, which reads a translucent map's alpha.
         MaterialResolver(SceneDesc& scene, const MirrorPass& pass, MeanTexels& means, ContentPreprocessor& content)
@@ -162,10 +162,12 @@ namespace Rtx
     private:
         /// What the scene knows one image as under each encoding and wrap, and whether its alpha
         /// ever reaches solid, unset until something asks, because the walk over its texels is only
-        /// worth doing for a material that has to tell a wisp from a mask. `Known::mIndex` stays
-        /// unset: the slots are twelve, and the sweep reads the epoch and the holds alone.
-        struct HeldTexture : Known
+        /// worth doing for a material that has to tell a wisp from a mask. No one index: the slots
+        /// are twelve, and the sweep reads the reach alone.
+        struct HeldTexture
         {
+            Reach mReach;
+
             /// The entry's hold on each slot it took, one per wrap and encoding, and empty where it
             /// took none.
             std::array<std::array<TextureHold, sTextureWrapCount>, sTextureEncodingCount> mSlots;
@@ -220,9 +222,11 @@ namespace Rtx
 
         /// The state set a node's controllers write into, kept so that the address a material is
         /// keyed on is the same one next frame. See `animate`. An entry like any other, so the map
-        /// sweeps it by the epoch every entry carries; its index names nothing.
-        struct Animated : Known
+        /// sweeps it by the reach every entry carries.
+        struct Animated
         {
+            Reach mReach;
+
             osg::ref_ptr<osg::StateSet> mStateSet;
 
             /// The controllers found on the node's callback chains, in the order the rasterizer runs

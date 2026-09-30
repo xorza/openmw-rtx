@@ -251,8 +251,8 @@
         <translation>Вертикална синхронизация</translation>
     </message>
     <message>
-        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs an NVIDIA GPU with hardware ray tracing (Turing or later).</source>
-        <translation>Заменя визуализатора OpenGL с експерименталния визуализатор Vulkan с трасиране на лъчи. Изисква видеокарта NVIDIA с хардуерно трасиране на лъчи (Turing или по-нова).</translation>
+        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
+        <translation>Заменя визуализатора OpenGL с експерименталния визуализатор Vulkan с трасиране на лъчи. Изисква видеокарта с хардуерно трасиране на лъчи: NVIDIA Turing или AMD RDNA 2, или по-нова.</translation>
     </message>
     <message>
         <source>Experimental Ray Tracing</source>
@@ -263,8 +263,8 @@
         <translation>Мащабиране</translation>
     </message>
     <message>
-        <source>How far below the window&apos;s size the ray tracer traces. The upscaler reconstructs the frame across frames whichever mode is chosen, and every mode but Native traces fewer pixels than it shows.</source>
-        <translation>Колко под размера на прозореца трасира трасирането на лъчи. Мащабиращият реконструира кадъра от няколко кадъра във всеки режим, и всеки режим освен Естествена трасира по-малко пиксели, отколкото показва.</translation>
+        <source>How far below the window&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
+        <translation>Колко под размера на прозореца трасира трасирането на лъчи. Изключено трасира всеки пиксел без мащабиращ; всеки друг режим пуска мащабиращия, който реконструира кадъра от няколко кадъра, и всеки режим освен Изключено и Естествена трасира по-малко пиксели, отколкото показва.</translation>
     </message>
     <message>
         <source>Off</source>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
 namespace Rtx

@@ -19,7 +19,6 @@ namespace MWRender
             .mObjectPagingMinSize = Settings::terrain().mObjectPagingMinSize,
             .mSpecularMapLayout = Settings::rtx().mSpecularMapLayout.get(),
             .mAnisotropy = Settings::general().mAnisotropy,
-            .mGroundcover = Settings::groundcover().mEnabled,
         };
     }
 

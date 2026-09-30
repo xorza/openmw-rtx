@@ -245,6 +245,26 @@ namespace RtxTool
             Verbs mVerb;
         };
 
+        /// The places a run can visit, among the resources.
+        std::filesystem::path viewsFile(const std::filesystem::path& resources)
+        {
+            return resources / "rtx" / "views.cfg";
+        }
+
+        /// The suites, each a list of places in `viewsFile`.
+        std::filesystem::path suitesFile(const std::filesystem::path& resources)
+        {
+            return resources / "rtx" / "benches.cfg";
+        }
+
+        /// Where a verb writes its pictures: `--out`, or a directory named for the verb.
+        std::filesystem::path outOf(const Command& command)
+        {
+            const bpo::variable_value& out = command.mVariables["out"];
+            return out.defaulted() ? std::filesystem::path(verbName(command.mVerb))
+                                   : std::filesystem::path(out.as<std::string>());
+        }
+
         /// The whole of a `Framed`, from the command line: the window's settings and the
         /// renderer's setup, read once, so that no verb splits the line again by hand.
         Framed frameFrom(const Command& command)
@@ -375,16 +395,8 @@ namespace RtxTool
                 name = sDefaultView;
             }
 
-            views = loadViews(resources / "rtx" / "views.cfg");
-            const Stop* view = findView(views, name);
-            if (view != nullptr)
-                return view;
-
-            std::string known;
-            for (const Stop& candidate : views)
-                known += "\n  " + candidate.mName + "   " + candidate.mNote;
-
-            throw std::runtime_error("no view is called \"" + name + "\". These are:" + known);
+            views = loadViews(viewsFile(resources));
+            return &requireView(views, name);
         }
 
         /// What a `shot` writes its frames' hashes to, beside the pictures, and reads a reference's
@@ -557,8 +569,8 @@ namespace RtxTool
                 stops.push_back(stageOnePlace(command, framed));
             else
             {
-                stops = stopsFrom(chooseViews(loadViews(command.mResources / "rtx" / "views.cfg"), splitNames(named)),
-                    variables, framed);
+                stops = stopsFrom(
+                    chooseViews(loadViews(viewsFile(command.mResources)), splitNames(named)), variables, framed);
             }
 
             for (Stop& stop : stops)
@@ -590,7 +602,7 @@ namespace RtxTool
         SuiteRun chooseBenchViews(const bpo::variables_map& variables, const std::filesystem::path& resources,
             const std::string_view ownSuite)
         {
-            const std::vector<Stop> views = loadViews(resources / "rtx" / "views.cfg");
+            const std::vector<Stop> views = loadViews(viewsFile(resources));
             const std::string named = variables["views"].as<std::string>();
 
             SuiteRun run;
@@ -600,7 +612,7 @@ namespace RtxTool
                 run.mSuite
                     = variables["suite"].defaulted() ? std::string(ownSuite) : variables["suite"].as<std::string>();
 
-                const std::vector<BenchSuite> suites = loadSuites(resources / "rtx" / "benches.cfg");
+                const std::vector<BenchSuite> suites = loadSuites(suitesFile(resources));
                 const BenchSuite* suite = findSuite(suites, run.mSuite);
                 if (suite == nullptr)
                 {
@@ -623,7 +635,7 @@ namespace RtxTool
 
         int runListViews(const std::filesystem::path& resources)
         {
-            for (const Stop& view : loadViews(resources / "rtx" / "views.cfg"))
+            for (const Stop& view : loadViews(viewsFile(resources)))
             {
                 out() << "  " << view.mName << "\n      " << view.mStand.mCell;
 
@@ -706,8 +718,7 @@ namespace RtxTool
 
             std::vector<Stop> stops = stagePlaces(command, framed, frames);
 
-            const std::filesystem::path out
-                = variables["out"].defaulted() ? "shot" : variables["out"].as<std::string>();
+            const std::filesystem::path out = outOf(command);
             std::filesystem::create_directories(out);
 
             if (const std::optional<std::string> why = refuseAgainst(out, against))
@@ -810,7 +821,7 @@ namespace RtxTool
         /// something moves and whether an artefact is a still or a shimmer, and both are questions
         /// about the frame a player gets — so the player is who flies it, with their own controls,
         /// their own collision and their own console — in a body with every stat at 255, a Speed
-        /// of 2000, level 255 and a million gold, and the frame rate on the window's title.
+        /// of 2000, level 255 and ten million gold, and the frame rate on the window's title.
         ///
         /// Collision comes off, because a view file's coordinates are where a camera stands rather
         /// than where a body fits.
@@ -841,7 +852,7 @@ namespace RtxTool
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             request.mQuitAtEnd = frames > 0;
             request.mKeys = variables["keys"].as<std::string>();
-            request.mHomePictures = variables["out"].defaulted() ? "view" : variables["out"].as<std::string>();
+            request.mHomePictures = outOf(command);
 
             return runHosted(variables, command.mConfig, command.mResources, framed.mWindow, std::move(request), true);
         }
@@ -869,8 +880,7 @@ namespace RtxTool
             // path the frame's own passes never touch**: the capture adds the read back a picture
             // is written from, and the tile and the doll are offscreen traces with descriptor sets
             // and targets of their own. Under the layers, this is what finds a barrier they miss.
-            const std::filesystem::path out
-                = variables["out"].defaulted() ? "check" : variables["out"].as<std::string>();
+            const std::filesystem::path out = outOf(command);
             std::filesystem::create_directories(out);
             stops.front().mActions.mCapture = out / (stops.front().mName + ".png");
             stops.front().mActions.mMapTile = out / (stops.front().mName + "-map.png");
@@ -932,8 +942,7 @@ namespace RtxTool
             const SuiteRun run = chooseBenchViews(variables, command.mResources, "noise");
             const std::vector<Stop> places = stopsFrom(run.mViews, variables, framed);
 
-            const std::filesystem::path out
-                = variables["out"].defaulted() ? "noise" : variables["out"].as<std::string>();
+            const std::filesystem::path out = outOf(command);
             std::filesystem::create_directories(out);
 
             const Rtx::ReconstructionRequest& played = framed.mSetup.mProfile.mReconstruction;
@@ -984,7 +993,7 @@ namespace RtxTool
             // again: the line's, and never shorter than every history converges over.
             const BenchSpan warm{ .mFrames
                 = std::max(sNoiseMeanWarmup,
-                    BenchSpan{ .mSeconds = warmupGiven(variables) }.getFrames(framed.mSetup.getWorldStep())) };
+                    BenchSpan{ .mSeconds = warmupGiven(variables) }.getFrames(worldStep(framed.mSetup))) };
 
             // The frame's own stop, flying in where the line asks: a route that holds the world, so
             // the frame flies through the world the reference stands in (`applyPolicy`).
@@ -1009,7 +1018,7 @@ namespace RtxTool
                 Stop stop = picture(place, "", sNoiseFlightFrames, false, std::nullopt, held, std::nullopt);
                 stop.mSchedule.mSpec.mWarm = warm;
                 Approach approach
-                    = stop.mStand.approachFrom(strafe, walk, framed.mSetup.getWorldStep(), sNoiseFlightFrames);
+                    = stop.mStand.approachFrom(strafe, walk, worldStep(framed.mSetup), sNoiseFlightFrames);
                 stop.mStand = std::move(approach.mFrom);
                 stop.mSchedule.mRoute = approach.mRoute;
                 return stop;
@@ -1147,8 +1156,7 @@ namespace RtxTool
             if (variables["plan"].as<bool>())
                 return 0;
 
-            const std::filesystem::path directory
-                = variables["out"].defaulted() ? "film" : variables["out"].as<std::string>();
+            const std::filesystem::path directory = outOf(command);
             const std::filesystem::path frames = directory / "frames";
             std::filesystem::create_directories(frames);
             if (const std::size_t cleared = clearFrames(frames); cleared > 0)

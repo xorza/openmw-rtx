@@ -69,7 +69,7 @@ namespace Rtx
         const DeviceProperties& getProperties() const { return *mProperties; }
 
         /// Queue family with graphics and compute, which on the target hardware is also the one
-        /// that can present. A separate transfer queue is an M12 question.
+        /// that can present.
         std::uint32_t getQueueFamily() const { return mProfile.mQueueFamily; }
 
         /// How many bits of the device's clock the chosen queue writes into a timestamp, or nought

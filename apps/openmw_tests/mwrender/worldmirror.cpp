@@ -78,8 +78,10 @@ namespace MWRender
                 mRoot->addChild(mSecond);
             }
 
-            SceneFrame frame()
+            /// This world as frame `number` sees it.
+            SceneFrame frame(unsigned int number)
             {
+                mWhen.setFrameNumber(number);
                 return SceneFrame{
                     .mScene = *mRoot,
                     .mWhen = mWhen,
@@ -107,7 +109,7 @@ namespace MWRender
             WorldMirror mirror(Rtx::MirrorKnobs{});
             const osg::Matrixd view = osg::Matrixd::identity();
 
-            const Rtx::ExtractionStats both = mirror.mirror(world.frame(), view, 1);
+            const Rtx::ExtractionStats both = mirror.mirror(world.frame(1), view);
             ASSERT_EQ(both.mInstances, 2u);
             ASSERT_EQ(mirror.getScene().placements().getCounts().mPlaced, 2u);
             ASSERT_EQ(Rtx::Testing::placedAt(mirror.getScene(), 0), osg::Vec3f(1.0f, 0.0f, 0.0f));
@@ -117,7 +119,7 @@ namespace MWRender
             // where the second is now — and not that beside the second's old slot at where it was.
             world.mRoot->removeChild(world.mFirst);
             world.mSecond->setMatrix(osg::Matrix::translate(9.0, 0.0, 0.0));
-            const Rtx::ExtractionStats shifted = mirror.mirror(world.frame(), view, 2);
+            const Rtx::ExtractionStats shifted = mirror.mirror(world.frame(2), view);
             EXPECT_EQ(shifted.mInstances, 1u);
             EXPECT_EQ(shifted.mRestood, 0u);
             EXPECT_EQ(mirror.getScene().placements().getCounts().mPlaced, 1u) << "the second's old slot still stands";
@@ -126,7 +128,7 @@ namespace MWRender
 
             // And a body the graph let go of is placed nowhere on the frame it went.
             world.mRoot->removeChild(world.mSecond);
-            const Rtx::ExtractionStats gone = mirror.mirror(world.frame(), view, 3);
+            const Rtx::ExtractionStats gone = mirror.mirror(world.frame(3), view);
             EXPECT_EQ(gone.mInstances, 0u);
             EXPECT_EQ(mirror.getScene().placements().getCounts().mPlaced, 0u) << "a slot traced after its body went";
         }
@@ -145,19 +147,19 @@ namespace MWRender
             sheet->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
             mirror.getPreprocessor().meanTexel(*sheet);
 
-            const Rtx::ExtractionStats first = mirror.mirror(world.frame(), view, 1);
+            const Rtx::ExtractionStats first = mirror.mirror(world.frame(1), view);
             EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::TexelMean).mAsked, 1u)
                 << "what ran before the first walk was lost";
             EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Shape).mAsked, 1u)
                 << "the one quad both bodies share";
 
-            const Rtx::ExtractionStats second = mirror.mirror(world.frame(), view, 2);
+            const Rtx::ExtractionStats second = mirror.mirror(world.frame(2), view);
             EXPECT_EQ(second.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::TexelMean).mAsked, 0u) << "counted twice";
             EXPECT_EQ(second.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::Shape).mAsked, 0u);
 
             // A mirror goes standing nothing.
             world.mRoot->removeChildren(0, world.mRoot->getNumChildren());
-            mirror.mirror(world.frame(), view, 3);
+            mirror.mirror(world.frame(3), view);
         }
 
         /// **The player is the one thing a mirror leaves out on a question about the camera.** Every

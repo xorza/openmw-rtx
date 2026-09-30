@@ -172,7 +172,7 @@ namespace Rtx
 
     bool MeshResolver::fits(const Index slot, const DrawableRead& read) const
     {
-        const Deformer& held = mScene.deformers().getDeformers()[slot];
+        const Deformer& held = mScene.deformers().getRows()[slot];
         if (held.mKind != read.mDeform)
             return false;
 
@@ -234,7 +234,7 @@ namespace Rtx
         // as a mesh stands on it.
         const std::size_t vertices = reading.mArrays.mPositions.size();
         const Held held = holdDeformer(read);
-        if (held.mIndex != sNoIndex && mScene.deformers().getDeformers()[held.mIndex].getVertexCount() == vertices)
+        if (held.mIndex != sNoIndex && mScene.deformers().getRows()[held.mIndex].getVertexCount() == vertices)
         {
             stampDeformer(held);
             return mScene.addMesh(reading.mArrays, reading.mShape, held.mIndex);

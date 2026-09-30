@@ -8,8 +8,8 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/rtxtool/instruments/digest.hpp>
 #include <apps/rtxtool/instruments/drivercache.hpp>
-#include <apps/rtxtool/instruments/scenedigest.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/testing/util.hpp>
 

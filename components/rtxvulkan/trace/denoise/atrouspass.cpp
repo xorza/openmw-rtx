@@ -3,7 +3,7 @@
 #include <array>
 #include <cassert>
 
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/atrous.h>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/look.h>

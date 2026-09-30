@@ -146,13 +146,13 @@ namespace Rtx
     ///
     /// @param fade the engine's `Stars` ramp at this hour, which is what brings them out at dusk.
     /// @param glare the weather's `Glare_View`, which is what keeps them in under an overcast.
-    /// @param turn `MWRender::WorldState::mStarRoll`.
+    /// @param turn `Rtx::WorldReading::mStarRoll`.
     Shaders::StarField describeStars(float fade, float glare, float turn, const SkyContent& textures);
 
     /// The nebulae and the constellations, placed — the same shape a moon is, a direction, a size
     /// and a texture, drawn as the disc the moons are. Where they go was read off the mesh.
     ///
-    /// @param turn `MWRender::WorldState::mStarRoll`, because they are on the star sphere.
+    /// @param turn `Rtx::WorldReading::mStarRoll`, because they are on the star sphere.
     /// @param patches written here rather than returned, so a frame's description costs no
     ///        allocation.
     void describePatches(

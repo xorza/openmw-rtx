@@ -24,14 +24,22 @@ namespace Rtx
             makeInstanceRecords(scene, records);
             return records;
         }
+
+        std::vector<Index> everyMeshOf(const SceneDesc& scene)
+        {
+            std::vector<Index> every;
+            everyIndexBelow(scene.meshes().getRows().size(), every);
+            return every;
+        }
     }
 
     DeviceScene::DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, const SceneDesc& scene,
         std::span<const TextureData> textures, const std::uint32_t anisotropy)
         : mPasses(passes)
         , mRecords(recordsOf(scene))
-        , mAcceleration(device, batch, scene, sFrameSlots)
-        , mBuffers(device, batch, scene, mRecords, sFrameSlots)
+        , mEveryMesh(everyMeshOf(scene))
+        , mAcceleration(device, batch, scene, mEveryMesh, sFrameSlots)
+        , mBuffers(device, batch, scene, mEveryMesh, mRecords, sFrameSlots)
         , mSkinTables(device, batch, scene, sFrameSlots)
         , mTextures(device, batch, passes.mTextureLayout, passes.mTextures,
               static_cast<std::uint32_t>(scene.textures().getRows().size()), anisotropy)
@@ -41,7 +49,7 @@ namespace Rtx
         // pose into that copy and the build then reads it. The other copy is owed the same pose and
         // takes it on the first placement that writes it.
         mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{}));
-        mAcceleration.build(batch, scene, mRecords, mRefusals);
+        mAcceleration.build(batch, scene, mEveryMesh, mRecords, mRefusals);
         mTextures.write(batch, textures, mRefusals);
         mBuiltMeshes = scene.meshes().getRevision();
         mReleasedFreed = scene.meshes().getFreedCount();

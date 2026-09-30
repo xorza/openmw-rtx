@@ -236,9 +236,10 @@ namespace MWRender
         return worldTraversal(mShowsPlayer);
     }
 
-    Rtx::ExtractionStats WorldMirror::mirror(
-        const SceneFrame& frame, const osg::Matrixd& view, const std::size_t frameNumber)
+    Rtx::ExtractionStats WorldMirror::mirror(const SceneFrame& frame, const osg::Matrixd& view)
     {
+        const std::size_t frameNumber = frame.mWhen.getFrameNumber();
+
         // **Whatever the loader hides with has to be inside what this mask excludes.**
         // `sWorldTraversal` names that bit rather than asking, because the loader is told it by
         // `RenderingManager` and this renderer is built first — so the two are checked against each
@@ -265,10 +266,10 @@ namespace MWRender
         // And the eye every billboard in the world turns to, which the rasterizer's cull hands its
         // `AutoTransform`s and this walk has to be told.
         mExtractor.setEye(Rtx::viewBasisOf(inverseView));
-        Rtx::mirrorPrecipitation(
-            mExtractor, frame.mPrecipitation.getRainNode(), eye, frame.mWorld.mUnderwater, Anchor::Rain, frameNumber);
-        Rtx::mirrorPrecipitation(mExtractor, frame.mPrecipitation.getParticleNode(), eye, frame.mWorld.mUnderwater,
-            Anchor::Effect, frameNumber);
+        mExtractor.extractPrecipitation(
+            frame.mPrecipitation.getRainNode(), eye, frame.mWorld.mUnderwater, Anchor::Rain, frameNumber);
+        mExtractor.extractPrecipitation(
+            frame.mPrecipitation.getParticleNode(), eye, frame.mWorld.mUnderwater, Anchor::Effect, frameNumber);
 
         // The sea, where the frame says there is one: hidden by its mask otherwise, as the
         // rasterizer's `updateVisible` hid the same plane, so the walk leaves no placement of it.

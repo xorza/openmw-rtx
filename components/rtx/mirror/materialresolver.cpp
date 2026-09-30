@@ -62,7 +62,7 @@ namespace Rtx
 
         /// What hangs on `node`'s two chains, as one number: a callback added, removed or swapped
         /// anywhere on either changes it. Pointer arithmetic down chains of one or two, against the
-        /// casts `findUpdater` takes.
+        /// casts `findUpdaters` takes.
         std::uintptr_t chainSignature(const osg::Node& node)
         {
             std::uintptr_t signature = 0;
@@ -356,16 +356,10 @@ namespace Rtx
         if (known == mTextureOf.end())
             return Shaders::NO_TEXTURE_ALBEDO;
 
-        // Kept by the slot for a file, so the frames after the first find it without the name;
-        // an unnamed image is asked of the cache every time, which reads it every time.
+        // Kept by the slot, so the frames after the first find it without the name.
         const MeanTexel*& mean = known->second.mMean;
         if (mean == nullptr)
-        {
-            const MeanTexel& read = mMeans.of(*image);
-            if (image->getFileName().empty())
-                return meanUnder(read, blend);
-            mean = &read;
-        }
+            mean = &mMeans.of(*image);
 
         return meanUnder(*mean, blend);
     }

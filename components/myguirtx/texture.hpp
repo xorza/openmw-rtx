@@ -23,8 +23,10 @@ namespace MyGUIRtx
     ///
     /// **The pixels are written once.** MyGUI's interface hands out a buffer to fill and takes it
     /// back filled, and the buffer handed out here is the renderer's own — the memory its copy to
-    /// the device reads. A buffer of this class's own instead would put a crossing of main memory in
-    /// front of every write, and a video frame arrives through here whole once a frame.
+    /// the device reads. A buffer of this class's own instead would put a second copy of every pixel
+    /// in front of the renderer's, and a font's atlas or a traced view's first picture is megabytes
+    /// written whole. A picture that changes every frame, a video's, is shared instead
+    /// (`RenderManager::shareTexture`) and never comes through here.
     ///
     /// **The exception is a format the table does not hold.** MyGUI asks for one, two or three
     /// channels as well as four, and those are widened on the way out — so they land in `mPixels`

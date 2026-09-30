@@ -61,9 +61,11 @@ Never commit. A review with no findings is a normal result.
 - **Variants** (`lib/variants.glsl`, and constants 6–7 in the hit module): a constant
   stands in front of its runtime test, never in its place. `HAS_MAPS` must leave
   every vanilla view unchanged. Each new tuple is one more pipeline to compile cold.
-- **`visibility.rgen` holds hit objects: a subgroup operation there loses the device.**
-  `reorderThreadEXT` is only in `RTX_SHADE`, under `REORDER`.
-- The payload is eleven packed words with one boundary (`packAnswer`,
+- **`visibility.rgen` calls `traceRayEXT`**, and a subgroup there is the driver's to
+  regroup across the trace: count or vote in the shader the ray ends in, not across a
+  trace (`lib/variants.glsl` says why the misses are counted in the miss shader).
+  Invocation reordering was tried and declined; `AGENTS.md` has the record.
+- The payload is nineteen packed words with one boundary (`packAnswer`,
   `unpackAnswer`); traversal has its own small payload. Hit shaders trace with ray
   queries, so `maxPipelineRayRecursionDepth` is 1; a `traceRayEXT` there needs it raised.
 - Harness-only writes sit behind `COUNTING`. Every loop's bound is a shader constant

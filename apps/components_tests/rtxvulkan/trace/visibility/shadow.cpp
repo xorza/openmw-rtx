@@ -11,7 +11,7 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/visibility.h>

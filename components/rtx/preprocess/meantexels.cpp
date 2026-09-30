@@ -1,5 +1,6 @@
 #include "meantexels.hpp"
 
+#include <cassert>
 #include <utility>
 
 #include <osg/Image>
@@ -10,11 +11,7 @@ namespace Rtx
 {
     const MeanTexel& MeanTexels::of(const osg::Image& image)
     {
-        if (image.getFileName().empty())
-        {
-            mUnnamed = mContent.meanTexel(image);
-            return mUnnamed;
-        }
+        assert(!image.getFileName().empty() && "the mean of an image the texture table would have refused");
 
         // Normalised as the texture table normalises it, so one file under two spellings is one
         // entry. The string is built once per image met and never per ask: a caller keeps the

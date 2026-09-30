@@ -208,8 +208,8 @@ namespace Rtx
             scene.drop(std::move(colour));
             EXPECT_EQ(scene.textures().add(stone, TextureWrap::Repeat, TextureEncoding::Data), stoneData);
             scene.drop(std::move(data));
-            EXPECT_TRUE(scene.textures().isFree(stoneData));
-            EXPECT_TRUE(scene.textures().isFree(0));
+            EXPECT_FALSE(scene.textures().isLive(stoneData));
+            EXPECT_FALSE(scene.textures().isLive(0));
             scene.drop(std::move(normalMap));
         }
 
@@ -468,9 +468,9 @@ namespace Rtx
             EXPECT_TRUE(mScene.meshes().getDeformed().empty()) << "nothing has been posed yet";
 
             // The rig's tables: four run words and one influence, and one bone per mesh on it.
-            ASSERT_EQ(mScene.deformers().getDeformers().size(), 1u);
-            EXPECT_EQ(mScene.deformers().getDeformers()[mRig].getVertexCount(), 4u);
-            EXPECT_EQ(mScene.deformers().getDeformers()[mRig].mRows, 1u);
+            ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
+            EXPECT_EQ(mScene.deformers().getRows()[mRig].getVertexCount(), 4u);
+            EXPECT_EQ(mScene.deformers().getRows()[mRig].mRows, 1u);
             EXPECT_EQ(mScene.deformers().getHolds(mRig), 2u);
             EXPECT_EQ(mScene.deformers().getRuns().size(), 4u);
             EXPECT_EQ(mScene.deformers().getInfluences().size(), 1u);
@@ -540,15 +540,14 @@ namespace Rtx
 
             Testing::letGoMesh(mScene, mMoving);
             EXPECT_EQ(mScene.deformers().getHolds(mRig), 1u);
-            EXPECT_EQ(mScene.deformers().getDeformers()[mRig].getVertexCount(), 4u) << "a rig with a mesh on it stays";
+            EXPECT_EQ(mScene.deformers().getRows()[mRig].getVertexCount(), 4u) << "a rig with a mesh on it stays";
             EXPECT_EQ(std::vector<Index>(mScene.meshes().getDeformed().begin(), mScene.meshes().getDeformed().end()),
                 (std::vector<Index>{ mOther }))
                 << "the freed slot left the list and the survivor stayed where it was named";
 
             Testing::letGoMesh(mScene, mOther);
             EXPECT_EQ(mScene.deformers().getHolds(mRig), 0u);
-            EXPECT_EQ(mScene.deformers().getDeformers()[mRig].getVertexCount(), 0u)
-                << "a rig nothing stands on is free";
+            EXPECT_EQ(mScene.deformers().getRows()[mRig].getVertexCount(), 0u) << "a rig nothing stands on is free";
             EXPECT_TRUE(mScene.deformers().getArrived().empty());
             EXPECT_TRUE(mScene.meshes().getDeformed().empty()) << "a slot given back still named a structure to refit";
 
@@ -679,9 +678,9 @@ namespace Rtx
             const DeformedMesh added = scene.addMesh(quad, {}, targets);
             const Index morph = added.mDeformer;
             const Index face = added.mMesh;
-            ASSERT_EQ(scene.deformers().getDeformers().size(), 1u);
-            EXPECT_EQ(scene.deformers().getDeformers()[morph].mRows, 2u);
-            EXPECT_EQ(scene.deformers().getDeformers()[morph].getVertexCount(), 4u);
+            ASSERT_EQ(scene.deformers().getRows().size(), 1u);
+            EXPECT_EQ(scene.deformers().getRows()[morph].mRows, 2u);
+            EXPECT_EQ(scene.deformers().getRows()[morph].getVertexCount(), 4u);
             EXPECT_EQ(scene.deformers().getMorphOffsets().size(), 8u);
             EXPECT_EQ(scene.deformers().getMorphOffsets()[6], osg::Vec3f(0.0f, 0.0f, 1.0f));
             EXPECT_EQ(sorted(scene.deformers().getArrived()), (std::vector<Index>{ morph }));
@@ -707,7 +706,7 @@ namespace Rtx
             // lands where they were.
             Testing::letGoMesh(scene, face);
             EXPECT_EQ(scene.deformers().getHolds(morph), 0u);
-            EXPECT_EQ(scene.deformers().getDeformers()[morph].getVertexCount(), 0u);
+            EXPECT_EQ(scene.deformers().getRows()[morph].getVertexCount(), 0u);
             EXPECT_EQ(scene.addMesh(quad, {}, targets).mDeformer, morph);
             EXPECT_EQ(scene.deformers().getMorphOffsets().size(), 8u);
         }
@@ -727,8 +726,8 @@ namespace Rtx
                     MorphSpec{ .mOffsets = offsets, .mTargets = 5 });
             const Index morph = added.mDeformer;
             const Index face = added.mMesh;
-            EXPECT_EQ(scene.deformers().getDeformers()[morph].getPoseWords(), 2u);
-            EXPECT_EQ(scene.deformers().getDeformers()[morph].getVertexCount(), 4u);
+            EXPECT_EQ(scene.deformers().getRows()[morph].getPoseWords(), 2u);
+            EXPECT_EQ(scene.deformers().getRows()[morph].getVertexCount(), 4u);
             ASSERT_EQ(scene.deformers().getPoses().size(), 2u);
 
             const std::array weights{ 1.0f, 0.125f, 0.25f, 0.375f, 0.5f };
@@ -963,12 +962,13 @@ namespace Rtx
             EXPECT_EQ(sorted(scene.placements().getMoved()), (std::vector<Index>{ one, two }));
             scene.placements().advance();
 
-            // A move is a row and a fade in the same frame is the same row twice, which is one row
-            // written twice and not a wrong one.
+            // A move and a fade in the same frame are one row, named once: it is written whole, so a
+            // second name would write it again for nothing.
             scene.placements().move(two, osg::Matrixf::translate(0.0f, 0.0f, 5.0f));
             scene.placements().fade(two, 0.25f);
-            EXPECT_EQ(sorted(scene.placements().getMoved()), (std::vector<Index>{ two, two }));
+            EXPECT_EQ(sorted(scene.placements().getMoved()), (std::vector<Index>{ two }));
             scene.placements().advance();
+            EXPECT_EQ(sorted(scene.placements().getSettled()), (std::vector<Index>{ two }));
 
             // A dropped slot is a row to write inactive, and the slot it frees is the next
             // placement's — both reported, on the frames they happen.
@@ -1862,7 +1862,7 @@ namespace Rtx
             Testing::letGoMaterial(moved, material);
             EXPECT_EQ(sorted(moved.textures().getFreed()), (std::vector<Index>{ texture }))
                 << "the material's texture was held on another scene's table";
-            EXPECT_TRUE(moved.textures().isFree(texture));
+            EXPECT_FALSE(moved.textures().isLive(texture));
 
             // A rig on the moved scene stands on the moved scene's deformers, and goes with its
             // mesh through them.
@@ -1894,7 +1894,7 @@ namespace Rtx
 
             // Standing, and standing is not free — the path is empty because it has none, which is
             // the same thing a free slot's path says and not the same fact.
-            EXPECT_FALSE(scene.textures().isFree(baked));
+            EXPECT_TRUE(scene.textures().isLive(baked));
             EXPECT_TRUE(scene.textures().getRows()[baked].mPath.value().empty()) << "it came from no file";
             EXPECT_EQ(scene.textures().getRows()[baked].mBaked, "composite/-3,-2/2");
 
@@ -1909,7 +1909,7 @@ namespace Rtx
 
             scene.drop(scene.holdTexture(baked));
 
-            EXPECT_TRUE(scene.textures().isFree(baked)) << "nothing names it and it is still standing";
+            EXPECT_FALSE(scene.textures().isLive(baked)) << "nothing names it and it is still standing";
             EXPECT_TRUE(scene.textures().getRows()[baked].mBaked.empty());
             EXPECT_EQ(sorted(scene.textures().getFreed()), (std::vector<Index>{ baked }));
 
@@ -1923,7 +1923,7 @@ namespace Rtx
             // The key is free again too, or a bake that came back would find a slot somebody else has.
             const Index again = scene.textures().addBaked("composite/-3,-2/2", TextureEncoding::Colour);
             EXPECT_EQ(again, 2u) << "a key the table gave back found a slot somebody else has";
-            EXPECT_FALSE(scene.textures().isFree(file)) << "the file beside it was never touched";
+            EXPECT_TRUE(scene.textures().isLive(file)) << "the file beside it was never touched";
         }
 
         /// A material rewritten gives back what it stopped naming and keeps what it still names.

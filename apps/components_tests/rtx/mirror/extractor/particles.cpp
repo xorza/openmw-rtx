@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+#include <osg/Geode>
+#include <osg/Geometry>
 #include <osg/Group>
 #include <osg/Math>
 #include <osg/Matrix>
@@ -27,6 +29,7 @@
 #include <osgParticle/RadialShooter>
 #include <osgParticle/range>
 
+#include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -226,8 +229,66 @@ namespace Rtx::Testing
             EXPECT_FALSE(extractOne(false));
         }
 
+        /// A rain box with one quad of our own under it, which is all the walk can tell from a storm.
+        ///
+        /// **What `extractPrecipitation` is handed is a node, an eye and whether it is submerged**, so
+        /// a group that drops nothing is enough to ask both of its questions, and needs no content
+        /// files to build.
+        osg::ref_ptr<osg::Group> makeFalling()
+        {
+            osg::ref_ptr<osg::Geometry> drop = new osg::Geometry;
+            drop->setVertexArray(
+                Testing::makePositions({ { 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } }));
+            drop->addPrimitiveSet(Testing::makeTriangles({ 0, 1, 2 }));
+
+            osg::ref_ptr<osg::Geode> holder = new osg::Geode;
+            holder->addDrawable(drop);
+
+            osg::ref_ptr<osg::Group> falling = new osg::Group;
+            falling->addChild(holder);
+            return falling;
+        }
+
+        /// A drop's own travel is its fall, and nothing falls where the eye is under water.
+        ///
+        /// **The box of drops carries no translation of its own**, so its particles are placed about
+        /// the origin and the eye is what stands them in the world. Anchoring the walk anywhere else
+        /// makes every sprite's motion between two frames the eye's step as well as its fall, which
+        /// is a reprojection of the wrong thing — and the drops would slide with the camera.
+        ///
+        /// **And the walk stops entirely under water.** The sky manager freezes the drops where
+        /// they stand and leaves what to draw to whoever is drawing; walked anyway, the ones the
+        /// surface was crossed with hang in the air for as long as the eye stays under it.
+        TEST(RtxSceneExtractorPrecipitationTest, dropsAreStoodAtTheEyeAndNoneIsWalkedUnderWater)
+        {
+            const osg::ref_ptr<osg::Group> falling = makeFalling();
+            const osg::Vec3f eye(1000.0f, -2000.0f, 300.0f);
+
+            SceneDesc scene;
+            SceneExtractor extractor(scene);
+            extractor.extractPrecipitation(falling, eye, false, 0);
+
+            ASSERT_EQ(scene.placements().getCounts().mPlaced, 1u) << "the drop was not walked at all";
+            EXPECT_EQ(placedAt(scene, 0), eye) << "the drops were stood somewhere other than the eye";
+
+            // Held still where the eye is submerged, which is a walk that does not happen rather
+            // than geometry that is hidden.
+            SceneDesc under;
+            SceneExtractor beneath(under);
+            beneath.extractPrecipitation(falling, eye, true, 0);
+
+            EXPECT_EQ(under.placements().getCounts().mPlaced, 0u);
+
+            // And a world with no weather over it at all is the third case the one call answers.
+            SceneDesc dry;
+            SceneExtractor none(dry);
+            none.extractPrecipitation(nullptr, eye, false, 0);
+
+            EXPECT_EQ(dry.placements().getCounts().mPlaced, 0u);
+        }
+
         /// Whether a sprite falls from the sky is the walk's word and not the system's: the same
-        /// plume is what a roof keeps off under `extractFalling` and a hearth's smoke under
+        /// plume is what a roof keeps off under `extractPrecipitation` and a hearth's smoke under
         /// `extract`, and a walk after a falling one is not left falling.
         TEST_F(RtxSceneExtractorTest, theWalkSaysWhetherAnEmittersSpritesFall)
         {
@@ -237,7 +298,7 @@ namespace Rtx::Testing
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
 
-            extractor.extractFalling(*plume.mRoot, osg::Matrixf::identity(), 0);
+            extractor.extractPrecipitation(plume.mRoot.get(), osg::Vec3f(), false, 0);
             ASSERT_EQ(scene.emitters().size(), 1u);
             EXPECT_TRUE(scene.emitters().front().falls());
 
@@ -459,7 +520,7 @@ namespace Rtx::Testing
             walk(*plume.mRoot);
             EXPECT_TRUE(mScene.emitters().empty()) << "a system with no sprite drew";
             for (Index slot = 0; slot < mScene.textures().getRows().size(); ++slot)
-                EXPECT_TRUE(mScene.textures().isFree(slot))
+                EXPECT_FALSE(mScene.textures().isLive(slot))
                     << "slot " << slot << " the emitter stopped wearing was kept";
 
             mScene.clearPlacement();

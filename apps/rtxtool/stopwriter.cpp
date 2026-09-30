@@ -62,6 +62,7 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "instruments/contactsheet.hpp"
+#include "instruments/digest.hpp"
 #include "instruments/framehashes.hpp"
 #include "model/benchrecord.hpp"
 #include "model/runrecord.hpp"
@@ -743,15 +744,9 @@ namespace RtxTool
 
             case Check::CameraStands:
             {
-                // **Answered rather than compared, where the stop named no camera.** Measuring the
-                // camera against itself is a yes nothing could fail, which reads in the report
-                // exactly like a camera that held.
+                // `canAsk` asks this only of a stop standing still, which names its eye.
                 const Stand& stand = facts.mStand;
-                if (!stand.mEye.has_value())
-                {
-                    found = "the stop named no camera of its own";
-                    return true;
-                }
+                assert(stand.mEye.has_value());
 
                 // **The game's camera and not the note the session took**, which is read off the
                 // same object: a check against that would agree with itself however far either had

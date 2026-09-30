@@ -6,6 +6,7 @@
 #include <span>
 #include <variant>
 
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/line.h>
@@ -197,10 +198,10 @@ namespace Rtx
                 .mTarget = target,
                 .mSurface = channels.get(Channel::Surface),
                 .mConstants = {
-                    .mCamera = Shaders::cameraOnGrid(what.mSampled.mCamera, target.getWidth(), target.getHeight()),
+                    .mCamera = Shaders::cameraOnGrid(what.mSampled.mCamera, what.mExtent.width, what.mExtent.height),
                     .mOrigin = what.mSampled.mOrigin,
                     .mNear = what.mSampled.mNear,
-                    .mTraced = Shaders::uvec2(channels.getWidth(), channels.getHeight()),
+                    .mTraced = Shaders::uvec2(what.mSampled.mCamera.mWidth, what.mSampled.mCamera.mHeight),
                 },
                 .mVertices = look.mDebugVertices.get(),
                 .mLineCount = static_cast<std::uint32_t>(debug.mLines.size()),

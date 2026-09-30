@@ -6,8 +6,8 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/frame/debuglines.hpp>
 #include <components/rtx/frame/sunglare.hpp>
-#include <components/rtx/scene/debuglines.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>

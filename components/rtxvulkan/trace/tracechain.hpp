@@ -6,15 +6,15 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
-#include <components/rtxvulkan/scene/spritebin.hpp>
 #include <components/rtxvulkan/trace/denoise/denoisehistory.hpp>
 
 #include "fogvolume.hpp"
 #include "gbuffer.hpp"
+#include "spritebin.hpp"
 
 namespace Rtx
 {

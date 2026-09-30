@@ -23,9 +23,9 @@ namespace MWRender
     /// one where it landed. What comes out is the frame's list of `Rtx::RippleImpulse`, which the
     /// trace's ripple field takes.
     ///
-    /// **A copy of `RippleSimulation::update`'s rule, and named as one.** That rule asks
-    /// `MWBase::World` whether an actor is in water and cannot be lifted to `components/`, and
-    /// lifting it out of `ripplesimulation.cpp` would be an edit to upstream's file.
+    /// **`RippleSimulation::update`'s rule, and not a copy of it**: who presses a ring and how big
+    /// is `ripplerules.hpp`, which the rasterizer's ripples ask as well, so the two renderers ring
+    /// the same water. What is this class's is which actors it watches and the list it hands on.
     class RippleEmitters
     {
     public:

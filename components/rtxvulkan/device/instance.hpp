@@ -47,8 +47,8 @@ namespace Rtx
         std::uint32_t getApiVersion() const { return mApiVersion; }
 
     private:
-        /// Every extension loaded, as names of its own: a surface's are the window library's and
-        /// the upscaler's are its runtime's, and neither promises its strings outlive the call.
+        /// Every extension loaded, as names of its own: a surface's are the window library's, which
+        /// does not promise its strings outlive the call.
         std::vector<std::string> mExtensions;
 
         // Held by pointer so the address handed to the debug callback survives everything.

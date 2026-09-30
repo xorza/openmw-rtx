@@ -135,17 +135,16 @@ layout(set = SET_CHANNELS, binding = CHANNEL_PANE_MOTION, GBUFFER_MOTION) unifor
 layout(set = SET_CHANNELS, binding = CHANNEL_UPSCALE_MASKS, GBUFFER_UPSCALE_MASKS) uniform writeonly image2D
     upscaleMasks;
 
-// One atomic per hit on a single address, which looks like contention and costs nothing a subgroup
-// reduction in its place gives back: few rays hit, and the reduction would cost the device a
-// subgroup-arithmetic requirement it does not otherwise need. Measure again if a pass ever hits
-// most of its pixels.
+// The frame's counts, added to one atomic at a time where a ray ends: `FrameCounts::mMisses` and
+// `COUNTING` say why the misses and not the hits, which a room of nothing but hits made cost.
 layout(set = SET_PASS, binding = BIND_COUNTS, scalar) buffer Counted
 {
     FrameCounts counts;
 };
 
 /// The sun glare fader's query, as `glare.h` states it: two atomics, added to by every primary
-/// ray inside the quad's disc. Few rays, for the reason the hit counter gives.
+/// ray inside the quad's disc. Few rays: the disc is a sliver of the frame, so an atomic a ray there
+/// is what the counts measured cheap.
 layout(set = SET_PASS, binding = BIND_SUN_GLARE, scalar) buffer SunGlare
 {
     SunGlareCount sunGlare;

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstddef>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include <osg/BoundingBox>
@@ -74,7 +75,7 @@ namespace Rtx
         link(slot, instance.mMesh, mFirstPlacing, &PlacementRow::mPlacing);
         count(slot);
 
-        mMoved.push_back(slot);
+        mMoved.addMakingRoom(slot);
         return slot;
     }
 
@@ -124,7 +125,7 @@ namespace Rtx
             discount(slot);
             mRows.at(slot).mWorn = worn;
             count(slot);
-            mMoved.push_back(slot);
+            mMoved.addMakingRoom(slot);
         }
     }
 
@@ -142,7 +143,7 @@ namespace Rtx
         row.mInstance.mOpacity = opacity;
         count(slot);
 
-        mMoved.push_back(slot);
+        mMoved.addMakingRoom(slot);
     }
 
     bool PlacementTable::move(const Index slot, const osg::Matrixf& transform)
@@ -155,7 +156,7 @@ namespace Rtx
             return false;
 
         row.mInstance.mTransform = transform;
-        mMoved.push_back(slot);
+        mMoved.addMakingRoom(slot);
         return true;
     }
 
@@ -174,7 +175,7 @@ namespace Rtx
         row = PlacementRow{};
 
         mRows.free(slot);
-        mMoved.push_back(slot);
+        mMoved.addMakingRoom(slot);
     }
 
     void PlacementTable::describePresences(
@@ -189,13 +190,9 @@ namespace Rtx
             const MeshInstance& placed = row.mInstance;
             const InstanceCounts share = shareOf(row);
 
-            const osg::BoundingBoxf& box = meshes[placed.mMesh].mBounds;
-            if (!box.valid())
+            const osg::BoundingBoxf world = placed.placedBox(meshes[placed.mMesh].mBounds);
+            if (!world.valid())
                 continue;
-
-            osg::BoundingBoxf world;
-            for (unsigned int corner = 0; corner < 8; ++corner)
-                world.expandBy(box.corner(corner) * placed.mTransform);
 
             into.push_back(Shaders::GpuPresence{
                 .mCentre = world.center(),
@@ -209,14 +206,14 @@ namespace Rtx
 
     void PlacementTable::advance()
     {
-        for (const Index slot : mMoved)
+        for (const Index slot : mMoved.getSlots())
         {
             PlacementRow& row = mRows.at(slot);
             row.mPrevious = row.mInstance.mTransform;
         }
 
-        // Swapped and not copied: the two lists trade buffers, and neither allocates on the frame.
-        mSettled.swap(mMoved);
+        // Swapped and not copied: the two sets trade buffers, and neither allocates on the frame.
+        std::swap(mSettled, mMoved);
         mMoved.clear();
     }
 }
