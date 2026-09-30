@@ -5,9 +5,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <unordered_map>
 #include <utility>
 
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/ref_ptr>
 
 #include <components/rtx/common/runs.hpp>
@@ -60,6 +60,12 @@ namespace Rtx
     /// unheld entry was met — `whole`. The count belongs to one epoch, because a table is not
     /// always retired. Every write goes through this class, or a count kept beside the map is free
     /// to fall behind it.
+    ///
+    /// **An entry is good until the next insert into the same map.** Every map here is an
+    /// open-addressing table, whose entries stand in its own array, so a lookup at every node and
+    /// drawable of a walk is a probe of that array rather than a cache miss for each link of a
+    /// bucket's list. A table grown past its room moves every entry: nothing keeps a reference into
+    /// one across an insert, and what must outlive one keeps the key and finds the entry again.
     template <class Map>
     class Kept
     {
@@ -292,5 +298,5 @@ namespace Rtx
     /// What the scene knows one `osg` object as, keyed so the object cannot go while the entry
     /// stands. See `ByAddress`.
     template <class T, class Held = Known>
-    using Identity = Kept<std::unordered_map<osg::ref_ptr<T>, Held, ByAddress<T>, ByAddress<T>>>;
+    using Identity = Kept<boost::unordered_flat_map<osg::ref_ptr<T>, Held, ByAddress<T>, ByAddress<T>>>;
 }
