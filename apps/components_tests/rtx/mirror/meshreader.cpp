@@ -360,7 +360,6 @@ namespace Rtx::Testing
             // keeps the entry through a sweep the walk did not stamp it in.
             EXPECT_EQ(adopted.mResolver.adopt(*quad, reading), mesh);
             EXPECT_EQ(adopted.mStats.mMeshesAdded, 1u);
-            EXPECT_TRUE(adopted.mResolver.whole());
 
             adopted.mResolver.release(*quad);
             adopted.mResolver.release(*quad);

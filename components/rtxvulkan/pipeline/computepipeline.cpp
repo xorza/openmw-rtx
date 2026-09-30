@@ -26,8 +26,8 @@ namespace Rtx
             .layout = layout,
         };
         Owned<VkPipeline, vkDestroyPipeline> handle;
-        checkVk(vkCreateComputePipelines(device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr,
-                    handle.put(device.getHandle())),
+        checkVk(vkCreateComputePipelines(
+                    device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr, handle.put(device)),
             "vkCreateComputePipelines");
 
         creation.finish(handle.get());

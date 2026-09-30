@@ -3,10 +3,12 @@
 #include <array>
 #include <cstdint>
 #include <span>
+#include <vector>
 
 #include <osg/Vec3f>
 
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/shaders/sky.h>
 #include <components/vfs/pathutil.hpp>
 
@@ -33,9 +35,10 @@ namespace Rtx
     };
 
     /// Everything the sky was read from the content files: its sheets, what each of them averages,
-    /// and the surfaces they are laid on. The textures are held rather than named by a material,
-    /// because they are found by rays that reached nothing and the sweep would take their slots
-    /// back. All ten weathers at once, under a megabyte, so a storm arriving costs no upload.
+    /// and the surfaces they are laid on. The textures are held, through the list `addSkyContent`
+    /// fills, rather than named by a material: they are found by rays that reached nothing, and a
+    /// slot nothing holds is freed. All ten weathers at once, under a megabyte, so a storm arriving
+    /// costs no upload.
     struct SkyContent
     {
         /// Every weather's deck unset — what a content that has not been read holds, and what
@@ -84,19 +87,16 @@ namespace Rtx
         float coverOf(std::uint32_t weather) const;
     };
 
-    /// Reads all of it, loading the textures into `scene` and holding them there for the life of
-    /// the scene. A file this cannot take is refused to `scene` and its layer left out: content
+    /// Reads all of it, loading the textures into `scene` and appending a hold on each to `holds`,
+    /// which the caller gives back when the world goes, so a scene the world has left holds nothing
+    /// of its sky. A file this cannot take is refused to `scene` and its layer left out: content
     /// short of a file is content the game still runs, and the shipped fallbacks name Solstheim's
     /// two skies without Bloodmoon. A deck's sheet is left out rather than stood in for, because
     /// the stand-in is an opaque grey, which over a cloud deck is the entire sky.
     ///
     /// @param content what each sheet's mean is read through: the frame thread's.
-    SkyContent addSkyContent(
-        SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes, ContentPreprocessor& content);
-
-    /// Gives back every hold `addSkyContent` took — each weather's deck and the night sky's
-    /// sheets — so a scene the world has left holds nothing of its sky.
-    void dropSkyContent(SceneDesc& scene, const SkyContent& content);
+    SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes,
+        ContentPreprocessor& content, std::vector<TextureHold>& holds);
 
     /// What a cloud deck radiates from below, where its own body shadows it and where it does not.
     /// The deck takes only the *shape* out of a sheet (`SkyContent::mCloudMean`) and the colour

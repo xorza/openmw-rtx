@@ -22,6 +22,7 @@
 #include "placementtable.hpp"
 #include "refusals.hpp"
 #include "ripple.hpp"
+#include "rowhold.hpp"
 #include "sprite.hpp"
 #include "texturetable.hpp"
 
@@ -50,7 +51,7 @@ namespace Rtx
 
         /// Moved whole: no table holds a reference to a sibling, so what a moved description's
         /// tables reach is its own. Every fact that crosses two tables is asked of this class,
-        /// which hands its own members over — `addMaterial`, `addMesh`, `setMaterial`, `release`.
+        /// which hands its own members over — `addMaterial`, `addMesh`, `setMaterial`, `drop`.
         SceneDesc(SceneDesc&&) noexcept = default;
         SceneDesc& operator=(SceneDesc&&) noexcept = default;
 
@@ -112,24 +113,44 @@ namespace Rtx
 
         void addLight(const Light& light);
 
-        /// Whether a hold on a mesh or a material went to nought since the last `release`.
-        bool hasDroppedHolds() const;
+        /// Takes one hold on a mesh, a material or a texture, and gives one back. A row arrives
+        /// with none, and the drop after which nothing holds it frees it — the only way a scene
+        /// loses geometry, and nothing is renumbered by it: every bottom-level acceleration
+        /// structure is named by a mesh index, and compacting is what made a cell boundary cost a
+        /// full rebuild. A material freed gives back the textures it named, and its layer and mask
+        /// runs go with it. What holds a row: the identity a walk met it under, each placement
+        /// standing on it, a ground cell the ring stood, and the sky's own sheets. A hold of
+        /// nothing — `sNoIndex`, or the neutral texel a layer names where the table had no room —
+        /// is empty or costs nothing, and a drop of an empty hold changes no count.
+        MeshHold holdMesh(Index mesh);
+        MaterialHold holdMaterial(Index material);
+        TextureHold holdTexture(Index texture);
+        void drop(MeshHold&& hold);
+        void drop(MaterialHold&& hold);
+        void drop(TextureHold&& hold);
 
-        /// Places `instance` in a slot and returns it. The slot is the placement's name for as long
-        /// as it stands: the custom index a hit reads back, and what lets a mirror move a placement
-        /// instead of rebuilding the list it was in. The mesh and the material it names must be
-        /// live rows, which is asserted.
+        /// Gives back every hold in `holds`, and empties it.
+        void drop(std::vector<TextureHold>& holds);
+
+        /// The slot `image`, read from `path`, stands in under `wrap` and `encoding`, held for the
+        /// caller: what a surface, a sprite, a sky layer and a moon turn their image into —
+        /// `TextureTable::take`. Empty where the table refuses it.
+        TextureHold takeTexture(VFS::Path::NormalizedView path, const osg::Image& image,
+            TextureWrap wrap = TextureWrap::Repeat, TextureEncoding encoding = TextureEncoding::Colour);
+
+        /// Places `instance` in a slot and returns it, holding its mesh and its material until the
+        /// placement is dropped, so a placement on a freed row cannot exist. The slot is the
+        /// placement's name for as long as it stands: the custom index a hit reads back, and what
+        /// lets a mirror move a placement instead of rebuilding the list it was in. The mesh and the
+        /// material it names must be live rows, which is asserted.
         Index addInstance(const MeshInstance& instance);
 
-        /// Whether every placement names a live mesh and a live material: what `release` asserts
-        /// after a sweep, because a placement standing on a freed row would be traced against
-        /// whatever the slot is given next, and nothing else would say so.
-        bool placementsStandOnLiveRows() const;
+        /// Empties the placement in `slot` — `PlacementTable::drop` — and gives back the holds it
+        /// took on its mesh and its material.
+        void dropInstance(Index slot, Stander by);
 
-        /// Whether every live row of every table is held or named — what a sweep leaves true, and
-        /// what a caller that took a slot and forgot to hold it breaks: no live texture and no
-        /// live deformer with a hold count of nought, and every placement on live rows. Neither
-        /// table has a sweep that could find such a row, so the extractor asks this at the end of
+        /// Whether every live row of every table is held — what a caller that took a slot and forgot
+        /// to hold it breaks: a row nothing can ever free. The extractor asks this at the end of
         /// every retire.
         bool isConsistent() const;
 
@@ -149,21 +170,10 @@ namespace Rtx
         void addEmitter(std::span<const Sprite> sprites, Index texture, bool additive, float width = 0.0f,
             Index lighting = sNoIndex, bool falls = false);
 
-        /// Drops every mesh and material the caller did not name, each named once in any order —
-        /// the only way a scene loses geometry, and nothing is renumbered by it: every bottom-level
-        /// acceleration structure is named by a mesh index, and compacting is what made a cell
-        /// boundary cost a full rebuild. Textures are not swept here: a material freed gives back
-        /// what it named on its way out, as `setMaterial` and `TextureTable::drop` do, and its
-        /// layer and mask runs go with it. Placements do not go: a slot is a name, and what it
-        /// names has stopped moving. Answers whether anything was freed, and false is the ordinary
-        /// frame at the cost of two comparisons: a scene that lost nothing has as many survivors as
-        /// it had entries.
-        bool release(std::span<const Index> meshes, std::span<const Index> materials);
-
         /// Empties the per-frame lists a walk rebuilds wholesale: lights, deformed meshes, sprites
         /// and emitters. Placements are not among them: they are reconciled in place through
-        /// `placements()`, because a world of fifty thousand placements of which three hundred move
-        /// should cost three hundred.
+        /// `placements()` and `dropInstance`, because a world of fifty thousand placements of which
+        /// three hundred move should cost three hundred.
         void clearPlacement();
 
         /// The tables, for whoever builds the scene to write straight into and for whoever is

@@ -12,6 +12,7 @@
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/deformertable.hpp>
+#include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/skinning.h>
 
@@ -52,6 +53,13 @@ namespace Rtx
         {
         }
 
+        /// Gives back every hold an entry of the maps took, so a scene that outlives this holds
+        /// nothing of it. The scene outlives it by the reference this keeps.
+        ~MeshResolver();
+
+        MeshResolver(const MeshResolver&) = delete;
+        MeshResolver& operator=(const MeshResolver&) = delete;
+
         /// The mesh index for one drawable, adding it or posing it as its kind requires.
         Index resolve(const osg::Drawable& drawable, const DrawableRead& read);
 
@@ -65,14 +73,9 @@ namespace Rtx
         /// anything holds it.
         void release(const osg::Drawable& drawable);
 
-        /// Whether every mesh the map holds was met this epoch — see `Kept::whole`. What the
-        /// mirror asks before it sweeps, because the survivor list this fills is read beside the
-        /// material resolver's.
-        bool whole() const { return mMeshes.whole(); }
-
-        /// Drops every mesh neither this epoch nor a hold keeps, and collects the survivors into
-        /// `live`.
-        void retire(std::vector<Index>& live);
+        /// Drops every entry neither this epoch nor a hold keeps, and with it the entry's hold on
+        /// its mesh.
+        void retire();
 
         /// Drops the deformers no mesh named this epoch. Nearly always two comparisons and nothing
         /// else, because a deformer goes stale only where a mesh on it died.
@@ -87,6 +90,16 @@ namespace Rtx
         }
 
     private:
+        /// What the map knows a drawable as: the hold on its mesh, empty where the drawable was
+        /// refused.
+        struct KnownMesh
+        {
+            MeshHold mRow;
+            Reach mReach;
+        };
+
+        using MeshEntry = Identity<const osg::Drawable, KnownMesh>::Entry;
+
         using DeformerEntry = Identity<const osg::Referenced>::Entry;
 
         /// What poses one drawable, as the mirror already holds it — the entry and not only the
@@ -122,6 +135,10 @@ namespace Rtx
         /// no more. Answers the index a refused drawable resolves to, which is none.
         Index refuse(const osg::Drawable& drawable, std::string_view why);
 
+        /// Files `mesh` under `drawable`, and the entry's hold on it, which `retire`, an abandon or
+        /// the destructor gives back.
+        MeshEntry file(const osg::Drawable& drawable, Index mesh);
+
         /// Says the walk met what `holdDeformer` found, for a slot the fit test has kept, so a
         /// deformer is kept for as long as a mesh stands on it.
         void stampDeformer(const Held& held);
@@ -146,7 +163,7 @@ namespace Rtx
         // Keyed on pointer identity, which OpenMW's resource cache and SHARE_DUPLICATE_STATE make
         // meaningful, and owning, which makes it sound: what these hold outlives the graph by one
         // sweep.
-        Identity<const osg::Drawable> mMeshes{ mPass };
+        Identity<const osg::Drawable, KnownMesh> mMeshes{ mPass };
 
         /// What the scene knows each skin and each set of morph targets as. Swept with the meshes:
         /// a deformer no mesh named this epoch is one the scene has let go of.

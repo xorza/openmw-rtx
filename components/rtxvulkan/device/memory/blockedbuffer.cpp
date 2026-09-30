@@ -6,7 +6,6 @@
 
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 
 #include "barriers.hpp"
@@ -71,13 +70,10 @@ namespace Rtx
         // worth: the address changes, and every frame carries it afresh. Addressable and never
         // bound, because the frame block is how a shader reaches it.
         //
-        // **The old one goes to the graveyard and not to the floor.** A frame in flight carries
-        // its address in its frame block and reads it on every hit. Destroyed here, it was the
-        // invalid read at a fixed address that lost the device on the first arrival with two
-        // frames in flight.
-        mDevice->getGraveyard().replace(mTable,
-            Buffer::hostWritten(*mDevice, mAddresses.size() * sizeof(VkDeviceAddress),
-                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, mTableName));
+        // A frame in flight carries the old one's address in its frame block and reads it on every
+        // hit, which its burial covers.
+        mTable = Buffer::hostWritten(*mDevice, mAddresses.size() * sizeof(VkDeviceAddress),
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, mTableName);
         mTable.write(std::span<const VkDeviceAddress>(mAddresses));
     }
 

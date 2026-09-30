@@ -12,6 +12,7 @@
 #include <osg/Matrixf>
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/readback.hpp>
 #include <apps/components_tests/rtx/support/displaycurve.hpp>
@@ -29,6 +30,7 @@
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/gui/guitextures.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace Rtx
@@ -1125,6 +1127,29 @@ namespace Rtx
             drawQuad(opening, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(0, 0, 255, 255));
 
             EXPECT_EQ(at(4, 4), (std::array<std::uint8_t, 4>{ 0, 0, 255, 255 }));
+        }
+
+        struct RtxGuiTexturesTest : Testing::DeviceTest
+        {
+        };
+
+        /// **An interface texture's slot still out when the table is taken apart is named there**,
+        /// for the reason `RtxSceneSlotsTest` gives. A slot taken, given back and handed over
+        /// leaves nothing out; one taken and kept dies with the message.
+        TEST_F(RtxGuiTexturesTest, aTableTakenApartWithASlotOutDies)
+        {
+            {
+                GuiTextures textures(getDevice());
+                textures.drop(textures.add(2, 2));
+                textures.finish();
+            }
+
+            Testing::expectAssertDies(
+                [&] {
+                    GuiTextures textures(getDevice());
+                    textures.add(2, 2);
+                },
+                "a renderer taken apart with an interface texture's slot still out");
         }
     }
 }

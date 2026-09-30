@@ -82,14 +82,13 @@ namespace Rtx
         static Buffer readBack(
             const Device& device, VkDeviceSize size, VkBufferUsageFlags usage, std::string_view name);
 
-        /// Asserts that no submit still reads the buffer — `isIdle` — because a buffer destroyed
-        /// under one is the use after free the graveyard exists to prevent, and nothing else
-        /// would say so before the device did.
+        /// Buries the handle and the memory bound to it together, so a submit still reading the
+        /// buffer reads it to the end: `Graveyard`.
         ~Buffer();
 
         Buffer(Buffer&&) noexcept = default;
 
-        /// The same assert over what this held, then `other`'s members one by one.
+        /// Buries what this held as the destructor does, then takes `other`'s members one by one.
         Buffer& operator=(Buffer&& other) noexcept;
 
         VkBuffer getHandle() const { return mHandle.get(); }
@@ -232,8 +231,8 @@ namespace Rtx
         /// Binds `memory`, and takes the address where the buffer has one.
         void bind(DeviceMemory&& memory);
 
-        /// What the destructor and a move over this assert: empty, or nothing on the queue reads it.
-        bool mayDestroy() const;
+        /// What the destructor and a move over this do with what it holds.
+        void bury();
 
         /// `count` elements at `offset`, with nothing said about who is reading.
         template <class T>

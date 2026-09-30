@@ -4,12 +4,12 @@
 #include <cassert>
 #include <cstddef>
 #include <cstring>
+#include <exception>
 #include <utility>
 
 #include <components/rtx/common/runs.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
@@ -30,7 +30,12 @@ namespace Rtx
     {
     }
 
-    GuiTextures::~GuiTextures() = default;
+    GuiTextures::~GuiTextures()
+    {
+        assert((std::uncaught_exceptions() > 0 || std::none_of(mImages.begin(), mImages.end(), [](const Image& image) {
+            return !image.isEmpty();
+        })) && "a renderer taken apart with an interface texture's slot still out");
+    }
 
     GuiSlot GuiTextures::add(std::uint32_t width, std::uint32_t height)
     {
@@ -119,8 +124,8 @@ namespace Rtx
             return at;
         }
 
-        // **Handed over and buried, never waited for and rewound.** Once handed over, every copy
-        // recorded against the arena rides the next submit, and the graveyard stamps the arena for
+        // **Handed over and replaced, never waited for and rewound.** Once handed over, every copy
+        // recorded against the arena rides the next submit, and the old arena buries itself under
         // that same submit — so the bytes outlive this frame's copies and whatever the interface's
         // draw two frames back is still reading. A wait here idled the queue on every overflow,
         // and the layers still reported the arena it then destroyed as read by a pending copy.
@@ -129,9 +134,8 @@ namespace Rtx
         // as much again lands in one arena: grown to the region, an arena a frame overflows with
         // two regions was replaced on every frame that wrote them.
         handOver();
-        mDevice.getGraveyard().replace(arena,
-            Buffer::hostWritten(
-                mDevice, std::max(at + bytes, arena.getSize()), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "gui staging"));
+        arena = Buffer::hostWritten(
+            mDevice, std::max(at + bytes, arena.getSize()), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "gui staging");
 
         mStagingUsed = bytes;
         return 0;

@@ -53,13 +53,12 @@ namespace Rtx
             std::uint32_t height, VkFormat format, VkImageUsageFlags usage, std::string_view name,
             std::uint32_t mipLevels = 1, std::uint32_t depth = 1, VkFormat storageFormat = VK_FORMAT_UNDEFINED);
 
-        /// Asserts that no submit still reads the image — `isIdle` — as a buffer's does: an image
-        /// a submit may still read is buried, never destroyed.
+        /// Buries the views, then the image and the memory bound to it, as a buffer's does.
         ~Image();
 
         /// Movable, because the channels of a g-buffer are built by a loop over a table rather
         /// than by a member list. `Owned` is what makes the move defaultable; the assignment is
-        /// written out for the assert the destructor makes.
+        /// written out to bury what this held as the destructor does.
         Image(Image&&) noexcept = default;
         Image& operator=(Image&& other) noexcept;
 
@@ -85,12 +84,7 @@ namespace Rtx
             return mLevelViews.empty() ? mView.get() : mLevelViews[level].get();
         }
 
-        /// Whether every submit that names this image has run — what the destructor asserts, and
-        /// what the graveyard asserts as it frees. `ReadStamp::isIdle` says what a stamp for a
-        /// submit not yet made means.
-        bool isIdle() const;
-
-        /// Blocks until `isIdle`, where a submit naming this image is still on the queue. `what`
+        /// Blocks until every submit naming this image has run — `ReadStamp::waitIdle`. `what`
         /// names the wait in the error a device that stops answering produces.
         void waitIdle(const char* what) const;
 
@@ -185,11 +179,12 @@ namespace Rtx
         /// Binds `memory` and makes the views, which is the rest of what the constructor does.
         void bind(DeviceMemory&& memory, std::string_view name);
 
-        /// What the destructor and a move over this assert: empty, or nothing on the queue reads it.
-        bool mayDestroy() const;
+        /// What the destructor and a move over this do with what it holds: the views first, so the
+        /// graveyard ends them before the image they view.
+        void bury();
 
         /// Names this image for the next submit — every hand-out to a command or a descriptor
-        /// funnels through here, which is what makes `isIdle` exact.
+        /// funnels through here, which is what makes `waitIdle` exact.
         void nameForNext() const;
 
         /// The same barrier `transition` records, over `count` levels from `base`.

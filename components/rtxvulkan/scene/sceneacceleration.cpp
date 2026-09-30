@@ -14,7 +14,6 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
-#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
@@ -104,8 +103,8 @@ namespace Rtx
 
     void SceneAcceleration::extend(Batch& batch, const SceneDesc& scene)
     {
-        // Departures first, and their rooms go to the graveyard rather than straight back, so an
-        // arrival this frame cannot be built into room a frame in flight is still tracing. The two
+        // Departures first, and their rooms cool rather than going straight back, so an arrival
+        // this frame cannot be built into room a frame in flight is still tracing. The two
         // lists are disjoint, so a slot handed out again appears only among the arrivals and is
         // dealt with by `buildArrived`, which buries whatever the slot was holding.
         release(scene.meshes().getFreed());
@@ -444,10 +443,9 @@ namespace Rtx
         functions.mGetAccelerationStructureBuildSizes(
             mDevice.getHandle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &mTopLevelBuild, &slots, &sizes);
 
-        // The old structure is buried, and its storage with it where that has to grow. A cell
-        // arriving is what brings this here, and an arrival waits every frame out first — but the
-        // rule is one rule, and burying costs nothing where nothing is in flight.
-        mDevice.getGraveyard().bury(std::move(mTopLevel));
+        // The old structure goes before its storage grows, so the graveyard ends the handle before
+        // the buffer it stands in.
+        mTopLevel = AccelerationStructure();
 
         mTopLevelBytes = sizes.accelerationStructureSize;
         mTopLevelSlots = slots;
@@ -472,12 +470,6 @@ namespace Rtx
         assert(rows <= mTopLevelSlots && "a top level built over more rows than it was sized for");
         const VkAccelerationStructureBuildRangeInfoKHR range{ .primitiveCount = rows };
         const VkAccelerationStructureBuildRangeInfoKHR* ranges = &range;
-
-        // The build reads every bottom level through the instance table, so the store is named
-        // for it as one; the top level is named by hand, because the build keeps the handle it
-        // was made with.
-        mBottomLevel.nameForNext();
-        mTopLevel.nameForNext();
 
         openZone(timer, commands, "tlas");
         mDevice.getFunctions().mCmdBuildAccelerationStructures(commands, 1, &mTopLevelBuild, &ranges);

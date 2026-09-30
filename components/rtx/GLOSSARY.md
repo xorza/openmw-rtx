@@ -10,20 +10,20 @@ that owns each. Read this once and the headers read as the field's.
 | re-stood | re-instanced under a new slot | `ExtractionStats::mRestood` |
 | place, placement | instance, per-frame instance update | `SceneDesc::addInstance`, `Renderer::placeScene` |
 | hand over, hand, handing | upload, submit | `SceneUploader::hand`, `WorldMirror::hand` |
-| hold, holds, drop | reference count, pin, unpin | `SlotRows::hold`, `Kept::hold` |
+| hold, holds, drop | reference count, pin, unpin; a row goes with its last hold | `Hold`, `SceneDesc::holdMesh`, `SlotRows::hold`, `Kept::hold` |
 | lend, lent, give back | borrow from a pool, return to it | `Spares`, `CellSupply` |
 | spare, recycled | free-list entry | `Spares`, `Recycled` |
 | epoch | generation, mark of one traversal | `MirrorPass::mEpoch` |
 | stamp, reached | marked live this generation | `Kept::stamp` |
 | whole | no stale entry, sweep skippable | `Kept::whole` |
-| retire, sweep | mark-and-sweep collection | `SceneExtractor::retire`, `SlotRows::sweep` |
+| retire, sweep | dropping the identities a traversal did not mark, and the holds they took | `SceneExtractor::retire`, `Kept::retire` |
 | turn, phase, step | state machine, lifecycle assert | `Stepped`, `RtxRenderer::Phase` |
 | the ring | residency set, streaming window | `CellRing` |
 | supply, reader | streaming thread and its queue | `CellSupply`, `CellReader` |
 | prepared | decoded off the content files, not yet uploaded | `PreparedCell`, `PreparedModel` |
 | slot | index into a fixed-row table | `SlotRows`, `SlotPool`, `SceneSlot` |
 | run | contiguous range in one buffer | `Run`, `RunAllocator` |
-| bury, graveyard | deferred destruction, in-flight garbage | `Graveyard`, `Retiring` |
+| bury, graveyard | deferred destruction, in-flight garbage; every device object buries itself | `Graveyard`, `Owned` |
 | timeline | timeline semaphore and the value it reached | `Timeline` |
 | frame behind, in flight | the previous frame on the device | `FrameRing` |
 | collect, finish | read back a frame's report, wait for it | `Renderer::collectFrame`, `finishFrame` |

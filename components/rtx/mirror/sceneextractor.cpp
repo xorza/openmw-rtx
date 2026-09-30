@@ -475,7 +475,13 @@ namespace Rtx
         mGlows.reserve(sEffectBudget);
     }
 
-    SceneExtractor::~SceneExtractor() = default;
+    SceneExtractor::~SceneExtractor()
+    {
+        // The placements before the resolvers go, each giving back what its own maps hold, so a
+        // scene that outlives its extractor — a picture's, whose subject is replaced — holds
+        // nothing of it.
+        mPlacements.clear([this](const Known& stood) { mScene.dropInstance(stood.mIndex, Stander::Walk); });
+    }
 
     void SceneExtractor::setSimulationTime(double seconds)
     {
@@ -590,34 +596,24 @@ namespace Rtx
     {
         mPhase.expect(Phase::Between);
 
-        Retirement went;
+        // What each map stops holding is dropped on the scene, and a row goes with its last hold,
+        // wherever that is: freed and not compacted, because a slot index is the custom index a
+        // hit reads back and closing the gaps would renumber every bottom-level acceleration
+        // structure in the world on every crossing. The order does not matter, because a
+        // placement holds what it stands on. Each map skips its walk where every entry was
+        // reached (`Kept::whole`), which is a world that stands still.
+        mPlacements.retire([this](const Known& gone) { mScene.dropInstance(gone.mIndex, Stander::Walk); });
+        mMeshes.retire();
+        mMaterials.retire();
 
-        // Placements first, because dropping one is what makes its mesh droppable. Freed rather
-        // than compacted, because a slot index is the custom index a hit reads back. Not run at all
-        // where every placement was reached (`Kept::whole`), which is a world that stands still.
-        mPlacements.retire([this](const Known& gone) { mScene.placements().drop(gone.mIndex, Stander::Walk); });
-
-        // Both tables or neither, because `SceneDesc::release` frees them against one pair of
-        // survivor lists and a list an earlier epoch filled names slots since handed out. Nothing at
-        // all where both stand whole, which saves two walks of a map with one entry per drawable —
-        // unless a hold on a row went to nought, which no map can see.
-        if (!mMeshes.whole() || !mMaterials.whole() || mScene.hasDroppedHolds())
-        {
-            const std::size_t meshesBefore = mScene.meshes().getLiveCount();
-            const std::size_t materialsBefore = mScene.materials().getLiveCount();
-
-            mMeshes.retire(mLiveMeshes);
-            mMaterials.retire(mLiveMaterials);
-
-            // Freed, not compacted: closing the gaps would renumber every bottom-level acceleration
-            // structure in the world on every crossing.
-            mScene.release(mLiveMeshes, mLiveMaterials);
-
-            // Counted off the tables rather than off the maps, because a row a hold let go of was in
-            // no map to be counted there.
-            went.mMeshes = static_cast<std::uint32_t>(meshesBefore - mScene.meshes().getLiveCount());
-            went.mMaterials = static_cast<std::uint32_t>(materialsBefore - mScene.materials().getLiveCount());
-        }
+        // Counted off the tables rather than off the maps, because a row a ground cell or an
+        // abandoned identity let go of since the last retire was in no map to be counted here.
+        const Retirement went{
+            .mMeshes = static_cast<std::uint32_t>(mScene.meshes().getFreedCount() - mMeshesFreed),
+            .mMaterials = static_cast<std::uint32_t>(mScene.materials().getFreedCount() - mMaterialsFreed),
+        };
+        mMeshesFreed = mScene.meshes().getFreedCount();
+        mMaterialsFreed = mScene.materials().getFreedCount();
 
         // Swept whatever the two tables above did, because an image a material stopped reading, a
         // state set whose node left the graph and a sprite's texture each go stale on a frame where
@@ -634,10 +630,9 @@ namespace Rtx
         // What stands is what the walks met, which is what lets the scene be handed over.
         mScene.noteSwept();
 
-        // Every live texture and deformer is held and every placement stands on live rows: what
-        // the sweeps above leave true, asked here because a slot taken and never held is one no
-        // sweep can reach, and this is the one point every frame passes after them.
-        assert(mScene.isConsistent() && "a retire left a live row nothing holds, or a placement on a freed one");
+        // Every live row is held: asked here because a slot taken and never held is one no drop can
+        // reach, and this is the one point every frame passes.
+        assert(mScene.isConsistent() && "a retire left a live row nothing holds");
 
         return went;
     }
@@ -766,13 +761,13 @@ namespace Rtx
         // drawable whose source geometry was replaced, a state set a controller rewrote into
         // another material, or a sibling that shifted into this place when the one before it went,
         // is mirrored afresh under the identity it kept. Moved, the slot would carry the old
-        // surface at the new place until the next sweep, standing on a row the sweep may free.
+        // surface at the new place, and hold the old row, for as long as it stood.
         Index& slot = held->second.mIndex;
         const MeshInstance& standing = mScene.placements().getRows()[slot].mInstance;
         if (standing.mMesh != resolved.mMesh || standing.mMaterial != resolved.mMaterial
             || standing.mClass != resolved.mClass)
         {
-            mScene.placements().drop(slot, Stander::Walk);
+            mScene.dropInstance(slot, Stander::Walk);
             slot = mScene.addInstance(resolved);
             ++stats.mRestood;
             return;

@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "runs.hpp"
-#include "stepped.hpp"
 
 namespace Rtx
 {
@@ -191,23 +190,26 @@ namespace Rtx
         SlotSet mFreed;
     };
 
-    /// A table of fixed-size rows: the rows, the slots nothing stands in, what holds each, and the
-    /// sweep. A slot is never moved and never closed up — a mesh index names a bottom-level
-    /// acceleration structure and a texture index is what a material points at — so a dropped row
-    /// leaves a hole and the next arrival takes the lowest one (`SlotPool`). The hold count lives
-    /// here and the table decides what a count of nought means: a texture is named by materials, a
-    /// rig by the meshes on it, a ground row by the residency that stood it. What a freed row holds
-    /// is the table's business too — a mesh row keeps its last tenant's offsets because a backend
-    /// walks every slot, a material row is emptied — so `free` writes nothing and `sweep` hands
-    /// each row to the caller before it goes.
+    /// A table of fixed-size rows: the rows, the slots nothing stands in, and what holds each. A
+    /// slot is never moved and never closed up — a mesh index names a bottom-level acceleration
+    /// structure and a texture index is what a material points at — so a dropped row leaves a hole
+    /// and the next arrival takes the lowest one (`SlotPool`). The hold count lives here and the
+    /// table frees the row the drop after which nothing holds it: a texture is held by materials,
+    /// a rig by the meshes on it, a mesh by the identity that met it and the placements standing
+    /// on it. What a freed row holds is the table's business too — a mesh row keeps its last
+    /// tenant's offsets because a backend walks every slot, a material row is emptied — so `free`
+    /// writes nothing.
     template <class Row>
     class SlotRows
     {
     public:
         std::size_t size() const { return mRows.size(); }
 
-        /// How many slots hold a row, which is what a sweep compares its survivors against.
+        /// How many slots hold a row.
         std::size_t getLiveCount() const { return mRows.size() - mFree.size(); }
+
+        /// How many rows were ever freed, which is what says how many went between two looks.
+        std::uint64_t getFreedCount() const { return mFreedCount; }
 
         std::span<const Row> getRows() const { return mRows; }
 
@@ -232,131 +234,55 @@ namespace Rtx
             return mRows[slot];
         }
 
-        /// Puts `row` in a free slot, or in a new one. The slot arrives with no holds. Everything
-        /// a table knows about a slot is in the row, so nothing beside the rows has to follow a
-        /// growth. By value and moved in, so a row that owns a name is built once.
+        /// Puts `row` in a free slot, or in a new one. The slot arrives with no holds, and the
+        /// caller holds it before anything can drop it. Everything a table knows about a slot is in
+        /// the row, so nothing beside the rows has to follow a growth. By value and moved in, so a
+        /// row that owns a name is built once.
         Index take(Row row)
         {
-            mMark.step(Mark::Stale, Mark::Stale, Mark::Fresh);
-
             const Index index = mFree.take();
             if (index == sNoIndex)
             {
                 mRows.push_back(std::move(row));
                 mHolds.push_back(0);
-
                 return static_cast<Index>(mRows.size() - 1);
             }
 
             assert(mHolds[index] == 0 && "a free slot something still holds");
             mRows[index] = std::move(row);
-
             return index;
         }
 
         /// Puts `slot` back. What its row now holds is the caller's to have decided.
         void free(Index slot)
         {
-            mMark.step(Mark::Stale, Mark::Stale, Mark::Fresh);
-
             assert(slot < mRows.size());
             assert(mHolds[slot] == 0 && "a slot freed while something holds it");
             assert(isLive(slot) && "a slot freed twice");
             mFree.free(slot);
+            ++mFreedCount;
         }
 
         void hold(Index slot)
         {
             assert(slot < mRows.size());
+            assert(isLive(slot) && "a hold on a slot nothing stands in");
             ++mHolds[slot];
         }
 
-        /// Counts one holder off `slot`, and says whether that was the last. What the last one
-        /// means is the table's to decide: a texture frees the slot on the spot, a mesh or a
-        /// material row waits for the sweep `hasDroppedHolds` says it owes.
+        /// Counts one holder off `slot`, and says whether that was the last, which is where the
+        /// table frees the row.
         bool drop(Index slot)
         {
             assert(slot < mRows.size());
             assert(mHolds[slot] > 0 && "a slot given back more often than it was held");
-
-            if (--mHolds[slot] != 0)
-                return false;
-
-            mDroppedHolds = true;
-            return true;
+            return --mHolds[slot] == 0;
         }
 
         std::uint32_t getHolds(Index slot) const
         {
             assert(slot < mRows.size());
             return mHolds[slot];
-        }
-
-        /// Whether a hold went to nought since the last `mark`, so that a sweep gated on some other
-        /// count still runs for it.
-        bool hasDroppedHolds() const { return mDroppedHolds; }
-
-        /// Notes every slot a sweep must not free, and says how many distinct ones `keep` named or
-        /// a hold keeps. Apart from `sweep`, because a scene marks two tables and frees neither
-        /// where both came back whole. Distinct, because a caller compares this against how many
-        /// rows are live, and a span measured by its length would miscount a row named twice.
-        std::size_t mark(std::span<const Index> keep)
-        {
-            mMark.step(Mark::Fresh, Mark::Stale, Mark::Fresh);
-
-            // Cleared before it is grown, so the fill reaches every row rather than only the rows
-            // past the length the last sweep left. A table that never sweeps never allocates it.
-            mKept.clear();
-            mKept.resize(mRows.size(), 0);
-
-            std::size_t distinct = 0;
-            for (const Index index : keep)
-            {
-                assert(index < mRows.size());
-                distinct += mKept[index] == 0 ? 1 : 0;
-                mKept[index] = 1;
-            }
-
-            // A held row is a survivor whether or not anything named it.
-            for (Index index = 0; index < mRows.size(); ++index)
-                if (mHolds[index] != 0 && mKept[index] == 0)
-                {
-                    mKept[index] = 1;
-                    ++distinct;
-                }
-
-            // A slot already free is one nothing may free again.
-            for (const Index index : mFree.getSlots())
-                mKept[index] = 1;
-
-            mDroppedHolds = false;
-            return distinct;
-        }
-
-        /// Frees every slot the last `mark` did not name, and says how many that was. Once per
-        /// mark: a second sweep on the same mark freed every row again, and a take or a free
-        /// between the two makes the mark describe rows that are not there — both are the step.
-        ///
-        /// @param release `void(Index, Row&)`, called before each row goes. What the row named is
-        ///        given back there — a mesh's runs, a material's textures — because only the table
-        ///        that owns the row knows what it owns.
-        template <class Release>
-        std::size_t sweep(Release release)
-        {
-            mMark.step(Mark::Stale, Mark::Fresh);
-
-            std::size_t freed = 0;
-            for (Index index = 0; index < mRows.size(); ++index)
-            {
-                if (mKept[index] != 0)
-                    continue;
-
-                release(index, mRows[index]);
-                mFree.free(index);
-                ++freed;
-            }
-
-            return freed;
         }
 
     private:
@@ -367,39 +293,23 @@ namespace Rtx
 
         SlotPool mFree;
 
-        /// Which slots the last `mark` named, one flag per row. Held rather than made, because a
-        /// sweep runs on the frame a cell left, which is busy enough already.
-        std::vector<std::uint8_t> mKept;
-
-        /// Whether `mKept` describes the rows as they stand: fresh from a mark until the sweep that
-        /// consumes it or the take or free that changes what it describes.
-        enum class Mark
-        {
-            Stale,
-            Fresh,
-        };
-
-        Stepped<Mark> mMark{ Mark::Stale };
-
-        bool mDroppedHolds = false;
+        std::uint64_t mFreedCount = 0;
     };
 
-    /// The half of `SlotRows` a reader and a sweep use, for a table whose rows go in through its
-    /// own `add` and out through its own `sweep`: `take`, `at`, `free` and the raw sweep stay with
-    /// the table, which alone knows what a freed row holds and what it gives back. One base and
-    /// not the eight forwarders written per table, which were one policy twice.
+    /// The half of `SlotRows` a reader uses, for a table whose rows go in through its own `add`
+    /// and out through its own `drop`: `take`, `at`, `free` and the drop stay with the table, which
+    /// alone knows what a freed row holds and what it gives back. One base and not the forwarders
+    /// written per table, which were one policy twice.
     template <class Row>
     class HeldRows
     {
     public:
         std::size_t size() const { return mRows.size(); }
         std::size_t getLiveCount() const { return mRows.getLiveCount(); }
+        std::uint64_t getFreedCount() const { return mRows.getFreedCount(); }
         bool isLive(Index slot) const { return mRows.isLive(slot); }
         std::span<const Row> getRows() const { return mRows.getRows(); }
-        void hold(Index slot) { mRows.hold(slot); }
-        bool drop(Index slot) { return mRows.drop(slot); }
-        bool hasDroppedHolds() const { return mRows.hasDroppedHolds(); }
-        std::size_t mark(std::span<const Index> keep) { return mRows.mark(keep); }
+        std::uint32_t getHolds(Index slot) const { return mRows.getHolds(slot); }
 
     protected:
         SlotRows<Row> mRows;

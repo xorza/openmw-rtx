@@ -161,10 +161,10 @@ namespace Rtx
 
     MaterialResolver::Entry MaterialResolver::adopt(const osg::StateSet* const key, const Material& material)
     {
-        const Index index = mScene.addMaterial(material);
+        MaterialHold row = mScene.holdMaterial(mScene.addMaterial(material));
         ++mPass.getStats().mMaterialsAdded;
 
-        return mMaterials.add(key, HeldMaterial{ { .mIndex = index } });
+        return mMaterials.add(key, HeldMaterial{ .mRow = std::move(row) });
     }
 
     void MaterialResolver::releaseWorn(const Worn& worn)
@@ -184,12 +184,12 @@ namespace Rtx
         // with `water shader = true` there is no state set on the node at all. In the map under
         // `sSea` rather than beside it, so that one sweep and one count answer for every material.
         if (const Entry held = reuse(sSea); held != mMaterials.end())
-            return Resolved{ .mIndex = held->second.mIndex, .mKey = sSea };
+            return Resolved{ .mIndex = held->second.mRow.get(), .mKey = sSea };
 
         // **Drawn from both faces**, which is what `SceneUtil::createSimpleWaterStateSet` says by
         // turning `GL_CULL_FACE` off: a swimmer looks up at the surface from under it.
         return Resolved{ .mIndex
-            = adopt(sSea, Material{ .mKind = MaterialKind::Water, .mTwoSided = true })->second.mIndex,
+            = adopt(sSea, Material{ .mKind = MaterialKind::Water, .mTwoSided = true })->second.mRow.get(),
             .mKey = sSea };
     }
 
@@ -234,7 +234,7 @@ namespace Rtx
             known = adopt(reading.mKey, describe(reading, false, nullptr));
 
         mMaterials.hold(known);
-        return known->second.mIndex;
+        return known->second.mRow.get();
     }
 
     void MaterialResolver::release(const osg::StateSet* const key)
@@ -271,15 +271,15 @@ namespace Rtx
                 // class it is nested in is still incomplete, and keeps the answer no.
                 if (!held.mWorn.has_value())
                     held.mWorn.emplace(Worn{});
-                mScene.setMaterial(held.mIndex, readMaterial(shading, &*held.mWorn));
+                mScene.setMaterial(held.mRow.get(), readMaterial(shading, &*held.mWorn));
             }
 
-            return Resolved{ .mIndex = known->second.mIndex, .mKey = own.mStateSet };
+            return Resolved{ .mIndex = known->second.mRow.get(), .mKey = own.mStateSet };
         }
 
         // An arrival under a controller starts wearing what it wears from its first frame.
         if (!own.mAnimated)
-            return Resolved{ .mIndex = adopt(own.mStateSet, readMaterial(shading, nullptr))->second.mIndex,
+            return Resolved{ .mIndex = adopt(own.mStateSet, readMaterial(shading, nullptr))->second.mRow.get(),
                 .mKey = own.mStateSet };
 
         Worn worn;
@@ -287,7 +287,7 @@ namespace Rtx
         const Entry added = adopt(own.mStateSet, material);
         added->second.mWorn = worn;
 
-        return Resolved{ .mIndex = added->second.mIndex, .mKey = own.mStateSet };
+        return Resolved{ .mIndex = added->second.mRow.get(), .mKey = own.mStateSet };
     }
 
     Index MaterialResolver::takeTexture(const TextureUse& use, Worn* const worn, const TextureEncoding encoding)
@@ -305,16 +305,16 @@ namespace Rtx
             known = mTextureOf.add(image, HeldTexture{});
 
         HeldTexture& held = known->second;
-        Index& slot = held.mSlots[static_cast<std::size_t>(encoding)][static_cast<std::size_t>(use.mWrap)];
+        TextureHold& slot = held.mSlots[static_cast<std::size_t>(encoding)][static_cast<std::size_t>(use.mWrap)];
         const std::uint64_t freed = mScene.textures().getFreedCount();
         const auto bit = static_cast<std::uint16_t>(
             1u << (static_cast<std::size_t>(encoding) * sTextureWrapCount + static_cast<std::size_t>(use.mWrap)));
-        if (slot == sNoIndex && !held.mRefused.stands(bit, freed))
+        if (slot.empty() && !held.mRefused.stands(bit, freed))
         {
             // Held, because this entry is the reference. `mTextureOf` says why a slot the map names
             // has to be one nothing else can hand out.
-            slot = mScene.textures().take(VFS::Path::Normalized(image->getFileName()), *image, use.mWrap, encoding);
-            if (slot == sNoIndex)
+            slot = mScene.takeTexture(VFS::Path::Normalized(image->getFileName()), *image, use.mWrap, encoding);
+            if (slot.empty())
                 held.mRefused.refuse(bit, freed);
         }
 
@@ -341,7 +341,7 @@ namespace Rtx
             }
         }
 
-        return slot;
+        return slot.get();
     }
 
     osg::Vec3f MaterialResolver::diffuseMeanOf(const osg::Image* const image, const BlendKind blend)
@@ -494,12 +494,30 @@ namespace Rtx
         return material;
     }
 
-    void MaterialResolver::retire(std::vector<Index>& live)
+    void MaterialResolver::retire()
     {
-        mMaterials.sweep(live, [this](const HeldMaterial& held) {
-            if (held.mWorn.has_value())
-                releaseWorn(*held.mWorn);
-        });
+        mMaterials.retire([this](HeldMaterial& held) { release(held); });
+    }
+
+    MaterialResolver::~MaterialResolver()
+    {
+        // The materials first, because what one wore is a hold on an entry of the images' map.
+        mMaterials.clear([this](HeldMaterial& held) { release(held); });
+        mTextureOf.clear([this](HeldTexture& held) { release(held); });
+    }
+
+    void MaterialResolver::release(HeldMaterial& held)
+    {
+        if (held.mWorn.has_value())
+            releaseWorn(*held.mWorn);
+        mScene.drop(std::move(held.mRow));
+    }
+
+    void MaterialResolver::release(HeldTexture& held)
+    {
+        for (std::array<TextureHold, sTextureWrapCount>& slots : held.mSlots)
+            for (TextureHold& slot : slots)
+                mScene.drop(std::move(slot));
     }
 
     void MaterialResolver::retireHolds()
@@ -507,11 +525,7 @@ namespace Rtx
         // The walk's own hold on every image a material is read from, given back the same way.
         // Most are met once and go stale on the frame after they arrived; what settles here is the
         // animated materials.
-        mTextureOf.retire([this](const HeldTexture& held) {
-            for (const auto& slots : held.mSlots)
-                for (const Index slot : slots)
-                    mScene.textures().drop(slot);
-        });
+        mTextureOf.retire([this](HeldTexture& held) { release(held); });
 
         // What `animate` keeps. Swept beside everything else because it is keyed on a node the graph
         // can drop, and because a state set held past its node holds the textures in it alive too.

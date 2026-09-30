@@ -107,8 +107,10 @@ set(RTX_FILES
     mirror/cells/held.hpp
     mirror/cells/nightday.hpp
     mirror/cells/prepared.hpp
+    mirror/cells/readermemory.hpp
     mirror/cells/templatewalk.cpp
     mirror/cells/templatewalk.hpp
+    mirror/contentmemory.hpp
     mirror/emitterresolver.cpp
     mirror/emitterresolver.hpp
     mirror/extractionstats.cpp
@@ -193,6 +195,7 @@ set(RTX_FILES
     scene/refusal.hpp
     scene/refusals.cpp
     scene/refusals.hpp
+    scene/rowhold.hpp
     scene/ripple.hpp
     scene/scenedesc.cpp
     scene/scenedesc.hpp

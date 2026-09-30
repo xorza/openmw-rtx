@@ -5,6 +5,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -33,6 +34,7 @@
 #include <components/rtx/environment/skylight.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/scene/refusals.hpp>
+#include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
@@ -361,46 +363,50 @@ namespace Rtx
         /// **What the sky holds on a scene, it gives back whole.** The moons' portraits, each
         /// weather's deck and the night sky's field and patches are held by nothing but the sky —
         /// a ray that reached nothing draws them — so a world detached has to drop every one, or
-        /// the scene it leaves is never empty and the gate on it can never be asked.
+        /// the scene it leaves is never empty and the gate on it can never be asked. One list of
+        /// holds is what makes every one of them given back: `SkyReader` keeps it.
         TEST(RtxSkyBuilderTest, whatTheSkyHoldsIsGivenBackWhole)
         {
             SceneDesc scene;
             VFS::Manager vfs;
             Resource::ImageManager images(&vfs, 0);
 
+            std::vector<TextureHold> moonHolds;
             const Rtx::MoonFaces moons
-                = Rtx::addMoonFaces(scene, images, Rtx::MoonSizes{ .mMasser = 94.0f, .mSecunda = 40.0f });
+                = Rtx::addMoonFaces(scene, images, Rtx::MoonSizes{ .mMasser = 94.0f, .mSecunda = 40.0f }, moonHolds);
             EXPECT_EQ(scene.textures().getHolds(moons.mMasser), 1u);
             EXPECT_EQ(scene.textures().getHolds(moons.mSecunda), 1u);
 
             // The content as `addSkyContent` would leave it, built by hand: two decks and a night
             // sky of a field and one patch, held once each, and the rest unset.
             SkyContent content;
+            std::vector<TextureHold> skyHolds;
             for (const std::uint32_t weather : { Rtx::Shaders::WEATHER_CLEAR, Rtx::Shaders::WEATHER_CLOUDY })
             {
                 content.mClouds[weather] = scene.textures().add(VFS::Path::NormalizedView("textures/deck.dds"));
-                scene.textures().hold(content.mClouds[weather]);
+                skyHolds.push_back(scene.holdTexture(content.mClouds[weather]));
             }
             content.mNight.mField = scene.textures().add(VFS::Path::NormalizedView("textures/stars.dds"));
-            scene.textures().hold(content.mNight.mField);
+            skyHolds.push_back(scene.holdTexture(content.mNight.mField));
             content.mNight.mPatches[0].mTexture
                 = scene.textures().add(VFS::Path::NormalizedView("textures/nebula.dds"));
-            scene.textures().hold(content.mNight.mPatches[0].mTexture);
+            skyHolds.push_back(scene.holdTexture(content.mNight.mPatches[0].mTexture));
 
             EXPECT_EQ(scene.textures().getLiveCount(), 5u);
             EXPECT_EQ(scene.textures().getHolds(content.mClouds[Rtx::Shaders::WEATHER_CLEAR]), 2u)
                 << "one file under one wrap is one slot, held once per deck naming it";
             EXPECT_TRUE(scene.isConsistent());
 
-            dropSkyContent(scene, content);
+            scene.drop(skyHolds);
+            EXPECT_TRUE(skyHolds.empty());
             EXPECT_EQ(scene.textures().getLiveCount(), 2u) << "the moons stand until they are dropped";
             EXPECT_TRUE(scene.isConsistent());
 
-            Rtx::dropMoonFaces(scene, moons);
+            scene.drop(moonHolds);
             EXPECT_TRUE(scene.isEmpty()) << "a sky given back left a slot standing";
 
-            // Content nothing was read into holds nothing, and dropping it is nothing.
-            dropSkyContent(scene, SkyContent{});
+            // A list with nothing in it holds nothing, and dropping it is nothing.
+            scene.drop(skyHolds);
             EXPECT_TRUE(scene.isEmpty());
         }
 
@@ -423,11 +429,12 @@ namespace Rtx
 
             SceneDesc scene;
             ContentPreprocessor preprocessor;
+            std::vector<TextureHold> holds;
             const SkyContent content = addSkyContent(scene, scenes,
                 SkyMeshes{ .mClouds = VFS::Path::Normalized("meshes/sky_clouds_01.nif"),
                     .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
                     .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
-                preprocessor);
+                preprocessor, holds);
 
             EXPECT_EQ(content.cloudsOf(Shaders::WEATHER_CLEAR), Shaders::NO_TEXTURE) << "a grey sky";
             EXPECT_EQ(content.cloudsOf(Shaders::WEATHER_OVERCAST), Shaders::NO_TEXTURE);
@@ -435,7 +442,7 @@ namespace Rtx
                 << "a slot the upload would stand in for";
             EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 4u) << "both decks, the cloud cap and the star dome";
 
-            dropSkyContent(scene, content);
+            scene.drop(holds);
             EXPECT_TRUE(scene.isEmpty());
         }
 
@@ -497,8 +504,9 @@ namespace Rtx
 
             SceneDesc scene;
             ContentPreprocessor preprocessor;
-            const Result<NightSky, std::string> sky
-                = readNightSky(scene, scenes, dome, VFS::Path::NormalizedView("meshes/sky_night_01.nif"), preprocessor);
+            std::vector<TextureHold> holds;
+            const Result<NightSky, std::string> sky = readNightSky(
+                scene, scenes, dome, VFS::Path::NormalizedView("meshes/sky_night_01.nif"), preprocessor, holds);
             ASSERT_TRUE(sky.isOk()) << sky.error();
 
             EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 1u);
@@ -509,7 +517,8 @@ namespace Rtx
             EXPECT_NE(sky.value().mPatches[0].mTexture, sNoIndex);
             EXPECT_EQ(sky.value().mPatches[1].mTexture, sNoIndex) << "the refused sheet took a patch";
 
-            dropNightSky(scene, sky.value());
+            EXPECT_EQ(holds.size(), 1u) << "a hold on the one sheet it took";
+            scene.drop(holds);
             EXPECT_TRUE(scene.isEmpty());
         }
 
@@ -529,10 +538,11 @@ namespace Rtx
             Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, 0);
             SceneDesc scene;
             ContentPreprocessor preprocessor;
+            std::vector<TextureHold> holds;
 
             const Result<NightSky, std::string> night
                 = readNightSky(scene, scenes, VFS::Path::NormalizedView("meshes/sky_night_02.nif"),
-                    VFS::Path::NormalizedView("meshes/sky_night_01.nif"), preprocessor);
+                    VFS::Path::NormalizedView("meshes/sky_night_01.nif"), preprocessor, holds);
             ASSERT_FALSE(night.isOk()) << "a missing star dome was read as no stars";
             EXPECT_EQ(night.error(), "the archives hold neither it nor \"meshes/sky_night_01.nif\"");
 
@@ -540,7 +550,7 @@ namespace Rtx
                 SkyMeshes{ .mClouds = VFS::Path::Normalized("meshes/sky_clouds_01.nif"),
                     .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
                     .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
-                preprocessor);
+                preprocessor, holds);
 
             EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 4u)
                 << "the cloud cap, the star dome, and the Clear and Overcast decks the seed names";
@@ -548,7 +558,8 @@ namespace Rtx
             EXPECT_EQ(content.mNight.mField, sNoIndex) << "and no stars";
             for (const NightSky::Patch& patch : content.mNight.mPatches)
                 EXPECT_EQ(patch.mTexture, sNoIndex);
-            EXPECT_TRUE(scene.isEmpty()) << "a hold taken for a sky that is not there";
+            EXPECT_TRUE(holds.empty()) << "a hold taken for a sky that is not there";
+            EXPECT_TRUE(scene.isEmpty());
         }
     }
 }

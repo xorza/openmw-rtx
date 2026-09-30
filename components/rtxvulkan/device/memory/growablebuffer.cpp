@@ -4,7 +4,6 @@
 #include <cassert>
 
 #include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/graveyard.hpp>
 
 namespace Rtx
 {
@@ -15,7 +14,7 @@ namespace Rtx
         if (!mBuffer.isEmpty() && mBuffer.getSize() >= bytes)
             return false;
 
-        mDevice->getGraveyard().replace(mBuffer, Buffer::make(*mDevice, mKind, bytes, mUsage, mName));
+        mBuffer = Buffer::make(*mDevice, mKind, bytes, mUsage, mName);
         return true;
     }
 

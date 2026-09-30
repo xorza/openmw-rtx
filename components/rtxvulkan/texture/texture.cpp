@@ -6,7 +6,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -26,7 +25,6 @@
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
@@ -373,13 +371,6 @@ namespace Rtx
                 break;
         }
         return made;
-    }
-
-    void Texture::buryIn(Graveyard& graveyard)
-    {
-        graveyard.bury(std::move(mImage));
-        graveyard.bury(std::move(mCompanion));
-        *this = Texture();
     }
 
     Result<Texture, std::string_view> Texture::bakeOf(const Device& device, Batch& batch, const TexturePasses& passes,
@@ -739,12 +730,12 @@ namespace Rtx
                 why = tried.error();
         }
 
-        // What the slot held is buried and not destroyed: its descriptor is the one a frame in
-        // flight bound, and it stays valid until the timeline says nothing reads it.
+        // What the slot held is the descriptor a frame in flight bound, and its images bury
+        // themselves, so it stays valid until the timeline says nothing reads it.
         slot.mStandIn = made.isEmpty();
         slot.mReduced = texture.mSource == TextureSource::File && !made.isEmpty()
             && (made.getImage().getWidth() < texture.mWidth || made.getImage().getHeight() < texture.mHeight);
-        std::exchange(slot.mTexture, std::move(made)).buryIn(mDevice.getGraveyard());
+        slot.mTexture = std::move(made);
 
         if (!why.empty())
             refused.push_back(Refusal{ .mKind = Refused::Texture, .mName = std::string(texture.mName), .mWhy = why });
@@ -888,9 +879,9 @@ namespace Rtx
             if (slot >= mSlots.size())
                 continue;
 
-            // Exchanged rather than erased, so the slot stays where it is and the image goes under
-            // the frame that may still name it.
-            std::exchange(mSlots[slot].mTexture, Texture()).buryIn(mDevice.getGraveyard());
+            // Emptied rather than erased, so the slot stays where it is and the images go under the
+            // frame that may still name them.
+            mSlots[slot].mTexture = Texture();
             mSlots[slot].mStandIn = false;
             mSlots[slot].mReduced = false;
         }
@@ -898,10 +889,8 @@ namespace Rtx
 
     void TextureArray::setAnisotropy(const std::uint32_t anisotropy)
     {
-        // Held by ownership, as the graveyard holds what it has no kind for: a menu change, and
-        // the one allocation it makes is not a frame's.
-        mDevice.getGraveyard().bury(std::make_shared<std::array<Sampler, sTextureWrapCount>>(
-            std::exchange(mFootprintSamplers, makeFootprintSamplers(mDevice, anisotropy))));
+        // The samplers replaced bury themselves: a frame in flight may still sample through them.
+        mFootprintSamplers = makeFootprintSamplers(mDevice, anisotropy);
 
         // Every slot and not only those that stand: `sync` passes over a slot that holds nothing,
         // as it does one owed and since dropped.

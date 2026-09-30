@@ -216,8 +216,10 @@ at the top, over all of them.
 - **The device.** `Device` holds the queue, the command pool, the `Timeline` and the
   `Graveyard`. The timeline is the one clock: each submit signals it, each wait is the device's,
   and the host never reads it on the frame path. The graveyard keeps what a submit may still read
-  until the timeline passes it. A missing required feature refuses the device, and each optional
-  extension is taken whole or not at all.
+  until the timeline passes it, and every device object buries itself as it goes: an assignment
+  that replaces a buffer and a destructor that lets a scene go are safe with frames in flight. A
+  missing required feature refuses the device, and each optional extension is taken whole or not
+  at all.
 - **Memory.** What a frame cannot go without is essential and never refused. Content (acceleration
   structures, textures) is taken against the driver's budget and can be refused, and a refusal
   leaves the mesh out or draws the texture's stand-in.
@@ -305,7 +307,9 @@ On the host, in order:
 1. The engine's loop runs input, simulation and the update traversal as upstream. The game
    describes the frame.
 2. **Walk.** `WorldMirror` mirrors the graph into the `SceneDesc`, the cell ring collects what its
-   thread read, and the sweep drops what the walk did not meet.
+   thread read, and the sweep drops what the walk did not meet. A row of the scene goes with the
+   last hold on it: the identity the walk met it under, each placement standing on it, a ground
+   cell the ring stood.
 3. **Hand over.** The frame before last is collected where the ring is full. `SceneUploader`
    places, extends or rebuilds the backend's scene.
 4. **Views.** Queued pictures inside the interface are traced.

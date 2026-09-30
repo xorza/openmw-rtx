@@ -231,8 +231,8 @@ namespace Rtx
 
             // A drop empties the row; the slot taken over is a new row, and the table grows past it.
             // The sheet goes too, and out of the present set.
-            scene.placements().drop(pane, Stander::Walk);
-            scene.placements().drop(glow, Stander::Walk);
+            scene.dropInstance(pane, Stander::Walk);
+            scene.dropInstance(glow, Stander::Walk);
             updateInstanceRecords(scene, kept, changed);
             expectSame(kept, scene, "dropped");
             EXPECT_FALSE(kept[pane].mPlaced);

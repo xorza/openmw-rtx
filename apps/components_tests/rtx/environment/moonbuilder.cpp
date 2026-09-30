@@ -3,6 +3,7 @@
 #include <limits>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -16,6 +17,7 @@
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/scene/refusals.hpp>
+#include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/colour.h>
@@ -81,23 +83,29 @@ namespace Rtx
             images.hold(moonFaceOf(Moon::Masser), portrait);
 
             SceneDesc scene;
-            const MoonFaces faces = addMoonFaces(scene, images, MoonSizes{ .mMasser = masser, .mSecunda = secunda });
+            std::vector<TextureHold> holds;
+            const MoonFaces faces
+                = addMoonFaces(scene, images, MoonSizes{ .mMasser = masser, .mSecunda = secunda }, holds);
+            EXPECT_EQ(holds.size(), 2u) << "a hold on each face";
             EXPECT_EQ(faces.radiusOf(Moon::Masser), moonAngularRadius(masser)) << "the size it was handed";
             EXPECT_EQ(faces.radiusOf(Moon::Secunda), moonAngularRadius(secunda));
             EXPECT_EQ(scene.textures().getRows()[faces.mMasser].mImage, portrait) << "the portrait was not kept";
             EXPECT_EQ(scene.textures().getRows()[faces.mSecunda].mImage, nullptr);
             EXPECT_EQ(scene.textures().getRows()[faces.mSecunda].mPath, moonFaceOf(Moon::Secunda).value());
-            dropMoonFaces(scene, faces);
+            scene.drop(holds);
+            EXPECT_TRUE(scene.isEmpty());
             EXPECT_EQ(scene.refusals().count(Refused::Moon), 0u);
 
             // A size of nought is the quad of no extent the game draws, and no refusal; one below
             // nought, or not a number, is a size the game draws and this does not.
             SceneDesc broken;
-            const MoonFaces unsized = addMoonFaces(broken, images, MoonSizes{ .mMasser = -3.0f, .mSecunda = 0.0f });
+            std::vector<TextureHold> brokenHolds;
+            const MoonFaces unsized
+                = addMoonFaces(broken, images, MoonSizes{ .mMasser = -3.0f, .mSecunda = 0.0f }, brokenHolds);
             EXPECT_EQ(unsized.radiusOf(Moon::Masser), 0.0f);
             EXPECT_EQ(unsized.radiusOf(Moon::Secunda), 0.0f);
             EXPECT_EQ(broken.refusals().count(Refused::Moon), 1u) << "Masser, and not Secunda";
-            dropMoonFaces(broken, unsized);
+            broken.drop(brokenHolds);
 
             EXPECT_NEAR(configured().mMasserRadius, std::atan(1.8f * masser / 1000.0f), 1e-6f);
             EXPECT_NEAR(configured().mSecundaRadius, std::atan(1.8f * secunda / 1000.0f), 1e-6f);

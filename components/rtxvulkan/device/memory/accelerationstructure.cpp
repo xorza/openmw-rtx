@@ -1,10 +1,14 @@
 #include "accelerationstructure.hpp"
 
+#include <bit>
 #include <cassert>
+#include <cstdint>
 #include <utility>
 
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/result.hpp>
+#include <components/rtxvulkan/device/timeline.hpp>
 
 #include "buffer.hpp"
 
@@ -61,7 +65,6 @@ namespace Rtx
 
     AccelerationStructure::AccelerationStructure(AccelerationStructure&& other) noexcept
         : mDevice(other.mDevice)
-        , mRead(other.mRead)
         , mHandle(std::exchange(other.mHandle, VK_NULL_HANDLE))
         , mAddress(std::exchange(other.mAddress, 0))
         , mStorage(other.mStorage)
@@ -75,7 +78,6 @@ namespace Rtx
         {
             reset();
             mDevice = other.mDevice;
-            mRead = other.mRead;
             mHandle = std::exchange(other.mHandle, VK_NULL_HANDLE);
             mAddress = std::exchange(other.mAddress, 0);
             mStorage = other.mStorage;
@@ -85,31 +87,26 @@ namespace Rtx
         return *this;
     }
 
-    void AccelerationStructure::nameForNext() const
-    {
-        assert(!isEmpty() && "a submit named on a structure nobody made");
-        mRead.nameFor(mDevice->getTimeline().getNext());
-    }
-
-    bool AccelerationStructure::isIdle() const
-    {
-        return mDevice == nullptr || mRead.isIdle(*mDevice);
-    }
-
     void AccelerationStructure::reset()
     {
-        assert((mHandle == VK_NULL_HANDLE || isIdle())
-            && "a structure destroyed while a submit may still trace it; bury it");
-
-        // The handle before the room: a room given back is the next structure's, and one given
-        // back under a structure still standing is two of them in one place.
         if (mHandle != VK_NULL_HANDLE)
-            mDevice->getFunctions().mDestroyAccelerationStructure(mDevice->getHandle(), mHandle, nullptr);
-        if (mStorage != nullptr)
-            mStorage->give(mRoom);
+        {
+            // Under one stamp, the handle ended first: the room is the next structure's once the
+            // timeline passes it, and one handed out under a structure still standing would be two
+            // of them in one place.
+            mDevice->getGraveyard().bury(&end, std::bit_cast<std::uint64_t>(mHandle), DeviceMemory());
+            if (mStorage != nullptr)
+                mStorage->retire(mRoom, mDevice->getTimeline().getNext());
+        }
 
         mHandle = VK_NULL_HANDLE;
         mAddress = 0;
         mRoom = StructureRoom{};
+    }
+
+    void AccelerationStructure::end(const Device& device, const std::uint64_t handle)
+    {
+        device.getFunctions().mDestroyAccelerationStructure(
+            device.getHandle(), std::bit_cast<VkAccelerationStructureKHR>(handle), nullptr);
     }
 }

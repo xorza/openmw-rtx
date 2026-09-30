@@ -195,6 +195,18 @@ namespace MWRender
         mContent.reset();
     }
 
+    Rtx::ContentMemory WorldMirror::getContentMemory()
+    {
+        const Rtx::MeshTable& meshes = mScene.meshes();
+        return Rtx::ContentMemory{
+            .mVertexEnd = meshes.getVertexRuns().getEnd(),
+            .mVerticesUsed = meshes.getVertexRuns().getUsed(),
+            .mIndexEnd = meshes.getIndexRuns().getEnd(),
+            .mIndicesUsed = meshes.getIndexRuns().getUsed(),
+            .mReader = mRing.getReaderMemory(),
+        };
+    }
+
     void WorldMirror::standSea(const MWWorld::CellStore& cell)
     {
         if (!cell.getCell()->isExterior())

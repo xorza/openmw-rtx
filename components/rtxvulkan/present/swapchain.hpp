@@ -54,7 +54,9 @@ namespace Rtx
 
         const Device& mDevice;
         VkSurfaceKHR mSurface = VK_NULL_HANDLE;
-        Owned<VkSwapchainKHR, vkDestroySwapchainKHR> mHandle;
+        /// Immediate, for the reason `Immediate` gives: remade only with the device idle, and its
+        /// surface goes before the device's graveyard does.
+        Immediate<VkSwapchainKHR, vkDestroySwapchainKHR> mHandle;
         VkSurfaceFormatKHR mFormat{};
         VkPresentModeKHR mPresentMode = VK_PRESENT_MODE_FIFO_KHR;
 

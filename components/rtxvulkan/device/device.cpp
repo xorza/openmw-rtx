@@ -248,12 +248,17 @@ namespace Rtx
         mMemory = std::make_unique<MemoryAllocator>(instance.getHandle(), mPhysicalDevice.getHandle(), mHandle.get(),
             mPhysicalDevice.getProperties().mMemory, has(DeviceOption::MemoryBudget));
         mTimeline = std::make_unique<Timeline>(*this);
+        mGraveyard = std::make_unique<Graveyard>(*this);
         // `new` and not `make_unique`, which the pool's private constructor does not admit.
         mPool.reset(new CommandPool(*this));
-        mGraveyard = std::make_unique<Graveyard>(*this);
 
         if (markerWrite != nullptr)
             mMarkers = std::make_unique<BufferMarkers>(*this, markerWrite);
+    }
+
+    VkDevice vulkanHandleOf(const Device& device)
+    {
+        return device.getHandle();
     }
 
     Device::~Device()

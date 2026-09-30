@@ -7,6 +7,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <utility>
 
 #include <osg/Matrixf>
 #include <osg/Vec3f>
@@ -281,10 +282,10 @@ namespace Rtx
                                                  .mIndices = ground.mIndices },
             FoldedShape{});
 
-        // Held on the scene, because no drawable and no state set will ever name them. The
-        // sweep keeps a held row, and `dropGround` is what lets go.
-        mScene.meshes().hold(stands.mStood.mMesh);
-        mScene.materials().hold(stands.mStood.mMaterial);
+        // Held on the scene, because no drawable and no state set will ever name them:
+        // `dropGround` is what lets go.
+        stands.mMeshHold = mScene.holdMesh(stands.mStood.mMesh);
+        stands.mMaterialHold = mScene.holdMaterial(stands.mStood.mMaterial);
 
         ++stats.mMeshesAdded;
         ++stats.mMaterialsAdded;
@@ -357,7 +358,7 @@ namespace Rtx
         if (!stood.isStanding())
             return;
 
-        mScene.placements().drop(stood.mSlot, Stander::Ring);
+        mScene.dropInstance(stood.mSlot, Stander::Ring);
         stood.mSlot = sNoIndex;
         --standing;
     }
@@ -370,9 +371,9 @@ namespace Rtx
 
         drop(ground.mStood, mGroundPlaced);
 
-        // The rows lose their holds, and the sweep after this walk is what frees them.
-        mScene.meshes().drop(ground.mStood.mMesh);
-        mScene.materials().drop(ground.mStood.mMaterial);
+        // The ring's own holds, the last on the ground's rows once its placement went above.
+        mScene.drop(std::move(ground.mMeshHold));
+        mScene.drop(std::move(ground.mMaterialHold));
         ground.reuse();
     }
 

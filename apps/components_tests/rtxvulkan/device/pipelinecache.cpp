@@ -43,7 +43,7 @@ namespace Rtx
 
                 VkPipelineCache made = VK_NULL_HANDLE;
                 EXPECT_EQ(vkCreatePipelineCache(device, &nothing, nullptr, &made), VK_SUCCESS);
-                const Owned<VkPipelineCache, vkDestroyPipelineCache> empty(device, made);
+                const Immediate<VkPipelineCache, vkDestroyPipelineCache> empty(device, made);
 
                 std::size_t bytes = 0;
                 EXPECT_EQ(vkGetPipelineCacheData(device, empty.get(), &bytes, nullptr), VK_SUCCESS);

@@ -15,50 +15,41 @@ namespace Rtx
 {
     namespace
     {
-        /// **A held row survives a sweep it was not named to, and goes on the first after the last
-        /// hold is given back.** What every table counts its holders by, so it is proved once here:
-        /// a texture named by materials, a rig stood on by meshes, a ground row held by the ring.
-        TEST(RtxSlotRowsTest, aHeldRowIsASurvivorTheMarkDidNotName)
+        /// **A row lives by its holds: the last drop is where it goes, and a freed slot is taken
+        /// over with none.** What every table counts its holders by, so it is proved once here: a
+        /// texture held by materials, a rig stood on by meshes, a mesh by its identity and its
+        /// placements. The freed count moves by one a free and never otherwise, which is what a
+        /// retire reports what went by.
+        TEST(RtxSlotRowsTest, aRowIsFreedByTheDropAfterWhichNothingHoldsIt)
         {
             SlotRows<int> rows;
             const Index first = rows.take(1);
             const Index second = rows.take(2);
-            const Index third = rows.take(3);
-            ASSERT_EQ(rows.getLiveCount(), 3u);
+            ASSERT_EQ(rows.getLiveCount(), 2u);
+            EXPECT_EQ(rows.getHolds(second), 0u) << "a row arrives with no holds";
 
             rows.hold(second);
             rows.hold(second);
             EXPECT_EQ(rows.getHolds(second), 2u);
-            EXPECT_FALSE(rows.hasDroppedHolds());
 
-            // Named: the first. Held: the second. The third is nobody's.
-            const std::array<Index, 1> named{ first };
-            EXPECT_EQ(rows.mark(named), 2u) << "one named and one held are two distinct survivors";
-
-            std::vector<Index> freed;
-            EXPECT_EQ(rows.sweep([&](const Index index, int&) { freed.push_back(index); }), 1u);
-            ASSERT_EQ(freed.size(), 1u);
-            EXPECT_EQ(freed[0], third);
-            EXPECT_EQ(rows.getLiveCount(), 2u);
-
-            // One hold back is still held; the last is the drop the next sweep is owed for.
+            // One hold back is still held; the last is where the table frees the row.
             EXPECT_FALSE(rows.drop(second));
-            EXPECT_FALSE(rows.hasDroppedHolds());
             EXPECT_TRUE(rows.drop(second));
-            EXPECT_TRUE(rows.hasDroppedHolds());
-
-            EXPECT_EQ(rows.mark(named), 1u) << "nothing holds the second now";
-            EXPECT_FALSE(rows.hasDroppedHolds()) << "the mark is what the drop was owed to";
-
-            freed.clear();
-            EXPECT_EQ(rows.sweep([&](const Index index, int&) { freed.push_back(index); }), 1u);
-            ASSERT_EQ(freed.size(), 1u);
-            EXPECT_EQ(freed[0], second);
+            EXPECT_EQ(rows.getFreedCount(), 0u) << "the table frees, not the drop";
+            rows.free(second);
+            EXPECT_EQ(rows.getFreedCount(), 1u);
+            EXPECT_EQ(rows.getLiveCount(), 1u);
+            EXPECT_FALSE(rows.isLive(second));
+            EXPECT_TRUE(rows.isLive(first));
 
             // A freed slot is taken over with no holds, whatever its last tenant carried.
             const Index again = rows.take(4);
             EXPECT_EQ(again, second) << "the lowest free slot";
             EXPECT_EQ(rows.getHolds(again), 0u);
+
+            Testing::expectAssertDies([&] { rows.drop(first); }, "a slot given back more often than it was held");
+            rows.hold(first);
+            Testing::expectAssertDies([&] { rows.free(first); }, "a slot freed while something holds it");
         }
 
         struct Keyed
@@ -166,23 +157,6 @@ namespace Rtx
             EXPECT_EQ(taken.mValue, 0) << "emptied on the way back";
             EXPECT_EQ(taken.mLent, 0u);
             EXPECT_EQ(spares.size(), 1u) << "nothing was made for the second take";
-        }
-
-        /// **A sweep consumes its mark, and a take or a free spoils it.** A second sweep on one
-        /// mark freed every row twice and handed one slot to two arrivals; a sweep after a take
-        /// would free by a mark made of rows that were not there.
-        TEST(RtxSlotRowsTest, aSweepWithoutAFreshMarkDies)
-        {
-            SlotRows<int> rows;
-            rows.take(1);
-            rows.take(2);
-            rows.mark({});
-            EXPECT_EQ(rows.sweep([](const Index, int&) {}), 2u);
-            Testing::expectAssertDies([&] { rows.sweep([](const Index, int&) {}); }, "a call out of its turn");
-
-            rows.mark({});
-            rows.take(3);
-            Testing::expectAssertDies([&] { rows.sweep([](const Index, int&) {}); }, "a call out of its turn");
         }
 
         /// **The pool knows which slots it holds.** A slot freed is on the list, a slot taken is

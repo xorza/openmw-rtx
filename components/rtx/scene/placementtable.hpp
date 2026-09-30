@@ -51,11 +51,6 @@ namespace Rtx
     class PlacementTable
     {
     public:
-        /// Puts `instance` in a free slot, or in a new one, and returns it. `SceneDesc::addInstance`
-        /// is the way in, for the asserts it makes across the tables and the traversal facts it
-        /// reads off the material.
-        Index add(const MeshInstance& instance, const Material::Traversed& worn);
-
         /// Fades the placement in `slot`. Separate from `move`, because an actor fading on the spot
         /// has not moved; a fade that changed the number joins `getMoved` all the same, as a row to
         /// rewrite that carries no motion. The walk's alone: the ring stands and drops, and never
@@ -66,13 +61,6 @@ namespace Rtx
         /// to the one already there writes nothing, which is the ordinary case. The walk's alone,
         /// as `fade` is.
         bool move(Index slot, const osg::Matrixf& transform);
-
-        /// Empties `slot`. Its index is not reused until the next `add` asks for one. The slot
-        /// joins `getMoved`: a backend has to write its row inactive, or the structure goes on
-        /// tracing what stood there.
-        ///
-        /// @param by who is dropping it, which must be who stood it — `Stander`.
-        void drop(Index slot, Stander by);
 
         /// Says every row wearing `material` now wears `worn` and has to be written again — the
         /// material changed what traversal is told about the surfaces standing on it. The
@@ -116,6 +104,20 @@ namespace Rtx
         void describePresences(std::span<const MeshRange> meshes, std::vector<Shaders::GpuPresence>& into) const;
 
     private:
+        /// The two ways in and out, `SceneDesc::addInstance` and `SceneDesc::dropInstance`, which
+        /// hold and give back the placement's mesh and material around them.
+        friend class SceneDesc;
+
+        /// Puts `instance` in a free slot, or in a new one, and returns it.
+        Index add(const MeshInstance& instance, const Material::Traversed& worn);
+
+        /// Empties `slot`. Its index is not reused until the next `add` asks for one. The slot
+        /// joins `getMoved`: a backend has to write its row inactive, or the structure goes on
+        /// tracing what stood there.
+        ///
+        /// @param by who is dropping it, which must be who stood it — `Stander`.
+        void drop(Index slot, Stander by);
+
         /// What a standing row counts as — one placed, and one of each figure its material and its
         /// class put it in. The traversal figures are `PlacedTraversal`'s, which `InstanceRecord`'s
         /// flags read too, so a row is counted as what traversal is told it is.

@@ -314,6 +314,16 @@ namespace Rtx
         mTextures.give(texture);
     }
 
+    ReaderMemory CellReader::measure() const
+    {
+        ReaderMemory measured;
+        mModels.forEach([&](const PreparedModel& model, const bool spare) {
+            (spare ? measured.mSpareModels : measured.mLentModels) += 1;
+            (spare ? measured.mSpareBytes : measured.mLentBytes) += model.getRoomBytes();
+        });
+        return measured;
+    }
+
     void CellReader::giveBack(PreparedModel& model)
     {
         if (!mModels.release(model))

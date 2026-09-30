@@ -344,12 +344,10 @@ namespace RtxTool
                 moved[static_cast<std::size_t>(ScenePart::Positions)]);
             EXPECT_EQ(grown, digestParts(scene));
 
-            // A release leaves the bytes where they were — a freed run is a hole, and the table
-            // keeps its length — so the cache still answers, and answers what a digest from nothing
+            // A mesh let go of leaves the bytes where they were — a freed run is a hole, and the
+            // table keeps its length — so the cache still answers, and answers what a digest from nothing
             // says. The mesh row it emptied moves the meshes column and nothing else.
-            const std::array keepTwo{ Rtx::Index{ 0 }, Rtx::Index{ 1 } };
-            const std::array keepMaterials{ Rtx::Index{ 0 } };
-            ASSERT_TRUE(scene.release(keepTwo, keepMaterials));
+            scene.drop(scene.holdMesh(third));
             const ScenePartDigests released = digester.digest(scene);
             EXPECT_EQ(digester.getVertexHashes(), 2u) << "a release wrote no vertex and was hashed for it";
             EXPECT_EQ(released, digestParts(scene));

@@ -12,9 +12,8 @@ namespace Rtx
 
     /// A buffer made again, larger, as what it holds grows. What memory it is, what the device does
     /// with it and its debug name are said once, where it is declared, and not at every growth: a
-    /// table does not change memory as it grows. What a growth displaced goes to the device's
-    /// graveyard, here and not in the caller's hands, because a frame in flight may still be reading
-    /// it and a caller handed the old buffer once let it go on the floor.
+    /// table does not change memory as it grows. What a growth displaced buries itself, as every
+    /// buffer does, so a frame in flight still reading it reads it to the end.
     class GrowableBuffer
     {
     public:

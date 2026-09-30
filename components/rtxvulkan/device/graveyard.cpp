@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdint>
 #include <limits>
+#include <mutex>
 #include <utility>
 
 #include "device.hpp"
@@ -10,6 +11,11 @@
 
 namespace Rtx
 {
+    void buryHandle(const Device& device, const EndHandle end, const std::uint64_t handle)
+    {
+        device.getGraveyard().bury(end, handle, DeviceMemory());
+    }
+
     Graveyard::Graveyard(const Device& device)
         : mDevice(device)
     {
@@ -17,53 +23,18 @@ namespace Rtx
 
     Graveyard::~Graveyard()
     {
-        // What the device's own idle left: burials stamped for a submit nobody will make now.
+        // What the device's own idle left: burials stamped for a submit nobody will make now, and
+        // what the members declared after this one buried as the device came apart.
         collectIdle();
     }
 
-    std::uint64_t Graveyard::stamp() const
+    void Graveyard::bury(const EndHandle end, const std::uint64_t handle, DeviceMemory&& memory)
     {
-        return mDevice.getTimeline().getNext();
-    }
-
-    void Graveyard::bury(Buffer&& buffer)
-    {
-        if (!buffer.isEmpty())
-            mBuffers.hold(stamp(), std::move(buffer));
-    }
-
-    void Graveyard::bury(AccelerationStructure&& structure)
-    {
-        if (!structure.isEmpty())
-            mStructures.hold(stamp(), std::move(structure));
-    }
-
-    void Graveyard::bury(QueryPool&& pool)
-    {
-        if (pool.get() != VK_NULL_HANDLE)
-            mQueryPools.hold(stamp(), std::move(pool));
-    }
-
-    void Graveyard::bury(std::shared_ptr<void>&& held)
-    {
-        if (held != nullptr)
-            mOthers.hold(stamp(), std::move(held));
-    }
-
-    void Graveyard::bury(Image&& image)
-    {
-        if (!image.isEmpty())
-            mImages.hold(stamp(), std::move(image));
-    }
-
-    template <class T>
-    void Graveyard::free(Retiring<T>& held, const std::uint64_t finished)
-    {
-        // Written over with an empty one, which is how every object here destroys itself — and
-        // asserts, against its own stamp, that nothing on the queue still reads it. The stamp is
-        // at or before the burial's, so the assert fires exactly where a buried object was named
-        // again after its burial.
-        held.releaseThrough(finished, [](T& object) { object = T(); });
+        // The stamp is read under the lock, so the queue holds its burials in stamp order whatever
+        // thread made them.
+        const std::lock_guard<std::mutex> lock(mLock);
+        mHeld.hold(mDevice.getTimeline().getNext(),
+            Burial{ .mEnd = handle != 0 ? end : nullptr, .mHandle = handle, .mMemory = std::move(memory) });
     }
 
     void Graveyard::collect()
@@ -78,12 +49,20 @@ namespace Rtx
         freeThrough(std::numeric_limits<std::uint64_t>::max());
     }
 
+    std::size_t Graveyard::getHeldCount() const
+    {
+        const std::lock_guard<std::mutex> lock(mLock);
+        return mHeld.size();
+    }
+
     void Graveyard::freeThrough(const std::uint64_t finished)
     {
-        free(mStructures, finished);
-        free(mQueryPools, finished);
-        free(mBuffers, finished);
-        free(mImages, finished);
-        free(mOthers, finished);
+        const std::lock_guard<std::mutex> lock(mLock);
+
+        // The handle before its memory: the entry's own memory goes as the entry is erased.
+        mHeld.releaseThrough(finished, [&](Burial& burial) {
+            if (burial.mEnd != nullptr)
+                burial.mEnd(mDevice, burial.mHandle);
+        });
     }
 }

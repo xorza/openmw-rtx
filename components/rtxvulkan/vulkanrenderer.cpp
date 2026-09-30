@@ -77,7 +77,6 @@ namespace Rtx
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get(), PresentTargets::sFormat)
         , mDigest(mDevice)
         , mMedia(mDevice)
-        , mScenes(mDevice)
         , mGui(mDevice, PresentTargets::sFormat)
         , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures())
         , mUpscaler(mDevice)
@@ -104,11 +103,9 @@ namespace Rtx
         // no next submit here.
         tearDown("the interface's last writes were not submitted", [&] { mGui.getTextures().finish(); });
 
-        // Every frame in flight, and the presenter's last blit, before anything they name goes.
+        // Every frame in flight, and the presenter's last blit, before the swapchain goes, which
+        // is the one handle here not buried.
         tearDown("the device would not finish before the renderer was taken apart", [&] { mDevice.waitIdle(); });
-
-        // Before the scenes below it, which own the storage the buried rooms are rooms in.
-        mDevice.collectIdle();
     }
 
     void VulkanRenderer::resetHistory()
@@ -136,9 +133,6 @@ namespace Rtx
 
         mProfile.mUpscale = upscale;
 
-        // What is about to be replaced may still be in flight.
-        drain();
-
         const VkExtent2D output = mTargets.getExtent();
         createTargets(output.width, output.height);
     }
@@ -148,10 +142,6 @@ namespace Rtx
         if (sea == mMedia.getSea())
             return;
 
-        // A frame in flight may still be synthesising from the spectrum this replaces, and so may
-        // a picture recorded and not yet carried: `describe` submits the deferred batches itself,
-        // after it has destroyed the amplitudes they read.
-        drain();
         mMedia.describeSea(sea);
     }
 
@@ -213,17 +203,16 @@ namespace Rtx
         const Crash::NoteScope noted(
             "building the scene: {} meshes, {} textures", scene.meshes().getRows().size(), textures.size());
 
-        // Buried, so a picture recorded against the old scene and not yet carried keeps it until
-        // the submit that carries the picture has run.
-        mScenes.bury(slot);
+        // What the old scene held on the device buries itself, so a picture recorded against it and
+        // not yet carried keeps it until the submit that carries the picture has run.
+        mScenes.clear(slot);
 
         if (slot.isWorld())
         {
-            // Nothing may be in flight over what is about to go. A new world is a load, and a load
-            // waits: for the frames tracing the old one, and for a placement the frame being
-            // recorded may have submitted without a fence of its own. The drain frees what was
-            // just buried, so a second world does not hold two of everything at once — a cell's
-            // structures and textures are most of what this renderer occupies.
+            // **A limit on memory, and not a matter of safety.** A new world is a load, and a load
+            // may wait: the drain frees what the old one just buried, so a second world does not
+            // hold two of everything at once — a cell's structures and textures are most of what
+            // this renderer occupies.
             drain();
 
             // The reports of a world that has gone are dropped, and this is the only place they
@@ -459,8 +448,6 @@ namespace Rtx
         if (width == mTargets.getExtent().width && height == mTargets.getExtent().height)
             return;
 
-        // The images about to be replaced may still be in flight.
-        drain();
         createTargets(width, height);
     }
 
@@ -719,8 +706,8 @@ namespace Rtx
 
     void VulkanRenderer::dropViewScene(const SceneSlot scene)
     {
-        // Buried and not drained: a drain here idled the whole device every time the inventory
-        // closed.
+        // Not drained, because the scene's objects bury themselves: a drain here idled the whole
+        // device every time the inventory closed.
         mScenes.drop(scene);
     }
 
@@ -735,14 +722,8 @@ namespace Rtx
         if (extent.width == 0 || extent.height == 0)
             return;
 
-        // The one drain a picture still pays, and only the first picture of a new size pays it:
-        // the whole device, because what `grow` replaces is destroyed and not buried, and a
-        // destruction asserts the queue idle.
         if (!mPictures.holds(extent))
-        {
-            drain();
             mPictures.grow(extent, mProfile.mRadianceWidth);
-        }
 
         mPictures.trace(texture, camera, options, mScenes.at(options.mScene), mProfile);
     }

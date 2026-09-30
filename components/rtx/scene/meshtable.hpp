@@ -49,10 +49,6 @@ namespace Rtx
         /// frame, once.
         void notePosed(Index mesh, const osg::BoundingBoxf& bounds);
 
-        /// Frees every slot the last `mark` did not name, and says how many that was. A deforming
-        /// mesh gives its runs back to `deformers`, which every mesh here stood on.
-        std::size_t sweep(DeformerTable& deformers);
-
         const BlockedValues<osg::Vec3f>& getPositions() const { return mPositions; }
         const BlockedValues<osg::Vec3f>& getNormals() const { return mNormals; }
         const BlockedValues<osg::Vec2f>& getTexCoords() const { return mTexCoords; }
@@ -60,6 +56,11 @@ namespace Rtx
         const BlockedValues<osg::Vec3f>& getColours() const { return mColours; }
         const BlockedValues<std::uint32_t>& getTangents() const { return mTangents; }
         const BlockedValues<std::uint32_t>& getIndices() const { return mIndices; }
+
+        /// Where the vertex and the index runs are handed out: how far they reach against what
+        /// stands in them, which is the room freed meshes left and nothing moves to close.
+        const RunAllocator& getVertexRuns() const { return mVertexRuns; }
+        const RunAllocator& getIndexRuns() const { return mIndexRuns; }
 
         std::span<const osg::Vec3f> getMeshPositions(Index mesh) const;
         std::span<const std::uint32_t> getMeshIndices(Index mesh) const;
@@ -83,6 +84,18 @@ namespace Rtx
         void clearArrivals();
 
     private:
+        /// What `SceneDesc::holdMesh` and `SceneDesc::drop` stand on, so every hold on a mesh is
+        /// taken and given back in one place.
+        friend class SceneDesc;
+
+        void hold(Index mesh) { mRows.hold(mesh); }
+
+        /// Gives one hold on `mesh` back, and frees it where that was the last: its geometry goes
+        /// back to the allocators and a deforming mesh's runs to `deformers`, which it stood on. The
+        /// slot stays where it is, because every index above it names a bottom-level acceleration
+        /// structure that would otherwise be built again.
+        void drop(DeformerTable& deformers, Index mesh);
+
         /// Makes the five vertex buffers as long as the vertex runs reach and writes `range`'s run
         /// of each, and says in `MeshRange::mTangents` whether any tangent word is not nought. Fills
         /// one the mesh did not bring with what stands for nothing there, because a reused slot

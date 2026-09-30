@@ -189,6 +189,9 @@ namespace MWRender
         /// The backend the frames and the pictures are traced into, for the harness's own reads.
         Rtx::Renderer& getBackend() { return *mRenderer; }
 
+        /// `WorldMirror::getContentMemory`, for a measured run's report.
+        Rtx::ContentMemory getContentMemory() { return mMirror.getContentMemory(); }
+
         /// `WorldMirror::collectStanding`, for the harness's check that no static stands twice.
         void collectStanding(std::vector<ESM::RefNum>& into) const { mMirror.collectStanding(into); }
 

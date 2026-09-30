@@ -78,14 +78,13 @@ namespace MWRender
 
     void SkyReader::attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ContentPreprocessor& content)
     {
-        mMoonFaces = Rtx::addMoonFaces(scene, *scenes.getImageManager(), mMoonSizes);
-        mSkyContent = Rtx::addSkyContent(scene, scenes, meshes(), content);
+        mMoonFaces = Rtx::addMoonFaces(scene, *scenes.getImageManager(), mMoonSizes, mHolds);
+        mSkyContent = Rtx::addSkyContent(scene, scenes, meshes(), content, mHolds);
     }
 
     void SkyReader::detach(Rtx::SceneDesc& scene)
     {
-        Rtx::dropSkyContent(scene, mSkyContent);
-        Rtx::dropMoonFaces(scene, mMoonFaces);
+        scene.drop(mHolds);
         mSkyContent = Rtx::SkyContent{};
         mMoonFaces = Rtx::MoonFaces{};
     }

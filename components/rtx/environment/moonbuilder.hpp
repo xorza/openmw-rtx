@@ -1,8 +1,11 @@
 #pragma once
 
+#include <vector>
+
 #include <osg/Vec3f>
 
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/shaders/sky.h>
 #include <components/sky/moonstate.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -78,9 +81,10 @@ namespace Rtx
         osg::Vec3f getPaintedIrradiance() const { return osg::componentMultiply(mIrradiance, mPaint); }
     };
 
-    /// The two painted faces, in a scene's texture table, held rather than named by a material:
-    /// the disc is drawn by a ray that reached nothing, so the sweep would take the slot back. And
-    /// how wide each is drawn, which is fixed for the run and read with them.
+    /// The two painted faces, in a scene's texture table, held through the list `addMoonFaces`
+    /// fills rather than named by a material: the disc is drawn by a ray that reached nothing, and
+    /// a slot nothing holds is freed. And how wide each is drawn, which is fixed for the run and read
+    /// with them.
     struct MoonFaces
     {
         Index mMasser = sNoIndex;
@@ -109,14 +113,13 @@ namespace Rtx
                                     : VFS::Path::NormalizedView("textures/tx_secunda_full.dds");
     }
 
-    /// Adds each moon's face, `moonFaceOf`, opened from `images`, to `scene` and holds it there
-    /// until `dropMoonFaces`, and how wide `sizes` draws each moon. A moon drawn from the mean of
+    /// Adds each moon's face, `moonFaceOf`, opened from `images`, to `scene`, appending a hold on
+    /// each to `holds`, which the caller gives back when the world goes, and how wide `sizes`
+    /// draws each moon. A moon drawn from the mean of
     /// its portrait is a coloured circle. A moon of size nought is not drawn, as the game draws
     /// none; one whose size is below nought or not finite is refused to `scene`.
-    MoonFaces addMoonFaces(SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes);
-
-    /// Gives both holds back, so a scene the world has left holds nothing of its moons.
-    void dropMoonFaces(SceneDesc& scene, const MoonFaces& faces);
+    MoonFaces addMoonFaces(
+        SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes, std::vector<TextureHold>& holds);
 
     /// A moon placed from angles `MWWorld::MoonModel` worked out. What a moon *is* once those
     /// angles are known — where its face points, how wide it is, which way its terminator falls —

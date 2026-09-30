@@ -16,6 +16,7 @@
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/mirror/sceneadopter.hpp>
+#include <components/rtx/scene/rowhold.hpp>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/terrain/objectstorage.hpp>
 
@@ -98,9 +99,13 @@ namespace Rtx
         /// and not an empty optional, so the texture list keeps its room from one cell to the next.
         bool mStands = false;
 
-        /// The rows the ring holds on the scene, which no drawable and no state set will ever
-        /// name, at the cell's centre, which the mesh's own positions are relative to.
+        /// The rows the ring stands, which no drawable and no state set will ever name, at the
+        /// cell's centre, which the mesh's own positions are relative to.
         Stood mStood;
+
+        /// The ring's holds on those rows, which `CellPlacer::dropGround` gives back.
+        MeshHold mMeshHold;
+        MaterialHold mMaterialHold;
 
         /// The readings of its textures, held for as long as the cell is.
         std::vector<PreparedTexture*> mTextures;

@@ -133,8 +133,8 @@ namespace Rtx
         void createTargets(std::uint32_t width, std::uint32_t height);
 
         /// Everything the queue was given and everything waiting to be given it, finished, and
-        /// everything buried let go: what a rebuild, a resize and a scene going away do before
-        /// what they replace can go. In the one order that is right — a deferred batch first,
+        /// everything buried let go: what a new world does, so the old one's memory is free before
+        /// the new one's is taken. In the one order that is right — a deferred batch first,
         /// because it rides the next submit and nothing else will make one; the frames in flight,
         /// so the ring's account is settled; the device, for the interface's and the presenter's
         /// submits the ring does not count; and the graveyard last, once nothing can be reading.

@@ -12,6 +12,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
 #include "barriers.hpp"
@@ -117,7 +118,7 @@ namespace Rtx
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         };
-        mHandle = Owned<VkImage, vkDestroyImage>::make(device.getHandle(), vkCreateImage, create, "vkCreateImage");
+        mHandle = Owned<VkImage, vkDestroyImage>::make(device, vkCreateImage, create, "vkCreateImage");
         device.setName(mHandle.get(), name);
     }
 
@@ -143,8 +144,7 @@ namespace Rtx
             .format = mFormat,
             .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, mMipLevels, 0, 1 },
         };
-        mView = Owned<VkImageView, vkDestroyImageView>::make(
-            device.getHandle(), vkCreateImageView, view, "vkCreateImageView");
+        mView = Owned<VkImageView, vkDestroyImageView>::make(device, vkCreateImageView, view, "vkCreateImageView");
 
         // Only where something will write through them. A storage descriptor is what these views
         // exist for, and an image without the usage bit can have none — a chain that is only ever
@@ -159,8 +159,8 @@ namespace Rtx
                 one.format = twoFormats ? mStorageFormat : mFormat;
                 one.subresourceRange.baseMipLevel = level;
                 one.subresourceRange.levelCount = 1;
-                mLevelViews.push_back(Owned<VkImageView, vkDestroyImageView>::make(
-                    device.getHandle(), vkCreateImageView, one, "vkCreateImageView"));
+                mLevelViews.push_back(
+                    Owned<VkImageView, vkDestroyImageView>::make(device, vkCreateImageView, one, "vkCreateImageView"));
                 device.setName(mLevelViews.back().get(), name);
             }
         }
@@ -170,14 +170,14 @@ namespace Rtx
 
     Image::~Image()
     {
-        assert(mayDestroy() && "an image destroyed while a submit may still read it; bury it");
+        bury();
     }
 
     Image& Image::operator=(Image&& other) noexcept
     {
         if (this != &other)
         {
-            assert(mayDestroy() && "an image written over while a submit may still read it; replace it");
+            bury();
 
             mDevice = other.mDevice;
             mRead = other.mRead;
@@ -197,14 +197,12 @@ namespace Rtx
         return *this;
     }
 
-    bool Image::mayDestroy() const
+    void Image::bury()
     {
-        return isEmpty() || isIdle();
-    }
-
-    bool Image::isIdle() const
-    {
-        return mDevice == nullptr || mRead.isIdle(*mDevice);
+        mView.reset();
+        mLevelViews.clear();
+        if (!isEmpty())
+            mDevice->getGraveyard().bury(std::move(mHandle), std::move(mMemory));
     }
 
     void Image::waitIdle(const char* const what) const

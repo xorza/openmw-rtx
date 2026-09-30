@@ -10,26 +10,27 @@
 
 namespace Rtx
 {
-    class Device;
-
     /// The scenes a renderer holds, by slot: the world's, and one for each picture inside the
     /// interface — null until each is given a scene — with the slots nothing holds.
     class SceneSlots
     {
     public:
-        explicit SceneSlots(const Device& device);
+        SceneSlots() = default;
+
+        /// Asserts every picture's slot given back: a view that outlives its renderer is a scene
+        /// held for nothing, named here rather than never. Not while an exception unwinds.
+        ~SceneSlots();
 
         /// A slot for a picture's scene, empty until something is put into it.
         SceneSlot add();
 
-        /// Lets the slot go, and what it holds with it, as `bury` does.
+        /// Lets the slot go, and what it holds with it, as `clear` does.
         void drop(SceneSlot slot);
 
-        /// Lets go of what `slot` holds, under the next submit and no sooner: a picture of it
-        /// recorded and not yet carried rides that submit, and so does the last placement's refit.
-        /// The graveyard frees a scene after every structure, because a structure the scene retired
-        /// gives its room back to a storage the scene owns.
-        void bury(SceneSlot slot);
+        /// Destroys what `slot` holds. Everything a scene holds on the device buries itself under
+        /// the next submit, so a picture of it recorded and not yet carried, and the last
+        /// placement's refit, both run over what they recorded.
+        void clear(SceneSlot slot);
 
         /// Puts `scene` into `slot`, which holds nothing.
         DeviceScene& hold(SceneSlot slot, std::unique_ptr<DeviceScene> scene);
@@ -58,7 +59,6 @@ namespace Rtx
         const std::unique_ptr<DeviceScene>& slotAt(SceneSlot slot) const;
         std::unique_ptr<DeviceScene>& slotAt(SceneSlot slot);
 
-        const Device& mDevice;
         std::unique_ptr<DeviceScene> mWorld;
         std::vector<std::unique_ptr<DeviceScene>> mViews;
         SlotPool mFreeViews;

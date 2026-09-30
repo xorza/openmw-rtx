@@ -30,6 +30,7 @@
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/graphlight.hpp>
+#include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
@@ -1187,6 +1188,7 @@ namespace Rtx::Testing
         TEST_F(RtxSceneExtractorTest, aRefusedTextureIsAskedAgainOnlyOnceASlotIsFreed)
         {
             TextureTable& textures = mScene.textures();
+            Testing::SceneHolds holds(mScene);
             constexpr Index clampedSlot = 5;
             for (std::size_t at = 0; at < TextureTable::sCapacity; ++at)
             {
@@ -1194,7 +1196,7 @@ namespace Rtx::Testing
                     ? textures.add(VFS::Path::NormalizedView("textures/tx_banner.dds"), TextureWrap::Clamp)
                     : textures.add(VFS::Path::Normalized("textures/tx_" + std::to_string(at) + ".dds"));
                 ASSERT_EQ(slot, at);
-                textures.hold(slot);
+                holds.texture(slot);
             }
 
             osg::ref_ptr<osg::Image> banner = new osg::Image;
@@ -1254,7 +1256,7 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.materials().getRows()[0].mDiffuse, sNoIndex);
             EXPECT_EQ(mScene.materials().getRows()[1].mDiffuse, clampedSlot) << "refused for another wrap's want";
 
-            textures.drop(9);
+            holds.dropTexture(9);
 
             update.setTraversalNumber(5);
             both->accept(update);

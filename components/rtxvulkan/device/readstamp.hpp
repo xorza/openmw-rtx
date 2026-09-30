@@ -8,10 +8,10 @@
 namespace Rtx
 {
     /// The submits that name a resource, as the values they signal on the queue's timeline — what
-    /// a host write of the resource waits for and asserts against, and what a destructor asserts,
-    /// because a host write over a submit still reading is the one hazard the layers cannot see.
-    /// Held by a buffer, an image and a structure, and by a descriptor set, which is bound by
-    /// handle and has no buffer to carry one.
+    /// a host write or read of the resource waits for and asserts against, because a host write
+    /// over a submit still reading is the one hazard the layers cannot see. A destruction needs
+    /// none of it: the resource buries itself. Held by a buffer and an image, and by a descriptor
+    /// set, which is bound by handle and has no buffer to carry one.
     ///
     /// **Stamped at the hand-out and nowhere else.** An address, a descriptor, a barrier, a copy's
     /// ends and a set bound each name their resource for the next submit as they hand it out, so

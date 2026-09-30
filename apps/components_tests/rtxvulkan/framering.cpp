@@ -4,6 +4,7 @@
 #include <optional>
 #include <span>
 #include <utility>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -15,8 +16,10 @@
 #include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
+#include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/memory.hpp>
+#include <components/rtxvulkan/device/owned.hpp>
 #include <components/rtxvulkan/framering.hpp>
-#include <components/rtxvulkan/texture/texture.hpp>
 
 namespace Rtx
 {
@@ -72,47 +75,67 @@ namespace Rtx
         }
 
         /// What is buried while a frame is in flight is held until a submit made after the burial
-        /// has run, whoever buried it and whatever the ring was doing.
+        /// has run, whoever buried it and whatever the ring was doing, and a wait ends a prefix of
+        /// the burials in the order they were made.
         ///
         /// **The property the two graveyards keyed by slot did not have.** A burial went into the
         /// recording frame's, and that frame's wait was what freed it — so a burial made into the
         /// wrong slot, or a table replaced by a caller that never saw a graveyard, was an object
         /// gone from under a trace. One graveyard stamps every burial with the next submit's value,
         /// so nothing is freed before every submit that could name it has finished.
-        TEST_F(RtxFrameRingTest, aBurialOutlivesEverySubmitMadeBeforeIt)
+        ///
+        /// **In burial order**, because an owner's destructor buries what must end first first: a
+        /// view before its image, a structure before the storage it stands in. Handles 1 and 2 are
+        /// buried under the frame that carries them and 3 under the frame after, and an end that
+        /// notes each handle says which went when.
+        TEST_F(RtxFrameRingTest, aBurialOutlivesEverySubmitMadeBeforeItAndEndsInOrder)
         {
             // The device's graveyard is shared with every test before this one, so it is emptied
-            // first: the counts below are of this test's burial alone.
+            // first: the counts below are of this test's burials alone.
             Graveyard& graveyard = getDevice().getGraveyard();
             getDevice().waitIdle();
             getDevice().collectIdle();
 
+            static std::vector<std::uint64_t> ended;
+            ended.clear();
+            const EndHandle note = [](const Device&, const std::uint64_t handle) { ended.push_back(handle); };
+
             FrameRing ring(getDevice(), false);
 
-            // One frame on the queue, and a burial made while it is.
+            // One frame on the queue, and a buffer let go of while it is: its handle and its memory
+            // are one burial.
             submitEmpty(ring);
-            graveyard.bury(Buffer::hostWritten(getDevice(), 16, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "test"));
-            EXPECT_EQ(graveyard.getHeldCount(), 1u);
+            {
+                const Buffer dropped = Buffer::hostWritten(getDevice(), 16, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "test");
+            }
+            EXPECT_EQ(graveyard.getHeldCount(), 1u) << "a buffer is its handle and its memory, buried together";
 
             // That frame done is not enough: the burial is stamped with the value of the submit
             // after it, which nothing has made.
             ring.finishAll();
             EXPECT_EQ(graveyard.getHeldCount(), 1u) << "freed before a submit made after the burial had run";
 
-            // The next submit made and run is what frees it.
+            graveyard.bury(note, 1, DeviceMemory());
+            graveyard.bury(note, 2, DeviceMemory());
+            submitEmpty(ring);
+            graveyard.bury(note, 3, DeviceMemory());
+            EXPECT_EQ(graveyard.getHeldCount(), 4u);
+
+            // The submit that carries 1 and 2 run, and the buffer with them; 3 waits for the next.
+            ring.finishAll();
+            EXPECT_EQ(ended, (std::vector<std::uint64_t>{ 1, 2 }));
+            EXPECT_EQ(graveyard.getHeldCount(), 1u) << "held past the submit that retired it";
+
             submitEmpty(ring);
             ring.finishAll();
-            EXPECT_EQ(graveyard.getHeldCount(), 0u) << "held past the submit that retired it";
+            EXPECT_EQ(ended, (std::vector<std::uint64_t>{ 1, 2, 3 }));
+            EXPECT_EQ(graveyard.getHeldCount(), 0u);
 
-            // A texture goes as its two images, the one a trace samples and its shading map, and
-            // is left empty: a frame in flight may still sample either.
-            Batch made(getPool());
-            Texture texture
-                = std::move(Texture::composite(getDevice(), made, TextureFormat::Rgba8Unorm, "test").value());
-            made.flush();
-            texture.buryIn(graveyard);
-            EXPECT_TRUE(texture.isEmpty());
-            EXPECT_EQ(graveyard.getHeldCount(), 2u) << "a texture buried as other than its two images";
+            // An image is its view, and then its handle with its memory.
+            {
+                const Image dropped(getDevice(), 4, 4, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "test");
+            }
+            EXPECT_EQ(graveyard.getHeldCount(), 2u);
             submitEmpty(ring);
             ring.finishAll();
             EXPECT_EQ(graveyard.getHeldCount(), 0u);

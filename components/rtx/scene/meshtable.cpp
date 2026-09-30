@@ -181,40 +181,37 @@ namespace Rtx
         return mIndices.in(range.mIndices);
     }
 
-    std::size_t MeshTable::sweep(DeformerTable& deformers)
+    void MeshTable::drop(DeformerTable& deformers, const Index mesh)
     {
-        const std::size_t freed = mRows.sweep([&](const Index index, MeshRange& range) {
-            // The slot stays where it is and only its geometry goes back, because every index
-            // above it names a bottom-level acceleration structure that would otherwise be built
-            // again. The allocators merge the room with whatever it touches, so a cell leaves as
-            // the one hole it came as.
-            mVertexRuns.release(range.mVertices);
-            mIndexRuns.release(range.mIndices);
-            if (range.mSecondTexCoords.mCount > 0)
-                mSecondRuns.release(range.mSecondTexCoords);
-            deformers.release(range);
-            mTriangles -= range.getTriangleCount();
+        if (!mRows.drop(mesh))
+            return;
 
-            range.mVertices.mCount = 0;
-            range.mIndices.mCount = 0;
-            range.mSecondTexCoords.mCount = 0;
-            range.mUnitStreams = 0;
-            range.mTangents = false;
-            range.mBounds = osg::BoundingBoxf();
+        // The allocators merge the room with whatever it touches, so a cell leaves as the one hole
+        // it came as.
+        MeshRange& range = mRows.at(mesh);
+        mVertexRuns.release(range.mVertices);
+        mIndexRuns.release(range.mIndices);
+        if (range.mSecondTexCoords.mCount > 0)
+            mSecondRuns.release(range.mSecondTexCoords);
+        deformers.release(range);
+        mTriangles -= range.getTriangleCount();
 
-            // A slot given back names no structure to refit, however it was posed this frame: the
-            // structure has gone with it.
-            mDeformed.remove(index);
+        range.mVertices.mCount = 0;
+        range.mIndices.mCount = 0;
+        range.mSecondTexCoords.mCount = 0;
+        range.mUnitStreams = 0;
+        range.mTangents = false;
+        range.mBounds = osg::BoundingBoxf();
 
-            note(index, SlotNews::Freed);
-        });
-
-        // Both sets held a removal per row freed above, and each settles in one pass rather than
-        // one per row.
+        // A slot given back names no structure to refit, however it was posed this frame: the
+        // structure has gone with it. Settled at once, because the same slot may be taken and posed
+        // again before anything reads the set.
+        mDeformed.remove(mesh);
         mDeformed.compact();
         deformers.compact();
 
-        return freed;
+        mRows.free(mesh);
+        note(mesh, SlotNews::Freed);
     }
 
     std::size_t MeshTable::getGeometryBytes() const

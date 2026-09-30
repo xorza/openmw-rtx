@@ -53,6 +53,7 @@
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/cells/nightday.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>
+#include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
@@ -1402,6 +1403,63 @@ namespace Rtx::Testing
 
             ASSERT_EQ(read.size(), 2u) << "a cell of the cancelled list was read";
             EXPECT_EQ(read[1]->mCell, osg::Vec2i(5, 0));
+        }
+
+        /// **A model's room is counted where it stands: lent to a cell, then spare, never both.**
+        /// `reuse` keeps the buffers, so the room the tree grew to leaves the lent figure and
+        /// reappears whole in the spare one when its one holder gives it back.
+        /// **A spare keeps the room its last model filled at least half of, and gives back the
+        /// rest.** Hand-counted on the positions: a hundred reserved and a hundred held is kept; fifty
+        /// in the same hundred is exactly half and kept; forty is less than half and given back,
+        /// which is what stops a spare keeping the largest model it ever held.
+        TEST(RtxPreparedModelTest, aSpareKeepsItsRoomOnlyWhereItsModelFilledHalfOfIt)
+        {
+            PreparedModel model;
+            model.mPositions.reserve(100);
+
+            for (const auto [held, kept] : { std::pair{ 100u, 100u }, std::pair{ 50u, 100u }, std::pair{ 40u, 0u } })
+            {
+                model.mPositions.resize(held);
+                ASSERT_EQ(model.mPositions.capacity(), 100u) << "the room this starts from";
+                model.reuse();
+                EXPECT_TRUE(model.mPositions.empty());
+                EXPECT_EQ(model.mPositions.capacity(), kept) << held << " of a hundred";
+                if (kept == 0)
+                    break;
+            }
+        }
+
+        TEST(RtxCellReaderTest, aModelsRoomIsCountedLentThenSpareAndNeverBoth)
+        {
+            FakeLand land;
+            FewStatics storage;
+            storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "tree.nif" });
+            FewContent content;
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u);
+
+            const ReaderMemory none = reader.measure();
+            EXPECT_EQ(none.mLentModels + none.mSpareModels, 0u);
+            EXPECT_EQ(none.mLentBytes + none.mSpareBytes, 0u);
+
+            PreparedCell& cell = reader.read(osg::Vec2i(0, 0), true);
+            ASSERT_EQ(cell.mModels.size(), 1u);
+            PreparedModel& tree = *cell.mModels.front();
+            ASSERT_FALSE(tree.mPositions.empty()) << "the sheet was read";
+
+            const ReaderMemory lent = reader.measure();
+            EXPECT_EQ(lent.mLentModels, 1u);
+            EXPECT_EQ(lent.mSpareModels, 0u);
+            EXPECT_EQ(lent.mLentBytes, tree.getRoomBytes());
+            EXPECT_EQ(lent.mSpareBytes, 0u);
+
+            reader.giveBack(tree);
+            reader.giveBack(cell);
+
+            const ReaderMemory spare = reader.measure();
+            EXPECT_EQ(spare.mLentModels, 0u);
+            EXPECT_EQ(spare.mSpareModels, 1u);
+            EXPECT_EQ(spare.mLentBytes, 0u);
+            EXPECT_EQ(spare.mSpareBytes, lent.mLentBytes) << "the spare keeps the room the lent model grew to";
         }
 
         /// **A model the walk refuses costs the reader nothing it keeps.** The reference is left

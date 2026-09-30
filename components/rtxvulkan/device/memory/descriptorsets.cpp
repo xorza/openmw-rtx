@@ -31,7 +31,7 @@ namespace Rtx
             .pPoolSizes = sizes.data(),
         };
         mPool = Owned<VkDescriptorPool, vkDestroyDescriptorPool>::make(
-            device.getHandle(), vkCreateDescriptorPool, describePool, "vkCreateDescriptorPool");
+            device, vkCreateDescriptorPool, describePool, "vkCreateDescriptorPool");
 
         const std::vector<VkDescriptorSetLayout> layouts(count, layout);
         const VkDescriptorSetAllocateInfo allocate{

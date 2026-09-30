@@ -94,6 +94,9 @@ namespace Rtx
         /// either way.
         void setSettled(bool settled);
 
+        /// `CellSupply::getReaderMemory`.
+        ReaderMemory getReaderMemory() { return mSupply.getReaderMemory(); }
+
         /// `CellPlacer::setReferenceEnabled`, `blacklistReference` and `forgetReferences`, over the
         /// cells held. Between frames, which the ring's own turn asserts: a reference changed
         /// between `follow` and the end of `collect` would land on cells the frame is placing.

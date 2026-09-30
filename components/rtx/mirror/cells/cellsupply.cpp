@@ -52,6 +52,7 @@ namespace Rtx
         mDone.clear();
         mReturned.clear();
         mReturning.clear();
+        mMeasured = ReaderMemory{};
         mReader.reset();
 
         mWorld = world;
@@ -102,6 +103,13 @@ namespace Rtx
         mMonitor.give([&] { mReturned.take(mReturning); });
     }
 
+    ReaderMemory CellSupply::getReaderMemory()
+    {
+        mOnFrame.check();
+
+        return mMonitor.under([&] { return mMeasured; });
+    }
+
     void CellSupply::recycle()
     {
         for (PreparedCell* cell : mReturned.mCells)
@@ -148,8 +156,12 @@ namespace Rtx
 
             const Crash::NoteScope noted("reading the cell {}, {}", cell.x(), cell.y());
             PreparedCell& made = mReader->read(cell, mReading.mStatics);
+            const ReaderMemory measured = mReader->measure();
 
-            mMonitor.hand([&] { mDone.push_back(&made); });
+            mMonitor.hand([&] {
+                mDone.push_back(&made);
+                mMeasured = measured;
+            });
         }
     }
 }

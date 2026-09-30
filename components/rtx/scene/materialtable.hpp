@@ -64,13 +64,19 @@ namespace Rtx
         /// backend was not told would be read stale for its life.
         std::uint64_t getRunRevision() const { return mRunRevision; }
 
-        /// Frees every slot the last `mark` did not name, and says how many that was. What a freed
-        /// row named goes back to `textures`.
-        std::size_t sweep(TextureTable& textures);
-
         void clearArrivals();
 
     private:
+        /// What `SceneDesc::holdMaterial` and `SceneDesc::drop` stand on, so every hold on a
+        /// material is taken and given back in one place.
+        friend class SceneDesc;
+
+        void hold(Index material) { mRows.hold(material); }
+
+        /// Gives one hold on `material` back, and frees it where that was the last: what it named
+        /// goes back to `textures`, and its layer and mask runs to their allocators.
+        void drop(TextureTable& textures, Index material);
+
         /// Records that `slot`'s row was written, once however many times it is.
         void note(Index slot);
 

@@ -89,8 +89,6 @@ namespace Rtx
         // animates may: the slots for the old one go back and the new one's are taken. Unnamed
         // in between, or `retire` would give a slot back twice for a system that lost its sprite.
         releaseSprite(held);
-        held.mIndex = sNoIndex;
-        held.mLighting = sNoIndex;
         held.mSprite = sprite;
         held.mWrap = use.mWrap;
         held.mMean = nullptr;
@@ -109,8 +107,8 @@ namespace Rtx
         // away every frame, so this entry is the only lasting thing that says the sprite is in
         // use; the scene frees the slots when the sweep lets go of them.
         const VFS::Path::Normalized path(held.mSprite->getFileName());
-        held.mIndex = mScene.textures().take(path, *held.mSprite, held.mWrap);
-        if (held.mIndex == sNoIndex)
+        held.mSlot = mScene.takeTexture(path, *held.mSprite, held.mWrap);
+        if (held.mSlot.empty())
         {
             held.mRefused.refuse(sSpriteTake, freed);
             mScene.refusals().refuse(
@@ -121,14 +119,13 @@ namespace Rtx
         // The bake is keyed on the file, so two emitters drawing with one texture share one
         // bake, and it is made when the texture is opened for upload — `SceneTextures`. Only
         // where the sprite stands, because the bake is of its alpha.
-        held.mLighting = mScene.textures().addBaked(SpriteLightMap::keyFor(path));
-        mScene.textures().hold(held.mLighting);
+        held.mLighting = mScene.holdTexture(mScene.textures().addBaked(SpriteLightMap::keyFor(path)));
     }
 
-    void EmitterResolver::releaseSprite(const HeldSprite& held)
+    void EmitterResolver::releaseSprite(HeldSprite& held)
     {
-        mScene.textures().drop(held.mIndex);
-        mScene.textures().drop(held.mLighting);
+        mScene.drop(std::move(held.mSlot));
+        mScene.drop(std::move(held.mLighting));
     }
 
     void EmitterResolver::add(const osgParticle::ParticleSystem& particles, std::span<const Shading> shading,
@@ -145,13 +142,13 @@ namespace Rtx
         // the chain is built, so no reader walks the links for it.
         if (arrived || animatedThrough(shading))
             describeSprite(particles, held, shading);
-        else if (held.mSprite != nullptr && held.mIndex == sNoIndex)
+        else if (held.mSprite != nullptr && held.mSlot.empty())
             takeSprite(particles, held);
 
         // No image, or an image the texture table had no room for: a slot the shader reads the
         // sprite out of is what an emitter is drawn with, and it has none. `describeSprite` said
         // which.
-        if (held.mSprite == nullptr || held.mIndex == sNoIndex)
+        if (held.mSprite == nullptr || held.mSlot.empty())
             return;
 
         // Noted now and read when the walk is over. Whether this system has been integrated
@@ -296,8 +293,8 @@ namespace Rtx
         if (mSpriteScratch.empty())
             return;
 
-        mScene.addEmitter(
-            mSpriteScratch, held.mIndex, held.mBlend != BlendKind::Over, width, held.mLighting, pending.mFalls);
+        mScene.addEmitter(mSpriteScratch, held.mSlot.get(), held.mBlend != BlendKind::Over, width, held.mLighting.get(),
+            pending.mFalls);
 
         ++stats.mEmitters;
         stats.mSprites += static_cast<std::uint32_t>(mSpriteScratch.size());
@@ -322,6 +319,11 @@ namespace Rtx
         // The sprite's own references go back with the emitter that took them, which is what makes
         // an emitter leaving enough to free its textures — a frame where no mesh and no material
         // died is exactly the frame the mirror's sweep returns from without looking.
-        mHeld.retire([this](const HeldSprite& held) { releaseSprite(held); });
+        mHeld.retire([this](HeldSprite& held) { releaseSprite(held); });
+    }
+
+    EmitterResolver::~EmitterResolver()
+    {
+        mHeld.clear([this](HeldSprite& held) { releaseSprite(held); });
     }
 }

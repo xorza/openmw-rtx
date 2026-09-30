@@ -15,6 +15,7 @@
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/heldsubmit.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
@@ -124,6 +125,10 @@ namespace Rtx
                 MeshArrays{ .mPositions = Testing::sUnitQuad, .mNormals = upward, .mIndices = Testing::sQuadIndices },
                 {}, twoBones);
             const Index blended = onTwoBones.mMesh;
+
+            // Held as a walk's identity holds it, so letting go of it below is what frees it.
+            Testing::SceneHolds holds(scene);
+            holds.mesh(blended);
             const Index turned = scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad,
                                                    .mNormals = sideways,
                                                    .mTangents = alongX,
@@ -314,8 +319,8 @@ namespace Rtx
             const MeshRange went = scene.meshes().getRows()[blended];
             const Deformer wentRig = scene.deformers().getDeformers()[onTwoBones.mDeformer];
             scene.clearArrivals();
-            const std::array kept{ raised, still, turned, lifted };
-            ASSERT_TRUE(scene.release(kept, {}));
+            holds.dropMesh(blended);
+            ASSERT_FALSE(scene.meshes().isLive(blended));
 
             const std::array halfAndHalf{
                 Shaders::GpuInfluence{ .mBone = 0, .mWeight = 1.0f },

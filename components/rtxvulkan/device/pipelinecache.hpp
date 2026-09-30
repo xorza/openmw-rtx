@@ -80,7 +80,8 @@ namespace Rtx
         void sweep() const;
 
         VkDevice mDevice = VK_NULL_HANDLE;
-        Owned<VkPipelineCache, vkDestroyPipelineCache> mHandle;
+        /// Immediate, because the device takes its graveyard apart first.
+        Immediate<VkPipelineCache, vkDestroyPipelineCache> mHandle;
         std::filesystem::path mPath;
 
         /// What was loaded, kept so that a run which compiled nothing new rewrites nothing.

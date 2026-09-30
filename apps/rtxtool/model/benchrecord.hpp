@@ -15,6 +15,7 @@
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
@@ -189,6 +190,9 @@ namespace RtxTool
         /// the allocators reserve is a high-water mark, so the figure belongs to the place the run
         /// had reached when it was taken.
         Rtx::MemoryReport mMemory;
+
+        /// What the content held on the host at the same moment, for the same reason.
+        Rtx::ContentMemory mContent;
     };
 
     /// What every place of a run stood under, for the record's own header.
