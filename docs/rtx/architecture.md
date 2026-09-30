@@ -248,6 +248,17 @@ at the top, over all of them.
   read one surface history, the accumulator's. Every history is matched from the eye it was measured
   from: the motion vector carries how much farther the surface stood from the previous eye.
 
+  **The denoised frame is not bit-exact on every card, and that is the card's.** On the RTX 4090
+  Laptop (driver 615.71), the first wavelet dispatch after a pipeline drain sometimes computes the
+  last bit of its weights differently from the same dispatch run again on the same input bits and
+  push constants: one half-float step at a few texels, one level of 255 in the picture. It occurs
+  only while the queue keeps the card busy with no idle gap between frames, in stretches where
+  every drain takes about a microsecond longer. The colour history carries a difference into the
+  frames after it. Everything before the wavelet — every channel the trace writes, and the scene —
+  stays exact. The harness holds each part to what it promises: `FrameHashes` reports a difference
+  in the composed frame of a denoised run beside the verdict, and `shot` holds a denoised picture
+  to within `sDenoiserNoiseLevels`. The evidence is in `.notes/denoiser-nondeterminism.md`.
+
 **The shaders** (`shaders/`, in the folders of the passes that dispatch them, shared pieces in
 `shaders/lib/`). One ray generation shader traces
 one ray per pixel and composes the path. Closest-hit shaders are picked by the shader table per

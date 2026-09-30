@@ -142,6 +142,52 @@ namespace RtxTool
             EXPECT_FALSE(blurredDifference(Rtx::PngImage{}, reference, sNoiseBiasBlur).has_value());
         }
 
+        /// **Each rule on the four differences that tell them apart**: none, one level on one pixel
+        /// (`sDenoiserNoiseLevels`, the card's under the wavelet), two levels (one past it), and no
+        /// reference. Exact takes only the first; Denoised takes the one level as well; Hashed is
+        /// measured and never judged, whatever the picture did.
+        TEST(RtxCompareTest, eachPictureIsHeldToItsOwnRule)
+        {
+            const Rtx::PngImage before = flat(4, 4, 100);
+            Rtx::PngImage oneLevel = before;
+            channelAt(oneLevel, 1, 2, 0) = 101;
+            Rtx::PngImage twoLevels = before;
+            channelAt(twoLevels, 1, 2, 0) = 102;
+
+            const FrameDifference none = compareFrames(before, before);
+            const FrameDifference one = compareFrames(before, oneLevel);
+            const FrameDifference two = compareFrames(before, twoLevels);
+            const FrameDifference missing = compareFrames(before, Rtx::PngImage{});
+            ASSERT_EQ(one.mWorst, sDenoiserNoiseLevels);
+            ASSERT_EQ(two.mWorst, sDenoiserNoiseLevels + 1);
+
+            struct Case
+            {
+                PictureRule mRule;
+                PictureVerdict mNone;
+                PictureVerdict mOne;
+                PictureVerdict mTwo;
+                PictureVerdict mMissing;
+            };
+            constexpr Case sCases[] = {
+                { PictureRule::Exact, PictureVerdict::Same, PictureVerdict::Moved, PictureVerdict::Moved,
+                    PictureVerdict::NoReference },
+                { PictureRule::Denoised, PictureVerdict::Same, PictureVerdict::WithinDenoiserNoise,
+                    PictureVerdict::Moved, PictureVerdict::NoReference },
+                { PictureRule::Hashed, PictureVerdict::Measured, PictureVerdict::Measured, PictureVerdict::Measured,
+                    PictureVerdict::Measured },
+            };
+
+            for (const Case& expected : sCases)
+            {
+                SCOPED_TRACE(static_cast<int>(expected.mRule));
+                EXPECT_EQ(judgePicture(none, expected.mRule), expected.mNone);
+                EXPECT_EQ(judgePicture(one, expected.mRule), expected.mOne);
+                EXPECT_EQ(judgePicture(two, expected.mRule), expected.mTwo);
+                EXPECT_EQ(judgePicture(missing, expected.mRule), expected.mMissing);
+            }
+        }
+
         /// Two sizes are not a delta, and neither is a reference that was never written.
         TEST(RtxCompareTest, nothingToSubtractIsSaidRatherThanCountedAsZero)
         {

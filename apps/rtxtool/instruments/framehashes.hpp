@@ -53,6 +53,11 @@ namespace RtxTool
     /// places; a column per part, because "the layout moved" names no table. A hash and not a
     /// picture, because six hundred frames is a few hundred megabytes; a frame it names is then
     /// rendered on its own for a look.
+    ///
+    /// **The composed frame of a denoised run is not to the bit either**, and not because of the
+    /// tree: the card's own arithmetic under the wavelet is not (`docs/rtx/architecture.md`, the
+    /// denoiser). Every other column of such a run is, so a difference there alone is reported
+    /// beside the verdict, and `shot` holds the picture it wrote to within a level.
     class FrameHashes
     {
     public:
@@ -108,15 +113,21 @@ namespace RtxTool
             /// Frames whose picture differs past an upscaler, in order. Reported and never a verdict.
             std::vector<std::uint32_t> mReconstructedDiffering;
 
+            /// Frames of two denoised runs where the composed frame or the picture differs and no
+            /// other column does, in order: what the card's arithmetic under the wavelet leaves.
+            /// Reported and never a verdict.
+            std::vector<std::uint32_t> mDenoisedDiffering;
+
             /// Frames where any part of the scene differs, in order.
             std::vector<std::uint32_t> mSceneDiffering;
 
             /// How many frames each part differs on, indexed by `ScenePart`.
             std::array<std::uint32_t, static_cast<std::size_t>(ScenePart::Count)> mPartsDiffering{};
 
-            /// Frames the two runs reconstructed differently — one upscaled and the other not, or
-            /// at another quality — which is two configurations and not one run twice.
-            std::uint32_t mUpscaledDiffering = 0;
+            /// Frames the two runs reconstructed differently — one upscaled and the other not, at
+            /// another quality, or one denoised and the other not — which is two configurations
+            /// and not one run twice.
+            std::uint32_t mConfigurationDiffering = 0;
 
             /// Frames this run drew that the reference has no hash for, and the other way about.
             std::uint32_t mUnmatched = 0;
@@ -129,7 +140,7 @@ namespace RtxTool
             bool same() const
             {
                 return mTraceDiffering.empty() && mDiffering.empty() && mSceneDiffering.empty()
-                    && mUpscaledDiffering == 0 && mUnmatched == 0;
+                    && mConfigurationDiffering == 0 && mUnmatched == 0;
             }
         };
 
@@ -152,6 +163,7 @@ namespace RtxTool
 
             /// What reconstructed the picture, so a comparison knows whose it is.
             Rtx::Upscale mUpscale = Rtx::Upscale::Off;
+            bool mDenoised = false;
 
             Rtx::DigestWords mHash{};
             std::array<Rtx::DigestWords, sTracedColumns> mTraced{};

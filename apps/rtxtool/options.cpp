@@ -390,7 +390,10 @@ namespace RtxTool
             "picture is the verdict only where nothing upscaled it, because an upscaler keeps "
             "a history and the smallest difference handed to it on one frame stays in its picture "
             "for the rest of the run, so that picture is reported beside the verdict and never as "
-            "one");
+            "one. Under the filter the composed frame is the wavelet's, whose last bit is the "
+            "card's and not the tree's (`docs/rtx/architecture.md`): a difference there alone is "
+            "reported beside the verdict, and `shot` holds that picture to within one level of "
+            "255, as it holds every doll and map tile, which are denoised whatever the filter");
 
         option(Verbs::Bench, "hashes", bpo::value<std::string>()->default_value(""),
             "write one row a frame to this file — the picture, every image the trace wrote, what "

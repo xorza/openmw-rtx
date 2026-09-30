@@ -25,9 +25,14 @@ namespace RtxTool
         /// How many differing frames a report names before it stops counting them out.
         constexpr std::size_t sNamed = 6;
 
-        /// The columns before the digests: the view, the frame, what reconstructed the picture,
-        /// and the picture.
-        constexpr std::size_t sNamedColumns = 4;
+        /// The columns before the digests: the view, the frame, what upscaled the picture,
+        /// whether the denoiser composed it, and the picture.
+        constexpr std::size_t sNamedColumns = 5;
+
+        constexpr std::string_view spellDenoised(const bool denoised)
+        {
+            return denoised ? "on" : "off";
+        }
 
         constexpr std::size_t sColumns = sNamedColumns + sTracedColumns + static_cast<std::size_t>(ScenePart::Count);
 
@@ -37,7 +42,7 @@ namespace RtxTool
             // The format's own number first, stepped where the columns keep their names and a
             // value changes its meaning — a digest hashed another way — so a file an older build
             // wrote is refused rather than compared.
-            std::string header = "hashes 4: view,frame,upscale,picture";
+            std::string header = "hashes 5: view,frame,upscale,denoise,picture";
             for (std::size_t column = 0; column < sTracedColumns; ++column)
                 header += ',' + std::string(tracedName(column));
             for (const auto& [part, name] : sSceneParts.mNames)
@@ -81,6 +86,31 @@ namespace RtxTool
                 named += std::format("{}{} {}", at > 0 ? ", " : "", nameOf(moved[at]), counts[moved[at]]);
 
             return named;
+        }
+
+        std::string joinClauses(const std::vector<std::string>& clauses)
+        {
+            std::string report;
+            for (std::size_t at = 0; at < clauses.size(); ++at)
+                report += (at > 0 ? "; " : "") + clauses[at];
+
+            return report;
+        }
+
+        /// What differed and is not a verdict, a clause each.
+        void describeUnjudged(const FrameHashes::ViewDifference& difference, std::vector<std::string>& clauses)
+        {
+            if (!difference.mReconstructedDiffering.empty())
+                clauses.push_back(
+                    std::format("the reconstructed picture differs on {} frames, which is the upscaler's and "
+                                "not a verdict",
+                        difference.mReconstructedDiffering.size()));
+
+            if (!difference.mDenoisedDiffering.empty())
+                clauses.push_back(
+                    std::format("the composed frame differs on {} frames where nothing else did, which is the "
+                                "card's arithmetic under the wavelet and not a verdict",
+                        difference.mDenoisedDiffering.size()));
         }
 
         std::string_view partName(const std::size_t part)
@@ -127,6 +157,7 @@ namespace RtxTool
         row->mTraced[sReconstructionColumn] = digestHanded(*finished.mDigest);
 
         row->mUpscale = finished.mReconstruction.mUpscale;
+        row->mDenoised = finished.mReconstruction.mDenoised;
         row->mPictured = true;
 
         return Pictured{ .mView = row->mView, .mFrame = row->mFrame };
@@ -148,7 +179,7 @@ namespace RtxTool
         for (const Frame& held : mFrames)
         {
             out << held.mView << ',' << held.mFrame << ',' << Rtx::sUpscaleNames.name(held.mUpscale) << ','
-                << spellHash(held.mHash);
+                << spellDenoised(held.mDenoised) << ',' << spellHash(held.mHash);
             for (const Rtx::DigestWords& column : held.mTraced)
                 out << ',' << spellHash(column);
             for (const Rtx::DigestWords& part : held.mParts)
@@ -228,7 +259,11 @@ namespace RtxTool
                 throw fail(line);
             frame.mUpscale = *upscale;
 
-            if (!readHash(fields[3], frame.mHash))
+            if (fields[3] != spellDenoised(true) && fields[3] != spellDenoised(false))
+                throw fail(line);
+            frame.mDenoised = fields[3] == spellDenoised(true);
+
+            if (!readHash(fields[4], frame.mHash))
                 throw fail(line);
             frame.mPictured = true;
 
@@ -336,32 +371,47 @@ namespace RtxTool
                 continue;
             }
 
-            if (found->mUpscale != held.mUpscale)
-                ++difference.mUpscaledDiffering;
+            if (found->mUpscale != held.mUpscale || found->mDenoised != held.mDenoised)
+                ++difference.mConfigurationDiffering;
+
+            // **The composed frame of two denoised runs is the wavelet's, and the card's arithmetic
+            // under it is not to the bit** (`docs/rtx/architecture.md`). A difference there where
+            // every other column agrees is that arithmetic; where another column moved too, the
+            // composed frame is only following it and is named with the trace.
+            const bool denoised = found->mDenoised && held.mDenoised;
+            const std::size_t composed = Rtx::bindingOf(Rtx::Channel::Direct);
 
             bool anyTraced = false;
             for (std::size_t column = 0; column < sTracedColumns; ++column)
             {
-                if (found->mTraced[column] == held.mTraced[column])
+                if (found->mTraced[column] == held.mTraced[column] || (denoised && column == composed))
                     continue;
 
                 ++difference.mTracedDiffering[column];
                 anyTraced = true;
             }
 
+            const bool composedMoved = found->mTraced[composed] != held.mTraced[composed];
             if (anyTraced)
+            {
                 difference.mTraceDiffering.push_back(held.mFrame);
+                if (denoised && composedMoved)
+                    ++difference.mTracedDiffering[composed];
+            }
 
             // **Whose picture it is decides which list it goes on.** Where either run put an upscaler
             // between the trace and the picture, the picture is the upscaler's, and two runs of
-            // one build are allowed to disagree about it.
-            if (found->mHash != held.mHash)
-            {
-                if (!Rtx::upscales(found->mUpscale) && !Rtx::upscales(held.mUpscale))
-                    difference.mDiffering.push_back(held.mFrame);
-                else
-                    difference.mReconstructedDiffering.push_back(held.mFrame);
-            }
+            // one build are allowed to disagree about it. Where both were denoised, it is the
+            // composed frame's.
+            const bool pictureMoved = found->mHash != held.mHash;
+            const bool upscaled = Rtx::upscales(found->mUpscale) || Rtx::upscales(held.mUpscale);
+            if (pictureMoved && upscaled)
+                difference.mReconstructedDiffering.push_back(held.mFrame);
+            else if (pictureMoved && !denoised)
+                difference.mDiffering.push_back(held.mFrame);
+
+            if (denoised && !anyTraced && (composedMoved || (pictureMoved && !upscaled)))
+                difference.mDenoisedDiffering.push_back(held.mFrame);
 
             bool anyPart = false;
             for (std::size_t part = 0; part < held.mParts.size(); ++part)
@@ -396,18 +446,17 @@ namespace RtxTool
         // **The scene is asked here too, though it does not fail the run.** Reporting only the
         // picture is what let a run be called identical while the description behind it moved on
         // every frame, which is the fault these columns were added for.
+        std::vector<std::string> clauses;
         if (difference.same())
         {
-            if (difference.mReconstructedDiffering.empty())
+            describeUnjudged(difference, clauses);
+            if (clauses.empty())
                 return std::format("{} frames, every one of them the same", difference.mFrames);
 
-            return std::format(
-                "{} frames, the trace and the scene the same on every one; the reconstructed picture "
-                "differs on {}, which is the upscaler's and not a verdict",
-                difference.mFrames, difference.mReconstructedDiffering.size());
+            clauses.insert(clauses.begin(),
+                std::format("{} frames, the trace and the scene the same on every one", difference.mFrames));
+            return joinClauses(clauses);
         }
-
-        std::vector<std::string> clauses;
 
         // **The trace first, because it is the verdict.** A picture that differs where the trace
         // differs is the same finding twice; one that differs where the trace did not is the
@@ -421,11 +470,7 @@ namespace RtxTool
             clauses.push_back(std::format("the picture differs on {} of {} frames, at {}", difference.mDiffering.size(),
                 difference.mFrames, nameFrames(difference.mDiffering)));
 
-        if (!difference.mReconstructedDiffering.empty())
-            clauses.push_back(
-                std::format("the reconstructed picture differs on {} frames, which is the upscaler's and "
-                            "not a verdict",
-                    difference.mReconstructedDiffering.size()));
+        describeUnjudged(difference, clauses);
 
         // **Which of the two moved, which is what says where to look next.** A trace that differs
         // where the scene differs is a world handed over twice, and belongs to whatever staged it.
@@ -451,17 +496,13 @@ namespace RtxTool
         else if (!difference.mTraceDiffering.empty() || !difference.mDiffering.empty())
             clauses.push_back("the scene was the same on every frame");
 
-        if (difference.mUpscaledDiffering > 0)
+        if (difference.mConfigurationDiffering > 0)
             clauses.push_back(
-                std::format("the two runs reconstructed {} frames differently", difference.mUpscaledDiffering));
+                std::format("the two runs reconstructed {} frames differently", difference.mConfigurationDiffering));
 
         if (difference.mUnmatched > 0)
             clauses.push_back(std::format("{} frames the two runs do not share", difference.mUnmatched));
 
-        std::string report;
-        for (std::size_t at = 0; at < clauses.size(); ++at)
-            report += (at > 0 ? "; " : "") + clauses[at];
-
-        return report;
+        return joinClauses(clauses);
     }
 }
