@@ -32,9 +32,9 @@ void countNotFinite(uint boundary, vec4 value)
 /// Stores `value` into `target` at `at`, counted at `boundary` first: the one way a boundary is
 /// written, so a channel added beside the others cannot cross it uncounted.
 ///
-/// **A macro because an image with a format is a type of its own in SPIR-V**, and the channels
-/// are five formats and two dimensions: a function would take one of them. Substituted textually, so `value` is taken
-/// once into a local and `target` may name any image.
+/// **A macro because an image with a format is a type of its own in SPIR-V**, and the channels are
+/// five formats and two dimensions: a function would take one of them. Substituted textually, so
+/// `value` is taken once into a local and `target` may name any image.
 #define RTX_STORE_COUNTED(target, at, boundary, value)                                                                 \
     {                                                                                                                  \
         const vec4 crossing = (value);                                                                                 \

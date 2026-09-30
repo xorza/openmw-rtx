@@ -998,12 +998,10 @@ namespace RtxTool
             // The frame's own stop, flying in where the line asks: a route that holds the world, so
             // the frame flies through the world the reference stands in (`applyPolicy`).
             const auto frame = [&](const Stop& place) {
+                Stop stop = picture(place, "", flies ? sNoiseFlightFrames : 1, false, std::nullopt, held, std::nullopt);
+                stop.mSchedule.mSpec.mWarm = warm;
                 if (!flies)
-                {
-                    Stop stop = picture(place, "", 1, false, std::nullopt, held, std::nullopt);
-                    stop.mSchedule.mSpec.mWarm = warm;
                     return stop;
-                }
 
                 if (!place.mStand.mEye.has_value())
                     throw std::runtime_error(std::format(
@@ -1015,8 +1013,6 @@ namespace RtxTool
                     throw std::runtime_error(
                         std::format("--walk={} starts past the point {} faces", walk, place.mName));
 
-                Stop stop = picture(place, "", sNoiseFlightFrames, false, std::nullopt, held, std::nullopt);
-                stop.mSchedule.mSpec.mWarm = warm;
                 Approach approach
                     = stop.mStand.approachFrom(strafe, walk, worldStep(framed.mSetup), sNoiseFlightFrames);
                 stop.mStand = std::move(approach.mFrom);

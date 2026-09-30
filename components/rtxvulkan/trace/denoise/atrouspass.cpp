@@ -17,10 +17,10 @@ namespace Rtx
     namespace
     {
         /// The channel coming in with its variance, which says where the edges in the light are,
-        /// the channel going out, and the one that says where the edges in the surface are and which
-        /// eye each pixel's ray left. All pushed. Sampled on the two this pass only reads, because a twenty-five tap
-        /// gather wants the texture unit's cache — a few per cent of the cascade — and legal from
-        /// `VK_IMAGE_LAYOUT_GENERAL`.
+        /// the channel going out, and the one that says where the edges in the surface are and
+        /// which eye each pixel's ray left. All pushed. Sampled on the two this pass only reads,
+        /// because a twenty-five tap gather wants the texture unit's cache — a few per cent of the
+        /// cascade — and legal from `VK_IMAGE_LAYOUT_GENERAL`.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ATROUS_BINDINGS> sBindings{
             computeBinding(Shaders::ATROUS_BIND_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_FILTERED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),

@@ -29,8 +29,8 @@ const float MIN_FACING = 0.03;
 /// A shading normal turned back toward `fallback` until it faces the ray that found it at
 /// `MIN_FACING`, where it faced that ray less: Schüssler et al.'s problem, answered the cheap way.
 /// A normal a wave or a normal map leans past the ray has no light to give back along it, and the
-/// self-occlusion that would have hidden it is what a tilt stands in for. One statement for the water and for a
-/// mapped solid, so the two cannot come to answer it differently.
+/// self-occlusion that would have hidden it is what a tilt stands in for. One statement for the
+/// water and for a mapped solid, so the two cannot come to answer it differently.
 ///
 /// @param fallback the normal that faces the ray, or faces it more — the water's plane, a solid's
 ///        interpolated normal. Where it does not face it either, the blend stops at it.

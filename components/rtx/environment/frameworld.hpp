@@ -140,9 +140,10 @@ namespace Rtx
     /// clock and the glare fader. The camera's half is the builders' (`makeCameraFromView`) and is
     /// left alone, and so is every option the world does not decide. The order is the whole of what
     /// this is for: the stars before the sky's budget, the budget before the air, and both before
-    /// the deck. One call and not twenty assignments at the reader, so the order is stated where the
-    /// fields are and a field added is placed by it. `drift` is stepped here by this reading's clock and wind, because
-    /// the heading it blows along is the deck's, which is settled here and nowhere else.
+    /// the deck. One call and not twenty assignments at the reader, so the order is stated where
+    /// the fields are and a field added is placed by it. `drift` is stepped here by this reading's
+    /// clock and wind, because the heading it blows along is the deck's, which is settled here and
+    /// nowhere else.
     void describeWorld(
         const WorldReading& reading, FogDrift& drift, Shaders::VisibilityConstants& constants, FrameOptions& options);
 }

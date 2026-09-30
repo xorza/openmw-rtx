@@ -25,8 +25,8 @@ namespace MWRender
         std::string_view mSpecularMapLayout;
         int mAnisotropy = 0;
 
-        /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging and `[General] anisotropy`: the one
-        /// place the game reads these settings.
+        /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging and `[General] anisotropy`:
+        /// the one place the game reads these settings.
         static RtxSettingValues fromRegistry();
     };
 

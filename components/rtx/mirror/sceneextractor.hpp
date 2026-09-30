@@ -276,11 +276,10 @@ namespace Rtx
         /// lamps once they are.
         std::size_t openGlow();
 
-        /// Resolves one drawable and places it.
-        /// `place` is handed over rather than worked out from `path`, because
-        /// `osg::computeLocalToWorld` rebuilds the whole chain from the root for every drawable. A
-        /// drawable and not an `osg::Geometry`, because a skinned body is an `osg::Drawable` over
-        /// a source geometry — the bind pose — beside the rig that poses it.
+        /// Resolves one drawable and places it. `place` is handed over rather than worked out from
+        /// `path`, because `osg::computeLocalToWorld` rebuilds the whole chain from the root for
+        /// every drawable. A drawable and not an `osg::Geometry`, because a skinned body is an
+        /// `osg::Drawable` over a source geometry — the bind pose — beside the rig that poses it.
         ///
         /// @param glow the effect the drawable stands under, where the walk is inside one.
         void addDrawable(const osg::Drawable& drawable, std::size_t who, std::span<const Shading> shading,

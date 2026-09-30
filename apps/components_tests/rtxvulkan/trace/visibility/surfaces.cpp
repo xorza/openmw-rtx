@@ -333,10 +333,10 @@ namespace Rtx::Testing
             EXPECT_TRUE(wearsBlue(centre)) << "the description landed at its position rather than its slot";
         }
 
-        /// **A placement with no material keeps wearing none when a material arrives.** The
-        /// untextured row stood one past the materials, so an arrival took that row over and every
-        /// placement still naming it wore the arrival — a plausible picture of the wrong surface.
-        /// It stands first now, and a material appended lands past it.
+        /// **A placement with no material keeps wearing none when a material arrives.** An
+        /// untextured row past the materials is the row an arrival takes over, and every placement
+        /// still naming it would wear the arrival — a plausible picture of the wrong surface. It
+        /// stands first, `Shaders::MATERIAL_ROW_UNTEXTURED`, so a material appended lands past it.
         TEST_F(RtxVisibilityTest, anUntexturedPlacementWearsNothingAfterAMaterialArrives)
         {
             constexpr std::uint32_t size = 32;

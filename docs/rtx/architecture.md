@@ -15,8 +15,8 @@ primary visibility, shadows, direct and indirect light, sky, water and fog are r
 rasterizer's picture is upstream's but for three corrections the ray tracer needed, each where
 upstream's was wrong: the optimizer merges in child order, an exterior map tile keeps its land
 where the quad tree has not built the chunk yet, and a `NightDaySwitch` shows its mode's child from
-its first frame. Both renderers stand behind one interface, one binary ships both,
-and the one not chosen never starts.
+its first frame. Both renderers stand behind one interface, one binary ships both, and the one not
+chosen never starts.
 
 The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vulkan with ray
 tracing pipelines and ray queries. The denoiser is the renderer's own, in three parts: a temporal

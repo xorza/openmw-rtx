@@ -181,8 +181,7 @@ namespace Rtx
             static_assert(sTextureEncodingCount * sTextureWrapCount <= 16, "a refusal bit per slot");
 
             /// Its mean texel in the thread's cache, `MeanTexels`, or null until an additive
-            /// material asks. Null too for an image that is not a file, whose mean the cache
-            /// keeps no place for.
+            /// material asks.
             const MeanTexel* mMean = nullptr;
         };
 

@@ -169,10 +169,10 @@ foreach (directory "${RTX_SPIRV_DIR}" "${RTX_SPIRV_SOURCE_DIR}")
     endforeach()
 endforeach()
 
-# What the shaders of every folder are made of. Included rather than compiled — each shader has its own entry
-# point and these have none, and glslc's depfile is what makes editing one rebuild every shader that
-# reads it. Named here so an IDE lists them beside the shaders they belong to, which is the only
-# thing the build wants them for.
+# What the shaders of every folder are made of. Included rather than compiled — each shader has its
+# own entry point and these have none, and glslc's depfile is what makes editing one rebuild every
+# shader that reads it. Named here so an IDE lists them beside the shaders they belong to, which is
+# the only thing the build wants them for.
 set(RTX_SHADER_LIB
     shaders/lib/basis.glsl
     shaders/lib/bindings.glsl

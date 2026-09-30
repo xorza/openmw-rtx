@@ -38,8 +38,7 @@ and replaces the whole image: primary visibility, shadows, direct and indirect l
 and fog are ray traced on the GPU. The rasterizer draws upstream's picture but for three
 corrections upstream needed as well: the optimizer merges in child order, an exterior map tile
 keeps its land before the quad tree builds its chunk, and a day-night switch shows its mode's child
-from the first frame. One binary ships both
-renderers, and the one not chosen never starts.
+from the first frame. One binary ships both renderers, and the one not chosen never starts.
 
 Vanilla content is read as it is. Morrowind's textures are pre-lit, so the renderer estimates
 the painted light and divides it out to recover materials the new light transport can use.
