@@ -353,6 +353,37 @@ namespace Rtx::Testing
                                                                << " from above, " << below[channel] << " from below";
         }
 
+        /// **The water ends at its plane, whether or not a surface stands there.** An eye fifty units
+        /// under the plane, with no water mesh anywhere, looks straight up at the sun: its ray rises
+        /// through the plane, meets nothing, and escapes with the far plane for its distance. The
+        /// column in front of it is the fifty units under the plane, so the pixel is the same under a
+        /// far plane of ten thousand units and of a hundred thousand; marched to the far plane, the
+        /// column scattered the sun's shaft over the whole of it, ten times as far under the second.
+        /// A bed a thousand units down keeps the scene from being empty, out of the eye's view.
+        TEST_F(RtxVisibilityTest, anEyeUnderThePlaneSeesWaterOnlyAsFarAsThePlane)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            SceneDesc scene;
+            addQuad(scene, sheetAt(400.0f, -1000.0f));
+
+            const auto look = [&](float far) {
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -0.05f, -50.0f), osg::Vec3f(0.0f, 0.0f, 50.0f), 60.0f, size, size, far);
+                litThroughWater(camera);
+
+                const Frame frame = shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
+                return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
+            };
+
+            const std::array<int, 3> near = look(10000.0f);
+            const std::array<int, 3> farther = look(100000.0f);
+
+            EXPECT_GT(near[1], 0) << "the fifty units of water scatter the sun toward the eye";
+            EXPECT_EQ(near, farther) << "the column ran on past the plane to the far plane";
+        }
+
         /// **A submerged surface's sun shadow is cast along the refracted path**, as its light and
         /// its caustic come: the sun that reaches a bed bent at the surface, so what stands over the
         /// water shades the bed where the bent path leaves it. Cast straight along the sun's
@@ -779,9 +810,7 @@ namespace Rtx::Testing
         /// is, the caustic and the phase are the same in both frames and cancel in the ratio. The
         /// lid reaches three hundred thousand units, because a ray under the water that finds
         /// nothing is water to the far plane, and a march that ran on past the lid's end was lit
-        /// there by a sun the lid no longer hid. **And the water's surface as far**, because a
-        /// row looking up past its edge left the water under no surface, and marched on through
-        /// the air past the lid's edge, where the sun is asked from the point itself.
+        /// there by a sun the lid no longer hid.
         ///
         /// **What the tolerance holds.** A pixel's four steps are weighed by how much light each
         /// sends, and on a ray that runs level one of them carries nearly all of it, so a frame is
@@ -799,8 +828,8 @@ namespace Rtx::Testing
             const float edge = -0.5f * radius;
             const double hidden = (std::acos(0.5) - 0.5 * std::sqrt(0.75)) / osg::PI;
 
+            SceneDesc lidded = makeOpenWater(4000.0f);
             constexpr float wide = 300000.0f;
-            SceneDesc lidded = makeOpenWater(wide);
             const std::array<osg::Vec3f, 4> lid{ osg::Vec3f(-wide, -wide, over), osg::Vec3f(edge, -wide, over),
                 osg::Vec3f(edge, wide, over), osg::Vec3f(-wide, wide, over) };
             addQuad(lidded, lid);
@@ -823,7 +852,7 @@ namespace Rtx::Testing
                 return green;
             };
 
-            const std::vector<double> open = shafts(makeOpenWater(wide));
+            const std::vector<double> open = shafts(makeOpenWater(4000.0f));
             const std::vector<double> shaded = shafts(lidded);
 
             double kept = 0.0;
@@ -841,7 +870,7 @@ namespace Rtx::Testing
             // units up to it. Asked from where the light met the surface instead, the strip is
             // under that point and hides nothing. Only the rows below the horizon, whose own rays
             // run level or down and never meet the strip; what they keep is the sky's share alone.
-            SceneDesc sunken = makeOpenWater(wide);
+            SceneDesc sunken = makeOpenWater(4000.0f);
             constexpr float strip = 50.0f;
             const std::array<osg::Vec3f, 4> under{ osg::Vec3f(-strip, -wide, -over), osg::Vec3f(strip, -wide, -over),
                 osg::Vec3f(strip, wide, -over), osg::Vec3f(-strip, wide, -over) };
