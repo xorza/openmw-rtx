@@ -318,8 +318,9 @@ namespace Rtx
     {
         ReaderMemory measured;
         mModels.forEach([&](const PreparedModel& model, const bool spare) {
-            (spare ? measured.mSpareModels : measured.mLentModels) += 1;
-            (spare ? measured.mSpareBytes : measured.mLentBytes) += model.getRoomBytes();
+            const bool lent = model.mLent > 0;
+            (spare ? measured.mSpareModels : lent ? measured.mLentModels : measured.mFiledModels) += 1;
+            (spare ? measured.mSpareBytes : lent ? measured.mLentBytes : measured.mFiledBytes) += model.getRoomBytes();
         });
         return measured;
     }

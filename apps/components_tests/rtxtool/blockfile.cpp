@@ -163,8 +163,7 @@ namespace RtxTool
             EXPECT_EQ(refused([&] { file.point(fields[2]); }),
                 "places.cfg:4: pos \"1,2\" is not three numbers separated by commas");
             EXPECT_EQ(refused([&] { file.boolean(fields[3]); }), "places.cfg:5: settled \"yes\" is not true or false");
-            EXPECT_EQ(refused([&] { file.day(fields[4]); }),
-                "places.cfg:6: day \"-1\" is not a whole number of days from nought");
+            EXPECT_EQ(refused([&] { file.day(fields[4]); }), "places.cfg:6: day \"-1\" is before the first day");
             EXPECT_EQ(
                 refused([&] { file.positive(fields[5], "a speed"); }), "places.cfg:7: speed \"0\" is not a speed");
             EXPECT_EQ(file.hour(fields[6]), 6.5f);

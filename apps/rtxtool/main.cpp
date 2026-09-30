@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <charconv>
 #include <cmath>
 #include <cstddef>
@@ -268,6 +269,8 @@ namespace RtxTool
             framed.mWindow.mFieldOfView = variables["fov"].as<float>();
             framed.mWindow.mVerticalSync = watched ? Settings::video().mVsyncMode.get() : SDLUtil::VSyncMode::Disabled;
             framed.mDay = variables["day"].as<int>();
+            if (const std::optional<std::string_view> why = dayRefusal(framed.mDay))
+                throw std::runtime_error(std::format("--day={} {}", framed.mDay, *why));
 
             const auto spelled
                 = [&](const char* name) -> std::string_view { return variables[name].as<std::string>(); };
@@ -388,6 +391,28 @@ namespace RtxTool
         /// from.
         constexpr std::string_view sShotHashes = "hashes.csv";
 
+        /// `--warmup`, refused where it is less than nought: a negative warm-up warmed up over
+        /// nothing, and said nothing.
+        float warmupGiven(const bpo::variables_map& variables)
+        {
+            const float seconds = variables["warmup"].as<float>();
+            if (!(seconds >= 0.0f) || !std::isfinite(seconds))
+                throw std::runtime_error(std::format("--warmup is {}, which is no length", seconds));
+
+            return seconds;
+        }
+
+        /// `--seconds`, refused where it is not more than nought: such a run measured one frame,
+        /// and said nothing.
+        float secondsGiven(const bpo::variables_map& variables)
+        {
+            const float seconds = variables["seconds"].as<float>();
+            if (!(seconds > 0.0f) || !std::isfinite(seconds))
+                throw std::runtime_error(std::format("--seconds is {}, which is not more than nought", seconds));
+
+            return seconds;
+        }
+
         /// Runs `stop` for `frames`: warmed as the command line asks, then that many measured. Still
         /// where the command's row freezes the world (`VerbPolicy::mFreezes`), which `sessionFor`
         /// applies.
@@ -396,7 +421,7 @@ namespace RtxTool
         ///        than one is that command's to say.
         void measureFrames(Stop& stop, const bpo::variables_map& variables, const std::uint32_t frames = 1)
         {
-            stop.mSchedule.mSpec.mWarm = BenchSpan{ .mSeconds = variables["warmup"].as<float>() };
+            stop.mSchedule.mSpec.mWarm = BenchSpan{ .mSeconds = warmupGiven(variables) };
             stop.mSchedule.mSpec.mRun = BenchSpan{ .mFrames = frames };
         }
 
@@ -420,6 +445,7 @@ namespace RtxTool
                 stop.mSchedule.mTrack.reset();
 
             stop.mSchedule.mFrozen = policy.mFreezes && (!route.has_value() || held);
+            stop.mSchedule.mFreeCamera = policy.mPlayed;
             stop.mActions.mHash = stop.mActions.mHash || policy.mHashes;
         }
 
@@ -463,8 +489,8 @@ namespace RtxTool
             BenchSpec spec;
             spec.mRun = variables["frames"].as<std::uint32_t>() > 0
                 ? BenchSpan{ .mFrames = variables["frames"].as<std::uint32_t>() }
-                : BenchSpan{ .mSeconds = variables["seconds"].as<float>() };
-            spec.mWarm = BenchSpan{ .mSeconds = variables["warmup"].as<float>() };
+                : BenchSpan{ .mSeconds = secondsGiven(variables) };
+            spec.mWarm = BenchSpan{ .mSeconds = warmupGiven(variables) };
 
             return spec;
         }
@@ -808,7 +834,6 @@ namespace RtxTool
             // that many, which is how the window path gets exercised by something that cannot click.
             const std::uint32_t frames = variables["frames"].as<std::uint32_t>();
             staged.mSchedule.mSpec.mRun = BenchSpan{ .mFrames = frames > 0 ? frames : BenchSpan::sUntilClosed };
-            staged.mSchedule.mFreeCamera = true;
 
             std::vector<Stop> stops;
             stops.push_back(std::move(staged));
@@ -863,7 +888,7 @@ namespace RtxTool
 
                 // A route runs for as long as the line says, and ends where it arrives.
                 if (stop.mSchedule.mRoute.has_value())
-                    stop.mSchedule.mSpec.mRun = BenchSpan{ .mSeconds = variables["seconds"].as<float>() };
+                    stop.mSchedule.mSpec.mRun = BenchSpan{ .mSeconds = secondsGiven(variables) };
             }
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
@@ -886,10 +911,14 @@ namespace RtxTool
         /// converges over, upscaled as the run is — or, with `--strafe` or `--walk`, after it flew into the place
         /// from the side or from behind (`Stand::approachFrom`). The reference and the bar are traced with no upscaler,
         /// at the frame's own output size, so an upscaled frame is held to the picture it stands for and not to another
-        /// upscale of it. The bar's limit is the bar drawn `sNoiseMeanDraws` times as long, and the frame's mean is
-        /// `sNoiseMeanDraws` draws of the frame, each its own stop that warms up past every history first: what each
-        /// converges to, drawn its own way. Every picture but the reference holds the exposure the reference ended on,
-        /// so all are mapped by one curve and the scale is derived rather than stated.
+        /// upscale of it. The bar's limit is `sNoiseMeanDraws` draws of the bar, and the frame's mean `sNoiseMeanDraws`
+        /// draws of the frame, each its own stop over the same warm-up as the frame: what each converges to, drawn its
+        /// own way. **Both means are of the pictures as shown**, the bytes averaged, so each is the centre of what its
+        /// own pictures scatter around and the two spreads are measured alike; a mean of radiance mapped once is a
+        /// centre the curve moved, and a frame's distance from it holds that move as noise. **Every stop at a place
+        /// draws samples of its own** (`sNoiseSampleStride`), or the draws of a held world are one draw repeated. Every
+        /// picture but the reference holds the exposure the reference ended on, so all are mapped by one curve and the
+        /// scale is derived rather than stated.
         ///
         /// **Judged against the bar and not against a number**: a frame is as clean as the bar when it
         /// stands no further from its own mean than the bar from its limit, by the mean and at the 99th
@@ -951,11 +980,21 @@ namespace RtxTool
                 = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mProfile.mUpscale);
             const std::uint32_t barFrames = flies ? noiseBarFramesAfter(sNoiseFlightFrames, extents) : sNoiseBarFrames;
 
+            // One warm-up for the frame and every draw of its mean, so that a draw is the frame drawn
+            // again: the line's, and never shorter than every history converges over.
+            const BenchSpan warm{ .mFrames
+                = std::max(sNoiseMeanWarmup,
+                    BenchSpan{ .mSeconds = warmupGiven(variables) }.getFrames(framed.mSetup.getWorldStep())) };
+
             // The frame's own stop, flying in where the line asks: a route that holds the world, so
             // the frame flies through the world the reference stands in (`applyPolicy`).
             const auto frame = [&](const Stop& place) {
                 if (!flies)
-                    return picture(place, "", 1, false, std::nullopt, held, std::nullopt);
+                {
+                    Stop stop = picture(place, "", 1, false, std::nullopt, held, std::nullopt);
+                    stop.mSchedule.mSpec.mWarm = warm;
+                    return stop;
+                }
 
                 if (!place.mStand.mEye.has_value())
                     throw std::runtime_error(std::format(
@@ -968,6 +1007,7 @@ namespace RtxTool
                         std::format("--walk={} starts past the point {} faces", walk, place.mName));
 
                 Stop stop = picture(place, "", sNoiseFlightFrames, false, std::nullopt, held, std::nullopt);
+                stop.mSchedule.mSpec.mWarm = warm;
                 Approach approach
                     = stop.mStand.approachFrom(strafe, walk, framed.mSetup.getWorldStep(), sNoiseFlightFrames);
                 stop.mStand = std::move(approach.mFrom);
@@ -975,32 +1015,50 @@ namespace RtxTool
                 return stop;
             };
 
+            // `sNoiseMeanDraws` draws of `drawn`, each adding its last frame to the mean `suffix`
+            // names, as shown.
+            const auto drawMean
+                = [&](const Stop& place, const Stop& drawn, const std::string_view suffix, std::vector<Stop>& into) {
+                      for (std::uint32_t draw = 0; draw < sNoiseMeanDraws; ++draw)
+                      {
+                          Stop again = drawn;
+                          again.mName = place.mName + std::string(suffix);
+                          again.mActions.mCapture.clear();
+                          again.mActions.mMean = Actions::Mean{
+                              .mFile = out / (place.mName + std::string(suffix) + ".png"),
+                              .mOf = sNoiseMeanDraws,
+                          };
+                          into.push_back(std::move(again));
+                      }
+                  };
+
+            constexpr std::size_t stopsAPlace = 3 + 2 * sNoiseMeanDraws;
+            static_assert(stopsAPlace * std::uint64_t{ sNoiseSampleStride } <= ~std::uint32_t{ 0 },
+                "the sample offsets of one place past what a frame number holds");
+
             std::vector<Stop> stops;
-            stops.reserve(places.size() * (4 + sNoiseMeanDraws));
+            stops.reserve(places.size() * stopsAPlace);
             std::vector<std::string> names;
             names.reserve(places.size());
             for (const Stop& place : places)
             {
                 names.push_back(place.mName);
+                const std::size_t first = stops.size();
+
                 stops.push_back(picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true, reference,
                     std::nullopt, Rtx::Upscale::Off));
-                stops.push_back(picture(place, sNoiseBarSuffix, barFrames, true, unfiltered, held, Rtx::Upscale::Off));
-                stops.push_back(picture(place, sNoiseBarLimitSuffix, barFrames * sNoiseMeanDraws, true, unfiltered,
-                    held, Rtx::Upscale::Off));
-                stops.push_back(frame(place));
 
-                for (std::uint32_t draw = 0; draw < sNoiseMeanDraws; ++draw)
-                {
-                    Stop drawn = frame(place);
-                    drawn.mName += sNoiseMeanSuffix;
-                    drawn.mSchedule.mSpec.mWarm = BenchSpan{ .mFrames = sNoiseMeanWarmup };
-                    drawn.mActions.mCapture.clear();
-                    drawn.mActions.mMean = Actions::Mean{
-                        .mFile = out / (place.mName + std::string(sNoiseMeanSuffix) + ".png"),
-                        .mOf = sNoiseMeanDraws,
-                    };
-                    stops.push_back(std::move(drawn));
-                }
+                const Stop bar = picture(place, sNoiseBarSuffix, barFrames, true, unfiltered, held, Rtx::Upscale::Off);
+                stops.push_back(bar);
+                drawMean(place, bar, sNoiseBarLimitSuffix, stops);
+
+                const Stop judged = frame(place);
+                stops.push_back(judged);
+                drawMean(place, judged, sNoiseMeanSuffix, stops);
+
+                assert(stops.size() - first == stopsAPlace);
+                for (std::size_t at = first; at < stops.size(); ++at)
+                    stops[at].mSchedule.mSampleOffset = static_cast<std::uint32_t>((at - first) * sNoiseSampleStride);
             }
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
@@ -1058,7 +1116,7 @@ namespace RtxTool
             pacing.mCrossingSeconds = variables["crossing"].as<float>();
             pacing.mStillSeconds = variables["still"].as<float>();
             pacing.mCutDistance = variables["cut-distance"].as<float>();
-            pacing.mWarmupSeconds = variables["warmup"].as<float>();
+            pacing.mWarmupSeconds = warmupGiven(variables);
             pacing.mFieldOfView = framed.mWindow.mFieldOfView;
             pacing.mAspect = static_cast<float>(framed.mWindow.mWidth) / static_cast<float>(framed.mWindow.mHeight);
             pacing.mDay = framed.mDay;
@@ -1080,10 +1138,9 @@ namespace RtxTool
                      std::pair{ "crossing", pacing.mCrossingSeconds }, std::pair{ "still", pacing.mStillSeconds } })
                 if (!(value > 0.0f))
                     throw std::runtime_error(std::format("--{} is {}, which is not more than nought", name, value));
-            if (!(pacing.mCutDistance >= 0.0f) || !(pacing.mWarmupSeconds >= 0.0f) || !(pacing.mWeatherHold >= 0.0f)
-                || !(pacing.mEase >= 0.0f) || !std::isfinite(pacing.mEase))
-                throw std::runtime_error(
-                    "--cut-distance, --warmup, --weather-hold and --ease cannot be less than nought");
+            if (!(pacing.mCutDistance >= 0.0f) || !(pacing.mWeatherHold >= 0.0f) || !(pacing.mEase >= 0.0f)
+                || !std::isfinite(pacing.mEase))
+                throw std::runtime_error("--cut-distance, --weather-hold and --ease cannot be less than nought");
 
             const FilmPlan plan = planFilm(loadKeys(keys), pacing);
             out() << describePlan(plan) << std::flush;

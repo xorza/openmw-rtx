@@ -40,8 +40,8 @@ namespace RtxTool
 
         /// Moves one frame of `stop`, the `measured`th of its measured frames or one of its warm-up
         /// where that is nothing (`Measurer::getMeasuredIndex`): a track stands its eye, clock and
-        /// sky at every frame, the warm-up at its first; a route and a turning sky move over the
-        /// measured frames alone, `seconds` of world a frame.
+        /// sky at every frame, the warm-up at its first; a turning sky moves over the measured
+        /// frames alone, and a route between them, `seconds` of world a frame.
         void step(const Stop& stop, std::optional<std::uint32_t> measured, float seconds);
 
         /// Steps the sky `steps` weathers on from the last one asked for, or back where negative,

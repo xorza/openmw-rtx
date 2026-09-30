@@ -349,10 +349,11 @@ namespace RtxTool
 
         if (mRecord.empty())
         {
-            // **Taken at the first stop, because every stop of a run is traced by one renderer.**
-            // What the record's header states is the configuration the whole run stood under. The
-            // upscaling is the frame's own answer — the pair the renderer resolved this frame — and
-            // not the renderer's mode alone.
+            // **Taken at the first stop, and bench's alone.** Only `bench` writes the header
+            // (`--json`), and a bench's stops override none of the upscaling, the reconstruction
+            // and the exposure, so the first stop's are the run's; a command whose stops override
+            // them writes none. The upscaling is the frame's own answer — the pair the renderer
+            // resolved this frame — and not the renderer's mode alone.
             BenchHeader& header = mRecord.getHeader();
             header.mExtents = extents;
             header.mUpscale = report.mReconstruction.mUpscale;
