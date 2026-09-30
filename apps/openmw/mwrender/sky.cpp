@@ -250,7 +250,6 @@ namespace MWRender
         , mCloudBlendFactor(0.f)
         , mCloudSpeed(0.f)
         , mStarsOpacity(0.f)
-        , mBaseWindSpeed(0.f)
         , mEnabled(true)
         , mSunglareEnabled(true)
     {
@@ -503,25 +502,6 @@ namespace MWRender
         }
     }
 
-    int SkyManager::getMasserPhase() const
-    {
-        if (!mCreated)
-            return 0;
-        return mMasser->getPhaseInt();
-    }
-
-    int SkyManager::getSecundaPhase() const
-    {
-        if (!mCreated)
-            return 0;
-        return mSecunda->getPhaseInt();
-    }
-
-    bool SkyManager::isEnabled()
-    {
-        return mEnabled;
-    }
-
     bool Precipitation::hasRain() const
     {
         return mRainNode != nullptr;
@@ -571,14 +551,8 @@ namespace MWRender
 
         const MWWorld::DateTimeManager& timeManager = *MWBase::Environment::get().getWorld()->getTimeManager();
 
-        // UV Scroll the clouds
-        float cloudDelta = duration * mCloudSpeed / 400.f;
-        if (mTimescaleClouds)
-            cloudDelta *= timeManager.getGameTimeScale() / 60.f;
-
-        mCloudAnimationTimer += cloudDelta;
-        if (mCloudAnimationTimer >= 4.f)
-            mCloudAnimationTimer -= 4.f;
+        mCloudAnimationTimer = Sky::scrollClouds(mCloudAnimationTimer,
+            Sky::cloudScrollStep(duration, mCloudSpeed, timeManager.getGameTimeScale(), mTimescaleClouds));
 
         mNextCloudUpdater->setTextureCoord(mCloudAnimationTimer);
         mCloudUpdater->setTextureCoord(mCloudAnimationTimer);
@@ -783,8 +757,6 @@ namespace MWRender
         if (!mCreated)
             return;
 
-        mBaseWindSpeed = weather.mBaseWindSpeed;
-
         mIsStorm = weather.mIsStorm;
 
         if (mIsStorm)
@@ -882,14 +854,6 @@ namespace MWRender
         }
 
         mAtmosphereNightNode->setNodeMask(weather.mNight ? ~0u : 0);
-    }
-
-    float SkyManager::getBaseWindSpeed() const
-    {
-        if (!mCreated)
-            return 0.f;
-
-        return mBaseWindSpeed;
     }
 
     void SkyManager::setSunglare(bool enabled)

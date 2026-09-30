@@ -66,7 +66,7 @@ namespace Rtx
         /// Everything but a particle simulation, which a real cull visitor would otherwise run:
         /// `osgParticle` keeps a once-per-frame guard and a `_t0` per processor, so two visitors
         /// on two clocks difference a `_t0` from one against a time from the other.
-        /// `SceneExtractor` owns the one emitter clock in this renderer.
+        /// Each `SceneExtractor` owns the emitter clock of what it walks.
         void apply(osg::Node& node) override
         {
             const NodeKind kind = mKinds.of(node);
@@ -107,7 +107,7 @@ namespace Rtx
         held.mPoseStamp = new osg::FrameStamp;
         held.mSlot = ViewScene(renderer);
 
-        held.mExtractor = std::make_unique<SceneExtractor>(*held.mScene, request.mTraversals);
+        held.mExtractor = std::make_unique<SceneExtractor>(*held.mScene, request.mTraversals, request.mContent);
         held.mExtractor->setTraversalMask(request.mSubjectMask);
         held.mExtractor->setSpecularLayout(request.mSpecularLayout);
         held.mPose->setFrameStamp(held.mPoseStamp);
@@ -195,10 +195,14 @@ namespace Rtx
         // and mirrored the wrong geometry, which is the torn figure a change of clothes produced; a
         // map that holds its key cannot be shown that address at all until it lets go.
         //
-        // The placements are the one thing a redraw throws away, as the world's frame does: what a
-        // walk refills wholesale goes, and the meshes and materials stay because they are what the
-        // walk is trying not to read again.
+        // What a walk refills wholesale goes, as the world's frame does — the lights, the sprites
+        // and the deformed meshes. The placements are reconciled in place, and the meshes and
+        // materials stay because they are what the walk is trying not to read again.
         subject.mScene->clearPlacement();
+
+        // The world's clock, which the update above posed by: an enchanted glow on the doll and a
+        // flame in its hand run at the hour the world has, as the rasterizer's preview runs them.
+        subject.mExtractor->setSimulationTime(posing.getSimulationTime());
 
         // The picture's own eye, for whatever in the subject turns to face one.
         subject.mExtractor->setEye(viewBasisOf(osg::Matrixd::inverse(osg::Matrixd(mView))));
@@ -213,10 +217,9 @@ namespace Rtx
         // sound for the world: this walk is the whole of what this picture is of.
         subject.mExtractor->retire();
 
-        // It consumes the arrivals, so nothing here clears them. Never advanced, unlike the
-        // world's frame: `Handing::mAdvance` says why a picture has no motion to describe.
-        subject.mUploader.hand(mRenderer,
-            SceneUploader::Handing{ .mSlot = subject.mSlot.get(), .mScene = *subject.mScene, .mAdvance = false });
+        // It consumes the arrivals and ends the placement, so nothing here clears either.
+        subject.mUploader.hand(
+            mRenderer, SceneUploader::Handing{ .mSlot = subject.mSlot.get(), .mScene = *subject.mScene });
 
         return subject.mScene->placements().getCounts().mPlaced > 0;
     }

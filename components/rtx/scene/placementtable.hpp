@@ -107,12 +107,12 @@ namespace Rtx
         const InstanceCounts& getCounts() const { return mCounts; }
 
         /// The slots whose row changed since the last `advance`: placed, moved, faded, dropped, or
-        /// wearing a material that changed what traversal is told. A slot can appear more than once.
-        std::span<const Index> getMoved() const { return mMoved; }
+        /// wearing a material that changed what traversal is told. Each slot once.
+        std::span<const Index> getMoved() const { return mMoved.getSlots(); }
 
         /// The slots the last `advance` caught up, whose motion is now still — the other half of
         /// what a backend rewrites, or last frame's motion would stay in the row for ever.
-        std::span<const Index> getSettled() const { return mSettled; }
+        std::span<const Index> getSettled() const { return mSettled.getSlots(); }
 
         /// The standing slots a walk along the eye's ray looks for — a medium or an additive
         /// surface, `InstanceCounts::mMedium` and `mAdditive` — kept as the counts are, by the row
@@ -166,11 +166,10 @@ namespace Rtx
         std::vector<Index> mFirstWearing;
         std::vector<Index> mFirstPlacing;
 
-        /// Plain lists that hold duplicates, where every other change list in this scene is a
-        /// `SlotSet`: a slot named twice is a memcpy of a hundred bytes, bounded by the three facts
-        /// about a placement that can change in a frame.
-        std::vector<Index> mMoved;
-        std::vector<Index> mSettled;
+        /// Each slot once, however many of the facts about it changed: a slot named twice is its
+        /// record made, a four-by-four inverse and a row in both device tables, twice.
+        SlotSet mMoved;
+        SlotSet mSettled;
 
         InstanceCounts mCounts;
 

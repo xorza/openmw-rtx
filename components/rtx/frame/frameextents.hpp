@@ -8,7 +8,7 @@ namespace Rtx
     struct FrameExtents
     {
         /// The trace's own resolution, and so the size of every G-buffer channel, of the camera the
-        /// trace is handed, and of what `VulkanRenderer::readChannel` gives back.
+        /// trace is handed, and of a channel read back.
         std::uint32_t mRenderWidth = 0;
         std::uint32_t mRenderHeight = 0;
 

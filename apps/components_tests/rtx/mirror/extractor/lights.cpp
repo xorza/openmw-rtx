@@ -239,6 +239,26 @@ namespace Rtx::Testing
             stats = walk(*flames.mRoot);
             EXPECT_EQ(stats.mEmitters, 1u);
             EXPECT_TRUE(mScene.lights().empty()) << "a flame outside an effect lights nothing";
+
+            // An effect stated under an actor under an effect is the outer one's: one glow, whose
+            // lamp is the flames' own as above.
+            constexpr osg::Node::NodeMask sActor = 1u << 2;
+            mExtractor.setClassMask(Rtx::InstanceClass::Actor, sActor);
+            osg::ref_ptr<osg::Group> inner = new osg::Group;
+            inner->setNodeMask(sEffect);
+            inner->addChild(flames.mRoot);
+            osg::ref_ptr<osg::Group> actor = new osg::Group;
+            actor->setNodeMask(sActor);
+            actor->addChild(inner);
+            osg::ref_ptr<osg::Group> outer = new osg::Group;
+            outer->setNodeMask(sEffect);
+            outer->addChild(actor);
+
+            mScene.clearPlacement();
+            stats = walk(*outer);
+            EXPECT_EQ(stats.mLights, 1u);
+            ASSERT_EQ(mScene.lights().size(), 1u);
+            EXPECT_NEAR(mScene.lights().front().mIntensity.x(), 416.0f, 1e-2f) << "the flames' glow, once";
         }
 
         /// **What the walk asks a `LightSource` is what it radiates, and nothing else.**

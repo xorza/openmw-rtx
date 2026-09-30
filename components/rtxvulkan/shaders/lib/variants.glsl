@@ -47,8 +47,9 @@
 /// trace in a room where every ray hits, which the shading of a street hid and a room's did not — a
 /// harness figure that read the room's frame nine percent slow. The sky's shader runs exactly once
 /// for every primary ray that ends in nothing, so the misses are the same count from the other side,
-/// and a room adds nought. A ballot would add one word a subgroup instead, and a subgroup operation
-/// in the launch loses the device on this driver — `visibility.rgen` holds hit objects.
+/// and a room adds nought. A ballot would add one word a subgroup instead, but the launch calls
+/// `traceRayEXT` between its reads, and what a subgroup holds on either side of a trace is the
+/// driver's to regroup: the miss shader counts the ray where it ends.
 layout(constant_id = SPEC_COUNTING) const bool COUNTING = false;
 
 /// Whether the sun is over the horizon: the constant half of `sunUp`, which says the rest.

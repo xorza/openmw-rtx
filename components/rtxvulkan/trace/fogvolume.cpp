@@ -171,9 +171,9 @@ namespace Rtx
         });
     }
 
-    void FogVolume::begin(VkCommandBuffer commands, const FrameSlot trace) const
+    void FogVolume::begin(VkCommandBuffer commands) const
     {
-        const std::size_t written = trace.get();
+        const std::size_t written = mNow;
 
         // Discarded, because every texel of it is written before any is read; the other half of
         // the pair is this frame's history and survives. The point pair, the lamps and the column
@@ -201,9 +201,9 @@ namespace Rtx
         barriers.flush();
     }
 
-    void FogVolume::scattered(VkCommandBuffer commands, const FrameSlot trace) const
+    void FogVolume::scattered(VkCommandBuffer commands) const
     {
-        const std::size_t written = trace.get();
+        const std::size_t written = mNow;
 
         // `GENERAL` to `GENERAL`, so what this orders is the writes against the reads and nothing
         // else. Against the trace as well as the integrate pass, because a puff of smoke reads what

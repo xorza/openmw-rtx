@@ -1,6 +1,7 @@
 #ifndef OPENMW_COMPONENTS_RTX_SHADERS_GBUFFER_H
 #define OPENMW_COMPONENTS_RTX_SHADERS_GBUFFER_H
 
+#include "camera.h"
 #include "hosttypes.h"
 #include "octahedral.h"
 #include "portable.h"
@@ -209,8 +210,45 @@ namespace Rtx::Shaders
         return packed >= 0.0f ? unit : vec3(0.0f, 0.0f, 0.0f);
     }
 
+    /// The surface channel's distance with the arms' flag in its sign — whether the trace drew the
+    /// pixel on an arm, whose eye every pass that rebuilds the pixel's ray casts it from again.
+    /// **In the sign, because a distance never spends it**, and here because the surface channel is
+    /// what every such pass reads at each tap already: carried on the puffs' channel, the flag was a
+    /// second fetch of eight bytes a tap in the cascade. A float keeps the sign of nought as well.
+    RTX_SHADER float packSurfaceDistance(float distance, bool arms)
+    {
+        return arms ? -distance : distance;
+    }
+
+    /// The distance `packSurfaceDistance` packed.
+    RTX_SHADER float surfaceDistance(float packed)
+    {
+        return abs(packed);
+    }
+
 #ifdef RTX_HOST
 }
+#endif
+
+// What the shading language reads and the host does not, for the reason `RTX_SHADER` gives.
+#ifndef RTX_HOST
+
+/// Whether the pixel whose packed distance this is was drawn on an arm — `packSurfaceDistance`.
+bool surfaceOnArms(float packed)
+{
+    return (floatBitsToUint(packed) & 0x80000000u) != 0u;
+}
+
+/// The eye the trace cast a pixel's ray from: the arms' where it drew the pixel on an arm, the
+/// world's everywhere else. Asked by every pass that rebuilds a pixel's ray, so no two of them can
+/// rebuild it through different eyes.
+///
+/// @param packed the pixel's distance as the surface channel holds it.
+Camera eyeOfPixel(float packed, Camera world, Camera arms)
+{
+    return surfaceOnArms(packed) ? arms : world;
+}
+
 #endif
 
 #endif

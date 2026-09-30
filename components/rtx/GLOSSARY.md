@@ -5,7 +5,7 @@ that owns each. Read this once and the headers read as the field's.
 
 | here | elsewhere | owner |
 |---|---|---|
-| walk, mirror | traversal, extraction | `SceneExtractor`, `MirrorTraversal` |
+| walk, mirror | traversal, extraction | `SceneExtractor`, `SceneExtractor::Traversal` |
 | stand, stood, standing | an instance is live, is placed | `PlacementTable`, `CellPlacer` |
 | re-stood | re-instanced under a new slot | `ExtractionStats::mRestood` |
 | place, placement | instance, per-frame instance update | `SceneDesc::addInstance`, `Renderer::placeScene` |

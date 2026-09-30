@@ -36,7 +36,7 @@ namespace MWRender
         /// is the paging's, and the seam's default answers the two questions a ring has no cache
         /// and no grid for.
         bool enableReference(int type, const MWWorld::ConstPtr& ptr, bool enabled) override;
-        bool blacklistReference(int type, const MWWorld::ConstPtr& ptr) override;
+        void blacklistReference(int type, const MWWorld::ConstPtr& ptr) override;
         void setGate(std::uint32_t gate, Terrain::GateState state) override;
 
         void clear() override;

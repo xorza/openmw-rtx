@@ -33,6 +33,7 @@
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/sceneutil/waterutil.hpp>
+#include <components/terrain/storage.hpp>
 #include <components/terrain/world.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -131,7 +132,7 @@ namespace MWRender
     }
 
     WorldMirror::WorldMirror(const Rtx::MirrorKnobs& knobs)
-        : mExtractor(mScene, &mTraversals)
+        : mExtractor(mScene, &mTraversals, &mThreadContent)
         , mReach(knobs.mReach)
         , mSpecularLayout(knobs.mSpecularLayout)
     {
@@ -230,9 +231,15 @@ namespace MWRender
         mExtractor.setTraversalMask(worldTraversal(mShowsPlayer));
     }
 
-    Rtx::ExtractionStats WorldMirror::mirror(
-        const SceneFrame& frame, const osg::Matrixd& view, const std::size_t frameNumber)
+    osg::Node::NodeMask WorldMirror::getTraversalMask() const
     {
+        return worldTraversal(mShowsPlayer);
+    }
+
+    Rtx::ExtractionStats WorldMirror::mirror(const SceneFrame& frame, const osg::Matrixd& view)
+    {
+        const std::size_t frameNumber = frame.mWhen.getFrameNumber();
+
         // **Whatever the loader hides with has to be inside what this mask excludes.**
         // `sWorldTraversal` names that bit rather than asking, because the loader is told it by
         // `RenderingManager` and this renderer is built first — so the two are checked against each
@@ -259,10 +266,10 @@ namespace MWRender
         // And the eye every billboard in the world turns to, which the rasterizer's cull hands its
         // `AutoTransform`s and this walk has to be told.
         mExtractor.setEye(Rtx::viewBasisOf(inverseView));
-        Rtx::mirrorPrecipitation(
-            mExtractor, frame.mPrecipitation.getRainNode(), eye, frame.mWorld.mUnderwater, Anchor::Rain, frameNumber);
-        Rtx::mirrorPrecipitation(mExtractor, frame.mPrecipitation.getParticleNode(), eye, frame.mWorld.mUnderwater,
-            Anchor::Effect, frameNumber);
+        mExtractor.extractPrecipitation(
+            frame.mPrecipitation.getRainNode(), eye, frame.mWorld.mUnderwater, Anchor::Rain, frameNumber);
+        mExtractor.extractPrecipitation(
+            frame.mPrecipitation.getParticleNode(), eye, frame.mWorld.mUnderwater, Anchor::Effect, frameNumber);
 
         // The sea, where the frame says there is one: hidden by its mask otherwise, as the
         // rasterizer's `updateVisible` hid the same plane, so the walk leaves no placement of it.
@@ -273,21 +280,26 @@ namespace MWRender
         // The eye, the reach, the world's own grid, the hour and the day-night mode, said once to
         // the ring: what the game has stood for itself is what the ring may not stand again, and
         // its lamps burn and its windows light at the world's clock as the graph's do.
+        Terrain::Storage* const ground = frame.mTerrain.getStorage();
+        const ESM::RefId worldspace = frame.mTerrain.getWorldspace();
+        mGrid = ground != nullptr ? Rtx::CellGrid(ground->getCellWorldSize(worldspace)) : Rtx::CellGrid();
+
         const Rtx::WorldAround around{
             .mWorld = {
                 .mStorage = &frame.mObjectStorage,
-                .mGround = frame.mTerrain.getStorage(),
+                .mGround = ground,
                 .mContent = mContent.get(),
-                .mWorldspace = frame.mTerrain.getWorldspace(),
+                .mWorldspace = worldspace,
+                .mGrid = mGrid,
                 // The world's mask and never the walk's own: a mask that moves makes
                 // `Rtx::CellRing::forget` read the ring from nothing, and the player bit moves
                 // while the camera settles.
                 .mMask = sWorldTraversal,
             },
             .mEye = eye,
-            .mReach = mReach,
+            .mReach = getReach(),
             .mActiveGrid = frame.mTerrain.getActiveGrid(),
-            .mExterior = !frame.mWorld.isInteriorCell(),
+            .mExterior = frame.mWorld.mLocation == Location::Exterior,
             .mSimulationTime = frame.mWhen.getSimulationTime(),
             .mNightDay = nightDayOf(frame.mWorld),
         };

@@ -18,7 +18,6 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
-#include <components/rtx/scene/debuglines.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/visibility.h>
@@ -36,24 +35,20 @@ namespace Rtx
 {
     class SceneDesc;
 
-    /// Which of the validation layers' checks a run loads. One level and not three switches,
-    /// because the three implied one another — either finer check needs the layer under it — and
-    /// the two finer checks together took the device down in three runs of four: four of the eight
-    /// combinations meant anything, and a fifth was fatal.
+    /// How much of the graphics API's own checking a run loads. One level and not three switches,
+    /// because each finer check needs the one under it and the two finer ones are never loaded
+    /// together: what each costs and why is the backend's to say.
     enum class ValidationLevel
     {
         Off,
 
-        /// The core checks.
+        /// The API's core checks.
         On,
 
-        /// The core checks and synchronization validation, which catches a missing barrier. Costs
-        /// enough to be opt-in among developers.
+        /// The core checks and the checks of how the device's work is ordered.
         Sync,
 
-        /// The core checks and GPU-assisted validation, which instruments every shader and
-        /// catches what a ray query does with its own arguments, at about half the frame rate. The
-        /// layer itself asks not to be run beside the core checks, so it is never a default.
+        /// The core checks and the checks of what the shaders do on the device.
         Gpu,
     };
 
@@ -176,8 +171,9 @@ namespace Rtx
         std::uint64_t mCompactableBytes = 0;
         std::uint64_t mCompactableNowBytes = 0;
 
-        /// How many refitted structures the rota has built whole again since the scene was made —
-        /// `SceneAcceleration::sRebuildEvery` says the rule.
+        /// How many refitted structures the rota has built whole again since the scene was made. A
+        /// refit keeps a structure's shape as its placements move and so loses its quality, which a
+        /// rebuild on a rota wins back; how often is the backend's.
         std::uint64_t mRebuilt = 0;
 
         /// Every texture the renderer holds and what those come to, from one walk of the array, so
@@ -299,13 +295,19 @@ namespace Rtx
     class Renderer : public GuiRenderer
     {
     public:
-        /// Builds everything a scene needs, replacing whatever was there. `textures` are decoded
-        /// already and indexed by the scene's texture index, and must outlive the call.
+        /// Builds everything a scene needs, replacing whatever was there, and places it. `textures`
+        /// are decoded already, each naming the slot it stands in (`TextureData::mSlot`), and must
+        /// outlive the call.
         virtual void setScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> textures) = 0;
 
         /// The same scene with more in it: geometry and textures appended, nothing renumbered, at
         /// the cost of a cell and never of `setScene`. `arrived` is the textures the scene gained
-        /// since the last call, starting at the count this already holds.
+        /// since the last call, each naming the slot it stands in — a slot a departure freed, or
+        /// one past the count this already holds.
+        ///
+        /// **Appends and does not place**: the caller places after it (`placeScene`), as on a frame
+        /// where nothing arrived, because the top level names every instance and an arrival changed
+        /// the list.
         virtual void extendScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived) = 0;
 
         /// What this slot was last built from, and how far it has been extended since.
@@ -422,8 +424,10 @@ namespace Rtx
         /// `Renderer::setScene` has been called for the world.
         virtual const SceneStats& getSceneStats() const = 0;
 
-        /// Copies the traced image into `pixels`, four bytes per pixel, tightly packed. Not on a
-        /// frame path: it submits a copy and waits for it, so it is not const.
+        /// Copies the output image into `pixels`, four bytes per pixel, tightly packed: the frame
+        /// last traced, with whatever interface was drawn over it since — so read between a trace
+        /// and its present, it is that trace's picture and not the one presented before it. Not on
+        /// a frame path: it submits a copy and waits for it, so it is not const.
         virtual void readPixels(std::vector<std::uint8_t>& pixels) = 0;
 
     protected:

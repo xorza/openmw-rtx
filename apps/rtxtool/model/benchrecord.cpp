@@ -10,6 +10,10 @@
 #include <string>
 #include <string_view>
 
+#include <components/files/conversion.hpp>
+#include <components/rtx/common/error.hpp>
+#include <components/rtx/mirror/cells/readermemory.hpp>
+#include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 
@@ -263,13 +267,15 @@ namespace RtxTool
         // **The host's side of the same question**: runs a freed mesh left as holes, which nothing
         // moves to close, and what the cell reader keeps of models it no longer lends.
         const Rtx::ContentMemory& content = place.mContent;
-        if (content.mVertexEnd > 0 || content.mReader.mLentModels + content.mReader.mSpareModels > 0)
+        const Rtx::ReaderMemory& reader = content.mReader;
+        if (content.mVertexEnd > 0 || reader.mLentModels + reader.mSpareModels + reader.mFiledModels > 0)
             out += std::format(
                 "  host  vertices {:.2f} M used of {:.2f} M reached   indices {:.2f} M of {:.2f} M   "
-                "reader {:.1f} MiB lent in {} models, {:.1f} MiB spare in {}\n",
+                "reader {:.1f} MiB lent in {} models, {:.1f} MiB spare in {}, {:.1f} MiB filed unlent in {}\n",
                 content.mVerticesUsed / 1e6, content.mVertexEnd / 1e6, content.mIndicesUsed / 1e6,
-                content.mIndexEnd / 1e6, Rtx::megabytes(content.mReader.mLentBytes), content.mReader.mLentModels,
-                Rtx::megabytes(content.mReader.mSpareBytes), content.mReader.mSpareModels);
+                content.mIndexEnd / 1e6, Rtx::megabytes(reader.mLentBytes), reader.mLentModels,
+                Rtx::megabytes(reader.mSpareBytes), reader.mSpareModels, Rtx::megabytes(reader.mFiledBytes),
+                reader.mFiledModels);
 
         if (place.mHitPercent > 0.0)
             out += std::format("  {:.1f}% of primary rays hit\n", place.mHitPercent);
@@ -326,9 +332,9 @@ namespace RtxTool
         return out;
     }
 
-    std::string describeTotal(std::span<const BenchPlace> places, const bool stopped)
+    std::string describeTotal(std::span<const BenchPlace> places)
     {
-        if (places.size() < 2 && !stopped)
+        if (places.size() < 2)
             return {};
 
         std::uint32_t frames = 0;
@@ -339,8 +345,7 @@ namespace RtxTool
             lasted += place.mWallSeconds;
         }
 
-        return std::format("\n{} {}, {} frames in {:.1f} s{}\n", places.size(), places.size() == 1 ? "place" : "places",
-            frames, lasted, stopped ? " — stopped early" : "");
+        return std::format("\n{} places, {} frames in {:.1f} s\n", places.size(), frames, lasted);
     }
 
     void writeJson(
@@ -390,5 +395,11 @@ namespace RtxTool
         }
 
         file << "  ]\n}\n";
+
+        // Checked as `FrameHashes::write` checks, for its reason: a record compared across commits
+        // that was never written leaves the last one at its path to be compared as this one.
+        file.flush();
+        if (!file)
+            throw Rtx::InputError("could not write " + Files::pathToUnicodeString(path));
     }
 }

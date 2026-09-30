@@ -52,6 +52,7 @@ set(RTX_FILES
     frame/bluenoise.hpp
     frame/camera.cpp
     frame/camera.hpp
+    frame/debuglines.hpp
     frame/frameextents.hpp
     frame/frameoptions.hpp
     frame/framesampling.cpp
@@ -150,12 +151,10 @@ set(RTX_FILES
     preprocess/shape/shapefold.hpp
     preprocess/shape/shapepass.cpp
     preprocess/shape/shapepass.hpp
-    preprocess/texture/finesttexels.cpp
-    preprocess/texture/finesttexels.hpp
-    preprocess/texture/solidreach.cpp
-    preprocess/texture/solidreach.hpp
-    preprocess/texture/texelmean.cpp
-    preprocess/texture/texelmean.hpp
+    preprocess/texture/texturepass.cpp
+    preprocess/texture/texturepass.hpp
+    preprocess/threadcontent.hpp
+    renderer/channel.hpp
     renderer/framedigest.hpp
     renderer/frameimage.cpp
     renderer/frameimage.hpp
@@ -174,7 +173,6 @@ set(RTX_FILES
     renderer/slot.hpp
     scene/compositequeue.cpp
     scene/compositequeue.hpp
-    scene/debuglines.hpp
     scene/deformertable.cpp
     scene/deformertable.hpp
     scene/instancerecord.cpp
@@ -205,8 +203,6 @@ set(RTX_FILES
     scene/sprite.hpp
     scene/surface.cpp
     scene/surface.hpp
-    scene/tangent.cpp
-    scene/tangent.hpp
     scene/texturetable.cpp
     scene/texturetable.hpp
     view/offscreentrace.cpp

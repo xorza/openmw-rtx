@@ -5,6 +5,7 @@
 #include <components/rtx/shaders/tone.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
@@ -14,8 +15,8 @@ namespace Rtx
 
     /// What one run of the curve is over. A frame's and a picture's inside the interface differ
     /// in the pyramid and the sun's share and in nothing else, so the two are one record and not
-    /// two argument lists — four of the fields below are an `Image`, and a list of them takes any
-    /// two of the four in either order.
+    /// two argument lists — five of the fields below are an `Image`, and a list of them takes any
+    /// two of the five in either order.
     struct Tone
     {
         /// The finished frame in linear radiance, in `VK_IMAGE_LAYOUT_GENERAL`.
@@ -34,9 +35,9 @@ namespace Rtx
         /// why this pass cannot work it out for itself.
         const Image& mBackdrop;
 
-        /// What the trace left of the puffs at the same extent, whose arms' flag
-        /// `puffsCoverNothing` reads.
-        const Image& mPuffs;
+        /// The surface the trace saw at the same extent, whose arms' flag `puffsCoverNothing`
+        /// reads — `packSurfaceDistance`.
+        const Image& mSurface;
 
         /// The pyramid's finest level, in `VK_IMAGE_LAYOUT_GENERAL`, or null where nothing built
         /// one — a doll, a map tile, a frame too small to halve.
@@ -63,6 +64,11 @@ namespace Rtx
     class TonePass
     {
     public:
+        /// What the curve writes the finished picture in, and so what every pass drawn over it —
+        /// the lines, the interface — is compiled against, and what the targets are made in. Not
+        /// display-encoded by the hardware, because the curve encoded it already.
+        static constexpr VkFormat sTargetFormat = toVulkanFormat(TONE_TARGET_FORMAT);
+
         /// @param textureLayout the scene's bindless textures, which this samples the star sheet
         ///        out of — `ToneConstants::mStars` says why the field is drawn here.
         TonePass(const Device& device, VkDescriptorSetLayout textureLayout);

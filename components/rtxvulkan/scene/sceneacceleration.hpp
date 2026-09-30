@@ -45,17 +45,19 @@ namespace Rtx
         /// builds over what the frame will trace. A structure built over the bind and refitted into
         /// the pose would keep the bind's shape for the life of the mesh.
         ///
+        /// @param everyMesh every mesh slot the scene holds, `DeviceScene::mEveryMesh`.
         /// @param slots how many frames may be tracing this scene at once, which is how many copies
         ///        there are of the rows and of the positions a refit reads.
-        SceneAcceleration(const Device& device, Batch& batch, const SceneDesc& scene, std::uint32_t slots);
+        SceneAcceleration(const Device& device, Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
+            std::uint32_t slots);
 
         /// Builds every mesh's structure, writes every row, and builds the top level, in one submit
         /// with each stage ending in the barrier the next one needs. Once, after the constructor.
         /// `scene` must place at least one instance: a top-level structure over nothing has no
         /// instance buffer to be built from. A mesh the device has no room for is left out and
         /// appended to `refused` — `BottomLevelStore::build`.
-        void build(Batch& batch, const SceneDesc& scene, std::span<const InstanceRecord> records,
-            std::vector<Refusal>& refused);
+        void build(Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
+            std::span<const InstanceRecord> records, std::vector<Refusal>& refused);
 
         /// Rebuilds what a moved world changed: every deformed mesh's structure, then the top level,
         /// in one command buffer with a barrier between — two `submitAndWait`s were a round trip
@@ -218,10 +220,6 @@ namespace Rtx
 
         /// How many rows the top level was made for, which is what its build ranges over.
         std::uint32_t mTopLevelSlots = 0;
-
-        /// Every mesh slot, for the whole-scene build the constructor does through the same path an
-        /// arrival takes. Kept so that path allocates nothing per scene.
-        std::vector<Index> mEveryMesh;
 
         BottomLevelStore mBottomLevel;
 

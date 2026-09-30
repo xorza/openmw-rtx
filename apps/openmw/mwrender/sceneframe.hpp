@@ -155,10 +155,6 @@ namespace MWRender
         /// is `SkyState::mWeather`'s.
         float mWindSpeed = 0.0f;
 
-        /// Whether the cell record calls this an interior. A quasi-exterior answers yes to this and
-        /// to `isOutdoors` both.
-        bool isInteriorCell() const { return mLocation != Location::Exterior; }
-
         /// Whether this counts as being outside — a sky overhead and weather in it: the condition
         /// `World::updateWeather` gates on, and what a technique marked `Disable_Exteriors` asks.
         bool isOutdoors() const { return mLocation != Location::Interior; }

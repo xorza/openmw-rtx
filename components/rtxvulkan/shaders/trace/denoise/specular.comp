@@ -35,7 +35,6 @@
 
 #include "lib/pixels.glsl"
 #include "lib/runningmean.glsl"
-#include "lib/spritelist.glsl"
 #include "lib/surfacematch.glsl"
 
 layout(local_size_x = SPECULAR_WORKGROUP, local_size_y = SPECULAR_WORKGROUP) in;
@@ -46,9 +45,6 @@ layout(set = SET_PASS, binding = SPECULAR_BIND_SPECULAR) uniform readonly image2
 
 layout(set = SET_PASS, binding = SPECULAR_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 layout(set = SET_PASS, binding = SPECULAR_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D motion;
-
-/// For the one bit that says which eye a pixel's ray left, `eyeOfPixel`.
-layout(set = SET_PASS, binding = SPECULAR_BIND_PUFFS, GBUFFER_LAYER) uniform readonly image2D puffs;
 
 /// The surface the accumulator's history belongs to, which this history belongs to as well: both
 /// were written over the same pixels of the same frame.
@@ -98,8 +94,7 @@ vec3 toEyeBefore(HistoryFootprint footprint, bool arms)
     const vec2 before = vec2(footprint.mLow) + footprint.mAcross + 0.5;
     const vec2 uv = before / vec2(frame.mCamera.mWidth, frame.mCamera.mHeight) * 2.0 - 1.0;
     const vec2 spread = arms ? frame.mArmsSpread : vec2(1.0);
-    return -normalize(
-        frame.mPreviousForward + frame.mPreviousRight * (uv.x * spread.x) - frame.mPreviousUp * (uv.y * spread.y));
+    return -directionAcross(frame.mPrevious, uv * spread);
 }
 
 /// Whether the history at `at` belongs to the surface this pixel shows.
@@ -120,14 +115,14 @@ void main()
     const vec4 sampled = imageLoad(specular, at);
     const vec2 seen = imageLoad(surfaceChannel, at).xy;
     const vec3 normal = unpackSurfaceNormal(seen.x);
+    const float away = surfaceDistance(seen.y);
 
     // A pixel with no surface reflects nothing, and a surface with no lobe has nothing to average.
     // Both write their sample, which is nought, and a history of no frames.
     const bool reflects = dot(normal, normal) > 0.0 && sampled.a >= 0.0;
 
-    const vec4 puffed = imageLoad(puffs, at);
-    const bool arms = puffsOnArms(puffed);
-    const vec3 toEye = -rayAt(eyeOfPixel(puffed, frame.mCamera, frame.mArms), vec2(at)).mDirection;
+    const bool arms = surfaceOnArms(seen.y);
+    const vec3 toEye = -rayAt(eyeOfPixel(seen.y, frame.mCamera, frame.mArms), vec2(at)).mDirection;
 
     const vec3 moved = imageLoad(motion, at).xyz;
     const HistoryFootprint footprint = historyFootprint(at, frame.mCamera.mJitter, moved);
@@ -135,7 +130,7 @@ void main()
     // Where there was no previous frame the basis is nought, and there is no direction to compare:
     // no history, as a reset has none.
     const bool previous = frame.mReset == 0u && frame.mCamera.mOrthographic == 0u
-        && dot(frame.mPreviousForward, frame.mPreviousForward) > 0.0;
+        && dot(frame.mPrevious.mForward, frame.mPrevious.mForward) > 0.0;
 
     vec4 held = vec4(0.0);
     float weight = 0.0;
@@ -146,7 +141,7 @@ void main()
         {
             const float bilinear = historyShare(footprint, i);
             const ivec2 tap = historyTap(footprint, i);
-            if (bilinear <= 0.0 || !sameSurface(tap, normal, seen.y, moved))
+            if (bilinear <= 0.0 || !sameSurface(tap, normal, away, moved))
                 continue;
 
             // A texel that reflected nothing holds no history, and would pull the mean toward nought.

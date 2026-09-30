@@ -26,8 +26,10 @@ namespace Rtx
         SlotSet& taking = arriving ? mArrived : mFreed;
         SlotSet& giving = arriving ? mFreed : mArrived;
 
-        // Compacted here rather than left for the reader, because the other set is asked for
-        // straight after this returns and a slot changes its news rarely enough to pay a pass then.
+        // Compacted here rather than left for the reader, which holds the table const and reads the
+        // lists at once. A pass is paid only where the slot stood in the other set — one that
+        // arrived and went, or went and came back, inside one hand-over — which a crossing does a
+        // handful of times and a frame standing still never; `compact` does nothing otherwise.
         giving.remove(slot);
         giving.compact();
 

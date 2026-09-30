@@ -72,8 +72,8 @@ PreviousScreen previousScreenThrough(vec3 was, vec2 spread)
     // first, a resize, a new scene, and any jump a motion vector could not describe. Behind the
     // previous eye there is no answer either, and the divide below would fold such a point back
     // into the frame as a plausible coordinate.
-    const Screen screen = screenOf(frame.mPreviousForward, frame.mPreviousRight, frame.mPreviousUp, was, spread);
-    if (!(dot(frame.mPreviousForward, frame.mPreviousForward) > 0.0) || !(screen.mAhead > 0.0))
+    const Screen screen = screenOf(frame.mPrevious, was, spread);
+    if (!(dot(frame.mPrevious.mForward, frame.mPrevious.mForward) > 0.0) || !(screen.mAhead > 0.0))
         return PreviousScreen(vec2(0.0), false);
 
     const vec2 at = (screen.mAt / screen.mAhead) * 0.5 + 0.5;

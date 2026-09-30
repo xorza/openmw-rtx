@@ -119,9 +119,10 @@ namespace Rtx
         /// structure is named by a mesh index, and compacting is what made a cell boundary cost a
         /// full rebuild. A material freed gives back the textures it named, and its layer and mask
         /// runs go with it. What holds a row: the identity a walk met it under, each placement
-        /// standing on it, a ground cell the ring stood, and the sky's own sheets. A hold of
+        /// standing on it, a ground cell the ring stood, and the sky's own sheets. A texture hold of
         /// nothing — `sNoIndex`, or the neutral texel a layer names where the table had no room —
-        /// is empty or costs nothing, and a drop of an empty hold changes no count.
+        /// is empty or costs nothing, and a drop of an empty hold changes no count; a mesh and a
+        /// material are held by a row that is one.
         MeshHold holdMesh(Index mesh);
         MaterialHold holdMaterial(Index material);
         TextureHold holdTexture(Index texture);

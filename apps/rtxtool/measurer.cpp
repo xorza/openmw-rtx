@@ -45,7 +45,7 @@ namespace RtxTool
         std::uint32_t longest = 0;
         for (const Stop& stop : request.mStops)
             if (!stop.mSchedule.mSpec.mRun.isUntilClosed())
-                longest = std::max(longest, stop.mSchedule.mSpec.getMeasured(request.mSetup.getWorldStep()));
+                longest = std::max(longest, stop.mSchedule.mSpec.getMeasured(worldStep(request.mSetup)));
 
         mProgress.mSamples.reserve(longest);
         mProgress.mGpu.reserve(longest);
@@ -62,7 +62,7 @@ namespace RtxTool
         // that a field added to it is reset here whether or not its author remembered to.
         mProgress.restart();
 
-        mProgress.mWarmup = stop.mSchedule.mSpec.getWarmup(mRequest.mSetup.getWorldStep());
+        mProgress.mWarmup = stop.mSchedule.mSpec.getWarmup(worldStep(mRequest.mSetup));
         mProgress.mCell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
         mProgress.mPlace.mView = stop.mName;
         mProgress.mPlace.mCell = stop.mStand.mCell;
@@ -87,7 +87,7 @@ namespace RtxTool
     {
         Rtx::Renderer& renderer = context.mRenderer.getBackend();
         const double frameMs = report.mSpend.at(Rtx::Timing::Frame);
-        const float step = mRequest.mSetup.getWorldStep();
+        const float step = worldStep(mRequest.mSetup);
         const std::uint32_t measured = stop.mSchedule.mSpec.getMeasured(step);
 
         if (!mProgress.mMeasuredFrom.has_value() && mProgress.mWarmedRan == mProgress.mWarmup)
@@ -297,7 +297,7 @@ namespace RtxTool
         const MWRender::FrameReport& report, const float travelled, StopWriter& writer)
     {
         Rtx::Renderer& renderer = context.mRenderer.getBackend();
-        const float step = mRequest.mSetup.getWorldStep();
+        const float step = worldStep(mRequest.mSetup);
 
         mProfiling.disable();
 
@@ -313,6 +313,11 @@ namespace RtxTool
         // the place they belong to.
         while (const std::optional<Rtx::FrameResult> finished = renderer.finishFrame())
             answered(stop, *finished, extents);
+
+        // Drained, so a film frame still numbered is one whose picture will not come: the film
+        // stops at that gap, and the run that made it may not end as though it had not.
+        if (stop.mActions.mFilm.has_value() && mProgress.mFilmPending > 0 && mFailure.empty())
+            mFailure = std::format("{} of the film's last frames never came back", mProgress.mFilmPending);
 
         if (mProgress.mPausedFrames > 0)
         {
@@ -344,10 +349,11 @@ namespace RtxTool
 
         if (mRecord.empty())
         {
-            // **Taken at the first stop, because every stop of a run is traced by one renderer.**
-            // What the record's header states is the configuration the whole run stood under. The
-            // upscaling is the frame's own answer — the pair the renderer resolved this frame — and
-            // not the renderer's mode alone.
+            // **Taken at the first stop, and bench's alone.** Only `bench` writes the header
+            // (`--json`), and a bench's stops override none of the upscaling, the reconstruction
+            // and the exposure, so the first stop's are the run's; a command whose stops override
+            // them writes none. The upscaling is the frame's own answer — the pair the renderer
+            // resolved this frame — and not the renderer's mode alone.
             BenchHeader& header = mRecord.getHeader();
             header.mExtents = extents;
             header.mUpscale = report.mReconstruction.mUpscale;

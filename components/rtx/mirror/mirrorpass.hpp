@@ -14,8 +14,9 @@ namespace Rtx
     {
         std::uint64_t mEpoch = 0;
 
-        /// Null between walks. A walk is not re-entrant — the extractor's anchor is a member set
-        /// per walk — so there is one of these at a time, and `getStats` is what says so.
+        /// Null between walks. A walk is not re-entrant — its traversal carries the chain of state
+        /// sets, the identity and the place of the node it stands on, one of each — so there is
+        /// one of these at a time, and `getStats` is what says so.
         ExtractionStats* mStats = nullptr;
 
         /// Whether what this walk places falls from the sky — the precipitation's walk, and no

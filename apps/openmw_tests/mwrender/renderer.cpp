@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstddef>
 #include <filesystem>
 #include <memory>
 #include <stdexcept>
@@ -7,8 +8,11 @@
 #include <gtest/gtest.h>
 
 #include <MyGUI_ITexture.h>
+#include <osg/Camera>
+#include <osg/FrameStamp>
 #include <osg/Group>
 #include <osg/Image>
+#include <osg/Stats>
 #include <osg/Timer>
 #include <osg/ref_ptr>
 
@@ -35,6 +39,11 @@ namespace MWRender
             /// Whether the world was to be drawn, at each `applyWorldShown`.
             std::vector<bool> mApplied;
 
+            /// The simulation time of each `advance`, and how many times the interface was drawn.
+            std::vector<double> mAdvanced;
+            std::size_t mGuiDrawn = 0;
+
+            using Renderer::adopt;
             using Renderer::getLastHold;
 
             void configureResources(Resource::ResourceSystem&) override {}
@@ -43,7 +52,7 @@ namespace MWRender
             float getGroundReach() const override { return 0.0f; }
             osg::ref_ptr<osg::Group> createSceneRoot() override { return new osg::Group; }
             void attachWorld(RenderingManager&, osg::Group&) override {}
-            void advance(double) override {}
+            void advance(double simulationTime) override { mAdvanced.push_back(simulationTime); }
             void eventTraversal() override {}
             void updateTraversal() override {}
             void renderFrame(const SceneFrame&) override {}
@@ -51,7 +60,7 @@ namespace MWRender
             std::unique_ptr<SubjectView> createSubjectView(const OffscreenViewSpec&) override { return nullptr; }
             std::unique_ptr<MapOverlay> createMapOverlay(const MapOverlaySpec&) override { return nullptr; }
             MyGUI::ITexture& freezeFrame() override { throw std::logic_error("not asked"); }
-            void renderGui() override {}
+            void renderGui() override { ++mGuiDrawn; }
             void capture(osg::Image&, int, int) override {}
             void saveScreenshot() override {}
             void setVSync(SDLUtil::VSyncMode) override {}
@@ -170,6 +179,25 @@ namespace MWRender
 
             EXPECT_EQ(renderer.openFrame(), static_cast<double>(1.0f / 60.0f));
             EXPECT_EQ(stated.getNow(), 2.0 * static_cast<double>(1.0f / 60.0f));
+        }
+
+        /// **A hidden window's interface frame draws nothing and ends as a drawn one does**: with the
+        /// advance at the frame's own simulation time, so the frame the caller is in the middle of
+        /// is numbered right whether or not the window is shown.
+        TEST(RendererTest, aHiddenGuiFrameDrawsNothingAndAdvancesAsADrawnOne)
+        {
+            RecordingRenderer renderer;
+            const osg::ref_ptr<osg::Camera> camera = new osg::Camera;
+            const osg::ref_ptr<osg::FrameStamp> stamp = new osg::FrameStamp;
+            const osg::ref_ptr<osg::Stats> stats = new osg::Stats("renderer test");
+            renderer.adopt(*camera, *stamp, *stats);
+            stamp->setSimulationTime(12.5);
+
+            renderer.renderGuiFrame();
+            EXPECT_EQ(renderer.mGuiDrawn, 1u);
+            renderer.skipGuiFrame();
+            EXPECT_EQ(renderer.mGuiDrawn, 1u) << "a hidden window's frame drew the interface";
+            EXPECT_EQ(renderer.mAdvanced, (std::vector<double>{ 12.5, 12.5 }));
         }
 
         /// **A window is sized so that its pixels are the resolution asked for, at any scale.** Asked

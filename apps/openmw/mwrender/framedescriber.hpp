@@ -53,6 +53,8 @@ namespace MWRender
         const Precipitation& mPrecipitation;
         Terrain::World& mTerrain;
         const Terrain::ObjectStorage& mObjectStorage;
+
+        /// Everything of the eye but its projection, which is the describer's own (`setProjection`).
         EyeState mEye;
     };
 
@@ -77,7 +79,6 @@ namespace MWRender
         /// What `updateProjectionMatrix` settled on: the reversed-depth form where the depth buffer
         /// is reversed, which is what a shader reads.
         void setProjection(const osg::Matrixf& projection) { mProjection = projection; }
-        const osg::Matrixf& getProjection() const { return mProjection; }
 
         /// What `RenderingManager::update` was handed, for the frame that follows it.
         void setStep(float deltaTime, bool paused)

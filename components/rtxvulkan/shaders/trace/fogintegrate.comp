@@ -128,9 +128,9 @@ FogSlice sliceAt(ivec2 column, uint slice, ivec2 grid, float surfaces[9], out ve
 
 void main()
 {
-    const ivec3 grid = imageSize(fogVolumeAirTarget);
+    const ivec2 grid = ivec2(frame.mFogColumns);
     const ivec2 column = ivec2(gl_GlobalInvocationID.xy);
-    if (outsideOf(uvec2(column), uvec2(grid.xy)))
+    if (outsideOf(uvec2(column), uvec2(grid)))
         return;
 
     // **Where this column's view of the air ends, and its neighbours'** — `fogdepth.rgen` says why
@@ -143,7 +143,7 @@ void main()
     // scalars would buy nothing either.
     float surfaces[9];
     for (int i = 0; i < 9; ++i)
-        surfaces[i] = imageLoad(fogColumnDepth, fogTentAt(column, i, grid.xy)).x;
+        surfaces[i] = imageLoad(fogColumnDepth, fogTentAt(column, i, grid)).x;
     const float surface = surfaces[4];
 
     float transmittance = 1.0;
@@ -154,7 +154,7 @@ void main()
     // The slice before the first is the first, and the one after the last is the last — the clamp
     // the sampler applies when a pixel reads the same line at its edges.
     vec4 seeing;
-    FogSlice before = sliceAt(column, 0u, grid.xy, surfaces, seeing);
+    FogSlice before = sliceAt(column, 0u, grid, surfaces, seeing);
     FogSlice here = before;
 
     for (uint slice = 0u; slice < FOG_VOLUME_SLICES; ++slice)
@@ -164,7 +164,7 @@ void main()
 
         vec4 seeingNext = seeing;
         const FogSlice next
-            = slice + 1u < FOG_VOLUME_SLICES ? sliceAt(column, slice + 1u, grid.xy, surfaces, seeingNext) : here;
+            = slice + 1u < FOG_VOLUME_SLICES ? sliceAt(column, slice + 1u, grid, surfaces, seeingNext) : here;
 
         // **The line must not bend toward a slice that starts past the surface**, which holds no
         // air of this column's: the far half of the slice the surface stands in is flat, the way

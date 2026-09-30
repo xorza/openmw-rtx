@@ -47,7 +47,7 @@ namespace RtxTool
         /// would, and warns for a name that is none of the ten.
         static void setWeather(MWBase::World& world, std::string_view name);
 
-        /// Gives the player every attribute and skill at 255, a Speed of 2000, level 255 and a
+        /// Gives the player every attribute and skill at 255, a Speed of 2000, level 255 and ten
         /// million gold, through the calls the console's `setspeed`, `setlevel` and `additem` make.
         /// A body walking at Morrowind's pace crosses a cell in a minute.
         static void boostPlayer();

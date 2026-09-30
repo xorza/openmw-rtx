@@ -32,12 +32,12 @@
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/camera.hpp>
+#include <components/rtx/frame/debuglines.hpp>
 #include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
-#include <components/rtx/scene/debuglines.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -676,7 +676,7 @@ namespace Rtx::Testing
             for (std::size_t at = 0; at < mNumbered.size(); ++at)
             {
                 mNumbered[at].mSlot = static_cast<std::uint32_t>(at);
-                if (at < rows.size() && !scene.textures().isFree(static_cast<Index>(at)))
+                if (at < rows.size() && scene.textures().isLive(static_cast<Index>(at)))
                     mNumbered[at].mEncoding = rows[at].mEncoding;
             }
 

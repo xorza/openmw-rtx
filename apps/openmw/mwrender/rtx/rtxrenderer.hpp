@@ -121,6 +121,7 @@ namespace MWRender
         void detachWorld() noexcept override;
 
         float getGroundReach() const noexcept override;
+        bool groundReadsGates() const override { return true; }
         SDL_Window* getWindow() const noexcept override { return mWindow.get(); }
 
         void attachWorld(RenderingManager& world, osg::Group& worldRoot) noexcept override;
@@ -258,9 +259,6 @@ namespace MWRender
             Gui,
         };
 
-        /// How hard the upscaler between the trace and the picture works, from the next frame.
-        void setUpscale(Rtx::Upscale upscale);
-
         /// Traces the world the walk has just mirrored: the frame behind finished, the scene handed
         /// over, the deferred views drawn, the camera aimed, the frame traced and the report closed.
         /// Its refusals — an empty world, a camera with no roll — are not reasons not to present, so
@@ -355,7 +353,8 @@ namespace MWRender
         std::unique_ptr<Rtx::Renderer> mRenderer;
 
         /// What the settings or the command line upscale by, which a stop may set aside for its own
-        /// frames (`RtxRun::getUpscale`) and a menu moves (`setUpscale`).
+        /// frames (`RtxRun::getUpscale`) and a menu moves. Taken at the next frame's start, where a
+        /// stop's own mode is: one place changes the targets, ahead of the camera built for them.
         Rtx::Upscale mUpscale = Rtx::Upscale::Off;
 
         /// After the backend, because its slot is in the backend's table and goes back before the
@@ -374,6 +373,10 @@ namespace MWRender
         /// ripple field.
         RippleEmitters mRipples;
 
+        /// The scene root this renderer made for the game, held from `createSceneRoot` until
+        /// `attachWorld` hangs it under the world root.
+        osg::ref_ptr<osg::Group> mSceneRoot;
+
         /// The world root the game hangs its debug nodes on, and the walk that reads them off it
         /// into the frame's lines. Borrowed: the world outlives this, and `detachWorld` lets go.
         osg::Group* mWorldRoot = nullptr;
@@ -391,6 +394,10 @@ namespace MWRender
         /// Where the host's clock stood at the last trace, nothing before the first: what
         /// `Rtx::FrameOptions::mSinceLast` is measured from.
         std::optional<double> mTracedAt;
+
+        /// The run's word on whether the ground waits, where it says one — `RunSetup::mSettled` —
+        /// which `configureResources` weighs against the frame clock's stated step.
+        std::optional<bool> mSettled;
 
         /// Whether a camera the builder refused has already been reported. `describeTrace` says why
         /// once is the whole of it.

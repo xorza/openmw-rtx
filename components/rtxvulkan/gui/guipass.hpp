@@ -10,6 +10,7 @@
 
 namespace Rtx
 {
+    class Buffer;
     class Device;
     class Image;
 
@@ -35,9 +36,8 @@ namespace Rtx
     class GuiPass
     {
     public:
-        /// @param targetFormat the format of the image this will draw over. Fixed at construction
-        ///        because a pipeline is compiled against it; a resize does not change it.
-        GuiPass(const Device& device, VkFormat targetFormat);
+        /// Draws over the curve's picture, in `TonePass::sTargetFormat`.
+        explicit GuiPass(const Device& device);
 
         /// @param target what to draw over, in `VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL` and made
         ///        with `VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT`, which is asserted. Loaded rather than
@@ -45,8 +45,8 @@ namespace Rtx
         /// @param vertices every batch's vertices in one buffer, in `Rtx::GuiVertex` layout.
         /// @param draws what to draw and what to read while drawing it, in order. Each texture must
         ///        be in `VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`.
-        void record(
-            VkCommandBuffer commands, const Image& target, VkBuffer vertices, std::span<const GuiDraw> draws) const;
+        void record(VkCommandBuffer commands, const Image& target, const Buffer& vertices,
+            std::span<const GuiDraw> draws) const;
 
     private:
         const GraphicsPipeline<NoConstants>& pipelineFor(const GuiDraw& draw) const;

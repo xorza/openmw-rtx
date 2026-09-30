@@ -1,6 +1,6 @@
 # The options this fork adds: the ray tracer and the crash catcher.
 
-# The ray tracer is Vulkan on NVIDIA hardware, which Windows and Linux have and macOS does not.
+# The ray tracer is Vulkan ray tracing, which Windows and Linux have and macOS does not.
 if (WIN32 OR (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID))
     set(OPENMW_RTX_DEFAULT ON)
 else()

@@ -134,8 +134,7 @@ namespace RtxTool
                 "tour.keys:5: weather \"Drizzle\" is none of the weathers the content files name");
             EXPECT_EQ(refusal(place + "seconds = 0\n"), "tour.keys:5: seconds \"0\" is not a length of time");
             EXPECT_EQ(refusal(place + "cut = yes\n"), "tour.keys:5: cut \"yes\" is not true or false");
-            EXPECT_EQ(
-                refusal(place + "day = -1\n"), "tour.keys:5: day \"-1\" is not a whole number of days from nought");
+            EXPECT_EQ(refusal(place + "day = -1\n"), "tour.keys:5: day \"-1\" is before the first day");
             EXPECT_EQ(refusal("cell = 0,0\n"), "tour.keys:1: a field comes before the first [section]");
             EXPECT_EQ(refusal("# a comment\n\n[a]\ncell = 0,0\npos = 1,2,3\n[b]\n"),
                 "tour.keys:3: key \"a\" names no pos and look");

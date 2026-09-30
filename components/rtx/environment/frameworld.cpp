@@ -6,11 +6,9 @@
 #include <cmath>
 #include <cstddef>
 
-#include <osg/Matrixf>
 #include <osg/Vec2d>
 #include <osg/Vec3d>
 
-#include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
@@ -19,19 +17,6 @@
 
 namespace Rtx
 {
-    void mirrorPrecipitation(SceneExtractor& extractor, osg::Node* fall, const osg::Vec3f& eye, const bool underwater,
-        const std::size_t anchor, const std::size_t frameNumber)
-    {
-        if (fall == nullptr || underwater)
-            return;
-
-        // The same mask as everything else, because there is nothing here to select. The walk
-        // starts at the precipitation node, so the subtree is already chosen; a mask is only ever
-        // excluding what a renderer draws for itself, and none of that is under here. As what
-        // falls, so that a roof keeps it off.
-        extractor.extractFalling(*fall, osg::Matrixf::translate(eye), anchor, frameNumber);
-    }
-
     Shaders::CloudDeck noDeck()
     {
         Shaders::CloudDeck deck{};

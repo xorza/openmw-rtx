@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cassert>
 
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/composite.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
@@ -76,6 +76,7 @@ namespace Rtx
         if (what.mPastLost)
             resetHistory();
 
+        mFogVolume->turn();
         const VisibilityInputs inputs{ .mSubject = what.mSubject, .mChannels = *mChannels, .mFogVolume = *mFogVolume };
 
         // Made by the first trace that averages, and that trace is the one that fills it: the first

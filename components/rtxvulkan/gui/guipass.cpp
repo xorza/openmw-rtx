@@ -6,7 +6,9 @@
 
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/gui.h>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/display/tonepass.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 
@@ -18,7 +20,7 @@ namespace Rtx
         /// its own position, and there is no transform to hand down.
         constexpr std::array<VkDescriptorSetLayoutBinding, 1> sBindings{
             VkDescriptorSetLayoutBinding{
-                0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+                Shaders::GUI_BIND_TEXTURE, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
         };
 
         constexpr std::array<VkVertexInputBindingDescription, 1> sVertexBindings{
@@ -67,11 +69,12 @@ namespace Rtx
         }
     }
 
-    GuiPass::GuiPass(const Device& device, VkFormat targetFormat)
-        : mOver(device, describePipeline(targetFormat, Blend::Over, AlphaForm::Straight))
-        , mAdditive(device, describePipeline(targetFormat, Blend::Additive, AlphaForm::Straight))
-        , mOverPremultiplied(device, describePipeline(targetFormat, Blend::Over, AlphaForm::Premultiplied))
-        , mAdditivePremultiplied(device, describePipeline(targetFormat, Blend::Additive, AlphaForm::Premultiplied))
+    GuiPass::GuiPass(const Device& device)
+        : mOver(device, describePipeline(TonePass::sTargetFormat, Blend::Over, AlphaForm::Straight))
+        , mAdditive(device, describePipeline(TonePass::sTargetFormat, Blend::Additive, AlphaForm::Straight))
+        , mOverPremultiplied(device, describePipeline(TonePass::sTargetFormat, Blend::Over, AlphaForm::Premultiplied))
+        , mAdditivePremultiplied(
+              device, describePipeline(TonePass::sTargetFormat, Blend::Additive, AlphaForm::Premultiplied))
         , mSampler(makeTargetSampler(device, "gui"))
     {
     }
@@ -85,7 +88,7 @@ namespace Rtx
     }
 
     void GuiPass::record(
-        VkCommandBuffer commands, const Image& target, VkBuffer vertices, std::span<const GuiDraw> draws) const
+        VkCommandBuffer commands, const Image& target, const Buffer& vertices, std::span<const GuiDraw> draws) const
     {
         if (draws.empty())
             return;
@@ -93,8 +96,12 @@ namespace Rtx
         // MyGUI computes its vertices for a clip space with +Y up, which is OpenGL's.
         beginDrawingOver(commands, target, ClipUp::Up);
 
+        // Named by hand, because a vertex buffer is bound by handle and not handed out as an
+        // address or a descriptor.
+        const VkBuffer handle = vertices.getHandle();
         const VkDeviceSize offset = 0;
-        vkCmdBindVertexBuffers(commands, 0, 1, &vertices, &offset);
+        vkCmdBindVertexBuffers(commands, 0, 1, &handle, &offset);
+        vertices.nameForNext();
 
         const Pipeline* bound = nullptr;
 
@@ -110,8 +117,8 @@ namespace Rtx
             // Against the layout of the pipeline that is bound: the four are identical, but a push
             // is only defined against the one in force.
             DescriptorWrites texture(pipeline);
-            texture.image(
-                0, VkDescriptorImageInfo{ mSampler.get(), draw.mTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL });
+            texture.image(Shaders::GUI_BIND_TEXTURE,
+                VkDescriptorImageInfo{ mSampler.get(), draw.mTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL });
             pushDescriptors(commands, pipeline, texture);
             vkCmdDraw(commands, draw.mVertexCount, 1, draw.mFirstVertex, 0);
         }

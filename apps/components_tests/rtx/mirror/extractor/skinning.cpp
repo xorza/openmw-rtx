@@ -58,9 +58,9 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.deformers().kindOf(mScene.meshes().getRows()[0]), Rtx::Deform::Rig);
             EXPECT_EQ(mScene.meshes().getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
                 << "the bind pose, never a vertex posed";
-            ASSERT_EQ(mScene.deformers().getDeformers().size(), 1u);
-            EXPECT_EQ(mScene.deformers().getDeformers()[0].mRows, 1u);
-            EXPECT_EQ(mScene.deformers().getDeformers()[0].getVertexCount(), 4u);
+            ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
+            EXPECT_EQ(mScene.deformers().getRows()[0].mRows, 1u);
+            EXPECT_EQ(mScene.deformers().getRows()[0].getVertexCount(), 4u);
             EXPECT_EQ(mScene.deformers().getRuns().size(), 4u);
             EXPECT_EQ(mScene.deformers().getRuns()[3], 1u) << "first nought, count one";
             ASSERT_EQ(mScene.deformers().getInfluences().size(), 1u);
@@ -105,7 +105,7 @@ namespace Rtx::Testing
             EXPECT_EQ(again.mMeshesReused, 1u);
             EXPECT_EQ(again.mDeformed, 1u);
             EXPECT_EQ(mScene.meshes().getRows().size(), 1u) << "a second pose is the same mesh";
-            EXPECT_EQ(mScene.deformers().getDeformers().size(), 1u) << "and the same rig";
+            EXPECT_EQ(mScene.deformers().getRows().size(), 1u) << "and the same rig";
             EXPECT_EQ(boneRow(mScene, 0), osg::Vec4f(0.0f, 0.0f, 1.0f, 7.0f));
             ASSERT_EQ(mScene.meshes().getDeformed().size(), 1u);
             EXPECT_EQ(mScene.meshes().getDeformed()[0], 0u);
@@ -165,7 +165,7 @@ namespace Rtx::Testing
             walk(*root);
             ASSERT_EQ(mScene.meshes().getRows().size(), 2u);
             ASSERT_EQ(mScene.meshes().getMeshPositions(0).size(), 4u);
-            ASSERT_EQ(mScene.deformers().getDeformers().size(), 1u);
+            ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
 
             // The quad standing next to the rig, whose vertices the overrun would land in.
             const std::vector<osg::Vec3f> before(
@@ -193,9 +193,9 @@ namespace Rtx::Testing
 
             EXPECT_EQ(again.mMeshesAdded, 1u) << "the rig is met as something the mirror has not seen";
             EXPECT_EQ(mScene.meshes().getRows().size(), 3u) << "and takes a slot of its own rather than the old one";
-            EXPECT_EQ(mScene.deformers().getDeformers().size(), 2u)
+            EXPECT_EQ(mScene.deformers().getRows().size(), 2u)
                 << "on a rig of its own, because the skin is six vertices now";
-            EXPECT_EQ(mScene.deformers().getDeformers()[1].getVertexCount(), 6u);
+            EXPECT_EQ(mScene.deformers().getRows()[1].getVertexCount(), 6u);
             EXPECT_EQ(mScene.meshes().getRows()[2].mDeformer, 1u);
 
             const std::vector<osg::Vec3f> after(
@@ -340,7 +340,7 @@ namespace Rtx::Testing
             EXPECT_EQ(stats.mUnskinned, 1u);
             ASSERT_EQ(mScene.meshes().getRows().size(), 1u);
             EXPECT_EQ(mScene.deformers().kindOf(mScene.meshes().getRows()[0]), Rtx::Deform::None);
-            EXPECT_TRUE(mScene.deformers().getDeformers().empty());
+            EXPECT_TRUE(mScene.deformers().getRows().empty());
             EXPECT_EQ(mScene.meshes().getMeshPositions(0)[2], osg::Vec3f(1.0f, 1.0f, 0.0f))
                 << "the bind pose, where it stands";
 
@@ -354,7 +354,7 @@ namespace Rtx::Testing
             EXPECT_EQ(skinned.mMeshesAdded, 1u);
             EXPECT_EQ(skinned.mDeformed, 1u);
             EXPECT_EQ(skinned.mUnskinned, 0u);
-            ASSERT_EQ(mScene.deformers().getDeformers().size(), 1u);
+            ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
         }
 
         /// A morphed face is mirrored as its base and its weights, and posed again each pass — and
@@ -398,8 +398,8 @@ namespace Rtx::Testing
                 << "the base, and never a pose";
 
             // The offsets, target by target: the base's four zeroes and then the unit lift.
-            ASSERT_EQ(mScene.deformers().getDeformers().size(), 1u);
-            EXPECT_EQ(mScene.deformers().getDeformers()[0].mRows, 2u);
+            ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
+            EXPECT_EQ(mScene.deformers().getRows()[0].mRows, 2u);
             ASSERT_EQ(mScene.deformers().getMorphOffsets().size(), 8u);
             EXPECT_EQ(mScene.deformers().getMorphOffsets()[2], osg::Vec3f());
             EXPECT_EQ(mScene.deformers().getMorphOffsets()[6], osg::Vec3f(0.0f, 0.0f, 1.0f));
@@ -458,7 +458,7 @@ namespace Rtx::Testing
 
             const ExtractionStats first = walk(*rigged.mSkeleton);
             EXPECT_EQ(first.mMeshesAdded, 2u);
-            ASSERT_EQ(mScene.deformers().getDeformers().size(), 1u) << "one skin, one row";
+            ASSERT_EQ(mScene.deformers().getRows().size(), 1u) << "one skin, one row";
             EXPECT_EQ(mScene.deformers().getHolds(0), 2u);
             EXPECT_EQ(mScene.deformers().getRuns().size(), 4u) << "read once";
             EXPECT_EQ(mScene.meshes().getRows()[0].mDeformer, 0u);
@@ -468,7 +468,7 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             const ExtractionStats again = walk(*rigged.mSkeleton, 0, 1);
             EXPECT_EQ(again.mMeshesReused, 2u);
-            EXPECT_EQ(mScene.deformers().getDeformers().size(), 1u);
+            EXPECT_EQ(mScene.deformers().getRows().size(), 1u);
             EXPECT_EQ(mScene.deformers().getHolds(0), 2u);
         }
 
@@ -489,8 +489,8 @@ namespace Rtx::Testing
             }));
 
             walk(*morph);
-            ASSERT_EQ(mScene.deformers().getDeformers().size(), 1u);
-            EXPECT_EQ(mScene.deformers().getDeformers()[0].mRows, 2u);
+            ASSERT_EQ(mScene.deformers().getRows().size(), 1u);
+            EXPECT_EQ(mScene.deformers().getRows()[0].mRows, 2u);
             EXPECT_EQ(mScene.meshes().getRows()[0].mDeformer, 0u);
 
             morph->addMorphTarget(makePositions({
@@ -505,8 +505,8 @@ namespace Rtx::Testing
             mScene.clearPlacement();
             const ExtractionStats again = walk(*morph, 0, 1);
             EXPECT_EQ(again.mMeshesAdded, 1u) << "the face is met as something the mirror has not seen";
-            ASSERT_EQ(mScene.deformers().getDeformers().size(), 2u) << "on a set of its own";
-            EXPECT_EQ(mScene.deformers().getDeformers()[1].mRows, 3u);
+            ASSERT_EQ(mScene.deformers().getRows().size(), 2u) << "on a set of its own";
+            EXPECT_EQ(mScene.deformers().getRows()[1].mRows, 3u);
             EXPECT_EQ(mScene.deformers().getMorphOffsets().size(), 20u) << "the old set stands until its mesh goes";
 
             ASSERT_EQ(mScene.meshes().getRows().size(), 2u) << "and takes a slot of its own rather than the old one";

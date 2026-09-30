@@ -2,10 +2,10 @@
 
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
-#include <components/rtxvulkan/scene/spritepasses.hpp>
 #include <components/rtxvulkan/trace/denoise/compositepass.hpp>
 #include <components/rtxvulkan/trace/denoise/denoisepasses.hpp>
 
+#include "spritepasses.hpp"
 #include "visibilitypass.hpp"
 
 namespace Rtx

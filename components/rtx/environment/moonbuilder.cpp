@@ -14,7 +14,9 @@
 
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/image/imagedescription.hpp>
+#include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/colour.h>
@@ -33,16 +35,6 @@ namespace Rtx
             return moon == Moon::Masser ? "Masser" : "Secunda";
         }
 
-        /// The mean opaque texel of `tx_masser_full.dds` and `tx_secunda_full.dds`, linear —
-        /// measured off the shipped portraits rather than chosen: one red, one grey, and the ratio
-        /// between them is what tells the two moons apart at a glance.
-        const osg::Vec3f sMasserFace(0.0332f, 0.0099f, 0.0123f);
-        const osg::Vec3f sSecundaFace(0.0440f, 0.0373f, 0.0295f);
-
-        /// Masser's own luminance. The two tints are normalised on it, so that `Shaders::MOON_ALBEDO`
-        /// is the albedo of exactly one moon rather than of an average of two.
-        const float sMasserLuma = sMasserFace * Shaders::LUMINANCE_WEIGHTS;
-
         /// How wide `size` draws `moon`. `Fallback::Map` answers a key the configuration leaves out,
         /// and one that does not parse, with nought, and the game draws a quad of no extent for
         /// that; an error for a size below nought, or one that is not finite.
@@ -55,12 +47,13 @@ namespace Rtx
             return moonAngularRadius(size);
         }
 
-        /// This moon's colour, on a scale where Masser's luminance is one: Secunda's portrait
+        /// This moon's colour, on a scale where Masser's luminance is one: Secunda's shipped portrait
         /// averages two and a half times Masser's, and a pale moon reflects more of the same
-        /// sunlight than a dark red one.
-        osg::Vec3f tintOf(Moon moon)
+        /// sunlight than a dark red one. Normalised on Masser, so that `Shaders::MOON_ALBEDO` is the
+        /// albedo of exactly one moon rather than of an average of two.
+        osg::Vec3f tintOf(const MoonFaces& faces, Moon moon)
         {
-            return (moon == Moon::Masser ? sMasserFace : sSecundaFace) / sMasserLuma;
+            return faces.meanOf(moon) / (faces.mMasserMean * Shaders::LUMINANCE_WEIGHTS);
         }
 
         /// What a full moon of `angularRadius` delivers to a surface facing it, before its own tint:
@@ -124,8 +117,8 @@ namespace Rtx
         }
     }
 
-    MoonFaces addMoonFaces(
-        SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes, std::vector<TextureHold>& holds)
+    MoonFaces addMoonFaces(SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes,
+        std::vector<TextureHold>& holds, ContentPreprocessor& content)
     {
         // A moon of a size that is no size is refused and not drawn.
         const auto drawnWidth = [&](Moon moon, float size) {
@@ -141,19 +134,25 @@ namespace Rtx
         // blend the far edge's paint into the disc's antialiasing. A face that does not open takes
         // its slot with no image, which the upload stands in for and refuses; the image manager
         // logged why.
-        const auto face = [&](const Moon moon) {
+        MoonFaces faces{ .mMasserRadius = drawnWidth(Moon::Masser, sizes.mMasser),
+            .mSecundaRadius = drawnWidth(Moon::Secunda, sizes.mSecunda) };
+
+        // The mean read here and not on a frame, as a cloud deck's is: a face that does not open
+        // keeps the shipped portrait's.
+        const auto face = [&](const Moon moon, osg::Vec3f& mean) {
             const VFS::Path::NormalizedView path = moonFaceOf(moon);
             const Result<osg::ref_ptr<const osg::Image>, std::string> image = openImage(images, path);
             const Index slot
                 = scene.textures().add(path, image.isOk() ? image.value().get() : nullptr, TextureWrap::Clamp);
             holds.push_back(scene.holdTexture(slot));
+            if (image.isOk() && image.value() != nullptr)
+                mean = content.meanTexel(*image.value()).opaque();
             return slot;
         };
 
-        return MoonFaces{ .mMasser = face(Moon::Masser),
-            .mSecunda = face(Moon::Secunda),
-            .mMasserRadius = drawnWidth(Moon::Masser, sizes.mMasser),
-            .mSecundaRadius = drawnWidth(Moon::Secunda, sizes.mSecunda) };
+        faces.mMasser = face(Moon::Masser, faces.mMasserMean);
+        faces.mSecunda = face(Moon::Secunda, faces.mSecundaMean);
+        return faces;
     }
 
     Shaders::MoonDisc describeMoon(const MoonPlacement& placement, const osg::Vec3f& towardSun)
@@ -187,7 +186,7 @@ namespace Rtx
     {
         const float angularRadius = faces.radiusOf(moon);
 
-        // `Moon::setState`'s own two rotations (`apps/openmw/mwrender/skyutil.cpp:900`): the arc
+        // `Moon::setState`'s own two rotations (`apps/openmw/mwrender/skyutil.cpp`): the arc
         // tips the moon up from the horizon about +X, and the axis offset swings that whole arc
         // about the zenith so the two moons rise in different places and their paths cross.
         const float alongArc = osg::DegreesToRadians(alongArcDegrees);
@@ -221,7 +220,7 @@ namespace Rtx
             // The file's own mean, unscaled. `Shaders::MOON_RADIANCE` is what takes a
             // moon's texels to radiance, and it multiplies this where no portrait is loaded and the
             // portrait itself where one is — so the level lives in one place either way.
-            .mColour = moon == Moon::Masser ? sMasserFace : sSecundaFace,
+            .mColour = faces.meanOf(moon),
         };
 
         placement.mDirection.normalize();
@@ -234,7 +233,7 @@ namespace Rtx
         placement.mThroughAir = airTransmittance(placement.mDirection.z());
 
         const osg::Vec3f lit
-            = tintOf(moon) * (deliveredBy(angularRadius) * phaseLaw(placement.mPhaseAngle) * placement.mAlpha);
+            = tintOf(faces, moon) * (deliveredBy(angularRadius) * phaseLaw(placement.mPhaseAngle) * placement.mAlpha);
         placement.mIrradiance = osg::componentMultiply(lit, placement.mThroughAir);
 
         return placement;

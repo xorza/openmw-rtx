@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <cassert>
 #include <cstdint>
 #include <span>
@@ -12,8 +11,6 @@
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
-#include <components/rtxvulkan/device/memory/buffer.hpp>
-#include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -64,10 +61,6 @@ namespace Rtx
         }
 
         void drop(GuiSlot slot);
-
-        /// Opens an interface frame: takes the staging that frame's fence has just freed. Once per
-        /// interface frame, after that frame's fence and before anything is handed over.
-        void startFrame();
 
         /// What the pass samples, or null where nothing holds that slot.
         VkImageView getView(GuiSlot slot);
@@ -128,10 +121,6 @@ namespace Rtx
         /// where nothing is pending, so every accessor can call it.
         void handOver();
 
-        /// A run of the current staging arena, `bytes` long, and where it starts, so several writes
-        /// can share a submit.
-        VkDeviceSize reserve(VkDeviceSize bytes);
-
         const Device& mDevice;
 
         std::vector<Image> mImages;
@@ -156,29 +145,17 @@ namespace Rtx
         /// slot an arrival takes is one rule and this renderer keeps three tables by it.
         SlotPool mFree;
 
-        /// One more arena than there are frames in flight. What is written between two interface
-        /// frames is carried by the *later* one's submit, whose fence is waited on `sFrameSlots`
-        /// frames after that, so an arena has to last one more frame than there are slots; two
-        /// arenas hand them back exactly one frame early.
-        static constexpr std::uint32_t sStagingArenas = sFrameSlots + 1;
-
-        /// Written a run at a time, turned over by `startFrame`, and each grown to the most one
-        /// frame ever wrote into it: a frame that overflows its arena buries it and takes a fresh
-        /// one as large as that frame's writes so far (`reserve`), so a frame that writes as much
-        /// again, a video's every frame, allocates nothing.
-        std::array<Buffer, sStagingArenas> mStaging;
-        std::uint32_t mArena = 0;
-        VkDeviceSize mStagingUsed = 0;
-
-        /// What `lend` handed bytes out of, until `send` records the copy back.
+        /// What `lend` handed bytes out of, until `send` records the copy back: a run of the
+        /// batch's staging, which the batch gives back stamped with the submit its copies ride.
         GuiSlot mLentSlot;
         GuiRegion mLentRegion;
-        VkDeviceSize mLentAt = 0;
+        StagingRun mLentRun;
 
-        /// Last, so that it is destroyed first: what it has recorded names images and staging that
-        /// must still exist when it goes, and its destructor asserts that nothing is recorded —
+        /// Last, so that it is destroyed first: what it has recorded names images that must still
+        /// exist when it goes, and its destructor asserts that nothing is recorded —
         /// `VulkanRenderer::~VulkanRenderer` calls `finish` for that. A texture given back is kept
-        /// on it, because the copy recorded against it may not have run.
+        /// on it, because the copy recorded against it may not have run. Its staging is where
+        /// `lend` lends from.
         Batch mBatch;
     };
 }

@@ -322,47 +322,39 @@ namespace Rtx
             }
         }
 
-        /// The staging comes round no sooner than the fence that frees it, and no later.
+        /// **Staging lent in one frame is never lent again while a copy out of it may not have
+        /// run**, however many frames go by without the queue being waited on. A write into staging
+        /// is a `memcpy` through a mapped pointer rather than a Vulkan command, so bytes handed out
+        /// twice are invisible to synchronisation validation and show only as a texture holding a
+        /// later frame's colour.
         ///
-        /// **The rule stated as the addresses it hands out, because nothing else can see it.** A
-        /// write into staging is a `memcpy` through a mapped pointer rather than a Vulkan command,
-        /// so a write landing on bytes a queued copy still reads is invisible to synchronisation
-        /// validation and shows up only as a picture that is wrong on some runs.
-        ///
-        /// What is written between two interface frames is carried by the *later* one's submit, and
-        /// that submit's fence is waited on `sFrameSlots` frames after that. So the same bytes must
-        /// not come back before the third frame after the one that wrote them, and there is no
-        /// reason for them to come back any later than that.
-        TEST_F(RtxGuiDrawTest, theStagingComesRoundNoSoonerThanTheFenceThatFreesIt)
+        /// Nine frames, each lending a texel of its own texture a colour of its own and drawing,
+        /// and nothing read until the last: frame `f` writes `(20 f, 255 - 20 f, 7 f, 255)`, and
+        /// each texture holds its own frame's colour at the end.
+        TEST_F(RtxGuiDrawTest, stagingLentInOneFrameIsNotLentAgainBeforeItsCopyHasRun)
         {
-            const GuiSlot texture = makeTexel(sWhite);
+            constexpr std::uint32_t frames = 9;
+            const auto colourOf = [](std::uint32_t frame) {
+                return std::array<std::uint8_t, 4>{ static_cast<std::uint8_t>(20 * frame),
+                    static_cast<std::uint8_t>(255 - 20 * frame), static_cast<std::uint8_t>(7 * frame), 255 };
+            };
 
-            // An arena is replaced the first time it is asked for more than it holds, and only keeps
-            // its address after that, so the first lap of them is warmed rather than measured.
-            constexpr std::uint32_t warmed = 3;
-            constexpr std::uint32_t measured = 6;
-
-            std::array<const std::uint8_t*, measured> lent{};
-            for (std::uint32_t frame = 0; frame < warmed + measured; ++frame)
+            std::array<GuiSlot, frames> textures{};
+            for (std::uint32_t frame = 0; frame < frames; ++frame)
             {
-                const std::span<std::uint8_t> into = mRenderer.lendGuiTexture(texture, GuiRegion{ 0, 0, 1, 1 });
-                std::copy(sWhite.begin(), sWhite.end(), into.begin());
-                mRenderer.sendGuiTexture(texture);
+                textures[frame] = mRenderer.addGuiTexture(1, 1);
+                mHeld.push_back(textures[frame]);
 
-                if (frame >= warmed)
-                    lent[frame - warmed] = into.data();
+                const std::array<std::uint8_t, 4> colour = colourOf(frame);
+                const std::span<std::uint8_t> into = mRenderer.lendGuiTexture(textures[frame], GuiRegion{ 0, 0, 1, 1 });
+                std::copy(colour.begin(), colour.end(), into.begin());
+                mRenderer.sendGuiTexture(textures[frame]);
 
-                drawQuad(texture, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 255));
+                drawQuad(textures[frame], -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 255));
             }
 
-            for (std::uint32_t frame = 0; frame + 1 < measured; ++frame)
-                EXPECT_NE(lent[frame], lent[frame + 1]) << "frame " << frame << ", one apart: not even submitted";
-
-            for (std::uint32_t frame = 0; frame + 2 < measured; ++frame)
-                EXPECT_NE(lent[frame], lent[frame + 2]) << "frame " << frame << ", two apart: submitted, not waited";
-
-            for (std::uint32_t frame = 0; frame + 3 < measured; ++frame)
-                EXPECT_EQ(lent[frame], lent[frame + 3]) << "frame " << frame << ", three apart: waited, and enough";
+            for (std::uint32_t frame = 0; frame < frames; ++frame)
+                EXPECT_EQ(inTexture(textures[frame], 1, 0, 0), colourOf(frame)) << "frame " << frame;
         }
 
         /// A texture given back while a write to it is still pending is let go without complaint.
@@ -389,16 +381,15 @@ namespace Rtx
             mRenderer.dropGuiTexture(again);
         }
 
-        /// A lend that overflows the arena never hands back bytes a recorded copy still reads, and
-        /// both copies land.
+        /// **Two lends of one frame sit end to end in one run of staging**, and both copies land: a
+        /// frame's writes ride one submit, so nothing reads the first region's bytes before the
+        /// second is written, and the second is not the first rewound. Each region is 4 × 4 texels
+        /// of four bytes, 64 bytes, which is a whole number of the staging's 16-byte alignment, so
+        /// the second starts exactly 64 bytes after the first.
         ///
-        /// **The rule stated as the addresses, for the reason `theStagingComesRound…` gives**: a
-        /// write into staging is a `memcpy` the layers cannot see. The first lend fills the arena
-        /// exactly; the second, of the same size, cannot fit and must come out of another buffer,
-        /// not out of the same one rewound. **The validation sweep in `TearDown` is the other
-        /// half**: the arena the first copy reads is let go while that copy is pending, which the
-        /// layers report if it is destroyed rather than buried.
-        TEST_F(RtxGuiDrawTest, aLendThatOverflowsTheArenaComesOutOfAnotherBufferAndBothCopiesLand)
+        /// **And a lend larger than a block of staging takes a block of its own**: 1536 × 1536
+        /// texels are 9 437 184 bytes, past the 8 MiB block, and its far corner lands too.
+        TEST_F(RtxGuiDrawTest, lendsOfOneFrameSitEndToEndAndALendPastABlockTakesItsOwn)
         {
             constexpr std::uint32_t side = 4;
             const GuiRegion whole{ 0, 0, side, side };
@@ -417,62 +408,32 @@ namespace Rtx
                 greenRows[at + 3] = 255;
             }
 
-            // Three interface frames of the red texture alone, so every arena has been made at the
-            // red region's size and the one in use is one a draw has read out of.
-            for (std::uint32_t frame = 0; frame < 3; ++frame)
-            {
-                Testing::writeTexture(mRenderer, red, whole, redRows);
-                drawQuad(red, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 255));
-            }
-
-            // The frame that overflows: red fills the arena, then green wants as much again.
             const std::span<std::uint8_t> first = mRenderer.lendGuiTexture(red, whole);
             std::copy(redRows.begin(), redRows.end(), first.begin());
             mRenderer.sendGuiTexture(red);
 
             const std::span<std::uint8_t> second = mRenderer.lendGuiTexture(green, whole);
-            EXPECT_NE(first.data(), second.data()) << "the overflow rewound the arena the red copy still reads";
+            EXPECT_EQ(second.data(), first.data() + redRows.size()) << "the second region is not after the first";
             std::copy(greenRows.begin(), greenRows.end(), second.begin());
             mRenderer.sendGuiTexture(green);
 
             EXPECT_EQ(inTexture(red, side, side - 1, side - 1), (std::array<std::uint8_t, 4>{ 255, 0, 0, 255 }));
             EXPECT_EQ(inTexture(green, side, side - 1, side - 1), (std::array<std::uint8_t, 4>{ 0, 255, 0, 255 }));
 
-            // **An arena grows to the frame and not to the region**, so a frame that writes both
-            // again lands in one arena: after one lap in which every arena overflowed, each frame's
-            // two regions sit end to end in the arena three frames back. Grown to the region, every
-            // such frame would bury its arena for a new one, so the red region would come out of the
-            // buffer the green one took three frames before, and never out of the same arena twice.
-            constexpr std::uint32_t grown = 3;
-            constexpr std::uint32_t measured = 6;
-            std::array<const std::uint8_t*, measured> redAt{};
-            std::array<const std::uint8_t*, measured> greenAt{};
-            for (std::uint32_t frame = 0; frame < grown + measured; ++frame)
-            {
-                drawQuad(red, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 255));
+            constexpr std::uint32_t large = 1536;
+            static_assert(std::size_t{ large } * large * 4 > std::size_t{ 8 } * 1024 * 1024);
+            const GuiSlot wide = mRenderer.addGuiTexture(large, large);
+            mHeld.push_back(wide);
 
-                const std::span<std::uint8_t> redInto = mRenderer.lendGuiTexture(red, whole);
-                std::copy(redRows.begin(), redRows.end(), redInto.begin());
-                mRenderer.sendGuiTexture(red);
-                const std::span<std::uint8_t> greenInto = mRenderer.lendGuiTexture(green, whole);
-                std::copy(greenRows.begin(), greenRows.end(), greenInto.begin());
-                mRenderer.sendGuiTexture(green);
+            const std::span<std::uint8_t> big = mRenderer.lendGuiTexture(wide, GuiRegion{ 0, 0, large, large });
+            ASSERT_EQ(big.size(), std::size_t{ large } * large * 4);
+            std::fill(big.begin(), big.end(), std::uint8_t{ 0 });
+            const std::array<std::uint8_t, 4> blue{ 0, 0, 255, 255 };
+            std::copy(blue.begin(), blue.end(), big.end() - 4);
+            mRenderer.sendGuiTexture(wide);
 
-                if (frame >= grown)
-                {
-                    redAt[frame - grown] = redInto.data();
-                    greenAt[frame - grown] = greenInto.data();
-                }
-            }
-
-            for (std::uint32_t frame = 0; frame < measured; ++frame)
-                EXPECT_EQ(greenAt[frame], redAt[frame] + redRows.size())
-                    << "frame " << frame << ": the second region overflowed an arena grown to the first";
-
-            for (std::uint32_t frame = 0; frame + 3 < measured; ++frame)
-                EXPECT_EQ(redAt[frame], redAt[frame + 3]) << "frame " << frame << ": the arena was replaced again";
-
-            EXPECT_EQ(inTexture(green, side, 0, 0), (std::array<std::uint8_t, 4>{ 0, 255, 0, 255 }));
+            EXPECT_EQ(inTexture(wide, large, large - 1, large - 1), blue);
+            EXPECT_EQ(inTexture(wide, large, 0, 0), (std::array<std::uint8_t, 4>{ 0, 0, 0, 0 }));
         }
 
         /// The GUI over a frame that was actually traced, which is the first time the two halves of

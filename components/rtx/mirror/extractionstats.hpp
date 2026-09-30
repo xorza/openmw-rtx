@@ -28,10 +28,11 @@ namespace Rtx
         std::uint32_t mMaterialsReused = 0;
         std::uint32_t mInstances = 0;
 
-        /// Of the instances, the placements found under their path and standing another mesh,
-        /// material or class than the walk resolved, so dropped and stood again. A path is a hash
-        /// of node addresses, and the game reuses an address the frame it frees it; the count says
-        /// how often a walk met one, and a walk over a world standing still owes nought.
+        /// Of the instances, the placements found under their identity and standing another mesh,
+        /// material or class than the walk resolved, so dropped and stood again: a deforming
+        /// drawable whose source was replaced, a state set a controller rewrote into another
+        /// material, or a sibling that shifted into the place of one that went — an identity is a
+        /// structural place and not an address. A walk over a world standing still owes nought.
         std::uint32_t mRestood = 0;
 
         /// Drawables whose vertices are recomputed every frame and so were posed rather than read

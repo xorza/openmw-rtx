@@ -111,17 +111,18 @@ namespace Rtx
                 [&] { mKept.abandon(mKept.find(2)); }, "an entry abandoned while something holds it");
         }
 
-        /// **A retire that skips because the counters say whole checks that no entry is stale.** A
-        /// stamp on an entry the map does not hold is a drift the counters cannot see: it counts one
-        /// reached while entry 1 is not, so the map reads whole with a stale entry in it.
+        /// **A retire that skips because the counters say whole checks that no entry is stale.** An
+        /// epoch written past `stamp` is a drift the counters cannot see: entry 1 counts as reached
+        /// while its epoch says it is not, so the map reads whole with a stale entry in it.
         TEST_F(RtxKeptTest, aSkippedRetireAssertsThatNothingWasStale)
         {
             mKept.add(1, Known{ .mIndex = 10 });
+            const std::uint64_t added = mKept.find(1)->second.mReach.mEpoch;
             nextEpoch();
             EXPECT_FALSE(mKept.whole());
 
-            Known outside;
-            mKept.stamp(outside);
+            mKept.stamp(mKept.find(1));
+            mKept.find(1)->second.mReach.mEpoch = added;
             ASSERT_TRUE(mKept.whole()) << "the drift this test is made of";
 
             Testing::expectAssertDies(

@@ -101,13 +101,14 @@ namespace Rtx
         void apply(osg::Node&) override {}
     };
 
-    /// Walks the graph and hands every geometry it meets to the extractor.
-    class MirrorTraversal : public osg::NodeVisitor
+    class SceneExtractor::Traversal : public osg::NodeVisitor
     {
     public:
-        MirrorTraversal(SceneExtractor& extractor, const NodeKinds& kinds);
+        Traversal(SceneExtractor& extractor, const NodeKinds& kinds);
 
-        /// Points the walk at a root, at where it stands, and at the frame it is mirroring.
+        /// Points the walk at a root, at where it stands, and at the frame it is mirroring, and
+        /// reads what the extractor was told for the walks that follow — the eye, the stamp depth
+        /// and the traversal mask — once, here.
         void begin(const osg::Matrixf& root, std::size_t frame, unsigned int traversal, std::size_t identity);
 
         /// Stands the world's clock at `seconds` and moves the emitter clock on by the gap since
@@ -126,10 +127,12 @@ namespace Rtx
         std::size_t identityOf(const osg::Node& node) const;
 
         /// Walks `node` and everything under it, under the identity the caller worked out for it.
-        void enter(osg::Node& node, std::size_t identity);
+        ///
+        /// @param kind what `NodeKinds` answered for the node, asked once by the caller.
+        void enter(osg::Node& node, std::size_t identity, NodeKind kind);
 
         /// The same, with `node`'s own transform composed into where the walk stands.
-        void enterTransform(osg::Transform& node, std::size_t identity);
+        void enterTransform(osg::Transform& node, std::size_t identity, NodeKind kind);
 
         /// Descends into the children of `node` that are in the world. See below.
         void descend(osg::Node& node, NodeKind kind);
@@ -138,8 +141,6 @@ namespace Rtx
         void pushShading(const osg::StateSet& stateSet, bool animated);
 
         /// Runs one node of an `osgParticle` simulation, if that is what this node is. See below.
-        ///
-        /// @param kind what `NodeKinds` answered for the node, which `enter` has already asked.
         bool stepParticles(osg::Node& node, NodeKind kind);
 
         /// Where the node being visited stands in the world, narrowed to single precision here and
@@ -178,6 +179,11 @@ namespace Rtx
         /// authored with. Saved and restored around a descent, as `mPathHash` is.
         InstanceClass mClass = InstanceClass::Static;
 
+        /// The effect the walk is inside, as an index into the extractor's glows, or nothing.
+        /// Opened where the class first turns `Effect` and carried down as the class is: an effect
+        /// stated anywhere under an effect is the outer one's.
+        std::optional<std::size_t> mGlow;
+
         osg::Matrixf mRoot;
         std::size_t mFrame = 0;
 
@@ -201,8 +207,11 @@ namespace Rtx
         /// How many nodes are above the one being entered; nought at the root.
         unsigned int mDepth = 0;
 
-        /// `SceneExtractor::getStampDepth`, read once at `begin`.
+        /// `SceneExtractor::setStampDepth`, read once at `begin`.
         unsigned int mStampDepth = 0;
+
+        /// `SceneExtractor::setEye`, read once at `begin`.
+        std::optional<ViewBasis> mEye;
 
         /// The state sets in force where the walk is standing, nearest it last. Kept across walks
         /// and refilled, because a cell is tens of thousands of drawables and this is the frame
@@ -210,7 +219,7 @@ namespace Rtx
         std::vector<Shading> mShading;
     };
 
-    MirrorTraversal::MirrorTraversal(SceneExtractor& extractor, const NodeKinds& kinds)
+    SceneExtractor::Traversal::Traversal(SceneExtractor& extractor, const NodeKinds& kinds)
         : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
         , mExtractor(extractor)
         , mKinds(kinds)
@@ -219,7 +228,7 @@ namespace Rtx
         mSequenceClock.setFrameStamp(mStamp);
     }
 
-    void MirrorTraversal::begin(
+    void SceneExtractor::Traversal::begin(
         const osg::Matrixf& root, std::size_t frame, unsigned int traversal, std::size_t identity)
     {
         // The whole of what a traversal number promises. A state-set controller and an
@@ -236,8 +245,16 @@ namespace Rtx
         mPathHash = identity;
         mChildIndex = 0;
         mDepth = 0;
-        mStampDepth = mExtractor.getStampDepth();
         mShading.clear();
+
+        // A walk that threw left the class and the effect it was inside where the throw found
+        // them.
+        mClass = InstanceClass::Static;
+        mGlow.reset();
+
+        mStampDepth = mExtractor.mStampDepth;
+        mEye = mExtractor.mEye;
+        setTraversalMask(mExtractor.mTraversalMask);
 
         // The mirror's own sequence and never the game's. What this walk runs — the controllers
         // and the sequences — is keyed on it, and a number taken from the game's frame would be a
@@ -247,7 +264,7 @@ namespace Rtx
         mStamp->setFrameNumber(traversal);
     }
 
-    std::size_t MirrorTraversal::identityOf(const osg::Node& node) const
+    std::size_t SceneExtractor::Traversal::identityOf(const osg::Node& node) const
     {
         if (mDepth <= mStampDepth)
             if (const SceneUtil::StableIdentity* stamped = SceneUtil::StableIdentity::find(node))
@@ -256,15 +273,13 @@ namespace Rtx
         return identityWith(mPathHash, mChildIndex);
     }
 
-    void MirrorTraversal::apply(osg::Node& node)
+    void SceneExtractor::Traversal::apply(osg::Node& node)
     {
-        enter(node, identityOf(node));
+        enter(node, identityOf(node), mKinds.of(node));
     }
 
-    void MirrorTraversal::enter(osg::Node& node, const std::size_t identity)
+    void SceneExtractor::Traversal::enter(osg::Node& node, const std::size_t identity, const NodeKind kind)
     {
-        const NodeKind kind = mKinds.of(node);
-
         // Told it was reached, because a semi-active skeleton stops moving its bones once three
         // traversals have passed with nothing reaching it, and here this walk is what reaches it.
         // The frame and not this walk's own number, because the update traversal is what compares.
@@ -274,7 +289,7 @@ namespace Rtx
         }
         else if (auto* source = as<SceneUtil::LightSource>(kind, NodeKind::LightSource, node))
         {
-            mExtractor.addLight(*source, placed(), mStamp->getSimulationTime());
+            mExtractor.addLight(*source, placed(), mStamp->getSimulationTime(), mGlow);
         }
         else if (stepParticles(node, kind))
         {
@@ -297,22 +312,20 @@ namespace Rtx
         if (const osg::StateSet* animated = mExtractor.animate(node, animatedThrough(mShading)))
             pushShading(*animated, true);
 
-        const InstanceClass outer = mClass;
+        const InstanceClass outerClass = mClass;
+        const std::optional<std::size_t> outerGlow = mGlow;
         if (const std::optional<InstanceClass> stated = mExtractor.classOf(node.getNodeMask()))
             mClass = *stated;
 
-        // The root of a magic effect, whose sheets and flames light the world as one lamp: opened
-        // here and closed on the way back up, once everything under it has been placed.
-        const bool glows = mClass == InstanceClass::Effect && outer != InstanceClass::Effect;
-        if (glows)
-            mExtractor.openGlow();
+        // The root of a magic effect, whose sheets and flames light the world as one lamp. Whatever
+        // is stated under it is still inside it.
+        if (mClass == InstanceClass::Effect && !mGlow.has_value())
+            mGlow = mExtractor.openGlow();
 
         descend(node, kind);
 
-        if (glows)
-            mExtractor.closeGlow();
-
-        mClass = outer;
+        mClass = outerClass;
+        mGlow = outerGlow;
         mPathHash = above;
         --mDepth;
         mShading.resize(held);
@@ -324,7 +337,7 @@ namespace Rtx
     /// mirror. Unlike a particle step, a sequence step may be taken twice, because `Sequence`
     /// reads the simulation time outright. A branch that is off is off for its emitters too, and a
     /// system that comes back on after an hour is handed the hour in one step, as under a cull.
-    void MirrorTraversal::descend(osg::Node& node, const NodeKind kind)
+    void SceneExtractor::Traversal::descend(osg::Node& node, const NodeKind kind)
     {
         descendInWorld(
             node, kind, *this, [this](osg::Sequence& frames) { frames.traverse(mSequenceClock); },
@@ -340,7 +353,7 @@ namespace Rtx
     /// three that would take it badly (`SceneUtil::RigGeometry`, `MorphGeometry`,
     /// `MWRender::CameraRelativeTransform`). This walk and not a cull of its own, because a
     /// processor reads its world transform off the visitor's node path.
-    bool MirrorTraversal::stepParticles(osg::Node& node, const NodeKind kind)
+    bool SceneExtractor::Traversal::stepParticles(osg::Node& node, const NodeKind kind)
     {
         if (auto* processor = as<osgParticle::ParticleProcessor>(kind, NodeKind::ParticleProcessor, node))
         {
@@ -371,7 +384,7 @@ namespace Rtx
         return true;
     }
 
-    void MirrorTraversal::setSimulationTime(const double seconds)
+    void SceneExtractor::Traversal::setSimulationTime(const double seconds)
     {
         mStamp->setSimulationTime(seconds);
         mStamp->setReferenceTime(seconds);
@@ -394,7 +407,8 @@ namespace Rtx
     /// The visitor goes with it and not the null pointer `computeLocalToWorld` passes, because the
     /// sky's `MWRender::CameraRelativeTransform` dereferences it without checking; a visitor that is
     /// not a cull visitor takes the branch a null one would have.
-    void MirrorTraversal::enterTransform(osg::Transform& node, const std::size_t identity)
+    void SceneExtractor::Traversal::enterTransform(
+        osg::Transform& node, const std::size_t identity, const NodeKind kind)
     {
         const osg::Matrix above = mHere;
 
@@ -403,31 +417,30 @@ namespace Rtx
         // keeps whatever rotation a cull last left, which in this renderer is the one the file was
         // authored with. The three vectors go in the node's own frame, which is what a cull stack
         // hands it too. A walk told no eye leaves the billboard where it stands.
-        const std::optional<ViewBasis>& eye = mExtractor.getEye();
-        if (auto* billboard = as<NifOsg::AutoTransform>(mKinds.of(node), NodeKind::Billboard, node);
-            billboard != nullptr && eye.has_value())
+        if (auto* billboard = as<NifOsg::AutoTransform>(kind, NodeKind::Billboard, node);
+            billboard != nullptr && mEye.has_value())
         {
             const osg::Matrixd toLocal = osg::Matrixd::inverse(osg::Matrixd(above) * osg::Matrixd(mRoot));
-            const osg::Vec3d eyeLocal = osg::Vec3d(eye->mOrigin) * toLocal;
-            const osg::Vec3d lookLocal = osg::Matrixd::transform3x3(osg::Vec3d(eye->mForward), toLocal);
-            const osg::Vec3d upLocal = osg::Matrixd::transform3x3(osg::Vec3d(eye->mUp), toLocal);
+            const osg::Vec3d eyeLocal = osg::Vec3d(mEye->mOrigin) * toLocal;
+            const osg::Vec3d lookLocal = osg::Matrixd::transform3x3(osg::Vec3d(mEye->mForward), toLocal);
+            const osg::Vec3d upLocal = osg::Matrixd::transform3x3(osg::Vec3d(mEye->mUp), toLocal);
 
             mHere.preMult(billboard->computeMatrixForFrame(eyeLocal, lookLocal, upLocal));
         }
         else
             node.computeLocalToWorldMatrix(mHere, this);
 
-        enter(node, identity);
+        enter(node, identity, kind);
 
         mHere = above;
     }
 
-    void MirrorTraversal::apply(osg::Transform& node)
+    void SceneExtractor::Traversal::apply(osg::Transform& node)
     {
-        enterTransform(node, identityOf(node));
+        enterTransform(node, identityOf(node), mKinds.of(node));
     }
 
-    void MirrorTraversal::pushShading(const osg::StateSet& stateSet, const bool animated)
+    void SceneExtractor::Traversal::pushShading(const osg::StateSet& stateSet, const bool animated)
     {
         const Shading* const above = mShading.empty() ? nullptr : &mShading.back();
         mShading.push_back(Shading{
@@ -438,7 +451,7 @@ namespace Rtx
         });
     }
 
-    void MirrorTraversal::apply(osg::Drawable& drawable)
+    void SceneExtractor::Traversal::apply(osg::Drawable& drawable)
     {
         const std::size_t held = mShading.size();
         if (const osg::StateSet* own = drawable.getStateSet())
@@ -451,18 +464,19 @@ namespace Rtx
                 pushShading(*animated, true);
         }
 
-        mExtractor.addDrawable(drawable, identityWith(mPathHash, mChildIndex), mShading, placed(), mClass);
+        mExtractor.addDrawable(drawable, identityWith(mPathHash, mChildIndex), mShading, placed(), mClass, mGlow);
 
         mShading.resize(held);
     }
 
     /// Every node, until the owner states a mask — `setTraversalMask`, which says why the default
     /// is not the narrower answer it looks like it should be.
-    SceneExtractor::SceneExtractor(SceneDesc& scene, Traversals* traversals)
+    SceneExtractor::SceneExtractor(SceneDesc& scene, Traversals* traversals, ThreadContent* content)
         : mScene(scene)
-        , mWalk(std::make_unique<MirrorTraversal>(*this, mKinds))
+        , mWalk(std::make_unique<Traversal>(*this, mKinds))
         , mTraversals(traversals == nullptr ? mOwnTraversals : *traversals)
         , mTraversalMask(~0u)
+        , mContent(content == nullptr ? mOwnContent.emplace() : *content)
     {
         // Reserved once, so no frame rehashes a map. A cell's drawables arriving grow every
         // identity map on that frame, and a table that grows past its room moves every entry on the
@@ -504,10 +518,13 @@ namespace Rtx
         return walk(root, transform, anchor, frame, &ring, false);
     }
 
-    ExtractionStats SceneExtractor::extractFalling(
-        const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame)
+    ExtractionStats SceneExtractor::extractPrecipitation(const osg::Node* fall, const osg::Vec3f& eye,
+        const bool underwater, const std::size_t anchor, const std::size_t frame)
     {
-        return walk(node, transform, anchor, frame, nullptr, true);
+        if (fall == nullptr || underwater)
+            return {};
+
+        return walk(*fall, osg::Matrixf::translate(eye), anchor, frame, nullptr, true);
     }
 
     SceneExtractor::WalkGuard::WalkGuard(
@@ -540,12 +557,10 @@ namespace Rtx
         mScene.noteWalked();
 
         mWalk->begin(transform, frame, mTraversals.next(), identitySeed(anchor));
-        mWalk->setTraversalMask(mTraversalMask);
 
-        // An effect a walk that threw was inside is not one this walk is inside, and its glows
-        // were never made.
-        mGlow.reset();
+        // The glows a walk that threw opened were never made.
         mGlows.clear();
+        mEmitters.begin();
 
         // Non-const because the walk writes. It poses every actor it reaches and it runs every
         // state-set controller it finds, which is what makes an actor behind the camera posed and a
@@ -556,7 +571,7 @@ namespace Rtx
         // everything else — the same epoch, the same stats, the same sweep — and a second `begin`
         // would date it apart from the rest.
         if (ring != nullptr)
-            ring->collect(*this, stats);
+            ring->collect();
 
         // After the whole walk, including whatever the ring brought in. Everything under it
         // has been stepped by now, so what the sprites are read from is a settled world rather than
@@ -587,7 +602,7 @@ namespace Rtx
         // entry of an earlier epoch and owes the sweep, and the sweep keeps nothing stamped: what
         // this epoch reached is nothing.
         ++mPass.mEpoch;
-        ring.releaseHolds(*this);
+        ring.releaseHolds();
 
         return retire();
     }
@@ -642,8 +657,8 @@ namespace Rtx
         return mMaterials.animate(node, mWalk.get(), underAnimated);
     }
 
-    void SceneExtractor::addLight(
-        const SceneUtil::LightSource& source, const osg::Matrixf& place, double simulationTime)
+    void SceneExtractor::addLight(const SceneUtil::LightSource& source, const osg::Matrixf& place,
+        double simulationTime, const std::optional<std::size_t> glow)
     {
         // The recorded colours and this frame's scalars, never the colours the rasterizer draws
         // from (`lightColour`). `LightSource::getEmpty` is not asked: it means the model this light
@@ -668,28 +683,22 @@ namespace Rtx
         // A light the game hung on an effect is the effect's light — `Glow::mLit`. Whether the
         // light stood before or after the sheets under the same root does not matter, because
         // the glow is made after the walk.
-        if (mGlow.has_value())
-            mGlows[*mGlow].mLit = true;
+        if (glow.has_value())
+            mGlows[*glow].mLit = true;
 
         mScene.addLight(*made.value());
         ++mPass.getStats().mLights;
     }
 
-    void SceneExtractor::openGlow()
+    std::size_t SceneExtractor::openGlow()
     {
-        assert(!mGlow.has_value() && "a walk entered an effect while inside one");
-        mGlow = mGlows.size();
         mGlows.emplace_back();
-    }
-
-    void SceneExtractor::closeGlow()
-    {
-        assert(mGlow.has_value() && "a walk left an effect it never entered");
-        mGlow.reset();
+        return mGlows.size() - 1;
     }
 
     void SceneExtractor::addDrawable(const osg::Drawable& drawable, const std::size_t who,
-        const std::span<const Shading> shading, const osg::Matrixf& place, const InstanceClass what)
+        const std::span<const Shading> shading, const osg::Matrixf& place, const InstanceClass what,
+        const std::optional<std::size_t> glow)
     {
         ExtractionStats& stats = mPass.getStats();
 
@@ -699,7 +708,7 @@ namespace Rtx
         const NodeKind kind = mKinds.of(drawable);
         if (const auto* particles = as<const osgParticle::ParticleSystem>(kind, NodeKind::ParticleSystem, drawable))
         {
-            mEmitters.add(*particles, shading, place, mGlow);
+            mEmitters.add(*particles, shading, place, glow);
             return;
         }
 
@@ -745,8 +754,8 @@ namespace Rtx
         // What the sheet adds to the effect's lamp, read off the rows the placement stands on
         // this frame: a controller may have rewritten the material on the way here, and
         // `resolve` rewrote the row before this read.
-        if (mGlow.has_value() && material.mIndex != sNoIndex)
-            mGlows[*mGlow].addSheet(
+        if (glow.has_value() && material.mIndex != sNoIndex)
+            mGlows[*glow].addSheet(
                 mScene.materials().getRows()[material.mIndex], mScene.meshes().getRows()[mesh].mBounds, place, fade);
 
         if (held == mPlacements.end())

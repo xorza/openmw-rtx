@@ -193,6 +193,14 @@ namespace Rtx
         VkDeviceSize mOffset = 0;
     };
 
+    /// Room a batch lent out of its staging: where it is, and the bytes to write there. See
+    /// `Batch::reserve`.
+    struct StagingLend
+    {
+        StagingRun mRun;
+        std::span<std::byte> mBytes;
+    };
+
     /// One command buffer that a run of setup records into, submitted and waited on once. A load
     /// path's cost is round trips, not work: a cell arriving at Balmora creates 361 textures, and
     /// a submit each is 367 waits on a queue that could have been asked once. The batch holds the
@@ -238,6 +246,11 @@ namespace Rtx
         /// every upload of a batch, where a buffer apiece was three driver calls per upload and a
         /// cell uploads four hundred times. Appended and never rewound, because nothing has run yet.
         StagingRun stage(std::span<const std::byte> bytes);
+
+        /// The same room, `bytes` long, lent empty for a caller that produces the bytes where they
+        /// land — a video frame, which then crosses main memory once. Writable until the batch
+        /// ends; write it and do not read it back, because it is write-combined memory.
+        StagingLend reserve(VkDeviceSize bytes);
 
         /// Buries what it held under the submit it is about to make, submits what has been
         /// recorded and waits for it. A batch nobody used costs nothing.

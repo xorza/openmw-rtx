@@ -58,7 +58,7 @@ float historyShare(HistoryFootprint footprint, int corner)
 ///
 /// @param was the surface the history belongs to: its normal in `xyz`, nought where nothing was
 ///        accumulated, and its distance in `w`, times `distanceScale` —
-///        `AccumulateConstants::mDistanceScale` says what those units are and why.
+///        `HistoryConstants::mDistanceScale` says what those units are and why.
 /// @param distance how far this pixel's surface is, in world units.
 /// @param moved the pixel's `CHANNEL_MOTION`.
 bool heldSurfaceMatches(vec4 was, vec3 normal, float distance, vec3 moved, float distanceScale)

@@ -158,8 +158,9 @@ namespace RtxTool
         /// where the device cannot write timestamps.
         std::vector<GpuZone> mGpu;
 
-        /// What the card was clocked at as this place ended. Every GPU figure above is at that
-        /// clock, and two runs taken at different ones are not an A/B.
+        /// What the card was clocked at through the place's measured frames: the range and the mean
+        /// `CardWatch` sampled. Every GPU figure above is at that clock, and two runs taken at
+        /// different ones are not an A/B.
         GpuClock mClock;
 
         /// Who held the card through the place's measured frames. A place another process drew
@@ -241,7 +242,7 @@ namespace RtxTool
 
     /// What a whole run came to, under the places. Empty for a run of one place, which has already
     /// said everything this would.
-    std::string describeTotal(std::span<const BenchPlace> places, bool stopped);
+    std::string describeTotal(std::span<const BenchPlace> places);
 
     /// Writes the run as one record, for comparing against the same run on another commit.
     ///

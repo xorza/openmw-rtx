@@ -19,15 +19,6 @@ namespace Rtx
 {
     namespace
     {
-        /// Every index below `count`, refilled into `into`.
-        std::span<const Index> everyBelow(std::size_t count, std::vector<Index>& into)
-        {
-            into.resize(count);
-            for (std::size_t at = 0; at < count; ++at)
-                into[at] = static_cast<Index>(at);
-
-            return into;
-        }
     }
 
     SkinTables::SkinTables(const Device& device, Batch& batch, const SceneDesc& scene, const std::uint32_t slots)
@@ -83,7 +74,7 @@ namespace Rtx
         Batch& batch, const SceneDesc& scene, const std::span<const Index> meshes, const bool whole)
     {
         const std::span<const MeshRange> ranges = scene.meshes().getRows();
-        for (const Index index : whole ? everyBelow(ranges.size(), mEvery) : meshes)
+        for (const Index index : whole ? everyIndexBelow(ranges.size(), mEvery) : meshes)
         {
             const MeshRange& mesh = ranges[index];
             if (!mesh.deforms() || mesh.mVertices.mCount == 0)
@@ -101,10 +92,10 @@ namespace Rtx
         Batch& batch, const SceneDesc& scene, const std::span<const Index> arrived, const Moved moved)
     {
         const DeformerTable& deformers = scene.deformers();
-        const std::span<const Deformer> table = deformers.getDeformers();
+        const std::span<const Deformer> table = deformers.getRows();
         const bool whole = moved.mRuns || moved.mInfluences || moved.mOffsets;
 
-        for (const Index index : whole ? everyBelow(table.size(), mEvery) : arrived)
+        for (const Index index : whole ? everyIndexBelow(table.size(), mEvery) : arrived)
         {
             // A freed slot deforms nothing and holds no run to write. An arrival stages every run
             // it holds; a row walked for a table that moved stages the runs into that table, and

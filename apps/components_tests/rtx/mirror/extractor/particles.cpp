@@ -3,12 +3,17 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
+#include <osg/Geode>
+#include <osg/Geometry>
 #include <osg/Group>
 #include <osg/Math>
 #include <osg/Matrix>
+#include <osg/Node>
+#include <osg/NodeVisitor>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
 #include <osg/Texture2D>
@@ -24,6 +29,7 @@
 #include <osgParticle/RadialShooter>
 #include <osgParticle/range>
 
+#include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -223,8 +229,66 @@ namespace Rtx::Testing
             EXPECT_FALSE(extractOne(false));
         }
 
+        /// A rain box with one quad of our own under it, which is all the walk can tell from a storm.
+        ///
+        /// **What `extractPrecipitation` is handed is a node, an eye and whether it is submerged**, so
+        /// a group that drops nothing is enough to ask both of its questions, and needs no content
+        /// files to build.
+        osg::ref_ptr<osg::Group> makeFalling()
+        {
+            osg::ref_ptr<osg::Geometry> drop = new osg::Geometry;
+            drop->setVertexArray(
+                Testing::makePositions({ { 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f } }));
+            drop->addPrimitiveSet(Testing::makeTriangles({ 0, 1, 2 }));
+
+            osg::ref_ptr<osg::Geode> holder = new osg::Geode;
+            holder->addDrawable(drop);
+
+            osg::ref_ptr<osg::Group> falling = new osg::Group;
+            falling->addChild(holder);
+            return falling;
+        }
+
+        /// A drop's own travel is its fall, and nothing falls where the eye is under water.
+        ///
+        /// **The box of drops carries no translation of its own**, so its particles are placed about
+        /// the origin and the eye is what stands them in the world. Anchoring the walk anywhere else
+        /// makes every sprite's motion between two frames the eye's step as well as its fall, which
+        /// is a reprojection of the wrong thing — and the drops would slide with the camera.
+        ///
+        /// **And the walk stops entirely under water.** The sky manager freezes the drops where
+        /// they stand and leaves what to draw to whoever is drawing; walked anyway, the ones the
+        /// surface was crossed with hang in the air for as long as the eye stays under it.
+        TEST(RtxSceneExtractorPrecipitationTest, dropsAreStoodAtTheEyeAndNoneIsWalkedUnderWater)
+        {
+            const osg::ref_ptr<osg::Group> falling = makeFalling();
+            const osg::Vec3f eye(1000.0f, -2000.0f, 300.0f);
+
+            SceneDesc scene;
+            SceneExtractor extractor(scene);
+            extractor.extractPrecipitation(falling, eye, false, 0);
+
+            ASSERT_EQ(scene.placements().getCounts().mPlaced, 1u) << "the drop was not walked at all";
+            EXPECT_EQ(placedAt(scene, 0), eye) << "the drops were stood somewhere other than the eye";
+
+            // Held still where the eye is submerged, which is a walk that does not happen rather
+            // than geometry that is hidden.
+            SceneDesc under;
+            SceneExtractor beneath(under);
+            beneath.extractPrecipitation(falling, eye, true, 0);
+
+            EXPECT_EQ(under.placements().getCounts().mPlaced, 0u);
+
+            // And a world with no weather over it at all is the third case the one call answers.
+            SceneDesc dry;
+            SceneExtractor none(dry);
+            none.extractPrecipitation(nullptr, eye, false, 0);
+
+            EXPECT_EQ(dry.placements().getCounts().mPlaced, 0u);
+        }
+
         /// Whether a sprite falls from the sky is the walk's word and not the system's: the same
-        /// plume is what a roof keeps off under `extractFalling` and a hearth's smoke under
+        /// plume is what a roof keeps off under `extractPrecipitation` and a hearth's smoke under
         /// `extract`, and a walk after a falling one is not left falling.
         TEST_F(RtxSceneExtractorTest, theWalkSaysWhetherAnEmittersSpritesFall)
         {
@@ -234,7 +298,7 @@ namespace Rtx::Testing
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
 
-            extractor.extractFalling(*plume.mRoot, osg::Matrixf::identity(), 0);
+            extractor.extractPrecipitation(plume.mRoot.get(), osg::Vec3f(), false, 0);
             ASSERT_EQ(scene.emitters().size(), 1u);
             EXPECT_TRUE(scene.emitters().front().falls());
 
@@ -456,7 +520,7 @@ namespace Rtx::Testing
             walk(*plume.mRoot);
             EXPECT_TRUE(mScene.emitters().empty()) << "a system with no sprite drew";
             for (Index slot = 0; slot < mScene.textures().getRows().size(); ++slot)
-                EXPECT_TRUE(mScene.textures().isFree(slot))
+                EXPECT_FALSE(mScene.textures().isLive(slot))
                     << "slot " << slot << " the emitter stopped wearing was kept";
 
             mScene.clearPlacement();
@@ -642,6 +706,48 @@ namespace Rtx::Testing
             EXPECT_EQ(seen, 20u);
 
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u) << "a walk on a clock that did not move emits nothing";
+        }
+
+        /// A node whose walk ends the walk, as a content file the walk cannot read does.
+        struct Throwing : osg::Node
+        {
+            void accept(osg::NodeVisitor&) override { throw std::runtime_error("a node the walk cannot read"); }
+        };
+
+        /// **A walk that threw leaves nothing for the next one to place.** The emitters a walk met
+        /// are read when it ends, and a throw is an end with no reading: the next walk placed the
+        /// thrown walk's emitters as its own, at their old places, and read their effects out of a
+        /// list it had refilled.
+        TEST_F(RtxSceneExtractorTest, aWalkThatThrewLeavesNoEmitterForTheNext)
+        {
+            const Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
+            emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+
+            osg::ref_ptr<osg::Group> thrown = new osg::Group;
+            thrown->addChild(plume.mRoot);
+            thrown->addChild(new Throwing);
+            EXPECT_THROW(walk(*thrown), std::runtime_error);
+
+            osg::ref_ptr<osg::Group> empty = new osg::Group;
+            const ExtractionStats next = walk(*empty);
+            EXPECT_EQ(next.mEmitters, 0u);
+            EXPECT_EQ(next.mSprites, 0u) << "the thrown walk's plume, placed by the walk after it";
+        }
+
+        /// **Nor the class it was inside.** A walk that threw under an effect's root left the next
+        /// walk standing inside the effect, so a plain quad walked next was placed as an effect.
+        TEST_F(RtxSceneExtractorTest, aWalkThatThrewInsideAnEffectLeavesTheNextOutside)
+        {
+            constexpr osg::Node::NodeMask sEffect = 1u << 1;
+            mExtractor.setClassMask(Rtx::InstanceClass::Effect, sEffect);
+
+            osg::ref_ptr<osg::Group> effect = new osg::Group;
+            effect->setNodeMask(sEffect);
+            effect->addChild(new Throwing);
+            EXPECT_THROW(walk(*effect), std::runtime_error);
+
+            ASSERT_EQ(walk(*makeQuad()).mInstances, 1u);
+            EXPECT_EQ(mScene.placements().getRows()[0].mInstance.mClass, Rtx::InstanceClass::Static);
         }
 
         /// **An emitter's sprites are read from its entry as the map holds it after the walk**, and

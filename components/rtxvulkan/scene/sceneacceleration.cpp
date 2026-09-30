@@ -31,8 +31,8 @@ namespace Rtx
         return result;
     }
 
-    SceneAcceleration::SceneAcceleration(
-        const Device& device, Batch& batch, const SceneDesc& scene, const std::uint32_t slots)
+    SceneAcceleration::SceneAcceleration(const Device& device, Batch& batch, const SceneDesc& scene,
+        std::span<const Index> everyMesh, const std::uint32_t slots)
         : mDevice(device)
         , mTopLevelStorage(device, BufferKind::DeviceLocal, sStructureStorageUsage, "top level storage")
         , mBottomLevel(device)
@@ -43,12 +43,7 @@ namespace Rtx
         mRowTable.open(device, slots, sBuildInputUsage, "instances");
         mIndices.open(device, sBuildInputUsage, "indices");
 
-        // Every mesh the scene holds, which is the same path an arrival takes with a shorter list.
-        mEveryMesh.resize(scene.meshes().getRows().size());
-        for (std::size_t at = 0; at < mEveryMesh.size(); ++at)
-            mEveryMesh[at] = static_cast<Index>(at);
-
-        writeGeometry(batch, scene, mEveryMesh);
+        writeGeometry(batch, scene, everyMesh);
 
         // Every copy holds a bind pose for every body the scene arrived with, so what a copy owes
         // from now on is the poses it missed.
@@ -56,13 +51,13 @@ namespace Rtx
             mPoses.settle(FrameSlot{ slot });
     }
 
-    void SceneAcceleration::build(
-        Batch& batch, const SceneDesc& scene, std::span<const InstanceRecord> records, std::vector<Refusal>& refused)
+    void SceneAcceleration::build(Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
+        std::span<const InstanceRecord> records, std::vector<Refusal>& refused)
     {
         assert(mBottomLevel.size() == 0 && mTopLevel.isEmpty() && "a scene built twice");
 
         // The rows after the structures, because a row names the address of the structure it places.
-        mBottomLevel.build(batch, scene, mEveryMesh, mPoses.at(FrameSlot{}), mIndices, mPlacements, refused);
+        mBottomLevel.build(batch, scene, everyMesh, mPoses.at(FrameSlot{}), mIndices, mPlacements, refused);
         sizeRefitScratch();
         writeRows(records, {});
         prepareTopLevel(scene, FrameSlot{});
@@ -104,12 +99,6 @@ namespace Rtx
 
     void SceneAcceleration::extend(Batch& batch, const SceneDesc& scene)
     {
-        // Departures first, and their rooms cool rather than going straight back, so an arrival
-        // this frame cannot be built into room a frame in flight is still tracing. The two
-        // lists are disjoint, so a slot handed out again appears only among the arrivals and is
-        // dealt with by `buildArrived`, which buries whatever the slot was holding.
-        release(scene.meshes().getFreed());
-
         writeGeometry(batch, scene, scene.meshes().getArrived());
     }
 

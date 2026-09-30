@@ -50,9 +50,10 @@ layout(set = SET_PASS, binding = PANE_BIND_HELD, ACCUMULATE_SURFACE) uniform wri
 layout(set = SET_PASS, binding = PANE_BIND_MEAN_BEFORE, PANE_MEAN) uniform readonly image2D meanBefore;
 layout(set = SET_PASS, binding = PANE_BIND_MEAN, PANE_MEAN) uniform writeonly image2D mean;
 
+/// The eye's camera serves the arms' layers too: the two are jittered alike.
 layout(push_constant, scalar) uniform Push
 {
-    PaneConstants frame;
+    HistoryConstants frame;
 };
 
 void main()

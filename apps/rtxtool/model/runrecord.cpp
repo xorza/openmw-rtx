@@ -41,7 +41,7 @@ namespace RtxTool
 
     void RunRecord::finish(const SessionRequest& request)
     {
-        mReport += describeTotal(mPlaces, false);
+        mReport += describeTotal(mPlaces);
 
         // **What a `check` run came to, in one line.** A suite asks every check at each of several
         // places, so the verdict is otherwise something a reader counts by hand.

@@ -166,6 +166,8 @@ namespace RtxTool
 
             EXPECT_EQ(options.readsOption("validation"), Verbs::Every);
             EXPECT_EQ(options.readsOption("data"), Verbs::Every) << "the engine's own, read by every command";
+            EXPECT_EQ(options.readsOption("load-savegame"), otherThan(Verbs::Info)) << "info starts no game";
+            EXPECT_EQ(options.readsOption("random-seed"), otherThan(Verbs::Info));
             EXPECT_EQ(
                 options.readsOption("views"), Verbs::Scene | Verbs::Shot | Verbs::Bench | Verbs::Check | Verbs::Noise);
             EXPECT_EQ(options.readsOption("suite"), Verbs::Bench | Verbs::Check | Verbs::Noise);

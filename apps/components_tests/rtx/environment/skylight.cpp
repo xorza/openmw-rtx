@@ -158,28 +158,30 @@ namespace Rtx
         ///
         /// **This order is the engine's and not ours.** `MWWorld::WeatherManager::addWeather` is
         /// called ten times in `apps/openmw/mwworld/weather.cpp:672` and each call's position is the
-        /// `mScriptId` the game later hands the renderer; the shader's `WEATHER_*` name the same
-        /// positions. A table that drifted from either would put an ashstorm's sky over a rainstorm
-        /// without anything failing to compile.
+        /// `mScriptId` the game later hands the renderer, and `ESM::Weather`'s table spells them in
+        /// that order. A table of this renderer's own that drifted from it would put an ashstorm's
+        /// sky over a rainstorm without anything failing to compile, so there is none.
         TEST(RtxSkylightTest, aWeatherNameIndexesTheOrderTheEngineRegistersThemIn)
         {
-            EXPECT_EQ(weatherIndex("Clear"), Rtx::Shaders::WEATHER_CLEAR);
-            EXPECT_EQ(weatherIndex("Cloudy"), Rtx::Shaders::WEATHER_CLOUDY);
-            EXPECT_EQ(weatherIndex("Foggy"), Rtx::Shaders::WEATHER_FOGGY);
-            EXPECT_EQ(weatherIndex("Overcast"), Rtx::Shaders::WEATHER_OVERCAST);
-            EXPECT_EQ(weatherIndex("Rain"), Rtx::Shaders::WEATHER_RAIN);
-            EXPECT_EQ(weatherIndex("Thunderstorm"), Rtx::Shaders::WEATHER_THUNDERSTORM);
-            EXPECT_EQ(weatherIndex("Ashstorm"), Rtx::Shaders::WEATHER_ASHSTORM);
-            EXPECT_EQ(weatherIndex("Blight"), Rtx::Shaders::WEATHER_BLIGHT);
-            EXPECT_EQ(weatherIndex("Snow"), Rtx::Shaders::WEATHER_SNOW);
-            EXPECT_EQ(weatherIndex("Blizzard"), Rtx::Shaders::WEATHER_BLIZZARD);
+            EXPECT_EQ(weatherIndex("Clear"), Rtx::sWeatherClear);
+            EXPECT_EQ(weatherIndex("Cloudy"), Rtx::sWeatherCloudy);
+            EXPECT_EQ(weatherIndex("Foggy"), Rtx::sWeatherFoggy);
+            EXPECT_EQ(weatherIndex("Overcast"), Rtx::sWeatherOvercast);
+            EXPECT_EQ(weatherIndex("Rain"), Rtx::sWeatherRain);
+            EXPECT_EQ(weatherIndex("Thunderstorm"), Rtx::sWeatherThunderstorm);
+            EXPECT_EQ(weatherIndex("Ashstorm"), Rtx::sWeatherAshstorm);
+            EXPECT_EQ(weatherIndex("Blight"), Rtx::sWeatherBlight);
+            EXPECT_EQ(weatherIndex("Snow"), Rtx::sWeatherSnow);
+            EXPECT_EQ(weatherIndex("Blizzard"), Rtx::sWeatherBlizzard);
 
             EXPECT_FALSE(weatherIndex("Drizzle").has_value());
 
-            // **Case is not folded**, because the name goes on to spell a `Weather_<name>_*` key
-            // and the fallback map's whitelist holds exactly one spelling of each. Accepting a
-            // second here would turn a stop's sky to a weather the settings never wrote.
-            EXPECT_FALSE(weatherIndex("clear").has_value());
+            // **Any case, as the game reads a weather's id**, and the name each index spells is
+            // `ESM::Weather`'s own, which is the one spelling a `Weather_<name>_*` key is made of.
+            EXPECT_EQ(weatherIndex("clear"), Rtx::sWeatherClear);
+            EXPECT_EQ(weatherIndex("ASHSTORM"), Rtx::sWeatherAshstorm);
+            EXPECT_EQ(weatherName(Rtx::sWeatherAshstorm), "Ashstorm");
+            EXPECT_EQ(weatherName(Rtx::sWeatherCount), "") << "past the ten";
             EXPECT_FALSE(weatherIndex("").has_value());
         }
 

@@ -13,14 +13,17 @@
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/counts.h>
+#include <components/rtx/shaders/digest.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
+#include <components/rtxvulkan/display/digestpass.hpp>
 
 namespace Rtx
 {
     class Device;
+    class Image;
 
     /// One command buffer and the timeline value it was submitted under.
     struct Submission
@@ -85,14 +88,14 @@ namespace Rtx
         /// under no submit in flight.
         GrowableBuffer mDebugVertices;
 
-        /// How much of `FrameRing::pictureOf` this frame wrote where `FrameOptions::mReadBack`
-        /// asked, nought for a frame that did not.
+        /// How much of `FrameRing::pictureOf` this frame wrote where `FrameRing::readPicture`
+        /// recorded, nought for a frame that did not.
         VkDeviceSize mReadBackBytes = 0;
 
         /// Where `DigestPass` copies the frame's words, `Shaders::DIGEST_IMAGES` of
-        /// `Shaders::DIGEST_LANES`, and the digest the report carries: what the frame handed
-        /// the reconstruction while it was recorded, the words once it is waited for, and nothing
-        /// for a frame that did not ask.
+        /// `Shaders::DIGEST_LANES`, and the digest the report carries: what `FrameRing::readDigest`
+        /// was told while the frame was recorded, the words once it is waited for, and nothing for
+        /// a frame that did not ask.
         Buffer mDigestLanes;
         std::optional<FrameDigest> mDigest;
     };
@@ -101,26 +104,19 @@ namespace Rtx
     /// works one ahead of the GPU. Frame N+1 is walked and placed while frame N is traced; the
     /// frame after next takes N's slot and waits for it first. A report belongs to its frame
     /// and queues here when making room finished it, or a caller asking once a frame would be
-    /// answered for fewer than half of them.
+    /// answered for fewer than half of them. What a frame reads back — its counts, its picture and
+    /// its digest — is cleared, recorded, ordered for the host and read here, so no two places can
+    /// disagree about whether a frame reads one.
     class FrameRing
     {
     public:
-        /// @param readsCounts whether a frame's counts are worth reading back: the renderer
-        ///        decides it once, `VulkanRenderer::mReadsCounts`.
+        /// @param readsCounts whether a frame's counts come back to the host at all: where the
+        ///        trace counts its hits, and where a hold leaves its reading. Decided once, and read
+        ///        where the block is cleared, ordered for the host and read back.
         FrameRing(const Device& device, bool readsCounts);
 
         FrameRing(const FrameRing&) = delete;
         FrameRing& operator=(const FrameRing&) = delete;
-
-        /// The slot of the frame being recorded, with whatever last used it finished. It does not
-        /// open the frame, which `begin` is for.
-        FrameRecord& recording();
-
-        /// The slot `frame` used.
-        FrameRecord& slotOf(std::uint64_t frame)
-        {
-            return mSlots.at(FrameSlot{ static_cast<std::uint32_t>(frame % sFrameSlots) });
-        }
 
         /// How many frames have been submitted, which is the number the next one will carry.
         std::uint64_t getRecording() const { return mFrame; }
@@ -130,13 +126,26 @@ namespace Rtx
         FrameSlot getRecordingSlot() const { return FrameSlot{ static_cast<std::uint32_t>(mFrame % sFrameSlots) }; }
 
         /// The frame being recorded, begun if it was not: the frame that last used its slot is
-        /// waited for, its timer and hit count cleared.
+        /// waited for, its timer cleared, and its counts where they come back. A miss count is an
+        /// atomic sum over the frame, so the block starts each one at nothing — and it is not
+        /// started at all where nothing reads it back.
         FrameRecord& begin();
 
         /// A command buffer for one placement of `frame`, made on the frame that first needs it.
         VkCommandBuffer takePlaceCommands(FrameRecord& frame);
 
-        /// Submits what a frame recorded and counts it as in flight.
+        /// Records a copy of `target`, as the frame's passes left it, into host memory of the
+        /// ring's for the report that comes back with the frame — `FrameResult::mPixels`. After the
+        /// last pass that writes `target`.
+        void readPicture(FrameRecord& frame, VkCommandBuffer commands, const Image& target);
+
+        /// Records the fold of `images` into the frame's digest, and notes `facts` for the report —
+        /// `FrameResult::mDigest`, whose words are read once the frame is waited for.
+        void readDigest(FrameRecord& frame, VkCommandBuffer commands,
+            const std::array<const Image*, Shaders::DIGEST_IMAGES>& images, const FrameDigest& facts, GpuTimer* timer);
+
+        /// Submits what a frame recorded and counts it as in flight, with its counts ordered for
+        /// the host after every pass that could have written them.
         void submit(FrameRecord& frame);
 
         /// Whether the frame being recorded was begun and not yet submitted.
@@ -160,6 +169,17 @@ namespace Rtx
         /// Drops what nothing has collected, for a caller whose world has gone.
         void dropReports() { mReports.clear(); }
 
+    private:
+        /// The slot of the frame being recorded, with whatever last used it finished. It does not
+        /// open the frame, which `begin` is for.
+        FrameRecord& recording();
+
+        /// The slot `frame` used.
+        FrameRecord& slotOf(std::uint64_t frame)
+        {
+            return mSlots.at(FrameSlot{ static_cast<std::uint32_t>(frame % sFrameSlots) });
+        }
+
         /// Where frame `frame`'s picture lands where `FrameOptions::mReadBack` asks, grown to the
         /// picture on the first frame that asks and kept.
         ///
@@ -172,7 +192,6 @@ namespace Rtx
         /// `renderFrame` after the one it was collected before.
         GrowableBuffer& pictureOf(std::uint64_t frame) { return mPictures[frame % mPictures.size()]; }
 
-    private:
         /// Waits the oldest frame in flight out and puts what it came to in `mReports`.
         void finishOldest();
 
@@ -192,6 +211,9 @@ namespace Rtx
 
         PerSlot<FrameRecord> mSlots;
         std::array<GrowableBuffer, sFrameSlots + 1> mPictures;
+
+        /// What folds a frame's images into its digest, on the frames that ask.
+        DigestPass mDigest;
 
         /// The next frame to record and the next to finish. Everything from `mFinished` to `mFrame`
         /// is in flight, and there are never more of those than there are slots.

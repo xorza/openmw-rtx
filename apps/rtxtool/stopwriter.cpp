@@ -62,6 +62,7 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "instruments/contactsheet.hpp"
+#include "instruments/digest.hpp"
 #include "instruments/framehashes.hpp"
 #include "model/benchrecord.hpp"
 #include "model/runrecord.hpp"
@@ -364,11 +365,11 @@ namespace RtxTool
             return;
         }
 
-        // The sheet carries no lettering, so the order is printed instead: left to right, top to
-        // bottom, the way it was drawn.
-        const std::span<const Rtx::TextureRow> rows = scene.textures().getRows();
-        for (std::size_t at = 0; at < rows.size(); ++at)
-            into.mRecord.note(std::format("  {}  {}\n", at, rows[at].mPath.value()));
+        // Left to right, top to bottom, the way it was drawn.
+        std::vector<std::string_view> names;
+        listSheetNames(described.getDescriptions(), scene.textures().getRows(), names);
+        for (std::size_t at = 0; at < names.size(); ++at)
+            into.mRecord.note(std::format("  {}  {}\n", at, names[at]));
 
         into.mRecord.note(std::format(
             "wrote {}, {} textures at delight {}\n", Files::pathToUnicodeString(sheet), drawn.mCount, delight));
@@ -590,11 +591,11 @@ namespace RtxTool
             {
                 // **Every cell of the reach, the active grid's included**: the game builds no ground
                 // for this renderer, so a cell short is a hole the player can walk on. The reach is
-                // the disc `Rtx::withinReach` draws about the eye the walk stood, counted by the
+                // the disc `Rtx::CellGrid::withinReach` draws about the eye the walk stood, counted by the
                 // same rule.
                 const bool outdoors = MWBase::Environment::get().getWorld()->isCellExterior();
                 std::uint32_t expected = 0;
-                Rtx::forEachCellWithin(context.mEye, context.mReach, [&](const osg::Vec2i&) { ++expected; });
+                context.mGrid.forEachCellWithin(context.mEye, context.mReach, [&](const osg::Vec2i&) { ++expected; });
 
                 found = std::format(
                     "{} cells of ground stand against {} in the reach", stats.mGroundCells, outdoors ? expected : 0);
@@ -743,15 +744,9 @@ namespace RtxTool
 
             case Check::CameraStands:
             {
-                // **Answered rather than compared, where the stop named no camera.** Measuring the
-                // camera against itself is a yes nothing could fail, which reads in the report
-                // exactly like a camera that held.
+                // `canAsk` asks this only of a stop standing still, which names its eye.
                 const Stand& stand = facts.mStand;
-                if (!stand.mEye.has_value())
-                {
-                    found = "the stop named no camera of its own";
-                    return true;
-                }
+                assert(stand.mEye.has_value());
 
                 // **The game's camera and not the note the session took**, which is read off the
                 // same object: a check against that would agree with itself however far either had

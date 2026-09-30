@@ -24,10 +24,9 @@ namespace MWRender
         float mObjectPagingMinSize = 0.0f;
         std::string_view mSpecularMapLayout;
         int mAnisotropy = 0;
-        bool mGroundcover = false;
 
-        /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging, `[General] anisotropy` and
-        /// `[Groundcover] enabled`: the one place the game reads these settings.
+        /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging and `[General] anisotropy`: the one
+        /// place the game reads these settings.
         static RtxSettingValues fromRegistry();
     };
 

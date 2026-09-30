@@ -384,9 +384,6 @@ namespace MWBase
 
         virtual void asyncPrepareSaveMap() = 0;
 
-        /// Sets the cull masks for all applicable views
-        virtual void setCullMask(uint32_t mask) = 0;
-
         virtual void inventoryUpdated(const MWWorld::Ptr& ptr) const = 0;
 
         /// Return the window that should receive controller events

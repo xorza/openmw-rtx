@@ -17,6 +17,7 @@
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
 #include <components/rtxvulkan/framering.hpp>
@@ -31,20 +32,21 @@ namespace Rtx
             ///
             /// **Empty on purpose.** What is under test is the ring's account of which slot belongs
             /// to whom, and a command buffer with work in it would only make the fences slower.
-            void submitEmpty(FrameRing& ring)
+            FrameRecord& submitEmpty(FrameRing& ring)
             {
                 FrameRecord& frame = ring.begin();
                 getPool().begin(frame.mWorld.mCommands);
                 ring.submit(frame);
+                return frame;
             }
         };
 
         /// The slot the ring hands out for recording is never one a frame in flight still owns.
         ///
         /// **Two slots and two frames in flight makes them the same slot**, which is the whole of
-        /// this: `slotOf(mFrame)` and `slotOf(mFinished)` agree once the ring is full, so the slot a
-        /// caller is about to record into is the oldest frame's, and the next drain waits that
-        /// frame alone while the newer one is still tracing.
+        /// this: the slot of the frame being recorded and that of the oldest in flight agree once
+        /// the ring is full, so the slot a caller is about to record into is the oldest frame's,
+        /// and the next drain waits that frame alone while the newer one is still tracing.
         ///
         /// The ring is filled first, and `FrameState::Submitted` is what says a frame is still on
         /// the queue.
@@ -55,19 +57,22 @@ namespace Rtx
 
             // Filled to the brim: nothing collects, so every frame stays in flight, exactly as
             // a watched window (`view`) leaves the ring.
-            for (std::uint32_t frame = 0; frame < sFrameSlots; ++frame)
+            FrameRecord& first = submitEmpty(ring);
+            for (std::uint32_t frame = 1; frame < sFrameSlots; ++frame)
                 submitEmpty(ring);
 
             EXPECT_EQ(ring.getRecording(), sFrameSlots) << "the ring did not take the frames";
-            EXPECT_EQ(ring.slotOf(0).mState.get(), FrameState::Submitted)
-                << "the first frame was finished by something";
+            EXPECT_EQ(first.mState.get(), FrameState::Submitted) << "the first frame was finished by something";
 
-            EXPECT_EQ(ring.recording().mState.get(), FrameState::Idle)
-                << "the slot handed out is a frame still on the queue";
+            // The first frame's slot, begun: from `Idle` alone, so the frame on it was waited for.
+            FrameRecord& next = ring.begin();
+            EXPECT_EQ(&next, &first) << "the slot handed out is not the oldest frame's";
+            EXPECT_EQ(next.mState.get(), FrameState::Begun);
 
-            // And the same answer to the same question, which is what a caller taking a graveyard
-            // and then beginning the frame asks.
-            EXPECT_EQ(&ring.recording(), &ring.begin()) << "beginning the frame moved to another slot";
+            // And the same answer to the same question, which is what a caller placing twice asks.
+            EXPECT_EQ(&ring.begin(), &next) << "beginning the frame again moved to another slot";
+            getPool().begin(next.mWorld.mCommands);
+            ring.submit(next);
 
             // Before the ring goes, because its command buffers go with it and the last frame is
             // still on the queue.
@@ -90,8 +95,10 @@ namespace Rtx
         /// notes each handle says which went when.
         TEST_F(RtxFrameRingTest, aBurialOutlivesEverySubmitMadeBeforeItAndEndsInOrder)
         {
-            // The device's graveyard is shared with every test before this one, so it is emptied
-            // first: the counts below are of this test's burials alone.
+            // The device's graveyard is shared with every test before this one and with what the
+            // ring made, so it is emptied after both: the counts below are of this test's burials
+            // alone.
+            FrameRing ring(getDevice(), false);
             Graveyard& graveyard = getDevice().getGraveyard();
             getDevice().waitIdle();
             getDevice().collectIdle();
@@ -99,8 +106,6 @@ namespace Rtx
             static std::vector<std::uint64_t> ended;
             ended.clear();
             const EndHandle note = [](const Device&, const std::uint64_t handle) { ended.push_back(handle); };
-
-            FrameRing ring(getDevice(), false);
 
             // One frame on the queue, and a buffer let go of while it is: its handle and its memory
             // are one burial.
@@ -153,14 +158,20 @@ namespace Rtx
             constexpr std::array<std::uint8_t, 4> picture{ 1, 2, 3, 4 };
             constexpr std::array<std::uint8_t, 4> other{ 5, 6, 7, 8 };
 
-            // A frame that "copied" four bytes: the copy is the renderer's; what the ring owes is
-            // the memory and the span over it.
+            // A frame whose target is one texel of `bytes`, read back as the renderer reads its
+            // picture. Each channel is cleared to `byte / 255`, which the format rounds back to
+            // the byte exactly.
             const auto leave = [&](FrameRecord& frame, const std::span<const std::uint8_t> bytes) {
-                GrowableBuffer& into = ring.pictureOf(ring.getRecording());
-                into.growTo(bytes.size());
-                into.get().write(bytes);
-                frame.mReadBackBytes = bytes.size();
-                getPool().begin(frame.mWorld.mCommands);
+                const Image target(device, 1, 1, VK_FORMAT_R8G8B8A8_UNORM,
+                    VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                    "test target");
+                const VkClearColorValue colour{ .float32
+                    = { bytes[0] / 255.0f, bytes[1] / 255.0f, bytes[2] / 255.0f, bytes[3] / 255.0f } };
+
+                const VkCommandBuffer commands = frame.mWorld.mCommands;
+                getPool().begin(commands);
+                target.clear(commands, Use::sUndefined, colour, Use::sComputeWrite);
+                ring.readPicture(frame, commands, target);
                 ring.submit(frame);
             };
 
@@ -178,8 +189,6 @@ namespace Rtx
             // read off a frame that did not ask — and the picture it leaves lands elsewhere.
             FrameRecord& third = ring.begin();
             EXPECT_EQ(third.mReadBackBytes, 0u);
-            EXPECT_NE(&ring.pictureOf(2), &ring.pictureOf(0)) << "the frame that took the slot took the picture";
-            EXPECT_EQ(&ring.pictureOf(3), &ring.pictureOf(0)) << "the frame after is the one that takes it";
             leave(third, other);
             EXPECT_TRUE(std::equal(came->mPixels.begin(), came->mPixels.end(), picture.begin()))
                 << "the frame that took the slot wrote over the picture";
@@ -216,11 +225,10 @@ namespace Rtx
                 EXPECT_TRUE(ring.isOpen());
                 ring.skip();
                 EXPECT_FALSE(ring.isOpen());
+                EXPECT_EQ(frame.mPlaceCommands.size(), 1u) << "frame " << at;
             }
 
             EXPECT_EQ(ring.getRecording(), skipped) << "a skipped frame went unnumbered";
-            for (std::uint64_t frame = 0; frame < sFrameSlots; ++frame)
-                EXPECT_EQ(ring.slotOf(frame).mPlaceCommands.size(), 1u) << "slot of frame " << frame;
 
             submitEmpty(ring);
             const std::optional<FrameResult> traced = ring.collect();

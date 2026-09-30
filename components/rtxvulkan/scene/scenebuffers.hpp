@@ -18,15 +18,13 @@
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/slottable.hpp>
 
-#include "spritebin.hpp"
+#include "spritesource.hpp"
 
 namespace Rtx
 {
     class Device;
     class GpuTimer;
     class SceneDesc;
-    class SpriteBinPass;
-    class SpriteShadePass;
 
     /// The tables a shader reads at a hit: the attributes, and the mesh, instance and material
     /// tables to find them through. Position fetch covers a normal; nothing covers a texture
@@ -34,8 +32,9 @@ namespace Rtx
     class SceneBuffers
     {
     public:
+        /// @param everyMesh every mesh slot the scene holds, `DeviceScene::mEveryMesh`.
         /// @param slots how many frames may be tracing this scene at once.
-        SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
+        SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene, std::span<const Index> everyMesh,
             std::span<const InstanceRecord> records, std::uint32_t slots);
 
         /// Takes in the attributes of the meshes the scene says arrived, and the layer and mask
@@ -171,8 +170,8 @@ namespace Rtx
         /// still owes are one thing and belong to one object (`SlotTable`).
         SlotTable<Shaders::GpuInstance> mInstanceTable;
 
-        /// Every material the scene holds, and one row past them for the sentinel a placement with
-        /// no material of its own wears.
+        /// The untextured material a placement with none wears, and every material the scene holds
+        /// a row after it — `Shaders::MATERIAL_ROW_FIRST`.
         SlotTable<Shaders::GpuMaterial> mMaterialTable;
 
         /// Blocked like the geometry they belong to, so a scene that grows keeps the blocks it

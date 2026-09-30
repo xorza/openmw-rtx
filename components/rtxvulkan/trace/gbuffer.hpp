@@ -6,7 +6,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/descriptorsets.hpp>

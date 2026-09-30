@@ -8,7 +8,6 @@
 
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/settings/values.hpp>
-#include <components/sky/sundisc.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
@@ -26,11 +25,6 @@
 
 namespace MWRender
 {
-    osg::Vec4f sunDiscOf(const SkyState& sky, const WorldState& world)
-    {
-        return sky.mWeatherRan ? osg::Vec4f(Sky::sunDiscPosition(sky.mSunDirection), 0.f) : world.mSunLightPosition;
-    }
-
     WorldState FrameDescriber::describeWorld(const FrameSources& sources) const
     {
         // Not `const`: `getTimeManager` is not.
@@ -97,6 +91,7 @@ namespace MWRender
     {
         mWorld = describeWorld(sources);
         mEye = sources.mEye;
+        mEye.mProjectionMatrix = mProjection;
 
         mFrame.emplace(SceneFrame{
             .mScene = sources.mScene,
@@ -129,7 +124,6 @@ namespace MWRender
         return EyeState{
             .mNearClip = mNearClip,
             .mViewDistance = mViewDistance,
-            .mProjectionMatrix = mFrame.getProjection(),
             .mFieldOfView = mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView,
             .mArmsFieldOfView = mFirstPersonFieldOfView,
             .mPlayersEye = mCamera->getMode() != Camera::Mode::Static,

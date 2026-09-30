@@ -37,11 +37,11 @@
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
-#include <components/rtxvulkan/scene/spritebin.hpp>
 
 #include "fogvolume.hpp"
 #include "gbuffer.hpp"
 #include "ripplepass.hpp"
+#include "spritebin.hpp"
 #include "tracemedia.hpp"
 #include "wavepass.hpp"
 
@@ -469,7 +469,7 @@ namespace Rtx
         bindSets(commands, pipeline,
             SharedSetBinds{ .mTextures = inputs.mSubject.mScene->getTextures(),
                 .mChannels = buffer.getSet(),
-                .mVolume = inputs.mFogVolume.getSet(inputs.mSubject.mTraceSlot) });
+                .mVolume = inputs.mFogVolume.getSet() });
     }
 
     void VisibilityPass::writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs, const SpriteBin& bin,
@@ -487,9 +487,7 @@ namespace Rtx
         // separately. The frame that carries it reprojects nothing, which is what it is for.
         if (historyLost)
         {
-            described.mPreviousForward = Shaders::vec3();
-            described.mPreviousRight = Shaders::vec3();
-            described.mPreviousUp = Shaders::vec3();
+            described.mPrevious = Shaders::Basis{};
         }
 
         described.mComposed = composed ? 1u : 0u;
@@ -598,8 +596,7 @@ namespace Rtx
         const VisibilityVariant variant
             = VisibilityVariant::resolve(constants, inputs.mSubject.mSea, inputs.mSubject.mMapped);
 
-        const FrameSlot trace = inputs.mSubject.mTraceSlot;
-        inputs.mFogVolume.begin(commands, trace);
+        inputs.mFogVolume.begin(commands);
 
         const TracePipeline<NoConstants>& scatter = scatterPipelineFor(variant);
 
@@ -631,7 +628,7 @@ namespace Rtx
 
         closeZone(timer, commands);
 
-        inputs.mFogVolume.scattered(commands, trace);
+        inputs.mFogVolume.scattered(commands);
 
         openZone(timer, commands, "column");
 

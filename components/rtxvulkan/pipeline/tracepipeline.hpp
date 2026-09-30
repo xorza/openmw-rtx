@@ -28,9 +28,9 @@ namespace Rtx
     };
 
     /// Which shader stands at each record of a trace's shader binding table. One miss record
-    /// apiece, in the order given: a missed hit object naming index `i` runs entry
-    /// `i` of `mMiss`. A closest-hit shader stands behind `mHitRecordsPerShader` records in turn, so
-    /// a hit object naming index `i` runs entry `i / mHitRecordsPerShader` of `mHit`. Which index an
+    /// apiece, in the order given: a `traceRayEXT` that misses with miss index `i` runs entry `i`
+    /// of `mMiss`. A closest-hit shader stands behind `mHitRecordsPerShader` records in turn, so a
+    /// hit that selects record `i` runs entry `i / mHitRecordsPerShader` of `mHit`. Which index an
     /// instance names is the shader-table record offset its acceleration structure carries, plus
     /// whatever the trace adds.
     struct TraceShaders
@@ -44,7 +44,7 @@ namespace Rtx
 
         /// What each hit record carries after its handle, one block per record in record order,
         /// every block the same size — or nothing. In the record and not in the payload, because a
-        /// record is read by the shader the hit object names, whatever sorted the threads between.
+        /// record is read by the shader the hit selects, and the payload is what every hit carries.
         std::span<const std::byte> mHitRecordData;
 
         /// The one any-hit shader every hit group names, or nothing where traversal has no
@@ -90,9 +90,9 @@ namespace Rtx
     };
 
     /// A ray tracing pipeline and the shader binding table a launch reads it out of, its ray
-    /// generation stage pushed a `Constants`. A launch and not a dispatch, because a hit object runs
-    /// a shader picked by traversal rather than by a branch, so the divergent half of a trace
-    /// becomes one small program per kind of hit. Nothing recurses: the shaders a launch invokes
+    /// generation stage pushed a `Constants`. A launch and not a dispatch, because a hit runs a
+    /// shader picked by traversal rather than by a branch, so the divergent half of a trace becomes
+    /// one small program per kind of hit. Nothing recurses: the shaders a launch invokes
     /// trace again with inline ray queries.
     template <class Constants>
     class TracePipeline : public TypedPipeline<Constants>

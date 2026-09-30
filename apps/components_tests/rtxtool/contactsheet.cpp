@@ -1,11 +1,15 @@
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <string_view>
+#include <vector>
 
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/instruments/contactsheet.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/scene/texturetable.hpp>
 
 #include "../rtx/support/testtexture.hpp"
 
@@ -45,6 +49,30 @@ namespace RtxTool
             // At no strength the two halves are the same picture, which is what makes the sheet an
             // A/B rather than a claim.
             EXPECT_EQ(shownAt(0.0f, true), 255);
+        }
+
+        /// **The legend names what each pair shows, by its slot.** A table whose middle slot was
+        /// freed describes two textures, slots 0 and 2, and the sheet draws them as pairs 0 and 1:
+        /// the legend reads the first file and the third, where one counted along the table named
+        /// the freed slot's empty path second. A bake is named by its key.
+        TEST(RtxContactSheetTest, theLegendNamesEachPairBySlot)
+        {
+            std::array<Rtx::TextureRow, 4> rows{};
+            rows[0].mPath = VFS::Path::Normalized("textures/first.dds");
+            rows[2].mPath = VFS::Path::Normalized("textures/third.dds");
+            rows[3].mKind = Rtx::TextureKind::Baked;
+            rows[3].mBaked = "bake:textures/first.dds";
+
+            std::array<Rtx::TextureData, 3> drawn{};
+            drawn[0].mSlot = 0;
+            drawn[1].mSlot = 2;
+            drawn[2].mSlot = 3;
+
+            std::vector<std::string_view> names;
+            listSheetNames(drawn, rows, names);
+            EXPECT_EQ(names,
+                (std::vector<std::string_view>{
+                    "textures/first.dds", "textures/third.dds", "bake:textures/first.dds" }));
         }
 
         /// A cell that used no textures has no sheet to draw, and says so rather than writing one.

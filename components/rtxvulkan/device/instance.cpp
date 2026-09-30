@@ -138,6 +138,11 @@ namespace Rtx
             messengerInfo = makeMessengerCreateInfo(*mValidationLog);
             next = &messengerInfo;
 
+            // **Synchronization validation and GPU-assisted validation are never loaded together**:
+            // the two took the device down in three runs of four. The first catches a missing
+            // barrier and costs enough to be opt-in. The second instruments every shader and catches
+            // what a ray query does with its own arguments, at about half the frame rate, and the
+            // layer itself asks not to be run beside the core checks, so neither is a default.
             if (options.mLevel == ValidationLevel::Sync)
             {
                 enabled.push_back(VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT);

@@ -19,8 +19,6 @@
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 
-#include "spritepasses.hpp"
-
 namespace Rtx
 {
     namespace
@@ -87,9 +85,8 @@ namespace Rtx
         }
 
         /// A drawable with no state set has no material, and `sNoIndex` is not somewhere the shader
-        /// can be allowed to look. One untextured entry past the table costs less than a branch per
-        /// hit, and every instance that had nothing points at it. It moves when the table grows,
-        /// which is why the count it was last written at is kept per copy.
+        /// can be allowed to look. One untextured row costs less than a branch per hit, and every
+        /// instance that had nothing points at it — `Shaders::MATERIAL_ROW_UNTEXTURED`.
         Shaders::GpuMaterial sentinelMaterial()
         {
             return Shaders::GpuMaterial{
@@ -112,7 +109,7 @@ namespace Rtx
     }
 
     SceneBuffers::SceneBuffers(const Device& device, Batch& batch, const SceneDesc& scene,
-        std::span<const InstanceRecord> records, const std::uint32_t slots)
+        std::span<const Index> everyMesh, std::span<const InstanceRecord> records, const std::uint32_t slots)
         : mLayers(device, BufferKind::DeviceLocal, sTableFilledUsage, "layers")
         , mMasks(device, BufferKind::DeviceLocal, sTableFilledUsage, "masks")
         , mTables([&](FrameSlot) { return Tables(device); })
@@ -127,12 +124,7 @@ namespace Rtx
         mNormalTable.open(device, slots, sTableUsage, "normals");
         mTangentTable.open(device, slots, sTableUsage, "tangents");
 
-        // Every mesh the scene holds, which is the same path an arrival takes with a shorter list.
-        std::vector<Index> every(scene.meshes().getRows().size());
-        for (std::size_t at = 0; at < every.size(); ++at)
-            every[at] = static_cast<Index>(at);
-
-        writeMeshes(batch, scene, every);
+        writeMeshes(batch, scene, everyMesh);
         writeMaterialRuns(batch, scene);
         orderStagedWrites(batch);
 
@@ -231,26 +223,21 @@ namespace Rtx
     {
         const std::span<const Material> materials = scene.materials().getRows();
 
-        // Every row where the table changed length, and the rows the scene wrote otherwise. The
-        // sentinel sits one past the real materials, so a table that grew has a real material where
-        // the sentinel was and the sentinel where nothing was — two rows to reason about separately,
-        // or every row written on a path only a cell arrival takes. A material is sixty-eight bytes.
-        const bool moved = mMaterialTable.size() != materials.size() + 1;
-        mMaterialTable.grow(materials.size() + 1);
+        // Every row once, where the table is made, and the rows the scene wrote after: a material
+        // added, or one a flipbook rewrote. The untextured row stands first (`MATERIAL_ROW_FIRST`),
+        // so a table that grows only appends.
+        const bool made = mMaterialTable.size() == 0;
+        mMaterialTable.grow(materials.size() + Shaders::MATERIAL_ROW_FIRST);
 
-        if (moved)
+        if (made)
         {
+            mMaterialTable.write(Shaders::MATERIAL_ROW_UNTEXTURED) = sentinelMaterial();
             for (std::size_t at = 0; at < materials.size(); ++at)
-                mMaterialTable.write(static_cast<Index>(at)) = toGpu(materials[at]);
-
-            mMaterialTable.write(static_cast<Index>(materials.size())) = sentinelMaterial();
+                mMaterialTable.write(static_cast<Index>(at + Shaders::MATERIAL_ROW_FIRST)) = toGpu(materials[at]);
         }
         else
-        {
-            // A material a flipbook rewrote is one row; the table around it is what it was.
             for (const Index at : scene.materials().getWritten())
-                mMaterialTable.write(at) = toGpu(materials[at]);
-        }
+                mMaterialTable.write(at + Shaders::MATERIAL_ROW_FIRST) = toGpu(materials[at]);
 
         mMaterialTable.sync(slot);
 
@@ -299,14 +286,9 @@ namespace Rtx
 
         Tables& tables = mTables.at(slot);
 
-        // The sentinel material sits one past the real ones, which is where `shade` put it.
-        const auto sentinel = static_cast<std::uint32_t>(scene.materials().getRows().size());
-
         // Indexed by slot, gaps included. A hit reads its slot back as the custom index and
         // looks the row up here directly, so a table that closed its gaps would answer for the
         // wrong placement. A gap's row is never read, so it is never written either.
-        const std::span<const PlacementRow> placements = scene.placements().getRows();
-
         const std::size_t had = mInstanceTable.size();
         mInstanceTable.grow(records.size());
 
@@ -317,9 +299,9 @@ namespace Rtx
 
             Shaders::GpuInstance& row = mInstanceTable.write(static_cast<Index>(at));
             row.mMesh = record.mMesh;
-            const MeshInstance& placed = placements[at].mInstance;
-            row.mMaterial = placed.mMaterial == sNoIndex ? sentinel : placed.mMaterial;
-            row.mOpacity = placed.mOpacity;
+            row.mMaterial = record.mMaterial == sNoIndex ? Shaders::MATERIAL_ROW_UNTEXTURED
+                                                         : record.mMaterial + Shaders::MATERIAL_ROW_FIRST;
+            row.mOpacity = record.mOpacity;
             row.mClass = record.mClass;
 
             for (int r = 0; r < 3; ++r)

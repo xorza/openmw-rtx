@@ -14,6 +14,8 @@ set(RTXTOOL_FILES
     instruments/cardwatch.hpp
     instruments/contactsheet.cpp
     instruments/contactsheet.hpp
+    instruments/digest.cpp
+    instruments/digest.hpp
     instruments/drivercache.cpp
     instruments/drivercache.hpp
     instruments/framehashes.cpp

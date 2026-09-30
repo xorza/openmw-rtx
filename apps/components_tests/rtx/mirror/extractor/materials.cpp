@@ -535,7 +535,7 @@ namespace Rtx::Testing
             mExtractor.retire();
 
             for (std::size_t slot = 0; slot < 33; ++slot)
-                EXPECT_TRUE(mScene.textures().isFree(slot)) << "slot " << slot << " outlived the material";
+                EXPECT_FALSE(mScene.textures().isLive(slot)) << "slot " << slot << " outlived the material";
         }
 
         /// What `MWRender::TransparencyUpdater` does: sets its blend and its two uniforms up, and
@@ -1170,7 +1170,7 @@ namespace Rtx::Testing
             walk(*node, 0, 4);
             mExtractor.retire();
 
-            EXPECT_TRUE(mScene.textures().isFree(0)) << "the walk's own hold outlived the surface";
+            EXPECT_FALSE(mScene.textures().isLive(0)) << "the walk's own hold outlived the surface";
         }
 
         /// **A texture a full table refused is not asked again until the table frees a slot.** An

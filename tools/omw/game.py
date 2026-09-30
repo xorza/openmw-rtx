@@ -4,7 +4,7 @@ quicksave, and the openmw.cfg a fresh box has none of."""
 import subprocess
 from pathlib import Path
 
-from omw.build import Build
+from omw.build import CONFIGURED_FROM, Build
 from omw.system import Refusal, run, user_config_dir, user_data_dir
 
 
@@ -39,9 +39,15 @@ def setup(build: Build, args: list[str]) -> int:
     if cfg.exists():
         raise Refusal(f"{cfg} is already there; move it away to start over")
 
+    # The importer is set on over the preset's cache for this one build, so the stamp goes with it:
+    # a stamp left behind would say the directory is what the presets give, and the next configure
+    # would keep the importer on.
     build.configure()
-    run(["cmake", "-DBUILD_MWINIIMPORTER=ON", build.dir], env=build.env, stdout=subprocess.DEVNULL)
-    build.build(["openmw-iniimporter"])
+    try:
+        run(["cmake", "-DBUILD_MWINIIMPORTER=ON", build.dir], env=build.env, stdout=subprocess.DEVNULL)
+        build.build(["openmw-iniimporter"])
+    finally:
+        (build.dir / CONFIGURED_FROM).unlink(missing_ok=True)
 
     cfg.parent.mkdir(parents=True, exist_ok=True)
     cfg.write_text(f'data="{install / "Data Files"}"\n')

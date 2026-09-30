@@ -17,6 +17,7 @@ namespace Resource
 
 namespace Rtx
 {
+    class ContentPreprocessor;
     class SceneDesc;
 
     /// Which of the two moons over Vvardenfell.
@@ -81,10 +82,17 @@ namespace Rtx
         osg::Vec3f getPaintedIrradiance() const { return osg::componentMultiply(mIrradiance, mPaint); }
     };
 
+    /// The mean opaque texel of `tx_masser_full.dds` and `tx_secunda_full.dds`, linear —
+    /// `MeanTexel::opaque` of the shipped portraits, which is what a face that opens is measured
+    /// by: one red, one grey. What a moon whose face does not open is lit as; a face that opens is
+    /// measured instead, so a replaced portrait lights as it is painted.
+    inline const osg::Vec3f sShippedMasserFace(0.03282f, 0.00981f, 0.01213f);
+    inline const osg::Vec3f sShippedSecundaFace(0.04356f, 0.03686f, 0.02912f);
+
     /// The two painted faces, in a scene's texture table, held through the list `addMoonFaces`
     /// fills rather than named by a material: the disc is drawn by a ray that reached nothing, and
-    /// a slot nothing holds is freed. And how wide each is drawn, which is fixed for the run and read
-    /// with them.
+    /// a slot nothing holds is freed. And how wide each is drawn and what each averages, which are
+    /// fixed for the run and read with them.
     struct MoonFaces
     {
         Index mMasser = sNoIndex;
@@ -94,8 +102,14 @@ namespace Rtx
         float mMasserRadius = 0.0f;
         float mSecundaRadius = 0.0f;
 
+        /// Each face's mean opaque texel, linear: the moon's colour, and the ratio between the two
+        /// that tells them apart at a glance.
+        osg::Vec3f mMasserMean = sShippedMasserFace;
+        osg::Vec3f mSecundaMean = sShippedSecundaFace;
+
         Index of(Moon moon) const { return moon == Moon::Masser ? mMasser : mSecunda; }
         float radiusOf(Moon moon) const { return moon == Moon::Masser ? mMasserRadius : mSecundaRadius; }
+        const osg::Vec3f& meanOf(Moon moon) const { return moon == Moon::Masser ? mMasserMean : mSecundaMean; }
     };
 
     /// Each moon's `Moons_<name>_Size`, as the configuration states it, which the host passes in.
@@ -114,12 +128,12 @@ namespace Rtx
     }
 
     /// Adds each moon's face, `moonFaceOf`, opened from `images`, to `scene`, appending a hold on
-    /// each to `holds`, which the caller gives back when the world goes, and how wide `sizes`
-    /// draws each moon. A moon drawn from the mean of
+    /// each to `holds`, which the caller gives back when the world goes, how wide `sizes` draws each
+    /// moon, and what each face averages, measured through `content`. A moon drawn from the mean of
     /// its portrait is a coloured circle. A moon of size nought is not drawn, as the game draws
     /// none; one whose size is below nought or not finite is refused to `scene`.
-    MoonFaces addMoonFaces(
-        SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes, std::vector<TextureHold>& holds);
+    MoonFaces addMoonFaces(SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes,
+        std::vector<TextureHold>& holds, ContentPreprocessor& content);
 
     /// A moon placed from angles `MWWorld::MoonModel` worked out. What a moon *is* once those
     /// angles are known — where its face points, how wide it is, which way its terminator falls —

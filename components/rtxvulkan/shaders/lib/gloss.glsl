@@ -86,7 +86,7 @@ Gloss glossOf(Surface surface)
     if (!HAS_MAPS || !(max(max(surface.mSpecular.r, surface.mSpecular.g), surface.mSpecular.b) > 0.0))
         return gloss;
 
-    gloss.mNormal = facingRay(surface.mNormal, surface.mGeometric, surface.mIncident, SHADING_MIN_FACING);
+    gloss.mNormal = facingRay(surface.mNormal, surface.mGeometric, surface.mIncident);
     gloss.mToEyeCosine = dot(gloss.mNormal, gloss.mToEye);
     if (!(gloss.mToEyeCosine > 0.0))
         return gloss;

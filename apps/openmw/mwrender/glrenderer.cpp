@@ -415,6 +415,7 @@ namespace MWRender
     {
         assert(mSceneRoot != nullptr && "the world is built under a root this renderer made");
         mWorld = std::make_unique<GlWorld>(*mViewer, world, worldRoot, *mSceneRoot, getResources());
+        mSceneRoot = nullptr;
 
         // **The chain goes above the world and becomes what is traversed.**
         setTraversalRoot(mWorld->getPostProcessor());
@@ -423,7 +424,6 @@ namespace MWRender
     void GlRenderer::detachWorld()
     {
         mWorld.reset();
-        mSceneRoot = nullptr;
     }
 
     PostProcessor* GlRenderer::getPostProcessor()

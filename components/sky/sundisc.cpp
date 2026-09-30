@@ -33,7 +33,7 @@ namespace Sky
         osg::Vec3f position = -direction;
 
         // This is based on the exterior sun orbit and won't make sense for interiors, see WeatherManager::update
-        position.z() = 400.f - std::abs(position.x());
+        position.z() = sSunSwing - std::abs(position.x());
 
         return position;
     }

@@ -29,15 +29,13 @@ namespace Rtx
         const Image& mColour;
 
         /// `CHANNEL_SURFACE`: the distance from the eye along each pixel's ray in `g`, which the
-        /// upscaler's depth is worked out from (`fsrcallbacks.glsl`).
+        /// upscaler's depth is worked out from (`fsrcallbacks.glsl`), and in its sign the eye the
+        /// ray left.
         const Image& mSurface;
 
         /// Where each surface stood on the previous frame's screen, less where it was sampled on this
         /// one, in render pixels.
         const Image& mMotion;
-
-        /// `CHANNEL_PUFFS`, for the one bit that says which eye a pixel's ray left.
-        const Image& mPuffs;
 
         /// `CHANNEL_UPSCALE_MASKS`: the reactive mask and the transparency and composition mask, as
         /// the trace measured what `mMotion` does not describe.
@@ -75,7 +73,7 @@ namespace Rtx
 
         /// Builds what the upscaler keeps for one pair of extents and the image it writes, releasing
         /// the last, and clears all of it: the frame after starts a history of its own. Once per
-        /// resolution, and never per frame. The caller has waited for anything still reading the old.
+        /// resolution, and never per frame.
         void resize(VkExtent2D render, VkExtent2D output);
 
         /// Lets what `resize` built go and keeps the pipelines, for a mode turned off that may come back.

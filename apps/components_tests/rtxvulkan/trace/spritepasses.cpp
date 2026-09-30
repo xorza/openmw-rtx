@@ -26,7 +26,7 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
-#include <components/rtxvulkan/scene/spritepasses.hpp>
+#include <components/rtxvulkan/trace/spritepasses.hpp>
 
 namespace Rtx
 {

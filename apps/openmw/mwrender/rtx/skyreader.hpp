@@ -72,7 +72,10 @@ namespace MWRender
         /// Moves the sky's clocks on by one frame: the deck's scroll and the seconds the fog drifts
         /// by. Every unpaused frame the sky is on, as the rasterizer's dome
         /// steps its own.
-        void step(float seconds, float timeScale, float cloudSpeed) { mClock.step(seconds, timeScale, cloudSpeed); }
+        void step(float seconds, float timeScale, float cloudSpeed)
+        {
+            mClock.step(seconds, timeScale, cloudSpeed, mTimescaleClouds);
+        }
 
         /// Stands the air's clocks at `air`, in place of wherever this session's frames carried them:
         /// the sky's own and the fog's carry together, because they are one moment.
@@ -104,6 +107,10 @@ namespace MWRender
         /// The deck and the fog's seconds, this renderer's own: the dome keeps its own deck and
         /// neither reads the other's.
         Sky::SkyClock mClock;
+
+        /// `Weather_Timescale_Clouds`, read where a world is attached: the content's word on how
+        /// its decks are paced (`Sky::cloudScrollStep`).
+        bool mTimescaleClouds = false;
 
         /// How far the air has been carried since the run began: the one world fact that is an
         /// integral over the frames rather than a reading of one, so it lives beside the clock.
